@@ -1,0 +1,18 @@
+# @okfit/cli
+
+## 0.1.0
+
+### Features
+
+- Bootstrap the okfit monorepo with package skeletons for core, profiles, cli, mcp, plugin, and the Claude Code plugin.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.0.0 | 0.1.0 |
+| @okfit/profiles | dependency | updated | 0.0.0 | 0.1.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!

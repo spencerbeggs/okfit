@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/profiles",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"private": true,
 	"description": "Named OKF configuration profiles for okfit, starting with the software-project profile.",
 	"keywords": ["okf", "open-knowledge-format", "profiles", "effect"],
