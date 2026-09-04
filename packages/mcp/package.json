@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/mcp",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"private": true,
 	"description": "Model Context Protocol server for okfit: query and understand Open Knowledge Format (OKF) bundles from an agent.",
 	"keywords": ["okf", "open-knowledge-format", "mcp", "model-context-protocol", "claude", "effect"],
