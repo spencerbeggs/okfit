@@ -1,0 +1,29 @@
+{
+	"repos": {
+		"effect": {
+			"url": "https://github.com/Effect-TS/effect.git",
+			"ref": "effect@4.0.0-rc.109",
+			"purpose": "Read-only Effect v4 source pinned to the tag matching the effect catalog. The authority on what v4 actually exports, plus the v3 to v4 migration notes and the @effect/vitest reference implementation.",
+			"sparse": [
+				"packages/effect",
+				"packages/vitest",
+				"migration",
+				"ai-docs",
+				"LLMS.md",
+				"MIGRATION.md"
+			],
+			"orientation": {
+				"layout": "Sparse checkout: packages/effect (core source + package.json exports map), packages/vitest (@effect/vitest reference implementation), migration/ (per-domain v3 to v4 notes), ai-docs/, LLMS.md, MIGRATION.md. Services and tags live in Context.ts; there is no ServiceMap.ts. Context.Key<Id, Shape> extends Effect<Shape, never, Id>, so v4 tags and Service classes are first-class Effects.",
+				"keyPaths": {
+					"effect-source": "packages/effect/src",
+					"unstable-modules": "packages/effect/src/unstable",
+					"cli": "packages/effect/src/unstable/cli",
+					"graph": "packages/effect/src/Graph.ts",
+					"migration-notes": "migration",
+					"vitest-reference": "packages/vitest/src"
+				},
+				"startHere": "packages/effect/src settles what v4 actually exports; migration/*.md settles v3 to v4 renames. Before trusting an answer, check the pin matches the installed effect version; node_modules wins on disagreement."
+			}
+		}
+	}
+}
