@@ -1,0 +1,25 @@
+{
+	"files.exclude": {
+		"**/.coverage": true,
+		"**/.rslib": true,
+		"**/.turbo": false,
+		"**/.vitest": true,
+		"**/*.tsbuildinfo": true,
+		"**/dist": false,
+		"**/node_modules": false
+	},
+	"markdown.styles": [".vscode/static/github-markdown.css"],
+	"markdownlint.configFile": "./lib/configs/.markdownlint-cli2.jsonc",
+	"search.exclude": {
+		"**/.coverage": true,
+		"**/.repos": true,
+		"**/.rslib": true,
+		"**/.turbo": true,
+		"**/.vitest": true,
+		"**/*.tsbuildinfo": true,
+		"**/CHANGELOG.md": true,
+		"**/dist": true,
+		"**/node_modules": true,
+		"pnpm-lock.yaml": true
+	}
+}
