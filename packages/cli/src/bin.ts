@@ -14,4 +14,4 @@ import { CLI_VERSION, rootCommand } from "./index.js";
 
 const cli = Command.run(rootCommand, { version: CLI_VERSION });
 
-NodeRuntime.runMain(cli.pipe(Effect.provide(NodeServices.layer)) as Effect.Effect<void>);
+NodeRuntime.runMain(cli.pipe(Effect.provide(NodeServices.layer)));

@@ -11,3 +11,10 @@ this package.
 src/
   index.ts    -- OKFIT_BINS constant only
 ```
+
+## Dependencies versus peers
+
+The spec calls `@okfit/cli` and `@okfit/mcp` peer dependencies. They are
+declared as regular dependencies for now because `workspace:*` peers do
+not give the monorepo root a runnable `okfit` bin. Revisit before the
+first npm publish.
