@@ -1,0 +1,57 @@
+{
+	"name": "@okfit/mcp",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Model Context Protocol server for okfit: query and understand Open Knowledge Format (OKF) bundles from an agent.",
+	"keywords": ["okf", "open-knowledge-format", "mcp", "model-context-protocol", "claude", "effect"],
+	"homepage": "https://github.com/spencerbeggs/okfit/tree/main/packages/mcp#readme",
+	"bugs": {
+		"url": "https://github.com/spencerbeggs/okfit/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/spencerbeggs/okfit.git",
+		"directory": "packages/mcp"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "C. Spencer Beggs",
+		"email": "spencer@beggs.codes",
+		"url": "https://spencerbeg.gs"
+	},
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./package.json": "./package.json"
+	},
+	"bin": {
+		"okfit-mcp": "./src/bin.ts"
+	},
+	"scripts": {
+		"build:dev": "node savvy.build.ts --target dev",
+		"build:prod": "node savvy.build.ts --target prod",
+		"prepare": "turbo run build:dev",
+		"types:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@okfit/core": "workspace:*",
+		"effect": "catalog:effect"
+	},
+	"devDependencies": {
+		"@savvy-web/bundler": "^2.2.0",
+		"@types/node": "catalog:build",
+		"typescript": "catalog:build",
+		"vitest": "catalog:test"
+	},
+	"engines": {
+		"node": ">=24.11.0"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "dist/dev/pkg",
+		"linkDirectory": true,
+		"targets": {
+			"npm": true
+		}
+	}
+}
