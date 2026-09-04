@@ -22,7 +22,7 @@ export default async () => {
 				enabled: true,
 				provider: "v8",
 				thresholds: AgentPlugin.COVERAGE_LEVELS.none.thresholds,
-				exclude: [],
+				exclude: ["**/*.{test,spec}.ts", "packages/cli/src/bin.ts", "packages/mcp/src/bin.ts"],
 			},
 		},
 	});

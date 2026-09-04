@@ -11,6 +11,7 @@
 				"$TURBO_ROOT$/pnpm-workspace.yaml",
 				"$TURBO_ROOT$/pnpm-lock.yaml",
 				"$TURBO_ROOT$/tsconfig.json",
+				"!$TURBO_ROOT$/docs/**",
 				"README.md",
 				"LICENSE",
 				"package.json",
@@ -18,9 +19,11 @@
 				"*.ts",
 				"*.mts",
 				"*.cts",
-				"public/**/*",
 				"lib/**/*",
-				"src/**/*"
+				"src/**/*",
+				"!__test__/**/*",
+				"!CHANGELOG.md",
+				"!CLAUDE.md"
 			],
 			"outputLogs": "errors-only",
 			"outputs": ["dist/dev/**"]
@@ -35,6 +38,7 @@
 				"$TURBO_ROOT$/pnpm-lock.yaml",
 				"$TURBO_ROOT$/tsconfig.json",
 				"$TURBO_ROOT$/.changeset/**",
+				"!$TURBO_ROOT$/docs/**",
 				"README.md",
 				"LICENSE",
 				"package.json",
@@ -42,9 +46,11 @@
 				"*.ts",
 				"*.mts",
 				"*.cts",
-				"public/**/*",
 				"lib/**/*",
-				"src/**/*"
+				"src/**/*",
+				"!__test__/**/*",
+				"!CHANGELOG.md",
+				"!CLAUDE.md"
 			],
 			"outputLogs": "full",
 			"outputs": ["dist/prod/**"]
@@ -58,17 +64,10 @@
 				"*.mts",
 				"*.cts",
 				"src/**/*.ts",
-				"src/**/*.tsx",
 				"src/**/*.mts",
 				"src/**/*.cts",
 				"lib/**/*.ts",
-				"lib/**/*.tsx",
-				"lib/**/*.mts",
-				"lib/**/*.cts",
-				"__test__/**/*.ts",
-				"__test__/**/*.tsx",
-				"__test__/**/*.mts",
-				"__test__/**/*.cts"
+				"__test__/**/*.ts"
 			],
 			"outputLogs": "errors-only",
 			"outputs": ["dist/.tsbuildinfo.lib"]
