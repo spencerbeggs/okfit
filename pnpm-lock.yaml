@@ -33,6 +33,26 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  build:
+    '@types/node':
+      specifier: ^26.4.0
+      version: 26.4.1
+    typescript:
+      specifier: ^7.0.2
+      version: 7.0.2
+  effect:
+    '@effect/platform-node':
+      specifier: 4.0.0-rc.109
+      version: 4.0.0-rc.109
+    effect:
+      specifier: 4.0.0-rc.109
+      version: 4.0.0-rc.109
+  test:
+    vitest:
+      specifier: ^4.1.11
+      version: 4.1.11
+
 overrides:
   '@microsoft/api-extractor>typescript': ^6.0.3
 
@@ -42,15 +62,138 @@ importers:
 
   .:
     devDependencies:
-      '@savvy-web/bundler':
-        specifier: ^2.2.0
-        version: 2.2.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
+      '@okfit/cli':
+        specifier: workspace:*
+        version: link:packages/cli/dist/dev/pkg
+      '@okfit/mcp':
+        specifier: workspace:*
+        version: link:packages/mcp/dist/dev/pkg
+      '@okfit/plugin':
+        specifier: workspace:*
+        version: link:packages/plugin/dist/dev/pkg
       '@savvy-web/silk':
         specifier: ^3.11.6
         version: 3.11.6(@changesets/cli@3.0.1)(@commitlint/cli@21.2.2(@types/node@26.4.1)(conventional-commits-parser@7.1.2)(typescript@7.0.2))(@commitlint/config-conventional@21.2.2)(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/toml@0.5.0(effect@4.0.0-rc.109))(@types/bun@1.4.0)(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(husky@9.1.7)(lint-staged@17.4.1)(markdownlint-cli2-formatter-codequality@0.0.7(markdownlint-cli2@0.23.2(supports-color@8.1.1)))(markdownlint-cli2@0.23.2(supports-color@8.1.1))(redis@6.2.1)(supports-color@8.1.1)(tsx@4.23.13)(turbo@2.10.12)(typescript@7.0.2)(vitest@4.1.11)
       '@vitest-agent/plugin':
         specifier: ^2.5.4
         version: 2.5.4(@effected/glob@0.4.0(effect@4.0.0-rc.109))(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(redis@6.2.1)(supports-color@8.1.1)(typescript@7.0.2)(vitest@4.1.11)
+
+  packages/cli:
+    dependencies:
+      '@effect/platform-node':
+        specifier: catalog:effect
+        version: 4.0.0-rc.109(effect@4.0.0-rc.109)(redis@6.2.1)
+      '@okfit/core':
+        specifier: workspace:*
+        version: link:../core/dist/dev/pkg
+      '@okfit/profiles':
+        specifier: workspace:*
+        version: link:../profiles/dist/dev/pkg
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.109
+    devDependencies:
+      '@savvy-web/bundler':
+        specifier: ^2.2.0
+        version: 2.2.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
+      '@types/node':
+        specifier: catalog:build
+        version: 26.4.1
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:test
+        version: 4.1.11(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.0))
+    publishDirectory: dist/dev/pkg
+
+  packages/core:
+    dependencies:
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.109
+    devDependencies:
+      '@savvy-web/bundler':
+        specifier: ^2.2.0
+        version: 2.2.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
+      '@types/node':
+        specifier: catalog:build
+        version: 26.4.1
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:test
+        version: 4.1.11(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.0))
+    publishDirectory: dist/dev/pkg
+
+  packages/mcp:
+    dependencies:
+      '@okfit/core':
+        specifier: workspace:*
+        version: link:../core/dist/dev/pkg
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.109
+    devDependencies:
+      '@savvy-web/bundler':
+        specifier: ^2.2.0
+        version: 2.2.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
+      '@types/node':
+        specifier: catalog:build
+        version: 26.4.1
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:test
+        version: 4.1.11(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.0))
+    publishDirectory: dist/dev/pkg
+
+  packages/plugin:
+    dependencies:
+      '@okfit/cli':
+        specifier: workspace:*
+        version: link:../cli/dist/dev/pkg
+      '@okfit/mcp':
+        specifier: workspace:*
+        version: link:../mcp/dist/dev/pkg
+    devDependencies:
+      '@savvy-web/bundler':
+        specifier: ^2.2.0
+        version: 2.2.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
+      '@types/node':
+        specifier: catalog:build
+        version: 26.4.1
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:test
+        version: 4.1.11(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.0))
+    publishDirectory: dist/dev/pkg
+
+  packages/profiles:
+    dependencies:
+      '@okfit/core':
+        specifier: workspace:*
+        version: link:../core/dist/dev/pkg
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.109
+    devDependencies:
+      '@savvy-web/bundler':
+        specifier: ^2.2.0
+        version: 2.2.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
+      '@types/node':
+        specifier: catalog:build
+        version: 26.4.1
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:test
+        version: 4.1.11(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.0))
     publishDirectory: dist/dev/pkg
 
 packages:

@@ -7,7 +7,7 @@ const BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "bin"
 describe("okfit bin", () => {
 	it("prints its version", () => {
 		const stdout = execFileSync(process.execPath, [BIN, "--version"], { encoding: "utf8" });
-		expect(stdout.trim()).toBe("0.0.0");
+		expect(stdout.trim()).toBe("okfit v0.0.0");
 	});
 
 	it("prints help without a subcommand", () => {
