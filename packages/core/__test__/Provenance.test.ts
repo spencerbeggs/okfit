@@ -54,7 +54,7 @@ describe("Verification.List", () => {
 			assert.deepStrictEqual(yield* decodeList([]), []);
 			assert.strictEqual((yield* Effect.flip(decodeList([{ by: "human:y" }])))._tag, "SchemaError");
 			const encoded = yield* Schema.encodeUnknownEffect(Verification.List)(bare);
-			assert.deepStrictEqual(encoded, [{ by: "human:kliu@acme", at: "2026-07-01T16:00:00.000Z" }]);
+			assert.deepStrictEqual(encoded, [{ by: "human:kliu@acme", at: "2026-07-01T16:00:00Z" }]);
 		}),
 	);
 });
