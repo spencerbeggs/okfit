@@ -141,10 +141,11 @@ export class GitHistory extends Context.Service<GitHistory, GitHistoryShape>()("
 	/**
 	 * Live layer (P-1, P-5, P-11): one `git log` spawn per call through `ChildProcessSpawner`, resolved once
 	 * at construction like `Git.layer`, so every member's `R` is `never`. Classification, in order: a spawn
-	 * `PlatformError` -> `GitHistoryError { detail }`; exit 0 -> parse; stderr `not a git repository` ->
-	 * `NotARepositoryError`; `does not have any commits yet` / `unknown revision` -> `[]`; otherwise
-	 * `GitHistoryError { exitCode, stderr }`. Malformed stdout and a date `Timestamp` rejects are
-	 * `GitHistoryError { detail }`. The CLI provides `ChildProcessSpawner` through `NodeServices.layer` (P-30).
+	 * `PlatformError` becomes `GitHistoryError { detail }`; exit 0 is parsed; stderr `not a git repository`
+	 * yields `NotARepositoryError`; `does not have any commits yet` / `unknown revision` yields an empty
+	 * array; otherwise the failure becomes `GitHistoryError { exitCode, stderr }`. Malformed stdout and a
+	 * date `Timestamp` rejects are `GitHistoryError { detail }`. The CLI provides `ChildProcessSpawner`
+	 * through `NodeServices.layer` (P-30).
 	 */
 	static readonly layer: Layer.Layer<GitHistory, never, ChildProcessSpawner.ChildProcessSpawner> = Layer.effect(
 		// EF/Layer.ts:1014
