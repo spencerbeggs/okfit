@@ -1,0 +1,255 @@
+#!/usr/bin/env bats
+# post-tool-use-validate.bats — covers hooks/post-tool-use/validate.sh against every
+# branch of contract section 6.2.
+
+PLUGIN_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+SCRIPT="$PLUGIN_ROOT/hooks/post-tool-use/validate.sh"
+FIXTURES="$PLUGIN_ROOT/hooks/fixtures"
+RENDER="$PLUGIN_ROOT/__test__/lib/render-fixture.sh"
+REPO_ROOT="$(cd "$PLUGIN_ROOT/../.." && pwd)"
+
+setup() {
+	STUB_DIR="$(mktemp -d)"
+}
+
+teardown() {
+	rm -rf "$STUB_DIR"
+	unset OKFIT_HOOKS OKFIT_VALIDATE_HOOK OKFIT_CLI_CMD
+}
+
+# _barebin dir — symlinks to every external tool validate.sh needs, minus
+# okfit — the "no CLI resolves" seam.
+_barebin() {
+	local dir="$1"
+	local tool
+	for tool in bash jq cat; do
+		ln -sf "$(command -v "$tool")" "$dir/$tool"
+	done
+}
+
+# _stub_cli context_json validate_json [validate_exit] — branches on $1
+# (context vs validate). Writes a sentinel file on the validate branch so a
+# test can assert the expensive call never happened (contract section 9.3).
+_stub_cli() {
+	local ctx_json="$1" val_json="$2" val_rc="${3:-0}"
+	cat >"$STUB_DIR/okfit" <<EOF
+#!/bin/bash
+case "\$1" in
+	context)
+		printf '%s\n' '${ctx_json}'
+		exit 0
+		;;
+	validate)
+		touch "${STUB_DIR}/validate-invoked"
+		printf '%s\n' '${val_json}'
+		exit ${val_rc}
+		;;
+esac
+EOF
+	chmod +x "$STUB_DIR/okfit"
+	export OKFIT_CLI_CMD="$STUB_DIR/okfit"
+}
+
+_ctx() {
+	# _ctx bundle_root project_root
+	printf '{"schema":1,"project_root":"%s","bundle_root":"%s","config_path":null,"profile":"software-project","index_path":"%s/index.md","index_exists":true,"actors":{"agent":"okfit/claude-code"},"types":[],"tags":[]}' "$2" "$1" "$1"
+}
+
+# _run_hook envelope_json [path_override] [project_dir] — env -i plus only
+# what a real dispatch provides. stderr goes to $STUB_DIR/stderr, never
+# merged into $output (see session-start-orientation.bats for why).
+_run_hook() {
+	local envelope="$1"
+	local path_override="${2:-$PATH}"
+	local project_dir="${3:-$REPO_ROOT}"
+	env -i \
+		PATH="$path_override" \
+		CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+		CLAUDE_PROJECT_DIR="$project_dir" \
+		OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
+		OKFIT_HOOKS="${OKFIT_HOOKS:-}" \
+		OKFIT_VALIDATE_HOOK="${OKFIT_VALIDATE_HOOK:-}" \
+		bash "$SCRIPT" <<<"$envelope" 2>"$STUB_DIR/stderr"
+}
+
+_run_hook_file() {
+	local envelope_file="$1"
+	"$RENDER" "$envelope_file" | env -i \
+		PATH="$PATH" \
+		CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+		CLAUDE_PROJECT_DIR="$REPO_ROOT" \
+		OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
+		OKFIT_HOOKS="${OKFIT_HOOKS:-}" \
+		OKFIT_VALIDATE_HOOK="${OKFIT_VALIDATE_HOOK:-}" \
+		bash "$SCRIPT" 2>"$STUB_DIR/stderr"
+}
+
+@test "no-ops with OKFIT_HOOKS=off and never invokes the stub" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	export OKFIT_HOOKS=off
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "no-ops with OKFIT_VALIDATE_HOOK=off and never invokes the stub" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	export OKFIT_VALIDATE_HOOK=off
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "allows silently with one stderr line when jq is missing" {
+	local barebin
+	barebin="$(mktemp -d)"
+	ln -sf "$(command -v bash)" "$barebin/bash"
+	ln -sf "$(command -v cat)" "$barebin/cat"
+	run _run_hook '{}' "$barebin"
+	rm -rf "$barebin"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ "$(cat "$STUB_DIR/stderr")" = "okfit: jq not found; validate hook allowing silently." ]
+}
+
+@test "allows silently with one stderr line when okfit_cli resolves nothing" {
+	local barebin
+	barebin="$(mktemp -d)"
+	_barebin "$barebin"
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$REPO_ROOT"'/okf/x.md"},"cwd":"'"$REPO_ROOT"'"}' "$barebin"
+	rm -rf "$barebin"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ "$(cat "$STUB_DIR/stderr")" = "okfit: CLI not found; validate hook allowing silently." ]
+}
+
+@test "ignores a tool_name that is not Write or Edit" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook_file "$FIXTURES/posttooluse.read-ignored.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "ignores an empty tool_input.file_path" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":""},"cwd":"'"$REPO_ROOT"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+}
+
+@test "no-ops outside the bundle root without invoking the validate stub" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"unrelated.ts","code":"x","severity":"error","message":"m"}]}' 2
+	run _run_hook_file "$FIXTURES/posttooluse.write-outside.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "treats a JsonErrorEnvelope (exit_code 3) as a warning, never a block" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"okfit_version":"0.1.0","exit_code":3,"error":{"tag":"ConfigMalformedError","message":"bad toml"}}' 3
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '(.decision // "none") != "block"'
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+		| contains("okfit validate could not run for modules/example.md: bad toml.")'
+}
+
+@test "blocks on a core.conformance diagnostic for the edited file" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"type is required"}]}' 2
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.decision == "block"'
+	echo "$output" | jq -e '.reason | contains("type-missing") and contains("type is required")'
+}
+
+@test "does not block on a core.conformance diagnostic for a DIFFERENT file" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/other.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+}
+
+@test "warns without blocking on a core.lint diagnostic for the edited file" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":1,"diagnostics":[{"source":"core.lint","file":"modules/example.md","code":"broken-links","severity":"warning","message":"dangling link"}]}' 1
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '(.decision // "none") != "block"'
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+		| contains("modules/example.md: 1 lint warning(s):") and contains("broken-links")'
+}
+
+@test "warns without blocking on a profile diagnostic for the edited file" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":1,"diagnostics":[{"source":"profile","file":"modules/example.md","code":"project-missing","severity":"error","message":"missing Project"}]}' 1
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '(.decision // "none") != "block"'
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext | contains("project-missing")'
+}
+
+@test "ignores a bundle-level diagnostic whose file is the empty string" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":1,"diagnostics":[{"source":"core.lint","file":"","code":"missing-index","severity":"warning","message":"no index"}]}' 1
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+}
+
+@test "no-ops when the stub reports zero diagnostics" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "blocks on an Edit of index.md exactly like any other concept file" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"index.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+	run _run_hook_file "$FIXTURES/posttooluse.edit-index.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.decision == "block"'
+	echo "$output" | jq -e '.reason | startswith("index.md:")'
+}
+
+@test "classifies correctly when bundle_root equals project_root" {
+	_stub_cli "$(_ctx "$REPO_ROOT" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"okf/modules/example.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$REPO_ROOT"'/okf/modules/example.md"},"cwd":"'"$REPO_ROOT"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.decision == "block"'
+}
+
+@test "quotes a file path containing a space through every branch" {
+	local spaced="$STUB_DIR/fake proj"
+	mkdir -p "$spaced/okf/modules"
+	_stub_cli "$(_ctx "$spaced/okf" "$spaced")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example file.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$spaced"'/okf/modules/example file.md"},"cwd":"'"$spaced"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.decision == "block"'
+	echo "$output" | jq -e '.reason | startswith("modules/example file.md:")'
+}
+
+@test "resolves node_modules/.bin/okfit with OKFIT_CLI_CMD unset" {
+	[ -n "${OKFIT_BIN:-}" ] && [ -x "${OKFIT_BIN:-}" ] || skip "OKFIT_BIN not set; skipping the production-resolution smoke test"
+	local project_dir
+	project_dir="$(mktemp -d)"
+	mkdir -p "$project_dir/node_modules/.bin" "$project_dir/okf"
+	cp "$OKFIT_BIN" "$project_dir/node_modules/.bin/okfit"
+	chmod +x "$project_dir/node_modules/.bin/okfit"
+	local barebin
+	barebin="$(mktemp -d)"
+	_barebin "$barebin"
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$project_dir"'/okf/x.md"},"cwd":"'"$project_dir"'"}' "$barebin" "$project_dir"
+	rm -rf "$project_dir" "$barebin"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -es 'length == 1'
+}
