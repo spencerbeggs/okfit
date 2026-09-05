@@ -3,7 +3,7 @@ import { ConfigIssueRenderer } from "@effected/cli";
 import { ConfigValidationError } from "@effected/config-file";
 import { Option, Result, Runtime, Schema } from "effect";
 import { CliError } from "effect/unstable/cli";
-import { ConfigPathNotFoundError, InitOverwriteError, renderFailure } from "../src/errors.js";
+import { ConfigMalformedError, ConfigPathNotFoundError, InitOverwriteError, renderFailure } from "../src/errors.js";
 
 describe("ConfigPathNotFoundError", () => {
 	it("carries exit code 3 and names the path", () => {
@@ -30,6 +30,11 @@ describe("renderFailure", () => {
 	it("renders ConfigPathNotFoundError as one error line", () => {
 		const error = new ConfigPathNotFoundError({ path: "/abs/ci-config.toml" });
 		assert.deepStrictEqual(renderFailure(error), ["error: config path not found: /abs/ci-config.toml"]);
+	});
+
+	it("renders ConfigMalformedError as one error line naming the path and the cause (K-46)", () => {
+		const error = new ConfigMalformedError({ path: "/abs/ci-config.toml", cause: new Error("toml parse failed") });
+		assert.deepStrictEqual(renderFailure(error), ["error: malformed config /abs/ci-config.toml: toml parse failed"]);
 	});
 
 	it("renders InitOverwriteError as the header, one indented path per conflict, and the footer, relativised to cwd", () => {

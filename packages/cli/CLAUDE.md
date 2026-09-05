@@ -100,7 +100,14 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type imports
   are separate `import type` statements. TSDoc `@public` on every `src/`
   export. Tab indentation.
-- `savvy.build.ts` keeps the `_base` `ae-forgotten-export` suppression for
-  the inline `Schema.TaggedError`/`Context.Service` classes (`errors.ts`,
-  `validate/run.ts`'s `Now`) rather than hand-exporting a synthesized base.
+- `savvy.build.ts` keeps two `ae-forgotten-export` suppressions: `_base`, for
+  the inline `Schema.TaggedError` classes (`errors.ts`) rather than
+  hand-exporting a synthesized base; and `"Now"`, because `validate/run.ts`'s
+  `Now` (`@internal`, not in the barrel — K-49) still appears in
+  `rootCommand`'s inferred requirements once a subcommand that reads it is
+  registered. Confirmed by removing the `"Now"` suppression and rebuilding:
+  `dist/prod/issues.json` comes back non-empty (one `ae-forgotten-export`
+  warning naming `Now`) without it.
+- `ConfigMalformedError` (`errors.ts`) is a K-63 addition to the contract's
+  `src/index.ts` barrel list, not in the original contract text.
 - Commits are conventional, DCO signed, and never on `main`.

@@ -198,8 +198,8 @@ envelope to stdout and exits `3`:
 Every message `okfit` prints is lowercase, starts `error:` or `warning:`,
 never ends with a trailing period, and renders a path relative to the
 current directory when the path is under it, absolute otherwise. Colour, when
-the terminal supports it and `NO_COLOR` is unset, wraps only the severity
-word — never the code, the path, or the message text.
+stdout is a TTY and `NO_COLOR` is not `1`, wraps only the severity word —
+never the code, the path, or the message text.
 
 ## License
 
