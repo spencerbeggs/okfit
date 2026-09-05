@@ -96,7 +96,7 @@ resolves, the session hook prints a one-line nudge to install
 line to stderr. Neither hook ever runs `npx`, and neither ever exits
 non-zero — every decision travels in the JSON body, never in the exit code.
 Both hook scripts are invoked as `bash "$path"` (see `hooks/hooks.json`),
-not executed directly, because the repo strips executable bits on commit.
+not executed directly.
 
 ## MCP loader
 

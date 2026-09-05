@@ -7,7 +7,7 @@ description: >-
   the okf/ bundle or its context files, before handing off to a human for
   commit and changeset. Trigger phrases -- "finalize the bundle", "wrap up
   the okf changes", "reconcile the docs before merging", "sweep the bundle".
-allowed-tools: Read, Grep, Glob, Edit, Bash(git diff:*), Bash(okfit validate:*), Bash(okfit context:*)
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff:*), Bash(okfit:*), Bash(pnpm exec okfit:*), Bash(npx okfit:*), Bash(node_modules/.bin/okfit:*)
 ---
 
 # okf-finalize
@@ -40,6 +40,8 @@ that stays a human's call (Spencer's standing rule), restated here because
 this is the one skill in the group whose `allowed-tools` includes a
 `Bash(...)` grant at all, and therefore the one place the commit boundary
 could be crossed by accident. The grants above are scoped to `git diff:*`
-and `okfit validate:*` / `okfit context:*` precisely so `git commit` is
-never pre-approved -- running this skill to completion means describing
-what changed and stopping there.
+and every real invocation form `okfit` is actually run through in this repo
+-- direct (`okfit:*`), `pnpm exec okfit:*`, `npx okfit:*`, and
+`node_modules/.bin/okfit:*` -- precisely so `git commit` is never
+pre-approved -- running this skill to completion means describing what
+changed and stopping there.

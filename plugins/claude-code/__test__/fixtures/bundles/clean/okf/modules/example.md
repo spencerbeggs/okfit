@@ -14,3 +14,7 @@ generated:
 Nothing here is read by production code; this bundle only gives the
 plugin's BATS suites a real file tree to point a PATH-resolved `okfit`
 smoke test at (§9.3), resolving on DEFAULTS.bundle.path/profile alone.
+
+`resource: example.md` deliberately points at this file itself, rather than
+at a real package or module — this synthetic bundle has no package root of
+its own for a `Module` concept to point outward at.

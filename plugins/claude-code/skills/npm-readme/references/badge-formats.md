@@ -33,7 +33,7 @@ Load when: writing or normalizing a badge block.
 | Badge | Skip when |
 | --- | --- |
 | Runtime | `package.json` has no `engines` field, or its value is `*`, `>=0`, or empty |
-| TypeScript | there is no `typescript` devDependency |
+| TypeScript | neither `devDependencies.typescript` nor `dependencies.typescript` is present |
 | npm | never -- every publishable `package.json` carries `name` |
 | License | never -- every publishable `package.json` carries `license` |
 

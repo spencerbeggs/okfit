@@ -56,9 +56,10 @@ is deliberately never a step behind what the hook would catch anyway. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s sixteen rules, run `okfit validate` and fix what it
-reports, regenerate `index.md`/`log.md`'s derived content, check
-`okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
-changed — sequentially, in this one context.
+reports (no dedicated command regenerates `index.md`/`log.md` in phase 1 —
+defer to what `validate`'s own report names as stale and never hand-edit
+either file), check `okf-context`'s CLAUDE.md-to-`index.md` pointer
+coverage, and report what changed — sequentially, in this one context.
 
 ## What this agent does NOT do
 

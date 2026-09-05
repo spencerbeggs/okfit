@@ -112,8 +112,9 @@ of `OkfitConfig` itself -- it never appears in a config file.
 `actors.agent = "okfit/claude-code"` must be present in the repository's
 config for `okf-docs` to have an actor identity to stamp `generated.by`
 with. Nothing in this plugin writes that key: the profile states the reason
-as doctrine -- "`actors.agent` is deliberately unset: which agent writes is
-a fact about the repository, not about the software-project shape." The
+as doctrine -- "`actors.agent` is deliberately unset (P-17): which agent
+writes is a fact about the repository, not about the software-project
+shape." The
 session hook nudges when it is null; a human or a skill-guided edit sets
 it.
 

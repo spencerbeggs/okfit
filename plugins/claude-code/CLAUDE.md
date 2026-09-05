@@ -50,7 +50,7 @@ plugins/claude-code/
     lib/
       render-fixture.sh                -- __REPO_ROOT__ substitution
     fixtures/
-      bundles/clean/                   -- tiny synthetic bundle for the real-CLI smoke tests
+      bundles/clean/                   -- tiny synthetic bundle for the one real-CLI smoke test (conformant baseline, then broken on purpose)
 ```
 
 `hooks/fixtures/` holds Claude Code stdin envelopes only — what the platform
@@ -67,6 +67,14 @@ word-split, unquoted at the call site so a multi-word override works — the
 BATS stubbing seam) → `<project_dir>/node_modules/.bin/okfit` → `okfit` on
 `PATH`. If none resolves, the function returns `1` and prints nothing; hooks
 never fall back to `npx`.
+
+`orientation.sh` bounds two blocks it injects into `additionalContext`,
+each with the same truncation-line pattern: the bundle's `index.md` at
+12,000 bytes, and the combined types+tags vocabulary block at 8,000 bytes
+(Minor 10, final review). Either can still push the whole field over the
+platform's own 10,000-character cap when both are near their own limit;
+that overflow is the platform's file-and-preview fallback to handle, not
+something these two caps guarantee against on their own.
 
 `hooks/hooks.json` declares `SessionStart` orientation (no matcher) and
 `PostToolUse` validate on `Write|Edit` — **not** `PreToolUse`: `PreToolUse`
@@ -87,5 +95,6 @@ Run the BATS suite with `pnpm test:bats` from the repo root (covers every
 `.bats` file under `__test__/`), or a single file directly with
 `pnpm exec bats <file>`.
 
-Never add `verified` entries to a concept from this plugin; only humans do
-that through `okfit verify`.
+Never add `verified` entries to a concept from this plugin; there is no
+`okfit verify` command — only a human adds one, by hand, editing the
+concept's frontmatter directly.
