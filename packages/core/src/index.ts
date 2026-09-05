@@ -4,6 +4,10 @@
  * @packageDocumentation
  */
 
+export type { ActorForm } from "./Actor.js";
+export { Actor } from "./Actor.js";
+export { Timestamp } from "./Timestamp.js";
+
 /**
  * The OKF specification version this package implements.
  *
