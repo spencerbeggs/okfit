@@ -31,7 +31,13 @@ import { CLI_VERSION } from "./version.js";
  *
  * `Xdg.layer` fails with `XdgEnvError` when `HOME` is unset (K-13). That
  * error reaches `reportFailures` and takes its `exitCode: 3` fallback, with
- * no special case anywhere.
+ * no special case anywhere — but only because `Effect.provide(PlatformLayer)`
+ * is applied INSIDE the region `CliRuntime.reportFailures` wraps, below.
+ * `@effected/cli`'s own doc example provides its layer after
+ * `reportFailures`; doing that here would let a failure while building this
+ * layer (an unset `HOME`, say) escape reportFailures entirely and fall to
+ * `NodeRuntime.runMain`'s own fatal-error path — a stack trace on stdout and
+ * exit `1`, not the rendered `exitCode: 3` this module promises.
  */
 const PlatformLayer = Layer.mergeAll(
 	Xdg.layer,
@@ -58,12 +64,19 @@ const program = Effect.gen(function* () {
 		// `CliRuntime.reported` is the kit's own marker helper and also sets
 		// `Runtime.errorReported`, whose polarity is inverted.
 		Effect.catchTag("ShowHelp", (help) => Effect.fail(CliRuntime.reported(help, help.errors.length > 0 ? 64 : 0))),
-		// K-30. `renderFailure` returns `[]` for a `ShowHelp`, because
-		// `Command.runWith` already rendered the help document. The `exitCode: 3`
-		// fallback is the infrastructure tier for any typed error that carries no
-		// code of its own.
-		CliRuntime.reportFailures({ exitCode: 3, render: renderFailure }),
 	);
-});
+}).pipe(
+	// Provided here, INSIDE `reportFailures` below, so a failure while
+	// building `PlatformLayer` (an `XdgEnvError` from an unset `HOME`, K-13)
+	// is itself rendered and mapped to `exitCode: 3` — see the docstring above.
+	Effect.provide(PlatformLayer),
+	// K-30. `renderFailure` returns `[]` for a `ShowHelp`, because
+	// `Command.runWith` already rendered the help document. The `exitCode: 3`
+	// fallback is the infrastructure tier for any typed error that carries no
+	// code of its own.
+	CliRuntime.reportFailures({ exitCode: 3, render: renderFailure }),
+);
 
-NodeRuntime.runMain(program.pipe(Effect.provide(Layer.mergeAll(CliLogger.layer(), PlatformLayer))));
+// `CliLogger.layer()` has no requirements of its own, so it is provided
+// outermost, last — it must be available no matter which branch above fails.
+NodeRuntime.runMain(program.pipe(Effect.provide(CliLogger.layer())));

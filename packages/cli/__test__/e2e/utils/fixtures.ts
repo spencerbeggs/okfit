@@ -17,8 +17,14 @@ export interface Sandbox {
  * under it (contract section 6.3). `PATH` is passed through unmodified;
  * every other variable is a fresh, empty directory under the sandbox root so
  * a real `HOME`/`XDG_*` value on the host machine can never be read.
+ *
+ * `options.home` defaults to `true`; pass `false` to build a sandbox with no
+ * `HOME` entry at all (still creating the directory on disk, unused) — the
+ * one case that needs it is proving the K-13 `XdgEnvError` path (an unset
+ * `HOME`) reaches `renderFailure` and exits `3` rather than crashing with a
+ * raw stack trace.
  */
-export const makeSandbox = async (prefix = "okfit-cli-"): Promise<Sandbox> => {
+export const makeSandbox = async (prefix = "okfit-cli-", options?: { readonly home?: boolean }): Promise<Sandbox> => {
 	const root = await realpath(await mkdtemp(join(tmpdir(), prefix)));
 	const cwd = join(root, "cwd");
 	const home = join(root, "home");
@@ -27,18 +33,19 @@ export const makeSandbox = async (prefix = "okfit-cli-"): Promise<Sandbox> => {
 	const xdgCache = join(root, "xdg-cache");
 	const xdgData = join(root, "xdg-data");
 	await Promise.all([cwd, home, xdgConfig, xdgState, xdgCache, xdgData].map((dir) => mkdir(dir, { recursive: true })));
-	return {
-		cwd,
-		env: {
-			PATH: process.env["PATH"] ?? "",
-			HOME: home,
-			XDG_CONFIG_HOME: xdgConfig,
-			XDG_STATE_HOME: xdgState,
-			XDG_CACHE_HOME: xdgCache,
-			XDG_DATA_HOME: xdgData,
-			NO_COLOR: "1",
-		},
+	const includeHome = options?.home ?? true;
+	const env: Record<string, string> = {
+		PATH: process.env["PATH"] ?? "",
+		XDG_CONFIG_HOME: xdgConfig,
+		XDG_STATE_HOME: xdgState,
+		XDG_CACHE_HOME: xdgCache,
+		XDG_DATA_HOME: xdgData,
+		NO_COLOR: "1",
 	};
+	if (includeHome) {
+		env["HOME"] = home;
+	}
+	return { cwd, env };
 };
 
 /**
