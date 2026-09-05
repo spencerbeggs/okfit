@@ -68,5 +68,6 @@ coverage, and report what changed — sequentially, in this one context.
 - Never edits source code, tests, or any file outside the bundle,
   `CLAUDE.md` files, and package `README.md`s.
 - Never commits, pushes, or writes a changeset.
-- Never hand-edits `index.md` or `log.md` — both are derived; regenerate
-  them, never write into them directly.
+- Never hand-edits `index.md` or `log.md` — both are derived; no command
+  regenerates them in phase 1, so repair what `okfit validate` reports and
+  never write into them directly.
