@@ -6,7 +6,7 @@ import type { IndexEntryInput } from "./internal/templates.js";
 import { indexEntry, indexFrontmatter, indexSection, logEntry } from "./internal/templates.js";
 import type { Status } from "./Status.js";
 
-/** Trust tier from `verified` (OKF 0.2 §5.3): none => unverified; only non-human => machine-confirmed; any `human:` => human-reviewed. @public */
+/** Trust tier from `verified` (OKF 0.2 §5.3): none maps to unverified; only non-human maps to machine-confirmed; any `human:` maps to human-reviewed. @public */
 export const TrustTier = Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]);
 
 /** @public */
@@ -43,7 +43,7 @@ const relativeTarget = (dir: string, path: string): string =>
 export class Derive {
 	private constructor() {}
 
-	/** Any `human:` verifier => human-reviewed; otherwise machine-confirmed; none => unverified. */
+	/** Any `human:` verifier means human-reviewed; otherwise machine-confirmed; none means unverified. */
 	static readonly trustTier = (concept: Concept): TrustTier => {
 		const verified = concept.verified ?? [];
 		if (verified.length === 0) {

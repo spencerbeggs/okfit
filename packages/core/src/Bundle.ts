@@ -9,7 +9,7 @@ import { Diagnostic, DiagnosticRange } from "./Diagnostic.js";
 import { IndexDocument } from "./IndexDocument.js";
 import { detectFence } from "./internal/fence.js";
 import { decodeConcept } from "./internal/frontmatter.js";
-import { frontmatterValueStart } from "./internal/position.js";
+import { toFileOffset } from "./internal/position.js";
 import { basename, dirname } from "./internal/posixPath.js";
 import { OPTIONS, parseIndex, parseLog } from "./internal/reserved.js";
 import { DEFAULT_MAX_DEPTH, DEFAULT_PRUNE, walk } from "./internal/walk.js";
@@ -136,7 +136,7 @@ const readFrontmatter = (file: string, text: string, node: Frontmatter): Effect.
 		const range =
 			yaml === undefined
 				? blockRange(text, node)
-				: DiagnosticRange.fromOffset(text, frontmatterValueStart(text) + yaml.offset, yaml.length);
+				: DiagnosticRange.fromOffset(text, toFileOffset(text, yaml.offset), yaml.length);
 		return {
 			raw: Option.none(),
 			diagnostics: [

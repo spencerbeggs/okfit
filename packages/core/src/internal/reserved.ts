@@ -129,7 +129,19 @@ export const parseIndex = (
 			current = { heading: block, entries: [] };
 			continue;
 		}
-		if (current === undefined) continue;
+		if (current === undefined) {
+			if (block.type === "list")
+				diagnostics.push(
+					diagnostic(
+						file,
+						"index-malformed",
+						"error",
+						"index entries appear before any section heading",
+						rangeOf(text, block.position),
+					),
+				);
+			continue;
+		}
 		if (block.type !== "list") {
 			diagnostics.push(
 				diagnostic(

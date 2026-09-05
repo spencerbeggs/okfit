@@ -7,7 +7,7 @@ import type { DiagnosticSeverity } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { FamilyIssue } from "./conceptDecode.js";
 import { decodeConcept as decodeEnvelope } from "./conceptDecode.js";
-import { frontmatterValueStart } from "./position.js";
+import { toFileOffset } from "./position.js";
 
 /** D-34 default severities for a `FamilyIssue`'s lint code; `type-missing` (D-33) is always "error". */
 const FAMILY_ISSUE_SEVERITY: Record<FamilyIssue["code"], DiagnosticSeverity> = {
@@ -41,11 +41,7 @@ const rangeFor = (context: Context, path: ReadonlyArray<string | number>): Diagn
 	if (Result.isFailure(parsed) || parsed.success.contents === null) return blockRange(context);
 	const hit = parsed.success.contents.find(path as YamlPath);
 	if (Option.isNone(hit)) return blockRange(context);
-	return DiagnosticRange.fromOffset(
-		context.text,
-		frontmatterValueStart(context.text) + hit.value.offset,
-		hit.value.length,
-	);
+	return DiagnosticRange.fromOffset(context.text, toFileOffset(context.text, hit.value.offset), hit.value.length);
 };
 
 const toDiagnostic = (context: Context, issue: FamilyIssue): Diagnostic =>

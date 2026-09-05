@@ -6,9 +6,10 @@ rendering), and validation. Every other `@okfit/*` package depends on it.
 
 ## Rules
 
-- No Node-only imports. Platform services (`FileSystem`, `Path`, clock) come
-  from the environment so the same code runs in a CLI, in tests with
-  `@effected/memfs`, and in a GitHub Action.
+- No Node-only imports. Platform services (`FileSystem`, `Path`) come from
+  the environment so the same code runs in a CLI, in tests with
+  `@effected/memfs`, and in a GitHub Action. Time is an explicit `now`
+  argument, never a `Clock` dependency (D-10).
 - No opinions beyond the spec. Anything that says what a bundle *should*
   contain belongs in `@okfit/profiles` or a config file.
 - Loading never fails on content. Bad files become diagnostics.

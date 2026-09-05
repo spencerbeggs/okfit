@@ -14,7 +14,7 @@ import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
 export const LintLevel = Schema.Literals(["off", "info", "warn", "error"]);
 
 /**
- * The type of {@link LintLevel}.
+ * The type of `LintLevel`.
  * @public
  */
 export type LintLevel = typeof LintLevel.Type;
@@ -114,7 +114,7 @@ export const TypeDeclaration = Schema.Struct({
 export const TagDeclaration = Schema.Struct({ description: Schema.optionalKey(Schema.String) });
 
 /**
- * The `[lint]` table: one optional {@link LintLevel} per lint code, snake_case (D-34).
+ * The `[lint]` table: one optional `LintLevel` per lint code, snake_case (D-34).
  * @public
  */
 export const LintTable = Schema.Struct({
@@ -138,11 +138,12 @@ export const LintTable = Schema.Struct({
 type LintTableKey = keyof typeof LintTable.fields;
 
 /**
- * The `OkfitConfig` struct schema. Exported only so `OkfitConfig`'s type
- * alias is reachable from the barrel; not part of the named public surface.
+ * The `OkfitConfig` struct schema. Exported only so the `OkfitConfigFields`
+ * type below is reachable from the rollup; the barrel never re-exports this
+ * value, so it stays out of the named public surface.
  * @public
  */
-export const OkfitConfigFields = Schema.Struct({
+export const okfitConfigFields = Schema.Struct({
 	okf_version: Schema.optionalKey(Schema.String),
 	bundle: Schema.optionalKey(
 		Schema.Struct({ path: Schema.optionalKey(Schema.String), profile: Schema.optionalKey(Schema.String) }),
@@ -168,21 +169,28 @@ export const OkfitConfigFields = Schema.Struct({
  * optional except `extensions`, which holds unknown top-level keys verbatim (D-31).
  * @public
  */
-export type OkfitConfig = typeof OkfitConfigFields.Type;
+export type OkfitConfig = typeof okfitConfigFields.Type;
 
-type OkfitConfigEncoded = (typeof OkfitConfigFields)["Encoded"];
+/**
+ * The field shape behind `OkfitConfig`, exported type-only so the barrel can
+ * re-export the name without adding a runtime value to the public surface.
+ * @public
+ */
+export type OkfitConfigFields = typeof okfitConfigFields.fields;
+
+type OkfitConfigEncoded = (typeof okfitConfigFields)["Encoded"];
 interface RawTable {
 	readonly [key: string]: unknown;
 }
 
 const RawTable = Schema.Record(Schema.String, Schema.Unknown);
-const KNOWN_KEYS = new Set(Object.keys(OkfitConfigFields.fields).filter((key) => key !== "extensions"));
+const KNOWN_KEYS = new Set(Object.keys(okfitConfigFields.fields).filter((key) => key !== "extensions"));
 
 // Record<string, unknown> <-> struct, partitioning unknown top-level keys into
 // `extensions` (package-json internal/wire.ts precedent; contract deviation 4).
 const OkfitConfigWire = RawTable.pipe(
 	Schema.decodeTo(
-		OkfitConfigFields,
+		okfitConfigFields,
 		SchemaTransformation.transform({
 			decode: (raw: RawTable): OkfitConfigEncoded => {
 				const known: Record<string, unknown> = {};
@@ -284,7 +292,20 @@ const severityFor = (config: OkfitConfig, code: LintCode): DiagnosticSeverity | 
 	return toSeverity(config.lint?.[key] ?? DEFAULT_LINT[key]);
 };
 
-const DEFAULTS: OkfitConfig = {
+/** Recursively freezes plain objects and arrays in place; leaves other values (class instances) untouched. */
+const deepFreeze = <A>(value: A): A => {
+	if (Array.isArray(value)) {
+		for (const item of value) deepFreeze(item);
+		return Object.freeze(value);
+	}
+	if (value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+		for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+		return Object.freeze(value);
+	}
+	return value;
+};
+
+const DEFAULTS: OkfitConfig = deepFreeze({
 	okf_version: "0.2",
 	bundle: { path: "okf", profile: "software-project" },
 	concepts: { required: [], tags: { required: [] } },
@@ -294,7 +315,7 @@ const DEFAULTS: OkfitConfig = {
 	types: {},
 	tags: {},
 	extensions: {},
-};
+});
 
 // One-shot read for tooling with a path in hand (D-29). ConfigFile.read needs
 // FileSystem only (ConfigFile.ts:653-656); no parseOptions, the wire codec
@@ -308,7 +329,7 @@ const read = (path: string): Effect.Effect<OkfitConfig, ConfigReadError, FileSys
  * The okfit config codec and its statics (spec 4.2, D-28 to D-31).
  *
  * @remarks
- * Decodes a parsed TOML table to a plain {@link OkfitConfig}, keeping unknown
+ * Decodes a parsed TOML table to a plain `OkfitConfig`, keeping unknown
  * top-level keys in `extensions`; encoding flattens them back so the on-disk
  * shape never carries a literal `extensions` key. `merge` is pure: plain
  * objects deep-merge, arrays and scalars in `override` replace wholesale. The
@@ -318,12 +339,12 @@ const read = (path: string): Effect.Effect<OkfitConfig, ConfigReadError, FileSys
  * @public
  */
 export const OkfitConfig: Schema.Codec<OkfitConfig, Record<string, unknown>> & {
-	readonly fields: typeof OkfitConfigFields.fields;
+	readonly fields: OkfitConfigFields;
 	readonly DEFAULTS: OkfitConfig;
 	readonly merge: (base: OkfitConfig, override: OkfitConfig) => OkfitConfig;
 	readonly severityFor: (config: OkfitConfig, code: LintCode) => DiagnosticSeverity | "off";
 	readonly read: (path: string) => Effect.Effect<OkfitConfig, ConfigReadError, FileSystem.FileSystem>;
-} = Object.assign(OkfitConfigWire, { fields: OkfitConfigFields.fields, DEFAULTS, merge, severityFor, read });
+} = Object.assign(OkfitConfigWire, { fields: okfitConfigFields.fields, DEFAULTS, merge, severityFor, read });
 
 /**
  * The only service in core: the config-file service tag for okfit's TOML

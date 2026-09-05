@@ -56,7 +56,7 @@ export class DiagnosticRange extends Schema.Class<DiagnosticRange>("DiagnosticRa
 	line: Schema.Number,
 	character: Schema.Number,
 }) {
-	/** Core's own offset -> line/character helper over the file text (D-14, `internal/position.ts`). */
+	/** Core's own offset-to-line/character helper over the file text (D-14, `internal/position.ts`). */
 	static readonly fromOffset = (text: string, offset: number, length: number): DiagnosticRange => {
 		const { line, character } = lineCharacter(text, offset);
 		return DiagnosticRange.make({ offset, length, line, character });

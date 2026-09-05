@@ -28,7 +28,7 @@ export class Validate {
 	static readonly conformance = (bundle: LoadedBundle): ReadonlyArray<Diagnostic> =>
 		bundle.diagnostics.filter(Diagnostic.isConformance);
 
-	/** Load-time lint diagnostics re-severitied via {@link OkfitConfig.severityFor} (`off` drops), then every rule (D-34). */
+	/** Load-time lint diagnostics re-severitied via `OkfitConfig.severityFor` (`off` drops), then every rule (D-34). */
 	static readonly lint = (
 		bundle: LoadedBundle,
 		config: OkfitConfig,

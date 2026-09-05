@@ -96,6 +96,16 @@ describe("Bundle.load", () => {
 			assert.strictEqual(bundle.logs.get("")?.groups.length, 1);
 		}),
 	);
+	it.effect("index entries before any section heading are index-malformed; the heading's own entry still parses", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load("c-index-entries-before-heading");
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["index.md", "index-malformed", 0]]);
+			assert.strictEqual(bundle.diagnostics[0]?.message, "index entries appear before any section heading");
+			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.heading, "Widgets");
+			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.entries.length, 1);
+			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.entries[0]?.target, "widget.md");
+		}),
+	);
 	it.effect("hidden entries are excluded unless includeHidden (D-11)", () =>
 		Effect.gen(function* () {
 			assert.deepStrictEqual([...(yield* load("c-hidden-directory")).concepts.keys()], ["visible"]);
