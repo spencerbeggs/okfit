@@ -1,0 +1,5 @@
+---
+type: Note
+---
+
+Untitled note.

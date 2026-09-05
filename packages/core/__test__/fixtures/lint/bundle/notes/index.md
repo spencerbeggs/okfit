@@ -1,0 +1,3 @@
+# Note
+
+* [misc](misc.md)
