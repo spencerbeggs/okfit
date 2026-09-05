@@ -9,7 +9,7 @@ import { OkfitConfigFile } from "@okfit/core";
 import type { FileSystem, Path } from "effect";
 import { Effect, Layer, Option } from "effect";
 import { buildConfigLayer, provideConfig } from "../../src/config/layer.js";
-import { ConfigPathNotFoundError } from "../../src/errors.js";
+import { ConfigMalformedError, ConfigPathNotFoundError } from "../../src/errors.js";
 
 // Xdg's own doc comment: "the test layer, and the escape hatch for an
 // application that resolves its environment some other way. It needs no
@@ -126,6 +126,30 @@ describe("provideConfig", () => {
 			assert.strictEqual((result as ConfigPathNotFoundError).path, missing);
 			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 		}),
+	);
+
+	it.effect(
+		"wraps a ConfigCodecError from an explicit --config into ConfigMalformedError with that path (K-46 fix round 1)",
+		() =>
+			Effect.gen(function* () {
+				const dir = yield* Effect.promise(makeTempDir);
+				const badConfigPath = join(dir, "bad.toml");
+				yield* Effect.promise(() => writeFile(badConfigPath, `[bundle\npath = "okf"\n`, "utf8"));
+				const program = Effect.gen(function* () {
+					const configFile = yield* OkfitConfigFile;
+					return yield* configFile.discover;
+				});
+				const result = yield* program
+					.pipe(provideConfig({ explicitConfigPath: Option.some(badConfigPath), discoveryCwd: dir }))
+					.pipe(Effect.provide(testEnv), Effect.flip);
+				assert.isTrue(result instanceof ConfigMalformedError);
+				assert.strictEqual((result as ConfigMalformedError).path, badConfigPath);
+				assert.strictEqual(
+					(result as ConfigMalformedError).message,
+					`malformed config ${badConfigPath}: toml parse failed`,
+				);
+				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+			}),
 	);
 
 	it.effect("provides OkfitConfigFile and succeeds when --config exists", () =>

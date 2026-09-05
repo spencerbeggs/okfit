@@ -253,7 +253,7 @@ describe("okfit validate: config discovery", () => {
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
-	it.effect("malformed TOML: exit 3, stderr names the codec failure, no _tag asserted (K-46)", () =>
+	it.effect("malformed TOML: exit 3, stderr names the file (K-46 fix round 1)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			const badConfigPath = join(sandbox.cwd, "bad.toml");
@@ -263,14 +263,41 @@ describe("okfit validate: config discovery", () => {
 
 			assert.strictEqual(result.exitCode, 3);
 			// `@effected/config-file`'s `ConfigCodecError` carries no `path` field
-			// (verified against its installed `.d.ts`/`.js`: `codec`, `operation`,
-			// `cause` only, `message` is `${codec} ${operation} failed`) — the
-			// brief's "stderr names the file" expectation does not hold for THIS
-			// error class, so this test asserts the actual, stable renderFailure
-			// catch-all line instead of a file path that cannot appear (see task
-			// report for the discrepancy).
-			assert.strictEqual(result.stderr, "error: ConfigCodecError: toml parse failed\n");
+			// of its own (verified against its installed `.d.ts`/`.js`: `codec`,
+			// `operation`, `cause` only, `message` is `${codec} ${operation}
+			// failed`) — `config/layer.ts#provideConfig` now wraps it into
+			// `ConfigMalformedError` with the KNOWN `--config` path (K-46 fix
+			// round 1), so this asserts the exact, pinned message the wrapped
+			// error renders (captured this session by running the CLI directly
+			// against this fixture — see task report).
+			assert.strictEqual(result.stderr, `error: malformed config ${badConfigPath}: toml parse failed\n`);
 		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect(
+		"discovery branch: a schema-invalid discovered config also names the file, when the library's own path is known (K-46 fix round 1)",
+		() =>
+			Effect.gen(function* () {
+				const sandbox = yield* Effect.promise(() => makeSandbox());
+				const configPath = join(sandbox.cwd, "okfit.config.toml");
+				// Parses as valid TOML but violates OkfitConfig's schema (`bundle.profile`
+				// must be a string) — a ConfigValidationError, not a ConfigCodecError;
+				// unlike ConfigCodecError, its own `path` field is populated here, so
+				// wrapping does not need an explicit `--config` to know the path.
+				yield* Effect.promise(() => writeFileDeep(configPath, `[bundle]\nprofile = 123\n`));
+
+				const result = yield* runOkfit(["validate"], sandbox);
+
+				assert.strictEqual(result.exitCode, 3);
+				// Captured this session by running the CLI directly against this
+				// fixture: `ConfigValidationError`'s own message already embeds the
+				// path once; `ConfigMalformedError` prefixes it with `malformed
+				// config <path>: ` regardless, per the K-46 fix's single message shape.
+				assert.strictEqual(
+					result.stderr,
+					`error: malformed config ${configPath}: Config validation failed at "${configPath}"\n`,
+				);
+			}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
 	it.effect("unknown profile: warning on stderr, continues with defaults (K-4)", () =>

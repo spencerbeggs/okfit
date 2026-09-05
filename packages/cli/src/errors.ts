@@ -40,6 +40,35 @@ export class InitOverwriteError extends Schema.TaggedError<InitOverwriteError>()
 const hasTag = (error: unknown, tag: string): boolean =>
 	typeof error === "object" && error !== null && "_tag" in error && (error as { readonly _tag: unknown })._tag === tag;
 
+/** The error's `message` when it has one as a string, else `String(error)`. */
+const messageOf = (error: unknown): string => {
+	if (typeof error === "object" && error !== null && "message" in error) {
+		const message = (error as { readonly message: unknown }).message;
+		if (typeof message === "string") return message;
+	}
+	return String(error);
+};
+
+/**
+ * A config file at a KNOWN path failed to parse or validate (K-46's own
+ * intent — "each class' message already names the offending path" does not
+ * hold for `@effected/config-file`'s `ConfigCodecError`, which carries no
+ * `path` field at all; this wraps it, and `ConfigValidationError`, with the
+ * path the caller already knows). `cause` is the original config-file error,
+ * preserved structurally, never stringified early.
+ *
+ * @public
+ */
+export class ConfigMalformedError extends Schema.TaggedError<ConfigMalformedError>()("ConfigMalformedError", {
+	path: Schema.String,
+	cause: Schema.Defect(),
+}) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		return `malformed config ${this.path}: ${messageOf(this.cause)}`;
+	}
+}
+
 /** `path` relative to `cwd` when it is under it, else the absolute path unchanged (K-51). */
 const relativeToCwd = (path: string, cwd: string): string => {
 	if (path === cwd) return ".";
@@ -63,11 +92,17 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 2. `ConfigPathNotFoundError` renders as its own `error: <message>` line;
  *    `InitOverwriteError` renders as the K-51 header, one two-space-indented
  *    relativised path per conflict, and the literal `Nothing was written.`.
- * 3. A `ConfigValidationError` (detected by `_tag`, since the peer is
- *    optional and this module keeps it a type-only import) renders as
+ * 3. `ConfigMalformedError` renders as its own `error: <message>` line —
+ *    `error: malformed config <path>: <cause message>` — since it already
+ *    carries the offending path (`config/layer.ts#provideConfig` wraps a
+ *    `ConfigCodecError`/`ConfigValidationError` into this the moment the
+ *    path is known).
+ * 4. A `ConfigValidationError` NOT already wrapped above (detected by
+ *    `_tag`, since the peer is optional and this module keeps it a
+ *    type-only import — this is the "path unknown" case, K-46) renders as
  *    `error: ${String(error)}` followed by one two-space-indented
  *    `ConfigIssueRenderer.render(error)` line per entry.
- * 4. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`,
+ * 5. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`,
  *    config-file's other errors, `XdgEnvError` (the K-13 `HOME`-unset case)
  *    — renders as the single line `error: ${String(error)}`. Each of those
  *    classes' own `message` already names the offending path, which is all
@@ -78,6 +113,7 @@ const relativeToCwd = (path: string, cwd: string): string => {
 export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (hasTag(error, "ShowHelp")) return [];
 	if (error instanceof ConfigPathNotFoundError) return [`error: ${error.message}`];
+	if (error instanceof ConfigMalformedError) return [`error: ${error.message}`];
 	if (error instanceof InitOverwriteError) {
 		return [
 			"error: refusing to overwrite existing files:",

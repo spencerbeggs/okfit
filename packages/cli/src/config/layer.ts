@@ -1,10 +1,17 @@
 import { AppConfig } from "@effected/app";
-import { ConfigFile, ConfigResolver, MergeStrategy, TomlCodec } from "@effected/config-file";
+import {
+	ConfigCodecError,
+	ConfigFile,
+	ConfigResolver,
+	ConfigValidationError,
+	MergeStrategy,
+	TomlCodec,
+} from "@effected/config-file";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import { OkfitConfig, OkfitConfigFile } from "@okfit/core";
 import type { Path, PlatformError } from "effect";
-import { Effect, FileSystem, Layer, Option } from "effect";
-import { ConfigPathNotFoundError } from "../errors.js";
+import { Cause, Effect, FileSystem, Layer, Option, Result } from "effect";
+import { ConfigMalformedError, ConfigPathNotFoundError } from "../errors.js";
 
 /**
  * The `OkfitConfigFile` layer for one invocation (K-9 to K-11, K-57). Two
@@ -77,6 +84,20 @@ export const buildConfigLayer = (options: {
  * renders through `renderFailure`'s catch-all rule rather than being
  * uncatchable by the type checker.
  *
+ * K-46 fix round 1: a `ConfigCodecError`/`ConfigValidationError` from
+ * `buildConfigLayer`'s provided layer is wrapped into `ConfigMalformedError`
+ * whenever the failing path is known, so `renderFailure` can name it:
+ *
+ * - `ConfigCodecError` carries no `path` field at all (checked against the
+ *   installed `.d.ts`) — the only path we can ever attach for one is
+ *   `explicitConfigPath` itself, when `--config` named it directly. In the
+ *   discovery branch (no `--config`) a `ConfigCodecError` passes through
+ *   unwrapped: several candidate files are tried and nothing in this module
+ *   or the library says which one failed.
+ * - `ConfigValidationError` carries its own `path: Option<string>` — used
+ *   when present (either branch), falling back to `explicitConfigPath` when
+ *   the library's own `path` is `None` and `--config` was given.
+ *
  * @public
  */
 export const provideConfig =
@@ -85,7 +106,7 @@ export const provideConfig =
 		effect: Effect.Effect<A, E, R>,
 	): Effect.Effect<
 		A,
-		E | ConfigPathNotFoundError | PlatformError.PlatformError,
+		E | ConfigPathNotFoundError | ConfigMalformedError | PlatformError.PlatformError,
 		Exclude<R, OkfitConfigFile> | FileSystem.FileSystem | Path.Path | AppDirs | Xdg
 	> =>
 		Effect.gen(function* () {
@@ -97,5 +118,39 @@ export const provideConfig =
 					return yield* Effect.fail(new ConfigPathNotFoundError({ path }));
 				}
 			}
-			return yield* effect.pipe(Effect.provide(buildConfigLayer(options)));
+			// `provideConfig` is generic over `E`, so `catchIf`/`catchTag`'s
+			// `EB extends E` constraint cannot be proven inside this function body
+			// even though `OkfitConfigFile#discover`'s real error channel
+			// (`ConfigReadError = ConfigFileReadError | ConfigCodecError |
+			// ConfigValidationError`) is part of `E` for every real caller.
+			// `Effect.catchCause` sidesteps that: it hands over the whole `Cause<E>`
+			// with no narrowing constraint, `Cause.findFail` pulls out the first
+			// typed failure (if there is one — a defect or interrupt has none), and
+			// anything that is not one of the two library errors, or whose path is
+			// unknown, re-fails the ORIGINAL cause unchanged via `Effect.failCause`
+			// (never `Effect.fail`, so defects/interrupts are never downgraded to a
+			// typed failure).
+			return yield* effect.pipe(
+				Effect.provide(buildConfigLayer(options)),
+				Effect.catchCause((cause): Effect.Effect<never, E | ConfigMalformedError, never> => {
+					const found = Cause.findFail(cause);
+					if (Result.isSuccess(found)) {
+						const error = found.success.error;
+						if (error instanceof ConfigCodecError && Option.isSome(options.explicitConfigPath)) {
+							return Effect.fail(new ConfigMalformedError({ path: options.explicitConfigPath.value, cause: error }));
+						}
+						if (error instanceof ConfigValidationError) {
+							const path = Option.isSome(options.explicitConfigPath) ? options.explicitConfigPath : error.path;
+							if (Option.isSome(path)) {
+								return Effect.fail(new ConfigMalformedError({ path: path.value, cause: error }));
+							}
+						}
+					}
+					// K-46: either not one of the two library errors, or (a
+					// `ConfigCodecError` during discovery) a path genuinely cannot be
+					// attached — several candidates are tried and nothing names which
+					// one failed.
+					return Effect.failCause(cause);
+				}),
+			);
 		});
