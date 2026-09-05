@@ -1,0 +1,321 @@
+import type { ConfigReadError } from "@effected/config-file";
+import { ConfigFile, TomlCodec } from "@effected/config-file";
+import type { FileSystem } from "effect";
+import { Duration, Effect, Option, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
+import { Actor } from "./Actor.js";
+import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
+
+/**
+ * Severity a lint rule is configured to. `"info"` extends spec 4.2's
+ * `off | warn | error` so the D-34 `info` defaults are expressible.
+ *
+ * @public
+ */
+export const LintLevel = Schema.Literals(["off", "info", "warn", "error"]);
+
+/**
+ * The type of {@link LintLevel}.
+ * @public
+ */
+export type LintLevel = typeof LintLevel.Type;
+
+const SHORT_DURATION_RE = /^(\d+)(h|d|w)$/;
+const LONG_DURATION_RE = /^\d+(?:\.\d+)?\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?)$/;
+const HOUR_MILLIS = 3_600_000;
+const DAY_MILLIS = 86_400_000;
+const WEEK_MILLIS = 604_800_000;
+
+const parseStaleAfter = (input: string): Option.Option<Duration.Duration> => {
+	const short = SHORT_DURATION_RE.exec(input);
+	if (short !== null) {
+		const amount = Number(short[1]);
+		switch (short[2]) {
+			case "h":
+				return Option.some(Duration.hours(amount));
+			case "d":
+				return Option.some(Duration.days(amount));
+			default:
+				return Option.some(Duration.weeks(amount));
+		}
+	}
+	if (LONG_DURATION_RE.test(input)) {
+		return Duration.fromInput(input as Duration.Input);
+	}
+	return Option.none();
+};
+
+const formatStaleAfter = (duration: Duration.Duration): string => {
+	const millis = Duration.toMillis(duration);
+	if (Number.isInteger(millis) && millis >= 0) {
+		if (millis !== 0 && millis % WEEK_MILLIS === 0) return `${millis / WEEK_MILLIS}w`;
+		if (millis % DAY_MILLIS === 0) return `${millis / DAY_MILLIS}d`;
+		if (millis % HOUR_MILLIS === 0) return `${millis / HOUR_MILLIS}h`;
+	}
+	return `${millis} millis`;
+};
+
+/**
+ * `lifecycle.default_stale_after` codec: `^(\d+)(h|d|w)$` or Effect's
+ * `"<n> <unit>"` form decodes to a `Duration` (D-30). Encoding emits the
+ * shortest exact `w`/`d`/`h` spelling, otherwise `"<n> millis"`.
+ *
+ * @remarks
+ * `@effected/toml` has no duration syntax and `Schema.DurationFromString`
+ * rejects `"90d"`, so this is core's own codec (effected-yaml-toml-config-file-app.md §2).
+ *
+ * @public
+ */
+export const StaleAfterDuration: Schema.Codec<Duration.Duration, string> = Schema.String.pipe(
+	Schema.decodeTo(Schema.Duration, {
+		decode: SchemaGetter.transformOrFail<Duration.Duration, string>((input, options) =>
+			Option.match(parseStaleAfter(input), {
+				onNone: () =>
+					Effect.fail(
+						new SchemaIssue.InvalidValue(
+							{ message: `expected "<n>h", "<n>d", "<n>w" or "<n> <unit>", got ${JSON.stringify(input)}` },
+							input,
+							options,
+						),
+					),
+				onSome: Effect.succeed,
+			}),
+		),
+		encode: SchemaGetter.transform(formatStaleAfter),
+	}),
+);
+
+/**
+ * A `types.<Name>.fields.<key>` declaration (spec 4.2): a description plus
+ * either an enum of values with descriptions or `kind = "path"`.
+ * @public
+ */
+export const FieldDeclaration = Schema.Struct({
+	description: Schema.String,
+	values: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
+	kind: Schema.optionalKey(Schema.Literal("path")),
+});
+
+/**
+ * A `types.<Name>` declaration (spec 4.2).
+ * @public
+ */
+export const TypeDeclaration = Schema.Struct({
+	description: Schema.optionalKey(Schema.String),
+	guidance: Schema.optionalKey(Schema.String),
+	required: Schema.optionalKey(Schema.Array(Schema.String)),
+	require_verified: Schema.optionalKey(Schema.Boolean),
+	fields: Schema.optionalKey(Schema.Record(Schema.String, FieldDeclaration)),
+});
+
+/**
+ * A `tags.<name>` declaration (spec 4.2).
+ * @public
+ */
+export const TagDeclaration = Schema.Struct({ description: Schema.optionalKey(Schema.String) });
+
+/**
+ * The `[lint]` table: one optional {@link LintLevel} per lint code, snake_case (D-34).
+ * @public
+ */
+export const LintTable = Schema.Struct({
+	broken_links: Schema.optionalKey(LintLevel),
+	missing_index: Schema.optionalKey(LintLevel),
+	unknown_type: Schema.optionalKey(LintLevel),
+	required_key_missing: Schema.optionalKey(LintLevel),
+	field_value_unknown: Schema.optionalKey(LintLevel),
+	require_verified_unmet: Schema.optionalKey(LintLevel),
+	family_invalid: Schema.optionalKey(LintLevel),
+	computation_runtime_missing: Schema.optionalKey(LintLevel),
+	footnote_source_unknown: Schema.optionalKey(LintLevel),
+	log_frontmatter: Schema.optionalKey(LintLevel),
+	actor_prefix_unknown: Schema.optionalKey(LintLevel),
+	legacy_timestamp: Schema.optionalKey(LintLevel),
+	config_unknown_key: Schema.optionalKey(LintLevel),
+	stale: Schema.optionalKey(LintLevel),
+	walk_unreadable: Schema.optionalKey(LintLevel),
+});
+
+type LintTableKey = keyof typeof LintTable.fields;
+
+const OkfitConfigFields = Schema.Struct({
+	okf_version: Schema.optionalKey(Schema.String),
+	bundle: Schema.optionalKey(
+		Schema.Struct({ path: Schema.optionalKey(Schema.String), profile: Schema.optionalKey(Schema.String) }),
+	),
+	concepts: Schema.optionalKey(
+		Schema.Struct({
+			required: Schema.optionalKey(Schema.Array(Schema.String)),
+			tags: Schema.optionalKey(Schema.Struct({ required: Schema.optionalKey(Schema.Array(Schema.String)) })),
+		}),
+	),
+	lifecycle: Schema.optionalKey(Schema.Struct({ default_stale_after: Schema.optionalKey(StaleAfterDuration) })),
+	actors: Schema.optionalKey(
+		Schema.Struct({ agent: Schema.optionalKey(Actor), humans: Schema.optionalKey(Schema.Array(Actor)) }),
+	),
+	lint: Schema.optionalKey(LintTable),
+	types: Schema.optionalKey(Schema.Record(Schema.String, TypeDeclaration)),
+	tags: Schema.optionalKey(Schema.Record(Schema.String, TagDeclaration)),
+	extensions: Schema.Record(Schema.String, Schema.Unknown),
+});
+
+/**
+ * The decoded config: spec 4.2's shape as a plain object (D-28). Every key is
+ * optional except `extensions`, which holds unknown top-level keys verbatim (D-31).
+ * @public
+ */
+export type OkfitConfig = typeof OkfitConfigFields.Type;
+
+type OkfitConfigEncoded = (typeof OkfitConfigFields)["Encoded"];
+interface RawTable {
+	readonly [key: string]: unknown;
+}
+
+const RawTable = Schema.Record(Schema.String, Schema.Unknown);
+const KNOWN_KEYS = new Set(Object.keys(OkfitConfigFields.fields).filter((key) => key !== "extensions"));
+
+// Record<string, unknown> <-> struct, partitioning unknown top-level keys into
+// `extensions` (package-json internal/wire.ts precedent; contract deviation 4).
+const OkfitConfigWire = RawTable.pipe(
+	Schema.decodeTo(
+		OkfitConfigFields,
+		SchemaTransformation.transform({
+			decode: (raw: RawTable): OkfitConfigEncoded => {
+				const known: Record<string, unknown> = {};
+				// Null prototype: `extensions["__proto__"] = v` on a plain object would
+				// reassign the prototype instead of storing the key.
+				const extensions: Record<string, unknown> = Object.create(null);
+				for (const [key, value] of Object.entries(raw)) {
+					if (KNOWN_KEYS.has(key)) known[key] = value;
+					else extensions[key] = value;
+				}
+				return { ...known, extensions } as unknown as OkfitConfigEncoded;
+			},
+			encode: (encoded: OkfitConfigEncoded): RawTable => {
+				const { extensions, ...known } = encoded;
+				// Typed fields win a collision: `extensions` can never shadow a known key.
+				return { ...extensions, ...known };
+			},
+		}),
+	),
+) as unknown as Schema.Codec<OkfitConfig, Record<string, unknown>>;
+
+const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+	const proto = Object.getPrototypeOf(value);
+	return proto === Object.prototype || proto === null;
+};
+
+const define = (target: Record<string, unknown>, key: string, value: unknown): void => {
+	Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
+};
+
+// deepMerge.ts semantics (config-file 0.5.2): plain objects merge key-wise,
+// everything else is atomic and `override` wins. Fresh result, inputs untouched.
+const mergeRecords = (base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> => {
+	const result: Record<string, unknown> = {};
+	for (const key of Object.keys(base)) {
+		if (!FORBIDDEN_KEYS.has(key)) define(result, key, base[key]);
+	}
+	for (const key of Object.keys(override)) {
+		if (FORBIDDEN_KEYS.has(key)) continue;
+		const incoming = override[key];
+		const current = result[key];
+		if (Object.hasOwn(result, key) && isPlainObject(current) && isPlainObject(incoming)) {
+			define(result, key, mergeRecords(current, incoming));
+		} else {
+			define(result, key, incoming);
+		}
+	}
+	return result;
+};
+
+const merge = (base: OkfitConfig, override: OkfitConfig): OkfitConfig =>
+	mergeRecords(base as Record<string, unknown>, override as Record<string, unknown>) as OkfitConfig;
+
+const LINT_KEY: Record<LintCode, LintTableKey> = {
+	"broken-links": "broken_links",
+	"missing-index": "missing_index",
+	"unknown-type": "unknown_type",
+	"required-key-missing": "required_key_missing",
+	"field-value-unknown": "field_value_unknown",
+	"require-verified-unmet": "require_verified_unmet",
+	"family-invalid": "family_invalid",
+	"computation-runtime-missing": "computation_runtime_missing",
+	"footnote-source-unknown": "footnote_source_unknown",
+	"log-frontmatter": "log_frontmatter",
+	"actor-prefix-unknown": "actor_prefix_unknown",
+	"legacy-timestamp": "legacy_timestamp",
+	"config-unknown-key": "config_unknown_key",
+	stale: "stale",
+	"walk-unreadable": "walk_unreadable",
+};
+
+// D-34 defaults, keyed by the [lint] table spelling.
+const DEFAULT_LINT: Required<typeof LintTable.Type> = {
+	broken_links: "warn",
+	missing_index: "warn",
+	unknown_type: "error",
+	required_key_missing: "error",
+	field_value_unknown: "error",
+	require_verified_unmet: "error",
+	family_invalid: "error",
+	computation_runtime_missing: "error",
+	footnote_source_unknown: "warn",
+	log_frontmatter: "warn",
+	actor_prefix_unknown: "info",
+	legacy_timestamp: "info",
+	config_unknown_key: "warn",
+	stale: "info",
+	walk_unreadable: "warn",
+};
+
+const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);
+
+const severityFor = (config: OkfitConfig, code: LintCode): DiagnosticSeverity | "off" => {
+	if (code === "unknown-type" && Object.keys(config.types ?? {}).length === 0) return "off";
+	const key = LINT_KEY[code];
+	return toSeverity(config.lint?.[key] ?? DEFAULT_LINT[key]);
+};
+
+const DEFAULTS: OkfitConfig = {
+	okf_version: "0.2",
+	bundle: { path: "okf", profile: "software-project" },
+	concepts: { required: [], tags: { required: [] } },
+	lifecycle: { default_stale_after: Duration.days(90) },
+	actors: { humans: [] },
+	lint: { ...DEFAULT_LINT },
+	types: {},
+	tags: {},
+	extensions: {},
+};
+
+// One-shot read for tooling with a path in hand (D-29). ConfigFile.read needs
+// FileSystem only (ConfigFile.ts:653-656); no parseOptions, the wire codec
+// already preserves unknown keys (contract deviation 4).
+const read = (path: string): Effect.Effect<OkfitConfig, ConfigReadError, FileSystem.FileSystem> =>
+	ConfigFile.read(path, { schema: OkfitConfigWire, codec: TomlCodec }).pipe(
+		Effect.withSpan("OkfitConfig.read", { attributes: { path } }),
+	);
+
+/**
+ * The okfit config codec and its statics (spec 4.2, D-28 to D-31).
+ *
+ * @remarks
+ * Decodes a parsed TOML table to a plain {@link OkfitConfig}, keeping unknown
+ * top-level keys in `extensions`; encoding flattens them back so the on-disk
+ * shape never carries a literal `extensions` key. `merge` is pure: plain
+ * objects deep-merge, arrays and scalars in `override` replace wholesale. The
+ * intended order is `DEFAULTS < profile < file`, applied by the caller (the
+ * CLI resolves the profile; core cannot import `@okfit/profiles`).
+ *
+ * @public
+ */
+export const OkfitConfig: Schema.Codec<OkfitConfig, Record<string, unknown>> & {
+	readonly fields: typeof OkfitConfigFields.fields;
+	readonly DEFAULTS: OkfitConfig;
+	readonly merge: (base: OkfitConfig, override: OkfitConfig) => OkfitConfig;
+	readonly severityFor: (config: OkfitConfig, code: LintCode) => DiagnosticSeverity | "off";
+	readonly read: (path: string) => Effect.Effect<OkfitConfig, ConfigReadError, FileSystem.FileSystem>;
+} = Object.assign(OkfitConfigWire, { fields: OkfitConfigFields.fields, DEFAULTS, merge, severityFor, read });
