@@ -1,5 +1,13 @@
 # @okfit/mcp
 
+## 0.1.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.1.0 | 0.2.0 |
+
 ## 0.1.0
 
 ### Features

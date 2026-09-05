@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/plugin",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": true,
 	"description": "Install this one package to get the okfit CLI and MCP server in your repository. Depends on @okfit/cli and @okfit/mcp.",
 	"keywords": ["okf", "open-knowledge-format", "claude", "agent", "mcp", "cli"],
