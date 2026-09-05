@@ -35,7 +35,7 @@ export const makeSandbox = async (prefix = "okfit-cli-", options?: { readonly ho
 	await Promise.all([cwd, home, xdgConfig, xdgState, xdgCache, xdgData].map((dir) => mkdir(dir, { recursive: true })));
 	const includeHome = options?.home ?? true;
 	const env: Record<string, string> = {
-		PATH: process.env["PATH"] ?? "",
+		PATH: process.env.PATH ?? "",
 		XDG_CONFIG_HOME: xdgConfig,
 		XDG_STATE_HOME: xdgState,
 		XDG_CACHE_HOME: xdgCache,
@@ -43,7 +43,7 @@ export const makeSandbox = async (prefix = "okfit-cli-", options?: { readonly ho
 		NO_COLOR: "1",
 	};
 	if (includeHome) {
-		env["HOME"] = home;
+		env.HOME = home;
 	}
 	return { cwd, env };
 };

@@ -11,7 +11,7 @@ const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeService
 
 const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> => ({
 	...env,
-	PATH: process.env["PATH"] ?? "",
+	PATH: process.env.PATH ?? "",
 	NO_COLOR: "1",
 });
 

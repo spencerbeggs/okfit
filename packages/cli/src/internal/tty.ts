@@ -6,4 +6,4 @@
  *
  * @public
  */
-export const useColor = (): boolean => process.stdout.isTTY === true && process.env["NO_COLOR"] !== "1";
+export const useColor = (): boolean => process.stdout.isTTY === true && process.env.NO_COLOR !== "1";

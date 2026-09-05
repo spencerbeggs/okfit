@@ -46,7 +46,7 @@ describe("validateCommand", () => {
 		const configFlag = config.flags.find((flag) => nameOf(flag) === "config");
 		if (configFlag === undefined) throw new Error("expected a --config flag");
 		const primitiveType = primitiveTypeOf(configFlag);
-		assert.strictEqual(primitiveType["_tag"], "Path");
+		assert.strictEqual(primitiveType._tag, "Path");
 		assert.isFalse("mustExist" in primitiveType);
 	});
 });

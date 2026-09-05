@@ -50,7 +50,7 @@ const PlatformLayer = Layer.mergeAll(
  * the whole command tree through the `Now` tag so no command handler ever
  * reads `process.env["OKFIT_NOW"]` itself.
  */
-const nowEffect = Option.fromNullishOr(process.env["OKFIT_NOW"]).pipe(
+const nowEffect = Option.fromNullishOr(process.env.OKFIT_NOW).pipe(
 	Option.flatMap((iso) => DateTime.make(iso)),
 	Option.match({ onNone: () => DateTime.now, onSome: Effect.succeed }),
 );

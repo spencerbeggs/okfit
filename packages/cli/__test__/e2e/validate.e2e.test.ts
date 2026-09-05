@@ -49,7 +49,7 @@ const filenamesUnder = (root: string): ReadonlyArray<string> => {
 
 /** K-9: no `store.db`/`cache.db` anywhere under the sandbox's HOME/XDG trees. */
 const assertNoStateFiles = (env: Readonly<Record<string, string>>): void => {
-	const roots = [env["HOME"], env["XDG_STATE_HOME"], env["XDG_CACHE_HOME"], env["XDG_DATA_HOME"]].filter(
+	const roots = [env.HOME, env.XDG_STATE_HOME, env.XDG_CACHE_HOME, env.XDG_DATA_HOME].filter(
 		(value): value is string => value !== undefined,
 	);
 	const offenders = roots.flatMap((root) =>
@@ -281,7 +281,7 @@ describe("okfit validate: config discovery", () => {
 			);
 			yield* Effect.promise(() =>
 				writeFileDeep(
-					join(sandbox.env["XDG_CONFIG_HOME"] ?? "", "okfit", "config.toml"),
+					join(sandbox.env.XDG_CONFIG_HOME ?? "", "okfit", "config.toml"),
 					`[bundle]\nprofile = "xdg-discovery-profile"\n`,
 				),
 			);
@@ -384,7 +384,7 @@ describe("okfit validate: config discovery", () => {
 			// read, not merely that discovery did not error.
 			yield* Effect.promise(() =>
 				writeFileDeep(
-					join(sandbox.env["XDG_CONFIG_HOME"] ?? "", "okfit", "config.toml"),
+					join(sandbox.env.XDG_CONFIG_HOME ?? "", "okfit", "config.toml"),
 					`[bundle]\nprofile = "xdg-only-profile"\n`,
 				),
 			);

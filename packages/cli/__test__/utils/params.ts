@@ -23,8 +23,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
  */
 export const nameOf = (value: unknown): string => {
 	if (!isRecord(value)) throw new Error("expected a Flag/Argument param object");
-	if (typeof value["name"] === "string") return value["name"];
-	if ("param" in value) return nameOf(value["param"]);
+	if (typeof value.name === "string") return value.name;
+	if ("param" in value) return nameOf(value.param);
 	throw new Error("expected a nested `param` or a `name`");
 };
 
@@ -39,7 +39,7 @@ export const nameOf = (value: unknown): string => {
  */
 export const primitiveTypeOf = (value: unknown): Record<string, unknown> => {
 	if (!isRecord(value)) throw new Error("expected a Flag/Argument param object");
-	if (isRecord(value["primitiveType"])) return value["primitiveType"];
-	if ("param" in value) return primitiveTypeOf(value["param"]);
+	if (isRecord(value.primitiveType)) return value.primitiveType;
+	if ("param" in value) return primitiveTypeOf(value.param);
 	throw new Error("expected a nested `param` or a `primitiveType`");
 };
