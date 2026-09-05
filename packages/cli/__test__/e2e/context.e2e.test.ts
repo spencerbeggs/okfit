@@ -130,6 +130,7 @@ describe("okfit context --format json", () => {
 				bundle_root: bundleRoot,
 				config_path: null,
 				profile: "software-project",
+				profile_requested: null,
 				index_path: join(bundleRoot, "index.md"),
 				index_exists: true,
 				actors: { agent: null },
@@ -155,6 +156,7 @@ describe("okfit context --format json", () => {
 			const result = yield* runOkfit(["context", "--format", "json"], sandbox);
 
 			assert.strictEqual(result.exitCode, 0);
+			assert.strictEqual(result.stderr, "");
 			const envelope = JSON.parse(result.stdout) as { readonly index_exists: boolean; readonly config_path: string };
 			assert.isFalse(envelope.index_exists);
 			assert.strictEqual(envelope.config_path, join(sandbox.cwd, "okfit.config.toml"));
@@ -171,9 +173,15 @@ describe("okfit context: no config anywhere", () => {
 			const result = yield* runOkfit(["context", "--format", "json"], sandbox);
 
 			assert.strictEqual(result.exitCode, 0);
-			const envelope = JSON.parse(result.stdout) as { readonly config_path: unknown; readonly profile: unknown };
+			const envelope = JSON.parse(result.stdout) as {
+				readonly config_path: unknown;
+				readonly profile: unknown;
+				readonly profile_requested: unknown;
+			};
 			assert.isNull(envelope.config_path);
 			assert.strictEqual(envelope.profile, "software-project");
+			// Important 1: profile_requested is null only when no config file was found at all.
+			assert.isNull(envelope.profile_requested);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
@@ -218,8 +226,17 @@ describe("okfit context: malformed config", () => {
 			// of its own, so config/layer.ts#provideConfig wraps it with the
 			// KNOWN --config path (K-46 fix round 1), reused unchanged by context.
 			assert.strictEqual(result.stderr, `error: malformed config ${badConfigPath}: toml parse failed\n`);
-			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly tag: string } };
+			const envelope = JSON.parse(result.stdout) as {
+				readonly schema: number;
+				readonly okfit_version: string;
+				readonly exit_code: number;
+				readonly error: { readonly tag: string; readonly message: string };
+			};
+			assert.strictEqual(envelope.schema, 1);
+			assert.strictEqual(envelope.okfit_version, CLI_VERSION);
+			assert.strictEqual(envelope.exit_code, 3);
 			assert.strictEqual(envelope.error.tag, "ConfigMalformedError");
+			assert.strictEqual(envelope.error.message, `malformed config ${badConfigPath}: toml parse failed`);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
@@ -239,9 +256,12 @@ describe("okfit context: unknown profile", () => {
 			assert.strictEqual(result.stderr, 'warning: unknown profile "not-a-real-profile"; continuing with defaults\n');
 			const envelope = JSON.parse(result.stdout) as {
 				readonly profile: unknown;
+				readonly profile_requested: unknown;
 				readonly types: ReadonlyArray<unknown>;
 			};
 			assert.isNull(envelope.profile);
+			// Important 1: profile_requested still names what the config asked for.
+			assert.strictEqual(envelope.profile_requested, "not-a-real-profile");
 			// Falls to OkfitConfig.DEFAULTS alone: no profile's vocabulary is merged in.
 			assert.deepStrictEqual(envelope.types, []);
 		}).pipe(Effect.provide(NodeServices.layer)),

@@ -58,7 +58,7 @@ export const contextCommand = Command.make(
 					explicitConfigPath: input.config,
 					cwd,
 				});
-				const { projectRoot, bundleRoot, config: merged, profile, discovered } = resolved;
+				const { projectRoot, bundleRoot, config: merged, profile, profileName, discovered } = resolved;
 
 				const { indexPath, indexExists } = yield* runContext({ bundleRoot });
 
@@ -72,11 +72,18 @@ export const contextCommand = Command.make(
 					onSome: (source) => source.path,
 				});
 
+				// Important 1 (final review): profile_requested is null only when
+				// no config file was found at all (configPath null); otherwise it is
+				// resolveProjectConfig's own profileName, after the K-4 default
+				// rule, regardless of whether that name resolved to a known profile.
+				const profileRequested = configPath === null ? null : profileName;
+
 				const envelope = contextEnvelope({
 					projectRoot,
 					bundleRoot,
 					configPath,
 					profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),
+					profileRequested,
 					indexPath,
 					indexExists,
 					config: merged,

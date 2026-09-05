@@ -25,6 +25,7 @@ const baseInput = {
 	bundleRoot: "/repo/okf",
 	configPath: "/repo/okfit.config.toml",
 	profile: "software-project",
+	profileRequested: "software-project",
 	indexPath: "/repo/okf/index.md",
 	indexExists: true,
 } as const;
@@ -39,6 +40,7 @@ describe("contextEnvelope", () => {
 				bundle_root: "/repo/okf",
 				config_path: "/repo/okfit.config.toml",
 				profile: "software-project",
+				profile_requested: "software-project",
 				index_path: "/repo/okf/index.md",
 				index_exists: true,
 				actors: { agent: "okfit/claude-code" },
@@ -95,14 +97,29 @@ describe("contextEnvelope", () => {
 				bundleRoot: "/repo/okf",
 				configPath: null,
 				profile: null,
+				profileRequested: null,
 				indexPath: "/repo/okf/index.md",
 				indexExists: false,
 				config: { extensions: {} },
 			});
 			assert.isNull(built.config_path);
 			assert.isNull(built.profile);
+			assert.isNull(built.profile_requested);
 			assert.isNull(built.actors.agent);
 			assert.isFalse(built.index_exists);
+		}),
+	);
+
+	it.effect("profile_requested names an unknown profile while profile stays null", () =>
+		Effect.sync(() => {
+			const built = contextEnvelope({
+				...baseInput,
+				profile: null,
+				profileRequested: "not-a-real-profile",
+				config: { extensions: {} },
+			});
+			assert.isNull(built.profile);
+			assert.strictEqual(built.profile_requested, "not-a-real-profile");
 		}),
 	);
 
@@ -124,6 +141,7 @@ describe("humanContext", () => {
 				bundleRoot: "/repo/okf",
 				configPath: null,
 				profile: null,
+				profileRequested: null,
 				indexPath: "/repo/okf/index.md",
 				indexExists: false,
 				config: { extensions: {} },
@@ -133,6 +151,51 @@ describe("humanContext", () => {
 			assert.isTrue(lines.includes("profile: (none)"));
 			assert.isTrue(lines.includes("agent: (unset)"));
 			assert.isTrue(lines.includes("index.md: /repo/okf/index.md (missing)"));
+		}),
+	);
+
+	it.effect("profile: (none) (requested <name>, unknown) when profile is unknown", () =>
+		Effect.sync(() => {
+			const built = contextEnvelope({
+				projectRoot: "/repo",
+				bundleRoot: "/repo/okf",
+				configPath: "/repo/okfit.config.toml",
+				profile: null,
+				profileRequested: "not-a-real-profile",
+				indexPath: "/repo/okf/index.md",
+				indexExists: false,
+				config: { extensions: {} },
+			});
+			const lines = humanContext(built);
+			assert.isTrue(lines.includes("profile: (none) (requested not-a-real-profile, unknown)"));
+		}),
+	);
+
+	it.effect('renders "profile: (none)" (no unknown suffix) when profile_requested is null or "none"', () =>
+		Effect.sync(() => {
+			const noConfig = contextEnvelope({
+				projectRoot: "/repo",
+				bundleRoot: "/repo/okf",
+				configPath: null,
+				profile: null,
+				profileRequested: null,
+				indexPath: "/repo/okf/index.md",
+				indexExists: false,
+				config: { extensions: {} },
+			});
+			assert.isTrue(humanContext(noConfig).includes("profile: (none)"));
+
+			const noneProfile = contextEnvelope({
+				projectRoot: "/repo",
+				bundleRoot: "/repo/okf",
+				configPath: "/repo/okfit.config.toml",
+				profile: null,
+				profileRequested: "none",
+				indexPath: "/repo/okf/index.md",
+				indexExists: false,
+				config: { extensions: {} },
+			});
+			assert.isTrue(humanContext(noneProfile).includes("profile: (none)"));
 		}),
 	);
 

@@ -110,11 +110,11 @@ the bundle lives before deciding whether to run `okfit validate`.
 
 ```console
 $ okfit context
-project root: .
-bundle root: okf
+project root: /abs/path/to/my-repo
+bundle root: /abs/path/to/my-repo/okf
 config: (none)
 profile: software-project
-index.md: okf/index.md (exists)
+index.md: /abs/path/to/my-repo/okf/index.md (exists)
 agent: (unset)
 
 types:
@@ -132,6 +132,10 @@ tags:
   security  Concerns trust boundaries, secrets, permissions, or attack surface.
   testing  Concerns how the system is verified: strategy, fixtures, and coverage policy.
 ```
+
+All paths `humanContext` prints are absolute, exactly as the resolved envelope carries them
+(never relativized to the current directory the way `validate`'s summary line is) — the
+example above reflects that, not a shortened path for readability.
 
 `--format json` uses its own envelope, `ContextEnvelope` (schema 1),
 documented in `## --format json` below — never `validate`'s `JsonEnvelope`.
@@ -245,6 +249,7 @@ one above:
  "bundle_root": "/abs/path/to/my-repo/okf",
  "config_path": null,
  "profile": "software-project",
+ "profile_requested": null,
  "index_path": "/abs/path/to/my-repo/okf/index.md",
  "index_exists": true,
  "actors": { "agent": null },
@@ -257,9 +262,19 @@ one above:
 }
 ```
 
-Every field is present, even when unset (`config_path`, `profile`, and
-`actors.agent` are `null`, never an omitted key) -- unlike
-`JsonDiagnostic`'s `range`, this envelope has no optional keys at all.
+Every field is present, even when unset (`config_path`, `profile`,
+`profile_requested`, and `actors.agent` are `null`, never an omitted key) --
+unlike `JsonDiagnostic`'s `range`, this envelope has no optional keys at all.
+
+`profile_requested` is the profile name the config asked for after the
+default rule, and is `null` only when no config file was found at all.
+`profile` keeps its original meaning: the resolved profile's name, or
+`null` when the requested name is unknown (or the config sets
+`bundle.profile = "none"`). The two differ only when a config names a
+profile `okfit` does not recognise — `profile` is `null` but
+`profile_requested` still names what was asked for, so `okfit context
+--format human` prints `profile: (none) (requested <name>, unknown)` in
+that one case.
 
 ## Message conventions
 

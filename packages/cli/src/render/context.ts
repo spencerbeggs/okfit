@@ -31,6 +31,16 @@ export type ContextTag = typeof ContextTag.Type;
  * `range`, which is `optionalKey` and omitted when absent
  * (`render/json.ts:14,68`).
  *
+ * `profile_requested` (final-review Important 1) is the profile name the
+ * config asked for after the K-4 default rule — `resolveProjectConfig`'s
+ * own `profileName` — and is `null` only when no config file was found at
+ * all. `profile` keeps its original meaning (the resolved profile's name,
+ * or `null` when the requested name is unknown or `"none"`). The two
+ * differ exactly when a config named an unrecognised profile: `profile`
+ * is `null` but `profile_requested` still names what was asked for, so a
+ * consumer can tell "no profile configured" apart from "an unknown profile
+ * was configured".
+ *
  * @public
  */
 export const ContextEnvelope = Schema.Struct({
@@ -39,6 +49,7 @@ export const ContextEnvelope = Schema.Struct({
 	bundle_root: Schema.String,
 	config_path: Schema.NullOr(Schema.String),
 	profile: Schema.NullOr(Schema.String),
+	profile_requested: Schema.NullOr(Schema.String),
 	index_path: Schema.String,
 	index_exists: Schema.Boolean,
 	actors: Schema.Struct({ agent: Schema.NullOr(Schema.String) }),
@@ -61,6 +72,7 @@ export const contextEnvelope = (input: {
 	readonly bundleRoot: string;
 	readonly configPath: string | null;
 	readonly profile: string | null;
+	readonly profileRequested: string | null;
 	readonly indexPath: string;
 	readonly indexExists: boolean;
 	readonly config: OkfitConfig;
@@ -70,6 +82,7 @@ export const contextEnvelope = (input: {
 	bundle_root: input.bundleRoot,
 	config_path: input.configPath,
 	profile: input.profile,
+	profile_requested: input.profileRequested,
 	index_path: input.indexPath,
 	index_exists: input.indexExists,
 	actors: { agent: input.config.actors?.agent ?? null },
@@ -89,13 +102,20 @@ export const contextEnvelope = (input: {
  * The `human` format: a short header block, then one line per type and one
  * per tag. Pure; the caller pipes each line through `Console.log`.
  *
+ * The `profile:` line reads `profile: (none) (requested NAME, unknown)`
+ * when `profile` and `profile_requested` disagree over an actually-unknown
+ * profile — never for the `"none"` or no-config cases, where a `null`
+ * `profile` is expected, not an error.
+ *
  * @public
  */
 export const humanContext = (envelope: ContextEnvelope): ReadonlyArray<string> => [
 	`project root: ${envelope.project_root}`,
 	`bundle root: ${envelope.bundle_root}`,
 	`config: ${envelope.config_path ?? "(none)"}`,
-	`profile: ${envelope.profile ?? "(none)"}`,
+	envelope.profile === null && envelope.profile_requested !== null && envelope.profile_requested !== "none"
+		? `profile: (none) (requested ${envelope.profile_requested}, unknown)`
+		: `profile: ${envelope.profile ?? "(none)"}`,
 	`index.md: ${envelope.index_path} (${envelope.index_exists ? "exists" : "missing"})`,
 	`agent: ${envelope.actors.agent ?? "(unset)"}`,
 	"",
