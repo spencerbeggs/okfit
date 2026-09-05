@@ -55,6 +55,9 @@ catalogs:
     '@effected/config-file':
       specifier: ^0.5.2
       version: 0.5.2
+    '@effected/git':
+      specifier: ^0.10.0
+      version: 0.10.0
     '@effected/glob':
       specifier: ^0.4.0
       version: 0.4.0
@@ -228,20 +231,34 @@ importers:
     publishDirectory: dist/dev/pkg
 
   packages/profiles:
-    dependencies:
+    devDependencies:
+      '@effect/platform-node':
+        specifier: catalog:effect
+        version: 4.0.0-rc.109(effect@4.0.0-rc.109)(redis@6.2.1)
+      '@effect/vitest':
+        specifier: catalog:effect
+        version: 4.0.0-rc.109(effect@4.0.0-rc.109)(vitest@4.1.11)
+      '@effected/git':
+        specifier: catalog:effected
+        version: 0.10.0(effect@4.0.0-rc.109)
+      '@effected/markdown':
+        specifier: catalog:effected
+        version: 0.8.1(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/toml@0.5.0(effect@4.0.0-rc.109))(@effected/yaml@0.12.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109)
+      '@effected/toml':
+        specifier: catalog:effected
+        version: 0.5.0(effect@4.0.0-rc.109)
       '@okfit/core':
         specifier: workspace:*
         version: link:../core/dist/dev/pkg
-      effect:
-        specifier: catalog:effect
-        version: 4.0.0-rc.109
-    devDependencies:
       '@savvy-web/bundler':
         specifier: ^2.3.0
         version: 2.3.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.1(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
       '@types/node':
         specifier: catalog:build
         version: 26.4.1
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.109
       typescript:
         specifier: catalog:build
         version: 7.0.2

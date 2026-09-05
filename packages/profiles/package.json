@@ -31,15 +31,24 @@
 		"prepare": "turbo run build:dev",
 		"types:check": "tsc --noEmit"
 	},
-	"dependencies": {
-		"@okfit/core": "workspace:*",
-		"effect": "catalog:effect"
-	},
 	"devDependencies": {
+		"@effect/platform-node": "catalog:effect",
+		"@effect/vitest": "catalog:effect",
+		"@effected/git": "catalog:effected",
+		"@effected/markdown": "catalog:effected",
+		"@effected/toml": "catalog:effected",
+		"@okfit/core": "workspace:*",
 		"@savvy-web/bundler": "^2.3.0",
 		"@types/node": "catalog:build",
+		"effect": "catalog:effect",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"
+	},
+	"peerDependencies": {
+		"@effected/git": "catalog:effected:peers",
+		"@effected/markdown": "catalog:effected:peers",
+		"@okfit/core": "workspace:^",
+		"effect": "catalog:effect:peers"
 	},
 	"engines": {
 		"node": ">=24.11.0"
