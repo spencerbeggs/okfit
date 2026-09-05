@@ -1,0 +1,7 @@
+{
+	"session_id": "33333333-3333-3333-3333-333333333333",
+	"cwd": "__REPO_ROOT__",
+	"transcript_path": "__REPO_ROOT__/.claude/transcripts/clear.jsonl",
+	"hook_event_name": "SessionStart",
+	"source": "clear"
+}

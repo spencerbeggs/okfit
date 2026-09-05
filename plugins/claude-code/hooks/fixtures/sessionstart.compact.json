@@ -1,0 +1,7 @@
+{
+	"session_id": "44444444-4444-4444-4444-444444444444",
+	"cwd": "__REPO_ROOT__",
+	"transcript_path": "__REPO_ROOT__/.claude/transcripts/compact.jsonl",
+	"hook_event_name": "SessionStart",
+	"source": "compact"
+}

@@ -1,0 +1,11 @@
+{
+	"session_id": "88888888-8888-8888-8888-888888888888",
+	"cwd": "__REPO_ROOT__",
+	"permission_mode": "default",
+	"hook_event_name": "PostToolUse",
+	"tool_name": "Write",
+	"tool_input": { "file_path": "__REPO_ROOT__/src/unrelated.ts", "content": "export const unrelated = true;\n" },
+	"tool_response": { "filePath": "__REPO_ROOT__/src/unrelated.ts", "success": true },
+	"tool_use_id": "toolu_018888888888888888888888",
+	"duration_ms": 5
+}

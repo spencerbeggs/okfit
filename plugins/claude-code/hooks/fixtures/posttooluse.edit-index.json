@@ -1,0 +1,15 @@
+{
+	"session_id": "77777777-7777-7777-7777-777777777777",
+	"cwd": "__REPO_ROOT__",
+	"permission_mode": "default",
+	"hook_event_name": "PostToolUse",
+	"tool_name": "Edit",
+	"tool_input": {
+		"file_path": "__REPO_ROOT__/okf/index.md",
+		"old_string": "# Example Bundle",
+		"new_string": "# Example Bundle (edited)"
+	},
+	"tool_response": { "filePath": "__REPO_ROOT__/okf/index.md", "success": true },
+	"tool_use_id": "toolu_017777777777777777777777",
+	"duration_ms": 9
+}

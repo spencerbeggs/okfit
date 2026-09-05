@@ -1,0 +1,14 @@
+{
+	"session_id": "55555555-5555-5555-5555-555555555555",
+	"cwd": "__REPO_ROOT__",
+	"permission_mode": "default",
+	"hook_event_name": "PostToolUse",
+	"tool_name": "Write",
+	"tool_input": {
+		"file_path": "__REPO_ROOT__/okf/modules/example.md",
+		"content": "---\ntype: module\n---\n\n# Example\n"
+	},
+	"tool_response": { "filePath": "__REPO_ROOT__/okf/modules/example.md", "success": true },
+	"tool_use_id": "toolu_015555555555555555555555",
+	"duration_ms": 12
+}
