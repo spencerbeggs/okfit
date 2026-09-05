@@ -1,4 +1,5 @@
 import { Command } from "effect/unstable/cli";
+import { initCommand } from "./init.js";
 import { validateCommand } from "./validate.js";
 
 /**
@@ -9,12 +10,12 @@ import { validateCommand } from "./validate.js";
  * `okfit` therefore prints the root help and exits `0` with no code in this
  * package at all.
  *
- * `initCommand` joins `withSubcommands` in Group E's Task E2; only
- * `validate` is registered here (this group's scope).
+ * `validate` and `init` are the whole phase-1 command tree; nothing else is
+ * registered here.
  *
  * @public
  */
 export const rootCommand = Command.make("okfit", {}).pipe(
 	Command.withDescription("Open Knowledge Format (OKF) v0.2 tooling: validate and scaffold bundles."),
-	Command.withSubcommands([validateCommand]),
+	Command.withSubcommands([validateCommand, initCommand]),
 );
