@@ -1,0 +1,48 @@
+name: Plugin
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "plugins/claude-code/**"
+      - "packages/cli/**"
+      - "packages/core/**"
+      - "packages/profiles/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/plugin.yml"
+  push:
+    branches: [main]
+    paths:
+      - "plugins/claude-code/**"
+
+concurrency:
+  group: plugin-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  plugin:
+    name: BATS and markdownlint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install bats and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats jq
+
+      - name: Setup runtime
+        uses: savvy-web/silk-runtime-action@v1
+
+      - name: Run plugin BATS suite
+        run: pnpm test:bats
+
+      - name: Lint markdown
+        run: pnpm lint:md
