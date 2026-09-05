@@ -1,0 +1,107 @@
+import type { OkfitConfig } from "@okfit/core";
+import { Schema } from "effect";
+
+/** One `types[]` entry (M-15). @public */
+export const ContextType = Schema.Struct({
+	name: Schema.String,
+	description: Schema.NullOr(Schema.String),
+	guidance: Schema.NullOr(Schema.String),
+});
+/** @public */
+export type ContextType = typeof ContextType.Type;
+
+/** One `tags[]` entry (M-15). @public */
+export const ContextTag = Schema.Struct({
+	name: Schema.String,
+	description: Schema.NullOr(Schema.String),
+});
+/** @public */
+export type ContextTag = typeof ContextTag.Type;
+
+/**
+ * M-15's envelope: schema 1, snake_case, orientation data only. Distinct
+ * from `JsonEnvelope` (`render/json.ts`) — `context` never runs conformance
+ * or lint checks, so there is no `diagnostics` array and no `exit_code`
+ * field at all.
+ *
+ * Every field is `Schema.NullOr`, never `Schema.optionalKey`: a consumer
+ * (the two hook scripts) reads a fixed key set and gets JSON `null` for an
+ * absent value, rather than having to distinguish a missing key from a
+ * null one. This is a deliberate difference from `JsonDiagnostic`'s
+ * `range`, which is `optionalKey` and omitted when absent
+ * (`render/json.ts:14,68`).
+ *
+ * @public
+ */
+export const ContextEnvelope = Schema.Struct({
+	schema: Schema.Literal(1),
+	project_root: Schema.String,
+	bundle_root: Schema.String,
+	config_path: Schema.NullOr(Schema.String),
+	profile: Schema.NullOr(Schema.String),
+	index_path: Schema.String,
+	index_exists: Schema.Boolean,
+	actors: Schema.Struct({ agent: Schema.NullOr(Schema.String) }),
+	types: Schema.Array(ContextType),
+	tags: Schema.Array(ContextTag),
+});
+/** @public */
+export type ContextEnvelope = typeof ContextEnvelope.Type;
+
+/**
+ * Build the envelope from the merged config. `types`/`tags` sort by `name`
+ * with plain code-unit comparison, never locale-dependent — the same rule
+ * `render/sort.ts`'s K-17 comparator and
+ * `packages/profiles/src/SoftwareProject.ts:119`'s own sort use.
+ *
+ * @public
+ */
+export const contextEnvelope = (input: {
+	readonly projectRoot: string;
+	readonly bundleRoot: string;
+	readonly configPath: string | null;
+	readonly profile: string | null;
+	readonly indexPath: string;
+	readonly indexExists: boolean;
+	readonly config: OkfitConfig;
+}): ContextEnvelope => ({
+	schema: 1,
+	project_root: input.projectRoot,
+	bundle_root: input.bundleRoot,
+	config_path: input.configPath,
+	profile: input.profile,
+	index_path: input.indexPath,
+	index_exists: input.indexExists,
+	actors: { agent: input.config.actors?.agent ?? null },
+	types: Object.entries(input.config.types ?? {})
+		.map(([name, decl]) => ({
+			name,
+			description: decl.description ?? null,
+			guidance: decl.guidance ?? null,
+		}))
+		.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
+	tags: Object.entries(input.config.tags ?? {})
+		.map(([name, decl]) => ({ name, description: decl.description ?? null }))
+		.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
+});
+
+/**
+ * The `human` format: a short header block, then one line per type and one
+ * per tag. Pure; the caller pipes each line through `Console.log`.
+ *
+ * @public
+ */
+export const humanContext = (envelope: ContextEnvelope): ReadonlyArray<string> => [
+	`project root: ${envelope.project_root}`,
+	`bundle root: ${envelope.bundle_root}`,
+	`config: ${envelope.config_path ?? "(none)"}`,
+	`profile: ${envelope.profile ?? "(none)"}`,
+	`index.md: ${envelope.index_path} (${envelope.index_exists ? "exists" : "missing"})`,
+	`agent: ${envelope.actors.agent ?? "(unset)"}`,
+	"",
+	"types:",
+	...envelope.types.map((t) => `  ${t.name}  ${t.description ?? ""}`),
+	"",
+	"tags:",
+	...envelope.tags.map((t) => `  ${t.name}  ${t.description ?? ""}`),
+];
