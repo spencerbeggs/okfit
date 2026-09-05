@@ -1,6 +1,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
-import { OKF_BUNDLES, OKF_MOUNT, okfBundlePlatform, okfBundleSeed } from "./utils/fixtures.js";
+import {
+	BAD_BUNDLES,
+	BAD_MOUNT,
+	OKF_BUNDLES,
+	OKF_MOUNT,
+	badBundleSeed,
+	okfBundlePlatform,
+	okfBundleSeed,
+} from "./utils/fixtures.js";
 
 // Counts recorded in fixtures/okf/VENDORED.md; guards against a silently-empty vendoring.
 const EXPECTED = {
@@ -45,4 +53,18 @@ describe("vendored OKF corpus guard", () => {
 			]);
 		}).pipe(Effect.provide(AcmePlatform)),
 	);
+});
+
+describe("bad bundle fixtures guard", () => {
+	for (const bundle of BAD_BUNDLES) {
+		it(`seeds ${bundle} with at least one markdown file under its mount`, () => {
+			const keys = Object.keys(badBundleSeed(bundle));
+			assert.isAtLeast(keys.filter((key) => key.endsWith(".md")).length, 1);
+			for (const key of keys) assert.isTrue(key.startsWith(`${BAD_MOUNT}/${bundle}/`));
+		});
+	}
+
+	it("seeds the hidden directory case with a dotfile path", () => {
+		assert.isTrue(Object.hasOwn(badBundleSeed("hidden-directory"), `${BAD_MOUNT}/hidden-directory/.drafts/hidden.md`));
+	});
 });
