@@ -3,8 +3,10 @@ import { Git } from "@effected/git";
 import { FrontmatterSource } from "@effected/markdown";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
-import { DateTime, Duration, Effect, Option, Schema } from "effect";
-import type { GitHistoryError } from "./GitHistory.js";
+import { DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
+import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
+import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
+import { GitHistory } from "./GitHistory.js";
 
 /**
  * Who is writing now. Explicit, never read from the environment (P-16).
@@ -165,6 +167,17 @@ const staleAfter = (from: DateTime.Utc, config: OkfitConfig): DateTime.Utc =>
 			FALLBACK_STALE_AFTER,
 	);
 
+const committed = (entry: PathHistoryEntry): BodyProvenance => ({
+	_tag: "committed",
+	at: entry.authoredAt,
+	sha: entry.sha,
+	committedAt: entry.committedAt,
+	authorName: entry.authorName,
+	authorEmail: entry.authorEmail,
+});
+
+const uncommitted = (reason: UncommittedReason): BodyProvenance => ({ _tag: "uncommitted", reason });
+
 /**
  * Spec 5.4 derivation rules for the `software-project` profile, package-global
  * (P-38). Pure members take every input as an argument; effectful members
@@ -181,6 +194,73 @@ export class Derivation {
 	 * text removed (P-6). Pure. Applied to both sides of every comparison so `core.autocrlf` worktrees compare clean.
 	 */
 	static readonly body: (text: string) => string = body;
+
+	/**
+	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:
+	 *  1. `root = Git.repoRoot(dirname(file))`: a file outside any repository surfaces `NotARepositoryError`;
+	 *     submodules and worktrees work because the question is asked from the file's directory (P-39).
+	 *  2. `realPath` both (rev-parse is symlink-resolved), then the repo-relative posix path via `Path` (P-39).
+	 *  3. `worktree = body(readFileString(file))`.
+	 *  4. `Git.show(realRoot, "HEAD", rel)`: `UnknownRefError` is `uncommitted { unborn }` (P-11), `Option.none`
+	 *     is `uncommitted { untracked }` (P-47), a body differing from `worktree` is `uncommitted { dirty }` (P-9).
+	 *     The comparison is against HEAD's blob, never the newest log entry (P-46).
+	 *  5. `entries = GitHistory.pathLog(realRoot, rel)` newest first (P-5, P-46); `[]` is `uncommitted { unborn }`.
+	 *  6. One `Git.show` per blob (P-8), newest first: the first entry whose body differs from the next older
+	 *     entry's body wins, else the oldest entry (the creating commit). "Previous" is the previous entry of the
+	 *     simplified `--follow` history, not the true parent (P-7). `Option.none` for the newest entry is a defect
+	 *     (the path is at HEAD); `Option.none` for an older entry counts as "differs".
+	 * `config` is reserved and ignored (P-48). Never writes, never reads `by` (P-40).
+	 */
+	static readonly generatedAt: (
+		options: GeneratedAtOptions,
+	) => Effect.Effect<BodyProvenance, GeneratedAtError, Git | GitHistory | FileSystem.FileSystem | Path.Path> =
+		Effect.fn("Derivation.generatedAt")(function* (options: GeneratedAtOptions) {
+			const git = yield* Git;
+			const history = yield* GitHistory;
+			const fs = yield* FileSystem.FileSystem;
+			const path = yield* Path.Path;
+			// 1. GIT/index.d.ts:1587; EF/Path.ts:88
+			const root = yield* git.repoRoot(path.dirname(options.file));
+			// 2. EF/FileSystem.ts:265; EF/Path.ts:96, :86
+			const realRoot = yield* fs.realPath(root);
+			const realFile = yield* fs.realPath(options.file);
+			const rel = path.relative(realRoot, realFile).split(path.sep).join("/");
+			// 3. EF/FileSystem.ts:252
+			const worktree = body(yield* fs.readFileString(options.file));
+			// 4. GIT/index.d.ts:1170; EF/Effect.ts:2693
+			const head = yield* git.show(realRoot, "HEAD", rel).pipe(
+				Effect.map((blob) => ({ unborn: false as const, blob })),
+				Effect.catchTag("UnknownRefError", () =>
+					Effect.succeed({ unborn: true as const, blob: Option.none<string>() }),
+				),
+			);
+			if (head.unborn) return uncommitted("unborn");
+			if (Option.isNone(head.blob)) return uncommitted("untracked");
+			if (body(head.blob.value) !== worktree) return uncommitted("dirty");
+			// 5.
+			const entries = yield* history.pathLog(realRoot, rel);
+			const newest = entries[0];
+			if (newest === undefined) return uncommitted("unborn");
+			// 6.
+			const newestBlob = yield* git.show(realRoot, newest.sha, newest.path);
+			if (Option.isNone(newestBlob)) {
+				return yield* Effect.die(
+					new Error(`Derivation.generatedAt: ${newest.sha} has no blob at ${newest.path} although the path is at HEAD`),
+				);
+			}
+			let current = body(newestBlob.value);
+			for (let index = 0; index < entries.length - 1; index += 1) {
+				const entry = entries[index];
+				const older = entries[index + 1];
+				if (entry === undefined || older === undefined) break;
+				const olderBlob = yield* git.show(realRoot, older.sha, older.path);
+				if (Option.isNone(olderBlob)) return committed(entry);
+				const olderBody = body(olderBlob.value);
+				if (olderBody !== current) return committed(entry);
+				current = olderBody;
+			}
+			return committed(entries[entries.length - 1] ?? newest);
+		});
 
 	/**
 	 * P-13 / P-14, pure. Candidates: the email local part (returned as written, lower-cased only for matching)

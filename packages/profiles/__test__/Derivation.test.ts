@@ -1,13 +1,32 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Git } from "@effected/git";
+import { Git, NotARepositoryError } from "@effected/git";
 import { Actor, OkfitConfig } from "@okfit/core";
-import { DateTime, Duration, Effect, Option, Schema } from "effect";
+import { Cause, DateTime, Duration, Effect, Exit, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { AgentActorUnconfiguredError, Derivation, HumanActorUnresolvedError } from "../src/Derivation.js";
-import { identityGit } from "./utils/derivation.js";
+import { GitHistory } from "../src/GitHistory.js";
+import type { F4CommitName } from "./fixtures/history.js";
+import {
+	F4_ENTRIES,
+	F4_EXPECTED_BODY_COMMIT_AT_HEAD,
+	F4_EXPECTED_BODY_COMMIT_BEFORE_MERGE,
+	F4_LOG_ORDER,
+	F4_TEXTS,
+	FIXTURE_AUTHOR_EMAIL,
+	FIXTURE_AUTHOR_NAME,
+} from "./fixtures/history.js";
+import { FILE, blobsOf, entriesOf, identityGit, windowsPath, world } from "./utils/derivation.js";
 
 const actor = Schema.decodeUnknownSync(Actor);
 const utc = (iso: string): number => DateTime.toEpochMillis(DateTime.makeUnsafe(iso));
 const from = DateTime.makeUnsafe("2026-03-01T08:00:00Z");
+/** The fixture commit by name; `F4_ENTRIES` carries every F4 commit (group A). */
+const byName = (name: F4CommitName) => F4_ENTRIES.find((commit) => commit.name === name)!;
+/** The path log as it would read at `HEAD = name`: `F4_ENTRIES` from that commit down (newest first). */
+const logAt = (name: F4CommitName) => F4_ENTRIES.slice(F4_LOG_ORDER.indexOf(name));
+const HEAD_TEXT = F4_TEXTS.c6;
+const STAMP_EDIT = HEAD_TEXT.replace("stale_after: 2026-05-30T08:00:00Z", "stale_after: 2030-01-01T00:00:00Z");
+const history = entriesOf(F4_ENTRIES);
+const blobs = blobsOf(F4_ENTRIES);
 
 describe("Derivation.body", () => {
 	it("strips the frontmatter block, normalises CRLF and CR to LF, and trims trailing whitespace (P-6)", () => {
@@ -17,6 +36,203 @@ describe("Derivation.body", () => {
 		assert.strictEqual(Derivation.body("---\ntitle: x\n---\n\n# Body\n"), "\n# Body");
 		assert.strictEqual(Derivation.body("no frontmatter\n"), "no frontmatter");
 	});
+});
+
+describe("Derivation.generatedAt (P-2, P-9, P-39)", () => {
+	it.effect("at HEAD = c6 returns the topic commit: the merge's body equals it and c4's stamp is skipped", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag !== "committed") return;
+			const topic = byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD);
+			const c4 = byName("c4");
+			assert.strictEqual(result.sha, topic.sha);
+			assert.strictEqual(DateTime.toEpochMillis(result.at), utc("2026-06-01T08:00:00Z"));
+			assert.strictEqual(DateTime.toEpochMillis(result.committedAt), utc(topic.committedAt));
+			assert.notStrictEqual(result.sha, byName("c6").sha);
+			assert.notStrictEqual(result.sha, c4.sha);
+			assert.notStrictEqual(DateTime.toEpochMillis(result.at), utc(c4.authoredAt));
+			assert.notStrictEqual(DateTime.toEpochMillis(result.at), utc(c4.committedAt));
+			assert.strictEqual(result.authorName, FIXTURE_AUTHOR_NAME);
+			assert.strictEqual(result.authorEmail, FIXTURE_AUTHOR_EMAIL);
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history }))),
+	);
+	it.effect("at HEAD = c5 returns c3's author date, not c4's stamp or committer date, across the rename", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag !== "committed") return;
+			const c3 = byName(F4_EXPECTED_BODY_COMMIT_BEFORE_MERGE);
+			const c4 = byName("c4");
+			assert.strictEqual(result.sha, c3.sha);
+			assert.strictEqual(DateTime.toEpochMillis(result.at), utc("2026-03-01T08:00:00Z"));
+			assert.strictEqual(DateTime.toEpochMillis(result.committedAt), utc(c3.committedAt));
+			assert.notStrictEqual(result.sha, byName("c5").sha);
+			assert.notStrictEqual(result.sha, c4.sha);
+			assert.notStrictEqual(DateTime.toEpochMillis(result.at), utc(c4.authoredAt));
+			assert.notStrictEqual(DateTime.toEpochMillis(result.at), utc(c4.committedAt));
+		}).pipe(
+			Effect.provide(
+				world({ worktree: F4_TEXTS.c5, head: Option.some(F4_TEXTS.c5), blobs, history: entriesOf(logAt("c5")) }),
+			),
+		),
+	);
+	it.effect("accepts config and ignores it (P-48)", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE, config: OkfitConfig.DEFAULTS });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history }))),
+	);
+	it.effect("a worktree whose body differs from HEAD's blob is dirty, and the log is never consulted", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.deepStrictEqual(result, { _tag: "uncommitted", reason: "dirty" });
+		}).pipe(
+			Effect.provide(world({ worktree: `${HEAD_TEXT}\nAn uncommitted paragraph.\n`, head: Option.some(HEAD_TEXT) })),
+		),
+	);
+	it.effect("a frontmatter-only worktree edit is still committed at the topic commit", () =>
+		Effect.gen(function* () {
+			assert.notStrictEqual(STAMP_EDIT, HEAD_TEXT); // the fixture text carries the stamp line the edit rewrites
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
+		}).pipe(Effect.provide(world({ worktree: STAMP_EDIT, head: Option.some(HEAD_TEXT), blobs, history }))),
+	);
+	it.effect("a CRLF worktree against an LF blob is committed (P-6)", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
+		}).pipe(
+			Effect.provide(
+				world({ worktree: HEAD_TEXT.replace(/\n/g, "\r\n"), head: Option.some(HEAD_TEXT), blobs, history }),
+			),
+		),
+	);
+	it.effect("an unborn HEAD is uncommitted { unborn } before the log is consulted (P-11, P-47)", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.deepStrictEqual(result, { _tag: "uncommitted", reason: "unborn" });
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: "unborn" }))),
+	);
+	it.effect("a path absent from HEAD is uncommitted { untracked } before the log is consulted (P-47)", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.deepStrictEqual(result, { _tag: "uncommitted", reason: "untracked" });
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.none() }))),
+	);
+	it.effect("an empty path log is uncommitted { unborn }", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.deepStrictEqual(result, { _tag: "uncommitted", reason: "unborn" });
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history: [] }))),
+	);
+	it.effect("returns the creating commit when every blob body is identical", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") {
+				assert.strictEqual(result.sha, byName("c1").sha);
+				assert.strictEqual(DateTime.toEpochMillis(result.at), utc("2026-01-01T08:00:00Z"));
+			}
+		}).pipe(
+			Effect.provide(
+				world({
+					worktree: F4_TEXTS.c2,
+					head: Option.some(F4_TEXTS.c2),
+					blobs: blobsOf([byName("c2"), byName("c1")]),
+					history: entriesOf([byName("c2"), byName("c1")]),
+				}),
+			),
+		),
+	);
+	it.effect("an older entry whose blob is absent stops the walk at the entry above it", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName("c4").sha);
+		}).pipe(
+			Effect.provide(
+				world({
+					worktree: F4_TEXTS.c4,
+					head: Option.some(F4_TEXTS.c4),
+					blobs: blobsOf([byName("c4")]),
+					history: entriesOf([byName("c4"), byName("c3")]),
+				}),
+			),
+		),
+	);
+	it.effect("realpath-resolves root and file before computing the repo-relative path (P-39)", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: "/var/w/repo/okf/modules/core-lib.md" });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
+		}).pipe(
+			Effect.provide(
+				world({
+					root: "/private/var/w/repo",
+					file: "/var/w/repo/okf/modules/core-lib.md",
+					realPaths: { "/var/w/repo/okf/modules/core-lib.md": "/private/var/w/repo/okf/modules/core-lib.md" },
+					worktree: HEAD_TEXT,
+					head: Option.some(HEAD_TEXT),
+					blobs,
+					history,
+				}),
+			),
+		),
+	);
+	it.effect("converts a Windows path.sep to posix for git (P-39)", () =>
+		Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: "C:\\repo\\okf\\modules\\core-lib.md" });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
+		}).pipe(
+			Effect.provide(
+				world({
+					root: "C:\\repo",
+					file: "C:\\repo\\okf\\modules\\core-lib.md",
+					worktree: HEAD_TEXT,
+					head: Option.some(HEAD_TEXT),
+					blobs,
+					history,
+					path: windowsPath,
+				}),
+			),
+		),
+	);
+	it.effect("NotARepositoryError from repoRoot propagates (P-11)", () =>
+		Effect.gen(function* () {
+			const error = yield* Effect.flip(Derivation.generatedAt({ file: "/elsewhere/note.md" }));
+			assert.instanceOf(error, NotARepositoryError);
+			assert.strictEqual(error.cwd, "/elsewhere");
+		}).pipe(
+			Effect.provide(
+				Layer.mergeAll(
+					Git.layerTest({ repoRoot: (cwd) => Effect.fail(new NotARepositoryError({ cwd })) }),
+					GitHistory.layerTest({}),
+					FileSystem.layerNoop({}),
+					Path.layer,
+				),
+			),
+		),
+	);
+	it.effect("an unstubbed Git member dies, naming itself (P-32)", () =>
+		Effect.gen(function* () {
+			const exit = yield* Effect.exit(Derivation.generatedAt({ file: FILE }));
+			assert.isTrue(Exit.isFailure(exit));
+			if (Exit.isFailure(exit)) {
+				assert.isTrue(Cause.hasDies(exit.cause));
+				const die = exit.cause.reasons.find(Cause.isDieReason);
+				assert.isDefined(die);
+				assert.instanceOf(die?.defect, Error);
+				if (die !== undefined && die.defect instanceof Error) assert.include(die.defect.message, "repoRoot");
+			}
+		}).pipe(
+			Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}), FileSystem.layerNoop({}), Path.layer)),
+		),
+	);
 });
 
 describe("Derivation.humanActorId (P-13, P-14)", () => {
