@@ -1,10 +1,7 @@
-import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import { Profiles } from "@okfit/profiles";
-import { Console, Effect, Option, Path, Schema } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import type { DiscoveredConfig } from "../config/anchor.js";
-import { resolveBundleRoot, resolveProjectRoot } from "../config/anchor.js";
 import { provideConfig } from "../config/layer.js";
+import { resolveProjectConfig } from "../config/resolve.js";
 import { runContext } from "../context/run.js";
 import { setExitCode } from "../internal/exit.js";
 import { ContextEnvelope, contextEnvelope, humanContext } from "../render/context.js";
@@ -31,14 +28,12 @@ const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
 	Flag.withDescription("output format: human (default) or json"),
 );
 
-/** Matches `commands/validate.ts`'s own `DEFAULT_PROFILE_NAME` (decision 1: not shared, not refactored). */
-const DEFAULT_PROFILE_NAME = OkfitConfig.DEFAULTS.bundle?.profile ?? "software-project";
-
 /**
  * `okfit context [path] [--config <file>] [--format human|json]`.
  *
  * Handler order fixed by the contract (§8.3): steps 1–7 are
- * `validateCommand`'s handler verbatim — stat `--config` (K-1) via
+ * `validateCommand`'s handler in substance (both now share
+ * `config/resolve.ts#resolveProjectConfig` — A4) — stat `--config` (K-1) via
  * `provideConfig`, discover (`OkfitConfigFile.discover`), resolve the
  * profile with the K-4 warning, merge `DEFAULTS < profile < file` (D-28),
  * warn on an `okf_version` mismatch (K-15), resolve the project and bundle
@@ -56,44 +51,14 @@ export const contextCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
-			const path = yield* Path.Path;
 
 			const body = Effect.gen(function* () {
-				const okfitConfigFile = yield* OkfitConfigFile;
-				const sources = yield* okfitConfigFile.discover;
-				const discoveredSource = sources[0];
-				const fileConfig: OkfitConfig = discoveredSource === undefined ? { extensions: {} } : discoveredSource.value;
-
-				const profileName = fileConfig.bundle?.profile ?? DEFAULT_PROFILE_NAME;
-				const profile = profileName === "none" ? Option.none() : Profiles.get(profileName);
-				if (profileName !== "none" && Option.isNone(profile)) {
-					yield* Console.error(`warning: unknown profile "${profileName}"; continuing with defaults`);
-				}
-
-				const base = Option.match(profile, {
-					onNone: () => OkfitConfig.DEFAULTS,
-					onSome: (p) => OkfitConfig.merge(OkfitConfig.DEFAULTS, p.config),
-				});
-				const merged = OkfitConfig.merge(base, fileConfig);
-
-				if (merged.okf_version !== undefined && merged.okf_version !== OKF_SPEC_VERSION) {
-					yield* Console.error(
-						`warning: okf_version "${merged.okf_version}" does not match this okfit's spec version "${OKF_SPEC_VERSION}"; continuing`,
-					);
-				}
-
-				const discovered: Option.Option<DiscoveredConfig> =
-					discoveredSource === undefined
-						? Option.none()
-						: Option.some({ path: discoveredSource.path, resolver: discoveredSource.resolver });
-				const projectRoot = resolveProjectRoot({
+				const resolved = yield* resolveProjectConfig({
 					pathArg: input.path,
 					explicitConfigPath: input.config,
-					discovered,
 					cwd,
-					path,
 				});
-				const bundleRoot = resolveBundleRoot(projectRoot, merged, path);
+				const { projectRoot, bundleRoot, config: merged, profile, discovered } = resolved;
 
 				const { indexPath, indexExists } = yield* runContext({ bundleRoot });
 
@@ -102,12 +67,10 @@ export const contextCommand = Command.make(
 				// makes discover() return exactly one source whose path already
 				// equals input.config's value); otherwise the --config value itself
 				// when given, else null.
-				const configPath =
-					discoveredSource === undefined
-						? Option.isSome(input.config)
-							? input.config.value
-							: null
-						: discoveredSource.path;
+				const configPath = Option.match(discovered, {
+					onNone: () => (Option.isSome(input.config) ? input.config.value : null),
+					onSome: (source) => source.path,
+				});
 
 				const envelope = contextEnvelope({
 					projectRoot,
