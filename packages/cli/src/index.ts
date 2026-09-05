@@ -5,6 +5,8 @@
  */
 
 export { rootCommand } from "./commands/root.js";
+export type { DiscoveredConfig } from "./config/anchor.js";
+export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
 
 /**
  * The version string reported by `okfit --version`.
