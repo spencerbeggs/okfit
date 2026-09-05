@@ -12,10 +12,10 @@ import { Context, Effect, Option } from "effect";
  * building {@link RunOptions} or a scaffold's `today`. Not re-exported from
  * `index.ts`: like `internal/exit.ts` and `internal/tty.ts`, it means
  * nothing outside a spawned process (K-49). `Context.Tag` does not exist on
- * this Effect line (rc.109); the v4 shape is `Context.Service<Self,
- * Shape>()(id)`, the same form core and profiles use for their own services
- * (`PROFILES/GitHistory.ts:140`) — source wins over the contract's literal
- * snippet here (K-62).
+ * this Effect line (rc.109); the v4 shape is
+ * `Context.Service<Self, Shape>()(id)`, the same form core and profiles use
+ * for their own services (`PROFILES/GitHistory.ts:140`) — source wins over
+ * the contract's literal snippet here (K-62).
  *
  * @public
  */
