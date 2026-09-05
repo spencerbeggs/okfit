@@ -31,6 +31,17 @@ export type { GraphEdge, GraphLink, GraphNode, PathField } from "./Graph.js";
 export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";
 export { LogDocument, LogGroup, LogItem } from "./LogDocument.js";
+export type { OkfitConfigFields } from "./OkfitConfig.js";
+export {
+	FieldDeclaration,
+	LintLevel,
+	LintTable,
+	OkfitConfig,
+	OkfitConfigFile,
+	StaleAfterDuration,
+	TagDeclaration,
+	TypeDeclaration,
+} from "./OkfitConfig.js";
 export { Source, UsageWindow } from "./Source.js";
 export { Status } from "./Status.js";
 export { Timestamp } from "./Timestamp.js";

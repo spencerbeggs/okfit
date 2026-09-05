@@ -137,7 +137,12 @@ export const LintTable = Schema.Struct({
 
 type LintTableKey = keyof typeof LintTable.fields;
 
-const OkfitConfigFields = Schema.Struct({
+/**
+ * The `OkfitConfig` struct schema. Exported only so `OkfitConfig`'s type
+ * alias is reachable from the barrel; not part of the named public surface.
+ * @public
+ */
+export const OkfitConfigFields = Schema.Struct({
 	okf_version: Schema.optionalKey(Schema.String),
 	bundle: Schema.optionalKey(
 		Schema.Struct({ path: Schema.optionalKey(Schema.String), profile: Schema.optionalKey(Schema.String) }),
