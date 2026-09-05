@@ -55,21 +55,29 @@ _ctx() {
 	printf '{"schema":1,"project_root":"%s","bundle_root":"%s","config_path":null,"profile":"software-project","index_path":"%s/index.md","index_exists":true,"actors":{"agent":"okfit/claude-code"},"types":[],"tags":[]}' "$2" "$1" "$1"
 }
 
-# _run_hook envelope_json [path_override] [project_dir] — env -i plus only
-# what a real dispatch provides. stderr goes to $STUB_DIR/stderr, never
-# merged into $output (see session-start-orientation.bats for why).
+# _run_hook envelope_json [path_override] [project_dir] [cwd_dir] — env -i
+# plus only what a real dispatch provides. stderr goes to $STUB_DIR/stderr,
+# never merged into $output (see session-start-orientation.bats for why).
+# cwd_dir defaults to the caller's own $PWD (i.e. no change from before this
+# parameter existed) — pass it explicitly to run the hook from inside an
+# isolated project directory so a fallback PWD resolution cannot reach the
+# real repo either.
 _run_hook() {
 	local envelope="$1"
 	local path_override="${2:-$PATH}"
 	local project_dir="${3:-$REPO_ROOT}"
-	env -i \
-		PATH="$path_override" \
-		CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-		CLAUDE_PROJECT_DIR="$project_dir" \
-		OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
-		OKFIT_HOOKS="${OKFIT_HOOKS:-}" \
-		OKFIT_VALIDATE_HOOK="${OKFIT_VALIDATE_HOOK:-}" \
-		bash "$SCRIPT" <<<"$envelope" 2>"$STUB_DIR/stderr"
+	local cwd_dir="${4:-$PWD}"
+	(
+		cd "$cwd_dir" || exit 1
+		env -i \
+			PATH="$path_override" \
+			CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+			CLAUDE_PROJECT_DIR="$project_dir" \
+			OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
+			OKFIT_HOOKS="${OKFIT_HOOKS:-}" \
+			OKFIT_VALIDATE_HOOK="${OKFIT_VALIDATE_HOOK:-}" \
+			bash "$SCRIPT" <<<"$envelope" 2>"$STUB_DIR/stderr"
+	)
 }
 
 _run_hook_file() {
@@ -115,11 +123,20 @@ _run_hook_file() {
 }
 
 @test "allows silently with one stderr line when okfit_cli resolves nothing" {
+	# Hermetic project dir with no node_modules — the real repo's checked-out
+	# node_modules/.bin/okfit (a root devDependency, always present after
+	# `pnpm install`) must never be reachable from this test. CLAUDE_PROJECT_DIR,
+	# the envelope's own .cwd, and the subshell's PWD are all pointed at this
+	# same isolated directory so none of okfit_project_dir's three resolution
+	# steps can fall through to the real repo.
 	local barebin
 	barebin="$(mktemp -d)"
 	_barebin "$barebin"
-	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$REPO_ROOT"'/okf/x.md"},"cwd":"'"$REPO_ROOT"'"}' "$barebin"
-	rm -rf "$barebin"
+	local project_dir
+	project_dir="$(mktemp -d)"
+	mkdir -p "$project_dir/okf"
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$project_dir"'/okf/x.md"},"cwd":"'"$project_dir"'"}' "$barebin" "$project_dir" "$project_dir"
+	rm -rf "$barebin" "$project_dir"
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
 	[ "$(cat "$STUB_DIR/stderr")" = "okfit: CLI not found; validate hook allowing silently." ]
