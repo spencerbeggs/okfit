@@ -4,6 +4,11 @@ The `okfit` bin: `okfit validate` and `okfit init`. Built on
 `effect/unstable/cli` for the command tree, flags, and help; `@effected/cli`
 for output and failure rendering.
 
+`okfit context` prints the same orientation data (project root, bundle
+root, config path, profile, vocabulary) without loading the bundle — cheap
+enough for a Claude Code hook to call on every session and every in-bundle
+write.
+
 Config loading has two branches (K-10/K-57), chosen once per invocation in
 `config/layer.ts#buildConfigLayer`, never one chain with a conditional
 resolver list:
@@ -35,12 +40,16 @@ src/
     root.ts            -- rootCommand: subcommands only, no handler
     validate.ts         -- validateCommand: flags/argument, the full handler
     init.ts             -- initCommand: flags/argument, the full handler
+    context.ts           -- contextCommand: flags/argument, the full handler. No --profile flag.
   config/
     layer.ts            -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     anchor.ts            -- resolveProjectRoot, resolveBundleRoot (pure)
+  context/
+    run.ts               -- runContext: index.md stat only, never Bundle.load
   validate/
     run.ts               -- Now (Context.Service), RunOptions, RunResult, run
   render/
+    context.ts            -- ContextEnvelope/ContextType/ContextTag, contextEnvelope, humanContext (pure)
     sort.ts               -- RenderedDiagnostic, DiagnosticSource, collect, sort (pure)
     human.ts               -- Counts, line, human, summary (pure)
     json.ts                 -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary, json, jsonError (pure)
@@ -88,8 +97,9 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - **Barrel and `@okfit/mcp` (K-40).** `src/index.ts` (contract §4) is the
   copy contract for `@okfit/mcp`, planned for a later phase: the pure pieces
   — `run`, the renderers (`collect`/`sort`, `human`/`line`/`summary`,
-  `json`/`jsonError`), the exit-code mapper (`tally`/`forDiagnostics`), the
-  config helpers (`resolveProjectRoot`/`resolveBundleRoot`,
+  `json`/`jsonError`), the exit-code mapper (`tally`/`forDiagnostics`),
+  `contextEnvelope`/`humanContext`/`runContext`, the config helpers
+  (`resolveProjectRoot`/`resolveBundleRoot`,
   `buildConfigLayer`/`provideConfig`), the scaffold builder
   (`configValue`/`targetPaths`/`files`), and the CLI's typed errors
   (`ConfigPathNotFoundError`/`InitOverwriteError`/`ConfigMalformedError`/`renderFailure`)

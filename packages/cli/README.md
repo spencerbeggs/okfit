@@ -10,6 +10,7 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 okfit [--help] [--version]
 okfit validate [path] [--config <file>] [--format human|json] [--help]
 okfit init [path] [--profile <name>] [--config <file>] [--help]
+okfit context [path] [--config <file>] [--format human|json] [--help]
 ```
 
 `[path]` is the **project root** on both commands — the directory discovery
@@ -100,6 +101,44 @@ config's `bundle.profile`, itself defaulting to `software-project`); an
 unrecognised name is a warning, not a failure — `init` continues with the
 default profile.
 
+### `okfit context`
+
+Prints the resolved project root, bundle root, config path, profile, and
+vocabulary (`types` and `tags` from the merged config) without loading the
+bundle. Useful for a script or a Claude Code hook that needs to know where
+the bundle lives before deciding whether to run `okfit validate`.
+
+```console
+$ okfit context
+project root: .
+bundle root: okf
+config: (none)
+profile: software-project
+index.md: okf/index.md (exists)
+agent: (unset)
+
+types:
+  Convention  A rule contributors and agents must follow.
+  Decision  A choice made, the alternatives rejected, and why.
+  Interface  A contract others depend on.
+  Module  A unit of code with an owner and a boundary.
+  Project  The repository's root concept: its purpose, boundaries, and non-goals.
+  Reference  Mirrored external material kept under the references directory.
+
+tags:
+  architecture  Concerns the shape of the system rather than one module.
+  performance  Concerns speed, memory, or resource cost and the trade-offs made for them.
+  release  Concerns how changes ship: versioning, changelogs, publishing, and tagging.
+  security  Concerns trust boundaries, secrets, permissions, or attack surface.
+  testing  Concerns how the system is verified: strategy, fixtures, and coverage policy.
+```
+
+`--format json` uses its own envelope, `ContextEnvelope` (schema 1),
+documented in `## --format json` below — never `validate`'s `JsonEnvelope`.
+There is no `--profile` flag on `context`; that one belongs to `init`
+alone. Config discovery, the `--config` pre-flight, and the K-4/K-15
+warnings all behave exactly as `## Config discovery` describes below.
+
 ## Config discovery
 
 With no `--config` flag, `okfit` walks upward from `[path]` (default: the
@@ -138,6 +177,9 @@ is a warning, not a failure; the run continues.
 
 Higher wins when several apply. Warnings and info never change the exit
 code.
+
+`okfit context` never produces `1` or `2`: it prints orientation data and
+never runs conformance or lint checks.
 
 ## `--format json`
 
@@ -192,6 +234,32 @@ envelope to stdout and exits `3`:
 ```
 
 `init` has no `--format`; it is human output only.
+
+`okfit context --format json` prints its own envelope, distinct from the
+one above:
+
+```json
+{
+ "schema": 1,
+ "project_root": "/abs/path/to/my-repo",
+ "bundle_root": "/abs/path/to/my-repo/okf",
+ "config_path": null,
+ "profile": "software-project",
+ "index_path": "/abs/path/to/my-repo/okf/index.md",
+ "index_exists": true,
+ "actors": { "agent": null },
+ "types": [
+  { "name": "Project", "description": "The repository's root concept: its purpose, boundaries, and non-goals.", "guidance": "..." }
+ ],
+ "tags": [
+  { "name": "architecture", "description": "Concerns the shape of the system rather than one module." }
+ ]
+}
+```
+
+Every field is present, even when unset (`config_path`, `profile`, and
+`actors.agent` are `null`, never an omitted key) -- unlike
+`JsonDiagnostic`'s `range`, this envelope has no optional keys at all.
 
 ## Message conventions
 

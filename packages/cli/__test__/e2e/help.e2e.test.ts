@@ -22,10 +22,11 @@ const withSandbox = (args: ReadonlyArray<string>, assertOn: (stdout: string) => 
 	}).pipe(Effect.provide(NodeServices.layer));
 
 describe("okfit --help", () => {
-	it.effect("mentions both subcommands (K-33)", () =>
+	it.effect("mentions all three subcommands (K-33, contract §9.5)", () =>
 		withSandbox(["--help"], (stdout) => {
 			assert.isTrue(stdout.includes("validate"));
 			assert.isTrue(stdout.includes("init"));
+			assert.isTrue(stdout.includes("context"));
 		}),
 	);
 });
@@ -48,6 +49,19 @@ describe("okfit init --help", () => {
 			assert.isTrue(stdout.includes("path"));
 			assert.isTrue(stdout.includes("--config"));
 			assert.isTrue(stdout.includes("--profile"));
+		}),
+	);
+});
+
+describe("okfit context --help", () => {
+	it.effect("mentions path, --config, --format, human, and json; never --profile (contract §9.5)", () =>
+		withSandbox(["context", "--help"], (stdout) => {
+			assert.isTrue(stdout.includes("path"));
+			assert.isTrue(stdout.includes("--config"));
+			assert.isTrue(stdout.includes("--format"));
+			assert.isTrue(stdout.includes("human"));
+			assert.isTrue(stdout.includes("json"));
+			assert.isFalse(stdout.includes("--profile"));
 		}),
 	);
 });

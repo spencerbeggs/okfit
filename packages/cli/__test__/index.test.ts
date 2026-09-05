@@ -11,6 +11,9 @@ const VALUES = [
 	"CONFIG_RELATIVE_PATH",
 	"ConfigMalformedError",
 	"ConfigPathNotFoundError",
+	"ContextEnvelope",
+	"ContextTag",
+	"ContextType",
 	"InitOverwriteError",
 	"JsonDiagnostic",
 	"JsonEnvelope",
@@ -19,9 +22,11 @@ const VALUES = [
 	"buildConfigLayer",
 	"collect",
 	"configValue",
+	"contextEnvelope",
 	"files",
 	"forDiagnostics",
 	"human",
+	"humanContext",
 	"json",
 	"jsonError",
 	"line",
@@ -31,6 +36,7 @@ const VALUES = [
 	"resolveProjectRoot",
 	"rootCommand",
 	"run",
+	"runContext",
 	"sort",
 	"summary",
 	"tally",
@@ -54,6 +60,7 @@ describe("@okfit/cli barrel", () => {
 		Effect.sync(() => {
 			assert.isFalse(Object.hasOwn(Barrel, "validateCommand"));
 			assert.isFalse(Object.hasOwn(Barrel, "initCommand"));
+			assert.isFalse(Object.hasOwn(Barrel, "contextCommand"));
 			assert.isFalse(Object.hasOwn(Barrel, "Now"));
 			assert.isFalse(Object.hasOwn(Barrel, "setExitCode"));
 			assert.isFalse(Object.hasOwn(Barrel, "useColor"));
