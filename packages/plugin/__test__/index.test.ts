@@ -1,5 +1,6 @@
 import { CLI_VERSION } from "@okfit/cli";
 import { describe, expect, it } from "vitest";
+import cliPackageJson from "../../cli/package.json" with { type: "json" };
 import { OKFIT_BINS } from "../src/index.js";
 
 describe("@okfit/plugin", () => {
@@ -8,6 +9,6 @@ describe("@okfit/plugin", () => {
 	});
 
 	it("resolves @okfit/cli through the workspace", () => {
-		expect(CLI_VERSION).toBe("0.0.0");
+		expect(CLI_VERSION).toBe(cliPackageJson.version);
 	});
 });
