@@ -9,7 +9,26 @@ opinion-free; everything that says what a bundle *should* contain lives here.
 
 ```text
 src/
-  index.ts    -- public barrel
+  index.ts            -- public barrel; never exports from internal/
+  Profile.ts          -- PROFILE_NAMES, ProfileName, Layout, LayoutDirectory, ProfileDiagnosticCode, ProfileDiagnostic, Profile
+  SoftwareProject.ts  -- the software-project literal, layout, and check; NOT re-exported (reachable only via Profiles.softwareProject)
+  Profiles.ts         -- Profiles facade: get(name), softwareProject
+  GitHistory.ts       -- PathHistoryEntry, GitHistoryError, PathLogOptions, GitHistoryShape, GitHistory service (layer, makeTest, layerTest)
+  BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
+  Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, generatedAt, humanActorId, generatedBy, staleAfter
+  internal/
+    spawn.ts          -- runCollected(command); not exported
+    pathLog.ts        -- git log argv builder, record parser, stderr classifier; not exported
 ```
 
-Tests live in `__test__/`, never in `src/`.
+Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
+
+## Rules
+
+- Effect v4 only, at the version in `catalog:effect`. `@okfit/core`, `@effected/git`, and `@effected/markdown` are peers (Convention A); nothing under `src/` imports `@effect/platform-node` or `node:child_process` directly — `GitHistory.layer` goes through `effect/unstable/process`.
+- `SoftwareProject.ts` is never re-exported from `src/index.ts`; `softwareProject` is reachable only as `Profiles.softwareProject`. Nothing under `internal/` crosses the barrel.
+- `Derivation` is package-global, not per profile. It never rewrites `generated.by` on re-derivation and never substitutes `now` for an uncommitted body — both are the caller's decision.
+- No `process.cwd()` and no environment reads anywhere in `src/`: `writer` and `cwd` are explicit arguments (P-16).
+- Relative imports use `.js` extensions; built-ins use `node:`; type imports are separate `import type` statements; TSDoc `@public` on every export from `src/`; tab indentation.
+- `Context.Service` and `Schema.TaggedError` classes (`GitHistory`, `GitHistoryError`, `HumanActorUnresolvedError`, `AgentActorUnconfiguredError`) are declared inline; `savvy.build.ts` keeps the `_base` `ae-forgotten-export` suppression rather than hand-exporting the synthesized base.
+- The `README.md` TOML fence is a test fixture: `__test__/SoftwareProject.test.ts` decodes it and deep-equals it against the `software-project` literal. Change both together.

@@ -1,21 +1,12 @@
 # @okfit/profiles
 
-Named configuration profiles for [okfit](https://github.com/spencerbeggs/okfit). A profile is a complete okfit config plus derivation rules. The first profile, `software-project`, describes a software repository's knowledge bundle.
+Named configuration profiles for [okfit](https://github.com/spencerbeggs/okfit). A profile is a complete `OkfitConfig` value plus derivation rules for `generated.at` and `generated.by`. The first profile, `software-project`, describes a software repository's knowledge bundle.
 
 > **Pre-release.** Part of the `@okfit/*` kit, in early development.
 
-## Status
+## The `software-project` profile
 
-Skeleton. The public surface is `PROFILE_NAMES` only.
-
-## The `software-project` config
-
-The profile sets only `[concepts]`, `[types]` and `[tags]`; `okf_version`,
-`[bundle]`, `[lifecycle]`, `[actors]` and `[lint]` come from
-`OkfitConfig.DEFAULTS`, and a project's own `config.toml` is merged on top
-(`DEFAULTS < profile < file`). `actors.agent` is deliberately left for the
-project to set. The block below is checked against the shipped value by the
-package's tests, so it never drifts.
+`Profiles.softwareProject.config` is a hand-authored `OkfitConfig` (P-25) that sets only `concepts`, `types`, `tags`, and `extensions: {}`; `okf_version`, `bundle`, `lifecycle`, `actors`, and `lint` are inherited from `OkfitConfig.DEFAULTS` by whoever merges it (the CLI applies `DEFAULTS < profile < file` with `OkfitConfig.merge`). `Profiles.get(name)` resolves a profile by its exact name and answers `Option.none` for `"none"` and unknown names. The TOML below decodes to the exact same value and is checked against the literal by `__test__/SoftwareProject.test.ts`:
 
 ```toml
 [concepts]
@@ -93,6 +84,53 @@ description = "Concerns trust boundaries, secrets, permissions, or attack surfac
 [tags.performance]
 description = "Concerns speed, memory, or resource cost and the trade-offs made for them."
 ```
+
+Only `concepts`, `types`, and `tags` carry real vocabulary; the literal's `extensions: {}` is `OkfitConfig`'s one required key and never appears on disk, since the codec folds unknown top-level keys into it (P-24: `fields.<k>.kind = "path"` and the `tags` table are vocabulary only — core enforces none of it yet). `Reference.required = ["sources"]` checks presence only: `sources = []` passes, and each entry's shape is core's `family-invalid` (P-23).
+
+`Profiles.softwareProject.check(bundle)` additionally enforces, outside `OkfitConfig` entirely, that exactly one `Project` concept exists and lives at the bundle root (P-21): zero `Project`s is `project-missing`, more than one is `project-multiple` (one diagnostic per `Project` concept), and a `Project` whose path contains `/` is `project-not-at-root`. All three are severity `error` and are not configurable.
+
+## Layout
+
+`Profiles.softwareProject.layout` is scaffolding data for `okfit init`, never part of `OkfitConfig` (P-26):
+
+```text
+root:
+  index.md      -- bundle index
+  log.md        -- bundle log
+  project.md    -- the one Project concept, at the bundle root
+
+directories:
+  modules/       -> Module
+  decisions/     -> Decision
+  conventions/   -> Convention
+  interfaces/    -> Interface
+  references/    -> Reference
+```
+
+Each directory carries its own `index.md`. What `okfit init` writes into these files is the CLI plan's concern, not this package's.
+
+## Derivation
+
+`Derivation` is package-global, not per profile:
+
+- **`generated.at` is the author date, not the stamp date (P-4).** Walking a path's git history newest-first, the commit that changed the body is the one whose blob first differs from its predecessor's; that commit's *author* date (`%aI`) is `generated.at`. Its committer date, author name, and author email are carried on the result for callers that want a history-based policy later, but `generated.at` itself is never the date of a later frontmatter-only stamp.
+- **The path log walks `--follow --diff-merges=first-parent` (P-5, amended P-46).** Plain `--follow` can omit a conflict-resolving merge whose blob differs from both parents (probed on git 2.54.0), which would attribute that body change to the wrong commit; the extra flag surfaces it. The dirty check compares the worktree body against `Git.show(root, "HEAD", path)`, never against the newest log entry.
+- **Uncommitted is the caller's to interpret (P-10).** `Derivation.generatedAt` reports `{ _tag: "uncommitted", reason: "untracked" | "dirty" | "unborn" }` and never substitutes `now`. The recommended policy, followed by the snippet below: omit `generated.at` entirely until the body is committed.
+- **Human actor resolution (P-13).** Given git identity `{ name?, email? }` and `config.actors.humans`, the first hit wins: (1) a `human:<id>` entry whose id matches the email's local part or the name's slug, case-insensitively (config spelling returned); (2) `human:<local part>`; (3) `human:<slug of name>`; (4) unresolved. The slug lowercases `name`, replaces runs of whitespace and characters outside `[A-Za-z0-9._-]` with `-`, and trims leading and trailing `-`.
+- **Identity is read at merged config scope (P-15).** `Derivation.generatedBy` calls `Git.configGet(cwd, "user.name")` and `Git.configGet(cwd, "user.email")` with no `scope` option. Environment overrides (`GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `EMAIL`, `user.useConfigOnly`) are out of scope for phase 1.
+- **`stale_after` is pure addition (P-19).** `Derivation.staleAfter(from, config)` is `from + (config.lifecycle?.default_stale_after ?? OkfitConfig.DEFAULTS.lifecycle.default_stale_after)`, falling back to 90 days. `from` should be `generated.at` when the provenance is `committed`, otherwise the caller's own `now`; re-stamp whenever `generated.at` changes.
+
+Recommended stamping policy, followed end to end:
+
+```ts
+const by = yield* Derivation.generatedBy({ writer, cwd: path.dirname(file), config }); // P-16; agent needs actors.agent (P-17)
+const provenance = yield* Derivation.generatedAt({ file, config });                    // P-2, P-9, P-39
+const at = provenance._tag === "committed" ? Option.some(provenance.at) : Option.none(); // omit `at` until committed (P-10)
+const staleAfter = Derivation.staleAfter(Option.getOrElse(at, () => now), config);       // P-19; `now` is the caller's
+// serialisation is the CLI's: Schema.encodeSync(Timestamp) writes "...T08:00:00Z" after the P-18 core patch (P-41)
+```
+
+Frontmatter serialisation, the uncommitted policy's enforcement, `now`, layer composition (`Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer))`), exit codes, and everything `okfit init` writes belong to the CLI plan, not this package (P-30, P-41, P-44).
 
 ## License
 
