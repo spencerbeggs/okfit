@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { ConfigIssueRenderer } from "@effected/cli";
 import { ConfigValidationError } from "@effected/config-file";
 import { Option, Result, Runtime, Schema } from "effect";
+import { CliError } from "effect/unstable/cli";
 import { ConfigPathNotFoundError, InitOverwriteError, renderFailure } from "../src/errors.js";
 
 describe("ConfigPathNotFoundError", () => {
@@ -22,7 +23,8 @@ describe("InitOverwriteError", () => {
 
 describe("renderFailure", () => {
 	it("renders a ShowHelp as no lines (K-30: Command.runWith already printed the help)", () => {
-		assert.deepStrictEqual(renderFailure({ _tag: "ShowHelp" }), []);
+		const showHelp = new CliError.ShowHelp({ commandPath: ["okfit"], errors: [] });
+		assert.deepStrictEqual(renderFailure(showHelp), []);
 	});
 
 	it("renders ConfigPathNotFoundError as one error line", () => {

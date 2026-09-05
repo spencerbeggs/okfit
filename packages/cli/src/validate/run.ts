@@ -8,7 +8,7 @@ import { Context } from "effect";
  * `commands/init.ts` (Group E) each read it with `const now = yield* Now;` before
  * building a `RunOptions` or a scaffold's `today`. Not re-exported from
  * `index.ts`: like `internal/exit.ts` and `internal/tty.ts`, it means
- * nothing outside a spawned run of the bin (K-49).
+ * nothing outside a spawned process (K-49).
  *
  * `Context.Tag` does not exist on this Effect line (rc.109); the v4 shape is
  * `Context.Service<Self, Shape>()(id)`, the same form core and profiles use

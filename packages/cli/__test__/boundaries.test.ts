@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { findAppImportNames, stripComments } from "./utils/boundaries.js";
 
 const SRC_ROOT = join(import.meta.dirname, "..", "src");
 
@@ -24,6 +25,22 @@ const walk = (dir: string): ReadonlyArray<string> =>
 		return entry.isFile() && entry.name.endsWith(".ts") ? [full] : [];
 	});
 
+describe("findAppImportNames (K-9 scanner)", () => {
+	it("catches a Biome-wrapped multi-line named import that a line-scoped check would miss", () => {
+		const wrapped = ["import {", "\tApp,", '} from "@effected/app";', ""].join("\n");
+		assert.deepStrictEqual(findAppImportNames(wrapped), ["App"]);
+	});
+
+	it("extracts every named import across an aliased, type-prefixed, multi-name list", () => {
+		const source = 'import { type AppCache, App as MyApp, AppStore } from "@effected/app";\n';
+		assert.deepStrictEqual(findAppImportNames(source), ["AppCache", "App", "AppStore"]);
+	});
+
+	it("finds nothing when the file never imports from @effected/app", () => {
+		assert.deepStrictEqual(findAppImportNames('import { Effect } from "effect";\n'), []);
+	});
+});
+
 describe("src boundaries (K-9, K-39, K-49)", () => {
 	const files = walk(SRC_ROOT);
 
@@ -36,19 +53,14 @@ describe("src boundaries (K-9, K-39, K-49)", () => {
 		const contents = readFileSync(file, "utf8");
 
 		it(`${relativePath} imports no App, AppStore, or AppCache from @effected/app (K-9)`, () => {
-			const importLines = contents.split("\n").filter((line) => line.includes("@effected/app"));
-			for (const line of importLines) {
-				for (const name of FORBIDDEN_APP_IMPORTS) {
-					assert.isFalse(
-						new RegExp(`\\b${name}\\b`).test(line),
-						`${relativePath} imports ${name} from @effected/app: ${line.trim()}`,
-					);
-				}
+			const importedNames = findAppImportNames(contents);
+			for (const name of FORBIDDEN_APP_IMPORTS) {
+				assert.isFalse(importedNames.includes(name), `${relativePath} imports ${name} from @effected/app`);
 			}
 		});
 
 		it(`${relativePath} touches process only if it is on the K-39 allowlist`, () => {
-			const referencesProcess = /\bprocess\b/.test(contents);
+			const referencesProcess = /\bprocess\b/.test(stripComments(contents));
 			if (isAllowedToReadProcess(relativePath)) return;
 			assert.isFalse(referencesProcess, `${relativePath} references process but is not on the K-39 allowlist`);
 		});
