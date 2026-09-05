@@ -14,7 +14,7 @@ import {
 	FIXTURE_AUTHOR_EMAIL,
 	FIXTURE_AUTHOR_NAME,
 } from "./fixtures/history.js";
-import { FILE, blobsOf, entriesOf, identityGit, windowsPath, world } from "./utils/derivation.js";
+import { FILE, REL, ROOT, blobsOf, entriesOf, identityGit, windowsPath, world } from "./utils/derivation.js";
 
 const actor = Schema.decodeUnknownSync(Actor);
 const utc = (iso: string): number => DateTime.toEpochMillis(DateTime.makeUnsafe(iso));
@@ -163,6 +163,47 @@ describe("Derivation.generatedAt (P-2, P-9, P-39)", () => {
 				}),
 			),
 		),
+	);
+	it.effect("a single-entry path history returns that entry without ever running the comparison loop", () => {
+		const only = byName("c1");
+		return Effect.gen(function* () {
+			const result = yield* Derivation.generatedAt({ file: FILE });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag !== "committed") return;
+			assert.strictEqual(result.sha, only.sha);
+			assert.strictEqual(DateTime.toEpochMillis(result.at), utc(only.authoredAt));
+			assert.strictEqual(DateTime.toEpochMillis(result.committedAt), utc(only.committedAt));
+			assert.strictEqual(result.authorName, only.authorName);
+			assert.strictEqual(result.authorEmail, only.authorEmail);
+		}).pipe(
+			Effect.provide(
+				Layer.mergeAll(
+					Git.layerTest({
+						repoRoot: () => Effect.succeed(ROOT),
+						show: (_cwd, ref, path) => {
+							if (ref === "HEAD" && path === REL) return Effect.succeed(Option.some(F4_TEXTS.c1));
+							if (ref === only.sha && path === only.path) return Effect.succeed(Option.some(F4_TEXTS.c1));
+							return Effect.die(new Error(`unexpected show(${ref}, ${path})`));
+						},
+					}),
+					GitHistory.layerTest({ [REL]: entriesOf([only]) }),
+					FileSystem.layerNoop({
+						readFileString: (path) =>
+							path === FILE ? Effect.succeed(F4_TEXTS.c1) : Effect.die(new Error(`unexpected readFileString(${path})`)),
+						realPath: (path) => Effect.succeed(path),
+					}),
+					Path.layer,
+				),
+			),
+		);
+	});
+	it.effect("also ignores a non-default lifecycle config (P-48)", () =>
+		Effect.gen(function* () {
+			const config: OkfitConfig = { lifecycle: { default_stale_after: Duration.days(7) }, extensions: {} };
+			const result = yield* Derivation.generatedAt({ file: FILE, config });
+			assert.strictEqual(result._tag, "committed");
+			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history }))),
 	);
 	it.effect("realpath-resolves root and file before computing the repo-relative path (P-39)", () =>
 		Effect.gen(function* () {
