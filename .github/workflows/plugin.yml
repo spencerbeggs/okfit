@@ -29,14 +29,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
-
-      - name: Install bats and jq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bats jq
 
       - name: Setup runtime
         uses: savvy-web/silk-runtime-action@v1
