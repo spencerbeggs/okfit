@@ -36,3 +36,32 @@ __test__/
 - **Never inline large test data in test files.** Extract it to `fixtures/`.
 - **Never define shared mocks or helper functions in test files.** Extract them
   to the appropriate `utils/` directory so other tests can reuse them.
+- **`@effect/vitest` throughout; `expect` is banned (K-42).** Use `it`,
+  `it.effect`, `describe`, and `assert` from `@effect/vitest`, never `expect`
+  from plain `vitest`. "Snapshot" anywhere in the design spec means
+  capture-and-check: `assert` on an exact string, `assert.deepStrictEqual` on
+  parsed JSON, an exact numeric exit code — never a fuzzy or approximate
+  comparison.
+- **Fixture-copy exception (K-44).** This package owns no fixture bundles of
+  its own. Every e2e test that needs a bundle on disk copies one at test time
+  from `packages/core/__test__/fixtures/okf/*` (`acme_retail`,
+  `crypto_bitcoin`, `ga4`, `stackoverflow`), `packages/core/__test__/fixtures/{bad,lint,config}`,
+  or `packages/profiles/__test__/fixtures/*`, resolved by absolute path from
+  `import.meta.dirname` and copied through `e2e/utils/fixtures.ts`'s
+  `copyFixtureInto`. Never run `okfit validate`/`okfit init` directly against
+  a fixture source tree — `init` writes files, and a stray write would
+  corrupt the shared fixture for every other package's tests.
+- **`OKFIT_NOW` is a test hook, not user-facing (K-47).** `bin.ts` reads it as
+  an ISO-8601 timestamp and uses it in place of the wall clock for the whole
+  command tree. Set it in an e2e test's `env` (through `e2e/utils/okfit.ts`'s
+  `runOkfit`) whenever a test asserts on a `stale`-diagnostic or a `log.md`
+  date; never document it outside this file.
+- **E2E always spawns the built bin.** `dist/dev/pkg/bin/okfit.js`, built by
+  the root `vitest.setup.ts`'s `globalSetup` before any test file runs
+  (`pnpm turbo run build:dev`). `e2e/utils/okfit.ts`'s `BIN` resolves that
+  path from `import.meta.dirname`; no e2e test hand-builds the path itself.
+- **E2E is hermetic.** Every e2e test that touches config discovery or XDG
+  paths uses `e2e/utils/fixtures.ts`'s `makeSandbox()` for a fresh `HOME`,
+  `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, and
+  passes that sandbox's `env` to `runOkfit` — never the host's own
+  environment, and never `extendEnv`.
