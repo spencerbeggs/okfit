@@ -1,11 +1,10 @@
-import type { ConfigSource } from "@effected/config-file";
 import type { OkfitConfig } from "@okfit/core";
 import type { Option, Path } from "effect";
 
 /**
  * What {@link resolveProjectRoot} needs about the winning discovery source
  * (K-12, K-58). Narrower than `@effected/config-file`'s own
- * {@link ConfigSource}: only `path` and `resolver` matter for anchoring, and
+ * `ConfigSource`: only `path` and `resolver` matter for anchoring, and
  * a caller building this from a real `ConfigSource<OkfitConfig>` simply
  * drops `value`.
  *
@@ -42,9 +41,9 @@ const anchorFor = (configPath: string, path: Path.Path): string => {
  * K-12's project root, as amended by K-58, in order:
  *
  * 1. `pathArg`, if given. `Argument.path` has already resolved it absolute.
- * 2. otherwise, if `--config` was given: {@link anchorFor} applied to that path.
+ * 2. otherwise, if `--config` was given: `anchorFor` applied to that path.
  * 3. otherwise, if a config was discovered by a project-local resolver (not
- *    `"xdg"` or `"native"`): {@link anchorFor} applied to `discovered.path`.
+ *    `"xdg"` or `"native"`): `anchorFor` applied to `discovered.path`.
  * 4. otherwise `cwd` — an XDG-sourced config carries no project anchor, and
  *    neither does no config at all.
  *

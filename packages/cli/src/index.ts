@@ -7,6 +7,8 @@
 export { rootCommand } from "./commands/root.js";
 export type { DiscoveredConfig } from "./config/anchor.js";
 export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
+export { buildConfigLayer, provideConfig } from "./config/layer.js";
+export { ConfigPathNotFoundError, InitOverwriteError, renderFailure } from "./errors.js";
 
 /**
  * The version string reported by `okfit --version`.
