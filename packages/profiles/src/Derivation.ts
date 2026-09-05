@@ -118,7 +118,7 @@ const FALLBACK_STALE_AFTER = Duration.days(90);
 const decodeActor = Schema.decodeSync(Actor);
 
 // P-6: CRLF and lone CR to LF, then trailing whitespace at end of text removed.
-const normalise = (text: string): string => text.replace(/\r\n?/g, "\n").replace(/\s+$/, "");
+const normalise = (text: string): string => text.replace(/\r\n?/g, "\n").trimEnd();
 
 // MD/index.d.ts:2306; body is source.slice(bodyOffset) (:2248-2254).
 const body = (text: string): string => normalise(FrontmatterSource.split(text).body);
@@ -205,10 +205,11 @@ export class Derivation {
 	 *     is `uncommitted { untracked }` (P-47), a body differing from `worktree` is `uncommitted { dirty }` (P-9).
 	 *     The comparison is against HEAD's blob, never the newest log entry (P-46).
 	 *  5. `entries = GitHistory.pathLog(realRoot, rel)` newest first (P-5, P-46); `[]` is `uncommitted { unborn }`.
-	 *  6. One `Git.show` per blob (P-8), newest first: the first entry whose body differs from the next older
-	 *     entry's body wins, else the oldest entry (the creating commit). "Previous" is the previous entry of the
-	 *     simplified `--follow` history, not the true parent (P-7). `Option.none` for the newest entry is a defect
-	 *     (the path is at HEAD); `Option.none` for an older entry counts as "differs".
+	 *  6. One `Git.show` per older blob (P-8), newest first: the first entry whose body differs from the next
+	 *     older entry's body wins, else the oldest entry (the creating commit). "Previous" is the previous entry
+	 *     of the simplified `--follow` history, not the true parent (P-7). The newest entry's body is never
+	 *     re-fetched: `head.blob`, already confirmed equal to `worktree` by step 4, is reused (decision 56).
+	 *     `Option.none` for an older entry counts as "differs", never a defect (decision 56).
 	 * `config` is reserved and ignored (P-48). Never writes, never reads `by` (P-40).
 	 */
 	static readonly generatedAt: (
@@ -241,20 +242,15 @@ export class Derivation {
 			const entries = yield* history.pathLog(realRoot, rel);
 			const newest = entries[0];
 			if (newest === undefined) return uncommitted("unborn");
-			// 6.
-			const newestBlob = yield* git.show(realRoot, newest.sha, newest.path);
-			if (Option.isNone(newestBlob)) {
-				return yield* Effect.die(
-					new Error(`Derivation.generatedAt: ${newest.sha} has no blob at ${newest.path} although the path is at HEAD`),
-				);
-			}
-			let current = body(newestBlob.value);
+			// 6. head.blob is already known Option.some here (step 4) and its body equals worktree; reuse it as the
+			// newest entry's body instead of a second git.show (decision 56).
+			let current = worktree;
 			for (let index = 0; index < entries.length - 1; index += 1) {
 				const entry = entries[index];
 				const older = entries[index + 1];
 				if (entry === undefined || older === undefined) break;
 				const olderBlob = yield* git.show(realRoot, older.sha, older.path);
-				if (Option.isNone(olderBlob)) return committed(entry);
+				if (Option.isNone(olderBlob)) return committed(entry); // absent blob counts as "differs" (decision 56)
 				const olderBody = body(olderBlob.value);
 				if (olderBody !== current) return committed(entry);
 				current = olderBody;

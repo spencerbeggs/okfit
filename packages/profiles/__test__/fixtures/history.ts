@@ -293,3 +293,25 @@ export const CONFLICT_ENTRIES: ReadonlyArray<HistoryCommit> = CONFLICT_LOG_ORDER
 
 /** `m4`'s body differs from `m3`'s (its first-parent predecessor in the log), so the walk answers `m4` at once. */
 export const CONFLICT_EXPECTED_BODY_COMMIT: ConflictCommitName = "m4";
+
+// --- Non-ASCII path (decision 56: `-c core.quotePath=false`) --------------------------------
+
+/** A concept path with a non-ASCII character and a space, added at its final name in a single commit. */
+export const UNICODE_PATH = "okf/modules/wéird name.md";
+
+const UNICODE_TEXT = ["---", "type: Module", "title: Weird", "---", "", "# Weird", "", "A unicode body.", ""].join(
+	"\n",
+);
+
+/** A small, dedicated step list (P-33 addendum): one commit adding {@link UNICODE_PATH} directly, never renamed. */
+export const UNICODE_STEPS: ReadonlyArray<HistoryStep> = [
+	{
+		kind: "write",
+		name: "u1",
+		path: UNICODE_PATH,
+		text: UNICODE_TEXT,
+		message: "u1 add a non-ascii path",
+		authoredAt: "2026-07-01T10:00:00+02:00",
+		committedAt: "2026-07-01T10:00:00+02:00",
+	},
+];

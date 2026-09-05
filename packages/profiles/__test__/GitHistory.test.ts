@@ -64,6 +64,12 @@ describe("GitHistory.makeTest", () => {
 			assert.deepStrictEqual(yield* double.pathLog("/elsewhere", "empty.md"), []);
 		}),
 	);
+	it.effect("limit: 0 (P-54, decision 54) is an empty list, not the whole scripted history", () =>
+		Effect.gen(function* () {
+			const double = GitHistory.makeTest(script);
+			assert.deepStrictEqual(yield* double.pathLog("/repo", PATH_AFTER_RENAME, { limit: 0 }), []);
+		}),
+	);
 	it.effect("dies, naming the path, on a call that was not scripted (P-32)", () =>
 		Effect.gen(function* () {
 			const exit = yield* Effect.exit(GitHistory.makeTest(script).pathLog("/repo", "missing.md")); // EF/Effect.ts:2309

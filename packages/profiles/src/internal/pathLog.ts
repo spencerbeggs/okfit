@@ -15,16 +15,21 @@ const MALFORMED = "malformed log output";
 const LOG_FORMAT = "--format=%x1e%H%x00%aI%x00%cI%x00%an%x00%ae";
 
 /**
- * The `git log` argv without the leading `git`. `--follow` takes the single path `pathLog` receives (P-5);
- * `--diff-merges=first-parent` lists a merge whose blob differs from its first parent, such as a conflict
- * resolution, with a path line, while a merge TREESAME to its first parent stays hidden (P-46; probed on
- * git 2.54.0); `--max-count=<n>` carries `limit` (P-3, P-8); the trailing `--` keeps an option-like path
- * from being read as an option, as `Git`'s option guard does (effected-git-0-10-0.md section 2.1).
+ * The `git log` argv without the leading `git`. `-c core.quotePath=false` keeps `--name-only` lines raw UTF-8
+ * instead of C-style-escaped (decision 56, probed on git 2.54.0); a name containing `"`, `\`, or a newline is
+ * still quoted regardless of this setting, and {@link parsePathLog} fails such a record rather than answer the
+ * quoted text. `--follow` takes the single path `pathLog` receives (P-5); `--diff-merges=first-parent` lists a
+ * merge whose blob differs from its first parent, such as a conflict resolution, with a path line, while a
+ * merge TREESAME to its first parent stays hidden (P-46; probed on git 2.54.0); `--max-count=<n>` carries
+ * `limit` (P-3, P-8); the trailing `--` keeps an option-like path from being read as an option, as `Git`'s
+ * option guard does (effected-git-0-10-0.md section 2.1).
  * `limit` is tested against `undefined`, not truthiness as the contract's argv sketch abbreviates it, because
  * `PathLogOptions` says "`--max-count=<n>` when set" and `makeTest` slices to `limit`: `limit: 0` must be
  * `--max-count=0` (an empty list, probed) on both shapes rather than the whole history on the live one. (checked)
  */
 export const pathLogArgs = (path: string, limit?: number): ReadonlyArray<string> => [
+	"-c",
+	"core.quotePath=false",
 	"log",
 	"--follow",
 	"--diff-merges=first-parent",
@@ -50,8 +55,9 @@ export interface RawPathLogEntry {
  * `\x1e<H>\0<aI>\0<cI>\0<an>\0<ae>\n\n<path>\n`. Splits on `\x1e` and drops the empty first segment; a
  * record's first line is the five NUL-joined fields and its last non-empty line is the path, which git
  * prints repository-root-relative regardless of `cwd`. Empty stdout is `[]` (an untracked or staged-only
- * path, exit 0). A record with no path line, a header with the wrong field count, or output that does not
- * open with the separator fails with `"malformed log output"`.
+ * path, exit 0). A record with no path line, a header with the wrong field count, output that does not
+ * open with the separator, or a path line that still starts and ends with `"` (a name containing `"`, `\`,
+ * or a newline, still quoted under `core.quotePath=false`, decision 56) fails with `"malformed log output"`.
  */
 export const parsePathLog = (stdout: string): Result.Result<ReadonlyArray<RawPathLogEntry>, string> => {
 	if (stdout === "") return Result.succeed([]);
@@ -80,6 +86,7 @@ export const parsePathLog = (stdout: string): Result.Result<ReadonlyArray<RawPat
 			}
 		}
 		if (path === undefined) return Result.fail(MALFORMED);
+		if (path.length >= 2 && path.startsWith('"') && path.endsWith('"')) return Result.fail(MALFORMED);
 		entries.push({ sha, authoredAt, committedAt, authorName, authorEmail, path });
 	}
 	return Result.succeed(entries);

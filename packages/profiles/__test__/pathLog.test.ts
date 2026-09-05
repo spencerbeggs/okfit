@@ -14,6 +14,7 @@ import {
 	PATH_AFTER_RENAME,
 	PATH_BEFORE_RENAME,
 	RECORD_WITHOUT_PATH,
+	RECORD_WITH_QUOTED_PATH,
 	THREE_COMMITS_WITH_RENAME,
 } from "./fixtures/pathLogOutput.js";
 
@@ -22,6 +23,8 @@ const FORMAT = "--format=%x1e%H%x00%aI%x00%cI%x00%an%x00%ae";
 describe("pathLogArgs", () => {
 	it("builds the P-46 argv; --max-count appears only when limit is set, before --name-only", () => {
 		assert.deepStrictEqual(pathLogArgs("okf/modules/core.md"), [
+			"-c",
+			"core.quotePath=false",
 			"log",
 			"--follow",
 			"--diff-merges=first-parent",
@@ -31,6 +34,8 @@ describe("pathLogArgs", () => {
 			"okf/modules/core.md",
 		]);
 		assert.deepStrictEqual(pathLogArgs("--oneline", 2), [
+			"-c",
+			"core.quotePath=false",
 			"log",
 			"--follow",
 			"--diff-merges=first-parent",
@@ -40,6 +45,9 @@ describe("pathLogArgs", () => {
 			"--",
 			"--oneline",
 		]);
+	});
+	it("--max-count=0 (P-54, decision 54): pathLogArgs(path, 0) is an explicit empty list, not the whole history", () => {
+		assert.include(pathLogArgs("okf/modules/core.md", 0), "--max-count=0");
 	});
 });
 
@@ -82,6 +90,11 @@ describe("parsePathLog", () => {
 			assert.isTrue(Result.isFailure(result));
 			assert.strictEqual(Result.isFailure(result) ? result.failure : "", "malformed log output");
 		}
+	});
+	it('a path line still wrapped in quotes (a name with ", \\, or a newline) is malformed, never a wrong answer (decision 56)', () => {
+		const result = parsePathLog(RECORD_WITH_QUOTED_PATH);
+		assert.isTrue(Result.isFailure(result));
+		assert.strictEqual(Result.isFailure(result) ? result.failure : "", "malformed log output");
 	});
 });
 

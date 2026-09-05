@@ -17,6 +17,8 @@ import {
 	F4_STEPS,
 	FIXTURE_AUTHOR_EMAIL,
 	FIXTURE_AUTHOR_NAME,
+	UNICODE_PATH,
+	UNICODE_STEPS,
 } from "../fixtures/history.js";
 import type { FixtureRepo } from "../utils/git.js";
 import { buildRepo, buildUnbornRepo, git, makeTempDir, removeDir } from "../utils/git.js";
@@ -220,6 +222,53 @@ describe("Derivation over an unborn HEAD (P-11)", () => {
 			Effect.gen(function* () {
 				const result = yield* Derivation.generatedAt({ file });
 				assert.deepStrictEqual(result, { _tag: "uncommitted", reason: "unborn" });
+			}),
+		),
+	);
+});
+
+describe("Derivation over a non-ASCII path (decision 56, -c core.quotePath=false)", () => {
+	let repo: FixtureRepo;
+	let file = "";
+
+	beforeAll(async () => {
+		repo = await build(buildRepo(UNICODE_STEPS));
+		file = join(repo.dir, UNICODE_PATH);
+	});
+	afterAll(async () => {
+		await removeDir(repo.dir);
+	});
+
+	it.effect("generatedAt is committed at the commit that added the raw UTF-8 path", () =>
+		run(
+			Effect.gen(function* () {
+				const result = yield* Derivation.generatedAt({ file });
+				assert.strictEqual(result._tag, "committed");
+				if (result._tag === "committed") assert.strictEqual(result.sha, repo.shas.u1);
+			}),
+		),
+	);
+});
+
+describe("Derivation over an untracked file present in the worktree but absent from HEAD", () => {
+	let repo: FixtureRepo;
+	let file = "";
+
+	beforeAll(async () => {
+		repo = await build(buildRepo(F4_STEPS));
+		file = join(repo.dir, "okf", "modules", "untracked.md");
+		await mkdir(join(repo.dir, "okf", "modules"), { recursive: true });
+		await writeFile(file, "---\ntype: Module\ntitle: Untracked\n---\n\n# Untracked\n");
+	});
+	afterAll(async () => {
+		await removeDir(repo.dir);
+	});
+
+	it.effect("reports uncommitted { untracked } without consulting the path log", () =>
+		run(
+			Effect.gen(function* () {
+				const result = yield* Derivation.generatedAt({ file });
+				assert.deepStrictEqual(result, { _tag: "uncommitted", reason: "untracked" });
 			}),
 		),
 	);

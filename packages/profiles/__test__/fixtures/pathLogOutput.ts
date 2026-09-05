@@ -38,3 +38,9 @@ export const HEADER_WITH_FOUR_FIELDS = `${RS}${[C3_SHA, C3_AUTHORED_AT, C3_AUTHO
 
 /** Output that does not open with the record separator (a `--format` without `%x1e`). */
 export const MISSING_SEPARATOR = `${C3_SHA}\n\n${PATH_BEFORE_RENAME}\n`;
+
+/**
+ * A path line still wrapped in double quotes: a name containing `"`, `\`, or a newline stays quoted even
+ * under `-c core.quotePath=false` (decision 56). Never a wrong answer -- a parse failure.
+ */
+export const RECORD_WITH_QUOTED_PATH = `${RS}${header(C3_SHA, C3_AUTHORED_AT, C3_AUTHORED_AT)}\n\n"okf/modules/wei\\303\\251rd.md"\n`;

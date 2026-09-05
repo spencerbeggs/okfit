@@ -23,6 +23,8 @@ import {
 	F4_STEPS,
 	FIXTURE_AUTHOR_EMAIL,
 	FIXTURE_AUTHOR_NAME,
+	UNICODE_PATH,
+	UNICODE_STEPS,
 } from "../fixtures/history.js";
 import type { FixtureRepo } from "../utils/git.js";
 import { buildRepo, buildUnbornRepo, makeTempDir, removeDir } from "../utils/git.js";
@@ -217,6 +219,30 @@ describe("GitHistory.layer over a conflict-resolving merge", () => {
 				);
 				assert.strictEqual(entries[0]?.path, CONFLICT_PATH);
 				assert.strictEqual(DateTime.toEpochMillis(entries[0]!.authoredAt), instant(CONFLICT_ENTRIES[0]!.authoredAt));
+			}),
+		),
+	);
+});
+
+describe("GitHistory.layer over a non-ASCII path (decision 56, -c core.quotePath=false)", () => {
+	let repo: FixtureRepo;
+
+	beforeAll(async () => {
+		repo = await build(buildRepo(UNICODE_STEPS));
+	});
+	afterAll(async () => {
+		await removeDir(repo.dir);
+	});
+
+	it.effect("the --name-only line comes back as the raw UTF-8 name, never C-style-quoted", () =>
+		run(
+			Effect.gen(function* () {
+				const history = yield* GitHistory;
+				const entries = yield* history.pathLog(repo.dir, UNICODE_PATH);
+				assert.strictEqual(entries.length, 1);
+				assert.strictEqual(entries[0]?.path, UNICODE_PATH);
+				assert.isFalse(entries[0]?.path.startsWith('"'));
+				assert.strictEqual(entries[0]?.sha, repo.shas.u1);
 			}),
 		),
 	);
