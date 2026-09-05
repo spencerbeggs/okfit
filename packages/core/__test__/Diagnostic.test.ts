@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { ConformanceCode, Diagnostic, DiagnosticCode, DiagnosticRange, LintCode } from "../src/Diagnostic.js";
+import { Diagnostic, DiagnosticCode, DiagnosticRange } from "../src/Diagnostic.js";
 
 const decodeCode = Schema.decodeUnknownEffect(DiagnosticCode);
 
