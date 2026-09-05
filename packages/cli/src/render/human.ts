@@ -1,3 +1,4 @@
+import type { Path } from "effect";
 import type { RenderedDiagnostic } from "./sort.js";
 import { sort } from "./sort.js";
 
@@ -64,3 +65,29 @@ export const human = (
  */
 export const summary = (counts: Counts, root: string): string =>
 	`${counts.errors} errors, ${counts.warnings} warnings, ${counts.info} info in ${counts.concepts} concepts (${root})`;
+
+/**
+ * The one K-51 display-path rule, shared by both `commands/validate.ts`'s
+ * `summary` root and `commands/init.ts`'s success line: `target` relative
+ * to `cwd` when it is under it, absolute otherwise. Three cases, in order:
+ *
+ * 1. `target === cwd` (`path.relative` returns `""`): the literal `.`.
+ * 2. The relative form starts with `..`, or is itself absolute (a target on
+ *    a different root than `cwd`, where `Path.relative` can return an
+ *    absolute path unchanged depending on the platform): `target`
+ *    unchanged, absolute.
+ * 3. Otherwise: the relative form.
+ *
+ * Previously duplicated as `commands/validate.ts`'s `renderRoot` and
+ * `commands/init.ts`'s `displayPath`; the second copy had silently dropped
+ * the `""` → `.` case and the `isAbsolute` guard, so `init` printed a blank
+ * root for `bundle.path = "."` where `validate` printed `.`. This is now the
+ * only copy of the rule.
+ *
+ * @public
+ */
+export const displayRoot = (cwd: string, target: string, path: Path.Path): string => {
+	const relative = path.relative(cwd, target);
+	if (relative === "") return ".";
+	return relative.startsWith("..") || path.isAbsolute(relative) ? target : relative;
+};

@@ -1,10 +1,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import { DiagnosticRange } from "@okfit/core";
-import { Effect } from "effect";
-import { human, line, summary } from "../../src/render/human.js";
+import { Effect, Path } from "effect";
+import { displayRoot, human, line, summary } from "../../src/render/human.js";
 import type { RenderedDiagnostic } from "../../src/render/sort.js";
 
 const ESC = String.fromCharCode(27);
+
+// effect's own POSIX Path layer needs no FileSystem and no Node import (EF/Path.ts:867);
+// same precedent as __test__/config/anchor.test.ts.
+const path: Path.Path = Effect.runSync(Effect.provide(Path.Path, Path.layer));
 
 const base: RenderedDiagnostic = {
 	source: "core.lint",
@@ -100,6 +104,34 @@ describe("summary", () => {
 				summary({ errors: 0, warnings: 0, info: 0, concepts: 1 }, "okf"),
 				"0 errors, 0 warnings, 0 info in 1 concepts (okf)",
 			);
+		}),
+	);
+});
+
+describe("displayRoot", () => {
+	it.effect("target under cwd renders relative (K-51)", () =>
+		Effect.sync(() => {
+			assert.strictEqual(displayRoot("/repo", "/repo/okf", path), "okf");
+		}),
+	);
+
+	it.effect(
+		"target equal to cwd renders the literal . (the dropped case that caused the init/validate divergence)",
+		() =>
+			Effect.sync(() => {
+				assert.strictEqual(displayRoot("/repo", "/repo", path), ".");
+			}),
+	);
+
+	it.effect("target outside cwd renders absolute, never a leading ..", () =>
+		Effect.sync(() => {
+			assert.strictEqual(displayRoot("/repo/sub", "/repo/other", path), "/repo/other");
+		}),
+	);
+
+	it.effect("an absolute target on a different root renders absolute unchanged", () =>
+		Effect.sync(() => {
+			assert.strictEqual(displayRoot("/repo", "/elsewhere/okf", path), "/elsewhere/okf");
 		}),
 	);
 });

@@ -11,7 +11,7 @@ import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
 import { forDiagnostics } from "../render/exit.js";
 import type { Counts } from "../render/human.js";
-import { human, summary } from "../render/human.js";
+import { displayRoot, human, summary } from "../render/human.js";
 import type { RenderedDiagnostic } from "../render/sort.js";
 import { collect } from "../render/sort.js";
 import { Now, run } from "../validate/run.js";
@@ -53,12 +53,6 @@ const DEFAULT_PROFILE_NAME: string = OkfitConfig.DEFAULTS.bundle?.profile ?? "so
 
 /** See {@link DEFAULT_PROFILE_NAME}. */
 const DEFAULT_BUNDLE_PATH: string = OkfitConfig.DEFAULTS.bundle?.path ?? "okf";
-
-/** K-51: relative to cwd when under it, else absolute — the rule `render/human.ts`'s `summary` caller applies to `root`. */
-const displayPath = (path: Path.Path, cwd: string, target: string): string => {
-	const relative = path.relative(cwd, target);
-	return relative.startsWith("..") ? target : relative;
-};
 
 const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: number): Counts => ({
 	errors: diagnostics.filter((diagnostic) => diagnostic.severity === "error").length,
@@ -192,7 +186,7 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 					yield* fs.writeFileString(file.path, file.contents);
 				}
 
-				yield* Console.log(`Initialized ${displayPath(path, cwd, bundleRoot)} with the ${profileName} profile`);
+				yield* Console.log(`Initialized ${displayRoot(cwd, bundleRoot, path)} with the ${profileName} profile`);
 
 				const result = yield* run({ root: bundleRoot, config: merged, profile, now });
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
@@ -200,7 +194,7 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 					yield* Console.log(line);
 				}
 				yield* Console.error(
-					summary(countsOf(diagnostics, result.bundle.concepts.size), displayPath(path, cwd, bundleRoot)),
+					summary(countsOf(diagnostics, result.bundle.concepts.size), displayRoot(cwd, bundleRoot, path)),
 				);
 				setExitCode(forDiagnostics(diagnostics));
 			}),

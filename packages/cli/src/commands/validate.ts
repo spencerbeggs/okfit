@@ -9,7 +9,7 @@ import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
 import { forDiagnostics } from "../render/exit.js";
 import type { Counts } from "../render/human.js";
-import { human, summary } from "../render/human.js";
+import { displayRoot, human, summary } from "../render/human.js";
 import { JsonEnvelope, json, jsonError } from "../render/json.js";
 import { collect } from "../render/sort.js";
 import { Now, run } from "../validate/run.js";
@@ -33,18 +33,6 @@ const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(Flag.w
  * strictness without a non-null assertion.
  */
 const DEFAULT_PROFILE_NAME = OkfitConfig.DEFAULTS.bundle?.profile ?? "software-project";
-
-/**
- * `bundleRoot` rendered relative to `cwd` when under it, absolute otherwise
- * (K-51), exactly as `summary`'s own `root` argument is documented to be
- * "pre-rendered by the caller". Not exported: `config/anchor.ts` carries no
- * such helper (K-48), and `commands/init.ts` implements its own copy later.
- */
-const renderRoot = (path: Path.Path, cwd: string, root: string): string => {
-	const relative = path.relative(cwd, root);
-	if (relative === "") return ".";
-	return relative.startsWith("..") || path.isAbsolute(relative) ? root : relative;
-};
 
 /**
  * `okfit validate [path] [--config <file>] [--format human|json]`.
@@ -131,7 +119,7 @@ export const validateCommand = Command.make(
 						info: diagnostics.filter((d) => d.severity === "info").length,
 						concepts: result.bundle.concepts.size,
 					};
-					yield* Console.error(summary(counts, renderRoot(path, cwd, bundleRoot)));
+					yield* Console.error(summary(counts, displayRoot(cwd, bundleRoot, path)));
 				}
 
 				setExitCode(code);
