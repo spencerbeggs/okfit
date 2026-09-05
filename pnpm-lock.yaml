@@ -45,9 +45,37 @@ catalogs:
     '@effect/platform-node':
       specifier: 4.0.0-rc.109
       version: 4.0.0-rc.109
+    '@effect/vitest':
+      specifier: 4.0.0-rc.109
+      version: 4.0.0-rc.109
     effect:
       specifier: 4.0.0-rc.109
       version: 4.0.0-rc.109
+  effected:
+    '@effected/config-file':
+      specifier: ^0.5.2
+      version: 0.5.2
+    '@effected/glob':
+      specifier: ^0.4.0
+      version: 0.4.0
+    '@effected/jsonc':
+      specifier: ^0.8.1
+      version: 0.8.1
+    '@effected/markdown':
+      specifier: ^0.8.1
+      version: 0.8.1
+    '@effected/memfs':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@effected/toml':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@effected/walker':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@effected/yaml':
+      specifier: ^0.12.0
+      version: 0.12.0
   test:
     vitest:
       specifier: ^4.1.11
@@ -108,17 +136,43 @@ importers:
     publishDirectory: dist/dev/pkg
 
   packages/core:
-    dependencies:
-      effect:
-        specifier: catalog:effect
-        version: 4.0.0-rc.109
     devDependencies:
+      '@effect/vitest':
+        specifier: catalog:effect
+        version: 4.0.0-rc.109(effect@4.0.0-rc.109)(vitest@4.1.11)
+      '@effected/config-file':
+        specifier: catalog:effected
+        version: 0.5.2(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/toml@0.5.0(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@effected/yaml@0.12.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109)
+      '@effected/glob':
+        specifier: catalog:effected
+        version: 0.4.0(effect@4.0.0-rc.109)
+      '@effected/jsonc':
+        specifier: catalog:effected
+        version: 0.8.1(effect@4.0.0-rc.109)
+      '@effected/markdown':
+        specifier: catalog:effected
+        version: 0.8.1(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/toml@0.5.0(effect@4.0.0-rc.109))(@effected/yaml@0.12.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109)
+      '@effected/memfs':
+        specifier: catalog:effected
+        version: 0.5.0(effect@4.0.0-rc.109)
+      '@effected/toml':
+        specifier: catalog:effected
+        version: 0.5.0(effect@4.0.0-rc.109)
+      '@effected/walker':
+        specifier: catalog:effected
+        version: 0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109)
+      '@effected/yaml':
+        specifier: catalog:effected
+        version: 0.12.0(effect@4.0.0-rc.109)
       '@savvy-web/bundler':
         specifier: ^2.3.0
         version: 2.3.0(@effected/jsonc@0.8.1(effect@4.0.0-rc.109))(@effected/semver@0.5.1(effect@4.0.0-rc.109))(@effected/walker@0.5.0(@effected/glob@0.4.0(effect@4.0.0-rc.109))(effect@4.0.0-rc.109))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
       '@types/node':
         specifier: catalog:build
         version: 26.4.1
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.109
       typescript:
         specifier: catalog:build
         version: 7.0.2
@@ -455,6 +509,12 @@ packages:
     peerDependencies:
       effect: ^4.0.0-rc.109
 
+  '@effect/vitest@4.0.0-rc.109':
+    resolution: {integrity: sha512-vu5ZkidJ/gM/+a0M07Jnq1PV4duFlYc+4Vj9TsJysK4Us7LL5bwV6uXiT7mi1/IM/3HgfAwc7Q9ROj8M65G4pA==}
+    peerDependencies:
+      effect: ^4.0.0-rc.109
+      vitest: '>=4.1.0 <5.0.0'
+
   '@effected/commands@0.5.0':
     resolution: {integrity: sha512-FdGtkgpbo0+fQ+aSBupsuOonU/9PeI+eEK6c7IzUFhZow03l/QDbmrI+u72ZyWnIcs8/7sSNLqqJgbPnjCwnRA==}
     engines: {node: '>=24.11.0'}
@@ -520,6 +580,12 @@ packages:
         optional: true
       '@effected/yaml':
         optional: true
+
+  '@effected/memfs@0.5.0':
+    resolution: {integrity: sha512-QGtsYDss8i53GptLQFi99HRKNoWJdLHRhKpFVCL+e8JITnYU4KcmpTcHSBD6CNu6c6YBD4+N/mFZx4gy6p5Nvg==}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
+      effect: 4.0.0-rc.109
 
   '@effected/npm@0.12.1':
     resolution: {integrity: sha512-bHV0iTYQv/9MZ3wxdZnzii43pxhpoKgQva2A5Ahg0aJvHa3EEHaOaGXnxre8HUSgzSbK2RzKLkrynVnkH5VNRA==}
@@ -3676,6 +3742,11 @@ snapshots:
     dependencies:
       effect: 4.0.0-rc.109
 
+  '@effect/vitest@4.0.0-rc.109(effect@4.0.0-rc.109)(vitest@4.1.11)':
+    dependencies:
+      effect: 4.0.0-rc.109
+      vitest: 4.1.11(@types/node@26.4.1)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.0))
+
   '@effected/commands@0.5.0(effect@4.0.0-rc.109)':
     dependencies:
       effect: 4.0.0-rc.109
@@ -3719,6 +3790,10 @@ snapshots:
       '@effected/jsonc': 0.8.1(effect@4.0.0-rc.109)
       '@effected/toml': 0.5.0(effect@4.0.0-rc.109)
       '@effected/yaml': 0.12.0(effect@4.0.0-rc.109)
+
+  '@effected/memfs@0.5.0(effect@4.0.0-rc.109)':
+    dependencies:
+      effect: 4.0.0-rc.109
 
   '@effected/npm@0.12.1(@effected/semver@0.5.1(effect@4.0.0-rc.109))(effect@4.0.0-rc.109)':
     dependencies:
