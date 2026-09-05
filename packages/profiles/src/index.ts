@@ -1,5 +1,7 @@
 /**
- * Named okfit configuration profiles.
+ * Named okfit configuration profiles: derivation of `generated.at` and
+ * `generated.by` from git, and the `software-project` profile's config,
+ * layout, and bundle checks.
  *
  * @packageDocumentation
  */
