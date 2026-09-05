@@ -319,3 +319,19 @@ export const OkfitConfig: Schema.Codec<OkfitConfig, Record<string, unknown>> & {
 	readonly severityFor: (config: OkfitConfig, code: LintCode) => DiagnosticSeverity | "off";
 	readonly read: (path: string) => Effect.Effect<OkfitConfig, ConfigReadError, FileSystem.FileSystem>;
 } = Object.assign(OkfitConfigWire, { fields: OkfitConfigFields.fields, DEFAULTS, merge, severityFor, read });
+
+/**
+ * The only service in core: the config-file service tag for okfit's TOML
+ * config (D-7). Core exports the tag so `@okfit/cli` and `@okfit/mcp` share
+ * one identity; the layer (`ConfigFile.layer` with the spec 4.1 resolvers and
+ * XDG fallback) is built by the CLI, never here (D-29).
+ *
+ * @remarks
+ * Shape is `ConfigFileShape<OkfitConfig>`: `load`, `loadFrom`, `discover`,
+ * `loadOrDefault`, `validate`, `write(value, path)` (used by `okfit init`), `save`, `update`.
+ *
+ * @public
+ */
+export class OkfitConfigFile extends ConfigFile.Service<OkfitConfigFile, OkfitConfig>()(
+	"@okfit/core/OkfitConfigFile",
+) {}
