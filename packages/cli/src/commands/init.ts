@@ -21,10 +21,18 @@ import { Now, run } from "../validate/run.js";
  * `validate`'s own argument (`Argument.path` resolves it absolute at the
  * parse boundary, satisfying K-50).
  */
-const pathArg = Argument.path("path", { pathType: "directory" }).pipe(Argument.optional);
+const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
+	Argument.optional,
+	Argument.withDescription(
+		"project root to start config discovery from (default: current directory); never the bundle root",
+	),
+);
 
 /** K-1: no `mustExist` — existence is checked by `provideConfig`, identical to `validate`'s flag. */
-const configFlag = Flag.file("config").pipe(Flag.optional);
+const configFlag = Flag.file("config").pipe(
+	Flag.optional,
+	Flag.withDescription("explicit config file; skips discovery"),
+);
 
 /**
  * K-3: `Flag.string`, deliberately not `Flag.choice` against
@@ -32,7 +40,10 @@ const configFlag = Flag.file("config").pipe(Flag.optional);
  * CLI-rendered warning (K-4), matching `Profiles.get`'s own `Option.none`
  * contract (P-38), not a parser-level `CliError.InvalidValue`.
  */
-const profileFlag = Flag.string("profile").pipe(Flag.optional);
+const profileFlag = Flag.string("profile").pipe(
+	Flag.optional,
+	Flag.withDescription("profile to scaffold with (default: the config's bundle.profile or software-project)"),
+);
 
 /**
  * Stands in for `profile.config` when `Profiles.get` returns `None`.
@@ -126,7 +137,7 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 				});
 				const merged = OkfitConfig.merge(OkfitConfig.merge(OkfitConfig.DEFAULTS, profileConfig), fileConfig);
 
-				if (merged.okf_version !== OKF_SPEC_VERSION) {
+				if (merged.okf_version !== undefined && merged.okf_version !== OKF_SPEC_VERSION) {
 					yield* Console.error(
 						`warning: okf_version "${merged.okf_version}" does not match this okfit's spec version "${OKF_SPEC_VERSION}"; continuing`,
 					);

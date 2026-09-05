@@ -16,13 +16,24 @@ import { Now, run } from "../validate/run.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.path("path", { pathType: "directory" }).pipe(Argument.optional);
+const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
+	Argument.optional,
+	Argument.withDescription(
+		"project root to start config discovery from (default: current directory); never the bundle root",
+	),
+);
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
-const configFlag = Flag.file("config").pipe(Flag.optional);
+const configFlag = Flag.file("config").pipe(
+	Flag.optional,
+	Flag.withDescription("explicit config file; skips discovery"),
+);
 
 /** K-6: `--format` is on `validate` only. */
-const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(Flag.withDefault("human"));
+const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
+	Flag.withDefault("human"),
+	Flag.withDescription("output format: human (default) or json"),
+);
 
 /**
  * `OkfitConfig.DEFAULTS.bundle.profile` is `"software-project"` at runtime
