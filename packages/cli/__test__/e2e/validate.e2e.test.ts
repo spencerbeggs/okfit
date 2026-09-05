@@ -164,6 +164,39 @@ describe("okfit validate --format json", () => {
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
+	it.effect("an unknown profile: stderr is exactly the K-4 warning, stdout parses as one envelope", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() =>
+				writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
+			);
+
+			const result = yield* runOkfit(["validate", "--format", "json"], sandbox);
+
+			assert.strictEqual(result.exitCode, 0);
+			assert.strictEqual(result.stderr, 'warning: unknown profile "not-a-real-profile"; continuing with defaults\n');
+			const bundleRoot = join(sandbox.cwd, "okf");
+			assert.deepStrictEqual(JSON.parse(result.stdout), {
+				schema: 1,
+				okfit_version: CLI_VERSION,
+				okf_version: "0.2",
+				root: bundleRoot,
+				profile: null,
+				exit_code: 0,
+				summary: {
+					conformance_errors: 0,
+					lint_errors: 0,
+					lint_warnings: 0,
+					lint_info: 0,
+					profile_errors: 0,
+					concepts: 6,
+				},
+				diagnostics: [],
+			});
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
 	it.effect("exit 3 under json still gets the K-22 error envelope on stdout", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
@@ -231,12 +264,38 @@ describe("okfit validate: config discovery", () => {
 			const elsewhere = join(sandbox.cwd, "..", "elsewhere");
 			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(elsewhere, "okf")));
 			const explicitConfigPath = join(elsewhere, "myconfig.toml");
-			yield* Effect.promise(() => writeFileDeep(explicitConfigPath, CONFIG_TOML));
+			// A bogus profile of its own (distinct from the two competitors
+			// below) so the K-4 warning it produces is itself discriminating:
+			// only ITS name may appear on stderr.
+			yield* Effect.promise(() =>
+				writeFileDeep(explicitConfigPath, `[bundle]\npath = "okf"\nprofile = "explicit-config-profile"\n`),
+			);
+
+			// K-10/K-11 competitors: a project-local `okfit.config.toml` at the
+			// sandbox cwd AND an `$XDG_CONFIG_HOME/okfit/config.toml` fallback,
+			// each naming its own bogus profile. If `--config` did not actually
+			// short-circuit discovery, one of these would win instead and its
+			// (different) bogus-profile warning would appear on stderr.
+			yield* Effect.promise(() =>
+				writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\nprofile = "cwd-discovery-profile"\n`),
+			);
+			yield* Effect.promise(() =>
+				writeFileDeep(
+					join(sandbox.env["XDG_CONFIG_HOME"] ?? "", "okfit", "config.toml"),
+					`[bundle]\nprofile = "xdg-discovery-profile"\n`,
+				),
+			);
 
 			const result = yield* runOkfit(["validate", "--config", explicitConfigPath], sandbox);
 
 			assert.strictEqual(result.exitCode, 0);
-			assert.strictEqual(result.stderr, `0 errors, 0 warnings, 0 info in 6 concepts (${join(elsewhere, "okf")})\n`);
+			assert.strictEqual(
+				result.stderr,
+				'warning: unknown profile "explicit-config-profile"; continuing with defaults\n' +
+					`0 errors, 0 warnings, 0 info in 6 concepts (${join(elsewhere, "okf")})\n`,
+			);
+			assert.isFalse(result.stderr.includes("cwd-discovery-profile"));
+			assert.isFalse(result.stderr.includes("xdg-discovery-profile"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
