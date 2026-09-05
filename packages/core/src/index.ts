@@ -25,6 +25,8 @@ export {
 	LintCode,
 } from "./Diagnostic.js";
 export { Generated } from "./Generated.js";
+export type { GraphEdge, GraphLink, GraphNode, PathField } from "./Graph.js";
+export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";
 export { LogDocument, LogGroup, LogItem } from "./LogDocument.js";
 export { Source, UsageWindow } from "./Source.js";
