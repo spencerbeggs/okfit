@@ -59,6 +59,16 @@ __test__/
   `user.name`/`user.email`, `commit.gpgsign=false`, and pinned
   `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE`; temp directories are
   `realpath`-resolved before comparison with `Git.repoRoot`.
+- **The hermetic envelope now covers the system under test too (decision
+  57, amends P-34).** `../vitest.setup.ts` sets `GIT_CONFIG_GLOBAL=/dev/null`
+  and `GIT_CONFIG_NOSYSTEM=1` on `process.env` for this package's whole
+  Vitest project before any test file runs, so `GitHistory.layer` and
+  `@effected/git`'s `Git.layer` — which inherit the ambient environment,
+  unlike the fixture builder's own explicit per-call env — never read the
+  host's `~/.gitconfig` or a machine-wide system config either. Picked up
+  automatically by `@vitest-agent/plugin`'s `DefaultDiscoverStrategy` as a
+  package-root `vitest.setup.ts`; not under `src/` (P-16 is about
+  `src/`'s own reads, not the test harness).
 - **`@effect/platform-node` is test-only (P-29).** Integration suites provide
   `Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer))`;
   `SoftwareProject.check.test.ts` loads the static fixture bundles with
