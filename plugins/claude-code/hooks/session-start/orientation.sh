@@ -89,15 +89,28 @@ set -e
 # config file anywhere" is a SUCCESS with config_path: null (contract
 # section 8.5), handled as branch 5 below, never here.
 if [ "$context_rc" -ne 0 ] || ! printf '%s' "$context_json" | jq -e . >/dev/null 2>&1; then
-	emit_context "SessionStart" "okfit context could not run (its config looks malformed); skipping orientation this session."
+	# Minor 9 (final review): a non-zero exit still carries a valid
+	# JsonErrorEnvelope on stdout (CLI/render/json.ts), so quote its own
+	# .error.message when present rather than the generic sentence alone.
+	error_message=""
+	if printf '%s' "$context_json" | jq -e '.error.message' >/dev/null 2>&1; then
+		error_message=$(printf '%s' "$context_json" | jq -r '.error.message' 2>/dev/null || echo "")
+	fi
+	if [ -n "$error_message" ]; then
+		emit_context "SessionStart" "okfit context could not run (its config looks malformed: ${error_message}); skipping orientation this session."
+	else
+		emit_context "SessionStart" "okfit context could not run (its config looks malformed); skipping orientation this session."
+	fi
 	echo "okfit: context exited $context_rc" >&2
 	exit 0
 fi
 
 # From here the envelope is known-good JSON (C-7): every field is read
 # straight off it, never re-derived.
+project_root=$(printf '%s' "$context_json" | jq -r '.project_root')
 bundle_root=$(printf '%s' "$context_json" | jq -r '.bundle_root')
 profile=$(printf '%s' "$context_json" | jq -r '.profile // empty')
+profile_requested=$(printf '%s' "$context_json" | jq -r '.profile_requested // empty')
 config_path=$(printf '%s' "$context_json" | jq -r '.config_path // empty')
 index_path=$(printf '%s' "$context_json" | jq -r '.index_path')
 index_exists=$(printf '%s' "$context_json" | jq -r '.index_exists')
@@ -123,6 +136,21 @@ tags_block=$(printf '%s' "$context_json" | jq -r '
 	] | join("\n")
 ')
 
+# Minor 10 (final review): the combined types+tags vocabulary block is
+# bounded at 8,000 bytes, same truncation-line pattern as index.md below
+# (C-5.1's 12,000-byte cap). A large config's vocabulary must not crowd
+# index.md or the nudges out of the platform's own additionalContext cap
+# (C-5, 10,000 characters).
+vocab_text="${types_block}
+
+${tags_block}"
+vocab_bytes=$(printf '%s' "$vocab_text" | wc -c | tr -d ' ')
+if [ "$vocab_bytes" -gt 8000 ]; then
+	vocab_text="$(printf '%s' "$vocab_text" | head -c 8000)
+
+[truncated at 8000 bytes; vocabulary is ${vocab_bytes} bytes — read it directly with \`okfit context --format json\`]"
+fi
+
 # index.md, truncated at C-5.1 (12,000 bytes). No line-aware truncation —
 # neither sibling repo has a precedent for one and a mid-line cut inside a
 # system reminder costs nothing (contract section 6.1).
@@ -142,20 +170,40 @@ fi
 CONTEXT="okfit bundle: ${bundle_root} (profile: ${profile_display})
 config: ${config_display}
 
-${types_block}
-
-${tags_block}
+${vocab_text}
 
 ${index_section}"
 
 # C-6.7/C-6.8: appended (not substituted — branch 5 still has a vocabulary,
 # since the software-project profile applies with no config file at all)
-# when no config file was discovered.
-if [ -z "$config_path" ]; then
+# when no config file was discovered. Minor 7 (final review): a config
+# found but living OUTSIDE project_root (a user-level XDG config) still
+# means the project itself has no config, so the nudge fires there too —
+# the project-relative test is deliberately not just "$config_path is set".
+config_outside_project=0
+if [ -n "$config_path" ]; then
+	case "$config_path" in
+		"$project_root"/*) ;;
+		*) config_outside_project=1 ;;
+	esac
+fi
+if [ -z "$config_path" ] || [ "$config_outside_project" -eq 1 ]; then
 	CONTEXT="${CONTEXT}
 
 No okfit config found in this project.
 Run \`okfit init\` to scaffold an okf/ bundle and a config."
+fi
+
+# Important 1 (final review): a config was found, but the profile it named
+# does not resolve (profile is null while profile_requested still names
+# what was asked for, and is neither null nor the deliberate "none") — tell
+# the operator why the vocabulary above is empty rather than leaving them
+# to guess. Never fires for "none" (a deliberate no-profile config) or for
+# no-config-at-all (profile_requested itself null then, contract C-7).
+if [ -n "$config_path" ] && [ -z "$profile" ] && [ -n "$profile_requested" ] && [ "$profile_requested" != "none" ]; then
+	CONTEXT="${CONTEXT}
+
+Profile \"${profile_requested}\" is unknown; no vocabulary was loaded. Check bundle.profile in the okfit config."
 fi
 
 # C-6.9 (M-29): the default state, since neither DEFAULTS nor

@@ -22,14 +22,20 @@ teardown() {
 _barebin() {
 	local dir="$1"
 	local tool
-	for tool in bash jq cat; do
+	# node is needed only so the OKFIT_BIN smoke test's symlinked okfit.js
+	# (a #!/usr/bin/env node script) can actually run; harmless for every
+	# other test that uses this helper and never spawns a real okfit.
+	for tool in bash jq cat node; do
 		ln -sf "$(command -v "$tool")" "$dir/$tool"
 	done
 }
 
 # _stub_cli context_json validate_json [validate_exit] — branches on $1
 # (context vs validate). Writes a sentinel file on the validate branch so a
-# test can assert the expensive call never happened (contract section 9.3).
+# test can assert the expensive call never happened (contract section 9.3),
+# and records "$2" (the argument validate.sh passed) to
+# $STUB_DIR/validate-arg so a test can assert it is the PROJECT root, never
+# the bundle root (Important 3, final review — K-2).
 _stub_cli() {
 	local ctx_json="$1" val_json="$2" val_rc="${3:-0}"
 	cat >"$STUB_DIR/okfit" <<EOF
@@ -41,6 +47,7 @@ case "\$1" in
 		;;
 	validate)
 		touch "${STUB_DIR}/validate-invoked"
+		printf '%s\n' "\$2" >"${STUB_DIR}/validate-arg"
 		printf '%s\n' '${val_json}'
 		exit ${val_rc}
 		;;
@@ -67,10 +74,18 @@ _run_hook() {
 	local path_override="${2:-$PATH}"
 	local project_dir="${3:-$REPO_ROOT}"
 	local cwd_dir="${4:-$PWD}"
+	# $5 is HOME, defaulting to the caller's own $HOME (unchanged from before
+	# this parameter existed). The OKFIT_BIN smoke test passes a fresh, empty
+	# HOME explicitly: the real okfit CLI's own config discovery needs HOME
+	# set at all (an unset HOME is itself an infrastructure failure, README.md
+	# "Exit codes"), which every other test here never exercises since its
+	# stub never actually reads HOME.
+	local home_dir="${5:-$HOME}"
 	(
 		cd "$cwd_dir" || exit 1
 		env -i \
 			PATH="$path_override" \
+			HOME="$home_dir" \
 			CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
 			CLAUDE_PROJECT_DIR="$project_dir" \
 			OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
@@ -227,6 +242,21 @@ _run_hook_file() {
 	[ -f "$STUB_DIR/validate-invoked" ]
 }
 
+@test "Edit of a clean file emits noop (Minor 5, session-independent)" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook_file "$FIXTURES/posttooluse.edit-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	[ -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "passes the PROJECT root, never the bundle root, to okfit validate (Important 3)" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	[ "$(cat "$STUB_DIR/validate-arg")" = "$REPO_ROOT" ]
+}
+
 @test "blocks on an Edit of index.md exactly like any other concept file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"index.md","code":"type-missing","severity":"error","message":"m"}]}' 2
@@ -255,18 +285,50 @@ _run_hook_file() {
 	echo "$output" | jq -e '.reason | startswith("modules/example file.md:")'
 }
 
-@test "resolves node_modules/.bin/okfit with OKFIT_CLI_CMD unset" {
+@test "resolves node_modules/.bin/okfit with OKFIT_CLI_CMD unset (Important 2, real okfit binary)" {
 	[ -n "${OKFIT_BIN:-}" ] && [ -x "${OKFIT_BIN:-}" ] || skip "OKFIT_BIN not set; skipping the production-resolution smoke test"
 	local project_dir
-	project_dir="$(mktemp -d)"
-	mkdir -p "$project_dir/node_modules/.bin" "$project_dir/okf"
-	cp "$OKFIT_BIN" "$project_dir/node_modules/.bin/okfit"
-	chmod +x "$project_dir/node_modules/.bin/okfit"
+	# Resolved to its physical path (pwd -P): on macOS, mktemp -d's own /var
+	# result is itself a symlink to /private/var, and the real okfit CLI
+	# canonicalises process.cwd() while validate.sh's own prefix check never
+	# does (M-20 ruling — symlinked project directories deliberately stay
+	# uncanonicalised in the hook). Using the physical path here keeps this
+	# test out of that known, ruled-on gap rather than tripping it.
+	project_dir="$(cd "$(mktemp -d)" && pwd -P)"
+	mkdir -p "$project_dir/node_modules/.bin"
+	# Important 2: a symlink to the physical path, not a copy — a copy of a
+	# node ESM entry point loses the sibling dist/ tree it resolves relative
+	# imports against, so a copied "okfit" fails to even start.
+	ln -s "$(cd "$(dirname "$OKFIT_BIN")" && pwd -P)/$(basename "$OKFIT_BIN")" "$project_dir/node_modules/.bin/okfit"
 	local barebin
 	barebin="$(mktemp -d)"
 	_barebin "$barebin"
-	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$project_dir"'/okf/x.md"},"cwd":"'"$project_dir"'"}' "$barebin" "$project_dir"
-	rm -rf "$project_dir" "$barebin"
+	local home_dir
+	home_dir="$(mktemp -d)"
+
+	# Minor 5: the clean bundle fixture is the conformant baseline — the real
+	# CLI validates it clean, so an edit inside it is a no-op.
+	cp -R "$PLUGIN_ROOT/__test__/fixtures/bundles/clean/okf" "$project_dir/okf"
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$project_dir"'/okf/modules/example.md"},"cwd":"'"$project_dir"'"}' "$barebin" "$project_dir" "$project_dir" "$home_dir"
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -es 'length == 1'
+	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+
+	# Important 2: break one file with a deliberately non-conformant concept
+	# (no `type` key) and confirm the real CLI's own core.conformance hit
+	# blocks, naming the edited file in the reason.
+	cat >"$project_dir/okf/modules/broken.md" <<'MD'
+---
+title: Broken Module
+description: Deliberately missing its required type key.
+---
+
+# Broken Module
+MD
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$project_dir"'/okf/modules/broken.md"},"cwd":"'"$project_dir"'"}' "$barebin" "$project_dir" "$project_dir" "$home_dir"
+	rm -rf "$project_dir" "$barebin" "$home_dir"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -es 'length == 1'
+	echo "$output" | jq -e '.decision == "block"'
+	echo "$output" | jq -e '.reason | contains("modules/broken.md")'
 }

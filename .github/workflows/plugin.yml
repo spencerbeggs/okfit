@@ -36,8 +36,18 @@ jobs:
       - name: Setup runtime
         uses: savvy-web/silk-runtime-action@v1
 
+      # Important 2 (final-review fix wave): builds the real CLI so the one
+      # OKFIT_BIN-gated smoke test in post-tool-use-validate.bats runs
+      # against a real okfit binary in CI instead of skipping. okfit.js
+      # already carries a #!/usr/bin/env node shebang and its executable
+      # bit (dist/dev's own build output), so no wrapper script is needed.
+      - name: Build the CLI for the OKFIT_BIN smoke test
+        run: pnpm --filter @okfit/cli... build:dev
+
       - name: Run plugin BATS suite
         run: pnpm test:bats
+        env:
+          OKFIT_BIN: ${{ github.workspace }}/packages/cli/dist/dev/pkg/bin/okfit.js
 
       - name: Lint markdown
         run: pnpm lint:md

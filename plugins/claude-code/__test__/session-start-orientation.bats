@@ -35,17 +35,23 @@ EOF
 }
 
 # _stub_context bundle_root index_path index_exists config_path profile
-#   actors_agent types_json tags_json — builds one canned context envelope.
+#   actors_agent types_json tags_json [profile_requested] — builds one canned
+#   context envelope. profile_requested defaults to profile (every existing
+#   caller asks for exactly the profile it gets); pass a 9th argument to
+#   exercise the unknown-profile case, where the two diverge.
 _stub_context() {
 	local bundle_root="$1" index_path="$2" index_exists="$3" config_path="$4"
 	local profile="$5" actors_agent="$6" types_json="${7:-[]}" tags_json="${8:-[]}"
+	local profile_requested="${9:-$profile}"
 	local config_field="null"
 	[ -n "$config_path" ] && config_field="\"$config_path\""
 	local profile_field="null"
 	[ -n "$profile" ] && profile_field="\"$profile\""
+	local profile_requested_field="null"
+	[ -n "$profile_requested" ] && profile_requested_field="\"$profile_requested\""
 	local agent_field="null"
 	[ -n "$actors_agent" ] && agent_field="\"$actors_agent\""
-	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json}"
+	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json}"
 }
 
 # _barebin dir — populates dir with symlinks to every external tool
@@ -183,13 +189,57 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("actors.agent is not set")) | not'
 }
 
-@test "emits C-6.6 when the stubbed CLI exits non-zero" {
+@test "emits C-6.6 with the CLI's own error message when the stubbed CLI exits non-zero" {
 	_stub_cli '{"schema":1,"okfit_version":"0.1.0","exit_code":3,"error":{"tag":"ConfigMalformedError","message":"bad toml"}}' 3
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '.hookSpecificOutput.additionalContext ==
-		"okfit context could not run (its config looks malformed); skipping orientation this session."'
+		"okfit context could not run (its config looks malformed: bad toml); skipping orientation this session."'
 	grep -qF "okfit: context exited 3" "$STUB_DIR/stderr"
+}
+
+@test "falls back to the generic C-6.6 sentence when the CLI stdout carries no error.message" {
+	_stub_cli '{"schema":1,"okfit_version":"0.1.0","exit_code":3}' 3
+	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext ==
+		"okfit context could not run (its config looks malformed); skipping orientation this session."'
+}
+
+@test "appends the unknown-profile line when profile is null and profile_requested is neither null nor none (Important 1)" {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" "" "set" "[]" "[]" "nope"
+	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+		| contains("Profile \"nope\" is unknown; no vocabulary was loaded. Check bundle.profile in the okfit config.")'
+}
+
+@test "omits the unknown-profile line when profile_requested is \"none\"" {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" "" "set" "[]" "[]" "none"
+	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("is unknown; no vocabulary was loaded")) | not'
+}
+
+@test "appends the okfit init nudge when config_path is outside project_root (Minor 7, user-level XDG config)" {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "/some/xdg/config.toml" software-project "set"
+	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+		| contains("No okfit config found in this project.")
+		and contains("Run `okfit init` to scaffold an okf/ bundle and a config.")'
+}
+
+@test "truncates a large vocabulary block at 8000 bytes (Minor 10)" {
+	local types_json
+	types_json=$(jq -n '[range(0;200) | {name: ("Type" + (. + 1000 | tostring)), description: "d", guidance: ([range(0;100)] | map("g") | join(""))}]')
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" software-project "set" "$types_json" "[]"
+	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
+	[ "$status" -eq 0 ]
+	local ctx
+	ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
+	echo "$ctx" | grep -qF "[truncated at 8000 bytes; vocabulary is"
+	[ "$(echo -n "$ctx" | wc -c | tr -d ' ')" -lt 8600 ]
 }
 
 @test "emits C-6.1 and C-6.2 when okfit_cli resolves nothing" {
