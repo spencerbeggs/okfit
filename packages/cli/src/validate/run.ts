@@ -17,7 +17,7 @@ import { Context, Effect, Option } from "effect";
  * for their own services (`PROFILES/GitHistory.ts:140`) — source wins over
  * the contract's literal snippet here (K-62).
  *
- * @public
+ * @internal
  */
 export class Now extends Context.Service<Now, DateTime.Utc>()("@okfit/cli/Now") {}
 

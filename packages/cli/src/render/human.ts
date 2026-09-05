@@ -78,13 +78,7 @@ export const summary = (counts: Counts, root: string): string =>
  *    unchanged, absolute.
  * 3. Otherwise: the relative form.
  *
- * Previously duplicated as `commands/validate.ts`'s `renderRoot` and
- * `commands/init.ts`'s `displayPath`; the second copy had silently dropped
- * the `""` → `.` case and the `isAbsolute` guard, so `init` printed a blank
- * root for `bundle.path = "."` where `validate` printed `.`. This is now the
- * only copy of the rule.
- *
- * @public
+ * @internal
  */
 export const displayRoot = (cwd: string, target: string, path: Path.Path): string => {
 	const relative = path.relative(cwd, target);
