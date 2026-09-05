@@ -6,7 +6,18 @@
 
 export type { ActorForm } from "./Actor.js";
 export { Actor } from "./Actor.js";
+export {
+	AttestedComputation,
+	ComputationAttester,
+	ComputationExecutor,
+	ComputationParameter,
+} from "./AttestedComputation.js";
+export { ATTESTED_COMPUTATION_TYPE, Concept } from "./Concept.js";
+export { Generated } from "./Generated.js";
+export { Source, UsageWindow } from "./Source.js";
+export { Status } from "./Status.js";
 export { Timestamp } from "./Timestamp.js";
+export { Verification } from "./Verification.js";
 
 /**
  * The OKF specification version this package implements.
