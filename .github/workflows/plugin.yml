@@ -56,5 +56,8 @@ jobs:
       - name: Validate the okf bundle
         run: pnpm exec okfit validate . --format human
 
+      - name: Run the dogfood index guard
+        run: pnpm vitest run packages/cli/__test__/e2e/dogfood.e2e.test.ts
+
       - name: Lint markdown
         run: pnpm lint:md
