@@ -8,6 +8,8 @@ import { platformFor } from "./utils/lintFixtures.js";
 
 const platform = platformFor("lint/bundle", "/repo/bundle");
 const loadBundle = Effect.provide(Bundle.load({ root: "/repo/bundle" }), platform);
+const escapePlatform = platformFor("lint/escape-bundle", "/repo/escape-bundle");
+const loadEscapeBundle = Effect.provide(Bundle.load({ root: "/repo/escape-bundle" }), escapePlatform);
 const now = DateTime.makeUnsafe("2026-09-04T00:00:00Z");
 
 const vocabConfig: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
@@ -103,6 +105,15 @@ describe("Validate", () => {
 				["broken-links", "modules/web.md", "warning"],
 				["missing-index", "modules/index.md", "warning"],
 			]);
+		}),
+	);
+
+	it.effect("broken-links does not fire for a resource that escapes the bundle root (F-18)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadEscapeBundle;
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
+			assert.deepStrictEqual(summary(lint), [["broken-links", "modules/gone.md", "warning"]]);
+			assert.match(lint[0]?.message ?? "", /"missing\.md"/);
 		}),
 	);
 

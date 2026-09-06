@@ -30,3 +30,22 @@ export const brokenSeed: MemoryFileSystemSeed = {
 
 /** memfs + posix Path layer for the crafted bundle. */
 export const BrokenPlatform = Layer.mergeAll(MemoryFileSystem.layerWith(brokenSeed), Path.layer);
+
+/** Root of the bundle below, exercising path fields that escape the bundle root (F-18). */
+export const ESCAPE_ROOT = "/repo/escape";
+
+/**
+ * A root `resource` that escapes with a single `..` (case A), a nested one that needs two (case
+ * B), an in-bundle miss that still dangles (case C), and a nested one whose `../` prefix resolves
+ * back inside the bundle root and so stays a normal edge (case D).
+ */
+export const escapeSeed: MemoryFileSystemSeed = {
+	[`${ESCAPE_ROOT}/index.md`]: "# Root\n",
+	[`${ESCAPE_ROOT}/project.md`]: "---\ntype: Project\nresource: ../packages/core\n---\n\n# Project\n",
+	[`${ESCAPE_ROOT}/modules/x.md`]: "---\ntype: Module\nresource: ../../elsewhere\n---\n\n# X\n",
+	[`${ESCAPE_ROOT}/modules/y.md`]: "---\ntype: Module\nresource: missing.md\n---\n\n# Y\n",
+	[`${ESCAPE_ROOT}/modules/z.md`]: "---\ntype: Module\nresource: ../modules/x.md\n---\n\n# Z\n",
+};
+
+/** memfs + posix Path layer for `escapeSeed`. */
+export const EscapePlatform = Layer.mergeAll(MemoryFileSystem.layerWith(escapeSeed), Path.layer);

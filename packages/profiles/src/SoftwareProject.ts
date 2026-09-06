@@ -37,7 +37,8 @@ const config: OkfitConfig = {
 					},
 				},
 				resource: {
-					description: "The repo-relative path this Module documents, normally the package root.",
+					description:
+						"A path from the bundle root to the code this Module documents, normally escaping the bundle, for example ../packages/core.",
 					kind: "path",
 				},
 			},
@@ -73,7 +74,8 @@ const config: OkfitConfig = {
 					},
 				},
 				resource: {
-					description: "The repo-relative path to the thing this Interface documents.",
+					description:
+						"A path from the bundle root to the file, endpoint, or schema this Interface documents, normally escaping the bundle, for example ../packages/core/src/index.ts.",
 					kind: "path",
 				},
 			},

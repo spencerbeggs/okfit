@@ -3,11 +3,12 @@ import { Effect, Graph as EffectGraph, Option } from "effect";
 import { Bundle } from "../src/Bundle.js";
 import type { GraphLink } from "../src/Graph.js";
 import { Graph } from "../src/Graph.js";
-import { BROKEN_ROOT, BrokenPlatform } from "./utils/graphSeeds.js";
+import { BROKEN_ROOT, BrokenPlatform, ESCAPE_ROOT, EscapePlatform } from "./utils/graphSeeds.js";
 
 const ids = (nodes: ReadonlyArray<{ readonly id: string }>) => nodes.map((node) => node.id).sort();
 const byEdge = (a: GraphLink, b: GraphLink) => `${a.from}|${a.to}`.localeCompare(`${b.from}|${b.to}`);
 const load = Effect.map(Bundle.load({ root: BROKEN_ROOT }), Graph.fromBundle);
+const loadEscape = Effect.map(Bundle.load({ root: ESCAPE_ROOT }), Graph.fromBundle);
 
 describe("Graph.fromBundle", () => {
 	it.effect("adds every concept, referenced file, and missing placeholder as a node", () =>
@@ -79,5 +80,24 @@ describe("Graph.fromBundle", () => {
 			assert.include(graph.toMermaid({ direction: "LR", edgeLabel: (edge) => edge.raw }), '-->|"./gone.md"|');
 			assert.isTrue(graph.toGraphViz().startsWith('digraph "G" {'));
 		}).pipe(Effect.provide(BrokenPlatform)),
+	);
+
+	it.effect("a resource that escapes the bundle root is external: no node, no dangling edge (F-18)", () =>
+		Effect.gen(function* () {
+			const graph = yield* loadEscape;
+			assert.deepStrictEqual(graph.nodes.map((node) => `${node.kind}:${node.id}`).sort(), [
+				"concept:modules/x",
+				"concept:modules/y",
+				"concept:modules/z",
+				"concept:project",
+				"missing:modules/missing.md",
+			]);
+			assert.deepStrictEqual(
+				[...graph.dangling()].sort(byEdge).map((link) => [link.from, link.to, link.data.raw]),
+				[["modules/y", "modules/missing.md", "missing.md"]],
+			);
+			assert.deepStrictEqual(ids(graph.successors("modules/z")), ["modules/x"]);
+			assert.strictEqual(graph.edges.length, 2);
+		}).pipe(Effect.provide(EscapePlatform)),
 	);
 });
