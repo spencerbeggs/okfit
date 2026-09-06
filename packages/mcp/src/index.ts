@@ -20,7 +20,14 @@ export { resolveNow } from "./internal/resolveNow.js";
 export type { ToolContext } from "./internal/toolContext.js";
 export { loadToolContext, resolveConfigOnly } from "./internal/toolContext.js";
 export { ConceptSummary, toConceptSummary } from "./schema/ConceptSummary.js";
-export { DescribeVocabularySuccess, ListConceptsParams, ListConceptsSuccess } from "./schema/tools.js";
+export {
+	ConceptNeighborsSuccess,
+	DescribeVocabularySuccess,
+	GetConceptSuccess,
+	ListConceptsParams,
+	ListConceptsSuccess,
+	Neighbor,
+} from "./schema/tools.js";
 export type { PlatformServices } from "./server.js";
 export { ServerLayer } from "./server.js";
 export { OkfitToolkit, ToolsLayer } from "./toolkit.js";

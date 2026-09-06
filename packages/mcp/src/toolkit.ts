@@ -1,5 +1,7 @@
 import { Toolkit } from "effect/unstable/ai";
+import { conceptNeighbors, handleConceptNeighbors } from "./tools/conceptNeighbors.js";
 import { describeVocabulary, handleDescribeVocabulary } from "./tools/describeVocabulary.js";
+import { getConcept, handleGetConcept } from "./tools/getConcept.js";
 import { handleListConcepts, listConcepts } from "./tools/listConcepts.js";
 
 /**
@@ -9,7 +11,7 @@ import { handleListConcepts, listConcepts } from "./tools/listConcepts.js";
  *
  * @public
  */
-export const OkfitToolkit = Toolkit.make(describeVocabulary, listConcepts);
+export const OkfitToolkit = Toolkit.make(describeVocabulary, listConcepts, getConcept, conceptNeighbors);
 
 /**
  * The handler layer. `projectRoot` is closed over from the bin (N-21);
@@ -21,4 +23,6 @@ export const ToolsLayer = (projectRoot: string) =>
 	OkfitToolkit.toLayer({
 		describe_vocabulary: () => handleDescribeVocabulary(projectRoot),
 		list_concepts: (params) => handleListConcepts(projectRoot, params),
+		get_concept: (params) => handleGetConcept(projectRoot, params),
+		concept_neighbors: (params) => handleConceptNeighbors(projectRoot, params),
 	});
