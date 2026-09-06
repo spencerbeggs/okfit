@@ -31,7 +31,7 @@ values.plugin = "A Claude Code or editor plugin distributed outside npm."
 values.action = "A GitHub Action."
 
 [types.Module.fields.resource]
-description = "A path from the bundle root to the code this Module documents, normally escaping the bundle, for example ../packages/core."
+description = "A path relative to this concept file, normally escaping the bundle, for example ../../packages/core."
 kind = "path"
 
 [types.Decision]
@@ -61,7 +61,7 @@ values.wire = "A network or IPC wire format."
 values.mcp = "An MCP tool or resource surface."
 
 [types.Interface.fields.resource]
-description = "A path from the bundle root to the file, endpoint, or schema this Interface documents, normally escaping the bundle, for example ../packages/core/src/index.ts."
+description = "A path relative to this concept file, normally escaping the bundle, for example ../../packages/core/src/index.ts."
 kind = "path"
 
 [types.Reference]
