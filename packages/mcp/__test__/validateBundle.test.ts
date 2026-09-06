@@ -26,9 +26,10 @@ interface Envelope {
 const validate = (
 	args: Record<string, unknown>,
 	mutate?: (root: string) => Effect.Effect<void, never, FileSystem.FileSystem | Path.Path>,
+	fixture: "project" | "missing-bundle" = "project",
 ) =>
 	Effect.gen(function* () {
-		const root = yield* copyFixtureProject("project");
+		const root = yield* copyFixtureProject(fixture);
 		// mutate needs FileSystem/Path; copyFixtureProject provides NodeServices
 		// internally for its own use but does not leak it to the caller's
 		// requirement channel, so it is provided again here (same pattern).
@@ -90,6 +91,22 @@ describe("validate_bundle", () => {
 		Effect.gen(function* () {
 			const data = (yield* validate({})).structuredContent as Envelope;
 			assert.strictEqual(data.okfit_version, MCP_VERSION);
+		}).pipe(Effect.scoped),
+	);
+
+	// A typed tool failure never carries `structuredContent` on the wire under
+	// `failureMode: "error"` (B1's ruling, progress.md): only `error.message`
+	// reaches `tools/call`'s `content[0].text`. This asserts the composed
+	// message includes both the root and the remediation hint, catching a
+	// regression where `run()`'s failure is mapped to `BundleNotFound` with
+	// a bare `cause.message` instead of `composeRemediatedMessage`.
+	it.effect("fails BundleNotFound when the config's bundle path does not exist, with a composed remediation", () =>
+		Effect.gen(function* () {
+			const result = yield* validate({}, undefined, "missing-bundle");
+			assert.ok(result.isError);
+			const text = result.content[0]?.text ?? "";
+			assert.ok(text.includes("no-such-bundle"));
+			assert.ok(text.includes("okfit init"));
 		}).pipe(Effect.scoped),
 	);
 });

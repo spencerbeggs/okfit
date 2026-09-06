@@ -3,7 +3,7 @@ import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/cli";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import { Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { BundleNotFound, McpToolError } from "../errors.js";
+import { BundleNotFound, McpToolError, composeRemediatedMessage } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";
 import type { ValidateBundleParams } from "../schema/tools.js";
@@ -59,16 +59,16 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 			profile: resolved.profile,
 			now,
 		}).pipe(
-			Effect.mapError(
-				(cause) =>
-					new BundleNotFound({
-						root: resolved.bundleRoot,
-						message: cause.message,
-						remediation: {
-							hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
-						},
-					}),
-			),
+			Effect.mapError((cause) => {
+				const remediation = {
+					hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
+				};
+				return new BundleNotFound({
+					root: resolved.bundleRoot,
+					message: composeRemediatedMessage(cause.message, remediation),
+					remediation,
+				});
+			}),
 		);
 		const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
 		const code = forDiagnostics(diagnostics);
