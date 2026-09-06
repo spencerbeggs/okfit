@@ -46,6 +46,12 @@ Run by hand as a step of `okf-finalize`, in both directions:
    `CLAUDE.md`. A section nothing points to is knowledge an agent will
    never be routed to at session start.
 
+When the `mcp__plugin_okfit_mcp__*` tools are available, prefer
+`get_concept` and `list_concepts` over `Read`/`Grep` for reading a bundle
+path's content while auditing a pointer; the checklist's own grep-based
+pointer extraction from `CLAUDE.md` has no tool equivalent and stays as
+written.
+
 ## When this runs
 
 Plainly: there is no automated pointer-drift mechanism in phase 1. This

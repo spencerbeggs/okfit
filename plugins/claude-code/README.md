@@ -100,16 +100,23 @@ not executed directly.
 
 ## MCP loader
 
-`bin/start-mcp.sh` ships and is fully tested (`__test__/loader.bats`), but
-`.claude-plugin/plugin.json` registers no `mcpServers` block yet.
-`@okfit/mcp`'s current stub always exits `1`, so registering the loader now
-would make every launch attempt fail identically whether `@okfit/mcp` is
-simply not installed or installed-but-stubbed, with no way for a user to
-tell the two apart. This lands once `@okfit/mcp` implements the MCP
-protocol — phase 2.
+`.claude-plugin/plugin.json` registers `mcpServers.mcp`, running
+`bin/start-mcp.sh` (`__test__/loader.bats`), which resolves the project's
+own `node_modules/.bin/okfit-mcp` and falls back to
+`npx --yes @okfit/mcp` when it is not installed. The server it starts
+exposes six read-only tools and two resources over stdio; see
+`agents/okf-docs.md`'s `tools:` block for the six tools' fully scoped
+names.
+
+`MCP_PROTOCOL_NEGOTIATION` is an environment variable a Claude Code MCP
+client reads to pin which MCP protocol version it offers during
+`initialize`, for a server that only understands an older wire format.
+okfit does not need it: the server declares both legacy protocol adapters
+it supports, `2025-11-25` and `2025-06-18`, newest first, so a client
+negotiates the newest one both sides understand on its own. It is never
+set in the manifest.
 
 ## Status
 
-Skills, the `okf-docs` agent, both hooks, and the MCP loader script are
-implemented and tested; MCP server registration in the manifest is a
-phase-2 follow-up.
+Skills, the `okf-docs` agent, both hooks, and the MCP server registration
+are implemented and tested.

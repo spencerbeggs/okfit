@@ -7,6 +7,12 @@
 	"description": "Teaches Claude Code the Open Knowledge Format (OKF) v0.2 and keeps a repository's okf/ knowledge bundle current through skills, one docs agent, and the okfit CLI and MCP server.",
 	"homepage": "https://github.com/spencerbeggs/okfit",
 	"license": "MIT",
+	"mcpServers": {
+		"mcp": {
+			"args": ["${CLAUDE_PLUGIN_ROOT}/bin/start-mcp.sh"],
+			"command": "sh"
+		}
+	},
 	"name": "okfit",
 	"repository": "https://github.com/spencerbeggs/okfit.git",
 	"version": "0.1.0"

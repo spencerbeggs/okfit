@@ -51,6 +51,7 @@ _local_bin() {
 	cat >"$PROJECT_DIR/node_modules/.bin/okfit-mcp" <<EOF
 #!/bin/sh
 printf 'okfit-mcp %s\n' "\$*" >"$PROJECT_DIR/okfit-mcp.invoked"
+printf '%s\n' "\${OKFIT_PROJECT_DIR:-}" >>"$PROJECT_DIR/okfit-mcp.invoked"
 exit $code
 EOF
 	chmod +x "$PROJECT_DIR/node_modules/.bin/okfit-mcp"
@@ -143,4 +144,12 @@ EOF
 	_fake_bin npx 7
 	run sh "$LOADER"
 	[ "$status" -eq 7 ]
+}
+
+@test "exports OKFIT_PROJECT_DIR before exec'ing the local bin" {
+	_local_bin
+	run sh "$LOADER"
+	[ -f "$PROJECT_DIR/okfit-mcp.invoked" ]
+	second_line="$(sed -n '2p' "$PROJECT_DIR/okfit-mcp.invoked")"
+	[ "$second_line" = "$PROJECT_DIR" ]
 }

@@ -11,13 +11,11 @@
 # vitest-agent/plugins/claude-code/bin/start-mcp.mjs:44-67 (packageManager
 # field first) and :34-40 (lockfile order: pnpm-lock.yaml, bun.lock,
 # bun.lockb, yarn.lock, package-lock.json — interpretation B-5).
-#
-# Not wired into .claude-plugin/plugin.json's mcpServers in phase 1 (M-27):
-# this file ships and is tested, but nothing invokes it yet.
 
 set -eu
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+export OKFIT_PROJECT_DIR="$ROOT"
 
 # detect_pm — prints one of npm/pnpm/yarn/bun on stdout. Package.json's
 # packageManager field wins outright over any lockfile (even a co-present

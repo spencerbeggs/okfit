@@ -23,7 +23,8 @@ for the simplicity of one agent running one skill straight through.
 1. List the concepts the branch's diff touches: `git diff` against the base
    branch, restricted to bundle paths.
 2. Reconcile each touched concept against `okf-authoring`'s sixteen rules.
-3. Run `okfit validate --format json` and fix what it reports.
+3. Run `validate_bundle` — or `okfit validate --format json` when the MCP
+   tools are unavailable — and fix what it reports.
 4. Regenerate `index.md` and `log.md`. Both are derived files (`okf-spec`'s
    reserved-files section) -- never hand-edit either one. Until a dedicated
    CLI command exists for this, defer to what `validate`'s own report names

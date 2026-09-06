@@ -20,6 +20,12 @@ tools:
   - TaskUpdate
   - TaskList
   - TaskGet
+  - mcp__plugin_okfit_mcp__describe_vocabulary
+  - mcp__plugin_okfit_mcp__list_concepts
+  - mcp__plugin_okfit_mcp__get_concept
+  - mcp__plugin_okfit_mcp__concept_neighbors
+  - mcp__plugin_okfit_mcp__stale_report
+  - mcp__plugin_okfit_mcp__validate_bundle
 skills:
   - okf-spec
   - okf-authoring
@@ -43,16 +49,18 @@ types or tags of its own.
 
 ## How it works
 
-Reads `okfit context --format json` for orientation before making any
-edit — the bundle root, the active profile, and the resolved type and tag
-vocabulary — never guessing at any of the three; this is the same payload
-the `SessionStart` hook already injects at the top of the session, so
-there is nothing here the agent has not already been told once. After
-writing or editing any concept file under the bundle, runs
-`okfit validate --format json` and reconciles what it reports before
-moving on to the next file, mirroring exactly what the `PostToolUse` hook
-checks automatically on every `Write`/`Edit` — the agent's own workflow
-is deliberately never a step behind what the hook would catch anyway. At
+Calls `describe_vocabulary` for orientation before making any edit — the
+project and bundle roots, the active profile, the agent actor, and the
+resolved type and tag vocabulary — falling back to `okfit context --format
+json` when the MCP tools are not available in this session. Uses
+`list_concepts` and `get_concept` to find and read existing concepts
+before writing a new one, rather than grepping the bundle by hand, and
+`concept_neighbors` to confirm a rewritten concept's links still resolve.
+After writing or editing any concept file, calls `validate_bundle` — or
+`okfit validate --format json` when the tools are absent — and reconciles
+what it reports before moving to the next file; this is the same payload
+the `PostToolUse` hook already computes on every `Write`/`Edit`, so the
+tool call replaces a shell round trip, not the checking itself. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s sixteen rules, run `okfit validate` and fix what it

@@ -10,7 +10,7 @@ Distribution is through the `spencerbeggs/bot` marketplace (not yet listed).
 ```text
 plugins/claude-code/
   .claude-plugin/
-    plugin.json                        -- manifest; no mcpServers block until phase 2
+    plugin.json                        -- manifest; mcpServers.mcp -> bin/start-mcp.sh
   package.json                         -- @okfit/claude-code-plugin, private, version mirror
   CHANGELOG.md                         -- untouched (no changesets until Spencer calls the release)
   README.md                            -- Local development/Skills/Agent/Hooks/MCP-loader/Status sections
@@ -85,11 +85,9 @@ a prevention. Both hook `command` entries in `hooks.json` invoke their
 script as `bash "${CLAUDE_PLUGIN_ROOT}/hooks/..."` rather than executing it
 directly, because the repo strips executable bits on commit.
 
-`.claude-plugin/plugin.json` gains no `mcpServers` block in this phase.
-`bin/start-mcp.sh` ships and is tested, but wiring it into the manifest
-waits for `@okfit/mcp` to implement the MCP protocol — its current stub
-always exits `1`, and registering the loader today would make "not
-installed" and "installed but stubbed" produce the identical failure.
+`.claude-plugin/plugin.json` registers `mcpServers.mcp`, running
+`bin/start-mcp.sh`, which exposes the six tools named explicitly in
+`agents/okf-docs.md`'s `tools:` block.
 
 Run the BATS suite with `pnpm test:bats` from the repo root (covers every
 `.bats` file under `__test__/`), or a single file directly with
