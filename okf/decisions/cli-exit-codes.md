@@ -2,8 +2,10 @@
 type: Decision
 title: Exit codes are a fixed six-value total order
 description: okfit's exit codes form one fixed, non-configurable total order from 0 to 130, where warnings and info never change the result.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -22,7 +24,7 @@ failure, `2` one or more conformance diagnostics of severity error, `1` one
 or more lint or profile diagnostics of severity error, `0` otherwise; higher
 wins when several tiers apply; warnings and info never change the exit code;
 profile diagnostics fold into tier 1
-(`docs/superpowers/research/cli/decisions.md:32-39`, ruling K-7).
+(ruling K-7).
 
 ## Alternatives rejected
 

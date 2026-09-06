@@ -25,9 +25,8 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
 - **Rules contributors and agents must follow** -- `okf/conventions/*.md`.
   The bullets below are the ones a session needs immediately; full
   rationale and citations live in the bundle.
-- **Contracts other code depends on** (the CLI, the config schema,
-  `@okfit/core`'s public API, the profile contract, the plugin's hooks) --
-  `okf/interfaces/*.md`.
+- **Contracts other code depends on** (the CLI, the config schema, the
+  plugin's hooks, the MCP stub) -- `okf/interfaces/*.md`.
 - **External material this repo must cite reliably** --
   `okf/references/okf-spec.md`.
 
@@ -63,8 +62,7 @@ in `okf/interfaces/cli-commands.md`.
 
 ## Build and release
 
-`@savvy-web/bundler` produces `dist/dev` and `dist/prod` per package and
-flips `private` on publish; never set `"private": false` in a source
-`package.json`. Changesets with `@savvy-web/changelog` version
-everything; `plugins/claude-code` is tagged but never published to npm,
-and its `plugin.json` version is mirrored from its `package.json`.
+Never set `"private": false` in a source `package.json`; no changesets until
+Spencer calls the initial release. Mechanics (the dual build, versioning,
+`plugins/claude-code`'s tag-only publish): the workspace module, under
+`okf/modules/*.md`.

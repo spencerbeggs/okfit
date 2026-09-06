@@ -20,8 +20,7 @@ first-class fields (`README.md:5`). okfit has two roles: it is the successor
 to the design-docs workflow for keeping a repository's knowledge base
 current, and it is also a general OKF toolkit usable on any conformant
 bundle, including Google's own data-catalog-style bundles (`CLAUDE.md:7-11`;
-`docs/superpowers/specs/2026-09-04-okfit-monorepo-design.md:8-14`, spec
-section 1).
+spec section 1).
 
 ## Boundaries
 
@@ -40,13 +39,18 @@ single owned concern (`README.md:9-15`, `CLAUDE.md:18-27`):
   release-only workspace package, tagged but never published to npm
   (`plugins/claude-code/CLAUDE.md:3-6`).
 
+The D/P/K/M/F ruling ids cited throughout this bundle (for example D-6, K-7,
+M-20) refer to design records kept outside this repository, local and
+gitignored; the bundle text itself is self-contained and never depends on
+resolving one of those ids to read.
+
 ## Non-goals
 
 Phase 1 deliberately excludes:
 
 - Implementing the MCP server -- `@okfit/mcp` ships as a stub until phase 2.
-- CLI commands beyond `validate` and `init` -- other commands wait for
-  phase 2.
+- CLI commands beyond `validate`, `init`, and `context` -- other commands
+  (`verify`, the MCP server) wait for phase 2.
 - Listing the Claude Code plugin in the `spencerbeggs/bot` marketplace
   (`plugins/claude-code/CLAUDE.md:6`) -- deferred until phase 1 is dogfooded,
   which is what this bundle is for.

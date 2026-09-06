@@ -2,8 +2,10 @@
 type: Decision
 title: The validate hook fires PostToolUse, not PreToolUse
 description: The Claude Code plugin's validate hook fires on PostToolUse, not the spec's PreToolUse, because the CLI can only validate bytes that already exist on disk.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -26,7 +28,7 @@ instead runs after the write, calls the whole-bundle `okfit validate
 edited file's bundle-relative path, and blocks (`decision: "block"`) only on
 a `core.conformance` hit for that file, warning (`additionalContext`) on a
 `core.lint`/`profile`-only hit
-(`docs/superpowers/research/plugin/decisions.md:145-162`, ruling M-20).
+(ruling M-20).
 
 ## Alternatives rejected
 

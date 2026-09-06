@@ -2,8 +2,10 @@
 type: Decision
 title: Human actor ids resolve through a four-step fallback order
 description: A human actor id resolves through a four-step, first-hit-wins fallback order that prefers a configured spelling over an auto-derived one.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -22,7 +24,7 @@ Resolution follows a four-step, first-hit-wins order: (1) a `human:<id>`
 entry in `config.actors.humans` matching case-insensitively, config spelling
 returned; (2) `human:<email local part>`; (3) `human:<slug of user.name>`;
 (4) `HumanActorUnresolvedError`
-(`docs/superpowers/research/profiles/decisions.md:69-76`, ruling P-13). The
+(ruling P-13). The
 result always satisfies core's `Actor` regex.
 
 ## Alternatives rejected
@@ -40,5 +42,4 @@ This repo's config need not declare `actors.humans` at all for
 (`spencer@beggs.codes` → `spencer`) already matches; every concept in this
 plan still hardcodes `generated: { by: human:spencer }` by hand rather than
 invoking derivation, because no phase-1 command wires
-`Derivation.generatedBy` into a write path
-(`docs/superpowers/research/dogfood/authoring-and-config-mechanics.md:292-335`).
+`Derivation.generatedBy` into a write path.

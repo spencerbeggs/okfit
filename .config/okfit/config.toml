@@ -10,3 +10,5 @@ humans = ["human:spencer"]
 # require_verified_unmet returns to "error" once `okfit verify` ships
 # (phase 2) and Spencer has verified these ten Decision concepts.
 require_verified_unmet = "warn"
+# A new concept-holding directory with no index.md must fail CI, not warn.
+missing_index = "error"

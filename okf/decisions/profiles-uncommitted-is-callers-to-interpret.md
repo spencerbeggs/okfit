@@ -2,8 +2,10 @@
 type: Decision
 title: Uncommitted provenance is the caller's to interpret
 description: Derivation reports an uncommitted body's provenance without ever substituting the current time, leaving the interpretation to the caller.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -21,9 +23,9 @@ each case.
 `Derivation.generatedAt` returns a tagged union, `BodyProvenance` —
 `committed { at, sha, committedAt, authorName, authorEmail }` or
 `uncommitted { reason: untracked | dirty | unborn }`
-(`docs/superpowers/research/profiles/decisions.md:45-49`, ruling P-9) — and
+(ruling P-9) — and
 never substitutes `now` for the uncommitted case; it only ever reports what
-it found (`docs/superpowers/research/profiles/decisions.md:50-54`, ruling
+it found (ruling
 P-10). The recommended caller policy, documented in the profiles README, is
 to omit `generated.at` entirely until the body is committed; `okfit init`'s
 own `project.md` scaffold already follows this, writing no `generated` block

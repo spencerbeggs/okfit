@@ -2,8 +2,10 @@
 type: Decision
 title: Exactly one Project concept, at the bundle root
 description: The software-project profile requires exactly one Project concept and requires it to live at the bundle root, enforced as three non-configurable profile errors.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -22,7 +24,7 @@ Profiles owns a `Profile.check` function returning `ProfileDiagnostic`s with
 codes `project-missing`, `project-multiple` (one per extra Project), and
 `project-not-at-root`, all non-configurable `error` severity, checked
 independently of each other
-(`docs/superpowers/research/profiles/decisions.md:117-125`, ruling P-21;
+(ruling P-21;
 implemented at `packages/profiles/src/SoftwareProject.ts:135-174` — two
 Projects with one of them nested yields three diagnostics at once, not one).
 

@@ -2,8 +2,10 @@
 type: Decision
 title: Config discovery is two branches, never one chain
 description: The CLI resolves config through exactly one of two branches, either an explicit --config path or an upward-walk-plus-XDG discovery chain, never a single merged chain.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -19,13 +21,12 @@ mean exactly that file and nothing merged in around it.
 
 An explicit `--config` short-circuits to a `ConfigFile.layer` built directly
 with only `ConfigResolver.explicitPath(p)` — no upward walk, no XDG probe
-(`docs/superpowers/research/cli/decisions.md:52-56`, ruling K-10). Otherwise
+(ruling K-10). Otherwise
 the discovery chain is `upwardWalk("config.toml", {
 subpaths: [".config/okfit"] })`, then `upwardWalk("okfit.config.toml")`, then
 the app's XDG entries, with `MergeStrategy.firstMatch`, built through
 `AppConfig.layer`; one `provideConfig` function in `config/layer.ts` produces
-whichever branch applies (`docs/superpowers/research/cli/decisions.md:259`,
-ruling K-57, reconciling K-9/K-10).
+whichever branch applies (ruling K-57, reconciling K-9/K-10).
 
 ## Alternatives rejected
 

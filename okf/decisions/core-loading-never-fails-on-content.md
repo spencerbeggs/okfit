@@ -2,8 +2,10 @@
 type: Decision
 title: Loading never fails a concept for a bad family
 description: Bundle.load never rejects a concept outright for a malformed optional field; a bad family is reported as a lint diagnostic while the rest of the concept still loads.
-tags: [architecture]
-generated: { by: human:spencer }
+tags:
+  - architecture
+generated:
+  by: human:spencer
 status: stable
 ---
 
@@ -25,7 +27,7 @@ non-empty `type` string; failure there is the conformance error
 that fails to decode is omitted from the typed concept (its raw value stays
 under `raw`) and produces the lint diagnostic `family-invalid` (default
 severity `error`) with the schema issue and frontmatter range
-(`docs/superpowers/research/core/decisions.md:27-30`, ruling D-15).
+(ruling D-15).
 
 ## Alternatives rejected
 
