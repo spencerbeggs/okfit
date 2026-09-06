@@ -2,6 +2,7 @@ import { DateTime, Schema } from "effect";
 import { Actor } from "./Actor.js";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import type { Concept } from "./Concept.js";
+import type { ConceptId } from "./ConceptId.js";
 import type { IndexEntryInput } from "./internal/templates.js";
 import { indexEntry, indexFrontmatter, indexSection, logEntry } from "./internal/templates.js";
 import type { Status } from "./Status.js";
@@ -22,6 +23,14 @@ export type Staleness = typeof Staleness.Type;
 export interface LogEntry {
 	readonly date: string;
 	readonly items: ReadonlyArray<string>;
+}
+
+/** One stale concept: its id, its `stale_after` instant, and whole days past it. @public */
+export interface StaleConcept {
+	readonly id: ConceptId;
+	readonly staleAfter: DateTime.Utc;
+	/** Whole days between `staleAfter` and `now`, floored; never negative. */
+	readonly daysPast: number;
 }
 
 /** Options for {@link Derive.renderIndex}. @public */
@@ -66,6 +75,23 @@ export class Derive {
 	/** Boolean form of {@link Derive.staleness} (D-36). */
 	static readonly isStale = (concept: Concept, now: DateTime.Utc): boolean =>
 		Derive.staleness(concept, now) === "stale";
+
+	/**
+	 * Every concept in `bundle` that {@link Derive.isStale} reports stale against
+	 * `now`, sorted by id ascending. Pure (D-10); `now` is always an argument,
+	 * never read from a clock here (D-36).
+	 */
+	static readonly staleReport = (bundle: LoadedBundle, now: DateTime.Utc): ReadonlyArray<StaleConcept> => {
+		const out: Array<StaleConcept> = [];
+		for (const [id, concept] of bundle.concepts) {
+			const staleAfter = concept.frontmatter.stale_after;
+			if (staleAfter === undefined) continue;
+			if (!Derive.isStale(concept.frontmatter, now)) continue;
+			const millisPast = DateTime.toEpochMillis(now) - DateTime.toEpochMillis(staleAfter);
+			out.push({ id, staleAfter, daysPast: Math.floor(millisPast / 86_400_000) });
+		}
+		return out.sort((a, b) => compare(a.id, b.id));
+	};
 
 	/** Frontmatter `title`, else the file name without `.md` (OKF 0.2 §4.1). */
 	static readonly title = (concept: LoadedConcept): string =>
