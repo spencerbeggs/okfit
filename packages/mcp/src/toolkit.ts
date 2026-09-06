@@ -1,5 +1,6 @@
 import { Toolkit } from "effect/unstable/ai";
 import { describeVocabulary, handleDescribeVocabulary } from "./tools/describeVocabulary.js";
+import { handleListConcepts, listConcepts } from "./tools/listConcepts.js";
 
 /**
  * The six read-only tools (N-10). Tasks C1, C2 and C3 each add two; the
@@ -8,7 +9,7 @@ import { describeVocabulary, handleDescribeVocabulary } from "./tools/describeVo
  *
  * @public
  */
-export const OkfitToolkit = Toolkit.make(describeVocabulary);
+export const OkfitToolkit = Toolkit.make(describeVocabulary, listConcepts);
 
 /**
  * The handler layer. `projectRoot` is closed over from the bin (N-21);
@@ -19,4 +20,5 @@ export const OkfitToolkit = Toolkit.make(describeVocabulary);
 export const ToolsLayer = (projectRoot: string) =>
 	OkfitToolkit.toLayer({
 		describe_vocabulary: () => handleDescribeVocabulary(projectRoot),
+		list_concepts: (params) => handleListConcepts(projectRoot, params),
 	});

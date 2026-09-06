@@ -19,7 +19,7 @@ describe("served schema", () => {
 			const harness = yield* makeHarness(root);
 			yield* harness.initialize;
 			const tools = yield* harness.listTools;
-			assert.deepStrictEqual(tools.map((tool) => tool.name).toSorted(), ["describe_vocabulary"]);
+			assert.deepStrictEqual(tools.map((tool) => tool.name).toSorted(), ["describe_vocabulary", "list_concepts"]);
 		}).pipe(Effect.scoped),
 	);
 });
