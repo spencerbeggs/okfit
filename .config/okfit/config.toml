@@ -1,0 +1,12 @@
+[bundle]
+path = "okf"
+profile = "software-project"
+
+[actors]
+agent = "okfit/claude-code"
+humans = ["human:spencer"]
+
+[lint]
+# require_verified_unmet returns to "error" once `okfit verify` ships
+# (phase 2) and Spencer has verified these ten Decision concepts.
+require_verified_unmet = "warn"
