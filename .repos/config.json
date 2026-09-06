@@ -2,7 +2,7 @@
 	"repos": {
 		"effect": {
 			"url": "https://github.com/Effect-TS/effect.git",
-			"ref": "effect@4.0.0-rc.109",
+			"ref": "effect@4.0.0-rc.112",
 			"purpose": "Read-only Effect v4 source pinned to the tag matching the effect catalog. The authority on what v4 actually exports, plus the v3 to v4 migration notes and the @effect/vitest reference implementation.",
 			"sparse": [
 				"packages/effect",
