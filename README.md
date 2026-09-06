@@ -16,6 +16,13 @@ OKF is a directory of markdown files with YAML frontmatter that captures what a 
 
 The Claude Code plugin lives in `plugins/claude-code`.
 
+## Working with Claude Code
+
+Run `pnpm claude` to start a session with this repository's own plugin
+loaded (`claude --plugin-dir plugins/claude-code`) -- six skills, the
+`okf-docs` agent, and the session-start/validate hooks documented in
+`plugins/claude-code/README.md`.
+
 ## Status
 
 Early development. Nothing is published yet.

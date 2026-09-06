@@ -28,8 +28,9 @@ already carries today.
    active profile and config declare (`concepts.required` --
    `PROFILES/SoftwareProject.ts:16` sets `["title", "description"]`).
 2. Never add or edit `verified`.
-3. Stamp `generated: {by, at}` on meaningful changes; never the legacy
-   `timestamp`.
+3. Stamp `generated.by` on meaningful changes; never the legacy
+   `timestamp`. Set `generated.at` only when a tool supplies the value
+   (phase 2); never type a guess.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
@@ -58,10 +59,11 @@ already carries today.
 
 ## generated.at
 
-Core treats `generated.at` as optional (`CORE/Generated.ts:11`), and this
-skill nevertheless instructs writers to always set it (rule 3). `generated.by`
-stays required (`CORE/Generated.ts:10`). Once profiles ship
-`Derivation.generatedAt`, that supplies the value.
+Core treats `generated.at` as optional (`CORE/Generated.ts:11`); this
+skill instructs writers to leave it unset until a tool supplies the value
+rather than typing a guess (rule 3). `generated.by` stays required
+(`CORE/Generated.ts:10`) and is always hand-stamped. Once profiles ship
+`Derivation.generatedAt`, that command supplies `generated.at`.
 
 ## Actor prefixes
 

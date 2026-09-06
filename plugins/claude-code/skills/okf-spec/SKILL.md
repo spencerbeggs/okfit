@@ -119,7 +119,10 @@ absolute URL, a bundle-relative path, or a relative path;
 `sources[].resource` may instead be a scope descriptor rather than a path
 (§5.1). The `references/` directory name is a naming convention, not a
 requirement, for mirroring external material as first-class concepts that
-sources/executors/attesters commonly point into.
+sources/executors/attesters commonly point into. A relative path-valued
+field resolves against the concept file's own directory, not the bundle
+root -- a `resource` under `okf/modules/` reaches repository code with
+`../../`.
 
 ## Changes from v0.1
 
