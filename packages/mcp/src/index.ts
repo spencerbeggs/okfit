@@ -27,6 +27,9 @@ export {
 	ListConceptsParams,
 	ListConceptsSuccess,
 	Neighbor,
+	StaleReportParams,
+	StaleReportSuccess,
+	ValidateBundleParams,
 } from "./schema/tools.js";
 export type { PlatformServices } from "./server.js";
 export { ServerLayer } from "./server.js";

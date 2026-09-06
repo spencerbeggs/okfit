@@ -24,6 +24,8 @@ describe("served schema", () => {
 				"describe_vocabulary",
 				"get_concept",
 				"list_concepts",
+				"stale_report",
+				"validate_bundle",
 			]);
 		}).pipe(Effect.scoped),
 	);

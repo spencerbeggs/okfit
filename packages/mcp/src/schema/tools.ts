@@ -75,3 +75,27 @@ export const ConceptNeighborsSuccess = Schema.Struct({
 });
 /** @public */
 export type ConceptNeighborsSuccess = typeof ConceptNeighborsSuccess.Type;
+
+/** `stale_report`'s arguments: an optional ISO instant, decoded in the handler (J-5). @public */
+export const StaleReportParams = Schema.Struct({ now: Schema.optionalKey(Schema.String) });
+/** @public */
+export type StaleReportParams = typeof StaleReportParams.Type;
+
+/** `stale_report`'s result (§5.6). @public */
+export const StaleReportSuccess = Schema.Struct({
+	as_of: Schema.String,
+	items: Schema.Array(
+		Schema.Struct({
+			summary: ConceptSummary,
+			stale_after: Schema.String,
+			days_past: Schema.Int,
+		}),
+	),
+});
+/** @public */
+export type StaleReportSuccess = typeof StaleReportSuccess.Type;
+
+/** `validate_bundle`'s arguments: the same shape and decode path as stale_report. @public */
+export const ValidateBundleParams = Schema.Struct({ now: Schema.optionalKey(Schema.String) });
+/** @public */
+export type ValidateBundleParams = typeof ValidateBundleParams.Type;

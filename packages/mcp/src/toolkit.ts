@@ -3,6 +3,8 @@ import { conceptNeighbors, handleConceptNeighbors } from "./tools/conceptNeighbo
 import { describeVocabulary, handleDescribeVocabulary } from "./tools/describeVocabulary.js";
 import { getConcept, handleGetConcept } from "./tools/getConcept.js";
 import { handleListConcepts, listConcepts } from "./tools/listConcepts.js";
+import { handleStaleReport, staleReport } from "./tools/staleReport.js";
+import { handleValidateBundle, validateBundle } from "./tools/validateBundle.js";
 
 /**
  * The six read-only tools (N-10). Tasks C1, C2 and C3 each add two; the
@@ -11,7 +13,14 @@ import { handleListConcepts, listConcepts } from "./tools/listConcepts.js";
  *
  * @public
  */
-export const OkfitToolkit = Toolkit.make(describeVocabulary, listConcepts, getConcept, conceptNeighbors);
+export const OkfitToolkit = Toolkit.make(
+	describeVocabulary,
+	listConcepts,
+	getConcept,
+	conceptNeighbors,
+	staleReport,
+	validateBundle,
+);
 
 /**
  * The handler layer. `projectRoot` is closed over from the bin (N-21);
@@ -25,4 +34,6 @@ export const ToolsLayer = (projectRoot: string) =>
 		list_concepts: (params) => handleListConcepts(projectRoot, params),
 		get_concept: (params) => handleGetConcept(projectRoot, params),
 		concept_neighbors: (params) => handleConceptNeighbors(projectRoot, params),
+		stale_report: (params) => handleStaleReport(projectRoot, params),
+		validate_bundle: (params) => handleValidateBundle(projectRoot, params),
 	});
