@@ -19,6 +19,8 @@ export { resolveMcpProjectRoot } from "./internal/projectRoot.js";
 export { resolveNow } from "./internal/resolveNow.js";
 export type { ToolContext } from "./internal/toolContext.js";
 export { loadToolContext, resolveConfigOnly } from "./internal/toolContext.js";
+export { ConceptResources } from "./resources/conceptResource.js";
+export { IndexResource } from "./resources/indexResource.js";
 export { ConceptSummary, toConceptSummary } from "./schema/ConceptSummary.js";
 export {
 	ConceptNeighborsSuccess,

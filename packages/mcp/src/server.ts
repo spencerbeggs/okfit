@@ -2,6 +2,8 @@ import type { AppDirs, Xdg } from "@effected/xdg";
 import type { FileSystem, Path, Stdio } from "effect";
 import { Layer } from "effect";
 import { McpProtocol, McpServer } from "effect/unstable/ai";
+import { ConceptResources } from "./resources/conceptResource.js";
+import { IndexResource } from "./resources/indexResource.js";
 import { OkfitToolkit, ToolsLayer } from "./toolkit.js";
 import { MCP_VERSION } from "./version.js";
 
@@ -18,8 +20,10 @@ import { MCP_VERSION } from "./version.js";
 export type PlatformServices = FileSystem.FileSystem | Path.Path | AppDirs | Xdg | Stdio.Stdio;
 
 /**
- * The whole server as one layer: the toolkit (and, from Task C4, the two
- * resources) over `McpServer.layerStdio`.
+ * The whole server as one layer: the toolkit, one static resource per
+ * concept (`okf://concept/<id>`, built once at boot — see
+ * {@link ConceptResources}), and `okf://index` (re-read from disk on every
+ * call), over `McpServer.layerStdio`.
  *
  * `protocols` ships BOTH adapters, newest first (N-2). Array order is
  * load-bearing: the protocol registry falls back to `protocols[0]` for an
@@ -33,7 +37,11 @@ export type PlatformServices = FileSystem.FileSystem | Path.Path | AppDirs | Xdg
  * @public
  */
 export const ServerLayer = (projectRoot: string): Layer.Layer<never, never, PlatformServices> =>
-	Layer.mergeAll(McpServer.toolkit(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot)))).pipe(
+	Layer.mergeAll(
+		McpServer.toolkit(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot))),
+		ConceptResources(projectRoot),
+		IndexResource(projectRoot),
+	).pipe(
 		Layer.provide(
 			McpServer.layerStdio({
 				name: "okfit",
