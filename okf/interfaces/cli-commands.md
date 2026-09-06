@@ -1,0 +1,87 @@
+---
+type: Interface
+title: okfit CLI — validate, init, context
+description: The okfit command line's three subcommands, their flags, exit codes, and JSON envelopes.
+kind: cli
+resource: ../../packages/cli/README.md
+status: stable
+generated:
+  by: human:spencer
+tags:
+  - architecture
+---
+
+# okfit CLI — validate, init, context
+
+## Subcommands and [path]
+
+`okfit` has three subcommands: `validate`, `init`, `context`. Each takes an
+optional `[path]` as its first positional argument — the **project root**,
+never the bundle root (`<project root>/<bundle.path>`, `okf` by default) —
+defaulting to the current directory (`packages/cli/README.md:7-19`).
+
+## okfit validate
+
+Loads the config, loads the bundle, runs conformance and lint checks against
+it, then runs the resolved profile's own checks, and renders every
+diagnostic. Each line is `<file>:<line>:<col> <severity> <code> <message>`
+when the diagnostic carries a range, `<file> <severity> <code> <message>`
+otherwise, and `(bundle)` in place of `<file>` for a bundle-level
+diagnostic. Diagnostics sort by file (`(bundle)` first), then range-less
+before ranged, then by offset, then by code. The summary line prints to
+stderr (`packages/cli/README.md:21-51`).
+
+## okfit init
+
+Scaffolds a fresh bundle — config, `index.md`/`log.md`/`project.md` — then
+self-validates the result and exits with `validate`'s own exit code, so a
+scaffold that does not validate clean is treated as a defect. It never
+overwrites: if any target path already exists, nothing is written and it
+exits `3`. `--profile <name>` picks the profile to scaffold; an
+unrecognised name is a warning, not a failure, and `init` continues with
+the default profile (`packages/cli/README.md:53-102`).
+
+## okfit context
+
+Prints the resolved project root, bundle root, config path, profile, and
+vocabulary without loading the bundle. There is no `--profile` flag — that
+one belongs to `init` alone. `context` never produces exit `1` or `2`: it
+never runs conformance or lint checks (`packages/cli/README.md:104-144`).
+
+## Config discovery
+
+With no `--config` flag, `okfit` walks upward from `[path]` looking first
+for `.config/okfit/config.toml`, then `okfit.config.toml`, falling back to
+the XDG pair for personal defaults. `--config <file>` bypasses discovery
+entirely; a path that does not exist is a hard failure, exit `3`
+(`packages/cli/README.md:146-169`).
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `130` | Interrupted (Ctrl-C) |
+| `64` | Usage error |
+| `3` | Infrastructure failure |
+| `2` | One or more conformance errors |
+| `1` | One or more lint or profile errors |
+| `0` | Otherwise |
+
+Higher wins when several apply; warnings and info never change the exit
+code (`packages/cli/README.md:171-186`).
+
+## JSON envelopes
+
+`okfit validate --format json` prints `JsonEnvelope` (schema 1): `schema`,
+`okfit_version`, `okf_version`, `root`, `profile`, `exit_code`, `summary`,
+`diagnostics`. `okfit context --format json` prints a distinct
+`ContextEnvelope` (schema 1) where every field is present even when
+`null` — `config_path`, `profile`, `profile_requested`, and `actors.agent`
+never an omitted key (`packages/cli/README.md:188-277`).
+
+## Message conventions
+
+Every message is lowercase, starts `error:` or `warning:`, never ends with
+a trailing period, and renders a path relative to the current directory
+when the path falls under it, absolute otherwise
+(`packages/cli/README.md:279-285`).
