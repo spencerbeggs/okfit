@@ -1,1 +1,12 @@
-# Decisions
+# Decision
+
+* [Bundle, Graph, Derive, and Validate are static facades, not services](core-static-facades.md) - Bundle, Graph, Derive, and Validate are static facades (private-constructor classes with static members) rather than Effect services, because their operations are pure or depend only on FileSystem and Path.
+* [Config discovery is two branches, never one chain](cli-config-discovery-two-branches.md) - The CLI resolves config through exactly one of two branches, either an explicit --config path or an upward-walk-plus-XDG discovery chain, never a single merged chain.
+* [Exactly one Project concept, at the bundle root](profiles-software-project-one-project-at-root.md) - The software-project profile requires exactly one Project concept and requires it to live at the bundle root, enforced as three non-configurable profile errors.
+* [Exit codes are a fixed six-value total order](cli-exit-codes.md) - okfit's exit codes form one fixed, non-configurable total order from 0 to 130, where warnings and info never change the result.
+* [Generated.at is the author date of the last commit that changed the body](profiles-generated-at-is-author-date.md) - generated.at is computed as the author date of the newest commit whose blob changed the concept's body, never the stamp commit's date.
+* [Human actor ids resolve through a four-step fallback order](profiles-human-actor-resolution.md) - A human actor id resolves through a four-step, first-hit-wins fallback order that prefers a configured spelling over an auto-derived one.
+* [Loading never fails a concept for a bad family](core-loading-never-fails-on-content.md) - Bundle.load never rejects a concept outright for a malformed optional field; a bad family is reported as a lint diagnostic while the rest of the concept still loads.
+* [The validate hook fires PostToolUse, not PreToolUse](plugin-posttooluse-not-pretooluse.md) - The Claude Code plugin's validate hook fires on PostToolUse, not the spec's PreToolUse, because the CLI can only validate bytes that already exist on disk.
+* [Time is an explicit argument, never a Clock service](core-time-as-argument.md) - Core takes now as an explicit DateTime.Utc argument everywhere staleness matters, and never depends on an Effect Clock service.
+* [Uncommitted provenance is the caller's to interpret](profiles-uncommitted-is-callers-to-interpret.md) - Derivation reports an uncommitted body's provenance without ever substituting the current time, leaving the interpretation to the caller.
