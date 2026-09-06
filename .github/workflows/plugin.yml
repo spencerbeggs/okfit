@@ -9,6 +9,8 @@ on:
       - "packages/cli/**"
       - "packages/core/**"
       - "packages/profiles/**"
+      - "okf/**"
+      - ".config/okfit/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/plugin.yml"
@@ -16,6 +18,8 @@ on:
     branches: [main]
     paths:
       - "plugins/claude-code/**"
+      - "okf/**"
+      - ".config/okfit/**"
 
 concurrency:
   group: plugin-${{ github.event.pull_request.number || github.sha }}
@@ -23,7 +27,7 @@ concurrency:
 
 jobs:
   plugin:
-    name: BATS and markdownlint
+    name: BATS, markdownlint, and okfit validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,6 +52,9 @@ jobs:
         run: pnpm test:bats
         env:
           OKFIT_BIN: ${{ github.workspace }}/packages/cli/dist/dev/pkg/bin/okfit.js
+
+      - name: Validate the okf bundle
+        run: pnpm exec okfit validate . --format human
 
       - name: Lint markdown
         run: pnpm lint:md
