@@ -15,8 +15,10 @@ import { resolveBundleRoot, resolveProjectRoot } from "./anchor.js";
  * strictness without a non-null assertion. Formerly duplicated identically
  * in `commands/validate.ts` and `commands/context.ts`; this is its one home
  * now that both commands delegate to {@link resolveProjectConfig}.
+ *
+ * @public
  */
-const DEFAULT_PROFILE_NAME = OkfitConfig.DEFAULTS.bundle?.profile ?? "software-project";
+export const DEFAULT_PROFILE_NAME = OkfitConfig.DEFAULTS.bundle?.profile ?? "software-project";
 
 /**
  * Everything `validate` and `context`'s handlers derive from config
@@ -24,7 +26,7 @@ const DEFAULT_PROFILE_NAME = OkfitConfig.DEFAULTS.bundle?.profile ?? "software-p
  * resolved profile (and its name after the "none"/default rule), the
  * discovery source (if any), and the project/bundle roots.
  *
- * @internal
+ * @public
  */
 export interface ResolvedProjectConfig {
 	readonly projectRoot: string;
@@ -41,7 +43,7 @@ export interface ResolvedProjectConfig {
  * `--config` flag, and `process.cwd()`) — nothing this function needs is
  * read from `process` itself.
  *
- * @internal
+ * @public
  */
 export interface ResolveProjectConfigInput {
 	readonly pathArg: Option.Option<string>;
@@ -58,7 +60,7 @@ export interface ResolveProjectConfigInput {
  * roots (K-12). Every message string and the merge order are unchanged from
  * the two commands' former inline copies.
  *
- * @internal
+ * @public
  */
 export const resolveProjectConfig = (
 	input: ResolveProjectConfigInput,
