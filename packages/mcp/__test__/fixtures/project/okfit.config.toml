@@ -1,0 +1,38 @@
+[bundle]
+path = "bundle"
+profile = "none"
+
+[actors]
+agent = "okfit/claude-code"
+
+[types."Attested Computation"]
+description = "Sanctioned SQL for one metric, with an executor and an attester."
+
+[types."BigQuery Table"]
+description = "A grounding table in the warehouse."
+
+[types.Dashboard]
+description = "A declared but deliberately unused type, so a legitimate empty result is distinguishable from an unknown name."
+
+[types.Metric]
+description = "A business definition of one number."
+
+[types.Policy]
+description = "A source-of-truth Finance policy document."
+
+[types.Skill]
+description = "Executor instructions for running an Attested Computation."
+
+[tags.attested]
+[tags.bigquery]
+[tags.cogs]
+[tags.deprecated]
+[tags.executor]
+[tags.finance]
+[tags.headline-metric]
+[tags.margin]
+[tags.orders]
+[tags.policy]
+[tags.revenue]
+[tags.sales]
+[tags.skill]

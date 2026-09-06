@@ -240,6 +240,15 @@ importers:
 
   packages/mcp:
     dependencies:
+      '@effect/platform-node':
+        specifier: catalog:effect
+        version: 4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1)
+      '@effected/xdg':
+        specifier: catalog:effected
+        version: 0.4.0(@effected/config-file@0.6.0(@effected/jsonc@0.9.0(effect@4.0.0-rc.112))(@effected/toml@0.6.0(effect@4.0.0-rc.112))(@effected/walker@0.6.0(@effected/glob@0.5.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(@effected/yaml@0.13.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(@effected/walker@0.6.0(@effected/glob@0.5.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(effect@4.0.0-rc.112)
+      '@okfit/cli':
+        specifier: workspace:*
+        version: link:../cli/dist/dev/pkg
       '@okfit/core':
         specifier: workspace:*
         version: link:../core/dist/dev/pkg
@@ -247,6 +256,9 @@ importers:
         specifier: catalog:effect
         version: 4.0.0-rc.112
     devDependencies:
+      '@effect/vitest':
+        specifier: catalog:effect
+        version: 4.0.0-rc.112(effect@4.0.0-rc.112)(vitest@4.1.11)
       '@savvy-web/bundler':
         specifier: ^2.3.1
         version: 2.3.1(@effected/jsonc@0.9.0(effect@4.0.0-rc.112))(@effected/semver@0.6.0(effect@4.0.0-rc.112))(@effected/walker@0.6.0(@effected/glob@0.5.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(@types/node@26.4.1)(react@19.2.8)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
