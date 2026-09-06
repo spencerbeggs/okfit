@@ -19,8 +19,8 @@ mean exactly that file and nothing merged in around it.
 
 An explicit `--config` short-circuits to a `ConfigFile.layer` built directly
 with only `ConfigResolver.explicitPath(p)` — no upward walk, no XDG probe
-(`docs/superpowers/research/cli/decisions.md:49-51`, ruling K-9, and `:52-56`,
-ruling K-10). Otherwise the discovery chain is `upwardWalk("config.toml", {
+(`docs/superpowers/research/cli/decisions.md:52-56`, ruling K-10). Otherwise
+the discovery chain is `upwardWalk("config.toml", {
 subpaths: [".config/okfit"] })`, then `upwardWalk("okfit.config.toml")`, then
 the app's XDG entries, with `MergeStrategy.firstMatch`, built through
 `AppConfig.layer`; one `provideConfig` function in `config/layer.ts` produces

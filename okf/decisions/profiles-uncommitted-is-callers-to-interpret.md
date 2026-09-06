@@ -20,13 +20,14 @@ each case.
 
 `Derivation.generatedAt` returns a tagged union, `BodyProvenance` —
 `committed { at, sha, committedAt, authorName, authorEmail }` or
-`uncommitted { reason: untracked | dirty | unborn }` — and never substitutes
-`now` for the uncommitted case; it only ever reports what it found
-(`docs/superpowers/research/profiles/decisions.md:50-54`, ruling P-10). The
-recommended caller policy, documented in the profiles README, is to omit
-`generated.at` entirely until the body is committed; `okfit init`'s own
-`project.md` scaffold already follows this, writing no `generated` block at
-all.
+`uncommitted { reason: untracked | dirty | unborn }`
+(`docs/superpowers/research/profiles/decisions.md:45-49`, ruling P-9) — and
+never substitutes `now` for the uncommitted case; it only ever reports what
+it found (`docs/superpowers/research/profiles/decisions.md:50-54`, ruling
+P-10). The recommended caller policy, documented in the profiles README, is
+to omit `generated.at` entirely until the body is committed; `okfit init`'s
+own `project.md` scaffold already follows this, writing no `generated` block
+at all.
 
 ## Alternatives rejected
 

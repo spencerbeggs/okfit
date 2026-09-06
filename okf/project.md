@@ -19,7 +19,9 @@ project is and should be, with provenance, trust, and lifecycle as
 first-class fields (`README.md:5`). okfit has two roles: it is the successor
 to the design-docs workflow for keeping a repository's knowledge base
 current, and it is also a general OKF toolkit usable on any conformant
-bundle, including Google's own data-catalog-style bundles (`CLAUDE.md:7-11`).
+bundle, including Google's own data-catalog-style bundles (`CLAUDE.md:7-11`;
+`docs/superpowers/specs/2026-09-04-okfit-monorepo-design.md:8-14`, spec
+section 1).
 
 ## Boundaries
 
@@ -45,8 +47,9 @@ Phase 1 deliberately excludes:
 - Implementing the MCP server -- `@okfit/mcp` ships as a stub until phase 2.
 - CLI commands beyond `validate` and `init` -- other commands wait for
   phase 2.
-- Listing the Claude Code plugin in the marketplace -- deferred until phase 1
-  is dogfooded, which is what this bundle is for.
+- Listing the Claude Code plugin in the `spencerbeggs/bot` marketplace
+  (`plugins/claude-code/CLAUDE.md:6`) -- deferred until phase 1 is dogfooded,
+  which is what this bundle is for.
 - A GitHub Action -- later.
 - A VS Code extension -- later.
 - Executing or attesting computations -- `@okfit/core` only models the

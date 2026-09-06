@@ -1,4 +1,4 @@
-# Modules
+# Module
 
 * [CLI](cli.md) - The okfit command line -- validate, init, and context, built on effect/unstable/cli and @effected/cli.
 * [Claude Code Plugin](claude-code-plugin.md) - The Claude Code plugin that teaches agents OKF v0.2 and keeps a repository's okf bundle current.

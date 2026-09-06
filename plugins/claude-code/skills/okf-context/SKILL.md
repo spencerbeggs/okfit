@@ -25,9 +25,23 @@ duplicates what a bundle concept already says, replace it with a pointer.
 Run by hand as a step of `okf-finalize`, in both directions:
 
 1. Every bundle path a `CLAUDE.md` names must appear somewhere in
-   `index.md`. A pointer to a concept `index.md` does not list is a pointer
-   to a file the bundle itself does not consider indexed -- either add it
-   to `index.md` or fix the pointer.
+   `index.md`. Extract the paths with a grep anchored on backtick-quoted
+   text, run from the repo root, so a bare `okf/` substring inside the
+   upstream spec URL (the OKF link in `CLAUDE.md`'s opening paragraph) never
+   counts as a pointer:
+
+   ```sh
+   grep -rno '`okf/[^`]\+`' --include='CLAUDE.md' .
+   ```
+
+   On this repo that reports 8 pointers, every one already listed in
+   `index.md` somewhere in the bundle (8/8): `okf/project.md`,
+   `okf/index.md`, `okf/modules/*.md`, `okf/decisions/*.md`,
+   `okf/conventions/*.md`, `okf/interfaces/*.md`,
+   `okf/references/okf-spec.md`, and `okf/interfaces/cli-commands.md`. A
+   pointer to a concept `index.md` does not list is a pointer to a file the
+   bundle itself does not consider indexed -- either add it to `index.md`
+   or fix the pointer.
 2. Every top-level `index.md` section should be reachable from some
    `CLAUDE.md`. A section nothing points to is knowledge an agent will
    never be routed to at session start.
