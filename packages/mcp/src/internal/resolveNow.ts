@@ -1,6 +1,6 @@
 import { Timestamp } from "@okfit/core";
 import { DateTime, Effect, Schema } from "effect";
-import { InvalidArgument } from "../errors.js";
+import { InvalidArgument, composeRemediatedMessage } from "../errors.js";
 
 /**
  * An optional ISO-8601 `now` argument, else the Effect clock. Decoding
@@ -16,14 +16,14 @@ export const resolveNow = (input: string | undefined): Effect.Effect<DateTime.Ut
 	input === undefined
 		? DateTime.now
 		: Schema.decodeUnknownEffect(Timestamp)(input).pipe(
-				Effect.mapError(
-					(issue) =>
-						new InvalidArgument({
-							argument: "now",
-							message: String(issue),
-							remediation: {
-								hint: "now must be an ISO-8601 instant with an explicit offset, for example 2026-09-06T00:00:00Z.",
-							},
-						}),
-				),
+				Effect.mapError((issue) => {
+					const remediation = {
+						hint: "now must be an ISO-8601 instant with an explicit offset, for example 2026-09-06T00:00:00Z.",
+					};
+					return new InvalidArgument({
+						argument: "now",
+						message: composeRemediatedMessage(String(issue), remediation),
+						remediation,
+					});
+				}),
 			);

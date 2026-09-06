@@ -13,6 +13,7 @@ export {
 	McpToolError,
 	Remediation,
 	UnknownVocabulary,
+	composeRemediatedMessage,
 } from "./errors.js";
 export { resolveMcpProjectRoot } from "./internal/projectRoot.js";
 export { resolveNow } from "./internal/resolveNow.js";

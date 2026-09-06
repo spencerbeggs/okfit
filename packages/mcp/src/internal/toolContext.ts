@@ -5,7 +5,7 @@ import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
 import type { FileSystem, Path } from "effect";
 import { Effect, Option } from "effect";
-import { BundleNotFound, ConfigError } from "../errors.js";
+import { BundleNotFound, ConfigError, composeRemediatedMessage } from "../errors.js";
 
 /**
  * The error's `message` when it has one as a string, else `String(error)`.
@@ -45,13 +45,13 @@ export const resolveConfigOnly = (
 		cwd: projectRoot,
 	}).pipe(
 		provideConfig({ explicitConfigPath: Option.none(), discoveryCwd: projectRoot }),
-		Effect.mapError(
-			(cause) =>
-				new ConfigError({
-					message: messageOf(cause),
-					remediation: { hint: CONFIG_HINT, suggestedTool: "describe_vocabulary" },
-				}),
-		),
+		Effect.mapError((cause) => {
+			const remediation = { hint: CONFIG_HINT, suggestedTool: "describe_vocabulary" };
+			return new ConfigError({
+				message: composeRemediatedMessage(messageOf(cause), remediation),
+				remediation,
+			});
+		}),
 	);
 
 /** Everything a tool needs about the project, reloaded on every call (N-9). @public */
@@ -76,16 +76,16 @@ export const loadToolContext = (
 	Effect.gen(function* () {
 		const resolved = yield* resolveConfigOnly(projectRoot);
 		const bundle = yield* Bundle.load({ root: resolved.bundleRoot }).pipe(
-			Effect.mapError(
-				(cause) =>
-					new BundleNotFound({
-						root: resolved.bundleRoot,
-						message: cause.message,
-						remediation: {
-							hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
-						},
-					}),
-			),
+			Effect.mapError((cause) => {
+				const remediation = {
+					hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
+				};
+				return new BundleNotFound({
+					root: resolved.bundleRoot,
+					message: composeRemediatedMessage(cause.message, remediation),
+					remediation,
+				});
+			}),
 		);
 		return {
 			projectRoot,

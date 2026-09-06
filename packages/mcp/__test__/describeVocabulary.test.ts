@@ -59,15 +59,26 @@ describe("describe_vocabulary", () => {
 	// typed error, not in what `tools/call` serializes
 	// (`unstable/ai/McpServer.ts:1502-1506,1576-1584`, verified by running this
 	// exact case and reading its raw response). This is a fact the brief itself
-	// asked this task to discover and record (Step 17); shaped here to what
-	// Effect's `McpServer` actually sends.
-	it.effect("fails ConfigError for a malformed config file", () =>
+	// asked this task to discover and record (Step 17). The controller's fix
+	// round (progress.md, "Ruling (B1, binds every C task)") resolved it by
+	// composing the remediation hint into every `McpToolError` member's own
+	// `message` at construction (`errors.ts`'s `composeRemediatedMessage`), so
+	// the hint still reaches the wire even though `structuredContent` doesn't
+	// carry it — asserted here directly against the response text.
+	it.effect("fails ConfigError for a malformed config file, with the remediation hint in the wire message", () =>
 		Effect.gen(function* () {
 			const { result } = yield* call("broken-config");
 			assert.ok(result.isError);
 			assert.strictEqual(result.content.length, 1);
 			assert.strictEqual(result.content[0]?.type, "text");
-			assert.ok(result.content[0]?.text && result.content[0].text.length > 0);
+			const text = result.content[0]?.text ?? "";
+			assert.ok(text.length > 0);
+			assert.ok(
+				text.includes(
+					"Check the project's okfit.config.toml or .config/okfit/config.toml for a syntax or schema error; remove it to fall back to defaults.",
+				),
+			);
+			assert.ok(text.includes("Try describe_vocabulary."));
 		}).pipe(Effect.scoped),
 	);
 });
