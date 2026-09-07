@@ -1,7 +1,7 @@
 ---
 type: Module
 title: CLI
-description: The okfit command line -- validate, init, and context, built on effect/unstable/cli and @effected/cli.
+description: The okfit command line -- validate, init, context, and verify, built on effect/unstable/cli and @effected/cli.
 resource: ../../packages/cli
 kind: package
 tags:

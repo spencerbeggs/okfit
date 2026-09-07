@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-07
+
+* Shipped okfit verify: a human-run command that appends a verified attestation by textual splice.
+
 ## 2026-09-06
 
 * Initialized the bundle with the software-project profile
