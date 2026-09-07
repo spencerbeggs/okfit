@@ -22,6 +22,10 @@ did not perform. This is the boundary `okf-docs` restates in its own "What
 this agent does NOT do" section, and the one this plugin's own `CLAUDE.md`
 already carries today.
 
+`okfit verify` is the one legitimate way this field is ever written: a human
+runs it directly, from their own shell. Never run it yourself, even when
+asked, and never treat its existence as a loophole in this rule.
+
 ## The sixteen rules
 
 1. Only `type` is required; never invent required fields beyond what the
@@ -29,8 +33,7 @@ already carries today.
    `PROFILES/SoftwareProject.ts:16` sets `["title", "description"]`).
 2. Never add or edit `verified`.
 3. Stamp `generated.by` on meaningful changes; never the legacy
-   `timestamp`. Set `generated.at` only when a tool supplies the value
-   (phase 2); never type a guess.
+   `timestamp`. No command writes `generated.at` yet; never type it by hand.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
@@ -62,8 +65,10 @@ already carries today.
 Core treats `generated.at` as optional (`CORE/Generated.ts:11`); this
 skill instructs writers to leave it unset until a tool supplies the value
 rather than typing a guess (rule 3). `generated.by` stays required
-(`CORE/Generated.ts:10`) and is always hand-stamped. Once profiles ship
-`Derivation.generatedAt`, that command supplies `generated.at`.
+(`CORE/Generated.ts:10`) and is always hand-stamped. No command writes
+`generated.at` yet; never type it by hand. `okfit verify` is not that command
+either — it stamps only `verified`, a separate, spec-independent family
+(spec §5.2).
 
 ## Actor prefixes
 

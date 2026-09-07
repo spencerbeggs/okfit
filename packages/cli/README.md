@@ -1,6 +1,6 @@
 # @okfit/cli
 
-The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles: `okfit validate` and `okfit init`.
+The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, and `okfit verify`.
 
 > **Part of the okfit kit.** Most users want **[@okfit/plugin](https://www.npmjs.com/package/@okfit/plugin)**, which pulls this package in automatically.
 
@@ -11,9 +11,10 @@ okfit [--help] [--version]
 okfit validate [path] [--config <file>] [--format human|json] [--help]
 okfit init [path] [--profile <name>] [--config <file>] [--help]
 okfit context [path] [--config <file>] [--format human|json] [--help]
+okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
 ```
 
-`[path]` is the **project root** on both commands — the directory discovery
+`[path]` is the **project root** on every subcommand — the directory discovery
 starts from, and, for `init`, where `.config/okfit/config.toml` is written.
 It is never the bundle root; the bundle root is `<project root>/<bundle.path>`
 (`okf` by default). Default `[path]` is the current directory.
@@ -142,6 +143,20 @@ documented in `## --format json` below — never `validate`'s `JsonEnvelope`.
 There is no `--profile` flag on `context`; that one belongs to `init`
 alone. Config discovery, the `--config` pre-flight, and the K-4/K-15
 warnings all behave exactly as `## Config discovery` describes below.
+
+### `okfit verify`
+
+Appends one attestation, `{ by: human:<id>, at: <now> }`, to a concept's
+`verified` list and writes the file back. `<id>` is a concept id with or
+without a leading slash or trailing `.md`. The actor is always your own git
+identity, resolved from `user.name`/`user.email` and `[actors].humans`;
+there is no `--by`. Existing entries are never touched or replaced — every
+run appends, including a repeat by the same person. `--at <iso>` records a
+different instant; `--dry-run` prints what would be written and writes
+nothing. Exit `0` on success (a dry run included), `3` on any failure.
+
+This is a human-run command: it records **your** attestation that you
+reviewed the concept, so no agent, hook, or MCP tool ever invokes it.
 
 ## Config discovery
 

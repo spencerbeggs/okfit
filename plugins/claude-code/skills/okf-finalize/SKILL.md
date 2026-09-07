@@ -32,7 +32,9 @@ for the simplicity of one agent running one skill straight through.
    output.
 5. Check CLAUDE.md pointer coverage with `okf-context`'s checklist, in both
    directions.
-6. Tell the user what changed.
+6. Tell the user what changed. Separately, list any concept step 3's
+   `okfit validate` reported as `require-verified-unmet` as "awaiting human
+   verification" and stop there — this skill never runs `okfit verify`.
 
 ## Ends by reporting, never committing
 

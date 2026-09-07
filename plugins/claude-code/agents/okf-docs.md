@@ -73,6 +73,9 @@ coverage, and report what changed — sequentially, in this one context.
 
 - Never adds or edits `verified` — that field records third-party or
   human confirmation, and only a human writes it.
+- Never runs `okfit verify`, even when asked — the Bash tool can reach it,
+  but running it would fabricate the very attestation the command exists to
+  record. Tell the human it is theirs to run.
 - Never edits source code, tests, or any file outside the bundle,
   `CLAUDE.md` files, and package `README.md`s.
 - Never commits, pushes, or writes a changeset.

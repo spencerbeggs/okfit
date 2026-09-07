@@ -93,6 +93,6 @@ Run the BATS suite with `pnpm test:bats` from the repo root (covers every
 `.bats` file under `__test__/`), or a single file directly with
 `pnpm exec bats <file>`.
 
-Never add `verified` entries to a concept from this plugin; there is no
-`okfit verify` command — only a human adds one, by hand, editing the
-concept's frontmatter directly.
+Never add `verified` entries to a concept from this plugin. `okfit verify`
+exists and is a human-run CLI command; this plugin's agent and hooks never
+invoke it and never write `verified` themselves.
