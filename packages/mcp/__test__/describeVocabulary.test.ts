@@ -21,7 +21,7 @@ describe("describe_vocabulary", () => {
 			const data = result.structuredContent as DescribeVocabularySuccess;
 			assert.strictEqual(data.project_root, root);
 			assert.ok(data.bundle_root.endsWith("/bundle"));
-			assert.ok(data.config_path?.endsWith("okfit.config.toml"));
+			assert.ok(data.config_path?.endsWith(".config/okfit.toml"));
 			assert.strictEqual(data.agent, "okfit/claude-code");
 			assert.deepStrictEqual(
 				data.types.map((type) => type.name),
@@ -75,7 +75,7 @@ describe("describe_vocabulary", () => {
 			assert.ok(text.length > 0);
 			assert.ok(
 				text.includes(
-					"Check the project's okfit.config.toml or .config/okfit/config.toml for a syntax or schema error; remove it to fall back to defaults.",
+					"Check the project's .okfit.toml, okfit.toml, or .config/okfit.toml for a syntax or schema error; remove it to fall back to defaults.",
 				),
 			);
 			assert.ok(text.includes("Try describe_vocabulary."));

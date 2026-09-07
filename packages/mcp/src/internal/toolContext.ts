@@ -21,7 +21,7 @@ export const messageOf = (error: unknown): string => {
 };
 
 const CONFIG_HINT =
-	"Check the project's okfit.config.toml or .config/okfit/config.toml for a syntax or schema error; remove it to fall back to defaults.";
+	"Check the project's .okfit.toml, okfit.toml, or .config/okfit.toml for a syntax or schema error; remove it to fall back to defaults.";
 
 /**
  * Config resolution alone, with every failure collapsed to `ConfigError`.
