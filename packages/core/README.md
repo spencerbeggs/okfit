@@ -17,7 +17,7 @@ import { Bundle, OkfitConfig, Validate } from "@okfit/core";
 import { Effect } from "effect";
 
 const program = Effect.gen(function* () {
- const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, yield* OkfitConfig.read("/repo/.config/okfit/config.toml"));
+ const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, yield* OkfitConfig.read("/repo/.config/okfit.toml"));
  const bundle = yield* Bundle.load({ root: "/repo/okf" });
  return Validate.all(bundle, config);
 });

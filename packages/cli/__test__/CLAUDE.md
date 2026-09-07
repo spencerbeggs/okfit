@@ -67,9 +67,9 @@ __test__/
   environment, and never `extendEnv`.
 - **One deliberate exception to the hermetic-sandbox rule
   (dogfood decisions.md F-13).** `e2e/dogfood.e2e.test.ts` validates
-  okfit's own already-committed `okf/` bundle and `.config/okfit/
-  config.toml` at the real repository root (resolved from
-  `import.meta.dirname`, never `process.cwd()`) — it is not testing
+  okfit's own already-committed `okf/` bundle and `.config/okfit.toml`
+  at the real repository root (resolved from `import.meta.dirname`,
+  never `process.cwd()`) — it is not testing
   config discovery, so it never builds a `Sandbox`. It passes the real
   `PATH`/`HOME` through explicitly (never `...process.env` wholesale)
   plus `NO_COLOR=1`, and, like every other e2e suite here, never invokes

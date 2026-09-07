@@ -168,14 +168,14 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 }
 
 @test "omits C-6.7 and C-6.8 when config_path is non-null" {
-	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" software-project "set"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project "set"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("No okfit config found")) | not'
 }
 
 @test "appends C-6.9 when actors.agent is null" {
-	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" software-project ""
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project ""
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
@@ -183,7 +183,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 }
 
 @test "omits C-6.9 when actors.agent is set" {
-	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" software-project "okfit/claude-code"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project "okfit/claude-code"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("actors.agent is not set")) | not'
@@ -207,7 +207,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 }
 
 @test "appends the unknown-profile line when profile is null and profile_requested is neither null nor none (Important 1)" {
-	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" "" "set" "[]" "[]" "nope"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" "" "set" "[]" "[]" "nope"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
@@ -215,7 +215,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 }
 
 @test "omits the unknown-profile line when profile_requested is \"none\"" {
-	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" "" "set" "[]" "[]" "none"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" "" "set" "[]" "[]" "none"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("is unknown; no vocabulary was loaded")) | not'
@@ -233,7 +233,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 @test "truncates a large vocabulary block at 8000 bytes (Minor 10)" {
 	local types_json
 	types_json=$(jq -n '[range(0;200) | {name: ("Type" + (. + 1000 | tostring)), description: "d", guidance: ([range(0;100)] | map("g") | join(""))}]')
-	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.config.toml" software-project "set" "$types_json" "[]"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project "set" "$types_json" "[]"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	local ctx

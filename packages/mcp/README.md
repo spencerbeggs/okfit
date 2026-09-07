@@ -24,9 +24,9 @@ The server resolves its project root in this order:
 `OKFIT_PROJECT_DIR` → `CLAUDE_PROJECT_DIR` → the process's current working
 directory. No command-line flags are read. `OKFIT_PROJECT_DIR` selects
 where the CLI's own config discovery *starts*, not the project root
-outright — under the CLI's resolver order an ancestor directory's
-`.config/okfit/config.toml` still wins over a nearer directory's own
-`okfit.config.toml`.
+outright — and under the CLI's per-directory resolver order an
+ancestor's `.okfit.toml` never beats a nearer directory's `okfit.toml`
+or `.config/okfit.toml`.
 
 ## Tools
 

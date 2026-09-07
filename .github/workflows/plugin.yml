@@ -11,7 +11,7 @@ on:
       - "packages/mcp/**"
       - "packages/profiles/**"
       - "okf/**"
-      - ".config/okfit/**"
+      - ".config/okfit.toml"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/plugin.yml"
@@ -21,7 +21,7 @@ on:
       - "plugins/claude-code/**"
       - "packages/mcp/**"
       - "okf/**"
-      - ".config/okfit/**"
+      - ".config/okfit.toml"
 
 concurrency:
   group: plugin-${{ github.event.pull_request.number || github.sha }}

@@ -17,12 +17,14 @@ resolver list:
   before any layer is built — K-1), then loaded through
   `ConfigFile.layer` (`@effected/config-file`) with only
   `ConfigResolver.explicitPath(path)`. No upward walk, no XDG probe.
-- **No `--config`:** `AppConfig.layer` (`@effected/app`; never `App.layer`,
-  `AppStore`, or `AppCache`), whose resolver list is the two project-local
-  `ConfigResolver.upwardWalk` entries (`.config/okfit/config.toml`, then
-  `okfit.config.toml`) followed automatically by the library's own XDG pair
-  (`@effected/xdg`), landing personal defaults at
-  `$XDG_CONFIG_HOME/okfit/config.toml`.
+- **No `--config`:** `ConfigFile.layer` directly (not `AppConfig.layer` --
+  it cannot append a resolver after its own XDG/native pair), with the
+  hand-rolled `projectResolver` (per directory: `.okfit.toml`,
+  `okfit.toml`, `.config/okfit.toml`, ascending to the filesystem root),
+  then `XdgConfig.resolver`, `XdgConfig.nativeResolver`, then
+  `ConfigResolver.systemEtc` — personal defaults at
+  `$XDG_CONFIG_HOME/okfit/config.toml`, system defaults at
+  `/etc/okfit/config.toml` (Linux and macOS only).
 
 Exit codes: `0` clean, `1` lint/profile errors, `2` conformance errors, `3`
 infrastructure failure, `64` usage error, `130` interrupt. See `README.md`

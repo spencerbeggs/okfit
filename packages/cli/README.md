@@ -15,7 +15,7 @@ okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run] [--format hu
 ```
 
 `[path]` is the **project root** on every subcommand — the directory discovery
-starts from, and, for `init`, where `.config/okfit/config.toml` is written.
+starts from, and, for `init`, where `.config/okfit.toml` is written.
 It is never the bundle root; the bundle root is `<project root>/<bundle.path>`
 (`okf` by default). Default `[path]` is the current directory.
 
@@ -53,7 +53,7 @@ ranged, then by offset, then by code.
 
 ### `okfit init`
 
-Scaffolds a fresh OKF bundle: a thin `.config/okfit/config.toml`, the
+Scaffolds a fresh OKF bundle: a thin `.config/okfit.toml`, the
 bundle's root and per-directory `index.md` files, a `project.md` stub, and an
 initial `log.md` entry — then self-validates the result and exits with
 `validate`'s own exit code, so a scaffold that does not validate clean is a
@@ -66,7 +66,7 @@ Initialized okf with the software-project profile
 $ echo $?
 0
 $ find . -type f | sort
-./.config/okfit/config.toml
+./.config/okfit.toml
 ./okf/conventions/index.md
 ./okf/decisions/index.md
 ./okf/index.md
@@ -83,7 +83,7 @@ written:
 ```console
 $ okfit init
 error: refusing to overwrite existing files:
-  .config/okfit/config.toml
+  .config/okfit.toml
   okf/index.md
   okf/log.md
   okf/project.md
@@ -96,6 +96,11 @@ Nothing was written.
 $ echo $?
 3
 ```
+
+`init` also refuses when any of the other two project-level names --
+`.okfit.toml` or `okfit.toml` -- already exists in the target directory,
+and names every colliding file in one error. An ancestor directory's config
+is a legitimate discovery hit, not a collision, and is never probed.
 
 `--profile <name>` picks the profile `init` scaffolds for (default: the
 config's `bundle.profile`, itself defaulting to `software-project`); an
@@ -166,18 +171,27 @@ reviewed the concept, so no agent, hook, or MCP tool ever invokes it.
 
 ## Config discovery
 
-With no `--config` flag, `okfit` walks upward from `[path]` (default: the
-current directory) looking first for `<dir>/.config/okfit/config.toml`, then
-`<dir>/okfit.config.toml`, and falls back to
-`$XDG_CONFIG_HOME/okfit/config.toml` for personal defaults shared across
-projects. The project root anchors on whichever of the first two was found
-(three directories up from `.config/okfit/config.toml`, or the directory of
-`okfit.config.toml`); an XDG-only or absent config anchors on the current
-directory instead. `okfit` never probes for a `.git` directory.
+With no `--config` flag, `okfit` walks upward from `[path]` (default:
+the current directory). In each directory it checks `<dir>/.okfit.toml`,
+then `<dir>/okfit.toml`, then `<dir>/.config/okfit.toml` before moving
+up one level, so a child directory's `okfit.toml` always beats a
+parent's `.okfit.toml`. Past the project it falls back to
+`$XDG_CONFIG_HOME/okfit/config.toml` (and `$XDG_CONFIG_DIRS`), then the
+OS-native config directory
+(`~/Library/Application Support/okfit/config.toml` on macOS,
+`%APPDATA%\okfit\config.toml` on Windows), then `/etc/okfit/config.toml`
+on Linux and macOS. First match wins; nothing merges across levels, and
+`okfit` never probes for a `.git` directory.
+
+The project root anchors on the matched file's own directory -- except
+for `.config/okfit.toml`, which anchors on the parent of `.config`. An
+XDG, native, system-tier or absent config anchors on the current
+directory instead.
 
 `--config <file>` bypasses discovery entirely — no upward walk, no XDG probe
-— and anchors the project root the same way. A path that does not exist is a
-hard failure:
+— and anchors the project root the same way. An explicit path inside a
+`.config` directory anchors on that directory's parent, exactly as a
+discovered one does. A path that does not exist is a hard failure:
 
 ```console
 $ okfit validate --config ./missing.toml

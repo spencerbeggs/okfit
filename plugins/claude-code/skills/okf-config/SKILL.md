@@ -4,7 +4,7 @@ description: >-
   The okfit config file: discovery order, the two project-local locations and
   the XDG fallback, the TOML schema table by table, lint severities, and what
   the software-project profile contributes. Use when writing or editing
-  .config/okfit/config.toml or okfit.config.toml, or explaining why a type,
+  .okfit.toml, okfit.toml or .config/okfit.toml, or explaining why a type,
   tag, or lint severity behaves the way it does. Trigger phrases -- "add a new
   type to the config", "change a lint severity", "where does okfit look for
   its config", "what does software-project add", "set actors.agent".
@@ -16,10 +16,13 @@ allowed-tools: Read, Grep
 ## Discovery order and the two file locations
 
 With no `--config` flag, `okfit` walks upward from `[path]` (default: the
-current directory) looking first for `<dir>/.config/okfit/config.toml`, then
-`<dir>/okfit.config.toml`, and falls back to
-`$XDG_CONFIG_HOME/okfit/config.toml` for personal defaults shared across
-projects. First match wins; nothing merges across these three files.
+current directory), checking each directory for `<dir>/.okfit.toml`, then
+`<dir>/okfit.toml`, then `<dir>/.config/okfit.toml` before moving up one
+level -- so a child directory's `okfit.toml` always beats a parent's
+`.okfit.toml`. Past the project it falls back to
+`$XDG_CONFIG_HOME/okfit/config.toml`, then the OS-native config directory,
+then `/etc/okfit/config.toml` on Linux and macOS. First match wins; nothing
+merges across levels.
 `--config <file>` bypasses all of it: no upward walk, no XDG probe happens
 once it is given.
 
