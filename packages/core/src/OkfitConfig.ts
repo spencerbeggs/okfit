@@ -29,6 +29,14 @@ export type LintLevel = typeof LintLevel.Type;
 
 const SHORT_DURATION_RE = /^(\d+)(h|d|w)$/;
 const LONG_DURATION_RE = /^\d+(?:\.\d+)?\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?)$/;
+// The union of the two regexes above, as a single check on the encoded
+// string (I4): unlike a raw `pattern` annotation key, `Schema.isPattern`'s
+// check is what `Schema.toJsonSchemaDocument` actually lowers into the
+// document's `pattern` keyword (the same mechanism `Actor.ts` uses), so an
+// editor rejects a value (e.g. "soon") that okfit itself would otherwise
+// fail the whole config load on.
+const STALE_AFTER_PATTERN_RE =
+	/^(?:\d+[hdw]|\d+(?:\.\d+)?\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?))$/;
 const HOUR_MILLIS = 3_600_000;
 const DAY_MILLIS = 86_400_000;
 const WEEK_MILLIS = 604_800_000;
@@ -83,6 +91,11 @@ export const StaleAfterDuration: Schema.Codec<Duration.Duration, string> = Schem
 	examples: ["90d", "2w", "12h"],
 })(
 	Schema.String.pipe(
+		Schema.check(
+			Schema.isPattern(STALE_AFTER_PATTERN_RE, {
+				message: 'expected "<n>h", "<n>d", "<n>w" or "<n> <unit>"',
+			}),
+		),
 		Schema.decodeTo(Schema.Duration, {
 			decode: SchemaGetter.transformOrFail<Duration.Duration, string>((input, options) =>
 				Option.match(parseStaleAfter(input), {
@@ -179,12 +192,14 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "broken-links",
 			description: 'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
+			default: "warn",
 		}),
 	),
 	missing_index: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "missing-index",
 			description: 'A concept-holding directory has no index.md. Default "warn".',
+			default: "warn",
 		}),
 	),
 	unknown_type: Schema.optionalKey(
@@ -192,78 +207,91 @@ export const LintTable = Schema.Struct({
 			title: "unknown-type",
 			description:
 				"A concept's type is not one of the config's declared [types.<Name>]. Default \"error\", off when no types are declared.",
+			default: "error",
 		}),
 	),
 	required_key_missing: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "required-key-missing",
 			description: 'A concept is missing a frontmatter key its type or concepts.required requires. Default "error".',
+			default: "error",
 		}),
 	),
 	field_value_unknown: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "field-value-unknown",
 			description: 'A frontmatter field\'s value is not one of its declared values. Default "error".',
+			default: "error",
 		}),
 	),
 	require_verified_unmet: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "require-verified-unmet",
 			description: 'A concept whose type sets require_verified = true carries no verified entry. Default "error".',
+			default: "error",
 		}),
 	),
 	family_invalid: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "family-invalid",
 			description: 'A concept\'s declared family does not match an accepted shape. Default "error".',
+			default: "error",
 		}),
 	),
 	computation_runtime_missing: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "computation-runtime-missing",
 			description: 'A referenced computation\'s runtime is not available. Default "error".',
+			default: "error",
 		}),
 	),
 	footnote_source_unknown: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "footnote-source-unknown",
 			description: 'A footnote\'s source does not resolve. Default "warn".',
+			default: "warn",
 		}),
 	),
 	log_frontmatter: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "log-frontmatter",
 			description: 'log.md carries frontmatter, which the spec reserves against. Default "warn".',
+			default: "warn",
 		}),
 	),
 	actor_prefix_unknown: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "actor-prefix-unknown",
 			description: 'An actor\'s prefix is not human, process, or a producer shape. Default "info".',
+			default: "info",
 		}),
 	),
 	legacy_timestamp: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "legacy-timestamp",
 			description: 'A concept uses the legacy timestamp field instead of generated.at. Default "info".',
+			default: "info",
 		}),
 	),
 	config_unknown_key: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "config-unknown-key",
 			description: 'The config file declares a top-level key the schema does not recognize. Default "warn".',
+			default: "warn",
 		}),
 	),
 	stale: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "stale",
 			description: 'A concept has gone unedited past lifecycle.default_stale_after. Default "info".',
+			default: "info",
 		}),
 	),
 	walk_unreadable: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "walk-unreadable",
 			description: 'A directory in the bundle could not be read while walking. Default "warn".',
+			default: "warn",
 		}),
 	),
 }).annotate({

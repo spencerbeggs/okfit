@@ -67,6 +67,17 @@ describe("resolveProjectRoot", () => {
 		assert.strictEqual(root, "/repo");
 	});
 
+	it("anchors an explicit --config with a custom name inside .config at the parent of .config", () => {
+		const root = resolveProjectRoot({
+			pathArg: Option.none(),
+			explicitConfigPath: Option.some("/repo/.config/custom.toml"),
+			discovered: Option.none(),
+			cwd: "/cwd",
+			path,
+		});
+		assert.strictEqual(root, "/repo");
+	});
+
 	it("anchors any other explicit --config at the file's own directory", () => {
 		const root = resolveProjectRoot({
 			pathArg: Option.none(),

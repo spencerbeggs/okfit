@@ -52,6 +52,12 @@ describe("okfitConfigDocumentFields", () => {
 		assert.strictEqual(stale?.["title"], "Stale-after duration");
 		assert.strictEqual(stale?.["default"], "90d");
 		assert.deepStrictEqual(stale?.["examples"], ["90d", "2w", "12h"]);
+		// I4: a `pattern` an editor can enforce, built from the same regexes
+		// `parseStaleAfter` decodes with.
+		assert.strictEqual(
+			stale?.["pattern"],
+			"^(?:\\d+[hdw]|\\d+(?:\\.\\d+)?\\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?))$",
+		);
 	});
 
 	it("gives each of the fifteen lint keys its own rendered code as the title", () => {

@@ -28,6 +28,20 @@ const SCHEMA_SEMVER = SchemaVersioning.parseResult("1.0.0").pipe(
 	Result.getOrThrowWith((e) => new Error(`SCHEMA_SEMVER is not a valid schema version: ${e.message}`)),
 );
 
+/**
+ * Whether this schema has been submitted to and accepted by the SchemaStore
+ * catalog. `SCHEMA_SEMVER` above is not yet a published label anyone else
+ * depends on, so while this is `false` a `contract`-class change rewrites it
+ * in place (C-18) instead of being refused by `SchemaPipeline`'s
+ * `"block-versioned"` default — passed here as `contractChanges: "allow"`.
+ * Flip this to `true` the same day the catalog entry merges upstream; every
+ * `contract` change after that must bump `SCHEMA_SEMVER` instead, and this
+ * flag is what makes the pipeline start enforcing that.
+ */
+const CATALOGUED = false;
+
+const PIPELINE_OPTIONS = { contractChanges: CATALOGUED ? ("block-versioned" as const) : ("allow" as const) };
+
 export const SCHEMA_URL = SchemaVersioning.schemaUrl(BASE_URL, CATALOG_NAME, SCHEMA_SEMVER);
 
 /** Exported so the drift test checks exactly the wiring the generator writes. */
@@ -53,21 +67,23 @@ export const catalogEntry = CatalogEntry.assemble({
 const CATALOG_ENTRY_PATH = resolve(REPO_ROOT, "schemas", "config", "catalog-entry.json");
 
 const generate = Effect.gen(function* () {
-	const preflight = yield* SchemaPipeline.check(targets);
+	const preflight = yield* SchemaPipeline.check(targets, PIPELINE_OPTIONS);
 	// `contractBlocked` is the pipeline's own verdict (`change === "contract"`
-	// AND a pinned version). Read the field rather than re-deriving it: the two
-	// coincide only while SCHEMA_SEMVER stays a pinned release label.
+	// AND a pinned version AND `CATALOGUED`). Read the field rather than
+	// re-deriving it: the two coincide only while `PIPELINE_OPTIONS` matches
+	// what `run` below is given.
 	const broken = preflight.filter((r) => r.contractBlocked);
 	if (broken.length > 0) {
+		const nextVersion = SchemaVersioning.next(SCHEMA_SEMVER, "contract");
 		for (const r of broken) yield* Effect.logError(`Contract change in an already-published schema: ${r.path}`);
 		return yield* Effect.fail(
 			new Error(
 				`${broken.length} document(s) changed their contract at version ${SCHEMA_SEMVER}. Nothing was written. ` +
-					"Bump SCHEMA_SEMVER in lib/scripts/generate-schema.ts to the new label, then re-run.",
+					`Bump SCHEMA_SEMVER in lib/scripts/generate-schema.ts to ${nextVersion}, then re-run.`,
 			),
 		);
 	}
-	const results = yield* SchemaPipeline.run(targets);
+	const results = yield* SchemaPipeline.run(targets, PIPELINE_OPTIONS);
 	for (const result of results) {
 		for (const finding of result.findings) {
 			yield* Effect.logInfo(`${result.$id}: ${finding.label} at "${finding.path}" — ${finding.message}`);

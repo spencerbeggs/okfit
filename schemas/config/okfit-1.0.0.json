@@ -76,6 +76,7 @@
 			"properties": {
 				"default_stale_after": {
 					"type": "string",
+					"pattern": "^(?:\\d+[hdw]|\\d+(?:\\.\\d+)?\\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?))$",
 					"title": "Stale-after duration",
 					"description": "How long a concept may go unedited before lint `stale` fires. Accepts \"<n>h\", \"<n>d\", \"<n>w\", or Effect's \"<n> <unit>\" long form.",
 					"default": "90d",
@@ -144,6 +145,7 @@
 					],
 					"title": "broken-links",
 					"description": "A link in a concept's body or frontmatter does not resolve. Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -165,6 +167,7 @@
 					],
 					"title": "missing-index",
 					"description": "A concept-holding directory has no index.md. Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -186,6 +189,7 @@
 					],
 					"title": "unknown-type",
 					"description": "A concept's type is not one of the config's declared [types.<Name>]. Default \"error\", off when no types are declared.",
+					"default": "error",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -207,6 +211,7 @@
 					],
 					"title": "required-key-missing",
 					"description": "A concept is missing a frontmatter key its type or concepts.required requires. Default \"error\".",
+					"default": "error",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -228,6 +233,7 @@
 					],
 					"title": "field-value-unknown",
 					"description": "A frontmatter field's value is not one of its declared values. Default \"error\".",
+					"default": "error",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -249,6 +255,7 @@
 					],
 					"title": "require-verified-unmet",
 					"description": "A concept whose type sets require_verified = true carries no verified entry. Default \"error\".",
+					"default": "error",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -270,6 +277,7 @@
 					],
 					"title": "family-invalid",
 					"description": "A concept's declared family does not match an accepted shape. Default \"error\".",
+					"default": "error",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -291,6 +299,7 @@
 					],
 					"title": "computation-runtime-missing",
 					"description": "A referenced computation's runtime is not available. Default \"error\".",
+					"default": "error",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -312,6 +321,7 @@
 					],
 					"title": "footnote-source-unknown",
 					"description": "A footnote's source does not resolve. Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -333,6 +343,7 @@
 					],
 					"title": "log-frontmatter",
 					"description": "log.md carries frontmatter, which the spec reserves against. Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -354,6 +365,7 @@
 					],
 					"title": "actor-prefix-unknown",
 					"description": "An actor's prefix is not human, process, or a producer shape. Default \"info\".",
+					"default": "info",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -375,6 +387,7 @@
 					],
 					"title": "legacy-timestamp",
 					"description": "A concept uses the legacy timestamp field instead of generated.at. Default \"info\".",
+					"default": "info",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -396,6 +409,7 @@
 					],
 					"title": "config-unknown-key",
 					"description": "The config file declares a top-level key the schema does not recognize. Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -417,6 +431,7 @@
 					],
 					"title": "stale",
 					"description": "A concept has gone unedited past lifecycle.default_stale_after. Default \"info\".",
+					"default": "info",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [
@@ -438,6 +453,7 @@
 					],
 					"title": "walk-unreadable",
 					"description": "A directory in the bundle could not be read while walking. Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [

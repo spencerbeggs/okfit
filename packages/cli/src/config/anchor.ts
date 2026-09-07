@@ -20,16 +20,21 @@ export interface DiscoveredConfig {
 /**
  * The anchor rule (C-8). `.config/okfit.toml` anchors at the PARENT of
  * `.config`; `.okfit.toml` and `okfit.toml` anchor at their own directory;
- * an explicit `--config` path takes the same two-way test. Keyed on a
- * two-segment tail rather than on the resolver name, because
- * `ConfigSource<A>` is a fixed `{ path, resolver, value }` and no fourth
- * field can be threaded through `ConfigFile.discover` (J-4) — but the tail
- * is now unambiguous: `"project"` is one resolver, and no other tier can
- * produce `<dir>/.config/okfit.toml`.
+ * an explicit `--config` path takes the same rule, but on any file name —
+ * C-8 anchors on the parent of `.config` "if the file sits in a `.config`
+ * directory, else the file's directory", with no exception for a custom
+ * name. Discovery can only ever produce `okfit.toml` inside a `.config`
+ * directory (`ConfigFile.discover`'s project resolver never emits another
+ * name there — J-4), so its narrower two-segment test still covers every
+ * discovered case; `explicit: true` widens the test to basename alone for
+ * a hand-typed `--config` path, which carries no such constraint.
  */
-const anchorFor = (configPath: string, path: Path.Path): string => {
+const anchorFor = (configPath: string, path: Path.Path, options?: { readonly explicit?: boolean }): string => {
 	const filename = path.basename(configPath);
 	const parent = path.dirname(configPath);
+	if (options?.explicit) {
+		return path.basename(parent) === ".config" ? path.dirname(parent) : parent;
+	}
 	if (filename === "okfit.toml" && path.basename(parent) === ".config") {
 		return path.dirname(parent);
 	}
@@ -60,7 +65,8 @@ export const resolveProjectRoot = (input: {
 	readonly path: Path.Path;
 }): string => {
 	if (input.pathArg._tag === "Some") return input.pathArg.value;
-	if (input.explicitConfigPath._tag === "Some") return anchorFor(input.explicitConfigPath.value, input.path);
+	if (input.explicitConfigPath._tag === "Some")
+		return anchorFor(input.explicitConfigPath.value, input.path, { explicit: true });
 	if (input.discovered._tag === "Some") {
 		const discovered = input.discovered.value;
 		if (discovered.resolver !== "xdg" && discovered.resolver !== "native" && discovered.resolver !== "system") {

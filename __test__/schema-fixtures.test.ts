@@ -27,4 +27,13 @@ describe("published okfit config schema against its SchemaStore fixtures", () =>
 		expect(validate({ not_a_declared_key: 1 })).toBe(true);
 		expect(validate({ actors: { bogus: 1 } })).toBe(false);
 	});
+	it("rejects a lifecycle.default_stale_after value okfit itself would fail to load", () => {
+		expect(validate({ lifecycle: { default_stale_after: "soon" } })).toBe(false);
+		expect(validate.errors?.[0]?.instancePath).toBe("/lifecycle/default_stale_after");
+	});
+	it("accepts every duration spelling okfit's codec accepts", () => {
+		for (const value of ["90d", "2w", "12h", "90 days", "1.5 hours"]) {
+			expect(validate({ lifecycle: { default_stale_after: value } }), value).toBe(true);
+		}
+	});
 });
