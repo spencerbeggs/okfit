@@ -93,7 +93,7 @@ describe("server lifecycle", () => {
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 
-	it.effect("every stdout line parses as a JSON-RPC message", () =>
+	it.effect("every stdout line parses as a JSON-RPC message, including a failing tool call", () =>
 		Effect.gen(function* () {
 			const server = yield* spawnMcp(ENV);
 			yield* server.send(INITIALIZE);
@@ -101,21 +101,44 @@ describe("server lifecycle", () => {
 			yield* server.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 			yield* server.send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
 			const { seen: fromToolsList } = yield* readUntilResponse(server, 2);
-			for (const line of [...fromInitialize, ...fromToolsList]) {
+			// A failing tool call is the only thing that emits a log line
+			// (final whole-branch review, Important finding 2): without one here
+			// this case's name is not backed by its assertion, since the happy
+			// paths above never exercise the logger at all.
+			yield* server.send({
+				jsonrpc: "2.0",
+				id: 3,
+				method: "tools/call",
+				params: { name: "get_concept", arguments: { id: "nope" } },
+			});
+			const { seen: fromFailingCall } = yield* readUntilResponse(server, 3);
+			for (const line of [...fromInitialize, ...fromToolsList, ...fromFailingCall]) {
 				assert.strictEqual(line.jsonrpc, "2.0");
 			}
 			yield* server.closeStdin;
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 
-	it.effect("stderr carries no protocol bytes", () =>
+	it.effect("stderr carries no protocol bytes and receives the failing call's log line", () =>
 		Effect.gen(function* () {
 			const server = yield* spawnMcp(ENV);
 			yield* server.send(INITIALIZE);
 			yield* readResponse(server, 1);
+			yield* server.send({ jsonrpc: "2.0", method: "notifications/initialized" });
+			yield* server.send({
+				jsonrpc: "2.0",
+				id: 2,
+				method: "tools/call",
+				params: { name: "get_concept", arguments: { id: "nope" } },
+			});
+			yield* readResponse(server, 2);
 			const stderr = yield* server.stderrSoFar;
 			assert.notOk(stderr.includes('"jsonrpc"'));
 			assert.notOk(stderr.includes('"method"'));
+			// Pins the correct destination, not only the absence of protocol
+			// bytes: with `Logger.LogToStderr` provided, the failing call's log
+			// line lands here instead of on stdout (Critical finding 1).
+			assert.ok(stderr.length > 0);
 			yield* server.closeStdin;
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
@@ -179,14 +202,16 @@ describe("server lifecycle", () => {
 	// here and by a standalone spawn outside Vitest. N-8's escape hatch (an
 	// explicit stdin `end` handler in `bin.ts`) is prescribed only if the
 	// process does NOT exit within the window; it does, so that hatch is not
-	// needed. The exit code is 130, not 0: `runMain`'s `defaultTeardown`
-	// (VERIFIED `effect/src/Runtime.ts:108-113`, doc comment "130 for
-	// interruption-only failures") reports 130 whenever the main fiber's
-	// `Cause` contains only interruptions and no failure/defect -- exactly
-	// what a stdin-EOF-driven scope closure produces, since nothing in this
-	// server treats stdin closing as a normal `Exit.succeed`. This is the
-	// intended v4 convention, not a hang or a crash.
-	it.effect("exits within two seconds of stdin closing", () =>
+	// needed. Without a custom teardown the exit code would be 130:
+	// `runMain`'s `defaultTeardown` (VERIFIED `effect/src/Runtime.ts:108-113`)
+	// reports 130 whenever the main fiber's `Cause` contains only
+	// interruptions and no failure/defect -- exactly what a stdin-EOF-driven
+	// scope closure produces, since nothing in this server treats stdin
+	// closing as a normal `Exit.succeed`. `bin.ts` maps that case to 0 via
+	// `runMain`'s `teardown` option (review Minor finding 3), since 130
+	// conventionally means "killed by SIGINT" and this is the ordinary end
+	// of every session.
+	it.effect("exits 0 within two seconds of stdin closing", () =>
 		Effect.gen(function* () {
 			const server = yield* spawnMcp(ENV);
 			yield* server.send(INITIALIZE);
@@ -195,7 +220,7 @@ describe("server lifecycle", () => {
 			const code = yield* server.exitCode.pipe(
 				Effect.timeoutOrElse({ duration: "2 seconds", orElse: () => Effect.fail("did not exit" as const) }),
 			);
-			assert.strictEqual(code, 130);
+			assert.strictEqual(code, 0);
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 });

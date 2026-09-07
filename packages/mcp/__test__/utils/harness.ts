@@ -135,7 +135,11 @@ export const makeHarness = (projectRoot: string): Effect.Effect<OkfitMcpHarness,
 					const line = pending.slice(0, newline);
 					pending = pending.slice(newline + 1);
 					if (line.length > 0) {
-						yield* routeFrame(JSON.parse(line));
+						const frame = JSON.parse(line) as unknown;
+						if (!isJsonRpcMessage(frame)) {
+							return yield* Effect.die(new Error(`stdout carried a non-JSON-RPC line: ${line}`));
+						}
+						yield* routeFrame(frame);
 					}
 					newline = pending.indexOf("\n");
 				}
