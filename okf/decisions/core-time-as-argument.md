@@ -7,6 +7,9 @@ tags:
 generated:
   by: human:spencer
 status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-07T20:49:07Z
 ---
 
 # Time is an explicit argument, never a Clock service

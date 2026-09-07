@@ -7,8 +7,5 @@ agent = "okfit/claude-code"
 humans = ["human:spencer"]
 
 [lint]
-# require_verified_unmet returns to "error" once Spencer has verified these
-# eleven Decision concepts with `okfit verify` (now shipped).
-require_verified_unmet = "warn"
 # A new concept-holding directory with no index.md must fail CI, not warn.
 missing_index = "error"

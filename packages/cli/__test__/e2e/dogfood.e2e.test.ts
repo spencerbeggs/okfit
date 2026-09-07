@@ -1,8 +1,7 @@
 // Acceptance suite for okfit's own dogfooded okf/ bundle (phase-1 item 6,
 // decisions.md F-13). (a) spawns the built dist/dev bin (K-43) against
-// the repo's real okf/ bundle and asserts the exact validate summary the
-// twelve Decision concepts are expected to produce while F-5's
-// `require_verified_unmet = "warn"` config line holds; (b) loads the same
+// the repo's real okf/ bundle and asserts a clean validate summary now that
+// every Decision concept carries a human verification (F-5 discharged); (b) loads the same
 // bundle through @okfit/core's Bundle.load and asserts every concept is
 // linked from its directory's index.md, both directions, using the real
 // clock (DateTime.nowUnsafe(), D-10, D-34, SR5) rather than OKFIT_NOW,
@@ -31,11 +30,9 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * section 5's groups, 5.1-5.6, with C3 shipping four Interfaces rather
  * than INVENTORY's proposed five -- see 03-conventions-interfaces.md's
  * "Decisions made here" #1): thirty-two concepts total. Every
- * Decision carries `require_verified = true` and no phase-1 tool ever
- * writes `verified` (F-8, F-9; spec 5.4), so each produces exactly one
- * `require-verified-unmet` WARNING -- never an error, since F-5's config
- * line downgrades this repo's severity for that code to `warn` -- the
- * single expected diagnostic category for an otherwise-clean bundle.
+ * Decision carries `require_verified = true` and every one was verified
+ * with `okfit verify` on 2026-09-07 (F-5 discharged), so the bundle
+ * produces no diagnostics at all under core's default `error` severity.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
@@ -56,54 +53,46 @@ const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) =>
 const dirnameOf = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
 describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
-	it.effect(
-		"exits 0; zero conformance/lint-error/profile diagnostics; exactly one require-verified-unmet warning per Decision concept",
-		() =>
-			Effect.gen(function* () {
-				const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
-					cwd: REPO_ROOT,
-					env: {
-						PATH: process.env.PATH ?? "",
-						HOME: process.env.HOME ?? "",
-						NO_COLOR: "1",
-					},
-				});
+	it.effect("exits 0 with no diagnostics at all: every Decision concept is human-verified", () =>
+		Effect.gen(function* () {
+			const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
+				cwd: REPO_ROOT,
+				env: {
+					PATH: process.env.PATH ?? "",
+					HOME: process.env.HOME ?? "",
+					NO_COLOR: "1",
+				},
+			});
 
-				assert.strictEqual(result.exitCode, 0);
-				assert.strictEqual(result.stderr, "");
+			assert.strictEqual(result.exitCode, 0);
+			assert.strictEqual(result.stderr, "");
 
-				const envelope = JSON.parse(result.stdout) as {
-					readonly summary: {
-						readonly conformance_errors: number;
-						readonly lint_errors: number;
-						readonly lint_warnings: number;
-						readonly lint_info: number;
-						readonly profile_errors: number;
-						readonly concepts: number;
-					};
-					readonly diagnostics: ReadonlyArray<{
-						readonly source: string;
-						readonly code: string;
-						readonly severity: string;
-					}>;
+			const envelope = JSON.parse(result.stdout) as {
+				readonly summary: {
+					readonly conformance_errors: number;
+					readonly lint_errors: number;
+					readonly lint_warnings: number;
+					readonly lint_info: number;
+					readonly profile_errors: number;
+					readonly concepts: number;
 				};
+				readonly diagnostics: ReadonlyArray<{
+					readonly source: string;
+					readonly code: string;
+					readonly severity: string;
+				}>;
+			};
 
-				assert.strictEqual(envelope.summary.conformance_errors, 0);
-				assert.strictEqual(envelope.summary.lint_errors, 0);
-				assert.strictEqual(envelope.summary.profile_errors, 0);
-				assert.strictEqual(envelope.summary.concepts, TOTAL_CONCEPTS);
-				// F-5/F-13: while require_verified_unmet stays "warn" in this repo's
-				// config, every one of the twelve Decision concepts produces exactly
-				// one warning and nothing else does -- so lint_warnings equalling
-				// the Decision count is this plan's own green-CI signal.
-				assert.strictEqual(envelope.summary.lint_warnings, EXPECTED_CONCEPT_COUNTS.Decision);
-				assert.strictEqual(envelope.diagnostics.length, EXPECTED_CONCEPT_COUNTS.Decision);
-				for (const diagnostic of envelope.diagnostics) {
-					assert.strictEqual(diagnostic.source, "core.lint");
-					assert.strictEqual(diagnostic.code, "require-verified-unmet");
-					assert.strictEqual(diagnostic.severity, "warning");
-				}
-			}).pipe(Effect.provide(NodeServices.layer)),
+			assert.strictEqual(envelope.summary.conformance_errors, 0);
+			assert.strictEqual(envelope.summary.lint_errors, 0);
+			assert.strictEqual(envelope.summary.profile_errors, 0);
+			assert.strictEqual(envelope.summary.concepts, TOTAL_CONCEPTS);
+			// F-5 discharged 2026-09-07: every Decision is verified and the repo
+			// config no longer overrides require_verified_unmet, so a clean
+			// bundle reports nothing at all.
+			assert.strictEqual(envelope.summary.lint_warnings, 0);
+			assert.deepStrictEqual(envelope.diagnostics, []);
+		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
 

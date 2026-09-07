@@ -7,6 +7,9 @@ tags:
 generated:
   by: human:spencer
 status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-07T20:49:08Z
 ---
 
 # Generated.at is the author date of the last commit that changed the body

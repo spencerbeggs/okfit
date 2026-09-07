@@ -7,6 +7,9 @@ tags:
 generated:
   by: okfit/claude-code
 status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-07T20:49:07Z
 ---
 
 # The MCP server is Effect-native and speaks the legacy protocol era

@@ -7,6 +7,9 @@ tags:
 generated:
   by: human:spencer
 status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-07T20:49:06Z
 ---
 
 # Exit codes are a fixed six-value total order

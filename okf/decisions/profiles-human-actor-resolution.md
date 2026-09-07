@@ -7,6 +7,9 @@ tags:
 generated:
   by: human:spencer
 status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-07T20:49:08Z
 ---
 
 # Human actor ids resolve through a four-step fallback order
@@ -41,5 +44,6 @@ This repo's config need not declare `actors.humans` at all for
 `human:spencer` to resolve correctly, since the git email local part
 (`spencer@beggs.codes` → `spencer`) already matches; every concept in this
 plan still hardcodes `generated: { by: human:spencer }` by hand rather than
-invoking derivation, because no phase-1 command wires
-`Derivation.generatedBy` into a write path.
+invoking derivation. The first command to wire
+`Derivation.generatedBy` into a write path is `okfit verify` (phase 2),
+which stamps the resolved human actor into `verified`.

@@ -7,6 +7,9 @@ tags:
 generated:
   by: okfit/claude-code
 status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-07T20:49:06Z
 ---
 
 # okfit verify edits frontmatter by textual splice, never by re-serialisation
