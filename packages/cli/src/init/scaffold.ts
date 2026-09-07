@@ -5,8 +5,25 @@ import { Concept, ConceptId, Derive, LoadedConcept, OKF_SPEC_VERSION } from "@ok
 import type { Layout } from "@okfit/profiles";
 import { Effect, Option, Schema } from "effect";
 
-/** `.config/okfit/config.toml`, relative to the project root (K-23). @public */
-export const CONFIG_RELATIVE_PATH = ".config/okfit/config.toml";
+/** `.config/okfit.toml`, relative to the project root (C-10). @public */
+export const CONFIG_RELATIVE_PATH = ".config/okfit.toml";
+
+/**
+ * C-1's three project-level names, in precedence order. `init` refuses when
+ * ANY of them already exists in the target directory (C-9), so a fresh
+ * `okfit init` beside a hand-written `.okfit.toml` cannot silently write a
+ * second config the discovery order then shadows.
+ *
+ * Scope is `projectRoot` only, never the upward chain: an ancestor's config
+ * is a legitimate discovery hit, not a collision.
+ *
+ * @public
+ */
+export const PROJECT_CONFIG_NAMES = [".okfit.toml", "okfit.toml", ".config/okfit.toml"] as const;
+
+/** C-22's directive, plus the blank line Tombi requires. @public */
+export const SCHEMA_DIRECTIVE =
+	"#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json\n\n";
 
 /** @public */
 export interface ScaffoldOptions {
@@ -47,16 +64,16 @@ export const configValue = (options: ScaffoldOptions & { readonly bundlePath: st
 
 /**
  * Every path `init` will create, absolute, in write order, for the K-28
- * pre-flight: the config file, the bundle root's `index.md`/`log.md`/
- * `project.md`, then one `index.md` per layout directory in `layout`'s own
- * declared order — never re-sorted here. `Derive.renderIndex` sorts its own
- * `Subdirectories` section independently (C13), so this function's order has
- * no bearing on the rendered index text.
+ * pre-flight: the three project-level config names, the bundle root's
+ * `index.md`/`log.md`/`project.md`, then one `index.md` per layout directory
+ * in `layout`'s own declared order — never re-sorted here. `Derive.renderIndex`
+ * sorts its own `Subdirectories` section independently (C13), so this
+ * function's order has no bearing on the rendered index text.
  *
  * @public
  */
 export const targetPaths = (options: ScaffoldOptions): ReadonlyArray<string> => [
-	`${options.projectRoot}/${CONFIG_RELATIVE_PATH}`,
+	...PROJECT_CONFIG_NAMES.map((name) => `${options.projectRoot}/${name}`),
 	`${options.bundleRoot}/${options.layout.root.index}`,
 	`${options.bundleRoot}/${options.layout.root.log}`,
 	`${options.bundleRoot}/${options.layout.root.project}`,

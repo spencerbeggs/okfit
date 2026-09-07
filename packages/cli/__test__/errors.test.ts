@@ -46,12 +46,12 @@ describe("renderFailure", () => {
 
 	it("renders InitOverwriteError as the header, one indented path per conflict, and the footer, relativised to cwd", () => {
 		const error = new InitOverwriteError({
-			paths: ["/root/.config/okfit/config.toml", "/root/okf/index.md", "/elsewhere/stray.md"],
+			paths: ["/root/.config/okfit.toml", "/root/okf/index.md", "/elsewhere/stray.md"],
 			cwd: "/root",
 		});
 		assert.deepStrictEqual(renderFailure(error), [
 			"error: refusing to overwrite existing files:",
-			"  .config/okfit/config.toml",
+			"  .config/okfit.toml",
 			"  okf/index.md",
 			"  /elsewhere/stray.md",
 			"Nothing was written.",

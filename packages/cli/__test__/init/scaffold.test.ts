@@ -14,15 +14,17 @@ const OPTIONS: ScaffoldOptions = {
 };
 
 describe("CONFIG_RELATIVE_PATH", () => {
-	it("is the project-root-relative config path (K-23)", () => {
-		assert.strictEqual(CONFIG_RELATIVE_PATH, ".config/okfit/config.toml");
+	it("writes the config to .config/okfit.toml", () => {
+		assert.strictEqual(CONFIG_RELATIVE_PATH, ".config/okfit.toml");
 	});
 });
 
 describe("targetPaths", () => {
-	it("returns the nine software-project paths in write order, never a hand-counted literal", () => {
+	it("lists all three project-level config names in targetPaths", () => {
 		assert.deepStrictEqual(targetPaths(OPTIONS), [
-			"/tmp/my-repo/.config/okfit/config.toml",
+			"/tmp/my-repo/.okfit.toml",
+			"/tmp/my-repo/okfit.toml",
+			"/tmp/my-repo/.config/okfit.toml",
 			"/tmp/my-repo/okf/index.md",
 			"/tmp/my-repo/okf/log.md",
 			"/tmp/my-repo/okf/project.md",
@@ -32,7 +34,7 @@ describe("targetPaths", () => {
 			"/tmp/my-repo/okf/interfaces/index.md",
 			"/tmp/my-repo/okf/references/index.md",
 		]);
-		assert.strictEqual(targetPaths(OPTIONS).length, 4 + Profiles.softwareProject.layout.directories.length);
+		assert.strictEqual(targetPaths(OPTIONS).length, 6 + Profiles.softwareProject.layout.directories.length);
 	});
 });
 

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -67,7 +67,7 @@ describe("okfit init", () => {
 			].join("\n"),
 		);
 
-		const config = await readFile(`${cwd}/.config/okfit/config.toml`, "utf8");
+		const config = await readFile(`${cwd}/.config/okfit.toml`, "utf8");
 		assert.include(config, 'path = "okf"');
 		assert.include(config, 'profile = "software-project"');
 
@@ -122,7 +122,7 @@ describe("okfit init", () => {
 			second.stderr,
 			[
 				"error: refusing to overwrite existing files:",
-				"  .config/okfit/config.toml",
+				"  .config/okfit.toml",
 				"  okf/index.md",
 				"  okf/log.md",
 				"  okf/project.md",
@@ -152,7 +152,7 @@ describe("okfit init", () => {
 			assert.isTrue(contents.startsWith("# "));
 		}
 
-		const config = await readFile(`${cwd}/.config/okfit/config.toml`, "utf8");
+		const config = await readFile(`${cwd}/.config/okfit.toml`, "utf8");
 		assert.include(config, 'profile = "none"');
 	});
 
@@ -170,7 +170,52 @@ describe("okfit init", () => {
 			].join("\n"),
 		);
 
-		const config = await readFile(`${cwd}/.config/okfit/config.toml`, "utf8");
+		const config = await readFile(`${cwd}/.config/okfit.toml`, "utf8");
 		assert.include(config, 'profile = "bogus"');
+	});
+
+	it("writes .config/okfit.toml whose first line is the #:schema directive", async () => {
+		const { cwd, env } = await makeSandbox();
+		const result = await withServices(runOkfit(["init"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 0);
+		const config = await readFile(`${cwd}/.config/okfit.toml`, "utf8");
+		assert.strictEqual(
+			config.split("\n")[0],
+			"#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json",
+		);
+	});
+
+	it("writes a blank line between the directive and the first table", async () => {
+		const { cwd, env } = await makeSandbox();
+		await withServices(runOkfit(["init"], { cwd, env: baseEnv(env) }));
+		const config = await readFile(`${cwd}/.config/okfit.toml`, "utf8");
+		assert.strictEqual(config.split("\n")[1], "");
+		assert.strictEqual(config.split("\n")[2], "[bundle]");
+	});
+
+	it("refuses when .okfit.toml already exists, naming it in the error", async () => {
+		const { cwd, env } = await makeSandbox();
+		await writeFile(`${cwd}/.okfit.toml`, 'bundle.path = "okf"\n', "utf8");
+		const result = await withServices(runOkfit(["init"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 3);
+		assert.strictEqual(result.stdout, "");
+		assert.strictEqual(
+			result.stderr,
+			`${["error: refusing to overwrite existing files:", "  .okfit.toml", "Nothing was written."].join("\n")}\n`,
+		);
+	});
+
+	it("names every colliding project-level config in one InitOverwriteError", async () => {
+		const { cwd, env } = await makeSandbox();
+		await writeFile(`${cwd}/.okfit.toml`, 'bundle.path = "okf"\n', "utf8");
+		await writeFile(`${cwd}/okfit.toml`, 'bundle.path = "okf"\n', "utf8");
+		const result = await withServices(runOkfit(["init"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 3);
+		assert.strictEqual(
+			result.stderr,
+			`${["error: refusing to overwrite existing files:", "  .okfit.toml", "  okfit.toml", "Nothing was written."].join(
+				"\n",
+			)}\n`,
+		);
 	});
 });

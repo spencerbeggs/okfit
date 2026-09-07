@@ -1,12 +1,13 @@
+import { TomlCodec } from "@effected/config-file";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
 import { Profiles } from "@okfit/profiles";
-import { Console, DateTime, Effect, FileSystem, Option, Path } from "effect";
+import { Console, DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { resolveBundleRoot, resolveProjectRoot } from "../config/anchor.js";
 import { provideConfig } from "../config/layer.js";
 import { InitOverwriteError } from "../errors.js";
 import type { ScaffoldOptions } from "../init/scaffold.js";
-import { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "../init/scaffold.js";
+import { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "../init/scaffold.js";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
 import { forDiagnostics } from "../render/exit.js";
@@ -187,10 +188,15 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 				}
 
 				const bundlePath = merged.bundle?.path ?? DEFAULT_BUNDLE_PATH;
-				yield* configFile.write(
-					configValue({ ...scaffoldOptions, bundlePath }),
-					`${projectRoot}/${CONFIG_RELATIVE_PATH}`,
-				);
+				// ConfigFileShape has no bare `encode`, and `write(value, path)` has no
+				// header hook (ConfigFile.ts:169-213), so the `#:schema` directive is
+				// prepended as text around the same codec pair the service itself uses
+				// (C-10, C-22, J-15). The trade: a ConfigWriteError becomes a
+				// SchemaError | ConfigCodecError | PlatformError, all of which
+				// renderFailure's catch-all already renders.
+				const encoded = yield* Schema.encodeEffect(OkfitConfig)(configValue({ ...scaffoldOptions, bundlePath }));
+				const toml = yield* TomlCodec.stringify(encoded);
+				yield* fs.writeFileString(`${projectRoot}/${CONFIG_RELATIVE_PATH}`, `${SCHEMA_DIRECTIVE}${toml}`);
 
 				const scaffoldFiles = yield* files(scaffoldOptions);
 				for (const file of scaffoldFiles) {
