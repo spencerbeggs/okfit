@@ -18,8 +18,8 @@ tags:
 `okfit` has four subcommands: `validate`, `init`, `context`, `verify`. Each
 takes an optional `[path]` as its first positional argument — the **project
 root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
-default) — defaulting to the current directory
-(`packages/cli/README.md:7-19`). `verify` additionally takes a required
+default) — defaulting to the current directory (the Subcommands and
+[path] section of `packages/cli/README.md`). `verify` additionally takes a required
 `<id>` before `[path]`.
 
 ## okfit validate
@@ -41,14 +41,15 @@ scaffold that does not validate clean is treated as a defect. It never
 overwrites: if any target path already exists, nothing is written and it
 exits `3`. `--profile <name>` picks the profile to scaffold; an
 unrecognised name is a warning, not a failure, and `init` continues with
-the default profile (`packages/cli/README.md:53-102`).
+the default profile (the `okfit init` section of `packages/cli/README.md`).
 
 ## okfit context
 
 Prints the resolved project root, bundle root, config path, profile, and
 vocabulary without loading the bundle. There is no `--profile` flag — that
 one belongs to `init` alone. `context` never produces exit `1` or `2`: it
-never runs conformance or lint checks (`packages/cli/README.md:104-144`).
+never runs conformance or lint checks (the `okfit context` section of
+`packages/cli/README.md`).
 
 ## okfit verify
 
@@ -75,7 +76,8 @@ file found anywhere wins; then the XDG tier
 tier (`~/.config/okfit/config.toml` or the platform-native directory); then
 the system tier (`/etc/okfit/config.toml` on Linux and macOS, nothing on
 Windows). `--config <file>` bypasses discovery entirely; a path that does
-not exist is a hard failure, exit `3` (`packages/cli/README.md:167-191`).
+not exist is a hard failure, exit `3` (the Config discovery section of
+`packages/cli/README.md`).
 
 ## Exit codes
 

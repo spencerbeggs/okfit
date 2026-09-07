@@ -1,12 +1,12 @@
 ---
 type: Interface
 title: okfit config file schema
-description: The .config/okfit/config.toml schema, its discovery order, and the defaults every key falls back to when unset.
+description: The .config/okfit.toml schema, its discovery order, and the defaults every key falls back to when unset.
 kind: config
 resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 tags:
   - architecture
 ---
@@ -21,7 +21,10 @@ discovery proceeds tier by tier:
 
 1. **Project** — each directory from the discovery start up to the
    filesystem root is checked for `.okfit.toml`, then `okfit.toml`, then
-   `.config/okfit.toml`; the first file found anywhere wins.
+   `.config/okfit.toml`; the first file found anywhere wins. This walk
+   reaches `$HOME`, so a `~/.config/okfit.toml` (or `~/okfit.toml`,
+   `~/.okfit.toml`) is itself a project-tier file: it shadows the user
+   tier below and anchors every project directory beneath `$HOME` to it.
 2. **XDG** — `$XDG_CONFIG_HOME/okfit/config.toml` and `$XDG_CONFIG_DIRS`.
 3. **Native** — `~/.config/okfit/config.toml`, or the platform-native
    directory: `~/Library/Application Support/okfit/config.toml` on macOS,
