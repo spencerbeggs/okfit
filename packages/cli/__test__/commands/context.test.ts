@@ -56,14 +56,14 @@ describe("contextCommand", () => {
 });
 
 describe("rootCommand", () => {
-	it("registers exactly validate, init, and context, in that order (contract §8.6)", () => {
+	it("registers exactly validate, init, context, and verify, in that order (contract §8.6)", () => {
 		// `Command.subcommands` is grouped (`{ group, commands }[]`), not a flat
 		// array (same shape `__test__/commands/init.test.ts` already asserted
 		// against for the two-command tree; this is that same assertion, moved
-		// here and updated to three commands per this group's decision 3).
+		// here and updated as later commands land per this group's decision 3).
 		assert.deepStrictEqual(
 			rootCommand.subcommands.flatMap((group) => group.commands.map((command) => command.name)),
-			["validate", "init", "context"],
+			["validate", "init", "context", "verify"],
 		);
 	});
 });

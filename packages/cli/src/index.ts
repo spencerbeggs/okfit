@@ -15,7 +15,14 @@ export type { ResolveProjectConfigInput, ResolvedProjectConfig } from "./config/
 export { DEFAULT_PROFILE_NAME, resolveProjectConfig } from "./config/resolve.js";
 export type { ContextResult, ContextRunOptions } from "./context/run.js";
 export { runContext } from "./context/run.js";
-export { ConfigMalformedError, ConfigPathNotFoundError, InitOverwriteError, renderFailure } from "./errors.js";
+export {
+	ConfigMalformedError,
+	ConfigPathNotFoundError,
+	InitOverwriteError,
+	VerifyConceptNotFoundError,
+	VerifyUnsupportedFrontmatterError,
+	renderFailure,
+} from "./errors.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
 export { ContextEnvelope, ContextTag, ContextType, contextEnvelope, humanContext } from "./render/context.js";
