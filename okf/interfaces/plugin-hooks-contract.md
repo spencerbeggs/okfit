@@ -6,7 +6,7 @@ kind: config
 resource: ../../plugins/claude-code/hooks/hooks.json
 status: stable
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 tags:
   - architecture
 ---

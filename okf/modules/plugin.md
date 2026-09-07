@@ -5,7 +5,7 @@ description: The meta-package a consuming repository installs to get both the ok
 resource: ../../packages/plugin
 kind: package
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 ---
 
 # Plugin
