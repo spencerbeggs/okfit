@@ -7,7 +7,7 @@ kind: plugin
 tags:
   - architecture
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 ---
 
 # Claude Code Plugin
@@ -49,11 +49,10 @@ disable one each; comparison is exact-string `off` only
 
 ## Distribution and MCP status
 
-Tagged but never published to npm (`CLAUDE.md:3-6`); `.claude-plugin/plugin.json`
-gains no `mcpServers` block in this phase -- `bin/start-mcp.sh` ships and
-is tested, but wiring it into the manifest waits for `@okfit/mcp` to
-implement the MCP protocol, since its current stub always exits `1` and
-registering the loader today would make "not installed" and
-"installed but stubbed" produce the identical failure
-(`plugins/claude-code/CLAUDE.md:88-92`;
-`plugins/claude-code/README.md:101-109`).
+Tagged but never published to npm (`CLAUDE.md:3-6`). `.claude-plugin/plugin.json`
+registers `mcpServers.mcp`, running `bin/start-mcp.sh`, which resolves the
+consuming repo's own `node_modules/.bin/okfit-mcp` and falls back to `npx
+--yes @okfit/mcp`; the six tools it exposes are named explicitly in
+`agents/okf-docs.md`'s `tools:` block and reach an agent as
+`mcp__plugin_okfit_mcp__<tool>` (`plugins/claude-code/CLAUDE.md:88-90`; see
+`okf/interfaces/okfit-mcp.md`).
