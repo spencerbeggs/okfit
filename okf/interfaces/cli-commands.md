@@ -1,24 +1,26 @@
 ---
 type: Interface
-title: okfit CLI — validate, init, context
-description: The okfit command line's three subcommands, their flags, exit codes, and JSON envelopes.
+title: okfit CLI — validate, init, context, verify
+description: The okfit command line's four subcommands, their flags, exit codes, and JSON envelopes.
 kind: cli
 resource: ../../packages/cli/README.md
 status: stable
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 tags:
   - architecture
 ---
 
-# okfit CLI — validate, init, context
+# okfit CLI — validate, init, context, verify
 
 ## Subcommands and [path]
 
-`okfit` has three subcommands: `validate`, `init`, `context`. Each takes an
-optional `[path]` as its first positional argument — the **project root**,
-never the bundle root (`<project root>/<bundle.path>`, `okf` by default) —
-defaulting to the current directory (`packages/cli/README.md:7-19`).
+`okfit` has four subcommands: `validate`, `init`, `context`, `verify`. Each
+takes an optional `[path]` as its first positional argument — the **project
+root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
+default) — defaulting to the current directory
+(`packages/cli/README.md:7-19`). `verify` additionally takes a required
+`<id>` before `[path]`.
 
 ## okfit validate
 
@@ -47,6 +49,21 @@ Prints the resolved project root, bundle root, config path, profile, and
 vocabulary without loading the bundle. There is no `--profile` flag — that
 one belongs to `init` alone. `context` never produces exit `1` or `2`: it
 never runs conformance or lint checks (`packages/cli/README.md:104-144`).
+
+## okfit verify
+
+`okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run]
+[--format human|json]` appends one attestation, `{ by: human:<id>, at:
+<now> }`, to a concept's `verified` list and writes the file back. `<id>` is
+a concept id with or without a leading slash or trailing `.md`. The actor is
+always your own git identity; there is no `--by`. Existing entries are never
+touched or replaced — every run appends, including a repeat by the same
+person. `--at <iso>` records a different instant; `--dry-run` prints what
+would be written and writes nothing. Exit `0` on success (a dry run
+included), `3` on any failure — an unknown or reserved id, a concept whose
+`verified` shape cannot be edited safely, or an unresolved git identity;
+there is no `1`/`2` content tier. This is a human-run command: no agent,
+hook, or MCP tool ever invokes it.
 
 ## Config discovery
 
@@ -77,7 +94,9 @@ code (`packages/cli/README.md:171-186`).
 `diagnostics`. `okfit context --format json` prints a distinct
 `ContextEnvelope` (schema 1) where every field is present even when
 `null` — `config_path`, `profile`, `profile_requested`, and `actors.agent`
-never an omitted key (`packages/cli/README.md:188-277`).
+never an omitted key (`packages/cli/README.md:188-277`). `okfit verify
+--format json` prints a distinct `VerifyEnvelope` with `schema`,
+`okfit_version`, `id`, `path`, `verified`, `dry_run`, `exit_code`.
 
 ## Message conventions
 

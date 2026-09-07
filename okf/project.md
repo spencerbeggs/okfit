@@ -5,7 +5,7 @@ description: Node.js tooling for the Open Knowledge Format (OKF) v0.2, published
 tags:
   - architecture
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 ---
 
 # okfit
@@ -48,9 +48,6 @@ resolving one of those ids to read.
 
 Phase 1 deliberately excludes:
 
-- Implementing the MCP server -- `@okfit/mcp` ships as a stub until phase 2.
-- CLI commands beyond `validate`, `init`, and `context` -- other commands
-  (`verify`, the MCP server) wait for phase 2.
 - Listing the Claude Code plugin in the `spencerbeggs/bot` marketplace
   (`plugins/claude-code/CLAUDE.md:6`) -- deferred until phase 1 is dogfooded,
   which is what this bundle is for.
