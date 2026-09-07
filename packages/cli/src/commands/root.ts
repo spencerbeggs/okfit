@@ -13,11 +13,12 @@ import { verifyCommand } from "./verify.js";
  * package at all.
  *
  * `validate`, `init`, `context`, and `verify` are the whole command tree;
- * nothing else is registered here. `context` is appended last, not
- * reordered in, so `--help`'s subcommand list reads in introduction order
- * (contract §8.6). The top-level description is left unchanged: `context`
- * neither validates nor scaffolds, but widening the sentence for a third
- * orientation-only command buys nothing (contract §8.6).
+ * nothing else is registered here. Each is appended in introduction order,
+ * never reordered in, so `--help`'s subcommand list reads that way too
+ * (contract §8.6). The top-level description is left unchanged: neither
+ * `context` nor `verify` validates or scaffolds, but widening the sentence
+ * for the orientation- and attestation-only commands buys nothing
+ * (contract §8.6).
  *
  * @public
  */

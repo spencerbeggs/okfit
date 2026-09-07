@@ -1,6 +1,6 @@
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
-import { Console, Effect, Option, Path, Schema } from "effect";
+import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { provideConfig } from "../config/layer.js";
 import { resolveProjectConfig } from "../config/resolve.js";
@@ -40,7 +40,7 @@ const atFlag = Flag.string("at").pipe(
 /** V-6/V-8: the preview is a flag, never a prompt. */
 const dryRunFlag = Flag.boolean("dry-run").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("compute and print what would be written; write nothing"),
+	Flag.withDescription("print the exact fragment a real run would splice in; write nothing"),
 );
 
 const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
@@ -82,8 +82,14 @@ export const verifyCommand = Command.make(
 
 				// Contract §12 note 7: decodeUnknownSync THROWS, and a throw inside
 				// Effect.gen is a defect, not an exit-3 failure. The
-				// Effect-returning decoder is mandatory here.
-				const at = Option.isNone(input.at) ? yield* Now : yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
+				// Effect-returning decoder is mandatory here. The clock's own
+				// value carries milliseconds; truncate it to whole seconds so a
+				// recorded attestation matches every documented example
+				// (README, cli-commands.md). `--at` is never truncated — it is
+				// recorded exactly as the caller gave it.
+				const at = Option.isNone(input.at)
+					? DateTime.startOf(yield* Now, "second")
+					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
 
 				const result = yield* runVerify({
 					id: input.id,
@@ -113,6 +119,7 @@ export const verifyCommand = Command.make(
 						at: result.at,
 						priorAt: result.priorAt,
 						dryRun: result.dryRun,
+						fragment: result.fragment,
 					})) {
 						yield* Console.log(line);
 					}

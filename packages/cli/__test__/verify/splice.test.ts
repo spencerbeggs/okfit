@@ -52,6 +52,14 @@ const WRITABLE = [
 	"comments.md",
 	"crlf.md",
 	"bom.md",
+	// A STATIC copy of okf/decisions/cli-exit-codes.md's frontmatter, taken
+	// 2026-09-07. Deliberately not asserted equal to the live file: running
+	// `okfit verify decisions/cli-exit-codes` (f5-followup.md §1) appends a
+	// `verified:` block to the real file's frontmatter, and this fixture
+	// must not track that — a drift guard that fires on the feature's
+	// intended use is the wrong kind of failure (final review, Critical 1).
+	// If this fixture ever needs updating, copy the real file's frontmatter
+	// by hand; never re-add an equality assertion against the live file.
 	"decision-style.md",
 ] as const;
 
@@ -121,11 +129,4 @@ describe("splice", () => {
 			assert.isTrue(applied.includes("\n# This concept exercises comment preservation.\n"));
 		}),
 	);
-
-	it("decision-style.md's before-text still matches okf/decisions/cli-exit-codes.md's frontmatter", () => {
-		const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
-		const real = readFileSync(join(repoRoot, "okf", "decisions", "cli-exit-codes.md"), "utf8");
-		const frontmatterOf = (text: string): string => text.slice(0, text.indexOf("\n---\n", 3) + 5);
-		assert.strictEqual(frontmatterOf(read("decision-style.md")), frontmatterOf(real));
-	});
 });

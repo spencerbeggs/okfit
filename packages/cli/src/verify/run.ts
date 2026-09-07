@@ -53,6 +53,8 @@ export interface VerifyResult {
 	/** Every PRIOR entry by this same actor, in list order, encoded (V-2). */
 	readonly priorAt: ReadonlyArray<string>;
 	readonly dryRun: boolean;
+	/** The exact bytes {@link splice}'s edit would insert, written or not. */
+	readonly fragment: string;
 }
 
 /**
@@ -119,7 +121,9 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	const source = yield* fs.readFileString(absolutePath);
 	const { text, bom } = stripBom(source);
 
-	// Step 11 (V-14): fail closed, file untouched.
+	// Step 11 (V-14): fail closed, file untouched. Run unconditionally — a
+	// dry run must fail on an unsupported shape exactly like a real run would
+	// (I3): there is no cheaper preview path that skips classification.
 	const located = yield* locate(text);
 	if (located._tag === "unsupported") {
 		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: located.shape });
@@ -135,18 +139,38 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		.filter((entry) => entry.by === actor)
 		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
 
-	// Steps 14 and 15. Under --dry-run nothing is opened for writing at all.
+	// Steps 14 and 15. The edit itself is computed unconditionally (I3): a
+	// dry run reports the exact fragment it would write, so it runs the same
+	// splice a real run does, not a shortcut that stops before the edit
+	// exists.
+	const edit = splice(located, { by: actor, at }, documentNewline(text));
+	const finalText = bom + MarkdownEdit.applyAll(text, [edit]);
+
 	if (!options.dryRun) {
-		const edit = splice(located, { by: actor, at }, documentNewline(text));
-		const finalText = bom + MarkdownEdit.applyAll(text, [edit]);
+		// I4: resolve the concept's REAL path first. `absolutePath` may be a
+		// symlink; a temp-and-rename through it would replace the link itself
+		// with a regular file and leave the link's target untouched.
+		// Resolving first means the temp file sits beside the real target and
+		// the rename replaces the real target, so the symlink survives.
+		const target = yield* fs.realPath(absolutePath);
+		const tempPath = `${target}.okfit-verify.tmp`;
+
+		// Minor 1: preserve the target's mode on the temp file rather than
+		// leaving it at whatever `writeFileString` defaults to (the process
+		// umask), which would silently widen a `chmod`-restricted concept.
+		const original = yield* fs.stat(target);
+		yield* fs.writeFileString(tempPath, finalText);
+		yield* fs.chmod(tempPath, original.mode);
+
 		// V-16: a temp file beside the target, then a rename over it. NOT
 		// `makeTempFile` — that defaults to an OS temp directory, and a
-		// cross-device rename is not atomic. Permissions are not preserved
-		// (V-16, out of scope). A PlatformError from either call renders
-		// through the catch-all at exit 3 (K-46).
-		const tempPath = `${absolutePath}.okfit-verify.tmp`;
-		yield* fs.writeFileString(tempPath, finalText);
-		yield* fs.rename(tempPath, absolutePath);
+		// cross-device rename is not atomic. A PlatformError from any of
+		// these calls renders through the catch-all at exit 3 (K-46).
+		// Minor 2: a failed rename leaves no litter behind — remove the temp
+		// file, best effort, without masking the original failure.
+		yield* fs
+			.rename(tempPath, target)
+			.pipe(Effect.onError(() => fs.remove(tempPath, { force: true }).pipe(Effect.ignore)));
 	}
 
 	return {
@@ -157,5 +181,6 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		at,
 		priorAt,
 		dryRun: options.dryRun,
+		fragment: edit.content,
 	} satisfies VerifyResult;
 });
