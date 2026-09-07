@@ -88,7 +88,7 @@ _run_hook_file() {
 	local envelope_file="$1"
 	local path_override="${2:-$PATH}"
 	local project_dir="${3:-$PROJECT_DIR}"
-	"$RENDER" "$envelope_file" | env -i \
+	bash "$RENDER" "$envelope_file" | env -i \
 		PATH="$path_override" \
 		CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
 		CLAUDE_PROJECT_DIR="$project_dir" \

@@ -97,7 +97,7 @@ _run_hook() {
 
 _run_hook_file() {
 	local envelope_file="$1"
-	"$RENDER" "$envelope_file" | env -i \
+	bash "$RENDER" "$envelope_file" | env -i \
 		PATH="$PATH" \
 		CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
 		CLAUDE_PROJECT_DIR="$REPO_ROOT" \
