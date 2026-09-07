@@ -44,6 +44,7 @@ const VALUES = [
 	"LintLevel",
 	"LintTable",
 	"OkfitConfig",
+	"okfitConfigDocumentFields",
 	"OkfitConfigFile",
 	"StaleAfterDuration",
 	"TagDeclaration",

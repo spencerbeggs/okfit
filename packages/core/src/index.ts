@@ -41,6 +41,7 @@ export {
 	StaleAfterDuration,
 	TagDeclaration,
 	TypeDeclaration,
+	okfitConfigDocumentFields,
 } from "./OkfitConfig.js";
 export { Source, UsageWindow } from "./Source.js";
 export { Status } from "./Status.js";

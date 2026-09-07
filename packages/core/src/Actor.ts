@@ -40,6 +40,11 @@ export const Actor: Schema.Codec<Actor, string> & {
 			Schema.isPattern(ACTOR_RE, { message: "Expected <producer>/<version> or <prefix>:<id> with no whitespace" }),
 		),
 		Schema.brand("Actor"),
-	),
+	).annotate({
+		title: "Actor",
+		description:
+			'An OKF actor: "<producer>/<version>" (e.g. "okfit/claude-code"), or "<prefix>:<id>" (e.g. "human:spencer", "process:ci").',
+		examples: ["okfit/claude-code" as Actor, "human:spencer" as Actor, "process:ci" as Actor],
+	}),
 	{ isHuman, form },
 );

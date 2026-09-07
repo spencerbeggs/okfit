@@ -11,7 +11,15 @@ import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
  *
  * @public
  */
-export const LintLevel = Schema.Literals(["off", "info", "warn", "error"]);
+export const LintLevel = Schema.Literals(["off", "info", "warn", "error"]).annotate({
+	title: "Lint severity",
+	description: "off — never reported; info, warn, error — the diagnostic's rendered severity.",
+	"x-taplo": {
+		docs: {
+			enumValues: ["Never reported.", "Reported as information.", "Reported as a warning.", "Reported as an error."],
+		},
+	},
+});
 
 /**
  * The type of `LintLevel`.
@@ -65,23 +73,33 @@ const formatStaleAfter = (duration: Duration.Duration): string => {
  *
  * @public
  */
-export const StaleAfterDuration: Schema.Codec<Duration.Duration, string> = Schema.String.pipe(
-	Schema.decodeTo(Schema.Duration, {
-		decode: SchemaGetter.transformOrFail<Duration.Duration, string>((input, options) =>
-			Option.match(parseStaleAfter(input), {
-				onNone: () =>
-					Effect.fail(
-						new SchemaIssue.InvalidValue(
-							{ message: `expected "<n>h", "<n>d", "<n>w" or "<n> <unit>", got ${JSON.stringify(input)}` },
-							input,
-							options,
+export const StaleAfterDuration: Schema.Codec<Duration.Duration, string> = Schema.annotateEncoded<
+	Schema.Codec<Duration.Duration, string>
+>({
+	title: "Stale-after duration",
+	description:
+		'How long a concept may go unedited before lint `stale` fires. Accepts "<n>h", "<n>d", "<n>w", or Effect\'s "<n> <unit>" long form.',
+	default: "90d",
+	examples: ["90d", "2w", "12h"],
+})(
+	Schema.String.pipe(
+		Schema.decodeTo(Schema.Duration, {
+			decode: SchemaGetter.transformOrFail<Duration.Duration, string>((input, options) =>
+				Option.match(parseStaleAfter(input), {
+					onNone: () =>
+						Effect.fail(
+							new SchemaIssue.InvalidValue(
+								{ message: `expected "<n>h", "<n>d", "<n>w" or "<n> <unit>", got ${JSON.stringify(input)}` },
+								input,
+								options,
+							),
 						),
-					),
-				onSome: Effect.succeed,
-			}),
-		),
-		encode: SchemaGetter.transform(formatStaleAfter),
-	}),
+					onSome: Effect.succeed,
+				}),
+			),
+			encode: SchemaGetter.transform(formatStaleAfter),
+		}),
+	),
 );
 
 /**
@@ -90,9 +108,21 @@ export const StaleAfterDuration: Schema.Codec<Duration.Duration, string> = Schem
  * @public
  */
 export const FieldDeclaration = Schema.Struct({
-	description: Schema.String,
-	values: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
-	kind: Schema.optionalKey(Schema.Literal("path")),
+	description: Schema.String.annotate({ description: "What this extension field means." }),
+	values: Schema.optionalKey(
+		Schema.Record(Schema.String, Schema.String).annotate({
+			description: "The allowed values, each with a one-sentence description.",
+		}),
+	),
+	kind: Schema.optionalKey(
+		Schema.Literal("path").annotate({
+			description: '"path": the value is a concept id or file path, not one of an enumerated set.',
+			examples: ["path"],
+		}),
+	),
+}).annotate({
+	title: "Extension field",
+	description: "One `[types.<Name>.fields.<key>]` declaration.",
 });
 
 /**
@@ -100,39 +130,145 @@ export const FieldDeclaration = Schema.Struct({
  * @public
  */
 export const TypeDeclaration = Schema.Struct({
-	description: Schema.optionalKey(Schema.String),
-	guidance: Schema.optionalKey(Schema.String),
-	required: Schema.optionalKey(Schema.Array(Schema.String)),
-	require_verified: Schema.optionalKey(Schema.Boolean),
-	fields: Schema.optionalKey(Schema.Record(Schema.String, FieldDeclaration)),
+	description: Schema.optionalKey(
+		Schema.String.annotate({ description: "One-sentence summary of what this type represents." }),
+	),
+	guidance: Schema.optionalKey(
+		Schema.String.annotate({
+			description: "Longer guidance shown to an authoring agent or human writing a concept of this type.",
+		}),
+	),
+	required: Schema.optionalKey(
+		Schema.Array(Schema.String).annotate({
+			description: "Frontmatter keys a concept of this type must carry, beyond `concepts.required`.",
+		}),
+	),
+	require_verified: Schema.optionalKey(
+		Schema.Boolean.annotate({
+			description:
+				"Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`.",
+			default: false,
+		}),
+	),
+	fields: Schema.optionalKey(
+		Schema.Record(Schema.String, FieldDeclaration).annotate({
+			description: "Extension fields this type's frontmatter may declare.",
+		}),
+	),
+}).annotate({
+	title: "Concept type",
+	description: "One `[types.<Name>]` declaration.",
 });
 
 /**
  * A `tags.<name>` declaration (spec 4.2).
  * @public
  */
-export const TagDeclaration = Schema.Struct({ description: Schema.optionalKey(Schema.String) });
+export const TagDeclaration = Schema.Struct({
+	description: Schema.optionalKey(
+		Schema.String.annotate({ description: "One-sentence summary of what applying this tag means." }),
+	),
+}).annotate({ title: "Tag", description: "One `[tags.<name>]` declaration." });
 
 /**
  * The `[lint]` table: one optional `LintLevel` per lint code, snake_case (D-34).
  * @public
  */
 export const LintTable = Schema.Struct({
-	broken_links: Schema.optionalKey(LintLevel),
-	missing_index: Schema.optionalKey(LintLevel),
-	unknown_type: Schema.optionalKey(LintLevel),
-	required_key_missing: Schema.optionalKey(LintLevel),
-	field_value_unknown: Schema.optionalKey(LintLevel),
-	require_verified_unmet: Schema.optionalKey(LintLevel),
-	family_invalid: Schema.optionalKey(LintLevel),
-	computation_runtime_missing: Schema.optionalKey(LintLevel),
-	footnote_source_unknown: Schema.optionalKey(LintLevel),
-	log_frontmatter: Schema.optionalKey(LintLevel),
-	actor_prefix_unknown: Schema.optionalKey(LintLevel),
-	legacy_timestamp: Schema.optionalKey(LintLevel),
-	config_unknown_key: Schema.optionalKey(LintLevel),
-	stale: Schema.optionalKey(LintLevel),
-	walk_unreadable: Schema.optionalKey(LintLevel),
+	broken_links: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "broken-links",
+			description: 'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
+		}),
+	),
+	missing_index: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "missing-index",
+			description: 'A concept-holding directory has no index.md. Default "warn".',
+		}),
+	),
+	unknown_type: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "unknown-type",
+			description:
+				"A concept's type is not one of the config's declared [types.<Name>]. Default \"error\", off when no types are declared.",
+		}),
+	),
+	required_key_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "required-key-missing",
+			description: 'A concept is missing a frontmatter key its type or concepts.required requires. Default "error".',
+		}),
+	),
+	field_value_unknown: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "field-value-unknown",
+			description: 'A frontmatter field\'s value is not one of its declared values. Default "error".',
+		}),
+	),
+	require_verified_unmet: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "require-verified-unmet",
+			description: 'A concept whose type sets require_verified = true carries no verified entry. Default "error".',
+		}),
+	),
+	family_invalid: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "family-invalid",
+			description: 'A concept\'s declared family does not match an accepted shape. Default "error".',
+		}),
+	),
+	computation_runtime_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "computation-runtime-missing",
+			description: 'A referenced computation\'s runtime is not available. Default "error".',
+		}),
+	),
+	footnote_source_unknown: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "footnote-source-unknown",
+			description: 'A footnote\'s source does not resolve. Default "warn".',
+		}),
+	),
+	log_frontmatter: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "log-frontmatter",
+			description: 'log.md carries frontmatter, which the spec reserves against. Default "warn".',
+		}),
+	),
+	actor_prefix_unknown: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "actor-prefix-unknown",
+			description: 'An actor\'s prefix is not human, process, or a producer shape. Default "info".',
+		}),
+	),
+	legacy_timestamp: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "legacy-timestamp",
+			description: 'A concept uses the legacy timestamp field instead of generated.at. Default "info".',
+		}),
+	),
+	config_unknown_key: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "config-unknown-key",
+			description: 'The config file declares a top-level key the schema does not recognize. Default "warn".',
+		}),
+	),
+	stale: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "stale",
+			description: 'A concept has gone unedited past lifecycle.default_stale_after. Default "info".',
+		}),
+	),
+	walk_unreadable: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "walk-unreadable",
+			description: 'A directory in the bundle could not be read while walking. Default "warn".',
+		}),
+	),
+}).annotate({
+	title: "Lint severities",
+	description: "Per-code severity overrides. Any key omitted keeps its default.",
 });
 
 type LintTableKey = keyof typeof LintTable.fields;
@@ -144,24 +280,131 @@ type LintTableKey = keyof typeof LintTable.fields;
  * @public
  */
 export const okfitConfigFields = Schema.Struct({
-	okf_version: Schema.optionalKey(Schema.String),
+	okf_version: Schema.optionalKey(
+		Schema.String.annotate({
+			title: "OKF spec version",
+			description: "The Open Knowledge Format spec version this bundle targets.",
+			default: "0.2",
+			examples: ["0.2"],
+		}),
+	),
 	bundle: Schema.optionalKey(
-		Schema.Struct({ path: Schema.optionalKey(Schema.String), profile: Schema.optionalKey(Schema.String) }),
+		Schema.Struct({
+			path: Schema.optionalKey(
+				Schema.String.annotate({
+					title: "Bundle directory",
+					description: "The OKF bundle's root directory, relative to the project root.",
+					default: "okf",
+					examples: ["okf"],
+				}),
+			),
+			profile: Schema.optionalKey(
+				Schema.String.annotate({
+					title: "Profile name",
+					description:
+						'The named profile merged under `DEFAULTS < profile < file`, or "none" to disable profile merging.',
+					default: "software-project",
+					examples: ["software-project", "none"],
+				}),
+			),
+		}).annotate({
+			title: "Bundle location and profile",
+			description: "Where the OKF bundle lives and which profile merges under it.",
+		}),
 	),
 	concepts: Schema.optionalKey(
 		Schema.Struct({
-			required: Schema.optionalKey(Schema.Array(Schema.String)),
-			tags: Schema.optionalKey(Schema.Struct({ required: Schema.optionalKey(Schema.Array(Schema.String)) })),
+			required: Schema.optionalKey(
+				Schema.Array(Schema.String).annotate({
+					title: "Required frontmatter keys",
+					description: "Frontmatter keys every concept must carry, beyond the spec's required set.",
+					default: [],
+				}),
+			),
+			tags: Schema.optionalKey(
+				Schema.Struct({
+					required: Schema.optionalKey(
+						Schema.Array(Schema.String).annotate({
+							title: "Required tags",
+							description: "Tags every concept must carry.",
+							default: [],
+						}),
+					),
+				}),
+			),
+		}).annotate({
+			title: "Concept-level requirements",
+			description: "Requirements every concept in the bundle must satisfy, beyond the spec's own.",
 		}),
 	),
-	lifecycle: Schema.optionalKey(Schema.Struct({ default_stale_after: Schema.optionalKey(StaleAfterDuration) })),
+	lifecycle: Schema.optionalKey(
+		Schema.Struct({ default_stale_after: Schema.optionalKey(StaleAfterDuration) }).annotate({
+			title: "Concept lifecycle",
+			description: "Staleness policy for the bundle.",
+		}),
+	),
 	actors: Schema.optionalKey(
-		Schema.Struct({ agent: Schema.optionalKey(Actor), humans: Schema.optionalKey(Schema.Array(Actor)) }),
+		Schema.Struct({
+			agent: Schema.optionalKey(
+				Actor.annotate({
+					title: "Agent actor",
+					description: "The actor id an agent writes as `generated.by`.",
+				}),
+			),
+			humans: Schema.optionalKey(
+				Schema.Array(Actor).annotate({
+					title: "Human actors",
+					description: 'Actor ids for the humans working in this bundle, "human:<id>" form.',
+					default: [],
+					examples: [["human:spencer" as Actor]],
+				}),
+			),
+		}).annotate({
+			title: "Actor identities",
+			description: "Who authors and verifies concepts in this bundle.",
+		}),
 	),
 	lint: Schema.optionalKey(LintTable),
-	types: Schema.optionalKey(Schema.Record(Schema.String, TypeDeclaration)),
-	tags: Schema.optionalKey(Schema.Record(Schema.String, TagDeclaration)),
+	types: Schema.optionalKey(
+		Schema.Record(Schema.String, TypeDeclaration).annotate({
+			title: "Concept type declarations",
+			description: "One entry per concept type, keyed by type name.",
+		}),
+	),
+	tags: Schema.optionalKey(
+		Schema.Record(Schema.String, TagDeclaration).annotate({
+			title: "Tag declarations",
+			description: "One entry per tag, keyed by tag name.",
+		}),
+	),
 	extensions: Schema.Record(Schema.String, Schema.Unknown),
+});
+
+/**
+ * The schema the published JSON Schema document is generated from (C-15):
+ * `okfitConfigFields` minus `extensions` (wire bookkeeping no human writes),
+ * with an open rest so unknown top-level keys are permitted at the root while
+ * every declared table stays closed (C-16, D-31).
+ *
+ * @public
+ */
+export const okfitConfigDocumentFields = Schema.StructWithRest(
+	Schema.Struct({
+		okf_version: okfitConfigFields.fields.okf_version,
+		bundle: okfitConfigFields.fields.bundle,
+		concepts: okfitConfigFields.fields.concepts,
+		lifecycle: okfitConfigFields.fields.lifecycle,
+		actors: okfitConfigFields.fields.actors,
+		lint: okfitConfigFields.fields.lint,
+		types: okfitConfigFields.fields.types,
+		tags: okfitConfigFields.fields.tags,
+	}),
+	[Schema.Record(Schema.String, Schema.Unknown)],
+).annotate({
+	title: "okfit config",
+	description:
+		"okfit's TOML config file (OKF spec 4.2). Unrecognized top-level keys are preserved verbatim and produce a config-unknown-key warning, never a validation error.\nhttps://github.com/spencerbeggs/okfit#configuration",
+	"x-tombi-toml-version": "v1.1.0",
 });
 
 /**
