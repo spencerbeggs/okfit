@@ -17,12 +17,26 @@ tags:
 
 An explicit `--config <path>` is statted before any layer is built and, if
 present, is the only source — no upward walk, no XDG probe. Otherwise
-`okfit` walks upward from the project root looking first for
-`.config/okfit/config.toml`, then `okfit.config.toml`, then falls back to
-the XDG pair, landing personal defaults at
-`$XDG_CONFIG_HOME/okfit/config.toml`. The project root anchors on whichever
-project-local file was found (`packages/cli/README.md:146-155`,
-`packages/cli/CLAUDE.md:12-25`).
+discovery proceeds tier by tier:
+
+1. **Project** — each directory from the discovery start up to the
+   filesystem root is checked for `.okfit.toml`, then `okfit.toml`, then
+   `.config/okfit.toml`; the first file found anywhere wins.
+2. **XDG** — `$XDG_CONFIG_HOME/okfit/config.toml` and `$XDG_CONFIG_DIRS`.
+3. **Native** — `~/.config/okfit/config.toml`, or the platform-native
+   directory: `~/Library/Application Support/okfit/config.toml` on macOS,
+   `%APPDATA%\okfit\config.toml` on Windows.
+4. **System** — `/etc/okfit/config.toml` on Linux and macOS; nothing on
+   Windows.
+
+| Winning source | Anchor |
+| --- | --- |
+| `<dir>/.okfit.toml` or `<dir>/okfit.toml` | `<dir>` |
+| `<dir>/.config/okfit.toml` | `<dir>` (parent of `.config`) |
+| `--config <p>` where `basename(dirname(p)) === ".config"` and `basename(p) === "okfit.toml"` | `dirname(dirname(p))` |
+| `--config <p>`, any other shape | `dirname(p)` |
+| resolver `"xdg"`, `"native"`, `"system"` | `cwd` |
+| nothing found | `cwd` |
 
 ## Schema shape
 
@@ -53,3 +67,19 @@ The fifteen default lint codes: `broken_links`, `missing_index`,
 An unrecognised top-level TOML key decodes into `extensions` and produces
 lint `config-unknown-key` at its default severity `warn`, never an error —
 config only ever tightens the spec (`packages/core/CLAUDE.md:32`).
+
+## Published JSON Schema
+
+okfit hosts a SchemaStore-compatible Draft-07 document at
+`schemas/config/okfit-1.0.0.json`, generated from `OkfitConfig`'s field schema
+by `pnpm generate-schema` and guarded against drift by
+`__test__/generate-schema.test.ts`. Its `$id` is
+`https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json`.
+Versions are MAJOR-only above `1.0.0`: any change to an assertion bumps the
+major and writes a new file, leaving the published one intact; a change before
+the schema is ever catalogued rewrites `1.0.0` in place. SchemaStore catalogues
+it under the name `okfit`, matching `okfit.toml`, `.okfit.toml` and
+`**/.config/okfit.toml`; user- and system-level files are not catalogued and
+should carry a `#:schema` directive instead. Unknown top-level keys are
+permitted by the document, matching the runtime's D-31 tolerance; every
+declared table is closed.

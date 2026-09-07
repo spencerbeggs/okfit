@@ -3,6 +3,7 @@
 ## 2026-09-07
 
 * Shipped okfit verify: a human-run command that appends a verified attestation by textual splice.
+* Moved config discovery to the config-dir convention and published a SchemaStore-compatible JSON Schema for okfit.toml.
 
 ## 2026-09-06
 

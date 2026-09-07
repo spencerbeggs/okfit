@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-status: stable
+status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:06Z

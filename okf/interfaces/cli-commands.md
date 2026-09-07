@@ -67,11 +67,15 @@ hook, or MCP tool ever invokes it.
 
 ## Config discovery
 
-With no `--config` flag, `okfit` walks upward from `[path]` looking first
-for `.config/okfit/config.toml`, then `okfit.config.toml`, falling back to
-the XDG pair for personal defaults. `--config <file>` bypasses discovery
-entirely; a path that does not exist is a hard failure, exit `3`
-(`packages/cli/README.md:146-169`).
+With no `--config` flag, `okfit` resolves config tier by tier: the project
+tier checks each directory from `[path]` up to the filesystem root for
+`.okfit.toml`, then `okfit.toml`, then `.config/okfit.toml`, and the first
+file found anywhere wins; then the XDG tier
+(`$XDG_CONFIG_HOME/okfit/config.toml`, `$XDG_CONFIG_DIRS`); then the native
+tier (`~/.config/okfit/config.toml` or the platform-native directory); then
+the system tier (`/etc/okfit/config.toml` on Linux and macOS, nothing on
+Windows). `--config <file>` bypasses discovery entirely; a path that does
+not exist is a hard failure, exit `3` (`packages/cli/README.md:167-191`).
 
 ## Exit codes
 

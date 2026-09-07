@@ -30,10 +30,11 @@ chain with a conditional resolver list (`packages/cli/CLAUDE.md:12-25`,
 K-10/K-57): `--config <file>` given -- the path is statted first, then
 loaded through `ConfigFile.layer` with only
 `ConfigResolver.explicitPath(path)`, no upward walk, no XDG probe. No
-`--config` -- `AppConfig.layer`'s resolver list is the two project-local
-upward-walk entries (`.config/okfit/config.toml`, then
-`okfit.config.toml`) followed by the library's own XDG pair, landing
-personal defaults at `$XDG_CONFIG_HOME/okfit/config.toml`. Exit codes: `0`
+`--config` -- `ConfigFile.layer` is built directly with `projectResolver`,
+`XdgConfig.resolver`, `XdgConfig.nativeResolver`, and
+`ConfigResolver.systemEtc`, landing personal defaults at
+`$XDG_CONFIG_HOME/okfit/config.toml` and system defaults at
+`/etc/okfit/config.toml`. Exit codes: `0`
 clean, `1` lint/profile errors, `2` conformance errors, `3` infrastructure
 failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md:27-29`).
 
