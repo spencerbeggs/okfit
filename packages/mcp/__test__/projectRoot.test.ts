@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { resolveMcpProjectRoot } from "../src/index.js";
+import { resolveMcpProjectRoot } from "../src/internal/projectRoot.js";
 
 describe("resolveMcpProjectRoot", () => {
 	it("prefers OKFIT_PROJECT_DIR over CLAUDE_PROJECT_DIR and cwd", () => {

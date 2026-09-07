@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ConfigError, composeRemediatedMessage } from "../src/index.js";
+import { ConfigError, composeRemediatedMessage, truncateEchoed } from "../src/index.js";
 
 describe("composeRemediatedMessage", () => {
 	it("appends the hint alone when no suggestedTool is given", () => {
@@ -24,5 +24,18 @@ describe("composeRemediatedMessage", () => {
 		});
 		assert.strictEqual(error.message, "toml parse failed check the syntax Try describe_vocabulary.");
 		assert.deepStrictEqual(error.remediation, remediation);
+	});
+});
+
+describe("truncateEchoed", () => {
+	it("leaves a value at or under the limit unchanged", () => {
+		assert.strictEqual(truncateEchoed("decisions/cli-exit-codes"), "decisions/cli-exit-codes");
+	});
+
+	it("truncates a 5,000-character id to 200 characters plus an ellipsis", () => {
+		const id = "a".repeat(5000);
+		const truncated = truncateEchoed(id);
+		assert.strictEqual(truncated, `${"a".repeat(200)}…`);
+		assert.strictEqual(truncated.length, 201);
 	});
 });

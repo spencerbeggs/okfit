@@ -2,7 +2,7 @@ import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { McpToolError, UnknownVocabulary, composeRemediatedMessage } from "../errors.js";
+import { McpToolError, UnknownVocabulary, composeRemediatedMessage, truncateEchoed } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import type { ListConceptsParams } from "../schema/tools.js";
@@ -47,7 +47,7 @@ const unknown = (kind: "type" | "tag", requested: string, valid: ReadonlyArray<s
 		hint: "Use one of the listed type names, or call describe_vocabulary.",
 		suggestedTool: "describe_vocabulary",
 	};
-	const rawMessage = `"${requested}" is not a ${kind} declared by this project's okfit config. Valid ${kind}s: ${valid.join(", ")}.`;
+	const rawMessage = `"${truncateEchoed(requested)}" is not a ${kind} declared by this project's okfit config. Valid ${kind}s: ${valid.join(", ")}.`;
 	return new UnknownVocabulary({
 		kind,
 		requested,
@@ -82,6 +82,9 @@ export const handleListConcepts = (projectRoot: string, params: ListConceptsPara
 				if (params.status !== undefined && Derive.status(concept.frontmatter) !== params.status) return false;
 				return true;
 			})
+			// Sort by id for a stable, deterministic page order: ids are unique,
+			// so this needs no secondary key, and a lexicographic compare avoids
+			// locale-sensitive collation across repeated calls.
 			.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
 		const limit = params.limit ?? 200;

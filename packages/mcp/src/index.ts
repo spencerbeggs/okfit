@@ -1,6 +1,7 @@
 /**
- * Model Context Protocol server for okfit: six read-only tools and two
- * resources over an OKF bundle, spoken over stdio.
+ * Model Context Protocol server for okfit: six read-only tools and the
+ * bundle index plus one resource per concept, over an OKF bundle, spoken
+ * over stdio.
  *
  * @packageDocumentation
  */
@@ -14,11 +15,8 @@ export {
 	Remediation,
 	UnknownVocabulary,
 	composeRemediatedMessage,
+	truncateEchoed,
 } from "./errors.js";
-export { resolveMcpProjectRoot } from "./internal/projectRoot.js";
-export { resolveNow } from "./internal/resolveNow.js";
-export type { ToolContext } from "./internal/toolContext.js";
-export { loadToolContext, resolveConfigOnly } from "./internal/toolContext.js";
 export { ConceptResources } from "./resources/conceptResource.js";
 export { IndexResource } from "./resources/indexResource.js";
 export { ConceptSummary, toConceptSummary } from "./schema/ConceptSummary.js";

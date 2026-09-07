@@ -10,7 +10,7 @@ import { InvalidArgument, composeRemediatedMessage } from "../errors.js";
  * `OKFIT_NOW` is deliberately NOT read: it is the CLI's own test hook
  * (F-17), never the server's.
  *
- * @public
+ * @internal
  */
 export const resolveNow = (input: string | undefined): Effect.Effect<DateTime.Utc, InvalidArgument> =>
 	input === undefined

@@ -104,7 +104,8 @@ not executed directly.
 `bin/start-mcp.sh` (`__test__/loader.bats`), which resolves the project's
 own `node_modules/.bin/okfit-mcp` and falls back to
 `npx --yes @okfit/mcp` when it is not installed. The server it starts
-exposes six read-only tools and two resources over stdio; see
+exposes six read-only tools and the bundle index plus one resource per
+concept over stdio; see
 `agents/okf-docs.md`'s `tools:` block for the six tools' fully scoped
 names.
 

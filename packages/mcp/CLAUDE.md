@@ -1,9 +1,9 @@
 # @okfit/mcp
 
 The `okfit-mcp` bin: an MCP server over stdio (`effect/unstable/ai`'s
-`McpServer`) exposing six read-only tools and two resources against an OKF
-bundle. The server writes nothing, ever, to the bundle, the config, or
-anywhere else.
+`McpServer`) exposing six read-only tools and the bundle index plus one
+resource per concept against an OKF bundle. The server writes nothing,
+ever, to the bundle, the config, or anywhere else.
 
 ## Layout
 

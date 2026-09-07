@@ -5,7 +5,7 @@
  * `start-mcp.sh` forwards `"$@"` with nothing in it, and the manifest's
  * `cwd` field is unused.
  *
- * @public
+ * @internal
  */
 export const resolveMcpProjectRoot = (env: NodeJS.ProcessEnv): string =>
 	env["OKFIT_PROJECT_DIR"] ?? env["CLAUDE_PROJECT_DIR"] ?? process.cwd();

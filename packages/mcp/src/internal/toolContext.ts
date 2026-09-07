@@ -34,7 +34,7 @@ const CONFIG_HINT =
  * private `ToolServices` alias failed `ae-forgotten-export` at the entry
  * point in this task's own build).
  *
- * @public
+ * @internal
  */
 export const resolveConfigOnly = (
 	projectRoot: string,
@@ -54,7 +54,7 @@ export const resolveConfigOnly = (
 		}),
 	);
 
-/** Everything a tool needs about the project, reloaded on every call (N-9). @public */
+/** Everything a tool needs about the project, reloaded on every call (N-9). @internal */
 export interface ToolContext {
 	readonly projectRoot: string;
 	readonly bundleRoot: string;
@@ -68,7 +68,7 @@ export interface ToolContext {
  * cache and no `reload` tool: correct under mid-session edits, trivially
  * testable, and the bundles in scope are small.
  *
- * @public
+ * @internal
  */
 export const loadToolContext = (
 	projectRoot: string,

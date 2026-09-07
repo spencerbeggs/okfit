@@ -3,7 +3,7 @@ import type { ConceptId as ConceptIdType, GraphNodeKind } from "@okfit/core";
 import { ConceptId, Graph } from "@okfit/core";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { ConceptNotFound, InvalidArgument, McpToolError, composeRemediatedMessage } from "../errors.js";
+import { ConceptNotFound, InvalidArgument, McpToolError, composeRemediatedMessage, truncateEchoed } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import { ConceptNeighborsSuccess } from "../schema/tools.js";
@@ -65,7 +65,7 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 			return yield* Effect.fail(
 				new ConceptNotFound({
 					id: params.id,
-					message: composeRemediatedMessage(`no concept "${params.id}" in this bundle`, remediation),
+					message: composeRemediatedMessage(`no concept "${truncateEchoed(params.id)}" in this bundle`, remediation),
 					remediation,
 				}),
 			);

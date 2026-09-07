@@ -8,8 +8,9 @@ Model Context Protocol server for [okfit](https://github.com/spencerbeggs/okfit)
 
 `@okfit/mcp` speaks MCP over stdio for one OKF bundle. It is read-only: no
 tool or resource ever writes to the bundle, the config, or anywhere else.
-Six tools cover orientation, discovery, and validation; two resources
-expose the bundle's own markdown to a client's @-mention UI.
+Six tools cover orientation, discovery, and validation; the bundle index
+plus one resource per concept expose the bundle's own markdown to a
+client's @-mention UI.
 
 ## Launching it
 
@@ -21,7 +22,11 @@ it is not installed. To run it directly, the package's own bin is
 
 The server resolves its project root in this order:
 `OKFIT_PROJECT_DIR` → `CLAUDE_PROJECT_DIR` → the process's current working
-directory. No command-line flags are read.
+directory. No command-line flags are read. `OKFIT_PROJECT_DIR` selects
+where the CLI's own config discovery *starts*, not the project root
+outright — under the CLI's resolver order an ancestor directory's
+`.config/okfit/config.toml` still wins over a nearer directory's own
+`okfit.config.toml`.
 
 ## Tools
 
@@ -43,7 +48,9 @@ directory. No command-line flags are read.
   an already-listed concept's file is picked up live on every read; a
   concept added or removed after boot is not reflected in `resources/list`
   until the server restarts. There is no URI template and no completion —
-  every concept resource is registered by its own literal URI.
+  every concept resource is registered by its own literal URI. The listing
+  is one entry per concept and uncursored, sized for bundles of the scale
+  okfit targets today.
 
 ## Errors
 

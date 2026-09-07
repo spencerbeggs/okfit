@@ -30,6 +30,22 @@ export const composeRemediatedMessage = (message: string, remediation: Remediati
 		? `${message} ${remediation.hint}`
 		: `${message} ${remediation.hint} Try ${remediation.suggestedTool}.`;
 
+const ECHO_LIMIT = 200;
+
+/**
+ * Truncate a caller-supplied value before it is echoed back inside an
+ * error's `message` — the only field a `failureMode: "error"` failure
+ * actually delivers to the wire (see {@link composeRemediatedMessage}'s
+ * doc comment). Without this, a pathological argument (a multi-megabyte
+ * `id`, say) is echoed once in the response's `content[0].text` and once
+ * more in the corresponding log line, wasting an agent's context on what
+ * is usually a pure typo (final whole-branch review, Minor finding 5).
+ *
+ * @public
+ */
+export const truncateEchoed = (value: string, limit: number = ECHO_LIMIT): string =>
+	value.length > limit ? `${value.slice(0, limit)}…` : value;
+
 /**
  * Config discovery, parsing, or validation failed. `message` is composed
  * through {@link composeRemediatedMessage} at construction, so it is what
