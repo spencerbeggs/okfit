@@ -1,0 +1,13 @@
+{
+	"name": "okfit",
+	"description": "okfit config file for an Open Knowledge Format (OKF) bundle",
+	"fileMatch": [
+		"okfit.toml",
+		".okfit.toml",
+		"**/.config/okfit.toml"
+	],
+	"url": "https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json",
+	"versions": {
+		"1.0.0": "https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json"
+	}
+}

@@ -1,0 +1,553 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json",
+	"type": "object",
+	"properties": {
+		"okf_version": {
+			"type": "string",
+			"title": "OKF spec version",
+			"description": "The Open Knowledge Format spec version this bundle targets.",
+			"default": "0.2",
+			"examples": [
+				"0.2"
+			]
+		},
+		"bundle": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string",
+					"title": "Bundle directory",
+					"description": "The OKF bundle's root directory, relative to the project root.",
+					"default": "okf",
+					"examples": [
+						"okf"
+					]
+				},
+				"profile": {
+					"type": "string",
+					"title": "Profile name",
+					"description": "The named profile merged under `DEFAULTS < profile < file`, or \"none\" to disable profile merging.",
+					"default": "software-project",
+					"examples": [
+						"software-project",
+						"none"
+					]
+				}
+			},
+			"additionalProperties": false,
+			"title": "Bundle location and profile",
+			"description": "Where the OKF bundle lives and which profile merges under it."
+		},
+		"concepts": {
+			"type": "object",
+			"properties": {
+				"required": {
+					"type": "array",
+					"title": "Required frontmatter keys",
+					"description": "Frontmatter keys every concept must carry, beyond the spec's required set.",
+					"default": [],
+					"items": {
+						"type": "string"
+					}
+				},
+				"tags": {
+					"type": "object",
+					"properties": {
+						"required": {
+							"type": "array",
+							"title": "Required tags",
+							"description": "Tags every concept must carry.",
+							"default": [],
+							"items": {
+								"type": "string"
+							}
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false,
+			"title": "Concept-level requirements",
+			"description": "Requirements every concept in the bundle must satisfy, beyond the spec's own."
+		},
+		"lifecycle": {
+			"type": "object",
+			"properties": {
+				"default_stale_after": {
+					"type": "string",
+					"title": "Stale-after duration",
+					"description": "How long a concept may go unedited before lint `stale` fires. Accepts \"<n>h\", \"<n>d\", \"<n>w\", or Effect's \"<n> <unit>\" long form.",
+					"default": "90d",
+					"examples": [
+						"90d",
+						"2w",
+						"12h"
+					]
+				}
+			},
+			"additionalProperties": false,
+			"title": "Concept lifecycle",
+			"description": "Staleness policy for the bundle."
+		},
+		"actors": {
+			"type": "object",
+			"properties": {
+				"agent": {
+					"type": "string",
+					"pattern": "^(?:[^\\s/:]+\\/[^\\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\\s]+)$",
+					"title": "Agent actor",
+					"description": "The actor id an agent writes as `generated.by`.",
+					"examples": [
+						"okfit/claude-code",
+						"human:spencer",
+						"process:ci"
+					]
+				},
+				"humans": {
+					"type": "array",
+					"title": "Human actors",
+					"description": "Actor ids for the humans working in this bundle, \"human:<id>\" form.",
+					"default": [],
+					"examples": [
+						[
+							"human:spencer"
+						]
+					],
+					"items": {
+						"type": "string",
+						"pattern": "^(?:[^\\s/:]+\\/[^\\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\\s]+)$",
+						"title": "Actor",
+						"description": "An OKF actor: \"<producer>/<version>\" (e.g. \"okfit/claude-code\"), or \"<prefix>:<id>\" (e.g. \"human:spencer\", \"process:ci\").",
+						"examples": [
+							"okfit/claude-code",
+							"human:spencer",
+							"process:ci"
+						]
+					}
+				}
+			},
+			"additionalProperties": false,
+			"title": "Actor identities",
+			"description": "Who authors and verifies concepts in this bundle."
+		},
+		"lint": {
+			"type": "object",
+			"properties": {
+				"broken_links": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "broken-links",
+					"description": "A link in a concept's body or frontmatter does not resolve. Default \"warn\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"missing_index": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "missing-index",
+					"description": "A concept-holding directory has no index.md. Default \"warn\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"unknown_type": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "unknown-type",
+					"description": "A concept's type is not one of the config's declared [types.<Name>]. Default \"error\", off when no types are declared.",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"required_key_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "required-key-missing",
+					"description": "A concept is missing a frontmatter key its type or concepts.required requires. Default \"error\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"field_value_unknown": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "field-value-unknown",
+					"description": "A frontmatter field's value is not one of its declared values. Default \"error\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"require_verified_unmet": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "require-verified-unmet",
+					"description": "A concept whose type sets require_verified = true carries no verified entry. Default \"error\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"family_invalid": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "family-invalid",
+					"description": "A concept's declared family does not match an accepted shape. Default \"error\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"computation_runtime_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "computation-runtime-missing",
+					"description": "A referenced computation's runtime is not available. Default \"error\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"footnote_source_unknown": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "footnote-source-unknown",
+					"description": "A footnote's source does not resolve. Default \"warn\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"log_frontmatter": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "log-frontmatter",
+					"description": "log.md carries frontmatter, which the spec reserves against. Default \"warn\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"actor_prefix_unknown": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "actor-prefix-unknown",
+					"description": "An actor's prefix is not human, process, or a producer shape. Default \"info\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"legacy_timestamp": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "legacy-timestamp",
+					"description": "A concept uses the legacy timestamp field instead of generated.at. Default \"info\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"config_unknown_key": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "config-unknown-key",
+					"description": "The config file declares a top-level key the schema does not recognize. Default \"warn\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"stale": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "stale",
+					"description": "A concept has gone unedited past lifecycle.default_stale_after. Default \"info\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"walk_unreadable": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "walk-unreadable",
+					"description": "A directory in the bundle could not be read while walking. Default \"warn\".",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				}
+			},
+			"additionalProperties": false,
+			"title": "Lint severities",
+			"description": "Per-code severity overrides. Any key omitted keeps its default."
+		},
+		"types": {
+			"type": "object",
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"description": {
+						"type": "string",
+						"description": "One-sentence summary of what this type represents."
+					},
+					"guidance": {
+						"type": "string",
+						"description": "Longer guidance shown to an authoring agent or human writing a concept of this type."
+					},
+					"required": {
+						"type": "array",
+						"description": "Frontmatter keys a concept of this type must carry, beyond `concepts.required`.",
+						"items": {
+							"type": "string"
+						}
+					},
+					"require_verified": {
+						"type": "boolean",
+						"description": "Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`.",
+						"default": false
+					},
+					"fields": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "object",
+							"properties": {
+								"description": {
+									"type": "string",
+									"description": "What this extension field means."
+								},
+								"values": {
+									"type": "object",
+									"additionalProperties": {
+										"type": "string"
+									},
+									"description": "The allowed values, each with a one-sentence description."
+								},
+								"kind": {
+									"type": "string",
+									"enum": [
+										"path"
+									],
+									"description": "\"path\": the value is a concept id or file path, not one of an enumerated set.",
+									"examples": [
+										"path"
+									]
+								}
+							},
+							"required": [
+								"description"
+							],
+							"additionalProperties": false,
+							"title": "Extension field",
+							"description": "One `[types.<Name>.fields.<key>]` declaration."
+						},
+						"description": "Extension fields this type's frontmatter may declare."
+					}
+				},
+				"additionalProperties": false,
+				"title": "Concept type",
+				"description": "One `[types.<Name>]` declaration."
+			},
+			"title": "Concept type declarations",
+			"description": "One entry per concept type, keyed by type name."
+		},
+		"tags": {
+			"type": "object",
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"description": {
+						"type": "string",
+						"description": "One-sentence summary of what applying this tag means."
+					}
+				},
+				"additionalProperties": false,
+				"title": "Tag",
+				"description": "One `[tags.<name>]` declaration."
+			},
+			"title": "Tag declarations",
+			"description": "One entry per tag, keyed by tag name."
+		}
+	},
+	"allOf": [
+		{
+			"type": "object",
+			"additionalProperties": {}
+		}
+	],
+	"title": "okfit config",
+	"description": "okfit's TOML config file (OKF spec 4.2). Unrecognized top-level keys are preserved verbatim and produce a config-unknown-key warning, never a validation error.\nhttps://github.com/spencerbeggs/okfit#configuration",
+	"x-tombi-toml-version": "v1.1.0"
+}

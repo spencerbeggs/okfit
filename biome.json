@@ -11,6 +11,10 @@
 					}
 				}
 			}
+		},
+		{
+			"formatter": { "enabled": false },
+			"includes": ["schemas/**"]
 		}
 	],
 	"root": true

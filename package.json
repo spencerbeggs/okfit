@@ -23,6 +23,7 @@
 		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-order=grouped --output-logs=full --log-prefix=none",
 		"ci:test": "CI=\"true\" vitest run --passWithNoTests",
 		"claude": "claude --plugin-dir plugins/claude-code",
+		"generate-schema": "tsx lib/scripts/generate-schema.ts",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
@@ -37,12 +38,20 @@
 		"types:check": "tsc --noEmit"
 	},
 	"devDependencies": {
+		"@effect/platform-node": "catalog:effect",
+		"@effected/schemastore": "catalog:effected",
+		"@effected/toml": "catalog:effected",
 		"@okfit/cli": "workspace:*",
+		"@okfit/core": "workspace:*",
 		"@okfit/mcp": "workspace:*",
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^3.13.1",
 		"@vitest-agent/plugin": "^2.5.7",
-		"bats": "^1.13.0"
+		"ajv": "^8.20.0",
+		"bats": "^1.13.0",
+		"effect": "catalog:effect",
+		"tsx": "^4.23.13",
+		"vitest": "catalog:test"
 	},
 	"packageManager": "pnpm@11.25.0+sha512.5cde925b4f075f725eb71fbae18a42ffe784524789f19b61c731cb8721ec28aaee160e01a8d5af4fedb2a42cdbf300efe23db356b0d4a17b4d63e11f8ab7c956",
 	"engines": {

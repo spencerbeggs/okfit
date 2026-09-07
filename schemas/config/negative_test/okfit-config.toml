@@ -1,0 +1,47 @@
+#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json
+
+okf_version = "0.2"
+
+[bundle]
+path = "okf"                    # repo-relative bundle root
+profile = "software-project"    # named profile from @okfit/profiles, or "none"
+
+[concepts]
+required = ["title", "description"]   # required on every concept, beyond `type`
+tags.required = []
+
+[lifecycle]
+default_stale_after = "90d"     # relative; tooling writes an absolute instant
+
+[actors]
+agent = "okfit/claude-code"     # generated.by value agents must use
+humans = ["human:spencer"]
+
+[lint]
+broken_links = "maybe"
+missing_index = "warn"
+unknown_type = "error"
+
+# Types and tags are described tables. Descriptions and guidance are read
+# verbatim by the MCP and the agent, so the config documents the vocabulary.
+
+[types.Module]
+description = "A unit of code with an owner and a boundary."
+guidance = "One per workspace package. Link to the Decisions that shaped it."
+required = ["resource", "kind"]
+
+[types.Module.fields.kind]
+description = "What sort of unit this is; drives which conventions apply."
+values.workspace = "The monorepo root: tooling, CI, release, shared config."
+values.package = "A publishable npm package under packages/."
+values.website = "A docs or marketing site, usually RSPress."
+values.plugin = "A Claude Code or editor plugin distributed outside npm."
+values.action = "A GitHub Action."
+
+[types.Decision]
+description = "A choice made, the alternatives rejected, and why."
+guidance = "Never edit a stable Decision. Deprecate it and write a new one."
+require_verified = true
+
+[tags.architecture]
+description = "Concerns the shape of the system rather than one module."
