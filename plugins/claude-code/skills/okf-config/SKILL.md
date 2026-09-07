@@ -1,9 +1,9 @@
 ---
 name: okf-config
 description: >-
-  The okfit config file: discovery order, the two project-local locations and
-  the XDG fallback, the TOML schema table by table, lint severities, and what
-  the software-project profile contributes. Use when writing or editing
+  The okfit config file: discovery order, the three project-local locations
+  and the XDG fallback, the TOML schema table by table, lint severities, and
+  what the software-project profile contributes. Use when writing or editing
   .okfit.toml, okfit.toml or .config/okfit.toml, or explaining why a type,
   tag, or lint severity behaves the way it does. Trigger phrases -- "add a new
   type to the config", "change a lint severity", "where does okfit look for
@@ -13,7 +13,7 @@ allowed-tools: Read, Grep
 
 # okf-config
 
-## Discovery order and the two file locations
+## Discovery order and the three file locations
 
 With no `--config` flag, `okfit` walks upward from `[path]` (default: the
 current directory), checking each directory for `<dir>/.okfit.toml`, then
@@ -25,6 +25,16 @@ then `/etc/okfit/config.toml` on Linux and macOS. First match wins; nothing
 merges across levels.
 `--config <file>` bypasses all of it: no upward walk, no XDG probe happens
 once it is given.
+
+The upward walk never stops at `$HOME`, so `~/.config/okfit.toml` and
+`~/okfit.toml` are project-tier files that shadow the XDG tier and anchor
+the project root at `$HOME` -- personal defaults belong at
+`$XDG_CONFIG_HOME/okfit/config.toml` instead.
+
+`okfit init` scaffolds `.config/okfit.toml` with a `#:schema` directive
+pointing at the published JSON Schema (`schemas/config/okfit-1.0.0.json`
+in this repo), so a Tombi- or taplo-aware editor gets completion and
+validation on the file without any further setup.
 
 ## The TOML schema, table by table
 

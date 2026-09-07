@@ -188,6 +188,16 @@ for `.config/okfit.toml`, which anchors on the parent of `.config`. An
 XDG, native, system-tier or absent config anchors on the current
 directory instead.
 
+Because the upward walk never stops at `$HOME`, it reaches `$HOME` itself
+before falling through to the XDG tier. `~/.config/okfit.toml` and
+`~/okfit.toml` are therefore **project-tier** files, not the personal
+defaults they look like: the walk finds them like any other project
+config, wins over the XDG tier, and anchors the project root at `$HOME`
+-- so every project under `$HOME` with no config of its own resolves
+against a stray `~/.config/okfit.toml`. Personal defaults belong at
+`$XDG_CONFIG_HOME/okfit/config.toml` (note the extra `okfit` directory),
+not directly under `~/.config/`.
+
 `--config <file>` bypasses discovery entirely — no upward walk, no XDG probe
 — and anchors the project root the same way. An explicit path inside a
 `.config` directory anchors on that directory's parent, exactly as a

@@ -30,4 +30,4 @@ Tests live in `__test__/`, never in `src/`; `@effect/vitest` (`it.effect`, `asse
 ## Config rules
 
 - `OkfitConfig` is a `Schema.Struct`; every key `optionalKey` except `extensions`. Unknown top-level TOML keys go to `extensions` (a warning, never an error); config only tightens the spec.
-- `merge` is pure and never mutates; arrays replace wholesale. Core exports the `OkfitConfigFile` tag only; discovery, XDG and the layer belong to the CLI.
+- `merge` is pure and never mutates; arrays replace wholesale. Core exports the `OkfitConfigFile` tag and `okfitConfigDocumentFields` (the annotated struct `lib/scripts/generate-schema.ts` projects into the published JSON Schema); discovery, XDG and the layer belong to the CLI.
