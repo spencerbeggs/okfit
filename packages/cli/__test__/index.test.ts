@@ -16,6 +16,8 @@ const VALUES = [
 	"ContextType",
 	"DEFAULT_PROFILE_NAME",
 	"InitOverwriteError",
+	"VerifyConceptNotFoundError",
+	"VerifyUnsupportedFrontmatterError",
 	"JsonDiagnostic",
 	"JsonEnvelope",
 	"JsonErrorEnvelope",
