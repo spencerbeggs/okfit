@@ -17,7 +17,9 @@ exists so a consuming repo installs one package and gets both bins. The
 Claude Code plugin's loader (`plugins/claude-code`) runs `okfit-mcp` from
 the consuming repo's install of this package
 (`packages/plugin/CLAUDE.md:1-6`): `pnpm add -D @okfit/plugin`
-(`packages/plugin/README.md:3-7`).
+(`packages/plugin/README.md:3-7`). The plugin registers that bin as
+`mcpServers.mcp`, so the six tools it serves reach an agent as
+`mcp__plugin_okfit_mcp__<tool>` — see `okf/interfaces/okfit-mcp.md`.
 
 ## Dependencies versus peers
 

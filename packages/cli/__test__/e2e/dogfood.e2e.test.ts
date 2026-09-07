@@ -1,7 +1,7 @@
 // Acceptance suite for okfit's own dogfooded okf/ bundle (phase-1 item 6,
 // decisions.md F-13). (a) spawns the built dist/dev bin (K-43) against
 // the repo's real okf/ bundle and asserts the exact validate summary the
-// ten Decision concepts are expected to produce while F-5's
+// eleven Decision concepts are expected to produce while F-5's
 // `require_verified_unmet = "warn"` config line holds; (b) loads the same
 // bundle through @okfit/core's Bundle.load and asserts every concept is
 // linked from its directory's index.md, both directions, using the real
@@ -30,7 +30,7 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * The bundle's concept inventory (F-1; bundle-content-inventory.md
  * section 5's groups, 5.1-5.6, with C3 shipping four Interfaces rather
  * than INVENTORY's proposed five -- see 03-conventions-interfaces.md's
- * "Decisions made here" #1): thirty concepts total. Every
+ * "Decisions made here" #1): thirty-one concepts total. Every
  * Decision carries `require_verified = true` and no phase-1 tool ever
  * writes `verified` (F-8, F-9; spec 5.4), so each produces exactly one
  * `require-verified-unmet` WARNING -- never an error, since F-5's config
@@ -40,7 +40,7 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 7,
-	Decision: 10,
+	Decision: 11,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
@@ -93,7 +93,7 @@ describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
 				assert.strictEqual(envelope.summary.profile_errors, 0);
 				assert.strictEqual(envelope.summary.concepts, TOTAL_CONCEPTS);
 				// F-5/F-13: while require_verified_unmet stays "warn" in this repo's
-				// config, every one of the ten Decision concepts produces exactly
+				// config, every one of the eleven Decision concepts produces exactly
 				// one warning and nothing else does -- so lint_warnings equalling
 				// the Decision count is this plan's own green-CI signal.
 				assert.strictEqual(envelope.summary.lint_warnings, EXPECTED_CONCEPT_COUNTS.Decision);

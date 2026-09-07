@@ -56,9 +56,12 @@ silently; neither hook ever runs `npx` or exits non-zero
 
 ## MCP loader status
 
-`bin/start-mcp.sh` ships and is tested, but `plugin.json` registers no
-`mcpServers` block yet — `@okfit/mcp`'s stub always exits `1`, so wiring it
-in now would make "not installed" and "installed but stubbed" produce the
-identical failure. It lands once `@okfit/mcp` implements the protocol
-(`plugins/claude-code/README.md:101-109`,
-`plugins/claude-code/CLAUDE.md:88-92`).
+`plugin.json` registers `mcpServers.mcp`, running
+`{"command": "sh", "args": ["${CLAUDE_PLUGIN_ROOT}/bin/start-mcp.sh"]}`;
+the loader exports `OKFIT_PROJECT_DIR` before resolving the project's own
+`node_modules/.bin/okfit-mcp`, falling back to `npx --yes @okfit/mcp`. The
+`okf-docs` agent's `tools:` block allowlists the six served tool names
+verbatim (`mcp__plugin_okfit_mcp__describe_vocabulary`,
+`list_concepts`, `get_concept`, `concept_neighbors`, `stale_report`,
+`validate_bundle`) — see `okf/interfaces/okfit-mcp.md` for the tool
+contract itself.
