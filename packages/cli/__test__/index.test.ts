@@ -45,6 +45,9 @@ const VALUES = [
 	"summary",
 	"tally",
 	"targetPaths",
+	"VerifyEnvelope",
+	"humanVerify",
+	"verifyEnvelope",
 ] as const;
 
 describe("@okfit/cli barrel", () => {

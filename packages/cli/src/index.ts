@@ -33,6 +33,8 @@ export { human, line, summary } from "./render/human.js";
 export { JsonDiagnostic, JsonEnvelope, JsonErrorEnvelope, JsonSummary, json, jsonError } from "./render/json.js";
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
+export type { VerifyLines } from "./render/verify.js";
+export { VerifyEnvelope, humanVerify, verifyEnvelope } from "./render/verify.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { run } from "./validate/run.js";
 export { CLI_VERSION } from "./version.js";

@@ -152,8 +152,14 @@ without a leading slash or trailing `.md`. The actor is always your own git
 identity, resolved from `user.name`/`user.email` and `[actors].humans`;
 there is no `--by`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
-different instant; `--dry-run` prints what would be written and writes
-nothing. Exit `0` on success (a dry run included), `3` on any failure.
+different instant; `--dry-run` runs the same splice and prints the exact
+fragment it would write, under a `would write:` line, without touching the
+file. Exit `0` on success (a dry run included), `3` on any failure.
+
+A read-only concept is overwritten anyway — the write goes through a temp
+file and an atomic rename, and the target's mode is preserved on the
+replacement, but the file is not skipped just because it is `chmod`-ed
+read-only.
 
 This is a human-run command: it records **your** attestation that you
 reviewed the concept, so no agent, hook, or MCP tool ever invokes it.

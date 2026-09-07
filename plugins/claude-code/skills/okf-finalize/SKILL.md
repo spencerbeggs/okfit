@@ -7,7 +7,7 @@ description: >-
   the okf/ bundle or its context files, before handing off to a human for
   commit and changeset. Trigger phrases -- "finalize the bundle", "wrap up
   the okf changes", "reconcile the docs before merging", "sweep the bundle".
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff:*), Bash(okfit:*), Bash(pnpm exec okfit:*), Bash(npx okfit:*), Bash(node_modules/.bin/okfit:*)
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff:*), Bash(okfit validate:*), Bash(okfit context:*), Bash(pnpm exec okfit validate:*), Bash(pnpm exec okfit context:*), Bash(npx okfit validate:*), Bash(npx okfit context:*), Bash(node_modules/.bin/okfit validate:*), Bash(node_modules/.bin/okfit context:*)
 ---
 
 # okf-finalize
@@ -43,8 +43,11 @@ that stays a human's call (Spencer's standing rule), restated here because
 this is the one skill in the group whose `allowed-tools` includes a
 `Bash(...)` grant at all, and therefore the one place the commit boundary
 could be crossed by accident. The grants above are scoped to `git diff:*`
-and every real invocation form `okfit` is actually run through in this repo
--- direct (`okfit:*`), `pnpm exec okfit:*`, `npx okfit:*`, and
-`node_modules/.bin/okfit:*` -- precisely so `git commit` is never
-pre-approved -- running this skill to completion means describing what
-changed and stopping there.
+and the two `okfit` subcommands this sweep actually runs -- `validate` and
+`context` -- across every invocation form `okfit` is run through in this
+repo (direct, `pnpm exec`, `npx`, and `node_modules/.bin/okfit`). There is
+no bare `Bash(okfit:*)` grant: `okfit verify` writes a human's attestation
+(step 6 above defers to a human for that), and a permission pattern that
+cannot match it is a second line of defence alongside the prose, not just
+a subcommand list `git commit` happens to be excluded from -- running this
+skill to completion means describing what changed and stopping there.

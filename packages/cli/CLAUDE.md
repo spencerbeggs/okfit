@@ -1,8 +1,8 @@
 # @okfit/cli
 
-The `okfit` bin: `okfit validate` and `okfit init`. Built on
-`effect/unstable/cli` for the command tree, flags, and help; `@effected/cli`
-for output and failure rendering.
+The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`, and
+`okfit verify`. Built on `effect/unstable/cli` for the command tree, flags,
+and help; `@effected/cli` for output and failure rendering.
 
 `okfit context` prints the same orientation data (project root, bundle
 root, config path, profile, vocabulary) without loading the bundle — cheap
@@ -35,12 +35,14 @@ src/
   bin.ts               -- wiring only: platform/XDG layer, ShowHelp->64 remap,
                            CliRuntime.reportFailures, CliLogger.layer(), NodeRuntime.runMain
   version.ts           -- CLI_VERSION, read from this package's own package.json
-  errors.ts            -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError, renderFailure
+  errors.ts            -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
+                           VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, renderFailure
   commands/
     root.ts            -- rootCommand: subcommands only, no handler
     validate.ts         -- validateCommand: flags/argument, the full handler
     init.ts             -- initCommand: flags/argument, the full handler
     context.ts           -- contextCommand: flags/argument, the full handler. No --profile flag.
+    verify.ts             -- verifyCommand: flags/argument, the full handler. No --by flag.
   config/
     layer.ts            -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     anchor.ts            -- resolveProjectRoot, resolveBundleRoot (pure)
@@ -48,8 +50,14 @@ src/
     run.ts               -- runContext: index.md stat only, never Bundle.load
   validate/
     run.ts               -- Now (Context.Service), RunOptions, RunResult, run
+  verify/
+    locate.ts             -- Located, locate, stripBom, documentNewline (pure)
+    splice.ts              -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)
+    run.ts                 -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
+                              resolves the actor, splices, and writes atomically
   render/
     context.ts            -- ContextEnvelope/ContextType/ContextTag, contextEnvelope, humanContext (pure)
+    verify.ts              -- VerifyEnvelope, VerifyLines, verifyEnvelope, humanVerify (pure)
     sort.ts               -- RenderedDiagnostic, DiagnosticSource, collect, sort (pure)
     human.ts               -- Counts, line, human, summary (pure)
     json.ts                 -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary, json, jsonError (pure)
@@ -98,11 +106,13 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   copy contract for `@okfit/mcp`, planned for a later phase: the pure pieces
   — `run`, the renderers (`collect`/`sort`, `human`/`line`/`summary`,
   `json`/`jsonError`), the exit-code mapper (`tally`/`forDiagnostics`),
-  `contextEnvelope`/`humanContext`/`runContext`, the config helpers
+  `contextEnvelope`/`humanContext`/`runContext`,
+  `verifyEnvelope`/`humanVerify`, the config helpers
   (`resolveProjectRoot`/`resolveBundleRoot`,
   `buildConfigLayer`/`provideConfig`), the scaffold builder
   (`configValue`/`targetPaths`/`files`), and the CLI's typed errors
-  (`ConfigPathNotFoundError`/`InitOverwriteError`/`ConfigMalformedError`/`renderFailure`)
+  (`ConfigPathNotFoundError`/`InitOverwriteError`/`ConfigMalformedError`/
+  `VerifyConceptNotFoundError`/`VerifyUnsupportedFrontmatterError`/`renderFailure`)
   — are `@okfit/mcp`'s to import directly from this barrel. `@okfit/mcp`
   never duplicates this logic and never imports `commands/*`, `internal/*`,
   or `bin.ts`, none of which cross the barrel.

@@ -22,11 +22,12 @@ const withSandbox = (args: ReadonlyArray<string>, assertOn: (stdout: string) => 
 	}).pipe(Effect.provide(NodeServices.layer));
 
 describe("okfit --help", () => {
-	it.effect("mentions all three subcommands (K-33, contract §9.5)", () =>
+	it.effect("mentions all four subcommands (K-33, contract §9.5)", () =>
 		withSandbox(["--help"], (stdout) => {
 			assert.isTrue(stdout.includes("validate"));
 			assert.isTrue(stdout.includes("init"));
 			assert.isTrue(stdout.includes("context"));
+			assert.isTrue(stdout.includes("verify"));
 		}),
 	);
 });
