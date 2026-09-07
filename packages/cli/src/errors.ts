@@ -37,6 +37,52 @@ export class InitOverwriteError extends Schema.TaggedError<InitOverwriteError>()
 	}
 }
 
+/**
+ * V-9: `<id>` did not resolve to a verifiable concept. `reason` is
+ * `"not-a-concept"` (no such file, or an id that normalises to nothing),
+ * `"reserved"` (the id names `index.md` or `log.md`), or `"undecodable"`
+ * (a file exists but `bundle.diagnostics` names it — `diagnosticCode`
+ * carries which). `root` is the absolute bundle root, kept OFF `message`
+ * so K-51's relativisation rule has nothing to apply to and the human
+ * line and the JSON envelope's `message` are identical.
+ *
+ * @public
+ */
+export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConceptNotFoundError>()(
+	"VerifyConceptNotFoundError",
+	{
+		id: Schema.String,
+		root: Schema.String,
+		reason: Schema.Literals(["not-a-concept", "reserved", "undecodable"]),
+		diagnosticCode: Schema.optionalKey(Schema.String),
+	},
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		const detail = this.diagnosticCode === undefined ? this.reason : `${this.reason}: ${this.diagnosticCode}`;
+		return `no concept "${this.id}" in this bundle (${detail})`;
+	}
+}
+
+/**
+ * V-14: fail closed on a `verified` shape the classifier does not name.
+ * `shape` is one of `"alias"`, `"merge-key"`, `"scalar"`, `"empty"` (and,
+ * defensively, `"no-frontmatter"` or `"not-a-mapping"`, neither reachable
+ * for a concept that reached `bundle.concepts`). The file is never opened
+ * for writing when this is raised.
+ *
+ * @public
+ */
+export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<VerifyUnsupportedFrontmatterError>()(
+	"VerifyUnsupportedFrontmatterError",
+	{ id: Schema.String, shape: Schema.String },
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		return `"${this.id}"'s verified value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
+	}
+}
+
 const hasTag = (error: unknown, tag: string): boolean =>
 	typeof error === "object" && error !== null && "_tag" in error && (error as { readonly _tag: unknown })._tag === tag;
 
@@ -102,7 +148,11 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    type-only import — this is the "path unknown" case, K-46) renders as
  *    `error: ${String(error)}` followed by one two-space-indented
  *    `ConfigIssueRenderer.render(error)` line per entry.
- * 5. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`,
+ * 5. `VerifyConceptNotFoundError` and `VerifyUnsupportedFrontmatterError`
+ *    each render as their own `error: <message>` line; both messages
+ *    already name the concept id and what to do about it, and neither
+ *    carries a filesystem path needing K-51 relativisation.
+ * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`,
  *    config-file's other errors, `XdgEnvError` (the K-13 `HOME`-unset case)
  *    — renders as the single line `error: ${String(error)}`. Each of those
  *    classes' own `message` already names the offending path, which is all
@@ -121,6 +171,8 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 			"Nothing was written.",
 		];
 	}
+	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
+	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (hasTag(error, "ConfigValidationError")) {
 		const validationError = error as ConfigValidationError;
 		return [
