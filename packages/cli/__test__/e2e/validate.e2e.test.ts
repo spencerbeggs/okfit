@@ -169,7 +169,7 @@ describe("okfit validate --format json", () => {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
 			yield* Effect.promise(() =>
-				writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
+				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
 			);
 
 			const result = yield* runOkfit(["validate", "--format", "json"], sandbox);
@@ -222,21 +222,21 @@ describe("okfit validate --format json", () => {
 });
 
 describe("okfit validate: config discovery", () => {
-	it.effect("finds .config/okfit/config.toml two directories up (K-10)", () =>
+	it.effect("finds .config/okfit.toml two directories up", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
-			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, ".config", "okfit", "config.toml"), CONFIG_TOML));
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, ".config", "okfit.toml"), CONFIG_TOML));
 			const deepCwd = join(sandbox.cwd, "sub", "subsub");
 			yield* Effect.promise(() => mkdir(deepCwd, { recursive: true }));
 
 			const result = yield* runOkfit(["validate"], { ...sandbox, cwd: deepCwd });
 
 			assert.strictEqual(result.exitCode, 0);
-			// The anchor is 3 up from `.config/okfit/config.toml` — sandbox.cwd — so
-			// the bundle root is `sandbox.cwd/okf`. Contract §3.3/K-51 renders a path
-			// relative to cwd only when it is UNDER cwd; `sandbox.cwd/okf` is not
-			// under `deepCwd` (it is two levels above deepCwd's own parent), so
+			// The anchor is the parent of `.config` — sandbox.cwd — so the bundle
+			// root is `sandbox.cwd/okf`. Contract §3.3/K-51 renders a path relative
+			// to cwd only when it is UNDER cwd; `sandbox.cwd/okf` is not under
+			// `deepCwd` (it is two levels above deepCwd's own parent), so
 			// `renderRoot` correctly falls back to the absolute path here — verified
 			// against `commands/validate.ts`'s own `renderRoot` and the contract's
 			// literal K-51 text, not the brief's original "../../okf" expectation,
@@ -245,11 +245,55 @@ describe("okfit validate: config discovery", () => {
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
-	it.effect("finds okfit.config.toml alone (K-10)", () =>
+	it.effect("finds okfit.toml alone", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
-			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), CONFIG_TOML));
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.toml"), CONFIG_TOML));
+
+			const result = yield* runOkfit(["validate"], sandbox);
+
+			assert.strictEqual(result.exitCode, 0);
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 6 concepts (okf)\n");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("finds .okfit.toml alone", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, ".okfit.toml"), CONFIG_TOML));
+
+			const result = yield* runOkfit(["validate"], sandbox);
+
+			assert.strictEqual(result.exitCode, 0);
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 6 concepts (okf)\n");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("a project-local okfit.toml beats the XDG config", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.toml"), CONFIG_TOML));
+			yield* Effect.promise(() =>
+				writeFileDeep(
+					join(sandbox.env.XDG_CONFIG_HOME ?? "", "okfit", "config.toml"),
+					`[bundle]\nprofile = "xdg-discovery-profile"\n`,
+				),
+			);
+
+			const result = yield* runOkfit(["validate"], sandbox);
+
+			assert.strictEqual(result.exitCode, 0);
+			assert.isFalse(result.stderr.includes("xdg-discovery-profile"));
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("falls through every tier and still runs on defaults when nothing is found", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
 
 			const result = yield* runOkfit(["validate"], sandbox);
 
@@ -271,13 +315,13 @@ describe("okfit validate: config discovery", () => {
 				writeFileDeep(explicitConfigPath, `[bundle]\npath = "okf"\nprofile = "explicit-config-profile"\n`),
 			);
 
-			// K-10/K-11 competitors: a project-local `okfit.config.toml` at the
+			// K-10/K-11 competitors: a project-local `okfit.toml` at the
 			// sandbox cwd AND an `$XDG_CONFIG_HOME/okfit/config.toml` fallback,
 			// each naming its own bogus profile. If `--config` did not actually
 			// short-circuit discovery, one of these would win instead and its
 			// (different) bogus-profile warning would appear on stderr.
 			yield* Effect.promise(() =>
-				writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\nprofile = "cwd-discovery-profile"\n`),
+				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "cwd-discovery-profile"\n`),
 			);
 			yield* Effect.promise(() =>
 				writeFileDeep(
@@ -338,7 +382,7 @@ describe("okfit validate: config discovery", () => {
 		() =>
 			Effect.gen(function* () {
 				const sandbox = yield* Effect.promise(() => makeSandbox());
-				const configPath = join(sandbox.cwd, "okfit.config.toml");
+				const configPath = join(sandbox.cwd, "okfit.toml");
 				// Parses as valid TOML but violates OkfitConfig's schema (`bundle.profile`
 				// must be a string) — a ConfigValidationError, not a ConfigCodecError;
 				// unlike ConfigCodecError, its own `path` field is populated here, so
@@ -364,7 +408,7 @@ describe("okfit validate: config discovery", () => {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
 			yield* Effect.promise(() =>
-				writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
+				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
 			);
 
 			const result = yield* runOkfit(["validate"], sandbox);

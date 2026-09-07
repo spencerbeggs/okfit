@@ -18,21 +18,20 @@ export interface DiscoveredConfig {
 }
 
 /**
- * The `.config/okfit/config.toml` tail, checked one path segment at a time
- * so it matches regardless of the platform's separator (K-50): the anchor
- * rule is keyed on this exact three-segment tail, not on which resolver
- * found the path (Judge notes 1 — both `ConfigResolver.upwardWalk` calls
- * report the same `name: "walk"`, so the resolver name alone cannot tell
- * K-58's two walk shapes apart).
+ * The anchor rule (C-8). `.config/okfit.toml` anchors at the PARENT of
+ * `.config`; `.okfit.toml` and `okfit.toml` anchor at their own directory;
+ * an explicit `--config` path takes the same two-way test. Keyed on a
+ * two-segment tail rather than on the resolver name, because
+ * `ConfigSource<A>` is a fixed `{ path, resolver, value }` and no fourth
+ * field can be threaded through `ConfigFile.discover` (J-4) — but the tail
+ * is now unambiguous: `"project"` is one resolver, and no other tier can
+ * produce `<dir>/.config/okfit.toml`.
  */
 const anchorFor = (configPath: string, path: Path.Path): string => {
 	const filename = path.basename(configPath);
 	const parent = path.dirname(configPath);
-	const parentName = path.basename(parent);
-	const grandparent = path.dirname(parent);
-	const grandparentName = path.basename(grandparent);
-	if (filename === "config.toml" && parentName === "okfit" && grandparentName === ".config") {
-		return path.dirname(grandparent);
+	if (filename === "okfit.toml" && path.basename(parent) === ".config") {
+		return path.dirname(parent);
 	}
 	return parent;
 };
@@ -43,7 +42,8 @@ const anchorFor = (configPath: string, path: Path.Path): string => {
  * 1. `pathArg`, if given. `Argument.path` has already resolved it absolute.
  * 2. otherwise, if `--config` was given: `anchorFor` applied to that path.
  * 3. otherwise, if a config was discovered by a project-local resolver (not
- *    `"xdg"` or `"native"`): `anchorFor` applied to `discovered.path`.
+ *    `"xdg"`, `"native"` or `"system"`): `anchorFor` applied to
+ *    `discovered.path`.
  * 4. otherwise `cwd` — an XDG-sourced config carries no project anchor, and
  *    neither does no config at all.
  *
@@ -63,7 +63,7 @@ export const resolveProjectRoot = (input: {
 	if (input.explicitConfigPath._tag === "Some") return anchorFor(input.explicitConfigPath.value, input.path);
 	if (input.discovered._tag === "Some") {
 		const discovered = input.discovered.value;
-		if (discovered.resolver !== "xdg" && discovered.resolver !== "native") {
+		if (discovered.resolver !== "xdg" && discovered.resolver !== "native" && discovered.resolver !== "system") {
 			return anchorFor(discovered.path, input.path);
 		}
 	}

@@ -13,17 +13,53 @@ describe("resolveProjectRoot", () => {
 		const root = resolveProjectRoot({
 			pathArg: Option.some("/explicit/root"),
 			explicitConfigPath: Option.some("/other/dir/config.toml"),
-			discovered: Option.some<DiscoveredConfig>({ path: "/repo/.config/okfit/config.toml", resolver: "walk" }),
+			discovered: Option.some<DiscoveredConfig>({ path: "/repo/.config/okfit.toml", resolver: "project" }),
 			cwd: "/cwd",
 			path,
 		});
 		assert.strictEqual(root, "/explicit/root");
 	});
 
-	it("anchors an explicit --config three directories up from .config/okfit/config.toml", () => {
+	it("anchors .config/okfit.toml at the parent of .config", () => {
+		const discovered: DiscoveredConfig = { path: "/repo/.config/okfit.toml", resolver: "project" };
 		const root = resolveProjectRoot({
 			pathArg: Option.none(),
-			explicitConfigPath: Option.some("/repo/.config/okfit/config.toml"),
+			explicitConfigPath: Option.none(),
+			discovered: Option.some(discovered),
+			cwd: "/cwd",
+			path,
+		});
+		assert.strictEqual(root, "/repo");
+	});
+
+	it("anchors okfit.toml at its own directory", () => {
+		const discovered: DiscoveredConfig = { path: "/repo/nested/okfit.toml", resolver: "project" };
+		const root = resolveProjectRoot({
+			pathArg: Option.none(),
+			explicitConfigPath: Option.none(),
+			discovered: Option.some(discovered),
+			cwd: "/cwd",
+			path,
+		});
+		assert.strictEqual(root, "/repo/nested");
+	});
+
+	it("anchors .okfit.toml at its own directory", () => {
+		const discovered: DiscoveredConfig = { path: "/repo/nested/.okfit.toml", resolver: "project" };
+		const root = resolveProjectRoot({
+			pathArg: Option.none(),
+			explicitConfigPath: Option.none(),
+			discovered: Option.some(discovered),
+			cwd: "/cwd",
+			path,
+		});
+		assert.strictEqual(root, "/repo/nested");
+	});
+
+	it("anchors an explicit --config inside .config at the parent of .config", () => {
+		const root = resolveProjectRoot({
+			pathArg: Option.none(),
+			explicitConfigPath: Option.some("/repo/.config/okfit.toml"),
 			discovered: Option.none(),
 			cwd: "/cwd",
 			path,
@@ -31,10 +67,10 @@ describe("resolveProjectRoot", () => {
 		assert.strictEqual(root, "/repo");
 	});
 
-	it("anchors an explicit --config at its own directory for any other filename", () => {
+	it("anchors any other explicit --config at the file's own directory", () => {
 		const root = resolveProjectRoot({
 			pathArg: Option.none(),
-			explicitConfigPath: Option.some("/repo/nested/okfit.config.toml"),
+			explicitConfigPath: Option.some("/repo/nested/myconfig.toml"),
 			discovered: Option.none(),
 			cwd: "/cwd",
 			path,
@@ -42,55 +78,25 @@ describe("resolveProjectRoot", () => {
 		assert.strictEqual(root, "/repo/nested");
 	});
 
-	it("a .config/okfit/config.toml discovered by a project-local walk anchors three up", () => {
-		const discovered: DiscoveredConfig = { path: "/repo/.config/okfit/config.toml", resolver: "walk" };
-		const root = resolveProjectRoot({
-			pathArg: Option.none(),
-			explicitConfigPath: Option.none(),
-			discovered: Option.some(discovered),
-			cwd: "/cwd",
-			path,
-		});
-		assert.strictEqual(root, "/repo");
-	});
-
-	it("an okfit.config.toml discovered by a project-local walk anchors at its own directory", () => {
-		const discovered: DiscoveredConfig = { path: "/repo/okfit.config.toml", resolver: "walk" };
-		const root = resolveProjectRoot({
-			pathArg: Option.none(),
-			explicitConfigPath: Option.none(),
-			discovered: Option.some(discovered),
-			cwd: "/cwd",
-			path,
-		});
-		assert.strictEqual(root, "/repo");
-	});
-
-	it("a config discovered by the xdg resolver carries no project anchor", () => {
-		const discovered: DiscoveredConfig = { path: "/home/user/.config/okfit/config.toml", resolver: "xdg" };
-		const root = resolveProjectRoot({
-			pathArg: Option.none(),
-			explicitConfigPath: Option.none(),
-			discovered: Option.some(discovered),
-			cwd: "/cwd",
-			path,
-		});
-		assert.strictEqual(root, "/cwd");
-	});
-
-	it("a config discovered by the native resolver also carries no project anchor", () => {
-		const discovered: DiscoveredConfig = {
-			path: "/home/user/Library/Application Support/okfit/config.toml",
-			resolver: "native",
-		};
-		const root = resolveProjectRoot({
-			pathArg: Option.none(),
-			explicitConfigPath: Option.none(),
-			discovered: Option.some(discovered),
-			cwd: "/cwd",
-			path,
-		});
-		assert.strictEqual(root, "/cwd");
+	it("falls back to cwd for the xdg, native, and system resolvers", () => {
+		const sources: ReadonlyArray<DiscoveredConfig> = [
+			{ path: "/home/user/.config/okfit/config.toml", resolver: "xdg" },
+			{ path: "/home/user/Library/Application Support/okfit/config.toml", resolver: "native" },
+			{ path: "/etc/okfit/config.toml", resolver: "system" },
+		];
+		for (const discovered of sources) {
+			assert.strictEqual(
+				resolveProjectRoot({
+					pathArg: Option.none(),
+					explicitConfigPath: Option.none(),
+					discovered: Option.some(discovered),
+					cwd: "/cwd",
+					path,
+				}),
+				"/cwd",
+				discovered.resolver,
+			);
+		}
 	});
 
 	it("falls back to cwd when nothing was given and nothing was discovered", () => {

@@ -60,7 +60,7 @@ describe("resolveProjectConfig", () => {
 	it.effect('a discovered config with bundle.profile = "none" yields profile none and no warning', () =>
 		Effect.gen(function* () {
 			const dir = yield* Effect.promise(makeTempDir);
-			const configPath = join(dir, "okfit.config.toml");
+			const configPath = join(dir, "okfit.toml");
 			yield* Effect.promise(() => writeFile(configPath, 'bundle.profile = "none"\n', "utf8"));
 			const layer = buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: dir });
 			const resolved = yield* resolveProjectConfig({
@@ -79,7 +79,7 @@ describe("resolveProjectConfig", () => {
 		() =>
 			Effect.gen(function* () {
 				const dir = yield* Effect.promise(makeTempDir);
-				const configPath = join(dir, "okfit.config.toml");
+				const configPath = join(dir, "okfit.toml");
 				yield* Effect.promise(() => writeFile(configPath, 'bundle.profile = "made-up"\n', "utf8"));
 				const layer = buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: dir });
 				const resolved = yield* resolveProjectConfig({
@@ -103,7 +103,7 @@ describe("resolveProjectConfig", () => {
 			const dir = yield* Effect.promise(makeTempDir);
 			const nestedDir = join(dir, "project");
 			yield* Effect.promise(() => mkdir(nestedDir, { recursive: true }));
-			const configPath = join(nestedDir, "okfit.config.toml");
+			const configPath = join(nestedDir, "okfit.toml");
 			yield* Effect.promise(() => writeFile(configPath, 'bundle.path = "docs"\n', "utf8"));
 			const layer = buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: nestedDir });
 			const resolved = yield* resolveProjectConfig({

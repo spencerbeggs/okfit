@@ -1,4 +1,3 @@
-import { AppConfig } from "@effected/app";
 import {
 	ConfigCodecError,
 	ConfigFile,
@@ -7,29 +6,40 @@ import {
 	MergeStrategy,
 	TomlCodec,
 } from "@effected/config-file";
-import type { AppDirs, Xdg } from "@effected/xdg";
+import type { Xdg } from "@effected/xdg";
+import { AppDirs, XdgConfig } from "@effected/xdg";
 import { OkfitConfig, OkfitConfigFile } from "@okfit/core";
 import type { Path, PlatformError } from "effect";
 import { Cause, Effect, FileSystem, Layer, Option, Result } from "effect";
 import { ConfigMalformedError, ConfigPathNotFoundError } from "../errors.js";
+import { projectResolver } from "./projectResolver.js";
 
 /**
- * The `OkfitConfigFile` layer for one invocation (K-9 to K-11, K-57). Two
- * shapes, not one chain with a conditional resolver list:
+ * The `OkfitConfigFile` layer for one invocation (K-9 to K-11, K-57, C-6).
+ * Two shapes, not one chain with a conditional resolver list:
  *
  * - `explicitConfigPath` is `Some`: `ConfigFile.layer` directly, with only
  *   `ConfigResolver.explicitPath(path)`. NOT `AppConfig.layer`: that always
  *   appends `XdgConfig.resolver`/`XdgConfig.nativeResolver` after the
  *   caller's resolvers, and K-10 requires no XDG probe once `--config` is
  *   given.
- * - `explicitConfigPath` is `None`: `AppConfig.layer`, whose two project-local
- *   `upwardWalk` resolvers lead and whose own XDG pair is appended
- *   automatically. `filename: "config.toml"` with the `"okfit"` `AppDirs`
- *   namespace (provided ambiently by `bin.ts`) puts the personal-defaults
- *   file at `$XDG_CONFIG_HOME/okfit/config.toml` (K-11).
+ * - `explicitConfigPath` is `None`: `ConfigFile.layer` directly, with four
+ *   resolvers in order — the hand-rolled `projectResolver` (per directory:
+ *   `.okfit.toml`, `okfit.toml`, `.config/okfit.toml`, ascending to the
+ *   filesystem root), `XdgConfig.resolver`, `XdgConfig.nativeResolver`,
+ *   then `ConfigResolver.systemEtc`. NOT `AppConfig.layer`: it appends its
+ *   own XDG pair AFTER the caller's resolvers and offers no hook past them
+ *   (`app/src/AppConfig.ts:134-142`), so the system tier C-5 requires
+ *   cannot be reached through it. `filename: "config.toml"` at the three
+ *   non-project tiers puts personal defaults at
+ *   `$XDG_CONFIG_HOME/okfit/config.toml` and system defaults at
+ *   `/etc/okfit/config.toml` (C-4, C-5). `defaultPath` is carried over
+ *   from what `AppConfig.layer` used to set, so `save`/`update` do not
+ *   start failing with `ConfigDefaultPathMissingError`.
  *
  * `discoveryCwd` is `[path]` when given, else `process.cwd()` (K-2), passed
- * as `upwardWalk`'s own `cwd` so nothing in this module reads the process.
+ * as `projectResolver`'s own `cwd` so nothing in this module reads the
+ * process.
  *
  * The explicit branch's inferred `R` (`FileSystem.FileSystem | Path.Path`)
  * is narrower than the discovery branch's (`... | AppDirs | Xdg`); the
@@ -42,31 +52,46 @@ import { ConfigMalformedError, ConfigPathNotFoundError } from "../errors.js";
 export const buildConfigLayer = (options: {
 	readonly explicitConfigPath: Option.Option<string>;
 	readonly discoveryCwd: string;
+	/**
+	 * System config root, defaulting to `/etc`. Overridable primarily so tests
+	 * can point at a writable temp directory — the real `/etc` is not writable
+	 * in test environments. No production call site sets it.
+	 */
+	readonly systemConfigDir?: string;
 }): Layer.Layer<OkfitConfigFile, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
-	Layer.unwrap(
-		Effect.succeed(
-			Option.isSome(options.explicitConfigPath)
-				? (ConfigFile.layer(OkfitConfigFile, {
+	Option.isSome(options.explicitConfigPath)
+		? (ConfigFile.layer(OkfitConfigFile, {
+				schema: OkfitConfig,
+				codec: TomlCodec,
+				resolvers: [ConfigResolver.explicitPath(options.explicitConfigPath.value)],
+				strategy: MergeStrategy.firstMatch(),
+			}) as Layer.Layer<OkfitConfigFile, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg>)
+		: Layer.unwrap(
+				Effect.gen(function* () {
+					const appDirs = yield* AppDirs;
+					// TS infers a resolver array's `RR` from the FIRST element and will
+					// not union in the rest (the same gotcha `AppConfig.layer` itself
+					// documents, `app/src/AppConfig.ts:126-127`), so the chain is
+					// annotated up front rather than left to inference.
+					const resolvers: ReadonlyArray<ConfigResolver<FileSystem.FileSystem | Path.Path | AppDirs | Xdg>> = [
+						projectResolver({ cwd: options.discoveryCwd }),
+						XdgConfig.resolver({ filename: "config.toml" }),
+						XdgConfig.nativeResolver({ namespace: appDirs.namespace, filename: "config.toml" }),
+						ConfigResolver.systemEtc({
+							app: "okfit",
+							filename: "config.toml",
+							...(options.systemConfigDir !== undefined ? { dir: options.systemConfigDir } : {}),
+						}),
+					];
+					return ConfigFile.layer(OkfitConfigFile, {
 						schema: OkfitConfig,
 						codec: TomlCodec,
-						resolvers: [ConfigResolver.explicitPath(options.explicitConfigPath.value)],
 						strategy: MergeStrategy.firstMatch(),
-					}) as Layer.Layer<OkfitConfigFile, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg>)
-				: AppConfig.layer(OkfitConfigFile, {
-						filename: "config.toml",
-						schema: OkfitConfig,
-						codec: TomlCodec,
-						resolvers: [
-							ConfigResolver.upwardWalk({
-								filename: "config.toml",
-								subpaths: [".config/okfit"],
-								cwd: options.discoveryCwd,
-							}),
-							ConfigResolver.upwardWalk({ filename: "okfit.config.toml", cwd: options.discoveryCwd }),
-						],
-					}),
-		),
-	);
+						resolvers,
+						defaultPath: XdgConfig.savePath("config.toml"),
+					});
+				}),
+			);
 
 /**
  * The K-1 pre-flight and the provide, in that order and in one place: stat
@@ -101,7 +126,11 @@ export const buildConfigLayer = (options: {
  * @public
  */
 export const provideConfig =
-	(options: { readonly explicitConfigPath: Option.Option<string>; readonly discoveryCwd: string }) =>
+	(options: {
+		readonly explicitConfigPath: Option.Option<string>;
+		readonly discoveryCwd: string;
+		readonly systemConfigDir?: string;
+	}) =>
 	<A, E, R>(
 		effect: Effect.Effect<A, E, R>,
 	): Effect.Effect<

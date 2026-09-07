@@ -23,7 +23,7 @@ const fullConfig: OkfitConfig = {
 const baseInput = {
 	projectRoot: "/repo",
 	bundleRoot: "/repo/okf",
-	configPath: "/repo/okfit.config.toml",
+	configPath: "/repo/okfit.toml",
 	profile: "software-project",
 	profileRequested: "software-project",
 	indexPath: "/repo/okf/index.md",
@@ -38,7 +38,7 @@ describe("contextEnvelope", () => {
 				schema: 1,
 				project_root: "/repo",
 				bundle_root: "/repo/okf",
-				config_path: "/repo/okfit.config.toml",
+				config_path: "/repo/okfit.toml",
 				profile: "software-project",
 				profile_requested: "software-project",
 				index_path: "/repo/okf/index.md",
@@ -159,7 +159,7 @@ describe("humanContext", () => {
 			const built = contextEnvelope({
 				projectRoot: "/repo",
 				bundleRoot: "/repo/okf",
-				configPath: "/repo/okfit.config.toml",
+				configPath: "/repo/okfit.toml",
 				profile: null,
 				profileRequested: "not-a-real-profile",
 				indexPath: "/repo/okf/index.md",
@@ -188,7 +188,7 @@ describe("humanContext", () => {
 			const noneProfile = contextEnvelope({
 				projectRoot: "/repo",
 				bundleRoot: "/repo/okf",
-				configPath: "/repo/okfit.config.toml",
+				configPath: "/repo/okfit.toml",
 				profile: null,
 				profileRequested: "none",
 				indexPath: "/repo/okf/index.md",

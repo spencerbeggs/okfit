@@ -4,7 +4,7 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import type { AppDirs as AppDirsType, Xdg as XdgType } from "@effected/xdg";
-import { AppDirs, Xdg, XdgPaths } from "@effected/xdg";
+import { AppDirs, CurrentPlatform, Xdg, XdgPaths } from "@effected/xdg";
 import { OkfitConfigFile } from "@okfit/core";
 import type { FileSystem, Path } from "effect";
 import { Effect, Layer, Option } from "effect";
@@ -46,6 +46,37 @@ const testEnv: Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.
 
 const makeTempDir = async (): Promise<string> => mkdtemp(join(tmpdir(), "okfit-cli-layer-"));
 
+// A sandbox-scoped environment: XDG at <root>/xdg, native ("darwin") at
+// <root>/home/Library/Application Support/okfit, so both tiers are writable
+// temp directories rather than host paths (K-43's discipline).
+const testEnvAt = (root: string): Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.Path> =>
+	AppDirs.layer({ namespace: "okfit" }).pipe(
+		Layer.provideMerge(
+			Xdg.layerFrom(
+				XdgPaths.make({
+					home: join(root, "home"),
+					configHome: join(root, "xdg"),
+					dataHome: join(root, "data"),
+					cacheHome: join(root, "cache"),
+					stateHome: join(root, "state"),
+					configDirs: [],
+					dataDirs: [],
+				}),
+			),
+		),
+		Layer.provideMerge(Layer.succeed(CurrentPlatform, "darwin")),
+		Layer.provideMerge(NodeServices.layer),
+	);
+
+const discoverIn = (root: string, options: { readonly discoveryCwd: string; readonly systemConfigDir?: string }) =>
+	Effect.gen(function* () {
+		const configFile = yield* OkfitConfigFile;
+		return yield* configFile.discover;
+	}).pipe(
+		Effect.provide(buildConfigLayer({ explicitConfigPath: Option.none(), ...options })),
+		Effect.provide(testEnvAt(root)),
+	);
+
 describe("buildConfigLayer", () => {
 	it.effect('the explicit branch discovers exactly the named path, resolver "explicit"', () =>
 		Effect.gen(function* () {
@@ -66,46 +97,110 @@ describe("buildConfigLayer", () => {
 		}),
 	);
 
-	it.effect(
-		"the discovery branch prefers .config/okfit/config.toml over a co-present okfit.config.toml (K-10 order)",
-		() =>
-			Effect.gen(function* () {
-				const dir = yield* Effect.promise(makeTempDir);
-				const winningDir = join(dir, ".config", "okfit");
-				yield* Effect.promise(() => mkdir(winningDir, { recursive: true }));
-				const winningPath = join(winningDir, "config.toml");
-				yield* Effect.promise(() => writeFile(winningPath, 'bundle.path = "from-dotconfig"\n', "utf8"));
-				const losingPath = join(dir, "okfit.config.toml");
-				yield* Effect.promise(() => writeFile(losingPath, 'bundle.path = "from-flat-file"\n', "utf8"));
-				const layer = buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: dir });
-				const program = Effect.gen(function* () {
-					const configFile = yield* OkfitConfigFile;
-					return yield* configFile.discover;
-				});
-				const sources = yield* program.pipe(Effect.provide(layer), Effect.provide(testEnv));
-				assert.strictEqual(sources.length, 2);
-				assert.strictEqual(sources[0]?.path, winningPath);
-				assert.strictEqual(sources[0]?.resolver, "walk");
-				assert.strictEqual(sources[0]?.value.bundle?.path, "from-dotconfig");
-				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-			}),
+	it.effect("discovers the project tier before xdg", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			const winner = join(cwd, "okfit.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "project"\n', "utf8"));
+			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
+			yield* Effect.promise(() =>
+				writeFile(join(root, "xdg", "okfit", "config.toml"), 'bundle.path = "xdg"\n', "utf8"),
+			);
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.resolver, "project");
+			assert.strictEqual(sources[0]?.value.bundle?.path, "project");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
 	);
 
-	it.effect("the discovery branch finds okfit.config.toml alone", () =>
+	it.effect("discovers xdg before the native directory", () =>
 		Effect.gen(function* () {
-			const dir = yield* Effect.promise(makeTempDir);
-			const flatPath = join(dir, "okfit.config.toml");
-			yield* Effect.promise(() => writeFile(flatPath, 'bundle.path = "flat"\n', "utf8"));
-			const layer = buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: dir });
-			const program = Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
+			const winner = join(root, "xdg", "okfit", "config.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "xdg"\n', "utf8"));
+			const nativeDir = join(root, "home", "Library", "Application Support", "okfit");
+			yield* Effect.promise(() => mkdir(nativeDir, { recursive: true }));
+			yield* Effect.promise(() => writeFile(join(nativeDir, "config.toml"), 'bundle.path = "native"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.resolver, "xdg");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("discovers /etc/okfit/config.toml last", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			const etc = join(root, "etc");
+			yield* Effect.promise(() => mkdir(join(etc, "okfit"), { recursive: true }));
+			const winner = join(etc, "okfit", "config.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "system"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd, systemConfigDir: etc });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.resolver, "system");
+			assert.strictEqual(sources[0]?.value.bundle?.path, "system");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("uses only the explicit path when --config is given", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			yield* Effect.promise(() => writeFile(join(cwd, "okfit.toml"), 'bundle.path = "project"\n', "utf8"));
+			const explicit = join(root, "elsewhere.toml");
+			yield* Effect.promise(() => writeFile(explicit, 'bundle.path = "explicit"\n', "utf8"));
+
+			const sources = yield* Effect.gen(function* () {
 				const configFile = yield* OkfitConfigFile;
 				return yield* configFile.discover;
-			});
-			const sources = yield* program.pipe(Effect.provide(layer), Effect.provide(testEnv));
+			}).pipe(
+				Effect.provide(buildConfigLayer({ explicitConfigPath: Option.some(explicit), discoveryCwd: cwd })),
+				Effect.provide(testEnvAt(root)),
+			);
+
 			assert.strictEqual(sources.length, 1);
-			assert.strictEqual(sources[0]?.path, flatPath);
-			assert.strictEqual(sources[0]?.resolver, "walk");
-			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+			assert.strictEqual(sources[0]?.path, explicit);
+			assert.strictEqual(sources[0]?.resolver, "explicit");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("resolves the xdg tier at $XDG_CONFIG_HOME/okfit/config.toml", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
+			// C-4/J-1: the filename inside the namespaced directory is config.toml,
+			// NOT okfit.toml. A regression here silently orphans every existing
+			// personal-defaults file.
+			yield* Effect.promise(() =>
+				writeFile(join(root, "xdg", "okfit", "okfit.toml"), 'bundle.path = "wrong"\n', "utf8"),
+			);
+			const winner = join(root, "xdg", "okfit", "config.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "right"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.value.bundle?.path, "right");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 		}),
 	);
 });
@@ -173,7 +268,7 @@ describe("provideConfig", () => {
 	it.effect("provides OkfitConfigFile over the discovery branch when no --config is given", () =>
 		Effect.gen(function* () {
 			const dir = yield* Effect.promise(makeTempDir);
-			const flatPath = join(dir, "okfit.config.toml");
+			const flatPath = join(dir, "okfit.toml");
 			yield* Effect.promise(() => writeFile(flatPath, 'bundle.path = "flat"\n', "utf8"));
 			const program = Effect.gen(function* () {
 				const configFile = yield* OkfitConfigFile;

@@ -151,7 +151,7 @@ describe("okfit context --format json", () => {
 			yield* Effect.promise(() =>
 				writeFileDeep(join(sandbox.cwd, "okf", "modules", "example.md"), "---\ntype: Module\n---\n\n# Example\n"),
 			);
-			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\npath = "okf"\n`));
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\npath = "okf"\n`));
 
 			const result = yield* runOkfit(["context", "--format", "json"], sandbox);
 
@@ -159,7 +159,7 @@ describe("okfit context --format json", () => {
 			assert.strictEqual(result.stderr, "");
 			const envelope = JSON.parse(result.stdout) as { readonly index_exists: boolean; readonly config_path: string };
 			assert.isFalse(envelope.index_exists);
-			assert.strictEqual(envelope.config_path, join(sandbox.cwd, "okfit.config.toml"));
+			assert.strictEqual(envelope.config_path, join(sandbox.cwd, "okfit.toml"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
@@ -247,7 +247,7 @@ describe("okfit context: unknown profile", () => {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
 			yield* Effect.promise(() =>
-				writeFileDeep(join(sandbox.cwd, "okfit.config.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
+				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
 			);
 
 			const result = yield* runOkfit(["context", "--format", "json"], sandbox);

@@ -5,7 +5,7 @@ import { Duration, Effect, Schema } from "effect";
 import { OkfitConfig, OkfitConfigFile } from "../src/OkfitConfig.js";
 import { configPlatform, specExampleToml } from "./utils/configFixtures.js";
 
-const CONFIG_PATH = "/repo/.config/okfit/config.toml";
+const CONFIG_PATH = "/repo/.config/okfit.toml";
 
 const platform = configPlatform({
 	[CONFIG_PATH]: specExampleToml,
