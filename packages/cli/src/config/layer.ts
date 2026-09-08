@@ -1,51 +1,49 @@
+import { AppConfig } from "@effected/app";
 import {
 	ConfigCodecError,
-	ConfigFile,
 	ConfigResolver,
 	ConfigValidationError,
 	MergeStrategy,
 	TomlCodec,
 } from "@effected/config-file";
-import type { Xdg } from "@effected/xdg";
-import { AppDirs, XdgConfig } from "@effected/xdg";
+import type { AppDirs, Xdg } from "@effected/xdg";
 import { OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import type { Path, PlatformError } from "effect";
-import { Cause, Effect, FileSystem, Layer, Option, Result } from "effect";
+import type { Layer, Path, PlatformError } from "effect";
+import { Cause, Effect, FileSystem, Option, Result } from "effect";
 import { ConfigMalformedError, ConfigPathNotFoundError } from "../errors.js";
-import { projectResolver } from "./projectResolver.js";
 
 /**
- * The `OkfitConfigFile` layer for one invocation (K-9 to K-11, K-57, C-6).
- * Two shapes, not one chain with a conditional resolver list:
+ * The `OkfitConfigFile` layer for one invocation (K-9 to K-11, K-57, C-6),
+ * now one `AppConfig.layer(OkfitConfigFile, ...)` call in both branches; only
+ * the chain options vary:
  *
- * - `explicitConfigPath` is `Some`: `ConfigFile.layer` directly, with only
- *   `ConfigResolver.explicitPath(path)`. NOT `AppConfig.layer`: that always
- *   appends `XdgConfig.resolver`/`XdgConfig.nativeResolver` after the
- *   caller's resolvers, and K-10 requires no XDG probe once `--config` is
- *   given.
- * - `explicitConfigPath` is `None`: `ConfigFile.layer` directly, with four
- *   resolvers in order — the hand-rolled `projectResolver` (per directory:
- *   `.okfit.toml`, `okfit.toml`, `.config/okfit.toml`, ascending to the
- *   filesystem root), `XdgConfig.resolver`, `XdgConfig.nativeResolver`,
- *   then `ConfigResolver.systemEtc`. NOT `AppConfig.layer`: it appends its
- *   own XDG pair AFTER the caller's resolvers and offers no hook past them
- *   (`app/src/AppConfig.ts:134-142`), so the system tier C-5 requires
- *   cannot be reached through it. `filename: "config.toml"` at the three
- *   non-project tiers puts personal defaults at
- *   `$XDG_CONFIG_HOME/okfit/config.toml` and system defaults at
- *   `/etc/okfit/config.toml` (C-4, C-5). `defaultPath` is carried over
- *   from what `AppConfig.layer` used to set, so `save`/`update` do not
- *   start failing with `ConfigDefaultPathMissingError`.
+ * - `explicitConfigPath` is `Some`: `resolvers: [ConfigResolver.explicitPath(path)]`
+ *   and `xdg: false` — K-10's "only that path" rule, so the chain is exactly
+ *   one resolver and no `systemEtc` tier is added either.
+ * - `explicitConfigPath` is `None`: `resolvers: [ConfigResolver.upwardWalk({ filenames, ... })]`
+ *   carrying C-1's three per-directory candidates (`.okfit.toml`,
+ *   `okfit.toml`, `.config/okfit.toml`, directory-major so a child's later
+ *   candidate beats a parent's earlier one — C-2's ascent to the filesystem
+ *   root is `upwardWalk`'s own default with no `stopAt`), named `"project"`
+ *   so `resolve.ts`/`anchor.ts` can identify it without string-matching a
+ *   path tail. `systemEtc` is C-5's `/etc` tier, present unless
+ *   `systemConfigDir` overrides its root (tests only — no production call
+ *   site sets it). `xdg` and `native` stay on their defaults (C-4), which is
+ *   what puts personal defaults at `$XDG_CONFIG_HOME/okfit/config.toml` and
+ *   the native probe behind it.
+ *
+ * `filename: "config.toml"` is the same in both branches — it is the XDG/
+ * native/system tiers' filename, unrelated to the C-1 project names above.
+ * `defaultPath` is `AppConfig.layer`'s own `XdgConfig.savePath(filename)`, so
+ * `save`/`update` do not fail with `ConfigDefaultPathMissingError`; nothing
+ * here sets it explicitly any more.
  *
  * `discoveryCwd` is `[path]` when given, else `process.cwd()` (K-2), passed
- * as `projectResolver`'s own `cwd` so nothing in this module reads the
- * process.
+ * straight through as `upwardWalk`'s own `cwd` so nothing in this module
+ * reads the process.
  *
- * The explicit branch's inferred `R` (`FileSystem.FileSystem | Path.Path`)
- * is narrower than the discovery branch's (`... | AppDirs | Xdg`); the
- * return type is widened to the union of both, since widening an unused `R`
- * is always safe. `App.layer`, `AppStore` and `AppCache` appear nowhere, so
- * no `store.db`/`cache.db` is ever created (K-9).
+ * `App.layer`, `AppStore` and `AppCache` appear nowhere, so no
+ * `store.db`/`cache.db` is ever created (K-9).
  *
  * @public
  */
@@ -60,38 +58,28 @@ export const buildConfigLayer = (options: {
 	readonly systemConfigDir?: string;
 }): Layer.Layer<OkfitConfigFile, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
 	Option.isSome(options.explicitConfigPath)
-		? (ConfigFile.layer(OkfitConfigFile, {
+		? AppConfig.layer(OkfitConfigFile, {
+				filename: "config.toml",
 				schema: OkfitConfig,
 				codec: TomlCodec,
-				resolvers: [ConfigResolver.explicitPath(options.explicitConfigPath.value)],
 				strategy: MergeStrategy.firstMatch(),
-			}) as Layer.Layer<OkfitConfigFile, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg>)
-		: Layer.unwrap(
-				Effect.gen(function* () {
-					const appDirs = yield* AppDirs;
-					// TS infers a resolver array's `RR` from the FIRST element and will
-					// not union in the rest (the same gotcha `AppConfig.layer` itself
-					// documents, `app/src/AppConfig.ts:126-127`), so the chain is
-					// annotated up front rather than left to inference.
-					const resolvers: ReadonlyArray<ConfigResolver<FileSystem.FileSystem | Path.Path | AppDirs | Xdg>> = [
-						projectResolver({ cwd: options.discoveryCwd }),
-						XdgConfig.resolver({ filename: "config.toml" }),
-						XdgConfig.nativeResolver({ namespace: appDirs.namespace, filename: "config.toml" }),
-						ConfigResolver.systemEtc({
-							app: "okfit",
-							filename: "config.toml",
-							...(options.systemConfigDir !== undefined ? { dir: options.systemConfigDir } : {}),
-						}),
-					];
-					return ConfigFile.layer(OkfitConfigFile, {
-						schema: OkfitConfig,
-						codec: TomlCodec,
-						strategy: MergeStrategy.firstMatch(),
-						resolvers,
-						defaultPath: XdgConfig.savePath("config.toml"),
-					});
-				}),
-			);
+				resolvers: [ConfigResolver.explicitPath(options.explicitConfigPath.value)],
+				xdg: false,
+			})
+		: AppConfig.layer(OkfitConfigFile, {
+				filename: "config.toml",
+				schema: OkfitConfig,
+				codec: TomlCodec,
+				strategy: MergeStrategy.firstMatch(),
+				resolvers: [
+					ConfigResolver.upwardWalk({
+						filenames: [".okfit.toml", "okfit.toml", ".config/okfit.toml"],
+						cwd: options.discoveryCwd,
+						name: "project",
+					}),
+				],
+				systemEtc: options.systemConfigDir === undefined ? true : { dir: options.systemConfigDir },
+			});
 
 /**
  * The K-1 pre-flight and the provide, in that order and in one place: stat
@@ -109,16 +97,18 @@ export const buildConfigLayer = (options: {
  * renders through `renderFailure`'s catch-all rule rather than being
  * uncatchable by the type checker.
  *
- * K-46 fix round 1: a `ConfigCodecError`/`ConfigValidationError` from
+ * K-46/K-63 fix: a `ConfigCodecError`/`ConfigValidationError` from
  * `buildConfigLayer`'s provided layer is wrapped into `ConfigMalformedError`
  * whenever the failing path is known, so `renderFailure` can name it:
  *
- * - `ConfigCodecError` carries no `path` field at all (checked against the
- *   installed `.d.ts`) — the only path we can ever attach for one is
- *   `explicitConfigPath` itself, when `--config` named it directly. In the
- *   discovery branch (no `--config`) a `ConfigCodecError` passes through
- *   unwrapped: several candidate files are tried and nothing in this module
- *   or the library says which one failed.
+ * - `ConfigCodecError` now carries its own `path: string | undefined`
+ *   (config-file 0.7.0, `ConfigFile.discover` re-raises with `path` attached
+ *   at every site that fed the codec a path it resolved) — used when
+ *   present, so a malformed file found during DISCOVERY (no `--config`) now
+ *   also wraps into `ConfigMalformedError` naming the candidate that failed,
+ *   closing the K-63 gap. It falls back to `explicitConfigPath` only when
+ *   the library's own `path` is `undefined` and `--config` was given; only
+ *   when neither is known does the cause pass through unwrapped.
  * - `ConfigValidationError` carries its own `path: Option<string>` — used
  *   when present (either branch), falling back to `explicitConfigPath` when
  *   the library's own `path` is `None` and `--config` was given.
@@ -165,8 +155,16 @@ export const provideConfig =
 					const found = Cause.findFail(cause);
 					if (Result.isSuccess(found)) {
 						const error = found.success.error;
-						if (error instanceof ConfigCodecError && Option.isSome(options.explicitConfigPath)) {
-							return Effect.fail(new ConfigMalformedError({ path: options.explicitConfigPath.value, cause: error }));
+						if (error instanceof ConfigCodecError) {
+							const path =
+								error.path !== undefined
+									? error.path
+									: Option.isSome(options.explicitConfigPath)
+										? options.explicitConfigPath.value
+										: undefined;
+							if (path !== undefined) {
+								return Effect.fail(new ConfigMalformedError({ path, cause: error }));
+							}
 						}
 						if (error instanceof ConfigValidationError) {
 							const path = Option.isSome(options.explicitConfigPath) ? options.explicitConfigPath : error.path;
@@ -175,10 +173,10 @@ export const provideConfig =
 							}
 						}
 					}
-					// K-46: either not one of the two library errors, or (a
-					// `ConfigCodecError` during discovery) a path genuinely cannot be
-					// attached — several candidates are tried and nothing names which
-					// one failed.
+					// K-46/K-63: either not one of the two library errors, or a path
+					// genuinely cannot be attached — a `ConfigCodecError`/
+					// `ConfigValidationError` whose own `path` is unset with no
+					// `--config` to fall back to.
 					return Effect.failCause(cause);
 				}),
 			);

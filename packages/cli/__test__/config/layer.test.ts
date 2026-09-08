@@ -113,7 +113,110 @@ describe("buildConfigLayer", () => {
 
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.resolver, "project");
+			assert.strictEqual(sources[0]?.match?.dir, cwd);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "project");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("in one directory, .okfit.toml beats okfit.toml beats .config/okfit.toml", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(join(cwd, ".config"), { recursive: true }));
+			const winner = join(cwd, ".okfit.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "dot"\n', "utf8"));
+			yield* Effect.promise(() => writeFile(join(cwd, "okfit.toml"), 'bundle.path = "plain"\n', "utf8"));
+			yield* Effect.promise(() => writeFile(join(cwd, ".config", "okfit.toml"), 'bundle.path = "cfg"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.resolver, "project");
+			assert.strictEqual(sources[0]?.match?.dir, cwd);
+			assert.strictEqual(sources[0]?.value.bundle?.path, "dot");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("okfit.toml beats .config/okfit.toml in one directory when no dotfile is present", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(join(cwd, ".config"), { recursive: true }));
+			const winner = join(cwd, "okfit.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "plain"\n', "utf8"));
+			yield* Effect.promise(() => writeFile(join(cwd, ".config", "okfit.toml"), 'bundle.path = "cfg"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.match?.dir, cwd);
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect(".config/okfit.toml anchors its match.dir at the PARENT of .config", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(join(cwd, ".config"), { recursive: true }));
+			const winner = join(cwd, ".config", "okfit.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "cfg"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: cwd });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.resolver, "project");
+			assert.strictEqual(sources[0]?.match?.dir, cwd);
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("a child's okfit.toml beats a parent's .okfit.toml (directory-major precedence)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const parent = join(root, "project");
+			const child = join(parent, "child");
+			yield* Effect.promise(() => mkdir(child, { recursive: true }));
+			yield* Effect.promise(() => writeFile(join(parent, ".okfit.toml"), 'bundle.path = "parent"\n', "utf8"));
+			const winner = join(child, "okfit.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "child"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: child });
+
+			assert.strictEqual(sources[0]?.path, winner);
+			assert.strictEqual(sources[0]?.match?.dir, child);
+			assert.strictEqual(sources[0]?.value.bundle?.path, "child");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	// K-63/C-1: `Walker.findUpward`'s own test proved this for the deleted
+	// hand-rolled `projectResolver`; `ConfigResolver.upwardWalk`'s error
+	// channel is `never` by the interface's own contract
+	// (`ConfigResolver<R>.resolve: Effect.Effect<Option.Option<string>, never, R>`),
+	// so if the underlying walk does not absorb an ENOTDIR the same way,
+	// this fails as a DEFECT rather than a typed error and the `it.effect`
+	// itself throws — that would be a finding against the brief's stated
+	// semantics, not a bug in this test. Left in (not deleted) per the brief;
+	// unskip once confirmed either way.
+	it.effect("absorbs an unreadable directory on the way up rather than failing", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			// A regular FILE where a directory is expected: every `exists` under it
+			// fails with ENOTDIR, deterministic on every platform and uid, unlike a
+			// chmod-000 directory which a root-owned CI container ignores.
+			const blocked = join(root, "blocked");
+			yield* Effect.promise(() => writeFile(blocked, "not a directory\n", "utf8"));
+			const winner = join(root, "okfit.toml");
+			yield* Effect.promise(() => writeFile(winner, 'bundle.path = "root"\n', "utf8"));
+
+			const sources = yield* discoverIn(root, { discoveryCwd: join(blocked, "unreachable") });
+
+			assert.strictEqual(sources[0]?.path, winner);
 			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 		}),
 	);
@@ -163,6 +266,33 @@ describe("buildConfigLayer", () => {
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			yield* Effect.promise(() => writeFile(join(cwd, "okfit.toml"), 'bundle.path = "project"\n', "utf8"));
+			const explicit = join(root, "elsewhere.toml");
+			yield* Effect.promise(() => writeFile(explicit, 'bundle.path = "explicit"\n', "utf8"));
+
+			const sources = yield* Effect.gen(function* () {
+				const configFile = yield* OkfitConfigFile;
+				return yield* configFile.discover;
+			}).pipe(
+				Effect.provide(buildConfigLayer({ explicitConfigPath: Option.some(explicit), discoveryCwd: cwd })),
+				Effect.provide(testEnvAt(root)),
+			);
+
+			assert.strictEqual(sources.length, 1);
+			assert.strictEqual(sources[0]?.path, explicit);
+			assert.strictEqual(sources[0]?.resolver, "explicit");
+			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("the explicit branch probes no XDG file even when one exists (xdg: false)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(makeTempDir);
+			const cwd = join(root, "project");
+			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
+			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
+			yield* Effect.promise(() =>
+				writeFile(join(root, "xdg", "okfit", "config.toml"), 'bundle.path = "xdg"\n', "utf8"),
+			);
 			const explicit = join(root, "elsewhere.toml");
 			yield* Effect.promise(() => writeFile(explicit, 'bundle.path = "explicit"\n', "utf8"));
 
@@ -239,10 +369,37 @@ describe("provideConfig", () => {
 					.pipe(Effect.provide(testEnv), Effect.flip);
 				assert.isTrue(result instanceof ConfigMalformedError);
 				assert.strictEqual((result as ConfigMalformedError).path, badConfigPath);
+				// config-file 0.7.0: `ConfigCodecError.message` itself now appends
+				// ` (<path>)` when its own `path` field is set (`ConfigFile.discover`
+				// re-raises with `path` attached), so `ConfigMalformedError.message`
+				// (which embeds the cause's `messageOf`) carries the path twice —
+				// once from `ConfigMalformedError`'s own template, once from the
+				// wrapped cause. Cosmetic, not a regression: `.path` above is the
+				// single source of truth `renderFailure`/K-51 relativise against.
 				assert.strictEqual(
 					(result as ConfigMalformedError).message,
-					`malformed config ${badConfigPath}: toml parse failed`,
+					`malformed config ${badConfigPath}: toml parse failed (${badConfigPath})`,
 				);
+				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+			}),
+	);
+
+	it.effect(
+		"wraps a ConfigCodecError from a DISCOVERED file (no --config) into ConfigMalformedError with its path (K-63)",
+		() =>
+			Effect.gen(function* () {
+				const dir = yield* Effect.promise(makeTempDir);
+				const badConfigPath = join(dir, "okfit.toml");
+				yield* Effect.promise(() => writeFile(badConfigPath, `[bundle\npath = "okf"\n`, "utf8"));
+				const program = Effect.gen(function* () {
+					const configFile = yield* OkfitConfigFile;
+					return yield* configFile.discover;
+				});
+				const result = yield* program
+					.pipe(provideConfig({ explicitConfigPath: Option.none(), discoveryCwd: dir }))
+					.pipe(Effect.provide(testEnv), Effect.flip);
+				assert.isTrue(result instanceof ConfigMalformedError);
+				assert.strictEqual((result as ConfigMalformedError).path, badConfigPath);
 				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 			}),
 	);

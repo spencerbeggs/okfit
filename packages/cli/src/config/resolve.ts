@@ -93,7 +93,11 @@ export const resolveProjectConfig = (
 		const discovered: Option.Option<DiscoveredConfig> =
 			discoveredSource === undefined
 				? Option.none()
-				: Option.some({ path: discoveredSource.path, resolver: discoveredSource.resolver });
+				: Option.some({
+						path: discoveredSource.path,
+						resolver: discoveredSource.resolver,
+						...(discoveredSource.match?.dir !== undefined ? { dir: discoveredSource.match.dir } : {}),
+					});
 		const projectRoot = resolveProjectRoot({
 			pathArg: input.pathArg,
 			explicitConfigPath: input.explicitConfigPath,

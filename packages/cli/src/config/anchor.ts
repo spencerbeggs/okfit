@@ -4,9 +4,9 @@ import type { Option, Path } from "effect";
 /**
  * What {@link resolveProjectRoot} needs about the winning discovery source
  * (K-12, K-58). Narrower than `@effected/config-file`'s own
- * `ConfigSource`: only `path` and `resolver` matter for anchoring, and
- * a caller building this from a real `ConfigSource<OkfitConfig>` simply
- * drops `value`.
+ * `ConfigSource`: only `path`, `resolver` and the match's `dir` matter for
+ * anchoring, and a caller building this from a real
+ * `ConfigSource<OkfitConfig>` simply drops `value`.
  *
  * @public
  */
@@ -15,42 +15,45 @@ export interface DiscoveredConfig {
 	readonly path: string;
 	/** `ConfigSource.resolver` — the resolver's `name`. */
 	readonly resolver: string;
+	/**
+	 * `ConfigSource.match?.dir` — the ancestor directory `upwardWalk`
+	 * anchored the winning candidate against. Absent when the resolver did
+	 * not implement `resolveMatch`, or reported no `dir` (`explicitPath`
+	 * never does, by design).
+	 */
+	readonly dir?: string;
 }
 
 /**
- * The anchor rule (C-8). `.config/okfit.toml` anchors at the PARENT of
- * `.config`; `.okfit.toml` and `okfit.toml` anchor at their own directory;
- * an explicit `--config` path takes the same rule, but on any file name —
- * C-8 anchors on the parent of `.config` "if the file sits in a `.config`
- * directory, else the file's directory", with no exception for a custom
- * name. Discovery can only ever produce `okfit.toml` inside a `.config`
- * directory (`ConfigFile.discover`'s project resolver never emits another
- * name there — J-4), so its narrower two-segment test still covers every
- * discovered case; `explicit: true` widens the test to basename alone for
- * a hand-typed `--config` path, which carries no such constraint.
+ * The explicit `--config` anchor rule (C-8): the parent of `.config` "if the
+ * file sits in a `.config` directory, else the file's directory", with no
+ * exception for a custom name. Upstream's `ConfigResolver.explicitPath`
+ * reports no `dir` in its `match` by design, so this stays a hand-rolled,
+ * basename-based rule rather than reading `ConfigMatch.dir` — the one
+ * remaining path-tail string match in the CLI outside `init/scaffold.ts`
+ * (C1-4).
  */
-const anchorFor = (configPath: string, path: Path.Path, options?: { readonly explicit?: boolean }): string => {
-	const filename = path.basename(configPath);
+const anchorForExplicit = (configPath: string, path: Path.Path): string => {
 	const parent = path.dirname(configPath);
-	if (options?.explicit) {
-		return path.basename(parent) === ".config" ? path.dirname(parent) : parent;
-	}
-	if (filename === "okfit.toml" && path.basename(parent) === ".config") {
-		return path.dirname(parent);
-	}
-	return parent;
+	return path.basename(parent) === ".config" ? path.dirname(parent) : parent;
 };
 
 /**
- * K-12's project root, as amended by K-58, in order:
+ * K-12's project root, as amended by K-58 and C1-2, in order:
  *
  * 1. `pathArg`, if given. `Argument.path` has already resolved it absolute.
- * 2. otherwise, if `--config` was given: `anchorFor` applied to that path.
- * 3. otherwise, if a config was discovered by a project-local resolver (not
- *    `"xdg"`, `"native"` or `"system"`): `anchorFor` applied to
- *    `discovered.path`.
- * 4. otherwise `cwd` — an XDG-sourced config carries no project anchor, and
- *    neither does no config at all.
+ * 2. otherwise, if `--config` was given: `anchorForExplicit` applied to that
+ *    path.
+ * 3. otherwise, if a config was discovered by the `"project"` resolver
+ *    (`ConfigResolver.upwardWalk`, named `"project"` in `layer.ts`) AND it
+ *    reported a `dir`: that `dir` verbatim — it is already the ancestor
+ *    `upwardWalk` anchored the match against (the parent of `.config` for a
+ *    `.config/okfit.toml` candidate, the candidate's own directory
+ *    otherwise), so no path-tail test is needed here any more.
+ * 4. otherwise `cwd` — this covers every other resolver name (`"xdg"`,
+ *    `"native"`, `"system"`) as defence in depth, a `"project"` match with no
+ *    `dir` (should not happen, since `upwardWalk` always reports one), and
+ *    no discovery at all.
  *
  * The CLI never probes for `.git` (K-12), even though
  * `ConfigResolver.gitRoot` exists.
@@ -65,12 +68,11 @@ export const resolveProjectRoot = (input: {
 	readonly path: Path.Path;
 }): string => {
 	if (input.pathArg._tag === "Some") return input.pathArg.value;
-	if (input.explicitConfigPath._tag === "Some")
-		return anchorFor(input.explicitConfigPath.value, input.path, { explicit: true });
+	if (input.explicitConfigPath._tag === "Some") return anchorForExplicit(input.explicitConfigPath.value, input.path);
 	if (input.discovered._tag === "Some") {
 		const discovered = input.discovered.value;
-		if (discovered.resolver !== "xdg" && discovered.resolver !== "native" && discovered.resolver !== "system") {
-			return anchorFor(discovered.path, input.path);
+		if (discovered.resolver === "project" && discovered.dir !== undefined) {
+			return discovered.dir;
 		}
 	}
 	return input.cwd;

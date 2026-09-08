@@ -13,15 +13,19 @@ describe("resolveProjectRoot", () => {
 		const root = resolveProjectRoot({
 			pathArg: Option.some("/explicit/root"),
 			explicitConfigPath: Option.some("/other/dir/config.toml"),
-			discovered: Option.some<DiscoveredConfig>({ path: "/repo/.config/okfit.toml", resolver: "project" }),
+			discovered: Option.some<DiscoveredConfig>({
+				path: "/repo/.config/okfit.toml",
+				resolver: "project",
+				dir: "/repo",
+			}),
 			cwd: "/cwd",
 			path,
 		});
 		assert.strictEqual(root, "/explicit/root");
 	});
 
-	it("anchors .config/okfit.toml at the parent of .config", () => {
-		const discovered: DiscoveredConfig = { path: "/repo/.config/okfit.toml", resolver: "project" };
+	it("anchors .config/okfit.toml at the parent of .config (the match's dir, verbatim)", () => {
+		const discovered: DiscoveredConfig = { path: "/repo/.config/okfit.toml", resolver: "project", dir: "/repo" };
 		const root = resolveProjectRoot({
 			pathArg: Option.none(),
 			explicitConfigPath: Option.none(),
@@ -32,8 +36,8 @@ describe("resolveProjectRoot", () => {
 		assert.strictEqual(root, "/repo");
 	});
 
-	it("anchors okfit.toml at its own directory", () => {
-		const discovered: DiscoveredConfig = { path: "/repo/nested/okfit.toml", resolver: "project" };
+	it("anchors okfit.toml at its own directory (the match's dir, verbatim)", () => {
+		const discovered: DiscoveredConfig = { path: "/repo/nested/okfit.toml", resolver: "project", dir: "/repo/nested" };
 		const root = resolveProjectRoot({
 			pathArg: Option.none(),
 			explicitConfigPath: Option.none(),
@@ -44,8 +48,12 @@ describe("resolveProjectRoot", () => {
 		assert.strictEqual(root, "/repo/nested");
 	});
 
-	it("anchors .okfit.toml at its own directory", () => {
-		const discovered: DiscoveredConfig = { path: "/repo/nested/.okfit.toml", resolver: "project" };
+	it("anchors .okfit.toml at its own directory (the match's dir, verbatim)", () => {
+		const discovered: DiscoveredConfig = {
+			path: "/repo/nested/.okfit.toml",
+			resolver: "project",
+			dir: "/repo/nested",
+		};
 		const root = resolveProjectRoot({
 			pathArg: Option.none(),
 			explicitConfigPath: Option.none(),
@@ -108,6 +116,18 @@ describe("resolveProjectRoot", () => {
 				discovered.resolver,
 			);
 		}
+	});
+
+	it("falls back to cwd for a project match reporting no dir (defence in depth)", () => {
+		const discovered: DiscoveredConfig = { path: "/repo/okfit.toml", resolver: "project" };
+		const root = resolveProjectRoot({
+			pathArg: Option.none(),
+			explicitConfigPath: Option.none(),
+			discovered: Option.some(discovered),
+			cwd: "/cwd",
+			path,
+		});
+		assert.strictEqual(root, "/cwd");
 	});
 
 	it("falls back to cwd when nothing was given and nothing was discovered", () => {
