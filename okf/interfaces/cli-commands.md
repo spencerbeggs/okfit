@@ -1,7 +1,7 @@
 ---
 type: Interface
-title: okfit CLI — validate, init, context, verify
-description: The okfit command line's four subcommands, their flags, exit codes, and JSON envelopes.
+title: okfit CLI — validate, init, context, verify, sync
+description: The okfit command line's subcommands, their flags, exit codes, and JSON envelopes.
 kind: cli
 resource: ../../packages/cli/README.md
 status: stable
@@ -12,7 +12,7 @@ tags:
   - architecture
 ---
 
-# okfit CLI — validate, init, context, verify
+# okfit CLI — validate, init, context, verify, sync
 
 ## Subcommands and [path]
 
@@ -34,6 +34,10 @@ otherwise, and `(bundle)` in place of `<file>` for a bundle-level
 diagnostic. Diagnostics sort by file (`(bundle)` first), then range-less
 before ranged, then by offset, then by code. The summary line prints to
 stderr (the `okfit validate` section of `packages/cli/README.md`).
+`--skip-provenance` skips the git-derived `generated-at-drift` tier for
+that invocation without changing the project's `[lint]` table; the
+PostToolUse hook passes it so an edit-time validate stays git-free, while
+CI and the MCP `validate_bundle` tool keep the lint (ruling S-31).
 
 ## okfit init
 

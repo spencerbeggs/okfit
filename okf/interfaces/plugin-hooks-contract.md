@@ -37,12 +37,16 @@ scaffold one (`plugins/claude-code/README.md:65-74`,
 
 The write has already landed by the time this hook runs, so it is a
 stop-and-fix signal, never a prevention. For a path under the bundle root,
-it runs `okfit validate --format json` on the whole bundle, filters the
-diagnostics to the edited file, turns a `core.conformance` hit into
-`{"decision": "block", ...}`, and turns a `core.lint` hit into a
-non-blocking warning. A path outside the bundle root never reaches `okfit
-validate` at all (`plugins/claude-code/README.md:76-87`,
-`plugins/claude-code/CLAUDE.md:79-86`).
+it runs `okfit validate <project_root> --format json --skip-provenance`
+on the whole bundle, filters the diagnostics to the edited file, turns a
+`core.conformance` hit into `{"decision": "block", ...}`, and turns a
+`core.lint` hit into a non-blocking warning. A path outside the bundle
+root never reaches `okfit validate` at all
+(`plugins/claude-code/README.md:76-87`,
+`plugins/claude-code/CLAUDE.md:79-86`). The drift lint costs a git walk
+per concept; measured on this bundle it took validate from about 0.5 s to
+1.7 s, so the edit-time hook skips it — the lint still runs in CI and
+through the MCP `validate_bundle` tool.
 
 ## Kill switches and CLI resolution
 
