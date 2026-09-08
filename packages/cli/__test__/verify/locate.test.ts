@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { FrontmatterSource } from "@effected/markdown";
+import { YamlDocument, YamlMap, YamlScalar, YamlSeq } from "@effected/yaml";
 import { Effect } from "effect";
 import { detectNewline, documentNewline, locate, stripBom } from "../../src/verify/locate.js";
 
@@ -109,6 +111,35 @@ describe("locate", () => {
 			assert.isTrue(source.slice(0, located.insertAt).includes("# who verified first"));
 			assert.isTrue(source.slice(located.insertAt).startsWith("# trailing frontmatter comment"));
 		}),
+	);
+
+	it.effect(
+		"pins the yaml 0.14.0 composer span for comments.md: the verified sequence's last item ends at the newline before the trailing comment, not inside it",
+		() =>
+			Effect.gen(function* () {
+				const source = read("comments.md");
+				const value = FrontmatterSource.split(source).frontmatter?.value;
+				assert.isDefined(value);
+				if (value === undefined) return;
+				const document = yield* YamlDocument.parse(value);
+				const contents = document.contents;
+				assert.instanceOf(contents, YamlMap);
+				if (!(contents instanceof YamlMap)) return;
+				const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "verified");
+				assert.isDefined(pair);
+				if (pair === undefined) return;
+				const node = pair.value;
+				assert.instanceOf(node, YamlSeq);
+				if (!(node instanceof YamlSeq)) return;
+				const last = node.items[node.items.length - 1];
+				assert.isDefined(last);
+				if (last === undefined) return;
+				// The span is trusted at face value (locate.ts, no more
+				// `trimTrailingComment`): the last item's own trailing newline is
+				// the final byte inside it (contract §12 note 1), so the boundary
+				// lands directly on the floating comment rather than swallowing it.
+				assert.isTrue(value.slice(last.offset + last.length).startsWith("# trailing frontmatter comment"));
+			}),
 	);
 
 	it.effect("classifies crlf.md as a block sequence and reports CRLF as the document newline", () =>

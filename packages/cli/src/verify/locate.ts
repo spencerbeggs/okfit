@@ -78,28 +78,6 @@ const indentAt = (value: string, offset: number): string => {
 };
 
 /**
- * Trim a trailing run of whole comment lines off `raw`, keeping exactly one
- * leading newline of the run so a genuine trailing terminator survives.
- *
- * The composer's block-map/-seq range is the raw CST span
- * (`effected/packages/yaml/src/internal/composer/block.ts:119`,
- * `end = blockMapCst.offset + blockMapCst.length`), which silently extends
- * through a floating comment line that sits at a shallower indent than the
- * collection's own items — observed directly on the `comments.md` fixture: the
- * last item's `offset + length` lands on the NEXT top-level key's own offset,
- * with the comment's recovered text living on that key's `commentBefore`
- * rather than on any node inside the span. Trusting the raw span verbatim
- * would fold `# trailing frontmatter comment` into the inserted edit's
- * `length`, corrupting a comment the contract requires to stay untouched
- * (contract §3.4's `comments.md` row). This is the one place `locate`
- * doesn't take a node's `offset`/`length` at face value.
- */
-const trimTrailingComment = (raw: string): string => {
-	const match = /\n(?:[ \t]*#[^\n]*\n?)+$/.exec(raw);
-	return match === null ? raw : raw.slice(0, match.index + 1);
-};
-
-/**
  * True when `node`, or any mapping directly inside a sequence `node`,
  * carries a `<<` key. That is every level a legal `Verification.List` can
  * reach; anything deeper already fails to decode as a `Verification`
@@ -164,9 +142,12 @@ export const locate = Effect.fn("okfit/verify/locate")(function* (
 		// A block-mapping item's span INCLUDES its trailing newline; a
 		// flow-mapping item's span does NOT (contract §12 note 1). That single
 		// fact is why `afterNewline` exists and why the two content spellings
-		// in splice.ts differ. `trimTrailingComment` strips a floating comment
-		// line the raw span may have swallowed (see its own doc comment).
-		const end = last.offset + trimTrailingComment(value.slice(last.offset, last.offset + last.length)).length;
+		// in splice.ts differ. `last.offset + last.length` is trusted verbatim:
+		// as of yaml 0.14.0 (#643) the composer excludes a floating trailing
+		// comment at a shallower indent than the collection's own items from
+		// the span (it becomes the following key's `commentBefore` instead),
+		// where earlier it silently extended through that comment line.
+		const end = last.offset + last.length;
 		return {
 			_tag: "blockSeq",
 			insertAt: valueStart + end,
