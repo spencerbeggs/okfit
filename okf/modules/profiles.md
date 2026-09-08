@@ -34,12 +34,15 @@ git-log-walking primitives. `Derivation.ts` is the
 `GitHistory.layer` no longer spawns git itself: it is a thin adapter over
 `@effected/git` 0.12.0's `Git.log`, forwarding `paths: [path], follow:
 true, firstParentDiffMerges: true` and an optional `limit` verbatim
-(`packages/profiles/src/GitHistory.ts:86-127`). `NotARepositoryError`
+(`packages/profiles/src/GitHistory.ts:86-115`). `NotARepositoryError`
 passes through unchanged; a `GitCommandError` maps onto this package's own
-`GitHistoryError`, and the whole call keeps a 30 s
-`Effect.timeoutOrElse`. An entry with an empty `CommitLogEntry.paths` (a
-merge TREESAME to its first parent) is dropped, matching the old parser's
-behaviour (`packages/profiles/src/GitHistory.ts:112-126`).
+`GitHistoryError`; the 30 s ceiling is now `@effected/git`'s own
+`GIT_TIMEOUT` inside `Git.log`, whose synthesized `GitCommandError` detail
+(`timed out after 30s`) reaches `GitHistoryError` unchanged -- this adapter
+no longer imposes one of its own. An entry with an empty
+`CommitLogEntry.paths` (a merge TREESAME to its first parent) is dropped,
+matching the old parser's behaviour
+(`packages/profiles/src/GitHistory.ts:99-113`).
 `src/internal/pathLog.ts` and `src/internal/spawn.ts` no longer exist.
 
 ## Rules and boundaries

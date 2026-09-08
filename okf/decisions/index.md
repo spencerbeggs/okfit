@@ -1,7 +1,9 @@
 # Decision
 
+* [A walk past maxDepth fails typed, never silently truncates](core-walk-depth-cap-fails-typed.md) - Bundle.load fails with a typed BundleDepthExceededError when the walk descends past maxDepth, rather than silently truncating the walk at the cap.
 * [Bundle, Graph, Derive, and Validate are static facades, not services](core-static-facades.md) - Bundle, Graph, Derive, and Validate are static facades (private-constructor classes with static members) rather than Effect services, because their operations are pure or depend only on FileSystem and Path.
 * [Config discovery follows the config-dir convention](cli-config-discovery-config-dir.md) - The CLI resolves project config through three per-directory names in config-dir precedence, ascending to the filesystem root, then the XDG, native, and system tiers, never a fixed pair of filenames.
+* [Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain](cli-config-discovery-app-config-layer.md) - The CLI resolves project config through @effected/app's AppConfig.layer, varying only its resolvers/xdg/systemEtc options per branch, rather than building ConfigFile.layer directly with a hand-rolled projectResolver.
 * [Config discovery is two branches, never one chain](cli-config-discovery-two-branches.md) - The CLI resolves config through exactly one of two branches, either an explicit --config path or an upward-walk-plus-XDG discovery chain, never a single merged chain.
 * [Exactly one Project concept, at the bundle root](profiles-software-project-one-project-at-root.md) - The software-project profile requires exactly one Project concept and requires it to live at the bundle root, enforced as three non-configurable profile errors.
 * [Exit codes are a fixed six-value total order](cli-exit-codes.md) - okfit's exit codes form one fixed, non-configurable total order from 0 to 130, where warnings and info never change the result.

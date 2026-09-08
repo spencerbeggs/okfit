@@ -15,7 +15,7 @@ status: draft
 
 Core's walk moved from a hand-rolled recursion to a thin adapter over
 `@effected/walker`'s `descend(pattern, { onUnreadable: "record" })`
-(`packages/core/src/internal/walk.ts:54-80`). `descend` enforces a
+(`packages/core/src/internal/walk.ts:52-78`). `descend` enforces a
 `maxDepth` (default 256, `DEFAULT_MAX_DEPTH`) and can report a
 `depthExceeded` reason on its `DescendError`. Whatever `Bundle.load` does
 with that reason decides whether a bundle deeper than the cap loads with a
@@ -25,13 +25,13 @@ silently smaller membership or fails outright.
 
 `Bundle.load` maps a `DescendError` whose `reason` is `"depthExceeded"`
 onto a new public `BundleDepthExceededError { root, path, limit }`, added
-to the `BundleLoadError` union (`packages/core/src/Bundle.ts:57-76`), and
+to the `BundleLoadError` union (`packages/core/src/Bundle.ts:77`), and
 fails the whole load rather than returning a `LoadedBundle` that silently
 omits everything below the cap. `maxDepth` must be a positive integer,
 enforced by the adapter itself
-(`packages/core/src/internal/walk.ts:58-60`); unreadable subdirectories
+(`packages/core/src/internal/walk.ts:56-58`); unreadable subdirectories
 are unaffected and still become sorted `walk-unreadable` diagnostics
-(`packages/core/src/internal/walk.ts:70-79`), and an unreadable root still
+(`packages/core/src/internal/walk.ts:68-77`), and an unreadable root still
 fails with `BundleReadError`.
 
 ## Alternatives rejected

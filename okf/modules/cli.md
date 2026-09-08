@@ -26,7 +26,7 @@ write (`packages/cli/CLAUDE.md:1-10`).
 ## Config discovery and exit codes
 
 Config loading has two branches, chosen once per invocation, never one
-chain with a conditional resolver list (`packages/cli/CLAUDE.md:12-25`,
+chain with a conditional resolver list (`packages/cli/CLAUDE.md:12-26`,
 K-10/K-57), and both are now ONE `AppConfig.layer(OkfitConfigFile, ...)`
 call varying only the chain options
 (`packages/cli/src/config/layer.ts:50-82`): `--config <file>` given -- the
@@ -47,7 +47,7 @@ into `ConfigMalformedError` naming the failing path, falling back to
 `explicitConfigPath` only when the library's own path is unset
 (`packages/cli/src/config/layer.ts:100-114`). Exit codes: `0`
 clean, `1` lint/profile errors, `2` conformance errors, `3` infrastructure
-failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md:27-29`).
+failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md:28-30`).
 
 ## Process and dependency boundaries
 

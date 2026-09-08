@@ -43,16 +43,16 @@ sit alongside `Concept.ts`, `Bundle.ts`, `Graph.ts`, `Derive.ts`, and
 
 `internal/walk.ts` is now a thin adapter over `@effected/walker`'s
 `descend(pattern, { onUnreadable: "record" })` rather than a hand-rolled
-recursion (`packages/core/src/internal/walk.ts:54-80`): unreadable
+recursion (`packages/core/src/internal/walk.ts:52-78`): unreadable
 subdirectories still become sorted `walk-unreadable` diagnostics, and an
 unreadable root is re-read once to surface the real `PlatformError` as
 `BundleReadError`. A walk that descends past `maxDepth` (default 256,
 `DEFAULT_MAX_DEPTH`) now fails typed with a new public
 `BundleDepthExceededError { root, path, limit }`, added to the
-`BundleLoadError` union (`packages/core/src/Bundle.ts:57-76`), instead of
+`BundleLoadError` union (`packages/core/src/Bundle.ts:77`), instead of
 being silently truncated -- the same D-9 argument that unreadable subtrees
 are reported, never hidden. `maxDepth` must be a positive integer,
-enforced by the adapter (`packages/core/src/internal/walk.ts:58-60`).
+enforced by the adapter (`packages/core/src/internal/walk.ts:56-58`).
 
 ## Config rules
 
