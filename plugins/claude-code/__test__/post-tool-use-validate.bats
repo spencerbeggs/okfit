@@ -226,6 +226,14 @@ _run_hook_file() {
 	echo "$output" | jq -e '.hookSpecificOutput.additionalContext | contains("project-missing")'
 }
 
+@test "surfaces an info-severity generated-at-drift diagnostic as context, not a block" {
+	_stub_cli "$(_ctx "$REPO_ROOT" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"okf/modules/example.md","code":"generated-at-drift","severity":"info","message":"generated.at is missing; the last body change was 2026-09-07T20:49:08Z (fc63da0)"}]}' 0
+	run _run_hook_file "$FIXTURES/posttooluse.edit-clean.json"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.hookSpecificOutput.additionalContext | contains("generated-at-drift") and contains("modules/example.md")'
+}
+
 @test "ignores a bundle-level diagnostic whose file is the empty string" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":1,"diagnostics":[{"source":"core.lint","file":"","code":"missing-index","severity":"warning","message":"no index"}]}' 1

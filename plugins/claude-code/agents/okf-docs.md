@@ -64,10 +64,10 @@ tool call replaces a shell round trip, not the checking itself. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s sixteen rules, run `okfit validate` and fix what it
-reports (no dedicated command regenerates `index.md`/`log.md` in phase 1 —
-defer to what `validate`'s own report names as stale and never hand-edit
-either file), check `okf-context`'s CLAUDE.md-to-`index.md` pointer
-coverage, and report what changed — sequentially, in this one context.
+reports, run `okfit sync` to regenerate `generated.at`, `index.md`, and
+`log.md` and report what it wrote, left unchanged, or skipped, check
+`okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
+changed — sequentially, in this one context.
 
 ## What this agent does NOT do
 
@@ -79,6 +79,6 @@ coverage, and report what changed — sequentially, in this one context.
 - Never edits source code, tests, or any file outside the bundle,
   `CLAUDE.md` files, and package `README.md`s.
 - Never commits, pushes, or writes a changeset.
-- Never hand-edits `index.md` or `log.md` — both are derived; no command
-  regenerates them in phase 1, so repair what `okfit validate` reports and
-  never write into them directly.
+- Never hand-edits `index.md` or `log.md` — both are derived; `okfit sync`
+  is the command, and it runs `okfit sync`, never hand-edits, after its
+  concept edits.

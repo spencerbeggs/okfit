@@ -37,7 +37,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Setup runtime
         uses: savvy-web/silk-runtime-action@v1
@@ -57,6 +57,11 @@ jobs:
 
       - name: Validate the okf bundle
         run: pnpm exec okfit validate . --format human
+
+      - name: Guard the index against drift
+        run: |
+          pnpm exec okfit sync --dry-run --only index --format json \
+            | jq -e '.index.written | length == 0'
 
       - name: Run the dogfood index guard
         run: pnpm vitest run packages/cli/__test__/e2e/dogfood.e2e.test.ts
