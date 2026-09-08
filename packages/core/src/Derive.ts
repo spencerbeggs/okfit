@@ -130,6 +130,20 @@ export class Derive {
 	/** `## <date>` plus one `* <item>` line per item, newline-terminated (D-36). */
 	static readonly renderLogEntry = (entry: LogEntry): string => logEntry(entry.date, entry.items);
 
+	/**
+	 * Assemble a whole log document from its groups: `# <title>\n\n` followed
+	 * by each group's own {@link Derive.renderLogEntry} rendering, joined by
+	 * one blank line (S-11). Default title `"Log"`. `init` and `sync`'s log
+	 * mode both call this instead of hand-assembling the join; `sync`'s
+	 * `mergeLog` uses it only for brand-new groups it renders, since existing
+	 * groups are re-emitted verbatim from source.
+	 */
+	static readonly renderLog = (groups: ReadonlyArray<LogEntry>, options?: { readonly title?: string }): string => {
+		const title = options?.title ?? "Log";
+		if (groups.length === 0) return `# ${title}\n`;
+		return `# ${title}\n\n${groups.map(Derive.renderLogEntry).join("\n")}`;
+	};
+
 	/** Index text for `dir` from the concepts directly in it plus its immediate child directories; no frontmatter. */
 	static readonly synthesizeIndex = (bundle: LoadedBundle, dir: string): string => {
 		const prefix = dir === "" ? "" : `${dir}/`;

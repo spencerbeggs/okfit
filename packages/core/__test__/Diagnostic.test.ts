@@ -23,6 +23,32 @@ describe("Diagnostic", () => {
 			assert.strictEqual((yield* Effect.flip(decodeCode("not-a-code")))._tag, "SchemaError");
 		}),
 	);
+	it.effect("decodes all sixteen LintCode members, including generated-at-drift (S-7)", () =>
+		Effect.gen(function* () {
+			const codes = [
+				"broken-links",
+				"missing-index",
+				"unknown-type",
+				"required-key-missing",
+				"field-value-unknown",
+				"require-verified-unmet",
+				"family-invalid",
+				"computation-runtime-missing",
+				"footnote-source-unknown",
+				"log-frontmatter",
+				"actor-prefix-unknown",
+				"legacy-timestamp",
+				"config-unknown-key",
+				"stale",
+				"walk-unreadable",
+				"generated-at-drift",
+			];
+			assert.strictEqual(codes.length, 16);
+			for (const code of codes) {
+				assert.strictEqual(yield* decodeCode(code), code);
+			}
+		}),
+	);
 	it("isConformance is true only for a ConformanceCode member (D-32/D-33)", () => {
 		const conformance = Diagnostic.make({ file: "a.md", code: "type-missing", severity: "error", message: "x" });
 		const lint = Diagnostic.make({ file: "a.md", code: "stale", severity: "info", message: "x" });

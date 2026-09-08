@@ -60,7 +60,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the fifteen lint keys its own rendered code as the title", () => {
+	it("gives each of the sixteen lint keys its own rendered code as the title", () => {
 		const lint = properties()["lint"]?.["properties"] as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value["title"]]),
@@ -80,6 +80,7 @@ describe("okfitConfigDocumentFields", () => {
 				["config_unknown_key", "config-unknown-key"],
 				["stale", "stale"],
 				["walk_unreadable", "walk-unreadable"],
+				["generated_at_drift", "generated-at-drift"],
 			],
 		);
 		assert.strictEqual(

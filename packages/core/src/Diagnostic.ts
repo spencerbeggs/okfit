@@ -37,6 +37,7 @@ export const LintCode = Schema.Literals([
 	"config-unknown-key",
 	"stale",
 	"walk-unreadable",
+	"generated-at-drift",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

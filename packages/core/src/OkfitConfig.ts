@@ -294,6 +294,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	generated_at_drift: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "generated-at-drift",
+			description:
+				'A committed concept\'s generated.at is missing or does not match its last body-changing commit. Default "info".',
+			default: "info",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -534,6 +542,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"config-unknown-key": "config_unknown_key",
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
+	"generated-at-drift": "generated_at_drift",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -553,6 +562,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	config_unknown_key: "warn",
 	stale: "info",
 	walk_unreadable: "warn",
+	generated_at_drift: "info",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

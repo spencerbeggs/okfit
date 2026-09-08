@@ -464,6 +464,28 @@
 							]
 						}
 					}
+				},
+				"generated_at_drift": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "generated-at-drift",
+					"description": "A committed concept's generated.at is missing or does not match its last body-changing commit. Default \"info\".",
+					"default": "info",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
 				}
 			},
 			"additionalProperties": false,

@@ -131,6 +131,30 @@ describe("Derive", () => {
 	);
 });
 
+describe("Derive.renderLog", () => {
+	it("renders just the title heading for an empty group list", () => {
+		assert.strictEqual(Derive.renderLog([]), "# Log\n");
+	});
+
+	it("renders one group under the default title, joined title-then-body with one blank line", () => {
+		const rendered = Derive.renderLog([{ date: "2026-09-04", items: ["Added a thing."] }]);
+		assert.strictEqual(rendered, "# Log\n\n## 2026-09-04\n* Added a thing.\n");
+	});
+
+	it("joins multiple groups with exactly one blank line between their rendered text", () => {
+		const rendered = Derive.renderLog([
+			{ date: "2026-09-05", items: ["Added second."] },
+			{ date: "2026-09-04", items: ["Added first."] },
+		]);
+		assert.strictEqual(rendered, "# Log\n\n## 2026-09-05\n* Added second.\n\n## 2026-09-04\n* Added first.\n");
+	});
+
+	it("accepts a custom title", () => {
+		const rendered = Derive.renderLog([{ date: "2026-09-04", items: [] }], { title: "Changes" });
+		assert.strictEqual(rendered, "# Changes\n\n## 2026-09-04\n");
+	});
+});
+
 describe("Derive.staleReport", () => {
 	it.effect("staleReport returns [] for an empty bundle", () =>
 		Effect.sync(() => {

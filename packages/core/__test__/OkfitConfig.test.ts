@@ -95,7 +95,7 @@ describe("OkfitConfig", () => {
 		assert.deepStrictEqual([d.actors, d.types, d.tags, d.extensions], [{ humans: [] }, {}, {}, {}]);
 		assert.deepStrictEqual(
 			[d.lint!.broken_links, d.lint!.unknown_type, d.lint!.legacy_timestamp, Object.keys(d.lint!).length],
-			["warn", "error", "info", 15],
+			["warn", "error", "info", 16],
 		);
 	});
 	it("merge: DEFAULTS < profile < file, arrays replace, tables merge, inputs untouched", () => {
@@ -138,6 +138,11 @@ describe("OkfitConfig", () => {
 		assert.strictEqual(OkfitConfig.severityFor(d, "family-invalid"), "error");
 		assert.strictEqual(OkfitConfig.severityFor(d, "legacy-timestamp"), "info");
 		assert.strictEqual(OkfitConfig.severityFor(d, "config-unknown-key"), "warning");
+		assert.strictEqual(OkfitConfig.severityFor(d, "generated-at-drift"), "info");
+		assert.strictEqual(
+			OkfitConfig.severityFor({ lint: { generated_at_drift: "error" }, extensions: {} }, "generated-at-drift"),
+			"error",
+		);
 		assert.strictEqual(OkfitConfig.severityFor({ extensions: {} }, "broken-links"), "warning");
 		assert.strictEqual(
 			OkfitConfig.severityFor({ lint: { broken_links: "off" }, extensions: {} }, "broken-links"),
