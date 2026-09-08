@@ -7,7 +7,10 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-08T09:16:37Z
-status: draft
+status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-08T13:12:40Z
 ---
 
 # okfit sync is the one command that regenerates every derived-content family

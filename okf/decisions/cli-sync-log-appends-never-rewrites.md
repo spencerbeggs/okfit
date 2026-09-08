@@ -7,7 +7,10 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-08T09:16:37Z
-status: draft
+status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-08T13:12:41Z
 ---
 
 # okfit sync's log mode appends by date and never rewrites existing prose
