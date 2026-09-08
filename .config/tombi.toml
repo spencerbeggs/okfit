@@ -1,0 +1,18 @@
+[files]
+exclude = [
+	"**/__test__/fixtures/**",
+	"**/__test__/*/fixtures/**",
+	"**/__fixtures__/**",
+	"**/node_modules/**",
+	"**/.git/**",
+	"**/.vscode/**",
+]
+
+[format]
+rules = {
+	indent-style = "tab",
+	indent-sub-tables = false,
+	indent-table-key-value-pairs = false,
+	indent-width = 2,
+	line-width = 120,
+}
