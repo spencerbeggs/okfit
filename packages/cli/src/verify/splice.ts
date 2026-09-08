@@ -1,5 +1,5 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { Located } from "./locate.js";
+import type { GeneratedLocated, Located } from "./locate.js";
 
 /** Every {@link Located} case that names an edit; `unsupported` is unrepresentable here. @internal */
 export type SpliceTarget = Exclude<Located, { readonly _tag: "unsupported" }>;
@@ -73,5 +73,39 @@ export const splice = (target: SpliceTarget, entry: VerifyEntry, newline: "\n" |
 						length: target.end - target.start,
 						content: `${newline}${target.indent}- ${reindent(target.original, newline)}${newline}${block(target.indent)}${newline}`,
 					});
+	}
+};
+
+/**
+ * Build the one edit for `target` (contract §6.1). Never calls a YAML
+ * stringifier: the only syntax emitted is the indent, `at: `, the
+ * preserved quote character (if any), and `newline`. `encodedAt` is
+ * already `Schema.encodeSync(Timestamp)`'d by the caller (S-1: splice,
+ * never `YamlFormat.modify` — it drops quote style and re-normalises line
+ * endings, V-12/V-15 violations `sync/generated.ts` cannot afford).
+ *
+ * @internal
+ */
+export const spliceGenerated = (
+	target: Exclude<GeneratedLocated, { readonly _tag: "unsupported" }>,
+	encodedAt: string,
+	newline: "\n" | "\r\n",
+): MarkdownEdit => {
+	switch (target._tag) {
+		case "insertAfterLastKey":
+			return MarkdownEdit.make({
+				offset: target.insertAt,
+				length: 0,
+				content: `${target.indent}at: ${encodedAt}${newline}`,
+			});
+		case "replaceScalar": {
+			const quoted =
+				target.quote === "single-quoted"
+					? `'${encodedAt}'`
+					: target.quote === "double-quoted"
+						? `"${encodedAt}"`
+						: encodedAt;
+			return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: quoted });
+		}
 	}
 };
