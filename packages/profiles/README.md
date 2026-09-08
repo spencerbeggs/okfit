@@ -132,6 +132,25 @@ const staleAfter = Derivation.staleAfter(Option.getOrElse(at, () => now), config
 
 Frontmatter serialisation, the uncommitted policy's enforcement, `now`, layer composition (`Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer))`), exit codes, and everything `okfit init` writes belong to the CLI plan, not this package (P-30, P-41, P-44).
 
+## Provenance
+
+`Provenance.lint(bundle, config)` is the `generated-at-drift` lint
+(`lint.generated_at_drift`, config default `"info"`): it walks
+`Derivation.generatedAt` once per concept with a `generated` block, and
+reports a core `Diagnostic` when a committed body's `generated.at` is
+missing or does not match the derived instant (compared as decoded
+`DateTime.Utc` values, never encoded strings). It is silent for an
+uncommitted body, for a concept with no `generated` block, and returns `[]`
+the moment it discovers the bundle is outside a git repository at all. It
+emits no `range` — the message carries both instants and a 7-character
+sha, which is what a reader acts on. It is a plain facade over
+`Derivation`, not a `Profile` member: `severityFor`, the `[lint]` table,
+the renderers, the PostToolUse hook, and the MCP `validate_bundle` tool all
+treat its `Diagnostic`s like every other lint. The CLI (`okfit validate`,
+`okfit sync`'s own reporting) is the only caller and the only place the
+`"off"` severity actually skips the git walk; this package's own function
+always reads `config` but never gates on it.
+
 ## License
 
 [MIT](LICENSE)

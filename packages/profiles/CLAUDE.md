@@ -20,6 +20,7 @@ src/
                          parsing, and the stderr classification.
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
   Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, generatedAt, humanActorId, generatedBy, staleAfter
+  Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config), the generated-at-drift lint (S-8); not a Profile member, no range (S-12)
 ```
 
 Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.

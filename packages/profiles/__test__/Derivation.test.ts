@@ -197,6 +197,46 @@ describe("Derivation.generatedAt (P-2, P-9, P-39)", () => {
 			),
 		);
 	});
+	it.effect("sets creating true only when the winning entry is the oldest entry of the path's history", () =>
+		Effect.gen(function* () {
+			// Multi-entry history at HEAD = c6: the winner is `topic` (index 1 of
+			// F4_LOG_ORDER), not the oldest entry (`c1`, the last element) -> false.
+			const notOldest = yield* Derivation.generatedAt({ file: FILE }).pipe(
+				Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history })),
+			);
+			assert.strictEqual(notOldest._tag, "committed");
+			if (notOldest._tag === "committed") assert.isFalse(notOldest.creating);
+
+			// A single-entry path history: the only entry is trivially both the
+			// winner and the oldest entry -> true.
+			const only = byName("c1");
+			const singleEntry = yield* Derivation.generatedAt({ file: FILE }).pipe(
+				Effect.provide(
+					Layer.mergeAll(
+						Git.layerTest({
+							repoRoot: () => Effect.succeed(ROOT),
+							show: (_cwd, ref, path) => {
+								if (ref === "HEAD" && path === REL) return Effect.succeed(Option.some(F4_TEXTS.c1));
+								if (ref === only.sha && path === only.path) return Effect.succeed(Option.some(F4_TEXTS.c1));
+								return Effect.die(new Error(`unexpected show(${ref}, ${path})`));
+							},
+						}),
+						GitHistory.layerTest({ [REL]: entriesOf([only]) }),
+						FileSystem.layerNoop({
+							readFileString: (path) =>
+								path === FILE
+									? Effect.succeed(F4_TEXTS.c1)
+									: Effect.die(new Error(`unexpected readFileString(${path})`)),
+							realPath: (path) => Effect.succeed(path),
+						}),
+						Path.layer,
+					),
+				),
+			);
+			assert.strictEqual(singleEntry._tag, "committed");
+			if (singleEntry._tag === "committed") assert.isTrue(singleEntry.creating);
+		}),
+	);
 	it.effect("also ignores a non-default lifecycle config (P-48)", () =>
 		Effect.gen(function* () {
 			const config: OkfitConfig = { lifecycle: { default_stale_after: Duration.days(7) }, extensions: {} };
