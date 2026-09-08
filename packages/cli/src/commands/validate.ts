@@ -1,5 +1,7 @@
+import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
-import { Console, Effect, Option, Path, Schema } from "effect";
+import { GitHistory } from "@okfit/profiles";
+import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { provideConfig } from "../config/layer.js";
 import { resolveProjectConfig } from "../config/resolve.js";
@@ -64,7 +66,9 @@ export const validateCommand = Command.make(
 				});
 				const { bundleRoot, config: merged, profile } = resolved;
 
-				const result = yield* run({ root: bundleRoot, config: merged, profile, now });
+				const result = yield* run({ root: bundleRoot, config: merged, profile, now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
+				);
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
 				const code = forDiagnostics(diagnostics);
 

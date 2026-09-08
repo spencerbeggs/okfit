@@ -1,7 +1,8 @@
 import { TomlCodec } from "@effected/config-file";
+import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import { Profiles } from "@okfit/profiles";
-import { Console, DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
+import { GitHistory, Profiles } from "@okfit/profiles";
+import { Console, DateTime, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { resolveBundleRoot, resolveProjectRoot } from "../config/anchor.js";
 import { provideConfig } from "../config/layer.js";
@@ -205,7 +206,9 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 
 				yield* Console.log(`Initialized ${displayRoot(cwd, bundleRoot, path)} with the ${profileName} profile`);
 
-				const result = yield* run({ root: bundleRoot, config: merged, profile, now });
+				const result = yield* run({ root: bundleRoot, config: merged, profile, now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
+				);
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
 				for (const line of human(diagnostics, { color: useColor() })) {
 					yield* Console.log(line);

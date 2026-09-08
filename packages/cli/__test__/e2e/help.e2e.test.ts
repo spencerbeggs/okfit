@@ -22,12 +22,13 @@ const withSandbox = (args: ReadonlyArray<string>, assertOn: (stdout: string) => 
 	}).pipe(Effect.provide(NodeServices.layer));
 
 describe("okfit --help", () => {
-	it.effect("mentions all four subcommands (K-33, contract §9.5)", () =>
+	it.effect("mentions all five subcommands (K-33, contract §9.5)", () =>
 		withSandbox(["--help"], (stdout) => {
 			assert.isTrue(stdout.includes("validate"));
 			assert.isTrue(stdout.includes("init"));
 			assert.isTrue(stdout.includes("context"));
 			assert.isTrue(stdout.includes("verify"));
+			assert.isTrue(stdout.includes("sync"));
 		}),
 	);
 });
@@ -63,6 +64,20 @@ describe("okfit context --help", () => {
 			assert.isTrue(stdout.includes("human"));
 			assert.isTrue(stdout.includes("json"));
 			assert.isFalse(stdout.includes("--profile"));
+		}),
+	);
+});
+
+describe("okfit sync --help", () => {
+	it.effect("mentions path, --config, --only, --dry-run, --format, human, and json (contract §4.1)", () =>
+		withSandbox(["sync", "--help"], (stdout) => {
+			assert.isTrue(stdout.includes("path"));
+			assert.isTrue(stdout.includes("--config"));
+			assert.isTrue(stdout.includes("--only"));
+			assert.isTrue(stdout.includes("--dry-run"));
+			assert.isTrue(stdout.includes("--format"));
+			assert.isTrue(stdout.includes("human"));
+			assert.isTrue(stdout.includes("json"));
 		}),
 	);
 });

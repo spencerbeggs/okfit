@@ -1,7 +1,9 @@
+import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
-import { Bundle, Validate } from "@okfit/core";
-import type { Profile, ProfileDiagnostic } from "@okfit/profiles";
-import type { DateTime, FileSystem, Path } from "effect";
+import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
+import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
+import { Provenance } from "@okfit/profiles";
+import type { DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 
 /**
@@ -42,15 +44,32 @@ export interface RunResult {
 }
 
 /**
- * Load, validate both tiers, run the profile check, collect. K-52 holds
- * structurally: `Bundle.load`'s failure short-circuits the generator, so
- * `profile.check` never runs on a bundle that did not load.
+ * Load, validate both tiers, run the profile check, then — UNLESS the
+ * `generated-at-drift` lint is `off` — run `Provenance.lint` and append its
+ * `Diagnostic`s to `report.lint`. The "off skips the git walk entirely"
+ * gate lives HERE, in `run`, not inside `Provenance.lint` (S-8's own
+ * wording): a bundle configured `off` never pays for a git spawn. An
+ * `error` severity on the appended diagnostics yields exit `1` through the
+ * EXISTING lint-tier rule in `render/exit.ts` — no renderer branch, no new
+ * `DiagnosticSource`, since these diagnostics flow through the same
+ * `report.lint` array every other core lint diagnostic already does.
+ *
+ * K-52 holds structurally: `Bundle.load`'s failure short-circuits the
+ * generator, so `profile.check` never runs on a bundle that did not load.
+ *
+ * This is a BREAKING signature change: `@okfit/mcp`'s `validateBundle.ts`
+ * calls this function directly and must be updated to match (Task C1);
+ * `commands/validate.ts` is the other caller.
  *
  * @public
  */
 export const run = (
 	options: RunOptions,
-): Effect.Effect<RunResult, BundleLoadError, FileSystem.FileSystem | Path.Path> =>
+): Effect.Effect<
+	RunResult,
+	BundleLoadError | GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
+	FileSystem.FileSystem | Path.Path | Git | GitHistory
+> =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.root });
 		const report = Validate.all(bundle, options.config, { now: options.now });
@@ -58,5 +77,7 @@ export const run = (
 			onNone: (): ReadonlyArray<ProfileDiagnostic> => [],
 			onSome: (profile) => profile.check(bundle),
 		});
-		return { bundle, report, profileDiagnostics };
+		const severity = OkfitConfigNS.severityFor(options.config, "generated-at-drift");
+		const provenance = severity === "off" ? [] : yield* Provenance.lint(bundle, options.config);
+		return { bundle, report: { ...report, lint: [...report.lint, ...provenance] }, profileDiagnostics };
 	});
