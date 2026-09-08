@@ -1,6 +1,7 @@
 import type { LoadedBundle } from "@okfit/core";
 import { Derive, OKF_SPEC_VERSION } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
+import { writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
@@ -52,9 +53,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 		written.push(relativeId);
 		return;
 	}
-	const tempPath = `${targetPath}.okfit-sync.tmp`;
-	yield* fs.writeFileString(tempPath, rendered);
-	yield* fs.rename(tempPath, targetPath);
+	yield* writeAtomic(targetPath, rendered);
 	written.push(relativeId);
 });
 

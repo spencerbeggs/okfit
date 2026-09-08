@@ -5,6 +5,7 @@ import type { BodyProvenance } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path, Schema } from "effect";
 import { detectNewline, locateGenerated, stripBom } from "../verify/locate.js";
 import { spliceGenerated } from "../verify/splice.js";
+import { writeAtomic } from "./write.js";
 
 /**
  * The five `SkipReason` members contract §6.2's algorithm can actually
@@ -132,18 +133,8 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			continue;
 		}
 
-		// Step 12: temp file beside the real target, then rename over it --
-		// the same atomic discipline `verify/run.ts`'s `runVerify` already
-		// uses, including resolving the real path first so a symlinked
-		// concept survives the rewrite.
-		const target = yield* fs.realPath(absolutePath);
-		const tempPath = `${target}.okfit-sync.tmp`;
-		const original = yield* fs.stat(target);
-		yield* fs.writeFileString(tempPath, finalText);
-		yield* fs.chmod(tempPath, original.mode);
-		yield* fs
-			.rename(tempPath, target)
-			.pipe(Effect.onError(() => fs.remove(tempPath, { force: true }).pipe(Effect.ignore)));
+		// Step 12: one shared atomic writer across all three sync modes (S-33).
+		yield* writeAtomic(absolutePath, finalText);
 		written.push(id);
 	}
 

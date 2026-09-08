@@ -2,6 +2,7 @@ import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path } from "effect";
+import { writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -197,10 +198,8 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 	}
 
-	// Step 8: atomic write, same discipline as generated mode (§6.2 step 12).
-	const tempPath = `${logPath}.okfit-sync.tmp`;
-	yield* fs.writeFileString(tempPath, merged);
-	yield* fs.rename(tempPath, logPath);
+	// Step 8: one shared atomic writer across all three sync modes (S-33).
+	yield* writeAtomic(logPath, merged);
 
 	return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 });
