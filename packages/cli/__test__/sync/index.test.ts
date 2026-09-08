@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
-import { Concept, ConceptId, Derive, LoadedBundle, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
+import { Concept, ConceptId, Derive, IndexDocument, LoadedBundle, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
 import { Effect, Layer, Option, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
 
@@ -65,6 +65,40 @@ describe("syncIndex", () => {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
 		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect(
+		"lists a directory holding only index.md (no concepts) in the root's Subdirectories, matching synthesizeIndex's own union (S-29)",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-index-indexonly-")));
+				try {
+					// "empty" holds only an index.md -- Bundle.load never records such a
+					// directory in `bundle.directories` (no concept lives there), but it
+					// is still a key of `bundle.indexes`.
+					const bundle = LoadedBundle.make({
+						root,
+						files: ["empty/index.md"],
+						directories: [],
+						concepts: new Map(),
+						indexes: new Map([["empty", IndexDocument.make({ path: "empty/index.md", dir: "empty", sections: [] })]]),
+						logs: new Map(),
+						diagnostics: [],
+					});
+					const expectedRootIndex = Derive.renderIndex("", [], {
+						okfVersion: OKF_SPEC_VERSION,
+						subdirectories: ["empty"],
+					});
+
+					const result = yield* syncIndex(bundle, false);
+					assert.deepStrictEqual(result.written, ["index.md"]);
+					const written = yield* Effect.promise(() => readFile(join(root, "index.md"), "utf8"));
+					assert.strictEqual(written, expectedRootIndex);
+					assert.ok(written.includes("[empty](empty/index.md)"));
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}).pipe(Effect.provide(platform)),
 	);
 
 	it.effect("--dry-run computes the written/unchanged split without touching disk", () =>

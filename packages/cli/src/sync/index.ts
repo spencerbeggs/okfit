@@ -10,11 +10,20 @@ export interface SyncIndexResult {
 	readonly skipped: readonly [];
 }
 
-/** Immediate child directories of `dir` among `bundle.directories` (S-20's own rule, mirroring `Derive.synthesizeIndex`'s child-directory walk). */
+/**
+ * Immediate child directories of `dir`, unioned from `bundle.directories`
+ * and `bundle.indexes.keys()` -- the same union `Derive.synthesizeIndex`
+ * walks (S-29, amending S-20's wording): a directory holding only an
+ * `index.md` and no concepts is never a member of `bundle.directories`
+ * (`Bundle.load` records a directory there only when it holds a concept),
+ * but it is still a key of `bundle.indexes`, so omitting that map would
+ * silently drop it from the root's `# Subdirectories` section while every
+ * other directory's own `synthesizeIndex` call still lists it as a child.
+ */
 const childDirectoriesOf = (bundle: LoadedBundle, dir: string): ReadonlyArray<string> => {
 	const prefix = dir === "" ? "" : `${dir}/`;
 	const children = new Set<string>();
-	for (const candidate of bundle.directories) {
+	for (const candidate of [...bundle.directories, ...bundle.indexes.keys()]) {
 		if (candidate === "" || candidate === dir || !candidate.startsWith(prefix)) continue;
 		const head = candidate.slice(prefix.length).split("/")[0];
 		if (head !== undefined && head !== "") children.add(head);
