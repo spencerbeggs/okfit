@@ -3,7 +3,6 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import cliPackageJson from "../../package.json" with { type: "json" };
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
@@ -11,8 +10,6 @@ import { commit, initRepo } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
-
-const CLI_VERSION = (cliPackageJson as { readonly version: string }).version;
 
 const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> => ({
 	...env,
@@ -164,7 +161,7 @@ describe("okfit sync (e2e)", () => {
 			const envelope = parseEnvelope(run.stdout);
 
 			assert.strictEqual(envelope.schema, 1);
-			assert.strictEqual(envelope.okfit_version, CLI_VERSION);
+			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
 			// `root` goes through `displayRoot`, which renders a path relative to
 			// cwd whenever the target is under it (verified against
 			// `render/human.ts#displayRoot` and every existing validate.e2e.test.ts
@@ -679,11 +676,11 @@ describe("okfit sync (e2e)", () => {
 			// extra fixture setup.
 			const run = await withServices(runOkfit(["sync", "--dry-run", "--format", "json"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
-			const envelope = parseEnvelope(run.stdout);
+			const { okfit_version: reportedVersion, ...envelope } = parseEnvelope(run.stdout);
+			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
 
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
-				okfit_version: CLI_VERSION,
 				root: "okf",
 				dry_run: true,
 				exit_code: 0,

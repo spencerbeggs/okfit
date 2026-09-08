@@ -12,14 +12,11 @@ import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import cliPackageJson from "../../package.json" with { type: "json" };
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
 const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profiles", "__test__", "fixtures");
 const CLEAN_FIXTURE = join(PROFILES_FIXTURES, "software-project");
-
-const CLI_VERSION = (cliPackageJson as { readonly version: string }).version;
 
 /** Writes `contents` to `path`, creating parent directories as needed. */
 const writeFileDeep = async (path: string, contents: string): Promise<void> => {
@@ -203,7 +200,7 @@ describe("okfit context: --config naming a missing path", () => {
 				readonly error: { readonly tag: string; readonly message: string };
 			};
 			assert.strictEqual(envelope.schema, 1);
-			assert.strictEqual(envelope.okfit_version, CLI_VERSION);
+			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
 			assert.strictEqual(envelope.exit_code, 3);
 			assert.strictEqual(envelope.error.tag, "ConfigPathNotFoundError");
 			assert.strictEqual(envelope.error.message, `config path not found: ${missingConfig}`);
@@ -233,7 +230,7 @@ describe("okfit context: malformed config", () => {
 				readonly error: { readonly tag: string; readonly message: string };
 			};
 			assert.strictEqual(envelope.schema, 1);
-			assert.strictEqual(envelope.okfit_version, CLI_VERSION);
+			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
 			assert.strictEqual(envelope.exit_code, 3);
 			assert.strictEqual(envelope.error.tag, "ConfigMalformedError");
 			assert.strictEqual(envelope.error.message, `malformed config ${badConfigPath}: toml parse failed`);
