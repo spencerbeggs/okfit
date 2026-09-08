@@ -6,6 +6,8 @@ exclude = [
 	"**/node_modules/**",
 	"**/.git/**",
 	"**/.vscode/**",
+	"schemas/config/test/**",
+	"schemas/config/negative_test/**",
 ]
 
 [format]
