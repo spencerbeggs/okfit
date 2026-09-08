@@ -27,14 +27,25 @@ write (`packages/cli/CLAUDE.md:1-10`).
 
 Config loading has two branches, chosen once per invocation, never one
 chain with a conditional resolver list (`packages/cli/CLAUDE.md:12-25`,
-K-10/K-57): `--config <file>` given -- the path is statted first, then
-loaded through `ConfigFile.layer` with only
-`ConfigResolver.explicitPath(path)`, no upward walk, no XDG probe. No
-`--config` -- `ConfigFile.layer` is built directly with `projectResolver`,
-`XdgConfig.resolver`, `XdgConfig.nativeResolver`, and
-`ConfigResolver.systemEtc`, landing personal defaults at
-`$XDG_CONFIG_HOME/okfit/config.toml` and system defaults at
-`/etc/okfit/config.toml`. Exit codes: `0`
+K-10/K-57), and both are now ONE `AppConfig.layer(OkfitConfigFile, ...)`
+call varying only the chain options
+(`packages/cli/src/config/layer.ts:50-82`): `--config <file>` given -- the
+path is statted first, then the layer carries only
+`resolvers: [ConfigResolver.explicitPath(path)]` and `xdg: false`, no
+upward walk, no XDG probe. No `--config` -- the layer carries
+`resolvers: [ConfigResolver.upwardWalk({ filenames: [".okfit.toml",
+"okfit.toml", ".config/okfit.toml"], name: "project" })]` and
+`systemEtc: true`, landing personal defaults at
+`$XDG_CONFIG_HOME/okfit/config.toml` (`xdg`/`native` stay on their
+defaults) and system defaults at `/etc/okfit/config.toml`. The project-root
+anchor reads the discovered source's `match.dir` for a `"project"`-named
+match (`packages/cli/src/config/anchor.ts:63-79`) instead of string-matching
+the path's tail; `--config` keeps its own basename-based rule
+(`anchorForExplicit`, `packages/cli/src/config/anchor.ts:36-39`). A
+`ConfigCodecError`/`ConfigValidationError` from either branch is wrapped
+into `ConfigMalformedError` naming the failing path, falling back to
+`explicitConfigPath` only when the library's own path is unset
+(`packages/cli/src/config/layer.ts:100-114`). Exit codes: `0`
 clean, `1` lint/profile errors, `2` conformance errors, `3` infrastructure
 failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md:27-29`).
 

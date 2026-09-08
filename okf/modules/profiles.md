@@ -7,7 +7,7 @@ kind: package
 tags:
   - architecture
 generated:
-  by: human:spencer
+  by: okfit/claude-code
 ---
 
 # Profiles
@@ -30,6 +30,17 @@ layout, and check -- never re-exported, reachable only via
 git-log-walking primitives. `Derivation.ts` is the
 `body`/`generatedAt`/`humanActorId`/`generatedBy`/`staleAfter` facade
 (`packages/profiles/CLAUDE.md:8-22`).
+
+`GitHistory.layer` no longer spawns git itself: it is a thin adapter over
+`@effected/git` 0.12.0's `Git.log`, forwarding `paths: [path], follow:
+true, firstParentDiffMerges: true` and an optional `limit` verbatim
+(`packages/profiles/src/GitHistory.ts:86-127`). `NotARepositoryError`
+passes through unchanged; a `GitCommandError` maps onto this package's own
+`GitHistoryError`, and the whole call keeps a 30 s
+`Effect.timeoutOrElse`. An entry with an empty `CommitLogEntry.paths` (a
+merge TREESAME to its first parent) is dropped, matching the old parser's
+behaviour (`packages/profiles/src/GitHistory.ts:112-126`).
+`src/internal/pathLog.ts` and `src/internal/spawn.ts` no longer exist.
 
 ## Rules and boundaries
 
