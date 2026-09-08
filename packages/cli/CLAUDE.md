@@ -1,8 +1,10 @@
 # @okfit/cli
 
-The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`, and
-`okfit verify`. Built on `effect/unstable/cli` for the command tree, flags,
-and help; `@effected/cli` for output and failure rendering.
+The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`,
+`okfit verify`, and `okfit sync` -- the full list is
+`okf/interfaces/cli-commands.md`'s to keep, not counted here. Built on
+`effect/unstable/cli` for the command tree, flags, and help;
+`@effected/cli` for output and failure rendering.
 
 `okfit context` prints the same orientation data (project root, bundle
 root, config path, profile, vocabulary) without loading the bundle — cheap
@@ -50,7 +52,7 @@ src/
   context/
     run.ts               -- runContext: index.md stat only, never Bundle.load
   validate/
-    run.ts               -- Now (Context.Service), RunOptions, RunResult, run
+    run.ts               -- Now (Context.Service), RunOptions (skipProvenance?: boolean, S-31), RunResult, run
   verify/
     locate.ts             -- Located, locate, stripBom, documentNewline (pure)
     splice.ts              -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)

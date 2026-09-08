@@ -8,6 +8,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T09:16:37Z
 ---
 
 # Profiles
@@ -52,6 +53,13 @@ Effect v4 is pinned to `catalog:effect`; `@okfit/core`, `@effected/git`, and
 imports `@effect/platform-node` or `node:child_process` directly. No
 `process.cwd()` and no environment reads anywhere in `src/`: `writer` and
 `cwd` are explicit arguments (P-16) (`packages/profiles/CLAUDE.md:28,31`).
+
+## Provenance linting
+
+`Provenance.lint(bundle, config)` runs the `generated-at-drift` lint,
+requiring `Git | GitHistory | FileSystem | Path` to compare each
+concept's stamped `generated.at` against what the same git walk
+`Derivation.generatedAt` uses would compute today.
 
 ## Derivation is package-global
 

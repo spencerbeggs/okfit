@@ -5,6 +5,7 @@ description: '@savvy-web/bundler flips "private" on publish; a source package.js
 status: stable
 generated:
   by: human:spencer
+  at: 2026-09-06T10:47:04Z
 tags:
   - release
 stale_after: "2026-12-05T00:00:00Z"

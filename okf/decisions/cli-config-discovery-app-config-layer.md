@@ -6,6 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T01:34:27Z
 status: stable
 supersedes: cli-config-discovery-config-dir.md
 verified:

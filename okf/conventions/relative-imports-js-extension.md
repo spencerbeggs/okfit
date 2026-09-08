@@ -5,6 +5,7 @@ description: 'Relative imports end in .js; built-ins use the node: prefix; type-
 status: stable
 generated:
   by: human:spencer
+  at: 2026-09-06T10:47:04Z
 stale_after: "2026-12-05T00:00:00Z"
 ---
 

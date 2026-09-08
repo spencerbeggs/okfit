@@ -1,6 +1,8 @@
+import { Git } from "@effected/git";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/cli";
 import { OKF_SPEC_VERSION } from "@okfit/core";
+import { GitHistory } from "@okfit/profiles";
 import { Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
 import { BundleNotFound, McpToolError, composeRemediatedMessage } from "../errors.js";
@@ -20,6 +22,13 @@ const DESCRIPTION =
  * `never`, failing the handler record against `HandlersFrom` when passed to
  * `OkfitToolkit.toLayer`.
  *
+ * `Git` and `GitHistory` are new in this list: B3 widened `run()`'s own
+ * requirement channel to `FileSystem.FileSystem | Path.Path | Git |
+ * GitHistory` so it can run `Provenance.lint`'s `generated-at-drift`
+ * check (S-8, S-16). Both are provided by `server.ts`'s `ServerLayer`,
+ * which needs only `ChildProcessSpawner` to build them — already
+ * supplied by `bin.ts`'s untouched `PlatformLayer` (S-16).
+ *
  * @public
  */
 export const validateBundle = Tool.make("validate_bundle", {
@@ -27,7 +36,7 @@ export const validateBundle = Tool.make("validate_bundle", {
 	parameters: Params,
 	success: JsonEnvelope,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg],
+	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Git, GitHistory],
 })
 	.annotate(Tool.Title, "Validate the bundle")
 	.annotate(Tool.Readonly, true)

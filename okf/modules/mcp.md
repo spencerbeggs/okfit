@@ -6,6 +6,7 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T09:16:37Z
 ---
 
 # MCP
@@ -16,7 +17,10 @@ generated:
 `@okfit/core`: `list_concepts`, `get_concept`, `concept_neighbors`,
 `stale_report`, `validate_bundle`, and `describe_vocabulary` — see
 `okf/interfaces/okfit-mcp.md` for the exact contract. It gives agents
-structured access to an OKF bundle (`packages/mcp/README.md:3`).
+structured access to an OKF bundle (`packages/mcp/README.md:3`). For the
+`generated-at-drift` lint, `validate_bundle` now spawns read-only `git
+log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
+"writes nothing, ever" promise stands, since a read is not a write.
 
 ## Status
 

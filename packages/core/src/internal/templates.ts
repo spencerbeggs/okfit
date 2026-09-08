@@ -18,6 +18,6 @@ export const indexSection = (heading: string, entries: ReadonlyArray<string>): s
 /** Root-index frontmatter carrying only `okf_version` (D-21). */
 export const indexFrontmatter = (okfVersion: string): string => `---\nokf_version: "${okfVersion}"\n---\n\n`;
 
-/** `## <date>` followed by one `* item` line per item (spec §9). */
+/** `## <date>`, a blank line, then one `* item` line per item (spec §9; S-32, MD022/MD032). */
 export const logEntry = (date: string, items: ReadonlyArray<string>): string =>
-	`${[`## ${date}`, ...items.map((item) => `* ${item}`)].join("\n")}\n`;
+	`${[`## ${date}`, "", ...items.map((item) => `* ${item}`)].join("\n")}\n`;

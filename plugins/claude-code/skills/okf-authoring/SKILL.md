@@ -33,7 +33,7 @@ asked, and never treat its existence as a loophole in this rule.
    `PROFILES/SoftwareProject.ts:16` sets `["title", "description"]`).
 2. Never add or edit `verified`.
 3. Stamp `generated.by` on meaningful changes; never the legacy
-   `timestamp`. No command writes `generated.at` yet; never type it by hand.
+   `timestamp`. `okfit sync` writes `generated.at`; never type it by hand.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
@@ -63,12 +63,14 @@ asked, and never treat its existence as a loophole in this rule.
 ## generated.at
 
 Core treats `generated.at` as optional (`CORE/Generated.ts:11`); this
-skill instructs writers to leave it unset until a tool supplies the value
-rather than typing a guess (rule 3). `generated.by` stays required
-(`CORE/Generated.ts:10`) and is always hand-stamped. No command writes
-`generated.at` yet; never type it by hand. `okfit verify` is not that command
-either — it stamps only `verified`, a separate, spec-independent family
-(spec §5.2).
+skill instructs writers to leave it unset until `okfit sync` supplies the
+value rather than typing a guess (rule 3). `generated.by` stays required
+(`CORE/Generated.ts:10`) and is always hand-stamped. `okfit sync` is the
+command that writes `generated.at`, deriving it from git history -- never
+type it by hand, and never invent `generated.by` on its behalf (sync
+never writes that key: design §3 step 5). `okfit verify` is a different
+command entirely -- it stamps only `verified`, a separate,
+spec-independent family (spec §5.2).
 
 ## Actor prefixes
 

@@ -111,9 +111,14 @@ bundle_relative="${file_path#"$bundle_root"/}"
 # PROJECT root, never the bundle root (K-2) — okfit_cli's caller never
 # reimplements resolveBundleRoot; it asks the CLI once and reuses the
 # answer, which is what project_root (from the envelope, C-7) already is.
+# --skip-provenance (S-31/F-3): this hook fires on every Write/Edit inside
+# the bundle, so the generated-at-drift lint's git tier (a repoRoot + show
+# HEAD + log --follow + N show subprocess burst per concept) would run on
+# every single edit; the flag keeps this call git-free without touching the
+# project's own `[lint]` table, which CI and `validate_bundle` still honor.
 set +e
 # shellcheck disable=SC2086
-validate_json=$($cli_cmd validate "$project_root" --format json 2>/dev/null)
+validate_json=$($cli_cmd validate "$project_root" --format json --skip-provenance 2>/dev/null)
 validate_rc=$?
 set -e
 

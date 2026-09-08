@@ -32,16 +32,20 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * "Decisions made here" #1): thirty-three concepts total.
  *
  * Every Decision carries `require_verified = true` and every one of the
- * thirteen was verified with `okfit verify` by Spencer (twelve on
- * 2026-09-07, the config-dir Decision on 2026-09-08), so the bundle
- * produces no diagnostics at all under core's default `error` severity.
- * Agents never write `verified`: a new Decision stays unverified, and this
+ * thirteen already-verified Decisions carries a human attestation, so the
+ * bundle produces no diagnostics at all under core's default `error`
+ * severity. Task D1 (docs(okf): document okfit sync in the bundle) adds
+ * two more Decision concepts, both `status: draft` with no `verified`
+ * key at all -- an unverified Decision is exempt from
+ * `require-verified-unmet` only while `status: draft` (okf-authoring
+ * rule 14), so these two add zero new diagnostics either. Agents never
+ * write `verified`: a new stable Decision stays unverified, and this
  * test red, until Spencer verifies it from his own shell (C-28).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 7,
-	Decision: 15,
+	Decision: 17,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
@@ -164,5 +168,42 @@ describe("okfit's own okf/ bundle: index completeness (F-13 case b)", () => {
 					);
 				}
 			}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit's own okf/ bundle: okfit sync --dry-run (F-13 case c)", () => {
+	it.effect("reports nothing to write once the bundle is stamped", () =>
+		Effect.gen(function* () {
+			const result = yield* runOkfit(["sync", REPO_ROOT, "--dry-run", "--format", "json"], {
+				cwd: REPO_ROOT,
+				env: {
+					PATH: process.env.PATH ?? "",
+					HOME: process.env.HOME ?? "",
+					NO_COLOR: "1",
+				},
+			});
+
+			assert.strictEqual(result.exitCode, 0);
+			assert.strictEqual(result.stderr, "");
+
+			const envelope = JSON.parse(result.stdout) as {
+				readonly exit_code: number;
+				readonly dry_run: boolean;
+				readonly generated: { readonly written: ReadonlyArray<string>; readonly skipped: ReadonlyArray<unknown> };
+				readonly index: { readonly written: ReadonlyArray<string> };
+				readonly log: { readonly written: ReadonlyArray<string> };
+			};
+
+			assert.strictEqual(envelope.exit_code, 0);
+			assert.isTrue(envelope.dry_run);
+			// Every committed concept under okf/ was stamped by Task D1's own
+			// `okfit sync` run (S-24, S-27); a non-empty `written` list here
+			// means the stamping commit drifted from what sync would now
+			// compute -- fix the bundle, never this assertion.
+			assert.deepStrictEqual(envelope.generated.written, []);
+			assert.deepStrictEqual(envelope.generated.skipped, []);
+			assert.deepStrictEqual(envelope.index.written, []);
+			assert.deepStrictEqual(envelope.log.written, []);
+		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

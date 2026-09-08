@@ -3,7 +3,9 @@
 The `okfit-mcp` bin: an MCP server over stdio (`effect/unstable/ai`'s
 `McpServer`) exposing six read-only tools and the bundle index plus one
 resource per concept against an OKF bundle. The server writes nothing,
-ever, to the bundle, the config, or anywhere else.
+ever, to the bundle, the config, or anywhere else — `validate_bundle` now
+spawns read-only `git log`/`git show` for one lint, but a read is not a
+write, and that promise stands (S-16).
 
 ## Layout
 

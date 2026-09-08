@@ -5,6 +5,8 @@ import { Schema } from "effect";
  * The body is at HEAD and last changed in the commit described here (P-9).
  * `at` is that commit's author date (P-4); `committedAt` and the author
  * identity are carried for callers that want a history-based policy later (P-40).
+ * `creating` is true exactly when the winning entry is also the oldest entry
+ * of the path's history — the commit that created the path (S-9).
  *
  * @public
  */
@@ -14,6 +16,7 @@ export const BodyCommitted = Schema.TaggedStruct("committed", {
 	committedAt: Timestamp,
 	authorName: Schema.String,
 	authorEmail: Schema.String,
+	creating: Schema.Boolean,
 });
 
 /**

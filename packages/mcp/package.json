@@ -35,9 +35,11 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
+		"@effected/git": "catalog:effected",
 		"@effected/xdg": "catalog:effected",
 		"@okfit/cli": "workspace:*",
 		"@okfit/core": "workspace:*",
+		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effect"
 	},
 	"devDependencies": {

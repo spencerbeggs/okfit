@@ -8,6 +8,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
+  at: 2026-09-06T10:41:29Z
 ---
 
 # Workspace

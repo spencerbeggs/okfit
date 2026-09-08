@@ -8,6 +8,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T12:50:49Z
 ---
 
 # Claude Code Plugin
@@ -42,7 +43,11 @@ fires on `Write|Edit`, **not** `PreToolUse`: `PreToolUse` fires before the
 edited file exists on disk, and `okfit validate` has nothing to read at
 that point, so a block from `PostToolUse` is a stop-and-fix signal, not a
 prevention (`plugins/claude-code/CLAUDE.md:79-86`; M-20, this is a
-deliberate, documented spec departure). Kill switches: `OKFIT_HOOKS=off`
+deliberate, documented spec departure). `PostToolUse` runs `okfit
+validate` with `--skip-provenance`: the git-derived `generated-at-drift`
+lint costs a git walk per concept, measured taking validate from about
+0.5 s to 1.7 s on this bundle, so the edit-time hook skips it while CI and
+the MCP `validate_bundle` tool keep it. Kill switches: `OKFIT_HOOKS=off`
 disables both; `OKFIT_SESSION_HOOK=off` and `OKFIT_VALIDATE_HOOK=off`
 disable one each; comparison is exact-string `off` only
 (`plugins/claude-code/CLAUDE.md:62-69`).

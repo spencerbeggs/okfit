@@ -1,5 +1,7 @@
+import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
-import { Console, Effect, Option, Path, Schema } from "effect";
+import { GitHistory } from "@okfit/profiles";
+import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { provideConfig } from "../config/layer.js";
 import { resolveProjectConfig } from "../config/resolve.js";
@@ -33,8 +35,14 @@ const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
 	Flag.withDescription("output format: human (default) or json"),
 );
 
+/** S-31: skips `Provenance.lint`'s git tier for this invocation, without touching `[lint]`. */
+const skipProvenanceFlag = Flag.boolean("skip-provenance").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("skip the generated-at-drift lint's git tier for this run"),
+);
+
 /**
- * `okfit validate [path] [--config <file>] [--format human|json]`.
+ * `okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance]`.
  *
  * Handler order fixed by the contract (§2 `src/commands/validate.ts`):
  * stat `--config` (K-1) via `provideConfig`, discover (`OkfitConfigFile.discover`),
@@ -48,7 +56,7 @@ const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
  */
 export const validateCommand = Command.make(
 	"validate",
-	{ path: pathArg, config: configFlag, format: formatFlag },
+	{ path: pathArg, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -64,7 +72,13 @@ export const validateCommand = Command.make(
 				});
 				const { bundleRoot, config: merged, profile } = resolved;
 
-				const result = yield* run({ root: bundleRoot, config: merged, profile, now });
+				const result = yield* run({
+					root: bundleRoot,
+					config: merged,
+					profile,
+					now,
+					skipProvenance: input.skipProvenance,
+				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
 				const code = forDiagnostics(diagnostics);
 

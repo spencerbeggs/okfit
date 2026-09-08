@@ -57,8 +57,8 @@ pnpm claude       # Claude Code with the local plugin loaded
 ```
 
 Run one package's tests with `pnpm vitest run packages/core`. The
-`okfit` CLI's own commands (`validate`, `init`, `context`, `verify`) are
-documented in `okf/interfaces/cli-commands.md`.
+`okfit` CLI's own commands (`validate`, `init`, `context`, `verify`,
+`sync`) are documented in `okf/interfaces/cli-commands.md`.
 
 ## Build and release
 

@@ -8,6 +8,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T09:16:37Z
 ---
 
 # Core
@@ -68,4 +69,6 @@ target, resolved from its concept's directory, lands outside the bundle
 root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
-by the caller (`packages/core/README.md:15-24`).
+by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
+sixteen keys, including `generated_at_drift`, are enumerated in
+`okf/interfaces/okfit-config-schema.md`.

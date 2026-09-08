@@ -167,13 +167,14 @@ const staleAfter = (from: DateTime.Utc, config: OkfitConfig): DateTime.Utc =>
 			FALLBACK_STALE_AFTER,
 	);
 
-const committed = (entry: PathHistoryEntry): BodyProvenance => ({
+const committed = (entry: PathHistoryEntry, entries: ReadonlyArray<PathHistoryEntry>): BodyProvenance => ({
 	_tag: "committed",
 	at: entry.authoredAt,
 	sha: entry.sha,
 	committedAt: entry.committedAt,
 	authorName: entry.authorName,
 	authorEmail: entry.authorEmail,
+	creating: entry === entries[entries.length - 1], // pathLog is newest-first (S-9): the last element is the oldest
 });
 
 const uncommitted = (reason: UncommittedReason): BodyProvenance => ({ _tag: "uncommitted", reason });
@@ -250,12 +251,12 @@ export class Derivation {
 				const older = entries[index + 1];
 				if (entry === undefined || older === undefined) break;
 				const olderBlob = yield* git.show(realRoot, older.sha, older.path);
-				if (Option.isNone(olderBlob)) return committed(entry); // absent blob counts as "differs" (decision 56)
+				if (Option.isNone(olderBlob)) return committed(entry, entries); // absent blob counts as "differs" (decision 56)
 				const olderBody = body(olderBlob.value);
-				if (olderBody !== current) return committed(entry);
+				if (olderBody !== current) return committed(entry, entries);
 				current = olderBody;
 			}
-			return committed(entries[entries.length - 1] ?? newest);
+			return committed(entries[entries.length - 1] ?? newest, entries);
 		});
 
 	/**

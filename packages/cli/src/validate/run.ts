@@ -1,7 +1,9 @@
+import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
-import { Bundle, Validate } from "@okfit/core";
-import type { Profile, ProfileDiagnostic } from "@okfit/profiles";
-import type { DateTime, FileSystem, Path } from "effect";
+import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
+import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
+import { Provenance } from "@okfit/profiles";
+import type { DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 
 /**
@@ -31,6 +33,16 @@ export interface RunOptions {
 	readonly profile: Option.Option<Profile>;
 	/** `OKFIT_NOW` or `DateTime.now`, from `bin.ts` (K-47); enables the `stale` rule (D-34). */
 	readonly now: DateTime.Utc;
+	/**
+	 * S-31: skip `Provenance.lint`'s git tier for this one invocation,
+	 * without touching the project's `[lint]` table. `commands/validate.ts`
+	 * threads `--skip-provenance` here; the PostToolUse hook passes the flag
+	 * so an edit-time `validate` stays git-free even when the config leaves
+	 * `generated-at-drift` at its default severity. Defaults to `false`, and
+	 * is checked the same way `severity === "off"` already is — `run` skips
+	 * the walk when EITHER is true.
+	 */
+	readonly skipProvenance?: boolean;
 }
 
 /** @public */
@@ -42,15 +54,34 @@ export interface RunResult {
 }
 
 /**
- * Load, validate both tiers, run the profile check, collect. K-52 holds
- * structurally: `Bundle.load`'s failure short-circuits the generator, so
- * `profile.check` never runs on a bundle that did not load.
+ * Load, validate both tiers, run the profile check, then — UNLESS the
+ * `generated-at-drift` lint is `off` OR `options.skipProvenance` is `true`
+ * — run `Provenance.lint` and append its `Diagnostic`s to `report.lint`.
+ * The "skip the git walk entirely" gate lives HERE, in `run`, not inside
+ * `Provenance.lint` (S-8's own wording): a bundle configured `off`, or a
+ * caller that passed `--skip-provenance`, never pays for a git spawn
+ * (S-31). An `error` severity on the appended diagnostics yields exit `1`
+ * through the EXISTING lint-tier rule in `render/exit.ts` — no renderer
+ * branch, no new `DiagnosticSource`, since these diagnostics flow through
+ * the same `report.lint` array every other core lint diagnostic already
+ * does.
+ *
+ * K-52 holds structurally: `Bundle.load`'s failure short-circuits the
+ * generator, so `profile.check` never runs on a bundle that did not load.
+ *
+ * This is a BREAKING signature change: `@okfit/mcp`'s `validateBundle.ts`
+ * calls this function directly and must be updated to match (Task C1);
+ * `commands/validate.ts` is the other caller.
  *
  * @public
  */
 export const run = (
 	options: RunOptions,
-): Effect.Effect<RunResult, BundleLoadError, FileSystem.FileSystem | Path.Path> =>
+): Effect.Effect<
+	RunResult,
+	BundleLoadError | GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
+	FileSystem.FileSystem | Path.Path | Git | GitHistory
+> =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.root });
 		const report = Validate.all(bundle, options.config, { now: options.now });
@@ -58,5 +89,8 @@ export const run = (
 			onNone: (): ReadonlyArray<ProfileDiagnostic> => [],
 			onSome: (profile) => profile.check(bundle),
 		});
-		return { bundle, report, profileDiagnostics };
+		const severity = OkfitConfigNS.severityFor(options.config, "generated-at-drift");
+		const provenance =
+			severity === "off" || options.skipProvenance === true ? [] : yield* Provenance.lint(bundle, options.config);
+		return { bundle, report: { ...report, lint: [...report.lint, ...provenance] }, profileDiagnostics };
 	});

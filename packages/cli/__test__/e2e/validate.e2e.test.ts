@@ -19,6 +19,7 @@ import { Effect } from "effect";
 import cliPackageJson from "../../package.json" with { type: "json" };
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
+import { commit, initRepo } from "./utils/repo.js";
 
 const CORE_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "core", "__test__", "fixtures");
 const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profiles", "__test__", "fixtures");
@@ -480,6 +481,163 @@ describe("okfit validate: OKFIT_NOW", () => {
 				"modules/core.md:1:1 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
 			);
 			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 6 concepts (okf)\n");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
+	const DRIFT_ENV = (env: Readonly<Record<string, string>>): Record<string, string> => ({
+		...env,
+		PATH: process.env.PATH ?? "",
+		NO_COLOR: "1",
+		// S-17/Global Constraints: identity is set IN-REPO by repo.ts's
+		// initRepo, never HOME=.
+		GIT_CONFIG_GLOBAL: "/dev/null",
+		GIT_CONFIG_NOSYSTEM: "1",
+	});
+
+	// `verified` is required here so the fixture exercises ONLY the
+	// generated-at-drift lint: software-project's own config sets
+	// `require_verified: true` for the `Decision` type (default severity
+	// "error"), and an unverified Decision would otherwise add its own
+	// `require-verified-unmet` error to every case below, unrelated to
+	// drift -- a gap in the task brief's own fixture draft (see task
+	// report). Modelled on `packages/profiles/__test__/fixtures/software-project/decisions/effect-v4.md`'s
+	// own hand-authored `verified` block; this is fixture data, not a run
+	// of `okfit verify` (Global Constraints' distinction).
+	const DRIFT_DECISION = [
+		"---",
+		"type: Decision",
+		"title: Drift decision",
+		"description: A decision with a generated.by but no at, to exercise the drift lint.",
+		"generated:",
+		"  by: human:ada",
+		"status: draft",
+		"verified:",
+		"  - by: human:ada",
+		"    at: 2026-09-02T00:00:00Z",
+		"---",
+		"",
+		"# Drift decision",
+		"",
+	].join("\n");
+
+	/** A git repo scaffolded by a real `okfit init`, plus one committed Decision with `generated.by` but no `at`. */
+	const seedDriftRepo = () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-drift-"));
+			const env = DRIFT_ENV(sandbox.env);
+			yield* Effect.promise(() => initRepo(sandbox.cwd, env));
+			const init = yield* runOkfit(["init"], {
+				cwd: sandbox.cwd,
+				env: { ...env, OKFIT_NOW: "2026-09-01T00:00:00.000Z" },
+			});
+			assert.strictEqual(init.exitCode, 0);
+			yield* Effect.promise(() =>
+				commit(sandbox.cwd, { message: "okfit init", authoredAt: "2026-09-01T00:00:00+00:00" }, env),
+			);
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okf", "decisions", "drift.md"), DRIFT_DECISION));
+			yield* Effect.promise(() =>
+				commit(sandbox.cwd, { message: "add drift decision", authoredAt: "2026-09-02T00:00:00+00:00" }, env),
+			);
+			return { cwd: sandbox.cwd, env };
+		});
+
+	it.effect("reports generated-at-drift at info by default and does not change the exit code", () =>
+		Effect.gen(function* () {
+			const { cwd, env } = yield* seedDriftRepo();
+
+			const result = yield* runOkfit(["validate", "--format", "json"], { cwd, env });
+
+			assert.strictEqual(result.exitCode, 0);
+			const envelope = JSON.parse(result.stdout) as {
+				readonly summary: { readonly lint_errors: number; readonly lint_info: number };
+				readonly diagnostics: ReadonlyArray<{
+					readonly code: string;
+					readonly severity: string;
+					readonly file: string;
+				}>;
+			};
+			assert.strictEqual(envelope.summary.lint_errors, 0);
+			assert.isTrue(envelope.summary.lint_info >= 1);
+			const drift = envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift");
+			assert.isDefined(drift);
+			assert.strictEqual(drift?.severity, "info");
+			assert.strictEqual(drift?.file, "decisions/drift.md");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("escalates generated-at-drift to exit 1 at error severity", () =>
+		Effect.gen(function* () {
+			const { cwd, env } = yield* seedDriftRepo();
+			yield* Effect.promise(() =>
+				writeFileDeep(
+					join(cwd, "okfit.toml"),
+					'[bundle]\npath = "okf"\nprofile = "software-project"\n\n[lint]\ngenerated_at_drift = "error"\n',
+				),
+			);
+
+			const result = yield* runOkfit(["validate", "--format", "json"], { cwd, env });
+
+			assert.strictEqual(result.exitCode, 1);
+			const envelope = JSON.parse(result.stdout) as {
+				readonly summary: { readonly lint_errors: number };
+				readonly diagnostics: ReadonlyArray<{ readonly code: string; readonly severity: string }>;
+			};
+			assert.strictEqual(envelope.summary.lint_errors, 1);
+			const drift = envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift");
+			assert.strictEqual(drift?.severity, "error");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("suppresses the git walk entirely when the lint is off", () =>
+		Effect.gen(function* () {
+			const { cwd, env } = yield* seedDriftRepo();
+			yield* Effect.promise(() =>
+				writeFileDeep(
+					join(cwd, "okfit.toml"),
+					'[bundle]\npath = "okf"\nprofile = "software-project"\n\n[lint]\ngenerated_at_drift = "off"\n',
+				),
+			);
+			// No `git` reachable at all: if Provenance.lint still ran despite
+			// "off", the spawn itself would fail (ENOENT) and this would surface
+			// as an infrastructure failure, not a clean run -- proving the
+			// CLI's own severity gate (S-8, validate/run.ts#run) skips the call
+			// entirely rather than calling Provenance.lint and discarding its
+			// result.
+			const noGitEnv = { ...env, PATH: "" };
+
+			const result = yield* runOkfit(["validate", "--format", "json"], { cwd, env: noGitEnv });
+
+			assert.strictEqual(result.exitCode, 0);
+			const envelope = JSON.parse(result.stdout) as { readonly diagnostics: ReadonlyArray<{ readonly code: string }> };
+			assert.isUndefined(envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift"));
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("--skip-provenance suppresses the git walk without touching [lint] (S-31)", () =>
+		Effect.gen(function* () {
+			const { cwd, env } = yield* seedDriftRepo();
+			// The config is left at its default severity (info, not "off") --
+			// the same drift fixture as the first two cases above would append
+			// a generated-at-drift diagnostic here if the flag did nothing. No
+			// `git` reachable at all: if `--skip-provenance` still called
+			// Provenance.lint, the spawn itself would fail (ENOENT), surfacing
+			// as an infrastructure failure rather than a clean run -- the same
+			// "off" proof one case up, but for the flag instead of the config.
+			const noGitEnv = { ...env, PATH: "" };
+
+			const result = yield* runOkfit(["validate", "--skip-provenance", "--format", "json"], {
+				cwd,
+				env: noGitEnv,
+			});
+
+			assert.strictEqual(result.exitCode, 0);
+			const envelope = JSON.parse(result.stdout) as { readonly diagnostics: ReadonlyArray<{ readonly code: string }> };
+			assert.deepStrictEqual(
+				envelope.diagnostics.filter((diagnostic) => diagnostic.code === "generated-at-drift"),
+				[],
+			);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

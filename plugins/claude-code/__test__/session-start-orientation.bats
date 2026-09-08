@@ -81,19 +81,32 @@ _run_hook() {
 		OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
 		OKFIT_HOOKS="${OKFIT_HOOKS:-}" \
 		OKFIT_SESSION_HOOK="${OKFIT_SESSION_HOOK:-}" \
-		bash "$SCRIPT" <<<"$envelope" 2>"$STUB_DIR/stderr"
+		bash "$SCRIPT" <<<"$envelope" >"$STUB_DIR/stdout" 2>"$STUB_DIR/stderr"
+	cat "$STUB_DIR/stdout"
+}
+
+# Both helpers write the hook's stdout to $STUB_DIR/stdout and the tests
+# assert on that file through _hook_output, never on `run`'s $output: under
+# kcov (the CI shell-test runner) the first test of a file sees kcov's bash
+# trace lines leak into `run`'s capture ahead of the hook's JSON, while the
+# hook's own stdout is clean.
+_hook_output() {
+	cat "$STUB_DIR/stdout"
 }
 
 _run_hook_file() {
 	local envelope_file="$1"
 	local path_override="${2:-$PATH}"
 	local project_dir="${3:-$PROJECT_DIR}"
-	bash "$RENDER" "$envelope_file" | env -i \
+	local rendered="$STUB_DIR/envelope.json"
+	bash "$RENDER" "$envelope_file" >"$rendered"
+	env -i \
 		PATH="$path_override" \
 		CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
 		CLAUDE_PROJECT_DIR="$project_dir" \
 		OKFIT_CLI_CMD="${OKFIT_CLI_CMD:-}" \
-		bash "$SCRIPT" 2>"$STUB_DIR/stderr"
+		bash "$SCRIPT" <"$rendered" >"$STUB_DIR/stdout" 2>"$STUB_DIR/stderr"
+	cat "$STUB_DIR/stdout"
 }
 
 @test "emits exactly one JSON object on every source (startup, resume, clear, compact)" {
@@ -102,7 +115,7 @@ _run_hook_file() {
 	for source in startup resume clear compact; do
 		run _run_hook_file "$FIXTURES/sessionstart.${source}.json"
 		[ "$status" -eq 0 ]
-		echo "$output" | jq -es 'length == 1'
+		_hook_output | jq -es 'length == 1'
 	done
 }
 
@@ -110,7 +123,7 @@ _run_hook_file() {
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project ""
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e --arg root "$PROJECT_DIR/okf" \
+	_hook_output | jq -e --arg root "$PROJECT_DIR/okf" \
 		'.hookSpecificOutput.additionalContext | contains("okfit bundle: " + $root + " (profile: software-project)")'
 }
 
@@ -121,7 +134,7 @@ _run_hook_file() {
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	local ctx
-	ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
+	ctx="$(_hook_output | jq -r '.hookSpecificOutput.additionalContext')"
 	echo "$ctx" | grep -qF -- "- Module: A module"
 	echo "$ctx" | grep -qF -- "  guide text"
 	echo "$ctx" | grep -qF -- "- Decision: (no description)"
@@ -135,14 +148,14 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" true "" software-project ""
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext | contains("# Bundle index") and contains("Some prose.")'
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("# Bundle index") and contains("Some prose.")'
 }
 
 @test "emits C-6.14 when index_exists is false" {
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project ""
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e --arg p "$PROJECT_DIR/okf/index.md" \
+	_hook_output | jq -e --arg p "$PROJECT_DIR/okf/index.md" \
 		'.hookSpecificOutput.additionalContext | contains("No index.md yet at " + $p + ". Run `okfit init` or write one.")'
 }
 
@@ -152,7 +165,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	local ctx
-	ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
+	ctx="$(_hook_output | jq -r '.hookSpecificOutput.additionalContext')"
 	echo "$ctx" | grep -qF "[truncated at 12000 bytes; index.md is 13000 bytes — read it directly for the rest]"
 	# The truncated prefix is present; the 13000th byte (past the cut) is not.
 	[ "$(echo "$ctx" | tr -d '\n' | grep -o 'x' | wc -l | tr -d ' ')" -lt 13000 ]
@@ -162,7 +175,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "set"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext
 		| contains("No okfit config found in this project.")
 		and contains("Run `okfit init` to scaffold an okf/ bundle and a config.")'
 }
@@ -171,14 +184,14 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project "set"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("No okfit config found")) | not'
+	_hook_output | jq -e '(.hookSpecificOutput.additionalContext | contains("No okfit config found")) | not'
 }
 
 @test "appends C-6.9 when actors.agent is null" {
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project ""
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext
 		| contains("Note: actors.agent is not set") and contains("okfit/claude-code")'
 }
 
@@ -186,14 +199,14 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" software-project "okfit/claude-code"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("actors.agent is not set")) | not'
+	_hook_output | jq -e '(.hookSpecificOutput.additionalContext | contains("actors.agent is not set")) | not'
 }
 
 @test "emits C-6.6 with the CLI's own error message when the stubbed CLI exits non-zero" {
 	_stub_cli '{"schema":1,"okfit_version":"0.1.0","exit_code":3,"error":{"tag":"ConfigMalformedError","message":"bad toml"}}' 3
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext ==
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext ==
 		"okfit context could not run (its config looks malformed: bad toml); skipping orientation this session."'
 	grep -qF "okfit: context exited 3" "$STUB_DIR/stderr"
 }
@@ -202,7 +215,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_cli '{"schema":1,"okfit_version":"0.1.0","exit_code":3}' 3
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext ==
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext ==
 		"okfit context could not run (its config looks malformed); skipping orientation this session."'
 }
 
@@ -210,7 +223,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" "" "set" "[]" "[]" "nope"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext
 		| contains("Profile \"nope\" is unknown; no vocabulary was loaded. Check bundle.profile in the okfit config.")'
 }
 
@@ -218,14 +231,14 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "$PROJECT_DIR/okfit.toml" "" "set" "[]" "[]" "none"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '(.hookSpecificOutput.additionalContext | contains("is unknown; no vocabulary was loaded")) | not'
+	_hook_output | jq -e '(.hookSpecificOutput.additionalContext | contains("is unknown; no vocabulary was loaded")) | not'
 }
 
 @test "appends the okfit init nudge when config_path is outside project_root (Minor 7, user-level XDG config)" {
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "/some/xdg/config.toml" software-project "set"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext
 		| contains("No okfit config found in this project.")
 		and contains("Run `okfit init` to scaffold an okf/ bundle and a config.")'
 }
@@ -237,7 +250,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
 	local ctx
-	ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
+	ctx="$(_hook_output | jq -r '.hookSpecificOutput.additionalContext')"
 	echo "$ctx" | grep -qF "[truncated at 8000 bytes; vocabulary is"
 	[ "$(echo -n "$ctx" | wc -c | tr -d ' ')" -lt 8600 ]
 }
@@ -249,7 +262,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}' "$barebin"
 	rm -rf "$barebin"
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext
 		| contains("okfit: no okfit CLI found. Install @okfit/plugin")
 		and contains("pnpm add -D @okfit/plugin")'
 }
@@ -259,7 +272,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	export OKFIT_HOOKS=off
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 	[ ! -f "$STUB_DIR/invoked" ]
 }
 
@@ -268,7 +281,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	export OKFIT_SESSION_HOOK=off
 	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.continue == true and .suppressOutput == true'
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 	[ ! -f "$STUB_DIR/invoked" ]
 }
 
@@ -281,8 +294,8 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	rm -rf "$fakebin"
 	[ "$status" -eq 0 ]
 	# A hand-built printf, not jq: still exactly one JSON object.
-	echo "$output" | jq -es 'length == 1'
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext ==
+	_hook_output | jq -es 'length == 1'
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext ==
 		"okfit: jq not found; skipping session orientation. Install jq to enable bundle and vocabulary injection."'
 }
 
@@ -301,7 +314,7 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project ""
 	run _run_hook ""
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"'
+	_hook_output | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"'
 }
 
 @test "a project directory whose path contains a space round-trips" {
@@ -311,5 +324,5 @@ Some prose." >"$PROJECT_DIR/okf/index.md"
 	_stub_context "$spaced/okf" "$spaced/okf/index.md" true "" software-project ""
 	run _run_hook '{"cwd":"'"$spaced"'"}' "$PATH" "$spaced"
 	[ "$status" -eq 0 ]
-	echo "$output" | jq -e '.hookSpecificOutput.additionalContext | contains("hi from a spaced path")'
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("hi from a spaced path")'
 }

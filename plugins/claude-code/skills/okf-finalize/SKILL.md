@@ -25,11 +25,12 @@ for the simplicity of one agent running one skill straight through.
 2. Reconcile each touched concept against `okf-authoring`'s sixteen rules.
 3. Run `validate_bundle` — or `okfit validate --format json` when the MCP
    tools are unavailable — and fix what it reports.
-4. Regenerate `index.md` and `log.md`. Both are derived files (`okf-spec`'s
-   reserved-files section) -- never hand-edit either one. Until a dedicated
-   CLI command exists for this, defer to what `validate`'s own report names
-   as stale and state the derived-file rule to whoever reads the sweep's
-   output.
+4. Run `okfit sync` (or `okfit sync --dry-run` first to inspect) to
+   regenerate `generated.at`, `index.md`, and `log.md`. All three are
+   derived (`okf-spec`'s reserved-files section plus the
+   `profiles-generated-at-is-author-date` Decision) -- never hand-edit any
+   of them. Report what `sync` wrote, left unchanged, or skipped (and why)
+   to whoever reads the sweep's output.
 5. Check CLAUDE.md pointer coverage with `okf-context`'s checklist, in both
    directions.
 6. Tell the user what changed. Separately, list any concept step 3's
