@@ -6,7 +6,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-status: draft
+status: stable
+verified:
+  - by: human:spencer
+    at: 2026-09-08T02:12:58Z
 ---
 
 # A walk past maxDepth fails typed, never silently truncates

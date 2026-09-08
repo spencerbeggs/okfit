@@ -6,8 +6,11 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-status: draft
+status: stable
 supersedes: cli-config-discovery-config-dir.md
+verified:
+  - by: human:spencer
+    at: 2026-09-08T02:12:59Z
 ---
 
 # Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain
