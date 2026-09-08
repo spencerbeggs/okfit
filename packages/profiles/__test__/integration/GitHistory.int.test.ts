@@ -6,11 +6,10 @@ import { realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node"; // PN/src/index.ts:90; layer PN/dist/NodeServices.d.ts:33
 import { afterAll, assert, beforeAll, describe, it } from "@effect/vitest";
-import { Git, NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:1918, :778
+import { Git, GitCommand, NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:1918, :65, :778
 import { DateTime, Effect, Layer } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { GitHistory, GitHistoryError } from "../../src/GitHistory.js";
-import { pathLogArgs } from "../../src/internal/pathLog.js";
 import {
 	CONFLICT_ENTRIES,
 	CONFLICT_LOG_ORDER,
@@ -146,7 +145,7 @@ describe("GitHistory.layer over the F4 history", () => {
 				if (error instanceof GitHistoryError) {
 					assert.strictEqual(error.exitCode, 128);
 					assert.strictEqual(error.cwd, repo.dir);
-					assert.deepStrictEqual(error.args, pathLogArgs("../outside.md"));
+					assert.deepStrictEqual(error.args, GitCommand.log(["../outside.md"], true, undefined, true).redactedArgs);
 					assert.include(error.stderr, "is outside repository");
 					assert.include(error.message, "(exit 128)");
 				}

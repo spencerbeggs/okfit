@@ -1,10 +1,8 @@
-import { NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:778-790; re-used, never re-declared (P-11, P-12)
+import type { GitCommandError, NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:800, :778
+import { Git, GitCommand } from "@effected/git"; // GIT/index.d.ts:65, :2054; log :1700
 import { Timestamp } from "@okfit/core"; // CORE/Timestamp.ts:19
-import type { PlatformError } from "effect"; // EF/index.ts:402
-import { Context, Duration, Effect, Layer, Result, Schema } from "effect"; // EF/index.ts:112, :147, :152, :292, :502, :522
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"; // EF/unstable/process/index.ts:10, :15
-import { classifyFailure, parsePathLog, pathLogArgs } from "./internal/pathLog.js";
-import { runCollected } from "./internal/spawn.js";
+import { Context, Duration, Effect, Layer, Schema } from "effect"; // EF/index.ts:112, :147, :152, :292, :522
+import type { ChildProcessSpawner } from "effect/unstable/process"; // EF/unstable/process/index.ts:15
 
 /**
  * One record of the path log, newest first (P-3, P-5): the commit, both dates decoded through core's
@@ -23,8 +21,7 @@ export class PathHistoryEntry extends Schema.Class<PathHistoryEntry>("PathHistor
 
 /**
  * Profiles' own spawn failure, shaped like `@effected/git`'s `GitCommandError` (P-12). Raised by
- * `GitHistory.layer` for an unclassified non-zero exit, a spawn `PlatformError`, the 30 s timeout,
- * malformed stdout, or a date core's `Timestamp` rejects.
+ * `GitHistory.layer` for a `GitCommandError` from `Git.log` or the 30 s timeout.
  * @public
  */
 export class GitHistoryError extends Schema.TaggedError<GitHistoryError>()("GitHistoryError", {
@@ -36,7 +33,7 @@ export class GitHistoryError extends Schema.TaggedError<GitHistoryError>()("GitH
 	exitCode: Schema.optionalKey(Schema.Number),
 	/** git's stderr, captured under `LC_ALL=C`. */
 	stderr: Schema.String,
-	/** Spawn failure text, `timed out after 30s`, `malformed log output`, or a `Timestamp` decode issue. */
+	/** Spawn failure text, `timed out after 30s`, or `Git.log`'s own absorbed-failure detail. */
 	detail: Schema.optionalKey(Schema.String),
 }) {
 	override get message(): string {
@@ -46,7 +43,7 @@ export class GitHistoryError extends Schema.TaggedError<GitHistoryError>()("GitH
 }
 
 /**
- * Options for `pathLog`; `limit` becomes `--max-count=<n>` (P-3, P-8).
+ * Options for `pathLog`; `limit` becomes `Git.log`'s `--max-count=<n>` (P-3, P-8).
  * @public
  */
 export interface PathLogOptions {
@@ -67,65 +64,66 @@ export interface GitHistoryShape {
 	) => Effect.Effect<ReadonlyArray<PathHistoryEntry>, GitHistoryError | NotARepositoryError>;
 }
 
-// P-1 discipline copied from @effected/git: LC_ALL=C keeps stderr classifiable, GIT_TERMINAL_PROMPT=0 keeps a
-// credential prompt from ever hanging the run; extendEnv: true keeps PATH (EF/unstable/process/ChildProcess.ts:393, :405).
-const GIT_ENV = { LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" } as const;
 const GIT_TIMEOUT = Duration.seconds(30); // EF/Duration.ts:707
-const decodeEntries = Schema.decodeUnknownSync(Schema.Array(PathHistoryEntry)); // EF/Schema.ts:1907, :4621
 
-// Text for a spawn that never produced an exit code, as Git.detail words it (effected-git-0-10-0.md section 3.1).
-const describeSpawnFailure = (error: PlatformError.PlatformError): string =>
-	error.reason._tag === "NotFound" // EF/PlatformError.ts:157 (reason), :75-87 (tags)
-		? "git is not installed (or the working directory does not exist)"
-		: `spawn failed: ${error.reason._tag}: ${error.message}`;
+// Maps @effected/git's GitCommandError onto this package's own error shape (P-12): the redacted argv,
+// cwd, exit code and stderr carry straight across; `detail` carries across only when Git.log itself set
+// it (an absorbed spawn PlatformError or an unparseable-log defect it turned into a "failed" kind).
+const toGitHistoryError = (cwd: string, error: GitCommandError): GitHistoryError =>
+	new GitHistoryError({
+		args: error.args,
+		cwd,
+		...(error.exitCode === undefined ? {} : { exitCode: error.exitCode }),
+		stderr: error.stderr,
+		...(error.detail === undefined ? {} : { detail: error.detail }),
+	});
 
-// The live shape. `spawner` is resolved once by `layer`, so every member's R is never (GIT/index.d.ts:1956 precedent).
-const make = (spawner: ChildProcessSpawner.ChildProcessSpawner["Service"]): GitHistoryShape => ({
+// The live shape. `git` is resolved once by `layer`, so every member's R is never (GIT/index.d.ts:2055 precedent).
+// Exported (but not from the package's barrel, `src/index.ts`) so `GitHistory.test.ts` can unit-test the
+// `Git.log` -> `GitHistoryShape` mapping directly over `Git.layerTest`/`Git.makeTest` overrides (G-4),
+// the same "internal, not barrel-exported" posture `internal/pathLog.ts` had before this module started
+// delegating to `Git.log`.
+export const make = (git: Git["Service"]): GitHistoryShape => ({
 	pathLog: (cwd, path, options) =>
 		Effect.gen(function* () {
-			const args = pathLogArgs(path, options?.limit);
-			// EF/unstable/process/ChildProcess.ts:603 (make), :792 (setCwd)
-			const command = ChildProcess.setCwd(ChildProcess.make("git", args, { env: GIT_ENV, extendEnv: true }), cwd);
-			const collected = yield* runCollected(command).pipe(
-				Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner), // EF/Effect.ts:6278
-				Effect.mapError((error) => new GitHistoryError({ args, cwd, stderr: "", detail: describeSpawnFailure(error) })), // :3550
-				Effect.timeoutOrElse({
-					// :4601
-					duration: GIT_TIMEOUT,
-					orElse: () => Effect.fail(new GitHistoryError({ args, cwd, stderr: "", detail: "timed out after 30s" })),
-				}),
-			);
-			if (collected.exitCode !== 0) {
-				switch (classifyFailure(collected.stderr)) {
-					case "notARepository":
-						return yield* Effect.fail(new NotARepositoryError({ cwd }));
-					case "unborn":
-						return []; // P-11: an unborn HEAD is an empty history
-					case "failed":
-						return yield* Effect.fail(
-							new GitHistoryError({ args, cwd, exitCode: collected.exitCode, stderr: collected.stderr }),
-						);
-				}
-			}
-			const parsed = parsePathLog(collected.stdout);
-			if (Result.isFailure(parsed)) {
-				// EF/Result.ts:565
-				return yield* Effect.fail(
-					new GitHistoryError({ args, cwd, exitCode: 0, stderr: collected.stderr, detail: parsed.failure }),
-				);
-			}
-			return yield* Effect.try({
-				// EF/Effect.ts:1608
-				try: () => decodeEntries(parsed.success),
-				catch: (error) =>
-					new GitHistoryError({
-						args,
-						cwd,
-						exitCode: 0,
-						stderr: collected.stderr,
-						detail: error instanceof Error ? error.message : String(error),
+			const entries = yield* git
+				.log(cwd, {
+					paths: [path],
+					follow: true,
+					firstParentDiffMerges: true,
+					...(options?.limit === undefined ? {} : { limit: options.limit }),
+				})
+				.pipe(
+					Effect.catchTag("GitCommandError", (error) => Effect.fail(toGitHistoryError(cwd, error))), // EF/Effect.ts catchTag
+					Effect.timeoutOrElse({
+						// EF/Effect.ts:4601
+						duration: GIT_TIMEOUT,
+						orElse: () =>
+							Effect.fail(
+								new GitHistoryError({
+									args: GitCommand.log([path], true, options?.limit, true).redactedArgs, // GIT/index.d.ts:414
+									cwd,
+									stderr: "",
+									detail: "timed out after 30s",
+								}),
+							),
 					}),
-			});
+				);
+			// An entry with EMPTY `paths` is a merge TREESAME to its first parent that `firstParentDiffMerges`
+			// still lists; the old hand-rolled parser never produced a record for such a merge, so drop it here.
+			return entries
+				.filter((entry) => entry.paths.length > 0)
+				.map((entry) => {
+					const [path] = entry.paths; // non-empty per the filter above
+					return PathHistoryEntry.make({
+						sha: entry.sha,
+						authoredAt: entry.authoredAt,
+						committedAt: entry.committedAt,
+						authorName: entry.authorName,
+						authorEmail: entry.authorEmail,
+						path: path ?? "",
+					});
+				});
 		}),
 });
 
@@ -133,28 +131,28 @@ const notScripted = (path: string): Effect.Effect<never> =>
 	Effect.die(new Error(`GitHistory.makeTest: pathLog(${path}) was called but not scripted`)); // EF/Effect.ts:1606
 
 /**
- * The one git read `@effected/git` 0.10.0 lacks: a path-scoped, date-bearing log (P-1, spec deviation).
- * When upstream ships an equivalent, `layer` becomes an adapter and this surface does not change.
+ * A path-scoped, date-bearing log: `Git.log` reads the whole repository history, and this adapter scopes
+ * it to one path (`--follow`, `--diff-merges=first-parent`) and decodes it into `PathHistoryEntry`.
+ * Delegates to `Git.log` as of `@effected/git` 0.12.0 (P-1, spec deviation retired).
  * @public
  */
 export class GitHistory extends Context.Service<GitHistory, GitHistoryShape>()("@okfit/profiles/GitHistory") {
 	/**
-	 * Live layer (P-1, P-5, P-11): one `git log` spawn per call through `ChildProcessSpawner`, resolved once
-	 * at construction like `Git.layer`, so every member's `R` is `never`. Classification, in order: a spawn
-	 * `PlatformError` becomes `GitHistoryError { detail }`; exit 0 is parsed; stderr `not a git repository`
-	 * yields `NotARepositoryError`; `does not have any commits yet` / `unknown revision` yields an empty
-	 * array; otherwise the failure becomes `GitHistoryError { exitCode, stderr }`. Malformed stdout and a
-	 * date `Timestamp` rejects are `GitHistoryError { detail }`. The CLI provides `ChildProcessSpawner`
-	 * through `NodeServices.layer` (P-30).
+	 * Live layer (P-1, P-5, P-11): one `Git.log` call per `pathLog`, resolved once at construction like
+	 * `Git.layer` itself, so every member's `R` is `never`. `Git.log` already degrades an unborn `HEAD` and
+	 * an unmatched pathspec to the empty array and classifies `not a git repository` as `NotARepositoryError`
+	 * (both pass through unchanged); every other failure becomes `GitHistoryError`, and the whole call is
+	 * bounded by a 30 s timeout mapped to `GitHistoryError { detail: "timed out after 30s" }`. The CLI
+	 * provides `ChildProcessSpawner` through `NodeServices.layer` (P-30).
 	 */
 	static readonly layer: Layer.Layer<GitHistory, never, ChildProcessSpawner.ChildProcessSpawner> = Layer.effect(
 		// EF/Layer.ts:1014
 		GitHistory,
 		Effect.gen(function* () {
-			const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-			return make(spawner);
+			const git = yield* Git;
+			return make(git);
 		}),
-	);
+	).pipe(Layer.provide(Git.layer)); // EF/Layer.ts; Git.layer GIT/index.d.ts:2056
 
 	/**
 	 * Scripted double (P-32): responses keyed by the `path` argument exactly as passed to `pathLog`. A call

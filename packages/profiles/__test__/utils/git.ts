@@ -1,9 +1,10 @@
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { PlatformError } from "effect";
-import { Effect, Stream } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { Run } from "@effected/commands"; // CMD/Run.d.ts:452
+import { Effect } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess } from "effect/unstable/process";
 import type { HistoryStep } from "../fixtures/history.js";
 import { FIXTURE_AUTHOR_EMAIL, FIXTURE_AUTHOR_NAME } from "../fixtures/history.js";
 
@@ -35,29 +36,14 @@ export interface FixtureRepo {
 }
 
 /**
- * The fixtures' own copy of `@effected/git`'s `runCollected` (P-36): one spawn,
- * stdout and stderr collected concurrently with the exit code
- * (effected-git-0-10-0.md section 2.1; EF/unstable/process/ChildProcessSpawner.ts:256, :89, :115, :124;
- * EF/Stream.ts:9197, :10831; EF/Effect.ts:494, :6436).
+ * `Run.collect` from `@effected/commands` (G-3, okfit #5): one spawn, stdout and stderr collected
+ * concurrently with the exit code — a non-zero exit is data here, never a failure. Kept as a named export
+ * so the fixture builders below read as `runCollected(...)`, matching the shape they had before this
+ * package started delegating to `@effected/commands`.
  */
 export const runCollected = (
 	command: ChildProcess.Command,
-): Effect.Effect<Collected, PlatformError.PlatformError, ChildProcessSpawner.ChildProcessSpawner> =>
-	Effect.scoped(
-		Effect.gen(function* () {
-			const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-			const handle = yield* spawner.spawn(command);
-			const [stdout, stderr, exitCode] = yield* Effect.all(
-				[
-					Stream.mkString(Stream.decodeText(handle.stdout)),
-					Stream.mkString(Stream.decodeText(handle.stderr)),
-					handle.exitCode,
-				],
-				{ concurrency: "unbounded" },
-			);
-			return { stdout, stderr, exitCode };
-		}),
-	);
+): Effect.Effect<Collected, never, ChildProcessSpawner.ChildProcessSpawner> => Run.collect(command).pipe(Effect.orDie);
 
 /** Runs `git <args>` in `cwd` under `FIXTURE_ENV` plus `env`; spawn failure is a defect, the exit code is returned. */
 export const gitRaw = (
@@ -67,7 +53,7 @@ export const gitRaw = (
 ): Effect.Effect<Collected, never, ChildProcessSpawner.ChildProcessSpawner> =>
 	runCollected(
 		ChildProcess.setCwd(ChildProcess.make("git", args, { env: { ...FIXTURE_ENV, ...env }, extendEnv: true }), cwd),
-	).pipe(Effect.orDie);
+	);
 
 /** As `gitRaw`, but a non-zero exit is a defect too (fixture failures never read as passes); returns trimmed stdout. */
 export const git = (

@@ -8,11 +8,11 @@ This project uses `@vitest-agent/plugin` for test discovery. Tests live here in
 ```text
 __test__/
   utils/
-    git.ts                        # fixture spawn collector + hermetic repository builder (P-34, P-36)
+    git.ts                        # fixture repository builder; runCollected now delegates to @effected/commands' Run.collect (P-34, P-36)
     derivation.ts                 # identityGit, world, windowsPath doubles and the HistoryCommit decoders
   fixtures/
     history.ts                    # F4 (c1..c5, topic, c6) and conflict-merge (m1..m4) replay steps, encoded entries, blob texts
-    pathLogOutput.ts              # captured git log stdout bytes for the parser and the GitHistory double
+    pathLogOutput.ts              # shas/dates/paths for the GitHistory.makeTest/layerTest doubles (the parser fixtures it used to feed are gone)
     software-project/             # clean bundle: zero conformance and lint diagnostics under the merged profile config
     bad/                          # module-no-kind, module-kind-unknown, decision-unverified, reference-no-sources,
                                   # interface-no-kind, two-projects, project-in-subdir, no-project,
@@ -21,8 +21,7 @@ __test__/
   Profile.test.ts                 # ProfileDiagnosticCode/ProfileDiagnostic decode and reject, renderer shape
   SoftwareProject.test.ts         # round-trip, README TOML fence, type table, layout/types, guidance style guards
   SoftwareProject.check.test.ts   # Profiles.softwareProject.check over the fixture bundles
-  pathLog.test.ts                 # internal/pathLog.ts: argv, parser, classifier
-  GitHistory.test.ts              # makeTest/layerTest doubles, GitHistoryError.message
+  GitHistory.test.ts              # make() over Git.makeTest overrides (flags, error mapping, empty-paths drop), makeTest/layerTest doubles, GitHistoryError.message
   Derivation.test.ts              # body, generatedAt, humanActorId, generatedBy, staleAfter over doubles
 
   integration/
@@ -40,9 +39,11 @@ __test__/
   helpers in `utils/` and static data in `fixtures/`.
 - **`__test__/utils/git.ts` is shared by the integration suites.** This is a
   recorded exception to the per-category `utils/` rule (P-36, Addendum item
-  50): the collector deliberately duplicates `src/internal/spawn.ts` rather
-  than exporting an internal. Do not move it under `integration/utils/` and do
-  not export `runCollected` to remove the duplication.
+  50, closed 2026-09-07): `src/internal/spawn.ts` is gone (`GitHistory` no
+  longer spawns anything itself — it delegates to `@effected/git`'s `Git.log`),
+  so `runCollected` here now calls `@effected/commands`' `Run.collect`
+  directly rather than duplicating a hand-rolled collector. Do not move it
+  under `integration/utils/`.
 - **`__test__/fixtures/history.ts` is shared by both categories on purpose**
   (P-50): the unit suites script `GitHistory.layerTest` and `Git.layerTest`
   from `F4_ENTRIES`/`F4_TEXTS` through `utils/derivation.ts`, and the

@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
+import { CommitLogEntry, Git, GitCommandError, NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:951, :2054, :800, :778
 import { Cause, DateTime, Effect, Exit, Schema } from "effect";
-import { GitHistory, GitHistoryError, PathHistoryEntry } from "../src/GitHistory.js";
+import { GitHistory, GitHistoryError, PathHistoryEntry, make } from "../src/GitHistory.js";
 import {
 	C3_AUTHORED_AT,
 	C3_SHA,
@@ -30,6 +31,16 @@ const script = { [PATH_AFTER_RENAME]: [c5, c4, c3], "empty.md": [] };
 // Bind once: layerTest mints a fresh layer per call and layers memoize by reference (GIT/index.d.ts:1996-1999).
 const TestHistory = GitHistory.layerTest(script);
 
+const commitLogEntry = (sha: string, authoredAt: string, paths: ReadonlyArray<string>): CommitLogEntry =>
+	CommitLogEntry.make({
+		sha,
+		authoredAt: DateTime.makeUnsafe(authoredAt),
+		committedAt: DateTime.makeUnsafe(authoredAt),
+		authorName: "Okfit Test",
+		authorEmail: "okfit-test@example.com",
+		paths,
+	});
+
 describe("PathHistoryEntry", () => {
 	it("decodes git's %aI/%cI text through core's Timestamp and rejects an offset-less date", () => {
 		const decoded = Schema.decodeUnknownSync(PathHistoryEntry)({
@@ -53,6 +64,117 @@ describe("PathHistoryEntry", () => {
 			}),
 		);
 	});
+});
+
+// The Git.log adapter (G-1, G-4): make(git) over Git.makeTest overrides, no layer/Effect.provide needed
+// since Git.makeTest already answers a plain GitShape object.
+describe("make (the Git.log adapter)", () => {
+	it.effect("forwards paths: [path], follow: true, firstParentDiffMerges: true, and limit when set", () =>
+		Effect.gen(function* () {
+			let captured: unknown;
+			const history = make(
+				Git.makeTest({
+					log: (_cwd, options) => {
+						captured = options;
+						return Effect.succeed([]);
+					},
+				}),
+			);
+			yield* history.pathLog("/repo", "okf/modules/core.md", { limit: 5 });
+			assert.deepStrictEqual(captured, {
+				paths: ["okf/modules/core.md"],
+				follow: true,
+				firstParentDiffMerges: true,
+				limit: 5,
+			});
+		}),
+	);
+	it.effect("omits limit from the forwarded options when not set", () =>
+		Effect.gen(function* () {
+			let captured: unknown;
+			const history = make(
+				Git.makeTest({
+					log: (_cwd, options) => {
+						captured = options;
+						return Effect.succeed([]);
+					},
+				}),
+			);
+			yield* history.pathLog("/repo", "okf/modules/core.md");
+			assert.deepStrictEqual(captured, {
+				paths: ["okf/modules/core.md"],
+				follow: true,
+				firstParentDiffMerges: true,
+			});
+		}),
+	);
+	it.effect("limit: 0 (P-54, decision 54) is forwarded as 0, not omitted as unset", () =>
+		Effect.gen(function* () {
+			let captured: unknown;
+			const history = make(
+				Git.makeTest({
+					log: (_cwd, options) => {
+						captured = options;
+						return Effect.succeed([]);
+					},
+				}),
+			);
+			yield* history.pathLog("/repo", "okf/modules/core.md", { limit: 0 });
+			assert.deepStrictEqual(captured, {
+				paths: ["okf/modules/core.md"],
+				follow: true,
+				firstParentDiffMerges: true,
+				limit: 0,
+			});
+		}),
+	);
+	it.effect("drops entries with an empty `paths` array (a merge TREESAME to its first parent)", () =>
+		Effect.gen(function* () {
+			const withPath = commitLogEntry(C5_SHA, C5_AUTHORED_AT, [PATH_AFTER_RENAME]);
+			const withoutPath = commitLogEntry(C4_SHA, C4_AUTHORED_AT, []);
+			const history = make(Git.makeTest({ log: () => Effect.succeed([withPath, withoutPath]) }));
+			const entries = yield* history.pathLog("/repo", PATH_AFTER_RENAME);
+			assert.deepStrictEqual(
+				entries.map((e) => e.sha),
+				[C5_SHA],
+			);
+		}),
+	);
+	it.effect("maps GitCommandError to GitHistoryError, carrying args/cwd/exitCode/stderr across", () =>
+		Effect.gen(function* () {
+			const history = make(
+				Git.makeTest({
+					log: () =>
+						Effect.fail(
+							new GitCommandError({
+								kind: "failed",
+								args: ["log", "-z", "--", "okf/modules/core.md"],
+								cwd: "/repo",
+								exitCode: 128,
+								stderr: "fatal: bad",
+							}),
+						),
+				}),
+			);
+			const error = yield* Effect.flip(history.pathLog("/repo", "okf/modules/core.md")); // EF/Effect.ts:2480
+			assert.instanceOf(error, GitHistoryError);
+			if (error instanceof GitHistoryError) {
+				assert.deepStrictEqual(error.args, ["log", "-z", "--", "okf/modules/core.md"]);
+				assert.strictEqual(error.cwd, "/repo");
+				assert.strictEqual(error.exitCode, 128);
+				assert.strictEqual(error.stderr, "fatal: bad");
+				assert.strictEqual(error.detail, undefined);
+			}
+		}),
+	);
+	it.effect("passes NotARepositoryError through unchanged", () =>
+		Effect.gen(function* () {
+			const history = make(Git.makeTest({ log: () => Effect.fail(new NotARepositoryError({ cwd: "/plain" })) }));
+			const error = yield* Effect.flip(history.pathLog("/plain", "x.md"));
+			assert.instanceOf(error, NotARepositoryError);
+			assert.strictEqual(error.cwd, "/plain");
+		}),
+	);
 });
 
 describe("GitHistory.makeTest", () => {
