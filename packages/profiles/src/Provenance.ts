@@ -24,11 +24,12 @@ const encodeAt = Schema.encodeSync(Timestamp);
  * (S-12, Judge note 7): `Diagnostic.range` is `Schema.optionalKey` and is
  * simply omitted.
  *
- * The `"off"` severity is read here (to stamp the resolved value on every
- * diagnostic this DOES emit) but never gates the walk itself (Judge note
- * 3) -- `validate/run.ts` (the CLI) is the only caller, and it never
- * invokes this function at all when the resolved severity is `"off"`, so
- * the cost-avoidance property lives in exactly one place.
+ * `Provenance.lint` is total over severity (S-28, amending Judge note 3):
+ * when `OkfitConfig.severityFor(config, "generated-at-drift")` resolves to
+ * `"off"`, it returns `[]` before any per-concept work and before any git
+ * call, so it is safe to call at any severity and never needs to cast
+ * `"off"` away. `validate/run.ts` (the CLI) still gates on `"off"` before
+ * calling at all; the two agree by construction (both skip the walk).
  *
  * @public
  */
@@ -43,17 +44,11 @@ export class Provenance {
 		GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
 		Git | GitHistory | FileSystem.FileSystem | Path.Path
 	> = Effect.fn("Provenance.lint")(function* (bundle: LoadedBundle, config: OkfitConfig) {
+		// S-28: total over severity -- off returns [] before any git call, so
+		// `severity` below is never "off" and needs no cast.
+		const severity = OkfitConfig.severityFor(config, "generated-at-drift");
+		if (severity === "off") return [];
 		const path = yield* Path.Path;
-		// Contract §3.2 step 1: read here, not only for the CLI's own "off"
-		// gate -- this is the value stamped on every Diagnostic below. The cast
-		// documents the invariant Judge note 3 leaves to the caller: this
-		// function is never invoked with an "off" severity in practice, so the
-		// `"off"` member of `severityFor`'s return type never actually reaches
-		// `Diagnostic.make`.
-		const severity = OkfitConfig.severityFor(config, "generated-at-drift") as Exclude<
-			ReturnType<typeof OkfitConfig.severityFor>,
-			"off"
-		>;
 		const diagnostics: Array<Diagnostic> = [];
 		for (const [, concept] of bundle.concepts) {
 			if (concept.frontmatter.generated === undefined) continue;

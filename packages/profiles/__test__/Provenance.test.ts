@@ -106,21 +106,39 @@ describe("Provenance.lint", () => {
 		}).pipe(Effect.provide(noGit)),
 	);
 
-	it.effect("returns [] when off, without spawning git", () =>
+	it.effect("returns [] when off, without spawning git (no generated block)", () =>
 		Effect.gen(function* () {
-			// Judge note 3: Provenance.lint's own body never gates on "off" -- the
-			// CLI's validate/run.ts (Task B3) is the sole gate. This proves the
-			// severity read alone never triggers a walk: with no `generated` block
-			// there is nothing to derive regardless of the resolved severity, so
-			// `noGit`'s die-on-any-call doubles going untouched is the "without
-			// spawning git" half, true independent of severity. Whether a
-			// genuinely-drifted concept's walk is skipped when off is the CLI
-			// gate's own property, exercised in Task B3's tests, not here.
+			// With no `generated` block there is nothing to derive regardless of
+			// severity, so this alone doesn't distinguish S-28's total-over-off
+			// gate from Judge note 3's old CLI-only gate; see the next case for
+			// that.
 			const config: OkfitConfig = {
 				...OkfitConfig.DEFAULTS,
 				lint: { ...OkfitConfig.DEFAULTS.lint, generated_at_drift: "off" },
 			};
 			const result = yield* Provenance.lint(bundleOf(conceptWith(undefined)), config);
+			assert.deepStrictEqual(result, []);
+		}).pipe(Effect.provide(noGit)),
+	);
+
+	it.effect("returns [] when off, without spawning git, even for a concept that would otherwise drift (S-28)", () =>
+		Effect.gen(function* () {
+			// S-28: Provenance.lint is total over severity -- when the resolved
+			// severity is "off" it returns [] before any per-concept work and
+			// before any git call, even when the concept carries a `generated`
+			// block whose recorded `at` would otherwise drift against a derived
+			// instant. `noGit`'s die-on-any-call doubles prove no git spawn
+			// happens; if the gate were missing, `Derivation.generatedAt` would
+			// call `Git.repoRoot` and this would die instead of returning [].
+			const generated = Generated.make({
+				by: actor("human:okfit-test"),
+				at: DateTime.makeUnsafe("2020-01-01T00:00:00Z"),
+			});
+			const config: OkfitConfig = {
+				...OkfitConfig.DEFAULTS,
+				lint: { ...OkfitConfig.DEFAULTS.lint, generated_at_drift: "off" },
+			};
+			const result = yield* Provenance.lint(bundleOf(conceptWith(generated)), config);
 			assert.deepStrictEqual(result, []);
 		}).pipe(Effect.provide(noGit)),
 	);
