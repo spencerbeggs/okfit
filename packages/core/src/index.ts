@@ -13,7 +13,14 @@ export {
 	ComputationParameter,
 } from "./AttestedComputation.js";
 export type { BundleLoadError, BundleLoadOptions } from "./Bundle.js";
-export { Bundle, BundleReadError, BundleRootNotFoundError, LoadedBundle, LoadedConcept } from "./Bundle.js";
+export {
+	Bundle,
+	BundleDepthExceededError,
+	BundleReadError,
+	BundleRootNotFoundError,
+	LoadedBundle,
+	LoadedConcept,
+} from "./Bundle.js";
 export { ATTESTED_COMPUTATION_TYPE, Concept } from "./Concept.js";
 export { ConceptId } from "./ConceptId.js";
 export type { LogEntry, RenderIndexOptions, StaleConcept } from "./Derive.js";

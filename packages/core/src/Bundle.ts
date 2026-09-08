@@ -1,5 +1,6 @@
 import type { Frontmatter } from "@effected/markdown";
 import { FrontmatterDecodeError, MarkdownDocument, YamlFrontmatter } from "@effected/markdown";
+import { DescendError } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { Concept } from "./Concept.js";
@@ -48,11 +49,31 @@ export class BundleReadError extends Schema.TaggedError<BundleReadError>()("Bund
 }
 
 /**
+ * The walk descended past `maxDepth` (D-8). A depth cap that silently truncated would
+ * silently change membership, which D-9 forbids; the cap fails instead.
+ *
+ * @public
+ */
+export class BundleDepthExceededError extends Schema.TaggedError<BundleDepthExceededError>()(
+	"BundleDepthExceededError",
+	{
+		root: Schema.String,
+		/** Bundle-relative posix path of the directory the walk could not enter. */
+		path: Schema.String,
+		limit: Schema.Number,
+	},
+) {
+	override get message(): string {
+		return `bundle "${this.root}" descends past ${this.limit} levels at "${this.path}"`;
+	}
+}
+
+/**
  * Everything `Bundle.load` can fail with.
  *
  * @public
  */
-export type BundleLoadError = BundleRootNotFoundError | BundleReadError;
+export type BundleLoadError = BundleRootNotFoundError | BundleReadError | BundleDepthExceededError;
 
 /**
  * Options for {@link Bundle.load} (D-8).
@@ -64,7 +85,7 @@ export interface BundleLoadOptions {
 	readonly root: string;
 	/** Admit entries whose name starts with `.` (default `false`, D-11). */
 	readonly includeHidden?: boolean;
-	/** Directory levels below the root to descend (default 256). */
+	/** Directory levels below the root to descend; positive integer, default 256; exceeding it fails with `BundleDepthExceededError`. */
 	readonly maxDepth?: number;
 	/** Directory names never descended (default `["node_modules", ".git"]`). */
 	readonly prune?: ReadonlyArray<string>;
@@ -231,7 +252,9 @@ export class Bundle {
 
 	/**
 	 * Load the bundle at `options.root` (D-8, D-9, D-11 to D-14, D-21). Content never
-	 * fails: every bad file becomes a diagnostic and loading continues (spec 8).
+	 * fails: every bad file becomes a diagnostic and loading continues (spec 8). A walk
+	 * that descends past `options.maxDepth` fails typed with `BundleDepthExceededError`
+	 * (W-1) rather than being silently truncated.
 	 */
 	static readonly load: (
 		options: BundleLoadOptions,
@@ -250,12 +273,21 @@ export class Bundle {
 					),
 				);
 			if (info.type !== "Directory") return yield* new BundleRootNotFoundError({ root });
+			const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
 			const walked = yield* walk({
 				root,
 				includeHidden: options.includeHidden ?? false,
-				maxDepth: options.maxDepth ?? DEFAULT_MAX_DEPTH,
+				maxDepth,
 				prune: new Set(options.prune ?? DEFAULT_PRUNE),
-			}).pipe(Effect.mapError((cause) => new BundleReadError({ root, path: "", cause })));
+			}).pipe(
+				Effect.mapError((error) =>
+					error instanceof DescendError
+						? error.reason === "depthExceeded"
+							? new BundleDepthExceededError({ root, path: error.path, limit: error.limit ?? maxDepth })
+							: new BundleReadError({ root, path: error.path, cause: error })
+						: new BundleReadError({ root, path: "", cause: error }),
+				),
+			);
 			const diagnostics: Array<Diagnostic> = walked.unreadable.map((dir) =>
 				diagnostic(
 					dir,

@@ -1,10 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import type { BundleLoadOptions } from "../src/Bundle.js";
-import { Bundle, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
+import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
 import type { Diagnostic } from "../src/Diagnostic.js";
-import { MOUNT, badBundlePlatform, faultyPlatform } from "./utils/bundles.js";
+import { MOUNT, badBundlePlatform, faultyPlatform, platform } from "./utils/bundles.js";
 
 const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
 	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundlePlatform(name)));
@@ -104,6 +104,16 @@ describe("Bundle.load", () => {
 			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.heading, "Widgets");
 			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.entries.length, 1);
 			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.entries[0]?.target, "widget.md");
+		}),
+	);
+	it.effect("a bundle deeper than maxDepth fails with BundleDepthExceededError (W-1)", () =>
+		Effect.gen(function* () {
+			const error = yield* Effect.flip(
+				Bundle.load({ root: MOUNT, maxDepth: 1 }).pipe(Effect.provide(platform({ [`${MOUNT}/a/b/c.md`]: "" }))),
+			);
+			assert.instanceOf(error, BundleDepthExceededError);
+			assert.strictEqual(error.path, "a");
+			assert.strictEqual(error.limit, 1);
 		}),
 	);
 	it.effect("hidden entries are excluded unless includeHidden (D-11)", () =>

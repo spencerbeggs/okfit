@@ -1,5 +1,8 @@
-import type { PlatformError } from "effect";
-import { Effect, FileSystem, Path } from "effect";
+import { GlobPattern, GlobPatternOptions } from "@effected/glob";
+import type { DescendError } from "@effected/walker";
+import { descend } from "@effected/walker";
+import type { Path, PlatformError } from "effect";
+import { Effect, FileSystem } from "effect";
 
 /**
  * Walker's default prune list (`walker/src/Descend.ts:64`), kept for D-8.
@@ -38,72 +41,40 @@ export interface WalkResult {
 	readonly unreadable: ReadonlyArray<string>;
 }
 
-interface Frame {
-	readonly relative: string;
-	readonly absolute: string;
-	readonly depth: number;
-}
-
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
- * Core's own descent (api-contract.md section 5, deviation 1): mirrors
- * `walker/src/Descend.ts:176-230` but records unreadable subdirectories instead of
- * failing or hiding them (D-9). Only the root listing fails typed.
+ * Core's adapter over `@effected/walker`'s `descend` (api-contract.md section 5): the
+ * kit's `onUnreadable: "record"` mode records unreadable subdirectories instead of
+ * failing or hiding them (D-9); only depth exhaustion and an unreadable root fail typed
+ * (W-1, W-2). `includeHidden` governs the compiled glob's `dot` option (W-3).
  *
  * @public
  */
 export const walk = (
 	options: WalkOptions,
-): Effect.Effect<WalkResult, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> =>
+): Effect.Effect<WalkResult, PlatformError.PlatformError | DescendError, FileSystem.FileSystem | Path.Path> =>
 	Effect.gen(function* () {
-		const fs = yield* FileSystem.FileSystem;
-		const path = yield* Path.Path;
-		if (!Number.isInteger(options.maxDepth) || options.maxDepth < 0) {
-			return yield* Effect.die(
-				new Error(`walk: maxDepth must be a non-negative integer, received ${options.maxDepth}`),
-			);
+		if (!Number.isInteger(options.maxDepth) || options.maxDepth < 1) {
+			return yield* Effect.die(new Error(`walk: maxDepth must be a positive integer, received ${options.maxDepth}`));
 		}
-		const typeOf = (absolute: string): Effect.Effect<FileSystem.File.Info["type"] | undefined> =>
-			fs.stat(absolute).pipe(
-				Effect.map((info) => info.type),
-				Effect.orElseSucceed(() => undefined),
-			);
-		const isSymbolicLink = (absolute: string): Effect.Effect<boolean> =>
-			fs.readLink(absolute).pipe(
-				Effect.map(() => true),
-				Effect.orElseSucceed(() => false),
-			);
-		const files: Array<string> = [];
-		const unreadable: Array<string> = [];
-		const frames: Array<Frame> = [{ relative: "", absolute: options.root, depth: 0 }];
-		for (let head = 0; head < frames.length; head += 1) {
-			const frame = frames[head];
-			if (frame === undefined) break;
-			const entries =
-				frame.depth === 0
-					? yield* fs.readDirectory(frame.absolute)
-					: yield* fs.readDirectory(frame.absolute).pipe(
-							Effect.catch((error) => {
-								if (error.reason._tag !== "NotFound") unreadable.push(frame.relative);
-								return Effect.succeed<Array<string>>([]);
-							}),
-						);
-			for (const entry of entries) {
-				if (!options.includeHidden && entry.startsWith(".")) continue;
-				const relative = frame.relative === "" ? entry : `${frame.relative}/${entry}`;
-				const absolute = path.join(frame.absolute, entry);
-				const kind = yield* typeOf(absolute);
-				if (kind === "File") {
-					files.push(relative);
-					continue;
-				}
-				if (kind !== "Directory" || options.prune.has(entry) || frame.depth + 1 > options.maxDepth) continue;
-				if (yield* isSymbolicLink(absolute)) continue;
-				frames.push({ relative, absolute, depth: frame.depth + 1 });
-			}
+		const pattern = yield* GlobPattern.compile("**/*", GlobPatternOptions.make({ dot: options.includeHidden })).pipe(
+			Effect.orDie,
+		);
+		const result = yield* descend(pattern, {
+			cwd: options.root,
+			maxDepth: options.maxDepth,
+			prune: [...options.prune],
+			onUnreadable: "record",
+		});
+		if (result.unreadable.includes("")) {
+			// W-2: "record" never fails an unreadable root; re-read it once to surface the
+			// real `PlatformError`, or (on a race) drop the sentinel and treat it as empty.
+			const fs = yield* FileSystem.FileSystem;
+			yield* fs.readDirectory(options.root);
+			const unreadable = result.unreadable.filter((entry) => entry !== "").sort(compare);
+			return { files: result.matches, unreadable };
 		}
-		files.sort(compare);
-		unreadable.sort(compare);
-		return { files, unreadable };
+		const unreadable = [...result.unreadable].sort(compare);
+		return { files: result.matches, unreadable };
 	});

@@ -29,6 +29,7 @@ const VALUES = [
 	"LogGroup",
 	"LogItem",
 	"Bundle",
+	"BundleDepthExceededError",
 	"BundleReadError",
 	"BundleRootNotFoundError",
 	"LoadedBundle",
