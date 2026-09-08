@@ -79,6 +79,6 @@ changed — sequentially, in this one context.
 - Never edits source code, tests, or any file outside the bundle,
   `CLAUDE.md` files, and package `README.md`s.
 - Never commits, pushes, or writes a changeset.
-- Never hand-edits `index.md` or `log.md` — both are derived; `okfit sync`
-  is the command, and it runs `okfit sync`, never hand-edits, after its
-  concept edits.
+- Never hand-edits `index.md` or `log.md` — both are derived; the agent
+  runs `okfit sync` after its concept edits and never hand-edits either
+  file.

@@ -8,7 +8,7 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 
 ```text
 okfit [--help] [--version]
-okfit validate [path] [--config <file>] [--format human|json] [--help]
+okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--help]
 okfit init [path] [--profile <name>] [--config <file>] [--help]
 okfit context [path] [--config <file>] [--format human|json] [--help]
 okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
@@ -50,6 +50,14 @@ Each diagnostic line is `<file>:<line>:<col> <severity> <code> <message>`
 diagnostic (no file at all) prints `(bundle)` in place of `<file>`.
 Diagnostics sort by file (so `(bundle)` leads), then range-less before
 ranged, then by offset, then by code.
+
+`--skip-provenance` skips the `generated-at-drift` lint's git tier
+(`Provenance.lint`) for this one invocation, without touching the
+project's `[lint]` table — the same effect as `generated_at_drift = "off"`
+in config, scoped to a single run. The Claude Code plugin's PostToolUse
+hook passes it on every edit-time `validate` call so a git spawn per
+concept never runs on every keystroke-level edit; CI and the MCP
+`validate_bundle` tool omit the flag and keep the lint.
 
 ### `okfit init`
 

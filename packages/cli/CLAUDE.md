@@ -52,7 +52,7 @@ src/
   context/
     run.ts               -- runContext: index.md stat only, never Bundle.load
   validate/
-    run.ts               -- Now (Context.Service), RunOptions, RunResult, run
+    run.ts               -- Now (Context.Service), RunOptions (skipProvenance?: boolean, S-31), RunResult, run
   verify/
     locate.ts             -- Located, locate, stripBom, documentNewline (pure)
     splice.ts              -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)

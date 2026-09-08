@@ -162,6 +162,36 @@ describe("run — generated-at-drift lint (scripted history)", () => {
 			}
 		}).pipe(Effect.provide(nodePlatform)),
 	);
+
+	it.effect(
+		"skipProvenance: true skips the git tier even at a non-off severity, with no Git/GitHistory call at all",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-skip-provenance-")));
+				try {
+					// deliberately drifted -- if `run` called Provenance.lint despite
+					// `skipProvenance`, this would append a diagnostic AND the dying
+					// Git/GitHistory doubles below would blow up the effect first.
+					const text = fileText("2020-01-01T00:00:00Z");
+					yield* Effect.promise(() => writeFile(join(root, REL), text));
+					const result = yield* run({
+						root,
+						config: driftConfig,
+						profile: Option.none(),
+						now,
+						skipProvenance: true,
+					}).pipe(
+						// Every member of Git/GitHistory dies on any call (S-16/S-28's
+						// own "die by default" posture) -- proving this scenario never
+						// reaches Provenance.lint's git walk.
+						Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+					);
+					assert.deepStrictEqual(result.report.lint, []);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}).pipe(Effect.provide(nodePlatform)),
+	);
 });
 
 describe("Now", () => {

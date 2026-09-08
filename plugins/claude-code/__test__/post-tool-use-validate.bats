@@ -33,9 +33,11 @@ _barebin() {
 # _stub_cli context_json validate_json [validate_exit] — branches on $1
 # (context vs validate). Writes a sentinel file on the validate branch so a
 # test can assert the expensive call never happened (contract section 9.3),
-# and records "$2" (the argument validate.sh passed) to
-# $STUB_DIR/validate-arg so a test can assert it is the PROJECT root, never
-# the bundle root (Important 3, final review — K-2).
+# records "$2" (the argument validate.sh passed) to $STUB_DIR/validate-arg
+# so a test can assert it is the PROJECT root, never the bundle root
+# (Important 3, final review — K-2), and records the full invoked command
+# line ("$@") to $STUB_DIR/validate-argv so a test can assert a flag like
+# --skip-provenance is present on it (F-3/S-31).
 _stub_cli() {
 	local ctx_json="$1" val_json="$2" val_rc="${3:-0}"
 	cat >"$STUB_DIR/okfit" <<EOF
@@ -48,6 +50,7 @@ case "\$1" in
 	validate)
 		touch "${STUB_DIR}/validate-invoked"
 		printf '%s\n' "\$2" >"${STUB_DIR}/validate-arg"
+		printf '%s\n' "\$@" >"${STUB_DIR}/validate-argv"
 		printf '%s\n' '${val_json}'
 		exit ${val_rc}
 		;;
@@ -263,6 +266,13 @@ _run_hook_file() {
 	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
 	[ "$status" -eq 0 ]
 	[ "$(cat "$STUB_DIR/validate-arg")" = "$REPO_ROOT" ]
+}
+
+@test "passes --skip-provenance on the invoked okfit validate command line (F-3/S-31)" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
+	[ "$status" -eq 0 ]
+	grep -qw -- "--skip-provenance" "$STUB_DIR/validate-argv"
 }
 
 @test "blocks on an Edit of index.md exactly like any other concept file" {

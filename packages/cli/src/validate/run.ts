@@ -33,6 +33,16 @@ export interface RunOptions {
 	readonly profile: Option.Option<Profile>;
 	/** `OKFIT_NOW` or `DateTime.now`, from `bin.ts` (K-47); enables the `stale` rule (D-34). */
 	readonly now: DateTime.Utc;
+	/**
+	 * S-31: skip `Provenance.lint`'s git tier for this one invocation,
+	 * without touching the project's `[lint]` table. `commands/validate.ts`
+	 * threads `--skip-provenance` here; the PostToolUse hook passes the flag
+	 * so an edit-time `validate` stays git-free even when the config leaves
+	 * `generated-at-drift` at its default severity. Defaults to `false`, and
+	 * is checked the same way `severity === "off"` already is — `run` skips
+	 * the walk when EITHER is true.
+	 */
+	readonly skipProvenance?: boolean;
 }
 
 /** @public */
@@ -45,14 +55,16 @@ export interface RunResult {
 
 /**
  * Load, validate both tiers, run the profile check, then — UNLESS the
- * `generated-at-drift` lint is `off` — run `Provenance.lint` and append its
- * `Diagnostic`s to `report.lint`. The "off skips the git walk entirely"
- * gate lives HERE, in `run`, not inside `Provenance.lint` (S-8's own
- * wording): a bundle configured `off` never pays for a git spawn. An
- * `error` severity on the appended diagnostics yields exit `1` through the
- * EXISTING lint-tier rule in `render/exit.ts` — no renderer branch, no new
- * `DiagnosticSource`, since these diagnostics flow through the same
- * `report.lint` array every other core lint diagnostic already does.
+ * `generated-at-drift` lint is `off` OR `options.skipProvenance` is `true`
+ * — run `Provenance.lint` and append its `Diagnostic`s to `report.lint`.
+ * The "skip the git walk entirely" gate lives HERE, in `run`, not inside
+ * `Provenance.lint` (S-8's own wording): a bundle configured `off`, or a
+ * caller that passed `--skip-provenance`, never pays for a git spawn
+ * (S-31). An `error` severity on the appended diagnostics yields exit `1`
+ * through the EXISTING lint-tier rule in `render/exit.ts` — no renderer
+ * branch, no new `DiagnosticSource`, since these diagnostics flow through
+ * the same `report.lint` array every other core lint diagnostic already
+ * does.
  *
  * K-52 holds structurally: `Bundle.load`'s failure short-circuits the
  * generator, so `profile.check` never runs on a bundle that did not load.
@@ -78,6 +90,7 @@ export const run = (
 			onSome: (profile) => profile.check(bundle),
 		});
 		const severity = OkfitConfigNS.severityFor(options.config, "generated-at-drift");
-		const provenance = severity === "off" ? [] : yield* Provenance.lint(bundle, options.config);
+		const provenance =
+			severity === "off" || options.skipProvenance === true ? [] : yield* Provenance.lint(bundle, options.config);
 		return { bundle, report: { ...report, lint: [...report.lint, ...provenance] }, profileDiagnostics };
 	});

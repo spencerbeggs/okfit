@@ -614,4 +614,30 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			assert.isUndefined(envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
+
+	it.effect("--skip-provenance suppresses the git walk without touching [lint] (S-31)", () =>
+		Effect.gen(function* () {
+			const { cwd, env } = yield* seedDriftRepo();
+			// The config is left at its default severity (info, not "off") --
+			// the same drift fixture as the first two cases above would append
+			// a generated-at-drift diagnostic here if the flag did nothing. No
+			// `git` reachable at all: if `--skip-provenance` still called
+			// Provenance.lint, the spawn itself would fail (ENOENT), surfacing
+			// as an infrastructure failure rather than a clean run -- the same
+			// "off" proof one case up, but for the flag instead of the config.
+			const noGitEnv = { ...env, PATH: "" };
+
+			const result = yield* runOkfit(["validate", "--skip-provenance", "--format", "json"], {
+				cwd,
+				env: noGitEnv,
+			});
+
+			assert.strictEqual(result.exitCode, 0);
+			const envelope = JSON.parse(result.stdout) as { readonly diagnostics: ReadonlyArray<{ readonly code: string }> };
+			assert.deepStrictEqual(
+				envelope.diagnostics.filter((diagnostic) => diagnostic.code === "generated-at-drift"),
+				[],
+			);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
 });

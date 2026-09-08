@@ -20,7 +20,7 @@ describe("validateCommand", () => {
 		assert.isTrue((validateCommand.description ?? "").includes("diagnostics"));
 	});
 
-	it("declares exactly the path argument and the config/format flags, by name (contract §6.1)", () => {
+	it("declares exactly the path argument and the config/format/skip-provenance flags, by name (contract §6.1, S-31)", () => {
 		const config = configOf(validateCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -28,7 +28,7 @@ describe("validateCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format"],
+			["config", "format", "skip-provenance"],
 		);
 	});
 
@@ -39,6 +39,16 @@ describe("validateCommand", () => {
 			| undefined;
 		if (formatFlag === undefined) throw new Error("expected a --format flag with a default-value mapper");
 		assert.strictEqual(formatFlag.f(Option.none()), "human");
+	});
+
+	it("--skip-provenance defaults to false (S-31)", () => {
+		const config = configOf(validateCommand);
+		const skipProvenanceFlag = config.flags.find((flag) => nameOf(flag) === "skip-provenance") as
+			| { readonly f: (value: Option.Option<boolean>) => boolean }
+			| undefined;
+		if (skipProvenanceFlag === undefined)
+			throw new Error("expected a --skip-provenance flag with a default-value mapper");
+		assert.strictEqual(skipProvenanceFlag.f(Option.none()), false);
 	});
 
 	it("--config carries no mustExist on its underlying Path primitive (contract §6.1)", () => {
