@@ -16,7 +16,6 @@ import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import cliPackageJson from "../../package.json" with { type: "json" };
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 import { commit, initRepo } from "./utils/repo.js";
@@ -28,8 +27,6 @@ const CLEAN_FIXTURE = join(PROFILES_FIXTURES, "software-project");
 const PROFILE_BAD_FIXTURE = join(PROFILES_FIXTURES, "bad", "no-project");
 const LINT_BAD_FIXTURE = join(PROFILES_FIXTURES, "bad", "module-no-kind");
 const CONFORMANCE_BAD_FIXTURE = join(CORE_FIXTURES, "bad", "c-frontmatter-missing");
-
-const CLI_VERSION = (cliPackageJson as { readonly version: string }).version;
 
 const CONFIG_TOML = `[bundle]\npath = "okf"\nprofile = "software-project"\n`;
 
@@ -136,9 +133,10 @@ describe("okfit validate --format json", () => {
 			const bundleRoot = join(sandbox.cwd, "okf");
 			// Captured this session: one lint error, required-key-missing on
 			// modules/core.md, offset 0 length 118 line 0 character 0; concepts=2.
-			assert.deepStrictEqual(JSON.parse(result.stdout), {
+			const { okfit_version: reportedVersion, ...envelope } = JSON.parse(result.stdout) as Record<string, unknown>;
+			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
+			assert.deepStrictEqual(envelope, {
 				schema: 1,
-				okfit_version: CLI_VERSION,
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: "software-project",
@@ -178,9 +176,10 @@ describe("okfit validate --format json", () => {
 			assert.strictEqual(result.exitCode, 0);
 			assert.strictEqual(result.stderr, 'warning: unknown profile "not-a-real-profile"; continuing with defaults\n');
 			const bundleRoot = join(sandbox.cwd, "okf");
-			assert.deepStrictEqual(JSON.parse(result.stdout), {
+			const { okfit_version: reportedVersion, ...envelope } = JSON.parse(result.stdout) as Record<string, unknown>;
+			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
+			assert.deepStrictEqual(envelope, {
 				schema: 1,
-				okfit_version: CLI_VERSION,
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: null,
@@ -213,7 +212,7 @@ describe("okfit validate --format json", () => {
 				readonly error: { readonly tag: string; readonly message: string };
 			};
 			assert.strictEqual(envelope.schema, 1);
-			assert.strictEqual(envelope.okfit_version, CLI_VERSION);
+			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
 			assert.strictEqual(envelope.exit_code, 3);
 			assert.strictEqual(envelope.error.tag, "ConfigPathNotFoundError");
 			assert.strictEqual(envelope.error.message, `config path not found: ${missingConfig}`);

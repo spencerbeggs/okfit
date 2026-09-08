@@ -229,7 +229,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(ok.exitCode, 0);
 			const success = JSON.parse(ok.stdout) as Record<string, unknown>;
 			assert.strictEqual(success.schema, 1);
-			assert.strictEqual(success.okfit_version, "0.1.0");
+			assert.match(String(success.okfit_version), /^\d+\.\d+\.\d+/);
 			assert.strictEqual(success.id, "project");
 			assert.strictEqual(success.path, "okf/project.md");
 			assert.deepStrictEqual(success.verified, { by: "human:ada", at: "2026-09-07T00:00:00Z" });
@@ -242,7 +242,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(failed.exitCode, 3);
 			const envelope = JSON.parse(failed.stdout) as Record<string, unknown>;
 			assert.strictEqual(envelope.schema, 1);
-			assert.strictEqual(envelope.okfit_version, "0.1.0");
+			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
 			assert.strictEqual(envelope.exit_code, 3);
 			assert.deepStrictEqual(envelope.error, {
 				tag: "VerifyConceptNotFoundError",

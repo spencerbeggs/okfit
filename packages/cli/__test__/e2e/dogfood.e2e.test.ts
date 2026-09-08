@@ -61,7 +61,7 @@ const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) =>
 const dirnameOf = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
 describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
-	it.effect("exits 0 with no diagnostics at all: every Decision concept is human-verified", () =>
+	it.effect("exits 0 with no errors or warnings: every Decision concept is human-verified", () =>
 		Effect.gen(function* () {
 			const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
 				cwd: REPO_ROOT,
@@ -97,9 +97,16 @@ describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
 			assert.strictEqual(envelope.summary.concepts, TOTAL_CONCEPTS);
 			// F-5 discharged 2026-09-07: every Decision is verified and the repo
 			// config no longer overrides require_verified_unmet, so a clean
-			// bundle reports nothing at all.
+			// bundle reports no errors and no warnings.
 			assert.strictEqual(envelope.summary.lint_warnings, 0);
-			assert.deepStrictEqual(envelope.diagnostics, []);
+			// generated-at-drift is info by design (okfit #19): a squash or
+			// rebase merge rewrites the author dates the derivation reads, so
+			// main can carry drift until the next `okfit sync` restamps it. That
+			// is the one diagnostic this bundle may report; anything else fails.
+			assert.deepStrictEqual(
+				envelope.diagnostics.filter((diagnostic) => diagnostic.code !== "generated-at-drift"),
+				[],
+			);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

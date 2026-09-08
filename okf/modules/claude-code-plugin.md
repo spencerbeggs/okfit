@@ -8,7 +8,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T12:50:49Z
+  at: 2026-09-08T14:33:59Z
 ---
 
 # Claude Code Plugin
