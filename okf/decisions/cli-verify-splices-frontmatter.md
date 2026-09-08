@@ -6,6 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
+  at: 2026-09-07T20:17:17Z
 status: stable
 verified:
   - by: human:spencer

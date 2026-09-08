@@ -15,7 +15,8 @@ tags:
 
 ## Subcommands and [path]
 
-`okfit` has four subcommands: `validate`, `init`, `context`, `verify`. Each
+`okfit` has five subcommands: `validate`, `init`, `context`, `verify`,
+`sync`. Each
 takes an optional `[path]` as its first positional argument — the **project
 root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
 default) — defaulting to the current directory (the Subcommands and
@@ -65,6 +66,26 @@ included), `3` on any failure — an unknown or reserved id, a concept whose
 `verified` shape cannot be edited safely, or an unresolved git identity;
 there is no `1`/`2` content tier. This is a human-run command: no agent,
 hook, or MCP tool ever invokes it.
+
+## okfit sync
+
+`okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
+[--format human|json]` is the one command that regenerates every
+derived-content family: `generated.at` (per concept, computed from git
+history), `index.md` (every directory that holds a concept), and `log.md`
+(the root log, curated prose topped up by date). It runs all three modes,
+generated then index then log, in that fixed order, unless one or more
+`--only` flags narrow it to a subset. `--dry-run` computes every result
+and writes nothing. It never touches `verified` and takes no clock — the
+same `now`-as-argument discipline as the rest of core. Exit `0` whether or
+not anything was written, `3` on any typed failure, `64` on an unknown
+`--only` mode; there is no `1`/`2` content tier, since `sync` never runs
+conformance or lint checks.
+
+`okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
+`okfit_version`, `root`, `dry_run`, `exit_code`, `generated`, `index`,
+`log` — each of the latter three an object with `selected`, `written`,
+`unchanged`, `skipped`.
 
 ## Config discovery
 

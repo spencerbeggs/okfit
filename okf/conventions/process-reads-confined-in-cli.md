@@ -5,6 +5,7 @@ description: Only bin.ts, commands/*.ts, internal/exit.ts, and internal/tty.ts r
 status: stable
 generated:
   by: human:spencer
+  at: 2026-09-06T10:47:04Z
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"

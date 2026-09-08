@@ -6,6 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T00:06:11Z
 status: deprecated
 supersedes: cli-config-discovery-two-branches.md
 verified:

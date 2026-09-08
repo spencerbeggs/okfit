@@ -15,7 +15,8 @@ generated:
 ## Purpose
 
 `@okfit/cli` is the `okfit` bin: `okfit validate`, `okfit init`,
-`okfit context`, and `okfit verify`; built on `effect/unstable/cli` for the
+`okfit context`, `okfit verify`, and `okfit sync`; built on
+`effect/unstable/cli` for the
 command tree,
 flags, and help, and `@effected/cli` for output and failure rendering.
 `okfit context` prints the same orientation data (project root, bundle

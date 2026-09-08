@@ -7,6 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
+  at: 2026-09-07T00:13:55Z
 tags:
   - architecture
 ---

@@ -53,6 +53,13 @@ imports `@effect/platform-node` or `node:child_process` directly. No
 `process.cwd()` and no environment reads anywhere in `src/`: `writer` and
 `cwd` are explicit arguments (P-16) (`packages/profiles/CLAUDE.md:28,31`).
 
+## Provenance linting
+
+`Provenance.lint(bundle, config)` runs the `generated-at-drift` lint,
+requiring `Git | GitHistory | FileSystem | Path` to compare each
+concept's stamped `generated.at` against what the same git walk
+`Derivation.generatedAt` uses would compute today.
+
 ## Derivation is package-global
 
 `Derivation` is package-global, not per profile; it never rewrites

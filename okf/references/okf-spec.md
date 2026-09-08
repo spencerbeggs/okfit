@@ -5,6 +5,7 @@ description: Mirrored pointer to the upstream OKF v0.2 spec this repository's wh
 status: stable
 generated:
   by: human:spencer
+  at: 2026-09-06T11:25:53Z
 sources:
   - resource: "https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"
     title: "Open Knowledge Format (OKF) v0.2 specification"

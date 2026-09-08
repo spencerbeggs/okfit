@@ -5,6 +5,7 @@ description: '@okfit/profiles never calls process.cwd() or reads an environment 
 status: stable
 generated:
   by: human:spencer
+  at: 2026-09-06T10:47:04Z
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"

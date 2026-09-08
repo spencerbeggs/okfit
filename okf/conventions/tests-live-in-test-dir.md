@@ -5,6 +5,7 @@ description: Every package's tests sit under __test__/; nothing under src/ is a 
 status: stable
 generated:
   by: human:spencer
+  at: 2026-09-06T10:47:04Z
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"
