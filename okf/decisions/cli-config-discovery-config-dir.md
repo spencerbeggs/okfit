@@ -8,6 +8,9 @@ generated:
   by: okfit/claude-code
 status: stable
 supersedes: cli-config-discovery-two-branches.md
+verified:
+  - by: human:spencer
+    at: 2026-09-08T00:07:54Z
 ---
 
 # Config discovery follows the config-dir convention
