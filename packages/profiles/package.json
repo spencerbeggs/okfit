@@ -34,6 +34,7 @@
 	"devDependencies": {
 		"@effect/platform-node": "catalog:effect",
 		"@effect/vitest": "catalog:effect",
+		"@effected/commands": "catalog:effected",
 		"@effected/git": "catalog:effected",
 		"@effected/markdown": "catalog:effected",
 		"@effected/toml": "catalog:effected",

@@ -37,3 +37,4 @@ docs/superpowers/
 .claude/plugins-debug.log
 .playwright-mcp
 .mcp.json
+.claude/dogfood/
