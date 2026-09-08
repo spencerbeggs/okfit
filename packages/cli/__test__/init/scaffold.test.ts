@@ -119,7 +119,7 @@ describe("files", () => {
 				const log = entries.find((entry) => entry.path === "/tmp/my-repo/okf/log.md");
 				assert.strictEqual(
 					log?.contents,
-					"## 2026-09-05\n* Initialized the bundle with the software-project profile\n",
+					"## 2026-09-05\n\n* Initialized the bundle with the software-project profile\n",
 				);
 				return undefined;
 			}),

@@ -55,7 +55,7 @@ describe("mergeLog", () => {
 				{ date: "2026-09-05", title: "A", added: true },
 			];
 			const result = mergeLog(undefined, additions);
-			assert.strictEqual(result, "# Log\n\n## 2026-09-05\n* Added A\n\n## 2026-09-01\n* Added B\n");
+			assert.strictEqual(result, "# Log\n\n## 2026-09-05\n\n* Added A\n\n## 2026-09-01\n\n* Added B\n");
 		}),
 	);
 
@@ -83,7 +83,7 @@ describe("mergeLog", () => {
 				{ date: "2026-09-01", title: "Alpha", added: false },
 			];
 			const result = mergeLog(undefined, additions);
-			assert.strictEqual(result, "# Log\n\n## 2026-09-01\n* Updated Alpha\n* Added Zeta\n");
+			assert.strictEqual(result, "# Log\n\n## 2026-09-01\n\n* Updated Alpha\n* Added Zeta\n");
 		}),
 	);
 
@@ -128,7 +128,7 @@ describe("mergeLog", () => {
 			const result = mergeLog({ doc, source }, additions);
 			assert.strictEqual(
 				result,
-				"# Log\n\n## 2026-09-05\n* Added Newer\n\n\n## 2026-09-01\n* Added Old\n\n## 2026-08-01\n* Added Brand New\n",
+				"# Log\n\n## 2026-09-05\n* Added Newer\n\n\n## 2026-09-01\n* Added Old\n\n## 2026-08-01\n\n* Added Brand New\n",
 			);
 		}),
 	);
@@ -187,7 +187,7 @@ describe("syncLog", () => {
 				assert.deepStrictEqual(result, { selected: true, written: ["log.md"], unchanged: [], skipped: [] });
 				assert.strictEqual(
 					yield* Effect.promise(() => readFile(join(root, "log.md"), "utf8")),
-					"# Log\n\n## 2026-09-01\n* Added Thing\n",
+					"# Log\n\n## 2026-09-01\n\n* Added Thing\n",
 				);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
@@ -235,7 +235,7 @@ describe("syncLog", () => {
 					assert.deepStrictEqual(result, { selected: true, written: ["log.md"], unchanged: [], skipped: [] });
 					assert.strictEqual(
 						yield* Effect.promise(() => readFile(join(root, "log.md"), "utf8")),
-						"# Log\n\n## 2026-09-05\n* Added Newer\n\n## 2026-09-01\n* Added Old\n",
+						"# Log\n\n## 2026-09-05\n\n* Added Newer\n\n## 2026-09-01\n* Added Old\n",
 					);
 				} finally {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));

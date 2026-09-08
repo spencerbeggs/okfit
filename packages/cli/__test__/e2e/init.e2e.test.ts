@@ -77,7 +77,7 @@ describe("okfit init", () => {
 		}
 
 		const log = await readFile(`${cwd}/okf/log.md`, "utf8");
-		assert.strictEqual(log, "## 2026-09-05\n* Initialized the bundle with the software-project profile\n");
+		assert.strictEqual(log, "## 2026-09-05\n\n* Initialized the bundle with the software-project profile\n");
 
 		const index = await readFile(`${cwd}/okf/index.md`, "utf8");
 		assert.strictEqual(

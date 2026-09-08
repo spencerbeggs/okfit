@@ -114,8 +114,8 @@ describe("Derive", () => {
 	it.effect("renderLogEntry renders a date heading and starred items", () =>
 		Effect.sync(() => {
 			const text = Derive.renderLogEntry({ date: "2026-09-04", items: ["**Update**: one.", "**Verified** two."] });
-			assert.strictEqual(text, "## 2026-09-04\n* **Update**: one.\n* **Verified** two.\n");
-			assert.strictEqual(Derive.renderLogEntry({ date: "2026-09-04", items: [] }), "## 2026-09-04\n");
+			assert.strictEqual(text, "## 2026-09-04\n\n* **Update**: one.\n* **Verified** two.\n");
+			assert.strictEqual(Derive.renderLogEntry({ date: "2026-09-04", items: [] }), "## 2026-09-04\n\n");
 		}),
 	);
 
@@ -138,7 +138,7 @@ describe("Derive.renderLog", () => {
 
 	it("renders one group under the default title, joined title-then-body with one blank line", () => {
 		const rendered = Derive.renderLog([{ date: "2026-09-04", items: ["Added a thing."] }]);
-		assert.strictEqual(rendered, "# Log\n\n## 2026-09-04\n* Added a thing.\n");
+		assert.strictEqual(rendered, "# Log\n\n## 2026-09-04\n\n* Added a thing.\n");
 	});
 
 	it("joins multiple groups with exactly one blank line between their rendered text", () => {
@@ -146,12 +146,12 @@ describe("Derive.renderLog", () => {
 			{ date: "2026-09-05", items: ["Added second."] },
 			{ date: "2026-09-04", items: ["Added first."] },
 		]);
-		assert.strictEqual(rendered, "# Log\n\n## 2026-09-05\n* Added second.\n\n## 2026-09-04\n* Added first.\n");
+		assert.strictEqual(rendered, "# Log\n\n## 2026-09-05\n\n* Added second.\n\n## 2026-09-04\n\n* Added first.\n");
 	});
 
 	it("accepts a custom title", () => {
 		const rendered = Derive.renderLog([{ date: "2026-09-04", items: [] }], { title: "Changes" });
-		assert.strictEqual(rendered, "# Changes\n\n## 2026-09-04\n");
+		assert.strictEqual(rendered, "# Changes\n\n## 2026-09-04\n\n");
 	});
 });
 
