@@ -31,15 +31,12 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * than INVENTORY's proposed five -- see 03-conventions-interfaces.md's
  * "Decisions made here" #1): thirty-three concepts total.
  *
- * Every Decision carries `require_verified = true`. Twelve of the thirteen
- * were verified with `okfit verify` on 2026-09-07; the thirteenth,
- * `cli-config-discovery-config-dir.md`, is authored unverified by design
- * (C-28): agents never write `verified`, so Spencer verifies it from his
- * own shell before this phase merges. Until he does, the first test below
- * fails on exactly one `require-verified-unmet` error, and both plugin CI
- * steps are red on the same diagnostic. That is the phase's expected state,
- * not a regression -- do not soften `require_verified_unmet`, edit
- * `.config/okfit.toml`, or weaken this assertion to make it green.
+ * Every Decision carries `require_verified = true` and every one of the
+ * thirteen was verified with `okfit verify` by Spencer (twelve on
+ * 2026-09-07, the config-dir Decision on 2026-09-08), so the bundle
+ * produces no diagnostics at all under core's default `error` severity.
+ * Agents never write `verified`: a new Decision stays unverified, and this
+ * test red, until Spencer verifies it from his own shell (C-28).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
