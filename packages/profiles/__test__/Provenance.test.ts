@@ -83,7 +83,10 @@ describe("Provenance.lint", () => {
 			const result = yield* Provenance.lint(bundleOf(conceptWith(generated)), OkfitConfig.DEFAULTS);
 			assert.strictEqual(result.length, 1);
 			assert.strictEqual(result[0]?.code, "generated-at-drift");
-			assert.include(result[0]?.message ?? "", "generated.at is recorded");
+			assert.include(
+				result[0]?.message ?? "",
+				`generated.at is ${Schema.encodeSync(Timestamp)(DateTime.makeUnsafe("2020-01-01T00:00:00Z"))}`,
+			);
 			assert.include(result[0]?.message ?? "", Schema.encodeSync(Timestamp)(DateTime.makeUnsafe(topic.authoredAt)));
 			assert.include(result[0]?.message ?? "", `(${topic.sha.slice(0, 7)})`);
 		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history }))),

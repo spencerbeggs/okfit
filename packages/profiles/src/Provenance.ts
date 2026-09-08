@@ -69,7 +69,7 @@ export class Provenance {
 					code: "generated-at-drift",
 					severity,
 					message: `generated.at is ${
-						recorded === undefined ? "missing" : "recorded"
+						recorded === undefined ? "missing" : encodeAt(recorded)
 					}; the last body change was ${encodeAt(derived.at)} (${derived.sha.slice(0, 7)})`,
 				}),
 			);

@@ -138,7 +138,7 @@ describe("run — generated-at-drift lint (scripted history)", () => {
 				assert.strictEqual(result.report.lint.length, 1);
 				assert.strictEqual(result.report.lint[0]?.code, "generated-at-drift");
 				assert.strictEqual(result.report.lint[0]?.file, REL);
-				assert.include(result.report.lint[0]?.message ?? "", "generated.at is recorded");
+				assert.include(result.report.lint[0]?.message ?? "", "generated.at is 2020-01-01T00:00:00Z");
 				assert.include(result.report.lint[0]?.message ?? "", AUTHORED_AT);
 				assert.include(result.report.lint[0]?.message ?? "", SHA.slice(0, 7));
 			} finally {
