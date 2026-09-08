@@ -6,6 +6,7 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T09:16:37Z
 ---
 
 # MCP

@@ -7,6 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
+  at: 2026-09-08T09:16:37Z
 tags:
   - architecture
 ---
