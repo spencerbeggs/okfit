@@ -36,7 +36,7 @@ discovery proceeds tier by tier:
 | --- | --- |
 | `<dir>/.okfit.toml` or `<dir>/okfit.toml` | `<dir>` |
 | `<dir>/.config/okfit.toml` | `<dir>` (parent of `.config`) |
-| `--config <p>` where `basename(dirname(p)) === ".config"` and `basename(p) === "okfit.toml"` | `dirname(dirname(p))` |
+| `--config <p>` where `basename(dirname(p)) === ".config"` (any file name) | `dirname(dirname(p))` |
 | `--config <p>`, any other shape | `dirname(p)` |
 | resolver `"xdg"`, `"native"`, `"system"` | `cwd` |
 | nothing found | `cwd` |

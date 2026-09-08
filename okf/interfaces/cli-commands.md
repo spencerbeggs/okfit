@@ -31,7 +31,7 @@ when the diagnostic carries a range, `<file> <severity> <code> <message>`
 otherwise, and `(bundle)` in place of `<file>` for a bundle-level
 diagnostic. Diagnostics sort by file (`(bundle)` first), then range-less
 before ranged, then by offset, then by code. The summary line prints to
-stderr (`packages/cli/README.md:21-51`).
+stderr (the `okfit validate` section of `packages/cli/README.md`).
 
 ## okfit init
 
