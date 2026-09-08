@@ -294,7 +294,7 @@ export const CONFLICT_ENTRIES: ReadonlyArray<HistoryCommit> = CONFLICT_LOG_ORDER
 /** `m4`'s body differs from `m3`'s (its first-parent predecessor in the log), so the walk answers `m4` at once. */
 export const CONFLICT_EXPECTED_BODY_COMMIT: ConflictCommitName = "m4";
 
-// --- Non-ASCII path (decision 56: `-c core.quotePath=false`) --------------------------------
+// --- Non-ASCII path (decision 56: non-ASCII path round-trip) --------------------------------
 
 /** A concept path with a non-ASCII character and a space, added at its final name in a single commit. */
 export const UNICODE_PATH = "okf/modules/wéird name.md";

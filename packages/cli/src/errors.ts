@@ -152,9 +152,10 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    each render as their own `error: <message>` line; both messages
  *    already name the concept id and what to do about it, and neither
  *    carries a filesystem path needing K-51 relativisation.
- * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`,
- *    config-file's other errors, `XdgEnvError` (the K-13 `HOME`-unset case)
- *    — renders as the single line `error: ${String(error)}`. Each of those
+ * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`/
+ *    `BundleDepthExceededError`, config-file's other errors, `XdgEnvError`
+ *    (the K-13 `HOME`-unset case) — renders as the single line
+ *    `error: ${String(error)}`. Each of those
  *    classes' own `message` already names the offending path, which is all
  *    K-46 asserts.
  *

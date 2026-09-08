@@ -6,7 +6,7 @@ import { assert, describe, it } from "@effect/vitest";
 import type { AppDirs as AppDirsType, Xdg as XdgType } from "@effected/xdg";
 import { AppDirs, CurrentPlatform, Xdg, XdgPaths } from "@effected/xdg";
 import { OkfitConfigFile } from "@okfit/core";
-import type { FileSystem, Path } from "effect";
+import type { FileSystem, Path, Scope } from "effect";
 import { Effect, Layer, Option } from "effect";
 import { buildConfigLayer, provideConfig } from "../../src/config/layer.js";
 import { ConfigMalformedError, ConfigPathNotFoundError } from "../../src/errors.js";
@@ -46,6 +46,13 @@ const testEnv: Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.
 
 const makeTempDir = async (): Promise<string> => mkdtemp(join(tmpdir(), "okfit-cli-layer-"));
 
+// F-8: acquire/release the temp dir through a Scope so it is removed even
+// when an assertion throws mid-test, not only on the happy path.
+const acquireTempDir = (): Effect.Effect<string, never, Scope.Scope> =>
+	Effect.acquireRelease(Effect.promise(makeTempDir), (dir) =>
+		Effect.promise(() => rm(dir, { recursive: true, force: true })),
+	);
+
 // A sandbox-scoped environment: XDG at <root>/xdg, native ("darwin") at
 // <root>/home/Library/Application Support/okfit, so both tiers are writable
 // temp directories rather than host paths (K-43's discipline).
@@ -80,7 +87,7 @@ const discoverIn = (root: string, options: { readonly discoveryCwd: string; read
 describe("buildConfigLayer", () => {
 	it.effect('the explicit branch discovers exactly the named path, resolver "explicit"', () =>
 		Effect.gen(function* () {
-			const dir = yield* Effect.promise(makeTempDir);
+			const dir = yield* acquireTempDir();
 			const configPath = join(dir, "config.toml");
 			yield* Effect.promise(() => writeFile(configPath, 'bundle.path = "docs"\n', "utf8"));
 			const layer = buildConfigLayer({ explicitConfigPath: Option.some(configPath), discoveryCwd: dir });
@@ -93,13 +100,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources[0]?.path, configPath);
 			assert.strictEqual(sources[0]?.resolver, "explicit");
 			assert.strictEqual(sources[0]?.value.bundle?.path, "docs");
-			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("discovers the project tier before xdg", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			const winner = join(cwd, "okfit.toml");
@@ -115,13 +121,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources[0]?.resolver, "project");
 			assert.strictEqual(sources[0]?.match?.dir, cwd);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "project");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("in one directory, .okfit.toml beats okfit.toml beats .config/okfit.toml", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(join(cwd, ".config"), { recursive: true }));
 			const winner = join(cwd, ".okfit.toml");
@@ -135,13 +140,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources[0]?.resolver, "project");
 			assert.strictEqual(sources[0]?.match?.dir, cwd);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "dot");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("okfit.toml beats .config/okfit.toml in one directory when no dotfile is present", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(join(cwd, ".config"), { recursive: true }));
 			const winner = join(cwd, "okfit.toml");
@@ -152,13 +156,12 @@ describe("buildConfigLayer", () => {
 
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.match?.dir, cwd);
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect(".config/okfit.toml anchors its match.dir at the PARENT of .config", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(join(cwd, ".config"), { recursive: true }));
 			const winner = join(cwd, ".config", "okfit.toml");
@@ -169,13 +172,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.resolver, "project");
 			assert.strictEqual(sources[0]?.match?.dir, cwd);
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("a child's okfit.toml beats a parent's .okfit.toml (directory-major precedence)", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const parent = join(root, "project");
 			const child = join(parent, "child");
 			yield* Effect.promise(() => mkdir(child, { recursive: true }));
@@ -188,8 +190,7 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.match?.dir, child);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "child");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	// K-63/C-1: `Walker.findUpward`'s own test proved this for the deleted
@@ -203,7 +204,7 @@ describe("buildConfigLayer", () => {
 	// unskip once confirmed either way.
 	it.effect("absorbs an unreadable directory on the way up rather than failing", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			// A regular FILE where a directory is expected: every `exists` under it
@@ -217,13 +218,12 @@ describe("buildConfigLayer", () => {
 			const sources = yield* discoverIn(root, { discoveryCwd: join(blocked, "unreachable") });
 
 			assert.strictEqual(sources[0]?.path, winner);
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("discovers xdg before the native directory", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
@@ -237,13 +237,12 @@ describe("buildConfigLayer", () => {
 
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.resolver, "xdg");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("discovers /etc/okfit/config.toml last", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			const etc = join(root, "etc");
@@ -256,13 +255,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.resolver, "system");
 			assert.strictEqual(sources[0]?.value.bundle?.path, "system");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("uses only the explicit path when --config is given", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			yield* Effect.promise(() => writeFile(join(cwd, "okfit.toml"), 'bundle.path = "project"\n', "utf8"));
@@ -280,13 +278,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources.length, 1);
 			assert.strictEqual(sources[0]?.path, explicit);
 			assert.strictEqual(sources[0]?.resolver, "explicit");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("the explicit branch probes no XDG file even when one exists (xdg: false)", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
@@ -307,13 +304,12 @@ describe("buildConfigLayer", () => {
 			assert.strictEqual(sources.length, 1);
 			assert.strictEqual(sources[0]?.path, explicit);
 			assert.strictEqual(sources[0]?.resolver, "explicit");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("resolves the xdg tier at $XDG_CONFIG_HOME/okfit/config.toml", () =>
 		Effect.gen(function* () {
-			const root = yield* Effect.promise(makeTempDir);
+			const root = yield* acquireTempDir();
 			const cwd = join(root, "project");
 			yield* Effect.promise(() => mkdir(cwd, { recursive: true }));
 			yield* Effect.promise(() => mkdir(join(root, "xdg", "okfit"), { recursive: true }));
@@ -330,15 +326,14 @@ describe("buildConfigLayer", () => {
 
 			assert.strictEqual(sources[0]?.path, winner);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "right");
-			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 });
 
 describe("provideConfig", () => {
 	it.effect("fails with ConfigPathNotFoundError before building any layer when --config is missing", () =>
 		Effect.gen(function* () {
-			const dir = yield* Effect.promise(makeTempDir);
+			const dir = yield* acquireTempDir();
 			const missing = join(dir, "nope.toml");
 			const program = Effect.gen(function* () {
 				const configFile = yield* OkfitConfigFile;
@@ -349,15 +344,14 @@ describe("provideConfig", () => {
 				.pipe(Effect.provide(testEnv), Effect.flip);
 			assert.isTrue(result instanceof ConfigPathNotFoundError);
 			assert.strictEqual((result as ConfigPathNotFoundError).path, missing);
-			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect(
 		"wraps a ConfigCodecError from an explicit --config into ConfigMalformedError with that path (K-46 fix round 1)",
 		() =>
 			Effect.gen(function* () {
-				const dir = yield* Effect.promise(makeTempDir);
+				const dir = yield* acquireTempDir();
 				const badConfigPath = join(dir, "bad.toml");
 				yield* Effect.promise(() => writeFile(badConfigPath, `[bundle\npath = "okf"\n`, "utf8"));
 				const program = Effect.gen(function* () {
@@ -373,15 +367,14 @@ describe("provideConfig", () => {
 					(result as ConfigMalformedError).message,
 					`malformed config ${badConfigPath}: toml parse failed`,
 				);
-				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-			}),
+			}).pipe(Effect.scoped),
 	);
 
 	it.effect(
 		"wraps a ConfigCodecError from a DISCOVERED file (no --config) into ConfigMalformedError with its path (K-63)",
 		() =>
 			Effect.gen(function* () {
-				const dir = yield* Effect.promise(makeTempDir);
+				const dir = yield* acquireTempDir();
 				const badConfigPath = join(dir, "okfit.toml");
 				yield* Effect.promise(() => writeFile(badConfigPath, `[bundle\npath = "okf"\n`, "utf8"));
 				const program = Effect.gen(function* () {
@@ -397,13 +390,12 @@ describe("provideConfig", () => {
 					(result as ConfigMalformedError).message,
 					`malformed config ${badConfigPath}: toml parse failed`,
 				);
-				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-			}),
+			}).pipe(Effect.scoped),
 	);
 
 	it.effect("provides OkfitConfigFile and succeeds when --config exists", () =>
 		Effect.gen(function* () {
-			const dir = yield* Effect.promise(makeTempDir);
+			const dir = yield* acquireTempDir();
 			const configPath = join(dir, "config.toml");
 			yield* Effect.promise(() => writeFile(configPath, 'bundle.path = "docs"\n', "utf8"));
 			const program = Effect.gen(function* () {
@@ -415,13 +407,12 @@ describe("provideConfig", () => {
 				.pipe(Effect.provide(testEnv));
 			assert.strictEqual(sources.length, 1);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "docs");
-			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("provides OkfitConfigFile over the discovery branch when no --config is given", () =>
 		Effect.gen(function* () {
-			const dir = yield* Effect.promise(makeTempDir);
+			const dir = yield* acquireTempDir();
 			const flatPath = join(dir, "okfit.toml");
 			yield* Effect.promise(() => writeFile(flatPath, 'bundle.path = "flat"\n', "utf8"));
 			const program = Effect.gen(function* () {
@@ -433,7 +424,6 @@ describe("provideConfig", () => {
 				.pipe(Effect.provide(testEnv));
 			assert.strictEqual(sources.length, 1);
 			assert.strictEqual(sources[0]?.value.bundle?.path, "flat");
-			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
-		}),
+		}).pipe(Effect.scoped),
 	);
 });

@@ -223,7 +223,7 @@ describe("GitHistory.layer over a conflict-resolving merge", () => {
 	);
 });
 
-describe("GitHistory.layer over a non-ASCII path (decision 56, -c core.quotePath=false)", () => {
+describe("GitHistory.layer over a non-ASCII path (decision 56, non-ASCII path round-trip)", () => {
 	let repo: FixtureRepo;
 
 	beforeAll(async () => {

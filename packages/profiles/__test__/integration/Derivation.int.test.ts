@@ -227,7 +227,7 @@ describe("Derivation over an unborn HEAD (P-11)", () => {
 	);
 });
 
-describe("Derivation over a non-ASCII path (decision 56, -c core.quotePath=false)", () => {
+describe("Derivation over a non-ASCII path (decision 56, non-ASCII path round-trip)", () => {
 	let repo: FixtureRepo;
 	let file = "";
 
