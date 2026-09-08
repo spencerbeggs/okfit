@@ -7,7 +7,7 @@ resource: ../../plugins/claude-code/hooks/hooks.json
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T12:50:49Z
+  at: 2026-09-08T14:33:59Z
 tags:
   - architecture
 ---
