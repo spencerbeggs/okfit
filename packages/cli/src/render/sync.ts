@@ -1,12 +1,13 @@
 import { Schema } from "effect";
-import type { SkipReason, SyncResult } from "../sync/run.js";
+import type { SyncResult } from "../sync/run.js";
+import { SkipReason } from "../sync/run.js";
 
 /** @public */
 export const SyncModeEnvelope = Schema.Struct({
 	selected: Schema.Boolean,
 	written: Schema.Array(Schema.String),
 	unchanged: Schema.Array(Schema.String),
-	skipped: Schema.Array(Schema.Struct({ id: Schema.String, reason: Schema.String })),
+	skipped: Schema.Array(Schema.Struct({ id: Schema.String, reason: SkipReason })),
 });
 /** @public */
 export type SyncModeEnvelope = typeof SyncModeEnvelope.Type;

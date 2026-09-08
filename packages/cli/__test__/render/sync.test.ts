@@ -70,6 +70,27 @@ describe("syncEnvelope", () => {
 			const decoded = Schema.decodeUnknownSync(SyncEnvelope)(encoded);
 			assert.deepStrictEqual(decoded, built);
 		}));
+
+	it("rejects an unknown skipped[].reason value (contract §9.1: reason is the closed SkipReason)", () => {
+		const built = syncEnvelope({
+			okfitVersion: "0.1.0",
+			root: "okf",
+			dryRun: false,
+			result: {
+				bundleRoot: "/repo/okf",
+				dryRun: false,
+				generated: { selected: true, written: [], unchanged: [], skipped: [{ id: "a", reason: "dirty" }] },
+				index: EMPTY_MODE,
+				log: EMPTY_MODE,
+			},
+		});
+		const encoded = Schema.encodeSync(SyncEnvelope)(built);
+		const tampered = {
+			...encoded,
+			generated: { ...encoded.generated, skipped: [{ id: "a", reason: "not-a-reason" }] },
+		};
+		assert.throws(() => Schema.decodeUnknownSync(SyncEnvelope)(tampered));
+	});
 });
 
 describe("humanSync", () => {

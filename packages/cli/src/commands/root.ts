@@ -16,10 +16,10 @@ import { verifyCommand } from "./verify.js";
  * `validate`, `init`, `context`, `verify`, and `sync` are the whole command tree;
  * nothing else is registered here. Each is appended in introduction order,
  * never reordered in, so `--help`'s subcommand list reads that way too
- * (contract §8.6). The top-level description is left unchanged: neither
+ * (contract §4.2). The top-level description is left unchanged: neither
  * `context` nor `verify` validates or scaffolds, but widening the sentence
  * for the orientation- and attestation-only commands buys nothing
- * (contract §8.6).
+ * (contract §4.2).
  *
  * @public
  */
