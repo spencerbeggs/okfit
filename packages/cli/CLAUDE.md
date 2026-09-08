@@ -10,21 +10,20 @@ enough for a Claude Code hook to call on every session and every in-bundle
 write.
 
 Config loading has two branches (K-10/K-57), chosen once per invocation in
-`config/layer.ts#buildConfigLayer`, never one chain with a conditional
-resolver list:
+`config/layer.ts#buildConfigLayer`, both built as one `AppConfig.layer`
+call (`@effected/app`) rather than a hand-assembled resolver chain:
 
 - **`--config <file>` given:** the path is statted first (`FileSystem.exists`,
-  before any layer is built — K-1), then loaded through
-  `ConfigFile.layer` (`@effected/config-file`) with only
-  `ConfigResolver.explicitPath(path)`. No upward walk, no XDG probe.
-- **No `--config`:** `ConfigFile.layer` directly (not `AppConfig.layer` --
-  it cannot append a resolver after its own XDG/native pair), with the
-  hand-rolled `projectResolver` (per directory: `.okfit.toml`,
-  `okfit.toml`, `.config/okfit.toml`, ascending to the filesystem root),
-  then `XdgConfig.resolver`, `XdgConfig.nativeResolver`, then
-  `ConfigResolver.systemEtc` — personal defaults at
-  `$XDG_CONFIG_HOME/okfit/config.toml`, system defaults at
-  `/etc/okfit/config.toml` (Linux and macOS only).
+  before any layer is built — K-1), then `AppConfig.layer` is built with
+  `resolvers: [ConfigResolver.explicitPath(path)]` and `xdg: false`. No
+  upward walk, no XDG probe, no `systemEtc` tier.
+- **No `--config`:** `AppConfig.layer` with
+  `resolvers: [ConfigResolver.upwardWalk({ filenames: [".okfit.toml",
+  "okfit.toml", ".config/okfit.toml"], cwd, name: "project" })]` (C-1/C-2,
+  ascending to the filesystem root) plus its own `systemEtc` tier (C-5,
+  `/etc/okfit/config.toml`, Linux and macOS only) and its default `xdg`/
+  `native` tiers (C-4) — personal defaults at
+  `$XDG_CONFIG_HOME/okfit/config.toml`, then the native probe.
 
 Exit codes: `0` clean, `1` lint/profile errors, `2` conformance errors, `3`
 infrastructure failure, `64` usage error, `130` interrupt. See `README.md`

@@ -22,7 +22,9 @@ src/
   Actor.ts Timestamp.ts Source.ts Generated.ts Verification.ts Status.ts AttestedComputation.ts
   Concept.ts ConceptId.ts Diagnostic.ts IndexDocument.ts LogDocument.ts Bundle.ts Graph.ts Derive.ts Validate.ts
   OkfitConfig.ts    -- spec 4.2 struct, DEFAULTS, merge, severityFor, read, OkfitConfigFile tag
-  internal/         -- engine: posixPath, position, walk, frontmatter, reserved, links, lintRules, templates
+  internal/         -- engine: posixPath, position, frontmatter, reserved, links, lintRules, templates;
+                       walk.ts is a thin adapter over @effected/walker's descend (record mode for
+                       unreadable directories), not a hand-rolled recursive walker
 ```
 
 Tests live in `__test__/`, never in `src/`; `@effect/vitest` (`it.effect`, `assert`), never `expect`; `@effected/memfs` plus `Path.layer` for the filesystem. Fixtures under `__test__/fixtures/`, helpers under `__test__/utils/`.
