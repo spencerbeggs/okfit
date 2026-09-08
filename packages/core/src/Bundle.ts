@@ -2,6 +2,7 @@ import type { Frontmatter } from "@effected/markdown";
 import { FrontmatterDecodeError, MarkdownDocument, YamlFrontmatter } from "@effected/markdown";
 import { DescendError } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
+import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { Concept } from "./Concept.js";
 import { ConceptId } from "./ConceptId.js";
@@ -274,20 +275,19 @@ export class Bundle {
 				);
 			if (info.type !== "Directory") return yield* new BundleRootNotFoundError({ root });
 			const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
+			const toLoadError = (error: DescendError | PlatformError.PlatformError): BundleLoadError => {
+				if (!(error instanceof DescendError)) return new BundleReadError({ root, path: "", cause: error });
+				if (error.reason === "depthExceeded") {
+					return new BundleDepthExceededError({ root, path: error.path, limit: error.limit ?? maxDepth });
+				}
+				return new BundleReadError({ root, path: error.path, cause: error });
+			};
 			const walked = yield* walk({
 				root,
 				includeHidden: options.includeHidden ?? false,
 				maxDepth,
 				prune: new Set(options.prune ?? DEFAULT_PRUNE),
-			}).pipe(
-				Effect.mapError((error) =>
-					error instanceof DescendError
-						? error.reason === "depthExceeded"
-							? new BundleDepthExceededError({ root, path: error.path, limit: error.limit ?? maxDepth })
-							: new BundleReadError({ root, path: error.path, cause: error })
-						: new BundleReadError({ root, path: "", cause: error }),
-				),
-			);
+			}).pipe(Effect.mapError(toLoadError));
 			const diagnostics: Array<Diagnostic> = walked.unreadable.map((dir) =>
 				diagnostic(
 					dir,

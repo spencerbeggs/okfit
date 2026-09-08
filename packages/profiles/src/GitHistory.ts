@@ -1,7 +1,7 @@
 import type { GitCommandError, NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:800, :778
-import { Git, GitCommand } from "@effected/git"; // GIT/index.d.ts:65, :2054; log :1700
+import { Git } from "@effected/git"; // GIT/index.d.ts:65, :2054; log :1700
 import { Timestamp } from "@okfit/core"; // CORE/Timestamp.ts:19
-import { Context, Duration, Effect, Layer, Schema } from "effect"; // EF/index.ts:112, :147, :152, :292, :522
+import { Context, Effect, Layer, Schema } from "effect"; // EF/index.ts:112, :147, :152, :292, :522
 import type { ChildProcessSpawner } from "effect/unstable/process"; // EF/unstable/process/index.ts:15
 
 /**
@@ -21,7 +21,8 @@ export class PathHistoryEntry extends Schema.Class<PathHistoryEntry>("PathHistor
 
 /**
  * Profiles' own spawn failure, shaped like `@effected/git`'s `GitCommandError` (P-12). Raised by
- * `GitHistory.layer` for a `GitCommandError` from `Git.log` or the 30 s timeout.
+ * `GitHistory.layer` for any `GitCommandError` `Git.log` produces, including the one `Git.log`
+ * itself synthesizes when its own spawn timeout expires.
  * @public
  */
 export class GitHistoryError extends Schema.TaggedError<GitHistoryError>()("GitHistoryError", {
@@ -64,11 +65,10 @@ export interface GitHistoryShape {
 	) => Effect.Effect<ReadonlyArray<PathHistoryEntry>, GitHistoryError | NotARepositoryError>;
 }
 
-const GIT_TIMEOUT = Duration.seconds(30); // EF/Duration.ts:707
-
 // Maps @effected/git's GitCommandError onto this package's own error shape (P-12): the redacted argv,
 // cwd, exit code and stderr carry straight across; `detail` carries across only when Git.log itself set
-// it (an absorbed spawn PlatformError or an unparseable-log defect it turned into a "failed" kind).
+// it (an absorbed spawn PlatformError, its own 30 s timeout, or an unparseable-log defect it turned into
+// a "failed" kind).
 const toGitHistoryError = (cwd: string, error: GitCommandError): GitHistoryError =>
 	new GitHistoryError({
 		args: error.args,
@@ -95,19 +95,6 @@ export const make = (git: Git["Service"]): GitHistoryShape => ({
 				})
 				.pipe(
 					Effect.catchTag("GitCommandError", (error) => Effect.fail(toGitHistoryError(cwd, error))), // EF/Effect.ts catchTag
-					Effect.timeoutOrElse({
-						// EF/Effect.ts:4601
-						duration: GIT_TIMEOUT,
-						orElse: () =>
-							Effect.fail(
-								new GitHistoryError({
-									args: GitCommand.log([path], true, options?.limit, true).redactedArgs, // GIT/index.d.ts:414
-									cwd,
-									stderr: "",
-									detail: "timed out after 30s",
-								}),
-							),
-					}),
 				);
 			// An entry with EMPTY `paths` is a merge TREESAME to its first parent that `firstParentDiffMerges`
 			// still lists; the old hand-rolled parser never produced a record for such a merge, so drop it here.
@@ -141,8 +128,9 @@ export class GitHistory extends Context.Service<GitHistory, GitHistoryShape>()("
 	 * Live layer (P-1, P-5, P-11): one `Git.log` call per `pathLog`, resolved once at construction like
 	 * `Git.layer` itself, so every member's `R` is `never`. `Git.log` already degrades an unborn `HEAD` and
 	 * an unmatched pathspec to the empty array and classifies `not a git repository` as `NotARepositoryError`
-	 * (both pass through unchanged); every other failure becomes `GitHistoryError`, and the whole call is
-	 * bounded by a 30 s timeout mapped to `GitHistoryError { detail: "timed out after 30s" }`. The CLI
+	 * (both pass through unchanged); every other failure becomes `GitHistoryError`, including the one
+	 * `Git.log` itself produces when its own 30 s spawn timeout expires (`@effected/git`'s `GIT_TIMEOUT`
+	 * ceiling, not this adapter's) — `Git.log` never lets a bare `Cause.TimeoutError` escape. The CLI
 	 * provides `ChildProcessSpawner` through `NodeServices.layer` (P-30).
 	 */
 	static readonly layer: Layer.Layer<GitHistory, never, ChildProcessSpawner.ChildProcessSpawner> = Layer.effect(

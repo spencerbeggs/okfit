@@ -41,8 +41,6 @@ export interface WalkResult {
 	readonly unreadable: ReadonlyArray<string>;
 }
 
-const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
 /**
  * Core's adapter over `@effected/walker`'s `descend` (api-contract.md section 5): the
  * kit's `onUnreadable: "record"` mode records unreadable subdirectories instead of
@@ -72,9 +70,9 @@ export const walk = (
 			// real `PlatformError`, or (on a race) drop the sentinel and treat it as empty.
 			const fs = yield* FileSystem.FileSystem;
 			yield* fs.readDirectory(options.root);
-			const unreadable = result.unreadable.filter((entry) => entry !== "").sort(compare);
+			const unreadable = result.unreadable.filter((entry) => entry !== "").sort();
 			return { files: result.matches, unreadable };
 		}
-		const unreadable = [...result.unreadable].sort(compare);
+		const unreadable = [...result.unreadable].sort();
 		return { files: result.matches, unreadable };
 	});

@@ -167,6 +167,32 @@ describe("make (the Git.log adapter)", () => {
 			}
 		}),
 	);
+	it.effect(
+		"carries Git.log's own timeout-kind GitCommandError detail across, so the rendered message still says it timed out",
+		() =>
+			Effect.gen(function* () {
+				const history = make(
+					Git.makeTest({
+						log: () =>
+							Effect.fail(
+								new GitCommandError({
+									kind: "failed",
+									args: ["log", "-z", "--", "okf/modules/core.md"],
+									cwd: "/repo",
+									stderr: "",
+									detail: "timed out after 30s",
+								}),
+							),
+					}),
+				);
+				const error = yield* Effect.flip(history.pathLog("/repo", "okf/modules/core.md"));
+				assert.instanceOf(error, GitHistoryError);
+				if (error instanceof GitHistoryError) {
+					assert.strictEqual(error.detail, "timed out after 30s");
+					assert.strictEqual(error.message, "git log -z -- okf/modules/core.md in /repo: timed out after 30s");
+				}
+			}),
+	);
 	it.effect("passes NotARepositoryError through unchanged", () =>
 		Effect.gen(function* () {
 			const history = make(Git.makeTest({ log: () => Effect.fail(new NotARepositoryError({ cwd: "/plain" })) }));

@@ -369,16 +369,9 @@ describe("provideConfig", () => {
 					.pipe(Effect.provide(testEnv), Effect.flip);
 				assert.isTrue(result instanceof ConfigMalformedError);
 				assert.strictEqual((result as ConfigMalformedError).path, badConfigPath);
-				// config-file 0.7.0: `ConfigCodecError.message` itself now appends
-				// ` (<path>)` when its own `path` field is set (`ConfigFile.discover`
-				// re-raises with `path` attached), so `ConfigMalformedError.message`
-				// (which embeds the cause's `messageOf`) carries the path twice —
-				// once from `ConfigMalformedError`'s own template, once from the
-				// wrapped cause. Cosmetic, not a regression: `.path` above is the
-				// single source of truth `renderFailure`/K-51 relativise against.
 				assert.strictEqual(
 					(result as ConfigMalformedError).message,
-					`malformed config ${badConfigPath}: toml parse failed (${badConfigPath})`,
+					`malformed config ${badConfigPath}: toml parse failed`,
 				);
 				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 			}),
@@ -400,6 +393,10 @@ describe("provideConfig", () => {
 					.pipe(Effect.provide(testEnv), Effect.flip);
 				assert.isTrue(result instanceof ConfigMalformedError);
 				assert.strictEqual((result as ConfigMalformedError).path, badConfigPath);
+				assert.strictEqual(
+					(result as ConfigMalformedError).message,
+					`malformed config ${badConfigPath}: toml parse failed`,
+				);
 				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 			}),
 	);

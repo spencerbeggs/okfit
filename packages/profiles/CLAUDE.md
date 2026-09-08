@@ -13,12 +13,13 @@ src/
   Profile.ts          -- PROFILE_NAMES, ProfileName, Layout, LayoutDirectory, ProfileDiagnosticCode, ProfileDiagnostic, Profile
   SoftwareProject.ts  -- the software-project literal, layout, and check; NOT re-exported (reachable only via Profiles.softwareProject)
   Profiles.ts         -- Profiles facade: get(name), softwareProject
-  GitHistory.ts       -- PathHistoryEntry, GitHistoryError, PathLogOptions, GitHistoryShape, GitHistory service (layer, makeTest, layerTest)
+  GitHistory.ts       -- PathHistoryEntry, GitHistoryError, PathLogOptions, GitHistoryShape, GitHistory service (layer, makeTest, layerTest);
+                         a thin adapter over `@effected/git`'s `Git.log` -- scopes the whole-repository log to one
+                         path (`--follow`, `--diff-merges=first-parent`) and decodes it into `PathHistoryEntry`.
+                         No `internal/` spawn modules remain: `Git.log` owns the spawn, the argv, the record
+                         parsing, and the stderr classification.
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
   Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, generatedAt, humanActorId, generatedBy, staleAfter
-  internal/
-    spawn.ts          -- runCollected(command); not exported
-    pathLog.ts        -- git log argv builder, record parser, stderr classifier; not exported
 ```
 
 Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
