@@ -1,5 +1,28 @@
 # @okfit/plugin
 
+## 0.3.0
+
+### Bug Fixes
+
+#### Installing the plugin now provides both bins
+
+- `@okfit/plugin` previously declared `@okfit/cli` and `@okfit/mcp` as auto-installed peer dependencies. A package manager links `node_modules/.bin` entries only for an importer's direct dependencies — an auto-installed peer is resolvable but never runnable, so installing the plugin left a consumer's `node_modules/.bin/` with neither the `okfit` nor the `okfit-mcp` bin.
+
+- `@okfit/cli` and `@okfit/mcp` are now regular `dependencies` of `@okfit/plugin`, and the plugin ships its own two bin shims under `src/bin/`, each importing `main` from the front end's `./main` subpath and calling it. Installing `@okfit/plugin` now links both `okfit` and `okfit-mcp` in `node_modules/.bin/`. [#28][#28]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/cli | dependency | updated | 0.2.0 | 0.3.0 |
+| @okfit/mcp | dependency | updated | 0.2.0 | 0.3.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#28]: https://github.com/spencerbeggs/okfit/pull/28
+
 ## 0.2.1
 
 ### Bug Fixes
