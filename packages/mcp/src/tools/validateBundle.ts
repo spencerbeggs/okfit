@@ -45,7 +45,7 @@ export const validateBundle = Tool.make("validate_bundle", {
 
 /**
  * This tool does not call `loadToolContext`: `run()` calls `Bundle.load`
- * itself (`packages/cli/src/validate/run.ts:52-56`), so routing through
+ * itself (`packages/engine/src/validate/run.ts:52-56`), so routing through
  * `loadToolContext` would load the bundle twice. It uses `resolveConfigOnly`
  * and keeps `bundleRoot`, `config` **and** `profile` — `run()` needs the
  * profile. `success` is `JsonEnvelope`, imported from `@okfit/cli` and used

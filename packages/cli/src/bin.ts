@@ -10,11 +10,11 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { CliLogger, CliRuntime } from "@effected/cli";
 import { AppDirs, Xdg } from "@effected/xdg";
+import { Now } from "@okfit/engine";
 import { DateTime, Effect, Layer, Option } from "effect";
 import { Command } from "effect/unstable/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
-import { Now } from "./validate/run.js";
 import { CLI_VERSION } from "./version.js";
 
 /**

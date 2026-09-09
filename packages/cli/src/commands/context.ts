@@ -1,7 +1,6 @@
-import { provideConfig, resolveProjectConfig } from "@okfit/engine";
+import { provideConfig, resolveProjectConfig, runContext } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { runContext } from "../context/run.js";
 import { setExitCode } from "../internal/exit.js";
 import { ContextEnvelope, contextEnvelope, humanContext } from "../render/context.js";
 import { jsonError } from "../render/json.js";

@@ -601,7 +601,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			// No `git` reachable at all: if Provenance.lint still ran despite
 			// "off", the spawn itself would fail (ENOENT) and this would surface
 			// as an infrastructure failure, not a clean run -- proving the
-			// CLI's own severity gate (S-8, validate/run.ts#run) skips the call
+			// CLI's own severity gate (S-8, @okfit/engine's validate/run.ts#run) skips the call
 			// entirely rather than calling Provenance.lint and discarding its
 			// result.
 			const noGitEnv = { ...env, PATH: "" };

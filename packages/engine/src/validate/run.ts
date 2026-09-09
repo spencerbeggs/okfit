@@ -21,7 +21,7 @@ import { Context, Effect, Option } from "effect";
  *
  * @internal
  */
-export class Now extends Context.Service<Now, DateTime.Utc>()("@okfit/cli/Now") {}
+export class Now extends Context.Service<Now, DateTime.Utc>()("@okfit/engine/Now") {}
 
 /** @public */
 export interface RunOptions {

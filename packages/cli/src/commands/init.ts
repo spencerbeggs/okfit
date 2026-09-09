@@ -1,12 +1,23 @@
 import { TomlCodec } from "@effected/config-file";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import { InitOverwriteError, provideConfig, resolveBundleRoot, resolveProjectRoot } from "@okfit/engine";
+import type { ScaffoldOptions } from "@okfit/engine";
+import {
+	CONFIG_RELATIVE_PATH,
+	InitOverwriteError,
+	Now,
+	SCHEMA_DIRECTIVE,
+	configValue,
+	files,
+	provideConfig,
+	resolveBundleRoot,
+	resolveProjectRoot,
+	run,
+	targetPaths,
+} from "@okfit/engine";
 import { GitHistory, Profiles } from "@okfit/profiles";
 import { Console, DateTime, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import type { ScaffoldOptions } from "../init/scaffold.js";
-import { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "../init/scaffold.js";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
 import { forDiagnostics } from "../render/exit.js";
@@ -14,7 +25,6 @@ import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
 import type { RenderedDiagnostic } from "../render/sort.js";
 import { collect } from "../render/sort.js";
-import { Now, run } from "../validate/run.js";
 
 /**
  * `[path]` is the PROJECT root (K-2), never the bundle root — identical to
