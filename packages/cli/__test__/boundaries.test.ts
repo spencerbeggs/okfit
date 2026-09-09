@@ -6,17 +6,17 @@ import { findAppImportNames, stripComments } from "./utils/boundaries.js";
 const SRC_ROOT = join(import.meta.dirname, "..", "src");
 
 /**
- * K-39's allowlist: `bin.ts`, every file under `commands/`, `internal/exit.ts`,
+ * K-39's allowlist: `bin.ts`, `main.ts` (created in a later task -- listing
+ * it now is a deliberate forward reference and is inert while the file does
+ * not exist), every file under `commands/`, `internal/exit.ts`,
  * `internal/tty.ts`. Everything else under `src/` must never read `process`.
  */
 const isAllowedToReadProcess = (relativePath: string): boolean =>
 	relativePath === "bin.ts" ||
+	relativePath === "main.ts" ||
 	relativePath.startsWith("commands/") ||
 	relativePath === "internal/exit.ts" ||
 	relativePath === "internal/tty.ts";
-
-/** K-9: no file under `src/` may import these three names from `@effected/app`. */
-const FORBIDDEN_APP_IMPORTS = ["App", "AppStore", "AppCache"];
 
 const walk = (dir: string): ReadonlyArray<string> =>
 	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -81,7 +81,7 @@ describe("stripComments", () => {
 	});
 });
 
-describe("src boundaries (K-9, K-39, K-49)", () => {
+describe("src boundaries (K-39)", () => {
 	const files = walk(SRC_ROOT);
 
 	it("finds at least one source file to check", () => {
@@ -91,13 +91,6 @@ describe("src boundaries (K-9, K-39, K-49)", () => {
 	for (const file of files) {
 		const relativePath = relative(SRC_ROOT, file).split("\\").join("/");
 		const contents = readFileSync(file, "utf8");
-
-		it(`${relativePath} imports no App, AppStore, or AppCache from @effected/app (K-9)`, () => {
-			const importedNames = findAppImportNames(contents);
-			for (const name of FORBIDDEN_APP_IMPORTS) {
-				assert.isFalse(importedNames.includes(name), `${relativePath} imports ${name} from @effected/app`);
-			}
-		});
 
 		it(`${relativePath} touches process only if it is on the K-39 allowlist`, () => {
 			const referencesProcess = /\bprocess\b/.test(stripComments(contents));

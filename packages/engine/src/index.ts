@@ -1,7 +1,6 @@
 /**
- * The okfit engine: the platform layer, config discovery, and the
- * validate, verify, sync, init and context programs shared by the okfit
- * CLI and the okfit MCP server.
+ * The okfit engine: config discovery and the validate, verify, sync, init
+ * and context programs shared by the okfit CLI and the okfit MCP server.
  *
  * @packageDocumentation
  */
@@ -22,7 +21,6 @@ export {
 } from "./errors.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "./init/scaffold.js";
-export { OKFIT_APP_NAMESPACE, OkfitPlatform } from "./platform.js";
 export { ContextEnvelope, ContextTag, ContextType, contextEnvelope } from "./render/context.js";
 export type { Tally } from "./render/exit.js";
 export { forDiagnostics, tally } from "./render/exit.js";
@@ -31,7 +29,7 @@ export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export { VerifyEnvelope, verifyEnvelope } from "./render/verify.js";
-export type { SyncMode, SyncResult } from "./sync/run.js";
+export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/run.js";
 export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
