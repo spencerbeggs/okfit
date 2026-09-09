@@ -18,8 +18,8 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
 `okf/index.md` for the full map; by area:
 
 - **The workspace root, every package, and the Claude Code plugin** --
-  `okf/modules/*.md` (`workspace`, `core`, `profiles`, `cli`, `mcp`,
-  `plugin`, `claude-code-plugin`).
+  `okf/modules/*.md` (`workspace`, `core`, `profiles`, `engine`, `cli`,
+  `mcp`, `plugin`, `claude-code-plugin`).
 - **Durable architectural choices** (why something is built the way it
   is, not just what it does) -- `okf/decisions/*.md`.
 - **Rules contributors and agents must follow** -- `okf/conventions/*.md`.

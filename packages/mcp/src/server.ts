@@ -23,9 +23,9 @@ import { MCP_VERSION } from "./version.js";
  * discharged right here, below, by `Layer.mergeAll(Git.layer, GitHistory.layer)`
  * — both need only `ChildProcessSpawner` (`GitHistory.layer` itself provides
  * `Git.layer` internally, `packages/profiles/src/GitHistory.ts:136`), which
- * `bin.ts`'s untouched `PlatformLayer` already supplies via
+ * `@okfit/engine`'s `OkfitPlatform` already supplies via
  * `NodeServices.layer`. This type widening is the only thing that changes
- * at that boundary — `bin.ts` itself is not touched by this task.
+ * at that boundary.
  *
  * @public
  */

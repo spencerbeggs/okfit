@@ -27,7 +27,7 @@ const DESCRIPTION =
  * GitHistory` so it can run `Provenance.lint`'s `generated-at-drift`
  * check (S-8, S-16). Both are provided by `server.ts`'s `ServerLayer`,
  * which needs only `ChildProcessSpawner` to build them — already
- * supplied by `bin.ts`'s untouched `PlatformLayer` (S-16).
+ * supplied by `@okfit/engine`'s `OkfitPlatform` (S-16).
  *
  * @public
  */

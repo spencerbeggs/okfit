@@ -8,7 +8,7 @@ pnpm add -D @okfit/plugin
 
 ## Status
 
-Skeleton. Both bins install; the CLI has no subcommands yet and the MCP server is a stub.
+Both bins install. `okfit` has five subcommands (`validate`, `init`, `context`, `verify`, `sync`); `okfit-mcp` serves six read-only MCP tools plus static concept resources over stdio.
 
 ## License
 

@@ -22,9 +22,12 @@ the consuming repo's install of this package
 `mcpServers.mcp`, so the six tools it serves reach an agent as
 `mcp__plugin_okfit_mcp__<tool>` — see `okf/interfaces/okfit-mcp.md`.
 
-## Dependencies versus peers
+## Dependencies, not peers
 
-The spec calls `@okfit/cli` and `@okfit/mcp` peer dependencies; they are
-declared as regular dependencies for now because `workspace:*` peers do
-not give the monorepo root a runnable `okfit` bin -- revisit before the
-first npm publish (`packages/plugin/CLAUDE.md:15-19`).
+`@okfit/cli` and `@okfit/mcp` are declared as regular `dependencies`, each
+with its own bin shim under `src/bin/`. A package manager links
+`node_modules/.bin` entries only for an importer's DIRECT dependencies, so
+the peer arrangement the spec calls for could never produce a runnable
+bin -- this is settled, not provisional. See [A shared @okfit/engine
+package replaces cli-as-copy-contract](../decisions/engine-front-end-split.md)
+for the full reasoning and the alternatives rejected.
