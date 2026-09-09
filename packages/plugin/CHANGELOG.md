@@ -1,5 +1,15 @@
 # @okfit/plugin
 
+## 0.2.1
+
+### Bug Fixes
+
+- Hoist mcp and cli packages as peers.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.2.0
 
 ### Features
