@@ -42,8 +42,8 @@ src/
   bin.ts               -- the shebang entry point: imports and calls main(), nothing else
   main.ts               -- the assembled program: resolves Now, provides OkfitPlatform,
                             CliRuntime.reportFailures, NodeRuntime.runMain
-  index.ts               -- public barrel: the pure pieces @okfit/mcp could import, plus
-                             this package's own renderFailure and rootCommand
+  index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
+                             Counts, human, line, summary, VerifyLines, humanVerify, CLI_VERSION
   version.ts              -- CLI_VERSION, read from process.env.__PACKAGE_VERSION__ (K-32), a
                               build-time constant the bundler injects -- never a package.json
                               import, which would report engine's version for anything that
