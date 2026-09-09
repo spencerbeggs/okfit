@@ -1,9 +1,15 @@
-import { provideConfig, resolveProjectConfig, runContext } from "@okfit/engine";
+import {
+	ContextEnvelope,
+	contextEnvelope,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	runContext,
+} from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
-import { ContextEnvelope, contextEnvelope, humanContext } from "../render/context.js";
-import { jsonError } from "../render/json.js";
+import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
@@ -99,7 +105,7 @@ export const contextCommand = Command.make(
 			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 			// K-22: under --format json, an infrastructure failure ALSO gets a stdout
-			// envelope, reusing render/json.ts#jsonError unchanged (K-22) — context
+			// envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged (K-22) — context
 			// defines no error envelope of its own.
 			if (input.format === "json") {
 				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));

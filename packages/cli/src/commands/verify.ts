@@ -1,12 +1,19 @@
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
-import { Now, provideConfig, resolveProjectConfig, runVerify } from "@okfit/engine";
+import {
+	Now,
+	VerifyEnvelope,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	runVerify,
+	verifyEnvelope,
+} from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
-import { jsonError } from "../render/json.js";
-import { VerifyEnvelope, humanVerify, verifyEnvelope } from "../render/verify.js";
+import { humanVerify } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
 
 /** V-6: tolerant id, normalised through `ConceptId.normalize`; never `Argument.path`. */
@@ -133,7 +140,7 @@ export const verifyCommand = Command.make(
 			);
 
 			// K-22: under --format json an infrastructure failure ALSO gets a
-			// stdout envelope, reusing render/json.ts#jsonError unchanged — the
+			// stdout envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged — the
 			// third copy of an idiom already in validate.ts and context.ts.
 			if (input.format === "json") {
 				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));

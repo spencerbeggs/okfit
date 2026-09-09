@@ -1,14 +1,16 @@
 import { TomlCodec } from "@effected/config-file";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import type { ScaffoldOptions } from "@okfit/engine";
+import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";
 import {
 	CONFIG_RELATIVE_PATH,
 	InitOverwriteError,
 	Now,
 	SCHEMA_DIRECTIVE,
+	collect,
 	configValue,
 	files,
+	forDiagnostics,
 	provideConfig,
 	resolveBundleRoot,
 	resolveProjectRoot,
@@ -20,11 +22,8 @@ import { Console, DateTime, Effect, FileSystem, Layer, Option, Path, Schema } fr
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
-import { forDiagnostics } from "../render/exit.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
-import type { RenderedDiagnostic } from "../render/sort.js";
-import { collect } from "../render/sort.js";
 
 /**
  * `[path]` is the PROJECT root (K-2), never the bundle root — identical to

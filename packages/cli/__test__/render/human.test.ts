@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import { DiagnosticRange } from "@okfit/core";
+import type { RenderedDiagnostic } from "@okfit/engine";
 import { Effect, Path } from "effect";
 import { displayRoot, human, line, summary } from "../../src/render/human.js";
-import type { RenderedDiagnostic } from "../../src/render/sort.js";
 
 const ESC = String.fromCharCode(27);
 

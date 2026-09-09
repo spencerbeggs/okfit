@@ -1,16 +1,23 @@
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
-import { Now, provideConfig, resolveProjectConfig, run } from "@okfit/engine";
+import {
+	JsonEnvelope,
+	Now,
+	collect,
+	forDiagnostics,
+	json,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	run,
+} from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
-import { forDiagnostics } from "../render/exit.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
-import { JsonEnvelope, json, jsonError } from "../render/json.js";
-import { collect } from "../render/sort.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */

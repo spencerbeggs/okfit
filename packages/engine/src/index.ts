@@ -23,6 +23,14 @@ export {
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "./init/scaffold.js";
 export { OKFIT_APP_NAMESPACE, OkfitPlatform } from "./platform.js";
+export { ContextEnvelope, ContextTag, ContextType, contextEnvelope } from "./render/context.js";
+export type { Tally } from "./render/exit.js";
+export { forDiagnostics, tally } from "./render/exit.js";
+export { JsonDiagnostic, JsonEnvelope, JsonErrorEnvelope, JsonSummary, json, jsonError } from "./render/json.js";
+export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
+export { collect, sort } from "./render/sort.js";
+export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
+export { VerifyEnvelope, verifyEnvelope } from "./render/verify.js";
 export type { SyncMode, SyncResult } from "./sync/run.js";
 export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";

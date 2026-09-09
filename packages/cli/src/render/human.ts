@@ -1,6 +1,6 @@
+import type { RenderedDiagnostic } from "@okfit/engine";
+import { sort } from "@okfit/engine";
 import type { Path } from "effect";
-import type { RenderedDiagnostic } from "./sort.js";
-import { sort } from "./sort.js";
 
 /** The counts the summary line reports. @public */
 export interface Counts {
