@@ -31,15 +31,17 @@
 		"prepare": "turbo run build:dev",
 		"types:check": "tsc --noEmit"
 	},
-	"dependencies": {
-		"@okfit/cli": "workspace:*",
-		"@okfit/mcp": "workspace:*"
-	},
 	"devDependencies": {
+		"@okfit/cli": "workspace:*",
+		"@okfit/mcp": "workspace:*",
 		"@savvy-web/bundler": "^2.3.2",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"
+	},
+	"peerDependencies": {
+		"@okfit/cli": "workspace:*",
+		"@okfit/mcp": "workspace:*"
 	},
 	"engines": {
 		"node": ">=24.11.0"
