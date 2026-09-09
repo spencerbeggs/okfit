@@ -27,22 +27,16 @@ process.on("unhandledRejection", (reason) => fatal("unhandled rejection", reason
 
 await (async () => {
 	const NodeRuntime = await import("@effect/platform-node/NodeRuntime");
-	const NodeServices = await import("@effect/platform-node/NodeServices");
-	const { AppDirs, Xdg } = await import("@effected/xdg");
+	const { OkfitPlatform } = await import("@okfit/engine");
 	const { Cause, Exit, Layer, Logger, Runtime } = await import("effect");
 	const { resolveMcpProjectRoot } = await import("./internal/projectRoot.js");
 	const { ServerLayer } = await import("./server.js");
-
-	const PlatformLayer = Layer.mergeAll(
-		Xdg.layer,
-		AppDirs.layer({ namespace: "okfit" }).pipe(Layer.provide(Xdg.layer)),
-	).pipe(Layer.provideMerge(NodeServices.layer));
 
 	const projectRoot = resolveMcpProjectRoot(process.env);
 
 	const program = Layer.launch(
 		ServerLayer(projectRoot).pipe(
-			Layer.provide(PlatformLayer),
+			Layer.provide(OkfitPlatform),
 			Layer.provide(Logger.layer([Logger.consolePretty()])),
 			// `Logger.consolePretty`'s own `stderr` option is inert in rc.112 --
 			// the implementation only reads `{ colors, formatDate, mode }`

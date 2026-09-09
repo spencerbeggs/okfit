@@ -354,12 +354,12 @@ importers:
       '@effected/xdg':
         specifier: catalog:effected
         version: 0.4.1(@effected/config-file@0.7.0(@effected/jsonc@0.9.0(effect@4.0.0-rc.112))(@effected/toml@0.6.0(effect@4.0.0-rc.112))(@effected/walker@0.7.0(@effected/glob@0.5.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(@effected/yaml@0.14.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(@effected/walker@0.7.0(@effected/glob@0.5.0(effect@4.0.0-rc.112))(effect@4.0.0-rc.112))(effect@4.0.0-rc.112)
-      '@okfit/cli':
-        specifier: workspace:*
-        version: link:../cli/dist/dev/pkg
       '@okfit/core':
         specifier: workspace:*
         version: link:../core/dist/dev/pkg
+      '@okfit/engine':
+        specifier: workspace:*
+        version: link:../engine/dist/dev/pkg
       '@okfit/profiles':
         specifier: workspace:*
         version: link:../profiles/dist/dev/pkg

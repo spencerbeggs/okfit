@@ -1,5 +1,5 @@
-import { ContextTag, ContextType } from "@okfit/cli";
 import { GraphNodeKind, Status } from "@okfit/core";
+import { ContextTag, ContextType } from "@okfit/engine";
 import { Schema } from "effect";
 import { ConceptSummary } from "./ConceptSummary.js";
 

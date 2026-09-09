@@ -1,8 +1,8 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
-import type { ResolvedProjectConfig } from "@okfit/cli";
-import { provideConfig, resolveProjectConfig } from "@okfit/cli";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
+import type { ResolvedProjectConfig } from "@okfit/engine";
+import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import type { FileSystem, Path } from "effect";
 import { Effect, Option } from "effect";
 import { BundleNotFound, ConfigError, composeRemediatedMessage } from "../errors.js";
