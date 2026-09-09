@@ -6,4 +6,10 @@
  * @packageDocumentation
  */
 
-export {};
+export {
+	ConfigMalformedError,
+	ConfigPathNotFoundError,
+	InitOverwriteError,
+	VerifyConceptNotFoundError,
+	VerifyUnsupportedFrontmatterError,
+} from "./errors.js";

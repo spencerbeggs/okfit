@@ -199,6 +199,9 @@ importers:
       '@okfit/core':
         specifier: workspace:*
         version: link:../core/dist/dev/pkg
+      '@okfit/engine':
+        specifier: workspace:*
+        version: link:../engine/dist/dev/pkg
       '@okfit/profiles':
         specifier: workspace:*
         version: link:../profiles/dist/dev/pkg

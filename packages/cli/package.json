@@ -48,6 +48,7 @@
 		"@effected/xdg": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
 		"@okfit/core": "workspace:*",
+		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effect"
 	},
