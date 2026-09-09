@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/engine",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"private": true,
 	"description": "The okfit engine: platform layer, config discovery, and the validate, verify, sync, init and context programs shared by the okfit CLI and MCP server.",
 	"keywords": ["okf", "open-knowledge-format", "effect"],
