@@ -12,12 +12,12 @@ import { Layer } from "effect";
 export const OKFIT_APP_NAMESPACE = "okfit";
 
 /**
- * K-9/K-11: `AppDirs.layer(options)` requires `Xdg | FileSystem | Path`,
- * so `Layer.provide(Xdg.layer)` alone does not close it.
+ * K-9/K-11: `AppDirs.layer(options)` requires `Xdg | FileSystem | Path`, so
+ * `Layer.provide(Xdg.layer)` alone does not close it.
  * `Layer.provideMerge(NodeServices.layer)` supplies `FileSystem`/`Path` to
- * both members and keeps every service in the output. `NodeServices.layer`
- * provides `ChildProcessSpawner | Crypto | FileSystem | Path | Stdio |
- * Terminal`, a superset of `Command.Environment`.
+ * both members and keeps every service in the output.
+ * `NodeServices.layer` provides `ChildProcessSpawner | Crypto | FileSystem | Path | Stdio | Terminal`,
+ * a superset of `Command.Environment`.
  *
  * K-13: `Xdg.layer` fails with `XdgEnvError` when `HOME` is unset. Callers
  * are responsible for providing this layer INSIDE whatever region renders
