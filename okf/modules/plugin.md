@@ -6,7 +6,7 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T04:14:34Z
+  at: 2026-09-09T05:07:51Z
 ---
 
 # Plugin
