@@ -8,6 +8,7 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-09-07T00:13:55Z
+  body_sha256: 322a2f0adbbac2d4c2835398379099ea5fca76cad70012ea6bdf22abfb1e6921
 tags:
   - architecture
 ---

@@ -60,7 +60,7 @@ validation on the file without any further setup.
   | `field_value_unknown` | `error` |
   | `require_verified_unmet` | `error` |
   | `family_invalid` | `error` |
-  | `generated_at_drift` | `info` |
+  | `generated_at_drift` | `warn` |
   | `computation_runtime_missing` | `error` |
   | `footnote_source_unknown` | `warn` |
   | `log_frontmatter` | `warn` |

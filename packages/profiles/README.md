@@ -116,6 +116,7 @@ Each directory carries its own `index.md`. What `okfit init` writes into these f
 - **`generated.at` is the author date, not the stamp date (P-4).** Walking a path's git history newest-first, the commit that changed the body is the one whose blob first differs from its predecessor's; that commit's *author* date (`%aI`) is `generated.at`. Its committer date, author name, and author email are carried on the result for callers that want a history-based policy later, but `generated.at` itself is never the date of a later frontmatter-only stamp.
 - **The path log is `@effected/git`'s `Git.log(cwd, { paths: [path], follow: true, firstParentDiffMerges: true })` (P-5, amended P-46, decision 56).** `firstParentDiffMerges` surfaces a conflict-resolving merge whose blob differs from both parents (probed on git 2.54.0), which plain `--follow` can omit and which would otherwise attribute that body change to the wrong commit. `Git.log`'s unconditional `-z` makes `--name-only` emit paths raw — no C-style quoting — so no `core.quotePath` override is needed and a path containing a space, a quote, or a newline round-trips verbatim. The dirty check compares the worktree body against `Git.show(root, "HEAD", path)`, never against the newest log entry. `--follow`'s rename detection can itself stop at a commit that renames a file and rewrites its content enough that git no longer treats it as a continuation of the same history; when that happens, `generated.at` answers that rename commit rather than an older one.
 - **Uncommitted is the caller's to interpret (P-10).** `Derivation.generatedAt` reports `{ _tag: "uncommitted", reason: "untracked" | "dirty" | "unborn" }` and never substitutes `now`. The recommended policy, followed by the snippet below: omit `generated.at` entirely until the body is committed.
+- **The body digest answers "has the body changed", where dates cannot (issue #19).** `Derivation.bodyDigest(text)` is a sha256, hex-encoded, over the same normalised body `Derivation.body` produces (CRLF and lone CR to LF, trailing whitespace at end of text removed), so a `core.autocrlf` worktree and a trailing-newline change hash identically and a frontmatter-only edit does not move the digest at all. It is computed through effect's own `Crypto` service rather than `node:crypto`, so it carries `Crypto.Crypto` in its R channel; `NodeServices.layer` already supplies it wherever this package is used. `okfit sync` records it as `generated.body_sha256` — okfit's own extension key, not an OKF v0.2 field — and `Provenance.lint` compares it. Git cannot make this judgement on its own: the stamp lives in the same blob as the body, so a squash merge (one new commit carrying both) is indistinguishable by history from a body edited without a re-stamp.
 - **Human actor resolution (P-13).** Given git identity `{ name?, email? }` and `config.actors.humans`, the first hit wins: (1) a `human:<id>` entry whose id matches the email's local part or the name's slug, case-insensitively (config spelling returned); (2) `human:<local part>`; (3) `human:<slug of name>`; (4) unresolved. The slug lowercases `name`, replaces runs of whitespace and characters outside `[A-Za-z0-9._-]` with `-`, and trims leading and trailing `-`.
 - **Identity is read at merged config scope (P-15).** `Derivation.generatedBy` calls `Git.configGet(cwd, "user.name")` and `Git.configGet(cwd, "user.email")` with no `scope` option. Environment overrides (`GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `EMAIL`, `user.useConfigOnly`) are out of scope for phase 1.
 - **`stale_after` is pure addition (P-19).** `Derivation.staleAfter(from, config)` is `from + (config.lifecycle?.default_stale_after ?? OkfitConfig.DEFAULTS.lifecycle.default_stale_after)`, falling back to 90 days. `from` should be `generated.at` when the provenance is `committed`, otherwise the caller's own `now`; re-stamp whenever `generated.at` changes.
@@ -134,19 +135,33 @@ Frontmatter serialisation, the uncommitted policy's enforcement, `now`, layer co
 
 ## Provenance
 
-`Provenance.lint(bundle, config)` is the `generated-at-drift` lint
-(`lint.generated_at_drift`, config default `"info"`): it walks
-`Derivation.generatedAt` once per concept with a `generated` block, and
-reports a core `Diagnostic` when a committed body's `generated.at` is
-missing or does not match the derived instant (compared as decoded
-`DateTime.Utc` values, never encoded strings). It is silent for an
-uncommitted body, for a concept with no `generated` block, and returns `[]`
-the moment it discovers the bundle is outside a git repository at all. It
-emits no `range` — the message carries both instants and a 7-character
-sha, which is what a reader acts on. It is a plain facade over
-`Derivation`, not a `Profile` member: `severityFor`, the `[lint]` table,
-the renderers, the PostToolUse hook, and the MCP `validate_bundle` tool all
-treat its `Diagnostic`s like every other lint. It is total over severity
+`Provenance.lint(bundle, config, options?)` is the `generated-at-drift`
+lint (`lint.generated_at_drift`, config default `"warn"`), and it runs in
+two tiers (issue #19).
+
+Tier 1 applies to a concept that records `generated.body_sha256`: the
+recorded digest is compared against
+`Derivation.bodyDigest(concept.document.source)`, a pure comparison over
+text already in memory with no git call and no filesystem read. Drift here
+means the body has changed since it was last stamped -- never that a squash
+or rebase merge minted a new author date for the commit that carried it.
+Because the comparison is against the worktree, a body edited but not yet
+committed reports immediately.
+
+Tier 2 applies to a concept stamped before the digest field existed: the
+original walk, one `Derivation.generatedAt` per concept, reporting when a
+committed body's `generated.at` is missing or is not the derived instant
+(compared as decoded `DateTime.Utc` values, never encoded strings). Tier 2
+is silent for an uncommitted body and returns `[]` the moment it discovers
+the bundle is outside a git repository at all.
+
+A concept with no `generated` block is skipped by both tiers. The lint
+emits no `range` -- tier 1's message carries both digests and tier 2's
+carries both instants and a 7-character sha, which is what a reader acts
+on. It is a plain facade over `Derivation`, not a `Profile` member:
+`severityFor`, the `[lint]` table, the renderers, the PostToolUse hook, and
+the MCP `validate_bundle` tool all treat its `Diagnostic`s like every other
+lint. It is total over severity
 (S-28): when the resolved `generated-at-drift` severity is `"off"` it
 returns `[]` before any per-concept work and before any git call, so it is
 safe to call at any severity. The CLI (`okfit validate`, `okfit sync`'s own

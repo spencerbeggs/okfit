@@ -8,7 +8,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: 79a961756d1a4457d85cc554995cbc12974c2a31ecece19d859164ad12b66b5b
 ---
 
 # Profiles
@@ -57,9 +58,19 @@ imports `@effect/platform-node` or `node:child_process` directly. No
 ## Provenance linting
 
 `Provenance.lint(bundle, config)` runs the `generated-at-drift` lint,
-requiring `Git | GitHistory | FileSystem | Path` to compare each
-concept's stamped `generated.at` against what the same git walk
-`Derivation.generatedAt` uses would compute today.
+requiring `Git | GitHistory | FileSystem | Path | Crypto.Crypto`. The lint
+is two-tier: a concept carrying `generated.body_sha256` is checked by pure
+content comparison against `Derivation.bodyDigest` of its current source,
+no git call at all; a concept without one falls back to comparing its
+stamped `generated.at` against what the same git walk
+`Derivation.generatedAt` would compute today. See [A body digest inside
+generated detects real drift, not a rewritten
+date](../decisions/profiles-body-sha256-detects-real-drift.md).
+
+`Derivation.bodyDigest(text)` computes that digest — a lowercase hex
+sha256 of the P-6-normalized body — through effect's own `Crypto` service,
+never `node:crypto` directly, so it carries `Crypto.Crypto` in its R
+channel the same way `Derivation.generatedAt` carries `Git | GitHistory`.
 
 ## Derivation is package-global
 

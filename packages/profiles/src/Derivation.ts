@@ -3,7 +3,7 @@ import { Git } from "@effected/git";
 import { FrontmatterSource } from "@effected/markdown";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
-import { DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
+import { Crypto, DateTime, Duration, Effect, Encoding, FileSystem, Option, Path, Schema } from "effect";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
 import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 import { GitHistory } from "./GitHistory.js";
@@ -123,6 +123,21 @@ const normalise = (text: string): string => text.replace(/\r\n?/g, "\n").trimEnd
 // MD/index.d.ts:2306; body is source.slice(bodyOffset) (:2248-2254).
 const body = (text: string): string => normalise(FrontmatterSource.split(text).body);
 
+// Issue #19 (body-digest design, supersedes the reverted `BodyProvenance.stamps` approach): a
+// lowercase 64-char hex sha256 of the P-6-normalized body, so `core.autocrlf` worktrees and
+// trailing-newline churn hash identically and a frontmatter-only edit never changes the digest.
+// `effect`'s own `Crypto` service (EF/Crypto.ts) ships a platform-agnostic `digest` member --
+// preferred over a direct `node:crypto` import so this stays a service requirement like `Git`/
+// `GitHistory`/`FileSystem`/`Path` rather than a hidden Node dependency; `NodeServices.layer`
+// (already provided at every call site through `OkfitPlatform`) supplies the live implementation.
+// `Encoding.encodeHex` (EF/Encoding.ts:405) renders the digest bytes as lowercase hex.
+const bodyDigest = (text: string): Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =>
+	Effect.gen(function* () {
+		const crypto = yield* Crypto.Crypto;
+		const bytes = yield* crypto.digest("SHA-256", new TextEncoder().encode(body(text)));
+		return Encoding.encodeHex(bytes);
+	});
+
 /** The text before the first `@` (the whole value when there is none), or undefined when empty or containing whitespace. */
 const localPartOf = (email: string | undefined): string | undefined => {
 	if (email === undefined) return undefined;
@@ -195,6 +210,14 @@ export class Derivation {
 	 * text removed (P-6). Pure. Applied to both sides of every comparison so `core.autocrlf` worktrees compare clean.
 	 */
 	static readonly body: (text: string) => string = body;
+
+	/**
+	 * Lowercase 64-char hex sha256 of `Derivation.body(text)`, through `effect`'s platform-agnostic
+	 * `Crypto` service (issue #19). Same normalization as `body`, so a frontmatter-only edit or a
+	 * `core.autocrlf` worktree never changes the digest.
+	 */
+	static readonly bodyDigest: (text: string) => Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =
+		bodyDigest;
 
 	/**
 	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:

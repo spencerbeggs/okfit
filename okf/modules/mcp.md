@@ -6,7 +6,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T05:07:51Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: f5dd727ca1591f3f859c0682eea1230ffb61a97063303459c13945e046f92484
 ---
 
 # MCP
@@ -18,9 +19,14 @@ generated:
 `stale_report`, `validate_bundle`, and `describe_vocabulary` — see
 `okf/interfaces/okfit-mcp.md` for the exact contract. It gives agents
 structured access to an OKF bundle (`packages/mcp/README.md:3`). For the
-`generated-at-drift` lint, `validate_bundle` now spawns read-only `git
+`generated-at-drift` lint's fallback tier (a concept with no recorded
+`generated.body_sha256`), `validate_bundle` still spawns read-only `git
 log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
-"writes nothing, ever" promise stands, since a read is not a write.
+"writes nothing, ever" promise stands, since a read is not a write. For a
+migrated concept the same lint now runs as pure content comparison
+through `Crypto.Crypto`, also part of `validate_bundle`'s dependencies,
+with no git call at all — see [A body digest inside generated detects
+real drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
 
 This package depends on [Engine](engine.md) directly -- for the platform
 layer (`OkfitPlatform`), the config/bundle loading `validate_bundle`

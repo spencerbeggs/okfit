@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { NodeFileSystem, NodePath, NodeServices } from "@effect/platform-node";
+import { NodeCrypto, NodeFileSystem, NodePath, NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import { BundleRootNotFoundError, OkfitConfig } from "@okfit/core";
@@ -123,7 +123,7 @@ const scriptedHistory: Layer.Layer<GitHistory> = GitHistory.layerTest({
 	],
 });
 
-const nodePlatform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
+const nodePlatform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer, NodeCrypto.layer);
 
 describe("run — generated-at-drift lint (scripted history)", () => {
 	it.effect("appends one generated-at-drift diagnostic when the recorded at differs from the derived instant", () =>
@@ -187,6 +187,48 @@ describe("run — generated-at-drift lint (scripted history)", () => {
 						Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
 					);
 					assert.deepStrictEqual(result.report.lint, []);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}).pipe(Effect.provide(nodePlatform)),
+	);
+});
+
+describe("run — generated-at-drift lint, skipProvenance narrowed to tier 2 only (S-31)", () => {
+	const REL_DIGEST = "digested.md";
+	const REL_LEGACY = "legacy.md";
+	const STALE_DIGEST = "0".repeat(64);
+
+	const digestedText = `---\ntype: Module\ngenerated:\n  by: human:okfit-test\n  body_sha256: "${STALE_DIGEST}"\n---\n\n# Digested\n\nBody text.\n`;
+	const legacyText = fileText("2020-01-01T00:00:00Z"); // no body_sha256 -- tier 2, deliberately drifted
+
+	it.effect(
+		"tier-1 diagnostics still appear; the tier-2 concept contributes nothing, with no Git/GitHistory call",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-skip-tier2-")));
+				try {
+					yield* Effect.promise(() => writeFile(join(root, REL_DIGEST), digestedText));
+					yield* Effect.promise(() => writeFile(join(root, REL_LEGACY), legacyText));
+					const result = yield* run({
+						root,
+						config: driftConfig,
+						profile: Option.none(),
+						now,
+						skipProvenance: true,
+					}).pipe(
+						// Every member of Git/GitHistory dies on any call -- proving tier 2
+						// (the only tier that would ever call either) never runs for
+						// `legacy.md`, while tier 1 still runs, unaffected, for `digested.md`.
+						Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+					);
+					assert.strictEqual(result.report.lint.length, 1);
+					assert.strictEqual(result.report.lint[0]?.code, "generated-at-drift");
+					assert.strictEqual(result.report.lint[0]?.file, REL_DIGEST);
+					assert.include(
+						result.report.lint[0]?.message ?? "",
+						"the body has changed since generated.at was last stamped",
+					);
 				} finally {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}

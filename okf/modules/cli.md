@@ -9,6 +9,7 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-09T05:07:51Z
+  body_sha256: a2aae75160948a205e0b2c90b63d8ce6a87c9761f3a1ccae115244b2a844491c
 ---
 
 # CLI

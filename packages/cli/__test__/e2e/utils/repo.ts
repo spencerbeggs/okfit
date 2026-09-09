@@ -61,3 +61,18 @@ export const commit = async (dir: string, options: CommitOptions, env: NodeJS.Pr
 	const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: dir, env });
 	return stdout.trim();
 };
+
+/**
+ * Rewrites HEAD's author/committer date in place (`git commit --amend`, no
+ * staging, no tree change) -- the minimal reproduction of what a squash or
+ * rebase merge does to every commit it rewrites (issue #19): the blob is
+ * carried verbatim, only the date changes. Returns the amended commit's sha.
+ *
+ * @public
+ */
+export const amendDate = async (dir: string, authoredAt: string, env: NodeJS.ProcessEnv): Promise<string> => {
+	const commitEnv: NodeJS.ProcessEnv = { ...env, GIT_AUTHOR_DATE: authoredAt, GIT_COMMITTER_DATE: authoredAt };
+	await execFileAsync("git", ["commit", "-q", "--amend", "--no-edit"], { cwd: dir, env: commitEnv });
+	const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: dir, env });
+	return stdout.trim();
+};

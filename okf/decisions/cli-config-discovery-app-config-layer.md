@@ -7,6 +7,7 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-08T01:34:27Z
+  body_sha256: 122799928b2be6e4352d82e63809ba7ea2101bd878adfcf5fc8d78d525b734bc
 status: stable
 supersedes: cli-config-discovery-config-dir.md
 verified:

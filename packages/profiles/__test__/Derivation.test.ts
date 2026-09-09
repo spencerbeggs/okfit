@@ -1,6 +1,8 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
 import { Actor, OkfitConfig } from "@okfit/core";
+import type { Crypto } from "effect";
 import { Cause, DateTime, Duration, Effect, Exit, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { AgentActorUnconfiguredError, Derivation, HumanActorUnresolvedError } from "../src/Derivation.js";
 import { GitHistory } from "../src/GitHistory.js";
@@ -313,6 +315,44 @@ describe("Derivation.generatedAt (P-2, P-9, P-39)", () => {
 		}).pipe(
 			Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}), FileSystem.layerNoop({}), Path.layer)),
 		),
+	);
+});
+
+describe("Derivation.bodyDigest (issue #19)", () => {
+	const withCrypto = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto>): Effect.Effect<A, E> =>
+		effect.pipe(Effect.provide(NodeCrypto.layer));
+
+	it.effect("is the same digest for CRLF, lone-CR and trailing-whitespace variants of the same body (P-6)", () =>
+		Effect.gen(function* () {
+			const lf = yield* Derivation.bodyDigest("---\ntitle: x\n---\n\n# Body\ntext\n");
+			const crlf = yield* Derivation.bodyDigest("---\ntitle: x\n---\r\n\r\n# Body\r\ntext\r\n");
+			const cr = yield* Derivation.bodyDigest("---\ntitle: x\n---\r\r# Body\rtext\r");
+			const trailing = yield* Derivation.bodyDigest("---\ntitle: x\n---\n\n# Body\ntext\n\n\n   \n");
+			assert.strictEqual(lf, crlf);
+			assert.strictEqual(lf, cr);
+			assert.strictEqual(lf, trailing);
+			assert.match(lf, /^[0-9a-f]{64}$/);
+		}).pipe(withCrypto),
+	);
+
+	it.effect("differs for a genuinely different body", () =>
+		Effect.gen(function* () {
+			const one = yield* Derivation.bodyDigest("---\ntitle: x\n---\n\n# Body\none\n");
+			const two = yield* Derivation.bodyDigest("---\ntitle: x\n---\n\n# Body\ntwo\n");
+			assert.notStrictEqual(one, two);
+		}).pipe(withCrypto),
+	);
+
+	it.effect("is unaffected by a frontmatter-only change", () =>
+		Effect.gen(function* () {
+			const before = yield* Derivation.bodyDigest(
+				"---\ntitle: x\ngenerated:\n  at: 2026-01-01T00:00:00Z\n---\n\nSame body.\n",
+			);
+			const after = yield* Derivation.bodyDigest(
+				"---\ntitle: x\ngenerated:\n  at: 2026-06-01T00:00:00Z\n---\n\nSame body.\n",
+			);
+			assert.strictEqual(before, after);
+		}).pipe(withCrypto),
 	);
 });
 

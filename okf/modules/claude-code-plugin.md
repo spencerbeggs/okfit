@@ -8,7 +8,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: e9a693099fe91274dacac71e6a67a2feb28a973526540abbc6b9ce5eb4067626
 ---
 
 # Claude Code Plugin
@@ -44,10 +45,15 @@ edited file exists on disk, and `okfit validate` has nothing to read at
 that point, so a block from `PostToolUse` is a stop-and-fix signal, not a
 prevention (`plugins/claude-code/CLAUDE.md:79-86`; M-20, this is a
 deliberate, documented spec departure). `PostToolUse` runs `okfit
-validate` with `--skip-provenance`: the git-derived `generated-at-drift`
-lint costs a git walk per concept, measured taking validate from about
-0.5 s to 1.7 s on this bundle, so the edit-time hook skips it while CI and
-the MCP `validate_bundle` tool keep it. Kill switches: `OKFIT_HOOKS=off`
+validate` with `--skip-provenance`: the git-derived fallback tier of
+`generated-at-drift` costs a git walk per concept, measured taking
+validate from about 0.5 s to 1.7 s on this bundle, so the edit-time hook
+skips that tier while CI and the MCP `validate_bundle` tool keep it. A
+migrated concept (one carrying `generated.body_sha256`) is unaffected by
+the flag and is still checked, cheaply, by content comparison even at
+edit time — see [A body digest inside generated detects real drift, not a
+rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+Kill switches: `OKFIT_HOOKS=off`
 disables both; `OKFIT_SESSION_HOOK=off` and `OKFIT_VALIDATE_HOOK=off`
 disable one each; comparison is exact-string `off` only
 (`plugins/claude-code/CLAUDE.md:62-69`).

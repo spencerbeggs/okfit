@@ -1,5 +1,6 @@
 # Decision
 
+* [A body digest inside generated detects real drift, not a rewritten date](profiles-body-sha256-detects-real-drift.md) - generated.body_sha256, a lowercase hex sha256 of the P-6-normalized body, lets generated-at-drift compare content instead of dates, so a squash or rebase merge no longer looks like drift.
 * [A shared @okfit/engine package replaces cli-as-copy-contract](engine-front-end-split.md) - The platform layer, config discovery, and the validate/verify/sync/init/context programs moved into a new @okfit/engine package that both @okfit/cli and @okfit/mcp depend on directly, replacing an auto-installed peer-dependency arrangement that could never produce a runnable bin.
 * [A walk past maxDepth fails typed, never silently truncates](core-walk-depth-cap-fails-typed.md) - Bundle.load fails with a typed BundleDepthExceededError when the walk descends past maxDepth, rather than silently truncating the walk at the cap.
 * [Bundle, Graph, Derive, and Validate are static facades, not services](core-static-facades.md) - Bundle, Graph, Derive, and Validate are static facades (private-constructor classes with static members) rather than Effect services, because their operations are pure or depend only on FileSystem and Path.

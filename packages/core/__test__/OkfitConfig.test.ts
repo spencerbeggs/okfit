@@ -138,7 +138,7 @@ describe("OkfitConfig", () => {
 		assert.strictEqual(OkfitConfig.severityFor(d, "family-invalid"), "error");
 		assert.strictEqual(OkfitConfig.severityFor(d, "legacy-timestamp"), "info");
 		assert.strictEqual(OkfitConfig.severityFor(d, "config-unknown-key"), "warning");
-		assert.strictEqual(OkfitConfig.severityFor(d, "generated-at-drift"), "info");
+		assert.strictEqual(OkfitConfig.severityFor(d, "generated-at-drift"), "warning");
 		assert.strictEqual(
 			OkfitConfig.severityFor({ lint: { generated_at_drift: "error" }, extensions: {} }, "generated-at-drift"),
 			"error",

@@ -15,10 +15,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
-import { commit, initRepo } from "./utils/repo.js";
+import { amendDate, commit, initRepo } from "./utils/repo.js";
 
 const CORE_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "core", "__test__", "fixtures");
 const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profiles", "__test__", "fixtures");
@@ -542,7 +543,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			return { cwd: sandbox.cwd, env };
 		});
 
-	it.effect("reports generated-at-drift at info by default and does not change the exit code", () =>
+	it.effect("reports generated-at-drift at warn by default and does not change the exit code", () =>
 		Effect.gen(function* () {
 			const { cwd, env } = yield* seedDriftRepo();
 
@@ -550,7 +551,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 
 			assert.strictEqual(result.exitCode, 0);
 			const envelope = JSON.parse(result.stdout) as {
-				readonly summary: { readonly lint_errors: number; readonly lint_info: number };
+				readonly summary: { readonly lint_errors: number; readonly lint_warnings: number };
 				readonly diagnostics: ReadonlyArray<{
 					readonly code: string;
 					readonly severity: string;
@@ -558,11 +559,66 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 				}>;
 			};
 			assert.strictEqual(envelope.summary.lint_errors, 0);
-			assert.isTrue(envelope.summary.lint_info >= 1);
+			assert.isTrue(envelope.summary.lint_warnings >= 1);
 			const drift = envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift");
 			assert.isDefined(drift);
-			assert.strictEqual(drift?.severity, "info");
+			assert.strictEqual(drift?.severity, "warning");
 			assert.strictEqual(drift?.file, "decisions/drift.md");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("does not report generated-at-drift when the recorded digest still matches the body (issue #19)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-drift-authoritative-"));
+			const env = DRIFT_ENV(sandbox.env);
+			yield* Effect.promise(() => initRepo(sandbox.cwd, env));
+			const init = yield* runOkfit(["init"], {
+				cwd: sandbox.cwd,
+				env: { ...env, OKFIT_NOW: "2026-09-01T00:00:00.000Z" },
+			});
+			assert.strictEqual(init.exitCode, 0);
+			yield* Effect.promise(() =>
+				commit(sandbox.cwd, { message: "okfit init", authoredAt: "2026-09-01T00:00:00+00:00" }, env),
+			);
+			// The body's own `generated.body_sha256` is stamped when the concept is first committed
+			// (body-digest design, issue #19) -- computed the same way `okfit sync` would.
+			const body = "# Authoritative decision\n\nBody text.\n";
+			const withoutStamp = [
+				"---",
+				"type: Decision",
+				"title: Authoritative decision",
+				"description: A decision whose digest survives a history rewrite (issue #19).",
+				"generated:",
+				"  by: human:ada",
+				"status: draft",
+				"verified:",
+				"  - by: human:ada",
+				"    at: 2026-09-02T00:00:00Z",
+				"---",
+				"",
+				body,
+			].join("\n");
+			const digest = yield* Derivation.bodyDigest(withoutStamp);
+			const stamped = withoutStamp.replace(
+				"generated:\n  by: human:ada\n",
+				`generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n  body_sha256: ${digest}\n`,
+			);
+			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okf", "decisions", "authoritative.md"), stamped));
+			yield* Effect.promise(() =>
+				commit(sandbox.cwd, { message: "add authoritative decision", authoredAt: "2026-09-02T00:00:00+00:00" }, env),
+			);
+			// ...then HEAD's author date is rewritten in place, with no tree change -- exactly what a
+			// squash/rebase merge does to every commit it rewrites (issue #19): the body, digest
+			// included, is carried verbatim. `derived.at` moves; the digest does not.
+			yield* Effect.promise(() => amendDate(sandbox.cwd, "2026-09-05T00:00:00+00:00", env));
+
+			const result = yield* runOkfit(["validate", "--format", "json"], { cwd: sandbox.cwd, env });
+
+			assert.strictEqual(result.exitCode, 0);
+			const envelope = JSON.parse(result.stdout) as {
+				readonly diagnostics: ReadonlyArray<{ readonly code: string }>;
+			};
+			assert.isUndefined(envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 

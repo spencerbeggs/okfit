@@ -63,6 +63,11 @@ jobs:
           pnpm exec okfit sync --dry-run --only index --format json \
             | jq -e '.index.written | length == 0'
 
+      - name: Guard generated.at against drift
+        run: |
+          pnpm exec okfit sync --dry-run --only generated --format json \
+            | jq -e '.generated.written | length == 0'
+
       - name: Run the dogfood index guard
         run: pnpm vitest run packages/cli/__test__/e2e/dogfood.e2e.test.ts
 

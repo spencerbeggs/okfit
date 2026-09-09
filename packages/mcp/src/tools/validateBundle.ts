@@ -3,7 +3,7 @@ import { AppDirs, Xdg } from "@effected/xdg";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import { Effect, FileSystem, Option, Path } from "effect";
+import { Crypto, Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
 import { BundleNotFound, McpToolError, composeRemediatedMessage } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
@@ -27,7 +27,10 @@ const DESCRIPTION =
  * GitHistory` so it can run `Provenance.lint`'s `generated-at-drift`
  * check (S-8, S-16). Both are provided by `server.ts`'s `ServerLayer`,
  * which needs only `ChildProcessSpawner` to build them — already
- * supplied by `@okfit/engine`'s `OkfitPlatform` (S-16).
+ * supplied by `@okfit/engine`'s `OkfitPlatform` (S-16). `Crypto` joined the
+ * same channel for issue #19's body-digest tier of `Provenance.lint`, and
+ * is provided the same way -- `OkfitPlatform`'s `NodeServices.layer` bundles
+ * it alongside `FileSystem`/`Path`.
  *
  * @public
  */
@@ -36,7 +39,7 @@ export const validateBundle = Tool.make("validate_bundle", {
 	parameters: Params,
 	success: JsonEnvelope,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Git, GitHistory],
+	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Git, GitHistory, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Validate the bundle")
 	.annotate(Tool.Readonly, true)

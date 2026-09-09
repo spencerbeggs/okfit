@@ -7,6 +7,7 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-07T20:17:17Z
+  body_sha256: 6cbbcdfb7291cafaa99c2653b3d1d3dee0d49085559bf5f0864919311abf0d47
 status: stable
 verified:
   - by: human:spencer

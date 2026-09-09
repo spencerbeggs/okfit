@@ -7,6 +7,7 @@ const VALUES = [
 	"Source",
 	"UsageWindow",
 	"Generated",
+	"BodySha256",
 	"Verification",
 	"Status",
 	"AttestedComputation",

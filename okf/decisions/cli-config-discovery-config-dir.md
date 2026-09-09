@@ -7,6 +7,7 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-08T00:06:11Z
+  body_sha256: 2eb7c89a94c2fb44f7b064df6fcc74ae52269632d3a68f155574a5ac58f2b552
 status: deprecated
 supersedes: cli-config-discovery-two-branches.md
 verified:

@@ -3,7 +3,7 @@ import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } fro
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
 import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
 import { Provenance } from "@okfit/profiles";
-import type { DateTime, FileSystem, Path, PlatformError } from "effect";
+import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 
 /**
@@ -34,13 +34,17 @@ export interface RunOptions {
 	/** `OKFIT_NOW` or `DateTime.now`, from `bin.ts` (K-47); enables the `stale` rule (D-34). */
 	readonly now: DateTime.Utc;
 	/**
-	 * S-31: skip `Provenance.lint`'s git tier for this one invocation,
-	 * without touching the project's `[lint]` table. `commands/validate.ts`
-	 * threads `--skip-provenance` here; the PostToolUse hook passes the flag
-	 * so an edit-time `validate` stays git-free even when the config leaves
-	 * `generated-at-drift` at its default severity. Defaults to `false`, and
-	 * is checked the same way `severity === "off"` already is — `run` skips
-	 * the walk when EITHER is true.
+	 * S-31: skip `Provenance.lint`'s git TIER (tier 2, the git-derived date
+	 * comparison for concepts with no recorded `generated.body_sha256`)
+	 * for this one invocation, without touching the project's `[lint]`
+	 * table. `commands/validate.ts` threads `--skip-provenance` here; the
+	 * PostToolUse hook passes the flag so an edit-time `validate` stays
+	 * git-free even when the config leaves `generated-at-drift` at its
+	 * default severity. Tier 1 (the pure, in-memory body-digest comparison)
+	 * still runs regardless — that is exactly the signal edit time wants,
+	 * at the cost of one sha256 over text already in memory. Defaults to
+	 * `false`; `run` still gates the whole lint call on `severity ===
+	 * "off"`, but no longer on this flag.
 	 */
 	readonly skipProvenance?: boolean;
 }
@@ -55,11 +59,15 @@ export interface RunResult {
 
 /**
  * Load, validate both tiers, run the profile check, then — UNLESS the
- * `generated-at-drift` lint is `off` OR `options.skipProvenance` is `true`
- * — run `Provenance.lint` and append its `Diagnostic`s to `report.lint`.
- * The "skip the git walk entirely" gate lives HERE, in `run`, not inside
- * `Provenance.lint` (S-8's own wording): a bundle configured `off`, or a
- * caller that passed `--skip-provenance`, never pays for a git spawn
+ * `generated-at-drift` lint is `off` — run `Provenance.lint` and append its
+ * `Diagnostic`s to `report.lint`. The "skip the whole lint" gate lives
+ * HERE, in `run`: a bundle configured `off` never calls `Provenance.lint`
+ * at all. `options.skipProvenance` is no longer that gate — it is threaded
+ * through as `Provenance.lint`'s `skipGitTier` option instead, so tier 1
+ * (the pure, in-memory `generated.body_sha256` comparison) still runs and
+ * still reports drift even when `skipProvenance` is `true`; only tier 2
+ * (the git-derived date comparison, for concepts with no recorded digest)
+ * is skipped, and with it the only git spawn `Provenance.lint` can make
  * (S-31). An `error` severity on the appended diagnostics yields exit `1`
  * through the EXISTING lint-tier rule in `render/exit.ts` — no renderer
  * branch, no new `DiagnosticSource`, since these diagnostics flow through
@@ -80,7 +88,7 @@ export const run = (
 ): Effect.Effect<
 	RunResult,
 	BundleLoadError | GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
-	FileSystem.FileSystem | Path.Path | Git | GitHistory
+	FileSystem.FileSystem | Path.Path | Git | GitHistory | Crypto.Crypto
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.root });
@@ -91,6 +99,8 @@ export const run = (
 		});
 		const severity = OkfitConfigNS.severityFor(options.config, "generated-at-drift");
 		const provenance =
-			severity === "off" || options.skipProvenance === true ? [] : yield* Provenance.lint(bundle, options.config);
+			severity === "off"
+				? []
+				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
 		return { bundle, report: { ...report, lint: [...report.lint, ...provenance] }, profileDiagnostics };
 	});

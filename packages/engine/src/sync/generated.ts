@@ -2,9 +2,10 @@ import { MarkdownEdit } from "@effected/markdown";
 import type { ConceptId, LoadedBundle } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
-import { DateTime, Effect, FileSystem, Path, Schema } from "effect";
-import { detectNewline, locateGenerated, stripBom } from "../verify/locate.js";
-import { spliceGenerated } from "../verify/splice.js";
+import { Derivation } from "@okfit/profiles";
+import { Effect, FileSystem, Path, Schema } from "effect";
+import { detectNewline, locateGenerated, locateGeneratedBodySha256, stripBom } from "../verify/locate.js";
+import { spliceGeneratedFields } from "../verify/splice.js";
 import { writeAtomic } from "./write.js";
 
 /**
@@ -102,9 +103,13 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			continue;
 		}
 
-		// Steps 4-6: instants, never encoded strings (S-6).
-		const recorded = generated.at;
-		if (recorded !== undefined && DateTime.Equivalence(recorded, derived.at)) {
+		// Issue #19 (body-digest design): drift is decided by comparing the recorded digest to the
+		// CURRENT body's digest, never by date. A digest match means `generated.at` is left alone even
+		// when `derived.at` differs -- this is what kills the per-squash restamp commit. An absent or
+		// mismatched digest always falls through to writing BOTH keys, including a first-migration pass
+		// over a concept that has never carried `body_sha256` at all.
+		const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
+		if (generated.body_sha256 !== undefined && generated.body_sha256 === currentDigest) {
 			unchanged.push(id);
 			continue;
 		}
@@ -115,17 +120,18 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const { text, bom } = stripBom(source);
 		const newline = detectNewline(text);
 
-		// Steps 8-9.
-		const located = yield* locateGenerated(text).pipe(Effect.orDie);
-		if (located._tag === "unsupported") {
+		// Steps 8-9: both fields locate independently -- either being unsupported skips the concept.
+		const atLocated = yield* locateGenerated(text).pipe(Effect.orDie);
+		const bodySha256Located = yield* locateGeneratedBodySha256(text).pipe(Effect.orDie);
+		if (atLocated._tag === "unsupported" || bodySha256Located._tag === "unsupported") {
 			skipped.push({ id, reason: "generated-unsupported" });
 			continue;
 		}
 
 		// Step 10.
 		const encodedAt = encodeAt(derived.at);
-		const edit = spliceGenerated(located, encodedAt, newline);
-		const finalText = bom + MarkdownEdit.applyAll(text, [edit]);
+		const edits = spliceGeneratedFields(atLocated, bodySha256Located, encodedAt, currentDigest, newline);
+		const finalText = bom + MarkdownEdit.applyAll(text, edits);
 
 		// Step 11: a dry run computes every result and writes nothing.
 		if (dryRun) {

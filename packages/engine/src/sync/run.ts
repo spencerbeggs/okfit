@@ -3,7 +3,7 @@ import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okf
 import { Bundle } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
-import type { FileSystem, Path } from "effect";
+import type { Crypto, FileSystem, Path } from "effect";
 import { Effect, Schema } from "effect";
 import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
@@ -77,7 +77,7 @@ export const runSync: (
 ) => Effect.Effect<
 	SyncResult,
 	BundleLoadError | GeneratedAtError,
-	Git | GitHistory | FileSystem.FileSystem | Path.Path
+	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
 > = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 

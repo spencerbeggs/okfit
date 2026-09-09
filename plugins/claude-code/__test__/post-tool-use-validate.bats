@@ -245,9 +245,9 @@ _run_hook_file() {
 	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("project-missing")'
 }
 
-@test "surfaces an info-severity generated-at-drift diagnostic as context, not a block" {
+@test "surfaces a warn-severity generated-at-drift diagnostic as context, not a block" {
 	_stub_cli "$(_ctx "$REPO_ROOT" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"okf/modules/example.md","code":"generated-at-drift","severity":"info","message":"generated.at is missing; the last body change was 2026-09-07T20:49:08Z (fc63da0)"}]}' 0
+		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"okf/modules/example.md","code":"generated-at-drift","severity":"warn","message":"the body has changed since generated.at was last stamped: generated.body_sha256 is 89afe0f9...842f3ff9, the current body hashes to 3f7a1c2b...9e01ab77"}]}' 0
 	run _run_hook_file "$FIXTURES/posttooluse.edit-clean.json"
 	[ "$status" -eq 0 ]
 	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("generated-at-drift") and contains("modules/example.md")'

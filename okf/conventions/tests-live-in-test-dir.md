@@ -6,6 +6,7 @@ status: stable
 generated:
   by: human:spencer
   at: 2026-09-06T10:47:04Z
+  body_sha256: 5595e88be7b5ddae4215c7e91ec12dadd580b49883671ca044bd062d768db161
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"

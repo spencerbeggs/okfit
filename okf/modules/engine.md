@@ -8,7 +8,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T05:07:51Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: 1b4b643e34755bc34b0fec1aca9309d2e47d3f0bf42d99d431cbaabc36bb4aaf
 ---
 
 # Engine
@@ -46,6 +47,20 @@ splice,run}.ts`, `sync/{generated,index,log,write,run}.ts`, and
 envelope half of each JSON contract (`ContextEnvelope`, `VerifyEnvelope`,
 `SyncEnvelope`, `JsonEnvelope`/`JsonErrorEnvelope`), leaving each front
 end's human-readable rendering to render there instead.
+
+`validate/run.ts#run` and `sync/run.ts#runSync` both now carry
+`Crypto.Crypto` in their dependencies, satisfied for free wherever
+`OkfitPlatform`/`NodeServices.layer` already runs, since `@okfit/profiles`'
+`Provenance.lint` and `Derivation.bodyDigest` need it for the two-tier
+`generated-at-drift` lint. `verify/locate.ts`'s single-field
+`locateGenerated` generalized into a private `locateGeneratedField(source,
+field)` plus a public `locateGeneratedBodySha256`, and `verify/splice.ts`
+gained `spliceGeneratedFields`, which merges the `at` and `body_sha256`
+edits into one when both anchor at the same insertion offset — two
+zero-length inserts at one offset are the "overlapping edits" case
+`MarkdownEdit.applyAll` treats as a programmer error. See [A body digest
+inside generated detects real drift, not a rewritten
+date](../decisions/profiles-body-sha256-detects-real-drift.md).
 
 ## Process boundary
 
