@@ -44,7 +44,10 @@ src/
                             CliRuntime.reportFailures, NodeRuntime.runMain
   index.ts               -- public barrel: the pure pieces @okfit/mcp could import, plus
                              this package's own renderFailure and rootCommand
-  version.ts              -- CLI_VERSION, read from this package's own package.json
+  version.ts              -- CLI_VERSION, read from process.env.__PACKAGE_VERSION__ (K-32), a
+                              build-time constant the bundler injects -- never a package.json
+                              import, which would report engine's version for anything that
+                              moved there
   errors.ts                -- renderFailure and its private helpers only; the typed error
                               classes themselves (ConfigPathNotFoundError,
                               InitOverwriteError, ConfigMalformedError,
@@ -92,21 +95,21 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   and the `AppConfig.layer` call that needs `@effected/app`, both live in
   `@okfit/engine`'s `config/layer.ts` now.
 - **Dependency closure (K-35).** `package.json`'s `dependencies` block is the
-  FULL runtime closure this package's own code, plus core's, profiles', and
-  engine's peers, need: `@okfit/core`'s peers (`effect`,
-  `@effected/config-file`, `@effected/glob`, `@effected/jsonc`,
-  `@effected/markdown`, `@effected/toml`, `@effected/walker`,
-  `@effected/yaml`), `@okfit/profiles`'s peers (`@effected/git`,
-  `@effected/markdown`, `@okfit/core`), `@okfit/engine`'s own peers
-  (`@effected/app`, `@effected/xdg`, `@effected/store`,
-  `@effect/platform-node`), and the CLI's own wiring (`@effected/cli`).
-  Several of these are never imported directly by a file under `src/` — they
-  satisfy a peer of a dependency this package DOES import directly. Do not
-  "clean up" an apparently-unused entry: removing one breaks whichever
-  dependency declared it as a peer, at install time, not at a lint pass that
-  can catch it. `@okfit/cli` carries no `peerDependencies` block itself — it
-  is where core's, profiles', and engine's Convention A dependency chain
-  terminates, since a CLI bin is installed, never depended on.
+  FULL runtime closure this package's own code, plus core's and profiles'
+  peers, need: `@okfit/core`'s peers (`effect`, `@effected/config-file`,
+  `@effected/glob`, `@effected/jsonc`, `@effected/markdown`,
+  `@effected/toml`, `@effected/walker`, `@effected/yaml`), `@okfit/profiles`'s
+  peers (`@effected/git`, `@effected/markdown`, `@okfit/core`), and the
+  CLI's own wiring (`@effect/platform-node` for `NodeRuntime`,
+  `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
+  there is nothing of engine's to satisfy here. Several
+  of these are never imported directly by a file under `src/` — they satisfy
+  a peer of a dependency this package DOES import directly. Do not "clean up"
+  an apparently-unused entry: removing one breaks whichever dependency
+  declared it as a peer, at install time, not at a lint pass that can catch
+  it. `@okfit/cli` carries no `peerDependencies` block itself — it is where
+  core's and profiles' Convention A dependency chain terminates, since a CLI
+  bin is installed, never depended on.
 - Tests live in `__test__/`, never in `src/`.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type imports
   are separate `import type` statements. TSDoc `@public` on every `src/`

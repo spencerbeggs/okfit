@@ -8,7 +8,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T04:14:34Z
+  at: 2026-09-09T04:44:49Z
 ---
 
 # CLI
@@ -54,6 +54,8 @@ everything under `render/` is pure or Effect-typed with no `process`
 access and no `@effect/platform-node` import (`packages/cli/CLAUDE.md`,
 K-9/K-49). This package no longer imports `@effected/app` at all -- config
 discovery moved to [Engine](engine.md). `package.json`'s `dependencies`
-block is the full runtime closure this package's own code, plus core's,
-profiles', and engine's peers, need -- not a list to "clean up" for
-apparently-unused entries (`packages/cli/CLAUDE.md`, K-35).
+block is the full runtime closure this package's own code, plus core's and
+profiles' peers, need -- not a list to "clean up" for apparently-unused
+entries (`packages/cli/CLAUDE.md`, K-35). `@okfit/engine` declares no
+`peerDependencies` of its own, so nothing here satisfies one on engine's
+behalf.

@@ -8,3 +8,4 @@
 
 * `pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the CLI's command tree
 * `@okfit/mcp` continues to resolve the same user-level config directory as `@okfit/cli`, since both now provide the same `@okfit/engine` `OkfitPlatform` layer
+* `@okfit/mcp`'s `./main` export condition (`src/main.ts`, the assembled program) is now supported public surface — it is what `@okfit/plugin`'s bin shims import

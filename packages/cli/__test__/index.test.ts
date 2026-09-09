@@ -3,50 +3,18 @@ import { Effect } from "effect";
 import * as Barrel from "../src/index.js";
 
 // Contract §4's value exports, exactly (same-named types travel with their
-// values and add nothing to Object.keys at runtime). ConfigMalformedError is
-// a controller-ruled addition alongside the other errors (see task brief).
+// values and add nothing to Object.keys at runtime). The barrel is narrowed
+// to the CLI's own surface -- everything that moved to `@okfit/engine` is no
+// longer re-exported here; import it from `@okfit/engine` directly.
 const VALUES = [
 	"CLI_VERSION",
-	"CONFIG_RELATIVE_PATH",
-	"ConfigMalformedError",
-	"ConfigPathNotFoundError",
-	"ContextEnvelope",
-	"ContextTag",
-	"ContextType",
-	"DEFAULT_PROFILE_NAME",
-	"InitOverwriteError",
-	"VerifyConceptNotFoundError",
-	"VerifyUnsupportedFrontmatterError",
-	"JsonDiagnostic",
-	"JsonEnvelope",
-	"JsonErrorEnvelope",
-	"JsonSummary",
-	"buildConfigLayer",
-	"collect",
-	"configValue",
-	"contextEnvelope",
-	"files",
-	"forDiagnostics",
 	"human",
 	"humanContext",
-	"json",
-	"jsonError",
-	"line",
-	"provideConfig",
-	"renderFailure",
-	"resolveBundleRoot",
-	"resolveProjectConfig",
-	"resolveProjectRoot",
-	"rootCommand",
-	"run",
-	"runContext",
-	"sort",
-	"summary",
-	"tally",
-	"targetPaths",
-	"VerifyEnvelope",
 	"humanVerify",
-	"verifyEnvelope",
+	"line",
+	"renderFailure",
+	"rootCommand",
+	"summary",
 ] as const;
 
 describe("@okfit/cli barrel", () => {
