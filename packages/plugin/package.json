@@ -19,11 +19,14 @@
 		"email": "spencer@beggs.codes",
 		"url": "https://spencerbeg.gs"
 	},
-	"sideEffects": false,
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
 		"./package.json": "./package.json"
+	},
+	"bin": {
+		"okfit": "./src/bin/okfit.ts",
+		"okfit-mcp": "./src/bin/okfit-mcp.ts"
 	},
 	"scripts": {
 		"build:dev": "node savvy.build.ts --target dev",
@@ -31,17 +34,15 @@
 		"prepare": "turbo run build:dev",
 		"types:check": "tsc --noEmit"
 	},
-	"devDependencies": {
+	"dependencies": {
 		"@okfit/cli": "workspace:*",
-		"@okfit/mcp": "workspace:*",
+		"@okfit/mcp": "workspace:*"
+	},
+	"devDependencies": {
 		"@savvy-web/bundler": "^2.3.2",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"
-	},
-	"peerDependencies": {
-		"@okfit/cli": "workspace:*",
-		"@okfit/mcp": "workspace:*"
 	},
 	"engines": {
 		"node": ">=24.11.0"
