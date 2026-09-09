@@ -6,7 +6,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T04:14:34Z
+verified:
+  - by: human:spencer
+    at: 2026-09-09T04:18:14Z
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract
