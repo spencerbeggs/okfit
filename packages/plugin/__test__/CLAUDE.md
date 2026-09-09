@@ -36,3 +36,17 @@ __test__/
 - **Never inline large test data in test files.** Extract it to `fixtures/`.
 - **Never define shared mocks or helper functions in test files.** Extract them
   to the appropriate `utils/` directory so other tests can reuse them.
+- **This package's only meaningful tests are e2e, and they run the BUILT
+  bins (E-6).** The bug this package exists to fix (`@okfit/cli`/`@okfit/mcp`
+  declared as auto-installed peer dependencies, which package managers never
+  link a `node_modules/.bin` entry for) is invisible to any assertion made
+  against `package.json` or the in-memory `OKFIT_BINS` constant -- the
+  manifest can say the right thing while the install still yields neither
+  bin. Only spawning `dist/dev/pkg/bin/okfit.js` and
+  `dist/dev/pkg/bin/okfit-mcp.js` and observing them actually run proves the
+  fix, so `e2e/bins.e2e.test.ts` is the regression coverage: `okfit
+  --version` and an `okfit-mcp` JSON-RPC `initialize` handshake, each against
+  the real built artifact. This follows `3d70770`'s rule -- stop asserting
+  manifest versions in vitest -- applied to the bin-wiring case: a test that
+  can only restate the fix from the same source the fix lives in is worse
+  than no test.
