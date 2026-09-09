@@ -1,13 +1,12 @@
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
-import { Now, provideConfig, resolveProjectConfig } from "@okfit/engine";
+import { Now, provideConfig, resolveProjectConfig, runVerify } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { jsonError } from "../render/json.js";
 import { VerifyEnvelope, humanVerify, verifyEnvelope } from "../render/verify.js";
-import { runVerify } from "../verify/run.js";
 import { CLI_VERSION } from "../version.js";
 
 /** V-6: tolerant id, normalised through `ConceptId.normalize`; never `Argument.path`. */

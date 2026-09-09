@@ -1,10 +1,10 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId, Timestamp } from "@okfit/core";
-import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "@okfit/engine";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
+import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
 import { documentNewline, locate, stripBom } from "./locate.js";
 import { splice } from "./splice.js";
 

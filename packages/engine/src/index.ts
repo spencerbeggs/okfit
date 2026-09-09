@@ -23,5 +23,9 @@ export {
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "./init/scaffold.js";
 export { OKFIT_APP_NAMESPACE, OkfitPlatform } from "./platform.js";
+export type { SyncMode, SyncResult } from "./sync/run.js";
+export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
+export type { VerifyOptions, VerifyResult } from "./verify/run.js";
+export { runVerify } from "./verify/run.js";

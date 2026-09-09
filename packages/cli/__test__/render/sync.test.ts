@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
+import type { SyncResult } from "@okfit/engine";
 import { Effect, Schema } from "effect";
 import { SyncEnvelope, humanSync, syncEnvelope } from "../../src/render/sync.js";
-import type { SyncResult } from "../../src/sync/run.js";
 
 const EMPTY_MODE = { selected: true, written: [], unchanged: [], skipped: [] } as const;
 

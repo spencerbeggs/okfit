@@ -1,5 +1,6 @@
 import { Git } from "@effected/git";
-import { provideConfig, resolveProjectConfig } from "@okfit/engine";
+import type { SyncMode } from "@okfit/engine";
+import { provideConfig, resolveProjectConfig, runSync } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
@@ -7,8 +8,6 @@ import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { jsonError } from "../render/json.js";
 import { SyncEnvelope, humanSync, syncEnvelope } from "../render/sync.js";
-import type { SyncMode } from "../sync/run.js";
-import { runSync } from "../sync/run.js";
 import { CLI_VERSION } from "../version.js";
 
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context/verify's. */

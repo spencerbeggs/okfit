@@ -1,6 +1,6 @@
+import type { SyncResult } from "@okfit/engine";
+import { SkipReason } from "@okfit/engine";
 import { Schema } from "effect";
-import type { SyncResult } from "../sync/run.js";
-import { SkipReason } from "../sync/run.js";
 
 /** @public */
 export const SyncModeEnvelope = Schema.Struct({
