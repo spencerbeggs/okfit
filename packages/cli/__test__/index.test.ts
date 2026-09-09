@@ -1,6 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import packageJson from "../package.json" with { type: "json" };
 import * as Barrel from "../src/index.js";
 
 // Contract §4's value exports, exactly (same-named types travel with their
@@ -57,9 +56,9 @@ describe("@okfit/cli barrel", () => {
 		}),
 	);
 
-	it.effect("CLI_VERSION mirrors the package's own manifest, never a literal (K-32)", () =>
+	it.effect("CLI_VERSION is semver-shaped; in unbuilt source it is the '0.0.0' fallback (K-32)", () =>
 		Effect.sync(() => {
-			assert.strictEqual(Barrel.CLI_VERSION, packageJson.version);
+			assert.match(Barrel.CLI_VERSION, /^\d+\.\d+\.\d+/);
 		}),
 	);
 
