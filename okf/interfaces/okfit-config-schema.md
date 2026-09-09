@@ -7,7 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: 959416d4e23791ba6e4f33ae3c49b0174dc970be6eb9825e450bd8e2a6598083
 tags:
   - architecture
 ---
@@ -60,11 +61,14 @@ in.
 ## Lint severities
 
 The sixteen default lint codes: `broken_links`, `missing_index`,
-`footnote_source_unknown`, `log_frontmatter`, `config_unknown_key`, and
-`walk_unreadable` default `warn`; `unknown_type`, `required_key_missing`,
-`field_value_unknown`, `require_verified_unmet`, `family_invalid`, and
-`computation_runtime_missing` default `error`; `actor_prefix_unknown`,
-`legacy_timestamp`, `stale`, and `generated_at_drift` default `info`.
+`footnote_source_unknown`, `log_frontmatter`, `config_unknown_key`,
+`walk_unreadable`, and `generated_at_drift` default `warn`; `unknown_type`,
+`required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
+`family_invalid`, and `computation_runtime_missing` default `error`;
+`actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`.
+`generated_at_drift` moved from `info` to `warn` when it gained a
+content-comparison tier — see [A body digest inside generated detects real
+drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
 
 ## Unknown keys go to extensions
 

@@ -64,8 +64,8 @@ tool call replaces a shell round trip, not the checking itself. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s sixteen rules, run `okfit validate` and fix what it
-reports, run `okfit sync` to regenerate `generated.at`, `index.md`, and
-`log.md` and report what it wrote, left unchanged, or skipped, check
+reports, run `okfit sync` to regenerate `generated.at`,
+`generated.body_sha256`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
 changed — sequentially, in this one context.
 

@@ -7,6 +7,7 @@ tags:
 generated:
   by: human:spencer
   at: 2026-09-06T11:25:53Z
+  body_sha256: 2193725a27cdf278cd4aee800ba01a033955dafc307fc8b92b5e883296968b31
 status: stable
 verified:
   - by: human:spencer

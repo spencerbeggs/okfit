@@ -26,7 +26,10 @@ for the simplicity of one agent running one skill straight through.
 3. Run `validate_bundle` — or `okfit validate --format json` when the MCP
    tools are unavailable — and fix what it reports.
 4. Run `okfit sync` (or `okfit sync --dry-run` first to inspect) to
-   regenerate `generated.at`, `index.md`, and `log.md`. All three are
+   regenerate `generated.at`, `generated.body_sha256`, `index.md`, and
+   `log.md`. A concept whose recorded digest still matches its body is
+   reported `unchanged` and keeps its existing `at`, so a squash-merged
+   branch needs no restamp pass. All three are
    derived (`okf-spec`'s reserved-files section plus the
    `profiles-generated-at-is-author-date` Decision) -- never hand-edit any
    of them. Report what `sync` wrote, left unchanged, or skipped (and why)

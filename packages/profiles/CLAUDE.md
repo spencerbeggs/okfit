@@ -19,8 +19,10 @@ src/
                          No `internal/` spawn modules remain: `Git.log` owns the spawn, the argv, the record
                          parsing, and the stderr classification.
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
-  Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, generatedAt, humanActorId, generatedBy, staleAfter
-  Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config), the generated-at-drift lint (S-8); not a Profile member, no range (S-12)
+  Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, bodyDigest, generatedAt, humanActorId, generatedBy, staleAfter
+                         bodyDigest is sha256 over the normalised body via effect's Crypto service (issue #19); core holds the field, never computes it
+  Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config, options?), the generated-at-drift lint (S-8); not a Profile member, no range (S-12)
+                         Two tiers: generated.body_sha256 when recorded (pure, no git, catches a dirty body), the git date walk otherwise
 ```
 
 Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.

@@ -33,7 +33,7 @@ export {
 	DiagnosticSeverity,
 	LintCode,
 } from "./Diagnostic.js";
-export { Generated } from "./Generated.js";
+export { BodySha256, Generated } from "./Generated.js";
 export type { GraphEdge, GraphLink, GraphNode, PathField } from "./Graph.js";
 export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";

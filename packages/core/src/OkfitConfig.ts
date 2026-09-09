@@ -298,8 +298,8 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "generated-at-drift",
 			description:
-				'A committed concept\'s generated.at is missing or does not match its last body-changing commit. Default "info".',
-			default: "info",
+				'A committed concept\'s generated.at is missing or does not match its last body-changing commit, and is not otherwise authoritative (issue #19: a stamp recorded during the unchanged-body run survives a squash/rebase merge). Default "warn".',
+			default: "warn",
 		}),
 	),
 }).annotate({
@@ -562,7 +562,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	config_unknown_key: "warn",
 	stale: "info",
 	walk_unreadable: "warn",
-	generated_at_drift: "info",
+	generated_at_drift: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

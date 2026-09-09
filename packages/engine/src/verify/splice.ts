@@ -76,36 +76,76 @@ export const splice = (target: SpliceTarget, entry: VerifyEntry, newline: "\n" |
 	}
 };
 
+/** Either `generated` key {@link spliceGenerated} and {@link spliceGeneratedFields} write. @internal */
+export type GeneratedFieldName = "at" | "body_sha256";
+
 /**
  * Build the one edit for `target` (contract §6.1). Never calls a YAML
- * stringifier: the only syntax emitted is the indent, `at: `, the
- * preserved quote character (if any), and `newline`. `encodedAt` is
- * already `Schema.encodeSync(Timestamp)`'d by the caller (S-1: splice,
- * never `YamlFormat.modify` — it drops quote style and re-normalises line
- * endings, V-12/V-15 violations `sync/generated.ts` cannot afford).
+ * stringifier: the only syntax emitted is the indent, `<field>: `, the
+ * preserved quote character (if any), and `newline`. `value` is already
+ * encoded by the caller -- `Schema.encodeSync(Timestamp)`'d for `at`, the raw
+ * lowercase hex digest for `body_sha256` (S-1: splice, never `YamlFormat.
+ * modify` — it drops quote style and re-normalises line endings, V-12/V-15
+ * violations `sync/generated.ts` cannot afford).
  *
  * @internal
  */
 export const spliceGenerated = (
 	target: Exclude<GeneratedLocated, { readonly _tag: "unsupported" }>,
-	encodedAt: string,
+	value: string,
 	newline: "\n" | "\r\n",
+	field: GeneratedFieldName = "at",
 ): MarkdownEdit => {
 	switch (target._tag) {
 		case "insertAfterLastKey":
 			return MarkdownEdit.make({
 				offset: target.insertAt,
 				length: 0,
-				content: `${target.indent}at: ${encodedAt}${newline}`,
+				content: `${target.indent}${field}: ${value}${newline}`,
 			});
 		case "replaceScalar": {
 			const quoted =
-				target.quote === "single-quoted"
-					? `'${encodedAt}'`
-					: target.quote === "double-quoted"
-						? `"${encodedAt}"`
-						: encodedAt;
+				target.quote === "single-quoted" ? `'${value}'` : target.quote === "double-quoted" ? `"${value}"` : value;
 			return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: quoted });
 		}
 	}
+};
+
+/**
+ * Build the edit(s) that write BOTH `generated.at` and `generated.
+ * body_sha256` together (issue #19: `sync/generated.ts` never writes one
+ * without the other). Each field's own `spliceGenerated` edit is used when
+ * the two land at different offsets; when both are absent they resolve to
+ * the identical `insertAfterLastKey` anchor (the mapping's last existing
+ * key), and inserting two zero-length edits at the same offset is exactly
+ * the "overlapping edits" case `MarkdownEdit.applyAll` treats as a
+ * programmer error -- so that one case is merged into a single edit whose
+ * content carries both lines, `at` first.
+ *
+ * @internal
+ */
+export const spliceGeneratedFields = (
+	atTarget: Exclude<GeneratedLocated, { readonly _tag: "unsupported" }>,
+	bodySha256Target: Exclude<GeneratedLocated, { readonly _tag: "unsupported" }>,
+	encodedAt: string,
+	bodySha256: string,
+	newline: "\n" | "\r\n",
+): ReadonlyArray<MarkdownEdit> => {
+	if (
+		atTarget._tag === "insertAfterLastKey" &&
+		bodySha256Target._tag === "insertAfterLastKey" &&
+		atTarget.insertAt === bodySha256Target.insertAt
+	) {
+		return [
+			MarkdownEdit.make({
+				offset: atTarget.insertAt,
+				length: 0,
+				content: `${atTarget.indent}at: ${encodedAt}${newline}${bodySha256Target.indent}body_sha256: ${bodySha256}${newline}`,
+			}),
+		];
+	}
+	return [
+		spliceGenerated(atTarget, encodedAt, newline, "at"),
+		spliceGenerated(bodySha256Target, bodySha256, newline, "body_sha256"),
+	];
 };

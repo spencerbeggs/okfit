@@ -45,7 +45,7 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 8,
-	Decision: 18,
+	Decision: 19,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
@@ -99,14 +99,12 @@ describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
 			// config no longer overrides require_verified_unmet, so a clean
 			// bundle reports no errors and no warnings.
 			assert.strictEqual(envelope.summary.lint_warnings, 0);
-			// generated-at-drift is info by design (okfit #19): a squash or
-			// rebase merge rewrites the author dates the derivation reads, so
-			// main can carry drift until the next `okfit sync` restamps it. That
-			// is the one diagnostic this bundle may report; anything else fails.
-			assert.deepStrictEqual(
-				envelope.diagnostics.filter((diagnostic) => diagnostic.code !== "generated-at-drift"),
-				[],
-			);
+			// generated-at-drift no longer fires across a squash or rebase merge
+			// (okfit #19 option 2): a recorded generated.at authoritative for the
+			// unchanged-body run -- equal to the derived instant, or itself
+			// stamped somewhere in that run -- survives the merge's rewritten
+			// author dates, so a clean bundle now reports no diagnostics at all.
+			assert.deepStrictEqual(envelope.diagnostics, []);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

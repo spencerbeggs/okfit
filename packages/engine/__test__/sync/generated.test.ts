@@ -1,8 +1,15 @@
 import { readFileSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
-import { MarkdownEdit } from "@effected/markdown";
-import { Effect } from "effect";
+import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
+import { Concept, ConceptId, Generated, LoadedBundle, LoadedConcept } from "@okfit/core";
+import type { BodyProvenance } from "@okfit/profiles";
+import { Derivation } from "@okfit/profiles";
+import { DateTime, Effect, FileSystem, Option, Path, Result } from "effect";
+import { syncGenerated } from "../../src/sync/generated.js";
 import { detectNewline, documentNewline, locateGenerated, stripBom } from "../../src/verify/locate.js";
 import { spliceGenerated } from "../../src/verify/splice.js";
 
@@ -282,6 +289,159 @@ describe("spliceGenerated", () => {
 			for (const name of ["flow.md", "absent.md", "empty.md", "at-not-scalar.md"] as const) {
 				const located = yield* locateFixture(name);
 				assert.strictEqual(located._tag, "unsupported");
+			}
+		}),
+	);
+});
+
+describe("syncGenerated: body-digest design (issue #19)", () => {
+	const DERIVED_AT = DateTime.makeUnsafe("2026-06-01T08:00:00Z");
+	const ENCODED_DERIVED_AT = "2026-06-01T08:00:00Z";
+	const SOURCE = ["---", "type: Module", "title: Digested", "---", "", "# Digested", "", "Body text.", ""].join("\n");
+	const OTHER_SOURCE = ["---", "type: Module", "title: Digested", "---", "", "# Digested", "", "New body.", ""].join(
+		"\n",
+	);
+	const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), NodeServices.layer);
+
+	const committed: BodyProvenance = {
+		_tag: "committed",
+		at: DERIVED_AT,
+		sha: "0123456789abcdef0123456789abcdef01234567",
+		committedAt: DERIVED_AT,
+		authorName: "Author",
+		authorEmail: "author@example.com",
+		creating: false,
+	};
+
+	const conceptWith = (source: string, generated: Generated): LoadedConcept =>
+		LoadedConcept.make({
+			id: Option.getOrThrow(ConceptId.normalize("module.md")),
+			path: "module.md",
+			frontmatter: Concept.make({ type: "Module", extensions: {}, raw: {}, generated }),
+			document: Result.getOrThrow(MarkdownDocument.parseResult(source)),
+			computationBody: Option.none(),
+		});
+
+	const bundleWith = (concept: LoadedConcept, root: string): LoadedBundle =>
+		LoadedBundle.make({
+			root,
+			files: [concept.path],
+			directories: [""],
+			concepts: new Map([[concept.id, concept]]),
+			indexes: new Map(),
+			logs: new Map(),
+			diagnostics: [],
+		});
+
+	it.effect("reports unchanged and touches no file when the recorded digest matches the current body", () =>
+		Effect.gen(function* () {
+			const digest = yield* digestOf(SOURCE);
+			const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test", body_sha256: digest }));
+			const bundle = bundleWith(concept, "/repo");
+			const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
+				// Dies on any file read/write: proves the unchanged branch never reaches step 7 at all.
+				Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]),
+			);
+			assert.deepStrictEqual(result.written, []);
+			assert.deepStrictEqual(result.unchanged, [concept.id]);
+			assert.deepStrictEqual(result.skipped, []);
+		}),
+	);
+
+	it.effect("writes both keys when the recorded digest no longer matches the current body", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-generated-")));
+			try {
+				const staleDigest = yield* digestOf(SOURCE);
+				const text = SOURCE.replace(
+					"title: Digested",
+					`title: Digested\ngenerated:\n  by: human:okfit-test\n  at: 2020-01-01T00:00:00Z\n  body_sha256: ${staleDigest}`,
+				);
+				yield* Effect.promise(() => writeFile(join(dir, "module.md"), text));
+				const concept = conceptWith(OTHER_SOURCE, Generated.make({ by: "human:okfit-test", body_sha256: staleDigest }));
+				const bundle = bundleWith(concept, dir);
+				const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
+					Effect.provide(NodeServices.layer),
+				);
+				assert.deepStrictEqual(result.written, [concept.id]);
+				const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
+				assert.include(written, `at: ${ENCODED_DERIVED_AT}`);
+				const currentDigest = yield* digestOf(OTHER_SOURCE);
+				assert.include(written, `body_sha256: ${currentDigest}`);
+			} finally {
+				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect(
+		"writes both keys, preserving quote style and newline style, when body_sha256 is absent (first migration)",
+		() =>
+			Effect.gen(function* () {
+				const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-generated-")));
+				try {
+					const text = [
+						"---",
+						"type: Module",
+						"title: Digested",
+						"generated:",
+						"  by: human:okfit-test",
+						"  at: '2020-01-01T00:00:00Z'",
+						"---",
+						"",
+						"# Digested",
+						"",
+						"Body text.",
+						"",
+					].join("\n");
+					yield* Effect.promise(() => writeFile(join(dir, "module.md"), text));
+					const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
+					const bundle = bundleWith(concept, dir);
+					const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
+						Effect.provide(NodeServices.layer),
+					);
+					assert.deepStrictEqual(result.written, [concept.id]);
+					const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
+					assert.include(written, `at: '${ENCODED_DERIVED_AT}'`); // single-quote style preserved
+					const currentDigest = yield* digestOf(SOURCE);
+					assert.include(written, `  body_sha256: ${currentDigest}`);
+					assert.notInclude(written, "\r\n"); // LF document stays LF
+				} finally {
+					yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+				}
+			}),
+	);
+
+	it.effect("inserts both keys together when neither exists yet, oddly-indented generated block round-trips", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-generated-")));
+			try {
+				const text = [
+					"---",
+					"type: Module",
+					"title: Digested",
+					"generated:",
+					"    by: human:okfit-test",
+					"---",
+					"",
+					"# Digested",
+					"",
+					"Body text.",
+					"",
+				].join("\n");
+				yield* Effect.promise(() => writeFile(join(dir, "module.md"), text));
+				const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
+				const bundle = bundleWith(concept, dir);
+				const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
+					Effect.provide(NodeServices.layer),
+				);
+				assert.deepStrictEqual(result.written, [concept.id]);
+				const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
+				assert.include(written, `    at: ${ENCODED_DERIVED_AT}`);
+				const currentDigest = yield* digestOf(SOURCE);
+				assert.include(written, `    body_sha256: ${currentDigest}`);
+			} finally {
+				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 			}
 		}),
 	);

@@ -33,7 +33,8 @@ asked, and never treat its existence as a loophole in this rule.
    `PROFILES/SoftwareProject.ts:16` sets `["title", "description"]`).
 2. Never add or edit `verified`.
 3. Stamp `generated.by` on meaningful changes; never the legacy
-   `timestamp`. `okfit sync` writes `generated.at`; never type it by hand.
+   `timestamp`. `okfit sync` writes `generated.at` and
+   `generated.body_sha256`; never type either by hand.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
@@ -60,12 +61,21 @@ asked, and never treat its existence as a loophole in this rule.
     keys into `extensions`; the same tolerance posture applies to concept
     frontmatter).
 
-## generated.at
+## generated.at and generated.body_sha256
 
-Core treats `generated.at` as optional (`CORE/Generated.ts:11`); this
+Core treats `generated.at` as optional (`CORE/Generated.ts:29`); this
 skill instructs writers to leave it unset until `okfit sync` supplies the
 value rather than typing a guess (rule 3). `generated.by` stays required
-(`CORE/Generated.ts:10`) and is always hand-stamped. `okfit sync` is the
+(`CORE/Generated.ts:28`) and is always hand-stamped.
+
+`generated.body_sha256` (`CORE/Generated.ts:30`) is okfit's own extension
+key, not an OKF v0.2 field: a sha256 of the concept's normalized body,
+written by `okfit sync` beside `at`. It is what lets the
+`generated-at-drift` lint survive a squash or rebase merge -- drift now
+means the body changed after the stamp, never that a merge minted a new
+author date. Never hand-write or hand-edit it: a digest that does not
+match the body reports as drift, and an edited-but-uncommitted body
+reports immediately rather than waiting for a commit. `okfit sync` is the
 command that writes `generated.at`, deriving it from git history -- never
 type it by hand, and never invent `generated.by` on its behalf (sync
 never writes that key: design §3 step 5). `okfit verify` is a different

@@ -1,4 +1,6 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { Git, UnknownRefError } from "@effected/git";
+import type { Crypto } from "effect";
 import { Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { GitHistory, PathHistoryEntry } from "../../src/GitHistory.js";
 import type { HistoryCommit } from "../fixtures/history.js";
@@ -78,7 +80,9 @@ export interface WorldOptions {
  * `FileSystem.layerNoop({ readFileString, realPath })` (EF/FileSystem.ts:954) and `Path.layer` (EF/Path.ts:867).
  * Any other `Git`/`GitHistory` call or any other file read dies, so a test proves it touches nothing it did not script.
  */
-export const world = (options: WorldOptions): Layer.Layer<Git | GitHistory | FileSystem.FileSystem | Path.Path> => {
+export const world = (
+	options: WorldOptions,
+): Layer.Layer<Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto> => {
 	const root = options.root ?? ROOT;
 	const file = options.file ?? FILE;
 	const rel = options.rel ?? REL;
@@ -102,7 +106,7 @@ export const world = (options: WorldOptions): Layer.Layer<Git | GitHistory | Fil
 			path === file ? Effect.succeed(options.worktree) : Effect.die(new Error(`unexpected readFileString(${path})`)),
 		realPath: (path) => Effect.succeed(realPaths[path] ?? path),
 	});
-	return Layer.mergeAll(git, history, fs, options.path ?? Path.layer);
+	return Layer.mergeAll(git, history, fs, options.path ?? Path.layer, NodeCrypto.layer);
 };
 
 const toPosix = (path: string): string => path.split("\\").join("/");

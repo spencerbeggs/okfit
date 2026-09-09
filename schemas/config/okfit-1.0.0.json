@@ -474,8 +474,8 @@
 						"error"
 					],
 					"title": "generated-at-drift",
-					"description": "A committed concept's generated.at is missing or does not match its last body-changing commit. Default \"info\".",
-					"default": "info",
+					"description": "A committed concept's generated.at is missing or does not match its last body-changing commit, and is not otherwise authoritative (issue #19: a stamp recorded during the unchanged-body run survives a squash/rebase merge). Default \"warn\".",
+					"default": "warn",
 					"x-taplo": {
 						"docs": {
 							"enumValues": [

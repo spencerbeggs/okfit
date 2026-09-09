@@ -8,7 +8,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: af1bd882ac0e8e736290fe7c3ed003551be099b0c91311b2a546d551428962f6
 ---
 
 # Core
@@ -72,3 +73,12 @@ diagnostic, exactly like a URL (`packages/core/README.md:26`).
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
 sixteen keys, including `generated_at_drift`, are enumerated in
 `okf/interfaces/okfit-config-schema.md`.
+
+## generated.body_sha256
+
+`Generated` carries an optional third key, `body_sha256` — a lowercase
+64-character hex sha256 of a concept's body, validated by a new `BodySha256`
+schema. Core only holds the field; it never computes a digest itself, since
+that would need a hashing capability core's no-Node-imports rule keeps out
+of this package. See [A body digest inside generated detects real drift,
+not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).

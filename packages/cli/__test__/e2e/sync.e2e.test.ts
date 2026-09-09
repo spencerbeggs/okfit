@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
@@ -10,6 +11,9 @@ import { commit, initRepo } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+
+/** `okfit sync`'s own digest, computed the identical way, so an expectation never hand-rolls a hash. */
+const digestOf = (contents: string): Promise<string> => withServices(Derivation.bodyDigest(contents));
 
 const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> => ({
 	...env,
@@ -461,9 +465,13 @@ describe("okfit sync (e2e)", () => {
 			const run = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
 
+			const digest = await digestOf(contents);
 			assert.strictEqual(
 				await readDecision(cwd, "insert"),
-				contents.replace("generated:\n  by: human:ada\n", "generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n"),
+				contents.replace(
+					"generated:\n  by: human:ada\n",
+					`generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n  body_sha256: ${digest}\n`,
+				),
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -483,9 +491,10 @@ describe("okfit sync (e2e)", () => {
 			const first = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
 			assert.strictEqual(first.exitCode, 0);
 			assert.deepStrictEqual(parseEnvelope(first.stdout).generated.written, ["decisions/plain"]);
+			const digest = await digestOf(contents);
 			assert.strictEqual(
 				await readDecision(cwd, "plain"),
-				contents.replace("  at: 2020-01-01T00:00:00Z\n", "  at: 2026-09-03T00:00:00Z\n"),
+				contents.replace("  at: 2020-01-01T00:00:00Z\n", `  at: 2026-09-03T00:00:00Z\n  body_sha256: ${digest}\n`),
 			);
 
 			const second = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
@@ -510,9 +519,10 @@ describe("okfit sync (e2e)", () => {
 			const run = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
 
+			const digest = await digestOf(contents);
 			assert.strictEqual(
 				await readDecision(cwd, "quoted"),
-				contents.replace("  at: '2020-01-01T00:00:00Z'\n", "  at: '2026-09-04T00:00:00Z'\n"),
+				contents.replace("  at: '2020-01-01T00:00:00Z'\n", `  at: '2026-09-04T00:00:00Z'\n  body_sha256: ${digest}\n`),
 			);
 		} finally {
 			await removeSandbox(sandbox);

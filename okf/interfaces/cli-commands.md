@@ -7,7 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T22:33:03Z
+  body_sha256: c660c6ae854b779e2e4533994a1a661f969c334b93cb22240ed2fc9a63a2e215
 tags:
   - architecture
 ---
@@ -34,10 +35,15 @@ otherwise, and `(bundle)` in place of `<file>` for a bundle-level
 diagnostic. Diagnostics sort by file (`(bundle)` first), then range-less
 before ranged, then by offset, then by code. The summary line prints to
 stderr (the `okfit validate` section of `packages/cli/README.md`).
-`--skip-provenance` skips the git-derived `generated-at-drift` tier for
-that invocation without changing the project's `[lint]` table; the
-PostToolUse hook passes it so an edit-time validate stays git-free, while
-CI and the MCP `validate_bundle` tool keep the lint (ruling S-31).
+`--skip-provenance` skips only the fallback, git-derived tier of
+`generated-at-drift` — the comparison used for a concept with no recorded
+`generated.body_sha256` — for that invocation, without changing the
+project's `[lint]` table; a concept carrying a digest is still checked by
+pure content comparison, since that tier makes no git call. The
+PostToolUse hook passes it so an edit-time validate stays git-free for any
+un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
+git tier too (ruling S-31). See [A body digest inside generated detects
+real drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
 
 ## okfit init
 
@@ -76,16 +82,23 @@ hook, or MCP tool ever invokes it.
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
 [--format human|json]` is the one command that regenerates every
-derived-content family: `generated.at` (per concept, computed from git
-history), `index.md` (every directory that holds a concept), and `log.md`
-(the root log, curated prose topped up by date). It runs all three modes,
-generated then index then log, in that fixed order, unless one or more
-`--only` flags narrow it to a subset. `--dry-run` computes every result
-and writes nothing. It never touches `verified` and takes no clock — the
-same `now`-as-argument discipline as the rest of core. Exit `0` whether or
-not anything was written, `3` on any typed failure, `64` on an unknown
-`--only` mode; there is no `1`/`2` content tier, since `sync` never runs
-conformance or lint checks.
+derived-content family: `generated.at` and `generated.body_sha256` (per
+concept, the digest always accompanying the date), `index.md` (every
+directory that holds a concept), and `log.md` (the root log, curated prose
+topped up by date). It runs all three modes, generated then index then
+log, in that fixed order, unless one or more `--only` flags narrow it to a
+subset. `--dry-run` computes every result and writes nothing. `sync --only
+generated` no longer rewrites an authoritative `generated.at`: when a
+concept's recorded `body_sha256` still matches its current body, the
+concept is reported `unchanged` and neither key is touched, even though a
+fresh git walk would compute a different `at` — see [A body digest inside
+generated detects real drift, not a rewritten
+date](../decisions/profiles-body-sha256-detects-real-drift.md). It never
+touches `verified` and takes no clock — the same `now`-as-argument
+discipline as the rest of core. Exit `0` whether or not anything was
+written, `3` on any typed failure, `64` on an unknown `--only` mode; there
+is no `1`/`2` content tier, since `sync` never runs conformance or lint
+checks.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `root`, `dry_run`, `exit_code`, `generated`, `index`,
