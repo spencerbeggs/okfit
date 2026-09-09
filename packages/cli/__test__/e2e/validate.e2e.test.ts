@@ -368,7 +368,7 @@ describe("okfit validate: config discovery", () => {
 			// `@effected/config-file`'s `ConfigCodecError` carries no `path` field
 			// of its own (verified against its installed `.d.ts`/`.js`: `codec`,
 			// `operation`, `cause` only, `message` is `${codec} ${operation}
-			// failed`) — `config/layer.ts#provideConfig` now wraps it into
+			// failed`) — `@okfit/engine`'s `config/layer.ts#provideConfig` now wraps it into
 			// `ConfigMalformedError` with the KNOWN `--config` path (K-46 fix
 			// round 1), so this asserts the exact, pinned message the wrapped
 			// error renders (captured this session by running the CLI directly
@@ -601,7 +601,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			// No `git` reachable at all: if Provenance.lint still ran despite
 			// "off", the spawn itself would fail (ENOENT) and this would surface
 			// as an infrastructure failure, not a clean run -- proving the
-			// CLI's own severity gate (S-8, validate/run.ts#run) skips the call
+			// CLI's own severity gate (S-8, @okfit/engine's validate/run.ts#run) skips the call
 			// entirely rather than calling Provenance.lint and discarding its
 			// result.
 			const noGitEnv = { ...env, PATH: "" };

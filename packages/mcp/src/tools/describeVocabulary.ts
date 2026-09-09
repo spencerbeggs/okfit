@@ -1,5 +1,5 @@
 import { AppDirs, Xdg } from "@effected/xdg";
-import { contextEnvelope } from "@okfit/cli";
+import { contextEnvelope } from "@okfit/engine";
 import { Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
 import { McpToolError } from "../errors.js";

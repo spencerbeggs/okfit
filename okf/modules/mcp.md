@@ -6,7 +6,7 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
+  at: 2026-09-09T04:14:34Z
 ---
 
 # MCP
@@ -22,14 +22,23 @@ structured access to an OKF bundle (`packages/mcp/README.md:3`). For the
 log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
 "writes nothing, ever" promise stands, since a read is not a write.
 
+This package depends on [Engine](engine.md) directly -- for the platform
+layer (`OkfitPlatform`), the config/bundle loading `validate_bundle`
+wraps, and the `render`/`json` envelope pieces its tools re-export
+unchanged -- and no longer depends on `@okfit/cli` at all, so
+`pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
+command tree. See [A shared @okfit/engine package replaces
+cli-as-copy-contract](../decisions/engine-front-end-split.md).
+
 ## Status
 
 The server implements MCP over stdio (`effect/unstable/ai/McpServer`):
 six read-only tools and static concept resources; see
 `okf/interfaces/okfit-mcp.md`.
 
-Layout, `packages/mcp/src`: `bin.ts` (crash guards, platform layer,
-`runMain`), `index.ts` (programmatic barrel), `version.ts`
+Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
+(crash guards, `OkfitPlatform`, `runMain`), `index.ts` (programmatic
+barrel), `version.ts`
 (`MCP_VERSION`), `server.ts` (`ServerLayer`: toolkit and resource layers
 over `layerStdio`), `toolkit.ts` (`OkfitToolkit`, the six tools plus
 handler wiring), `errors.ts` (`McpToolError` union,

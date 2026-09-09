@@ -9,12 +9,16 @@ this package.
 
 ```text
 src/
-  index.ts    -- OKFIT_BINS constant only
+  index.ts             -- OKFIT_BINS constant only
+  bin/
+    okfit.ts            -- the okfit bin shim: imports and calls @okfit/cli/main's main()
+    okfit-mcp.ts          -- the okfit-mcp bin shim: imports and awaits @okfit/mcp/main's main()
 ```
 
-## Dependencies versus peers
-
-The spec calls `@okfit/cli` and `@okfit/mcp` peer dependencies. They are
-declared as regular dependencies for now because `workspace:*` peers do
-not give the monorepo root a runnable `okfit` bin. Revisit before the
-first npm publish.
+`src/bin/okfit.ts` and `src/bin/okfit-mcp.ts` are the two bin shims: each
+imports `main` from its front end's `./main` subpath
+(`@okfit/cli/main`, `@okfit/mcp/main`) and calls it. `@okfit/cli` and
+`@okfit/mcp` are regular `dependencies`, not peers -- see
+`okf/decisions/engine-front-end-split.md` for why a peer arrangement can
+never produce a runnable bin here, and do not revert this to a peer
+declaration.

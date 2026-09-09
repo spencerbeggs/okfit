@@ -22,6 +22,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./main": "./src/main.ts",
 		"./package.json": "./package.json"
 	},
 	"bin": {
@@ -35,19 +36,17 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
-		"@effected/app": "catalog:effected",
 		"@effected/cli": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
 		"@effected/git": "catalog:effected",
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",
 		"@effected/markdown": "catalog:effected",
-		"@effected/store": "catalog:effected",
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
-		"@effected/xdg": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
 		"@okfit/core": "workspace:*",
+		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effect"
 	},

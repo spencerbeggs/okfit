@@ -1,18 +1,23 @@
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
+import {
+	JsonEnvelope,
+	Now,
+	collect,
+	forDiagnostics,
+	json,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	run,
+} from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { provideConfig } from "../config/layer.js";
-import { resolveProjectConfig } from "../config/resolve.js";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
-import { forDiagnostics } from "../render/exit.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
-import { JsonEnvelope, json, jsonError } from "../render/json.js";
-import { collect } from "../render/sort.js";
-import { Now, run } from "../validate/run.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
@@ -48,7 +53,7 @@ const skipProvenanceFlag = Flag.boolean("skip-provenance").pipe(
  * stat `--config` (K-1) via `provideConfig`, discover (`OkfitConfigFile.discover`),
  * resolve the profile with the K-4 warning, merge `DEFAULTS < profile < file`
  * (D-28), warn on an `okf_version` mismatch (K-15), resolve the project and
- * bundle roots (K-12), run (`validate/run.ts#run`), collect and sort the
+ * bundle roots (K-12), run (`@okfit/engine`'s `validate/run.ts#run`), collect and sort the
  * diagnostics, render per `--format` (K-18, K-20 to K-22), and set the exit
  * code without failing the Effect (K-7, K-8).
  *

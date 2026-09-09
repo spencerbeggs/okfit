@@ -1,15 +1,12 @@
 import { Git } from "@effected/git";
+import type { SyncMode } from "@okfit/engine";
+import { SyncEnvelope, jsonError, provideConfig, resolveProjectConfig, runSync, syncEnvelope } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { provideConfig } from "../config/layer.js";
-import { resolveProjectConfig } from "../config/resolve.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
-import { jsonError } from "../render/json.js";
-import { SyncEnvelope, humanSync, syncEnvelope } from "../render/sync.js";
-import type { SyncMode } from "../sync/run.js";
-import { runSync } from "../sync/run.js";
+import { humanSync } from "../render/sync.js";
 import { CLI_VERSION } from "../version.js";
 
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context/verify's. */
@@ -125,7 +122,7 @@ export const syncCommand = Command.make(
 			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 			// K-22: under --format json an infrastructure failure ALSO gets a
-			// stdout envelope, reusing render/json.ts#jsonError unchanged — the
+			// stdout envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged — the
 			// same idiom validate.ts, context.ts, and verify.ts already share.
 			if (input.format === "json") {
 				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));

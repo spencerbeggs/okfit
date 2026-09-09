@@ -22,6 +22,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./main": "./src/main.ts",
 		"./package.json": "./package.json"
 	},
 	"bin": {
@@ -37,8 +38,8 @@
 		"@effect/platform-node": "catalog:effect",
 		"@effected/git": "catalog:effected",
 		"@effected/xdg": "catalog:effected",
-		"@okfit/cli": "workspace:*",
 		"@okfit/core": "workspace:*",
+		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effect"
 	},

@@ -11,9 +11,13 @@ write, and that promise stands (S-16).
 
 ```text
 src/
-  bin.ts                       -- crash guards, PlatformLayer, runMain
+  bin.ts                       -- the shebang entry point: imports and awaits main()
+  main.ts                      -- crash guards, OkfitPlatform (@okfit/engine), runMain
   index.ts                     -- programmatic barrel (ServerLayer, schemas, errors)
-  version.ts                   -- MCP_VERSION, read from this package's own package.json
+  version.ts                   -- MCP_VERSION, read from process.env.__PACKAGE_VERSION__, a
+                                   build-time constant the bundler injects -- never a
+                                   package.json import, which would report engine's version
+                                   for anything that moved there
   server.ts                    -- ServerLayer: toolkit + resource layers over layerStdio
   toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); handler wiring
   errors.ts                    -- McpToolError union, five members, composeRemediatedMessage
@@ -39,8 +43,15 @@ src/
 One responsibility per file. `toolkit.ts` is the single place a tool's
 `Tool.make` value and its handler meet, so a structural test can import the
 served toolkit with no bin or platform dependency. `internal/` is the only
-place `process.env` is read outside `bin.ts`. **The server writes nothing,
-ever** — every tool and resource only reads the bundle and the config.
+place `process.env` is read outside `main.ts` -- `version.ts` also reads
+`process.env.__PACKAGE_VERSION__`, but that is a build-time constant
+`@savvy-web/bundler` replaces at compile time, not a runtime environment
+read, the same distinction `@okfit/cli`'s boundary-test allowlist comment
+draws for its own copy of that pattern. This package has no boundary test
+of its own (no scanner, no `boundaries.test.ts` under `packages/mcp/__test__`),
+so this rule lives only in prose here and nothing enforces it. **The server
+writes nothing, ever** — every tool and resource only reads the bundle and
+the config.
 
 ## Resources are static, not templated
 

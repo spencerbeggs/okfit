@@ -6,10 +6,10 @@ import { assert, describe, it } from "@effect/vitest";
 import type { AppDirs as AppDirsType, Xdg as XdgType } from "@effected/xdg";
 import { AppDirs, CurrentPlatform, Xdg, XdgPaths } from "@effected/xdg";
 import { OkfitConfigFile } from "@okfit/core";
+import { ConfigMalformedError, ConfigPathNotFoundError } from "@okfit/engine";
 import type { FileSystem, Path, Scope } from "effect";
 import { Effect, Layer, Option } from "effect";
 import { buildConfigLayer, provideConfig } from "../../src/config/layer.js";
-import { ConfigMalformedError, ConfigPathNotFoundError } from "../../src/errors.js";
 
 // Xdg's own doc comment: "the test layer, and the escape hatch for an
 // application that resolves its environment some other way. It needs no

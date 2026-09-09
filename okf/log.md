@@ -1,5 +1,13 @@
 # Log
 
+## 2026-09-09
+
+* Added A shared @okfit/engine package replaces cli-as-copy-contract
+* Updated CLI
+* Added Engine
+* Updated MCP
+* Updated Plugin
+
 ## 2026-09-08
 
 * Updated A walk past maxDepth fails typed, never silently truncates

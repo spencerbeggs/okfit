@@ -1,7 +1,7 @@
 import { Git } from "@effected/git";
 import { AppDirs, Xdg } from "@effected/xdg";
-import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/cli";
 import { OKF_SPEC_VERSION } from "@okfit/core";
+import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
@@ -27,7 +27,7 @@ const DESCRIPTION =
  * GitHistory` so it can run `Provenance.lint`'s `generated-at-drift`
  * check (S-8, S-16). Both are provided by `server.ts`'s `ServerLayer`,
  * which needs only `ChildProcessSpawner` to build them — already
- * supplied by `bin.ts`'s untouched `PlatformLayer` (S-16).
+ * supplied by `@okfit/engine`'s `OkfitPlatform` (S-16).
  *
  * @public
  */
@@ -45,10 +45,10 @@ export const validateBundle = Tool.make("validate_bundle", {
 
 /**
  * This tool does not call `loadToolContext`: `run()` calls `Bundle.load`
- * itself (`packages/cli/src/validate/run.ts:52-56`), so routing through
+ * itself (`packages/engine/src/validate/run.ts:52-56`), so routing through
  * `loadToolContext` would load the bundle twice. It uses `resolveConfigOnly`
  * and keeps `bundleRoot`, `config` **and** `profile` — `run()` needs the
- * profile. `success` is `JsonEnvelope`, imported from `@okfit/cli` and used
+ * profile. `success` is `JsonEnvelope`, imported from `@okfit/engine` and used
  * verbatim (N-35's own carve-out: data reuse, not envelope reuse);
  * `JsonErrorEnvelope` is never returned — that is the CLI's stdout
  * convention for an exit-3 infrastructure failure, and here that failure is

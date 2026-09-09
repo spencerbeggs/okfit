@@ -16,7 +16,7 @@ describe("writeAtomic", () => {
 				// A DIRECTORY where `rename`'s destination is expected: renaming a
 				// file onto an existing directory fails with EISDIR on every
 				// platform and every uid (unlike a chmod-000 directory, which a
-				// root-owned CI container ignores -- config/layer.test.ts's own
+				// root-owned CI container ignores -- @okfit/engine's config/layer.test.ts's own
 				// note), so this is a deterministic way to force `writeAtomic`'s
 				// `rename` step to fail without relying on filesystem permissions.
 				const target = join(root, "log.md");

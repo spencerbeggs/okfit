@@ -1,11 +1,15 @@
+import {
+	ContextEnvelope,
+	contextEnvelope,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	runContext,
+} from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { provideConfig } from "../config/layer.js";
-import { resolveProjectConfig } from "../config/resolve.js";
-import { runContext } from "../context/run.js";
 import { setExitCode } from "../internal/exit.js";
-import { ContextEnvelope, contextEnvelope, humanContext } from "../render/context.js";
-import { jsonError } from "../render/json.js";
+import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
@@ -33,7 +37,7 @@ const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
  *
  * Handler order fixed by the contract (§8.3): steps 1–7 are
  * `validateCommand`'s handler in substance (both now share
- * `config/resolve.ts#resolveProjectConfig` — A4) — stat `--config` (K-1) via
+ * `@okfit/engine`'s `resolveProjectConfig` — A4) — stat `--config` (K-1) via
  * `provideConfig`, discover (`OkfitConfigFile.discover`), resolve the
  * profile with the K-4 warning, merge `DEFAULTS < profile < file` (D-28),
  * warn on an `okf_version` mismatch (K-15), resolve the project and bundle
@@ -101,7 +105,7 @@ export const contextCommand = Command.make(
 			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 			// K-22: under --format json, an infrastructure failure ALSO gets a stdout
-			// envelope, reusing render/json.ts#jsonError unchanged (K-22) — context
+			// envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged (K-22) — context
 			// defines no error envelope of its own.
 			if (input.format === "json") {
 				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));

@@ -1,9 +1,7 @@
-import packageJson from "../package.json" with { type: "json" };
-
 /**
- * The version this server reports in `initialize`, read from its own
- * manifest (K-32) so a release can never desync from the reported version.
+ * The version this server reports in `initialize`. Injected by
+ * `@savvy-web/bundler` at build time (K-32); `"0.0.0"` in unbuilt source.
  *
  * @public
  */
-export const MCP_VERSION: string = packageJson.version;
+export const MCP_VERSION: string = process.env.__PACKAGE_VERSION__ ?? "0.0.0";

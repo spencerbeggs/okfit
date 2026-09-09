@@ -53,7 +53,7 @@ export interface VerifyResult {
 	/** Every PRIOR entry by this same actor, in list order, encoded (V-2). */
 	readonly priorAt: ReadonlyArray<string>;
 	readonly dryRun: boolean;
-	/** The exact bytes {@link splice}'s edit would insert, written or not. */
+	/** The exact bytes `splice`'s edit would insert, written or not. */
 	readonly fragment: string;
 }
 

@@ -220,7 +220,7 @@ describe("okfit context: malformed config", () => {
 			assert.strictEqual(result.exitCode, 3);
 			// Same pinned message validate.e2e.test.ts's own malformed-TOML case
 			// asserts: @effected/config-file's ConfigCodecError carries no path
-			// of its own, so config/layer.ts#provideConfig wraps it with the
+			// of its own, so @okfit/engine's config/layer.ts#provideConfig wraps it with the
 			// KNOWN --config path (K-46 fix round 1), reused unchanged by context.
 			assert.strictEqual(result.stderr, `error: malformed config ${badConfigPath}: toml parse failed\n`);
 			const envelope = JSON.parse(result.stdout) as {
