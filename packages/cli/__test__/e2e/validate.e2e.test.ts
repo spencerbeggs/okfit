@@ -368,7 +368,7 @@ describe("okfit validate: config discovery", () => {
 			// `@effected/config-file`'s `ConfigCodecError` carries no `path` field
 			// of its own (verified against its installed `.d.ts`/`.js`: `codec`,
 			// `operation`, `cause` only, `message` is `${codec} ${operation}
-			// failed`) — `config/layer.ts#provideConfig` now wraps it into
+			// failed`) — `@okfit/engine`'s `config/layer.ts#provideConfig` now wraps it into
 			// `ConfigMalformedError` with the KNOWN `--config` path (K-46 fix
 			// round 1), so this asserts the exact, pinned message the wrapped
 			// error renders (captured this session by running the CLI directly

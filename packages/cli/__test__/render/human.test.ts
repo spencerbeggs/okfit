@@ -7,7 +7,7 @@ import type { RenderedDiagnostic } from "../../src/render/sort.js";
 const ESC = String.fromCharCode(27);
 
 // effect's own POSIX Path layer needs no FileSystem and no Node import (EF/Path.ts:867);
-// same precedent as __test__/config/anchor.test.ts.
+// same precedent as @okfit/engine's __test__/config/anchor.test.ts.
 const path: Path.Path = Effect.runSync(Effect.provide(Path.Path, Path.layer));
 
 const base: RenderedDiagnostic = {

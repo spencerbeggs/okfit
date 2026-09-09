@@ -1,12 +1,10 @@
 import { TomlCodec } from "@effected/config-file";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import { InitOverwriteError } from "@okfit/engine";
+import { InitOverwriteError, provideConfig, resolveBundleRoot, resolveProjectRoot } from "@okfit/engine";
 import { GitHistory, Profiles } from "@okfit/profiles";
 import { Console, DateTime, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { resolveBundleRoot, resolveProjectRoot } from "../config/anchor.js";
-import { provideConfig } from "../config/layer.js";
 import type { ScaffoldOptions } from "../init/scaffold.js";
 import { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "../init/scaffold.js";
 import { setExitCode } from "../internal/exit.js";
@@ -94,7 +92,7 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
  *     fileConfig)`, `profileConfig` falling back to `NO_PROFILE_CONFIG` when
  *     no profile resolved.
  *  6. `merged.okf_version !== OKF_SPEC_VERSION` warns (K-15).
- *  7. `projectRoot`/`bundleRoot` via `config/anchor.ts`; `now = yield* Now`;
+ *  7. `projectRoot`/`bundleRoot` via `@okfit/engine`'s `config/anchor.ts`; `now = yield* Now`;
  *     `layout` falls back to `Profiles.softwareProject.layout` when no
  *     profile resolved (this file's own decision 2 above — `Layout` has no
  *     `DEFAULTS` equivalent).

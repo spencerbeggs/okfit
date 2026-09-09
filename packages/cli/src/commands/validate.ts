@@ -1,10 +1,9 @@
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
+import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { provideConfig } from "../config/layer.js";
-import { resolveProjectConfig } from "../config/resolve.js";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
 import { forDiagnostics } from "../render/exit.js";

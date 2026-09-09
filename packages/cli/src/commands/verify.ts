@@ -1,9 +1,8 @@
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
+import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { provideConfig } from "../config/layer.js";
-import { resolveProjectConfig } from "../config/resolve.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { jsonError } from "../render/json.js";

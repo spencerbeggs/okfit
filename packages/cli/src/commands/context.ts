@@ -1,7 +1,6 @@
+import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { provideConfig } from "../config/layer.js";
-import { resolveProjectConfig } from "../config/resolve.js";
 import { runContext } from "../context/run.js";
 import { setExitCode } from "../internal/exit.js";
 import { ContextEnvelope, contextEnvelope, humanContext } from "../render/context.js";
@@ -33,7 +32,7 @@ const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
  *
  * Handler order fixed by the contract (§8.3): steps 1–7 are
  * `validateCommand`'s handler in substance (both now share
- * `config/resolve.ts#resolveProjectConfig` — A4) — stat `--config` (K-1) via
+ * `@okfit/engine`'s `resolveProjectConfig` — A4) — stat `--config` (K-1) via
  * `provideConfig`, discover (`OkfitConfigFile.discover`), resolve the
  * profile with the K-4 warning, merge `DEFAULTS < profile < file` (D-28),
  * warn on an `okf_version` mismatch (K-15), resolve the project and bundle

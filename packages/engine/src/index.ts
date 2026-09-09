@@ -6,6 +6,11 @@
  * @packageDocumentation
  */
 
+export type { DiscoveredConfig } from "./config/anchor.js";
+export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
+export { buildConfigLayer, provideConfig } from "./config/layer.js";
+export type { ResolveProjectConfigInput, ResolvedProjectConfig } from "./config/resolve.js";
+export { DEFAULT_PROFILE_NAME, resolveProjectConfig } from "./config/resolve.js";
 export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
@@ -13,3 +18,4 @@ export {
 	VerifyConceptNotFoundError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
+export { OKFIT_APP_NAMESPACE, OkfitPlatform } from "./platform.js";

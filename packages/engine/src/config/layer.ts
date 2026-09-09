@@ -8,9 +8,9 @@ import {
 } from "@effected/config-file";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import { OkfitConfig, OkfitConfigFile } from "@okfit/core";
-import { ConfigMalformedError, ConfigPathNotFoundError } from "@okfit/engine";
 import type { Layer, Path, PlatformError } from "effect";
 import { Cause, Effect, FileSystem, Option, Result } from "effect";
+import { ConfigMalformedError, ConfigPathNotFoundError } from "../errors.js";
 
 /**
  * The `OkfitConfigFile` layer for one invocation (K-9 to K-11, K-57, C-6),

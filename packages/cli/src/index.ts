@@ -7,19 +7,21 @@
  */
 
 export type { ConfigReadError } from "@effected/config-file";
+export type { DiscoveredConfig, ResolveProjectConfigInput, ResolvedProjectConfig } from "@okfit/engine";
 export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
+	DEFAULT_PROFILE_NAME,
 	InitOverwriteError,
 	VerifyConceptNotFoundError,
 	VerifyUnsupportedFrontmatterError,
+	buildConfigLayer,
+	provideConfig,
+	resolveBundleRoot,
+	resolveProjectConfig,
+	resolveProjectRoot,
 } from "@okfit/engine";
 export { rootCommand } from "./commands/root.js";
-export type { DiscoveredConfig } from "./config/anchor.js";
-export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
-export { buildConfigLayer, provideConfig } from "./config/layer.js";
-export type { ResolveProjectConfigInput, ResolvedProjectConfig } from "./config/resolve.js";
-export { DEFAULT_PROFILE_NAME, resolveProjectConfig } from "./config/resolve.js";
 export type { ContextResult, ContextRunOptions } from "./context/run.js";
 export { runContext } from "./context/run.js";
 export { renderFailure } from "./errors.js";
