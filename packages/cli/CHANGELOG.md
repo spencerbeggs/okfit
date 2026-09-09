@@ -1,5 +1,34 @@
 # @okfit/cli
 
+## 0.4.0
+
+### Breaking Changes
+
+- `okfit validate --skip-provenance` no longer silences the
+  `generated-at-drift` lint entirely (issue #19). It now skips only the
+  git-derived fallback check — the one used for a concept with no
+  recorded `generated.body_sha256`. A bundle that has run `okfit sync`
+  since this field was introduced still gets checked with the flag set:
+  the comparison is over text already in memory, so it spawns no git
+  process and still reports a body edited without a re-stamp. Anyone
+  scripting around `--skip-provenance` to fully suppress
+  `generated-at-drift` for a migrated bundle will start seeing that
+  diagnostic again. [#49][#49]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.2.0 | 0.3.0 |
+| @okfit/engine | dependency | updated | 0.1.0 | 0.2.0 |
+| @okfit/profiles | dependency | updated | 0.2.0 | 0.3.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#49]: https://github.com/spencerbeggs/okfit/pull/49
+
 ## 0.3.0
 
 ### Breaking Changes

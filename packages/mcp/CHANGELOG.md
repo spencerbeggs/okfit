@@ -1,5 +1,29 @@
 # @okfit/mcp
 
+## 0.3.1
+
+### Bug Fixes
+
+- `validate_bundle` now declares `Crypto.Crypto` among its dependencies,
+  matching the `Crypto.Crypto` requirement `@okfit/profiles`' two-tier
+  `generated-at-drift` lint (issue #19) now carries. The tool's parameters
+  and output shape are unchanged; this only wires the dependency the
+  underlying lint already needed to run correctly. [#49][#49]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.2.0 | 0.3.0 |
+| @okfit/engine | dependency | updated | 0.1.0 | 0.2.0 |
+| @okfit/profiles | dependency | updated | 0.2.0 | 0.3.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#49]: https://github.com/spencerbeggs/okfit/pull/49
+
 ## 0.3.0
 
 ### Features

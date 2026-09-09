@@ -1,5 +1,15 @@
 # @okfit/claude-code-plugin
 
+## 0.3.0
+
+### Features
+
+- Updates context to understand how the body digests work.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.2.0
 
 ### Features
