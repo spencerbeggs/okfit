@@ -39,7 +39,7 @@
 		"@effected/markdown": "catalog:effected",
 		"@effected/toml": "catalog:effected",
 		"@okfit/core": "workspace:*",
-		"@savvy-web/bundler": "^2.3.2",
+		"@savvy-web/bundler": "^2.3.3",
 		"@types/node": "catalog:build",
 		"effect": "catalog:effect",
 		"typescript": "catalog:build",
