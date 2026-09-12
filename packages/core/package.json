@@ -41,7 +41,7 @@
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
-		"@savvy-web/bundler": "^2.3.3",
+		"@savvy-web/bundler": "^2.3.4",
 		"@types/node": "catalog:build",
 		"effect": "catalog:effect",
 		"typescript": "catalog:build",

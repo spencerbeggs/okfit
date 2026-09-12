@@ -7,8 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: 959416d4e23791ba6e4f33ae3c49b0174dc970be6eb9825e450bd8e2a6598083
+  at: 2026-09-12T20:09:47Z
+  body_sha256: f3286e3604d39a37f8f28c0ade8881c2defe98acbcd18d47ed50f29b7e6f69a4
 tags:
   - architecture
 ---
@@ -90,4 +90,9 @@ it under the name `okfit`, matching `okfit.toml`, `.okfit.toml` and
 `**/.config/okfit.toml`; user- and system-level files are not catalogued and
 should carry a `#:schema` directive instead. Unknown top-level keys are
 permitted by the document, matching the runtime's D-31 tolerance; every
-declared table is closed.
+declared table is meant to be closed. Since `effect@4.0.0-rc.113` the
+generator leaves structs open by default and `@effected/schemastore` cannot
+yet pass `onExcessProperty: "error"` through a target (effected#688), so the
+document temporarily leaves declared tables open too; the core test
+`OkfitConfigDocument.test.ts` proves the schema still closes them once the
+option can be passed.

@@ -21,33 +21,38 @@ const TOOL_NAMES = [
 ] as const;
 
 /**
- * Recursively assert `additionalProperties === false` at every node whose
- * `type` is `"object"`, descending properties, items, prefixItems, anyOf,
- * oneOf, allOf and $defs. One structural test, not six hand-written ones.
+ * Recursively assert that every node whose `type` is `"object"` declares
+ * `additionalProperties` explicitly, and that any object with declared
+ * `properties` is open (`true`), descending properties, items, prefixItems,
+ * anyOf, oneOf, allOf and $defs. One structural test, not six hand-written
+ * ones.
  */
-const walkStrict = (node: unknown, path: string, seen: Set<unknown>): void => {
+const walkOpen = (node: unknown, path: string, seen: Set<unknown>): void => {
 	if (typeof node !== "object" || node === null) return;
 	if (seen.has(node)) return;
 	seen.add(node);
 	if (Array.isArray(node)) {
 		node.forEach((child, index) => {
-			walkStrict(child, `${path}[${index}]`, seen);
+			walkOpen(child, `${path}[${index}]`, seen);
 		});
 		return;
 	}
 	const record = node as Record<string, unknown>;
 	if (record.type === "object") {
-		assert.strictEqual(record.additionalProperties, false, `${path} is an object without additionalProperties:false`);
+		assert.isBoolean(record.additionalProperties, `${path} is an object without an explicit additionalProperties`);
+		if (record.properties !== undefined) {
+			assert.strictEqual(record.additionalProperties, true, `${path} declares properties but is not open`);
+		}
 	}
 	for (const key of ["properties", "items", "prefixItems", "anyOf", "oneOf", "allOf", "$defs"]) {
 		const child = record[key];
 		if (child === undefined) continue;
 		if (key === "properties" || key === "$defs") {
 			for (const [name, value] of Object.entries(child as Record<string, unknown>)) {
-				walkStrict(value, `${path}.${key}.${name}`, seen);
+				walkOpen(value, `${path}.${key}.${name}`, seen);
 			}
 		} else {
-			walkStrict(child, `${path}.${key}`, seen);
+			walkOpen(child, `${path}.${key}`, seen);
 		}
 	}
 };
@@ -60,20 +65,21 @@ describe("served schema", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.effect("every tool's input schema sets additionalProperties false at every object level", () =>
+	it.effect("every tool's input schema leaves unmodeled properties open, matching the decoder", () =>
 		Effect.gen(function* () {
-			// Input only (N-15, and this case's own title): an output schema may
-			// legitimately carry an open record — get_concept.outputSchema's
-			// `frontmatter` (`Schema.Record(Schema.String, Schema.Unknown)`) is
-			// exactly that, and the served JSON schema drops `additionalProperties`
-			// entirely for it rather than setting it to `false`
-			// (toJsonSchemaDocument.ts:419-469: a single index signature with no
-			// property signatures folds through `additionalProperties[0]`, and an
-			// empty compiled schema for `Schema.Unknown` is then deleted). Walking
-			// output schemas here would fail against that deliberate openness.
+			// Since effect@4.0.0-rc.113 (#8147) `Schema.toJsonSchemaDocument`
+			// leaves unmodeled object properties open by default, matching the
+			// decoder's `onExcessProperty: "ignore"`, and `Tool` compiles input
+			// schemas with no options — so the closed-world input contract N-15
+			// asked for is no longer expressible from this package. This pins the
+			// served shape so a future upstream flip is caught here rather than by
+			// a client. Input only: an output schema may legitimately carry an open
+			// record — get_concept.outputSchema's `frontmatter`
+			// (`Schema.Record(Schema.String, Schema.Unknown)`) drops
+			// `additionalProperties` entirely.
 			const tools = yield* (yield* open()).listTools;
 			for (const tool of tools) {
-				walkStrict(tool.inputSchema, `${tool.name}.inputSchema`, new Set());
+				walkOpen(tool.inputSchema, `${tool.name}.inputSchema`, new Set());
 			}
 		}).pipe(Effect.scoped),
 	);

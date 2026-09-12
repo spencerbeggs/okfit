@@ -10,19 +10,19 @@ import { humanSync } from "../render/sync.js";
 import { CLI_VERSION } from "../version.js";
 
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context/verify's. */
-const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
+const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
 	Argument.optional,
 	Argument.withDescription("project root to start config discovery from (default: current directory)"),
 );
 
 /** K-1: no `mustExist` — the handler stats it via `provideConfig`. */
-const configFlag = Flag.file("config").pipe(
+const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
 
 /**
- * S-13: a REPEATED `Flag.choice`, not a comma-separated `Flag.string`.
+ * S-13: a REPEATED `Flag.Literals`, not a comma-separated `Flag.String`.
  * `Flag.atLeast(0)` allows zero occurrences (all three modes run) up
  * through any number. Each occurrence is independently validated by the
  * underlying `Choice` primitive, so a bad token (`--only badmode`) is a
@@ -30,28 +30,28 @@ const configFlag = Flag.file("config").pipe(
  * existing 64 remap — no new error class, no hand-built `ShowHelp`
  * (contract §11, S-13, judge note 9).
  *
- * Note: `Flag.choice`'s installed signature (`effect/unstable/cli/Flag.d.ts:161`)
- * takes `(name: string, choices: ReadonlyArray<string>)`, matching
+ * Note: `Flag.Literals`'s installed signature (`effect/unstable/cli/Flag.ts:169-172`)
+ * takes `(name: string, literals: ReadonlyArray<string>)`, matching
  * `formatFlag` below — not the `[value, label]` tuple-pair form
- * `Flag.choiceWithValue` takes. The contract's own `onlyFlag` sketch
+ * `Flag.ChoiceWithValue` takes. The contract's own `onlyFlag` sketch
  * writes tuple pairs; since every pair's two elements are identical
  * (`["generated", "generated"]`, etc.), the plain string-array form
  * below is the same flag, verified against the installed primitive
  * rather than copied byte-for-byte from the contract's prose.
  */
-const onlyFlag = Flag.choice("only", ["generated", "index", "log"] as const).pipe(
+const onlyFlag = Flag.Literals("only", ["generated", "index", "log"] as const).pipe(
 	Flag.atLeast(0),
 	Flag.withDescription(
 		"restrict the run to these modes (repeatable: --only generated --only index); default: all three",
 	),
 );
 
-const dryRunFlag = Flag.boolean("dry-run").pipe(
+const dryRunFlag = Flag.Boolean("dry-run").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription("compute every result and write nothing"),
 );
 
-const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
+const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDefault("human"),
 	Flag.withDescription("output format: human (default) or json"),
 );

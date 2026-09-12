@@ -44,7 +44,16 @@ const PIPELINE_OPTIONS = { contractChanges: CATALOGUED ? ("block-versioned" as c
 
 export const SCHEMA_URL = SchemaVersioning.schemaUrl(BASE_URL, CATALOG_NAME, SCHEMA_SEMVER);
 
-/** Exported so the drift test checks exactly the wiring the generator writes. */
+/**
+ * Exported so the drift test checks exactly the wiring the generator writes.
+ *
+ * TEMPORARY: since effect@4.0.0-rc.113 (#8147) `Schema.toJsonSchemaDocument`
+ * leaves structs open by default and `@effected/schemastore` gives a target no
+ * way to pass `onExcessProperty: "error"` (effected#688), so the written
+ * document currently leaves every declared table open instead of closed
+ * (C-16). Add `jsonSchema: { onExcessProperty: "error" }` here and regenerate
+ * once schemastore ships that field.
+ */
 export const targets: ReadonlyArray<SchemaTarget> = [
 	SchemaTarget.make({
 		schema: okfitConfigDocumentFields,
