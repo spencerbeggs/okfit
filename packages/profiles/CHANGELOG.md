@@ -1,5 +1,24 @@
 # @okfit/profiles
 
+## 0.3.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.3.0 | 0.3.1 |
+| @effected/git | peerDependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/markdown | peerDependency | updated | ^0.9.1 | ^0.10.0 |
+| effect | peerDependency | updated | 4.0.0-rc.112 | 4.0.0-rc.115 |
+
+- Moves to `effect@4.0.0-rc.115`; peer ranges advance with it. [#55][#55]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#55]: https://github.com/spencerbeggs/okfit/pull/55
+
 ## 0.3.0
 
 ### Breaking Changes
