@@ -41,7 +41,7 @@ const anchorForExplicit = (configPath: string, path: Path.Path): string => {
 /**
  * K-12's project root, as amended by K-58 and C1-2, in order:
  *
- * 1. `pathArg`, if given. `Argument.path` has already resolved it absolute.
+ * 1. `pathArg`, if given. `Argument.Path` has already resolved it absolute.
  * 2. otherwise, if `--config` was given: `anchorForExplicit` applied to that
  *    path.
  * 3. otherwise, if a config was discovered by the `"project"` resolver

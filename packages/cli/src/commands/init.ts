@@ -27,10 +27,10 @@ import { displayRoot, human, summary } from "../render/human.js";
 
 /**
  * `[path]` is the PROJECT root (K-2), never the bundle root — identical to
- * `validate`'s own argument (`Argument.path` resolves it absolute at the
+ * `validate`'s own argument (`Argument.Path` resolves it absolute at the
  * parse boundary, satisfying K-50).
  */
-const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
+const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
 	Argument.optional,
 	Argument.withDescription(
 		"project root to start config discovery from (default: current directory); never the bundle root",
@@ -38,18 +38,18 @@ const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
 );
 
 /** K-1: no `mustExist` — existence is checked by `provideConfig`, identical to `validate`'s flag. */
-const configFlag = Flag.file("config").pipe(
+const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
 
 /**
- * K-3: `Flag.string`, deliberately not `Flag.choice` against
+ * K-3: `Flag.String`, deliberately not `Flag.Literals` against
  * `PROFILE_NAMES` (`PROFILES/Profile.ts:10`) — an unrecognised name is a
  * CLI-rendered warning (K-4), matching `Profiles.get`'s own `Option.none`
  * contract (P-38), not a parser-level `CliError.InvalidValue`.
  */
-const profileFlag = Flag.string("profile").pipe(
+const profileFlag = Flag.String("profile").pipe(
 	Flag.optional,
 	Flag.withDescription("profile to scaffold with (default: the config's bundle.profile or software-project)"),
 );

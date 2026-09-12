@@ -16,13 +16,13 @@ import { displayRoot } from "../render/human.js";
 import { humanVerify } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
 
-/** V-6: tolerant id, normalised through `ConceptId.normalize`; never `Argument.path`. */
-const idArg = Argument.string("id").pipe(
+/** V-6: tolerant id, normalised through `ConceptId.normalize`; never `Argument.Path`. */
+const idArg = Argument.String("id").pipe(
 	Argument.withDescription("concept id to verify, with or without a leading slash or trailing .md"),
 );
 
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context's. */
-const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
+const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
 	Argument.optional,
 	Argument.withDescription(
 		"project root to start config discovery from (default: current directory); never the bundle root",
@@ -30,24 +30,24 @@ const pathArg = Argument.path("path", { pathType: "directory" }).pipe(
 );
 
 /** K-1: no `mustExist`; the handler stats it via `provideConfig`. */
-const configFlag = Flag.file("config").pipe(
+const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
 
-/** V-6: `Flag.string`, decoded through core's `Timestamp` — never `Flag.date`, which yields a bare Date. */
-const atFlag = Flag.string("at").pipe(
+/** V-6: `Flag.String`, decoded through core's `Timestamp` — never `Flag.Date`, which yields a bare Date. */
+const atFlag = Flag.String("at").pipe(
 	Flag.optional,
 	Flag.withDescription("ISO 8601 timestamp with an explicit offset to record instead of now"),
 );
 
 /** V-6/V-8: the preview is a flag, never a prompt. */
-const dryRunFlag = Flag.boolean("dry-run").pipe(
+const dryRunFlag = Flag.Boolean("dry-run").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription("print the exact fragment a real run would splice in; write nothing"),
 );
 
-const formatFlag = Flag.choice("format", ["human", "json"] as const).pipe(
+const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDefault("human"),
 	Flag.withDescription("output format: human (default) or json"),
 );

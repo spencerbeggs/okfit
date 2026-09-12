@@ -1686,6 +1686,12 @@ packages:
     cpu: [arm64]
     os: [linux]
 
+  '@vitest-agent/sidecar-linux-x64@2.1.19':
+    resolution: {integrity: sha512-qo/XHnP4bydunFU5bqHwHnXCGWrDt/E2PiIqXsbkgt1lwbXVoRE7ro890ho4LzcvZFCTGtaGnoOvm54lGVs14Q==}
+    engines: {node: '>=24.11.0'}
+    cpu: [x64]
+    os: [linux]
+
   '@vitest-agent/sidecar-win32-x64@2.1.19':
     resolution: {integrity: sha512-3AtHjAsz+METuWAS2DQdV5VUce3NtloOxjO+OYhSChJWGZIms5EgsDKFjE/5g+vFRNWFyQfXZIzFjE0suUHpEA==}
     engines: {node: '>=24.11.0'}
@@ -4835,6 +4841,9 @@ snapshots:
   '@vitest-agent/sidecar-linux-arm64@2.1.19':
     optional: true
 
+  '@vitest-agent/sidecar-linux-x64@2.1.19':
+    optional: true
+
   '@vitest-agent/sidecar-win32-x64@2.1.19':
     optional: true
 
@@ -4842,6 +4851,7 @@ snapshots:
     optionalDependencies:
       '@vitest-agent/sidecar-darwin-arm64': 2.1.19
       '@vitest-agent/sidecar-linux-arm64': 2.1.19
+      '@vitest-agent/sidecar-linux-x64': 2.1.19
       '@vitest-agent/sidecar-win32-x64': 2.1.19
 
   '@vitest-agent/ui@2.4.3(@effected/glob@0.6.0(effect@4.0.0-rc.115))(ink@7.1.1(react@19.3.0))(react@19.3.0)(redis@6.2.1)':

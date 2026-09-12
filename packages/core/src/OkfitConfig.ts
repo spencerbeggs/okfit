@@ -97,7 +97,7 @@ export const StaleAfterDuration: Schema.Codec<Duration.Duration, string> = Schem
 			}),
 		),
 		Schema.decodeTo(Schema.Duration, {
-			decode: SchemaGetter.transformOrFail<Duration.Duration, string>((input, options) =>
+			decode: SchemaGetter.transformEffect<Duration.Duration, string>((input, options) =>
 				Option.match(parseStaleAfter(input), {
 					onNone: () =>
 						Effect.fail(

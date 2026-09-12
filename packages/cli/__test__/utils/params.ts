@@ -30,7 +30,7 @@ export const nameOf = (value: unknown): string => {
 
 /**
  * Unwraps down to the `Single`'s `primitiveType` (contract §6.1: inspecting
- * `--config`'s config object for `mustExist`). The installed `Primitive.path`
+ * `--config`'s config object for `mustExist`). The installed `Primitive.Path`
  * (`Primitive.js`) never serialises `mustExist` onto the returned object
  * regardless of whether it was passed — it is captured only in the parser
  * closure — so `"mustExist" in primitiveTypeOf(flag)` is `false` unconditionally;
