@@ -1,5 +1,31 @@
 # @okfit/mcp
 
+## 0.3.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.0-rc.112 | 4.0.0-rc.115 |
+| @effected/git | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/xdg | dependency | updated | ^0.4.1 | ^0.5.0 |
+| @okfit/core | dependency | updated | 0.3.0 | 0.3.1 |
+| @okfit/engine | dependency | updated | 0.2.0 | 0.2.1 |
+| @okfit/profiles | dependency | updated | 0.3.0 | 0.3.1 |
+| effect | dependency | updated | 4.0.0-rc.112 | 4.0.0-rc.115 |
+
+[#55][#55]
+
+### Other
+
+- Served tool input schemas now declare `additionalProperties: true` on every object with declared properties instead of `false`. Effect's JSON Schema generator leaves unmodeled properties open by default since rc.113, matching the decoder, and `Tool` compiles input schemas without options; unknown keys in a tool call were already ignored at runtime, so only the advertised schema changes. [#55][#55]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#55]: https://github.com/spencerbeggs/okfit/pull/55
+
 ## 0.3.1
 
 ### Bug Fixes
