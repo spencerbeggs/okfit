@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/core",
-	"version": "0.3.1",
+	"version": "0.4.0",
 	"private": true,
 	"description": "Spec-level Open Knowledge Format (OKF) v0.2 schemas, bundle loading, graph, derivation, and validation for Effect.",
 	"keywords": ["okf", "open-knowledge-format", "knowledge", "markdown", "frontmatter", "effect"],

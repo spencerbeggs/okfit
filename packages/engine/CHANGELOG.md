@@ -1,5 +1,36 @@
 # @okfit/engine
 
+## 0.3.0
+
+### Features
+
+- The context envelope's `types[]` entries now carry `required`, `require_verified`, and `fields` — the constraints `validate` enforces for that type — instead of just `name`, `description`, and `guidance`. New exported schemas `ContextField` and `ContextFieldValue` describe one declared field and its enum values.
+
+### Bug Fixes
+
+- `init` now scaffolds `log.md` with a `# Log` title via `Derive.renderLog` instead of a bare entry, so the file's first line is a heading and passes markdownlint's MD041 in a repo that lints the bundle. [#64][#64]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/app | dependency | updated | ^0.16.0 | ^0.16.1 |
+| @effected/config-file | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/git | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/walker | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/xdg | dependency | updated | ^0.5.0 | ^0.5.1 |
+| @effected/yaml | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @okfit/core | dependency | updated | 0.3.1 | 0.4.0 |
+| @okfit/profiles | dependency | updated | 0.3.1 | 0.4.0 |
+
+[#64][#64]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#64]: https://github.com/spencerbeggs/okfit/pull/64
+
 ## 0.2.1
 
 ### Dependencies

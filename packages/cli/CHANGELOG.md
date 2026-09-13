@@ -1,5 +1,32 @@
 # @okfit/cli
 
+## 0.5.0
+
+### Features
+
+- `okfit context`'s `human` output now renders each type's constraints under its bullet: required keys, whether `verified` is required, and its declared fields with their enum values or `path` kind — so the same information a lint error would otherwise be the first place to reveal is visible up front. [#64][#64]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.4.0 | ^0.4.1 |
+| @effected/config-file | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/git | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/walker | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/yaml | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @okfit/core | dependency | updated | 0.3.1 | 0.4.0 |
+| @okfit/engine | dependency | updated | 0.2.1 | 0.3.0 |
+| @okfit/profiles | dependency | updated | 0.3.1 | 0.4.0 |
+
+[#64][#64]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#64]: https://github.com/spencerbeggs/okfit/pull/64
+
 ## 0.4.1
 
 ### Refactoring
