@@ -46,7 +46,7 @@
 		"@okfit/mcp": "workspace:*",
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^4.0.1",
-		"@vitest-agent/plugin": "^3.0.4",
+		"@vitest-agent/plugin": "^4.0.0",
 		"ajv": "^8.20.0",
 		"bats": "^1.13.0",
 		"effect": "catalog:effect",
