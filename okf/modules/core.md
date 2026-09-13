@@ -71,7 +71,7 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-sixteen keys, including `generated_at_drift`, are enumerated in
+seventeen keys, including `generated_at_drift`, are enumerated in
 `okf/interfaces/okfit-config-schema.md`.
 
 ## generated.body_sha256

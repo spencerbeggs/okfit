@@ -69,7 +69,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the sixteen lint keys its own rendered code as the title", () => {
+	it("gives each of the seventeen lint keys its own rendered code as the title", () => {
 		const lint = properties()["lint"]?.["properties"] as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value["title"]]),
@@ -83,6 +83,7 @@ describe("okfitConfigDocumentFields", () => {
 				["family_invalid", "family-invalid"],
 				["computation_runtime_missing", "computation-runtime-missing"],
 				["footnote_source_unknown", "footnote-source-unknown"],
+				["footnote_undefined", "footnote-undefined"],
 				["log_frontmatter", "log-frontmatter"],
 				["actor_prefix_unknown", "actor-prefix-unknown"],
 				["legacy_timestamp", "legacy-timestamp"],

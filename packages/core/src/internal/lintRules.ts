@@ -20,6 +20,8 @@ export interface LintContext {
 export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 
 const FOOTNOTE_RE = /\[\^([^\]\s]+)\]/g;
+/** A footnote definition: the label at a line start, followed by a colon. */
+const FOOTNOTE_DEFINITION_RE = /^\[\^([^\]\s]+)\]:/gm;
 
 const frontmatterRange = (concept: LoadedConcept): DiagnosticRange | undefined => {
 	const node = concept.document.frontmatter;
@@ -152,6 +154,41 @@ export const footnoteSourceUnknown: LintRule = rule("footnote-source-unknown", (
 	return out;
 });
 
+// Markdownlint's MD052, so a bundle passes an ordinary repo's lint (issue #32):
+// `footnote-source-unknown` checks a label against sources[].id and stops there,
+// so a declared source referenced without a `[^id]: ...` line rendered as
+// literal text and validated clean.
+export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, severity) => {
+	const out: Array<Diagnostic> = [];
+	for (const concept of context.bundle.concepts.values()) {
+		const source = concept.document.source;
+		const start = concept.document.frontmatter?.position.end.offset ?? 0;
+		const body = source.slice(start);
+		const defined = new Set(
+			[...body.matchAll(FOOTNOTE_DEFINITION_RE)].flatMap((m) => (m[1] === undefined ? [] : [m[1]])),
+		);
+		const seen = new Set<string>();
+		for (const match of body.matchAll(FOOTNOTE_RE)) {
+			const label = match[1];
+			if (label === undefined || defined.has(label) || seen.has(label)) {
+				continue;
+			}
+			seen.add(label);
+			const range = DiagnosticRange.fromOffset(source, start + match.index, match[0].length);
+			out.push(
+				diagnostic(
+					concept.path,
+					"footnote-undefined",
+					severity,
+					`Footnote "${label}" is referenced but has no [^${label}]: definition`,
+					range,
+				),
+			);
+		}
+	}
+	return out;
+});
+
 export const brokenLinks: LintRule = rule("broken-links", (context, severity) => {
 	const pathOf = new Map([...context.bundle.concepts.values()].map((concept) => [concept.id as string, concept.path]));
 	return context.graph.dangling().map((link) => {
@@ -178,6 +215,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	requireVerifiedUnmet,
 	actorPrefixUnknown,
 	footnoteSourceUnknown,
+	footnoteUndefined,
 	brokenLinks,
 	missingIndex,
 	stale,

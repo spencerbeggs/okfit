@@ -31,6 +31,7 @@ export const LintCode = Schema.Literals([
 	"family-invalid",
 	"computation-runtime-missing",
 	"footnote-source-unknown",
+	"footnote-undefined",
 	"log-frontmatter",
 	"actor-prefix-unknown",
 	"legacy-timestamp",

@@ -333,6 +333,28 @@
 						}
 					}
 				},
+				"footnote_undefined": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "footnote-undefined",
+					"description": "A footnote reference has no matching definition line in the body. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"log_frontmatter": {
 					"type": "string",
 					"enum": [

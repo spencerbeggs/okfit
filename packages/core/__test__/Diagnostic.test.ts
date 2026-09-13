@@ -23,7 +23,7 @@ describe("Diagnostic", () => {
 			assert.strictEqual((yield* Effect.flip(decodeCode("not-a-code")))._tag, "SchemaError");
 		}),
 	);
-	it.effect("decodes all sixteen LintCode members, including generated-at-drift (S-7)", () =>
+	it.effect("decodes all seventeen LintCode members, including generated-at-drift (S-7)", () =>
 		Effect.gen(function* () {
 			const codes = [
 				"broken-links",
@@ -35,6 +35,7 @@ describe("Diagnostic", () => {
 				"family-invalid",
 				"computation-runtime-missing",
 				"footnote-source-unknown",
+				"footnote-undefined",
 				"log-frontmatter",
 				"actor-prefix-unknown",
 				"legacy-timestamp",
@@ -43,7 +44,7 @@ describe("Diagnostic", () => {
 				"walk-unreadable",
 				"generated-at-drift",
 			];
-			assert.strictEqual(codes.length, 16);
+			assert.strictEqual(codes.length, 17);
 			for (const code of codes) {
 				assert.strictEqual(yield* decodeCode(code), code);
 			}

@@ -66,6 +66,7 @@ validation on the file without any further setup.
   | `generated_at_drift` | `warn` |
   | `computation_runtime_missing` | `error` |
   | `footnote_source_unknown` | `warn` |
+  | `footnote_undefined` | `warn` |
   | `log_frontmatter` | `warn` |
   | `actor_prefix_unknown` | `info` |
   | `legacy_timestamp` | `info` |
@@ -162,6 +163,36 @@ writes is a fact about the repository, not about the software-project
 shape." The
 session hook nudges when it is null; a human or a skill-guided edit sets
 it.
+
+## Linting the bundle with markdownlint
+
+If the repository lints markdown, the bundle needs two exemptions from
+markdownlint's defaults, and neither can be satisfied at the source: MD025
+(one top-level heading) counts a concept's frontmatter `title:` as its H1,
+so the body H1 the spec requires reads as a second one, and the spec shapes
+every `index.md` as `# Section` groups, one H1 per concept type. `log.md`
+is fine: `init` and `sync` both start it with `# Log`. Add this to a
+`.markdownlint-cli2.jsonc` at the repository root, adjusting the bundle
+path if `bundle.path` is not `okf`:
+
+```jsonc
+"overrides": [
+ {
+  "combine": "merge",
+  "config": { "MD025": { "front_matter_title": "" } },
+  "filter": ["okf/**/*.md", "!okf/**/index.md"]
+ },
+ {
+  "combine": "merge",
+  "config": { "MD025": false },
+  "filter": ["okf/**/index.md"]
+ }
+]
+```
+
+A repository whose lint config cannot express overrides can drop a nested
+`okf/.markdownlint-cli2.jsonc` carrying `{ "config": { "MD025": false } }`
+instead; the bundle loader ignores non-markdown files.
 
 ## A worked example
 

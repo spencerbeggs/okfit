@@ -253,6 +253,13 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	footnote_undefined: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "footnote-undefined",
+			description: 'A footnote reference has no matching definition line in the body. Default "warn".',
+			default: "warn",
+		}),
+	),
 	log_frontmatter: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "log-frontmatter",
@@ -537,6 +544,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"family-invalid": "family_invalid",
 	"computation-runtime-missing": "computation_runtime_missing",
 	"footnote-source-unknown": "footnote_source_unknown",
+	"footnote-undefined": "footnote_undefined",
 	"log-frontmatter": "log_frontmatter",
 	"actor-prefix-unknown": "actor_prefix_unknown",
 	"legacy-timestamp": "legacy_timestamp",
@@ -557,6 +565,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	family_invalid: "error",
 	computation_runtime_missing: "error",
 	footnote_source_unknown: "warn",
+	footnote_undefined: "warn",
 	log_frontmatter: "warn",
 	actor_prefix_unknown: "info",
 	legacy_timestamp: "info",

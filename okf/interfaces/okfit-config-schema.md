@@ -60,8 +60,8 @@ in.
 
 ## Lint severities
 
-The sixteen default lint codes: `broken_links`, `missing_index`,
-`footnote_source_unknown`, `log_frontmatter`, `config_unknown_key`,
+The seventeen default lint codes: `broken_links`, `missing_index`,
+`footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, and `generated_at_drift` default `warn`; `unknown_type`,
 `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
 `family_invalid`, and `computation_runtime_missing` default `error`;

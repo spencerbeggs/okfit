@@ -123,13 +123,13 @@ describe("files", () => {
 		),
 	);
 
-	it.effect("renders log.md via Derive.renderLogEntry with today's date (K-25)", () =>
+	it.effect("renders log.md via Derive.renderLog: a # Log title, then today's entry (K-25, issue #30)", () =>
 		files(OPTIONS).pipe(
 			Effect.map((entries) => {
 				const log = entries.find((entry) => entry.path === "/tmp/my-repo/okf/log.md");
 				assert.strictEqual(
 					log?.contents,
-					"## 2026-09-05\n\n* Initialized the bundle with the software-project profile\n",
+					"# Log\n\n## 2026-09-05\n\n* Initialized the bundle with the software-project profile\n",
 				);
 				return undefined;
 			}),

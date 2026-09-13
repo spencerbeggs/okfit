@@ -45,8 +45,18 @@ asked, and never treat its existence as a loophole in this rule.
    fails `family-invalid`. Compute the instant from today plus the window.
 6. Attribute a claim with a `[^id]` footnote keyed to `sources[].id`, never
    a `# Citations` list.
-7. `sources[].resource` is required per entry -- a path or a scope
-   descriptor.
+7. `sources[].resource` is required per entry, and it is not only a path
+   in this repository. Four forms are legal and none trips `broken-links`:
+   a relative path (`../../packages/core/src/index.ts`); an absolute URL
+   (`https://github.com/org/.github/blob/main/.github/workflows/release.yml`);
+   a URI with any scheme for something addressable but not fetchable, such
+   as a package (`npm:@savvy-web/silk/commitlint`) or a platform setting
+   (`github:settings/security_analysis`); or a plain scope descriptor for
+   a fact with no artifact at all. For a fact the owner stated, cite it
+   as provenance rather than leaving `sources` empty: `resource:
+   conversation with the repository owner`, `author: human:<id>`, and
+   `last_modified` set to the date it was said. A concept with no
+   `sources` block is indistinguishable from one nobody bothered to cite.
 8. Prefer bundle-relative links; a broken link is tolerated, never "fixed"
    by inventing a target.
 9. Only `index.md` and `log.md` are reserved, at any depth.
