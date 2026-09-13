@@ -1,5 +1,43 @@
 # @okfit/profiles
 
+## 0.5.0
+
+### Features
+
+#### Three new types
+
+- `Consumer` (`consumers/`) — an external application that consumes this repository and thereby scopes it; requires `repository`
+- `Roadmap` (`roadmaps/`) — a gate and the forward-looking work behind it, held as intent rather than as a Decision; optional free-text `gate`
+- `Measurement` (`measurements/`) — a dated empirical result; optional path-kind `justifies` naming the Decisions it supports
+
+#### Three new tags
+
+- `bundle` — install weight and reachability, distinct from runtime `performance`
+
+- `observability` — how the system reports on itself
+
+- `deps` — how third-party dependencies are declared, pinned, and distributed
+
+- `okfit init` scaffolds the three new directories. Existing bundles are unaffected: the types are available, not required. [#90][#90]
+
+### Bug Fixes
+
+- `Derivation.humanActorId` trims the leading and trailing dashes of a name slug with an index walk instead of `/^-+|-+$/`, whose `-+$` alternative backtracked quadratically over a long dash run (CodeQL `js/polynomial-redos`). [#93][#93]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.4.0 | 0.4.1 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#90]: https://github.com/spencerbeggs/okfit/pull/90
+
+[#93]: https://github.com/spencerbeggs/okfit/pull/93
+
 ## 0.4.0
 
 ### Features
