@@ -116,6 +116,29 @@ guidance = "Describe what a reader sees, what they will wrongly conclude, and wh
 description = "A path relative to this concept file to the code, script, or config that produces the misleading signal."
 kind = "path"
 
+[types.Consumer]
+description = "An external application that consumes this repository and thereby scopes it."
+guidance = "Name the surfaces it exercises, where the edge between the two repositories sits, and the open questions it raises, so the boundary of this repository is read from its consumers rather than inferred. Deprecate it when the consumer stops consuming."
+required = ["repository"]
+
+[types.Consumer.fields.repository]
+description = "Where the consumer lives, as a URL or an owner/name pair, since it is outside this repository."
+
+[types.Roadmap]
+description = "A gate and the forward-looking work behind it, held as intent rather than as a Decision."
+guidance = "List the phases and what remains in each, and give it a staleness window so queued work is re-examined instead of read as settled. Deprecate it when the gate holds and write the Decisions the work produced."
+
+[types.Roadmap.fields.gate]
+description = "The observable condition that closes this roadmap, for example a release shipped or a benchmark met."
+
+[types.Measurement]
+description = "A dated empirical result: what was measured, how, and what the numbers ruled in or out."
+guidance = "Record the inputs, the method, and the numbers so a reader can judge whether they still hold, and give it a staleness window because numbers rot. A Decision links to the Measurement that justified it instead of embedding the result in its body."
+
+[types.Measurement.fields.justifies]
+description = "Paths to the Decisions this measurement supports, one entry per Decision."
+kind = "path"
+
 [tags.architecture]
 description = "Concerns the shape of the system rather than one module."
 
@@ -139,6 +162,15 @@ description = "Concerns the unattended path: what runs without a human present, 
 
 [tags.compat]
 description = "Concerns compatibility across versions of the runtime, the package manager, or a dependency."
+
+[tags.bundle]
+description = "Concerns install weight and reachability: tree-shaking, subpath entrypoints, and dependency edges declined for their cost."
+
+[tags.observability]
+description = "Concerns how the system reports on itself: events, metrics, logs, sinks, and artifacts."
+
+[tags.deps]
+description = "Concerns how third-party dependencies are declared, pinned, and distributed."
 ```
 
 Only `concepts`, `types`, and `tags` carry real vocabulary; the literal's `extensions: {}` is `OkfitConfig`'s one required key and never appears on disk, since the codec folds unknown top-level keys into it (P-24: `fields.<k>.kind = "path"` and the `tags` table are vocabulary only — core enforces none of it yet). `Reference.required = ["sources"]` checks presence only: `sources = []` passes, and each entry's shape is core's `family-invalid` (P-23).
@@ -166,6 +198,9 @@ directories:
   limitations/   -> Limitation
   models/        -> DataModel
   gotchas/       -> Gotcha
+  consumers/     -> Consumer
+  roadmaps/      -> Roadmap
+  measurements/  -> Measurement
 ```
 
 Each directory carries its own `index.md`. What `okfit init` writes into these files is the CLI plan's concern, not this package's.

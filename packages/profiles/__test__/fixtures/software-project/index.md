@@ -18,3 +18,6 @@ okf_version: "0.2"
 * [limitations](limitations/index.md) - Known edges of the contracts.
 * [models](models/index.md) - Internal source-of-truth structures.
 * [gotchas](gotchas/index.md) - States that look like one thing and are the opposite.
+* [consumers](consumers/index.md) - External applications that consume this repository.
+* [roadmaps](roadmaps/index.md) - Gates and the forward-looking work behind them.
+* [measurements](measurements/index.md) - Dated empirical results that justified Decisions.

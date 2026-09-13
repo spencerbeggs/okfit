@@ -145,7 +145,7 @@ export const footnoteSourceUnknown: LintRule = rule("footnote-source-unknown", (
 					concept.path,
 					"footnote-source-unknown",
 					severity,
-					`Footnote label "${label}" matches no sources[].id`,
+					`Footnote label "${label}" must equal a sources[].id exactly (declared: ${[...ids].join(", ")})`,
 					range,
 				),
 			);

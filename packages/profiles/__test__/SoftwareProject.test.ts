@@ -65,6 +65,7 @@ describe("softwareProject.config", () => {
 		Effect.sync(() => {
 			const types = config.types ?? {};
 			assert.deepStrictEqual(Object.keys(types).sort(), [
+				"Consumer",
 				"Convention",
 				"DataModel",
 				"Decision",
@@ -72,9 +73,11 @@ describe("softwareProject.config", () => {
 				"Gotcha",
 				"Interface",
 				"Limitation",
+				"Measurement",
 				"Module",
 				"Project",
 				"Reference",
+				"Roadmap",
 				"Runbook",
 			]);
 			assert.isFalse("required" in (types.Project ?? {}));
@@ -82,7 +85,8 @@ describe("softwareProject.config", () => {
 			assert.deepStrictEqual(types.Interface?.required, ["kind"]);
 			assert.deepStrictEqual(types.Reference?.required, ["sources"]);
 			assert.deepStrictEqual(types.DataModel?.required, ["resource"]);
-			for (const name of ["Runbook", "Glossary", "Limitation", "Gotcha"]) {
+			assert.deepStrictEqual(types.Consumer?.required, ["repository"]);
+			for (const name of ["Runbook", "Glossary", "Limitation", "Gotcha", "Roadmap", "Measurement"]) {
 				assert.isFalse("required" in (types[name] ?? {}), `${name} must not require anything beyond concepts.required`);
 			}
 			assert.strictEqual(types.Decision?.require_verified, true);
@@ -96,6 +100,12 @@ describe("softwareProject.config", () => {
 			assert.strictEqual(types.Limitation?.fields?.bounds?.kind, "path");
 			assert.strictEqual(types.DataModel?.fields?.resource?.kind, "path");
 			assert.strictEqual(types.Gotcha?.fields?.resource?.kind, "path");
+			assert.strictEqual(types.Measurement?.fields?.justifies?.kind, "path");
+			for (const name of ["repository"]) {
+				assert.isFalse("kind" in (types.Consumer?.fields?.[name] ?? {}), `${name} is free text, not a path`);
+			}
+			assert.isFalse("kind" in (types.Roadmap?.fields?.gate ?? {}), "gate is free text, not an enum or a path");
+			assert.isFalse("values" in (types.Roadmap?.fields?.gate ?? {}), "gate is free text, not an enum or a path");
 			for (const [name, type] of Object.entries(types)) {
 				assert.notDeepEqual(type.required, [], `${name} must not declare an explicit empty required`);
 			}
@@ -125,6 +135,9 @@ describe("softwareProject.config", () => {
 				"dx",
 				"ci",
 				"compat",
+				"bundle",
+				"observability",
+				"deps",
 			]);
 		}),
 	);
@@ -133,7 +146,7 @@ describe("softwareProject.config", () => {
 		Effect.sync(() => {
 			const { descriptions, guidances } = guidanceStrings();
 			assert.isAbove(descriptions.length, 20);
-			assert.strictEqual(guidances.length, 11);
+			assert.strictEqual(guidances.length, 14);
 			for (const text of [...descriptions, ...guidances]) {
 				assert.strictEqual(text, text.trim(), `trailing whitespace in ${JSON.stringify(text)}`);
 				assert.isFalse(text.includes("\n"), `newline in ${JSON.stringify(text)}`);
@@ -162,6 +175,9 @@ describe("softwareProject.layout", () => {
 				{ directory: "limitations", type: "Limitation" },
 				{ directory: "models", type: "DataModel" },
 				{ directory: "gotchas", type: "Gotcha" },
+				{ directory: "consumers", type: "Consumer" },
+				{ directory: "roadmaps", type: "Roadmap" },
+				{ directory: "measurements", type: "Measurement" },
 			]);
 			const layoutTypes = layout.directories.map((d) => d.type).sort();
 			const configTypes = Object.keys(config.types ?? {})
@@ -179,7 +195,7 @@ describe("OkfitConfig.merge(DEFAULTS, softwareProject.config)", () => {
 			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, config);
 			assert.deepStrictEqual(merged.bundle, { path: "okf", profile: "software-project" });
 			assert.deepStrictEqual(merged.concepts, { required: ["title", "description"], tags: { required: [] } });
-			assert.strictEqual(Object.keys(merged.types ?? {}).length, 11); // (checked) strictEqual for a number
+			assert.strictEqual(Object.keys(merged.types ?? {}).length, 14); // (checked) strictEqual for a number
 			assert.strictEqual(OkfitConfig.severityFor(merged, "unknown-type"), "error");
 			assert.strictEqual(OkfitConfig.severityFor(merged, "required-key-missing"), "error");
 			assert.deepStrictEqual(merged.actors, { humans: [] });

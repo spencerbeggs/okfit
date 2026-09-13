@@ -31,7 +31,7 @@ const writeFileDeep = async (path: string, contents: string): Promise<void> => {
 /**
  * The vocabulary `software-project` declares, rendered through the same
  * `contextEnvelope` the CLI uses, so the expected value tracks the profile
- * (eleven types with their constraints, eight tags) instead of a hand copy
+ * (fourteen types with their constraints, eleven tags) instead of a hand copy
  * that drifts every time the profile grows. `OkfitConfig.merge` mirrors the
  * `DEFAULTS < profile` merge the CLI applies when no config file exists.
  */
