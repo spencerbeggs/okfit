@@ -90,8 +90,8 @@ validation on the file without any further setup.
 
 ## What software-project contributes
 
-The `software-project` profile (`bundle.profile`'s default) sets eleven
-types and eight tags on top of `OkfitConfig.DEFAULTS`, plus
+The `software-project` profile (`bundle.profile`'s default) sets fourteen
+types and eleven tags on top of `OkfitConfig.DEFAULTS`, plus
 `concepts.required = ["title", "description"]`.
 
 Types, one sentence each:
@@ -114,6 +114,12 @@ Types, one sentence each:
   artifacts are derived from."
 - `Gotcha` -- "A state or result that looks like one thing and is the
   opposite: breakage that is transient, or success that did nothing."
+- `Consumer` -- "An external application that consumes this repository and
+  thereby scopes it."
+- `Roadmap` -- "A gate and the forward-looking work behind it, held as
+  intent rather than as a Decision."
+- `Measurement` -- "A dated empirical result: what was measured, how, and
+  what the numbers ruled in or out."
 
 Choosing between the near neighbours: a Limitation is "this cannot do X";
 a Gotcha is "this looks broken (or looks fine) and is the opposite". A
@@ -121,7 +127,11 @@ Runbook is followed in order and has no staleness cadence; a Convention is
 a rule re-examined on one. A DataModel is documented from the maintainer's
 side (what breaks if an entry is wrong); an Interface from the consumer's.
 A Glossary term earns a concept on a collision or a trap, not merely
-because a word is used.
+because a word is used. A Roadmap is queued work behind a gate, not a
+choice made: a draft Decision that decides nothing is a Roadmap. A
+Measurement is the evidence a Decision cites, kept out of the Decision's
+body so it can rot on its own `stale_after`. A Consumer is a downstream
+repository, not a Module of this one.
 
 Each type's full `guidance` string is longer than is worth reproducing here;
 read it from the merged config (`okfit context --format json`, which also
@@ -130,27 +140,36 @@ lists each type's `required` keys, `require_verified`, and declared
 than trusting a paraphrase.
 
 Tags: `architecture`, `testing`, `release`, `security`, `performance`,
-`dx`, `ci`, `compat` -- each a one-sentence `description`, no `guidance`.
+`dx`, `ci`, `compat`, `bundle`, `observability`, `deps` -- each a
+one-sentence `description`, no `guidance`. `bundle` is install weight and
+reachability (tree-shaking, subpath entrypoints, edges declined for their
+cost) where `performance` is runtime cost; `observability` is how the
+system reports on itself; `deps` is how third-party dependencies are
+declared, pinned, and distributed.
 
 Details that surprise:
 
 - `Module` requires `resource` and `kind` (`workspace | package | website |
   plugin | action | harness | config-dependency`); `DataModel` requires
   `resource`; `Interface` requires `kind` (`api | cli | config | wire | mcp
-  | runtime`) -- the other types have no `required` list at all.
+  | runtime`); `Consumer` requires `repository` (free text, a URL or an
+  owner/name pair, since it lives outside this repository) -- the other
+  types have no `required` list at all.
 - `Module` also declares two optional structured fields: `layer` (free
   text, the repository's own layering label such as `L2`) and `pins` (the
-  sibling Module paths this one is exact-version-pinned with).
+  sibling Module paths this one is exact-version-pinned with). `Roadmap`
+  declares an optional free-text `gate`; `Measurement` an optional
+  path-kind `justifies` (the Decisions it supports).
 - `Decision` sets `require_verified = true` -- a Decision is not settled
   until a human verifies it. That is exactly the field `okf-authoring`'s
   rule 2 forbids the agent from writing. A Decision with `status: draft`
   is exempt from `require-verified-unmet`, so a freshly authored bundle
   can validate clean before anyone has run `okfit verify`.
 
-The profile also carries a `layout` (`root.{index,log,project}` plus ten
+The profile also carries a `layout` (`root.{index,log,project}` plus thirteen
 directories: `modules/`, `decisions/`, `conventions/`, `interfaces/`,
 `references/`, `runbooks/`, `glossary/`, `limitations/`, `models/`,
-`gotchas/`) that `okfit init` scaffolds from. That layout is **not** part
+`gotchas/`, `consumers/`, `roadmaps/`, `measurements/`) that `okfit init` scaffolds from. That layout is **not** part
 of `OkfitConfig` itself -- it never appears in a config file.
 
 ## actors.agent must be set for this plugin's agent
@@ -190,9 +209,15 @@ path if `bundle.path` is not `okf`:
 ]
 ```
 
-A repository whose lint config cannot express overrides can drop a nested
-`okf/.markdownlint-cli2.jsonc` carrying `{ "config": { "MD025": false } }`
-instead; the bundle loader ignores non-markdown files.
+Do not reach for a nested `okf/.markdownlint-cli2.jsonc` as a shortcut.
+markdownlint-cli2 does not merge a nested file's `config` block into the
+root's; it replaces it wholesale. A one-line nested file carrying only
+`{ "config": { "MD025": false } }` therefore re-enables every rule the root
+turned off -- in a Silk repository the `changeset-*` custom rules, disabled
+at the root, fire CSH001/CSH002 on every concept. If the root config
+genuinely cannot express `overrides`, the nested file must restate the
+whole root `config` block with `MD025` off; the bundle loader ignores
+non-markdown files, so the nested file itself is harmless to okfit.
 
 ## A worked example
 

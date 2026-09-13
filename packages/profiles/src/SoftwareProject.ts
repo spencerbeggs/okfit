@@ -155,6 +155,39 @@ const config: OkfitConfig = {
 				},
 			},
 		},
+		Consumer: {
+			description: "An external application that consumes this repository and thereby scopes it.",
+			guidance:
+				"Name the surfaces it exercises, where the edge between the two repositories sits, and the open questions it raises, so the boundary of this repository is read from its consumers rather than inferred. Deprecate it when the consumer stops consuming.",
+			required: ["repository"],
+			fields: {
+				repository: {
+					description: "Where the consumer lives, as a URL or an owner/name pair, since it is outside this repository.",
+				},
+			},
+		},
+		Roadmap: {
+			description: "A gate and the forward-looking work behind it, held as intent rather than as a Decision.",
+			guidance:
+				"List the phases and what remains in each, and give it a staleness window so queued work is re-examined instead of read as settled. Deprecate it when the gate holds and write the Decisions the work produced.",
+			fields: {
+				gate: {
+					description:
+						"The observable condition that closes this roadmap, for example a release shipped or a benchmark met.",
+				},
+			},
+		},
+		Measurement: {
+			description: "A dated empirical result: what was measured, how, and what the numbers ruled in or out.",
+			guidance:
+				"Record the inputs, the method, and the numbers so a reader can judge whether they still hold, and give it a staleness window because numbers rot. A Decision links to the Measurement that justified it instead of embedding the result in its body.",
+			fields: {
+				justifies: {
+					description: "Paths to the Decisions this measurement supports, one entry per Decision.",
+					kind: "path",
+				},
+			},
+		},
 	},
 	tags: {
 		architecture: { description: "Concerns the shape of the system rather than one module." },
@@ -166,6 +199,16 @@ const config: OkfitConfig = {
 		ci: { description: "Concerns the unattended path: what runs without a human present, and how it fails." },
 		compat: {
 			description: "Concerns compatibility across versions of the runtime, the package manager, or a dependency.",
+		},
+		bundle: {
+			description:
+				"Concerns install weight and reachability: tree-shaking, subpath entrypoints, and dependency edges declined for their cost.",
+		},
+		observability: {
+			description: "Concerns how the system reports on itself: events, metrics, logs, sinks, and artifacts.",
+		},
+		deps: {
+			description: "Concerns how third-party dependencies are declared, pinned, and distributed.",
 		},
 	},
 	extensions: {},
@@ -185,6 +228,9 @@ const layout: Layout = {
 		{ directory: "limitations", type: "Limitation" },
 		{ directory: "models", type: "DataModel" },
 		{ directory: "gotchas", type: "Gotcha" },
+		{ directory: "consumers", type: "Consumer" },
+		{ directory: "roadmaps", type: "Roadmap" },
+		{ directory: "measurements", type: "Measurement" },
 	],
 };
 

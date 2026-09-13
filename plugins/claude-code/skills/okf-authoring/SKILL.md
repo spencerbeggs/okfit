@@ -44,7 +44,9 @@ asked, and never treat its existence as a loophole in this rule.
    The two fields share a name and not a value type; `90d` on a concept
    fails `family-invalid`. Compute the instant from today plus the window.
 6. Attribute a claim with a `[^id]` footnote keyed to `sources[].id`, never
-   a `# Citations` list.
+   a `# Citations` list. The label must equal the id verbatim: a shortened
+   `[^schema-org]` against `id: schema-org-package-json` fails
+   `footnote-source-unknown` and `footnote-undefined` as a pair.
 7. `sources[].resource` is required per entry, and it is not only a path
    in this repository. Four forms are legal and none trips `broken-links`:
    a relative path (`../../packages/core/src/index.ts`); an absolute URL
@@ -75,10 +77,13 @@ asked, and never treat its existence as a loophole in this rule.
     (`CORE/OkfitConfig.ts:186-213` partitions unknown top-level *config*
     keys into `extensions`; the same tolerance posture applies to concept
     frontmatter).
-17. Quote any YAML scalar that contains a colon followed by a space.
-    `description: Use the node: protocol for built-ins` makes the whole
-    block `frontmatter-unparseable`; write
-    `description: "Use the node: protocol for built-ins"`. Protocol-style
+17. Quote any YAML scalar that contains a colon followed by a space or an
+    embedded double quote. `description: Use the node: protocol for
+    built-ins` and `description: switch from "key: value" to "? key"` each
+    make the whole block `frontmatter-unparseable`; write
+    `description: "Use the node: protocol for built-ins"` and, for a value
+    that itself contains double quotes, single-quote it:
+    `description: 'switch from "key: value" to "? key"'`. Protocol-style
     identifiers (`node:`, `file:`, `workspace:`, `catalog:`, `portal:`)
     are exactly the words a software project's descriptions reach for, so
     quote defensively whenever a value names one.
