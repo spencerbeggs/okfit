@@ -146,13 +146,24 @@ const localPartOf = (email: string | undefined): string | undefined => {
 	return local.length > 0 && !/\s/.test(local) ? local : undefined;
 };
 
+/**
+ * `value` without leading and trailing `-`. An index walk rather than
+ * `/^-+|-+$/`: the `-+$` alternative backtracks from every position of a
+ * long dash run (CodeQL js/polynomial-redos, okfit alert #1), and the input
+ * here is a git author name nobody vetted.
+ */
+const trimDashes = (value: string): string => {
+	let start = 0;
+	let end = value.length;
+	while (start < end && value.charCodeAt(start) === 45) start++;
+	while (end > start && value.charCodeAt(end - 1) === 45) end--;
+	return value.slice(start, end);
+};
+
 /** P-13 step 3: lower-case, runs outside `[a-z0-9._-]` to `-`, leading and trailing `-` trimmed. */
 const slugOf = (name: string | undefined): string | undefined => {
 	if (name === undefined) return undefined;
-	const slug = name
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, "-")
-		.replace(/^-+|-+$/g, "");
+	const slug = trimDashes(name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-"));
 	return slug.length > 0 ? slug : undefined;
 };
 
