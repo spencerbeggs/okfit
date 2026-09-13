@@ -6,25 +6,25 @@ importers:
   .:
     configDependencies:
       '@effected/pnpm-plugin-effect':
-        specifier: 0.8.2
-        version: 0.8.2
+        specifier: 0.8.3
+        version: 0.8.3
       '@savvy-web/pnpm-plugin-silk':
-        specifier: 0.36.0
-        version: 0.36.0
+        specifier: 0.37.0
+        version: 0.37.0
 
 packages:
 
-  '@effected/pnpm-plugin-effect@0.8.2':
-    resolution: {integrity: sha512-i9FWW92WlVXDk9Mlbd2DJC1mtE4P56cH/v+z36N7d/OJsDLjwsnG+nI6WvALVlQmZ/uTMd7rytmAR9MCOIs/CQ==}
+  '@effected/pnpm-plugin-effect@0.8.3':
+    resolution: {integrity: sha512-o19ddEUsrlmDKzg7cobg31Q06RjKJH103DRKzoEGssIK4wt3e4D+eP5Aa0mQk0R4OHI/siCJybanksCvgWIHOQ==}
 
-  '@savvy-web/pnpm-plugin-silk@0.36.0':
-    resolution: {integrity: sha512-k5sHGnJ4SUk1iDzIUV6qWbJAquJl3LIEHKEKPQyrqge5h2Hr3xvCHGH3n0AcBNuGTp4cf4YESrOg0/YKXWhZ1w==}
+  '@savvy-web/pnpm-plugin-silk@0.37.0':
+    resolution: {integrity: sha512-PLAkQmkvC1A4x0/q66Bycb8fk8LgBgh9MLhd6rApPX/FINCyh8Py0HaiV3czTaw3xOM/ehdSN3ab1+X2YujUIw==}
 
 snapshots:
 
-  '@effected/pnpm-plugin-effect@0.8.2': {}
+  '@effected/pnpm-plugin-effect@0.8.3': {}
 
-  '@savvy-web/pnpm-plugin-silk@0.36.0': {}
+  '@savvy-web/pnpm-plugin-silk@0.37.0': {}
 
 ---
 lockfileVersion: '9.0'
@@ -106,7 +106,7 @@ overrides:
   '@effect/vitest>vitest': ^5.0.0
   '@microsoft/api-extractor>typescript': ^6.0.3
 
-pnpmfileChecksum: sha256-osqAsdrOh3ZBz2OcGDLqebz6hkLWGakYMZX6tdoAawk=
+pnpmfileChecksum: sha256-jWTSz96D8cxwXj3TQNavUvz/CF3LVOkPbLM/bD3w41A=
 
 importers:
 
@@ -1486,9 +1486,6 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
-
-  '@types/node@22.20.2':
-    resolution: {integrity: sha512-xlvWf4Vs9n1PEVYwP1n4vvG07M6y8WgvJ2t0vbrWTmijsIHp1cS+uJ2kMIRdY3nHZK0nCYKrPeD171+SzF4/zw==}
 
   '@types/node@26.5.1':
     resolution: {integrity: sha512-CzNm2FezW4VR/LjG6yUdiEgLE/rAQ9Slj5gCu/C2VrdcW7I0ahNZ8DRbHT7zOZ6r3ONgd/bsQIeSaoDGrd1C6g==}
@@ -3037,9 +3034,6 @@ packages:
   unconfig-core@7.5.0:
     resolution: {integrity: sha512-Su3FauozOGP44ZmKdHy2oE6LPjk51M/TRRjHv2HNCWiDvfvCoxC2lno6jevMA91MYAdCdwP05QnWdWpSbncX/w==}
 
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
-
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
@@ -4313,10 +4307,6 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@22.20.2':
-    dependencies:
-      undici-types: 6.21.0
-
   '@types/node@26.5.1':
     dependencies:
       undici-types: 8.9.0
@@ -4327,7 +4317,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.20.2
+      '@types/node': 26.5.1
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -5965,8 +5955,6 @@ snapshots:
     dependencies:
       '@quansync/fs': 1.0.0
       quansync: 1.0.0
-
-  undici-types@6.21.0: {}
 
   undici-types@8.9.0: {}
 
