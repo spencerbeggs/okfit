@@ -43,8 +43,8 @@ export interface RunOptions {
 	 * default severity. Tier 1 (the pure, in-memory body-digest comparison)
 	 * still runs regardless — that is exactly the signal edit time wants,
 	 * at the cost of one sha256 over text already in memory. Defaults to
-	 * `false`; `run` still gates the whole lint call on `severity ===
-	 * "off"`, but no longer on this flag.
+	 * `false`; `run` still gates the whole lint call on
+	 * `severity === "off"`, but no longer on this flag.
 	 */
 	readonly skipProvenance?: boolean;
 }
