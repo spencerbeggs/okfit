@@ -39,7 +39,7 @@ pnpm exec bats plugins/claude-code/__test__/hooks-json.bats
 | Skill | Purpose |
 | --- | --- |
 | `okf-spec` | OKF v0.2 condensed reference: the conformance floor, the frontmatter field table by family, reserved files, the actor convention, and the v0.1-to-v0.2 changes. |
-| `okf-authoring` | Sixteen imperative rules for writing and editing OKF concept files under a config: what is required, what to never touch, and the actor/timestamp conventions. |
+| `okf-authoring` | Seventeen imperative rules for writing and editing OKF concept files under a config: what is required, what to never touch, and the actor/timestamp conventions. |
 | `okf-config` | The okfit config file: discovery order, the TOML schema table by table, lint severities, and what the `software-project` profile contributes. |
 | `okf-context` | CLAUDE.md as a thin router into the bundle, checked against `index.md` — a pointer-coverage checklist. |
 | `okf-finalize` | Branch-end sweep: reconcile touched concepts, run `okfit validate`, regenerate derived files, check CLAUDE.md pointer coverage, and report. |

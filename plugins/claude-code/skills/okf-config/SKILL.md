@@ -45,6 +45,9 @@ validation on the file without any further setup.
   carry) and `tags.required` (array of tags every concept must carry).
 - `[lifecycle]` -- `default_stale_after`, a `StaleAfterDuration`: either
   `^(\d+)(h|d|w)$` or Effect's `"<n> <unit>"` form. `DEFAULTS` is 90 days.
+  This shorthand is a *config* value only: a concept's own `stale_after`
+  frontmatter is an absolute ISO 8601 instant with an explicit offset, and
+  `stale_after: 90d` on a concept fails `family-invalid`.
 - `[actors]` -- `agent` (a branded `Actor`) and `humans` (an array of
   `Actor`). `DEFAULTS` sets only `humans: []`, so `actors.agent` is absent
   unless a config or profile sets it.

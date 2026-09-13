@@ -17,7 +17,7 @@ plugins/claude-code/
   CLAUDE.md                            -- this file
   skills/
     okf-spec/SKILL.md                  -- OKF v0.2 condensed reference
-    okf-authoring/SKILL.md             -- sixteen authoring imperatives
+    okf-authoring/SKILL.md             -- seventeen authoring imperatives
     okf-config/SKILL.md                -- TOML schema by table, profiles
       references/example-config.toml
     okf-context/SKILL.md               -- CLAUDE.md-as-router checklist
