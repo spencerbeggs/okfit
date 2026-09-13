@@ -7,8 +7,8 @@ resource: ../../plugins/claude-code/hooks/hooks.json
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
-  body_sha256: 81f9c843551f3cac516043cc5406c61647aadd6c6516923c9751813d0cb7b1e6
+  at: 2026-09-13T17:11:52Z
+  body_sha256: 380e0f1329f0325fbbc61fde793c6b414036b5e631b26769b3f901883caec8df
 tags:
   - architecture
 ---
