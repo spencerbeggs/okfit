@@ -180,10 +180,12 @@ export const files = (
 			subdirectories,
 		});
 
-		const logText = Derive.renderLogEntry({
-			date: today,
-			items: [`Initialized the bundle with the ${profileName} profile`],
-		});
+		// `Derive.renderLog`, not the bare entry: the `# Log` title is what `okfit
+		// sync` writes on every log rewrite, and a first line that is not an H1
+		// fails markdownlint's MD041 in any repo that lints the bundle (issue #30).
+		const logText = Derive.renderLog([
+			{ date: today, items: [`Initialized the bundle with the ${profileName} profile`] },
+		]);
 
 		const directoryFiles: ReadonlyArray<ScaffoldFile> = layout.directories.map((directory) => ({
 			path: `${bundleRoot}/${directory.directory}/${layout.root.index}`,

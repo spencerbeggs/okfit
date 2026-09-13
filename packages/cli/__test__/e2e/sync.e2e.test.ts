@@ -265,7 +265,7 @@ describe("okfit sync (e2e)", () => {
 			assert.isTrue((await readDecision(cwd, "example")).includes("generated:\n  by: human:ada\nstatus: draft\n"));
 			assert.strictEqual(
 				await readLog(cwd),
-				"## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -330,7 +330,7 @@ describe("okfit sync (e2e)", () => {
 
 			assert.strictEqual(
 				await readLog(cwd),
-				"## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -680,10 +680,9 @@ describe("okfit sync (e2e)", () => {
 	it("--format json prints the SyncEnvelope with three per-mode blocks", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
-			// Zero new commits since `okfit init`: the only deterministic drift
-			// is log.md's own title normalization (see this task's "Known
-			// algorithm facts" note) -- a fully computable envelope with no
-			// extra fixture setup.
+			// Zero new commits since `okfit init`, and init now writes the same
+			// `# Log` title sync would (issue #30), so nothing at all drifts -- a
+			// fully computable envelope with no extra fixture setup.
 			const run = await withServices(runOkfit(["sync", "--dry-run", "--format", "json"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
 			const { okfit_version: reportedVersion, ...envelope } = parseEnvelope(run.stdout);
@@ -701,13 +700,13 @@ describe("okfit sync (e2e)", () => {
 					skipped: [{ id: "project", reason: "generated-missing" }],
 				},
 				index: { selected: true, written: [], unchanged: ["index.md"], skipped: [] },
-				log: { selected: true, written: ["log.md"], unchanged: [], skipped: [] },
+				log: { selected: true, written: [], unchanged: ["log.md"], skipped: [] },
 			});
 
-			// --dry-run: the file on disk is untouched, still headerless.
+			// --dry-run: the file on disk is untouched, still the init scaffold.
 			assert.strictEqual(
 				await readLog(cwd),
-				"## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);

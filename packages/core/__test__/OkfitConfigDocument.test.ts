@@ -4,9 +4,7 @@ import { okfitConfigDocumentFields } from "../src/OkfitConfig.js";
 
 // Since effect@4.0.0-rc.113 (#8147) `toJsonSchemaDocument` leaves structs
 // open by default; `onExcessProperty: "error"` is what closes the declared
-// tables (C-16). The published document cannot pass it through
-// `@effected/schemastore` yet (effected#688), so this proves the schema's own
-// shape rather than what `pnpm generate-schema` currently writes.
+// tables (C-16), the same option lib/scripts/generate-schema.ts passes.
 const document = () =>
 	Schema.toJsonSchemaDocument(okfitConfigDocumentFields, { onExcessProperty: "error" }).schema as Record<
 		string,
@@ -69,7 +67,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the sixteen lint keys its own rendered code as the title", () => {
+	it("gives each of the seventeen lint keys its own rendered code as the title", () => {
 		const lint = properties()["lint"]?.["properties"] as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value["title"]]),
@@ -83,6 +81,7 @@ describe("okfitConfigDocumentFields", () => {
 				["family_invalid", "family-invalid"],
 				["computation_runtime_missing", "computation-runtime-missing"],
 				["footnote_source_unknown", "footnote-source-unknown"],
+				["footnote_undefined", "footnote-undefined"],
 				["log_frontmatter", "log-frontmatter"],
 				["actor_prefix_unknown", "actor-prefix-unknown"],
 				["legacy_timestamp", "legacy-timestamp"],

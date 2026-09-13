@@ -11,7 +11,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { OkfitConfig } from "@okfit/core";
+import { contextEnvelope } from "@okfit/engine";
+import { Profiles } from "@okfit/profiles";
 import { Effect } from "effect";
+import { humanContext } from "../../src/render/context.js";
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
@@ -25,60 +29,27 @@ const writeFileDeep = async (path: string, contents: string): Promise<void> => {
 };
 
 /**
- * The exact six types and five tags `software-project` declares
- * (`packages/profiles/src/SoftwareProject.ts:17-93`), already in the K-17-
- * style sorted order `contextEnvelope` produces (plain code-unit
- * comparison of the type/tag name).
+ * The vocabulary `software-project` declares, rendered through the same
+ * `contextEnvelope` the CLI uses, so the expected value tracks the profile
+ * (eleven types with their constraints, eight tags) instead of a hand copy
+ * that drifts every time the profile grows. `OkfitConfig.merge` mirrors the
+ * `DEFAULTS < profile` merge the CLI applies when no config file exists.
  */
-const SOFTWARE_PROJECT_TYPES = [
-	{
-		name: "Convention",
-		description: "A rule contributors and agents must follow.",
-		guidance:
-			"State the rule as an instruction rather than a description of current behaviour. Give it a staleness window so it is re-examined on a cadence instead of rotting silently.",
-	},
-	{
-		name: "Decision",
-		description: "A choice made, the alternatives rejected, and why.",
-		guidance:
-			"Never edit a stable Decision; deprecate it and write a new one that names it in supersedes. A Decision counts as settled only once a human has verified it.",
-	},
-	{
-		name: "Interface",
-		description: "A contract others depend on.",
-		guidance:
-			"Document the contract from the consumer's side: what stays stable, not how it is built. Point resource at the file, endpoint, or schema the promise lives in.",
-	},
-	{
-		name: "Module",
-		description: "A unit of code with an owner and a boundary.",
-		guidance:
-			"One per workspace package, plugin, website, or action. Link to the Decisions that shaped it and the Conventions it is bound by.",
-	},
-	{
-		name: "Project",
-		description: "The repository's root concept: its purpose, boundaries, and non-goals.",
-		guidance:
-			"Exactly one Project exists and it lives at the bundle root as the project file. State the purpose in one paragraph and list what is deliberately out of scope so a reader never infers boundaries from silence.",
-	},
-	{
-		name: "Reference",
-		description: "Mirrored external material kept under the references directory.",
-		guidance:
-			"Only for material this repository must cite reliably even if the original moves. Every Reference declares where it came from in sources.",
-	},
-];
-
-const SOFTWARE_PROJECT_TAGS = [
-	{ name: "architecture", description: "Concerns the shape of the system rather than one module." },
-	{ name: "performance", description: "Concerns speed, memory, or resource cost and the trade-offs made for them." },
-	{ name: "release", description: "Concerns how changes ship: versioning, changelogs, publishing, and tagging." },
-	{ name: "security", description: "Concerns trust boundaries, secrets, permissions, or attack surface." },
-	{
-		name: "testing",
-		description: "Concerns how the system is verified: strategy, fixtures, and coverage policy.",
-	},
-];
+const EXPECTED_VOCABULARY = contextEnvelope({
+	projectRoot: "",
+	bundleRoot: "",
+	configPath: null,
+	profile: "software-project",
+	profileRequested: null,
+	indexPath: "",
+	indexExists: false,
+	config: OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config),
+});
+const SOFTWARE_PROJECT_TYPES = EXPECTED_VOCABULARY.types;
+const SOFTWARE_PROJECT_TAGS = EXPECTED_VOCABULARY.tags;
+/** The human renderer's type block (bullets plus constraint lines), between the `types:` and `tags:` headers. */
+const HUMAN_LINES = humanContext(EXPECTED_VOCABULARY);
+const HUMAN_TYPE_LINES = HUMAN_LINES.slice(HUMAN_LINES.indexOf("types:") + 1, HUMAN_LINES.indexOf("tags:") - 1);
 
 describe("okfit context: human format", () => {
 	it.effect("prints the roots, profile, index.md status, and the full vocabulary", () =>
@@ -99,7 +70,7 @@ describe("okfit context: human format", () => {
 				"agent: (unset)",
 				"",
 				"types:",
-				...SOFTWARE_PROJECT_TYPES.map((t) => `  ${t.name}  ${t.description}`),
+				...HUMAN_TYPE_LINES,
 				"",
 				"tags:",
 				...SOFTWARE_PROJECT_TAGS.map((t) => `  ${t.name}  ${t.description}`),
@@ -111,30 +82,32 @@ describe("okfit context: human format", () => {
 });
 
 describe("okfit context --format json", () => {
-	it.effect("deep-equals a fully specified envelope: schema 1, config_path null, six types, five tags", () =>
-		Effect.gen(function* () {
-			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+	it.effect(
+		"deep-equals a fully specified envelope: schema 1, config_path null, the profile's types with constraints, and its tags",
+		() =>
+			Effect.gen(function* () {
+				const sandbox = yield* Effect.promise(() => makeSandbox());
+				yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
 
-			const result = yield* runOkfit(["context", "--format", "json"], sandbox);
+				const result = yield* runOkfit(["context", "--format", "json"], sandbox);
 
-			assert.strictEqual(result.exitCode, 0);
-			assert.strictEqual(result.stderr, "");
-			const bundleRoot = join(sandbox.cwd, "okf");
-			assert.deepStrictEqual(JSON.parse(result.stdout), {
-				schema: 1,
-				project_root: sandbox.cwd,
-				bundle_root: bundleRoot,
-				config_path: null,
-				profile: "software-project",
-				profile_requested: null,
-				index_path: join(bundleRoot, "index.md"),
-				index_exists: true,
-				actors: { agent: null },
-				types: SOFTWARE_PROJECT_TYPES,
-				tags: SOFTWARE_PROJECT_TAGS,
-			});
-		}).pipe(Effect.provide(NodeServices.layer)),
+				assert.strictEqual(result.exitCode, 0);
+				assert.strictEqual(result.stderr, "");
+				const bundleRoot = join(sandbox.cwd, "okf");
+				assert.deepStrictEqual(JSON.parse(result.stdout), {
+					schema: 1,
+					project_root: sandbox.cwd,
+					bundle_root: bundleRoot,
+					config_path: null,
+					profile: "software-project",
+					profile_requested: null,
+					index_path: join(bundleRoot, "index.md"),
+					index_exists: true,
+					actors: { agent: null },
+					types: SOFTWARE_PROJECT_TYPES,
+					tags: SOFTWARE_PROJECT_TAGS,
+				});
+			}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
 	it.effect("index_exists is false in a sandbox with a config but no index.md", () =>

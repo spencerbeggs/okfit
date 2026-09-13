@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-13
+
+* Added The software-project vocabulary grows from what migrations could not express
+
 ## 2026-09-12
 
 * Updated okfit config file schema

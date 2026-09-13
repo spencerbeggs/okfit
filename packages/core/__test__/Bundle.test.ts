@@ -39,6 +39,8 @@ describe("Bundle.load", () => {
 			);
 			assert.deepStrictEqual(codes(bundle.diagnostics), [["locked", "walk-unreadable", undefined]]);
 			assert.strictEqual(bundle.diagnostics[0]?.severity, "warning");
+			// The walker now carries the cause (effected#648), so the message names it.
+			assert.match(bundle.diagnostics[0]?.message ?? "", /"locked".*PermissionDenied/);
 		}),
 	);
 	it.effect("frontmatter-missing on a concept; index.md without a fence is normal (D-13)", () =>

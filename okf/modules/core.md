@@ -8,8 +8,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: af1bd882ac0e8e736290fe7c3ed003551be099b0c91311b2a546d551428962f6
+  at: 2026-09-13T03:59:00Z
+  body_sha256: b8ca3a86f7abebfcf5d12bb1a1a32c02d66e51eb007d2b6901ff52db19782010
 ---
 
 # Core
@@ -71,7 +71,7 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-sixteen keys, including `generated_at_drift`, are enumerated in
+seventeen keys, including `generated_at_drift`, are enumerated in
 `okf/interfaces/okfit-config-schema.md`.
 
 ## generated.body_sha256

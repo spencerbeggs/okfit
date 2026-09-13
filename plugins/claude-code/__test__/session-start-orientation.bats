@@ -141,6 +141,22 @@ _run_hook_file() {
 	echo "$ctx" | grep -qF -- "- api: API related"
 }
 
+@test "a type's required keys, verified requirement, and fields render under its bullet (issue #33)" {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" \
+		'[{"name":"Decision","description":"A choice","guidance":null,"required":null,"require_verified":true,"fields":[]},{"name":"Module","description":"A module","guidance":null,"required":["resource","kind"],"require_verified":null,"fields":[{"name":"kind","description":"d","kind":null,"values":[{"name":"package","description":"p"},{"name":"website","description":"w"}]},{"name":"layer","description":"d","kind":null,"values":null},{"name":"resource","description":"d","kind":"path","values":null}]}]' \
+		'[]'
+	run _run_hook '{"cwd":"'"$PROJECT_DIR"'"}'
+	[ "$status" -eq 0 ]
+	local ctx
+	ctx="$(_hook_output | jq -r '.hookSpecificOutput.additionalContext')"
+	echo "$ctx" | grep -qF -- "- Decision: A choice"
+	echo "$ctx" | grep -qF -- "  verified: required"
+	echo "$ctx" | grep -qF -- "  required: resource, kind"
+	echo "$ctx" | grep -qF -- "  fields: kind (package | website), layer, resource (path)"
+	# A type with no constraints renders nothing extra: the two lines are adjacent.
+	echo "$ctx" | grep -A1 -F -- "- Decision: A choice" | tail -1 | grep -qF -- "  verified: required"
+}
+
 @test "index.md content appears verbatim when index_exists is true" {
 	echo "# Bundle index
 

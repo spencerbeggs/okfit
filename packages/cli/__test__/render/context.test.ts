@@ -12,8 +12,17 @@ const fullConfig: OkfitConfig = {
 	actors: { agent: actor("okfit/claude-code") },
 	extensions: {},
 	types: {
-		Module: { description: "A unit of code with an owner and a boundary.", guidance: "One per package." },
-		Decision: { description: "A choice made, the alternatives rejected, and why." },
+		Module: {
+			description: "A unit of code with an owner and a boundary.",
+			guidance: "One per package.",
+			required: ["resource", "kind"],
+			fields: {
+				resource: { description: "Where the code lives.", kind: "path" },
+				kind: { description: "What sort of unit.", values: { website: "A site.", package: "An npm package." } },
+				layer: { description: "Free text." },
+			},
+		},
+		Decision: { description: "A choice made, the alternatives rejected, and why.", require_verified: true },
 	},
 	tags: {
 		testing: { description: "Concerns how the system is verified." },
@@ -107,6 +116,21 @@ describe("humanContext", () => {
 			assert.isTrue(lines.includes("  testing  Concerns how the system is verified."));
 			assert.isTrue(lines.includes("index.md: /repo/okf/index.md (exists)"));
 			assert.isTrue(lines.includes("agent: okfit/claude-code"));
+		}),
+	);
+
+	it.effect("renders each type's constraints under its bullet, and nothing under a type with none (issue #33)", () =>
+		Effect.sync(() => {
+			const built = contextEnvelope({ ...baseInput, config: fullConfig });
+			const lines = humanContext(built);
+			const decision = lines.indexOf("  Decision  A choice made, the alternatives rejected, and why.");
+			const module = lines.indexOf("  Module  A unit of code with an owner and a boundary.");
+			assert.deepStrictEqual(lines.slice(decision + 1, module), ["    verified: required"]);
+			assert.deepStrictEqual(lines.slice(module + 1, module + 3), [
+				"    required: resource, kind",
+				"    fields: kind (website | package), layer, resource (path)",
+			]);
+			assert.strictEqual(lines[module + 3], "");
 		}),
 	);
 });

@@ -60,14 +60,17 @@ describe("internal/walk", () => {
 	it.effect("an unreadable subdirectory is reported, not fatal", () =>
 		Effect.gen(function* () {
 			const result = yield* walk(defaults);
-			assert.deepStrictEqual(result.unreadable, ["locked"]);
+			assert.deepStrictEqual(result.unreadable, [{ path: "locked", reason: "PermissionDenied" }]);
 			assert.isFalse(result.files.some((file) => file.startsWith("locked/")));
 		}).pipe(Effect.provide(faultyPlatform({ ...seed, "/b/locked/z.md": "" }, new Set(["/b/locked"])))),
 	);
 	it.effect("two unreadable subdirectories come back sorted, not in walk order", () =>
 		Effect.gen(function* () {
 			const result = yield* walk(defaults);
-			assert.deepStrictEqual(result.unreadable, ["a/inner", "locked"]);
+			assert.deepStrictEqual(
+				result.unreadable.map((entry) => entry.path),
+				["a/inner", "locked"],
+			);
 		}).pipe(
 			Effect.provide(
 				faultyPlatform({ ...seed, "/b/locked/z.md": "", "/b/a/inner/w.md": "" }, new Set(["/b/locked", "/b/a/inner"])),

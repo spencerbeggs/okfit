@@ -1,4 +1,3 @@
-import { TomlCodec } from "@effected/config-file";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
 import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";
@@ -18,7 +17,7 @@ import {
 	targetPaths,
 } from "@okfit/engine";
 import { GitHistory, Profiles } from "@okfit/profiles";
-import { Console, DateTime, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
+import { Console, DateTime, Effect, FileSystem, Layer, Option, Path } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
@@ -196,15 +195,17 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 				}
 
 				const bundlePath = merged.bundle?.path ?? DEFAULT_BUNDLE_PATH;
-				// ConfigFileShape has no bare `encode`, and `write(value, path)` has no
-				// header hook (ConfigFile.ts:169-213), so the `#:schema` directive is
-				// prepended as text around the same codec pair the service itself uses
-				// (C-10, C-22, J-15). The trade: a ConfigWriteError becomes a
-				// SchemaError | ConfigCodecError | PlatformError, all of which
-				// renderFailure's catch-all already renders.
-				const encoded = yield* Schema.encodeEffect(OkfitConfig)(configValue({ ...scaffoldOptions, bundlePath }));
-				const toml = yield* TomlCodec.stringify(encoded);
-				yield* fs.writeFileString(`${projectRoot}/${CONFIG_RELATIVE_PATH}`, `${SCHEMA_DIRECTIVE}${toml}`);
+				// The `#:schema` directive rides `write`'s `header` option (C-10, C-22;
+				// effected#650): the service emits it verbatim ahead of the document,
+				// and because SCHEMA_DIRECTIVE already ends in a newline nothing is
+				// added between them, so the bytes match the hand-prepended form.
+				yield* configFile.write(
+					configValue({ ...scaffoldOptions, bundlePath }),
+					`${projectRoot}/${CONFIG_RELATIVE_PATH}`,
+					{
+						header: SCHEMA_DIRECTIVE,
+					},
+				);
 
 				const scaffoldFiles = yield* files(scaffoldOptions);
 				for (const file of scaffoldFiles) {

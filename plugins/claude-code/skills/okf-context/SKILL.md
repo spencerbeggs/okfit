@@ -25,14 +25,21 @@ duplicates what a bundle concept already says, replace it with a pointer.
 Run by hand as a step of `okf-finalize`, in both directions:
 
 1. Every bundle path a `CLAUDE.md` names must appear somewhere in
-   `index.md`. Extract the paths with a grep anchored on backtick-quoted
-   text, run from the repo root, so a bare `okf/` substring inside the
-   upstream spec URL (the OKF link in `CLAUDE.md`'s opening paragraph) never
-   counts as a pointer:
+   `index.md`. A pointer takes one of three spellings -- backtick-quoted
+   (`` `okf/modules/x.md` ``), Claude Code's `@` import form
+   (`@./okf/modules/x.md` or `@okf/modules/x.md`), or a relative
+   `./okf/...` -- so extract with a grep that accepts every spelling but
+   anchors `okf/` on a backtick, `@`, `./`, a space, or a line start. That
+   keeps the bare `okf/` substring inside the upstream spec URL (the OKF
+   link in `CLAUDE.md`'s opening paragraph) from counting as a pointer.
+   Run it from the repo root:
 
    ```sh
-   grep -rno '`okf/[^`]\+`' --include='CLAUDE.md' .
+   grep -rnoE '(^|[` (])(@\.?/?|\./)?okf/[^` )]+' --include='CLAUDE.md' .
    ```
+
+   A grep anchored only on the backtick (`` `okf/ ``) misses every `@`
+   pointer; on a router written in that form it found 3 of 41.
 
    On this repo that reports 8 pointers, every one already listed in
    `index.md` somewhere in the bundle (8/8): `okf/project.md`,

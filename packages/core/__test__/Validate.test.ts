@@ -10,6 +10,8 @@ const platform = platformFor("lint/bundle", "/repo/bundle");
 const loadBundle = Effect.provide(Bundle.load({ root: "/repo/bundle" }), platform);
 const escapePlatform = platformFor("lint/escape-bundle", "/repo/escape-bundle");
 const loadEscapeBundle = Effect.provide(Bundle.load({ root: "/repo/escape-bundle" }), escapePlatform);
+const draftPlatform = platformFor("lint/draft-bundle", "/repo/draft-bundle");
+const loadDraftBundle = Effect.provide(Bundle.load({ root: "/repo/draft-bundle" }), draftPlatform);
 const now = DateTime.makeUnsafe("2026-09-04T00:00:00Z");
 
 const vocabConfig: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
@@ -73,6 +75,7 @@ describe("Validate", () => {
 				["require-verified-unmet", "decisions/adr-1.md", "error"],
 				["actor-prefix-unknown", "decisions/adr-1.md", "info"],
 				["footnote-source-unknown", "decisions/adr-1.md", "warning"],
+				["footnote-undefined", "decisions/adr-1.md", "warning"],
 				["broken-links", "modules/web.md", "warning"],
 				["missing-index", "modules/index.md", "warning"],
 				["stale", "decisions/adr-1.md", "info"],
@@ -90,6 +93,9 @@ describe("Validate", () => {
 					? undefined
 					: adr.document.source.slice(footnote.offset, footnote.offset + footnote.length);
 			assert.strictEqual(span, "[^unknown]");
+			const undefinedRange = byCode("footnote-undefined")[0]?.range;
+			assert.match(byCode("footnote-undefined")[0]?.message ?? "", /"unknown".*no \[\^unknown\]: definition/);
+			assert.deepStrictEqual(undefinedRange, footnote);
 			assert.isDefined(byCode("broken-links")[0]?.range);
 			assert.isDefined(byCode("unknown-type")[0]?.range);
 			assert.isUndefined(byCode("missing-index")[0]?.range);
@@ -102,6 +108,7 @@ describe("Validate", () => {
 			assert.deepStrictEqual(summary(Validate.lint(bundle, OkfitConfig.DEFAULTS)), [
 				["actor-prefix-unknown", "decisions/adr-1.md", "info"],
 				["footnote-source-unknown", "decisions/adr-1.md", "warning"],
+				["footnote-undefined", "decisions/adr-1.md", "warning"],
 				["broken-links", "modules/web.md", "warning"],
 				["missing-index", "modules/index.md", "warning"],
 			]);
@@ -117,6 +124,29 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect("require-verified-unmet skips a draft concept and still fires on a stable one (issue #31)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadDraftBundle;
+			assert.deepStrictEqual(summary(Validate.lint(bundle, vocabConfig)), [
+				["config-unknown-key", "", "warning"],
+				["require-verified-unmet", "decisions/settled.md", "error"],
+				["footnote-undefined", "decisions/settled.md", "warning"],
+			]);
+		}),
+	);
+
+	it.effect(
+		"footnote-undefined fires on a declared source with no definition line, where footnote-source-unknown is silent (issue #32)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* loadDraftBundle;
+				const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
+				assert.deepStrictEqual(summary(lint), [["footnote-undefined", "decisions/settled.md", "warning"]]);
+				assert.match(lint[0]?.message ?? "", /"spec"/);
+				assert.isDefined(lint[0]?.range);
+			}),
+	);
+
 	it.effect("off silences every rule", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadBundle;
@@ -129,6 +159,7 @@ describe("Validate", () => {
 					require_verified_unmet: "off",
 					actor_prefix_unknown: "off",
 					footnote_source_unknown: "off",
+					footnote_undefined: "off",
 					broken_links: "off",
 					missing_index: "off",
 					stale: "off",

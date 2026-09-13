@@ -1,11 +1,46 @@
 import type { OkfitConfig } from "@okfit/core";
 import { Schema } from "effect";
 
-/** One `types[]` entry (M-15). @public */
+/** One enumerated value of a `fields[]` entry. @public */
+export const ContextFieldValue = Schema.Struct({
+	name: Schema.String,
+	description: Schema.String,
+});
+/** @public */
+export type ContextFieldValue = typeof ContextFieldValue.Type;
+
+/**
+ * One `types[].fields[]` entry: a `[types.<Name>.fields.<key>]` declaration
+ * flattened for a consumer. `values` keeps the declaration's own order (it
+ * is a vocabulary, and the config author chose the order); `kind` is
+ * `"path"` or `null`.
+ *
+ * @public
+ */
+export const ContextField = Schema.Struct({
+	name: Schema.String,
+	description: Schema.String,
+	kind: Schema.NullOr(Schema.Literal("path")),
+	values: Schema.NullOr(Schema.Array(ContextFieldValue)),
+});
+/** @public */
+export type ContextField = typeof ContextField.Type;
+
+/**
+ * One `types[]` entry (M-15). `required`, `require_verified` and `fields`
+ * carry the constraints `validate` enforces (issue #33): without them an
+ * agent learns that `Interface` exists but not that it requires `kind`, nor
+ * which values `kind` accepts, until a lint error says so.
+ *
+ * @public
+ */
 export const ContextType = Schema.Struct({
 	name: Schema.String,
 	description: Schema.NullOr(Schema.String),
 	guidance: Schema.NullOr(Schema.String),
+	required: Schema.NullOr(Schema.Array(Schema.String)),
+	require_verified: Schema.NullOr(Schema.Boolean),
+	fields: Schema.Array(ContextField),
 });
 /** @public */
 export type ContextType = typeof ContextType.Type;
@@ -91,6 +126,19 @@ export const contextEnvelope = (input: {
 			name,
 			description: decl.description ?? null,
 			guidance: decl.guidance ?? null,
+			required: decl.required ?? null,
+			require_verified: decl.require_verified ?? null,
+			fields: Object.entries(decl.fields ?? {})
+				.map(([fieldName, field]) => ({
+					name: fieldName,
+					description: field.description,
+					kind: field.kind ?? null,
+					values:
+						field.values === undefined
+							? null
+							: Object.entries(field.values).map(([valueName, description]) => ({ name: valueName, description })),
+				}))
+				.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
 		}))
 		.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
 	tags: Object.entries(input.config.tags ?? {})

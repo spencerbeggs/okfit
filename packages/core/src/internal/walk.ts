@@ -1,8 +1,8 @@
 import { GlobPattern, GlobPatternOptions } from "@effected/glob";
 import type { DescendError } from "@effected/walker";
 import { descend } from "@effected/walker";
-import type { Path, PlatformError } from "effect";
-import { Effect, FileSystem } from "effect";
+import type { FileSystem, Path, PlatformError } from "effect";
+import { Effect } from "effect";
 
 /**
  * Walker's default prune list (`walker/src/Descend.ts:64`), kept for D-8.
@@ -31,14 +31,25 @@ export interface WalkOptions {
 }
 
 /**
+ * One subdirectory whose listing failed, with the `PlatformError` reason the
+ * walker recorded (`PermissionDenied`, `BadResource`, ...); never `NotFound`.
+ *
+ * @public
+ */
+export interface UnreadableDirectory {
+	readonly path: string;
+	readonly reason: string;
+}
+
+/**
  * Every file below the root and every subdirectory whose listing failed with a
- * non-`NotFound` reason; both posix-relative and sorted.
+ * non-`NotFound` reason; both posix-relative and sorted by path.
  *
  * @public
  */
 export interface WalkResult {
 	readonly files: ReadonlyArray<string>;
-	readonly unreadable: ReadonlyArray<string>;
+	readonly unreadable: ReadonlyArray<UnreadableDirectory>;
 }
 
 /**
@@ -65,14 +76,13 @@ export const walk = (
 			prune: [...options.prune],
 			onUnreadable: "record",
 		});
-		if (result.unreadable.includes("")) {
-			// W-2: "record" never fails an unreadable root; re-read it once to surface the
-			// real `PlatformError`, or (on a race) drop the sentinel and treat it as empty.
-			const fs = yield* FileSystem.FileSystem;
-			yield* fs.readDirectory(options.root);
-			const unreadable = result.unreadable.filter((entry) => entry !== "").sort();
-			return { files: result.matches, unreadable };
+		const root = result.unreadable.find((entry) => entry.path === "");
+		if (root !== undefined) {
+			// W-2: "record" never fails an unreadable root; surface its recorded `PlatformError`.
+			return yield* Effect.fail(root.cause);
 		}
-		const unreadable = [...result.unreadable].sort();
+		const unreadable = result.unreadable
+			.map((entry) => ({ path: entry.path, reason: entry.cause.reason._tag }))
+			.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 		return { files: result.matches, unreadable };
 	});

@@ -35,7 +35,7 @@
 					]
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Bundle location and profile",
 			"description": "Where the OKF bundle lives and which profile merges under it."
 		},
@@ -64,10 +64,10 @@
 							}
 						}
 					},
-					"additionalProperties": true
+					"additionalProperties": false
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Concept-level requirements",
 			"description": "Requirements every concept in the bundle must satisfy, beyond the spec's own."
 		},
@@ -87,7 +87,7 @@
 					]
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Concept lifecycle",
 			"description": "Staleness policy for the bundle."
 		},
@@ -128,7 +128,7 @@
 					}
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Actor identities",
 			"description": "Who authors and verifies concepts in this bundle."
 		},
@@ -254,7 +254,7 @@
 						"error"
 					],
 					"title": "require-verified-unmet",
-					"description": "A concept whose type sets require_verified = true carries no verified entry. Default \"error\".",
+					"description": "A concept whose type sets require_verified = true carries no verified entry and is not a draft. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {
@@ -321,6 +321,28 @@
 					],
 					"title": "footnote-source-unknown",
 					"description": "A footnote's source does not resolve. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"footnote_undefined": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "footnote-undefined",
+					"description": "A footnote reference has no matching definition line in the body. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -488,7 +510,7 @@
 					}
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Lint severities",
 			"description": "Per-code severity overrides. Any key omitted keeps its default."
 		},
@@ -514,7 +536,7 @@
 					},
 					"require_verified": {
 						"type": "boolean",
-						"description": "Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`.",
+						"description": "Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`; a concept with status draft is exempt.",
 						"default": false
 					},
 					"fields": {
@@ -547,14 +569,14 @@
 							"required": [
 								"description"
 							],
-							"additionalProperties": true,
+							"additionalProperties": false,
 							"title": "Extension field",
 							"description": "One `[types.<Name>.fields.<key>]` declaration."
 						},
 						"description": "Extension fields this type's frontmatter may declare."
 					}
 				},
-				"additionalProperties": true,
+				"additionalProperties": false,
 				"title": "Concept type",
 				"description": "One `[types.<Name>]` declaration."
 			},
@@ -571,7 +593,7 @@
 						"description": "One-sentence summary of what applying this tag means."
 					}
 				},
-				"additionalProperties": true,
+				"additionalProperties": false,
 				"title": "Tag",
 				"description": "One `[tags.<name>]` declaration."
 			},

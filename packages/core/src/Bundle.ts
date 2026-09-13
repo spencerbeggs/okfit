@@ -288,12 +288,12 @@ export class Bundle {
 				maxDepth,
 				prune: new Set(options.prune ?? DEFAULT_PRUNE),
 			}).pipe(Effect.mapError(toLoadError));
-			const diagnostics: Array<Diagnostic> = walked.unreadable.map((dir) =>
+			const diagnostics: Array<Diagnostic> = walked.unreadable.map(({ path: dir, reason }) =>
 				diagnostic(
 					dir,
 					"walk-unreadable",
 					"warning",
-					`directory "${dir}" could not be read; its files are not part of the bundle`,
+					`directory "${dir}" could not be read (${reason}); its files are not part of the bundle`,
 				),
 			);
 			const concepts = new Map<ConceptId, LoadedConcept>();

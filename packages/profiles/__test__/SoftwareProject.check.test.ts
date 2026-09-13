@@ -69,17 +69,22 @@ describe("software-project clean fixture", () => {
 		() =>
 			Effect.gen(function* () {
 				const bundle = yield* load("software-project");
-				assert.strictEqual(bundle.files.length, 13);
-				assert.strictEqual(bundle.concepts.size, 6);
-				assert.strictEqual(bundle.indexes.size, 6);
+				assert.strictEqual(bundle.files.length, 23);
+				assert.strictEqual(bundle.concepts.size, 11);
+				assert.strictEqual(bundle.indexes.size, 11);
 				assert.strictEqual(bundle.logs.size, 1);
 				assert.deepStrictEqual(bundle.directories, [
 					"",
 					"conventions",
 					"decisions",
+					"glossary",
+					"gotchas",
 					"interfaces",
+					"limitations",
+					"models",
 					"modules",
 					"references",
+					"runbooks",
 				]);
 				assert.strictEqual(bundle.indexes.get("")?.okfVersion, "0.2");
 				const report = Validate.all(bundle, merged);

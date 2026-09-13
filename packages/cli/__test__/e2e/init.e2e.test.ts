@@ -77,7 +77,7 @@ describe("okfit init", () => {
 		}
 
 		const log = await readFile(`${cwd}/okf/log.md`, "utf8");
-		assert.strictEqual(log, "## 2026-09-05\n\n* Initialized the bundle with the software-project profile\n");
+		assert.strictEqual(log, "# Log\n\n## 2026-09-05\n\n* Initialized the bundle with the software-project profile\n");
 
 		const index = await readFile(`${cwd}/okf/index.md`, "utf8");
 		assert.strictEqual(
@@ -95,9 +95,14 @@ describe("okfit init", () => {
 				"",
 				"* [conventions](conventions/index.md)",
 				"* [decisions](decisions/index.md)",
+				"* [glossary](glossary/index.md)",
+				"* [gotchas](gotchas/index.md)",
 				"* [interfaces](interfaces/index.md)",
+				"* [limitations](limitations/index.md)",
+				"* [models](models/index.md)",
 				"* [modules](modules/index.md)",
 				"* [references](references/index.md)",
+				"* [runbooks](runbooks/index.md)",
 				"",
 			].join("\n"),
 		);
@@ -131,6 +136,11 @@ describe("okfit init", () => {
 				"  okf/conventions/index.md",
 				"  okf/interfaces/index.md",
 				"  okf/references/index.md",
+				"  okf/runbooks/index.md",
+				"  okf/glossary/index.md",
+				"  okf/limitations/index.md",
+				"  okf/models/index.md",
+				"  okf/gotchas/index.md",
 				"Nothing was written.",
 				"",
 			].join("\n"),

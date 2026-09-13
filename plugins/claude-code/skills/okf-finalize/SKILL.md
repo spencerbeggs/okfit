@@ -22,7 +22,7 @@ for the simplicity of one agent running one skill straight through.
 
 1. List the concepts the branch's diff touches: `git diff` against the base
    branch, restricted to bundle paths.
-2. Reconcile each touched concept against `okf-authoring`'s sixteen rules.
+2. Reconcile each touched concept against `okf-authoring`'s seventeen rules.
 3. Run `validate_bundle` — or `okfit validate --format json` when the MCP
    tools are unavailable — and fix what it reports.
 4. Run `okfit sync` (or `okfit sync --dry-run` first to inspect) to

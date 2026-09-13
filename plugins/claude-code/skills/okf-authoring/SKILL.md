@@ -1,7 +1,7 @@
 ---
 name: okf-authoring
 description: >-
-  Sixteen imperative rules for writing and editing OKF concept files under a
+  Seventeen imperative rules for writing and editing OKF concept files under a
   config: what is required, what to never touch, the actor and timestamp
   conventions, and where core's leniency differs from the spec's prose. Use
   when creating, editing, or reviewing a concept file's frontmatter or body
@@ -26,7 +26,7 @@ already carries today.
 runs it directly, from their own shell. Never run it yourself, even when
 asked, and never treat its existence as a loophole in this rule.
 
-## The sixteen rules
+## The seventeen rules
 
 1. Only `type` is required; never invent required fields beyond what the
    active profile and config declare (`concepts.required` --
@@ -38,10 +38,25 @@ asked, and never treat its existence as a loophole in this rule.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
+   That includes a concept's `stale_after`: on a concept it is an absolute
+   ISO 8601 instant (`2026-12-11T00:00:00Z`), never the `90d` duration
+   shorthand that the config's `[lifecycle].default_stale_after` takes.
+   The two fields share a name and not a value type; `90d` on a concept
+   fails `family-invalid`. Compute the instant from today plus the window.
 6. Attribute a claim with a `[^id]` footnote keyed to `sources[].id`, never
    a `# Citations` list.
-7. `sources[].resource` is required per entry -- a path or a scope
-   descriptor.
+7. `sources[].resource` is required per entry, and it is not only a path
+   in this repository. Four forms are legal and none trips `broken-links`:
+   a relative path (`../../packages/core/src/index.ts`); an absolute URL
+   (`https://github.com/org/.github/blob/main/.github/workflows/release.yml`);
+   a URI with any scheme for something addressable but not fetchable, such
+   as a package (`npm:@savvy-web/silk/commitlint`) or a platform setting
+   (`github:settings/security_analysis`); or a plain scope descriptor for
+   a fact with no artifact at all. For a fact the owner stated, cite it
+   as provenance rather than leaving `sources` empty: `resource:
+   conversation with the repository owner`, `author: human:<id>`, and
+   `last_modified` set to the date it was said. A concept with no
+   `sources` block is indistinguishable from one nobody bothered to cite.
 8. Prefer bundle-relative links; a broken link is tolerated, never "fixed"
    by inventing a target.
 9. Only `index.md` and `log.md` are reserved, at any depth.
@@ -60,6 +75,13 @@ asked, and never treat its existence as a loophole in this rule.
     (`CORE/OkfitConfig.ts:186-213` partitions unknown top-level *config*
     keys into `extensions`; the same tolerance posture applies to concept
     frontmatter).
+17. Quote any YAML scalar that contains a colon followed by a space.
+    `description: Use the node: protocol for built-ins` makes the whole
+    block `frontmatter-unparseable`; write
+    `description: "Use the node: protocol for built-ins"`. Protocol-style
+    identifiers (`node:`, `file:`, `workspace:`, `catalog:`, `portal:`)
+    are exactly the words a software project's descriptions reach for, so
+    quote defensively whenever a value names one.
 
 ## generated.at and generated.body_sha256
 

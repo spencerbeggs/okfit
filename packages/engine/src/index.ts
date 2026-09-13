@@ -22,7 +22,14 @@ export {
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, SCHEMA_DIRECTIVE, configValue, files, targetPaths } from "./init/scaffold.js";
 export { OkfitPlatform } from "./platform.js";
-export { ContextEnvelope, ContextTag, ContextType, contextEnvelope } from "./render/context.js";
+export {
+	ContextEnvelope,
+	ContextField,
+	ContextFieldValue,
+	ContextTag,
+	ContextType,
+	contextEnvelope,
+} from "./render/context.js";
 export type { Tally } from "./render/exit.js";
 export { forDiagnostics, tally } from "./render/exit.js";
 export { JsonDiagnostic, JsonEnvelope, JsonErrorEnvelope, JsonSummary, json, jsonError } from "./render/json.js";
