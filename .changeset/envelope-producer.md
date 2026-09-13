@@ -1,6 +1,5 @@
 ---
 "@okfit/engine": minor
-"okfit": patch
 "@okfit/mcp": patch
 ---
 

@@ -1,5 +1,4 @@
 ---
-"okfit": minor
 "@okfit/engine": minor
 ---
 
