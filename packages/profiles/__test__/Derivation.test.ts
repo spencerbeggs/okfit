@@ -397,6 +397,16 @@ describe("Derivation.humanActorId (P-13, P-14)", () => {
 			Option.some("human:ada-lovelace"),
 		);
 	});
+	it("trims a long run of dashes in linear time (CodeQL js/polynomial-redos)", () => {
+		const dashes = "-".repeat(50_000);
+		const started = performance.now();
+		assert.deepStrictEqual(
+			Derivation.humanActorId({ name: `${dashes}ada-x${dashes}` }, []),
+			Option.some("human:ada-x"),
+		);
+		assert.deepStrictEqual(Derivation.humanActorId({ name: dashes }, []), Option.none());
+		assert.ok(performance.now() - started < 500, "dash trimming must not backtrack polynomially");
+	});
 	it("is none when neither name nor email yields a candidate", () => {
 		assert.deepStrictEqual(Derivation.humanActorId({}, [actor("human:spencer")]), Option.none());
 		assert.deepStrictEqual(Derivation.humanActorId({ name: "!!!", email: "@example.com" }, []), Option.none());
