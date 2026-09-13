@@ -7,8 +7,8 @@ resource: ../../plugins/claude-code/hooks/hooks.json
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T14:33:59Z
-  body_sha256: 81f9c843551f3cac516043cc5406c61647aadd6c6516923c9751813d0cb7b1e6
+  at: 2026-09-13T17:11:52Z
+  body_sha256: 380e0f1329f0325fbbc61fde793c6b414036b5e631b26769b3f901883caec8df
 tags:
   - architecture
 ---
@@ -41,8 +41,14 @@ stop-and-fix signal, never a prevention. For a path under the bundle root,
 it runs `okfit validate <project_root> --format json --skip-provenance`
 on the whole bundle, filters the diagnostics to the edited file, turns a
 `core.conformance` hit into `{"decision": "block", ...}`, and turns a
-`core.lint` hit into a non-blocking warning. A path outside the bundle
-root never reaches `okfit validate` at all
+`core.lint` hit into a non-blocking warning. One check reads the written
+file itself: when the config sets `actors.agent`, a concept file (never
+`index.md` or `log.md`) whose frontmatter has no `generated.by` blocks on
+`Write` and warns on `Edit`, with the exact `by:` value to add in the
+message ([#74](https://github.com/spencerbeggs/okfit/issues/74): the
+okf-authoring rule alone reached 109 of 268 concepts under one brief, and
+this hook is the one place that knows the write came from the agent). A
+path outside the bundle root never reaches `okfit validate` at all
 (`plugins/claude-code/README.md:76-87`,
 `plugins/claude-code/CLAUDE.md:79-86`). The drift lint costs a git walk
 per concept; measured on this bundle it took validate from about 0.5 s to

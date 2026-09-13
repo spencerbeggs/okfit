@@ -25,6 +25,7 @@ describe("json", () => {
 		Effect.sync(() => {
 			const built = json({
 				okfitVersion: "0.1.0",
+				producer: "okfit",
 				okfVersion: "0.2",
 				root: "/repo/okf",
 				profile: "software-project",
@@ -35,6 +36,7 @@ describe("json", () => {
 			assert.deepStrictEqual(built, {
 				schema: 1,
 				okfit_version: "0.1.0",
+				producer: "okfit",
 				okf_version: "0.2",
 				root: "/repo/okf",
 				profile: "software-project",
@@ -73,6 +75,7 @@ describe("json", () => {
 		Effect.sync(() => {
 			const built = json({
 				okfitVersion: "0.1.0",
+				producer: "okfit",
 				okfVersion: "0.2",
 				root: "/repo/okf",
 				profile: null,
@@ -88,6 +91,7 @@ describe("json", () => {
 		Effect.sync(() => {
 			const built = json({
 				okfitVersion: "0.1.0",
+				producer: "okfit",
 				okfVersion: "0.2",
 				root: "/repo/okf",
 				profile: null,
@@ -104,6 +108,7 @@ describe("json", () => {
 		Effect.sync(() => {
 			const built = json({
 				okfitVersion: "0.1.0",
+				producer: "okfit",
 				okfVersion: "0.2",
 				root: "/repo/okf",
 				profile: null,

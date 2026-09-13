@@ -81,7 +81,9 @@ something these two caps guarantee against on their own.
 fires before the edited file exists on disk, and `okfit validate` has
 nothing to read at that point. The write has already landed by the time
 `PostToolUse` fires, so a block from that hook is a stop-and-fix signal, not
-a prevention. Both hook `command` entries in `hooks.json` invoke their
+a prevention. Besides the validate diagnostics, the hook reads the written
+file and blocks a `Write` (warns an `Edit`) of a concept with no
+`generated.by` when the config sets `actors.agent`. Both hook `command` entries in `hooks.json` invoke their
 script as `bash "${CLAUDE_PLUGIN_ROOT}/hooks/..."` rather than executing it
 directly, because the repo strips executable bits on commit.
 

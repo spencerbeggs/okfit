@@ -90,6 +90,7 @@ export const validateCommand = Command.make(
 				if (input.format === "json") {
 					const envelope = json({
 						okfitVersion: CLI_VERSION,
+						producer: "okfit",
 						okfVersion: merged.okf_version ?? OKF_SPEC_VERSION,
 						root: bundleRoot,
 						profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),

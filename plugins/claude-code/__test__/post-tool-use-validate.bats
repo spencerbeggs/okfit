@@ -319,6 +319,98 @@ _run_hook_file() {
 	_hook_output | jq -e '.reason | startswith("modules/example file.md:")'
 }
 
+# okfit #74: the okf-docs agent stamped generated.by on 109 of 268 concepts
+# under one brief, so the rule in okf-authoring is not enough on its own.
+# This hook is the one place that knows a write came from the agent, and
+# `okfit context` already carries actors.agent, so it checks the bytes on
+# disk after a clean validate pass. A concept file with no generated.by
+# blocks on Write (the agent authored the whole file) and warns on Edit
+# (rule 3 says stamp meaningful changes, and a typo fix to a human-authored
+# concept must not be force-attributed).
+
+# _bundle_with concept_relpath frontmatter_body — a fake project whose okf/
+# holds one concept file with the given frontmatter; echoes the project dir.
+_bundle_with() {
+	local rel="$1" fm="$2"
+	local proj="$STUB_DIR/proj"
+	mkdir -p "$proj/okf/$(dirname "$rel")"
+	printf -- '---\n%s\n---\n\n# Body\n' "$fm" >"$proj/okf/$rel"
+	printf '%s' "$proj"
+}
+
+_ctx_no_agent() {
+	# _ctx_no_agent bundle_root project_root — actors.agent unset.
+	printf '{"schema":1,"project_root":"%s","bundle_root":"%s","config_path":null,"profile":"software-project","index_path":"%s/index.md","index_exists":true,"actors":{"agent":null},"types":[],"tags":[]}' "$2" "$1" "$1"
+}
+
+@test "blocks a Write of a concept with no generated.by when actors.agent is set (#74)" {
+	local proj
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.decision == "block"'
+	_hook_output | jq -e '.reason | contains("modules/core.md") and contains("generated.by") and contains("okfit/claude-code")'
+}
+
+@test "warns, never blocks, on an Edit of a concept with no generated.by (#74)" {
+	local proj
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook '{"tool_name":"Edit","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("generated.by") and contains("okfit/claude-code")'
+	_hook_output | jq -e '.decision == null'
+}
+
+@test "no-ops on a Write of a concept that already carries generated.by (#74)" {
+	local proj
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core
+generated:
+  by: okfit/claude-code')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
+}
+
+@test "no-ops on a concept with no generated.by when actors.agent is unset (#74)" {
+	local proj
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core')
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
+}
+
+@test "never applies the generated.by check to index.md or log.md (#74)" {
+	local proj
+	proj=$(_bundle_with modules/index.md 'okf_version: "0.2"')
+	printf '# Log\n' >"$proj/okf/log.md"
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" '{"schema":1,"exit_code":0,"diagnostics":[]}'
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$proj"'/okf/modules/index.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
+	run _run_hook '{"tool_name":"Write","tool_input":{"file_path":"'"$proj"'/okf/log.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
+}
+
+@test "lint warnings and a missing generated.by are reported together on an Edit (#74)" {
+	local proj
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" \
+		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"modules/core.md","code":"stale","severity":"warning","message":"m"}]}'
+	run _run_hook '{"tool_name":"Edit","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("stale:") and contains("generated.by")'
+}
+
 @test "resolves node_modules/.bin/okfit with OKFIT_CLI_CMD unset (Important 2, real okfit binary)" {
 	[ -n "${OKFIT_BIN:-}" ] && [ -x "${OKFIT_BIN:-}" ] || skip "OKFIT_BIN not set; skipping the production-resolution smoke test"
 	local project_dir

@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: c660c6ae854b779e2e4533994a1a661f969c334b93cb22240ed2fc9a63a2e215
+  at: 2026-09-13T17:11:52Z
+  body_sha256: 70c7464f40b9852a1c11d1ad7cb98cf5353e623b30220fa5131d3e0c9a6312ef
 tags:
   - architecture
 ---
@@ -135,8 +135,12 @@ code (`packages/cli/README.md:171-186`).
 ## JSON envelopes
 
 `okfit validate --format json` prints `JsonEnvelope` (schema 1): `schema`,
-`okfit_version`, `okf_version`, `root`, `profile`, `exit_code`, `summary`,
-`diagnostics`. `okfit context --format json` prints a distinct
+`okfit_version`, `producer`, `okf_version`, `root`, `profile`,
+`exit_code`, `summary`, `diagnostics`. `okfit_version` is the version of
+the package that produced the report and `producer` names that package
+(`okfit` here, `@okfit/mcp` from the MCP `validate_bundle` tool), so the
+two reports over one bundle legitimately differ in `okfit_version`
+([#75](https://github.com/spencerbeggs/okfit/issues/75)). `okfit context --format json` prints a distinct
 `ContextEnvelope` (schema 1) where every field is present even when
 `null` — `config_path`, `profile`, `profile_requested`, and `actors.agent`
 never an omitted key (`packages/cli/README.md:188-277`). `okfit verify

@@ -278,6 +278,7 @@ nothing else (no summary line, no warnings — those still go to stderr):
 {
  "schema": 1,
  "okfit_version": "0.1.0",
+ "producer": "okfit",
  "okf_version": "0.2",
  "root": "/abs/path/to/my-repo/okf",
  "profile": "software-project",

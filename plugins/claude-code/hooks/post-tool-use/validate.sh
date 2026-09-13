@@ -10,7 +10,9 @@
 # diagnostics[] down to this one file by its bundle-relative posix path
 # (D-32, CLI/render/sort.ts:8-10). A core.conformance hit on that file blocks
 # (decision: "block", top-level per DOCS/hooks.md:416); a core.lint or
-# profile hit warns via additionalContext; anything else is silent.
+# profile hit warns via additionalContext; anything else is silent. One
+# check reads the file itself: a concept the agent wrote without
+# generated.by blocks on Write and warns on Edit (okfit #74, see below).
 #
 # IMPORTANT: nothing in this script may write to stdout except the single
 # emit_noop / emit_context / emit_block call that ends each branch.
@@ -90,6 +92,7 @@ fi
 
 bundle_root=$(printf '%s' "$context_json" | jq -r '.bundle_root')
 project_root=$(printf '%s' "$context_json" | jq -r '.project_root')
+agent_actor=$(printf '%s' "$context_json" | jq -r '.actors.agent // ""')
 
 # The outside-the-bundle fast path (branch 7): a lexical prefix test, run
 # BEFORE the expensive `okfit validate` subprocess is ever spawned. Quoted
@@ -164,6 +167,39 @@ lint_hits=$(printf '%s' "$validate_json" | jq --arg f "$bundle_relative" \
 conformance_count=$(printf '%s' "$conformance_hits" | jq 'length')
 lint_count=$(printf '%s' "$lint_hits" | jq 'length')
 
+# The generated.by check (okfit #74). okf-authoring rule 3 asks the agent
+# to stamp `generated.by: <actors.agent>` on every concept it writes, and
+# under one twelve-agent brief 109 of 268 concepts carried it: the rule in
+# the prompt is not enough. This hook is the one place that knows a write
+# came from the agent, so it reads the bytes on disk and checks the
+# frontmatter block for a `generated:` mapping with a `by:` key. Only when
+# the config sets actors.agent (an unset agent means the repo has not asked
+# for attribution), only for a concept file (index.md and log.md are
+# reserved and never carry generated), and only when the file exists (the
+# fixtures dispatch paths that were never written). The verdict joins the
+# validate branches below: a Write authored the whole file and blocks
+# until stamped; an Edit warns, since rule 3 says "meaningful changes" and
+# a typo fix to a human-authored concept must not be force-attributed.
+missing_generated_by=0
+case "$bundle_relative" in
+	index.md | */index.md | log.md | */log.md) ;;
+	*.md)
+		if [ -n "$agent_actor" ] && [ -f "$file_path" ]; then
+			if ! awk '
+				NR == 1 && $0 != "---" { exit 1 }
+				NR > 1 && $0 == "---" { exit (found ? 0 : 1) }
+				NR > 1 && /^generated:[[:space:]]*$/ { in_generated = 1; next }
+				NR > 1 && in_generated && /^[[:space:]]+by:[[:space:]]*[^[:space:]]/ { found = 1 }
+				NR > 1 && in_generated && /^[^[:space:]]/ { in_generated = 0 }
+				END { if (NR == 0) exit 1 }
+			' "$file_path"; then
+				missing_generated_by=1
+			fi
+		fi
+		;;
+esac
+generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and body_sha256 later"
+
 # Branch 9: every core.conformance diagnostic is severity error by
 # construction (D-33/D-34), so this collapses to "block on any
 # core.conformance hit for this file". Top-level {decision, reason} — never
@@ -172,6 +208,24 @@ if [ "$conformance_count" -gt 0 ]; then
 	lines=$(printf '%s' "$conformance_hits" | jq -r '.[] | "  " + .code + ": " + .message')
 	reason="${bundle_relative}: ${conformance_count} conformance error(s) — fix before continuing:
 ${lines}"
+	if [ "$missing_generated_by" -eq 1 ]; then
+		reason="${reason}
+  ${generated_line}"
+	fi
+	emit_block "$reason"
+	exit 0
+fi
+
+# Branch 9b (okfit #74): a Write that authored a whole concept without
+# generated.by blocks on its own, with the exact line to add as the reason.
+if [ "$missing_generated_by" -eq 1 ] && [ "$tool_name" = "Write" ]; then
+	reason="${bundle_relative}: ${generated_line}"
+	if [ "$lint_count" -gt 0 ]; then
+		lines=$(printf '%s' "$lint_hits" | jq -r '.[] | "  " + .code + ": " + .message')
+		reason="${reason}
+${lint_count} lint warning(s):
+${lines}"
+	fi
 	emit_block "$reason"
 	exit 0
 fi
@@ -183,7 +237,17 @@ if [ "$lint_count" -gt 0 ]; then
 	lines=$(printf '%s' "$lint_hits" | jq -r '.[] | "  " + .code + ": " + .message')
 	context="${bundle_relative}: ${lint_count} lint warning(s):
 ${lines}"
+	if [ "$missing_generated_by" -eq 1 ]; then
+		context="${context}
+  ${generated_line}"
+	fi
 	emit_context "PostToolUse" "$context"
+	exit 0
+fi
+
+# Branch 10b (okfit #74): an Edit of a concept with no generated.by warns.
+if [ "$missing_generated_by" -eq 1 ]; then
+	emit_context "PostToolUse" "${bundle_relative}: ${generated_line}"
 	exit 0
 fi
 
