@@ -45,7 +45,7 @@
 		"@okfit/core": "workspace:*",
 		"@okfit/mcp": "workspace:*",
 		"@okfit/plugin": "workspace:*",
-		"@savvy-web/silk": "^4.0.1",
+		"@savvy-web/silk": "^4.0.2",
 		"@vitest-agent/plugin": "^4.0.0",
 		"ajv": "^8.20.0",
 		"bats": "^1.13.0",
