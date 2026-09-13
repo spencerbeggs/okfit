@@ -31,14 +31,25 @@ export interface WalkOptions {
 }
 
 /**
+ * One subdirectory whose listing failed, with the `PlatformError` reason the
+ * walker recorded (`PermissionDenied`, `BadResource`, ...); never `NotFound`.
+ *
+ * @public
+ */
+export interface UnreadableDirectory {
+	readonly path: string;
+	readonly reason: string;
+}
+
+/**
  * Every file below the root and every subdirectory whose listing failed with a
- * non-`NotFound` reason; both posix-relative and sorted.
+ * non-`NotFound` reason; both posix-relative and sorted by path.
  *
  * @public
  */
 export interface WalkResult {
 	readonly files: ReadonlyArray<string>;
-	readonly unreadable: ReadonlyArray<string>;
+	readonly unreadable: ReadonlyArray<UnreadableDirectory>;
 }
 
 /**
@@ -70,6 +81,8 @@ export const walk = (
 			// W-2: "record" never fails an unreadable root; surface its recorded `PlatformError`.
 			return yield* Effect.fail(root.cause);
 		}
-		const unreadable = result.unreadable.map((entry) => entry.path).sort();
+		const unreadable = result.unreadable
+			.map((entry) => ({ path: entry.path, reason: entry.cause.reason._tag }))
+			.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 		return { files: result.matches, unreadable };
 	});

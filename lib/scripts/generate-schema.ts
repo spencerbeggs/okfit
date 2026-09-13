@@ -47,16 +47,15 @@ export const SCHEMA_URL = SchemaVersioning.schemaUrl(BASE_URL, CATALOG_NAME, SCH
 /**
  * Exported so the drift test checks exactly the wiring the generator writes.
  *
- * TEMPORARY: since effect@4.0.0-rc.113 (#8147) `Schema.toJsonSchemaDocument`
- * leaves structs open by default and `@effected/schemastore` gives a target no
- * way to pass `onExcessProperty: "error"` (effected#688), so the written
- * document currently leaves every declared table open instead of closed
- * (C-16). Add `jsonSchema: { onExcessProperty: "error" }` here and regenerate
- * once schemastore ships that field.
+ * `jsonSchema.onExcessProperty: "error"` closes every declared table (C-16):
+ * since effect@4.0.0-rc.113 `Schema.toJsonSchemaDocument` leaves structs open
+ * by default, and the open rest on `okfitConfigDocumentFields` is what keeps
+ * unknown TOP-LEVEL keys permitted regardless.
  */
 export const targets: ReadonlyArray<SchemaTarget> = [
 	SchemaTarget.make({
 		schema: okfitConfigDocumentFields,
+		jsonSchema: { onExcessProperty: "error" },
 		$id: SCHEMA_URL,
 		name: CATALOG_NAME,
 		version: SCHEMA_SEMVER,

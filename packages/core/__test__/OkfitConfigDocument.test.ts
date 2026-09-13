@@ -4,9 +4,7 @@ import { okfitConfigDocumentFields } from "../src/OkfitConfig.js";
 
 // Since effect@4.0.0-rc.113 (#8147) `toJsonSchemaDocument` leaves structs
 // open by default; `onExcessProperty: "error"` is what closes the declared
-// tables (C-16). The published document cannot pass it through
-// `@effected/schemastore` yet (effected#688), so this proves the schema's own
-// shape rather than what `pnpm generate-schema` currently writes.
+// tables (C-16), the same option lib/scripts/generate-schema.ts passes.
 const document = () =>
 	Schema.toJsonSchemaDocument(okfitConfigDocumentFields, { onExcessProperty: "error" }).schema as Record<
 		string,

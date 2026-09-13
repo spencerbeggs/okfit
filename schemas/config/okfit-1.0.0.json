@@ -35,7 +35,7 @@
 					]
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Bundle location and profile",
 			"description": "Where the OKF bundle lives and which profile merges under it."
 		},
@@ -64,10 +64,10 @@
 							}
 						}
 					},
-					"additionalProperties": true
+					"additionalProperties": false
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Concept-level requirements",
 			"description": "Requirements every concept in the bundle must satisfy, beyond the spec's own."
 		},
@@ -87,7 +87,7 @@
 					]
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Concept lifecycle",
 			"description": "Staleness policy for the bundle."
 		},
@@ -128,7 +128,7 @@
 					}
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Actor identities",
 			"description": "Who authors and verifies concepts in this bundle."
 		},
@@ -510,7 +510,7 @@
 					}
 				}
 			},
-			"additionalProperties": true,
+			"additionalProperties": false,
 			"title": "Lint severities",
 			"description": "Per-code severity overrides. Any key omitted keeps its default."
 		},
@@ -569,14 +569,14 @@
 							"required": [
 								"description"
 							],
-							"additionalProperties": true,
+							"additionalProperties": false,
 							"title": "Extension field",
 							"description": "One `[types.<Name>.fields.<key>]` declaration."
 						},
 						"description": "Extension fields this type's frontmatter may declare."
 					}
 				},
-				"additionalProperties": true,
+				"additionalProperties": false,
 				"title": "Concept type",
 				"description": "One `[types.<Name>]` declaration."
 			},
@@ -593,7 +593,7 @@
 						"description": "One-sentence summary of what applying this tag means."
 					}
 				},
-				"additionalProperties": true,
+				"additionalProperties": false,
 				"title": "Tag",
 				"description": "One `[tags.<name>]` declaration."
 			},

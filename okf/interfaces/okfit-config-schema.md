@@ -90,9 +90,7 @@ it under the name `okfit`, matching `okfit.toml`, `.okfit.toml` and
 `**/.config/okfit.toml`; user- and system-level files are not catalogued and
 should carry a `#:schema` directive instead. Unknown top-level keys are
 permitted by the document, matching the runtime's D-31 tolerance; every
-declared table is meant to be closed. Since `effect@4.0.0-rc.113` the
-generator leaves structs open by default and `@effected/schemastore` cannot
-yet pass `onExcessProperty: "error"` through a target (effected#688), so the
-document temporarily leaves declared tables open too; the core test
-`OkfitConfigDocument.test.ts` proves the schema still closes them once the
-option can be passed.
+declared table is closed. Since `effect@4.0.0-rc.113` the generator leaves
+structs open by default, so the target passes `jsonSchema.onExcessProperty =
+"error"` explicitly; the core test `OkfitConfigDocument.test.ts` proves the
+same option closes them.
