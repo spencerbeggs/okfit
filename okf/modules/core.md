@@ -8,8 +8,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: af1bd882ac0e8e736290fe7c3ed003551be099b0c91311b2a546d551428962f6
+  at: 2026-09-13T03:59:00Z
+  body_sha256: b8ca3a86f7abebfcf5d12bb1a1a32c02d66e51eb007d2b6901ff52db19782010
 ---
 
 # Core
