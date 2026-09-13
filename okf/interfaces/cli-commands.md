@@ -1,24 +1,24 @@
 ---
 type: Interface
-title: okfit CLI — validate, init, context, verify, sync
+title: okfit CLI — validate, init, context, verify, sync, lint, graph, stale
 description: The okfit command line's subcommands, their flags, exit codes, and JSON envelopes.
 kind: cli
 resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T17:11:52Z
-  body_sha256: 70c7464f40b9852a1c11d1ad7cb98cf5353e623b30220fa5131d3e0c9a6312ef
+  at: 2026-09-13T18:01:33Z
+  body_sha256: 8989ba1b2982d8af23ae57473f00009aad59347938d11d19c788050f56a82ea9
 tags:
   - architecture
 ---
 
-# okfit CLI — validate, init, context, verify, sync
+# okfit CLI — validate, init, context, verify, sync, lint, graph, stale
 
 ## Subcommands and [path]
 
-`okfit` has five subcommands: `validate`, `init`, `context`, `verify`,
-`sync`. Each
+`okfit` has eight subcommands: `validate`, `init`, `context`, `verify`,
+`sync`, `lint`, `graph`, `stale`. Each
 takes an optional `[path]` as its first positional argument — the **project
 root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
 default) — defaulting to the current directory (the Subcommands and
@@ -105,6 +105,59 @@ checks.
 `log` — each of the latter three an object with `selected`, `written`,
 `unchanged`, `skipped`.
 
+## okfit lint
+
+`okfit lint [path] [--config <file>] [--format human|json]
+[--skip-provenance]` shares `validate`'s whole handler — the same config
+resolution, the same engine `run` call (both tiers `Validate.all` produces
+still run internally, and `--skip-provenance` still means exactly what it
+means for `validate`), the same human and JSON renderers — except the
+CONFORMANCE tier is dropped from what it collects and reports. Only lint
+and profile diagnostics ever appear on its stdout; `summary.conformance_errors`
+in its JSON envelope is always `0`. Exit `1` on a lint or profile error,
+`0` otherwise — never `2`, since conformance never surfaces here. A bundle
+that fails only on conformance (frontmatter parsing, a missing required
+key at the OKF spec level) reports clean under `lint`, even though `okfit
+validate` would exit `2` against it.
+
+## okfit graph
+
+`okfit graph [path] [--config <file>] [--format mermaid|dot|json]` loads
+the bundle and renders its link graph — frontmatter path fields and body
+links, both concept-to-concept and concept-to-file, including dangling
+links to a target that does not exist (D-25). `--format` defaults to
+`mermaid`, unlike every other command's `human` default: `mermaid` and
+`dot` print the graph's own Mermaid flowchart or GraphViz DOT text raw to
+stdout, with nothing else on stdout and no summary line, so either can be
+piped straight into a renderer. Loading the bundle never fails on content
+(D-9's "loading never fails on content" rule) — a bundle that would fail
+`validate`'s conformance tier still graphs cleanly. Exit `0` always;
+`graph` never runs conformance, lint, or profile checks.
+
+`okfit graph --format json` prints a `GraphEnvelope` (schema 1): `schema`,
+`okfit_version`, `producer`, `okf_version`, `root`, `profile`, `summary`
+(`nodes`, `edges`), `nodes` (`id`, `kind`: `concept` | `file` | `missing`),
+`edges` (`from`, `to`, `source`: `body` | `frontmatter`, an omitted `field`
+key unless the edge came from a named frontmatter path field, `raw`).
+
+## okfit stale
+
+`okfit stale [path] [--config <file>] [--format human|json]` loads the
+bundle and lists every concept whose `stale_after` instant has already
+passed as of now, sorted by id, each with how many whole days past it.
+`OKFIT_NOW` (K-47) substitutes for the wall clock the same way it does for
+every other command. This is a report, not a check: exit is always `0`,
+even when concepts are stale — the `stale` lint rule, part of `okfit
+validate`/`okfit lint`, is where staleness can fail a run (at whatever
+severity `[lint].stale` is configured). The human format prints one line
+per stale concept, `<id>  <stale_after ISO>  (<N> days past)`, to stdout,
+then a one-line summary, `<N> stale concepts of <M> in <root>`, to stderr.
+
+`okfit stale --format json` prints a `StaleEnvelope` (schema 1): `schema`,
+`okfit_version`, `producer`, `okf_version`, `root`, `profile`, `as_of` (an
+ISO-8601 instant), `summary` (`concepts`, `stale`), `items` (`id`,
+`stale_after`, `days_past`).
+
 ## Config discovery
 
 With no `--config` flag, `okfit` resolves config tier by tier: the project
@@ -130,7 +183,11 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 | `0` | Otherwise |
 
 Higher wins when several apply; warnings and info never change the exit
-code (`packages/cli/README.md:171-186`).
+code (`packages/cli/README.md:171-186`). `okfit lint` uses this same
+table minus the `2` row — it never runs the conformance tier, so its own
+exit is always `0`, `1`, or one of the process-level codes above.
+`okfit graph` and `okfit stale` are reports, not checks: both always exit
+`0` except for the process-level codes above (`64`, `3`, `130`).
 
 ## JSON envelopes
 
@@ -146,6 +203,15 @@ two reports over one bundle legitimately differ in `okfit_version`
 never an omitted key (`packages/cli/README.md:188-277`). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
 `okfit_version`, `id`, `path`, `verified`, `dry_run`, `exit_code`.
+`okfit lint --format json` reuses `JsonEnvelope` unchanged — same shape as
+`okfit validate`'s — with `summary.conformance_errors` always `0` and no
+`core.conformance`-sourced entry ever in `diagnostics`. `okfit graph
+--format json` prints a distinct `GraphEnvelope` with `schema`,
+`okfit_version`, `producer`, `okf_version`, `root`, `profile`, `summary`
+(`nodes`, `edges`), `nodes`, `edges`. `okfit stale --format json` prints a
+distinct `StaleEnvelope` with `schema`, `okfit_version`, `producer`,
+`okf_version`, `root`, `profile`, `as_of`, `summary` (`concepts`,
+`stale`), `items`.
 
 ## Message conventions
 
