@@ -1,5 +1,26 @@
 # @okfit/claude-code-plugin
 
+## 0.5.0
+
+### Features
+
+- The `PostToolUse` validate hook now reads the written file and, when the config sets `actors.agent`, blocks a `Write` of a concept whose frontmatter has no `generated.by` (and warns on an `Edit`), naming the exact `by:` value to add. `index.md` and `log.md` are exempt; a repo with `actors.agent` unset is never checked.
+- The `okf-docs` agent is told to stamp `generated.by` before writing rather than after the block. [#91][#91]
+
+### Documentation
+
+- `okf-config` lists the new `Consumer`, `Roadmap`, and `Measurement` types and the `bundle`, `observability`, and `deps` tags, with guidance on choosing between near neighbours
+- `okf-config` no longer recommends a one-line nested `okf/.markdownlint-cli2.jsonc`: a nested `config` replaces the root's wholesale, re-enabling every rule the root disabled
+- `okf-authoring` rule 6 states that a footnote label must equal its `sources[].id` verbatim; rule 17 covers descriptions with embedded double quotes [#90][#90]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#90]: https://github.com/spencerbeggs/okfit/pull/90
+
+[#91]: https://github.com/spencerbeggs/okfit/pull/91
+
 ## 0.4.0
 
 ### Features

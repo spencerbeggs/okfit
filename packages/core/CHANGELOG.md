@@ -1,5 +1,17 @@
 # @okfit/core
 
+## 0.4.1
+
+### Bug Fixes
+
+- `footnote-source-unknown` now says the label must equal a `sources[].id` exactly and lists the declared ids, so a shortened label is a one-step fix [#90][#90]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#90]: https://github.com/spencerbeggs/okfit/pull/90
+
 ## 0.4.0
 
 ### Features

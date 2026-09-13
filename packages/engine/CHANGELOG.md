@@ -1,5 +1,30 @@
 # @okfit/engine
 
+## 0.4.0
+
+### Features
+
+- `okfit lint [path] [--config] [--format human|json] [--skip-provenance]` runs the same engine call as `okfit validate` but drops the conformance tier from what it collects and reports: exit `1` on a lint or profile error, `0` otherwise, never `2`, and its JSON envelope's `summary.conformance_errors` is always `0`.
+- `okfit graph [path] [--config] [--format mermaid|dot|json]` renders the bundle's link graph — frontmatter path fields and body links, including dangling links — as a Mermaid flowchart (the default), GraphViz DOT, or a `GraphEnvelope` JSON document. Always exits `0`; loading never fails on content, so a bundle that fails `validate`'s conformance tier still graphs cleanly.
+- `okfit stale [path] [--config] [--format human|json]` lists every concept whose `stale_after` instant has passed as of now (honouring `OKFIT_NOW`), sorted by id, each with how many whole days past it. A report, not a check: always exits `0`, printing a `StaleEnvelope` JSON document under `--format json`. [#93][#93]
+
+* The `okfit validate --format json` envelope (and the MCP `validate_bundle` report, which reuses it) gains a `producer` field naming the package that produced the report: `okfit` from the CLI, `@okfit/mcp` from the MCP server. `okfit_version` was already that package's own version, so the two reports over one bundle legitimately differ there; `producer` labels why. [#91][#91]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.4.0 | 0.4.1 |
+| @okfit/profiles | dependency | updated | 0.4.0 | 0.5.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#91]: https://github.com/spencerbeggs/okfit/pull/91
+
+[#93]: https://github.com/spencerbeggs/okfit/pull/93
+
 ## 0.3.0
 
 ### Features

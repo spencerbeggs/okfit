@@ -1,5 +1,25 @@
 # @okfit/mcp
 
+## 0.3.4
+
+### Features
+
+- The `okfit validate --format json` envelope (and the MCP `validate_bundle` report, which reuses it) gains a `producer` field naming the package that produced the report: `okfit` from the CLI, `@okfit/mcp` from the MCP server. `okfit_version` was already that package's own version, so the two reports over one bundle legitimately differ there; `producer` labels why. [#91][#91]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.4.0 | 0.4.1 |
+| @okfit/engine | dependency | updated | 0.3.0 | 0.4.0 |
+| @okfit/profiles | dependency | updated | 0.4.0 | 0.5.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#91]: https://github.com/spencerbeggs/okfit/pull/91
+
 ## 0.3.3
 
 ### Dependencies
