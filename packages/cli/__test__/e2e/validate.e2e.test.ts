@@ -138,6 +138,7 @@ describe("okfit validate --format json", () => {
 			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
+				producer: "okfit",
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: "software-project",
@@ -181,6 +182,7 @@ describe("okfit validate --format json", () => {
 			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
+				producer: "okfit",
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: null,

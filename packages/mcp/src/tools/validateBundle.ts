@@ -57,7 +57,10 @@ export const validateBundle = Tool.make("validate_bundle", {
  * convention for an exit-3 infrastructure failure, and here that failure is
  * a typed `McpToolError` instead, so `forDiagnostics`' `0 | 1 | 2` result is
  * always reachable. `okfitVersion` is `MCP_VERSION`, not `CLI_VERSION`
- * (J-2): the field names the package that produced the report.
+ * (J-2): the field names the package that produced the report, and
+ * `producer` says which package that is so a reader comparing this report
+ * with `okfit validate --format json` does not read the two versions as
+ * drift (okfit #75).
  *
  * @public
  */
@@ -86,6 +89,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 		const code = forDiagnostics(diagnostics);
 		return json({
 			okfitVersion: MCP_VERSION,
+			producer: "@okfit/mcp",
 			okfVersion: resolved.config.okf_version ?? OKF_SPEC_VERSION,
 			root: resolved.bundleRoot,
 			profile: Option.match(resolved.profile, { onNone: () => null, onSome: (profile) => profile.name }),

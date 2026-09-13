@@ -31,13 +31,18 @@ export type JsonSummary = typeof JsonSummary.Type;
 /**
  * K-21's success envelope, snake_case. `exit_code` is `0 | 1 | 2` only: an
  * infrastructure failure never produces this envelope, it produces the
- * `JsonErrorEnvelope` (K-22).
+ * `JsonErrorEnvelope` (K-22). `okfit_version` names the version of the
+ * package that produced the report (J-2), so the CLI and the MCP server
+ * legitimately report different numbers over one bundle; `producer` names
+ * that package (`okfit` or `@okfit/mcp`) so the difference reads as two
+ * producers, not as drift (okfit #75).
  *
  * @public
  */
 export const JsonEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	producer: Schema.String,
 	okf_version: Schema.String,
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
@@ -81,6 +86,7 @@ const toJsonDiagnostic = (d: RenderedDiagnostic): JsonDiagnostic => ({
  */
 export const json = (input: {
 	readonly okfitVersion: string;
+	readonly producer: string;
 	readonly okfVersion: string;
 	readonly root: string;
 	readonly profile: string | null;
@@ -92,6 +98,7 @@ export const json = (input: {
 	return {
 		schema: 1,
 		okfit_version: input.okfitVersion,
+		producer: input.producer,
 		okf_version: input.okfVersion,
 		root: input.root,
 		profile: input.profile,

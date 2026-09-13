@@ -7,6 +7,7 @@ import { makeHarness } from "./utils/harness.js";
 interface Envelope {
 	readonly schema: 1;
 	readonly okfit_version: string;
+	readonly producer: string;
 	readonly okf_version: string;
 	readonly root: string;
 	readonly profile: string | null;
@@ -90,6 +91,15 @@ describe("validate_bundle", () => {
 		Effect.gen(function* () {
 			const data = (yield* validate({})).structuredContent as Envelope;
 			assert.match(String(data.okfit_version), /^\d+\.\d+\.\d+/);
+		}).pipe(Effect.scoped),
+	);
+
+	// okfit #75: the CLI and this tool report different okfit_version values
+	// because each names its own package; producer labels which one.
+	it.effect("labels the report's producer as @okfit/mcp", () =>
+		Effect.gen(function* () {
+			const data = (yield* validate({})).structuredContent as Envelope;
+			assert.strictEqual(data.producer, "@okfit/mcp");
 		}).pipe(Effect.scoped),
 	);
 

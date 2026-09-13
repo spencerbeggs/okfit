@@ -24,7 +24,7 @@ tags:
 | `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | `ConceptNotFound`, `InvalidArgument` for an empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | `ConceptNotFound`, `InvalidArgument` |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | `ConfigError` |
-| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged. | optional `now` | `BundleNotFound` |
+| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged, except that `okfit_version` is this package's version and `producer` is `@okfit/mcp`. | optional `now` | `BundleNotFound` |
 
 ## Resources
 

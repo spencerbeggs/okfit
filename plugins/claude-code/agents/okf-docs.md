@@ -61,7 +61,11 @@ After writing or editing any concept file, calls `validate_bundle` — or
 `okfit validate --format json` when the tools are absent — and reconciles
 what it reports before moving to the next file; this is the same payload
 the `PostToolUse` hook already computes on every `Write`/`Edit`, so the
-tool call replaces a shell round trip, not the checking itself. At
+tool call replaces a shell round trip, not the checking itself. Stamps
+`generated.by` with the configured agent actor on every concept it writes
+before it writes it: the hook blocks a `Write` that lands without one and
+warns on an `Edit`, and a stamp added after the block is a wasted round
+trip. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s seventeen rules, run `okfit validate` and fix what it
