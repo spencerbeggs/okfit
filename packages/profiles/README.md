@@ -19,7 +19,7 @@ guidance = "Exactly one Project exists and it lives at the bundle root as the pr
 
 [types.Module]
 description = "A unit of code with an owner and a boundary."
-guidance = "One per workspace package, plugin, website, or action. Link to the Decisions that shaped it and the Conventions it is bound by."
+guidance = "One per workspace package, plugin, website, action, test harness, or config dependency. Link to the Decisions that shaped it and the Conventions it is bound by."
 required = ["resource", "kind"]
 
 [types.Module.fields.kind]
@@ -29,9 +29,18 @@ values.package = "A publishable npm package under packages/."
 values.website = "A docs or marketing site, usually RSPress."
 values.plugin = "A Claude Code or editor plugin distributed outside npm."
 values.action = "A GitHub Action."
+values.harness = "A private test-only package or package group that exercises built artifacts and is never published."
+values.config-dependency = "A package consumed through pnpm configDependencies rather than dependencies, loaded before the workspace resolves."
 
 [types.Module.fields.resource]
 description = "A path relative to this concept file, normally escaping the bundle, for example ../../packages/core."
+kind = "path"
+
+[types.Module.fields.layer]
+description = "The dependency layer this module sits in under the repository's own layering scheme, for example L2, so a reader can query every module at one layer."
+
+[types.Module.fields.pins]
+description = "Paths to the sibling Module concepts this module is exact-version-pinned alongside, one entry per sibling."
 kind = "path"
 
 [types.Decision]
@@ -59,6 +68,7 @@ values.cli = "A command-line interface: commands, flags, and exit codes."
 values.config = "A configuration file schema other tools read or write."
 values.wire = "A network or IPC wire format."
 values.mcp = "An MCP tool or resource surface."
+values.runtime = "A runtime binding or platform capability consumers invoke rather than a shape they write: worker bindings, environment contracts, platform flags."
 
 [types.Interface.fields.resource]
 description = "A path relative to this concept file, normally escaping the bundle, for example ../../packages/core/src/index.ts."
@@ -68,6 +78,43 @@ kind = "path"
 description = "Mirrored external material kept under the references directory."
 guidance = "Only for material this repository must cite reliably even if the original moves. Every Reference declares where it came from in sources."
 required = ["sources"]
+
+[types.Runbook]
+description = "A repeatable operational procedure with a trigger and an observable end state."
+guidance = "Write the steps in the order they are performed, not as rules. Name the trigger that starts the procedure and the observable state that means it succeeded."
+
+[types.Runbook.fields.resource]
+description = "A path relative to this concept file to the script, workflow, or config the procedure runs through, when one exists in this repository."
+kind = "path"
+
+[types.Glossary]
+description = "A term this repository uses in its own sense, one term per concept."
+guidance = "Define the term as this repository means it, not as the wider ecosystem means it, and say plainly where the two differ. A term earns a concept on a collision or a trap; one that merely names a Module belongs in that Module."
+
+[types.Limitation]
+description = "A known edge of a contract: something that does not work, and why that is acceptable."
+guidance = "State the condition that triggers it and the observable symptom, not just the cause, and name the Interface or Module whose promise it bounds. If it is fixable and merely unfixed, say what the fix would take."
+
+[types.Limitation.fields.bounds]
+description = "The Interface or Module concept whose promise this limitation bounds."
+kind = "path"
+
+[types.DataModel]
+description = "An internal source-of-truth structure that other artifacts are derived from."
+guidance = "Document the shape from the maintainer's side: what an entry contains, what is derived from it, and what breaks if an entry is wrong. Distinct from Interface, which documents a promise to consumers."
+required = ["resource"]
+
+[types.DataModel.fields.resource]
+description = "A path relative to this concept file, normally escaping the bundle, to the file or directory that holds the structure."
+kind = "path"
+
+[types.Gotcha]
+description = "A state or result that looks like one thing and is the opposite: breakage that is transient, or success that did nothing."
+guidance = "Describe what a reader sees, what they will wrongly conclude, and what is actually true, and point resource at the code or command that produces the misleading signal. Give it a staleness window, since a trap fixed upstream turns into misinformation."
+
+[types.Gotcha.fields.resource]
+description = "A path relative to this concept file to the code, script, or config that produces the misleading signal."
+kind = "path"
 
 [tags.architecture]
 description = "Concerns the shape of the system rather than one module."
@@ -83,6 +130,15 @@ description = "Concerns trust boundaries, secrets, permissions, or attack surfac
 
 [tags.performance]
 description = "Concerns speed, memory, or resource cost and the trade-offs made for them."
+
+[tags.dx]
+description = "Concerns the experience of the people and agents who author, build, and debug the code."
+
+[tags.ci]
+description = "Concerns the unattended path: what runs without a human present, and how it fails."
+
+[tags.compat]
+description = "Concerns compatibility across versions of the runtime, the package manager, or a dependency."
 ```
 
 Only `concepts`, `types`, and `tags` carry real vocabulary; the literal's `extensions: {}` is `OkfitConfig`'s one required key and never appears on disk, since the codec folds unknown top-level keys into it (P-24: `fields.<k>.kind = "path"` and the `tags` table are vocabulary only — core enforces none of it yet). `Reference.required = ["sources"]` checks presence only: `sources = []` passes, and each entry's shape is core's `family-invalid` (P-23).
@@ -105,6 +161,11 @@ directories:
   conventions/   -> Convention
   interfaces/    -> Interface
   references/    -> Reference
+  runbooks/      -> Runbook
+  glossary/      -> Glossary
+  limitations/   -> Limitation
+  models/        -> DataModel
+  gotchas/       -> Gotcha
 ```
 
 Each directory carries its own `index.md`. What `okfit init` writes into these files is the CLI plan's concern, not this package's.

@@ -89,8 +89,8 @@ validation on the file without any further setup.
 
 ## What software-project contributes
 
-The `software-project` profile (`bundle.profile`'s default) sets six types
-and five tags on top of `OkfitConfig.DEFAULTS`, plus
+The `software-project` profile (`bundle.profile`'s default) sets eleven
+types and eight tags on top of `OkfitConfig.DEFAULTS`, plus
 `concepts.required = ["title", "description"]`.
 
 Types, one sentence each:
@@ -103,25 +103,53 @@ Types, one sentence each:
 - `Interface` -- "A contract others depend on."
 - `Reference` -- "Mirrored external material kept under the references
   directory."
+- `Runbook` -- "A repeatable operational procedure with a trigger and an
+  observable end state."
+- `Glossary` -- "A term this repository uses in its own sense, one term per
+  concept."
+- `Limitation` -- "A known edge of a contract: something that does not
+  work, and why that is acceptable."
+- `DataModel` -- "An internal source-of-truth structure that other
+  artifacts are derived from."
+- `Gotcha` -- "A state or result that looks like one thing and is the
+  opposite: breakage that is transient, or success that did nothing."
+
+Choosing between the near neighbours: a Limitation is "this cannot do X";
+a Gotcha is "this looks broken (or looks fine) and is the opposite". A
+Runbook is followed in order and has no staleness cadence; a Convention is
+a rule re-examined on one. A DataModel is documented from the maintainer's
+side (what breaks if an entry is wrong); an Interface from the consumer's.
+A Glossary term earns a concept on a collision or a trap, not merely
+because a word is used.
 
 Each type's full `guidance` string is longer than is worth reproducing here;
-read it from the merged config (`okfit context --format json`) or
-`packages/profiles/README.md` rather than trusting a paraphrase.
+read it from the merged config (`okfit context --format json`, which also
+lists each type's `required` keys, `require_verified`, and declared
+`fields` with their enum values) or `packages/profiles/README.md` rather
+than trusting a paraphrase.
 
-Tags: `architecture`, `testing`, `release`, `security`, `performance` --
-each a one-sentence `description`, no `guidance`.
+Tags: `architecture`, `testing`, `release`, `security`, `performance`,
+`dx`, `ci`, `compat` -- each a one-sentence `description`, no `guidance`.
 
-Two details that surprise:
+Details that surprise:
 
-- `Module` requires `resource` and `kind` -- most types have no `required`
-  list at all.
+- `Module` requires `resource` and `kind` (`workspace | package | website |
+  plugin | action | harness | config-dependency`); `DataModel` requires
+  `resource`; `Interface` requires `kind` (`api | cli | config | wire | mcp
+  | runtime`) -- the other types have no `required` list at all.
+- `Module` also declares two optional structured fields: `layer` (free
+  text, the repository's own layering label such as `L2`) and `pins` (the
+  sibling Module paths this one is exact-version-pinned with).
 - `Decision` sets `require_verified = true` -- a Decision is not settled
   until a human verifies it. That is exactly the field `okf-authoring`'s
-  rule 2 forbids the agent from writing.
+  rule 2 forbids the agent from writing. A Decision with `status: draft`
+  is exempt from `require-verified-unmet`, so a freshly authored bundle
+  can validate clean before anyone has run `okfit verify`.
 
-The profile also carries a `layout` (`root.{index,log,project}` plus five
+The profile also carries a `layout` (`root.{index,log,project}` plus ten
 directories: `modules/`, `decisions/`, `conventions/`, `interfaces/`,
-`references/`) that `okfit init` scaffolds from. That layout is **not** part
+`references/`, `runbooks/`, `glossary/`, `limitations/`, `models/`,
+`gotchas/`) that `okfit init` scaffolds from. That layout is **not** part
 of `OkfitConfig` itself -- it never appears in a config file.
 
 ## actors.agent must be set for this plugin's agent

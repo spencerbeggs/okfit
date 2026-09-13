@@ -122,11 +122,21 @@ config_display="${config_path:-(none)}"
 # One "Types:" (or "Tags:") header plus one bullet per entry, already
 # sorted by name (contextEnvelope sorts before this hook ever sees the
 # JSON, contract section 8.2). A guidance line, when present, sits on its
-# own indented line under the bullet.
+# own indented line under the bullet, followed by the constraints validate
+# enforces (issue #33): required keys, whether verified is required, and
+# each declared field with its enum values or "path" kind. Every lookup is
+# null-safe so an older envelope without those keys still renders.
 types_block=$(printf '%s' "$context_json" | jq -r '
+	def field_line: .name
+		+ (if (.values // null) != null then " (" + ([.values[].name] | join(" | ")) + ")"
+		   elif (.kind // null) != null then " (" + .kind + ")"
+		   else "" end);
 	["Types:"] + [
 		.types[] | "- " + .name + ": " + (.description // "(no description)")
 			+ (if .guidance != null then "\n  " + .guidance else "" end)
+			+ (if ((.required // []) | length) > 0 then "\n  required: " + (.required | join(", ")) else "" end)
+			+ (if (.require_verified // false) then "\n  verified: required" else "" end)
+			+ (if ((.fields // []) | length) > 0 then "\n  fields: " + ([.fields[] | field_line] | join(", ")) else "" end)
 	] | join("\n")
 ')
 

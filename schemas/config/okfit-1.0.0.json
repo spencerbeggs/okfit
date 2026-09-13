@@ -254,7 +254,7 @@
 						"error"
 					],
 					"title": "require-verified-unmet",
-					"description": "A concept whose type sets require_verified = true carries no verified entry. Default \"error\".",
+					"description": "A concept whose type sets require_verified = true carries no verified entry and is not a draft. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {
@@ -514,7 +514,7 @@
 					},
 					"require_verified": {
 						"type": "boolean",
-						"description": "Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`.",
+						"description": "Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`; a concept with status draft is exempt.",
 						"default": false
 					},
 					"fields": {

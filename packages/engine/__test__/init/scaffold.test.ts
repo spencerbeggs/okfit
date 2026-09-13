@@ -33,6 +33,11 @@ describe("targetPaths", () => {
 			"/tmp/my-repo/okf/conventions/index.md",
 			"/tmp/my-repo/okf/interfaces/index.md",
 			"/tmp/my-repo/okf/references/index.md",
+			"/tmp/my-repo/okf/runbooks/index.md",
+			"/tmp/my-repo/okf/glossary/index.md",
+			"/tmp/my-repo/okf/limitations/index.md",
+			"/tmp/my-repo/okf/models/index.md",
+			"/tmp/my-repo/okf/gotchas/index.md",
 		]);
 		assert.strictEqual(targetPaths(OPTIONS).length, 6 + Profiles.softwareProject.layout.directories.length);
 	});
@@ -102,9 +107,14 @@ describe("files", () => {
 						"",
 						"* [conventions](conventions/index.md)",
 						"* [decisions](decisions/index.md)",
+						"* [glossary](glossary/index.md)",
+						"* [gotchas](gotchas/index.md)",
 						"* [interfaces](interfaces/index.md)",
+						"* [limitations](limitations/index.md)",
+						"* [models](models/index.md)",
 						"* [modules](modules/index.md)",
 						"* [references](references/index.md)",
+						"* [runbooks](runbooks/index.md)",
 						"",
 					].join("\n"),
 				);
@@ -135,11 +145,16 @@ describe("files", () => {
 					["conventions", "Conventions"],
 					["interfaces", "Interfaces"],
 					["references", "References"],
+					["runbooks", "Runbooks"],
+					["glossary", "Glossary"],
+					["limitations", "Limitations"],
+					["models", "Models"],
+					["gotchas", "Gotchas"],
 				] as const) {
 					const entry = entries.find((candidate) => candidate.path === `/tmp/my-repo/okf/${directory}/index.md`);
 					assert.strictEqual(entry?.contents, `# ${heading}\n`);
 				}
-				assert.strictEqual(entries.length, 8);
+				assert.strictEqual(entries.length, 13);
 				return undefined;
 			}),
 		),

@@ -11,8 +11,17 @@ const fullConfig: OkfitConfig = {
 	actors: { agent: actor("okfit/claude-code") },
 	extensions: {},
 	types: {
-		Module: { description: "A unit of code with an owner and a boundary.", guidance: "One per package." },
-		Decision: { description: "A choice made, the alternatives rejected, and why." },
+		Module: {
+			description: "A unit of code with an owner and a boundary.",
+			guidance: "One per package.",
+			required: ["resource", "kind"],
+			fields: {
+				resource: { description: "Where the code lives.", kind: "path" },
+				kind: { description: "What sort of unit.", values: { website: "A site.", package: "An npm package." } },
+				layer: { description: "Free text." },
+			},
+		},
+		Decision: { description: "A choice made, the alternatives rejected, and why.", require_verified: true },
 	},
 	tags: {
 		testing: { description: "Concerns how the system is verified." },
@@ -46,11 +55,34 @@ describe("contextEnvelope", () => {
 				actors: { agent: "okfit/claude-code" },
 				// K-17-style plain code-unit sort: "Decision" < "Module".
 				types: [
-					{ name: "Decision", description: "A choice made, the alternatives rejected, and why.", guidance: null },
+					{
+						name: "Decision",
+						description: "A choice made, the alternatives rejected, and why.",
+						guidance: null,
+						required: null,
+						require_verified: true,
+						fields: [],
+					},
 					{
 						name: "Module",
 						description: "A unit of code with an owner and a boundary.",
 						guidance: "One per package.",
+						required: ["resource", "kind"],
+						require_verified: null,
+						fields: [
+							// Fields sort by name too; values keep the declaration's own order.
+							{
+								name: "kind",
+								description: "What sort of unit.",
+								kind: null,
+								values: [
+									{ name: "website", description: "A site." },
+									{ name: "package", description: "An npm package." },
+								],
+							},
+							{ name: "layer", description: "Free text.", kind: null, values: null },
+							{ name: "resource", description: "Where the code lives.", kind: "path", values: null },
+						],
 					},
 				],
 				// "architecture" < "testing".
@@ -84,9 +116,13 @@ describe("contextEnvelope", () => {
 		Effect.sync(() => {
 			const config: OkfitConfig = { extensions: {}, types: { Project: {} } };
 			const built = contextEnvelope({ ...baseInput, config });
-			assert.deepStrictEqual(built.types, [{ name: "Project", description: null, guidance: null }]);
+			assert.deepStrictEqual(built.types, [
+				{ name: "Project", description: null, guidance: null, required: null, require_verified: null, fields: [] },
+			]);
 			assert.isTrue(Object.hasOwn(built.types[0] ?? {}, "description"));
 			assert.isTrue(Object.hasOwn(built.types[0] ?? {}, "guidance"));
+			assert.isTrue(Object.hasOwn(built.types[0] ?? {}, "required"));
+			assert.isTrue(Object.hasOwn(built.types[0] ?? {}, "require_verified"));
 		}),
 	);
 

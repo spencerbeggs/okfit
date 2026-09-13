@@ -70,7 +70,7 @@ describe("okfit validate: clean bundle", () => {
 			// Captured this session: Bundle.load over the clean fixture with the
 			// default merge (DEFAULTS < software-project, no file config) reports
 			// zero conformance/lint/profile diagnostics and 6 concepts.
-			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 6 concepts (okf)\n");
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 11 concepts (okf)\n");
 
 			assertNoStateFiles(sandbox.env);
 		}).pipe(Effect.provide(NodeServices.layer)),
@@ -191,7 +191,7 @@ describe("okfit validate --format json", () => {
 					lint_warnings: 0,
 					lint_info: 0,
 					profile_errors: 0,
-					concepts: 6,
+					concepts: 11,
 				},
 				diagnostics: [],
 			});
@@ -242,7 +242,7 @@ describe("okfit validate: config discovery", () => {
 			// against `commands/validate.ts`'s own `renderRoot` and the contract's
 			// literal K-51 text, not the brief's original "../../okf" expectation,
 			// which this test corrects (see task report for the discrepancy).
-			assert.strictEqual(result.stderr, `0 errors, 0 warnings, 0 info in 6 concepts (${join(sandbox.cwd, "okf")})\n`);
+			assert.strictEqual(result.stderr, `0 errors, 0 warnings, 0 info in 11 concepts (${join(sandbox.cwd, "okf")})\n`);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
@@ -255,7 +255,7 @@ describe("okfit validate: config discovery", () => {
 			const result = yield* runOkfit(["validate"], sandbox);
 
 			assert.strictEqual(result.exitCode, 0);
-			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 6 concepts (okf)\n");
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 11 concepts (okf)\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
@@ -268,7 +268,7 @@ describe("okfit validate: config discovery", () => {
 			const result = yield* runOkfit(["validate"], sandbox);
 
 			assert.strictEqual(result.exitCode, 0);
-			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 6 concepts (okf)\n");
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 11 concepts (okf)\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
@@ -299,7 +299,7 @@ describe("okfit validate: config discovery", () => {
 			const result = yield* runOkfit(["validate"], sandbox);
 
 			assert.strictEqual(result.exitCode, 0);
-			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 6 concepts (okf)\n");
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 11 concepts (okf)\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
@@ -337,7 +337,7 @@ describe("okfit validate: config discovery", () => {
 			assert.strictEqual(
 				result.stderr,
 				'warning: unknown profile "explicit-config-profile"; continuing with defaults\n' +
-					`0 errors, 0 warnings, 0 info in 6 concepts (${join(elsewhere, "okf")})\n`,
+					`0 errors, 0 warnings, 0 info in 11 concepts (${join(elsewhere, "okf")})\n`,
 			);
 			assert.isFalse(result.stderr.includes("cwd-discovery-profile"));
 			assert.isFalse(result.stderr.includes("xdg-discovery-profile"));
@@ -480,7 +480,7 @@ describe("okfit validate: OKFIT_NOW", () => {
 				after.stdout,
 				"modules/core.md:1:1 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
 			);
-			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 6 concepts (okf)\n");
+			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 11 concepts (okf)\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

@@ -159,7 +159,7 @@ export const TypeDeclaration = Schema.Struct({
 	require_verified: Schema.optionalKey(
 		Schema.Boolean.annotate({
 			description:
-				"Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`.",
+				"Whether a concept of this type must carry a `verified` entry to satisfy lint `require-verified-unmet`; a concept with status draft is exempt.",
 			default: false,
 		}),
 	),
@@ -227,7 +227,8 @@ export const LintTable = Schema.Struct({
 	require_verified_unmet: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "require-verified-unmet",
-			description: 'A concept whose type sets require_verified = true carries no verified entry. Default "error".',
+			description:
+				'A concept whose type sets require_verified = true carries no verified entry and is not a draft. Default "error".',
 			default: "error",
 		}),
 	),

@@ -66,20 +66,36 @@ describe("softwareProject.config", () => {
 			const types = config.types ?? {};
 			assert.deepStrictEqual(Object.keys(types).sort(), [
 				"Convention",
+				"DataModel",
 				"Decision",
+				"Glossary",
+				"Gotcha",
 				"Interface",
+				"Limitation",
 				"Module",
 				"Project",
 				"Reference",
+				"Runbook",
 			]);
 			assert.isFalse("required" in (types.Project ?? {}));
 			assert.deepStrictEqual(types.Module?.required, ["resource", "kind"]);
 			assert.deepStrictEqual(types.Interface?.required, ["kind"]);
 			assert.deepStrictEqual(types.Reference?.required, ["sources"]);
+			assert.deepStrictEqual(types.DataModel?.required, ["resource"]);
+			for (const name of ["Runbook", "Glossary", "Limitation", "Gotcha"]) {
+				assert.isFalse("required" in (types[name] ?? {}), `${name} must not require anything beyond concepts.required`);
+			}
 			assert.strictEqual(types.Decision?.require_verified, true);
 			assert.strictEqual(types.Decision?.fields?.supersedes?.kind, "path");
 			assert.strictEqual(types.Module?.fields?.resource?.kind, "path");
+			assert.strictEqual(types.Module?.fields?.pins?.kind, "path");
+			assert.isFalse("kind" in (types.Module?.fields?.layer ?? {}), "layer is free text, not an enum or a path");
+			assert.isFalse("values" in (types.Module?.fields?.layer ?? {}), "layer is free text, not an enum or a path");
 			assert.strictEqual(types.Interface?.fields?.resource?.kind, "path");
+			assert.strictEqual(types.Runbook?.fields?.resource?.kind, "path");
+			assert.strictEqual(types.Limitation?.fields?.bounds?.kind, "path");
+			assert.strictEqual(types.DataModel?.fields?.resource?.kind, "path");
+			assert.strictEqual(types.Gotcha?.fields?.resource?.kind, "path");
 			for (const [name, type] of Object.entries(types)) {
 				assert.notDeepEqual(type.required, [], `${name} must not declare an explicit empty required`);
 			}
@@ -89,6 +105,8 @@ describe("softwareProject.config", () => {
 				"website",
 				"plugin",
 				"action",
+				"harness",
+				"config-dependency",
 			]);
 			assert.deepStrictEqual(Object.keys(types.Interface?.fields?.kind?.values ?? {}), [
 				"api",
@@ -96,6 +114,7 @@ describe("softwareProject.config", () => {
 				"config",
 				"wire",
 				"mcp",
+				"runtime",
 			]);
 			assert.deepStrictEqual(Object.keys(config.tags ?? {}), [
 				"architecture",
@@ -103,6 +122,9 @@ describe("softwareProject.config", () => {
 				"release",
 				"security",
 				"performance",
+				"dx",
+				"ci",
+				"compat",
 			]);
 		}),
 	);
@@ -111,7 +133,7 @@ describe("softwareProject.config", () => {
 		Effect.sync(() => {
 			const { descriptions, guidances } = guidanceStrings();
 			assert.isAbove(descriptions.length, 20);
-			assert.strictEqual(guidances.length, 6);
+			assert.strictEqual(guidances.length, 11);
 			for (const text of [...descriptions, ...guidances]) {
 				assert.strictEqual(text, text.trim(), `trailing whitespace in ${JSON.stringify(text)}`);
 				assert.isFalse(text.includes("\n"), `newline in ${JSON.stringify(text)}`);
@@ -135,6 +157,11 @@ describe("softwareProject.layout", () => {
 				{ directory: "conventions", type: "Convention" },
 				{ directory: "interfaces", type: "Interface" },
 				{ directory: "references", type: "Reference" },
+				{ directory: "runbooks", type: "Runbook" },
+				{ directory: "glossary", type: "Glossary" },
+				{ directory: "limitations", type: "Limitation" },
+				{ directory: "models", type: "DataModel" },
+				{ directory: "gotchas", type: "Gotcha" },
 			]);
 			const layoutTypes = layout.directories.map((d) => d.type).sort();
 			const configTypes = Object.keys(config.types ?? {})
@@ -152,7 +179,7 @@ describe("OkfitConfig.merge(DEFAULTS, softwareProject.config)", () => {
 			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, config);
 			assert.deepStrictEqual(merged.bundle, { path: "okf", profile: "software-project" });
 			assert.deepStrictEqual(merged.concepts, { required: ["title", "description"], tags: { required: [] } });
-			assert.strictEqual(Object.keys(merged.types ?? {}).length, 6); // (checked) strictEqual for a number
+			assert.strictEqual(Object.keys(merged.types ?? {}).length, 11); // (checked) strictEqual for a number
 			assert.strictEqual(OkfitConfig.severityFor(merged, "unknown-type"), "error");
 			assert.strictEqual(OkfitConfig.severityFor(merged, "required-key-missing"), "error");
 			assert.deepStrictEqual(merged.actors, { humans: [] });

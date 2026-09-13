@@ -96,8 +96,11 @@ export const fieldValueUnknown: LintRule = perConcept("field-value-unknown", (co
 	return out;
 });
 
+// A draft is unsettled by definition, so it is exempt (issue #31): otherwise a
+// freshly authored bundle can never validate clean before a human verifies it.
 export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet", (concept, context) =>
 	context.config.types?.[concept.frontmatter.type]?.require_verified === true &&
+	concept.frontmatter.status !== "draft" &&
 	(concept.frontmatter.verified ?? []).length === 0
 		? [`Type "${concept.frontmatter.type}" requires a verified entry`]
 		: [],

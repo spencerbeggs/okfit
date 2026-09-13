@@ -10,6 +10,8 @@ const platform = platformFor("lint/bundle", "/repo/bundle");
 const loadBundle = Effect.provide(Bundle.load({ root: "/repo/bundle" }), platform);
 const escapePlatform = platformFor("lint/escape-bundle", "/repo/escape-bundle");
 const loadEscapeBundle = Effect.provide(Bundle.load({ root: "/repo/escape-bundle" }), escapePlatform);
+const draftPlatform = platformFor("lint/draft-bundle", "/repo/draft-bundle");
+const loadDraftBundle = Effect.provide(Bundle.load({ root: "/repo/draft-bundle" }), draftPlatform);
 const now = DateTime.makeUnsafe("2026-09-04T00:00:00Z");
 
 const vocabConfig: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
@@ -114,6 +116,16 @@ describe("Validate", () => {
 			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
 			assert.deepStrictEqual(summary(lint), [["broken-links", "modules/gone.md", "warning"]]);
 			assert.match(lint[0]?.message ?? "", /"missing\.md"/);
+		}),
+	);
+
+	it.effect("require-verified-unmet skips a draft concept and still fires on a stable one (issue #31)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadDraftBundle;
+			assert.deepStrictEqual(summary(Validate.lint(bundle, vocabConfig)), [
+				["config-unknown-key", "", "warning"],
+				["require-verified-unmet", "decisions/settled.md", "error"],
+			]);
 		}),
 	);
 
