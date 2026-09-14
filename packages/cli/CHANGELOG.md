@@ -1,5 +1,14 @@
 # @okfit/cli
 
+## 0.5.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/engine | dependency | updated | 0.4.0 | 0.4.1 |
+| @okfit/profiles | dependency | updated | 0.5.0 | 0.6.0 |
+
 ## 0.5.1
 
 ### Dependencies
