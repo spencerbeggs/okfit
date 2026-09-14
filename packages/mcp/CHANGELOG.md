@@ -1,5 +1,14 @@
 # @okfit/mcp
 
+## 0.3.5
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/engine | dependency | updated | 0.4.0 | 0.4.1 |
+| @okfit/profiles | dependency | updated | 0.5.0 | 0.6.0 |
+
 ## 0.3.4
 
 ### Features
