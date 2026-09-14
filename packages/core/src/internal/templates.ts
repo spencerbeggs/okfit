@@ -9,8 +9,8 @@ export interface IndexEntryInput {
  * Backslash-escape markdown-active characters (`\`, `<`, `>`, `*`, `_`, `` ` ``,
  * `[`, `]`) so plain text round-trips through a generated `index.md` as
  * literal text instead of being interpreted as inline HTML or emphasis
- * (issue #72). `\` is escaped first so the escapes added for the other
- * characters are not themselves re-escaped.
+ * (issue #72). A single pass over the original text, so the backslashes it
+ * inserts are never themselves re-escaped.
  */
 const escapeMarkdown = (text: string): string => text.replace(/[\\<>*_`[\]]/g, (char) => `\\${char}`);
 

@@ -199,11 +199,14 @@ describe("Validate", () => {
 			assert.deepStrictEqual(summary(lint), [
 				["broken-links", "modules/web.md", "warning"],
 				["broken-links", "modules/web.md", "warning"],
+				["broken-links", "modules/web.md", "warning"],
 			]);
 			const messages = lint.map((d) => d.message);
 			assert.match(messages[0] ?? "", /"missing\.md#whatever" does not exist/);
 			assert.match(messages[1] ?? "", /"store\.md#no-such-heading" exists but has no heading "#no-such-heading"/);
+			assert.match(messages[2] ?? "", /"#no-such-self" exists but has no heading "#no-such-self"/);
 			assert.isDefined(lint[1]?.range);
+			assert.isDefined(lint[2]?.range);
 		}),
 	);
 

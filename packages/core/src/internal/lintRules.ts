@@ -251,20 +251,39 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 	// Issue #69: a target file that exists but no longer carries the linked heading.
 	const slugCache = new Map<string, ReadonlySet<string>>();
 	const anchors: Array<Diagnostic> = [];
+	const slugsOf = (id: string, target: LoadedConcept): ReadonlySet<string> => {
+		const cached = slugCache.get(id);
+		if (cached !== undefined) return cached;
+		const slugs = headingSlugs(target);
+		slugCache.set(id, slugs);
+		return slugs;
+	};
+	const check = (
+		file: string,
+		raw: string,
+		targetId: string,
+		target: LoadedConcept,
+		position: DiagnosticRange | undefined,
+	): void => {
+		const fragment = fragmentOf(raw);
+		if (fragment === undefined || fragment === "" || slugsOf(targetId, target).has(fragment)) return;
+		const message = `Link target "${raw}" exists but has no heading "#${fragment}"`;
+		anchors.push(diagnostic(file, "broken-links", severity, message, position));
+	};
 	for (const link of context.graph.edges) {
 		if (link.data.source !== "body") continue;
-		const fragment = fragmentOf(link.data.raw);
-		if (fragment === undefined || fragment === "") continue;
 		const target = byId.get(link.to);
 		if (target === undefined) continue;
-		let slugs = slugCache.get(link.to);
-		if (slugs === undefined) {
-			slugs = headingSlugs(target);
-			slugCache.set(link.to, slugs);
+		check(fileOf(link.from), link.data.raw, link.to, target, link.data.position);
+	}
+	// A self-anchor (`[x](#heading)`) resolves to `self` and never becomes an edge (D-25), so read it off the document.
+	for (const concept of context.bundle.concepts.values()) {
+		for (const link of concept.document.links) {
+			if (link.url === undefined || !link.url.startsWith("#") || link.node.type === "linkReference") continue;
+			const { start, end } = link.node.position;
+			const position = DiagnosticRange.fromOffset(concept.document.source, start.offset, end.offset - start.offset);
+			check(concept.path, link.url, concept.id as string, concept, position);
 		}
-		if (slugs.has(fragment)) continue;
-		const message = `Link target "${link.data.raw}" exists but has no heading "#${fragment}"`;
-		anchors.push(diagnostic(fileOf(link.from), "broken-links", severity, message, link.data.position));
 	}
 	return [...dangling, ...anchors];
 });
