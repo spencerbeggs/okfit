@@ -34,6 +34,18 @@ const frontmatterRange = (concept: LoadedConcept): DiagnosticRange | undefined =
 
 const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && raw[key] !== null;
 
+/**
+ * Source spans of every inline code span and code block, so a footnote-shaped
+ * token inside backticks is read as literal text (issue #67).
+ */
+const codeSpansOf = (concept: LoadedConcept): ReadonlyArray<readonly [number, number]> =>
+	concept.document
+		.findAll((node) => node.type === "inlineCode" || node.type === "code")
+		.map((node) => [node.position.start.offset, node.position.end.offset] as const);
+
+const insideAny = (spans: ReadonlyArray<readonly [number, number]>, offset: number): boolean =>
+	spans.some(([start, end]) => offset >= start && offset < end);
+
 const diagnostic = (
 	file: string,
 	code: LintCode,
@@ -108,6 +120,14 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 		: [],
 );
 
+// Issue #110: `Derive.status` reads an absent `status` as `stable`, so a freshly
+// generated, never-verified concept looked settled to every consumer.
+export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
+	concept.frontmatter.status === undefined && (concept.frontmatter.verified ?? []).length === 0
+		? ["Concept has no status and no verified entry, so it reads as stable; set status: draft or stable explicitly"]
+		: [],
+);
+
 export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (concept) => {
 	const actors = [concept.frontmatter.generated?.by, ...(concept.frontmatter.verified ?? []).map((v) => v.by)];
 	return actors
@@ -132,10 +152,11 @@ export const footnoteSourceUnknown: LintRule = rule("footnote-source-unknown", (
 		}
 		const source = concept.document.source;
 		const start = concept.document.frontmatter?.position.end.offset ?? 0;
+		const code = codeSpansOf(concept);
 		const seen = new Set<string>();
 		for (const match of source.slice(start).matchAll(FOOTNOTE_RE)) {
 			const label = match[1];
-			if (label === undefined || ids.has(label) || seen.has(label)) {
+			if (label === undefined || ids.has(label) || seen.has(label) || insideAny(code, start + match.index)) {
 				continue;
 			}
 			seen.add(label);
@@ -164,13 +185,16 @@ export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, 
 		const source = concept.document.source;
 		const start = concept.document.frontmatter?.position.end.offset ?? 0;
 		const body = source.slice(start);
+		const code = codeSpansOf(concept);
 		const defined = new Set(
-			[...body.matchAll(FOOTNOTE_DEFINITION_RE)].flatMap((m) => (m[1] === undefined ? [] : [m[1]])),
+			[...body.matchAll(FOOTNOTE_DEFINITION_RE)].flatMap((m) =>
+				m[1] === undefined || insideAny(code, start + m.index) ? [] : [m[1]],
+			),
 		);
 		const seen = new Set<string>();
 		for (const match of body.matchAll(FOOTNOTE_RE)) {
 			const label = match[1];
-			if (label === undefined || defined.has(label) || seen.has(label)) {
+			if (label === undefined || defined.has(label) || seen.has(label) || insideAny(code, start + match.index)) {
 				continue;
 			}
 			seen.add(label);
@@ -189,12 +213,79 @@ export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, 
 	return out;
 });
 
+/** GitHub-style heading slug: lowercase, punctuation dropped, spaces to hyphens, duplicates suffixed `-1`, `-2`, ... */
+const headingSlugs = (concept: LoadedConcept): ReadonlySet<string> => {
+	const seen = new Map<string, number>();
+	const slugs = new Set<string>();
+	for (const heading of concept.document.headings) {
+		const base = heading.text
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}\s-]/gu, "")
+			.trim()
+			.replace(/\s+/g, "-");
+		const count = seen.get(base) ?? 0;
+		seen.set(base, count + 1);
+		slugs.add(count === 0 ? base : `${base}-${count}`);
+	}
+	return slugs;
+};
+
+const fragmentOf = (raw: string): string | undefined => {
+	const hash = raw.indexOf("#");
+	if (hash < 0) return undefined;
+	const fragment = raw.slice(hash + 1).split("?")[0] ?? "";
+	try {
+		return decodeURIComponent(fragment);
+	} catch {
+		return fragment;
+	}
+};
+
 export const brokenLinks: LintRule = rule("broken-links", (context, severity) => {
-	const pathOf = new Map([...context.bundle.concepts.values()].map((concept) => [concept.id as string, concept.path]));
-	return context.graph.dangling().map((link) => {
+	const byId = new Map([...context.bundle.concepts.values()].map((concept) => [concept.id as string, concept]));
+	const fileOf = (from: string): string => byId.get(from)?.path ?? from;
+	const dangling = context.graph.dangling().map((link) => {
 		const message = `Link target "${link.data.raw}" does not exist in the bundle`;
-		return diagnostic(pathOf.get(link.from) ?? link.from, "broken-links", severity, message, link.data.position);
+		return diagnostic(fileOf(link.from), "broken-links", severity, message, link.data.position);
 	});
+	// Issue #69: a target file that exists but no longer carries the linked heading.
+	const slugCache = new Map<string, ReadonlySet<string>>();
+	const anchors: Array<Diagnostic> = [];
+	const slugsOf = (id: string, target: LoadedConcept): ReadonlySet<string> => {
+		const cached = slugCache.get(id);
+		if (cached !== undefined) return cached;
+		const slugs = headingSlugs(target);
+		slugCache.set(id, slugs);
+		return slugs;
+	};
+	const check = (
+		file: string,
+		raw: string,
+		targetId: string,
+		target: LoadedConcept,
+		position: DiagnosticRange | undefined,
+	): void => {
+		const fragment = fragmentOf(raw);
+		if (fragment === undefined || fragment === "" || slugsOf(targetId, target).has(fragment)) return;
+		const message = `Link target "${raw}" exists but has no heading "#${fragment}"`;
+		anchors.push(diagnostic(file, "broken-links", severity, message, position));
+	};
+	for (const link of context.graph.edges) {
+		if (link.data.source !== "body") continue;
+		const target = byId.get(link.to);
+		if (target === undefined) continue;
+		check(fileOf(link.from), link.data.raw, link.to, target, link.data.position);
+	}
+	// A self-anchor (`[x](#heading)`) resolves to `self` and never becomes an edge (D-25), so read it off the document.
+	for (const concept of context.bundle.concepts.values()) {
+		for (const link of concept.document.links) {
+			if (link.url === undefined || !link.url.startsWith("#") || link.node.type === "linkReference") continue;
+			const { start, end } = link.node.position;
+			const position = DiagnosticRange.fromOffset(concept.document.source, start.offset, end.offset - start.offset);
+			check(concept.path, link.url, concept.id as string, concept, position);
+		}
+	}
+	return [...dangling, ...anchors];
 });
 
 export const missingIndex: LintRule = rule("missing-index", (context, severity) =>
@@ -213,6 +304,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	requiredKeyMissing,
 	fieldValueUnknown,
 	requireVerifiedUnmet,
+	statusMissing,
 	actorPrefixUnknown,
 	footnoteSourceUnknown,
 	footnoteUndefined,

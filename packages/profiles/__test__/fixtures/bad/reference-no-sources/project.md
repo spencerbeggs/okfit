@@ -1,5 +1,6 @@
 ---
 type: Project
+status: stable
 title: Fixture project
 description: A minimal Project for a bad-bundle case.
 ---

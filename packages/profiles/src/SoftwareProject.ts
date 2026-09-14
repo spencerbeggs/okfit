@@ -3,8 +3,11 @@ import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "
 
 /**
  * Hand-authored, typed `OkfitConfig` (P-25). Sets ONLY `concepts`, `types`,
- * `tags` and `extensions: {}`; `okf_version`, `bundle`, `lifecycle`, `actors`
- * and `lint` are inherited from `OkfitConfig.DEFAULTS` by whoever merges.
+ * `tags`, `extensions: {}` and one `lint` opinion (`status_missing = "warn"`,
+ * issue #110: a software project wants every concept's status written down
+ * rather than read from silence); `okf_version`, `bundle`, `lifecycle`,
+ * `actors` and the rest of `lint` are inherited from `OkfitConfig.DEFAULTS`
+ * by whoever merges.
  * `actors.agent` is deliberately unset (P-17): which agent writes is a fact
  * about the repository, not about the software-project shape. Every string
  * obeys P-42 (one-sentence descriptions, at most two-sentence guidance, plain
@@ -14,6 +17,7 @@ import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "
  */
 const config: OkfitConfig = {
 	concepts: { required: ["title", "description"], tags: { required: [] } },
+	lint: { status_missing: "warn" },
 	types: {
 		Project: {
 			description: "The repository's root concept: its purpose, boundaries, and non-goals.",

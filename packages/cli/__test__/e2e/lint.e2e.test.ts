@@ -24,7 +24,7 @@ describe("okfit lint: clean bundle", () => {
 	it.effect("exits 0, prints only the summary to stderr", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["lint"], sandbox);
 
@@ -110,7 +110,7 @@ describe("okfit lint --format json", () => {
 						code: "required-key-missing",
 						severity: "error",
 						message: 'Required key "kind" is missing',
-						range: { offset: 0, length: 118, line: 0, character: 0 },
+						range: { offset: 0, length: 127, line: 0, character: 0 },
 					},
 				],
 			});

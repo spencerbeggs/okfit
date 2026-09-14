@@ -89,6 +89,8 @@ describe("okfitConfigDocumentFields", () => {
 				["stale", "stale"],
 				["walk_unreadable", "walk-unreadable"],
 				["generated_at_drift", "generated-at-drift"],
+				["status_missing", "status-missing"],
+				["source_resource_missing", "source-resource-missing"],
 			],
 		);
 		assert.strictEqual(

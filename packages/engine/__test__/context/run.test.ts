@@ -19,7 +19,7 @@ const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 describe("runContext", () => {
 	it.effect("reports indexExists true against a bundle root with an index.md", () =>
 		Effect.gen(function* () {
-			const bundleRoot = resolve(PROFILES_FIXTURES, "software-project");
+			const bundleRoot = resolve(PROFILES_FIXTURES, "software-project", "okf");
 			const result = yield* runContext({ bundleRoot });
 			assert.strictEqual(result.indexPath, resolve(bundleRoot, "index.md"));
 			assert.isTrue(result.indexExists);

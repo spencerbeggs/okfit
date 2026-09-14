@@ -2,6 +2,7 @@
 type: Module
 title: MCP
 description: The okfit-mcp Model Context Protocol server, exposing six read-only tools and static concept resources over stdio.
+status: stable
 resource: ../../packages/mcp
 kind: package
 generated:

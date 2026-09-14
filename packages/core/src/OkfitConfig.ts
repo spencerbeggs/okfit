@@ -310,6 +310,22 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	status_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "status-missing",
+			description:
+				'A concept carries neither status nor verified, so it silently reads as stable (issue #110). Off by default because the spec reads an absent status as stable; the software-project profile raises it to "warn".',
+			default: "off",
+		}),
+	),
+	source_resource_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "source-resource-missing",
+			description:
+				'A resource or sources[].resource path resolves neither in the bundle nor on disk relative to the concept (issue #106). Default "warn".',
+			default: "warn",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -552,6 +568,8 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
 	"generated-at-drift": "generated_at_drift",
+	"status-missing": "status_missing",
+	"source-resource-missing": "source_resource_missing",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -573,6 +591,8 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	stale: "info",
 	walk_unreadable: "warn",
 	generated_at_drift: "warn",
+	status_missing: "off",
+	source_resource_missing: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

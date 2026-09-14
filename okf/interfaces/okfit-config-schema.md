@@ -7,8 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T04:02:58Z
-  body_sha256: d42e16d11c74154fafd9d82bee2e1a96afbc6cf09791df0fcdf5800562e900a4
+  at: 2026-09-14T18:18:28Z
+  body_sha256: 1c405556186faa24656ab549c360e01afa10d947c9019478c8273b3a2788ce88
 tags:
   - architecture
 ---
@@ -60,12 +60,21 @@ in.
 
 ## Lint severities
 
-The seventeen default lint codes: `broken_links`, `missing_index`,
+The nineteen default lint codes: `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
-`walk_unreadable`, and `generated_at_drift` default `warn`; `unknown_type`,
-`required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
+`walk_unreadable`, `generated_at_drift`, and `source_resource_missing` default `warn`;
+`unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
 `family_invalid`, and `computation_runtime_missing` default `error`;
-`actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`.
+`actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
+`status_missing` defaults `off`, because the spec reads an absent `status`
+as `stable` and core keeps no opinion about it -- the software-project
+profile is the layer that raises it to `warn` (issue #110), the one lint
+severity that profile sets. `source_resource_missing` (issue #106) is the
+one lint core cannot run itself: a `resource` or `sources[].resource` path
+that resolves to nothing in the bundle is a descriptor to core (D-24), so
+`@okfit/engine` resolves it on disk in D-23 order and reports the miss.
+`broken_links` also checks a `#fragment` against the target concept's
+heading slugs (issue #69).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [A body digest inside generated detects real
 drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).

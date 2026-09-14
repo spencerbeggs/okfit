@@ -20,7 +20,7 @@ describe("okfit graph: default format", () => {
 	it.effect("prints Mermaid (a flowchart) with nothing else on stdout, exits 0", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["graph"], sandbox);
 
@@ -35,7 +35,7 @@ describe("okfit graph --format dot", () => {
 	it.effect("prints GraphViz DOT with nothing else on stdout, exits 0", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["graph", "--format", "dot"], sandbox);
 
@@ -50,7 +50,7 @@ describe("okfit graph --format json", () => {
 	it.effect("prints a GraphEnvelope with node and edge lists, exits 0", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["graph", "--format", "json"], sandbox);
 

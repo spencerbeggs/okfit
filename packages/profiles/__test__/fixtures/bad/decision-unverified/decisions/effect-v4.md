@@ -1,5 +1,6 @@
 ---
 type: Decision
+status: stable
 title: Effect v4 only
 description: A stable Decision without a verified entry; a draft would be exempt.
 ---

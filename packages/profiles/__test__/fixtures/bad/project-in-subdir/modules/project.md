@@ -1,5 +1,6 @@
 ---
 type: Project
+status: stable
 title: Nested project
 description: The bundle's only Project, filed below the root.
 ---

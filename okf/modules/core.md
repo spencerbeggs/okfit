@@ -2,6 +2,7 @@
 type: Module
 title: Core
 description: The no-internal-deps base package -- OKF v0.2 frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
+status: stable
 resource: ../../packages/core
 kind: package
 tags:

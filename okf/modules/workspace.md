@@ -2,6 +2,7 @@
 type: Module
 title: Workspace
 description: The monorepo root -- workspace layout, shared rules, and the build, lint, and release commands every package uses.
+status: stable
 resource: "../.."
 kind: workspace
 tags:

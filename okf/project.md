@@ -2,6 +2,7 @@
 type: Project
 title: okfit
 description: Node.js tooling for the Open Knowledge Format (OKF) v0.2, published under the @okfit npm scope.
+status: stable
 tags:
   - architecture
 generated:

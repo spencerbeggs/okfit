@@ -73,9 +73,13 @@ validation on the file without any further setup.
   | `config_unknown_key` | `warn` |
   | `stale` | `info` |
   | `walk_unreadable` | `warn` |
+  | `status_missing` | `off` |
+  | `source_resource_missing` | `warn` |
 
-  One extra fact worth stating: `unknown_type` is forced `off` when the
-  merged config declares no types at all.
+  Two extra facts worth stating: `unknown_type` is forced `off` when the
+  merged config declares no types at all, and `status_missing` (a concept
+  with neither `status` nor `verified`, which the spec reads as `stable`)
+  is the one severity the software-project profile raises, to `warn`.
 - `[types.<Name>]` -- `description?`, `guidance?`, `required?: string[]`,
   `require_verified?: boolean`, and a `fields.<key>` sub-map (each field is
   `{description, values?, kind?: "path"}`).
@@ -211,7 +215,12 @@ directories: `modules/`, `decisions/`, `conventions/`, `interfaces/`,
 `references/`, `runbooks/`, `glossary/`, `limitations/`, `models/`,
 `gotchas/`, `consumers/`, `roadmaps/`, `measurements/`, `invariants/`,
 `incidents/`) that `okfit init` scaffolds from. That layout is **not** part
-of `OkfitConfig` itself -- it never appears in a config file.
+of `OkfitConfig` itself -- it never appears in a config file, and it does
+not bound where concepts may live. `okfit sync` and the `missing-index`
+lint work from the bundle on disk, not from the layout: any directory that
+holds a concept gets an `index.md`, so a custom `[types.Consumer]` under
+`okf/consumers/` (or any directory name you choose) is indexed exactly like
+a layout directory (issue #71).
 
 ## actors.agent must be set for this plugin's agent
 

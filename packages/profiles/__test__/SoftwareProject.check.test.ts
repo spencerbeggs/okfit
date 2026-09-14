@@ -68,7 +68,7 @@ describe("software-project clean fixture", () => {
 		"loads with the expected shape and zero conformance and lint diagnostics under the merged config (P-37)",
 		() =>
 			Effect.gen(function* () {
-				const bundle = yield* load("software-project");
+				const bundle = yield* load("software-project/okf");
 				assert.strictEqual(bundle.files.length, 33);
 				assert.strictEqual(bundle.concepts.size, 16);
 				assert.strictEqual(bundle.indexes.size, 16);
@@ -101,7 +101,7 @@ describe("software-project clean fixture", () => {
 
 	it.effect("holds one concept of every layout type, under its layout directory", () =>
 		Effect.gen(function* () {
-			const bundle = yield* load("software-project");
+			const bundle = yield* load("software-project/okf");
 			const byType = new Map([...bundle.concepts.values()].map((c): [string, string] => [c.frontmatter.type, c.path])); // (checked) tuple annotation for the Map constructor
 			assert.strictEqual(byType.get("Project"), "project.md");
 			for (const { directory, type } of profile.layout.directories) {

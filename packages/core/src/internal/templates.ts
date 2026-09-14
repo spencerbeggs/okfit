@@ -5,11 +5,20 @@ export interface IndexEntryInput {
 	readonly description?: string;
 }
 
+/**
+ * Backslash-escape markdown-active characters (`\`, `<`, `>`, `*`, `_`, `` ` ``,
+ * `[`, `]`) so plain text round-trips through a generated `index.md` as
+ * literal text instead of being interpreted as inline HTML or emphasis
+ * (issue #72). A single pass over the original text, so the backslashes it
+ * inserts are never themselves re-escaped.
+ */
+const escapeMarkdown = (text: string): string => text.replace(/[\\<>*_`[\]]/g, (char) => `\\${char}`);
+
 /** `* [Title](target) - description`, or without the tail when there is no description (D-36; spec §8). */
 export const indexEntry = (entry: IndexEntryInput): string =>
 	entry.description === undefined || entry.description === ""
-		? `* [${entry.title}](${entry.target})`
-		: `* [${entry.title}](${entry.target}) - ${entry.description}`;
+		? `* [${escapeMarkdown(entry.title)}](${entry.target})`
+		: `* [${escapeMarkdown(entry.title)}](${entry.target}) - ${escapeMarkdown(entry.description)}`;
 
 /** An H1 section: heading, blank line, entries, trailing newline. */
 export const indexSection = (heading: string, entries: ReadonlyArray<string>): string =>
