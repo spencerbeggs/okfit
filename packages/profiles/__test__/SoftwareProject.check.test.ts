@@ -69,9 +69,9 @@ describe("software-project clean fixture", () => {
 		() =>
 			Effect.gen(function* () {
 				const bundle = yield* load("software-project");
-				assert.strictEqual(bundle.files.length, 29);
-				assert.strictEqual(bundle.concepts.size, 14);
-				assert.strictEqual(bundle.indexes.size, 14);
+				assert.strictEqual(bundle.files.length, 33);
+				assert.strictEqual(bundle.concepts.size, 16);
+				assert.strictEqual(bundle.indexes.size, 16);
 				assert.strictEqual(bundle.logs.size, 1);
 				assert.deepStrictEqual(bundle.directories, [
 					"",
@@ -80,7 +80,9 @@ describe("software-project clean fixture", () => {
 					"decisions",
 					"glossary",
 					"gotchas",
+					"incidents",
 					"interfaces",
+					"invariants",
 					"limitations",
 					"measurements",
 					"models",

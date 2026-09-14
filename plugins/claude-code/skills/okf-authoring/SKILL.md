@@ -1,7 +1,7 @@
 ---
 name: okf-authoring
 description: >-
-  Seventeen imperative rules for writing and editing OKF concept files under a
+  Nineteen imperative rules for writing and editing OKF concept files under a
   config: what is required, what to never touch, the actor and timestamp
   conventions, and where core's leniency differs from the spec's prose. Use
   when creating, editing, or reviewing a concept file's frontmatter or body
@@ -26,7 +26,7 @@ already carries today.
 runs it directly, from their own shell. Never run it yourself, even when
 asked, and never treat its existence as a loophole in this rule.
 
-## The seventeen rules
+## The nineteen rules
 
 1. Only `type` is required; never invent required fields beyond what the
    active profile and config declare (`concepts.required` --
@@ -46,7 +46,14 @@ asked, and never treat its existence as a loophole in this rule.
 6. Attribute a claim with a `[^id]` footnote keyed to `sources[].id`, never
    a `# Citations` list. The label must equal the id verbatim: a shortened
    `[^schema-org]` against `id: schema-org-package-json` fails
-   `footnote-source-unknown` and `footnote-undefined` as a pair.
+   `footnote-source-unknown` and `footnote-undefined` as a pair. A
+   footnote is two halves and both are required: the inline `[^id]` use
+   *and* a `[^id]: <resource>` definition line at the end of the body.
+   An inline use with no definition fails `footnote-undefined`; a
+   definition with no inline use is an orphan okfit does not lint but
+   markdownlint's MD053 rejects. Every listed `sources[]` entry therefore
+   either gets both halves or neither -- never a bare definition for a
+   source the body does not cite.
 7. `sources[].resource` is required per entry, and it is not only a path
    in this repository. Four forms are legal and none trips `broken-links`:
    a relative path (`../../packages/core/src/index.ts`); an absolute URL
@@ -87,6 +94,24 @@ asked, and never treat its existence as a loophole in this rule.
     identifiers (`node:`, `file:`, `workspace:`, `catalog:`, `portal:`)
     are exactly the words a software project's descriptions reach for, so
     quote defensively whenever a value names one.
+18. Write for the repository's markdownlint config, which usually runs at
+    pre-commit with `fix: true` and rewrites prose rather than reporting.
+    Four traps recur: wrap a path in a code span inside a footnote
+    definition (`` [^t]: `__test__/foo.test.ts` ``), since a bare `__test__`
+    is "emphasis" MD050 turns into `**test**`; never start a line with
+    `#N` (an issue number) -- `#90.` becomes an ATX heading and a wrapped
+    `#1, #2` list becomes `# 2`; write `#90` mid-sentence or as
+    `issue 90`; re-indent code lifted from a tab-indented source tree
+    with spaces before fencing it, since MD010 rejects hard tabs inside
+    fences; and lint scoped to the files you wrote, because an autofix
+    pass over the whole bundle deletes another writer's still-unreferenced
+    footnote definitions (rule 6) mid-dispatch.
+19. A historical delta -- "was 1481 lines, now 19", "`STATE_token`
+    deleted, not moved", a table of old names to new -- has no home in
+    OKF by design: `log.md` is derived history and a concept describes
+    the present. Keep a delta only inside the Context of the Decision it
+    justifies, in one sentence; drop the rest rather than inventing a
+    type for it.
 
 ## generated.at and generated.body_sha256
 

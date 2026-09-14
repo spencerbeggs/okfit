@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-14
+
+* Added The software-project vocabulary grows a third time from the silk action migrations
+
 ## 2026-09-13
 
 * Added The software-project vocabulary grows from what migrations could not express

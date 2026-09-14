@@ -90,8 +90,8 @@ validation on the file without any further setup.
 
 ## What software-project contributes
 
-The `software-project` profile (`bundle.profile`'s default) sets fourteen
-types and eleven tags on top of `OkfitConfig.DEFAULTS`, plus
+The `software-project` profile (`bundle.profile`'s default) sets sixteen
+types and thirteen tags on top of `OkfitConfig.DEFAULTS`, plus
 `concepts.required = ["title", "description"]`.
 
 Types, one sentence each:
@@ -120,6 +120,11 @@ Types, one sentence each:
   intent rather than as a Decision."
 - `Measurement` -- "A dated empirical result: what was measured, how, and
   what the numbers ruled in or out."
+- `Invariant` -- "A property the code holds by construction: enforced by
+  the type system or pinned by a test, not followed by people."
+- `Incident` -- "A dated production failure: what shipped broken, what it
+  looked like to the consumer, the root cause, and the guard that now
+  stops it."
 
 Choosing between the near neighbours: a Limitation is "this cannot do X";
 a Gotcha is "this looks broken (or looks fine) and is the opposite". A
@@ -131,7 +136,17 @@ because a word is used. A Roadmap is queued work behind a gate, not a
 choice made: a draft Decision that decides nothing is a Roadmap. A
 Measurement is the evidence a Decision cites, kept out of the Decision's
 body so it can rot on its own `stale_after`. A Consumer is a downstream
-repository, not a Module of this one.
+repository, not a Module of this one. An Invariant is held by a brand, a
+union, or a pinned test and nobody "follows" it; a Convention is a rule a
+contributor could ignore. An Incident is one dated narrative -- what
+shipped broken, how it looked, the root cause, the guard -- where a Gotcha
+is only the misleading signal and a Decision only the guard; write the
+Incident and link the other two if they exist. A known bug nobody is
+scheduled to fix is a Gotcha with a `stale_after`, not a Roadmap; it
+becomes a Roadmap once the fix is planned. A Gotcha whose signal comes
+from outside the repository (a GitHub platform behaviour, a consumer's
+bundler) omits `resource` and names the outside system in the body rather
+than pointing `resource` at a directory that merely sits nearby.
 
 Each type's full `guidance` string is longer than is worth reproducing here;
 read it from the merged config (`okfit context --format json`, which also
@@ -140,36 +155,62 @@ lists each type's `required` keys, `require_verified`, and declared
 than trusting a paraphrase.
 
 Tags: `architecture`, `testing`, `release`, `security`, `performance`,
-`dx`, `ci`, `compat`, `bundle`, `observability`, `deps` -- each a
-one-sentence `description`, no `guidance`. `bundle` is install weight and
-reachability (tree-shaking, subpath entrypoints, edges declined for their
-cost) where `performance` is runtime cost; `observability` is how the
-system reports on itself; `deps` is how third-party dependencies are
-declared, pinned, and distributed.
+`dx`, `ci`, `compat`, `bundle`, `observability`, `deps`, `github`, `docs`
+-- each a one-sentence `description`, no `guidance`. `bundle` is install
+weight and reachability (tree-shaking, subpath entrypoints, edges declined
+for their cost) where `performance` is runtime cost; `observability` is
+how the system reports on itself; `deps` is how third-party dependencies
+are declared, pinned, and distributed; `github` is the GitHub platform
+surface (the APIs, Apps and tokens, Actions, Packages, check runs, pull
+request conventions) where `ci` is the unattended path wherever it runs;
+`docs` is the documentation itself (provenance, rot, re-derivation, what
+would falsify a claim) where `dx` is tooling.
+
+Framework tags are deliberately not in the profile. A concern that names
+one framework -- Effect layer memoisation, React hook ordering, Django
+migrations -- is a fact about the repository, not about the
+software-project shape, so a repo that keeps hitting one declares it
+locally as a plain tag with a one-sentence description:
+
+```toml
+[tags.effect]
+description = "Concerns an Effect v4 idiom: layers, services, error channels, or the test runner."
+```
+
+Name it after the framework, not `framework:<name>` (a colon in a tag is
+legal but reads as a namespace the profile does not define). A migration
+that finds the same framework idiom recurring across three or more
+concepts should add the tag then, not tag by hand afterwards.
 
 Details that surprise:
 
 - `Module` requires `resource` and `kind` (`workspace | package | website |
-  plugin | action | harness | config-dependency`); `DataModel` requires
+  plugin | action | worker | harness | config-dependency`; `worker` is a
+  detached sidecar or worker bundle another module spawns, with its own
+  lifecycle, that is not itself a package or action); `DataModel` requires
   `resource`; `Interface` requires `kind` (`api | cli | config | wire | mcp
   | runtime`); `Consumer` requires `repository` (free text, a URL or an
-  owner/name pair, since it lives outside this repository) -- the other
-  types have no `required` list at all.
+  owner/name pair, since it lives outside this repository); `Incident`
+  requires `occurred` (free text, an ISO 8601 date -- core has no date
+  field kind) -- the other types have no `required` list at all.
 - `Module` also declares two optional structured fields: `layer` (free
   text, the repository's own layering label such as `L2`) and `pins` (the
   sibling Module paths this one is exact-version-pinned with). `Roadmap`
   declares an optional free-text `gate`; `Measurement` an optional
-  path-kind `justifies` (the Decisions it supports).
+  path-kind `justifies` (the Decisions it supports). `Invariant` declares
+  an optional path-kind `resource` (the type or test that enforces it);
+  `Incident` an optional path-kind `guard` (what now stops the failure).
 - `Decision` sets `require_verified = true` -- a Decision is not settled
   until a human verifies it. That is exactly the field `okf-authoring`'s
   rule 2 forbids the agent from writing. A Decision with `status: draft`
   is exempt from `require-verified-unmet`, so a freshly authored bundle
   can validate clean before anyone has run `okfit verify`.
 
-The profile also carries a `layout` (`root.{index,log,project}` plus thirteen
+The profile also carries a `layout` (`root.{index,log,project}` plus fifteen
 directories: `modules/`, `decisions/`, `conventions/`, `interfaces/`,
 `references/`, `runbooks/`, `glossary/`, `limitations/`, `models/`,
-`gotchas/`, `consumers/`, `roadmaps/`, `measurements/`) that `okfit init` scaffolds from. That layout is **not** part
+`gotchas/`, `consumers/`, `roadmaps/`, `measurements/`, `invariants/`,
+`incidents/`) that `okfit init` scaffolds from. That layout is **not** part
 of `OkfitConfig` itself -- it never appears in a config file.
 
 ## actors.agent must be set for this plugin's agent

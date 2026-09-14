@@ -21,3 +21,5 @@ okf_version: "0.2"
 * [consumers](consumers/index.md) - External applications that consume this repository.
 * [roadmaps](roadmaps/index.md) - Gates and the forward-looking work behind them.
 * [measurements](measurements/index.md) - Dated empirical results that justified Decisions.
+* [invariants](invariants/index.md) - Properties the code holds by construction.
+* [incidents](incidents/index.md) - Dated production failures and the guards that now stop them.

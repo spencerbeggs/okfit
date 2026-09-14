@@ -48,7 +48,7 @@ describe("okfit stale: OKFIT_NOW", () => {
 			});
 			assert.strictEqual(before.exitCode, 0);
 			assert.strictEqual(before.stdout, "");
-			assert.strictEqual(before.stderr, "0 stale concepts of 14 in okf\n");
+			assert.strictEqual(before.stderr, "0 stale concepts of 16 in okf\n");
 
 			const after = yield* runOkfit(["stale"], {
 				...sandbox,
@@ -56,7 +56,7 @@ describe("okfit stale: OKFIT_NOW", () => {
 			});
 			assert.strictEqual(after.exitCode, 0);
 			assert.strictEqual(after.stdout, "modules/core  2025-01-01T00:00:00.000Z  (365 days past)\n");
-			assert.strictEqual(after.stderr, "1 stale concepts of 14 in okf\n");
+			assert.strictEqual(after.stderr, "1 stale concepts of 16 in okf\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
@@ -83,7 +83,7 @@ describe("okfit stale --format json", () => {
 				root: bundleRoot,
 				profile: "software-project",
 				as_of: "2026-01-01T00:00:00.000Z",
-				summary: { concepts: 14, stale: 1 },
+				summary: { concepts: 16, stale: 1 },
 				items: [{ id: "modules/core", stale_after: "2025-01-01T00:00:00.000Z", days_past: 365 }],
 			});
 		}).pipe(Effect.provide(NodeServices.layer)),
