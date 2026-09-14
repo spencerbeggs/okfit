@@ -71,7 +71,9 @@ describe("softwareProject.config", () => {
 				"Decision",
 				"Glossary",
 				"Gotcha",
+				"Incident",
 				"Interface",
+				"Invariant",
 				"Limitation",
 				"Measurement",
 				"Module",
@@ -86,7 +88,8 @@ describe("softwareProject.config", () => {
 			assert.deepStrictEqual(types.Reference?.required, ["sources"]);
 			assert.deepStrictEqual(types.DataModel?.required, ["resource"]);
 			assert.deepStrictEqual(types.Consumer?.required, ["repository"]);
-			for (const name of ["Runbook", "Glossary", "Limitation", "Gotcha", "Roadmap", "Measurement"]) {
+			assert.deepStrictEqual(types.Incident?.required, ["occurred"]);
+			for (const name of ["Runbook", "Glossary", "Limitation", "Gotcha", "Roadmap", "Measurement", "Invariant"]) {
 				assert.isFalse("required" in (types[name] ?? {}), `${name} must not require anything beyond concepts.required`);
 			}
 			assert.strictEqual(types.Decision?.require_verified, true);
@@ -101,6 +104,9 @@ describe("softwareProject.config", () => {
 			assert.strictEqual(types.DataModel?.fields?.resource?.kind, "path");
 			assert.strictEqual(types.Gotcha?.fields?.resource?.kind, "path");
 			assert.strictEqual(types.Measurement?.fields?.justifies?.kind, "path");
+			assert.strictEqual(types.Invariant?.fields?.resource?.kind, "path");
+			assert.strictEqual(types.Incident?.fields?.guard?.kind, "path");
+			assert.isFalse("kind" in (types.Incident?.fields?.occurred ?? {}), "occurred is free text, not a path");
 			for (const name of ["repository"]) {
 				assert.isFalse("kind" in (types.Consumer?.fields?.[name] ?? {}), `${name} is free text, not a path`);
 			}
@@ -115,6 +121,7 @@ describe("softwareProject.config", () => {
 				"website",
 				"plugin",
 				"action",
+				"worker",
 				"harness",
 				"config-dependency",
 			]);
@@ -138,6 +145,8 @@ describe("softwareProject.config", () => {
 				"bundle",
 				"observability",
 				"deps",
+				"github",
+				"docs",
 			]);
 		}),
 	);
@@ -146,7 +155,7 @@ describe("softwareProject.config", () => {
 		Effect.sync(() => {
 			const { descriptions, guidances } = guidanceStrings();
 			assert.isAbove(descriptions.length, 20);
-			assert.strictEqual(guidances.length, 14);
+			assert.strictEqual(guidances.length, 16);
 			for (const text of [...descriptions, ...guidances]) {
 				assert.strictEqual(text, text.trim(), `trailing whitespace in ${JSON.stringify(text)}`);
 				assert.isFalse(text.includes("\n"), `newline in ${JSON.stringify(text)}`);
@@ -178,6 +187,8 @@ describe("softwareProject.layout", () => {
 				{ directory: "consumers", type: "Consumer" },
 				{ directory: "roadmaps", type: "Roadmap" },
 				{ directory: "measurements", type: "Measurement" },
+				{ directory: "invariants", type: "Invariant" },
+				{ directory: "incidents", type: "Incident" },
 			]);
 			const layoutTypes = layout.directories.map((d) => d.type).sort();
 			const configTypes = Object.keys(config.types ?? {})
@@ -195,7 +206,7 @@ describe("OkfitConfig.merge(DEFAULTS, softwareProject.config)", () => {
 			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, config);
 			assert.deepStrictEqual(merged.bundle, { path: "okf", profile: "software-project" });
 			assert.deepStrictEqual(merged.concepts, { required: ["title", "description"], tags: { required: [] } });
-			assert.strictEqual(Object.keys(merged.types ?? {}).length, 14); // (checked) strictEqual for a number
+			assert.strictEqual(Object.keys(merged.types ?? {}).length, 16); // (checked) strictEqual for a number
 			assert.strictEqual(OkfitConfig.severityFor(merged, "unknown-type"), "error");
 			assert.strictEqual(OkfitConfig.severityFor(merged, "required-key-missing"), "error");
 			assert.deepStrictEqual(merged.actors, { humans: [] });

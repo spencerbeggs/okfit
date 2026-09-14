@@ -68,7 +68,7 @@ warns on an `Edit`, and a stamp added after the block is a wasted round
 trip. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
-`okf-authoring`'s seventeen rules, run `okfit validate` and fix what it
+`okf-authoring`'s nineteen rules, run `okfit validate` and fix what it
 reports, run `okfit sync` to regenerate `generated.at`,
 `generated.body_sha256`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what

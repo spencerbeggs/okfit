@@ -20,6 +20,19 @@ into the `okf/` bundle -- naming a concept file and what it covers -- rather
 than restating that concept's body inline. If a paragraph of `CLAUDE.md`
 duplicates what a bundle concept already says, replace it with a pointer.
 
+## Naming the CLI in a router
+
+A `CLAUDE.md` that tells an agent how to browse or check the bundle must
+name only subcommands `okfit --help` lists. There are eight: `validate`,
+`init`, `context`, `verify`, `sync`, `lint`, `graph`, and `stale`. There
+is no `okfit list` and no `okfit show <path>`; a router written from
+memory has invented both. For "how do I browse the bundle" the answer is
+the MCP tools -- `list_concepts`, `get_concept`, `concept_neighbors`,
+`stale_report`, `describe_vocabulary`, `validate_bundle` -- with
+`okfit context --format json` and `okfit validate` as the shell fallback,
+and `index.md` as the map a plain `Read` can follow. When unsure whether
+a subcommand exists, run `okfit --help` before writing its name down.
+
 ## The checklist
 
 Run by hand as a step of `okf-finalize`, in both directions:

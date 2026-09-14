@@ -23,7 +23,7 @@ const config: OkfitConfig = {
 		Module: {
 			description: "A unit of code with an owner and a boundary.",
 			guidance:
-				"One per workspace package, plugin, website, action, test harness, or config dependency. Link to the Decisions that shaped it and the Conventions it is bound by.",
+				"One per workspace package, plugin, website, action, worker, test harness, or config dependency. Link to the Decisions that shaped it and the Conventions it is bound by.",
 			required: ["resource", "kind"],
 			fields: {
 				kind: {
@@ -34,6 +34,8 @@ const config: OkfitConfig = {
 						website: "A docs or marketing site, usually RSPress.",
 						plugin: "A Claude Code or editor plugin distributed outside npm.",
 						action: "A GitHub Action.",
+						worker:
+							"A detached runtime unit, such as a sidecar or worker bundle, spawned by another module with its own lifecycle and not itself a package or action.",
 						harness:
 							"A private test-only package or package group that exercises built artifacts and is never published.",
 						"config-dependency":
@@ -146,7 +148,7 @@ const config: OkfitConfig = {
 			description:
 				"A state or result that looks like one thing and is the opposite: breakage that is transient, or success that did nothing.",
 			guidance:
-				"Describe what a reader sees, what they will wrongly conclude, and what is actually true, and point resource at the code or command that produces the misleading signal. Give it a staleness window, since a trap fixed upstream turns into misinformation.",
+				"Describe what a reader sees, what they will wrongly conclude, and what is actually true, and point resource at the code or command that produces the misleading signal, or omit resource and name the outside system when nothing in this repository produces it. Give it a staleness window, since a trap fixed upstream turns into misinformation; a known bug nobody is scheduled to fix is a Gotcha, and becomes a Roadmap once the fix is planned.",
 			fields: {
 				resource: {
 					description:
@@ -169,7 +171,7 @@ const config: OkfitConfig = {
 		Roadmap: {
 			description: "A gate and the forward-looking work behind it, held as intent rather than as a Decision.",
 			guidance:
-				"List the phases and what remains in each, and give it a staleness window so queued work is re-examined instead of read as settled. Deprecate it when the gate holds and write the Decisions the work produced.",
+				"List the phases and what remains in each, and give it a staleness window so queued work is re-examined instead of read as settled. Deprecate it when the gate holds and write the Decisions the work produced; a known bug with nobody queued to fix it is a Gotcha, not a Roadmap.",
 			fields: {
 				gate: {
 					description:
@@ -184,6 +186,36 @@ const config: OkfitConfig = {
 			fields: {
 				justifies: {
 					description: "Paths to the Decisions this measurement supports, one entry per Decision.",
+					kind: "path",
+				},
+			},
+		},
+		Invariant: {
+			description:
+				"A property the code holds by construction: enforced by the type system or pinned by a test, not followed by people.",
+			guidance:
+				"State the property, name the mechanism that enforces it, and say what a refactor would have to break for it to stop holding. Distinct from Convention, which a contributor can choose to ignore.",
+			fields: {
+				resource: {
+					description:
+						"A path relative to this concept file to the type, function, or test that enforces the property.",
+					kind: "path",
+				},
+			},
+		},
+		Incident: {
+			description:
+				"A dated production failure: what shipped broken, what it looked like to the consumer, the root cause, and the guard that now stops it.",
+			guidance:
+				"Keep the whole narrative in one record rather than splitting the misleading signal into a Gotcha and the guard into a Decision, and link both where they exist. Set occurred to the date it happened so a reader can weigh how far the code has moved since.",
+			required: ["occurred"],
+			fields: {
+				occurred: {
+					description: "The ISO 8601 date the failure happened or was first observed.",
+				},
+				guard: {
+					description:
+						"A path relative to this concept file to the test, check, or config that now stops the failure recurring.",
 					kind: "path",
 				},
 			},
@@ -210,6 +242,14 @@ const config: OkfitConfig = {
 		deps: {
 			description: "Concerns how third-party dependencies are declared, pinned, and distributed.",
 		},
+		github: {
+			description:
+				"Concerns the GitHub platform surface: the REST and GraphQL APIs, Apps and installation tokens, Actions, Packages, check runs, and pull request conventions.",
+		},
+		docs: {
+			description:
+				"Concerns the documentation itself: provenance, rot, re-derivation, and what a claim would take to falsify.",
+		},
 	},
 	extensions: {},
 };
@@ -231,6 +271,8 @@ const layout: Layout = {
 		{ directory: "consumers", type: "Consumer" },
 		{ directory: "roadmaps", type: "Roadmap" },
 		{ directory: "measurements", type: "Measurement" },
+		{ directory: "invariants", type: "Invariant" },
+		{ directory: "incidents", type: "Incident" },
 	],
 };
 

@@ -41,6 +41,8 @@ describe("targetPaths", () => {
 			"/tmp/my-repo/okf/consumers/index.md",
 			"/tmp/my-repo/okf/roadmaps/index.md",
 			"/tmp/my-repo/okf/measurements/index.md",
+			"/tmp/my-repo/okf/invariants/index.md",
+			"/tmp/my-repo/okf/incidents/index.md",
 		]);
 		assert.strictEqual(targetPaths(OPTIONS).length, 6 + Profiles.softwareProject.layout.directories.length);
 	});
@@ -113,7 +115,9 @@ describe("files", () => {
 						"* [decisions](decisions/index.md)",
 						"* [glossary](glossary/index.md)",
 						"* [gotchas](gotchas/index.md)",
+						"* [incidents](incidents/index.md)",
 						"* [interfaces](interfaces/index.md)",
+						"* [invariants](invariants/index.md)",
 						"* [limitations](limitations/index.md)",
 						"* [measurements](measurements/index.md)",
 						"* [models](models/index.md)",
@@ -159,11 +163,13 @@ describe("files", () => {
 					["consumers", "Consumers"],
 					["roadmaps", "Roadmaps"],
 					["measurements", "Measurements"],
+					["invariants", "Invariants"],
+					["incidents", "Incidents"],
 				] as const) {
 					const entry = entries.find((candidate) => candidate.path === `/tmp/my-repo/okf/${directory}/index.md`);
 					assert.strictEqual(entry?.contents, `# ${heading}\n`);
 				}
-				assert.strictEqual(entries.length, 16);
+				assert.strictEqual(entries.length, 18);
 				return undefined;
 			}),
 		),
