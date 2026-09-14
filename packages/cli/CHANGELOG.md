@@ -1,5 +1,32 @@
 # @okfit/cli
 
+## 0.5.3
+
+### Bug Fixes
+
+- `validate` now surfaces two additional lint diagnostics from `@okfit/core`/`@okfit/engine`: `status-missing` (off by default) and `source-resource-missing` (warn by default), plus more accurate `broken-links` reporting for links whose target file exists but is missing the linked heading.
+- `sync`'s generated `index.md` entries now escape markdown-active characters in concept titles and descriptions, so text containing them (``\ < > * _ ` [ ]``) renders as literal characters instead of broken formatting. [#120][#120]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.4.1 | ^0.5.1 |
+| @effected/config-file | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @okfit/core | dependency | updated | 0.4.1 | 0.5.0 |
+| @okfit/engine | dependency | updated | 0.4.1 | 0.5.0 |
+| @okfit/profiles | dependency | updated | 0.6.0 | 0.7.0 |
+
+[#121][#121]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#120]: https://github.com/spencerbeggs/okfit/pull/120
+
+[#121]: https://github.com/spencerbeggs/okfit/pull/121
+
 ## 0.5.2
 
 ### Dependencies

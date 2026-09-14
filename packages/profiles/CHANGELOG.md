@@ -1,5 +1,23 @@
 # @okfit/profiles
 
+## 0.7.0
+
+### Features
+
+- The `software-project` profile now sets `lint.status_missing = "warn"`, its first opinion on a lint severity. Projects using this profile are warned when a concept carries neither `status` nor a `verified` entry, rather than letting it silently read as `stable`. [#120][#120]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.4.1 | 0.5.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#120]: https://github.com/spencerbeggs/okfit/pull/120
+
 ## 0.6.0
 
 ### Features

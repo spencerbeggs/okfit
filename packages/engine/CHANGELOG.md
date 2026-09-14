@@ -1,5 +1,31 @@
 # @okfit/engine
 
+## 0.5.0
+
+### Features
+
+- `validate` now checks that every `resource` and `sources[].resource` value on a concept resolves to a real file, either relative to the concept's own directory or to the bundle root. URLs, scope descriptions, and glob patterns are recognized as descriptors and skipped, never resolved against the filesystem. This check is controlled by `@okfit/core`'s new `source-resource-missing` lint code and reports nothing when that code is set to `"off"`. [#120][#120]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/app | dependency | updated | ^0.16.1 | ^0.16.2 |
+| @effected/config-file | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @effected/xdg | dependency | updated | ^0.5.1 | ^0.5.2 |
+| @okfit/core | dependency | updated | 0.4.1 | 0.5.0 |
+| @okfit/profiles | dependency | updated | 0.6.0 | 0.7.0 |
+
+[#121][#121]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#120]: https://github.com/spencerbeggs/okfit/pull/120
+
+[#121]: https://github.com/spencerbeggs/okfit/pull/121
+
 ## 0.4.1
 
 ### Dependencies
