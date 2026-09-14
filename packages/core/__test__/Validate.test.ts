@@ -12,6 +12,8 @@ const escapePlatform = platformFor("lint/escape-bundle", "/repo/escape-bundle");
 const loadEscapeBundle = Effect.provide(Bundle.load({ root: "/repo/escape-bundle" }), escapePlatform);
 const draftPlatform = platformFor("lint/draft-bundle", "/repo/draft-bundle");
 const loadDraftBundle = Effect.provide(Bundle.load({ root: "/repo/draft-bundle" }), draftPlatform);
+const anchorsPlatform = platformFor("lint/anchors-bundle", "/repo/anchors-bundle");
+const loadAnchorsBundle = Effect.provide(Bundle.load({ root: "/repo/anchors-bundle" }), anchorsPlatform);
 const now = DateTime.makeUnsafe("2026-09-04T00:00:00Z");
 
 const vocabConfig: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
@@ -24,6 +26,11 @@ const vocabConfig: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		Decision: { require_verified: true },
 	},
 	extensions: { legacy_key: true },
+});
+
+const statusConfig: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+	lint: { status_missing: "warn" },
+	extensions: {},
 });
 
 const summary = (diagnostics: ReadonlyArray<Diagnostic>): ReadonlyArray<[string, string, string]> =>
@@ -145,6 +152,59 @@ describe("Validate", () => {
 				assert.match(lint[0]?.message ?? "", /"spec"/);
 				assert.isDefined(lint[0]?.range);
 			}),
+	);
+
+	it.effect(
+		"status-missing fires when neither status nor verified is present, and is off by default (issue #110)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* loadDraftBundle;
+				const lint = Validate.lint(bundle, statusConfig).filter((d) => d.code === "status-missing");
+				assert.deepStrictEqual(summary(lint), [["status-missing", "decisions/settled.md", "warning"]]);
+				assert.match(lint[0]?.message ?? "", /reads as stable/);
+				assert.isDefined(lint[0]?.range);
+				assert.deepStrictEqual(
+					Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "status-missing"),
+					[],
+				);
+			}),
+	);
+
+	it.effect("status-missing is silent on a concept that carries verified but no status (issue #110)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadAnchorsBundle;
+			const audited = [...bundle.concepts.values()].find((c) => c.path === "modules/audited.md");
+			assert.isUndefined(audited?.frontmatter.status);
+			assert.strictEqual(audited?.frontmatter.verified?.length, 1);
+			assert.deepStrictEqual(
+				Validate.lint(bundle, statusConfig).filter((d) => d.code === "status-missing"),
+				[],
+			);
+		}),
+	);
+
+	it.effect("footnote-undefined ignores footnote-shaped text inside code spans and fences (issue #67)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadAnchorsBundle;
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "footnote-undefined");
+			assert.deepStrictEqual(summary(lint), [["footnote-undefined", "modules/web.md", "warning"]]);
+			assert.match(lint[0]?.message ?? "", /"baz"/);
+		}),
+	);
+
+	it.effect("broken-links checks a #fragment against the target's heading slugs (issue #69)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadAnchorsBundle;
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "broken-links");
+			assert.deepStrictEqual(summary(lint), [
+				["broken-links", "modules/web.md", "warning"],
+				["broken-links", "modules/web.md", "warning"],
+			]);
+			const messages = lint.map((d) => d.message);
+			assert.match(messages[0] ?? "", /"missing\.md#whatever" does not exist/);
+			assert.match(messages[1] ?? "", /"store\.md#no-such-heading" exists but has no heading "#no-such-heading"/);
+			assert.isDefined(lint[1]?.range);
+		}),
 	);
 
 	it.effect("off silences every rule", () =>

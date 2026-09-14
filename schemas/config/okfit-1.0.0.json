@@ -508,6 +508,50 @@
 							]
 						}
 					}
+				},
+				"status_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "status-missing",
+					"description": "A concept carries neither status nor verified, so it silently reads as stable (issue #110). Off by default because the spec reads an absent status as stable; the software-project profile raises it to \"warn\".",
+					"default": "off",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"source_resource_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "source-resource-missing",
+					"description": "A resource or sources[].resource path resolves neither in the bundle nor on disk relative to the concept (issue #106). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
 				}
 			},
 			"additionalProperties": false,

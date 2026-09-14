@@ -4,7 +4,7 @@
 // stdout/stderr is what a real invocation produces.
 //
 // No CLI-owned fixture (K-44): every case here copies
-// packages/profiles/__test__/fixtures/software-project, the same constant
+// packages/profiles/__test__/fixtures/software-project (a repo-shaped fixture whose bundle is okf/), the same constant
 // validate.e2e.test.ts names CLEAN_FIXTURE.
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -55,7 +55,7 @@ describe("okfit context: human format", () => {
 	it.effect("prints the roots, profile, index.md status, and the full vocabulary", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["context"], sandbox);
 
@@ -87,7 +87,7 @@ describe("okfit context --format json", () => {
 		() =>
 			Effect.gen(function* () {
 				const sandbox = yield* Effect.promise(() => makeSandbox());
-				yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+				yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 				const result = yield* runOkfit(["context", "--format", "json"], sandbox);
 
@@ -138,7 +138,7 @@ describe("okfit context: no config anywhere", () => {
 	it.effect("exits 0, config_path null, profile software-project (contract §8.5)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["context", "--format", "json"], sandbox);
 
@@ -215,7 +215,7 @@ describe("okfit context: unknown profile", () => {
 	it.effect("stderr is exactly the K-4 warning; stdout still parses as one envelope with profile null", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() =>
 				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
 			);

@@ -1,8 +1,9 @@
 ---
 type: Interface
+status: stable
 title: okfit CLI
 description: An Interface that omits the required kind key.
-resource: ../../packages/cli
+resource: ../project.md
 ---
 
 # okfit CLI

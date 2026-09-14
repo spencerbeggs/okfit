@@ -111,6 +111,25 @@ describe("Derive", () => {
 		}),
 	);
 
+	it.effect("renderIndex escapes markdown-active characters in title and description (issue #72)", () =>
+		Effect.sync(() => {
+			const concept = LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("weird")),
+				path: "weird.md",
+				frontmatter: metric({
+					title: "<Weird> *Title*",
+					description: "Point resource at <pkg>/src",
+				}),
+				document: emptyDocument,
+				computationBody: Option.none(),
+			});
+			assert.strictEqual(
+				Derive.renderIndex("", [concept]),
+				"# Metric\n\n* [\\<Weird\\> \\*Title\\*](weird.md) - Point resource at \\<pkg\\>/src\n",
+			);
+		}),
+	);
+
 	it.effect("renderLogEntry renders a date heading and starred items", () =>
 		Effect.sync(() => {
 			const text = Derive.renderLogEntry({ date: "2026-09-04", items: ["**Update**: one.", "**Verified** two."] });

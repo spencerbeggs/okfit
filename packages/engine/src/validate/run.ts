@@ -5,6 +5,7 @@ import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@o
 import { Provenance } from "@okfit/profiles";
 import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
+import { lintResources } from "./resources.js";
 
 /**
  * K-47's ambient clock. `bin.ts` resolves `OKFIT_NOW` (or the wall clock)
@@ -102,5 +103,6 @@ export const run = (
 			severity === "off"
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
-		return { bundle, report: { ...report, lint: [...report.lint, ...provenance] }, profileDiagnostics };
+		const resources = yield* lintResources(bundle, options.config);
+		return { bundle, report: { ...report, lint: [...report.lint, ...provenance, ...resources] }, profileDiagnostics };
 	});

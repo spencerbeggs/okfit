@@ -2,6 +2,7 @@
 type: Module
 title: Claude Code Plugin
 description: The Claude Code plugin that teaches agents OKF v0.2 and keeps a repository's okf bundle current.
+status: stable
 resource: ../../plugins/claude-code
 kind: plugin
 tags:

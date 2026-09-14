@@ -36,10 +36,11 @@ const guidanceStrings = (): { descriptions: ReadonlyArray<string>; guidances: Re
 };
 
 describe("softwareProject.config", () => {
-	it.effect("sets only concepts, types, tags and extensions; actors stays unset (P-25, P-17)", () =>
+	it.effect("sets only concepts, lint, types, tags and extensions; actors stays unset (P-25, P-17)", () =>
 		Effect.sync(() => {
 			assert.strictEqual(softwareProject.name, "software-project");
-			assert.deepStrictEqual(Object.keys(config).sort(), ["concepts", "extensions", "tags", "types"]);
+			assert.deepStrictEqual(Object.keys(config).sort(), ["concepts", "extensions", "lint", "tags", "types"]);
+			assert.deepStrictEqual(config.lint, { status_missing: "warn" });
 			assert.isUndefined(config.actors);
 			assert.deepStrictEqual(config.extensions, {});
 			assert.deepStrictEqual(config.concepts, { required: ["title", "description"], tags: { required: [] } });
@@ -209,6 +210,8 @@ describe("OkfitConfig.merge(DEFAULTS, softwareProject.config)", () => {
 			assert.strictEqual(Object.keys(merged.types ?? {}).length, 16); // (checked) strictEqual for a number
 			assert.strictEqual(OkfitConfig.severityFor(merged, "unknown-type"), "error");
 			assert.strictEqual(OkfitConfig.severityFor(merged, "required-key-missing"), "error");
+			assert.strictEqual(OkfitConfig.severityFor(merged, "status-missing"), "warning");
+			assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "status-missing"), "off");
 			assert.deepStrictEqual(merged.actors, { humans: [] });
 		}),
 	);

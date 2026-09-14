@@ -39,6 +39,8 @@ export const LintCode = Schema.Literals([
 	"stale",
 	"walk-unreadable",
 	"generated-at-drift",
+	"status-missing",
+	"source-resource-missing",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

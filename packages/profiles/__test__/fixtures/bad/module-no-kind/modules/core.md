@@ -1,8 +1,9 @@
 ---
 type: Module
+status: stable
 title: Core
 description: A Module that omits the required kind key.
-resource: ../../packages/core
+resource: ../project.md
 ---
 
 # Core

@@ -25,19 +25,26 @@ const profile = Profiles.softwareProject;
 const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, profile.config);
 /**
  * This suite is about `run`'s own tier/profile-check plumbing, not the
- * `generated-at-drift` lint itself. The `software-project` fixture's
- * `project.md` genuinely drifts against this repository's real git
- * history (its `generated.at` records a rounded clock time, not the
- * actual commit's author instant), so `generated_at_drift` is turned
- * `"off"` here to keep this suite's assertions independent of that
- * fixture fact and of the real git history it walks.
+ * `generated-at-drift` or `source-resource-missing` lints themselves. The
+ * `software-project` fixture's `project.md` genuinely drifts against this
+ * repository's real git history (its `generated.at` records a rounded
+ * clock time, not the actual commit's author instant), so
+ * `generated_at_drift` is turned `"off"` here to keep this suite's
+ * assertions independent of that fixture fact and of the real git history
+ * it walks. The fixture is repo-shaped (its bundle is `okf/`, with the
+ * placeholder files its `resource:` paths name as siblings), so the
+ * `source-resource-missing` lint (issue #106) stays at the profile's
+ * default and reports nothing here.
  */
-const mergedNoDrift = OkfitConfig.merge(merged, { extensions: {}, lint: { generated_at_drift: "off" } });
+const mergedNoDrift = OkfitConfig.merge(merged, {
+	extensions: {},
+	lint: { generated_at_drift: "off" },
+});
 
 describe("run", () => {
 	it.effect("loads, runs both tiers and the profile check, and collects into one RunResult", () =>
 		Effect.gen(function* () {
-			const root = resolve(PROFILES_FIXTURES, "software-project");
+			const root = resolve(PROFILES_FIXTURES, "software-project", "okf");
 			const result = yield* run({ root, config: mergedNoDrift, profile: Option.some(profile), now });
 			assert.strictEqual(result.bundle.root, root);
 			assert.deepStrictEqual(result.report.conformance, []);
@@ -48,7 +55,7 @@ describe("run", () => {
 
 	it.effect("profile None yields an empty profileDiagnostics array without calling any check", () =>
 		Effect.gen(function* () {
-			const root = resolve(PROFILES_FIXTURES, "software-project");
+			const root = resolve(PROFILES_FIXTURES, "software-project", "okf");
 			const result = yield* run({ root, config: mergedNoDrift, profile: Option.none(), now });
 			assert.deepStrictEqual(result.profileDiagnostics, []);
 		}).pipe(Effect.provide(platform)),
@@ -233,6 +240,50 @@ describe("run — generated-at-drift lint, skipProvenance narrowed to tier 2 onl
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}
 			}).pipe(Effect.provide(nodePlatform)),
+	);
+});
+
+describe("run — source-resource-missing lint (issue #106)", () => {
+	const ONLY_RESOURCE_LINT: OkfitConfig["lint"] = {
+		...ONLY_DRIFT_LINT,
+		generated_at_drift: "off",
+		source_resource_missing: "warn",
+	};
+	const resourceConfig: OkfitConfig = { ...OkfitConfig.DEFAULTS, types: { Module: {} }, lint: ONLY_RESOURCE_LINT };
+
+	it.effect("appends a source-resource-missing diagnostic for a resource path that does not exist", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-resource-missing-")));
+			try {
+				const text = "---\ntype: Module\nresource: ../nope.yml\n---\n\n# Thing\n\nBody text.\n";
+				yield* Effect.promise(() => writeFile(join(root, REL), text));
+				const result = yield* run({ root, config: resourceConfig, profile: Option.none(), now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+				);
+				assert.strictEqual(result.report.lint.length, 1);
+				assert.strictEqual(result.report.lint[0]?.code, "source-resource-missing");
+				assert.strictEqual(result.report.lint[0]?.file, REL);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(nodePlatform)),
+	);
+
+	it.effect("appends no diagnostic when every resource path exists", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-resource-ok-")));
+			try {
+				yield* Effect.promise(() => writeFile(join(root, "package.json"), "{}\n"));
+				const text = "---\ntype: Module\nresource: package.json\n---\n\n# Thing\n\nBody text.\n";
+				yield* Effect.promise(() => writeFile(join(root, REL), text));
+				const result = yield* run({ root, config: resourceConfig, profile: Option.none(), now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+				);
+				assert.deepStrictEqual(result.report.lint, []);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(nodePlatform)),
 	);
 });
 

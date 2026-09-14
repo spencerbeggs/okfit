@@ -1,5 +1,6 @@
 ---
 type: Project
+status: stable
 title: Fixture project
 description: The first of two root Projects.
 ---

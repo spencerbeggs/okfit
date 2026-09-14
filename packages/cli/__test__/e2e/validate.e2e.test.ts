@@ -61,7 +61,7 @@ describe("okfit validate: clean bundle", () => {
 	it.effect("exits 0, prints only the summary to stderr, and leaves no state files (K-9)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["validate"], sandbox);
 
@@ -158,7 +158,7 @@ describe("okfit validate --format json", () => {
 						code: "required-key-missing",
 						severity: "error",
 						message: 'Required key "kind" is missing',
-						range: { offset: 0, length: 118, line: 0, character: 0 },
+						range: { offset: 0, length: 127, line: 0, character: 0 },
 					},
 				],
 			});
@@ -168,7 +168,7 @@ describe("okfit validate --format json", () => {
 	it.effect("an unknown profile: stderr is exactly the K-4 warning, stdout parses as one envelope", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() =>
 				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
 			);
@@ -228,7 +228,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("finds .config/okfit.toml two directories up", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, ".config", "okfit.toml"), CONFIG_TOML));
 			const deepCwd = join(sandbox.cwd, "sub", "subsub");
 			yield* Effect.promise(() => mkdir(deepCwd, { recursive: true }));
@@ -251,7 +251,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("finds okfit.toml alone", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.toml"), CONFIG_TOML));
 
 			const result = yield* runOkfit(["validate"], sandbox);
@@ -264,7 +264,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("finds .okfit.toml alone", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, ".okfit.toml"), CONFIG_TOML));
 
 			const result = yield* runOkfit(["validate"], sandbox);
@@ -277,7 +277,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("a project-local okfit.toml beats the XDG config", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() => writeFileDeep(join(sandbox.cwd, "okfit.toml"), CONFIG_TOML));
 			yield* Effect.promise(() =>
 				writeFileDeep(
@@ -296,7 +296,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("falls through every tier and still runs on defaults when nothing is found", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 
 			const result = yield* runOkfit(["validate"], sandbox);
 
@@ -309,7 +309,7 @@ describe("okfit validate: config discovery", () => {
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			const elsewhere = join(sandbox.cwd, "..", "elsewhere");
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(elsewhere, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, elsewhere));
 			const explicitConfigPath = join(elsewhere, "myconfig.toml");
 			// A bogus profile of its own (distinct from the two competitors
 			// below) so the K-4 warning it produces is itself discriminating:
@@ -409,7 +409,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("unknown profile: warning on stderr, continues with defaults (K-4)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			yield* Effect.promise(() =>
 				writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\nprofile = "not-a-real-profile"\n`),
 			);
@@ -426,7 +426,7 @@ describe("okfit validate: config discovery", () => {
 	it.effect("XDG_CONFIG_HOME fallback is read when no project-local config exists (K-11)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, join(sandbox.cwd, "okf")));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			// Naming an unknown profile is what proves the XDG file's VALUE was
 			// read, not merely that discovery did not error.
 			yield* Effect.promise(() =>
@@ -451,7 +451,7 @@ describe("okfit validate: OKFIT_NOW", () => {
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			const bundleRoot = join(sandbox.cwd, "okf");
-			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, bundleRoot));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 			// Patch a copy of the clean fixture's modules/core.md with a stale_after
 			// in the past (decision 3): no shipped bad-bundle fixture sets one.
 			const concept = join(bundleRoot, "modules", "core.md");
@@ -504,7 +504,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 	// "error"), and an unverified Decision would otherwise add its own
 	// `require-verified-unmet` error to every case below, unrelated to
 	// drift -- a gap in the task brief's own fixture draft (see task
-	// report). Modelled on `packages/profiles/__test__/fixtures/software-project/decisions/effect-v4.md`'s
+	// report). Modelled on `packages/profiles/__test__/fixtures/software-project/okf/decisions/effect-v4.md`'s
 	// own hand-authored `verified` block; this is fixture data, not a run
 	// of `okfit verify` (Global Constraints' distinction).
 	const DRIFT_DECISION = [

@@ -2,10 +2,28 @@ import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
 import { Effect, Option } from "effect";
 import { OPTIONS, parseIndex, parseLog } from "../src/internal/reserved.js";
+import { indexEntry } from "../src/internal/templates.js";
 
 const parse = (text: string) => MarkdownDocument.parse(text, OPTIONS);
 
 describe("internal/reserved", () => {
+	it.effect("parseIndex round-trips an escaped description and title to the original text (issue #72)", () =>
+		Effect.gen(function* () {
+			const entry = indexEntry({
+				title: "<Weird> *Title*",
+				target: "weird.md",
+				description: "Point resource at <pkg>/src, a * b",
+			});
+			const document = yield* parse(`# Metric\n\n${entry}\n`);
+			const result = parseIndex({ file: "index.md", dir: "", document, frontmatter: Option.none() });
+			assert.deepStrictEqual(result.diagnostics, []);
+			assert.deepStrictEqual(
+				result.document.sections.map((s) => [s.heading, s.entries.map((e) => [e.title, e.target, e.description])]),
+				[["Metric", [["<Weird> *Title*", "weird.md", "Point resource at <pkg>/src, a * b"]]]],
+			);
+		}),
+	);
+
 	it.effect("parses index sections, entries and okf_version on the root index", () =>
 		Effect.gen(function* () {
 			const document = yield* parse(

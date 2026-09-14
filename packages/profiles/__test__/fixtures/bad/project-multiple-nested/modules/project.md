@@ -1,5 +1,6 @@
 ---
 type: Project
+status: stable
 title: Nested project
 description: A second Project, filed below the root.
 ---

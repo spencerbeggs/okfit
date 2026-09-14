@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T18:01:33Z
-  body_sha256: 8989ba1b2982d8af23ae57473f00009aad59347938d11d19c788050f56a82ea9
+  at: 2026-09-14T18:18:28Z
+  body_sha256: 2c53791f02205130e59d5a313b9ae2c7372c82884d7143b221701f214e9eec07
 tags:
   - architecture
 ---
@@ -84,7 +84,8 @@ hook, or MCP tool ever invokes it.
 [--format human|json]` is the one command that regenerates every
 derived-content family: `generated.at` and `generated.body_sha256` (per
 concept, the digest always accompanying the date), `index.md` (every
-directory that holds a concept), and `log.md` (the root log, curated prose
+directory that holds a concept, whether or not the profile layout names
+it -- a custom type's directory is indexed the same way), and `log.md` (the root log, curated prose
 topped up by date). It runs all three modes, generated then index then
 log, in that fixed order, unless one or more `--only` flags narrow it to a
 subset. `--dry-run` computes every result and writes nothing. `sync --only

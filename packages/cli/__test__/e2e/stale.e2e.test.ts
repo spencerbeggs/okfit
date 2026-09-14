@@ -23,7 +23,7 @@ const CLEAN_FIXTURE = join(PROFILES_FIXTURES, "software-project");
 const seedStaleBundle = (sandbox: { readonly cwd: string }) =>
 	Effect.gen(function* () {
 		const bundleRoot = join(sandbox.cwd, "okf");
-		yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, bundleRoot));
+		yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
 		const concept = join(bundleRoot, "modules", "core.md");
 		const original = yield* Effect.promise(() => readFile(concept, "utf8"));
 		yield* Effect.promise(() =>

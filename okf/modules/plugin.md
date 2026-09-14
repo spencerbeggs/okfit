@@ -2,6 +2,7 @@
 type: Module
 title: Plugin
 description: The meta-package a consuming repository installs to get both the okfit CLI and okfit-mcp bins on PATH.
+status: stable
 resource: ../../packages/plugin
 kind: package
 generated:
