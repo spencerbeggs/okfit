@@ -59,7 +59,7 @@
 			"cache": true,
 			"inputs": ["$TURBO_DEFAULT$", "lib/configs/schemastore.config.ts", "src/**/*.ts"],
 			"outputLogs": "errors-only",
-			"outputs": ["$TURBO_ROOT$/schemas/**"]
+			"outputs": ["$TURBO_ROOT$/schemas/*/config.json", "$TURBO_ROOT$/schemas/catalog.json"]
 		},
 		"schema:check": {
 			"cache": false
