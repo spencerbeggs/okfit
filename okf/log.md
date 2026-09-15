@@ -1,5 +1,9 @@
 # Log
 
+## 2026-09-15
+
+* Updated okfit config file schema
+
 ## 2026-09-14
 
 * Added The software-project vocabulary grows a third time from the silk action migrations

@@ -7,8 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-14T18:18:28Z
-  body_sha256: 1c405556186faa24656ab549c360e01afa10d947c9019478c8273b3a2788ce88
+  at: 2026-09-15T20:55:17Z
+  body_sha256: 1e748c9b3e022a30bdcdce1c19fb3a0cd4b4a7b2c58f483313aaf546def92513
 tags:
   - architecture
 ---
