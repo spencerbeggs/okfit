@@ -4,7 +4,7 @@
 	"tasks": {
 		"build:dev": {
 			"cache": true,
-			"dependsOn": ["^build:dev", "schema:build"],
+			"dependsOn": ["^build:dev"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
@@ -57,9 +57,29 @@
 		},
 		"schema:build": {
 			"cache": true,
-			"inputs": ["$TURBO_DEFAULT$", "lib/configs/schemastore.config.ts", "src/**/*.ts"],
-			"outputLogs": "errors-only",
-			"outputs": ["$TURBO_ROOT$/schemas/**"]
+			"dependsOn": [],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/package.json",
+				"$TURBO_ROOT$/pnpm-workspace.yaml",
+				"$TURBO_ROOT$/pnpm-lock.yaml",
+				"$TURBO_ROOT$/tsconfig.json",
+				"$TURBO_ROOT$/.changeset/**",
+				"!$TURBO_ROOT$/docs/**",
+				"README.md",
+				"LICENSE",
+				"package.json",
+				"tsconfig.json",
+				"*.ts",
+				"*.mts",
+				"*.cts",
+				"lib/**/*",
+				"src/**/*",
+				"!__test__/**/*",
+				"!CHANGELOG.md",
+				"!CLAUDE.md"
+			],
+			"outputLogs": "errors-only"
 		},
 		"schema:check": {
 			"cache": false
