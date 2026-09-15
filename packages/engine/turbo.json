@@ -1,4 +1,15 @@
 {
 	"$schema": "https://turborepo.com/schema.v2.json",
-	"extends": ["//"]
+	"extends": ["//"],
+	"tasks": {
+		"build:dev": {
+			"dependsOn": ["$TURBO_EXTENDS$", "schema:build"]
+		},
+		"build:prod": {
+			"dependsOn": ["$TURBO_EXTENDS$", "schema:build"]
+		},
+		"schema:build": {
+			"outputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/schemas/*/config.json", "$TURBO_ROOT$/schemas/catalog.json"]
+		}
+	}
 }
