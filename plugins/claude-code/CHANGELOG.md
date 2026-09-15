@@ -1,5 +1,15 @@
 # @okfit/claude-code-plugin
 
+## 0.6.0
+
+### Maintenance
+
+- Changes generation and URL of schema to `@okfot/engine` package.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.5.1
 
 ### Documentation
