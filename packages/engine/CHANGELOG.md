@@ -1,5 +1,22 @@
 # @okfit/engine
 
+## 0.6.0
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.5.0 | 0.6.0 |
+| @okfit/profiles | dependency | updated | 0.7.0 | 0.7.1 |
+
+### Maintenance
+
+- Changes generation and URL of schema to `@okfot/engine` package.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.5.0
 
 ### Features
