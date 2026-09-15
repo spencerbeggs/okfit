@@ -32,7 +32,7 @@ the project root at `$HOME` -- personal defaults belong at
 `$XDG_CONFIG_HOME/okfit/config.toml` instead.
 
 `okfit init` scaffolds `.config/okfit.toml` with a `#:schema` directive
-pointing at the published JSON Schema (`schemas/config/okfit-1.0.0.json`
+pointing at the published JSON Schema (`schemas/1.0/config.json`
 in this repo), so a Tombi- or taplo-aware editor gets completion and
 validation on the file without any further setup.
 

@@ -1,5 +1,6 @@
 import type { FrontmatterWriteError, MarkdownParseError } from "@effected/markdown";
 import { MarkdownDocument, MarkdownFrontmatter, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
+import { HostedSchema } from "@effected/schemastore";
 import type { OkfitConfig } from "@okfit/core";
 import { Concept, ConceptId, Derive, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
 import type { Layout } from "@okfit/profiles";
@@ -21,9 +22,24 @@ export const CONFIG_RELATIVE_PATH = ".config/okfit.toml";
  */
 export const PROJECT_CONFIG_NAMES = [".okfit.toml", "okfit.toml", ".config/okfit.toml"] as const;
 
+/**
+ * Where the published `config` JSON Schema document lives and which version
+ * is current — the one identity `schemastore.config.ts` and `okfit init`'s
+ * `#:schema` directive both derive from, so the URL a fresh config points at
+ * and the one the generated document declares can never disagree (C-18).
+ *
+ * @public
+ */
+export const okfitConfigSchemaHost = HostedSchema.github({
+	repo: "spencerbeggs/okfit",
+	path: "schemas",
+	name: "config",
+	versions: ["1.0"],
+	appendVersion: false,
+});
+
 /** C-22's directive, plus the blank line Tombi requires. @public */
-export const SCHEMA_DIRECTIVE =
-	"#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json\n\n";
+export const SCHEMA_DIRECTIVE = `#:schema ${okfitConfigSchemaHost.$id}\n\n`;
 
 /** @public */
 export interface ScaffoldOptions {

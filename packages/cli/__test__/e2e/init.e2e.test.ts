@@ -201,7 +201,7 @@ describe("okfit init", () => {
 		const config = await readFile(`${cwd}/.config/okfit.toml`, "utf8");
 		assert.strictEqual(
 			config.split("\n")[0],
-			"#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json",
+			"#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json",
 		);
 	});
 

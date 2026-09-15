@@ -1,4 +1,4 @@
-#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json
+#:schema https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json
 
 okf_version = "0.2"
 
@@ -18,7 +18,7 @@ agent = "okfit/claude-code"     # generated.by value agents must use
 humans = ["human:spencer"]
 
 [lint]
-broken_links = "warn"           # off | warn | error
+broken_links = "maybe"
 missing_index = "warn"
 unknown_type = "error"
 
