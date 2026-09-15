@@ -4,7 +4,10 @@ import { okfitConfigDocumentFields } from "../src/OkfitConfig.js";
 
 // Since effect@4.0.0-rc.113 (#8147) `toJsonSchemaDocument` leaves structs
 // open by default; `onExcessProperty: "error"` is what closes the declared
-// tables (C-16), the same option lib/scripts/generate-schema.ts passes.
+// tables (C-16). `@effected/schemastore` closes generated objects by
+// default, so `lib/configs/schemastore.config.ts` no longer passes this
+// option explicitly — it is reproduced here only to exercise core's own
+// `toJsonSchemaDocument` default directly.
 const document = () =>
 	Schema.toJsonSchemaDocument(okfitConfigDocumentFields, { onExcessProperty: "error" }).schema as Record<
 		string,

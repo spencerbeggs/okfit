@@ -4,7 +4,7 @@
 	"tasks": {
 		"build:dev": {
 			"cache": true,
-			"dependsOn": ["^build:dev"],
+			"dependsOn": ["^build:dev", "schema:build"],
 			"inputs": [
 				"$TURBO_DEFAULT$",
 				"$TURBO_ROOT$/package.json",
@@ -54,6 +54,15 @@
 			],
 			"outputLogs": "full",
 			"outputs": ["dist/prod/**"]
+		},
+		"schema:build": {
+			"cache": true,
+			"inputs": ["$TURBO_DEFAULT$", "lib/configs/schemastore.config.ts", "src/**/*.ts"],
+			"outputLogs": "errors-only",
+			"outputs": ["$TURBO_ROOT$/schemas/**"]
+		},
+		"schema:check": {
+			"cache": false
 		},
 		"types:check": {
 			"cache": true,

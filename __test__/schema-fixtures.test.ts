@@ -7,20 +7,18 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const read = (p: string) => readFileSync(resolve(ROOT, p), "utf8");
-const validate = new Ajv({ strict: false, allErrors: true }).compile(
-	JSON.parse(read("schemas/config/okfit-1.0.0.json")),
-);
+const validate = new Ajv({ strict: false, allErrors: true }).compile(JSON.parse(read("schemas/1.0/config.json")));
 // The installed @effected/toml@0.6.0 exposes `Toml.parseResult` (a `Result`), not
 // `Toml.parseSync` — a discrepancy from the brief's citation, discharged here.
 const parse = (p: string) =>
 	Toml.parseResult(read(p)).pipe(Result.getOrThrowWith((e) => new Error(`TOML parse failed: ${e.message}`)));
 
 describe("published okfit config schema against its SchemaStore fixtures", () => {
-	it("accepts schemas/config/test/okfit-config.toml", () => {
-		expect(validate(parse("schemas/config/test/okfit-config.toml")), JSON.stringify(validate.errors)).toBe(true);
+	it("accepts schemas/test/okfit-config.toml", () => {
+		expect(validate(parse("schemas/test/okfit-config.toml")), JSON.stringify(validate.errors)).toBe(true);
 	});
-	it("rejects schemas/config/negative_test/okfit-config.toml at lint.broken_links", () => {
-		expect(validate(parse("schemas/config/negative_test/okfit-config.toml"))).toBe(false);
+	it("rejects schemas/negative_test/okfit-config.toml at lint.broken_links", () => {
+		expect(validate(parse("schemas/negative_test/okfit-config.toml"))).toBe(false);
 		expect(validate.errors?.[0]?.instancePath).toBe("/lint/broken_links");
 	});
 	it("accepts an unknown top-level key and rejects an unknown key inside a declared table", () => {

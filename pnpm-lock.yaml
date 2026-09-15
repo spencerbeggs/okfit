@@ -112,12 +112,6 @@ importers:
 
   .:
     devDependencies:
-      '@effect/platform-node':
-        specifier: catalog:effect
-        version: 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
-      '@effected/schemastore':
-        specifier: catalog:effected
-        version: 0.12.0(effect@4.0.0-rc.115)
       '@effected/toml':
         specifier: catalog:effected
         version: 0.7.0(effect@4.0.0-rc.115)
@@ -148,9 +142,6 @@ importers:
       effect:
         specifier: catalog:effect
         version: 4.0.0-rc.115
-      tsx:
-        specifier: ^4.23.13
-        version: 4.23.13
       vitest:
         specifier: catalog:test
         version: 5.0.1(@types/node@26.5.1)(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.9.1))
@@ -289,6 +280,9 @@ importers:
       '@effected/markdown':
         specifier: catalog:effected
         version: 0.10.0(@effected/jsonc@0.11.0(effect@4.0.0-rc.115))(@effected/toml@0.7.0(effect@4.0.0-rc.115))(@effected/yaml@0.15.1(effect@4.0.0-rc.115))(effect@4.0.0-rc.115)
+      '@effected/schemastore':
+        specifier: catalog:effected
+        version: 0.12.0(effect@4.0.0-rc.115)
       '@effected/store':
         specifier: catalog:effected
         version: 0.8.0(effect@4.0.0-rc.115)
@@ -320,6 +314,9 @@ importers:
       '@effected/memfs':
         specifier: catalog:effected
         version: 0.7.0(effect@4.0.0-rc.115)
+      '@effected/schemastore-cli':
+        specifier: ^0.12.0
+        version: 0.12.0(@effected/config-file@0.10.0(@effected/jsonc@0.11.0(effect@4.0.0-rc.115))(@effected/toml@0.7.0(effect@4.0.0-rc.115))(@effected/walker@0.9.0(@effected/glob@0.6.0(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(@effected/yaml@0.15.1(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(@effected/schemastore@0.12.0(effect@4.0.0-rc.115))(effect@4.0.0-rc.115)(redis@6.2.1)
       '@savvy-web/bundler':
         specifier: ^2.3.8
         version: 2.3.8(@effected/jsonc@0.11.0(effect@4.0.0-rc.115))(@effected/semver@0.7.0(effect@4.0.0-rc.115))(@effected/walker@0.9.0(@effected/glob@0.6.0(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(@types/node@26.5.1)(react@19.3.0)(redis@6.2.1)(tsx@4.23.13)(typescript@7.0.2)
@@ -828,6 +825,14 @@ packages:
     resolution: {integrity: sha512-agkMQQsQNPhOCf21GDMy6ribN5rI4O0ELyJ/eKlNAN/GspE3dqyh7HU6uvC+W1f+amhaEcyFwxkl3RxcfcOzdQ==}
     engines: {node: '>=24.11.0'}
     peerDependencies:
+      effect: 4.0.0-rc.115
+
+  '@effected/schemastore-cli@0.12.0':
+    resolution: {integrity: sha512-NvyowrlUjtVzQde1ggbFDDW2I8soF0b849NXPBxCENt57zrcMCJS1icBfpf3cOsQFswgdugPkr+zPgzUtrXGWw==}
+    engines: {node: '>=24.11.0'}
+    hasBin: true
+    peerDependencies:
+      '@effected/schemastore': 0.12.0
       effect: 4.0.0-rc.115
 
   '@effected/schemastore@0.12.0':
@@ -3691,6 +3696,21 @@ snapshots:
       '@effected/semver': 0.7.0(effect@4.0.0-rc.115)
       '@effected/spdx': 0.7.0(effect@4.0.0-rc.115)
       effect: 4.0.0-rc.115
+
+  '@effected/schemastore-cli@0.12.0(@effected/config-file@0.10.0(@effected/jsonc@0.11.0(effect@4.0.0-rc.115))(@effected/toml@0.7.0(effect@4.0.0-rc.115))(@effected/walker@0.9.0(@effected/glob@0.6.0(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(@effected/yaml@0.15.1(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(@effected/schemastore@0.12.0(effect@4.0.0-rc.115))(effect@4.0.0-rc.115)(redis@6.2.1)':
+    dependencies:
+      '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
+      '@effected/cli': 0.5.1(@effected/config-file@0.10.0(@effected/jsonc@0.11.0(effect@4.0.0-rc.115))(@effected/toml@0.7.0(effect@4.0.0-rc.115))(@effected/walker@0.9.0(@effected/glob@0.6.0(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(@effected/yaml@0.15.1(effect@4.0.0-rc.115))(effect@4.0.0-rc.115))(effect@4.0.0-rc.115)
+      '@effected/schemastore': 0.12.0(effect@4.0.0-rc.115)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1(ajv@8.20.0)
+      effect: 4.0.0-rc.115
+      jiti: 2.6.1
+    transitivePeerDependencies:
+      - '@effected/config-file'
+      - bufferutil
+      - redis
+      - utf-8-validate
 
   '@effected/schemastore@0.12.0(effect@4.0.0-rc.115)':
     dependencies:

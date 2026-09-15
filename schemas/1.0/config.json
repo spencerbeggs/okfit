@@ -1,6 +1,6 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"$id": "https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json",
+	"$id": "https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json",
 	"type": "object",
 	"properties": {
 		"okf_version": {

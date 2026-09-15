@@ -23,13 +23,14 @@
 		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-order=grouped --output-logs=full --log-prefix=none",
 		"ci:test": "CI=\"true\" vitest run --passWithNoTests",
 		"claude": "claude --plugin-dir plugins/claude-code",
-		"generate-schema": "tsx lib/scripts/generate-schema.ts",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
 		"lint:md": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc'",
 		"lint:md:fix": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
 		"prepare": "husky",
+		"schema:build": "pnpm --filter @okfit/engine schema:build",
+		"schema:check": "pnpm --filter @okfit/engine schema:check",
 		"test": "vitest run --passWithNoTests",
 		"test:bats": "bats --recursive plugins",
 		"test:coverage": "vitest run --coverage",
@@ -38,8 +39,6 @@
 		"types:check": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@effect/platform-node": "catalog:effect",
-		"@effected/schemastore": "catalog:effected",
 		"@effected/toml": "catalog:effected",
 		"@okfit/cli": "workspace:*",
 		"@okfit/core": "workspace:*",
@@ -50,7 +49,6 @@
 		"ajv": "^8.20.0",
 		"bats": "^1.13.0",
 		"effect": "catalog:effect",
-		"tsx": "^4.23.13",
 		"vitest": "catalog:test"
 	},
 	"packageManager": "pnpm@11.27.0+sha512.ad12821463bb143295f1fa3ecde77a6b9b97a7990386da800ff57bffc3964dc64b7b1c7559d5dbe5c337aea659ed9c8937d4370bd198ca2009bc6fa0249808e7",

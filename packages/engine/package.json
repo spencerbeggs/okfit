@@ -29,6 +29,8 @@
 		"build:dev": "node savvy.build.ts --target dev",
 		"build:prod": "node savvy.build.ts --target prod",
 		"prepare": "turbo run build:dev",
+		"schema:build": "schemastore build lib/configs/schemastore.config.ts",
+		"schema:check": "schemastore check lib/configs/schemastore.config.ts",
 		"types:check": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -39,6 +41,7 @@
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",
 		"@effected/markdown": "catalog:effected",
+		"@effected/schemastore": "catalog:effected",
 		"@effected/store": "catalog:effected",
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
@@ -51,6 +54,7 @@
 	"devDependencies": {
 		"@effect/vitest": "catalog:effect",
 		"@effected/memfs": "catalog:effected",
+		"@effected/schemastore-cli": "^0.12.0",
 		"@savvy-web/bundler": "^2.3.8",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",

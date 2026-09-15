@@ -88,18 +88,21 @@ config only ever tightens the spec (`packages/core/CLAUDE.md:32`).
 ## Published JSON Schema
 
 okfit hosts a SchemaStore-compatible Draft-07 document at
-`schemas/config/okfit-1.0.0.json`, generated from `OkfitConfig`'s field schema
-by `pnpm generate-schema` and guarded against drift by
-`__test__/generate-schema.test.ts`. Its `$id` is
-`https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/config/okfit-1.0.0.json`.
-Versions are MAJOR-only above `1.0.0`: any change to an assertion bumps the
-major and writes a new file, leaving the published one intact; a change before
-the schema is ever catalogued rewrites `1.0.0` in place. SchemaStore catalogues
-it under the name `okfit`, matching `okfit.toml`, `.okfit.toml` and
-`**/.config/okfit.toml`; user- and system-level files are not catalogued and
-should carry a `#:schema` directive instead. Unknown top-level keys are
-permitted by the document, matching the runtime's D-31 tolerance; every
-declared table is closed. Since `effect@4.0.0-rc.113` the generator leaves
-structs open by default, so the target passes `jsonSchema.onExcessProperty =
-"error"` explicitly; the core test `OkfitConfigDocument.test.ts` proves the
-same option closes them.
+`schemas/1.0/config.json`, generated from `okfitConfigDocumentFields`
+(`@okfit/core`) by `packages/engine/lib/configs/schemastore.config.ts` via
+`@effected/schemastore` and `@effected/schemastore-cli` (`pnpm schema:build` /
+`pnpm schema:check`, the latter the CI drift gate). Its `$id` is
+`https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json`
+— the same identity `okfitConfigSchemaHost` (`@okfit/engine`, next to `init`)
+derives, so the `#:schema` directive `okfit init` writes and the document
+this build generates can never disagree. Versions are `major.minor`: this document is
+`published: false` (not yet catalogued with SchemaStore), so a contract
+change still rewrites `1.0` in place; once catalogued, changing the contract
+appends a new label (`1.1`) instead of editing `1.0`, which then freezes.
+SchemaStore would catalogue it under the name `config`, matching
+`okfit.toml`, `.okfit.toml` and `**/.config/okfit.toml`; user- and
+system-level files are not catalogued and should carry a `#:schema`
+directive instead. Unknown top-level keys are permitted by the document,
+matching the runtime's D-31 tolerance; every declared table is closed —
+`@effected/schemastore` closes generated objects by default, so no
+`jsonSchema.onExcessProperty` override is needed.
