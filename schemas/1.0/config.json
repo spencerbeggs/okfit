@@ -552,6 +552,28 @@
 							]
 						}
 					}
+				},
+				"generated_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "generated-missing",
+					"description": "A concept has no generated block while actors.agent is configured, so okfit sync cannot stamp generated.at until the block exists (issue #73). Default \"warn\"; silent when actors.agent is unset.",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
 				}
 			},
 			"additionalProperties": false,

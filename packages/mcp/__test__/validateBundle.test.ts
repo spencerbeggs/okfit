@@ -60,10 +60,13 @@ describe("validate_bundle", () => {
 			// instruction): with metrics/churn.md in place, its own deliberate
 			// dangling link (to metrics/does-not-exist.md) adds a second
 			// core.lint warning, broken-links, alongside the vendored corpus's
-			// log-frontmatter -- 2, not the brief's predicted 1.
-			assert.strictEqual(data.summary.lint_warnings, 2);
+			// log-frontmatter -- 2, not the brief's predicted 1. The fixture's
+			// .config/okfit.toml sets actors.agent and metrics/churn.md has no
+			// generated block, so generated-missing (issue #73) adds a third.
+			assert.strictEqual(data.summary.lint_warnings, 3);
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "log-frontmatter"));
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "broken-links"));
+			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "generated-missing"));
 		}).pipe(Effect.scoped),
 	);
 

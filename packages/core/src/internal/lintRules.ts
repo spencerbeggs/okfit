@@ -128,6 +128,18 @@ export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
 		: [],
 );
 
+// Issue #73: `okfit sync` can only complete a `generated:` block that exists
+// (or, from this change on, create one from `actors.agent`). Surface the
+// missing block at validate time, before the commit, instead of leaving it
+// to sync's post-commit `skipped` list.
+export const generatedMissing: LintRule = perConcept("generated-missing", (concept, context) =>
+	context.config.actors?.agent !== undefined && !present(concept.frontmatter.raw, "generated")
+		? [
+				`Concept has no generated block; okfit sync will create it from actors.agent (${context.config.actors.agent}) once the body is committed, or set generated.by by hand`,
+			]
+		: [],
+);
+
 export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (concept) => {
 	const actors = [concept.frontmatter.generated?.by, ...(concept.frontmatter.verified ?? []).map((v) => v.by)];
 	return actors
@@ -305,6 +317,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	fieldValueUnknown,
 	requireVerifiedUnmet,
 	statusMissing,
+	generatedMissing,
 	actorPrefixUnknown,
 	footnoteSourceUnknown,
 	footnoteUndefined,

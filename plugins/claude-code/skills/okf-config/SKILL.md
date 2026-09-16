@@ -75,6 +75,7 @@ validation on the file without any further setup.
   | `walk_unreadable` | `warn` |
   | `status_missing` | `off` |
   | `source_resource_missing` | `warn` |
+  | `generated_missing` | `warn` |
 
   Two extra facts worth stating: `unknown_type` is forced `off` when the
   merged config declares no types at all, and `status_missing` (a concept

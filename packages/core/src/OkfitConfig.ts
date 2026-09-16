@@ -327,6 +327,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	generated_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "generated-missing",
+			description:
+				'A concept has no generated block while actors.agent is configured, so okfit sync cannot stamp generated.at until the block exists (issue #73). Default "warn"; silent when actors.agent is unset.',
+			default: "warn",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -615,6 +623,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"generated-at-drift": "generated_at_drift",
 	"status-missing": "status_missing",
 	"source-resource-missing": "source_resource_missing",
+	"generated-missing": "generated_missing",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -638,6 +647,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	generated_at_drift: "warn",
 	status_missing: "off",
 	source_resource_missing: "warn",
+	generated_missing: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);
