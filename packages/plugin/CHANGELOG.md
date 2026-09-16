@@ -1,5 +1,24 @@
 # @okfit/plugin
 
+## 0.4.0
+
+### Features
+
+- Exports `PLUGIN_VERSION`, this package's own version. Both bins (`okfit`, `okfit-mcp`) now pass `{ distribution: { name: "@okfit/plugin", version: PLUGIN_VERSION } }` to the underlying CLI/MCP server's `main()`, so every report produced through this meta-package identifies it in the JSON envelope's `distribution` field. [#139][#139]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/cli | dependency | updated | 0.5.4 | 0.6.0 |
+| @okfit/mcp | dependency | updated | 0.3.7 | 0.4.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#139]: https://github.com/spencerbeggs/okfit/pull/139
+
 ## 0.3.7
 
 ### Dependencies

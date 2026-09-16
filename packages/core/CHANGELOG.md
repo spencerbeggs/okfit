@@ -1,5 +1,40 @@
 # @okfit/core
 
+## 0.7.0
+
+### Features
+
+#### The config JSON Schema contract, whole
+
+- Core now owns every part of the config file's JSON Schema, beside the `okfitConfigDocumentFields` struct that defines its shape:
+
+- `CONFIG_SCHEMA_VERSION` (`"1.0"`), the schema's `major.minor` label.
+
+- `okfitConfigSchemaHost`, the hosted identity, whose `versions` derive from that label; and `SCHEMA_DIRECTIVE`, the `#:schema` line a config file opens with. Both moved here from `@okfit/engine`.
+
+- The schemastore build itself (`lib/configs/schemastore.config.ts`, `pnpm schema:build` / `schema:check`), which publishes the document to the repo's `schemas/` tree. The published document is unchanged.
+
+- `@effected/schemastore` is a new peer dependency. [#139][#139]
+
+#### New lint rule: `generated-missing`
+
+- A concept with no `generated:` block is now flagged at validate time when `actors.agent` is configured, instead of surfacing only as a skip in `okfit sync`'s post-commit output. Configure its severity under the `[lint]` table's new `generated_missing` key (default `"warn"`); the rule is silent when `actors.agent` is unset.
+
+```toml
+[lint]
+generated_missing = "warn" # or "error" / "off"
+```
+
+- The config JSON Schema is regenerated to include the new key. [#141][#141]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#139]: https://github.com/spencerbeggs/okfit/pull/139
+
+[#141]: https://github.com/spencerbeggs/okfit/pull/141
+
 ## 0.6.0
 
 ### Maintenance

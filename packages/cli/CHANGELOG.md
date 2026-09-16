@@ -1,5 +1,72 @@
 # @okfit/cli
 
+## 0.6.0
+
+### Features
+
+#### `sync --since` and `sync --staged`
+
+```bash
+okfit sync --since 2026-09-01   # log mode's inclusive floor
+okfit sync --staged             # pre-commit mode
+```
+
+- `--since <YYYY-MM-DD>` sets log mode's inclusive floor, overriding the default of the newest date already in `log.md`.
+
+- `--staged` stamps only the concepts currently in the git index — meant for a pre-commit hook — using `now` as `generated.at` and re-adding what's written. It defaults `--only` to `generated` and `index`; combining it with `--only log` fails at exit `64`.
+
+#### `verify --all` and `verify --type`
+
+- The concept id is now optional. Pass `--all` to attest every unverified concept whose type declares `require_verified`, or `--type <Type>` (repeatable) to narrow (or, without `--all`, define) the batch:
+
+```bash
+okfit verify --all
+okfit verify --type Decision --type Convention
+```
+
+- Giving both an id and `--all`/`--type`, or neither, fails with a usage error at exit `64`. Passing an id positional together with `--all`/`--type` and no separate path is no longer ambiguous: the token is read as the project root, since an id is meaningless in batch mode.
+
+- The human `sync` reason for `generated-missing` now names the fix directly — "has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent" — instead of just describing the gap. With `actors.agent` configured, `okfit validate` now warns `generated-missing` for a concept sync would otherwise have to skip, rather than staying silent about it. [#141][#141]
+
+#### Distribution-aware `main()`
+
+- `main()` now accepts an options object of the new exported `MainOptions` type:
+
+```ts
+import { main } from "@okfit/cli/main";
+
+main({ distribution: { name: "@okfit/plugin", version: "0.3.7" } });
+```
+
+- Passing a `distribution` threads it into every `--format json` envelope. Omit it (or call `main()` with no arguments) for a direct install of `@okfit/cli`, which reports `distribution: null`.
+
+#### `okfit --version` output
+
+- Widened to report every version that determines what a report says and what a config may contain:
+
+```text
+okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema 1.0)
+okfit 0.5.4 via @okfit/plugin 0.3.7 (engine 0.6.0, okf 0.2, config-schema 1.0)
+```
+
+- replacing the previous `okfit v<version>` form. [#139][#139]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.6.0 | 0.7.0 |
+| @okfit/engine | dependency | updated | 0.6.0 | 0.7.0 |
+| @okfit/profiles | dependency | updated | 0.7.1 | 0.7.2 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#139]: https://github.com/spencerbeggs/okfit/pull/139
+
+[#141]: https://github.com/spencerbeggs/okfit/pull/141
+
 ## 0.5.4
 
 ### Dependencies

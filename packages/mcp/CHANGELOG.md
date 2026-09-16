@@ -1,5 +1,35 @@
 # @okfit/mcp
 
+## 0.4.0
+
+### Features
+
+#### Distribution-aware server and `main()`
+
+- `ServerLayer` accepts a new optional second argument of the new exported `ServerOptions` type, and `main()` accepts the new exported `MainOptions` type — both carry an optional `distribution: { name, version }` threaded into `validate_bundle`'s rendered envelope:
+
+```ts
+import { ServerLayer } from "@okfit/mcp";
+
+ServerLayer(projectRoot, { distribution: { name: "@okfit/plugin", version: "0.3.7" } });
+```
+
+- Both options are optional and default to no distribution, so existing callers are unaffected. [#139][#139]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.6.0 | 0.7.0 |
+| @okfit/engine | dependency | updated | 0.6.0 | 0.7.0 |
+| @okfit/profiles | dependency | updated | 0.7.1 | 0.7.2 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#139]: https://github.com/spencerbeggs/okfit/pull/139
+
 ## 0.3.7
 
 ### Dependencies
