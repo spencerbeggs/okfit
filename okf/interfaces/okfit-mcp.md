@@ -7,8 +7,8 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T17:11:52Z
-  body_sha256: 38928a90bc47373277c59344161676ea3201a13b38e9ba520b687b0350c6c98b
+  at: 2026-09-16T16:27:51Z
+  body_sha256: bdb6f047913b2ae2d273657abd07f5bf23c4e7536fcd3420c9825845a2c0540d
 tags:
   - architecture
 ---

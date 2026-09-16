@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T05:07:51Z
-  body_sha256: ba088339810722eda154d74c47e802d8f648523c7c51896b5936cd57653363b9
+  at: 2026-09-16T16:27:51Z
+  body_sha256: 025fad39bb8ea01c1d301a23df6f47e4f691654b4ee28e55e5cf5599cf693f90
 ---
 
 # Plugin

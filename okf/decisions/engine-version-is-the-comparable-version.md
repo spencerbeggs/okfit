@@ -45,10 +45,12 @@ and concluded they had run different engines.[^okfit-137] Both had run
 `@okfit/engine 0.6.0`, which neither report named, because the engine
 had no version constant of its own.
 
-The config schema version had the mirror-image problem: its shape is
-`@okfit/core`'s `okfitConfigDocumentFields`, but the `1.0` label lived
-as a literal inside `@okfit/engine`'s `okfitConfigSchemaHost`, one
-package away from the struct it describes.[^owner-ruling]
+The config schema had the mirror-image problem: its shape is
+`@okfit/core`'s `okfitConfigDocumentFields`, but the `1.0` label, the
+hosted `$id`, the `#:schema` directive and the schemastore build that
+publishes the document all lived in `@okfit/engine`, one package away
+from the struct they describe, because `okfit init` — an engine program
+— happened to be their first consumer.[^owner-ruling]
 
 ## Decision
 
@@ -71,13 +73,18 @@ packaging.[^owner-ruling]
   pass their own package name and version through it. The absence of a
   distribution is itself the signal that the front end was installed
   directly.
-- `@okfit/core` exports `CONFIG_SCHEMA_VERSION`, the `major.minor` label
-  of the config JSON Schema that `okfitConfigDocumentFields` describes,
-  and `@okfit/engine`'s `okfitConfigSchemaHost` derives its `versions`
-  from it rather than restating the literal. Core owns the number
-  because core owns the shape: an additive optional key is a minor bump,
-  a removed or retyped key a major one, and `pnpm schema:check` refuses
-  a published document that no longer matches the struct. Profiles get
+- `@okfit/core` owns the config schema whole: `CONFIG_SCHEMA_VERSION`,
+  the `major.minor` label of the JSON Schema that
+  `okfitConfigDocumentFields` describes; `okfitConfigSchemaHost`, the
+  hosted identity whose `versions` derive from that label; the
+  `SCHEMA_DIRECTIVE` string a config file opens with; and the schemastore
+  build (`packages/core/lib/configs/schemastore.config.ts`,
+  `pnpm schema:build` / `schema:check`) that publishes the document.
+  Engine's `init` consumes the directive the way `--version` consumes
+  `ENGINE_VERSION`. Core owns all of it because core owns the shape: an
+  additive optional key is a minor bump, a removed or retyped key a major
+  one, and `pnpm schema:check` refuses a published document that no
+  longer matches the struct. Profiles get
   no schema version of their own: core cannot see them, a profile
   contributes values (types, tags, severities) rather than shape, and a
   profile that ever needed a config key would add it to core's struct.
@@ -111,6 +118,10 @@ packaging.[^owner-ruling]
   `--format json` envelope already carries the triple, so a dedicated
   probe only adds surface; `--version` is overridden through
   `CliOutput.Formatter.formatVersion` instead.
+- **Leave the schema identity and build in `@okfit/engine`, next to
+  `init`.** Rejected: `init` merely writes the directive, and splitting
+  shape from identity across two packages is what let the version label
+  drift into a restated literal in the first place.
 - **Give `@okfit/profiles` its own schema version.** Rejected above: a
   profile changes vocabulary, which `profile` already names in every
   envelope and the profiles package version already tracks.

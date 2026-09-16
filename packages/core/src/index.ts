@@ -46,10 +46,12 @@ export {
 	LintTable,
 	OkfitConfig,
 	OkfitConfigFile,
+	SCHEMA_DIRECTIVE,
 	StaleAfterDuration,
 	TagDeclaration,
 	TypeDeclaration,
 	okfitConfigDocumentFields,
+	okfitConfigSchemaHost,
 } from "./OkfitConfig.js";
 export { Source, UsageWindow } from "./Source.js";
 export { Status } from "./Status.js";

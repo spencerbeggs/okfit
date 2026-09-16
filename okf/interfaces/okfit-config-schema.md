@@ -89,15 +89,15 @@ config only ever tightens the spec (`packages/core/CLAUDE.md:32`).
 
 okfit hosts a SchemaStore-compatible Draft-07 document at
 `schemas/1.0/config.json`, generated from `okfitConfigDocumentFields`
-(`@okfit/core`) by `packages/engine/lib/configs/schemastore.config.ts` via
+(`@okfit/core`) by `packages/core/lib/configs/schemastore.config.ts` via
 `@effected/schemastore` and `@effected/schemastore-cli` (`pnpm schema:build` /
 `pnpm schema:check`, the latter the CI drift gate). Its `$id` is
 `https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json`
-— the same identity `okfitConfigSchemaHost` (`@okfit/engine`, next to `init`)
-derives, so the `#:schema` directive `okfit init` writes and the document
-this build generates can never disagree. The version label itself is
-`CONFIG_SCHEMA_VERSION` in `@okfit/core`, beside the struct it describes;
-`okfitConfigSchemaHost` derives its `versions` from it, `okfit context
+— the same identity `okfitConfigSchemaHost` (`@okfit/core`, beside the
+struct) derives, so the `#:schema` directive `okfit init` writes
+(`SCHEMA_DIRECTIVE`, also core's) and the document this build generates can
+never disagree. The version label itself is `CONFIG_SCHEMA_VERSION` in
+`@okfit/core`; `okfitConfigSchemaHost` derives its `versions` from it, `okfit context
 --format json` reports it as `config_schema_version`, and `okfit --version`
 prints it as `config-schema <label>` ([The engine version, not the
 producer version, is what a report is compared

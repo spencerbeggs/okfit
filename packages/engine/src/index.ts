@@ -22,14 +22,7 @@ export {
 export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
-export {
-	CONFIG_RELATIVE_PATH,
-	SCHEMA_DIRECTIVE,
-	configValue,
-	files,
-	okfitConfigSchemaHost,
-	targetPaths,
-} from "./init/scaffold.js";
+export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
 export { OkfitPlatform } from "./platform.js";
 export {
 	ContextEnvelope,

@@ -1,5 +1,14 @@
 # Log
 
+## 2026-09-16
+
+* Updated CLI
+* Updated Engine
+* Updated MCP
+* Updated Plugin
+* Updated okfit CLI — validate, init, context, verify, sync, lint, graph, stale
+* Updated okfit-mcp — MCP tool and resource contract
+
 ## 2026-09-15
 
 * Updated okfit config file schema
