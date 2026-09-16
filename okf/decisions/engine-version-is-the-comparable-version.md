@@ -8,6 +8,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
+  at: 2026-09-16T16:38:37Z
+  body_sha256: 10d7392824743c631d1cbad382271dcb84717323d4fe06d32b302bb910cca7b2
 status: draft
 sources:
   - id: okfit-137
