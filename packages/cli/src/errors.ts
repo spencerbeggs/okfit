@@ -6,6 +6,7 @@ import {
 	InitOverwriteError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
+	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
 
@@ -52,6 +53,9 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 5a. `SyncStagedLogError` (issue #140) renders the same way, one
  *    `error: <message>` line naming why `--staged` and `--only log` cannot
  *    combine.
+ * 5b. `VerifySelectionError` (issue #138) renders the same way, one
+ *    `error: <message>` line naming why `okfit verify`'s selection was
+ *    contradictory, empty, or named an undeclared type.
  * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`/
  *    `BundleDepthExceededError`, config-file's other errors, `XdgEnvError`
  *    (the K-13 `HOME`-unset case) — renders as the single line
@@ -75,6 +79,7 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof SyncStagedLogError) return [`error: ${error.message}`];
+	if (error instanceof VerifySelectionError) return [`error: ${error.message}`];
 	if (hasTag(error, "ConfigValidationError")) {
 		const validationError = error as ConfigValidationError;
 		return [

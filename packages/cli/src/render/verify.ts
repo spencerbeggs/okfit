@@ -39,3 +39,32 @@ export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => [
 		: `verified ${input.id} by ${input.by} at ${input.at}`,
 	...(input.dryRun ? ["would write:", ...indentFragment(input.fragment)] : []),
 ];
+
+/** Issue #138: `humanVerifyBatch`'s input shape. @public */
+export interface VerifyBatchLines {
+	readonly by: string;
+	readonly at: string;
+	readonly dryRun: boolean;
+	readonly verified: ReadonlyArray<{ readonly id: string; readonly fragment: string }>;
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "draft" | "already-verified" }>;
+}
+
+/**
+ * V-11-at-batch-scale (#138): one line per skipped candidate, then one line
+ * (or, under `--dry-run`, three) per verified concept, then a trailing tally.
+ *
+ * @public
+ */
+export const humanVerifyBatch = (input: VerifyBatchLines): ReadonlyArray<string> => [
+	...input.skipped.map((entry) =>
+		entry.reason === "draft" ? `skipped ${entry.id}: draft` : `skipped ${entry.id}: already verified by ${input.by}`,
+	),
+	...input.verified.flatMap((entry) =>
+		input.dryRun
+			? [`would verify ${entry.id} by ${input.by} at ${input.at}`, "would write:", ...indentFragment(entry.fragment)]
+			: [`verified ${entry.id} by ${input.by} at ${input.at}`],
+	),
+	input.dryRun
+		? `would verify ${input.verified.length}, skipped ${input.skipped.length} (dry run, nothing written)`
+		: `verified ${input.verified.length}, skipped ${input.skipped.length}`,
+];

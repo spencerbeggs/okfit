@@ -22,7 +22,7 @@ describe("verifyCommand", () => {
 		assert.deepStrictEqual(verifyCommand.subcommands, []);
 	});
 
-	it("declares the id and path arguments and the config/at/dry-run/format flags, by name; no --by (V-7)", () => {
+	it("declares the id and path arguments and the config/all/type/at/dry-run/format flags, by name; no --by (V-7)", () => {
 		const config = configOf(verifyCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -30,7 +30,7 @@ describe("verifyCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "at", "dry-run", "format"],
+			["config", "all", "type", "at", "dry-run", "format"],
 		);
 	});
 

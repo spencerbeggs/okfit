@@ -53,3 +53,53 @@ export const verifyEnvelope = (input: {
 	dry_run: input.dryRun,
 	exit_code: 0,
 });
+
+/**
+ * Issue #138's batch success envelope, schema 1, the same snake_case
+ * convention as `VerifyEnvelope`. `concepts` carries every concept
+ * `okfit verify --all`/`--type` attested (or would attest under a dry run),
+ * in write order; `skipped` carries every candidate it declined, with why.
+ *
+ * @public
+ */
+export const VerifyBatchEnvelope = Schema.Struct({
+	schema: Schema.Literal(1),
+	okfit_version: Schema.String,
+	engine_version: Schema.String,
+	distribution: DistributionField,
+	verified_by: Schema.String,
+	verified_at: Schema.String,
+	concepts: Schema.Array(Schema.Struct({ id: Schema.String, path: Schema.String })),
+	skipped: Schema.Array(Schema.Struct({ id: Schema.String, reason: Schema.Literals(["draft", "already-verified"]) })),
+	dry_run: Schema.Boolean,
+	exit_code: Schema.Literal(0),
+});
+/** @public */
+export type VerifyBatchEnvelope = typeof VerifyBatchEnvelope.Type;
+
+/**
+ * `concepts[].path` is already the display form, the same convention
+ * {@link verifyEnvelope} uses for its own `path`.
+ *
+ * @public
+ */
+export const verifyBatchEnvelope = (input: {
+	readonly okfitVersion: string;
+	readonly by: string;
+	readonly at: string;
+	readonly concepts: ReadonlyArray<{ readonly id: string; readonly path: string }>;
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "draft" | "already-verified" }>;
+	readonly dryRun: boolean;
+	readonly distribution?: Distribution;
+}): VerifyBatchEnvelope => ({
+	schema: 1,
+	okfit_version: input.okfitVersion,
+	engine_version: ENGINE_VERSION,
+	distribution: input.distribution ?? null,
+	verified_by: input.by,
+	verified_at: input.at,
+	concepts: input.concepts,
+	skipped: input.skipped,
+	dry_run: input.dryRun,
+	exit_code: 0,
+});

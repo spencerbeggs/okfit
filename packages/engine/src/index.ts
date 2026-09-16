@@ -50,7 +50,7 @@ export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
-export { VerifyEnvelope, verifyEnvelope } from "./render/verify.js";
+export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
 export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/run.js";

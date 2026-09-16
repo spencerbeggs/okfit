@@ -22,8 +22,9 @@ tags:
 takes an optional `[path]` as its first positional argument — the **project
 root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
 default) — defaulting to the current directory (the Subcommands and
-[path] section of `packages/cli/README.md`). `verify` additionally takes a required
-`<id>` before `[path]`.
+[path] section of `packages/cli/README.md`). `verify` additionally takes an
+optional `<id>` before `[path]`, required unless `--all` and/or `--type` is
+given instead.
 
 ## okfit validate
 
@@ -65,18 +66,27 @@ never runs conformance or lint checks (the `okfit context` section of
 
 ## okfit verify
 
-`okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run]
-[--format human|json]` appends one attestation, `{ by: human:<id>, at:
-<now> }`, to a concept's `verified` list and writes the file back. `<id>` is
-a concept id with or without a leading slash or trailing `.md`. The actor is
-always your own git identity; there is no `--by`. Existing entries are never
-touched or replaced — every run appends, including a repeat by the same
-person. `--at <iso>` records a different instant; `--dry-run` prints what
-would be written and writes nothing. Exit `0` on success (a dry run
-included), `3` on any failure — an unknown or reserved id, a concept whose
-`verified` shape cannot be edited safely, or an unresolved git identity;
-there is no `1`/`2` content tier. This is a human-run command: no agent,
-hook, or MCP tool ever invokes it.
+`okfit verify [<id>] [path] [--all] [--type <Type>]... [--config <file>]
+[--at <iso>] [--dry-run] [--format human|json]` appends one attestation, `{
+by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
+file back. `<id>` is a concept id with or without a leading slash or
+trailing `.md`. The actor is always your own git identity; there is no
+`--by`. Existing entries are never touched or replaced — every run appends,
+including a repeat by the same person. `--at <iso>` records a different
+instant; `--dry-run` prints what would be written and writes nothing.
+`--all` attests every concept whose type sets `require_verified` and that
+carries no entry by you; `--type <Type>` (repeatable) narrows or replaces
+that selection; `status: draft` concepts and ones you already verified are
+reported as skipped. The dry run prints one fragment per concept in write
+order so the set can be confirmed before anything is spliced; a single
+unsupported `verified` shape fails the whole batch with nothing written.
+Exactly one of `<id>` or `--all`/`--type` must be given; otherwise, or for an
+undeclared type, exit `64`. `--format json` prints a `VerifyBatchEnvelope`
+(`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
+dry run included), `3` on any failure — an unknown or reserved id, a concept
+whose `verified` shape cannot be edited safely, or an unresolved git
+identity; there is no `1`/`2` content tier. This is a human-run command: no
+agent, hook, or MCP tool ever invokes it.
 
 ## okfit sync
 
@@ -237,7 +247,10 @@ carries `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
 (`okf/interfaces/okfit-config-schema.md`). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
 `okfit_version`, `engine_version`, `distribution`, `id`, `path`,
-`verified`, `dry_run`, `exit_code`.
+`verified`, `dry_run`, `exit_code`. `okfit verify --all`/`--type
+--format json` prints a distinct `VerifyBatchEnvelope` instead, with
+`schema`, `okfit_version`, `engine_version`, `distribution`, `verified_by`,
+`verified_at`, `concepts`, `skipped`, `dry_run`, `exit_code`.
 `okfit lint --format json` reuses `JsonEnvelope` unchanged — same shape as
 `okfit validate`'s — with `summary.conformance_errors` always `0` and no
 `core.conformance`-sourced entry ever in `diagnostics`. `okfit graph

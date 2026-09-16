@@ -137,6 +137,7 @@ describe("runVerifyBatch (issue #138)", () => {
 					types: ["toString"],
 				}).pipe(Effect.provide(platform), Effect.flip);
 				assert.strictEqual(error._tag, "VerifySelectionError");
+				if (error._tag !== "VerifySelectionError") throw new Error("unreachable: asserted above");
 				assert.strictEqual(error.reason, "unknown-type");
 				assert.strictEqual(error.detail, "toString");
 			} finally {

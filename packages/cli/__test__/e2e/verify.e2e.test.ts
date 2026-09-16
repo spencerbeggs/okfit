@@ -347,4 +347,87 @@ describe("okfit verify (e2e)", () => {
 			await removeSandbox(sandbox);
 		}
 	});
+
+	it("--all --dry-run prints one fragment per unverified require_verified concept, then --all records them (#138)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const decisions = join(cwd, "okf", "decisions");
+			const write = (name: string, title: string, extra = "") =>
+				writeFile(
+					join(decisions, `${name}.md`),
+					`---\ntype: Decision\ntitle: ${title}\ndescription: ${title}.\n${extra}---\n\n# ${title}\n`,
+					"utf8",
+				);
+			await write("a", "A");
+			await write("b", "B");
+			await write("d", "D", "status: draft\n");
+
+			const dry = await withServices(
+				runOkfit(["verify", "--all", "--dry-run"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }),
+			);
+			assert.strictEqual(dry.exitCode, 0);
+			assert.match(dry.stdout, /would verify decisions\/a by human:ada at 2026-09-16T12:00:00Z/);
+			assert.match(dry.stdout, /would verify decisions\/b by human:ada/);
+			assert.match(dry.stdout, /skipped decisions\/d: draft/);
+			assert.match(dry.stdout, /would verify 2, skipped 1 \(dry run, nothing written\)/);
+			assert.ok(!(await readFile(join(decisions, "a.md"), "utf8")).includes("verified:"));
+
+			const real = await withServices(
+				runOkfit(["verify", "--all", "--format", "json"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }),
+			);
+			assert.strictEqual(real.exitCode, 0);
+			const envelope = JSON.parse(real.stdout) as {
+				concepts: Array<{ id: string }>;
+				skipped: Array<{ id: string; reason: string }>;
+				verified_by: string;
+			};
+			assert.deepStrictEqual(
+				envelope.concepts.map((c) => c.id),
+				["decisions/a", "decisions/b"],
+			);
+			assert.deepStrictEqual(envelope.skipped, [{ id: "decisions/d", reason: "draft" }]);
+			assert.ok(
+				(await readFile(join(decisions, "a.md"), "utf8")).includes("  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n"),
+			);
+
+			const again = await withServices(runOkfit(["verify", "--all", "--format", "json"], { cwd, env }));
+			const second = JSON.parse(again.stdout) as { concepts: Array<unknown>; skipped: Array<{ reason: string }> };
+			assert.deepStrictEqual(second.concepts, []);
+			assert.ok(second.skipped.every((s) => s.reason === "already-verified" || s.reason === "draft"));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--type narrows the batch; no selection or id plus --all exits 64", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const none = await withServices(runOkfit(["verify"], { cwd, env }));
+			assert.strictEqual(none.exitCode, 64);
+			assert.match(none.stderr, /needs a concept id, --all, or --type/);
+			const both = await withServices(runOkfit(["verify", "project", "--all"], { cwd, env }));
+			assert.strictEqual(both.exitCode, 64);
+
+			// `okfit init` always scaffolds `project.md` as `status: draft`
+			// (`packages/engine/src/init/scaffold.ts`), and `runVerifyBatch`
+			// skips a draft candidate unconditionally, even one named by an
+			// explicit `--type` -- there is no bypass (`packages/engine/src/verify/run.ts`).
+			// Mark it stable first so this case actually exercises `--type`
+			// narrowing a batch down to a verifiable candidate.
+			const projectPath = join(cwd, "okf", "project.md");
+			await writeFile(
+				projectPath,
+				(await readFile(projectPath, "utf8")).replace("status: draft\n", "status: stable\n"),
+				"utf8",
+			);
+
+			const typed = await withServices(runOkfit(["verify", "--type", "Project", "--dry-run"], { cwd, env }));
+			assert.strictEqual(typed.exitCode, 0);
+			assert.match(typed.stdout, /would verify project by human:ada/);
+			const unknown = await withServices(runOkfit(["verify", "--type", "Nope"], { cwd, env }));
+			assert.strictEqual(unknown.exitCode, 64);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
 });
