@@ -2,6 +2,7 @@ import { OKF_SPEC_VERSION } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { CLI_VERSION } from "../version.js";
 
@@ -45,6 +46,7 @@ export const graphCommand = Command.make("graph", { path: pathArg, config: confi
 	Effect.gen(function* () {
 		const cwd = process.cwd();
 		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+		const distribution = yield* Distribution;
 
 		const body = Effect.gen(function* () {
 			const resolved = yield* resolveProjectConfig({
@@ -65,6 +67,8 @@ export const graphCommand = Command.make("graph", { path: pathArg, config: confi
 					profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),
 					nodes: result.graph.nodes,
 					edges: result.graph.edges,
+					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+					...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 				});
 				yield* Console.log(JSON.stringify(Schema.encodeSync(GraphEnvelope)(envelope)));
 			} else if (input.format === "dot") {
@@ -79,7 +83,11 @@ export const graphCommand = Command.make("graph", { path: pathArg, config: confi
 		// K-22: under --format json, an infrastructure failure ALSO gets a stdout
 		// envelope; mermaid/dot failures do not — they render the usual way only.
 		if (input.format === "json") {
-			return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));
+			return yield* body.pipe(
+				Effect.tapError((error) =>
+					Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+				),
+			);
 		}
 		return yield* body;
 	}),

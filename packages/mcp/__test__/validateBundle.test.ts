@@ -1,13 +1,17 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { ENGINE_VERSION } from "@okfit/engine";
 import { Effect, FileSystem, Path } from "effect";
+import type { ServerOptions } from "../src/server.js";
 import { copyFixtureProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
 
 interface Envelope {
 	readonly schema: 1;
 	readonly okfit_version: string;
+	readonly engine_version: string;
 	readonly producer: string;
+	readonly distribution: { readonly name: string; readonly version: string } | null;
 	readonly okf_version: string;
 	readonly root: string;
 	readonly profile: string | null;
@@ -27,6 +31,7 @@ const validate = (
 	args: Record<string, unknown>,
 	mutate?: (root: string) => Effect.Effect<void, never, FileSystem.FileSystem | Path.Path>,
 	fixture: "project" | "missing-bundle" = "project",
+	serverOptions: ServerOptions = {},
 ) =>
 	Effect.gen(function* () {
 		const root = yield* copyFixtureProject(fixture);
@@ -34,7 +39,7 @@ const validate = (
 		// internally for its own use but does not leak it to the caller's
 		// requirement channel, so it is provided again here (same pattern).
 		if (mutate !== undefined) yield* mutate(root).pipe(Effect.provide(NodeServices.layer));
-		const harness = yield* makeHarness(root);
+		const harness = yield* makeHarness(root, serverOptions);
 		yield* harness.initialize;
 		return yield* harness.callTool("validate_bundle", args);
 	});
@@ -100,6 +105,25 @@ describe("validate_bundle", () => {
 		Effect.gen(function* () {
 			const data = (yield* validate({})).structuredContent as Envelope;
 			assert.strictEqual(data.producer, "@okfit/mcp");
+		}).pipe(Effect.scoped),
+	);
+
+	// okfit #137: engine_version/okf_version are the pair a reader compares;
+	// distribution is null unless ServerLayer was given one.
+	it.effect("reports engine_version === ENGINE_VERSION and distribution: null by default", () =>
+		Effect.gen(function* () {
+			const data = (yield* validate({})).structuredContent as Envelope;
+			assert.strictEqual(data.engine_version, ENGINE_VERSION);
+			assert.isNull(data.distribution);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("echoes whatever distribution ServerLayer was given", () =>
+		Effect.gen(function* () {
+			const data = (yield* validate({}, undefined, "project", {
+				distribution: { name: "@okfit/plugin", version: "0.3.7" },
+			})).structuredContent as Envelope;
+			assert.deepStrictEqual(data.distribution, { name: "@okfit/plugin", version: "0.3.7" });
 		}).pipe(Effect.scoped),
 	);
 

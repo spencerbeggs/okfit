@@ -1,4 +1,7 @@
 import { Schema } from "effect";
+import { ENGINE_VERSION } from "../version.js";
+import type { Distribution } from "./distribution.js";
+import { DistributionField } from "./distribution.js";
 
 /**
  * V-11's success envelope, schema 1, snake_case — the same convention as
@@ -12,6 +15,8 @@ import { Schema } from "effect";
 export const VerifyEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	engine_version: Schema.String,
+	distribution: DistributionField,
 	id: Schema.String,
 	path: Schema.String,
 	verified: Schema.Struct({ by: Schema.String, at: Schema.String }),
@@ -36,9 +41,12 @@ export const verifyEnvelope = (input: {
 	readonly by: string;
 	readonly at: string;
 	readonly dryRun: boolean;
+	readonly distribution?: Distribution;
 }): VerifyEnvelope => ({
 	schema: 1,
 	okfit_version: input.okfitVersion,
+	engine_version: ENGINE_VERSION,
+	distribution: input.distribution ?? null,
 	id: input.id,
 	path: input.path,
 	verified: { by: input.by, at: input.at },

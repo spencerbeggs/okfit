@@ -1,6 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Schema } from "effect";
-import { okfitConfigDocumentFields } from "../src/OkfitConfig.js";
+import { CONFIG_SCHEMA_VERSION, okfitConfigDocumentFields } from "../src/OkfitConfig.js";
+
+describe("CONFIG_SCHEMA_VERSION", () => {
+	it("is a major.minor version, no patch segment (okfit #137)", () => {
+		assert.match(CONFIG_SCHEMA_VERSION, /^\d+\.\d+$/);
+	});
+});
 
 // Since effect@4.0.0-rc.113 (#8147) `toJsonSchemaDocument` leaves structs
 // open by default; `onExcessProperty: "error"` is what closes the declared

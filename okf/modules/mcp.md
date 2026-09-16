@@ -46,7 +46,11 @@ six read-only tools and static concept resources; see
 Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
 (crash guards, `OkfitPlatform`, `runMain`), `index.ts` (programmatic
 barrel), `version.ts`
-(`MCP_VERSION`), `server.ts` (`ServerLayer`: toolkit and resource layers
+(`MCP_VERSION`, what `initialize` reports; the `validate_bundle` envelope
+names the engine separately — see [The engine version, not the producer
+version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md)),
+`server.ts` (`ServerLayer`: toolkit and resource layers
 over `layerStdio`), `toolkit.ts` (`OkfitToolkit`, the six tools plus
 handler wiring), `errors.ts` (`McpToolError` union,
 `composeRemediatedMessage`), `schema/` (per-tool parameter and success

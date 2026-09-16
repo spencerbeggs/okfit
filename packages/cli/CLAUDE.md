@@ -47,7 +47,11 @@ src/
   version.ts              -- CLI_VERSION, read from process.env.__PACKAGE_VERSION__ (K-32), a
                               build-time constant the bundler injects -- never a package.json
                               import, which would report engine's version for anything that
-                              moved there
+                              moved there. `okfit --version` prints it beside ENGINE_VERSION
+                              (from @okfit/engine) and OKF_SPEC_VERSION, and `via <name>
+                              <version>` when main() was given a distribution; the engine and
+                              OKF numbers are the ones a reader compares
+                              (okf/decisions/engine-version-is-the-comparable-version.md)
   errors.ts                -- renderFailure and its private helpers only; the typed error
                               classes themselves (ConfigPathNotFoundError,
                               InitOverwriteError, ConfigMalformedError,

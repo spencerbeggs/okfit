@@ -441,6 +441,20 @@ export const okfitConfigFields = Schema.Struct({
 });
 
 /**
+ * The version of the config JSON Schema {@link okfitConfigDocumentFields}
+ * describes, `major.minor` only (no patch segment). Core owns this number
+ * because it owns the shape: an additive optional key is a minor bump, a
+ * removed or retyped key is a major bump. `@okfit/engine`'s
+ * `init/scaffold.ts#okfitConfigSchemaHost` derives its published
+ * `versions` from this constant rather than restating it, so the two can
+ * never disagree; `pnpm schema:check`'s DRIFT check refuses a published
+ * document that no longer matches this struct (okfit #137).
+ *
+ * @public
+ */
+export const CONFIG_SCHEMA_VERSION = "1.0" as const;
+
+/**
  * The schema the published JSON Schema document is generated from (C-15):
  * `okfitConfigFields` minus `extensions` (wire bookkeeping no human writes),
  * with an open rest so unknown top-level keys are permitted at the root while

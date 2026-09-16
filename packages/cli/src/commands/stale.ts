@@ -10,6 +10,7 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanStale, staleSummary } from "../render/stale.js";
@@ -53,6 +54,7 @@ export const staleCommand = Command.make("stale", { path: pathArg, config: confi
 		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
 		const now = yield* Now;
 		const path = yield* Path.Path;
+		const distribution = yield* Distribution;
 
 		const body = Effect.gen(function* () {
 			const resolved = yield* resolveProjectConfig({
@@ -72,6 +74,8 @@ export const staleCommand = Command.make("stale", { path: pathArg, config: confi
 				now,
 				concepts: result.bundle.concepts.size,
 				items: result.items,
+				// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+				...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 			});
 
 			if (input.format === "json") {
@@ -92,7 +96,11 @@ export const staleCommand = Command.make("stale", { path: pathArg, config: confi
 		// envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged —
 		// the same idiom validate.ts/context.ts/verify.ts/sync.ts already share.
 		if (input.format === "json") {
-			return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));
+			return yield* body.pipe(
+				Effect.tapError((error) =>
+					Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+				),
+			);
 		}
 		return yield* body;
 	}),

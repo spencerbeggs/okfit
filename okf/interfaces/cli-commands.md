@@ -102,9 +102,9 @@ is no `1`/`2` content tier, since `sync` never runs conformance or lint
 checks.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
-`okfit_version`, `root`, `dry_run`, `exit_code`, `generated`, `index`,
-`log` — each of the latter three an object with `selected`, `written`,
-`unchanged`, `skipped`.
+`okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,
+`exit_code`, `generated`, `index`, `log` — each of the latter three an
+object with `selected`, `written`, `unchanged`, `skipped`.
 
 ## okfit lint
 
@@ -136,8 +136,8 @@ piped straight into a renderer. Loading the bundle never fails on content
 `graph` never runs conformance, lint, or profile checks.
 
 `okfit graph --format json` prints a `GraphEnvelope` (schema 1): `schema`,
-`okfit_version`, `producer`, `okf_version`, `root`, `profile`, `summary`
-(`nodes`, `edges`), `nodes` (`id`, `kind`: `concept` | `file` | `missing`),
+`okfit_version`, `engine_version`, `producer`, `distribution`,
+`okf_version`, `root`, `profile`, `summary` (`nodes`, `edges`), `nodes` (`id`, `kind`: `concept` | `file` | `missing`),
 `edges` (`from`, `to`, `source`: `body` | `frontmatter`, an omitted `field`
 key unless the edge came from a named frontmatter path field, `raw`).
 
@@ -155,8 +155,8 @@ per stale concept, `<id>  <stale_after ISO>  (<N> days past)`, to stdout,
 then a one-line summary, `<N> stale concepts of <M> in <root>`, to stderr.
 
 `okfit stale --format json` prints a `StaleEnvelope` (schema 1): `schema`,
-`okfit_version`, `producer`, `okf_version`, `root`, `profile`, `as_of` (an
-ISO-8601 instant), `summary` (`concepts`, `stale`), `items` (`id`,
+`okfit_version`, `engine_version`, `producer`, `distribution`,
+`okf_version`, `root`, `profile`, `as_of` (an ISO-8601 instant), `summary` (`concepts`, `stale`), `items` (`id`,
 `stale_after`, `days_past`).
 
 ## Config discovery
@@ -193,26 +193,54 @@ exit is always `0`, `1`, or one of the process-level codes above.
 ## JSON envelopes
 
 `okfit validate --format json` prints `JsonEnvelope` (schema 1): `schema`,
-`okfit_version`, `producer`, `okf_version`, `root`, `profile`,
-`exit_code`, `summary`, `diagnostics`. `okfit_version` is the version of
-the package that produced the report and `producer` names that package
-(`okfit` here, `@okfit/mcp` from the MCP `validate_bundle` tool), so the
-two reports over one bundle legitimately differ in `okfit_version`
-([#75](https://github.com/spencerbeggs/okfit/issues/75)). `okfit context --format json` prints a distinct
+`okfit_version`, `engine_version`, `producer`, `distribution`,
+`okf_version`, `root`, `profile`, `exit_code`, `summary`, `diagnostics`.
+
+Four of those fields are about versions, and only two of them are worth
+comparing. `engine_version` is the `@okfit/engine` that produced the
+report and `okf_version` is the OKF spec version the bundle targets;
+the engine stamps `engine_version` itself, so no front end can omit or
+misreport it. `okfit_version` is the version of the front end that
+produced the report and `producer` names it (`okfit` here, `@okfit/mcp`
+from the MCP `validate_bundle` tool); the CLI and the MCP server version
+independently and cannot know each other's version, so two reports over
+one bundle legitimately differ there
+([#75](https://github.com/spencerbeggs/okfit/issues/75),
+[#137](https://github.com/spencerbeggs/okfit/issues/137)). `distribution`
+is `{ "name", "version" }` for the meta-package the bin was installed
+through (`@okfit/plugin`) and `null` for a direct install of `@okfit/cli`
+or `@okfit/mcp`. The rule, from [The engine version, not the producer
+version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md): compare
+`engine_version` and `okf_version`; everything else is packaging.
+`okfit --version` prints the same numbers in one line, plus the config
+schema version — `okfit <cli> (engine <engine>, okf <okf>, config-schema
+<schema>)`, with `via <distribution name> <version>` after the CLI
+version when there is one.
+
+`okfit context --format json` prints a distinct
 `ContextEnvelope` (schema 1) where every field is present even when
 `null` — `config_path`, `profile`, `profile_requested`, and `actors.agent`
-never an omitted key (`packages/cli/README.md:188-277`). `okfit verify
+never an omitted key (`packages/cli/README.md:188-277`) — and which
+carries `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
+`major.minor` label of the schema the loaded config was checked against
+(`okf/interfaces/okfit-config-schema.md`). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
-`okfit_version`, `id`, `path`, `verified`, `dry_run`, `exit_code`.
+`okfit_version`, `engine_version`, `distribution`, `id`, `path`,
+`verified`, `dry_run`, `exit_code`.
 `okfit lint --format json` reuses `JsonEnvelope` unchanged — same shape as
 `okfit validate`'s — with `summary.conformance_errors` always `0` and no
 `core.conformance`-sourced entry ever in `diagnostics`. `okfit graph
 --format json` prints a distinct `GraphEnvelope` with `schema`,
-`okfit_version`, `producer`, `okf_version`, `root`, `profile`, `summary`
-(`nodes`, `edges`), `nodes`, `edges`. `okfit stale --format json` prints a
-distinct `StaleEnvelope` with `schema`, `okfit_version`, `producer`,
-`okf_version`, `root`, `profile`, `as_of`, `summary` (`concepts`,
-`stale`), `items`.
+`okfit_version`, `engine_version`, `producer`, `distribution`,
+`okf_version`, `root`, `profile`, `summary` (`nodes`, `edges`), `nodes`,
+`edges`. `okfit stale --format json` prints a distinct `StaleEnvelope`
+with `schema`, `okfit_version`, `engine_version`, `producer`,
+`distribution`, `okf_version`, `root`, `profile`, `as_of`, `summary`
+(`concepts`, `stale`), `items`. An infrastructure failure under
+`--format json` prints `JsonErrorEnvelope` — `schema`, `okfit_version`,
+`engine_version`, `distribution`, `exit_code: 3`, `error` — and nothing
+else on stdout.
 
 ## Message conventions
 

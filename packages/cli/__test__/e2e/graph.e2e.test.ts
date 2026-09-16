@@ -59,6 +59,8 @@ describe("okfit graph --format json", () => {
 			const bundleRoot = join(sandbox.cwd, "okf");
 			const envelope = JSON.parse(result.stdout) as {
 				readonly schema: number;
+				readonly engine_version: string;
+				readonly distribution: unknown;
 				readonly root: string;
 				readonly profile: string;
 				readonly summary: { readonly nodes: number; readonly edges: number };
@@ -66,6 +68,8 @@ describe("okfit graph --format json", () => {
 				readonly edges: ReadonlyArray<{ readonly from: string; readonly to: string; readonly source: string }>;
 			};
 			assert.strictEqual(envelope.schema, 1);
+			assert.match(String(envelope.engine_version), /^\d+\.\d+\.\d+/);
+			assert.isNull(envelope.distribution);
 			assert.strictEqual(envelope.root, bundleRoot);
 			assert.strictEqual(envelope.profile, "software-project");
 			assert.strictEqual(envelope.summary.nodes, envelope.nodes.length);

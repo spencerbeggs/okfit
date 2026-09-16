@@ -1,5 +1,6 @@
 import { Git } from "@effected/git";
 import type { AppDirs, Xdg } from "@effected/xdg";
+import type { Distribution } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import type { FileSystem, Path, Stdio } from "effect";
 import { Layer } from "effect";
@@ -38,6 +39,19 @@ export type PlatformServices =
 	| ChildProcessSpawner.ChildProcessSpawner;
 
 /**
+ * Options `ServerLayer` accepts, beyond `projectRoot`. `distribution`
+ * (okfit #137) names the meta-package that launched this server (currently
+ * only `@okfit/plugin`'s `okfit-mcp` bin shim), threaded down into
+ * `validate_bundle`'s rendered `JsonEnvelope`; `undefined` for a direct
+ * install of `@okfit/mcp`.
+ *
+ * @public
+ */
+export interface ServerOptions {
+	readonly distribution?: Distribution;
+}
+
+/**
  * The whole server as one layer: the toolkit, one static resource per
  * concept (`okf://concept/<id>`, built once at boot — see
  * {@link ConceptResources}), and `okf://index` (re-read from disk on every
@@ -54,9 +68,12 @@ export type PlatformServices =
  *
  * @public
  */
-export const ServerLayer = (projectRoot: string): Layer.Layer<never, never, PlatformServices> =>
+export const ServerLayer = (
+	projectRoot: string,
+	options: ServerOptions = {},
+): Layer.Layer<never, never, PlatformServices> =>
 	Layer.mergeAll(
-		McpServer.toolkit(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot))),
+		McpServer.toolkit(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot, options.distribution))),
 		ConceptResources(projectRoot),
 		IndexResource(projectRoot),
 	).pipe(

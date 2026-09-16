@@ -5,12 +5,15 @@ import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
 describe("okfit bin", () => {
-	it.effect("prints okfit v<semver> (K-32)", () =>
+	it.effect("prints okfit <semver> (engine <semver>, okf 0.2, config-schema 1.0) (okfit #137)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			try {
 				const result = yield* runOkfit(["--version"], sandbox);
-				assert.match(result.stdout.trim(), /^okfit v\d+\.\d+\.\d+/);
+				assert.match(
+					result.stdout.trim(),
+					/^okfit \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.2, config-schema 1\.0\)$/,
+				);
 				assert.strictEqual(result.exitCode, 0);
 			} finally {
 				yield* Effect.promise(() => removeSandbox(sandbox));

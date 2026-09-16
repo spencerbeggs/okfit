@@ -2,6 +2,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { Scope } from "effect";
 import { Deferred, Effect, Layer, Queue, Sink, Stdio, Stream } from "effect";
+import type { ServerOptions } from "../../src/server.js";
 import { ServerLayer } from "../../src/server.js";
 
 export interface JsonRpcMessage {
@@ -82,7 +83,10 @@ const PlatformLayer = Layer.mergeAll(
  *
  * @public
  */
-export const makeHarness = (projectRoot: string): Effect.Effect<OkfitMcpHarness, never, Scope.Scope> =>
+export const makeHarness = (
+	projectRoot: string,
+	options: ServerOptions = {},
+): Effect.Effect<OkfitMcpHarness, never, Scope.Scope> =>
 	Effect.gen(function* () {
 		const stdin = yield* Queue.unbounded<Uint8Array>();
 		const stdout = yield* Queue.unbounded<string | Uint8Array>();
@@ -105,7 +109,9 @@ export const makeHarness = (projectRoot: string): Effect.Effect<OkfitMcpHarness,
 
 		const ready = yield* Deferred.make<void>();
 		yield* Effect.gen(function* () {
-			yield* Layer.build(ServerLayer(projectRoot).pipe(Layer.provide(stdioLayer), Layer.provide(PlatformLayer)));
+			yield* Layer.build(
+				ServerLayer(projectRoot, options).pipe(Layer.provide(stdioLayer), Layer.provide(PlatformLayer)),
+			);
 			yield* Deferred.succeed(ready, undefined);
 			return yield* Effect.never;
 		}).pipe(Effect.scoped, Effect.forkScoped);

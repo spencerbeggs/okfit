@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { SyncEnvelope, syncEnvelope } from "../../src/render/sync.js";
 import type { SyncResult } from "../../src/sync/run.js";
+import { ENGINE_VERSION } from "../../src/version.js";
 
 const EMPTY_MODE = { selected: true, written: [], unchanged: [], skipped: [] } as const;
 
@@ -25,6 +26,8 @@ describe("syncEnvelope", () => {
 			assert.deepStrictEqual(built, {
 				schema: 1,
 				okfit_version: "0.1.0",
+				engine_version: ENGINE_VERSION,
+				distribution: null,
 				root: "okf",
 				dry_run: false,
 				exit_code: 0,
@@ -69,6 +72,20 @@ describe("syncEnvelope", () => {
 			const encoded = Schema.encodeSync(SyncEnvelope)(built);
 			const decoded = Schema.decodeUnknownSync(SyncEnvelope)(encoded);
 			assert.deepStrictEqual(decoded, built);
+		}),
+	);
+
+	it.effect("carries engine_version === ENGINE_VERSION and echoes a given distribution", () =>
+		Effect.sync(() => {
+			const built = syncEnvelope({
+				okfitVersion: "0.1.0",
+				root: "okf",
+				dryRun: false,
+				result: baseResult,
+				distribution: { name: "@okfit/plugin", version: "0.3.7" },
+			});
+			assert.strictEqual(built.engine_version, ENGINE_VERSION);
+			assert.deepStrictEqual(built.distribution, { name: "@okfit/plugin", version: "0.3.7" });
 		}),
 	);
 

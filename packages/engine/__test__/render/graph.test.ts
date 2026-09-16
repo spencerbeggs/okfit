@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import type { GraphLink, GraphNode } from "@okfit/core";
 import { Effect, Schema } from "effect";
 import { GraphEnvelope, graphEnvelope } from "../../src/render/graph.js";
+import { ENGINE_VERSION } from "../../src/version.js";
 
 const NODES: ReadonlyArray<GraphNode> = [
 	{ id: "a", kind: "concept" },
@@ -29,7 +30,9 @@ describe("graphEnvelope", () => {
 			assert.deepStrictEqual(built, {
 				schema: 1,
 				okfit_version: "1.2.3",
+				engine_version: ENGINE_VERSION,
 				producer: "okfit",
+				distribution: null,
 				okf_version: "0.2",
 				root: "/repo/okf",
 				profile: "software-project",
@@ -62,6 +65,23 @@ describe("graphEnvelope", () => {
 			const encoded = Schema.encodeSync(GraphEnvelope)(built);
 			const decoded = Schema.decodeUnknownSync(GraphEnvelope)(encoded);
 			assert.deepStrictEqual(decoded, built);
+		}),
+	);
+
+	it.effect("carries engine_version === ENGINE_VERSION and echoes a given distribution", () =>
+		Effect.sync(() => {
+			const built = graphEnvelope({
+				okfitVersion: "1.2.3",
+				producer: "okfit",
+				okfVersion: "0.2",
+				root: "/repo/okf",
+				profile: null,
+				nodes: [],
+				edges: [],
+				distribution: { name: "@okfit/plugin", version: "0.3.7" },
+			});
+			assert.strictEqual(built.engine_version, ENGINE_VERSION);
+			assert.deepStrictEqual(built.distribution, { name: "@okfit/plugin", version: "0.3.7" });
 		}),
 	);
 });

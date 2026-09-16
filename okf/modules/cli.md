@@ -51,7 +51,12 @@ failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md`).
 ## Process and dependency boundaries
 
 `process` is read only in `bin.ts`, `main.ts`, every file under
-`commands/`, `internal/exit.ts`, `internal/tty.ts`, and `version.ts`;
+`commands/`, `internal/exit.ts`, `internal/tty.ts`, and `version.ts`
+(`CLI_VERSION`, one of the three numbers `okfit --version` prints beside
+`ENGINE_VERSION` and `OKF_SPEC_VERSION`; `main(options?)` accepts the
+`distribution` the meta-package's bin shim passes through — see [The
+engine version, not the producer version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md));
 everything under `render/` is pure or Effect-typed with no `process`
 access and no `@effect/platform-node` import (`packages/cli/CLAUDE.md`,
 K-9/K-49). This package no longer imports `@effected/app` at all -- config

@@ -11,6 +11,7 @@ import {
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanVerify } from "../render/verify.js";
@@ -75,6 +76,7 @@ export const verifyCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const distribution = yield* Distribution;
 
 			const body = Effect.gen(function* () {
 				const path = yield* Path.Path;
@@ -114,6 +116,8 @@ export const verifyCommand = Command.make(
 						by: result.by,
 						at: result.at,
 						dryRun: result.dryRun,
+						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(VerifyEnvelope)(envelope)));
 				} else {
@@ -143,7 +147,11 @@ export const verifyCommand = Command.make(
 			// stdout envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged — the
 			// third copy of an idiom already in validate.ts and context.ts.
 			if (input.format === "json") {
-				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));
+				return yield* body.pipe(
+					Effect.tapError((error) =>
+						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+					),
+				);
 			}
 			return yield* body;
 		}),

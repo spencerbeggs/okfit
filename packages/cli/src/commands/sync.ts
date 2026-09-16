@@ -4,6 +4,7 @@ import { SyncEnvelope, jsonError, provideConfig, resolveProjectConfig, runSync, 
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanSync } from "../render/sync.js";
@@ -83,6 +84,7 @@ export const syncCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const distribution = yield* Distribution;
 
 			const body = Effect.gen(function* () {
 				const path = yield* Path.Path;
@@ -110,6 +112,8 @@ export const syncCommand = Command.make(
 						root: displayPath,
 						dryRun: result.dryRun,
 						result,
+						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(SyncEnvelope)(envelope)));
 				} else {
@@ -125,7 +129,11 @@ export const syncCommand = Command.make(
 			// stdout envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged — the
 			// same idiom validate.ts, context.ts, and verify.ts already share.
 			if (input.format === "json") {
-				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));
+				return yield* body.pipe(
+					Effect.tapError((error) =>
+						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+					),
+				);
 			}
 			return yield* body;
 		}),

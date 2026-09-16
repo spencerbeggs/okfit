@@ -1,5 +1,8 @@
 import type { GraphLink, GraphNode, GraphNodeKind } from "@okfit/core";
 import { Schema } from "effect";
+import { ENGINE_VERSION } from "../version.js";
+import type { Distribution } from "./distribution.js";
+import { DistributionField } from "./distribution.js";
 
 /** One entry of the `nodes` array. @public */
 export const GraphNodeEnvelope = Schema.Struct({
@@ -38,7 +41,9 @@ export type GraphSummary = typeof GraphSummary.Type;
 export const GraphEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	engine_version: Schema.String,
 	producer: Schema.String,
+	distribution: DistributionField,
 	okf_version: Schema.String,
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
@@ -74,10 +79,13 @@ export const graphEnvelope = (input: {
 	readonly profile: string | null;
 	readonly nodes: ReadonlyArray<GraphNode>;
 	readonly edges: ReadonlyArray<GraphLink>;
+	readonly distribution?: Distribution;
 }): GraphEnvelope => ({
 	schema: 1,
 	okfit_version: input.okfitVersion,
+	engine_version: ENGINE_VERSION,
 	producer: input.producer,
+	distribution: input.distribution ?? null,
 	okf_version: input.okfVersion,
 	root: input.root,
 	profile: input.profile,

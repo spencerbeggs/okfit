@@ -39,6 +39,8 @@ export {
 	ContextType,
 	contextEnvelope,
 } from "./render/context.js";
+export type { Distribution } from "./render/distribution.js";
+export { DistributionField } from "./render/distribution.js";
 export type { Tally } from "./render/exit.js";
 export { forDiagnostics, tally } from "./render/exit.js";
 export {
@@ -62,3 +64,4 @@ export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type { VerifyOptions, VerifyResult } from "./verify/run.js";
 export { runVerify } from "./verify/run.js";
+export { ENGINE_VERSION } from "./version.js";

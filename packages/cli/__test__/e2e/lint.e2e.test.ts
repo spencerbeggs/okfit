@@ -86,11 +86,17 @@ describe("okfit lint --format json", () => {
 			assert.strictEqual(result.exitCode, 1);
 			assert.strictEqual(result.stderr, "");
 			const bundleRoot = join(sandbox.cwd, "okf");
-			const { okfit_version: reportedVersion, ...envelope } = JSON.parse(result.stdout) as Record<string, unknown>;
+			const {
+				okfit_version: reportedVersion,
+				engine_version: engineVersion,
+				...envelope
+			} = JSON.parse(result.stdout) as Record<string, unknown>;
 			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
+			assert.match(String(engineVersion), /^\d+\.\d+\.\d+/);
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
 				producer: "okfit",
+				distribution: null,
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: "software-project",

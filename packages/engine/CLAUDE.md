@@ -59,10 +59,13 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Effect v4 only, at the version in `catalog:effect`. Consult
   `.repos/effect/packages/effect/src` for what v4 exports; `node_modules`
   wins on disagreement.
-- **Process boundary, enforced by `__test__/boundaries.test.ts` -- with NO
-  allowlist.** No file under `src/` reads `process`, anywhere, ever; there
-  is no per-file exception the way `@okfit/cli`'s narrower rule carries
-  one. This package is a library both a CLI and an MCP server import: a
+- **Process boundary, enforced by `__test__/boundaries.test.ts` -- with
+  exactly one allowlisted file.** No file under `src/` reads `process`
+  except `version.ts`, whose `process.env.__PACKAGE_VERSION__` is not a
+  runtime read at all: the bundler replaces it with a string literal at
+  build time (K-32), the same carve-out `@okfit/cli` and `@okfit/mcp`
+  document for their own `version.ts`. Do not widen the allowlist. This
+  package is a library both a CLI and an MCP server import: a real
   `process` read here would be a runtime environment read baked into
   whichever front end imports it first, defeating the point of sharing the
   code. The boundary test was probed against a deliberate violation to

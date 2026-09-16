@@ -11,7 +11,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { OkfitConfig } from "@okfit/core";
+import { CONFIG_SCHEMA_VERSION, OkfitConfig } from "@okfit/core";
 import { contextEnvelope } from "@okfit/engine";
 import { Profiles } from "@okfit/profiles";
 import { Effect } from "effect";
@@ -96,6 +96,7 @@ describe("okfit context --format json", () => {
 				const bundleRoot = join(sandbox.cwd, "okf");
 				assert.deepStrictEqual(JSON.parse(result.stdout), {
 					schema: 1,
+					config_schema_version: CONFIG_SCHEMA_VERSION,
 					project_root: sandbox.cwd,
 					bundle_root: bundleRoot,
 					config_path: null,

@@ -47,7 +47,14 @@ splice,run}.ts`, `sync/{generated,index,log,write,run}.ts`, and
 `init/scaffold.ts` are the five programs; `render/*.ts` holds the
 envelope half of each JSON contract (`ContextEnvelope`, `VerifyEnvelope`,
 `SyncEnvelope`, `JsonEnvelope`/`JsonErrorEnvelope`), leaving each front
-end's human-readable rendering to render there instead.
+end's human-readable rendering to render there instead. `version.ts`
+exports `ENGINE_VERSION`, the one build-time constant in this package
+(`process.env.__PACKAGE_VERSION__`, replaced by the bundler), and every
+envelope renderer stamps it as `engine_version` itself rather than taking
+it from the caller; the renderers also take an optional `distribution`
+the front ends thread through from `main()`. See [The engine version, not
+the producer version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md).
 
 `validate/run.ts#run` and `sync/run.ts#runSync` both now carry
 `Crypto.Crypto` in their dependencies, satisfied for free wherever
@@ -66,7 +73,8 @@ date](../decisions/profiles-body-sha256-detects-real-drift.md).
 ## Process boundary
 
 `__test__/boundaries.test.ts` enforces that NO file under `engine/src`
-reads `process`, with no per-file allowlist — a stricter rule than either
+reads `process`, with `version.ts` the single allowlisted exception
+(its read is a build-time constant, not a runtime one) — a stricter rule than either
 front end's own boundary test carries, because this package is a library
 both a CLI and an MCP server import: a `process` read here would bake a
 runtime environment read into whichever front end imports it first

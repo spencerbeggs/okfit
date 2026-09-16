@@ -2,7 +2,7 @@ import type { FrontmatterWriteError, MarkdownParseError } from "@effected/markdo
 import { MarkdownDocument, MarkdownFrontmatter, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import { HostedSchema } from "@effected/schemastore";
 import type { OkfitConfig } from "@okfit/core";
-import { Concept, ConceptId, Derive, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
+import { CONFIG_SCHEMA_VERSION, Concept, ConceptId, Derive, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
 import type { Layout } from "@okfit/profiles";
 import { Effect, Option, Schema } from "effect";
 
@@ -27,6 +27,9 @@ export const PROJECT_CONFIG_NAMES = [".okfit.toml", "okfit.toml", ".config/okfit
  * is current — the one identity `schemastore.config.ts` and `okfit init`'s
  * `#:schema` directive both derive from, so the URL a fresh config points at
  * and the one the generated document declares can never disagree (C-18).
+ * `versions` derives from `@okfit/core`'s `CONFIG_SCHEMA_VERSION` (okfit
+ * #137) rather than restating the number, so this host and the CLI's
+ * `--version` `config-schema` segment can never drift apart.
  *
  * @public
  */
@@ -34,7 +37,7 @@ export const okfitConfigSchemaHost = HostedSchema.github({
 	repo: "spencerbeggs/okfit",
 	path: "schemas",
 	name: "config",
-	versions: ["1.0"],
+	versions: [CONFIG_SCHEMA_VERSION],
 	appendVersion: false,
 });
 

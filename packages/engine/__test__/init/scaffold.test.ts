@@ -1,8 +1,15 @@
 import { assert, describe, it } from "@effect/vitest";
+import { CONFIG_SCHEMA_VERSION } from "@okfit/core";
 import { Profiles } from "@okfit/profiles";
 import { Effect } from "effect";
 import type { ScaffoldOptions } from "../../src/init/scaffold.js";
-import { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "../../src/init/scaffold.js";
+import {
+	CONFIG_RELATIVE_PATH,
+	configValue,
+	files,
+	okfitConfigSchemaHost,
+	targetPaths,
+} from "../../src/init/scaffold.js";
 
 const OPTIONS: ScaffoldOptions = {
 	projectRoot: "/tmp/my-repo",
@@ -16,6 +23,12 @@ const OPTIONS: ScaffoldOptions = {
 describe("CONFIG_RELATIVE_PATH", () => {
 	it("writes the config to .config/okfit.toml", () => {
 		assert.strictEqual(CONFIG_RELATIVE_PATH, ".config/okfit.toml");
+	});
+});
+
+describe("okfitConfigSchemaHost", () => {
+	it("derives its version segment from @okfit/core's CONFIG_SCHEMA_VERSION, so the two can never diverge (okfit #137)", () => {
+		assert.include(okfitConfigSchemaHost.$id, `/${CONFIG_SCHEMA_VERSION}/`);
 	});
 });
 
