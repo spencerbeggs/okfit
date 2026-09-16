@@ -841,6 +841,16 @@ describe("okfit sync (e2e)", () => {
 			const bad = await withServices(runOkfit(["sync", "--staged", "--only", "log"], { cwd, env }));
 			assert.strictEqual(bad.exitCode, 64);
 			assert.match(bad.stderr, /--staged cannot run log mode/);
+
+			// Final-review F1: the JSON error envelope's own `exit_code` must
+			// match the process's actual exit, not the infrastructure-failure
+			// default of `3` -- `SyncStagedLogError` carries `[Runtime.errorExitCode] = 64`.
+			const badJson = await withServices(
+				runOkfit(["sync", "--staged", "--only", "log", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(badJson.exitCode, 64);
+			const errorEnvelope = JSON.parse(badJson.stdout) as { readonly exit_code: number };
+			assert.strictEqual(errorEnvelope.exit_code, 64);
 		} finally {
 			await removeSandbox(sandbox);
 		}

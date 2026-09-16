@@ -49,4 +49,7 @@ walk. An aborted commit leaves a stamp a few seconds early, harmlessly.
 `--staged` stages the whole file, so a partially staged concept
 (`git add -p`) is fully staged by it. savvy-web/systems#657 carries the
 husky side: skip in CI, skip without `okfit` on PATH, fail the commit on
-a non-zero exit.
+a non-zero exit. Index mode under `--staged` renders `index.md` from the
+working tree, not the index, so an unstaged or untracked concept already
+on disk is listed in the committed index before the concept itself is
+committed; the next commit reconciles it.

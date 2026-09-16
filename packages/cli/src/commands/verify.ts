@@ -111,13 +111,24 @@ export const verifyCommand = Command.make(
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
-			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+
+			// Issue #138/final-review F2: `id` and `path` are both optional
+			// positionals bound in declaration order, so `okfit verify --all
+			// /abs/project` lands the path in `id`. An id is meaningless in
+			// batch mode, so when only one positional is given under
+			// --all/--type, treat that token as the project root; only fail
+			// `id-and-batch` below when BOTH positionals are present.
+			const batch = input.all || input.type.length > 0;
+			const idIsPath = batch && Option.isSome(input.id) && Option.isNone(input.path);
+			const effectivePath = idIsPath ? input.id : input.path;
+
+			const discoveryCwd = Option.getOrElse(effectivePath, () => cwd);
 			const distribution = yield* Distribution;
 
 			const body = Effect.gen(function* () {
 				const path = yield* Path.Path;
 				const resolved = yield* resolveProjectConfig({
-					pathArg: input.path,
+					pathArg: effectivePath,
 					explicitConfigPath: input.config,
 					cwd,
 				});
@@ -133,9 +144,13 @@ export const verifyCommand = Command.make(
 					? DateTime.startOf(yield* Now, "second")
 					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
 
-				// Issue #138: exactly one of `id` or `--all`/`--type` selects.
-				const batch = input.all || input.type.length > 0;
-				if (Option.isSome(input.id) && batch) return yield* new VerifySelectionError({ reason: "id-and-batch" });
+				// Issue #138: exactly one of `id` or `--all`/`--type` selects. A
+				// lone `id` token under batch mode was already reinterpreted as
+				// `effectivePath` above (F2), so `id-and-batch` only fires when
+				// BOTH positionals are present alongside a batch selector.
+				if (Option.isSome(input.id) && Option.isSome(input.path) && batch) {
+					return yield* new VerifySelectionError({ reason: "id-and-batch" });
+				}
 				if (Option.isNone(input.id) && !batch) return yield* new VerifySelectionError({ reason: "no-selection" });
 
 				if (batch) {

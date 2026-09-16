@@ -405,7 +405,20 @@ describe("okfit verify (e2e)", () => {
 			const none = await withServices(runOkfit(["verify"], { cwd, env }));
 			assert.strictEqual(none.exitCode, 64);
 			assert.match(none.stderr, /needs a concept id, --all, or --type/);
-			const both = await withServices(runOkfit(["verify", "project", "--all"], { cwd, env }));
+
+			// Final-review F1: the JSON error envelope's `exit_code` must match
+			// the process's own exit -- `VerifySelectionError` carries
+			// `[Runtime.errorExitCode] = 64`.
+			const noneJson = await withServices(runOkfit(["verify", "--format", "json"], { cwd, env }));
+			assert.strictEqual(noneJson.exitCode, 64);
+			const errorEnvelope = JSON.parse(noneJson.stdout) as { readonly exit_code: number };
+			assert.strictEqual(errorEnvelope.exit_code, 64);
+
+			// Final-review F2: with only ONE positional given under batch mode,
+			// the token is unambiguous -- it is read as the project root, not
+			// `id-and-batch`, since an id is meaningless in batch mode.
+			// `id-and-batch` only fires when BOTH positionals are present.
+			const both = await withServices(runOkfit(["verify", "project", cwd, "--all"], { cwd, env }));
 			assert.strictEqual(both.exitCode, 64);
 
 			// `okfit init` always scaffolds `project.md` as `status: draft`
@@ -428,6 +441,20 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(unknown.exitCode, 64);
 		} finally {
 			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--all takes its project root from a lone positional even from a different cwd (final-review F2)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		const elsewhere = await makeSandbox("okfit-verify-elsewhere-");
+		try {
+			// Run from a cwd unrelated to the bundle; the ONLY positional is the
+			// bundle's own root, which would otherwise land in the `id` slot.
+			const run = await withServices(runOkfit(["verify", "--all", "--dry-run", cwd], { cwd: elsewhere.cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+		} finally {
+			await removeSandbox(sandbox);
+			await removeSandbox(elsewhere);
 		}
 	});
 });

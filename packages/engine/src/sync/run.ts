@@ -103,6 +103,11 @@ export const runSync: (
 	let staged: Map<ConceptId, GeneratedProvenance> | undefined;
 	let scope: ReadonlySet<ConceptId> | undefined;
 	let repoRoot: string | undefined;
+	// Final-review F5: the realpath-resolved absolute path per scoped
+	// concept, kept from this loop so the `git add` list below can use it
+	// directly instead of rebuilding `${bundle.root}/${concept.path}` --
+	// which, unlike this realpath, does not survive an in-repo symlink.
+	let realPaths: Map<ConceptId, string> | undefined;
 
 	if (options.staged !== undefined) {
 		// Issue #140: the pre-commit shape. Inside a hook, `now` is the commit's
@@ -116,15 +121,18 @@ export const runSync: (
 		const stagedPaths = new Set(yield* git.stagedChanges(repoRoot));
 		const selected = new Set<ConceptId>();
 		const provenanceStaged = new Map<ConceptId, GeneratedProvenance>();
+		const resolvedPaths = new Map<ConceptId, string>();
 		for (const [id, concept] of bundle.concepts) {
 			const real = yield* fs.realPath(path.join(bundle.root, concept.path));
 			const rel = path.relative(repoRoot, real).split(path.sep).join("/");
 			if (!stagedPaths.has(rel)) continue;
 			selected.add(id);
 			provenanceStaged.set(id, { _tag: "committed", at: options.staged.at });
+			resolvedPaths.set(id, real);
 		}
 		staged = provenanceStaged;
 		scope = selected;
+		realPaths = resolvedPaths;
 	} else if (options.modes.has("generated") || options.modes.has("log")) {
 		const window = logWindow(bundle.logs.get(""), options.logSince);
 		for (const [id, concept] of bundle.concepts) {
@@ -158,13 +166,19 @@ export const runSync: (
 		: UNSELECTED;
 
 	if (options.staged !== undefined && !options.dryRun && repoRoot !== undefined) {
+		const path = yield* Path.Path;
+		// F5: the realpath map built in the staged-set loop above, filtered to
+		// the ids `syncGenerated` actually wrote -- no cast back to `ConceptId`
+		// needed, since these keys were never anything else.
+		const writtenIds = new Set(generated.written);
 		const files = [
-			...generated.written.map((id) => {
-				const concept = bundle.concepts.get(id as ConceptId);
-				return concept === undefined ? undefined : `${bundle.root}/${concept.path}`;
-			}),
-			...index.written.map((relative) => `${bundle.root}/${relative}`),
-		].filter((file): file is string => file !== undefined);
+			...(realPaths === undefined
+				? []
+				: Array.from(realPaths.entries())
+						.filter(([id]) => writtenIds.has(id))
+						.map(([, real]) => real)),
+			...index.written.map((relative) => path.join(bundle.root, relative)),
+		];
 		if (files.length > 0) yield* (yield* Git).add(repoRoot, files);
 	}
 

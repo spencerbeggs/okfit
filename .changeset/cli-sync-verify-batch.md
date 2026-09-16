@@ -24,4 +24,6 @@ okfit verify --all
 okfit verify --type Decision --type Convention
 ```
 
-Giving both an id and `--all`/`--type`, or neither, fails with a usage error at exit `64`.
+Giving both an id and `--all`/`--type`, or neither, fails with a usage error at exit `64`. Passing an id positional together with `--all`/`--type` and no separate path is no longer ambiguous: the token is read as the project root, since an id is meaningless in batch mode.
+
+The human `sync` reason for `generated-missing` now names the fix directly — "has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent" — instead of just describing the gap. With `actors.agent` configured, `okfit validate` now warns `generated-missing` for a concept sync would otherwise have to skip, rather than staying silent about it.

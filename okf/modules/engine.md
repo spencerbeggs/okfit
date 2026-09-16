@@ -77,7 +77,8 @@ that carries no entry by the caller, skips `status: draft` concepts and
 ones already verified by the caller, and fails closed (nothing written)
 if any selected concept's `verified` shape cannot be spliced safely. An
 empty or undeclared-type selection is a typed `VerifySelectionError`
-(exit `64`), matching the single-id path's usage-error tier. `render/*.ts`
+(exit `64`) -- a new usage tier the single-id path has no equivalent of;
+an unknown single id is exit `3`, not `64`. `render/*.ts`
 gained `VerifyBatchEnvelope` alongside the single-concept
 `VerifyEnvelope` for `--format json`.
 
@@ -94,16 +95,17 @@ against the two mechanical spellings `sync` itself writes -- see [okfit
 sync's log mode appends into the newest logged day and dedupes on its own
 spellings](../decisions/cli-sync-log-appends-into-the-day.md), which
 supersedes the strictly-after rule. `--since <YYYY-MM-DD>` widens that
-floor on request. A `staged` mode (`sync/write.ts`) selects only the git
+floor on request. A `staged` mode (`sync/run.ts`) selects only the git
 index, stamps `generated.at` with `now` (truncated to seconds) and
 `generated.body_sha256` with the body's digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is
 honest](../decisions/cli-sync-staged-stamps-now.md). Staged mode never
-walks history and never runs log mode. A malformed `--since` or an
-`--only log` paired with `--staged` is a new `SyncStagedLogError`, exit
-`64`.
+walks history and never runs log mode. A malformed `--since` is a
+parse-time usage error from the CLI's own argument parser, never a
+`SyncStagedLogError`; only `--only log` paired with `--staged` raises
+that error, exit `64`.
 
 ## Process boundary
 

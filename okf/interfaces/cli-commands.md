@@ -120,6 +120,10 @@ runs conformance or lint checks.
 considered, stamped with `now` and re-added; default modes become
 `generated` and `index`, and `--only log` with `--staged` is a usage
 error, exit `64` ([decision](../decisions/cli-sync-staged-stamps-now.md)).
+Index mode under `--staged` still renders `index.md` from the working
+tree, not the index, so an unstaged or untracked concept already on disk
+is listed in the committed index before the concept itself is committed;
+the next commit reconciles it.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,
@@ -262,8 +266,11 @@ with `schema`, `okfit_version`, `engine_version`, `producer`,
 `distribution`, `okf_version`, `root`, `profile`, `as_of`, `summary`
 (`concepts`, `stale`), `items`. An infrastructure failure under
 `--format json` prints `JsonErrorEnvelope` — `schema`, `okfit_version`,
-`engine_version`, `distribution`, `exit_code: 3`, `error` — and nothing
-else on stdout.
+`engine_version`, `distribution`, `exit_code`, `error` — and nothing
+else on stdout. `exit_code` is `3` for most errors, or `64` when the
+underlying typed error is one of the usage-tier errors that carries its
+own `[Runtime.errorExitCode]` (`SyncStagedLogError`, `VerifySelectionError`)
+— it always matches the process's own exit code.
 
 ## Message conventions
 
