@@ -1,13 +1,13 @@
 import type { Git } from "@effected/git";
 import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okfit/core";
-import { Bundle } from "@okfit/core";
+import { Bundle, Derive } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
 import type { Crypto, FileSystem, Path } from "effect";
-import { Effect, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
-import { syncLog } from "./log.js";
+import { logWindow, syncLog, wantsLogEntry } from "./log.js";
 
 /** The three families `okfit sync` regenerates (contract §5). @public */
 export type SyncMode = "generated" | "index" | "log";
@@ -39,6 +39,8 @@ export interface SyncOptions {
 	/** Members to actually RUN. Absent members still appear in {@link SyncResult}, `selected: false`. */
 	readonly modes: ReadonlySet<SyncMode>;
 	readonly dryRun: boolean;
+	/** Issue #18: log mode's inclusive floor (`YYYY-MM-DD`); default is the newest logged date. */
+	readonly logSince?: string;
 }
 
 /** @public */
@@ -63,12 +65,13 @@ export interface SyncResult {
 const UNSELECTED: SyncModeResult = { selected: false, written: [], unchanged: [], skipped: [] };
 
 /**
- * Contract §5's six-step algorithm: one `Bundle.load`, one
- * `Derivation.generatedAt` per concept shared by the generated and log
- * modes (skipped entirely when neither is selected), then the three modes
- * in a FIXED order — generated, index, log — regardless of `--only`'s own
- * occurrence order, so a generated write never invalidates an index or log
- * rendered in the same run (design §2).
+ * Contract §5's six-step algorithm: one `Bundle.load`, then a lazy
+ * `Derivation.generatedAt` walk shared by the generated and log modes
+ * (issue #21) — computed only for a concept that still needs one, not for
+ * every concept — then the three modes in a FIXED order — generated,
+ * index, log — regardless of `--only`'s own occurrence order, so a
+ * generated write never invalidates an index or log rendered in the same
+ * run (design §2).
  *
  * @public
  */
@@ -81,13 +84,26 @@ export const runSync: (
 > = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 
-	// Step 2: one Derivation.generatedAt per concept, shared by generated and
-	// log, computed only when at least one of them is selected. `--only index`
-	// alone spawns no git process at all.
+	// Step 2 (#21): one Derivation.generatedAt per concept that still needs
+	// one, shared by the generated and log modes. A concept whose recorded
+	// digest matches its body is `unchanged` to generated mode without any
+	// git call (syncGenerated decides that first), and its stamped
+	// `generated.at` is the date log mode would derive, so it is walked only
+	// when log mode is selected AND the log does not already name it under
+	// that date. `--only index` alone spawns no git process at all.
 	const needsGit = options.modes.has("generated") || options.modes.has("log");
 	const provenance = new Map<ConceptId, BodyProvenance>();
 	if (needsGit) {
+		const window = logWindow(bundle.logs.get(""), options.logSince);
 		for (const [id, concept] of bundle.concepts) {
+			const generated = concept.frontmatter.generated;
+			const digest = yield* Derivation.bodyDigest(concept.document.source);
+			const stampedAt =
+				generated?.body_sha256 !== undefined && generated.body_sha256 === digest ? generated.at : undefined;
+			const wanted =
+				stampedAt === undefined ||
+				(options.modes.has("log") && wantsLogEntry(window, DateTime.formatIsoDate(stampedAt), Derive.title(concept)));
+			if (!wanted) continue;
 			const derived = yield* Derivation.generatedAt({ file: `${bundle.root}/${concept.path}` });
 			provenance.set(id, derived);
 		}
@@ -105,7 +121,7 @@ export const runSync: (
 		: UNSELECTED;
 	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, options.dryRun) : UNSELECTED;
 	const log: SyncModeResult = options.modes.has("log")
-		? yield* syncLog(bundle, provenance, options.dryRun)
+		? yield* syncLog(bundle, provenance, options.dryRun, options.logSince)
 		: UNSELECTED;
 
 	return { bundleRoot: options.bundleRoot, dryRun: options.dryRun, generated, index, log } satisfies SyncResult;
