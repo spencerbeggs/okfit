@@ -87,21 +87,24 @@ const stagedFlag = Flag.Boolean("staged").pipe(
 
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
- * [--format human|json] [--since <YYYY-MM-DD>]`.
+ * [--format human|json] [--since <YYYY-MM-DD>] [--staged]`.
  *
  * Handler order fixed by contract §4.3. Steps 1–3 are `context`'s/
  * `validate`'s handler in substance — stat `--config` (K-1) via
  * `provideConfig`, resolve the project and bundle roots through
  * `resolveProjectConfig` — then it diverges: build the `--only` mode
- * set (default: all three, order irrelevant — `runSync`'s own fixed
- * order wins, not `--only`'s occurrence order), run `runSync` with BOTH
- * `Git.layer` and `GitHistory.layer` provided (S-16, mirroring
- * `verify.ts:134`'s `Git.layer`-alone provision one layer up: here two
- * layers are needed because `GitHistory.layer` does not re-expose `Git`
- * even though it is built on it), render, and always exit `0`. There is
- * no content tier: every typed failure is exit `3` through `bin.ts`'s
- * existing `reportFailures`; an unknown `--only` token never reaches
- * this handler at all — it fails at parse time, exit `64`.
+ * set (default: all three modes, or `generated`+`index` under `--staged`;
+ * order irrelevant either way — `runSync`'s own fixed order wins, not
+ * `--only`'s occurrence order), run `runSync` with BOTH `Git.layer` and
+ * `GitHistory.layer` provided (S-16, mirroring `verify.ts:134`'s
+ * `Git.layer`-alone provision one layer up: here two layers are needed
+ * because `GitHistory.layer` does not re-expose `Git` even though it is
+ * built on it), render, and always exit `0`. There is no content tier:
+ * every typed failure is exit `3` through `bin.ts`'s existing
+ * `reportFailures`, EXCEPT `SyncStagedLogError` (`--staged` combined with
+ * `--only log`), which carries its own `[Runtime.errorExitCode] = 64`;
+ * an unknown `--only` token never reaches this handler at all — it fails
+ * at parse time, exit `64`.
  *
  * @public
  */

@@ -7,7 +7,7 @@ import { Effect } from "effect";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
-import { commit, initRepo, stage } from "./utils/repo.js";
+import { commit, initRepo, stage, stagedContents, stagedStatus } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
@@ -823,6 +823,15 @@ describe("okfit sync (e2e)", () => {
 			assert.strictEqual(envelope.log.selected, false);
 			const text = await readDecision(cwd, "staged");
 			assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+
+			// Prove `--staged` re-added the stamp itself, BEFORE `commit()` runs
+			// its own unconditional `git add -A` -- otherwise this test would
+			// pass even if `sync --staged`'s re-add step were deleted (#140
+			// finding 1). "A " (staged-added, no unstaged changes) is what a
+			// re-add produces; a missing re-add would leave "AM" (staged, then
+			// modified on disk) once the handler rewrote the file.
+			assert.strictEqual(await stagedStatus(cwd, "okf/decisions/staged.md", env), "A ");
+			assert.strictEqual(await stagedContents(cwd, "okf/decisions/staged.md", env), text);
 
 			await commit(cwd, { message: "add staged", authoredAt: "2026-09-16T10:00:05+00:00" }, env);
 			// One commit, and a later plain sync finds nothing to restamp.
