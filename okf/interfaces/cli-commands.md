@@ -81,7 +81,7 @@ hook, or MCP tool ever invokes it.
 ## okfit sync
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
-[--format human|json] [--since <YYYY-MM-DD>]` is the one command that regenerates every
+[--format human|json] [--since <YYYY-MM-DD>] [--staged]` is the one command that regenerates every
 derived-content family: `generated.at` and `generated.body_sha256` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
@@ -105,6 +105,11 @@ discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
 malformed `--since`; there is no `1`/`2` content tier, since `sync` never
 runs conformance or lint checks.
+
+`--staged` is the pre-commit shape: only concepts in the git index are
+considered, stamped with `now` and re-added; default modes become
+`generated` and `index`, and `--only log` with `--staged` is a usage
+error, exit `64` ([decision](../decisions/cli-sync-staged-stamps-now.md)).
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,

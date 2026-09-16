@@ -1,8 +1,16 @@
 import { Git } from "@effected/git";
 import type { SyncMode } from "@okfit/engine";
-import { SyncEnvelope, jsonError, provideConfig, resolveProjectConfig, runSync, syncEnvelope } from "@okfit/engine";
+import {
+	Now,
+	SyncEnvelope,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	runSync,
+	syncEnvelope,
+} from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import { Console, Effect, Layer, Option, Path, Schema } from "effect";
+import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
@@ -70,6 +78,13 @@ const sinceFlag = Flag.String("since").pipe(
 	),
 );
 
+const stagedFlag = Flag.Boolean("staged").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription(
+		"pre-commit mode: stamp only the concepts in the git index, with now as generated.at, and re-add what was written; log mode is excluded (default modes: generated, index)",
+	),
+);
+
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
  * [--format human|json] [--since <YYYY-MM-DD>]`.
@@ -92,7 +107,15 @@ const sinceFlag = Flag.String("since").pipe(
  */
 export const syncCommand = Command.make(
 	"sync",
-	{ path: pathArg, config: configFlag, only: onlyFlag, dryRun: dryRunFlag, format: formatFlag, since: sinceFlag },
+	{
+		path: pathArg,
+		config: configFlag,
+		only: onlyFlag,
+		dryRun: dryRunFlag,
+		format: formatFlag,
+		since: sinceFlag,
+		staged: stagedFlag,
+	},
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -108,7 +131,13 @@ export const syncCommand = Command.make(
 				});
 
 				const modes: ReadonlySet<SyncMode> =
-					input.only.length === 0 ? new Set<SyncMode>(["generated", "index", "log"]) : new Set(input.only);
+					input.only.length > 0
+						? new Set(input.only)
+						: input.staged
+							? new Set<SyncMode>(["generated", "index"])
+							: new Set<SyncMode>(["generated", "index", "log"]);
+
+				const staged = input.staged ? { at: DateTime.startOf(yield* Now, "second") } : undefined;
 
 				const result = yield* runSync({
 					bundleRoot: resolved.bundleRoot,
@@ -117,6 +146,7 @@ export const syncCommand = Command.make(
 					dryRun: input.dryRun,
 					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 					...(Option.isSome(input.since) ? { logSince: input.since.value } : {}),
+					...(staged === undefined ? {} : { staged }),
 				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 
 				const displayPath = displayRoot(cwd, result.bundleRoot, path);

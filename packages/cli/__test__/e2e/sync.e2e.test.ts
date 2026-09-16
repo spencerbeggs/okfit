@@ -7,7 +7,7 @@ import { Effect } from "effect";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
-import { commit, initRepo } from "./utils/repo.js";
+import { commit, initRepo, stage } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
@@ -800,6 +800,38 @@ describe("okfit sync (e2e)", () => {
 				await readLog(cwd),
 				"# Log\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
 			);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--staged stamps a staged new concept with OKFIT_NOW in the same commit, and refuses --only log (#140)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeFile(decisionPath(cwd, "staged"), decisionWithGeneratedBy("Staged", "Stamped pre-commit."), "utf8");
+			await stage(cwd, ["okf/decisions/staged.md"], env);
+
+			const run = await withServices(
+				runOkfit(["sync", "--staged", "--format", "json"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-16T10:00:00.500Z" },
+				}),
+			);
+			assert.strictEqual(run.exitCode, 0);
+			const envelope = parseEnvelope(run.stdout);
+			assert.deepStrictEqual(envelope.generated.written, ["decisions/staged"]);
+			assert.strictEqual(envelope.log.selected, false);
+			const text = await readDecision(cwd, "staged");
+			assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+
+			await commit(cwd, { message: "add staged", authoredAt: "2026-09-16T10:00:05+00:00" }, env);
+			// One commit, and a later plain sync finds nothing to restamp.
+			const after = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
+			assert.ok(parseEnvelope(after.stdout).generated.unchanged.includes("decisions/staged"));
+
+			const bad = await withServices(runOkfit(["sync", "--staged", "--only", "log"], { cwd, env }));
+			assert.strictEqual(bad.exitCode, 64);
+			assert.match(bad.stderr, /--staged cannot run log mode/);
 		} finally {
 			await removeSandbox(sandbox);
 		}

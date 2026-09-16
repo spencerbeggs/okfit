@@ -40,12 +40,14 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * `require-verified-unmet` only while `status: draft` (okf-authoring
  * rule 14), so these two add zero new diagnostics either. Agents never
  * write `verified`: a new stable Decision stays unverified, and this
- * test red, until Spencer verifies it from his own shell (C-28).
+ * test red, until Spencer verifies it from his own shell (C-28). Task 7
+ * (#140, `okfit sync --staged`) adds one more `draft` Decision, for the
+ * same reason.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 8,
-	Decision: 24,
+	Decision: 25,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,

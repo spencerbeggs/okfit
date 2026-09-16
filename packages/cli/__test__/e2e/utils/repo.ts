@@ -32,6 +32,17 @@ export const initRepo = async (dir: string, env: NodeJS.ProcessEnv): Promise<voi
 	await execFileAsync("git", ["config", "tag.gpgsign", "false"], { cwd: dir, env });
 };
 
+/**
+ * `git add`s the given repo-relative paths into the index without
+ * committing (#140's `--staged` fixture: a concept must be IN the index,
+ * never on disk only, before `okfit sync --staged` can see it as staged).
+ *
+ * @public
+ */
+export const stage = async (dir: string, paths: ReadonlyArray<string>, env: NodeJS.ProcessEnv): Promise<void> => {
+	await execFileAsync("git", ["add", ...paths], { cwd: dir, env });
+};
+
 /** @public */
 export interface CommitOptions {
 	readonly message: string;
