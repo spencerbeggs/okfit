@@ -72,7 +72,7 @@ const sinceFlag = Flag.String("since").pipe(
 
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
- * [--format human|json]`.
+ * [--format human|json] [--since <YYYY-MM-DD>]`.
  *
  * Handler order fixed by contract §4.3. Steps 1–3 are `context`'s/
  * `validate`'s handler in substance — stat `--config` (K-1) via
