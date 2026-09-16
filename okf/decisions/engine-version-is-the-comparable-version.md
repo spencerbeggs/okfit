@@ -10,7 +10,7 @@ generated:
   by: okfit/claude-code
   at: 2026-09-16T16:38:37Z
   body_sha256: 10d7392824743c631d1cbad382271dcb84717323d4fe06d32b302bb910cca7b2
-status: draft
+status: stable
 sources:
   - id: okfit-137
     resource: https://github.com/spencerbeggs/okfit/issues/137
@@ -21,6 +21,9 @@ sources:
     resource: conversation with the repository owner
     author: human:spencer
     last_modified: 2026-09-16T00:00:00Z
+verified:
+  - by: human:spencer
+    at: 2026-09-16T16:42:10Z
 ---
 
 # The engine version, not the producer version, is what a report is compared on
