@@ -1,5 +1,5 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { GeneratedLocated, Located } from "./locate.js";
+import type { GeneratedBlockLocated, GeneratedLocated, Located } from "./locate.js";
 
 /** Every {@link Located} case that names an edit; `unsupported` is unrepresentable here. @internal */
 export type SpliceTarget = Exclude<Located, { readonly _tag: "unsupported" }>;
@@ -149,3 +149,21 @@ export const spliceGeneratedFields = (
 		spliceGenerated(bodySha256Target, bodySha256, newline, "body_sha256"),
 	];
 };
+
+/**
+ * A whole `generated:` block mapping, appended as the LAST top-level key
+ * (issue #73) — block style, matching how this repository writes every
+ * `generated:` and how `splice`'s own `absent` case writes `verified:`.
+ *
+ * @internal
+ */
+export const spliceGeneratedBlock = (
+	target: Extract<GeneratedBlockLocated, { readonly _tag: "absent" }>,
+	fields: { readonly by: string; readonly at: string; readonly bodySha256: string },
+	newline: "\n" | "\r\n",
+): MarkdownEdit =>
+	MarkdownEdit.make({
+		offset: target.insertAt,
+		length: 0,
+		content: `generated:${newline}  by: ${fields.by}${newline}  at: ${fields.at}${newline}  body_sha256: ${fields.bodySha256}${newline}`,
+	});

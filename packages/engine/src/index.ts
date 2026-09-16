@@ -16,7 +16,9 @@ export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
 	InitOverwriteError,
+	SyncStagedLogError,
 	VerifyConceptNotFoundError,
+	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
 export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
@@ -48,13 +50,19 @@ export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
-export { VerifyEnvelope, verifyEnvelope } from "./render/verify.js";
+export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
 export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/run.js";
 export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
-export type { VerifyOptions, VerifyResult } from "./verify/run.js";
-export { runVerify } from "./verify/run.js";
+export type {
+	VerifyBatchOptions,
+	VerifyBatchResult,
+	VerifyBatchSkipReason,
+	VerifyOptions,
+	VerifyResult,
+} from "./verify/run.js";
+export { runVerify, runVerifyBatch } from "./verify/run.js";
 export { ENGINE_VERSION } from "./version.js";

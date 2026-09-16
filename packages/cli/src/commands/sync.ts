@@ -1,8 +1,16 @@
 import { Git } from "@effected/git";
 import type { SyncMode } from "@okfit/engine";
-import { SyncEnvelope, jsonError, provideConfig, resolveProjectConfig, runSync, syncEnvelope } from "@okfit/engine";
+import {
+	Now,
+	SyncEnvelope,
+	jsonError,
+	provideConfig,
+	resolveProjectConfig,
+	runSync,
+	syncEnvelope,
+} from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import { Console, Effect, Layer, Option, Path, Schema } from "effect";
+import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
@@ -57,29 +65,60 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDescription("output format: human (default) or json"),
 );
 
+/** #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). */
+const ISO_DATE = Schema.String.pipe(
+	Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected a YYYY-MM-DD date" })),
+);
+
+const sinceFlag = Flag.String("since").pipe(
+	Flag.withSchema(ISO_DATE),
+	Flag.optional,
+	Flag.withDescription(
+		"log mode's inclusive floor (YYYY-MM-DD): consider every committed concept dated on or after it; default: the newest date already in log.md",
+	),
+);
+
+const stagedFlag = Flag.Boolean("staged").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription(
+		"pre-commit mode: stamp only the concepts in the git index, with now as generated.at, and re-add what was written; log mode is excluded (default modes: generated, index)",
+	),
+);
+
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
- * [--format human|json]`.
+ * [--format human|json] [--since <YYYY-MM-DD>] [--staged]`.
  *
  * Handler order fixed by contract §4.3. Steps 1–3 are `context`'s/
  * `validate`'s handler in substance — stat `--config` (K-1) via
  * `provideConfig`, resolve the project and bundle roots through
  * `resolveProjectConfig` — then it diverges: build the `--only` mode
- * set (default: all three, order irrelevant — `runSync`'s own fixed
- * order wins, not `--only`'s occurrence order), run `runSync` with BOTH
- * `Git.layer` and `GitHistory.layer` provided (S-16, mirroring
- * `verify.ts:134`'s `Git.layer`-alone provision one layer up: here two
- * layers are needed because `GitHistory.layer` does not re-expose `Git`
- * even though it is built on it), render, and always exit `0`. There is
- * no content tier: every typed failure is exit `3` through `bin.ts`'s
- * existing `reportFailures`; an unknown `--only` token never reaches
- * this handler at all — it fails at parse time, exit `64`.
+ * set (default: all three modes, or `generated`+`index` under `--staged`;
+ * order irrelevant either way — `runSync`'s own fixed order wins, not
+ * `--only`'s occurrence order), run `runSync` with BOTH `Git.layer` and
+ * `GitHistory.layer` provided (S-16, mirroring `verify.ts:134`'s
+ * `Git.layer`-alone provision one layer up: here two layers are needed
+ * because `GitHistory.layer` does not re-expose `Git` even though it is
+ * built on it), render, and always exit `0`. There is no content tier:
+ * every typed failure is exit `3` through `bin.ts`'s existing
+ * `reportFailures`, EXCEPT `SyncStagedLogError` (`--staged` combined with
+ * `--only log`), which carries its own `[Runtime.errorExitCode] = 64`;
+ * an unknown `--only` token never reaches this handler at all — it fails
+ * at parse time, exit `64`.
  *
  * @public
  */
 export const syncCommand = Command.make(
 	"sync",
-	{ path: pathArg, config: configFlag, only: onlyFlag, dryRun: dryRunFlag, format: formatFlag },
+	{
+		path: pathArg,
+		config: configFlag,
+		only: onlyFlag,
+		dryRun: dryRunFlag,
+		format: formatFlag,
+		since: sinceFlag,
+		staged: stagedFlag,
+	},
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -95,13 +134,22 @@ export const syncCommand = Command.make(
 				});
 
 				const modes: ReadonlySet<SyncMode> =
-					input.only.length === 0 ? new Set<SyncMode>(["generated", "index", "log"]) : new Set(input.only);
+					input.only.length > 0
+						? new Set(input.only)
+						: input.staged
+							? new Set<SyncMode>(["generated", "index"])
+							: new Set<SyncMode>(["generated", "index", "log"]);
+
+				const staged = input.staged ? { at: DateTime.startOf(yield* Now, "second") } : undefined;
 
 				const result = yield* runSync({
 					bundleRoot: resolved.bundleRoot,
 					config: resolved.config,
 					modes,
 					dryRun: input.dryRun,
+					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+					...(Option.isSome(input.since) ? { logSince: input.since.value } : {}),
+					...(staged === undefined ? {} : { staged }),
 				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 
 				const displayPath = displayRoot(cwd, result.bundleRoot, path);

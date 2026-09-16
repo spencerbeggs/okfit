@@ -1,10 +1,23 @@
 import { assert, describe, it } from "@effect/vitest";
-import { DateTime, Effect } from "effect";
+import { MemoryFileSystem } from "@effected/memfs";
+import { DateTime, Effect, Layer, Path } from "effect";
+import type { Actor } from "../src/Actor.js";
 import { Bundle, LoadedBundle } from "../src/Bundle.js";
 import { Diagnostic } from "../src/Diagnostic.js";
 import { OkfitConfig } from "../src/OkfitConfig.js";
 import { Validate } from "../src/Validate.js";
 import { platformFor } from "./utils/lintFixtures.js";
+
+/** Builds a `LoadedBundle` from an in-memory `{ relativePath: markdown }` map (D-37). */
+const loadFromSources = (sources: Record<string, string>) => {
+	const mount = "/repo/generated-missing";
+	const seed: Record<string, string> = {};
+	for (const [relative, content] of Object.entries(sources)) {
+		seed[`${mount}/${relative}`] = content;
+	}
+	const platform = Layer.mergeAll(MemoryFileSystem.layerWith(seed), Path.layer);
+	return Effect.provide(Bundle.load({ root: mount }), platform);
+};
 
 const platform = platformFor("lint/bundle", "/repo/bundle");
 const loadBundle = Effect.provide(Bundle.load({ root: "/repo/bundle" }), platform);
@@ -182,6 +195,67 @@ describe("Validate", () => {
 			);
 		}),
 	);
+
+	describe("generated-missing (issue #73)", () => {
+		const withAgent = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+			actors: { agent: "okfit/claude-code" as Actor, humans: [] },
+			extensions: {},
+		});
+
+		it.effect("warns when actors.agent is configured and a concept has no generated block", () =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"modules/core.md": "---\ntype: Module\ntitle: Core\n---\n\n# Core\n",
+				});
+				const diagnostics = Validate.lint(bundle, withAgent);
+				const hit = diagnostics.filter((d) => d.code === "generated-missing");
+				assert.strictEqual(hit.length, 1);
+				assert.strictEqual(hit[0]?.severity, "warning");
+				assert.strictEqual(hit[0]?.file, "modules/core.md");
+				assert.match(hit[0]?.message ?? "", /okfit sync will create it from actors\.agent/);
+			}),
+		);
+
+		it.effect("is silent when actors.agent is not configured, whatever the concept carries", () =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"modules/core.md": "---\ntype: Module\ntitle: Core\n---\n\n# Core\n",
+				});
+				const diagnostics = Validate.lint(bundle, OkfitConfig.DEFAULTS);
+				assert.deepStrictEqual(
+					diagnostics.filter((d) => d.code === "generated-missing"),
+					[],
+				);
+			}),
+		);
+
+		it.effect("is silent when the concept already carries generated.by", () =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"modules/core.md": "---\ntype: Module\ntitle: Core\ngenerated:\n  by: human:ada\n---\n\n# Core\n",
+				});
+				const diagnostics = Validate.lint(bundle, withAgent);
+				assert.deepStrictEqual(
+					diagnostics.filter((d) => d.code === "generated-missing"),
+					[],
+				);
+			}),
+		);
+
+		it.effect("respects lint.generated_missing = off", () =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"modules/core.md": "---\ntype: Module\ntitle: Core\n---\n\n# Core\n",
+				});
+				const config = OkfitConfig.merge(withAgent, { lint: { generated_missing: "off" }, extensions: {} });
+				const diagnostics = Validate.lint(bundle, config);
+				assert.deepStrictEqual(
+					diagnostics.filter((d) => d.code === "generated-missing"),
+					[],
+				);
+			}),
+		);
+	});
 
 	it.effect("footnote-undefined ignores footnote-shaped text inside code spans and fences (issue #67)", () =>
 		Effect.gen(function* () {

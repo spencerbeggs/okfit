@@ -7,8 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:38:37Z
-  body_sha256: b7d0b7985b572d55065e339310eb369bd454c057d540e60956819b76b620e456
+  at: 2026-09-16T17:31:05Z
+  body_sha256: 2a6429ea57faa622bf00228a0c1d9eae7e835654be93915013ff54ec470e744e
 tags:
   - architecture
 ---
@@ -60,9 +60,10 @@ in.
 
 ## Lint severities
 
-The nineteen default lint codes: `broken_links`, `missing_index`,
+The twenty default lint codes: `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
-`walk_unreadable`, `generated_at_drift`, and `source_resource_missing` default `warn`;
+`walk_unreadable`, `generated_at_drift`, `source_resource_missing`, and `generated_missing`
+default `warn`;
 `unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
 `family_invalid`, and `computation_runtime_missing` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
@@ -78,6 +79,9 @@ heading slugs (issue #69).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [A body digest inside generated detects real
 drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+`generated_missing` (issue #73) fires only when `actors.agent` is set: a
+concept with no `generated` block would otherwise only surface as a skip in
+`okfit sync`'s post-commit report, after the commit already landed.
 
 ## Unknown keys go to extensions
 

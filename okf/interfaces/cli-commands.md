@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:27:51Z
-  body_sha256: dafcc357db37e94cf255c93b65a52b9759015f99bf0c5b9d7001c97180a4c370
+  at: 2026-09-16T20:22:38Z
+  body_sha256: ec72c60b4ba6a4330ebce7bedb39b4c85fa76ee4800ee050411e87e12fedc244
 tags:
   - architecture
 ---
@@ -22,8 +22,9 @@ tags:
 takes an optional `[path]` as its first positional argument — the **project
 root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
 default) — defaulting to the current directory (the Subcommands and
-[path] section of `packages/cli/README.md`). `verify` additionally takes a required
-`<id>` before `[path]`.
+[path] section of `packages/cli/README.md`). `verify` additionally takes an
+optional `<id>` before `[path]`, required unless `--all` and/or `--type` is
+given instead.
 
 ## okfit validate
 
@@ -65,30 +66,44 @@ never runs conformance or lint checks (the `okfit context` section of
 
 ## okfit verify
 
-`okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run]
-[--format human|json]` appends one attestation, `{ by: human:<id>, at:
-<now> }`, to a concept's `verified` list and writes the file back. `<id>` is
-a concept id with or without a leading slash or trailing `.md`. The actor is
-always your own git identity; there is no `--by`. Existing entries are never
-touched or replaced — every run appends, including a repeat by the same
-person. `--at <iso>` records a different instant; `--dry-run` prints what
-would be written and writes nothing. Exit `0` on success (a dry run
-included), `3` on any failure — an unknown or reserved id, a concept whose
-`verified` shape cannot be edited safely, or an unresolved git identity;
-there is no `1`/`2` content tier. This is a human-run command: no agent,
-hook, or MCP tool ever invokes it.
+`okfit verify [<id>] [path] [--all] [--type <Type>]... [--config <file>]
+[--at <iso>] [--dry-run] [--format human|json]` appends one attestation, `{
+by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
+file back. `<id>` is a concept id with or without a leading slash or
+trailing `.md`. The actor is always your own git identity; there is no
+`--by`. Existing entries are never touched or replaced — every run appends,
+including a repeat by the same person. `--at <iso>` records a different
+instant; `--dry-run` prints what would be written and writes nothing.
+`--all` attests every concept whose type sets `require_verified` and that
+carries no entry by you; `--type <Type>` (repeatable) narrows or replaces
+that selection; `status: draft` concepts and ones you already verified are
+reported as skipped. The dry run prints one fragment per concept in write
+order so the set can be confirmed before anything is spliced; a single
+unsupported `verified` shape fails the whole batch with nothing written.
+Exactly one of `<id>` or `--all`/`--type` must be given; otherwise, or for an
+undeclared type, exit `64`. `--format json` prints a `VerifyBatchEnvelope`
+(`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
+dry run included), `3` on any failure — an unknown or reserved id, a concept
+whose `verified` shape cannot be edited safely, or an unresolved git
+identity; there is no `1`/`2` content tier. This is a human-run command: no
+agent, hook, or MCP tool ever invokes it.
 
 ## okfit sync
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
-[--format human|json]` is the one command that regenerates every
+[--format human|json] [--since <YYYY-MM-DD>] [--staged]` is the one command that regenerates every
 derived-content family: `generated.at` and `generated.body_sha256` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
 it -- a custom type's directory is indexed the same way), and `log.md` (the root log, curated prose
 topped up by date). It runs all three modes, generated then index then
 log, in that fixed order, unless one or more `--only` flags narrow it to a
-subset. `--dry-run` computes every result and writes nothing. `sync --only
+subset. `--dry-run` computes every result and writes nothing. Log mode
+considers every committed concept dated on or after the newest logged
+date, appending into that day's group unless it already names the concept
+(see [the log decision](../decisions/cli-sync-log-appends-into-the-day.md));
+`--since` replaces that floor. A malformed `--since` is a usage error,
+exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
 concept's recorded `body_sha256` still matches its current body, the
 concept is reported `unchanged` and neither key is touched, even though a
@@ -97,9 +112,18 @@ generated detects real drift, not a rewritten
 date](../decisions/profiles-body-sha256-detects-real-drift.md). It never
 touches `verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
-written, `3` on any typed failure, `64` on an unknown `--only` mode; there
-is no `1`/`2` content tier, since `sync` never runs conformance or lint
-checks.
+written, `3` on any typed failure, `64` on an unknown `--only` mode or a
+malformed `--since`; there is no `1`/`2` content tier, since `sync` never
+runs conformance or lint checks.
+
+`--staged` is the pre-commit shape: only concepts in the git index are
+considered, stamped with `now` and re-added; default modes become
+`generated` and `index`, and `--only log` with `--staged` is a usage
+error, exit `64` ([decision](../decisions/cli-sync-staged-stamps-now.md)).
+Index mode under `--staged` still renders `index.md` from the working
+tree, not the index, so an unstaged or untracked concept already on disk
+is listed in the committed index before the concept itself is committed;
+the next commit reconciles it.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,
@@ -227,7 +251,10 @@ carries `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
 (`okf/interfaces/okfit-config-schema.md`). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
 `okfit_version`, `engine_version`, `distribution`, `id`, `path`,
-`verified`, `dry_run`, `exit_code`.
+`verified`, `dry_run`, `exit_code`. `okfit verify --all`/`--type
+--format json` prints a distinct `VerifyBatchEnvelope` instead, with
+`schema`, `okfit_version`, `engine_version`, `distribution`, `verified_by`,
+`verified_at`, `concepts`, `skipped`, `dry_run`, `exit_code`.
 `okfit lint --format json` reuses `JsonEnvelope` unchanged — same shape as
 `okfit validate`'s — with `summary.conformance_errors` always `0` and no
 `core.conformance`-sourced entry ever in `diagnostics`. `okfit graph
@@ -239,8 +266,11 @@ with `schema`, `okfit_version`, `engine_version`, `producer`,
 `distribution`, `okf_version`, `root`, `profile`, `as_of`, `summary`
 (`concepts`, `stale`), `items`. An infrastructure failure under
 `--format json` prints `JsonErrorEnvelope` — `schema`, `okfit_version`,
-`engine_version`, `distribution`, `exit_code: 3`, `error` — and nothing
-else on stdout.
+`engine_version`, `distribution`, `exit_code`, `error` — and nothing
+else on stdout. `exit_code` is `3` for most errors, or `64` when the
+underlying typed error is one of the usage-tier errors that carries its
+own `[Runtime.errorExitCode]` (`SyncStagedLogError`, `VerifySelectionError`)
+— it always matches the process's own exit code.
 
 ## Message conventions
 

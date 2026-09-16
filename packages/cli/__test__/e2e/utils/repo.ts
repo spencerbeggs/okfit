@@ -32,6 +32,48 @@ export const initRepo = async (dir: string, env: NodeJS.ProcessEnv): Promise<voi
 	await execFileAsync("git", ["config", "tag.gpgsign", "false"], { cwd: dir, env });
 };
 
+/**
+ * `git add`s the given repo-relative paths into the index without
+ * committing (#140's `--staged` fixture: a concept must be IN the index,
+ * never on disk only, before `okfit sync --staged` can see it as staged).
+ *
+ * @public
+ */
+export const stage = async (dir: string, paths: ReadonlyArray<string>, env: NodeJS.ProcessEnv): Promise<void> => {
+	await execFileAsync("git", ["add", ...paths], { cwd: dir, env });
+};
+
+/**
+ * `git status --porcelain -- <path>`'s two-character status code for one
+ * repo-relative path, trimmed of everything else (#140 finding 1: a test
+ * asserting `sync --staged` re-added its own stamp must see the index
+ * state BEFORE `commit()` runs its own unconditional `git add -A`, or the
+ * assertion would pass even if the re-add step were deleted). `"A "`
+ * means staged-added with no unstaged changes; `"AM"` means the staged
+ * blob and the working tree have since diverged -- the shape a missing
+ * re-add would leave behind after `sync --staged` rewrote the file on
+ * disk but never re-ran `git add`.
+ *
+ * @public
+ */
+export const stagedStatus = async (dir: string, path: string, env: NodeJS.ProcessEnv): Promise<string> => {
+	const { stdout } = await execFileAsync("git", ["status", "--porcelain", "--", path], { cwd: dir, env });
+	return stdout.slice(0, 2);
+};
+
+/**
+ * The exact bytes `git`'s index holds for one repo-relative path right
+ * now (`git show :<path>`), independent of what the working tree holds --
+ * the other half of #140 finding 1's proof: the stamped text must already
+ * be IN THE INDEX, not merely on disk, before `commit()` runs.
+ *
+ * @public
+ */
+export const stagedContents = async (dir: string, path: string, env: NodeJS.ProcessEnv): Promise<string> => {
+	const { stdout } = await execFileAsync("git", ["show", `:${path}`], { cwd: dir, env });
+	return stdout;
+};
+
 /** @public */
 export interface CommitOptions {
 	readonly message: string;

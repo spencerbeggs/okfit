@@ -23,7 +23,7 @@ describe("Diagnostic", () => {
 			assert.strictEqual((yield* Effect.flip(decodeCode("not-a-code")))._tag, "SchemaError");
 		}),
 	);
-	it.effect("decodes all nineteen LintCode members, including status-missing and source-resource-missing", () =>
+	it.effect("decodes all twenty LintCode members, including status-missing and source-resource-missing", () =>
 		Effect.gen(function* () {
 			const codes = [
 				"broken-links",
@@ -45,8 +45,9 @@ describe("Diagnostic", () => {
 				"generated-at-drift",
 				"status-missing",
 				"source-resource-missing",
+				"generated-missing",
 			];
-			assert.strictEqual(codes.length, 19);
+			assert.strictEqual(codes.length, 20);
 			for (const code of codes) {
 				assert.strictEqual(yield* decodeCode(code), code);
 			}

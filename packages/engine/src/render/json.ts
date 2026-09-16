@@ -1,5 +1,5 @@
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
-import { Schema } from "effect";
+import { Runtime, Schema } from "effect";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
 import { DistributionField } from "./distribution.js";
@@ -61,13 +61,20 @@ export const JsonEnvelope = Schema.Struct({
 /** @public */
 export type JsonEnvelope = typeof JsonEnvelope.Type;
 
-/** K-22's envelope: the ONLY thing stdout carries under `--format json` on an exit-3 failure. @public */
+/**
+ * K-22's envelope: the ONLY thing stdout carries under `--format json` on an
+ * infrastructure failure. `exit_code` is `3` for most errors, or `64` for the
+ * usage-tier errors (`SyncStagedLogError`, `VerifySelectionError`) that carry
+ * their own `[Runtime.errorExitCode]`.
+ *
+ * @public
+ */
 export const JsonErrorEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
 	engine_version: Schema.String,
 	distribution: DistributionField,
-	exit_code: Schema.Literal(3),
+	exit_code: Schema.Literals([3, 64]),
 	error: Schema.Struct({ tag: Schema.String, message: Schema.String }),
 });
 /** @public */
@@ -145,12 +152,26 @@ const messageOf = (error: unknown): string => {
 	return String(error);
 };
 
+/**
+ * The `[Runtime.errorExitCode]` marker's value when it is present and is one
+ * of the two exit codes the JSON error envelope can carry; `3` otherwise
+ * (the envelope's own default, distinct from `Runtime.getErrorExitCode`'s
+ * process-level default of `1`).
+ */
+const exitCodeOf = (error: unknown): 3 | 64 => {
+	if (typeof error === "object" && error !== null && Runtime.errorExitCode in error) {
+		const code = (error as Record<PropertyKey, unknown>)[Runtime.errorExitCode];
+		if (code === 64) return 64;
+	}
+	return 3;
+};
+
 /** K-22. `tag` is the error's `_tag` when it has one, else its constructor name. @public */
 export const jsonError = (error: unknown, okfitVersion: string, distribution?: Distribution): JsonErrorEnvelope => ({
 	schema: 1,
 	okfit_version: okfitVersion,
 	engine_version: ENGINE_VERSION,
 	distribution: distribution ?? null,
-	exit_code: 3,
+	exit_code: exitCodeOf(error),
 	error: { tag: tagOf(error), message: messageOf(error) },
 });

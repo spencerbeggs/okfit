@@ -35,8 +35,10 @@ for the simplicity of one agent running one skill straight through.
    branch needs no restamp pass. All three are
    derived (`okf-spec`'s reserved-files section plus the
    `profiles-generated-at-is-author-date` Decision) -- never hand-edit any
-   of them. Report what `sync` wrote, left unchanged, or skipped (and why)
-   to whoever reads the sweep's output.
+   of them. A repository whose pre-commit hook runs `okfit sync --staged`
+   needs no second pass here; otherwise expect the stamp to land in a
+   follow-up commit. Report what `sync` wrote, left unchanged, or skipped
+   (and why) to whoever reads the sweep's output.
 5. Check CLAUDE.md pointer coverage with `okf-context`'s checklist, in both
    directions.
 6. Tell the user what changed. Separately, list any concept step 3's

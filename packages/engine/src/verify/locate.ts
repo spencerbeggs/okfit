@@ -295,3 +295,33 @@ export const locateGenerated = (source: string): Effect.Effect<GeneratedLocated,
  */
 export const locateGeneratedBodySha256 = (source: string): Effect.Effect<GeneratedLocated, YamlParseError> =>
 	locateGeneratedField(source, "body_sha256");
+
+/**
+ * Where a whole `generated:` block mapping would be inserted when the
+ * frontmatter has no `generated` key at all (issue #73): the end of the
+ * frontmatter value, the same slot `locate` uses for an absent `verified`.
+ * `unsupported` covers no frontmatter, a non-mapping document, or a
+ * `generated` key that already exists (the caller should be on the
+ * `locateGenerated` path instead).
+ *
+ * @internal
+ */
+export type GeneratedBlockLocated =
+	| { readonly _tag: "absent"; readonly insertAt: number }
+	| { readonly _tag: "unsupported"; readonly shape: string };
+
+/** @internal */
+export const locateGeneratedBlock = Effect.fn("okfit/verify/locateGeneratedBlock")(function* (
+	source: string,
+): Generator<Effect.Effect<YamlDocument, YamlParseError>, GeneratedBlockLocated> {
+	const block = FrontmatterSource.split(source).frontmatter;
+	if (block === undefined) return { _tag: "unsupported", shape: "no-frontmatter" } as const;
+	const value = block.value;
+	const valueStart = 3 + (block.newline ?? "\n").length;
+	const document = yield* YamlDocument.parse(value);
+	const contents = document.contents;
+	if (!(contents instanceof YamlMap)) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
+	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "generated");
+	if (pair !== undefined) return { _tag: "unsupported", shape: "generated-present" } as const;
+	return { _tag: "absent", insertAt: valueStart + value.length } as const;
+});

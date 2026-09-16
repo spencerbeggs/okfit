@@ -7,7 +7,7 @@ import { Effect } from "effect";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
-import { commit, initRepo } from "./utils/repo.js";
+import { commit, initRepo, stage, stagedContents, stagedStatus } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
@@ -203,7 +203,7 @@ describe("okfit sync (e2e)", () => {
 			);
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 			assert.isTrue(
 				(await readDecision(cwd, "example")).includes("generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n"),
@@ -299,7 +299,7 @@ describe("okfit sync (e2e)", () => {
 			assert.isTrue((await readDecision(cwd, "example")).includes("generated:\n  by: human:ada\nstatus: draft\n"));
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -429,6 +429,32 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(envelope.generated.written, []);
 			assert.deepStrictEqual(envelope.generated.unchanged, []);
 			assert.deepStrictEqual(envelope.generated.skipped, [{ id: "project", reason: "generated-missing" }]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("creates the generated block from actors.agent when a committed concept has none (#73)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const configPath = join(cwd, ".config", "okfit.toml");
+			const config = await readFile(configPath, "utf8");
+			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
+			await commit(cwd, { message: "configure agent", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+
+			const run = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+			const envelope = parseEnvelope(run.stdout);
+			assert.deepStrictEqual(envelope.generated.written, ["project"]);
+			assert.deepStrictEqual(envelope.generated.skipped, []);
+
+			const project = await readFile(join(cwd, "okf", "project.md"), "utf8");
+			const digest = await digestOf(project);
+			assert.match(
+				project,
+				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\n {2}body_sha256: [\da-f]{64}\n---\n/,
+			);
+			assert.ok(project.includes(`body_sha256: ${digest}`));
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -579,7 +605,7 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(parseEnvelope(first.stdout).log.written, ["log.md"]);
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 
 			const revised = original.replace("Original body text.", "Revised body text, same title.");
@@ -597,7 +623,7 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(parseEnvelope(second.stdout).log.written, ["log.md"]);
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-03\n\n* Updated Example decision\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-03\n\n* Updated Example decision\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -641,8 +667,69 @@ describe("okfit sync (e2e)", () => {
 
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-03\n\n* Added Second decision\n\n## 2026-09-02\n\n* Added Example decision\n* A note someone wrote by hand\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-03\n\n* Added Second decision\n\n## 2026-09-02\n\n* Added Example decision\n* A note someone wrote by hand\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("log mode appends into the day okfit init already wrote when the concept lands the same day (#18)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"same-day",
+				decisionWithGeneratedBy("Same Day", "Lands on init's day."),
+				"2026-09-01T12:00:00+00:00",
+				"add same-day",
+			);
+			const run = await withServices(runOkfit(["sync", "--only", "log", "--format", "json"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+			assert.deepStrictEqual(parseEnvelope(run.stdout).log.written, ["log.md"]);
+			const log = await readLog(cwd);
+			assert.match(log, /## 2026-09-01\n[\s\S]*\* Added Same Day\n/);
+			// Idempotent: a second run names nothing new.
+			const again = await withServices(runOkfit(["sync", "--only", "log", "--format", "json"], { cwd, env }));
+			assert.deepStrictEqual(parseEnvelope(again.stdout).log.unchanged, ["log.md"]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--since widens the log window to an older date; a malformed value exits 64", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			// Settle the init-day cwd item first (#18's same-day append: the very
+			// first `sync --only log` on any seeded fixture always has something to
+			// add for `project.md`'s own day) so the narrow run below is a clean
+			// baseline of "nothing new since the newest logged date" -- discrepancy
+			// from the task brief's own draft, which asserted `unchanged` on the
+			// very first log-mode run (see task report).
+			const settle = await withServices(runOkfit(["sync", "--only", "log"], { cwd, env }));
+			assert.strictEqual(settle.exitCode, 0);
+
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"older",
+				decisionWithGeneratedBy("Older", "Predates the log."),
+				"2026-08-15T00:00:00+00:00",
+				"add older",
+			);
+			const narrow = await withServices(runOkfit(["sync", "--only", "log", "--format", "json"], { cwd, env }));
+			assert.deepStrictEqual(parseEnvelope(narrow.stdout).log.unchanged, ["log.md"]);
+
+			const wide = await withServices(
+				runOkfit(["sync", "--only", "log", "--since", "2026-08-01", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(wide.exitCode, 0);
+			assert.deepStrictEqual(parseEnvelope(wide.stdout).log.written, ["log.md"]);
+			assert.match(await readLog(cwd), /## 2026-08-15\n\n\* Added Older\n/);
+
+			const bad = await withServices(runOkfit(["sync", "--since", "yesterday"], { cwd, env }));
+			assert.strictEqual(bad.exitCode, 64);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -683,8 +770,9 @@ describe("okfit sync (e2e)", () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			// Zero new commits since `okfit init`, and init now writes the same
-			// `# Log` title sync would (issue #30), so nothing at all drifts -- a
-			// fully computable envelope with no extra fixture setup.
+			// `# Log` title sync would (issue #30); generated/index still drift
+			// nothing, but log mode now finds the init commit's own `project.md`
+			// (title "cwd") unnamed in its same-day group (issue #18) and adds it.
 			const run = await withServices(runOkfit(["sync", "--dry-run", "--format", "json"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
 			const { okfit_version: reportedVersion, engine_version: engineVersion, ...envelope } = parseEnvelope(run.stdout);
@@ -704,7 +792,7 @@ describe("okfit sync (e2e)", () => {
 					skipped: [{ id: "project", reason: "generated-missing" }],
 				},
 				index: { selected: true, written: [], unchanged: ["index.md"], skipped: [] },
-				log: { selected: true, written: [], unchanged: ["log.md"], skipped: [] },
+				log: { selected: true, written: ["log.md"], unchanged: [], skipped: [] },
 			});
 
 			// --dry-run: the file on disk is untouched, still the init scaffold.
@@ -712,6 +800,57 @@ describe("okfit sync (e2e)", () => {
 				await readLog(cwd),
 				"# Log\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
 			);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--staged stamps a staged new concept with OKFIT_NOW in the same commit, and refuses --only log (#140)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeFile(decisionPath(cwd, "staged"), decisionWithGeneratedBy("Staged", "Stamped pre-commit."), "utf8");
+			await stage(cwd, ["okf/decisions/staged.md"], env);
+
+			const run = await withServices(
+				runOkfit(["sync", "--staged", "--format", "json"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-16T10:00:00.500Z" },
+				}),
+			);
+			assert.strictEqual(run.exitCode, 0);
+			const envelope = parseEnvelope(run.stdout);
+			assert.deepStrictEqual(envelope.generated.written, ["decisions/staged"]);
+			assert.strictEqual(envelope.log.selected, false);
+			const text = await readDecision(cwd, "staged");
+			assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+
+			// Prove `--staged` re-added the stamp itself, BEFORE `commit()` runs
+			// its own unconditional `git add -A` -- otherwise this test would
+			// pass even if `sync --staged`'s re-add step were deleted (#140
+			// finding 1). "A " (staged-added, no unstaged changes) is what a
+			// re-add produces; a missing re-add would leave "AM" (staged, then
+			// modified on disk) once the handler rewrote the file.
+			assert.strictEqual(await stagedStatus(cwd, "okf/decisions/staged.md", env), "A ");
+			assert.strictEqual(await stagedContents(cwd, "okf/decisions/staged.md", env), text);
+
+			await commit(cwd, { message: "add staged", authoredAt: "2026-09-16T10:00:05+00:00" }, env);
+			// One commit, and a later plain sync finds nothing to restamp.
+			const after = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
+			assert.ok(parseEnvelope(after.stdout).generated.unchanged.includes("decisions/staged"));
+
+			const bad = await withServices(runOkfit(["sync", "--staged", "--only", "log"], { cwd, env }));
+			assert.strictEqual(bad.exitCode, 64);
+			assert.match(bad.stderr, /--staged cannot run log mode/);
+
+			// Final-review F1: the JSON error envelope's own `exit_code` must
+			// match the process's actual exit, not the infrastructure-failure
+			// default of `3` -- `SyncStagedLogError` carries `[Runtime.errorExitCode] = 64`.
+			const badJson = await withServices(
+				runOkfit(["sync", "--staged", "--only", "log", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(badJson.exitCode, 64);
+			const errorEnvelope = JSON.parse(badJson.stdout) as { readonly exit_code: number };
+			assert.strictEqual(errorEnvelope.exit_code, 64);
 		} finally {
 			await removeSandbox(sandbox);
 		}

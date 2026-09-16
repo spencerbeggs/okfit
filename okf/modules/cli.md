@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:27:51Z
-  body_sha256: efcfbb4c6bdd865d159d97d9e1920c58aee9d2e98438b39f9cb8b4168eacf7d0
+  at: 2026-09-16T19:53:53Z
+  body_sha256: 493c0dfb7b520e83f91223228b87aa065e824239ec1cdcb2c8ef04c3bcc4b538
 ---
 
 # CLI
@@ -19,15 +19,20 @@ generated:
 
 `@okfit/cli` is the `okfit` bin: `okfit validate`, `okfit init`,
 `okfit context`, `okfit verify`, and `okfit sync`; built on
-`effect/unstable/cli` for the
-command tree,
-flags, and help, and `@effected/cli` for output and failure rendering. It
+`effect/unstable/cli` for the command tree, flags, and help, and
+`@effected/cli` for output and failure rendering. It
 is a presentation shell over [Engine](engine.md): config discovery and the
 validate/verify/sync/init/context programs live in `@okfit/engine`, not
 here (`packages/cli/CLAUDE.md:1-8`). `okfit context` prints the same
 orientation data (project root, bundle root, config path, profile,
 vocabulary) without loading the bundle -- cheap enough for a Claude Code
-hook to call on every session and every in-bundle write.
+hook to call on every session and every in-bundle write. `verify` also
+takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
+at once instead of one id at a time, and `sync` also takes `--since
+<YYYY-MM-DD>` (widens the log floor) and `--staged` (the pre-commit
+shape: stamps only the git index with `now` and re-adds what it writes)
+-- see [Engine](engine.md) for what each does; this package only threads
+the flags through.
 
 ## Config discovery and exit codes
 

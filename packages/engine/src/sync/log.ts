@@ -91,9 +91,10 @@ export const mergeLog = (
 			piece = bucket.verbatim;
 		} else {
 			// Existing text passes through verbatim; new items are appended as
-			// "* <item>" lines immediately after the last existing one, no
-			// deduplication against hand-written prose (design §5 step 4) --
-			// but BEFORE any trailing blank-line whitespace the original slice
+			// "* <item>" lines immediately after the last existing one. Dedupe
+			// happens upstream in `wantsLogEntry`, on the two mechanical spellings
+			// only -- hand-written prose is never compared here or there. BEFORE
+			// any trailing blank-line whitespace the original slice
 			// carries (its separator from the next heading, or end-of-document),
 			// which is preserved byte-for-byte rather than collapsed.
 			const trailingNewlines = /\n+$/.exec(bucket.verbatim)?.[0] ?? "";
@@ -121,6 +122,41 @@ export const mergeLog = (
 	return dates.length === 0 ? `# ${title}\n` : `# ${title}\n\n${pieces.join("")}`;
 };
 
+/**
+ * Issue #18: the window log mode adds into. `since` is inclusive; its
+ * default is the newest logged date, so a concept committed on a day that
+ * already has a group is appended into that group rather than dropped.
+ * `named` is the dedupe index: only the two mechanical spellings
+ * (`Added <title>` / `Updated <title>`) are ever compared, so hand-written
+ * prose is neither parsed nor matched.
+ *
+ * @internal
+ */
+export interface LogWindow {
+	readonly since: string | undefined;
+	readonly named: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+/** @internal */
+export const logWindow = (doc: LogDocument | undefined, since: string | undefined): LogWindow => {
+	const groups = doc?.groups ?? [];
+	const newest = groups
+		.map((entryGroup) => entryGroup.date)
+		.reduce<string | undefined>((max, date) => (max === undefined || date > max ? date : max), undefined);
+	const named = new Map<string, ReadonlySet<string>>();
+	for (const entryGroup of groups) {
+		named.set(entryGroup.date, new Set(entryGroup.items.map((item) => item.text)));
+	}
+	return { since: since ?? newest, named };
+};
+
+/** @internal */
+export const wantsLogEntry = (window: LogWindow, date: string, title: string): boolean => {
+	if (window.since !== undefined && date < window.since) return false;
+	const items = window.named.get(date);
+	return items === undefined || !(items.has(`Added ${title}`) || items.has(`Updated ${title}`));
+};
+
 /** @internal */
 export interface SyncLogResult {
 	readonly selected: true;
@@ -133,7 +169,10 @@ export interface SyncLogResult {
  * Contract §8.2. Only the root `log.md`; `bundle.concepts` is the only
  * thing scanned -- `index.md`/`log.md` are reserved files, never concepts
  * (S-22, contract §14 note 8 -- closes PB's Open question 1 outright: an
- * `Updated index`/`Updated log` line can never occur).
+ * `Updated index`/`Updated log` line can never occur). Issue #18: the
+ * selection window defaults to the newest logged date (inclusive), so a
+ * concept committed the same day as an existing group is appended into it
+ * rather than dropped; an explicit `since` replaces that default floor.
  *
  * @internal
  */
@@ -141,6 +180,7 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	bundle: LoadedBundle,
 	provenance: ReadonlyMap<ConceptId, BodyProvenance>,
 	dryRun: boolean,
+	since?: string,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
@@ -166,10 +206,8 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		} satisfies SyncLogResult;
 	}
 
-	// Step 4: the greatest `## YYYY-MM-DD` group date, or undefined.
-	const newestLogged = (existingDoc?.groups ?? [])
-		.map((entryGroup) => entryGroup.date)
-		.reduce<string | undefined>((max, date) => (max === undefined || date > max ? date : max), undefined);
+	// Step 4 (#18): the inclusive floor and the per-day dedupe index.
+	const window = logWindow(existingDoc, since);
 
 	// Step 5.
 	const additions: Array<LogAddition> = [];
@@ -177,8 +215,9 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		const derived = provenance.get(id);
 		if (derived === undefined || derived._tag !== "committed") continue;
 		const date = DateTime.formatIsoDate(derived.at);
-		if (newestLogged !== undefined && date <= newestLogged) continue;
-		additions.push({ date, title: Derive.title(concept), added: derived.creating });
+		const title = Derive.title(concept);
+		if (!wantsLogEntry(window, date, title)) continue;
+		additions.push({ date, title, added: derived.creating });
 	}
 
 	// Step 6.

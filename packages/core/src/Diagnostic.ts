@@ -41,6 +41,7 @@ export const LintCode = Schema.Literals([
 	"generated-at-drift",
 	"status-missing",
 	"source-resource-missing",
+	"generated-missing",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

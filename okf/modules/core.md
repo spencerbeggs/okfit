@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:38:37Z
-  body_sha256: 6ea8d8cf369cfef5fe03a4fad1dd5a54511f6a95eb095184f4346559c5f6af6c
+  at: 2026-09-16T19:53:53Z
+  body_sha256: 95cc168ab73ada3b82a9deb3bdac229cdab53bbbac7a7e6671f3a5e62e907cf8
 ---
 
 # Core
@@ -78,8 +78,12 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-seventeen keys, including `generated_at_drift`, are enumerated in
-`okf/interfaces/okfit-config-schema.md`.
+twenty keys, including `generated_at_drift` and `generated_missing`, are
+enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
+(issue #73, `internal/lintRules.ts#generatedMissing`) fires only when
+`actors.agent` is set and a concept's frontmatter has no `generated` block
+at all -- surfacing the gap at validate time instead of leaving it to
+`okfit sync`'s post-commit `skipped` report.
 
 ## generated.body_sha256
 
