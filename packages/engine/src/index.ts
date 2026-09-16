@@ -16,6 +16,7 @@ export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
 	InitOverwriteError,
+	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";

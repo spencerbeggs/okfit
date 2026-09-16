@@ -109,3 +109,18 @@ export class ConfigMalformedError extends Schema.TaggedError<ConfigMalformedErro
 		return `malformed config ${this.path}: ${messageOf(this.cause)}`;
 	}
 }
+
+/**
+ * Issue #140: `sync --staged` stamps the git index with a caller-given
+ * instant instead of walking history, but a log group's date must come
+ * from a commit, never from that stamp time -- so `runSync` refuses to
+ * combine `staged` with log mode rather than write a fabricated date.
+ *
+ * @public
+ */
+export class SyncStagedLogError extends Schema.TaggedError<SyncStagedLogError>()("SyncStagedLogError", {}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return "--staged cannot run log mode: a log group's date must come from a commit, not from the stamp time; use --only generated and/or --only index";
+	}
+}

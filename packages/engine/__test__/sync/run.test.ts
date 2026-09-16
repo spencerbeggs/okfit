@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
@@ -125,6 +126,103 @@ describe("runSync: lazy provenance walk (issue #21)", () => {
 					dryRun: true,
 				}).pipe(Effect.provide(fakes(root, calls)));
 				assert.deepStrictEqual(calls, { repoRoot: 0, show: 0, pathLog: 0 });
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+});
+
+describe("runSync --staged (issue #140)", () => {
+	const STAMP = DateTime.makeUnsafe("2026-09-16T10:00:00Z");
+	const gitEnv = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
+	const git = (cwd: string, args: ReadonlyArray<string>): string =>
+		execFileSync("git", [...args], { cwd, env: gitEnv, encoding: "utf8" });
+	const live = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer));
+
+	const repo = async (): Promise<string> => {
+		const root = await mkdtemp(join(tmpdir(), "okfit-staged-"));
+		git(root, ["init", "-q", "-b", "main"]);
+		git(root, ["config", "user.name", "Ada"]);
+		git(root, ["config", "user.email", "ada@example.com"]);
+		git(root, ["config", "commit.gpgsign", "false"]);
+		await mkdir(join(root, "okf"));
+		await writeFile(join(root, "okf", "index.md"), "# Index\n");
+		return root;
+	};
+
+	it.effect("stamps a staged, never-committed concept with the given instant and re-adds it", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const file = join(root, "okf", "new.md");
+				yield* Effect.promise(() =>
+					writeFile(file, "---\ntype: Module\ntitle: New\ngenerated:\n  by: human:ada\n---\n\n# New\n"),
+				);
+				git(root, ["add", "okf/new.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated", "index"]),
+					dryRun: false,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["new"]);
+				const text = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+				// The stamped bytes are what the index holds now, not the pre-stamp bytes.
+				assert.strictEqual(git(root, ["show", ":okf/new.md"]), text);
+				// The index rewrite is staged too.
+				assert.ok(git(root, ["diff", "--cached", "--name-only"]).includes("okf/index.md"));
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("ignores an unstaged dirty concept entirely: not written, not skipped, not listed", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				yield* Effect.promise(() =>
+					writeFile(
+						join(root, "okf", "a.md"),
+						"---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n---\n\n# A\n",
+					),
+				);
+				yield* Effect.promise(() =>
+					writeFile(
+						join(root, "okf", "b.md"),
+						"---\ntype: Module\ntitle: B\ngenerated:\n  by: human:ada\n---\n\n# B\n",
+					),
+				);
+				git(root, ["add", "okf/a.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: true,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated, { selected: true, written: ["a"], unchanged: [], skipped: [] });
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("refuses log mode with SyncStagedLogError", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const error = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated", "log"]),
+					dryRun: true,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live), Effect.flip);
+				assert.strictEqual(error._tag, "SyncStagedLogError");
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}

@@ -1,10 +1,12 @@
-import type { Git } from "@effected/git";
+import { Git } from "@effected/git";
 import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle, Derive } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
-import type { Crypto, FileSystem, Path } from "effect";
-import { DateTime, Effect, Schema } from "effect";
+import type { Crypto } from "effect";
+import { DateTime, Effect, FileSystem, Path, Schema } from "effect";
+import { SyncStagedLogError } from "../errors.js";
+import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
@@ -41,6 +43,8 @@ export interface SyncOptions {
 	readonly dryRun: boolean;
 	/** Issue #18: log mode's inclusive floor (`YYYY-MM-DD`); default is the newest logged date. */
 	readonly logSince?: string;
+	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history; log mode must not be selected. */
+	readonly staged?: { readonly at: DateTime.Utc };
 }
 
 /** @public */
@@ -79,10 +83,14 @@ export const runSync: (
 	options: SyncOptions,
 ) => Effect.Effect<
 	SyncResult,
-	BundleLoadError | GeneratedAtError,
+	BundleLoadError | GeneratedAtError | SyncStagedLogError,
 	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
 > = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
+
+	if (options.staged !== undefined && options.modes.has("log")) {
+		return yield* new SyncStagedLogError({});
+	}
 
 	// Step 2 (#21): one Derivation.generatedAt per concept that still needs
 	// one, shared by the generated and log modes. A concept whose recorded
@@ -91,9 +99,33 @@ export const runSync: (
 	// `generated.at` is the date log mode would derive, so it is walked only
 	// when log mode is selected AND the log does not already name it under
 	// that date. `--only index` alone spawns no git process at all.
-	const needsGit = options.modes.has("generated") || options.modes.has("log");
-	const provenance = new Map<ConceptId, BodyProvenance>();
-	if (needsGit) {
+	const walked = new Map<ConceptId, BodyProvenance>();
+	let staged: Map<ConceptId, GeneratedProvenance> | undefined;
+	let scope: ReadonlySet<ConceptId> | undefined;
+	let repoRoot: string | undefined;
+
+	if (options.staged !== undefined) {
+		// Issue #140: the pre-commit shape. Inside a hook, `now` is the commit's
+		// author date to within seconds -- the same value a post-commit walk
+		// would derive -- and the digest written beside it keeps every later
+		// run `unchanged`. No history is walked; only the index is consulted.
+		const git = yield* Git;
+		const fs = yield* FileSystem.FileSystem;
+		const path = yield* Path.Path;
+		repoRoot = yield* fs.realPath(yield* git.repoRoot(bundle.root));
+		const stagedPaths = new Set(yield* git.stagedChanges(repoRoot));
+		const selected = new Set<ConceptId>();
+		const provenanceStaged = new Map<ConceptId, GeneratedProvenance>();
+		for (const [id, concept] of bundle.concepts) {
+			const real = yield* fs.realPath(path.join(bundle.root, concept.path));
+			const rel = path.relative(repoRoot, real).split(path.sep).join("/");
+			if (!stagedPaths.has(rel)) continue;
+			selected.add(id);
+			provenanceStaged.set(id, { _tag: "committed", at: options.staged.at });
+		}
+		staged = provenanceStaged;
+		scope = selected;
+	} else if (options.modes.has("generated") || options.modes.has("log")) {
 		const window = logWindow(bundle.logs.get(""), options.logSince);
 		for (const [id, concept] of bundle.concepts) {
 			const generated = concept.frontmatter.generated;
@@ -105,7 +137,7 @@ export const runSync: (
 				(options.modes.has("log") && wantsLogEntry(window, DateTime.formatIsoDate(stampedAt), Derive.title(concept)));
 			if (!wanted) continue;
 			const derived = yield* Derivation.generatedAt({ file: `${bundle.root}/${concept.path}` });
-			provenance.set(id, derived);
+			walked.set(id, derived);
 		}
 	}
 
@@ -113,16 +145,28 @@ export const runSync: (
 		? {
 				selected: true,
 				...(yield* syncGenerated(bundle, {
-					provenance,
+					provenance: staged ?? walked,
 					dryRun: options.dryRun,
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
+					...(scope === undefined ? {} : { scope }),
 				})),
 			}
 		: UNSELECTED;
 	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, options.dryRun) : UNSELECTED;
 	const log: SyncModeResult = options.modes.has("log")
-		? yield* syncLog(bundle, provenance, options.dryRun, options.logSince)
+		? yield* syncLog(bundle, walked, options.dryRun, options.logSince)
 		: UNSELECTED;
+
+	if (options.staged !== undefined && !options.dryRun && repoRoot !== undefined) {
+		const files = [
+			...generated.written.map((id) => {
+				const concept = bundle.concepts.get(id as ConceptId);
+				return concept === undefined ? undefined : `${bundle.root}/${concept.path}`;
+			}),
+			...index.written.map((relative) => `${bundle.root}/${relative}`),
+		].filter((file): file is string => file !== undefined);
+		if (files.length > 0) yield* (yield* Git).add(repoRoot, files);
+	}
 
 	return { bundleRoot: options.bundleRoot, dryRun: options.dryRun, generated, index, log } satisfies SyncResult;
 });
