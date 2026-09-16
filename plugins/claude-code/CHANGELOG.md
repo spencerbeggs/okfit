@@ -1,5 +1,17 @@
 # @okfit/claude-code-plugin
 
+## 0.6.1
+
+### Documentation
+
+- The `okf-docs` agent and the `okf-finalize` skill now tell an agent how to read the versions on a validation report: compare `engine_version` and `okf_version` between the `validate_bundle` tool and `okfit validate --format json`, and never read a differing `okfit_version` as drift — that field is each front end's own version, and the CLI and MCP server version independently. [#139][#139]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#139]: https://github.com/spencerbeggs/okfit/pull/139
+
 ## 0.6.0
 
 ### Maintenance
