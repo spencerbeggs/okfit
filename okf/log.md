@@ -8,6 +8,9 @@
 * Updated Plugin
 * Updated okfit CLI — validate, init, context, verify, sync, lint, graph, stale
 * Updated okfit-mcp — MCP tool and resource contract
+* Updated Core
+* Added The engine version, not the producer version, is what a report is compared on
+* Updated okfit config file schema
 
 ## 2026-09-15
 
