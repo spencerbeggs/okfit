@@ -22,14 +22,7 @@ export {
 export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
-export {
-	CONFIG_RELATIVE_PATH,
-	SCHEMA_DIRECTIVE,
-	configValue,
-	files,
-	okfitConfigSchemaHost,
-	targetPaths,
-} from "./init/scaffold.js";
+export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
 export { OkfitPlatform } from "./platform.js";
 export {
 	ContextEnvelope,
@@ -39,6 +32,8 @@ export {
 	ContextType,
 	contextEnvelope,
 } from "./render/context.js";
+export type { Distribution } from "./render/distribution.js";
+export { DistributionField } from "./render/distribution.js";
 export type { Tally } from "./render/exit.js";
 export { forDiagnostics, tally } from "./render/exit.js";
 export {
@@ -62,3 +57,4 @@ export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type { VerifyOptions, VerifyResult } from "./verify/run.js";
 export { runVerify } from "./verify/run.js";
+export { ENGINE_VERSION } from "./version.js";

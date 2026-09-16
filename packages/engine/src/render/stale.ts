@@ -1,5 +1,8 @@
 import type { StaleConcept } from "@okfit/core";
 import { DateTime, Schema } from "effect";
+import { ENGINE_VERSION } from "../version.js";
+import type { Distribution } from "./distribution.js";
+import { DistributionField } from "./distribution.js";
 
 /** One entry of the `items` array. @public */
 export const StaleItem = Schema.Struct({
@@ -30,7 +33,9 @@ export type StaleSummary = typeof StaleSummary.Type;
 export const StaleEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	engine_version: Schema.String,
 	producer: Schema.String,
+	distribution: DistributionField,
 	okf_version: Schema.String,
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
@@ -57,10 +62,13 @@ export const staleEnvelope = (input: {
 	readonly now: DateTime.Utc;
 	readonly concepts: number;
 	readonly items: ReadonlyArray<StaleConcept>;
+	readonly distribution?: Distribution;
 }): StaleEnvelope => ({
 	schema: 1,
 	okfit_version: input.okfitVersion,
+	engine_version: ENGINE_VERSION,
 	producer: input.producer,
+	distribution: input.distribution ?? null,
 	okf_version: input.okfVersion,
 	root: input.root,
 	profile: input.profile,

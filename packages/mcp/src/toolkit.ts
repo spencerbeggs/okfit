@@ -1,3 +1,4 @@
+import type { Distribution } from "@okfit/engine";
 import { Toolkit } from "effect/unstable/ai";
 import { conceptNeighbors, handleConceptNeighbors } from "./tools/conceptNeighbors.js";
 import { describeVocabulary, handleDescribeVocabulary } from "./tools/describeVocabulary.js";
@@ -25,15 +26,18 @@ export const OkfitToolkit = Toolkit.make(
 /**
  * The handler layer. `projectRoot` is closed over from the bin (N-21);
  * the bundle itself reloads on every call inside each handler (N-9).
+ * `distribution` (okfit #137) is whatever `ServerLayer` was given -- only
+ * `validate_bundle` renders a `JsonEnvelope`, so it is the only handler
+ * that needs it.
  *
  * @public
  */
-export const ToolsLayer = (projectRoot: string) =>
+export const ToolsLayer = (projectRoot: string, distribution?: Distribution) =>
 	OkfitToolkit.toLayer({
 		describe_vocabulary: () => handleDescribeVocabulary(projectRoot),
 		list_concepts: (params) => handleListConcepts(projectRoot, params),
 		get_concept: (params) => handleGetConcept(projectRoot, params),
 		concept_neighbors: (params) => handleConceptNeighbors(projectRoot, params),
 		stale_report: (params) => handleStaleReport(projectRoot, params),
-		validate_bundle: (params) => handleValidateBundle(projectRoot, params),
+		validate_bundle: (params) => handleValidateBundle(projectRoot, params, distribution),
 	});

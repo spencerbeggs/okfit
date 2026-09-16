@@ -1,5 +1,8 @@
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import { Schema } from "effect";
+import { ENGINE_VERSION } from "../version.js";
+import type { Distribution } from "./distribution.js";
+import { DistributionField } from "./distribution.js";
 import { tally } from "./exit.js";
 import type { RenderedDiagnostic } from "./sort.js";
 import { sort } from "./sort.js";
@@ -31,18 +34,23 @@ export type JsonSummary = typeof JsonSummary.Type;
 /**
  * K-21's success envelope, snake_case. `exit_code` is `0 | 1 | 2` only: an
  * infrastructure failure never produces this envelope, it produces the
- * `JsonErrorEnvelope` (K-22). `okfit_version` names the version of the
- * package that produced the report (J-2), so the CLI and the MCP server
- * legitimately report different numbers over one bundle; `producer` names
- * that package (`okfit` or `@okfit/mcp`) so the difference reads as two
- * producers, not as drift (okfit #75).
+ * `JsonErrorEnvelope` (K-22). `okfit_version` and `producer` identify the
+ * PACKAGE that produced the report (J-2), so the CLI and the MCP server
+ * legitimately report different numbers over one bundle without that
+ * reading as drift (okfit #75); `engine_version` and `okf_version` are the
+ * pair that determines the report's content and the pair a reader should
+ * actually compare across two producers. `distribution` names the
+ * meta-package the bins were installed through (`@okfit/plugin`), or `null`
+ * for a direct install of `@okfit/cli`/`@okfit/mcp` (okfit #137).
  *
  * @public
  */
 export const JsonEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	engine_version: Schema.String,
 	producer: Schema.String,
+	distribution: DistributionField,
 	okf_version: Schema.String,
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
@@ -57,6 +65,8 @@ export type JsonEnvelope = typeof JsonEnvelope.Type;
 export const JsonErrorEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	engine_version: Schema.String,
+	distribution: DistributionField,
 	exit_code: Schema.Literal(3),
 	error: Schema.Struct({ tag: Schema.String, message: Schema.String }),
 });
@@ -93,12 +103,15 @@ export const json = (input: {
 	readonly exitCode: 0 | 1 | 2;
 	readonly concepts: number;
 	readonly diagnostics: ReadonlyArray<RenderedDiagnostic>;
+	readonly distribution?: Distribution;
 }): JsonEnvelope => {
 	const t = tally(input.diagnostics);
 	return {
 		schema: 1,
 		okfit_version: input.okfitVersion,
+		engine_version: ENGINE_VERSION,
 		producer: input.producer,
+		distribution: input.distribution ?? null,
 		okf_version: input.okfVersion,
 		root: input.root,
 		profile: input.profile,
@@ -133,9 +146,11 @@ const messageOf = (error: unknown): string => {
 };
 
 /** K-22. `tag` is the error's `_tag` when it has one, else its constructor name. @public */
-export const jsonError = (error: unknown, okfitVersion: string): JsonErrorEnvelope => ({
+export const jsonError = (error: unknown, okfitVersion: string, distribution?: Distribution): JsonErrorEnvelope => ({
 	schema: 1,
 	okfit_version: okfitVersion,
+	engine_version: ENGINE_VERSION,
+	distribution: distribution ?? null,
 	exit_code: 3,
 	error: { tag: tagOf(error), message: messageOf(error) },
 });

@@ -1,6 +1,9 @@
 import { Schema } from "effect";
 import type { SyncResult } from "../sync/run.js";
 import { SkipReason } from "../sync/run.js";
+import { ENGINE_VERSION } from "../version.js";
+import type { Distribution } from "./distribution.js";
+import { DistributionField } from "./distribution.js";
 
 /** @public */
 export const SyncModeEnvelope = Schema.Struct({
@@ -26,6 +29,8 @@ export type SyncModeEnvelope = typeof SyncModeEnvelope.Type;
 export const SyncEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	okfit_version: Schema.String,
+	engine_version: Schema.String,
+	distribution: DistributionField,
 	root: Schema.String,
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),
@@ -55,9 +60,12 @@ export const syncEnvelope = (input: {
 	readonly root: string;
 	readonly dryRun: boolean;
 	readonly result: SyncResult;
+	readonly distribution?: Distribution;
 }): SyncEnvelope => ({
 	schema: 1,
 	okfit_version: input.okfitVersion,
+	engine_version: ENGINE_VERSION,
+	distribution: input.distribution ?? null,
 	root: input.root,
 	dry_run: input.dryRun,
 	exit_code: 0,

@@ -4,6 +4,8 @@
  * @packageDocumentation
  */
 
+import type { Distribution } from "@okfit/engine";
+
 const FATAL_FALLBACK = "okfit-mcp: a fatal error occurred and could not be described.";
 
 const describe = (error: unknown): string => {
@@ -21,17 +23,31 @@ const fatal = (label: string, error: unknown): never => {
 };
 
 /**
+ * Options `@okfit/plugin`'s `okfit-mcp` bin shim (and only it, today) passes
+ * to {@link main}. `distribution` names the meta-package the server was
+ * launched through; omitted for a direct install of `@okfit/mcp` (okfit
+ * #137).
+ *
+ * @public
+ */
+export interface MainOptions {
+	readonly distribution?: Distribution;
+}
+
+/**
  * Run the okfit MCP server over stdio. Owns the process.
  *
  * This module deliberately carries NO static imports of the server graph:
  * the `uncaughtException` and `unhandledRejection` handlers are registered
  * before `NodeRuntime`, the logger and `ServerLayer` are ever evaluated, so
  * a throw during module evaluation is still reported on stderr rather than
- * crashing silently. Adding a static import here would defeat that.
+ * crashing silently. Adding a static import here would defeat that --
+ * `Distribution` above is a type-only import, so it carries no runtime
+ * import at all.
  *
  * @public
  */
-export const main = async (): Promise<void> => {
+export const main = async (options: MainOptions = {}): Promise<void> => {
 	process.on("uncaughtException", (error) => fatal("uncaught exception", error));
 	process.on("unhandledRejection", (reason) => fatal("unhandled rejection", reason));
 
@@ -44,7 +60,7 @@ export const main = async (): Promise<void> => {
 	const projectRoot = resolveMcpProjectRoot(process.env);
 
 	const program = Layer.launch(
-		ServerLayer(projectRoot).pipe(
+		ServerLayer(projectRoot, options).pipe(
 			Layer.provide(OkfitPlatform),
 			Layer.provide(Logger.layer([Logger.consolePretty()])),
 			// `Logger.consolePretty`'s own `stderr` option is inert in rc.112 --

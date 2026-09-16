@@ -40,15 +40,18 @@ export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";
 export { LogDocument, LogGroup, LogItem } from "./LogDocument.js";
 export type { OkfitConfigFields } from "./OkfitConfig.js";
 export {
+	CONFIG_SCHEMA_VERSION,
 	FieldDeclaration,
 	LintLevel,
 	LintTable,
 	OkfitConfig,
 	OkfitConfigFile,
+	SCHEMA_DIRECTIVE,
 	StaleAfterDuration,
 	TagDeclaration,
 	TypeDeclaration,
 	okfitConfigDocumentFields,
+	okfitConfigSchemaHost,
 } from "./OkfitConfig.js";
 export { Source, UsageWindow } from "./Source.js";
 export { Status } from "./Status.js";

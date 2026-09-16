@@ -13,7 +13,7 @@ describe("runOkfit", () => {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			const result = yield* runOkfit(["--version"], sandbox);
 			assert.strictEqual(result.exitCode, 0);
-			assert.match(result.stdout.trim(), /^okfit v\S+$/);
+			assert.match(result.stdout.trim(), /^okfit \S+/);
 			assert.strictEqual(result.stderr, "");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);

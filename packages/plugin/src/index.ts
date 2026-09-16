@@ -4,6 +4,8 @@
  * @packageDocumentation
  */
 
+export { PLUGIN_VERSION } from "./version.js";
+
 /**
  * Bins made available by installing this package.
  *

@@ -14,6 +14,7 @@ import {
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { useColor } from "../internal/tty.js";
 import type { Counts } from "../render/human.js";
@@ -69,6 +70,7 @@ export const lintCommand = Command.make(
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
 			const now = yield* Now;
 			const path = yield* Path.Path;
+			const distribution = yield* Distribution;
 
 			const body = Effect.gen(function* () {
 				const resolved = yield* resolveProjectConfig({
@@ -98,6 +100,8 @@ export const lintCommand = Command.make(
 						exitCode: code,
 						concepts: result.bundle.concepts.size,
 						diagnostics,
+						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(JsonEnvelope)(envelope)));
 				} else {
@@ -120,7 +124,11 @@ export const lintCommand = Command.make(
 			// envelope, alongside the usual stderr rendering CliRuntime.reportFailures
 			// does in bin.ts. tapError re-fails unchanged so that rendering still runs.
 			if (input.format === "json") {
-				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));
+				return yield* body.pipe(
+					Effect.tapError((error) =>
+						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+					),
+				);
 			}
 			return yield* body;
 		}),

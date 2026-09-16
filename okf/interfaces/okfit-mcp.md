@@ -7,8 +7,8 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T17:11:52Z
-  body_sha256: 38928a90bc47373277c59344161676ea3201a13b38e9ba520b687b0350c6c98b
+  at: 2026-09-16T16:27:51Z
+  body_sha256: bdb6f047913b2ae2d273657abd07f5bf23c4e7536fcd3420c9825845a2c0540d
 tags:
   - architecture
 ---
@@ -24,7 +24,7 @@ tags:
 | `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | `ConceptNotFound`, `InvalidArgument` for an empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | `ConceptNotFound`, `InvalidArgument` |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | `ConfigError` |
-| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged, except that `okfit_version` is this package's version and `producer` is `@okfit/mcp`. | optional `now` | `BundleNotFound` |
+| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged: `engine_version` and `okf_version` match the CLI's over one bundle, while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now` | `BundleNotFound` |
 
 ## Resources
 

@@ -1,5 +1,6 @@
 import type { ConfigReadError } from "@effected/config-file";
 import { ConfigFile, TomlCodec } from "@effected/config-file";
+import { HostedSchema } from "@effected/schemastore";
 import type { FileSystem } from "effect";
 import { Duration, Effect, Option, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
 import { Actor } from "./Actor.js";
@@ -439,6 +440,50 @@ export const okfitConfigFields = Schema.Struct({
 	),
 	extensions: Schema.Record(Schema.String, Schema.Unknown),
 });
+
+/**
+ * The version of the config JSON Schema {@link okfitConfigDocumentFields}
+ * describes, `major.minor` only (no patch segment). Core owns this number
+ * because it owns the shape: an additive optional key is a minor bump, a
+ * removed or retyped key is a major bump. {@link okfitConfigSchemaHost}
+ * derives its published `versions` from this constant rather than
+ * restating it, so the two can never disagree; `pnpm schema:check`'s DRIFT
+ * check refuses a published document that no longer matches this struct
+ * (okfit #137).
+ *
+ * @public
+ */
+export const CONFIG_SCHEMA_VERSION = "1.0" as const;
+
+/**
+ * Where the published `config` JSON Schema document lives and which
+ * version is current — the one identity `lib/configs/schemastore.config.ts`
+ * and `@okfit/engine`'s `init` (the `#:schema` directive, via
+ * {@link SCHEMA_DIRECTIVE}) both derive from, so the URL a fresh config
+ * points at and the one the generated document declares can never disagree
+ * (C-18). `versions` derives from {@link CONFIG_SCHEMA_VERSION} (okfit
+ * #137) rather than restating the number, so this host and the CLI's
+ * `--version` `config-schema` segment can never drift apart. Core owns
+ * this identity because it owns the shape and the version; engine's `init`
+ * only consumes it (C-22).
+ *
+ * @public
+ */
+export const okfitConfigSchemaHost = HostedSchema.github({
+	repo: "spencerbeggs/okfit",
+	path: "schemas",
+	name: "config",
+	versions: [CONFIG_SCHEMA_VERSION],
+	appendVersion: false,
+});
+
+/**
+ * C-22's directive `okfit init` writes ahead of a fresh config file, plus
+ * the blank line Tombi requires.
+ *
+ * @public
+ */
+export const SCHEMA_DIRECTIVE = `#:schema ${okfitConfigSchemaHost.$id}\n\n`;
 
 /**
  * The schema the published JSON Schema document is generated from (C-15):

@@ -41,8 +41,12 @@ End-to-end coverage of the assembled program lives in `@okfit/cli`'s and
 - **`@effect/vitest` throughout; `expect` is banned (K-42).** Use `it`,
   `it.effect`, `describe`, and `assert` from `@effect/vitest`, never `expect`
   from plain `vitest`.
-- **`boundaries.test.ts` carries NO allowlist.** Unlike `@okfit/cli`'s copy
-  of the same scanner, which excuses `bin.ts`, `commands/*`, and a handful
-  of other files, this package's version fails on any file under
-  `engine/src` that reads `process`, with no exception. Do not add one --
-  a `process` read belongs in a front end, never in the shared engine.
+- **`boundaries.test.ts` allowlists exactly one file, `src/version.ts`.**
+  Unlike `@okfit/cli`'s copy of the same scanner, which excuses `bin.ts`,
+  `commands/*`, and a handful of other files, this package's version fails
+  on any other file under `engine/src` that reads `process`. The one
+  exception is not a runtime read: `version.ts`'s
+  `process.env.__PACKAGE_VERSION__` is replaced with a string literal by the
+  bundler at build time (K-32), the same carve-out cli and mcp document for
+  their own `version.ts`. Do not widen it -- a real `process` read belongs
+  in a front end, never in the shared engine.

@@ -1,4 +1,5 @@
 import type { OkfitConfig } from "@okfit/core";
+import { CONFIG_SCHEMA_VERSION } from "@okfit/core";
 import { Schema } from "effect";
 
 /** One enumerated value of a `fields[]` entry. @public */
@@ -76,10 +77,15 @@ export type ContextTag = typeof ContextTag.Type;
  * consumer can tell "no profile configured" apart from "an unknown profile
  * was configured".
  *
+ * `config_schema_version` is `@okfit/core`'s `CONFIG_SCHEMA_VERSION`,
+ * stamped by {@link contextEnvelope} itself -- callers cannot pass or fake
+ * it (okfit #137).
+ *
  * @public
  */
 export const ContextEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
+	config_schema_version: Schema.String,
 	project_root: Schema.String,
 	bundle_root: Schema.String,
 	config_path: Schema.NullOr(Schema.String),
@@ -113,6 +119,7 @@ export const contextEnvelope = (input: {
 	readonly config: OkfitConfig;
 }): ContextEnvelope => ({
 	schema: 1,
+	config_schema_version: CONFIG_SCHEMA_VERSION,
 	project_root: input.projectRoot,
 	bundle_root: input.bundleRoot,
 	config_path: input.configPath,

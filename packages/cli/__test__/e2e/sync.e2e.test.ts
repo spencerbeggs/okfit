@@ -137,6 +137,8 @@ interface SyncModeEnvelope {
 interface SyncEnvelope {
 	readonly schema: number;
 	readonly okfit_version: string;
+	readonly engine_version: string;
+	readonly distribution: { readonly name: string; readonly version: string } | null;
 	readonly root: string;
 	readonly dry_run: boolean;
 	readonly exit_code: number;
@@ -685,11 +687,13 @@ describe("okfit sync (e2e)", () => {
 			// fully computable envelope with no extra fixture setup.
 			const run = await withServices(runOkfit(["sync", "--dry-run", "--format", "json"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
-			const { okfit_version: reportedVersion, ...envelope } = parseEnvelope(run.stdout);
+			const { okfit_version: reportedVersion, engine_version: engineVersion, ...envelope } = parseEnvelope(run.stdout);
 			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
+			assert.match(String(engineVersion), /^\d+\.\d+\.\d+/);
 
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
+				distribution: null,
 				root: "okf",
 				dry_run: true,
 				exit_code: 0,

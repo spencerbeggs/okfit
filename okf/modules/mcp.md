@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: f5dd727ca1591f3f859c0682eea1230ffb61a97063303459c13945e046f92484
+  at: 2026-09-16T16:27:51Z
+  body_sha256: 994b291a5b5e01d931bda5d0ccdc4e72f1b30ca5fb9be719f2fabd633e5c687c
 ---
 
 # MCP
@@ -46,7 +46,11 @@ six read-only tools and static concept resources; see
 Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
 (crash guards, `OkfitPlatform`, `runMain`), `index.ts` (programmatic
 barrel), `version.ts`
-(`MCP_VERSION`), `server.ts` (`ServerLayer`: toolkit and resource layers
+(`MCP_VERSION`, what `initialize` reports; the `validate_bundle` envelope
+names the engine separately — see [The engine version, not the producer
+version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md)),
+`server.ts` (`ServerLayer`: toolkit and resource layers
 over `layerStdio`), `toolkit.ts` (`OkfitToolkit`, the six tools plus
 handler wiring), `errors.ts` (`McpToolError` union,
 `composeRemediatedMessage`), `schema/` (per-tool parameter and success

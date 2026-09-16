@@ -7,8 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-15T20:55:17Z
-  body_sha256: 1e748c9b3e022a30bdcdce1c19fb3a0cd4b4a7b2c58f483313aaf546def92513
+  at: 2026-09-16T16:38:37Z
+  body_sha256: b7d0b7985b572d55065e339310eb369bd454c057d540e60956819b76b620e456
 tags:
   - architecture
 ---
@@ -89,13 +89,21 @@ config only ever tightens the spec (`packages/core/CLAUDE.md:32`).
 
 okfit hosts a SchemaStore-compatible Draft-07 document at
 `schemas/1.0/config.json`, generated from `okfitConfigDocumentFields`
-(`@okfit/core`) by `packages/engine/lib/configs/schemastore.config.ts` via
+(`@okfit/core`) by `packages/core/lib/configs/schemastore.config.ts` via
 `@effected/schemastore` and `@effected/schemastore-cli` (`pnpm schema:build` /
 `pnpm schema:check`, the latter the CI drift gate). Its `$id` is
 `https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json`
-— the same identity `okfitConfigSchemaHost` (`@okfit/engine`, next to `init`)
-derives, so the `#:schema` directive `okfit init` writes and the document
-this build generates can never disagree. Versions are `major.minor`: this document is
+— the same identity `okfitConfigSchemaHost` (`@okfit/core`, beside the
+struct) derives, so the `#:schema` directive `okfit init` writes
+(`SCHEMA_DIRECTIVE`, also core's) and the document this build generates can
+never disagree. The version label itself is `CONFIG_SCHEMA_VERSION` in
+`@okfit/core`; `okfitConfigSchemaHost` derives its `versions` from it, `okfit context
+--format json` reports it as `config_schema_version`, and `okfit --version`
+prints it as `config-schema <label>` ([The engine version, not the
+producer version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md)). Versions
+are `major.minor` — an additive optional key is a minor bump, a removed or
+retyped key a major one: this document is
 `published: false` (not yet catalogued with SchemaStore), so a contract
 change still rewrites `1.0` in place; once catalogued, changing the contract
 appends a new label (`1.1`) instead of editing `1.0`, which then freezes.

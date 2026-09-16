@@ -134,11 +134,17 @@ describe("okfit validate --format json", () => {
 			const bundleRoot = join(sandbox.cwd, "okf");
 			// Captured this session: one lint error, required-key-missing on
 			// modules/core.md, offset 0 length 118 line 0 character 0; concepts=2.
-			const { okfit_version: reportedVersion, ...envelope } = JSON.parse(result.stdout) as Record<string, unknown>;
+			const {
+				okfit_version: reportedVersion,
+				engine_version: engineVersion,
+				...envelope
+			} = JSON.parse(result.stdout) as Record<string, unknown>;
 			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
+			assert.match(String(engineVersion), /^\d+\.\d+\.\d+/);
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
 				producer: "okfit",
+				distribution: null,
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: "software-project",
@@ -178,11 +184,17 @@ describe("okfit validate --format json", () => {
 			assert.strictEqual(result.exitCode, 0);
 			assert.strictEqual(result.stderr, 'warning: unknown profile "not-a-real-profile"; continuing with defaults\n');
 			const bundleRoot = join(sandbox.cwd, "okf");
-			const { okfit_version: reportedVersion, ...envelope } = JSON.parse(result.stdout) as Record<string, unknown>;
+			const {
+				okfit_version: reportedVersion,
+				engine_version: engineVersion,
+				...envelope
+			} = JSON.parse(result.stdout) as Record<string, unknown>;
 			assert.match(String(reportedVersion), /^\d+\.\d+\.\d+/);
+			assert.match(String(engineVersion), /^\d+\.\d+\.\d+/);
 			assert.deepStrictEqual(envelope, {
 				schema: 1,
 				producer: "okfit",
+				distribution: null,
 				okf_version: "0.2",
 				root: bundleRoot,
 				profile: null,
@@ -211,11 +223,15 @@ describe("okfit validate --format json", () => {
 			const envelope = JSON.parse(result.stdout) as {
 				readonly schema: number;
 				readonly okfit_version: string;
+				readonly engine_version: string;
+				readonly distribution: unknown;
 				readonly exit_code: number;
 				readonly error: { readonly tag: string; readonly message: string };
 			};
 			assert.strictEqual(envelope.schema, 1);
 			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
+			assert.match(String(envelope.engine_version), /^\d+\.\d+\.\d+/);
+			assert.isNull(envelope.distribution);
 			assert.strictEqual(envelope.exit_code, 3);
 			assert.strictEqual(envelope.error.tag, "ConfigPathNotFoundError");
 			assert.strictEqual(envelope.error.message, `config path not found: ${missingConfig}`);

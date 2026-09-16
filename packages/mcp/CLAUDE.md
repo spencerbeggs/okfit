@@ -17,7 +17,10 @@ src/
   version.ts                   -- MCP_VERSION, read from process.env.__PACKAGE_VERSION__, a
                                    build-time constant the bundler injects -- never a
                                    package.json import, which would report engine's version
-                                   for anything that moved there
+                                   for anything that moved there. It is what `initialize`
+                                   reports; validate_bundle's envelope names the engine as
+                                   engine_version and the launching meta-package as
+                                   distribution (okf/decisions/engine-version-is-the-comparable-version.md)
   server.ts                    -- ServerLayer: toolkit + resource layers over layerStdio
   toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); handler wiring
   errors.ts                    -- McpToolError union, five members, composeRemediatedMessage

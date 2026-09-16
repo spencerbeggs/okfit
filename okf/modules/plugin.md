@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T05:07:51Z
-  body_sha256: ba088339810722eda154d74c47e802d8f648523c7c51896b5936cd57653363b9
+  at: 2026-09-16T16:27:51Z
+  body_sha256: 025fad39bb8ea01c1d301a23df6f47e4f691654b4ee28e55e5cf5599cf693f90
 ---
 
 # Plugin
@@ -27,7 +27,13 @@ the consuming repo's install of this package
 ## Dependencies, not peers
 
 `@okfit/cli` and `@okfit/mcp` are declared as regular `dependencies`, each
-with its own bin shim under `src/bin/`. A package manager links
+with its own bin shim under `src/bin/`. Each shim calls its front end's
+`main({ distribution: { name: "@okfit/plugin", version: PLUGIN_VERSION } })`,
+so a report or `okfit --version` produced through this package names it
+(`via @okfit/plugin <version>`) while a direct install of a front end
+reports `distribution: null` — see [The engine version, not the producer
+version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md). A package manager links
 `node_modules/.bin` entries only for an importer's DIRECT dependencies, so
 the peer arrangement the spec calls for could never produce a runnable
 bin -- this is settled, not provisional. See [A shared @okfit/engine

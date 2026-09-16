@@ -1,6 +1,7 @@
 import { Git } from "@effected/git";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { OKF_SPEC_VERSION } from "@okfit/core";
+import type { Distribution } from "@okfit/engine";
 import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Crypto, Effect, FileSystem, Option, Path } from "effect";
@@ -60,11 +61,13 @@ export const validateBundle = Tool.make("validate_bundle", {
  * (J-2): the field names the package that produced the report, and
  * `producer` says which package that is so a reader comparing this report
  * with `okfit validate --format json` does not read the two versions as
- * drift (okfit #75).
+ * drift (okfit #75). `distribution` is whatever `ServerLayer` was given
+ * (okfit #137) -- `null` unless the launching bin came through
+ * `@okfit/plugin`.
  *
  * @public
  */
-export const handleValidateBundle = (projectRoot: string, params: ValidateBundleParams) =>
+export const handleValidateBundle = (projectRoot: string, params: ValidateBundleParams, distribution?: Distribution) =>
 	Effect.gen(function* () {
 		const resolved = yield* resolveConfigOnly(projectRoot);
 		const now = yield* resolveNow(params.now);
@@ -96,5 +99,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 			exitCode: code,
 			concepts: result.bundle.concepts.size,
 			diagnostics,
+			// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+			...(distribution === undefined ? {} : { distribution }),
 		});
 	});

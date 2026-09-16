@@ -24,7 +24,10 @@ for the simplicity of one agent running one skill straight through.
    branch, restricted to bundle paths.
 2. Reconcile each touched concept against `okf-authoring`'s nineteen rules.
 3. Run `validate_bundle` — or `okfit validate --format json` when the MCP
-   tools are unavailable — and fix what it reports.
+   tools are unavailable — and fix what it reports. When the report is
+   worth quoting, cite its `engine_version` and `okf_version`; a
+   different `okfit_version` between the tool and the CLI is each front
+   end's own version, not a different engine.
 4. Run `okfit sync` (or `okfit sync --dry-run` first to inspect) to
    regenerate `generated.at`, `generated.body_sha256`, `index.md`, and
    `log.md`. A concept whose recorded digest still matches its body is

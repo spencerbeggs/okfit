@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T03:59:00Z
-  body_sha256: b8ca3a86f7abebfcf5d12bb1a1a32c02d66e51eb007d2b6901ff52db19782010
+  at: 2026-09-16T16:38:37Z
+  body_sha256: 6ea8d8cf369cfef5fe03a4fad1dd5a54511f6a95eb095184f4346559c5f6af6c
 ---
 
 # Core
@@ -39,7 +39,13 @@ per-family schema files -- `Actor.ts`, `Timestamp.ts`, `Source.ts`,
 `Generated.ts`, `Verification.ts`, `Status.ts`, `AttestedComputation.ts` --
 sit alongside `Concept.ts`, `Bundle.ts`, `Graph.ts`, `Derive.ts`, and
 `Validate.ts`. `OkfitConfig.ts` holds the spec 4.2 struct, `DEFAULTS`,
-`merge`, `severityFor`, `read`, and the `OkfitConfigFile` tag.
+`merge`, `severityFor`, `read`, the `OkfitConfigFile` tag, and the whole
+config JSON Schema contract -- `okfitConfigDocumentFields`,
+`CONFIG_SCHEMA_VERSION`, `okfitConfigSchemaHost`, `SCHEMA_DIRECTIVE` --
+which `lib/configs/schemastore.config.ts` publishes to the repo-root
+`schemas/` tree via `pnpm schema:build` / `schema:check` (see [The engine
+version, not the producer version, is what a report is compared
+on](../decisions/engine-version-is-the-comparable-version.md)).
 `internal/` is the engine: `posixPath`, `position`, `walk`, `frontmatter`,
 `reserved`, `links`, `lintRules`, `templates`
 (`packages/core/CLAUDE.md:17-26`).

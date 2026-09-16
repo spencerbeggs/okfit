@@ -8,6 +8,7 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
@@ -55,6 +56,7 @@ export const contextCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const distribution = yield* Distribution;
 
 			const body = Effect.gen(function* () {
 				const resolved = yield* resolveProjectConfig({
@@ -108,7 +110,11 @@ export const contextCommand = Command.make(
 			// envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged (K-22) — context
 			// defines no error envelope of its own.
 			if (input.format === "json") {
-				return yield* body.pipe(Effect.tapError((error) => Console.log(JSON.stringify(jsonError(error, CLI_VERSION)))));
+				return yield* body.pipe(
+					Effect.tapError((error) =>
+						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+					),
+				);
 			}
 			return yield* body;
 		}),

@@ -7,5 +7,6 @@
  */
 
 import { main } from "@okfit/cli/main";
+import { PLUGIN_VERSION } from "../version.js";
 
-main();
+main({ distribution: { name: "@okfit/plugin", version: PLUGIN_VERSION } });

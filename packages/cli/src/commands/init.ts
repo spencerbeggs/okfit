@@ -1,11 +1,10 @@
 import { Git } from "@effected/git";
-import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
+import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile, SCHEMA_DIRECTIVE } from "@okfit/core";
 import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";
 import {
 	CONFIG_RELATIVE_PATH,
 	InitOverwriteError,
 	Now,
-	SCHEMA_DIRECTIVE,
 	collect,
 	configValue,
 	files,

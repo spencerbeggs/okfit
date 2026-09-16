@@ -3,6 +3,7 @@ import { DiagnosticRange } from "@okfit/core";
 import { Effect, Schema } from "effect";
 import { JsonEnvelope, json, jsonError } from "../../src/render/json.js";
 import type { RenderedDiagnostic } from "../../src/render/sort.js";
+import { ENGINE_VERSION } from "../../src/version.js";
 
 const conformance: RenderedDiagnostic = {
 	source: "core.conformance",
@@ -36,7 +37,9 @@ describe("json", () => {
 			assert.deepStrictEqual(built, {
 				schema: 1,
 				okfit_version: "0.1.0",
+				engine_version: ENGINE_VERSION,
 				producer: "okfit",
+				distribution: null,
 				okf_version: "0.2",
 				root: "/repo/okf",
 				profile: "software-project",
@@ -120,6 +123,40 @@ describe("json", () => {
 			assert.deepStrictEqual(Schema.decodeUnknownSync(JsonEnvelope)(wire), built);
 		}),
 	);
+
+	it.effect("carries engine_version === ENGINE_VERSION and distribution: null by default", () =>
+		Effect.sync(() => {
+			const built = json({
+				okfitVersion: "0.1.0",
+				producer: "okfit",
+				okfVersion: "0.2",
+				root: "/repo/okf",
+				profile: null,
+				exitCode: 0,
+				concepts: 0,
+				diagnostics: [],
+			});
+			assert.strictEqual(built.engine_version, ENGINE_VERSION);
+			assert.isNull(built.distribution);
+		}),
+	);
+
+	it.effect("echoes a given distribution unchanged", () =>
+		Effect.sync(() => {
+			const built = json({
+				okfitVersion: "0.1.0",
+				producer: "okfit",
+				okfVersion: "0.2",
+				root: "/repo/okf",
+				profile: null,
+				exitCode: 0,
+				concepts: 0,
+				diagnostics: [],
+				distribution: { name: "@okfit/plugin", version: "0.3.7" },
+			});
+			assert.deepStrictEqual(built.distribution, { name: "@okfit/plugin", version: "0.3.7" });
+		}),
+	);
 });
 
 describe("jsonError", () => {
@@ -130,10 +167,19 @@ describe("jsonError", () => {
 				{
 					schema: 1,
 					okfit_version: "0.1.0",
+					engine_version: ENGINE_VERSION,
+					distribution: null,
 					exit_code: 3,
 					error: { tag: "ConfigPathNotFoundError", message: "config path not found: x" },
 				},
 			);
+		}),
+	);
+
+	it.effect("echoes a given distribution unchanged", () =>
+		Effect.sync(() => {
+			const built = jsonError(new Error("boom"), "0.1.0", { name: "@okfit/plugin", version: "0.3.7" });
+			assert.deepStrictEqual(built.distribution, { name: "@okfit/plugin", version: "0.3.7" });
 		}),
 	);
 

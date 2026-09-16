@@ -14,6 +14,13 @@ okfit context [path] [--config <file>] [--format human|json] [--help]
 okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
 ```
 
+`okfit --version` prints `okfit <cli> (engine <engine>, okf <okf>,
+config-schema <schema>)` — for example `okfit 0.5.4 (engine 0.6.0, okf 0.2,
+config-schema 1.0)`, or `okfit 0.5.4 via @okfit/plugin 0.3.7 (engine 0.6.0,
+okf 0.2, config-schema 1.0)` when installed through the meta-package. The
+engine, OKF, and config-schema versions decide what a report says and what
+a config may contain; the CLI version is packaging.
+
 `[path]` is the **project root** on every subcommand — the directory discovery
 starts from, and, for `init`, where `.config/okfit.toml` is written.
 It is never the bundle root; the bundle root is `<project root>/<bundle.path>`
@@ -277,8 +284,10 @@ nothing else (no summary line, no warnings — those still go to stderr):
 ```json
 {
  "schema": 1,
- "okfit_version": "0.1.0",
+ "okfit_version": "0.5.4",
+ "engine_version": "0.6.0",
  "producer": "okfit",
+ "distribution": null,
  "okf_version": "0.2",
  "root": "/abs/path/to/my-repo/okf",
  "profile": "software-project",
@@ -311,15 +320,21 @@ nothing else (no summary line, no warnings — those still go to stderr):
 }
 ```
 
-`profile` is `null` when the config sets `bundle.profile = "none"` or names a
-profile `okfit` does not recognise. `range` is zero-based, exactly as
+`engine_version` and `okf_version` are the pair to compare across reports:
+the MCP server's `validate_bundle` tool returns this same envelope with the
+same two values over one bundle, and differs only in `okfit_version` (its own
+version) and `producer` (`@okfit/mcp`). `distribution` names the
+meta-package the bin was installed through (`{ "name": "@okfit/plugin",
+"version": "0.3.7" }`) and is `null` for a direct install. `profile` is
+`null` when the config sets `bundle.profile = "none"` or names a profile
+`okfit` does not recognise. `range` is zero-based, exactly as
 `@okfit/core` computed it, and omitted for a range-less diagnostic.
 
 An infrastructure failure under `--format json` prints a different, smaller
 envelope to stdout and exits `3`:
 
 ```json
-{ "schema": 1, "okfit_version": "0.1.0", "exit_code": 3, "error": { "tag": "ConfigPathNotFoundError", "message": "config path not found: /abs/ci-config.toml" } }
+{ "schema": 1, "okfit_version": "0.5.4", "engine_version": "0.6.0", "distribution": null, "exit_code": 3, "error": { "tag": "ConfigPathNotFoundError", "message": "config path not found: /abs/ci-config.toml" } }
 ```
 
 `init` has no `--format`; it is human output only.
@@ -330,6 +345,7 @@ one above:
 ```json
 {
  "schema": 1,
+ "config_schema_version": "1.0",
  "project_root": "/abs/path/to/my-repo",
  "bundle_root": "/abs/path/to/my-repo/okf",
  "config_path": null,

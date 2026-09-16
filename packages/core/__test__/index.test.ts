@@ -47,6 +47,9 @@ const VALUES = [
 	"LintTable",
 	"OkfitConfig",
 	"okfitConfigDocumentFields",
+	"okfitConfigSchemaHost",
+	"CONFIG_SCHEMA_VERSION",
+	"SCHEMA_DIRECTIVE",
 	"OkfitConfigFile",
 	"StaleAfterDuration",
 	"TagDeclaration",
@@ -57,6 +60,9 @@ const VALUES = [
 describe("@okfit/core", () => {
 	it("targets OKF spec version 0.2", () => {
 		assert.strictEqual(Core.OKF_SPEC_VERSION, "0.2");
+	});
+	it("declares the config schema's version as major.minor (okfit #137)", () => {
+		assert.match(Core.CONFIG_SCHEMA_VERSION, /^\d+\.\d+$/);
 	});
 	it("exports exactly the contract's value surface", () => {
 		assert.deepStrictEqual(Object.keys(Core).sort(), [...VALUES].sort());

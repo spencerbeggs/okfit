@@ -6,11 +6,14 @@
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import { CliLogger, CliRuntime } from "@effected/cli";
+import type { Distribution } from "@okfit/engine";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
-import { Command } from "effect/unstable/cli";
+import { CliOutput, Command } from "effect/unstable/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
+import { Distribution as DistributionRef } from "./internal/distribution.js";
+import { versionFormatter } from "./internal/versionFormatter.js";
 import { CLI_VERSION } from "./version.js";
 
 /**
@@ -25,16 +28,31 @@ const nowEffect = Option.fromNullishOr(process.env.OKFIT_NOW).pipe(
 );
 
 /**
+ * Options `@okfit/plugin`'s bin shims (and only they, today) pass to
+ * {@link main}. `distribution` names the meta-package the `okfit` bin was
+ * installed through; omitted (or `undefined`) for a direct install of
+ * `@okfit/cli` (okfit #137).
+ *
+ * @public
+ */
+export interface MainOptions {
+	readonly distribution?: Distribution;
+}
+
+/**
  * Run the okfit CLI. Owns the process: installs the runtime teardown and
  * sets the exit code. `NodeRuntime.runMain` does not return a promise.
  *
  * @public
  */
-export const main = (): void => {
+export const main = (options: MainOptions = {}): void => {
+	const distribution = Option.fromNullishOr(options.distribution);
+
 	const program = Effect.gen(function* () {
 		const now = yield* nowEffect;
 		return yield* Command.run(rootCommand, { version: CLI_VERSION }).pipe(
 			Effect.provideService(Now, now),
+			Effect.provideService(DistributionRef, distribution),
 			// K-7/K-30: `ShowHelp` carries its own exit code — 0 with no errors, 1 with
 			// parse errors. Remap only the second to 64 (BSD EX_USAGE);
 			// `CliRuntime.reported` is the kit's own marker helper and also sets
@@ -42,6 +60,9 @@ export const main = (): void => {
 			Effect.catchTag("ShowHelp", (help) => Effect.fail(CliRuntime.reported(help, help.errors.length > 0 ? 64 : 0))),
 		);
 	}).pipe(
+		// okfit #137: only `formatVersion` differs from the built-in formatter;
+		// help/error rendering stay byte-identical (`internal/versionFormatter.ts`).
+		Effect.provide(CliOutput.layer(versionFormatter(options.distribution))),
 		// Provided here, INSIDE `reportFailures` below, so a failure while
 		// building `OkfitPlatform` (an `XdgEnvError` from an unset `HOME`, K-13)
 		// is itself rendered and mapped to `exitCode: 3`, rather than escaping to

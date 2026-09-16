@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { OkfitConfig } from "@okfit/core";
-import { Actor } from "@okfit/core";
+import { Actor, CONFIG_SCHEMA_VERSION } from "@okfit/core";
 import { Effect, Schema } from "effect";
 import { ContextEnvelope, contextEnvelope } from "../../src/render/context.js";
 
@@ -45,6 +45,7 @@ describe("contextEnvelope", () => {
 			const built = contextEnvelope({ ...baseInput, config: fullConfig });
 			assert.deepStrictEqual(built, {
 				schema: 1,
+				config_schema_version: CONFIG_SCHEMA_VERSION,
 				project_root: "/repo",
 				bundle_root: "/repo/okf",
 				config_path: "/repo/okfit.toml",
@@ -157,6 +158,15 @@ describe("contextEnvelope", () => {
 			assert.isNull(built.profile);
 			assert.strictEqual(built.profile_requested, "not-a-real-profile");
 		}),
+	);
+
+	it.effect(
+		"config_schema_version is CONFIG_SCHEMA_VERSION, stamped by the renderer, not the caller (okfit #137)",
+		() =>
+			Effect.sync(() => {
+				const built = contextEnvelope({ ...baseInput, config: fullConfig });
+				assert.strictEqual(built.config_schema_version, CONFIG_SCHEMA_VERSION);
+			}),
 	);
 
 	it.effect("Schema.encodeSync(ContextEnvelope) round-trips through Schema.decodeUnknownSync", () =>

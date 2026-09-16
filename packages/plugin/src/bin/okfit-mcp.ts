@@ -7,5 +7,6 @@
  */
 
 import { main } from "@okfit/mcp/main";
+import { PLUGIN_VERSION } from "../version.js";
 
-await main();
+await main({ distribution: { name: "@okfit/plugin", version: PLUGIN_VERSION } });
