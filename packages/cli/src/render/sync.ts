@@ -5,7 +5,8 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	untracked: "not tracked by git",
 	dirty: "has uncommitted changes",
 	unborn: "the repository has no commits yet",
-	"generated-missing": "has no generated block",
+	"generated-missing":
+		"has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent",
 	"generated-unsupported": "generated.at is a shape sync cannot edit; edit it by hand",
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
 };

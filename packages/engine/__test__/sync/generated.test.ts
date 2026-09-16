@@ -5,13 +5,20 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
+import type { Actor } from "@okfit/core";
 import { Concept, ConceptId, Generated, LoadedBundle, LoadedConcept } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Result } from "effect";
 import { syncGenerated } from "../../src/sync/generated.js";
-import { detectNewline, documentNewline, locateGenerated, stripBom } from "../../src/verify/locate.js";
-import { spliceGenerated } from "../../src/verify/splice.js";
+import {
+	detectNewline,
+	documentNewline,
+	locateGenerated,
+	locateGeneratedBlock,
+	stripBom,
+} from "../../src/verify/locate.js";
+import { spliceGenerated, spliceGeneratedBlock } from "../../src/verify/splice.js";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sync", "generated");
 
@@ -146,6 +153,61 @@ describe("locateGenerated", () => {
 		Effect.gen(function* () {
 			const located = yield* locateFixture("at-not-scalar.md");
 			assert.deepStrictEqual(located, { _tag: "unsupported", shape: "at-not-scalar" });
+		}),
+	);
+});
+
+describe("locateGeneratedBlock", () => {
+	it.effect("classifies no-generated.md as absent, pointing at the end of the frontmatter value", () =>
+		Effect.gen(function* () {
+			const source = read("no-generated.md");
+			const located = yield* locateGeneratedBlock(source);
+			assert.strictEqual(located._tag, "absent");
+			if (located._tag !== "absent") return;
+			// The insertion point is the byte before the closing fence line.
+			assert.strictEqual(source.slice(located.insertAt, located.insertAt + 4), "---\n");
+		}),
+	);
+
+	it.effect("classifies only-by.md as unsupported (a generated key already exists)", () =>
+		Effect.gen(function* () {
+			const located = yield* locateGeneratedBlock(read("only-by.md"));
+			assert.strictEqual(located._tag, "unsupported");
+		}),
+	);
+});
+
+describe("spliceGeneratedBlock", () => {
+	it.effect("inserts a four-line block mapping as the last top-level key", () =>
+		Effect.gen(function* () {
+			const source = read("no-generated.md");
+			const located = yield* locateGeneratedBlock(source);
+			if (located._tag !== "absent") return assert.fail("expected absent");
+			const edit = spliceGeneratedBlock(
+				located,
+				{ by: "okfit/claude-code", at: ENCODED_AT, bodySha256: "a".repeat(64) },
+				"\n",
+			);
+			const out = MarkdownEdit.applyAll(source, [edit]);
+			assert.strictEqual(
+				out,
+				[
+					"---",
+					"type: Module",
+					"title: No generated",
+					"status: stable",
+					"generated:",
+					"  by: okfit/claude-code",
+					`  at: ${ENCODED_AT}`,
+					`  body_sha256: ${"a".repeat(64)}`,
+					"---",
+					"",
+					"# No generated",
+					"",
+					"Body.",
+					"",
+				].join("\n"),
+			);
 		}),
 	);
 });
@@ -338,7 +400,10 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const digest = yield* digestOf(SOURCE);
 			const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test", body_sha256: digest }));
 			const bundle = bundleWith(concept, "/repo");
-			const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
+			const result = yield* syncGenerated(bundle, {
+				provenance: new Map([[concept.id, committed]]),
+				dryRun: false,
+			}).pipe(
 				// Dies on any file read/write: proves the unchanged branch never reaches step 7 at all.
 				Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]),
 			);
@@ -360,9 +425,10 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				yield* Effect.promise(() => writeFile(join(dir, "module.md"), text));
 				const concept = conceptWith(OTHER_SOURCE, Generated.make({ by: "human:okfit-test", body_sha256: staleDigest }));
 				const bundle = bundleWith(concept, dir);
-				const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
-					Effect.provide(NodeServices.layer),
-				);
+				const result = yield* syncGenerated(bundle, {
+					provenance: new Map([[concept.id, committed]]),
+					dryRun: false,
+				}).pipe(Effect.provide(NodeServices.layer));
 				assert.deepStrictEqual(result.written, [concept.id]);
 				const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 				assert.include(written, `at: ${ENCODED_DERIVED_AT}`);
@@ -397,9 +463,10 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					yield* Effect.promise(() => writeFile(join(dir, "module.md"), text));
 					const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
 					const bundle = bundleWith(concept, dir);
-					const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
-						Effect.provide(NodeServices.layer),
-					);
+					const result = yield* syncGenerated(bundle, {
+						provenance: new Map([[concept.id, committed]]),
+						dryRun: false,
+					}).pipe(Effect.provide(NodeServices.layer));
 					assert.deepStrictEqual(result.written, [concept.id]);
 					const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 					assert.include(written, `at: '${ENCODED_DERIVED_AT}'`); // single-quote style preserved
@@ -432,9 +499,10 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				yield* Effect.promise(() => writeFile(join(dir, "module.md"), text));
 				const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
 				const bundle = bundleWith(concept, dir);
-				const result = yield* syncGenerated(bundle, new Map([[concept.id, committed]]), false).pipe(
-					Effect.provide(NodeServices.layer),
-				);
+				const result = yield* syncGenerated(bundle, {
+					provenance: new Map([[concept.id, committed]]),
+					dryRun: false,
+				}).pipe(Effect.provide(NodeServices.layer));
 				assert.deepStrictEqual(result.written, [concept.id]);
 				const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 				assert.include(written, `    at: ${ENCODED_DERIVED_AT}`);
@@ -443,6 +511,95 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			} finally {
 				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 			}
+		}),
+	);
+
+	it.effect("creates the generated block from agent when the concept has none and the body is committed", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-create-")));
+			try {
+				yield* Effect.promise(() => writeFile(join(root, "module.md"), SOURCE));
+				const concept = LoadedConcept.make({
+					id: Option.getOrThrow(ConceptId.normalize("module.md")),
+					path: "module.md",
+					frontmatter: Concept.make({ type: "Module", extensions: {}, raw: {} }),
+					document: Result.getOrThrow(MarkdownDocument.parseResult(SOURCE)),
+					computationBody: Option.none(),
+				});
+				const bundle = bundleWith(concept, root);
+				const result = yield* syncGenerated(bundle, {
+					provenance: new Map([[concept.id, committed]]),
+					dryRun: false,
+					agent: "okfit/claude-code" as Actor,
+				});
+				assert.deepStrictEqual(result.written, [concept.id]);
+				const digest = yield* digestOf(SOURCE);
+				const out = yield* Effect.promise(() => readFile(join(root, "module.md"), "utf8"));
+				assert.strictEqual(
+					out,
+					[
+						"---",
+						"type: Module",
+						"title: Digested",
+						"generated:",
+						"  by: okfit/claude-code",
+						`  at: ${ENCODED_DERIVED_AT}`,
+						`  body_sha256: ${digest}`,
+						"---",
+						"",
+						"# Digested",
+						"",
+						"Body text.",
+						"",
+					].join("\n"),
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("skips generated-missing when the concept has no block and no agent is configured", () =>
+		Effect.gen(function* () {
+			const concept = LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("module.md")),
+				path: "module.md",
+				frontmatter: Concept.make({ type: "Module", extensions: {}, raw: {} }),
+				document: Result.getOrThrow(MarkdownDocument.parseResult(SOURCE)),
+				computationBody: Option.none(),
+			});
+			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
+				provenance: new Map([[concept.id, committed]]),
+				dryRun: false,
+			}).pipe(Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]));
+			assert.deepStrictEqual(result.skipped, [{ id: concept.id, reason: "generated-missing" }]);
+		}),
+	);
+
+	it.effect("decides unchanged from the digest alone, with no provenance entry for the concept", () =>
+		Effect.gen(function* () {
+			const digest = yield* digestOf(SOURCE);
+			const concept = conceptWith(
+				SOURCE,
+				Generated.make({ by: "human:okfit-test", at: DERIVED_AT, body_sha256: digest }),
+			);
+			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
+				provenance: new Map(),
+				dryRun: false,
+			}).pipe(Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]));
+			assert.deepStrictEqual(result.unchanged, [concept.id]);
+		}),
+	);
+
+	it.effect("omits concepts outside scope from every list", () =>
+		Effect.gen(function* () {
+			const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
+			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
+				provenance: new Map([[concept.id, committed]]),
+				dryRun: true,
+				scope: new Set(),
+			}).pipe(Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]));
+			assert.deepStrictEqual(result, { written: [], unchanged: [], skipped: [] });
 		}),
 	);
 });

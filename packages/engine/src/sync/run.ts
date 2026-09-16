@@ -34,7 +34,7 @@ export type SkipReason = typeof SkipReason.Type;
 export interface SyncOptions {
 	/** Absolute bundle root, from `resolveProjectConfig`. */
 	readonly bundleRoot: string;
-	/** Already merged `DEFAULTS < profile < file` by the caller (D-28); unused today (`sync` never calls `profile.check`) but carried for parity with `RunOptions`. */
+	/** Already merged `DEFAULTS < profile < file` by the caller (D-28). `actors.agent`, when set, is threaded into `syncGenerated` (issue #73) so a concept with no `generated` block gets one created; `sync` never calls `profile.check`. */
 	readonly config: OkfitConfig;
 	/** Members to actually RUN. Absent members still appear in {@link SyncResult}, `selected: false`. */
 	readonly modes: ReadonlySet<SyncMode>;
@@ -94,7 +94,14 @@ export const runSync: (
 	}
 
 	const generated: SyncModeResult = options.modes.has("generated")
-		? { selected: true, ...(yield* syncGenerated(bundle, provenance, options.dryRun)) }
+		? {
+				selected: true,
+				...(yield* syncGenerated(bundle, {
+					provenance,
+					dryRun: options.dryRun,
+					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
+				})),
+			}
 		: UNSELECTED;
 	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, options.dryRun) : UNSELECTED;
 	const log: SyncModeResult = options.modes.has("log")

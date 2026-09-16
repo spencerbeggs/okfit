@@ -434,6 +434,32 @@ describe("okfit sync (e2e)", () => {
 		}
 	});
 
+	it("creates the generated block from actors.agent when a committed concept has none (#73)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const configPath = join(cwd, ".config", "okfit.toml");
+			const config = await readFile(configPath, "utf8");
+			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
+			await commit(cwd, { message: "configure agent", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+
+			const run = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+			const envelope = parseEnvelope(run.stdout);
+			assert.deepStrictEqual(envelope.generated.written, ["project"]);
+			assert.deepStrictEqual(envelope.generated.skipped, []);
+
+			const project = await readFile(join(cwd, "okf", "project.md"), "utf8");
+			const digest = await digestOf(project);
+			assert.match(
+				project,
+				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\n {2}body_sha256: [\da-f]{64}\n---\n/,
+			);
+			assert.ok(project.includes(`body_sha256: ${digest}`));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("a concept whose generated is a flow mapping is skipped with reason generated-unsupported", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
