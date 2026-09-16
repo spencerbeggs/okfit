@@ -244,7 +244,8 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	let types: ReadonlySet<string>;
 	if (options.types.length > 0) {
 		for (const type of options.types) {
-			if (!(type in declared)) return yield* new VerifySelectionError({ reason: "unknown-type", detail: type });
+			if (!Object.hasOwn(declared, type))
+				return yield* new VerifySelectionError({ reason: "unknown-type", detail: type });
 		}
 		types = new Set(options.types);
 	} else {

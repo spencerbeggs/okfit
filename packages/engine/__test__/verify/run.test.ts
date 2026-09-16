@@ -122,4 +122,26 @@ describe("runVerifyBatch (issue #138)", () => {
 			}
 		}),
 	);
+
+	it.effect("rejects inherited Object.prototype keys as batch types", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-batch-")));
+			try {
+				yield* Effect.promise(() => writeFile(join(root, "module.md"), "---\ntype: Module\ntitle: M\n---\n\n# M\n"));
+				const error = yield* runVerifyBatch({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: true,
+					types: ["toString"],
+				}).pipe(Effect.provide(platform), Effect.flip);
+				assert.strictEqual(error._tag, "VerifySelectionError");
+				assert.strictEqual(error.reason, "unknown-type");
+				assert.strictEqual(error.detail, "toString");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
 });
