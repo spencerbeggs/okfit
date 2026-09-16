@@ -57,6 +57,19 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDescription("output format: human (default) or json"),
 );
 
+/** #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). */
+const ISO_DATE = Schema.String.pipe(
+	Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected a YYYY-MM-DD date" })),
+);
+
+const sinceFlag = Flag.String("since").pipe(
+	Flag.withSchema(ISO_DATE),
+	Flag.optional,
+	Flag.withDescription(
+		"log mode's inclusive floor (YYYY-MM-DD): consider every committed concept dated on or after it; default: the newest date already in log.md",
+	),
+);
+
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
  * [--format human|json]`.
@@ -79,7 +92,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
  */
 export const syncCommand = Command.make(
 	"sync",
-	{ path: pathArg, config: configFlag, only: onlyFlag, dryRun: dryRunFlag, format: formatFlag },
+	{ path: pathArg, config: configFlag, only: onlyFlag, dryRun: dryRunFlag, format: formatFlag, since: sinceFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -102,6 +115,8 @@ export const syncCommand = Command.make(
 					config: resolved.config,
 					modes,
 					dryRun: input.dryRun,
+					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+					...(Option.isSome(input.since) ? { logSince: input.since.value } : {}),
 				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 
 				const displayPath = displayRoot(cwd, result.bundleRoot, path);

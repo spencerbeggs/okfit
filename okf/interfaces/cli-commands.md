@@ -81,14 +81,19 @@ hook, or MCP tool ever invokes it.
 ## okfit sync
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
-[--format human|json]` is the one command that regenerates every
+[--format human|json] [--since <YYYY-MM-DD>]` is the one command that regenerates every
 derived-content family: `generated.at` and `generated.body_sha256` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
 it -- a custom type's directory is indexed the same way), and `log.md` (the root log, curated prose
 topped up by date). It runs all three modes, generated then index then
 log, in that fixed order, unless one or more `--only` flags narrow it to a
-subset. `--dry-run` computes every result and writes nothing. `sync --only
+subset. `--dry-run` computes every result and writes nothing. Log mode
+considers every committed concept dated on or after the newest logged
+date, appending into that day's group unless it already names the concept
+(see [the log decision](../decisions/cli-sync-log-appends-into-the-day.md));
+`--since` replaces that floor. A malformed `--since` is a usage error,
+exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
 concept's recorded `body_sha256` still matches its current body, the
 concept is reported `unchanged` and neither key is touched, even though a
@@ -97,9 +102,9 @@ generated detects real drift, not a rewritten
 date](../decisions/profiles-body-sha256-detects-real-drift.md). It never
 touches `verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
-written, `3` on any typed failure, `64` on an unknown `--only` mode; there
-is no `1`/`2` content tier, since `sync` never runs conformance or lint
-checks.
+written, `3` on any typed failure, `64` on an unknown `--only` mode or a
+malformed `--since`; there is no `1`/`2` content tier, since `sync` never
+runs conformance or lint checks.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,

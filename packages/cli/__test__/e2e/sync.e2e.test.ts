@@ -674,6 +674,67 @@ describe("okfit sync (e2e)", () => {
 		}
 	});
 
+	it("log mode appends into the day okfit init already wrote when the concept lands the same day (#18)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"same-day",
+				decisionWithGeneratedBy("Same Day", "Lands on init's day."),
+				"2026-09-01T12:00:00+00:00",
+				"add same-day",
+			);
+			const run = await withServices(runOkfit(["sync", "--only", "log", "--format", "json"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+			assert.deepStrictEqual(parseEnvelope(run.stdout).log.written, ["log.md"]);
+			const log = await readLog(cwd);
+			assert.match(log, /## 2026-09-01\n[\s\S]*\* Added Same Day\n/);
+			// Idempotent: a second run names nothing new.
+			const again = await withServices(runOkfit(["sync", "--only", "log", "--format", "json"], { cwd, env }));
+			assert.deepStrictEqual(parseEnvelope(again.stdout).log.unchanged, ["log.md"]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--since widens the log window to an older date; a malformed value exits 64", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			// Settle the init-day cwd item first (#18's same-day append: the very
+			// first `sync --only log` on any seeded fixture always has something to
+			// add for `project.md`'s own day) so the narrow run below is a clean
+			// baseline of "nothing new since the newest logged date" -- discrepancy
+			// from the task brief's own draft, which asserted `unchanged` on the
+			// very first log-mode run (see task report).
+			const settle = await withServices(runOkfit(["sync", "--only", "log"], { cwd, env }));
+			assert.strictEqual(settle.exitCode, 0);
+
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"older",
+				decisionWithGeneratedBy("Older", "Predates the log."),
+				"2026-08-15T00:00:00+00:00",
+				"add older",
+			);
+			const narrow = await withServices(runOkfit(["sync", "--only", "log", "--format", "json"], { cwd, env }));
+			assert.deepStrictEqual(parseEnvelope(narrow.stdout).log.unchanged, ["log.md"]);
+
+			const wide = await withServices(
+				runOkfit(["sync", "--only", "log", "--since", "2026-08-01", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(wide.exitCode, 0);
+			assert.deepStrictEqual(parseEnvelope(wide.stdout).log.written, ["log.md"]);
+			assert.match(await readLog(cwd), /## 2026-08-15\n\n\* Added Older\n/);
+
+			const bad = await withServices(runOkfit(["sync", "--since", "yesterday"], { cwd, env }));
+			assert.strictEqual(bad.exitCode, 64);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("exits 3 outside a git repository", async () => {
 		const sandbox = await makeSandbox("okfit-sync-nogit-");
 		try {
