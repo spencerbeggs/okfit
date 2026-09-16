@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:27:51Z
-  body_sha256: efcfbb4c6bdd865d159d97d9e1920c58aee9d2e98438b39f9cb8b4168eacf7d0
+  at: 2026-09-16T19:53:53Z
+  body_sha256: 493c0dfb7b520e83f91223228b87aa065e824239ec1cdcb2c8ef04c3bcc4b538
 ---
 
 # CLI
