@@ -12,6 +12,7 @@
 * Added The engine version, not the producer version, is what a report is compared on
 * Updated okfit config file schema
 * Added okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
+* Added okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 
 ## 2026-09-15
 
