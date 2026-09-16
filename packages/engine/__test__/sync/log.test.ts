@@ -17,7 +17,7 @@ import {
 import type { BodyProvenance } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option, Result } from "effect";
 import type { LogAddition } from "../../src/sync/log.js";
-import { mergeLog, syncLog } from "../../src/sync/log.js";
+import { logWindow, mergeLog, syncLog, wantsLogEntry } from "../../src/sync/log.js";
 
 /**
  * One `## <date>` group as it would come out of `Bundle.load`'s
@@ -134,6 +134,74 @@ describe("mergeLog", () => {
 	);
 });
 
+describe("logWindow / wantsLogEntry (issue #18)", () => {
+	const source = "# Log\n\n## 2026-09-08\n\n* Initialized the bundle\n* Added Thing\n\n## 2026-09-01\n\n* Added Old\n";
+	const doc = LogDocument.make({
+		path: "log.md",
+		dir: "",
+		title: "Log",
+		groups: [
+			group(source, "2026-09-08", ["Initialized the bundle", "Added Thing"]),
+			group(source, "2026-09-01", ["Added Old"]),
+		],
+	});
+
+	it.effect("defaults since to the newest logged date and indexes every item text by date", () =>
+		Effect.sync(() => {
+			const window = logWindow(doc, undefined);
+			assert.strictEqual(window.since, "2026-09-08");
+			assert.deepStrictEqual([...(window.named.get("2026-09-08") ?? [])], ["Initialized the bundle", "Added Thing"]);
+		}),
+	);
+
+	it.effect("an explicit since replaces the default floor", () =>
+		Effect.sync(() => {
+			assert.strictEqual(logWindow(doc, "2026-08-01").since, "2026-08-01");
+		}),
+	);
+
+	it.effect("has no floor and nothing named for a missing log", () =>
+		Effect.sync(() => {
+			const window = logWindow(undefined, undefined);
+			assert.strictEqual(window.since, undefined);
+			assert.strictEqual(window.named.size, 0);
+		}),
+	);
+
+	it.effect("wants an entry on the newest logged day when no mechanical item names the concept", () =>
+		Effect.sync(() => {
+			const window = logWindow(doc, undefined);
+			assert.strictEqual(wantsLogEntry(window, "2026-09-08", "Other"), true);
+		}),
+	);
+
+	it.effect("refuses a duplicate on either mechanical spelling, but not on prose", () =>
+		Effect.sync(() => {
+			const window = logWindow(doc, undefined);
+			assert.strictEqual(wantsLogEntry(window, "2026-09-08", "Thing"), false);
+			const updated = logWindow(
+				LogDocument.make({
+					path: "log.md",
+					dir: "",
+					title: "Log",
+					groups: [group("# Log\n\n## 2026-09-08\n\n* Updated Thing\n", "2026-09-08", ["Updated Thing"])],
+				}),
+				undefined,
+			);
+			assert.strictEqual(wantsLogEntry(updated, "2026-09-08", "Thing"), false);
+			assert.strictEqual(wantsLogEntry(window, "2026-09-08", "Initialized the bundle"), true);
+		}),
+	);
+
+	it.effect("refuses a date before since and accepts one after it", () =>
+		Effect.sync(() => {
+			const window = logWindow(doc, undefined);
+			assert.strictEqual(wantsLogEntry(window, "2026-09-07", "Anything"), false);
+			assert.strictEqual(wantsLogEntry(window, "2026-09-09", "Anything"), true);
+		}),
+	);
+});
+
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
 
@@ -196,7 +264,7 @@ describe("syncLog", () => {
 	);
 
 	it.effect(
-		"only a strictly-newer committed date is appended; an equal or older date and an uncommitted concept are excluded",
+		"appends into the newest logged day when the concept is not yet named there; older dates and uncommitted concepts stay out",
 		() =>
 			Effect.gen(function* () {
 				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-log-filter-")));
@@ -209,16 +277,17 @@ describe("syncLog", () => {
 						title: "Log",
 						groups: [group(source, "2026-09-01", ["Added Old"])],
 					});
-
 					const newer = conceptAt("newer.md", "Newer");
-					const equal = conceptAt("equal.md", "Equal");
+					const sameDay = conceptAt("same.md", "Same");
+					const old = conceptAt("old.md", "Old");
 					const older = conceptAt("older.md", "Older");
 					const dirty = conceptAt("dirty.md", "Dirty");
 					const bundle = emptyBundle(root, {
-						files: [newer.path, equal.path, older.path, dirty.path],
+						files: [newer.path, sameDay.path, old.path, older.path, dirty.path],
 						concepts: new Map([
 							[newer.id, newer],
-							[equal.id, equal],
+							[sameDay.id, sameDay],
+							[old.id, old],
 							[older.id, older],
 							[dirty.id, dirty],
 						]),
@@ -226,7 +295,8 @@ describe("syncLog", () => {
 					});
 					const provenance = new Map<ConceptId, BodyProvenance>([
 						[newer.id, committed("2026-09-05T00:00:00Z", true)],
-						[equal.id, committed("2026-09-01T00:00:00Z", true)],
+						[sameDay.id, committed("2026-09-01T00:00:00Z", true)],
+						[old.id, committed("2026-09-01T00:00:00Z", true)],
 						[older.id, committed("2026-08-15T00:00:00Z", true)],
 						[dirty.id, uncommitted("dirty")],
 					]);
@@ -235,12 +305,50 @@ describe("syncLog", () => {
 					assert.deepStrictEqual(result, { selected: true, written: ["log.md"], unchanged: [], skipped: [] });
 					assert.strictEqual(
 						yield* Effect.promise(() => readFile(join(root, "log.md"), "utf8")),
-						"# Log\n\n## 2026-09-05\n\n* Added Newer\n\n## 2026-09-01\n* Added Old\n",
+						"# Log\n\n## 2026-09-05\n\n* Added Newer\n\n## 2026-09-01\n* Added Old\n* Added Same\n",
 					);
 				} finally {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}
 			}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("an explicit since widens the window to an older group without duplicating what it already names", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-log-since-")));
+			try {
+				const source = "# Log\n\n## 2026-09-01\n* Added Old\n";
+				yield* Effect.promise(() => writeFile(join(root, "log.md"), source));
+				const doc = LogDocument.make({
+					path: "log.md",
+					dir: "",
+					title: "Log",
+					groups: [group(source, "2026-09-01", ["Added Old"])],
+				});
+				const old = conceptAt("old.md", "Old");
+				const older = conceptAt("older.md", "Older");
+				const bundle = emptyBundle(root, {
+					files: [old.path, older.path],
+					concepts: new Map([
+						[old.id, old],
+						[older.id, older],
+					]),
+					logs: new Map([["", doc]]),
+				});
+				const provenance = new Map<ConceptId, BodyProvenance>([
+					[old.id, committed("2026-09-01T00:00:00Z", true)],
+					[older.id, committed("2026-08-15T00:00:00Z", true)],
+				]);
+				const result = yield* syncLog(bundle, provenance, false, "2026-08-01");
+				assert.deepStrictEqual(result, { selected: true, written: ["log.md"], unchanged: [], skipped: [] });
+				assert.strictEqual(
+					yield* Effect.promise(() => readFile(join(root, "log.md"), "utf8")),
+					"# Log\n\n## 2026-09-01\n* Added Old\n\n## 2026-08-15\n\n* Added Older\n",
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(platform)),
 	);
 
 	it.effect("a log Bundle.load could not parse is skipped log-unparseable, with no write", () =>

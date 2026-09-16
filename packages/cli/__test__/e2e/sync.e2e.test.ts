@@ -203,7 +203,7 @@ describe("okfit sync (e2e)", () => {
 			);
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 			assert.isTrue(
 				(await readDecision(cwd, "example")).includes("generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n"),
@@ -299,7 +299,7 @@ describe("okfit sync (e2e)", () => {
 			assert.isTrue((await readDecision(cwd, "example")).includes("generated:\n  by: human:ada\nstatus: draft\n"));
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -605,7 +605,7 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(parseEnvelope(first.stdout).log.written, ["log.md"]);
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 
 			const revised = original.replace("Original body text.", "Revised body text, same title.");
@@ -623,7 +623,7 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(parseEnvelope(second.stdout).log.written, ["log.md"]);
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-03\n\n* Updated Example decision\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-03\n\n* Updated Example decision\n\n## 2026-09-02\n\n* Added Example decision\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -667,7 +667,7 @@ describe("okfit sync (e2e)", () => {
 
 			assert.strictEqual(
 				await readLog(cwd),
-				"# Log\n\n## 2026-09-03\n\n* Added Second decision\n\n## 2026-09-02\n\n* Added Example decision\n* A note someone wrote by hand\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n",
+				"# Log\n\n## 2026-09-03\n\n* Added Second decision\n\n## 2026-09-02\n\n* Added Example decision\n* A note someone wrote by hand\n\n## 2026-09-01\n\n* Initialized the bundle with the software-project profile\n* Added cwd\n",
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -709,8 +709,9 @@ describe("okfit sync (e2e)", () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			// Zero new commits since `okfit init`, and init now writes the same
-			// `# Log` title sync would (issue #30), so nothing at all drifts -- a
-			// fully computable envelope with no extra fixture setup.
+			// `# Log` title sync would (issue #30); generated/index still drift
+			// nothing, but log mode now finds the init commit's own `project.md`
+			// (title "cwd") unnamed in its same-day group (issue #18) and adds it.
 			const run = await withServices(runOkfit(["sync", "--dry-run", "--format", "json"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
 			const { okfit_version: reportedVersion, engine_version: engineVersion, ...envelope } = parseEnvelope(run.stdout);
@@ -730,7 +731,7 @@ describe("okfit sync (e2e)", () => {
 					skipped: [{ id: "project", reason: "generated-missing" }],
 				},
 				index: { selected: true, written: [], unchanged: ["index.md"], skipped: [] },
-				log: { selected: true, written: [], unchanged: ["log.md"], skipped: [] },
+				log: { selected: true, written: ["log.md"], unchanged: [], skipped: [] },
 			});
 
 			// --dry-run: the file on disk is untouched, still the init scaffold.
