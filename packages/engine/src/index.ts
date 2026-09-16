@@ -18,6 +18,7 @@ export {
 	InitOverwriteError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
+	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
 export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
@@ -56,6 +57,12 @@ export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/r
 export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
-export type { VerifyOptions, VerifyResult } from "./verify/run.js";
-export { runVerify } from "./verify/run.js";
+export type {
+	VerifyBatchOptions,
+	VerifyBatchResult,
+	VerifyBatchSkipReason,
+	VerifyOptions,
+	VerifyResult,
+} from "./verify/run.js";
+export { runVerify, runVerifyBatch } from "./verify/run.js";
 export { ENGINE_VERSION } from "./version.js";

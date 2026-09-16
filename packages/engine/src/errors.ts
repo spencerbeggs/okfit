@@ -124,3 +124,20 @@ export class SyncStagedLogError extends Schema.TaggedError<SyncStagedLogError>()
 		return "--staged cannot run log mode: a log group's date must come from a commit, not from the stamp time; use --only generated and/or --only index";
 	}
 }
+
+/**
+ * Issue #138: `okfit verify`'s selection was contradictory or empty. Exit 64: a usage error.
+ *
+ * @public
+ */
+export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
+	reason: Schema.Literals(["no-selection", "id-and-batch", "unknown-type"]),
+	detail: Schema.optionalKey(Schema.String),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		if (this.reason === "no-selection") return "verify needs a concept id, --all, or --type <Type>";
+		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
+		return `type "${this.detail ?? ""}" is not declared in the config`;
+	}
+}
