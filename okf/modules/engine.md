@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T19:53:53Z
-  body_sha256: baa157009c4a9be6f0179c9f04879041baf941e802a9573a341ff22d7c936816
+  at: 2026-09-16T20:22:38Z
+  body_sha256: 06a1a6a787002b5f4aba3ace5819a7fb98ca88a72f25eb32b498a64217e4979f
 ---
 
 # Engine
