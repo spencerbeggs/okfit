@@ -70,6 +70,41 @@ zero-length inserts at one offset are the "overlapping edits" case
 inside generated detects real drift, not a rewritten
 date](../decisions/profiles-body-sha256-detects-real-drift.md).
 
+`verify/run.ts#runVerifyBatch` attests a whole selection at once --
+`--all`, narrowed or replaced by `--type <T>` -- instead of one id at a
+time: it collects every concept whose type sets `require_verified` and
+that carries no entry by the caller, skips `status: draft` concepts and
+ones already verified by the caller, and fails closed (nothing written)
+if any selected concept's `verified` shape cannot be spliced safely. An
+empty or undeclared-type selection is a typed `VerifySelectionError`
+(exit `64`), matching the single-id path's usage-error tier. `render/*.ts`
+gained `VerifyBatchEnvelope` alongside the single-concept
+`VerifyEnvelope` for `--format json`.
+
+`sync/run.ts#runSync` walks git lazily now: a concept whose recorded
+`generated.body_sha256` still matches its current body, and that log mode
+does not need for its date window, is never read through git at all --
+only unstamped concepts, or stamped ones the log window still wants,
+pay the git cost. On this bundle `okfit sync --dry-run` dropped from
+1.68s to 0.27s. `sync/generated.ts#syncGenerated` is digest-first: a
+missing `generated:` block is created from `actors.agent` rather than
+reported as an unfixable gap, and `sync/log.ts`'s log mode appends into
+the newest logged day (inclusive) instead of only after it, deduping
+against the two mechanical spellings `sync` itself writes -- see [okfit
+sync's log mode appends into the newest logged day and dedupes on its own
+spellings](../decisions/cli-sync-log-appends-into-the-day.md), which
+supersedes the strictly-after rule. `--since <YYYY-MM-DD>` widens that
+floor on request. A `staged` mode (`sync/write.ts`) selects only the git
+index, stamps `generated.at` with `now` (truncated to seconds) and
+`generated.body_sha256` with the body's digest, writes, and re-adds what
+it wrote so the stamp lands in the same commit -- meant for a pre-commit
+hook only, never for an ordinary run; see [okfit sync --staged stamps the
+git index with now, the one place a wall-clock stamp is
+honest](../decisions/cli-sync-staged-stamps-now.md). Staged mode never
+walks history and never runs log mode. A malformed `--since` or an
+`--only log` paired with `--staged` is a new `SyncStagedLogError`, exit
+`64`.
+
 ## Process boundary
 
 `__test__/boundaries.test.ts` enforces that NO file under `engine/src`

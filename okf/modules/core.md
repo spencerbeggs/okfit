@@ -78,8 +78,12 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-seventeen keys, including `generated_at_drift`, are enumerated in
-`okf/interfaces/okfit-config-schema.md`.
+twenty keys, including `generated_at_drift` and `generated_missing`, are
+enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
+(issue #73, `internal/lintRules.ts#generatedMissing`) fires only when
+`actors.agent` is set and a concept's frontmatter has no `generated` block
+at all -- surfacing the gap at validate time instead of leaving it to
+`okfit sync`'s post-commit `skipped` report.
 
 ## generated.body_sha256
 
