@@ -36,7 +36,7 @@ const document = () =>
 		string,
 		unknown
 	>;
-const properties = () => document()["properties"] as Record<string, Record<string, unknown>>;
+const properties = () => document().properties as Record<string, Record<string, unknown>>;
 
 describe("okfitConfigDocumentFields", () => {
 	it("drops extensions and keeps the other eight top-level keys", () => {
@@ -54,49 +54,49 @@ describe("okfitConfigDocumentFields", () => {
 
 	it("leaves the root open and every declared table closed", () => {
 		const root = document();
-		assert.strictEqual(root["additionalProperties"], undefined);
-		assert.strictEqual(root["required"], undefined);
-		assert.deepStrictEqual(root["allOf"], [{ type: "object", additionalProperties: {} }]);
+		assert.strictEqual(root.additionalProperties, undefined);
+		assert.strictEqual(root.required, undefined);
+		assert.deepStrictEqual(root.allOf, [{ type: "object", additionalProperties: {} }]);
 		for (const key of ["bundle", "concepts", "lifecycle", "actors", "lint"]) {
-			assert.strictEqual(properties()[key]?.["additionalProperties"], false, key);
+			assert.strictEqual(properties()[key]?.additionalProperties, false, key);
 		}
 		// J-12: no annotation carries an `identifier`, so nothing is hoisted.
-		assert.strictEqual(root["$defs"], undefined);
-		assert.strictEqual(root["definitions"], undefined);
+		assert.strictEqual(root.$defs, undefined);
+		assert.strictEqual(root.definitions, undefined);
 	});
 
 	it("carries the root title and a description ending in the docs URL", () => {
 		const root = document();
-		assert.strictEqual(root["title"], "okfit config");
-		assert.isTrue(String(root["description"]).endsWith("\nhttps://github.com/spencerbeggs/okfit#configuration"));
+		assert.strictEqual(root.title, "okfit config");
+		assert.isTrue(String(root.description).endsWith("\nhttps://github.com/spencerbeggs/okfit#configuration"));
 	});
 
 	it("carries titles, descriptions, defaults and examples on the scalar fields", () => {
-		const okfVersion = properties()["okf_version"];
-		assert.strictEqual(okfVersion?.["title"], "OKF spec version");
-		assert.strictEqual(okfVersion?.["description"], "The Open Knowledge Format spec version this bundle targets.");
-		assert.strictEqual(okfVersion?.["default"], "0.2");
-		assert.deepStrictEqual(okfVersion?.["examples"], ["0.2"]);
+		const okfVersion = properties().okf_version;
+		assert.strictEqual(okfVersion?.title, "OKF spec version");
+		assert.strictEqual(okfVersion?.description, "The Open Knowledge Format spec version this bundle targets.");
+		assert.strictEqual(okfVersion?.default, "0.2");
+		assert.deepStrictEqual(okfVersion?.examples, ["0.2"]);
 	});
 
 	it("annotates lifecycle.default_stale_after through the encoded side", () => {
-		const lifecycle = properties()["lifecycle"]?.["properties"] as Record<string, Record<string, unknown>>;
-		const stale = lifecycle["default_stale_after"];
-		assert.strictEqual(stale?.["title"], "Stale-after duration");
-		assert.strictEqual(stale?.["default"], "90d");
-		assert.deepStrictEqual(stale?.["examples"], ["90d", "2w", "12h"]);
+		const lifecycle = properties().lifecycle?.properties as Record<string, Record<string, unknown>>;
+		const stale = lifecycle.default_stale_after;
+		assert.strictEqual(stale?.title, "Stale-after duration");
+		assert.strictEqual(stale?.default, "90d");
+		assert.deepStrictEqual(stale?.examples, ["90d", "2w", "12h"]);
 		// I4: a `pattern` an editor can enforce, built from the same regexes
 		// `parseStaleAfter` decodes with.
 		assert.strictEqual(
-			stale?.["pattern"],
+			stale?.pattern,
 			"^(?:\\d+[hdw]|\\d+(?:\\.\\d+)?\\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?))$",
 		);
 	});
 
 	it("gives each of the twenty lint keys its own rendered code as the title", () => {
-		const lint = properties()["lint"]?.["properties"] as Record<string, Record<string, unknown>>;
+		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
-			Object.entries(lint).map(([key, value]) => [key, value["title"]]),
+			Object.entries(lint).map(([key, value]) => [key, value.title]),
 			[
 				["broken_links", "broken-links"],
 				["missing_index", "missing-index"],
@@ -121,24 +121,24 @@ describe("okfitConfigDocumentFields", () => {
 			],
 		);
 		assert.strictEqual(
-			lint["broken_links"]?.["description"],
+			lint.broken_links?.description,
 			'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
 		);
 	});
 
 	it("keeps Actor's pattern and examples wherever an actor appears", () => {
-		const actors = properties()["actors"]?.["properties"] as Record<string, Record<string, unknown>>;
-		const agent = actors["agent"];
-		assert.strictEqual(agent?.["title"], "Agent actor");
-		assert.deepStrictEqual(agent?.["examples"], ["okfit/claude-code", "human:spencer", "process:ci"]);
-		assert.isTrue(String(agent?.["pattern"]).includes("A-Za-z0-9_-"));
-		const humans = actors["humans"]?.["items"] as Record<string, unknown>;
-		assert.strictEqual(humans["title"], "Actor");
+		const actors = properties().actors?.properties as Record<string, Record<string, unknown>>;
+		const agent = actors.agent;
+		assert.strictEqual(agent?.title, "Agent actor");
+		assert.deepStrictEqual(agent?.examples, ["okfit/claude-code", "human:spencer", "process:ci"]);
+		assert.isTrue(String(agent?.pattern).includes("A-Za-z0-9_-"));
+		const humans = actors.humans?.items as Record<string, unknown>;
+		assert.strictEqual(humans.title, "Actor");
 	});
 
 	it("is not re-exported as okfitConfigFields, which stays out of the barrel", async () => {
 		const barrel = (await import("../src/index.js")) as Record<string, unknown>;
-		assert.isDefined(barrel["okfitConfigDocumentFields"]);
-		assert.isUndefined(barrel["okfitConfigFields"]);
+		assert.isDefined(barrel.okfitConfigDocumentFields);
+		assert.isUndefined(barrel.okfitConfigFields);
 	});
 });

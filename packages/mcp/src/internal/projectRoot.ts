@@ -8,4 +8,4 @@
  * @internal
  */
 export const resolveMcpProjectRoot = (env: NodeJS.ProcessEnv): string =>
-	env["OKFIT_PROJECT_DIR"] ?? env["CLAUDE_PROJECT_DIR"] ?? process.cwd();
+	env.OKFIT_PROJECT_DIR ?? env.CLAUDE_PROJECT_DIR ?? process.cwd();

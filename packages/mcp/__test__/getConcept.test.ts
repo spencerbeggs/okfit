@@ -37,7 +37,7 @@ describe("get_concept", () => {
 			assert.strictEqual(data.type, "Metric");
 			assert.strictEqual(data.title, "Revenue");
 			assert.strictEqual(data.path, "metrics/revenue.md");
-			assert.strictEqual(data.frontmatter["type"], "Metric");
+			assert.strictEqual(data.frontmatter.type, "Metric");
 			assert.ok(data.raw.length > 0);
 			assert.ok(data.links.length > 0);
 		}).pipe(Effect.scoped),
