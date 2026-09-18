@@ -1,5 +1,21 @@
 # @okfit/profiles
 
+## 0.7.3
+
+### Bug Fixes
+
+- fixes pnpm v12 clsure issues
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.7.0 | 0.7.1 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.7.2
 
 ### Dependencies

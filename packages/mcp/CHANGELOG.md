@@ -1,5 +1,23 @@
 # @okfit/mcp
 
+## 0.4.1
+
+### Bug Fixes
+
+- fixes pnpm v12 clsure issues
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.7.0 | 0.7.1 |
+| @okfit/engine | dependency | updated | 0.7.0 | 0.7.1 |
+| @okfit/profiles | dependency | updated | 0.7.2 | 0.7.3 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.4.0
 
 ### Features
