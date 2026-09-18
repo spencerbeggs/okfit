@@ -1,5 +1,22 @@
 # @okfit/plugin
 
+## 0.4.1
+
+### Bug Fixes
+
+- fixes pnpm v12 clsure issues
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/cli | dependency | updated | 0.6.0 | 0.6.1 |
+| @okfit/mcp | dependency | updated | 0.4.0 | 0.4.1 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.4.0
 
 ### Features
