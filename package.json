@@ -43,7 +43,7 @@
 		"@okfit/cli": "workspace:*",
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^4.2.2",
-		"@vitest-agent/plugin": "^4.1.0",
+		"@vitest-agent/plugin": "^4.1.1",
 		"ajv": "^8.20.0",
 		"bats": "^1.13.0",
 		"effect": "catalog:effect",
