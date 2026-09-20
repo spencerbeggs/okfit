@@ -8,6 +8,7 @@ import { spawnMcp } from "./utils/mcpProcess.js";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
 const CLI_BIN = resolve(REPO_ROOT, "packages", "cli", "dist", "dev", "pkg", "bin", "okfit.js");
+const MISSING_BUNDLE_FIXTURE = resolve(import.meta.dirname, "..", "fixtures", "missing-bundle");
 
 const ENV = {
 	PATH: process.env.PATH ?? "",
@@ -25,6 +26,12 @@ const INITIALIZE = {
 		capabilities: {},
 		clientInfo: { name: "okfit-e2e", version: "0.0.0" },
 	},
+} as const;
+
+const STATELESS_META = {
+	"io.modelcontextprotocol/protocolVersion": "2026-07-28",
+	"io.modelcontextprotocol/clientCapabilities": {},
+	"io.modelcontextprotocol/clientInfo": { name: "okfit-e2e", version: "0.0.0" },
 } as const;
 
 /**
@@ -101,10 +108,12 @@ describe("server lifecycle", () => {
 			yield* server.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 			yield* server.send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
 			const { seen: fromToolsList } = yield* readUntilResponse(server, 2);
-			// A failing tool call is the only thing that emits a log line
-			// (final whole-branch review, Important finding 2): without one here
-			// this case's name is not backed by its assertion, since the happy
-			// paths above never exercise the logger at all.
+			// A failing tool call is the one wire-reachable path that used to
+			// emit a log line (final whole-branch review, Important finding 2).
+			// Since effect@4.0.0-rc.116 a DECLARED failure is rendered without
+			// logging, so this no longer exercises the logger -- the stderr case
+			// below does that at boot instead -- but it still proves a failing
+			// call's frame parses like every other line.
 			yield* server.send({
 				jsonrpc: "2.0",
 				id: 3,
@@ -119,9 +128,18 @@ describe("server lifecycle", () => {
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 
-	it.effect("stderr carries no protocol bytes and receives the failing call's log line", () =>
+	// Pins the log destination, not only the absence of protocol bytes:
+	// with `Logger.LogToStderr` provided, a log line lands here instead of on
+	// stdout (Critical finding 1). Since effect@4.0.0-rc.116 the runtime no
+	// longer logs a DECLARED tool failure (only the internal branch goes
+	// through `Effect.logError` + `ErrorReporter`), so the old probe -- a
+	// `get_concept` miss -- emits nothing. The one internal log site the wire
+	// can still reach is `ConceptResources`' boot-time
+	// `could not load the bundle` line, provoked here by pointing the server
+	// at a project whose config names a bundle directory that does not exist.
+	it.effect("stderr carries no protocol bytes and receives the boot-time bundle-load log line", () =>
 		Effect.gen(function* () {
-			const server = yield* spawnMcp(ENV);
+			const server = yield* spawnMcp({ ...ENV, OKFIT_PROJECT_DIR: MISSING_BUNDLE_FIXTURE });
 			yield* server.send(INITIALIZE);
 			yield* readResponse(server, 1);
 			yield* server.send({ jsonrpc: "2.0", method: "notifications/initialized" });
@@ -131,14 +149,43 @@ describe("server lifecycle", () => {
 				method: "tools/call",
 				params: { name: "get_concept", arguments: { id: "nope" } },
 			});
-			yield* readResponse(server, 2);
+			const failing = (yield* readResponse(server, 2)) as { readonly result: { readonly isError?: boolean } };
+			assert.strictEqual(failing.result.isError, true);
 			const stderr = yield* server.stderrSoFar;
 			assert.notOk(stderr.includes('"jsonrpc"'));
 			assert.notOk(stderr.includes('"method"'));
-			// Pins the correct destination, not only the absence of protocol
-			// bytes: with `Logger.LogToStderr` provided, the failing call's log
-			// line lands here instead of on stdout (Critical finding 1).
-			assert.ok(stderr.length > 0);
+			assert.ok(stderr.includes("could not load the bundle"));
+			yield* server.closeStdin;
+		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("answers server/discover on 2026-07-28 with no handshake, then serves a tool call", () =>
+		Effect.gen(function* () {
+			const server = yield* spawnMcp(ENV);
+			yield* server.send({ jsonrpc: "2.0", id: 1, method: "server/discover", params: { _meta: STATELESS_META } });
+			const discovered = (yield* readResponse(server, 1)) as {
+				readonly result: { readonly supportedVersions: ReadonlyArray<string>; readonly instructions?: string };
+			};
+			assert.deepStrictEqual(discovered.result.supportedVersions, ["2026-07-28", "2025-11-25", "2025-06-18"]);
+			assert.ok((discovered.result.instructions ?? "").length > 0);
+			yield* server.send({
+				jsonrpc: "2.0",
+				id: 2,
+				method: "tools/call",
+				params: { name: "describe_vocabulary", arguments: {}, _meta: STATELESS_META },
+			});
+			const called = (yield* readResponse(server, 2)) as {
+				readonly result: {
+					readonly resultType?: string;
+					readonly structuredContent?: unknown;
+					readonly isError?: boolean;
+				};
+			};
+			assert.strictEqual(called.result.resultType, "complete");
+			assert.notOk(called.result.isError);
+			assert.ok(called.result.structuredContent);
+			const stderr = yield* server.stderrSoFar;
+			assert.strictEqual(stderr, "");
 			yield* server.closeStdin;
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);

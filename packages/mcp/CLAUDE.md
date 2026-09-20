@@ -74,10 +74,26 @@ Every tool declares the whole `McpToolError` union as its failure schema.
 Under `McpServer`'s `failureMode: "error"` (the only mode this server
 uses), a declared failure collapses to
 `{ isError: true, content: [{ type: "text", text: error.message }] }` —
-`structuredContent` is never populated for a failure. `errors.ts`'s
-`composeRemediatedMessage` folds each error's remediation hint into
-`message` at construction, so the hint reaches the client inside that one
-text field rather than as a separate structured field.
+`structuredContent` is never populated for a failure, and (since
+effect@4.0.0-rc.116) no log line is emitted for it either — only an
+internal failure is logged. `errors.ts`'s `composeRemediatedMessage` folds
+each error's remediation hint into `message` at construction, so the hint
+reaches the client inside that one text field rather than as a separate
+structured field.
+
+## Three protocol adapters, stateless first
+
+`server.ts` declares `[McpProtocol.v2026_07_28, McpProtocol.v2025_11_25,
+McpProtocol.v2025_06_18]` and exports `SERVER_INSTRUCTIONS`, surfaced in
+both the `initialize` and `server/discover` results. `2026-07-28` is the
+stateless adapter (no `initialize`, `_meta`-routed requests); the stateful
+two stay because `initialize` only matches stateful adapters. Claude Code
+opens with `initialize` by default and with `server/discover` under
+`MCP_PROTOCOL_NEGOTIATION=auto`. See
+`okf/decisions/` for the rationale and `__test__/protocol.test.ts` for the
+revision × outcome matrix (invalid params is a JSON-RPC `-32602` on
+`2025-06-18` and an `isError` result on the other two — the runtime's own
+split, not a bug).
 
 ## Two test tiers
 
