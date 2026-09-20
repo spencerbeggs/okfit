@@ -41,8 +41,31 @@ export interface CompleteResult {
 	readonly completion: { readonly values: ReadonlyArray<string>; readonly total?: number; readonly hasMore?: boolean };
 }
 
+/**
+ * The three adapters `ServerLayer` declares. `2026-07-28` is stateless: the
+ * harness injects `params._meta` (protocol version, client capabilities,
+ * client info) on every request and notification, and `initialize` is
+ * never sent -- `discover` is the opening call instead. The other two are
+ * stateful and open with `initialize` carrying that version.
+ */
+export type ProtocolVersion = "2026-07-28" | "2025-11-25" | "2025-06-18";
+
+export interface HarnessOptions extends ServerOptions {
+	readonly protocolVersion?: ProtocolVersion;
+}
+
+export interface DiscoverResult {
+	readonly supportedVersions: ReadonlyArray<string>;
+	readonly capabilities: Record<string, unknown>;
+	readonly instructions?: string;
+	readonly _meta?: Record<string, unknown>;
+	readonly resultType?: string;
+}
+
 export interface OkfitMcpHarness {
+	readonly protocolVersion: ProtocolVersion;
 	readonly initialize: Effect.Effect<JsonRpcMessage>;
+	readonly discover: Effect.Effect<JsonRpcMessage>;
 	readonly sendRaw: (message: unknown) => Effect.Effect<void>;
 	readonly sendRequest: (method: string, params?: unknown) => Effect.Effect<JsonRpcMessage>;
 	readonly sendNotification: (method: string, params?: unknown) => Effect.Effect<void>;
@@ -85,9 +108,13 @@ const PlatformLayer = Layer.mergeAll(
  */
 export const makeHarness = (
 	projectRoot: string,
-	options: ServerOptions = {},
+	options: HarnessOptions = {},
 ): Effect.Effect<OkfitMcpHarness, never, Scope.Scope> =>
 	Effect.gen(function* () {
+		const protocolVersion: ProtocolVersion = options.protocolVersion ?? "2025-11-25";
+		const stateless = protocolVersion === "2026-07-28";
+		const serverOptions: ServerOptions =
+			options.distribution === undefined ? {} : { distribution: options.distribution };
 		const stdin = yield* Queue.unbounded<Uint8Array>();
 		const stdout = yield* Queue.unbounded<string | Uint8Array>();
 		const stderr = yield* Queue.unbounded<string | Uint8Array>();
@@ -110,7 +137,7 @@ export const makeHarness = (
 		const ready = yield* Deferred.make<void>();
 		yield* Effect.gen(function* () {
 			yield* Layer.build(
-				ServerLayer(projectRoot, options).pipe(Layer.provide(stdioLayer), Layer.provide(PlatformLayer)),
+				ServerLayer(projectRoot, serverOptions).pipe(Layer.provide(stdioLayer), Layer.provide(PlatformLayer)),
 			);
 			yield* Deferred.succeed(ready, undefined);
 			return yield* Effect.never;
@@ -165,27 +192,50 @@ export const makeHarness = (
 		const sendChunk = (chunk: string | Uint8Array): Effect.Effect<void> =>
 			Queue.offer(stdin, typeof chunk === "string" ? encoder.encode(chunk) : chunk);
 		const sendRaw = (message: unknown): Effect.Effect<void> => sendChunk(`${JSON.stringify(message)}\n`);
+		// Ported from upstream's `withRequestMetadata`: on the stateless adapter
+		// every frame carries the protocol fields under `params._meta`, merged
+		// over any `_meta` the caller passed so the protocol fields win.
+		const requestMetadata = {
+			"io.modelcontextprotocol/protocolVersion": protocolVersion,
+			"io.modelcontextprotocol/clientCapabilities": {},
+			"io.modelcontextprotocol/clientInfo": { name: "okfit-test", version: "0.0.0" },
+		};
+		const withRequestMetadata = (params: unknown): unknown => {
+			if (!stateless) return params;
+			const base = typeof params === "object" && params !== null ? (params as Record<string, unknown>) : {};
+			const callerMeta =
+				typeof base._meta === "object" && base._meta !== null ? (base._meta as Record<string, unknown>) : {};
+			return { ...base, _meta: { ...callerMeta, ...requestMetadata } };
+		};
+		const paramsField = (params: unknown) =>
+			params === undefined && !stateless ? {} : { params: withRequestMetadata(params) };
 		const sendNotification = (method: string, params?: unknown): Effect.Effect<void> =>
-			sendRaw({ jsonrpc: "2.0", method, ...(params === undefined ? {} : { params }) });
+			sendRaw({ jsonrpc: "2.0", method, ...paramsField(params) });
 		const sendRequest = (method: string, params?: unknown): Effect.Effect<JsonRpcMessage> =>
 			Effect.gen(function* () {
 				const id = nextRequestId++;
 				const responseQueue = yield* Queue.unbounded<JsonRpcMessage>();
 				const key = requestKey(id);
 				responseQueues.set(key, responseQueue);
-				yield* sendRaw({ jsonrpc: "2.0", id, method, ...(params === undefined ? {} : { params }) });
+				yield* sendRaw({ jsonrpc: "2.0", id, method, ...paramsField(params) });
 				return yield* Queue.take(responseQueue).pipe(Effect.ensuring(Effect.sync(() => responseQueues.delete(key))));
 			});
 
-		const initialize: Effect.Effect<JsonRpcMessage> = Effect.gen(function* () {
-			const response = yield* sendRequest("initialize", {
-				protocolVersion: "2025-11-25",
-				capabilities: {},
-				clientInfo: { name: "okfit-test", version: "0.0.0" },
-			});
-			yield* sendNotification("notifications/initialized");
-			return response;
-		});
+		const discover: Effect.Effect<JsonRpcMessage> = sendRequest("server/discover");
+		// On the stateless adapter there is no handshake: `initialize` would be
+		// answered with METHOD_NOT_FOUND, so it degrades to `server/discover`
+		// and the existing tests keep their opening call unchanged.
+		const initialize: Effect.Effect<JsonRpcMessage> = stateless
+			? discover
+			: Effect.gen(function* () {
+					const response = yield* sendRequest("initialize", {
+						protocolVersion,
+						capabilities: {},
+						clientInfo: { name: "okfit-test", version: "0.0.0" },
+					});
+					yield* sendNotification("notifications/initialized");
+					return response;
+				});
 
 		const listTools: Effect.Effect<ReadonlyArray<ServedTool>> = sendRequest("tools/list").pipe(
 			Effect.map((response) => (response.result as { readonly tools: ReadonlyArray<ServedTool> }).tools),
@@ -211,7 +261,9 @@ export const makeHarness = (
 			);
 
 		return {
+			protocolVersion,
 			initialize,
+			discover,
 			sendRaw,
 			sendRequest,
 			sendNotification,

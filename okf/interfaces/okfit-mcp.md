@@ -7,8 +7,8 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:27:51Z
-  body_sha256: bdb6f047913b2ae2d273657abd07f5bf23c4e7536fcd3420c9825845a2c0540d
+  at: 2026-09-20T01:54:25Z
+  body_sha256: a3cd51f8eb2baefe93404ce291f5ddcc7c2b8f00751d4d996900c3637149b78f
 tags:
   - architecture
 ---
@@ -61,7 +61,15 @@ separate structured error field on the wire.
 Name `okfit`, server key `mcp` (tools appear to a Claude Code agent as
 `mcp__plugin_okfit_mcp__<tool>`), stdio only. The project root resolves in
 this order: `OKFIT_PROJECT_DIR` → `CLAUDE_PROJECT_DIR` → the process's
-current working directory. Two protocol adapters are declared,
-`2025-11-25` and `2025-06-18`; see
-`decisions/mcp-effect-native-legacy-era.md` for why those two and in that
-order, not restated here.
+current working directory. Three protocol adapters are declared, in this
+order: `2026-07-28` (stateless: no `initialize`, opened with
+`server/discover`), then `2025-11-25` and `2025-06-18` (stateful, opened
+with `initialize`); see
+[The MCP server is Effect-native and lists the stateless 2026-07-28
+adapter first](../decisions/mcp-stateless-first-protocol-list.md) for why
+those three and in that order, not restated here. The server's
+`instructions` string is part of the contract: it is returned verbatim in
+both the `initialize` result and the `server/discover` result, and it
+states the orientation above (read-only tools, `describe_vocabulary` then
+`list_concepts`, id shape, and the `structuredContent`/`isError` result
+shapes).
