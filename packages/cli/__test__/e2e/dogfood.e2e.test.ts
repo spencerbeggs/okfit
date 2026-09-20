@@ -42,12 +42,14 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * write `verified`: a new stable Decision stays unverified, and this
  * test red, until Spencer verifies it from his own shell (C-28). Task 7
  * (#140, `okfit sync --staged`) adds one more `draft` Decision, for the
- * same reason.
+ * same reason. The rc.116 MCP port (#162) adds one more `draft` Decision
+ * superseding the deprecated protocol-era one, again unverified by an
+ * agent and exempt only while `draft`.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 8,
-	Decision: 25,
+	Decision: 26,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
