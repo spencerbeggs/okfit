@@ -1,5 +1,11 @@
 # Log
 
+## 2026-09-20
+
+* Updated MCP
+* Added The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated okfit-mcp — MCP tool and resource contract
+
 ## 2026-09-16
 
 * Updated CLI
