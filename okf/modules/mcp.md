@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:27:51Z
-  body_sha256: 994b291a5b5e01d931bda5d0ccdc4e72f1b30ca5fb9be719f2fabd633e5c687c
+  at: 2026-09-20T01:54:25Z
+  body_sha256: fa26fa866d78cbdeb3a1df75aba59f9da793e214995f24f8b10171b0de5a160b
 ---
 
 # MCP
@@ -51,7 +51,10 @@ names the engine separately — see [The engine version, not the producer
 version, is what a report is compared
 on](../decisions/engine-version-is-the-comparable-version.md)),
 `server.ts` (`ServerLayer`: toolkit and resource layers
-over `layerStdio`), `toolkit.ts` (`OkfitToolkit`, the six tools plus
+over `layerStdio`, its three-adapter `protocols` list and the exported
+`SERVER_INSTRUCTIONS` string -- see [The MCP server is Effect-native and
+lists the stateless 2026-07-28 adapter
+first](../decisions/mcp-stateless-first-protocol-list.md)), `toolkit.ts` (`OkfitToolkit`, the six tools plus
 handler wiring), `errors.ts` (`McpToolError` union,
 `composeRemediatedMessage`), `schema/` (per-tool parameter and success
 schemas), `tools/` (one file per tool), `resources/` (the index and
