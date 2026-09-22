@@ -6,6 +6,9 @@
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated An @okfit/lsp language server and a VS Code extension over the shared engine
 * Updated Engine
+* Added Ghost workspace
+* Updated Workspace
+* Added scratchpad
 
 ## 2026-09-20
 
