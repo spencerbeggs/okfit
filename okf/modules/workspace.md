@@ -9,16 +9,16 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-09-22T23:49:20Z
-  body_sha256: ae2c4811d985c453e050f3863ec400de1c7aab238ff4c7f0dfc2395fe94e1778
+  at: 2026-09-22T23:55:28Z
+  body_sha256: 010461a170a672efa906ec792add4ad57518dad66e68f740aa5257665c433b62
 ---
 
 # Workspace
 
 ## Purpose
 
-okfit's monorepo root holds the five `packages/*` workspace packages (`core`,
-`profiles`, `cli`, `mcp`, `plugin`) plus `plugins/claude-code`, and
+okfit's monorepo root holds the six `packages/*` workspace packages (`core`,
+`profiles`, `engine`, `cli`, `mcp`, `plugin`) plus `plugins/claude-code`, and
 `.repos/effect`: read-only vendored Effect v4 source that is never written to
 (`CLAUDE.md:16-27`). Each package has its own `CLAUDE.md` and
 `__test__/CLAUDE.md` (`CLAUDE.md:30`).
