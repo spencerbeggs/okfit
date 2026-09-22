@@ -8,6 +8,7 @@ import {
 	json,
 	jsonError,
 	provideConfig,
+	provideDocuments,
 	resolveProjectConfig,
 	run,
 } from "@okfit/engine";
@@ -16,6 +17,7 @@ import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
+import { readDocumentText } from "../internal/stdin.js";
 import { useColor } from "../internal/tty.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
@@ -47,8 +49,16 @@ const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
 	Flag.withDescription("skip the generated-at-drift lint's git tier for this run"),
 );
 
+/** Spec 4.5: validate one unsaved document, its text read from stdin, in place of the file on disk. */
+const documentFlag = Flag.String("document").pipe(
+	Flag.optional,
+	Flag.withDescription(
+		"bundle-relative path of a document whose unsaved text is read from stdin and validated in place of the file on disk",
+	),
+);
+
 /**
- * `okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance]`.
+ * `okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>]`.
  *
  * Handler order fixed by the contract (§2 `src/commands/validate.ts`):
  * stat `--config` (K-1) via `provideConfig`, discover (`OkfitConfigFile.discover`),
@@ -62,7 +72,7 @@ const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
  */
 export const validateCommand = Command.make(
 	"validate",
-	{ path: pathArg, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag },
+	{ path: pathArg, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag, document: documentFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -79,13 +89,16 @@ export const validateCommand = Command.make(
 				});
 				const { bundleRoot, config: merged, profile } = resolved;
 
+				const documents = Option.isSome(input.document)
+					? [{ path: input.document.value, text: yield* readDocumentText(input.document.value) }]
+					: [];
 				const result = yield* run({
 					root: bundleRoot,
 					config: merged,
 					profile,
 					now,
 					skipProvenance: input.skipProvenance,
-				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
+				}).pipe(provideDocuments(bundleRoot, documents), Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
 				const code = forDiagnostics(diagnostics);
 

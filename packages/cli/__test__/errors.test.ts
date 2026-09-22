@@ -4,6 +4,7 @@ import { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
+	DocumentPathError,
 	InitOverwriteError,
 	VerifyConceptNotFoundError,
 	VerifyUnsupportedFrontmatterError,
@@ -78,5 +79,10 @@ describe("renderFailure for the verify errors", () => {
 		// prevent.
 		assert.isFalse(renderFailure(notFound)[0]?.includes("VerifyConceptNotFoundError"));
 		assert.isFalse(renderFailure(unsupported)[0]?.includes("VerifyUnsupportedFrontmatterError"));
+	});
+
+	it("renders DocumentPathError as one error line", () => {
+		const error = new DocumentPathError({ path: "../x.md", reason: "escapes-bundle" });
+		assert.deepStrictEqual(renderFailure(error), ['error: document path "../x.md" resolves outside the bundle root']);
 	});
 });

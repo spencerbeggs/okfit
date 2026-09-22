@@ -3,12 +3,14 @@ import type { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
+	DocumentPathError,
 	InitOverwriteError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
+import { DocumentStdinIsTerminalError } from "./internal/stdin.js";
 
 const hasTag = (error: unknown, tag: string): boolean =>
 	typeof error === "object" && error !== null && "_tag" in error && (error as { readonly _tag: unknown })._tag === tag;
@@ -56,6 +58,8 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 5b. `VerifySelectionError` (issue #138) renders the same way, one
  *    `error: <message>` line naming why `okfit verify`'s selection was
  *    contradictory, empty, or named an undeclared type.
+ * 5c. `DocumentPathError` and `DocumentStdinIsTerminalError` (`--document`)
+ *    each render as one `error: <message>` line.
  * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`/
  *    `BundleDepthExceededError`, config-file's other errors, `XdgEnvError`
  *    (the K-13 `HOME`-unset case) — renders as the single line
@@ -80,6 +84,8 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof SyncStagedLogError) return [`error: ${error.message}`];
 	if (error instanceof VerifySelectionError) return [`error: ${error.message}`];
+	if (error instanceof DocumentPathError) return [`error: ${error.message}`];
+	if (error instanceof DocumentStdinIsTerminalError) return [`error: ${error.message}`];
 	if (hasTag(error, "ConfigValidationError")) {
 		const validationError = error as ConfigValidationError;
 		return [

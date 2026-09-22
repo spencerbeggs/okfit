@@ -20,7 +20,7 @@ describe("validateCommand", () => {
 		assert.isTrue((validateCommand.description ?? "").includes("diagnostics"));
 	});
 
-	it("declares exactly the path argument and the config/format/skip-provenance flags, by name (contract §6.1, S-31)", () => {
+	it("declares exactly the path argument and the config/format/skip-provenance/document flags, by name (contract §6.1, S-31, spec 4.5)", () => {
 		const config = configOf(validateCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -28,7 +28,7 @@ describe("validateCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format", "skip-provenance"],
+			["config", "format", "skip-provenance", "document"],
 		);
 	});
 
