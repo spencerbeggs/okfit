@@ -30,6 +30,11 @@ src/
                                layerOverlayFileSystem: editor buffers shadowing the ambient FileSystem
     documents.ts           -- DocumentInput, resolveDocumentPath, provideDocuments: the one
                                combinator the CLI --document flag and MCP documents input share
+  session/
+    BundleSession.ts        -- BundleSession (Context.Service): overlay + whole-bundle revalidate
+                                with per-file diagnostic diffs; no debounce (the LSP server schedules)
+    diff.ts                  -- groupByFile, diffDiagnostics (pure, engine-internal)
+    range.ts                  -- withFallbackRange: range-less finding -> frontmatter block
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)

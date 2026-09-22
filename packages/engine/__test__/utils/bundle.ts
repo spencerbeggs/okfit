@@ -1,8 +1,11 @@
+import { NodeCrypto } from "@effect/platform-node";
+import { Git } from "@effected/git";
 import type { MemoryFileSystemSeed } from "@effected/memfs";
 import { MemoryFileSystem } from "@effected/memfs";
 import type { LoadedBundle } from "@okfit/core";
-import { ConceptId } from "@okfit/core";
-import type { FileSystem } from "effect";
+import { ConceptId, OkfitConfig } from "@okfit/core";
+import { GitHistory } from "@okfit/profiles";
+import type { Crypto, FileSystem } from "effect";
 import { Layer, Option, Path } from "effect";
 import type { OverlayDocumentsShape } from "../../src/overlay/layer.js";
 import { OverlayDocuments, layerOverlayFileSystem } from "../../src/overlay/layer.js";
@@ -42,3 +45,30 @@ export const overlayPlatform = (
 		Path.layer,
 	);
 };
+
+/**
+ * `Module` declared and every lint that fires on a minimal two-file bundle with
+ * no index turned off, so `changed` reflects only what a test breaks.
+ * `generated_at_drift` is off unless a test turns it on.
+ */
+export const sessionConfig = (lint: OkfitConfig["lint"] = {}): OkfitConfig => ({
+	...OkfitConfig.DEFAULTS,
+	types: { Module: {} },
+	lint: { missing_index: "off", generated_at_drift: "off", generated_missing: "off", stale: "off", ...lint },
+});
+
+/**
+ * memfs, posix `Path`, real `Crypto`, and `Git`/`GitHistory` doubles that die on
+ * any call (their "die by default" posture, packages/engine/__test__/validate/run.test.ts)
+ * so a test that reaches the git tier fails loudly.
+ */
+export const sessionPlatform = (
+	seed: MemoryFileSystemSeed,
+): Layer.Layer<FileSystem.FileSystem | Path.Path | Crypto.Crypto | Git | GitHistory> =>
+	Layer.mergeAll(
+		MemoryFileSystem.layerWith(seed),
+		Path.layer,
+		NodeCrypto.layer,
+		Git.layerTest({}),
+		GitHistory.layerTest({}),
+	);

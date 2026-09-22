@@ -56,6 +56,17 @@ export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
+export type {
+	BundleSessionOptions,
+	BundleSessionServices,
+	BundleSessionShape,
+	RevalidateError,
+	RevalidateOptions,
+	RevalidateResult,
+	RevalidateTier,
+	WatchedFilesOutcome,
+} from "./session/BundleSession.js";
+export { BundleSession } from "./session/BundleSession.js";
 export { withFallbackRange } from "./session/range.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";

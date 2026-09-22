@@ -11,6 +11,7 @@ __test__/
   context/             # context/run.ts
   init/                # init/scaffold.ts
   overlay/             # overlay/{layer,documents}.ts
+  session/             # session/{BundleSession,diff,range}.ts
   render/              # render/{context,exit,json,sort,sync}.ts (context.ts and sync.ts
                         # cover only the envelope halves this package owns)
   sync/                # sync/{generated,index,log,write}.ts, sync/run.ts
