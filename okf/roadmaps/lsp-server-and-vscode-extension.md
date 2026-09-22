@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T18:30:36Z
-  body_sha256: 80079f191bebcfdded1c847efd0017c86407b1e2c32f75116ad374945771389c
+  at: 2026-09-22T19:10:41Z
+  body_sha256: fa021bd8d3a4e8554058c21eec4ca30f90dcec37f9e10077495953296f432e15
 ---
 
 # An @okfit/lsp language server and a VS Code extension over the shared engine
@@ -109,8 +109,13 @@ repository's own bundle.
    plugin-root variable expands inside `lspServers`, whether a shell
    wrapper is accepted as the command, and whether diagnostics pushed
    for files other than the edited one reach the model. The answers fix
-   the shim design and the cross-file publishing strategy. Remaining:
-   everything.
+   the shim design and the cross-file publishing strategy. Done
+   2026-09-22: root expansion held, a `sh` wrapper was
+   accepted, cross-file diagnostics reach the
+   model, and the `diagnostics` key loads; phase 3
+   uses the section 6.1 manifest and
+   per-file publishing.
+   Remaining: nothing.
 2. **Engine seams.** Overlay filesystem layer, `BundleSession`,
    `ExternalReferences` with only its no-op layer, the rule that a
    diagnostic without a range maps to the concept's frontmatter block
