@@ -136,8 +136,9 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					),
 				);
 				const next = groupByFile(rendered);
-				const changed = diffDiagnostics(yield* Ref.get(published), next);
-				yield* Ref.set(published, next);
+				// One atomic read-diff-write: exactly-once reporting holds by construction.
+				// The semaphore (below) is what keeps an older, slower run from landing last.
+				const changed = yield* Ref.modify(published, (previous) => [diffDiagnostics(previous, next), next] as const);
 				yield* Ref.set(loaded, Option.some({ bundle: result.bundle, graph: Graph.fromBundle(result.bundle) }));
 				return { changed, bundle: result.bundle };
 			});

@@ -1,8 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
-import { DateTime, Effect, Exit, FileSystem, Option } from "effect";
+import type { MemoryFileSystemFaults } from "@effected/memfs";
+import { DateTime, Deferred, Effect, Exit, Fiber, FileSystem, Option } from "effect";
+import { TestClock } from "effect/testing";
 import type { RevalidateOptions } from "../../src/session/BundleSession.js";
 import { BundleSession } from "../../src/session/BundleSession.js";
-import { ROOT, SEED, moduleConcept, sessionConfig, sessionPlatform } from "../utils/bundle.js";
+import { ROOT, SEED, moduleConcept, sessionConfig, sessionPlatform, sourceOf } from "../utils/bundle.js";
 
 const now = DateTime.makeUnsafe("2026-09-22T00:00:00Z");
 const edit: RevalidateOptions = { now, tier: "edit" };
@@ -88,15 +90,38 @@ describe("BundleSession", () => {
 		}).pipe(Effect.provide(sessionPlatform(SEED))),
 	);
 
-	it.effect("two overlapping revalidates report a change exactly once", () =>
-		Effect.gen(function* () {
+	it.effect("a slower revalidate that started on older text cannot land after a newer one", () => {
+		// The first underlying read of b.md (not open, so it reaches memfs) signals
+		// `stalled` and then sleeps on the TestClock. a.md is open, so the overlay
+		// serves it without touching memfs: the older run has already read a.md's
+		// older text when it stalls on b.md.
+		const stalled = Deferred.makeUnsafe<void>();
+		let bReads = 0;
+		const faults: MemoryFileSystemFaults = {
+			readFileString: (file) =>
+				file !== `${ROOT}/b.md` || bReads++ > 0
+					? undefined
+					: Deferred.succeed(stalled, undefined).pipe(
+							Effect.andThen(Effect.sleep("1 second")),
+							Effect.as(moduleConcept("B")),
+						),
+		};
+		return Effect.gen(function* () {
 			const session = yield* make();
-			yield* session.revalidate(edit);
-			yield* session.open(`${ROOT}/a.md`, moduleConcept("A", "See [C](c.md)."));
-			const results = yield* Effect.all([session.revalidate(edit), session.revalidate(edit)], { concurrency: 2 });
+			yield* session.open(`${ROOT}/a.md`, moduleConcept("A", "See [B](b.md)."));
+			const older = yield* Effect.forkChild(session.revalidate(edit));
+			yield* Deferred.await(stalled);
+			yield* session.change(`${ROOT}/a.md`, moduleConcept("A", "NEWER See [C](c.md)."));
+			const newer = yield* Effect.forkChild(session.revalidate(edit));
+			// Give the newer run every chance to finish first if nothing holds it back.
+			for (let i = 0; i < 100; i++) yield* Effect.yieldNow;
+			yield* TestClock.adjust("1 second");
+			const results = [yield* Fiber.join(older), yield* Fiber.join(newer)];
+			const latest = Option.getOrThrow(yield* session.bundle());
+			assert.include(sourceOf(latest, "a.md") ?? "", "NEWER");
 			assert.strictEqual(results.filter((result) => result.changed.has("a.md")).length, 1);
-		}).pipe(Effect.provide(sessionPlatform(SEED))),
-	);
+		}).pipe(Effect.provide(sessionPlatform(SEED, faults)));
+	});
 
 	describe("provenance tier", () => {
 		const legacy = `---\ntype: Module\ntitle: L\ngenerated:\n  by: human:okfit-test\n  at: 2020-01-01T00:00:00Z\n---\n\n# L\n\nBody.\n`;

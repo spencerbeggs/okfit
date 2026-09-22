@@ -1,6 +1,6 @@
 import { NodeCrypto } from "@effect/platform-node";
 import { Git } from "@effected/git";
-import type { MemoryFileSystemSeed } from "@effected/memfs";
+import type { MemoryFileSystemFaults, MemoryFileSystemSeed } from "@effected/memfs";
 import { MemoryFileSystem } from "@effected/memfs";
 import type { LoadedBundle } from "@okfit/core";
 import { ConceptId, OkfitConfig } from "@okfit/core";
@@ -60,13 +60,15 @@ export const sessionConfig = (lint: OkfitConfig["lint"] = {}): OkfitConfig => ({
 /**
  * memfs, posix `Path`, real `Crypto`, and `Git`/`GitHistory` doubles that die on
  * any call (their "die by default" posture, packages/engine/__test__/validate/run.test.ts)
- * so a test that reaches the git tier fails loudly.
+ * so a test that reaches the git tier fails loudly. `faults`, when given, is
+ * registered on the memfs volume (delegate-by-default `layerFaultyWith`).
  */
 export const sessionPlatform = (
 	seed: MemoryFileSystemSeed,
+	faults?: MemoryFileSystemFaults,
 ): Layer.Layer<FileSystem.FileSystem | Path.Path | Crypto.Crypto | Git | GitHistory> =>
 	Layer.mergeAll(
-		MemoryFileSystem.layerWith(seed),
+		faults === undefined ? MemoryFileSystem.layerWith(seed) : MemoryFileSystem.layerFaultyWith(seed, faults),
 		Path.layer,
 		NodeCrypto.layer,
 		Git.layerTest({}),
