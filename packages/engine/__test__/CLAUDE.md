@@ -10,6 +10,7 @@ __test__/
   config/              # config/anchor.ts, config/layer.ts, config/resolve.ts
   context/             # context/run.ts
   init/                # init/scaffold.ts
+  overlay/             # overlay/{layer,documents}.ts
   render/              # render/{context,exit,json,sort,sync}.ts (context.ts and sync.ts
                         # cover only the envelope halves this package owns)
   sync/                # sync/{generated,index,log,write}.ts, sync/run.ts

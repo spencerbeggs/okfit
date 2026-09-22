@@ -25,6 +25,8 @@ export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
+export type { OverlayDocument, OverlayDocumentsShape } from "./overlay/layer.js";
+export { OverlayDocuments, layerOverlayFileSystem, makeOverlayFileSystem } from "./overlay/layer.js";
 export { OkfitPlatform } from "./platform.js";
 export {
 	ContextEnvelope,

@@ -24,6 +24,9 @@ src/
     run.ts                 -- runContext: index.md stat only, never Bundle.load
   validate/
     run.ts                 -- Now (Context.Service), RunOptions, RunResult, run
+  overlay/
+    layer.ts               -- OverlayDocuments (Context.Service), makeOverlayFileSystem,
+                               layerOverlayFileSystem: editor buffers shadowing the ambient FileSystem
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)
