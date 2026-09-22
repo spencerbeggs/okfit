@@ -1,5 +1,24 @@
 # @okfit/mcp
 
+## 0.5.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/xdg | dependency | updated | ^0.6.0 | ^0.6.1 |
+| @okfit/core | dependency | updated | 0.7.2 | 0.7.3 |
+| @okfit/engine | dependency | updated | 0.7.3 | 0.7.4 |
+| @okfit/profiles | dependency | updated | 0.7.4 | 0.7.4 |
+
+[#169][#169]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#169]: https://github.com/spencerbeggs/okfit/pull/169
+
 ## 0.5.0
 
 ### Features

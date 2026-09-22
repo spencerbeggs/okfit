@@ -1,5 +1,25 @@
 # @okfit/cli
 
+## 0.6.4
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.11.0 | ^0.11.1 |
+| @effected/walker | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @okfit/core | dependency | updated | 0.7.2 | 0.7.3 |
+| @okfit/engine | dependency | updated | 0.7.3 | 0.7.4 |
+| @okfit/profiles | dependency | updated | 0.7.4 | 0.7.4 |
+
+[#169][#169]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#169]: https://github.com/spencerbeggs/okfit/pull/169
+
 ## 0.6.3
 
 ### Dependencies
