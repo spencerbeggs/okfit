@@ -9,6 +9,7 @@ This project uses `@vitest-agent/plugin` for test discovery. Tests live here in
 __test__/
   config/              # config/anchor.ts, config/layer.ts, config/resolve.ts
   context/             # context/run.ts
+  external/            # external/ExternalReferences.ts
   init/                # init/scaffold.ts
   overlay/             # overlay/{layer,documents}.ts
   session/             # session/{BundleSession,diff,range}.ts

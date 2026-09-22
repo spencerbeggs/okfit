@@ -22,6 +22,8 @@ export {
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
+export type { ExternalReferencesShape } from "./external/ExternalReferences.js";
+export { ExternalReferences, ReferenceCheck, ReferenceState } from "./external/ExternalReferences.js";
 export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";

@@ -23,6 +23,9 @@ src/
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   context/
     run.ts                 -- runContext: index.md stat only, never Bundle.load
+  external/
+    ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
+                                 (phase 7 adds layerHttp)
   validate/
     run.ts                 -- Now (Context.Service), RunOptions, RunResult, run
   overlay/
