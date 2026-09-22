@@ -44,7 +44,8 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (#140, `okfit sync --staged`) adds one more `draft` Decision, for the
  * same reason. The rc.116 MCP port (#162) adds one more `draft` Decision
  * superseding the deprecated protocol-era one, again unverified by an
- * agent and exempt only while `draft`.
+ * agent and exempt only while `draft`. The LSP roadmap adds one Roadmap
+ * concept, which carries no `verified` requirement.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
@@ -53,6 +54,7 @@ const EXPECTED_CONCEPT_COUNTS = {
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
+	Roadmap: 1,
 } as const;
 
 const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) => sum + n, 0);

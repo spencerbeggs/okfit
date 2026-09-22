@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T20:22:38Z
-  body_sha256: 06a1a6a787002b5f4aba3ace5819a7fb98ca88a72f25eb32b498a64217e4979f
+  at: 2026-09-22T19:59:30Z
+  body_sha256: 7f7ce013220733f70e3ddb6c1d7af9595aef76a63284834dcedd49a105e867c5
 ---
 
 # Engine
@@ -106,6 +106,25 @@ walks history and never runs log mode. A malformed `--since` is a
 parse-time usage error from the CLI's own argument parser, never a
 `SyncStagedLogError`; only `--only log` paired with `--staged` raises
 that error, exit `64`.
+
+## Editor seams
+
+`overlay/layer.ts` shadows the ambient `FileSystem` with open editor
+buffers (`OverlayDocuments`, absolute path to text and version), falling
+through to disk for everything else and listing overlay-only files in
+their parent directory so an unsaved new concept is walked.
+`overlay/documents.ts#provideDocuments` is the one entry point the CLI's
+`validate --document` and the MCP `validate_bundle` `documents` input
+share; `DocumentPathError` (exit `64`) owns the path rules.
+`session/BundleSession.ts` holds one bundle root's overlay, last bundle,
+graph and per-file diagnostics, and its `revalidate({ now, tier })`
+re-runs `validate/run.ts#run` under the overlay and returns only the
+files whose diagnostics changed, including files not open; `tier: "edit"`
+skips the git tier. Debounce is the caller's: the language server
+schedules, the session serializes overlapping calls. A range-less
+finding is anchored on the concept's frontmatter block
+(`session/range.ts#withFallbackRange`). `external/ExternalReferences.ts`
+ships only `layerNoop` until the HTTP layer lands.
 
 ## Process boundary
 

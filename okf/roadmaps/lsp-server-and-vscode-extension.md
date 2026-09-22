@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T19:10:41Z
-  body_sha256: fa021bd8d3a4e8554058c21eec4ca30f90dcec37f9e10077495953296f432e15
+  at: 2026-09-22T19:59:30Z
+  body_sha256: ea310acd69d2012c41c4ad6b1f816e9fc240a71c23d36dff33f9424779c7d193
 ---
 
 # An @okfit/lsp language server and a VS Code extension over the shared engine
@@ -71,8 +71,9 @@ Two new workspace packages join [Engine](../modules/engine.md),
 The engine gains the seams both consumers need: an overlay `FileSystem`
 layer that serves open editor buffers over disk without touching core; a
 `BundleSession` service holding one loaded bundle per bundle root with a
-debounced whole-bundle revalidate that diffs diagnostics per file,
-including files not open; an `ExternalReferences` reachability service,
+whole-bundle revalidate that diffs diagnostics per file (the language
+server owns the debounce), including files not open; an
+`ExternalReferences` reachability service,
 no-op at first; and unsaved-document inputs for `okfit validate` and the
 MCP `validate_bundle` tool, so the CLI and MCP keep parity with the
 editor.
@@ -120,7 +121,8 @@ repository's own bundle.
    `ExternalReferences` with only its no-op layer, the rule that a
    diagnostic without a range maps to the concept's frontmatter block
    rather than line zero, and the unsaved-document inputs for CLI and
-   MCP. Releases engine, cli, mcp. Remaining: everything.
+   MCP. Releases engine, cli, mcp. Remaining: the release, which waits
+   for the owner to call it (no changesets until then).
 3. **Server, diagnostics only.** `packages/lsp` with the transport
    seam, the reference implementation, document sync, push diagnostics,
    a test that nothing under `src/` writes to stdout (Claude Code counts
