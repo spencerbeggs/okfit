@@ -8,3 +8,4 @@
 * [Plugin](plugin.md) - The meta-package a consuming repository installs to get both the okfit CLI and okfit-mcp bins on PATH.
 * [Profiles](profiles.md) - The opinionated layer over core -- named okfit config profiles plus derivation rules for generated.at and generated.by.
 * [Workspace](workspace.md) - The monorepo root -- workspace layout, shared rules, and the build, lint, and release commands every package uses.
+* [scratchpad](scratchpad.md) - A committed but never-published pnpm workspace member that lets agents write typed probes fast against the kit's own @okfit packages and the catalog effect prerelease.

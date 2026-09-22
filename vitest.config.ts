@@ -1,8 +1,13 @@
-import { AgentPlugin } from "@vitest-agent/plugin";
+import { AgentPlugin, DefaultDiscoverStrategy } from "@vitest-agent/plugin";
 import { defineConfig } from "vitest/config";
 
 export default async () => {
-	const { projects, tags } = await AgentPlugin.discover();
+	// Scratchpad is a local-only probe venue: discovered as a normal project on
+	// dev machines, invisible to ci:test.
+	const strategy = new DefaultDiscoverStrategy().extend({
+		buildProject: async (input, inherited) => (input.name === "scratchpad" && process.env.CI ? null : inherited),
+	});
+	const { projects, tags } = await AgentPlugin.discover(strategy);
 	return defineConfig({
 		plugins: [
 			AgentPlugin({
@@ -27,6 +32,7 @@ export default async () => {
 					"packages/*/src/bin.ts",
 					"packages/*/src/main.ts",
 					"packages/plugin/src/bin/*.ts",
+					"scratchpad/**",
 				],
 			},
 		},

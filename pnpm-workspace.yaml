@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - plugins/*
+  - scratchpad
 autoInstallPeers: true
 configDependencies:
   "@effected/pnpm-plugin-effect": 0.10.0+sha512-76QvbJXO1HxTAR9Anl0IDk3IuMWLKvOwoSXEFR7TV2xiRsVjFc0BorTfidmq5f9zjpp+51z6LKf0gjmVTYPamg==

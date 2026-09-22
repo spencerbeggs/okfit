@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-09-06T10:41:29Z
-  body_sha256: 492ad7454384c5030c2b2f23996d8cc3bdc6c44cd05942574116603ee16cfdd4
+  at: 2026-09-22T23:49:20Z
+  body_sha256: ae2c4811d985c453e050f3863ec400de1c7aab238ff4c7f0dfc2395fe94e1778
 ---
 
 # Workspace
@@ -22,6 +22,17 @@ okfit's monorepo root holds the five `packages/*` workspace packages (`core`,
 `.repos/effect`: read-only vendored Effect v4 source that is never written to
 (`CLAUDE.md:16-27`). Each package has its own `CLAUDE.md` and
 `__test__/CLAUDE.md` (`CLAUDE.md:30`).
+
+## Layout
+
+- `packages/*` -- one directory per `@okfit` library (`core`, `profiles`,
+  `engine`, `cli`, `mcp`, `plugin`).
+- `plugins/claude-code` -- the Claude Code plugin, tagged but never
+  published to npm.
+- `.repos/effect` -- read-only vendored Effect v4 source.
+- `scratchpad/` -- a ghost workspace member: a private typed-probe venue,
+  never published, excluded from changesets, CI and coverage; see
+  [scratchpad](scratchpad.md).
 
 ## Rules
 

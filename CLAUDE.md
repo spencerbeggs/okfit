@@ -29,6 +29,9 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
   plugin's hooks, the MCP stub) -- `okf/interfaces/*.md`.
 - **External material this repo must cite reliably** --
   `okf/references/okf-spec.md`.
+- **The typed probe workspace** (a ghost workspace: real to the tooling,
+  excluded from release/CI/coverage) -- `scratchpad/CLAUDE.md`,
+  `okf/modules/scratchpad.md`, `okf/glossary/ghost-workspace.md`.
 
 Each package has its own `CLAUDE.md` and `__test__/CLAUDE.md`.
 
