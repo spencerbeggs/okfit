@@ -141,3 +141,31 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}
 }
+
+const DOCUMENT_PATH_REASON_TEXT = {
+	"not-relative": "must be a bundle-relative posix path",
+	"escapes-bundle": "resolves outside the bundle root",
+	"not-markdown": "must name a .md file",
+	duplicate: "was given more than once",
+	"no-directory": "names a directory that does not exist in the bundle",
+} as const;
+
+/**
+ * An unsaved-document input named a path the overlay cannot honestly shadow:
+ * absolute or backslashed (`not-relative`), outside the bundle
+ * (`escapes-bundle`), not a markdown file (`not-markdown`), the same file as
+ * an earlier input after normalization (`duplicate`), or under a directory that
+ * does not exist on disk, so the bundle walk would never reach it
+ * (`no-directory`). Exit 64: a usage error.
+ *
+ * @public
+ */
+export class DocumentPathError extends Schema.TaggedError<DocumentPathError>()("DocumentPathError", {
+	path: Schema.String,
+	reason: Schema.Literals(["not-relative", "escapes-bundle", "not-markdown", "duplicate", "no-directory"]),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return `document path "${this.path}" ${DOCUMENT_PATH_REASON_TEXT[this.reason]}`;
+	}
+}

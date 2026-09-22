@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { ENGINE_VERSION } from "@okfit/engine";
@@ -143,6 +145,53 @@ describe("validate_bundle", () => {
 			const text = result.content[0]?.text ?? "";
 			assert.ok(text.includes("no-such-bundle"));
 			assert.ok(text.includes("okfit init"));
+		}).pipe(Effect.scoped),
+	);
+});
+
+const CHURN_ON_DISK = readFileSync(
+	resolve(import.meta.dirname, "fixtures", "project", "bundle", "metrics", "churn.md"),
+	"utf8",
+);
+/** churn.md with its one deliberate dangling link sentence removed; everything else byte-identical. */
+const CHURN_FIXED = CHURN_ON_DISK.replace(/\nThe intended computation is[\s\S]*?yet\.\n/, "\n");
+const NEW_METRIC = CHURN_FIXED.replace("title: Churn", "title: Retention").replace("# Definition", "# Retention");
+
+describe("validate_bundle documents", () => {
+	it("the fixture edit is real (guards the regex above)", () => {
+		assert.notStrictEqual(CHURN_FIXED, CHURN_ON_DISK);
+		assert.notInclude(CHURN_FIXED, "does-not-exist.md");
+	});
+
+	it.effect("an unsaved fix clears broken-links for that call only; the next call without documents sees disk", () =>
+		Effect.gen(function* () {
+			const root = yield* copyFixtureProject("project");
+			const harness = yield* makeHarness(root, {});
+			yield* harness.initialize;
+			const drafted = (yield* harness.callTool("validate_bundle", {
+				documents: [{ path: "metrics/churn.md", text: CHURN_FIXED }],
+			})).structuredContent as Envelope;
+			assert.isFalse(drafted.diagnostics.some((d) => d.code === "broken-links"));
+			const plain = (yield* harness.callTool("validate_bundle", {})).structuredContent as Envelope;
+			assert.isTrue(plain.diagnostics.some((d) => d.code === "broken-links" && d.file === "metrics/churn.md"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("an unsaved new file is walked: the concept count grows by one", () =>
+		Effect.gen(function* () {
+			const result = yield* validate({ documents: [{ path: "metrics/retention.md", text: NEW_METRIC }] });
+			assert.notOk(result.isError);
+			assert.strictEqual((result.structuredContent as Envelope).summary.concepts, 11);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("a path outside the bundle fails InvalidArgument naming the path and the fix", () =>
+		Effect.gen(function* () {
+			const result = yield* validate({ documents: [{ path: "../outside.md", text: "x" }] });
+			assert.ok(result.isError);
+			const text = result.content[0]?.text ?? "";
+			assert.include(text, 'document path "../outside.md" resolves outside the bundle root');
+			assert.include(text, "relative to the bundle root");
 		}).pipe(Effect.scoped),
 	);
 });

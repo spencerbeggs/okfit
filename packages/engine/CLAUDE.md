@@ -15,15 +15,29 @@ src/
   platform.ts           -- OKFIT_APP_NAMESPACE, OkfitPlatform: the one XDG/Node
                             platform layer both front ends provide
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
-                             VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError
+                             VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError,
+                             DocumentPathError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   context/
     run.ts                 -- runContext: index.md stat only, never Bundle.load
+  external/
+    ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
+                                 (phase 7 adds layerHttp)
   validate/
     run.ts                 -- Now (Context.Service), RunOptions, RunResult, run
+  overlay/
+    layer.ts               -- OverlayDocuments (Context.Service), makeOverlayFileSystem,
+                               layerOverlayFileSystem: editor buffers shadowing the ambient FileSystem
+    documents.ts           -- DocumentInput, resolveDocumentPath, provideDocuments: the one
+                               combinator the CLI --document flag and MCP documents input share
+  session/
+    BundleSession.ts        -- BundleSession (Context.Service): overlay + whole-bundle revalidate
+                                with per-file diagnostic diffs; no debounce (the LSP server schedules)
+    diff.ts                  -- groupByFile, diffDiagnostics (pure, engine-internal)
+    range.ts                  -- withFallbackRange: range-less finding -> frontmatter block
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)

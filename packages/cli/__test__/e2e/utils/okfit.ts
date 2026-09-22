@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import type { CommandFailedError, CommandOutputError } from "@effected/commands"; // CMD/Run.d.ts:365, :412
 import { Run } from "@effected/commands"; // CMD/Run.d.ts:452
 import type { Effect } from "effect";
+import { Stream } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { ChildProcess } from "effect/unstable/process";
 
@@ -37,8 +38,15 @@ export interface OkfitRun {
  */
 export const runOkfit = (
 	args: ReadonlyArray<string>,
-	options: { readonly cwd: string; readonly env: Readonly<Record<string, string>> },
+	options: { readonly cwd: string; readonly env: Readonly<Record<string, string>>; readonly stdin?: string },
 ): Effect.Effect<OkfitRun, CommandFailedError | CommandOutputError, ChildProcessSpawner.ChildProcessSpawner> =>
 	Run.collect(
-		ChildProcess.setCwd(ChildProcess.make(process.execPath, [BIN, ...args], { env: options.env }), options.cwd),
+		ChildProcess.setCwd(
+			ChildProcess.make(process.execPath, [BIN, ...args], {
+				env: options.env,
+				// exactOptionalPropertyTypes: omit the key when no stdin is given.
+				...(options.stdin === undefined ? {} : { stdin: Stream.make(new TextEncoder().encode(options.stdin)) }),
+			}),
+			options.cwd,
+		),
 	);

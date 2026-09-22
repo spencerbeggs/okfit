@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T20:22:38Z
-  body_sha256: ec72c60b4ba6a4330ebce7bedb39b4c85fa76ee4800ee050411e87e12fedc244
+  at: 2026-09-22T20:14:00Z
+  body_sha256: 20a7ef57f14697d04a0ebff44beb26f9d2bcc60c28aeb6e20dfd3c48445c56f8
 tags:
   - architecture
 ---
@@ -45,6 +45,14 @@ PostToolUse hook passes it so an edit-time validate stays git-free for any
 un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
 git tier too (ruling S-31). See [A body digest inside generated detects
 real drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+
+`--document <bundle-path>` validates one unsaved document: its text is
+read from stdin and stands in for that file (bundle-relative, posix, a
+`.md` path; a file not yet written under an existing directory is walked
+like any other), and nothing is written. A path that is absolute, escapes
+the bundle, is not `.md`, or sits under a directory that does not exist,
+and a terminal stdin, are usage errors (exit `64`). The MCP
+`validate_bundle` tool's `documents` input is the same overlay.
 
 ## okfit init
 

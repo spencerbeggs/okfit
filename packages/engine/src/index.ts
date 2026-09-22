@@ -15,16 +15,23 @@ export { runContext } from "./context/run.js";
 export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
+	DocumentPathError,
 	InitOverwriteError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
+export type { ExternalReferencesShape } from "./external/ExternalReferences.js";
+export { ExternalReferences, ReferenceCheck, ReferenceState } from "./external/ExternalReferences.js";
 export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
+export type { DocumentInput } from "./overlay/documents.js";
+export { provideDocuments, resolveDocumentPath } from "./overlay/documents.js";
+export type { OverlayDocument, OverlayDocumentsShape } from "./overlay/layer.js";
+export { OverlayDocuments, layerOverlayFileSystem, makeOverlayFileSystem } from "./overlay/layer.js";
 export { OkfitPlatform } from "./platform.js";
 export {
 	ContextEnvelope,
@@ -51,6 +58,18 @@ export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
+export type {
+	BundleSessionOptions,
+	BundleSessionServices,
+	BundleSessionShape,
+	RevalidateError,
+	RevalidateOptions,
+	RevalidateResult,
+	RevalidateTier,
+	WatchedFilesOutcome,
+} from "./session/BundleSession.js";
+export { BundleSession } from "./session/BundleSession.js";
+export { withFallbackRange } from "./session/range.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
 export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/run.js";

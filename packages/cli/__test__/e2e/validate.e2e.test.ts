@@ -714,3 +714,30 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
+
+describe("okfit validate --document", () => {
+	it.effect(
+		"validates stdin in place of the file, leaves the file untouched, and rejects a path outside the bundle",
+		() =>
+			Effect.gen(function* () {
+				const sandbox = yield* Effect.promise(() => makeSandbox());
+				yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
+				const target = join(sandbox.cwd, "okf", "glossary", "bundle.md");
+				const original = yield* Effect.promise(() => readFile(target, "utf8"));
+
+				// Control: the clean fixture reports nothing on stdout.
+				const clean = yield* runOkfit(["validate"], sandbox);
+				assert.strictEqual(clean.stdout, "");
+
+				const draft = `${original}\nSee [nowhere](nowhere.md).\n`;
+				const drafted = yield* runOkfit(["validate", "--document", "glossary/bundle.md"], { ...sandbox, stdin: draft });
+				assert.include(drafted.stdout, "glossary/bundle.md");
+				assert.include(drafted.stdout, "broken-links");
+				assert.strictEqual(yield* Effect.promise(() => readFile(target, "utf8")), original);
+
+				const escaping = yield* runOkfit(["validate", "--document", "../escape.md"], { ...sandbox, stdin: "x" });
+				assert.strictEqual(escaping.exitCode, 64);
+				assert.include(escaping.stderr, 'error: document path "../escape.md" resolves outside the bundle root');
+			}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});

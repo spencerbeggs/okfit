@@ -8,7 +8,7 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 
 ```text
 okfit [--help] [--version]
-okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--help]
+okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
 okfit init [path] [--profile <name>] [--config <file>] [--help]
 okfit context [path] [--config <file>] [--format human|json] [--help]
 okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
@@ -68,6 +68,14 @@ re-stamp. The Claude Code plugin's PostToolUse hook passes the flag on
 every edit-time `validate` call so a git spawn per concept never runs on
 keystroke-level edits; CI and the MCP `validate_bundle` tool omit it and
 keep both tiers.
+
+`--document <bundle-path>` validates one unsaved document: its text is
+read from stdin and stands in for that file (bundle-relative, posix, a
+`.md` path; a file not yet written under an existing directory is walked
+like any other), and nothing is written. A path that is absolute, escapes
+the bundle, is not `.md`, or sits under a directory that does not exist,
+and a terminal stdin, are usage errors (exit `64`). The MCP
+`validate_bundle` tool's `documents` input is the same overlay.
 
 ### `okfit init`
 

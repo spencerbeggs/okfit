@@ -1,5 +1,12 @@
 # Log
 
+## 2026-09-22
+
+* Updated okfit CLI — validate, init, context, verify, sync, lint, graph, stale
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Engine
+
 ## 2026-09-20
 
 * Updated MCP
