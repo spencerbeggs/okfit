@@ -15,6 +15,7 @@ export { runContext } from "./context/run.js";
 export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
+	DocumentPathError,
 	InitOverwriteError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
@@ -25,6 +26,8 @@ export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
+export type { DocumentInput } from "./overlay/documents.js";
+export { provideDocuments, resolveDocumentPath } from "./overlay/documents.js";
 export type { OverlayDocument, OverlayDocumentsShape } from "./overlay/layer.js";
 export { OverlayDocuments, layerOverlayFileSystem, makeOverlayFileSystem } from "./overlay/layer.js";
 export { OkfitPlatform } from "./platform.js";
