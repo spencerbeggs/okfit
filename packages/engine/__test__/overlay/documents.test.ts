@@ -85,4 +85,54 @@ describe("provideDocuments", () => {
 			assert.strictEqual(error.path, "./a.md");
 		}).pipe(Effect.provide(platform)),
 	);
+
+	it.effect("rejects a document under a directory that does not exist, before running the program", () =>
+		Effect.gen(function* () {
+			let ran = false;
+			const program = Effect.sync(() => {
+				ran = true;
+			});
+			const error = yield* Effect.flip(
+				program.pipe(provideDocuments(ROOT, [{ path: "newdir/x.md", text: moduleConcept("X") }])),
+			);
+			assert.instanceOf(error, DocumentPathError);
+			assert.strictEqual(error.reason, "no-directory");
+			assert.strictEqual(
+				error.message,
+				'document path "newdir/x.md" names a directory that does not exist in the bundle',
+			);
+			assert.isFalse(ran);
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect(
+		"rejects a doubled bundle prefix (okf/a.md under an okf root) as no-directory, echoing the input path",
+		() =>
+			Effect.gen(function* () {
+				const error = yield* Effect.flip(
+					Effect.void.pipe(provideDocuments(ROOT, [{ path: "okf/a.md", text: moduleConcept("A") }])),
+				);
+				assert.strictEqual(error.reason, "no-directory");
+				assert.strictEqual(error.path, "okf/a.md");
+			}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("rejects a document whose parent path exists but is a file, not a directory", () =>
+		Effect.gen(function* () {
+			const error = yield* Effect.flip(
+				Effect.void.pipe(provideDocuments(ROOT, [{ path: "a.md/x.md", text: moduleConcept("X") }])),
+			);
+			assert.strictEqual(error.reason, "no-directory");
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("accepts and walks a new file under an existing directory (positive control)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT }).pipe(
+				provideDocuments(ROOT, [{ path: "c.md", text: moduleConcept("C") }]),
+			);
+			assert.include(bundle.files, "c.md");
+			assert.include(sourceOf(bundle, "c.md") ?? "", "# C");
+		}).pipe(Effect.provide(platform)),
+	);
 });

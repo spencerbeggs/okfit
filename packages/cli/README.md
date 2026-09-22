@@ -71,8 +71,9 @@ keep both tiers.
 
 `--document <bundle-path>` validates one unsaved document: its text is
 read from stdin and stands in for that file (bundle-relative, posix, a
-`.md` path; a file not yet written is walked like any other), and nothing
-is written. A path that is absolute, escapes the bundle, or is not `.md`,
+`.md` path; a file not yet written under an existing directory is walked
+like any other), and nothing is written. A path that is absolute, escapes
+the bundle, is not `.md`, or sits under a directory that does not exist,
 and a terminal stdin, are usage errors (exit `64`). The MCP
 `validate_bundle` tool's `documents` input is the same overlay.
 

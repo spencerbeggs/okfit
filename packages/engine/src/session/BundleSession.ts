@@ -79,6 +79,10 @@ export type BundleSessionServices = FileSystem.FileSystem | Path.Path | Git | Gi
 export interface BundleSessionShape {
 	/** Absolute, resolved bundle root. */
 	readonly root: string;
+	/**
+	 * Shadow `path` with an editor buffer. A document whose parent directory does
+	 * not exist on disk is not walked until that directory exists.
+	 */
 	readonly open: (path: string, text: string, version?: number) => Effect.Effect<void>;
 	readonly change: (path: string, text: string, version?: number) => Effect.Effect<void>;
 	readonly close: (path: string) => Effect.Effect<void>;

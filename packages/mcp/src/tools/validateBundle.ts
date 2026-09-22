@@ -14,7 +14,7 @@ import { ValidateBundleParams as Params } from "../schema/tools.js";
 import { MCP_VERSION } from "../version.js";
 
 const DESCRIPTION =
-	"Runs the same checks as `okfit validate --format json` and returns that report unchanged: each diagnostic's file, code, severity, message and range, the summary counts and the CLI's exit code. Call it after editing any concept file. Optional documents: [{ path, text }] (bundle-relative, e.g. metrics/churn.md) validates unsaved text in place of disk, new files included; nothing is written.";
+	"Returns the report `okfit validate --format json` prints, unchanged: each diagnostic's file, code, severity, message and range, the summary counts and the CLI's exit code. Call it after editing any concept file. Optional documents: [{ path, text }] (bundle-relative, e.g. metrics/churn.md) stand in for disk, a file not yet written under an existing directory included; nothing is written.";
 
 /**
  * `dependencies` mirrors the other tools' (Task B1's Deviation 1):

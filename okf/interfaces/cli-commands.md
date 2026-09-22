@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T19:51:06Z
-  body_sha256: 168529f0c9dc5be24f3e963bb907702cf18a2a9ee7adaa706ede06e8b53fece6
+  at: 2026-09-22T20:14:00Z
+  body_sha256: 20a7ef57f14697d04a0ebff44beb26f9d2bcc60c28aeb6e20dfd3c48445c56f8
 tags:
   - architecture
 ---
@@ -48,8 +48,9 @@ real drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real
 
 `--document <bundle-path>` validates one unsaved document: its text is
 read from stdin and stands in for that file (bundle-relative, posix, a
-`.md` path; a file not yet written is walked like any other), and nothing
-is written. A path that is absolute, escapes the bundle, or is not `.md`,
+`.md` path; a file not yet written under an existing directory is walked
+like any other), and nothing is written. A path that is absolute, escapes
+the bundle, is not `.md`, or sits under a directory that does not exist,
 and a terminal stdin, are usage errors (exit `64`). The MCP
 `validate_bundle` tool's `documents` input is the same overlay.
 

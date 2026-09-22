@@ -40,8 +40,12 @@ export const resolveDocumentPath = (
 /**
  * Run `self` with `documents` shadowing the ambient `FileSystem` under `root`
  * (spec 4.5). Every path is validated before `self` starts; the first bad one
- * fails `DocumentPathError` and `self` never runs. An empty list runs `self`
- * unchanged. The overlay is private to this call.
+ * fails `DocumentPathError` and `self` never runs. Beyond `resolveDocumentPath`'s
+ * lexical rules, each document's parent directory must exist on the underlying
+ * `FileSystem` (`no-directory`): the bundle walk lists one existing directory at a
+ * time, so a draft under a missing directory would otherwise never be read while
+ * validation silently checked disk. An empty list runs `self` unchanged. The
+ * overlay is private to this call.
  *
  * @public
  */
@@ -54,6 +58,7 @@ export const provideDocuments =
 			? self
 			: Effect.gen(function* () {
 					const path = yield* Path.Path;
+					const underlying = yield* FileSystem.FileSystem;
 					const overlay = OverlayDocuments.make();
 					const seen = new Set<string>();
 					for (const document of documents) {
@@ -63,9 +68,21 @@ export const provideDocuments =
 							return yield* new DocumentPathError({ path: document.path, reason: "duplicate" });
 						}
 						seen.add(resolved.success);
+						const parent = path.dirname(resolved.success);
+						// A parent that is absent, not a directory, or unreadable is one the walk
+						// cannot enter either; every probe failure counts as "no directory", so the
+						// combinator's error channel stays DocumentPathError only.
+						const isDirectory = yield* underlying.exists(parent).pipe(
+							Effect.flatMap((exists) =>
+								exists
+									? Effect.map(underlying.stat(parent), (info) => info.type === "Directory")
+									: Effect.succeed(false),
+							),
+							Effect.orElseSucceed(() => false),
+						);
+						if (!isDirectory) return yield* new DocumentPathError({ path: document.path, reason: "no-directory" });
 						yield* overlay.open(resolved.success, document.text);
 					}
-					const underlying = yield* FileSystem.FileSystem;
 					return yield* self.pipe(
 						Effect.provideService(FileSystem.FileSystem, makeOverlayFileSystem(underlying, overlay)),
 					);
