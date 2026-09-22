@@ -26,14 +26,26 @@ export const groupByFile = (diagnostics: ReadonlyArray<RenderedDiagnostic>): Dia
 const fingerprint = (list: ReadonlyArray<RenderedDiagnostic>): string =>
 	list
 		.map((d) =>
-			JSON.stringify([d.source, d.code, d.severity, d.message, d.range?.offset ?? null, d.range?.length ?? null]),
+			JSON.stringify([
+				d.source,
+				d.code,
+				d.severity,
+				d.message,
+				d.range?.offset ?? null,
+				d.range?.length ?? null,
+				d.range?.line ?? null,
+				d.range?.character ?? null,
+			]),
 		)
 		.join("\n");
 
 /**
  * The files whose diagnostic list differs between `previous` and `next`,
  * structurally and in order, mapped to their `next` list; a file present only in
- * `previous` maps to `[]` (its set became empty).
+ * `previous` maps to `[]` (its set became empty). Each diagnostic compares by
+ * source, code, severity, message and its range's offset, length, line and
+ * character: across an edit the text changes, so an unchanged offset can still
+ * sit on a different line.
  *
  * @public
  */

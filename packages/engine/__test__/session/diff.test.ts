@@ -41,4 +41,13 @@ describe("diffDiagnostics", () => {
 		const changed = diffDiagnostics(previous, groupByFile([d("a.md", "x", 6), d("c.md", "z")]));
 		assert.deepStrictEqual([...changed.keys()].toSorted(), ["a.md", "c.md"]);
 	});
+
+	it("the same offset and length on a different line is a change", () => {
+		const moved: RenderedDiagnostic = {
+			...d("a.md", "x"),
+			range: DiagnosticRange.make({ offset: 5, length: 1, line: 1, character: 0 }),
+		};
+		const changed = diffDiagnostics(groupByFile([d("a.md", "x", 5)]), groupByFile([moved]));
+		assert.deepStrictEqual([...changed.keys()], ["a.md"]);
+	});
 });
