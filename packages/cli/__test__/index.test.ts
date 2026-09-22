@@ -8,6 +8,7 @@ import * as Barrel from "../src/index.js";
 // longer re-exported here; import it from `@okfit/engine` directly.
 const VALUES = [
 	"CLI_VERSION",
+	"DocumentStdinIsTerminalError",
 	"human",
 	"humanContext",
 	"humanVerify",

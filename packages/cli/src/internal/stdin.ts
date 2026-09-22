@@ -5,7 +5,7 @@ import { Effect, Runtime, Schema, Stdio, Stream } from "effect";
  * `--document` reads the draft from stdin, and stdin is a terminal: reading would
  * block forever waiting for input nobody is piping. Exit 64: a usage error.
  *
- * @internal
+ * @public
  */
 export class DocumentStdinIsTerminalError extends Schema.TaggedError<DocumentStdinIsTerminalError>()(
 	"DocumentStdinIsTerminalError",
