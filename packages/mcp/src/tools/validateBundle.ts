@@ -2,11 +2,11 @@ import { Git } from "@effected/git";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import type { Distribution } from "@okfit/engine";
-import { JsonEnvelope, collect, forDiagnostics, json, run } from "@okfit/engine";
+import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provideDocuments, run } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Crypto, Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { BundleNotFound, McpToolError, composeRemediatedMessage } from "../errors.js";
+import { BundleNotFound, InvalidArgument, McpToolError, composeRemediatedMessage } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";
 import type { ValidateBundleParams } from "../schema/tools.js";
@@ -14,7 +14,7 @@ import { ValidateBundleParams as Params } from "../schema/tools.js";
 import { MCP_VERSION } from "../version.js";
 
 const DESCRIPTION =
-	"Runs the same conformance and lint checks as `okfit validate --format json` and returns that report unchanged: every diagnostic's file, code, severity, message and range, plus the summary counts and the exit code the CLI would use. Call it after writing or editing any concept file, before moving on to the next one.";
+	"Runs the same checks as `okfit validate --format json` and returns that report unchanged: each diagnostic's file, code, severity, message and range, the summary counts and the CLI's exit code. Call it after editing any concept file. Optional documents: [{ path, text }] (bundle-relative, e.g. metrics/churn.md) validates unsaved text in place of disk, new files included; nothing is written.";
 
 /**
  * `dependencies` mirrors the other tools' (Task B1's Deviation 1):
@@ -77,7 +77,18 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 			profile: resolved.profile,
 			now,
 		}).pipe(
+			provideDocuments(resolved.bundleRoot, params.documents ?? []),
 			Effect.mapError((cause) => {
+				if (cause instanceof DocumentPathError) {
+					const remediation = {
+						hint: "Give each document path relative to the bundle root, in posix form, naming a .md file once (for example metrics/churn.md).",
+					};
+					return new InvalidArgument({
+						argument: "documents",
+						message: composeRemediatedMessage(cause.message, remediation),
+						remediation,
+					});
+				}
 				const remediation = {
 					hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
 				};

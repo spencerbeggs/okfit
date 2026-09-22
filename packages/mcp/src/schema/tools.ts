@@ -95,7 +95,15 @@ export const StaleReportSuccess = Schema.Struct({
 /** @public */
 export type StaleReportSuccess = typeof StaleReportSuccess.Type;
 
-/** `validate_bundle`'s arguments: the same shape and decode path as stale_report. @public */
-export const ValidateBundleParams = Schema.Struct({ now: Schema.optionalKey(Schema.String) });
+/** One unsaved document for `validate_bundle`: bundle-relative posix `path`, full `text`. @public */
+export const ValidateBundleDocument = Schema.Struct({ path: Schema.String, text: Schema.String });
+/** @public */
+export type ValidateBundleDocument = typeof ValidateBundleDocument.Type;
+
+/** `validate_bundle`'s arguments: stale_report's `now`, plus optional unsaved `documents` (spec 4.5). @public */
+export const ValidateBundleParams = Schema.Struct({
+	now: Schema.optionalKey(Schema.String),
+	documents: Schema.optionalKey(Schema.Array(ValidateBundleDocument)),
+});
 /** @public */
 export type ValidateBundleParams = typeof ValidateBundleParams.Type;

@@ -41,7 +41,7 @@ or `.config/okfit.toml`.
 | `get_concept` | One concept by id: its whole decoded frontmatter, the file's raw markdown text, its bundle-relative path, and every outgoing link. |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with its node kind and, for a concept target, its full summary. |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and how many whole days past it, as of now or an explicit instant. |
-| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged. Its `engine_version` and `okf_version` match the CLI's over one bundle; `okfit_version` is this package's own version and `producer` is `@okfit/mcp`. |
+| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged. Its `engine_version` and `okf_version` match the CLI's over one bundle; `okfit_version` is this package's own version and `producer` is `@okfit/mcp`. Optional `documents: [{ path, text }]` validates unsaved text (bundle-relative paths) without writing it. |
 
 ## Resources
 
