@@ -1,0 +1,6 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig.json",
+	"compilerOptions": { "rootDir": ".", "types": ["node", "vscode"] },
+	"extends": "@savvy-web/bundler/tsconfig/ecma.json",
+	"include": ["src/**/*.ts", "server/**/*.ts", "__test__/**/*.ts", "tsdown.config.ts"]
+}
