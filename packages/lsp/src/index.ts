@@ -9,6 +9,7 @@ export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js
 export { toLspLocation, toLspRange } from "./convert/range.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
+export { registerCodeActions } from "./features/actions.js";
 export type { BundleChangedParams, BundleSummary, ConceptSummary, ConceptsResult } from "./features/concepts.js";
 export {
 	BUNDLE_CHANGED_NOTIFICATION,
@@ -20,7 +21,10 @@ export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } fr
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
+export type { EditFailure } from "./features/edits.js";
+export { describeFailure, humanActor, statusTextEdits, verifiedTextEdits } from "./features/edits.js";
 export { registerHover } from "./features/hover.js";
+export { OKFIT_CODE_ACTION_KINDS, OKFIT_COMMANDS } from "./features/names.js";
 export { registerNavigation } from "./features/navigation.js";
 export { registerWorkspaceSymbols } from "./features/symbols.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
@@ -28,6 +32,9 @@ export { LspTransport } from "./protocol/LspTransport.js";
 export type { ReferenceTransportOptions } from "./protocol/reference.js";
 export { makeReferenceTransport } from "./protocol/reference.js";
 export type {
+	CodeAction,
+	CodeActionContext,
+	CodeActionParams,
 	DefinitionParams,
 	DidChangeTextDocumentParams,
 	DidChangeWatchedFilesParams,
@@ -48,10 +55,12 @@ export type {
 	Range,
 	ReferenceParams,
 	SymbolInformation,
+	TextEdit,
+	WorkspaceEdit,
 	WorkspaceFolder,
 	WorkspaceSymbolParams,
 } from "./protocol/types.js";
-export { SYMBOL_KIND_OBJECT } from "./protocol/types.js";
+export { CODE_ACTION_KIND_QUICKFIX, SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
 export type {

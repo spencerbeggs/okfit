@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import type { Duration, Fiber, Scope } from "effect";
+import type { Duration, Fiber, Layer, Scope } from "effect";
 import { Effect, Logger, Queue } from "effect";
 import type { GenericRequestHandler, MessageConnection } from "vscode-jsonrpc/node";
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from "vscode-jsonrpc/node";
@@ -9,6 +9,7 @@ import { pathToUri } from "../../src/convert/uri.js";
 import type { ListenOutcome, LspTransportShape } from "../../src/protocol/LspTransport.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import type { InitializeResult } from "../../src/protocol/types.js";
+import type { ServeServices } from "../../src/server.js";
 import { serve } from "../../src/server.js";
 import { copyFixtureProject } from "./fixture.js";
 import { testPlatform } from "./platform.js";
@@ -189,16 +190,24 @@ export interface ServeHarness extends Harness {
 export interface ServeHarnessOptions {
 	/** The scheduler's debounce; defaults to 10 ms. A test asserting a count of publishes needs one wide enough to hold its burst under load. */
 	readonly delay?: Duration.Input;
+	/**
+	 * The platform layer `serve` runs under; defaults to `testPlatform()`.
+	 * `serve` is forked and fully provided inside this constructor, so a
+	 * `Effect.provide` wrapped around the returned harness's own effects
+	 * never reaches it -- a test needing a different `Git` double (a real
+	 * identity, say) passes its own layer here instead.
+	 */
+	readonly platform?: Layer.Layer<ServeServices>;
 }
 
-/** Copies the fixture, builds a transport pair, and forks `serve` with `delay` (10 ms by default) under `testPlatform()`. */
+/** Copies the fixture, builds a transport pair, and forks `serve` with `delay` (10 ms by default) under `options.platform` (`testPlatform()` by default). */
 export const makeServeHarness = (options: ServeHarnessOptions = {}): Effect.Effect<ServeHarness, never, Scope.Scope> =>
 	Effect.gen(function* () {
 		const { root } = yield* copyFixtureProject();
 		const harness = yield* makeHarness;
 		const listening = yield* Effect.forkScoped(
 			serve(harness.transport, { delay: options.delay ?? "10 millis" }).pipe(
-				Effect.provide(testPlatform()),
+				Effect.provide(options.platform ?? testPlatform()),
 				Effect.provide(silentLogger),
 			),
 		);

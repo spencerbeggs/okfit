@@ -170,6 +170,21 @@ src/
                        okfit/concepts request and okfit/bundleChanged
                        notification, okfit's own protocol extensions for an
                        editor's concept explorer (see Custom methods below)
+    names.ts        -- OKFIT_COMMANDS, OKFIT_CODE_ACTION_KINDS: the command
+                       ids and code action kinds server.ts advertises in
+                       INITIALIZE_RESULT.capabilities, shared with the
+                       features that implement them and copied into the VS
+                       Code extension
+    edits.ts        -- EditFailure, statusTextEdits, verifiedTextEdits,
+                       humanActor, describeFailure: the edit machinery
+                       actions.ts (and the forthcoming executeCommand
+                       feature) share -- TextEdits for a concept's status or
+                       verified entry, and human-actor resolution; also
+                       conceptSnapshot (@internal, not in the barrel), the
+                       registry -> {concept, config, projectRoot} lookup
+                       both draw on (see Code actions below)
+    actions.ts      -- registerCodeActions(transport, registry):
+                       textDocument/codeAction (see Code actions below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -334,6 +349,65 @@ implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
   for a completed revalidate (regardless of whether anything was actually
   republished) and `"dropped"` for a disposed session (a config-change
   rebuild, or the last workspace folder resolving to that root going away).
+
+## Code actions
+
+`registerCodeActions` (`src/features/actions.ts`) wires `textDocument/
+codeAction` onto the transport, answering from the requested file's owning
+session's last-loaded concept -- a missing session, an unloaded bundle, a
+non-`file:` URI, or a path outside every bundle root all answer `[]`, never
+a hang, same posture as hover and navigation. Every edit it offers is
+computed by `src/features/edits.ts`, the module the forthcoming
+`executeCommand` feature (task 4) shares:
+
+- `conceptSnapshot(registry, path)` (`@internal`, not in the barrel) mirrors
+  `hover.ts`'s `snapshotFor`, but answers `{ concept, config, projectRoot }`
+  for the concept at `path` rather than hover's bundle/graph pair;
+  `projectRoot` is `handle.folder` -- the workspace folder whose config
+  resolution built the owning session -- never `bundleRoot` (V-7's
+  `generatedBy` cwd).
+- `statusTextEdits(registry, path, status)` and `verifiedTextEdits(registry,
+  path, now)` wrap `@okfit/engine`'s `FrontmatterEdits.status`/`.verified`:
+  each `MarkdownEdit`'s whole-file offset into `concept.document.source` is
+  converted to an LSP range with `DiagnosticRange.fromOffset` then
+  `toLspRange`, against that same `source` -- no BOM adjustment, because a
+  file whose bytes open with a BOM never decodes as a concept at all
+  (`frontmatter-missing`, since core never strips one before scanning for
+  the opening fence): `document.source` can therefore never itself carry a
+  leading BOM, and every offset `FrontmatterEdits` returns already lines up
+  with it directly (`__test__/features/actions.test.ts`'s BOM case proves
+  this rather than a BOM-adjusted offset). `verifiedTextEdits` fails
+  `DraftCannotBeVerified` for a draft concept and `AlreadyVerified` when the
+  resolved actor already carries a `verified` entry; both wrap
+  `Derivation.generatedBy({ writer: "human", cwd: projectRoot, config })`
+  and fail `ActorUnresolved` when it does.
+- `humanActor(registry, path)` resolves the same actor
+  `verifiedTextEdits` would, answering `Option.none()` instead of failing --
+  a code action's title needs to know whether a human actor resolves at all
+  before it can decide whether to offer `Mark verified`. A resolution
+  failure is logged once per project root, at `logDebug`, never to stdout
+  (a module-level `Set` tracks which roots have already logged).
+- `describeFailure(failure)` renders any `EditFailure` as a short message,
+  for a command handler (task 4) surfacing why an edit could not be
+  computed; `registerCodeActions` itself never surfaces one -- a failed edit
+  just means that action is omitted (`Effect.option` around every
+  `statusTextEdits`/`verifiedTextEdits` call).
+
+`registerCodeActions` offers one `Set status: <status>` action (kind
+`okfit.status`) per `Status` literal the concept is not already in, in
+`Status`'s own literal order (`draft`, `stable`, `deprecated` --
+`Derive.status`'s `"stable"` default when the frontmatter key is absent
+counts as the concept's status here), and one `Mark verified by <actor>`
+action (kind `okfit.verify`) when `humanActor` resolves and
+`verifiedTextEdits` succeeds. When `params.context.diagnostics` carries a
+`status-missing` diagnostic (`code === "status-missing"` and, when the
+diagnostic carries `data`, `data.source === "core.lint"` --
+`convert/diagnostic.ts`'s own shape), every status action is promoted to
+kind `quickfix`, carries that diagnostic in its own `diagnostics`, and the
+`draft` action alone is `isPreferred`. `registerCodeActions` requires `Git`
+in its own `R` (`Derivation.generatedBy`'s requirement); it captures its
+context once, the same pattern `session/registry.ts` uses, so the handler
+passed to `transport.onRequest` itself needs none.
 
 ## The transport seam
 

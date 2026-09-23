@@ -37,7 +37,9 @@
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
 		"@effected/git": "catalog:effected",
+		"@effected/markdown": "catalog:effected",
 		"@effected/xdg": "catalog:effected",
+		"@effected/yaml": "catalog:effected",
 		"@okfit/core": "workspace:*",
 		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
