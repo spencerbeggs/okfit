@@ -1,6 +1,8 @@
+import { PassThrough } from "node:stream";
 import { assert, describe, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, References } from "effect";
 import { LspError } from "../../src/errors.js";
+import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import { makeHarness, notify, request } from "../utils/harness.js";
 
 describe("ReferenceTransport", () => {
@@ -88,6 +90,67 @@ describe("ReferenceTransport", () => {
 			);
 			assert.deepStrictEqual(outcome, { reason: "closed", shutdownReceived: false });
 		}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"a client that writes initialize, initialized, shutdown and exit as one chunk and ends its output in the same tick still gets every response, and listen resolves exit/shutdownReceived: true (Task 8 drain-before-closed rule)",
+		() =>
+			Effect.gen(function* () {
+				const clientToServer = new PassThrough();
+				const serverToClient = new PassThrough();
+				let serverOut = "";
+				serverToClient.on("data", (chunk: Buffer) => {
+					serverOut += chunk.toString("utf8");
+				});
+
+				const transport = yield* makeReferenceTransport({
+					streams: { input: clientToServer, output: serverToClient },
+				});
+				let initializeCalled = false;
+				let shutdownCalled = false;
+				yield* transport.onInitialize(() => {
+					initializeCalled = true;
+					return Effect.succeed({ capabilities: {} });
+				});
+				yield* transport.onShutdown(() => {
+					shutdownCalled = true;
+					return Effect.void;
+				});
+
+				const listening = yield* Effect.forkChild(transport.listen);
+
+				const frame = (message: unknown): string => {
+					const body = JSON.stringify(message);
+					return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+				};
+				const batch = [
+					frame({
+						jsonrpc: "2.0",
+						id: 1,
+						method: "initialize",
+						params: { processId: null, rootUri: null, capabilities: {} },
+					}),
+					frame({ jsonrpc: "2.0", method: "initialized", params: {} }),
+					frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }),
+					frame({ jsonrpc: "2.0", method: "exit", params: null }),
+				].join("");
+				// Write everything and end the stream in the SAME tick -- this is
+				// the exact shape @effected/commands' Run.collect + a single-chunk
+				// stdin Stream produces for packages/plugin's e2e test.
+				yield* Effect.sync(() => clientToServer.end(batch));
+
+				const outcome = yield* Fiber.join(listening).pipe(
+					Effect.timeoutOrElse({
+						duration: "2 seconds",
+						orElse: () => Effect.fail("listen never resolved" as const),
+					}),
+				);
+
+				assert.isTrue(initializeCalled, "onInitialize should have been dispatched");
+				assert.isTrue(shutdownCalled, "onShutdown should have been dispatched");
+				assert.include(serverOut, '"id":1', "the initialize response should have been written");
+				assert.deepStrictEqual(outcome, { reason: "exit", shutdownReceived: true });
+			}).pipe(Effect.scoped),
 	);
 
 	it.effect("a handler registered after listen has started still answers (registration is not order-sensitive)", () =>

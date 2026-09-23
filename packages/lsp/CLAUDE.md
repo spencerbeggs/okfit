@@ -115,6 +115,29 @@ calls `process.exit` after any `onExit` handler and on raw-stream
 handling and that exit behaviour; `main.ts` passes `process.stdin` and
 `process.stdout` as `streams`.
 
+**Drain rule for `"closed"`.** The raw stream's `"end"`/`"close"` fires as
+soon as Node has delivered every byte, but `vscode-jsonrpc` decodes and
+dispatches each buffered frame asynchronously (its reader's capacity-1
+semaphore, and its connection's own message queue -- unlimited-parallelism
+by default, so messages pipeline rather than wait on one another's
+response writes) -- all of it on the `setImmediate` macrotask queue, which
+always runs strictly after the same-tick stream event. `reference.ts`
+therefore never resolves `"closed"` straight from that raw event: it polls
+on `setImmediate` until dispatch activity (tracked through `answer`/
+`report`, the two chokepoints every registration goes through) and any
+in-flight response write (`streams.output.write`, wrapped for exactly this)
+have both been quiet for `DRAIN_IDLE_TICKS` consecutive ticks -- self-scaling
+to an arbitrarily long batch, since any further dispatch resets the idle
+counter. A client that writes a whole conversation as one chunk and closes
+its output in the same tick -- exactly what `packages/plugin`'s e2e test
+and a scripted client do -- still gets every response it's owed, and if
+that batch's tail was `exit`, `watchDog.exit`'s `finish("exit")` (called
+synchronously, with no drain wait of its own -- see the comment above
+`pollDrain` in `reference.ts` for why that asymmetry is deliberate) always
+wins the single-shot outcome before the drain loop could otherwise report
+`"closed"`. Covered by `__test__/protocol/reference.test.ts`'s "one chunk,
+same-tick close" case.
+
 A future Effect-native transport is done when
 `__test__/protocol/reference.test.ts` passes unchanged against it.
 

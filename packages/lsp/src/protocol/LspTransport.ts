@@ -9,7 +9,15 @@ import type { InitializeParams, InitializeResult } from "./types.js";
  * @public
  */
 export interface ListenOutcome {
-	/** "exit": the client sent the `exit` notification. "closed": the input stream ended first. */
+	/**
+	 * "exit": the client sent the `exit` notification. "closed": the input
+	 * stream ended first, and every message already buffered on it (if
+	 * any) was still fully decoded, dispatched, and its handler settled
+	 * before this was reported -- a client that batches a whole
+	 * conversation into one write and closes its output in the same tick
+	 * never silently loses it. If that batch's tail was `exit`, the
+	 * outcome is always `"exit"`, never `"closed"`.
+	 */
 	readonly reason: "exit" | "closed";
 	/** Whether a `shutdown` request arrived before the connection ended. */
 	readonly shutdownReceived: boolean;
