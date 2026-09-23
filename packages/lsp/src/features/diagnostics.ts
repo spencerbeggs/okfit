@@ -59,7 +59,7 @@ export interface DiagnosticsPublisher {
 }
 
 /**
- * Builds a {@link DiagnosticsPublisher} a `SessionRegistry` is constructed
+ * Builds a `DiagnosticsPublisher` a `SessionRegistry` is constructed
  * with (`publish` as `onRevalidate`, `clear` composed into `onDispose`). Per
  * session root, remembers the URIs last published non-empty -- added when a
  * publish's diagnostics are non-empty, dropped when they are `[]` -- so

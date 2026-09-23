@@ -6,7 +6,7 @@
  */
 import { Effect, Ref } from "effect";
 
-/** An open document's overlay text and version, as last recorded by `record`. */
+/** An open document's overlay text and version, as last recorded by `record`. @public */
 export interface OpenDocument {
 	readonly text: string;
 	readonly version: number;

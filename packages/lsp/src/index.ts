@@ -9,7 +9,7 @@ export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js
 export { toLspLocation, toLspRange } from "./convert/range.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
-export type { DiagnosticsFeature, RevalidatePublisher } from "./features/diagnostics.js";
+export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } from "./features/diagnostics.js";
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
@@ -46,6 +46,8 @@ export type {
 export { SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
+export type { DocumentMemoryShape, OpenDocument } from "./session/documents.js";
+export { makeDocumentMemory } from "./session/documents.js";
 export type {
 	SessionForOptions,
 	SessionHandle,
