@@ -9,6 +9,10 @@
 * Added The language server runs the reference vscode-languageserver library behind an Effect transport seam
 * Updated Workspace
 * Added The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
+* Updated Claude Code plugin hooks contract
+* Updated Core
+* Updated Engine
+* Updated Profiles
 
 ## 2026-09-22
 
