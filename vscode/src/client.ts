@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
+import { CONFIG_GLOB } from "./config-glob.js";
 import type { ServerLaunch } from "./resolve-server.js";
 import { resolveServer } from "./resolve-server.js";
 
@@ -11,8 +12,6 @@ import { resolveServer } from "./resolve-server.js";
 // package import, not a relative one, so the repo's "relative imports use
 // .js extensions" rule does not apply here (verified against
 // node_modules/.pnpm/vscode-languageclient@10.1.1's package.json).
-
-const CONFIG_GLOB = "**/{.okfit.toml,okfit.toml,.config/okfit.toml}";
 
 const serverOptions = (launch: ServerLaunch): ServerOptions =>
 	launch.kind === "command"

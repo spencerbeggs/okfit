@@ -15,6 +15,9 @@ src/
                            built with reactive-vscode
   client.ts             -- startClient: resolves and starts the language
                             client over stdio
+  config-glob.ts          -- CONFIG_GLOB: the okfit config-file glob shared
+                            by client.ts's watcher and package.json's
+                            activationEvents (pinned together by a test)
   resolve-server.ts      -- resolveServer: the pure, three-step server
                             resolution (setting, workspace, bundled)
   config.ts              -- the reactive-vscode defineConfiguration proxy

@@ -73,13 +73,17 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	useDisposable(statusItem);
 	statusItem.command = { command: "okfit.validateBundle", title: "Validate" };
 
+	const clearStatus = () => {
+		statusItem.text = "";
+		statusItem.severity = vscode.LanguageStatusSeverity.Information;
+		statusItem.selector = NO_BUNDLE_SELECTOR;
+	};
+
 	const updateStatus = () => {
 		const documentUri = vscode.window.activeTextEditor?.document.uri.toString();
 		const result = provider?.current;
 		if (documentUri === undefined || result === undefined) {
-			statusItem.text = "";
-			statusItem.severity = vscode.LanguageStatusSeverity.Information;
-			statusItem.selector = NO_BUNDLE_SELECTOR;
+			clearStatus();
 			return;
 		}
 		const diagnostics = vscode.languages
@@ -87,9 +91,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 			.flatMap(([uri, diags]) => diags.map((d) => ({ uri: uri.toString(), severity: d.severity })));
 		const status = statusFor({ documentUri, result, diagnostics });
 		if (status === undefined) {
-			statusItem.text = "";
-			statusItem.severity = vscode.LanguageStatusSeverity.Information;
-			statusItem.selector = NO_BUNDLE_SELECTOR;
+			clearStatus();
 			return;
 		}
 		statusItem.text = status.text;

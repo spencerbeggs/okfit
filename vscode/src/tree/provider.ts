@@ -78,9 +78,13 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 		this.changed.fire(undefined);
 	}
 
+	// `vscode.ProviderResult`'s array member is mutable (`T[]`), while `roots`
+	// and a node's `children` are `ReadonlyArray<TreeNode>` (model.ts) -- VS
+	// Code only ever reads this array to render the view, so a cast avoids
+	// copying the array on every call instead of spreading into a fresh one.
 	getChildren(node?: TreeNode): Array<TreeNode> {
-		if (node === undefined) return [...this.roots];
-		return node.kind === "concept" ? [] : [...node.children];
+		if (node === undefined) return this.roots as Array<TreeNode>;
+		return node.kind === "concept" ? [] : (node.children as Array<TreeNode>);
 	}
 
 	getTreeItem(node: TreeNode): vscode.TreeItem {
