@@ -15,7 +15,7 @@ import { Derive, DiagnosticRange, Timestamp } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
-import { Effect, Option, Result, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { toLspRange } from "../convert/range.js";
 import { messageOf } from "../internal/messageOf.js";
 import type { TextEdit } from "../protocol/types.js";
@@ -152,20 +152,24 @@ export const humanActor = (
 		const snapshot = yield* conceptSnapshot(registry, path);
 		if (Option.isNone(snapshot)) return Option.none();
 		const { config, projectRoot } = snapshot.value;
-		// `Effect.result` converts only `generatedBy`'s typed `GeneratedByError`
-		// channel to a `Result`; a defect (a git subprocess crash) or an
-		// interrupt (a shutdown mid-resolution) still propagates rather than
-		// being read as "no actor" -- `Effect.catchCause` would have swallowed
-		// both.
-		const resolved = yield* Effect.result(Derivation.generatedBy({ writer: "human", cwd: projectRoot, config }));
-		if (Result.isSuccess(resolved)) return Option.some(resolved.success);
-		if (!loggedActorFailures.has(projectRoot)) {
-			loggedActorFailures.add(projectRoot);
-			yield* Effect.logDebug(
-				`okfit-lsp: could not resolve a human actor for ${projectRoot}: ${messageOf(resolved.failure)}`,
-			);
-		}
-		return Option.none<string>();
+		return yield* Derivation.generatedBy({ writer: "human", cwd: projectRoot, config }).pipe(
+			Effect.map((actor): Option.Option<string> => Option.some(actor)),
+			// `Effect.catch` recovers only `generatedBy`'s typed `GeneratedByError`
+			// channel; a defect (a git subprocess crash) or an interrupt (a
+			// shutdown mid-resolution) still propagates rather than being read as
+			// "no actor" -- `Effect.catchCause` would have swallowed both.
+			Effect.catch((error) =>
+				Effect.gen(function* () {
+					if (!loggedActorFailures.has(projectRoot)) {
+						loggedActorFailures.add(projectRoot);
+						yield* Effect.logDebug(
+							`okfit-lsp: could not resolve a human actor for ${projectRoot}: ${messageOf(error)}`,
+						);
+					}
+					return Option.none<string>();
+				}),
+			),
+		);
 	});
 
 /**

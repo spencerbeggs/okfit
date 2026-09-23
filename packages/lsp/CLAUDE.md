@@ -388,7 +388,7 @@ computed by `src/features/edits.ts`, the module `src/features/commands.ts`
   a code action's title needs to know whether a human actor resolves at all
   before it can decide whether to offer `Mark verified`. Only
   `generatedBy`'s typed `GeneratedByError` channel maps to `Option.none()`
-  (`Effect.result`, not `Effect.catchCause`): a defect (a git subprocess
+  (`Effect.catch`, not `Effect.catchCause`): a defect (a git subprocess
   crash) or an interrupt still propagates rather than being read as "no
   actor". A resolution failure is logged once per project root, at
   `logDebug`, never to stdout (a module-level `Set` tracks which roots have
