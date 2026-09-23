@@ -7,7 +7,14 @@ This project uses `@vitest-agent/plugin` for test discovery. Tests live here in
 
 ```text
 __test__/
-  manifest.test.ts    # Marketplace-manifest field and packaging assertions
+  assert-version.test.ts  # lib/assert-version.sh's tag-vs-package.json version check
+  manifest.test.ts        # Marketplace-manifest field and packaging assertions
+  next-candidate.test.ts  # nextCandidate's keep/try-next decision
+  resolve-server.test.ts  # resolveServer's candidate-list priority order
+  serial-queue.test.ts    # createSerialQueue's run/dispose serialization
+  status-model.test.ts    # statusFor's Language Status item text/detail/severity
+  status-picks.test.ts    # statusPicks and conceptUriFrom
+  tree-model.test.ts      # tree node shape helpers for the OKF Concepts view
 ```
 
 ## Rules

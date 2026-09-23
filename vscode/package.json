@@ -145,6 +145,11 @@
 				{
 					"command": "okfit.markVerified",
 					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "inline"
+				},
+				{
+					"command": "okfit.markVerified",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
 					"group": "okfit@1"
 				}
 			]

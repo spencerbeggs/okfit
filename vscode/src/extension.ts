@@ -222,8 +222,16 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	useDisposable({
 		dispose: () =>
 			void queue.run(async () => {
+				// Same staleness fix as `restart()` below: disable the palette
+				// and tree-menu entries before tearing the client down, and
+				// clear `client`/`watchers` right after `stopQuietly` so nothing
+				// left running after `dispose()` can observe a stopped client
+				// through `getClient()`.
+				await vscode.commands.executeCommand("setContext", "okfit.hasActions", false);
 				disposeTree();
 				await stopQuietly(client, watchers);
+				client = undefined;
+				watchers = [];
 			}),
 	});
 
@@ -238,8 +246,21 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	const restart = () => {
 		void queue
 			.run(async () => {
+				// `okfit.hasActions` and `client` used to go stale for the
+				// stop-then-start window: the palette and tree-menu entries
+				// stayed enabled and `getClient()` kept returning the stopped
+				// client, so an invocation during a restart surfaced a spurious
+				// transport error instead of a quiet no-op. Disable the actions
+				// context up front, and null out `client`/`watchers` right after
+				// `stopQuietly` -- before `start()` (which may itself fail and
+				// leave both unset) has a chance to run -- so every command
+				// registered in `commands.ts` sees "server not running" for the
+				// whole window, not just before this job started.
+				await vscode.commands.executeCommand("setContext", "okfit.hasActions", false);
 				disposeTree();
 				await stopQuietly(client, watchers);
+				client = undefined;
+				watchers = [];
 				await start();
 			})
 			.catch(() => undefined)

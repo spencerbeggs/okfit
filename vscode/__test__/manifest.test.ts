@@ -76,4 +76,18 @@ describe("extension manifest", () => {
 			expect(entry.when).toBe("viewItem == okfit.concept && okfit.hasActions");
 		}
 	});
+
+	it("gives okfit.setStatus and okfit.markVerified the same view/item/context group membership", () => {
+		const menus = (
+			manifest.contributes as {
+				menus: Record<string, Array<{ command: string; when?: string; group?: string }>>;
+			}
+		).menus;
+		const contextMenu = menus["view/item/context"] ?? [];
+		for (const group of ["inline", "okfit@1"]) {
+			for (const id of ["okfit.setStatus", "okfit.markVerified"]) {
+				expect(contextMenu.some((e) => e.command === id && e.group === group)).toBe(true);
+			}
+		}
+	});
 });
