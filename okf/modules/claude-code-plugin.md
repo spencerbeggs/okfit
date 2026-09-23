@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: 087606e4bb6955d012df5bce4b3e0615d273ffe4c09525448e147cdacb8a5ff3
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 70e9c09a37f13c5c63a3c681b743d1ddf1c105aa2008b6081d2393a68e682b26
 ---
 
 # Claude Code Plugin
@@ -45,8 +45,14 @@ fires on `Write|Edit`, **not** `PreToolUse`: `PreToolUse` fires before the
 edited file exists on disk, and `okfit validate` has nothing to read at
 that point, so a block from `PostToolUse` is a stop-and-fix signal, not a
 prevention (`plugins/claude-code/CLAUDE.md:81-82`; M-20, this is a
-deliberate, documented spec departure). As of LSP phase 4 (decision 8)
-the hook keeps exactly two jobs: it blocks on a `core.conformance`
+deliberate, documented spec departure — see [The validate hook fires
+PostToolUse, not
+PreToolUse](../decisions/plugin-posttooluse-not-pretooluse.md),
+deprecated and superseded by [The PostToolUse hook keeps only
+conformance blocking and the generated.by check, once the language
+server delivers lint and profile
+findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)).
+As of LSP phase 4 the hook keeps exactly two jobs: it blocks on a `core.conformance`
 diagnostic for the edited file, and it reads the written file to block a
 `Write` (warn an `Edit`) of a concept with no `generated.by` when the
 config sets `actors.agent`. It no longer emits `additionalContext` for

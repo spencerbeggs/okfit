@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: 9d6ef7090a51dbe894bfcaebf79e0fa9915575e6866bbf86398152e3c5f74e55
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 4f21e087eb024a5ad8d76887874a420e0012c836ab6f4dd42b80c8d996000e2a
 ---
 
 # LSP
@@ -96,14 +96,22 @@ seam](../decisions/lsp-reference-transport-behind-a-seam.md).
   `maxWait` ceiling (default 1 s, measured from the first `schedule` of
   an idle scheduler), so a steady stream of edits still publishes rather
   than debouncing forever.
-- The server registers no file watchers. When a client sends
-  `workspace/didChangeWatchedFiles`, a change schedules `full` on every
-  live session. A config discovery file rebuilds that folder's session
-  instead: the old session is disposed (its open document overlays
-  carried into the fresh one), a full revalidate is scheduled on the
-  rebuilt session, and every URI the dropped session last published
-  non-empty receives `[]` exactly once. `workspace/didChangeWorkspaceFolders`
-  removing a folder clears its session the same way.
+- The registry holds one session per resolved bundle root, shared and
+  reference-counted across every workspace folder that resolves to it:
+  two folders resolving to the same `okf/` share one session rather than
+  each building its own. The server registers no file watchers. When a
+  client sends `workspace/didChangeWatchedFiles`, a change schedules
+  `full` on every live session. A config discovery file rebuilds that
+  root's session instead, once, however many folders share it: the old
+  session is disposed (its open document overlays carried into the fresh
+  one, re-resolving every attached folder), a full revalidate is
+  scheduled on the rebuilt session, and every URI the dropped session
+  last published non-empty receives `[]` exactly once. A folder removal
+  disposes its root's session only when it was the last folder attached
+  to that root; `workspace/didChangeWorkspaceFolders` removing a folder
+  that shares a root with another live folder clears nothing. `rebuild`
+  is keyed by bundle root, not folder, and a lookup for a folder whose
+  root is mid-build waits on that build, never on a lock.
 - A folder whose config fails to load logs one warning per distinct
   error and is retried on `didOpen`, `didSave` and any watched-file
   change under it, so fixing the config and saving recovers it; its

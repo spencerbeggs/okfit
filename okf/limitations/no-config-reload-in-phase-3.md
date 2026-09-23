@@ -15,8 +15,8 @@ sources:
     resource: ../roadmaps/lsp-server-and-vscode-extension.md
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: 45fa900c2ac1fe2eee016c8a823c34dcade2e45740aafb2a54d5323403451b95
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 4481b51e85dc50d78227bf77530ff9cb7d9d048eb0333630aa1f22a333c639ba
 ---
 
 # The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
@@ -72,10 +72,16 @@ and it must land before phase 6, since VS Code sends both notifications.
 ## Discharged
 
 Phase 4 (2026-09-23) shipped the fix described above: on a config-file
-watched change, `registry.rebuild(folder)` disposes the folder's old
-session, carries its open document overlays into the fresh one, and
-schedules a full revalidate; the publisher remembers, per session root,
-every URI it last published non-empty and publishes `[]` for each of
-them when that session is disposed, whether by a config rebuild or by
-`workspace/didChangeWorkspaceFolders` removing the folder. See
-[LSP](../modules/lsp.md).
+watched change, `registry.rebuild(bundleRoot)` re-resolves every
+workspace folder attached to that root, disposes the old session,
+carries its open document overlays into the fresh one, and schedules a
+full revalidate; the publisher remembers, per session root, every URI it
+last published non-empty and publishes `[]` for each of them when that
+session is disposed. A later fix (also phase 4) keyed sessions by
+resolved bundle root rather than by folder, shared and reference-counted
+across every folder that resolves to the same root, so removing one of
+two folders sharing a root no longer disposes the other's session or
+clears its diagnostics; a root's session is disposed, and `[]`
+published, only when its last attached folder goes, whether by a config
+rebuild or by `workspace/didChangeWorkspaceFolders` removing the folder.
+See [LSP](../modules/lsp.md).

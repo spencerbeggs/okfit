@@ -7,8 +7,8 @@ resource: ../../plugins/claude-code/hooks/hooks.json
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: bd7a5cb830c78b44eb211c4088ff43d0d19f844afc100c480778b8f915840c37
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 23fcb11247bbdcdd1ebc2c26cdddfc73c79c024a9661695b08f9dbd7f6965d66
 tags:
   - architecture
 ---
@@ -37,7 +37,10 @@ scaffold one (`plugins/claude-code/README.md:65-74`,
 ## PostToolUse contract
 
 The write has already landed by the time this hook runs, so it is a
-stop-and-fix signal, never a prevention. As of LSP phase 4 (decision 8)
+stop-and-fix signal, never a prevention. As of LSP phase 4, [The
+PostToolUse hook keeps only conformance blocking and the generated.by
+check, once the language server delivers lint and profile
+findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)
 the hook keeps exactly two jobs, now that the registered language server
 delivers `core.lint` and profile findings with precise ranges directly in
 the editor. For a path under the bundle root, it runs
