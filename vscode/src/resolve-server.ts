@@ -67,7 +67,14 @@ const parseVersion = (version: string): readonly [number, number, number] => {
 	return [major ?? 0, minor ?? 0, patch ?? 0];
 };
 
-/** Whether `version` is `>= floor`, comparing `major`, then `minor`, then `patch` numerically. No dependency. */
+/** Whether `version` carries a semver prerelease suffix (`major.minor.patch-...`); `parseVersion` otherwise drops it, reading `0.2.0-rc.1` as equal to `0.2.0`. */
+const isPrerelease = (version: string): boolean => /^\d+\.\d+\.\d+-/.test(version);
+
+/**
+ * Whether `version` is `>= floor`, comparing `major`, then `minor`, then
+ * `patch` numerically, then a prerelease suffix as lower than the same
+ * release with none. No dependency.
+ */
 const atLeast = (version: string, floor: string): boolean => {
 	const v = parseVersion(version);
 	const f = parseVersion(floor);
@@ -76,6 +83,7 @@ const atLeast = (version: string, floor: string): boolean => {
 		const b = f[i] as number;
 		if (a !== b) return a > b;
 	}
+	if (isPrerelease(version) !== isPrerelease(floor)) return !isPrerelease(version);
 	return true;
 };
 

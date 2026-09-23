@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join } from "node:path";
 import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
@@ -7,6 +6,8 @@ import { CONFIG_GLOB } from "./config-glob.js";
 import { nextCandidate } from "./next-candidate.js";
 import type { ServerLaunch } from "./resolve-server.js";
 import { resolveServer } from "./resolve-server.js";
+import type { ServerVersionDeps } from "./server-version.js";
+import { readWorkspaceServerVersion as pureReadWorkspaceServerVersion } from "./server-version.js";
 import { MIN_SERVER_VERSION } from "./versions.js";
 
 // vscode-languageclient@10.1.1's package.json `exports` map only declares
@@ -89,68 +90,34 @@ const realPath = (path: string): string => {
 	}
 };
 
-/** Reads `package.json`'s `version` field at `path`, or `undefined` when it does not exist or does not parse. */
-const readPackageVersion = (path: string): string | undefined => {
-	try {
-		const pkg = JSON.parse(readFileSync(path, "utf8")) as { name?: unknown; version?: unknown };
-		return typeof pkg.version === "string" ? pkg.version : undefined;
-	} catch {
-		return undefined;
-	}
-};
-
-/** `package.json`'s `name` field at `path`, or `undefined` when it does not exist or does not parse. */
-const readPackageName = (path: string): string | undefined => {
-	try {
-		const pkg = JSON.parse(readFileSync(path, "utf8")) as { name?: unknown };
-		return typeof pkg.name === "string" ? pkg.name : undefined;
-	} catch {
-		return undefined;
-	}
+/**
+ * `client.ts`'s own `node:fs` implementations of {@link ServerVersionDeps},
+ * wired into the pure `readWorkspaceServerVersion` (`server-version.ts`) --
+ * the module that does the actual `@okfit/lsp` version-resolution walk, unit
+ * tested there against an in-memory file map. `readFile` folds "does not
+ * exist" and "cannot be read" into `undefined`, matching the pure module's
+ * contract; `realpath` mirrors `realPath` above (best-effort, falls back to
+ * its own input on failure).
+ */
+const serverVersionDeps: ServerVersionDeps = {
+	readFile: (path: string): string | undefined => {
+		try {
+			return readFileSync(path, "utf8");
+		} catch {
+			return undefined;
+		}
+	},
+	realpath: realPath,
 };
 
 /**
  * Resolves the `@okfit/lsp` version a workspace folder's
  * `node_modules/.bin/okfit-lsp` would run, without spawning it (Part A step
- * 1): first `node_modules/@okfit/lsp/package.json`'s own `version`; if that
- * does not exist, follow the bin's real path and walk up to the nearest
- * `package.json` -- when that package is `@okfit/plugin` (which re-exports
- * `okfit-lsp` as its own bin), read its own `node_modules/@okfit/lsp/
- * package.json`, or the pnpm-resolved copy one directory up from that
- * (`node_modules/@okfit/lsp` living as a sibling of the plugin package
- * inside a pnpm `.pnpm` store entry). `undefined` when no version can be
- * determined at all -- the runtime `okfit/concepts` capability gate in
- * `startClient` below still protects an unknown-version candidate.
+ * 1). Thin wrapper over `server-version.ts`'s pure `readWorkspaceServerVersion`,
+ * supplying `client.ts`'s own `node:fs`-backed {@link ServerVersionDeps}.
  */
-const readWorkspaceServerVersion = (folderPath: string): string | undefined => {
-	const direct = readPackageVersion(join(folderPath, "node_modules", "@okfit", "lsp", "package.json"));
-	if (direct !== undefined) return direct;
-
-	const bin = join(folderPath, "node_modules", ".bin", "okfit-lsp");
-	let dir: string;
-	try {
-		dir = dirname(realpathSync(bin));
-	} catch {
-		return undefined;
-	}
-	// Walk up from the resolved bin target to the nearest package.json.
-	for (let previous: string | undefined; dir !== previous; previous = dir, dir = dirname(dir)) {
-		const pkgPath = join(dir, "package.json");
-		if (!existsSync(pkgPath)) continue;
-		const name = readPackageName(pkgPath);
-		if (name === "@okfit/plugin") {
-			const nested = readPackageVersion(join(dir, "node_modules", "@okfit", "lsp", "package.json"));
-			if (nested !== undefined) return nested;
-			// pnpm resolves @okfit/plugin's own dependency into a sibling
-			// scope directory of the store entry that holds @okfit/plugin
-			// itself, rather than nesting node_modules -- try that layout too.
-			return readPackageVersion(join(dir, "..", "@okfit", "lsp", "package.json"));
-		}
-		if (name === "@okfit/lsp") return readPackageVersion(pkgPath);
-		return undefined;
-	}
-	return undefined;
-};
+const readWorkspaceServerVersion = (folderPath: string): string | undefined =>
+	pureReadWorkspaceServerVersion(serverVersionDeps, folderPath);
 
 /**
  * Builds and starts the one language client for this window. Tries

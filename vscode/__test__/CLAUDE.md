@@ -14,6 +14,8 @@ __test__/
   resolve-server.test.ts  # resolveServer's candidate-list priority order, including the
                            # minServerVersion gate on workspace candidates, and outdatedNotice
   serial-queue.test.ts    # createSerialQueue's run/dispose serialization
+  server-version.test.ts  # readWorkspaceServerVersion's pnpm-layout reader paths (direct,
+                           # @okfit/plugin nested, .pnpm sibling, unresolvable bin, malformed json)
   status-model.test.ts    # statusFor's Language Status item text/detail/severity
   status-picks.test.ts    # statusPicks and conceptUriFrom
   tree-model.test.ts      # tree node shape helpers for the OKF Concepts view

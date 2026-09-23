@@ -29,6 +29,15 @@ src/
   versions.ts             -- MIN_SERVER_VERSION: the @okfit/lsp version this
                             extension was built against, injected at build
                             time by tsdown.config.ts
+  server-version.ts       -- readWorkspaceServerVersion: the pure
+                            @okfit/lsp version-resolution walk over an
+                            injected ServerVersionDeps (readFile, realpath)
+                            -- direct node_modules/@okfit/lsp/package.json,
+                            else the bin's realpath walked up to the nearest
+                            package.json, with @okfit/plugin's nested and
+                            pnpm .pnpm-sibling @okfit/lsp layouts as
+                            fallbacks; client.ts supplies the real node:fs
+                            implementations, no vscode import here
   debounce.ts             -- createDebouncer: a tiny trailing-edge debounce
                             with no vscode import, used by tree/provider.ts
                             to coalesce a burst of bundleChanged
@@ -87,17 +96,21 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - `build:dev` exists only so Turbo's `^build:dev` edge builds this
   member's `dist/` in the same graph as the packages it depends on.
 - `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts`,
-  `src/next-candidate.ts`, `src/status-picks.ts` and `src/debounce.ts` never
-  import `vscode`: each is a pure function tested without the extension host
-  (`resolveServer`'s inputs are already plain strings, callbacks and a
-  per-folder settings array -- including `readVersion`, an fs-backed reader
-  built in `client.ts` and passed in, not read here -- `nextCandidate` takes
-  a source string and a boolean, `statusFor` takes plain data in and returns
-  plain data out, the tree model is data shapes only, `status-picks.ts`'s
+  `src/next-candidate.ts`, `src/status-picks.ts`, `src/debounce.ts` and
+  `src/server-version.ts` never import `vscode`: each is a pure function
+  tested without the extension host (`resolveServer`'s inputs are already
+  plain strings, callbacks and a per-folder settings array -- including
+  `readVersion`, backed by `server-version.ts`'s `readWorkspaceServerVersion`
+  and passed in, not read here -- `nextCandidate` takes a source string and a
+  boolean, `statusFor` takes plain data in and returns plain data out, the
+  tree model is data shapes only, `status-picks.ts`'s
   `statusPicks`/`conceptUriFrom` take a `Status | undefined`/`unknown`
-  argument and plain strings, and `createDebouncer` takes a delay and a
-  callback, tested with fake timers). A file that needs the `vscode` API
-  belongs next to these, not inside them.
+  argument and plain strings, `createDebouncer` takes a delay and a callback
+  tested with fake timers, and `readWorkspaceServerVersion` takes an injected
+  `ServerVersionDeps` -- `readFile`, `realpath` -- tested against an
+  in-memory file map; `client.ts` supplies the real `node:fs`
+  implementations). A file that needs the `vscode` API belongs next to
+  these, not inside them.
 - `src/tree/wire.ts` copies two things verbatim from `@okfit/lsp`, rather
   than importing the package: the `okfit/concepts`/`okfit/bundleChanged`
   wire types and method names, and `OKFIT_COMMANDS`
