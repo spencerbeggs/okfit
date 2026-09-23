@@ -9,17 +9,26 @@ export type ServerLaunch =
 	  }
 	| { readonly kind: "module"; readonly module: string; readonly source: "bundled" };
 
-export interface ResolveInput {
+export interface ResolveFolder {
+	/** A workspace folder's `fsPath`. */
+	readonly path: string;
+	/** `okfit.lsp.serverPath` read with this folder's `Uri` as the resource, if set. */
 	readonly settingPath: string | undefined;
-	readonly folders: ReadonlyArray<string>;
+}
+
+export interface ResolveInput {
+	readonly folders: ReadonlyArray<ResolveFolder>;
 	readonly bundledModule: string;
 	readonly exists: (path: string) => boolean;
+	/** Resolves symlinks so two folders that share one on-disk `okfit-lsp` dedupe to one candidate. */
+	readonly realPath: (path: string) => string;
 	/** `process.versions.node` of the extension host process; decides the bundled launch shape below. */
 	readonly hostNode: string;
 }
 
 export interface Resolution {
-	readonly launch: ServerLaunch;
+	/** Every viable launch, in priority order. Never empty: the bundled launch is always the last entry. */
+	readonly candidates: ReadonlyArray<ServerLaunch>;
 	readonly notes: ReadonlyArray<string>;
 }
 
@@ -52,35 +61,49 @@ const atLeast = (version: string, floor: string): boolean => {
 	return true;
 };
 
-/** First hit wins: the setting, then each folder's local bin, then the bundled server. Pure. */
+/**
+ * Builds the full priority-ordered candidate list: every folder's
+ * `okfit.lsp.serverPath` that exists (window order), then every folder's
+ * `node_modules/.bin/okfit-lsp` that exists (window order, deduped by real
+ * path), then the bundled launch. Pure; never returns an empty list.
+ */
 export const resolveServer = (input: ResolveInput): Resolution => {
 	const notes: Array<string> = [];
-	const setting = input.settingPath?.trim();
-	if (setting !== undefined && setting !== "") {
-		if (input.exists(setting)) {
-			return { launch: { kind: "command", command: setting, args: ["--stdio"], source: "setting" }, notes };
-		}
-		notes.push(`okfit.lsp.serverPath is set to ${setting}, which does not exist; falling back.`);
-	}
+	const candidates: Array<ServerLaunch> = [];
+
 	for (const folder of input.folders) {
-		const local = join(folder, "node_modules", ".bin", "okfit-lsp");
-		if (input.exists(local)) {
-			return { launch: { kind: "command", command: local, args: ["--stdio"], source: "workspace" }, notes };
+		const setting = folder.settingPath?.trim();
+		if (setting === undefined || setting === "") continue;
+		if (input.exists(setting)) {
+			candidates.push({ kind: "command", command: setting, args: ["--stdio"], source: "setting" });
+		} else {
+			notes.push(`okfit.lsp.serverPath is set to ${setting}, which does not exist; falling back.`);
 		}
 	}
-	if (atLeast(input.hostNode, BUNDLED_NODE_FLOOR)) {
-		return { launch: { kind: "module", module: input.bundledModule, source: "bundled" }, notes };
+
+	const seenRealPaths = new Set<string>();
+	for (const folder of input.folders) {
+		const local = join(folder.path, "node_modules", ".bin", "okfit-lsp");
+		if (!input.exists(local)) continue;
+		const real = input.realPath(local);
+		if (seenRealPaths.has(real)) continue;
+		seenRealPaths.add(real);
+		candidates.push({ kind: "command", command: local, args: ["--stdio"], source: "workspace" });
 	}
-	notes.push(
-		`Extension host Node ${input.hostNode} is older than @okfit/lsp's engines.node floor (${BUNDLED_NODE_FLOOR}); launching the bundled server with a PATH node instead of an in-process module.`,
-	);
-	return {
-		launch: {
+
+	if (atLeast(input.hostNode, BUNDLED_NODE_FLOOR)) {
+		candidates.push({ kind: "module", module: input.bundledModule, source: "bundled" });
+	} else {
+		notes.push(
+			`Extension host Node ${input.hostNode} is older than @okfit/lsp's engines.node floor (${BUNDLED_NODE_FLOOR}); launching the bundled server with a PATH node instead of an in-process module.`,
+		);
+		candidates.push({
 			kind: "command",
 			command: "node",
 			args: [input.bundledModule, "--stdio"],
 			source: "bundled-path-node",
-		},
-		notes,
-	};
+		});
+	}
+
+	return { candidates, notes };
 };

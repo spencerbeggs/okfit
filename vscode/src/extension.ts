@@ -135,7 +135,6 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	const start = async () => {
 		const started = await startClient({
 			extensionUri: context.extensionUri,
-			settingPath: config.serverPath,
 			log: logger.info,
 			show: logger.show,
 		});
@@ -179,6 +178,26 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 				await stopQuietly(client);
 			}),
 	});
+
+	// Shared by every restart trigger below (the window-level `watch`, a
+	// resource-scoped `okfit.lsp.serverPath` change on any folder, and a
+	// folder being added or removed). `startClient` already logs and shows a
+	// dialog on its own failure (client.ts); swallow the rejection here so it
+	// does not also surface as an unhandled promise rejection -- the next
+	// trigger is this extension's only retry path, never automatic. The old
+	// provider and view are disposed here, inside the same queued restart,
+	// before the new client (and its own provider and view) is started.
+	const restart = () => {
+		void queue
+			.run(async () => {
+				disposeTree();
+				await stopQuietly(client);
+				await start();
+			})
+			.catch(() => undefined)
+			.then(() => updateStatus());
+	};
+
 	// Registered *before* the first `start()` runs (decision I4): a broken
 	// `okfit.lsp.serverPath` (or an unusable workspace bin) failing the first
 	// start used to reject the whole activation promise before this `watch`
@@ -189,27 +208,27 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	// `config.serverPath` is read through `defineConfig`'s reactive proxy, so a
 	// getter (not the proxy itself) is what `watch` tracks: re-reading the
 	// setting inside the getter establishes the `onDidChangeConfiguration`
-	// dependency (see config.ts).
-	watch(
-		() => config.serverPath,
-		() => {
-			// `startClient` already logs and shows a dialog on its own failure
-			// (client.ts); swallow the rejection here so it does not also
-			// surface as an unhandled promise rejection -- the next setting
-			// change is this extension's only retry path, never automatic.
-			// The old provider and view are disposed here, inside the same
-			// queued restart, before the new client (and its own provider and
-			// view) is started.
-			void queue
-				.run(async () => {
-					disposeTree();
-					await stopQuietly(client);
-					await start();
-				})
-				.catch(() => undefined)
-				.then(() => updateStatus());
-		},
+	// dependency (see config.ts). This only covers a window-scoped edit of
+	// `okfit.lsp.serverPath`; the two listeners below cover the
+	// resource-scoped and multi-root cases `startClient` itself now resolves
+	// per folder.
+	watch(() => config.serverPath, restart);
+	// `okfit.lsp.serverPath` is `scope: "resource"` (`package.json`), so an
+	// edit to a single folder's value (a `.vscode/settings.json` inside that
+	// folder, or the Workspace tab of a multi-root `.code-workspace`) fires
+	// `onDidChangeConfiguration` without necessarily changing the window-level
+	// value `watch` above tracks -- `startClient` reads the setting per folder,
+	// so any such change needs its own restart trigger.
+	useDisposable(
+		vscode.workspace.onDidChangeConfiguration((event) => {
+			if (event.affectsConfiguration("okfit.lsp.serverPath")) restart();
+		}),
 	);
+	// A folder added to (or removed from) a multi-root workspace can bring a
+	// better `node_modules/.bin/okfit-lsp` or a different resource-scoped
+	// `okfit.lsp.serverPath` into the candidate list `startClient` builds from
+	// `vscode.workspace.workspaceFolders` -- restart to re-resolve it.
+	useDisposable(vscode.workspace.onDidChangeWorkspaceFolders(restart));
 	// The first start runs through the same queue as every restart, and never
 	// rejects out of it -- `startClient` already logs and shows its own
 	// failure dialog -- so activation always resolves; the `watch` above,
