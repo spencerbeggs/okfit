@@ -63,22 +63,29 @@ const atLeast = (version: string, floor: string): boolean => {
 
 /**
  * Builds the full priority-ordered candidate list: every folder's
- * `okfit.lsp.serverPath` that exists (window order), then every folder's
- * `node_modules/.bin/okfit-lsp` that exists (window order, deduped by real
- * path), then the bundled launch. Pure; never returns an empty list.
+ * `okfit.lsp.serverPath` that exists (window order, deduped by real path so
+ * two folders pointed at the same setting value -- or two paths that
+ * resolve to the same on-disk binary -- only candidate once), then every
+ * folder's `node_modules/.bin/okfit-lsp` that exists (window order, deduped
+ * by real path), then the bundled launch. Pure; never returns an empty
+ * list.
  */
 export const resolveServer = (input: ResolveInput): Resolution => {
 	const notes: Array<string> = [];
 	const candidates: Array<ServerLaunch> = [];
 
+	const seenSettingRealPaths = new Set<string>();
 	for (const folder of input.folders) {
 		const setting = folder.settingPath?.trim();
 		if (setting === undefined || setting === "") continue;
-		if (input.exists(setting)) {
-			candidates.push({ kind: "command", command: setting, args: ["--stdio"], source: "setting" });
-		} else {
+		if (!input.exists(setting)) {
 			notes.push(`okfit.lsp.serverPath is set to ${setting}, which does not exist; falling back.`);
+			continue;
 		}
+		const real = input.realPath(setting);
+		if (seenSettingRealPaths.has(real)) continue;
+		seenSettingRealPaths.add(real);
+		candidates.push({ kind: "command", command: setting, args: ["--stdio"], source: "setting" });
 	}
 
 	const seenRealPaths = new Set<string>();

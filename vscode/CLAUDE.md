@@ -24,10 +24,6 @@ src/
   next-candidate.ts       -- nextCandidate: the pure keep/try-next decision
                             client.ts applies to a started candidate's
                             okfit/concepts capability check
-  config.ts              -- the reactive-vscode defineConfiguration proxy
-                            over the okfit.* settings (window-level restart
-                            trigger only; client.ts reads serverPath per
-                            folder directly)
   status.ts              -- statusFor: pure function to the Language
                             Status item's text, detail and severity
   commands.ts             -- registerCommands: okfit.validateBundle,

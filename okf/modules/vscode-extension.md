@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T19:41:08Z
-  body_sha256: 06c02fcc4fc44bd52e84019068bd5517a0d1ac76c1542433dbe170a7dfbb2fb8
+  at: 2026-09-23T19:54:30Z
+  body_sha256: 67ff790dac1042c05d0f00fa735f0ecdbd4c33fc54c1d7fbb3ad4841b5c1ec3b
 ---
 
 # VS Code Extension
@@ -45,12 +45,14 @@ methods).
   active-editor and diagnostics events (normalizing `bundle.rootUri`
   through `vscode.Uri` before comparing it against `document.uri`), and
   serializes every client restart -- including the first `start()`, whose
-  restart triggers (the window-level `okfit.lsp.serverPath` `watch`, an
-  `onDidChangeConfiguration` listener for a resource-scoped edit to that
-  setting on any folder, and an `onDidChangeWorkspaceFolders` listener) are
-  all registered before it runs -- and the final stop on deactivation,
-  through one `SerialQueue` (`vscode/src/serial-queue.ts`) so overlapping
-  `stop()`/`start()` calls can never leak a client.
+  restart triggers (an `onDidChangeConfiguration` listener for an edit to
+  `okfit.lsp.serverPath` on any folder, and an `onDidChangeWorkspaceFolders`
+  listener) are all registered before it runs -- and the final stop on
+  deactivation, through one `SerialQueue` (`vscode/src/serial-queue.ts`) so
+  overlapping `stop()`/`start()` calls can never leak a client. A restart
+  also disposes the outgoing client's two `FileSystemWatcher`s
+  (`stopQuietly`), since `LanguageClient` never adopts them for disposal
+  itself (Server resolution below).
 - `src/client.ts` -- `startClient`: builds the per-folder candidate list
   with `resolveServer` (below), then tries each candidate in order --
   starting it, checking `experimental.okfitConcepts`, and falling through
@@ -61,10 +63,16 @@ methods).
   `node_modules/.bin` never wins for every folder in the window. A
   `"setting"`-sourced candidate is the user's explicit choice and is kept
   regardless of the capability check; only the last candidate's `start()`
-  failure surfaces as an error dialog with an "Open Output" action. Returns
-  both the started `LanguageClient` and the resolved `ServerLaunch`, so the
-  caller can feature-detect `experimental.okfitConcepts` and log which
-  source and target were actually used.
+  failure surfaces as an error dialog with an "Open Output" action. Each
+  attempt builds its own pair of `FileSystemWatcher`s (Server resolution
+  below) and disposes them itself on that attempt's failure or
+  fall-through, since `vscode-languageclient` only adopts a raw
+  `synchronize.fileEvents` watcher's event listeners for disposal, never
+  the watcher object itself, and only after a successful `start()`. Returns
+  the started `LanguageClient`, the resolved `ServerLaunch`, and those
+  watchers together, so the caller can feature-detect
+  `experimental.okfitConcepts`, log which source and target were actually
+  used, and dispose the watchers whenever it later stops the client.
 - `src/next-candidate.ts` -- `nextCandidate`: the pure `"keep"` /
   `"try-next"` decision `client.ts` applies to a just-started candidate's
   capability check (Server resolution below).
@@ -75,9 +83,6 @@ methods).
 - `src/resolve-server.ts` -- `resolveServer`: the pure, priority-ordered
   candidate-list builder plus the bundled launch's own host-Node check
   (Server resolution below).
-- `src/config.ts` -- the `reactive-vscode` `defineConfiguration` proxy over
-  the `okfit.*` settings; only used as the window-level restart trigger
-  now that `client.ts` reads `okfit.lsp.serverPath` per folder directly.
 - `src/status.ts` (`vscode/src/status.ts:19-30`) -- `statusFor`: pure
   function from the active document's URI, the last `okfit/concepts`
   result and the workspace's current diagnostics to a `StatusView` (text,
@@ -122,7 +127,10 @@ tries each in turn:
    per folder with `vscode.workspace.getConfiguration("okfit.lsp",
    folder.uri)`, if set and the path exists, in window order
    (`source: "setting"`; a missing path adds one note and is skipped
-   without blocking another folder's setting).
+   without blocking another folder's setting), deduped by real path so two
+   folders pointed at the same server -- the same literal setting value, or
+   two paths that resolve to the same on-disk binary -- only candidate
+   once.
 2. Every folder's `<folder>/node_modules/.bin/okfit-lsp` that exists, in
    window order, deduped by real path so two folders that resolve to the
    same on-disk server (a symlink, or one nested inside the other) only
@@ -160,15 +168,23 @@ below it, it launches as `{ kind: "command", command: "node", args:
 [bundledModule, "--stdio"] }` (`source: "bundled-path-node"`), requiring a
 Node `24.11+` on `PATH`, with a note explaining why.
 
-`extension.ts` registers three restart triggers before the very first
-`start()` runs: the window-level `okfit.lsp.serverPath` `watch`, an
-`onDidChangeConfiguration` listener for a resource-scoped edit to that
-setting on any folder (since `client.ts` reads it per folder, not through
-the window-level `config.ts` proxy), and an `onDidChangeWorkspaceFolders`
-listener (a folder added to the window may bring a better candidate). All
-three funnel through the same `SerialQueue`, so editing the setting back,
-or adding a folder with a newer server, is the recovery path even for a
-failed first start.
+`extension.ts` registers two restart triggers before the very first
+`start()` runs: an `onDidChangeConfiguration` listener for an edit to
+`okfit.lsp.serverPath` on any folder (`client.ts` reads the setting per
+folder directly from `vscode.workspace.getConfiguration`, not through a
+reactive proxy, so this one listener on the raw event is both necessary
+and sufficient -- a second, window-level reactive `watch` over the same
+setting used to fire a duplicate restart per edit and was removed), and an
+`onDidChangeWorkspaceFolders` listener (a folder added to the window may
+bring a better candidate). Both funnel through the same `SerialQueue`, so
+editing the setting back, or adding a folder with a newer server, is the
+recovery path even for a failed first start. Every restart, and the
+extension's own final stop, disposes the outgoing client's two
+`FileSystemWatcher`s alongside `client.stop()` (`extension.ts`'s
+`stopQuietly`) -- `vscode-languageclient` never takes ownership of a raw
+`synchronize.fileEvents` watcher itself, only of the listeners it attaches
+to one, so the caller that created the watcher is the only one that can
+free it.
 
 ## Views and commands
 

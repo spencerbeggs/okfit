@@ -1,9 +1,8 @@
-import { defineExtension, defineLogger, useDisposable, watch } from "reactive-vscode";
+import { defineExtension, defineLogger, useDisposable } from "reactive-vscode";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 import { startClient } from "./client.js";
 import { registerCommands } from "./commands.js";
-import { config } from "./config.js";
 import { createSerialQueue } from "./serial-queue.js";
 import { statusFor } from "./status.js";
 import { ConceptDecorations } from "./tree/decorations.js";
@@ -33,13 +32,22 @@ const statusSeverity = (severity: "error" | "warning" | "information"): vscode.L
 // usable before activation, and is what the F5 probe (Task 1 Step 8) reads.
 const logger = defineLogger("okfit");
 
-const stopQuietly = async (client: LanguageClient | undefined): Promise<void> => {
+const stopQuietly = async (
+	client: LanguageClient | undefined,
+	watchers: ReadonlyArray<vscode.Disposable>,
+): Promise<void> => {
 	try {
 		await client?.stop();
 	} catch (error) {
 		// Best-effort cleanup: a `stop()` failure (e.g. the process already
 		// died) is not worth a user-facing dialog, only a log line.
 		logger.error(error instanceof Error ? error : String(error));
+	} finally {
+		// `client.ts`'s `startClient` never gets these disposed for free --
+		// `LanguageClient` does not own a raw `synchronize.fileEvents`
+		// watcher (see `client.ts`'s `createWatchers`) -- so every stop,
+		// successful or not, disposes them here.
+		for (const watcher of watchers) watcher.dispose();
 	}
 };
 
@@ -53,6 +61,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 		`okfit extension activated on Node ${process.versions.node}, Electron ${process.versions.electron ?? "n/a"}`,
 	);
 	let client: LanguageClient | undefined;
+	let watchers: ReadonlyArray<vscode.Disposable> = [];
 	let provider: ConceptsProvider | undefined;
 	let view: vscode.TreeView<TreeNode> | undefined;
 	let providerSubscription: vscode.Disposable | undefined;
@@ -139,6 +148,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 			show: logger.show,
 		});
 		client = started.client;
+		watchers = started.watchers;
 		// Feature-detect `okfit/concepts` instead of assuming it: any project
 		// whose `okfit.lsp.serverPath`, or workspace `node_modules/.bin/okfit-lsp`
 		// (or an `@okfit/plugin` wrapping it), resolves to `@okfit/lsp` <= 0.2.0
@@ -165,33 +175,33 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 		provider.attach(view);
 		providerSubscription = provider.onDidChangeTreeData(() => updateStatus());
 	};
-	// `watch`'s callback is not itself serialized against overlapping
-	// invocations -- two rapid `okfit.lsp.serverPath` edits would otherwise
-	// both call `stop()`/`start()` concurrently and leak a client. Every
-	// restart (and the final stop on deactivation) goes through one
+	// A restart trigger's callback is not itself serialized against
+	// overlapping invocations -- two rapid `okfit.lsp.serverPath` edits would
+	// otherwise both call `stop()`/`start()` concurrently and leak a client.
+	// Every restart (and the final stop on deactivation) goes through one
 	// `SerialQueue` so at most one is ever in flight.
 	const queue = createSerialQueue();
 	useDisposable({
 		dispose: () =>
 			void queue.run(async () => {
 				disposeTree();
-				await stopQuietly(client);
+				await stopQuietly(client, watchers);
 			}),
 	});
 
-	// Shared by every restart trigger below (the window-level `watch`, a
-	// resource-scoped `okfit.lsp.serverPath` change on any folder, and a
-	// folder being added or removed). `startClient` already logs and shows a
-	// dialog on its own failure (client.ts); swallow the rejection here so it
-	// does not also surface as an unhandled promise rejection -- the next
-	// trigger is this extension's only retry path, never automatic. The old
-	// provider and view are disposed here, inside the same queued restart,
-	// before the new client (and its own provider and view) is started.
+	// Shared by both restart triggers below (a resource-scoped
+	// `okfit.lsp.serverPath` change on any folder, and a folder being added
+	// or removed). `startClient` already logs and shows a dialog on its own
+	// failure (client.ts); swallow the rejection here so it does not also
+	// surface as an unhandled promise rejection -- the next trigger is this
+	// extension's only retry path, never automatic. The old provider and
+	// view are disposed here, inside the same queued restart, before the new
+	// client (and its own provider and view) is started.
 	const restart = () => {
 		void queue
 			.run(async () => {
 				disposeTree();
-				await stopQuietly(client);
+				await stopQuietly(client, watchers);
 				await start();
 			})
 			.catch(() => undefined)
@@ -200,25 +210,22 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 
 	// Registered *before* the first `start()` runs (decision I4): a broken
 	// `okfit.lsp.serverPath` (or an unusable workspace bin) failing the first
-	// start used to reject the whole activation promise before this `watch`
+	// start used to reject the whole activation promise before this listener
 	// existed, leaving the user no recovery short of a window reload. Now the
 	// setting is watched first, so editing it back is always the recovery
 	// path -- for the first start exactly as for every later one.
 	//
-	// `config.serverPath` is read through `defineConfig`'s reactive proxy, so a
-	// getter (not the proxy itself) is what `watch` tracks: re-reading the
-	// setting inside the getter establishes the `onDidChangeConfiguration`
-	// dependency (see config.ts). This only covers a window-scoped edit of
-	// `okfit.lsp.serverPath`; the two listeners below cover the
-	// resource-scoped and multi-root cases `startClient` itself now resolves
-	// per folder.
-	watch(() => config.serverPath, restart);
-	// `okfit.lsp.serverPath` is `scope: "resource"` (`package.json`), so an
-	// edit to a single folder's value (a `.vscode/settings.json` inside that
-	// folder, or the Workspace tab of a multi-root `.code-workspace`) fires
-	// `onDidChangeConfiguration` without necessarily changing the window-level
-	// value `watch` above tracks -- `startClient` reads the setting per folder,
-	// so any such change needs its own restart trigger.
+	// `okfit.lsp.serverPath` is `scope: "resource"` (`package.json`), so this
+	// is the only trigger for an edit to it -- a per-folder
+	// `.vscode/settings.json`, the Workspace tab of a multi-root
+	// `.code-workspace`, or a window-level User setting all fire
+	// `onDidChangeConfiguration` with this same key, and `startClient` reads
+	// the setting per folder from `vscode.workspace.getConfiguration`
+	// directly (client.ts), not through a reactive proxy -- so one listener
+	// on the raw event, rather than a second reactive `watch` over a
+	// window-level proxy, is both necessary and sufficient. (A `config.ts`
+	// reactive proxy plus this listener used to fire two restarts per edit;
+	// `config.ts` was removed for exactly that reason.)
 	useDisposable(
 		vscode.workspace.onDidChangeConfiguration((event) => {
 			if (event.affectsConfiguration("okfit.lsp.serverPath")) restart();
@@ -231,7 +238,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	useDisposable(vscode.workspace.onDidChangeWorkspaceFolders(restart));
 	// The first start runs through the same queue as every restart, and never
 	// rejects out of it -- `startClient` already logs and shows its own
-	// failure dialog -- so activation always resolves; the `watch` above,
+	// failure dialog -- so activation always resolves; the listener above,
 	// already registered, is the recovery path for a failed first start.
 	await queue.run(start).catch(() => undefined);
 	updateStatus();

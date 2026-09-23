@@ -106,6 +106,40 @@ describe("resolveServer", () => {
 		expect(notes[0]).toContain("/nope");
 	});
 
+	it("dedupes two folders' identical serverPath settings, keeping the first folder's own path string", () => {
+		const { candidates } = resolveServer({
+			folders: [
+				{ path: "/a", settingPath: "/opt/okfit-lsp" },
+				{ path: "/b", settingPath: "/opt/okfit-lsp" },
+			],
+			bundledModule: bundled,
+			exists: existsIn(["/opt/okfit-lsp"]),
+			realPath: identityRealPath,
+			hostNode: modernNode,
+		});
+		expect(candidates).toEqual([
+			{ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" },
+			{ kind: "module", module: bundled, source: "bundled" },
+		]);
+	});
+
+	it("dedupes two folders' serverPath settings that resolve to the same real path", () => {
+		const { candidates } = resolveServer({
+			folders: [
+				{ path: "/a", settingPath: "/opt/okfit-lsp" },
+				{ path: "/b", settingPath: "/opt/link-to-okfit-lsp" },
+			],
+			bundledModule: bundled,
+			exists: existsIn(["/opt/okfit-lsp", "/opt/link-to-okfit-lsp"]),
+			realPath: (p) => (p === "/opt/link-to-okfit-lsp" ? "/opt/okfit-lsp" : p),
+			hostNode: modernNode,
+		});
+		expect(candidates).toEqual([
+			{ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" },
+			{ kind: "module", module: bundled, source: "bundled" },
+		]);
+	});
+
 	it("dedupes two folders' local servers that resolve to the same real path", () => {
 		const { candidates } = resolveServer({
 			folders: [

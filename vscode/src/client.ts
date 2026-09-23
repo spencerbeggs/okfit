@@ -19,26 +19,39 @@ const serverOptions = (launch: ServerLaunch): ServerOptions =>
 		? { command: launch.command, args: [...launch.args], transport: TransportKind.stdio }
 		: { module: launch.module, transport: TransportKind.stdio };
 
-const clientOptions = (): LanguageClientOptions => ({
+/**
+ * Two watchers: the config glob (for the server's own config-driven session
+ * rebuild) and every markdown file (so a concept file created, deleted or
+ * renamed outside an open editor -- Explorer, `git checkout`/`pull`, a
+ * codegen run -- still reaches the server as a `didChangeWatchedFiles`
+ * event; the server treats any non-config path as a `full` revalidate and
+ * already debounces it). Built fresh per candidate attempt, and owned by
+ * the caller rather than the `LanguageClient`: `vscode-languageclient`
+ * 10.1.1's `FileSystemWatcherFeature.registerRaw` (invoked by
+ * `hookFileEvents`, which only runs after a successful `start()`) disposes
+ * only the `onDidCreate`/`onDidChange`/`onDidDelete` listeners it attaches
+ * to a raw watcher passed through `synchronize.fileEvents` -- never the
+ * `FileSystemWatcher` itself (contrast `register()`, used for
+ * server-driven dynamic registration, which does push the watcher it
+ * creates into its own disposables). A client whose `start()` throws never
+ * reaches `hookFileEvents` at all. Either way the watchers this function
+ * creates outlive the client unless the caller disposes them explicitly.
+ */
+const createWatchers = (): ReadonlyArray<vscode.FileSystemWatcher> => [
+	vscode.workspace.createFileSystemWatcher(CONFIG_GLOB),
+	vscode.workspace.createFileSystemWatcher("**/*.md"),
+];
+
+const disposeAll = (disposables: ReadonlyArray<vscode.Disposable>): void => {
+	for (const disposable of disposables) disposable.dispose();
+};
+
+const clientOptions = (fileEvents: ReadonlyArray<vscode.FileSystemWatcher>): LanguageClientOptions => ({
 	documentSelector: [
 		{ scheme: "file", language: "markdown" },
 		{ scheme: "file", pattern: CONFIG_GLOB },
 	],
-	// Two watchers: the config glob (for the server's own config-driven
-	// session rebuild) and every markdown file (so a concept file created,
-	// deleted or renamed outside an open editor -- Explorer, `git
-	// checkout`/`pull`, a codegen run -- still reaches the server as a
-	// `didChangeWatchedFiles` event; the server treats any non-config path
-	// as a `full` revalidate and already debounces it). Built fresh per
-	// attempt (rather than shared across candidates) since each
-	// `LanguageClient` owns and disposes its own watcher disposables on
-	// `stop()`.
-	synchronize: {
-		fileEvents: [
-			vscode.workspace.createFileSystemWatcher(CONFIG_GLOB),
-			vscode.workspace.createFileSystemWatcher("**/*.md"),
-		],
-	},
+	synchronize: { fileEvents: [...fileEvents] },
 	outputChannelName: "okfit language server",
 });
 
@@ -54,6 +67,13 @@ const targetOf = (launch: ServerLaunch): string => (launch.kind === "command" ? 
 export interface StartedClient {
 	readonly client: LanguageClient;
 	readonly launch: ServerLaunch;
+	/**
+	 * This candidate's two `FileSystemWatcher`s -- never adopted for
+	 * disposal by `LanguageClient` itself (see `createWatchers`). The
+	 * caller must dispose these whenever it stops `client`, including on
+	 * every later restart.
+	 */
+	readonly watchers: ReadonlyArray<vscode.Disposable>;
 }
 
 /** Best-effort real path; a folder or bin that cannot be resolved (e.g. it does not exist) keeps its own path. */
@@ -74,7 +94,9 @@ const realPath = (path: string): string => {
  * thrown error rethrows into the caller's dialog; a missing capability is
  * kept and left to the existing `okfit.serverTooOld` UI, same as any
  * `"setting"`-sourced candidate at any position). The caller owns disposal
- * of the returned client via `client.stop()`.
+ * of the returned client via `client.stop()` and, separately, of the
+ * returned `watchers` -- `LanguageClient` never disposes a raw
+ * `synchronize.fileEvents` watcher itself (see `createWatchers`).
  */
 export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 	const folders = (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
@@ -94,10 +116,17 @@ export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 	for (let index = 0; index < candidates.length; index += 1) {
 		const launch = candidates[index] as ServerLaunch;
 		const isLast = index === candidates.length - 1;
-		const client = new LanguageClient("okfit.lsp", "okfit language server", serverOptions(launch), clientOptions());
+		const watchers = createWatchers();
+		const client = new LanguageClient(
+			"okfit.lsp",
+			"okfit language server",
+			serverOptions(launch),
+			clientOptions(watchers),
+		);
 		try {
 			await client.start();
 		} catch (error) {
+			disposeAll(watchers);
 			const message = error instanceof Error ? error.message : String(error);
 			deps.log(`okfit language server failed to start (${launch.source}: ${targetOf(launch)}): ${message}`);
 			if (!isLast) continue;
@@ -107,8 +136,8 @@ export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 			// dialog with an action to open the channel that has that detail. Not
 			// retried here: the caller (extension.ts) re-attempts on the next
 			// explicit `okfit.lsp.serverPath` change, including after the very
-			// first failed start -- its `watch` is registered before that first
-			// attempt runs.
+			// first failed start -- its `onDidChangeConfiguration` listener is
+			// registered before that first attempt runs.
 			void vscode.window
 				.showErrorMessage(
 					`okfit language server failed to start (${launch.source}: ${targetOf(launch)}).`,
@@ -133,11 +162,12 @@ export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 				`okfit language server (${launch.source}: ${targetOf(launch)}) predates the concept explorer -- trying the next candidate.`,
 			);
 			await client.stop();
+			disposeAll(watchers);
 			continue;
 		}
 
 		deps.log(`okfit language server: ${launch.source} (${targetOf(launch)})`);
-		return { client, launch };
+		return { client, launch, watchers };
 	}
 	// Unreachable: `resolveServer` never returns an empty candidate list, and
 	// the loop above always either `return`s or `throw`s on its last
