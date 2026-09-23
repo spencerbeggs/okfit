@@ -8,6 +8,7 @@ import type { Duration, Scope } from "effect";
 import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
 import { registerCodeActions } from "./features/actions.js";
+import { registerCommands } from "./features/commands.js";
 import { notifyBundleChanged, registerConcepts } from "./features/concepts.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
@@ -164,6 +165,7 @@ export const serve = (
 		yield* registerWorkspaceSymbols(transport, registry);
 		yield* registerConcepts(transport, registry);
 		yield* registerCodeActions(transport, registry);
+		yield* registerCommands(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

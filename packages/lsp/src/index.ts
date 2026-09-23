@@ -10,6 +10,8 @@ export { toLspLocation, toLspRange } from "./convert/range.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
 export { registerCodeActions } from "./features/actions.js";
+export type { RevalidateResult } from "./features/commands.js";
+export { registerCommands } from "./features/commands.js";
 export type { BundleChangedParams, BundleSummary, ConceptSummary, ConceptsResult } from "./features/concepts.js";
 export {
 	BUNDLE_CHANGED_NOTIFICATION,

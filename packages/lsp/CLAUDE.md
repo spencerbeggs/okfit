@@ -177,14 +177,16 @@ src/
                        Code extension
     edits.ts        -- EditFailure, statusTextEdits, verifiedTextEdits,
                        humanActor, describeFailure: the edit machinery
-                       actions.ts (and the forthcoming executeCommand
-                       feature) share -- TextEdits for a concept's status or
-                       verified entry, and human-actor resolution; also
-                       conceptSnapshot (@internal, not in the barrel), the
-                       registry -> {concept, config, projectRoot} lookup
-                       both draw on (see Code actions below)
+                       actions.ts and commands.ts share -- TextEdits for a
+                       concept's status or verified entry, and human-actor
+                       resolution; also conceptSnapshot (@internal, not in
+                       the barrel), the registry -> {concept, config,
+                       projectRoot} lookup both draw on (see Code actions
+                       below)
     actions.ts      -- registerCodeActions(transport, registry):
                        textDocument/codeAction (see Code actions below)
+    commands.ts     -- registerCommands(transport, registry): workspace/
+                       executeCommand, RevalidateResult (see Commands below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -357,8 +359,8 @@ codeAction` onto the transport, answering from the requested file's owning
 session's last-loaded concept -- a missing session, an unloaded bundle, a
 non-`file:` URI, or a path outside every bundle root all answer `[]`, never
 a hang, same posture as hover and navigation. Every edit it offers is
-computed by `src/features/edits.ts`, the module the forthcoming
-`executeCommand` feature (task 4) shares:
+computed by `src/features/edits.ts`, the module `src/features/commands.ts`
+(Commands below) also shares:
 
 - `conceptSnapshot(registry, path)` (`@internal`, not in the barrel) mirrors
   `hover.ts`'s `snapshotFor`, but answers `{ concept, config, projectRoot }`
@@ -388,9 +390,10 @@ computed by `src/features/edits.ts`, the module the forthcoming
   failure is logged once per project root, at `logDebug`, never to stdout
   (a module-level `Set` tracks which roots have already logged).
 - `describeFailure(failure)` renders any `EditFailure` as a short message,
-  for a command handler (task 4) surfacing why an edit could not be
-  computed; `registerCodeActions` itself never surfaces one -- a failed edit
-  just means that action is omitted (`Effect.option` around every
+  what `commands.ts`'s `okfit.setStatus`/`okfit.markVerified` handlers surface
+  as an `LspError`'s message when an edit could not be computed;
+  `registerCodeActions` itself never surfaces one -- a failed edit just means
+  that action is omitted (`Effect.option` around every
   `statusTextEdits`/`verifiedTextEdits` call).
 
 `registerCodeActions` offers one `Set status: <status>` action (kind
@@ -408,6 +411,50 @@ kind `quickfix`, carries that diagnostic in its own `diagnostics`, and the
 in its own `R` (`Derivation.generatedBy`'s requirement); it captures its
 context once, the same pattern `session/registry.ts` uses, so the handler
 passed to `transport.onRequest` itself needs none.
+
+## Commands
+
+`registerCommands` (`src/features/commands.ts`) wires `workspace/
+executeCommand` onto the transport for the three ids `features/names.ts`'s
+`OKFIT_COMMANDS` advertises. Like `registerCodeActions`, it requires `Git` in
+its own `R` and captures its context once, so the handler passed to
+`transport.onRequest` itself needs none. Each command's `arguments` (an
+`ExecuteCommandParams.arguments` array, positional by index) is decoded
+through a small `Schema.Tuple`; a decode failure fails with an `LspError`
+naming the expected shape (`-32602`), and an unrecognized command id fails
+naming it (`-32601`).
+
+- **`okfit.setStatus`** -- args `[uri, status]`
+  (`Schema.Tuple([Schema.String, Status])`). Computes `statusTextEdits`,
+  sends it to the client with `transport.sendRequest<ApplyWorkspaceEditParams,
+  ApplyWorkspaceEditResult>("workspace/applyEdit", { label, edit })`, and
+  answers the client's own `ApplyWorkspaceEditResult` verbatim -- a `{
+  applied: false, failureReason }` the client returns is not an `LspError`,
+  only a transport failure of that request is (`sendRequest`'s own
+  contract). An `EditFailure` from `statusTextEdits` fails as an `LspError`
+  whose message is `describeFailure(failure)`, under `-32803` ("request
+  failed").
+- **`okfit.markVerified`** -- args `[uri]` (`Schema.Tuple([Schema.String])`).
+  Same `workspace/applyEdit` round trip, over `verifiedTextEdits(registry,
+  path, now)` (`now` read once per request with `DateTime.now`, the same
+  posture as `registerCodeActions`).
+- **`okfit.revalidate`** -- args `[rootUri?]`, an optional single-string
+  tuple (`Schema.Tuple([Schema.optionalKey(Schema.String)])`) so the client
+  may send `[]` or omit `arguments` entirely. `rootUri` present: schedules a
+  `full` revalidate (`handle.scheduler.schedule("full")` then `.settle`, the
+  same warm-up path `okfit/concepts` uses) on the one live session whose
+  `handle.bundleRoot` matches it (`uriToPath`), or none when no session
+  matches. `rootUri` absent: every live session (`registry.sessions`).
+  Answers `{ roots }`, the revalidated sessions' `bundleRoot`s as `file:`
+  URIs (`pathToUri`) -- `{ roots: [] }` for an unmatched `rootUri` or no live
+  sessions. A revalidate that changes nothing in a session's diagnostic set
+  still fires `okfit/bundleChanged` (`reason: "revalidated"`, same rule as
+  every other revalidate) even though no `textDocument/publishDiagnostics`
+  follows it, since `onRevalidate`'s publish step only republishes a file
+  whose set actually changed.
+
+`registerCommands` is registered on `transport` after `registerCodeActions`
+in `server.ts`.
 
 ## The transport seam
 

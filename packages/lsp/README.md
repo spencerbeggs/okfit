@@ -14,9 +14,10 @@ discovers a bundle per workspace folder the same way the CLI and MCP
 server do, and
 publishes `okfit validate`'s diagnostics as documents open, change, save,
 or close. It
-writes nothing to the bundle, ever — the same promise the MCP server
-makes, carried to a second front end. This first release is
-diagnostics-only: no hover, navigation, or code actions yet.
+writes nothing to the bundle on its own -- every edit it computes (setting a
+concept's status, appending a `verified` entry) is sent to the client as a
+`workspace/applyEdit` request, never written directly, so the client remains
+the one thing that ever touches disk.
 
 ## Launching it
 
@@ -79,10 +80,33 @@ prefixes to implementations.
   knows when to re-fetch `okfit/concepts`. The server advertises support with
   `experimental: { okfitConcepts: true }` in `initialize`'s result.
 
+## Commands
+
+`workspace/executeCommand` (the server advertises `executeCommandProvider.commands`
+in `initialize`'s result) answers three okfit command ids. Arguments are
+`ExecuteCommandParams.arguments`, an array positional by index; a wrong shape
+fails naming what was expected.
+
+- **`okfit.setStatus`** -- args `[uri, status]` (`status` one of `"draft" |
+  "stable" | "deprecated"`). Computes the `TextEdit` that sets the concept at
+  `uri`'s top-level `status`, sends it to the client with `workspace/applyEdit`,
+  and answers the client's own `ApplyWorkspaceEditResult` verbatim.
+- **`okfit.markVerified`** -- args `[uri]`. Computes the `TextEdit` that
+  appends a `verified` entry (the resolved git identity, `Derivation.generatedBy`)
+  to the concept at `uri`, sends it the same way, and answers the client's
+  result. Fails when the concept is a draft, already verified by that actor,
+  or no actor resolves.
+- **`okfit.revalidate`** -- args `[rootUri?]`, or no arguments at all.
+  Schedules a full revalidate (republishing diagnostics and sending
+  `okfit/bundleChanged`) on the named bundle root, or on every live session
+  when the argument is omitted, and answers `{ roots: [rootUri, ...] }` with
+  the root URIs it revalidated -- `{ roots: [] }` for a root no live session
+  resolves to.
+
 ## Status
 
-Diagnostics only, shipped in phase 3 of the LSP roadmap. Navigation,
-hover, and code actions are later phases; see the project's own
+Diagnostics, navigation, hover, code actions and commands, shipped through
+phase 5 of the LSP roadmap; see the project's own
 `okf/roadmaps/lsp-server-and-vscode-extension.md` for the full plan.
 
 ## License
