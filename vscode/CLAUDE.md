@@ -18,10 +18,16 @@ src/
   config-glob.ts          -- CONFIG_GLOB: the okfit config-file glob shared
                             by client.ts's watcher and package.json's
                             activationEvents (pinned together by a test)
-  resolve-server.ts      -- resolveServer: the pure, three-step server
-                            resolution (setting, workspace, bundled)
+  resolve-server.ts      -- resolveServer: the pure, priority-ordered
+                            server candidate-list builder (per-folder
+                            setting, per-folder workspace bin, bundled)
+  next-candidate.ts       -- nextCandidate: the pure keep/try-next decision
+                            client.ts applies to a started candidate's
+                            okfit/concepts capability check
   config.ts              -- the reactive-vscode defineConfiguration proxy
-                            over the okfit.* settings
+                            over the okfit.* settings (window-level restart
+                            trigger only; client.ts reads serverPath per
+                            folder directly)
   status.ts              -- statusFor: pure function to the Language
                             Status item's text, detail and severity
   commands.ts             -- registerCommands: okfit.validateBundle,
@@ -60,10 +66,12 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `node_modules` dependency.
 - `build:dev` exists only so Turbo's `^build:dev` edge builds this
   member's `dist/` in the same graph as the packages it depends on.
-- `src/tree/model.ts`, `src/status.ts` and `src/resolve-server.ts` never
-  import `vscode`: each is a pure function tested without the extension
-  host (`resolveServer`'s inputs are already plain strings and a callback,
-  `statusFor` takes plain data in and returns plain data out, and the tree
+- `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts` and
+  `src/next-candidate.ts` never import `vscode`: each is a pure function
+  tested without the extension host (`resolveServer`'s inputs are already
+  plain strings, callbacks and a per-folder settings array, `nextCandidate`
+  takes a source string and a boolean, `statusFor` takes plain data in and
+  returns plain data out, and the tree
   model is data shapes only). A file that needs the `vscode` API belongs
   next to these, not inside them.
 - Everything the extension needs at runtime is bundled; nothing is read

@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T18:54:37Z
-  body_sha256: 9a1e2e7044acb5bb5925aefea123fe9263e2b840d51fcb16f849986aedf574db
+  at: 2026-09-23T19:41:08Z
+  body_sha256: 06c02fcc4fc44bd52e84019068bd5517a0d1ac76c1542433dbe170a7dfbb2fb8
 ---
 
 # VS Code Extension
@@ -36,41 +36,48 @@ methods).
 
 ## Layout
 
-- `src/extension.ts` (`vscode/src/extension.ts:1-219`) -- the extension
-  host entry, built with `reactive-vscode`'s `defineExtension`: builds the
-  file-decoration provider and Language Status item once per activation,
-  starts the language client, feature-detects `experimental.okfitConcepts`
-  on the started client before building the `ConceptsProvider` tree and its
+- `src/extension.ts` -- the extension host entry, built with
+  `reactive-vscode`'s `defineExtension`: builds the file-decoration
+  provider and Language Status item once per activation, starts the
+  language client, feature-detects `experimental.okfitConcepts` on the
+  started client before building the `ConceptsProvider` tree and its
   `TreeView` (Views and commands below), wires `updateStatus` to the
   active-editor and diagnostics events (normalizing `bundle.rootUri`
   through `vscode.Uri` before comparing it against `document.uri`), and
   serializes every client restart -- including the first `start()`, whose
-  `okfit.lsp.serverPath` `watch` is registered before it runs -- and the
-  final stop on deactivation, through one `SerialQueue`
-  (`vscode/src/serial-queue.ts`) so overlapping `stop()`/`start()` calls
-  can never leak a client.
-- `src/client.ts` (`vscode/src/client.ts:37-91`) -- `startClient`: resolves
-  the server with `resolveServer` (below), builds the `LanguageClient` with
-  a `markdown` and config-glob `documentSelector`, watches both the config
-  glob and every markdown file so a concept file changed outside an editor
-  still reaches the server as `didChangeWatchedFiles`, and on a start
-  failure logs which of the three resolution sources it tried and shows one
-  error dialog with an "Open Output" action -- not retried within that
-  attempt, but `extension.ts` registers the `okfit.lsp.serverPath` `watch`
-  before the very first `start()`, so the next setting change is the
-  recovery path even for a failed first start. Returns both the started
-  `LanguageClient` and the resolved `ServerLaunch`, so the caller can
-  feature-detect `experimental.okfitConcepts` and log which source and
-  target were actually used.
+  restart triggers (the window-level `okfit.lsp.serverPath` `watch`, an
+  `onDidChangeConfiguration` listener for a resource-scoped edit to that
+  setting on any folder, and an `onDidChangeWorkspaceFolders` listener) are
+  all registered before it runs -- and the final stop on deactivation,
+  through one `SerialQueue` (`vscode/src/serial-queue.ts`) so overlapping
+  `stop()`/`start()` calls can never leak a client.
+- `src/client.ts` -- `startClient`: builds the per-folder candidate list
+  with `resolveServer` (below), then tries each candidate in order --
+  starting it, checking `experimental.okfitConcepts`, and falling through
+  to the next candidate on a `"workspace"`-sourced candidate that starts
+  without that capability or throws on `start()` (`src/next-candidate.ts`'s
+  `nextCandidate` makes the capability half of that call, as a pure,
+  separately tested decision) -- so a stale `okfit-lsp` in one folder's
+  `node_modules/.bin` never wins for every folder in the window. A
+  `"setting"`-sourced candidate is the user's explicit choice and is kept
+  regardless of the capability check; only the last candidate's `start()`
+  failure surfaces as an error dialog with an "Open Output" action. Returns
+  both the started `LanguageClient` and the resolved `ServerLaunch`, so the
+  caller can feature-detect `experimental.okfitConcepts` and log which
+  source and target were actually used.
+- `src/next-candidate.ts` -- `nextCandidate`: the pure `"keep"` /
+  `"try-next"` decision `client.ts` applies to a just-started candidate's
+  capability check (Server resolution below).
 - `src/config-glob.ts` (`vscode/src/config-glob.ts:1-7`) -- `CONFIG_GLOB`:
   the okfit config-file glob shared by `client.ts`'s file-system watcher
   and the extension manifest's `activationEvents`, pinned together by
   `__test__/manifest.test.ts` so the two can never drift apart silently.
-- `src/resolve-server.ts` (`vscode/src/resolve-server.ts:56-86`) --
-  `resolveServer`: the pure, three-step server resolution plus the bundled
-  launch's own host-Node check (Server resolution below).
+- `src/resolve-server.ts` -- `resolveServer`: the pure, priority-ordered
+  candidate-list builder plus the bundled launch's own host-Node check
+  (Server resolution below).
 - `src/config.ts` -- the `reactive-vscode` `defineConfiguration` proxy over
-  the `okfit.*` settings.
+  the `okfit.*` settings; only used as the window-level restart trigger
+  now that `client.ts` reads `okfit.lsp.serverPath` per folder directly.
 - `src/status.ts` (`vscode/src/status.ts:19-30`) -- `statusFor`: pure
   function from the active document's URI, the last `okfit/concepts`
   result and the workspace's current diagnostics to a `StatusView` (text,
@@ -106,15 +113,36 @@ names files and their headline exports, not every symbol.
 
 ## Server resolution
 
-`resolveServer` (`vscode/src/resolve-server.ts:56-86`) picks the
-`okfit-lsp` to run, first hit wins:
+One language client serves every workspace folder (VS Code's own
+multi-root guidance), so `resolveServer` returns a priority-ordered
+candidate list rather than a single answer -- `client.ts`'s `startClient`
+tries each in turn:
 
-1. `okfit.lsp.serverPath`, a resource-scoped setting, if set and the path
-   exists (`source: "setting"`).
-2. `<folder>/node_modules/.bin/okfit-lsp`, tried per workspace folder in
-   window order (`source: "workspace"`).
+1. Every folder's `okfit.lsp.serverPath`, a resource-scoped setting read
+   per folder with `vscode.workspace.getConfiguration("okfit.lsp",
+   folder.uri)`, if set and the path exists, in window order
+   (`source: "setting"`; a missing path adds one note and is skipped
+   without blocking another folder's setting).
+2. Every folder's `<folder>/node_modules/.bin/okfit-lsp` that exists, in
+   window order, deduped by real path so two folders that resolve to the
+   same on-disk server (a symlink, or one nested inside the other) only
+   candidate once (`source: "workspace"`).
 3. The server bundled into the extension itself, `dist/server.js`, built
-   from `server/main.ts` -- always available, no installation required.
+   from `server/main.ts` -- always available, no installation required;
+   always the last candidate, so the list is never empty.
+
+`startClient` starts the first candidate and, after `start()`, checks
+`initializeResult?.capabilities.experimental?.okfitConcepts === true`.
+`nextCandidate` (`src/next-candidate.ts`) makes the keep-or-fall-through
+call: a `"workspace"`-sourced candidate without that capability -- a
+different folder's older `okfit-lsp`, predating the concept explorer --
+is stopped and the next candidate tried; a `"setting"`-sourced candidate
+is the user's explicit choice and is kept regardless, leaving the
+existing `okfit.serverTooOld` UI to show. A candidate whose `start()`
+itself throws is logged and abandoned the same way, in favor of the next
+one. Only the last candidate's outcome is final: a missing capability is
+kept as-is, and a thrown error surfaces as the one error dialog with an
+"Open Output" action.
 
 Sources 1 and 2 always launch as a `command` over stdio, no PATH Node
 required. Source 3 is not launched unconditionally in-process: `@okfit/lsp`
@@ -130,11 +158,17 @@ dependency) against `BUNDLED_NODE_FLOOR`: at or above it, source 3 launches
 as `{ kind: "module" }` in-process (`source: "bundled"`) exactly as before;
 below it, it launches as `{ kind: "command", command: "node", args:
 [bundledModule, "--stdio"] }` (`source: "bundled-path-node"`), requiring a
-Node `24.11+` on `PATH`, with a note explaining why. A `client.start()`
-failure is not retried automatically within that attempt, but the
-`okfit.lsp.serverPath` `watch` (`extension.ts`) is registered before the
-very first `start()` runs, so editing the setting is the recovery path even
-for a failed first start; see Layout above.
+Node `24.11+` on `PATH`, with a note explaining why.
+
+`extension.ts` registers three restart triggers before the very first
+`start()` runs: the window-level `okfit.lsp.serverPath` `watch`, an
+`onDidChangeConfiguration` listener for a resource-scoped edit to that
+setting on any folder (since `client.ts` reads it per folder, not through
+the window-level `config.ts` proxy), and an `onDidChangeWorkspaceFolders`
+listener (a folder added to the window may bring a better candidate). All
+three funnel through the same `SerialQueue`, so editing the setting back,
+or adding a folder with a newer server, is the recovery path even for a
+failed first start.
 
 ## Views and commands
 

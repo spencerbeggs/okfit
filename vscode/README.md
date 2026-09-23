@@ -51,20 +51,30 @@ A workspace containing an OKF bundle with a `.okfit.toml`, `okfit.toml`,
 or `.config/okfit.toml` config file -- the extension activates on any of
 these.
 
-The extension resolves which `okfit-lsp` to run, in this order:
+In a multi-root workspace, one language client serves every folder, so
+the extension builds a priority-ordered candidate list rather than
+picking a single answer up front:
 
-1. `okfit.lsp.serverPath`, if set and the path exists.
-2. A workspace folder's own `node_modules/.bin/okfit-lsp`, in window
-   order (the first folder that has one wins).
+1. Every folder's `okfit.lsp.serverPath`, if set and the path exists, in
+   window order (a resource-scoped setting, read per folder).
+2. Every folder's own `node_modules/.bin/okfit-lsp` that exists, in
+   window order (deduped when two folders resolve to the same server on
+   disk).
 3. The server bundled into this extension -- always available, no
    installation required.
 
-The bundled source (3) normally runs in-process under the extension
-host's own Node. On a VS Code release whose extension host runs Node
-older than `@okfit/lsp`'s `engines.node` floor (`24.11.0`), the extension
-instead launches the bundled server as a `node` subprocess, so a Node
-`24.11+` on `PATH` is required in that case when no workspace-local
-`okfit-lsp` exists (sources 1 and 2 above are unaffected either way).
+The extension starts the first candidate and, if a candidate from
+source 2 starts but does not support the concept explorer (an older
+`okfit-lsp` from a folder other than the one you're working in), falls
+through to the next candidate rather than settling for it; a candidate
+from source 1 is your explicit choice and is kept even without that
+support. The bundled source (3) normally runs in-process under the
+extension host's own Node. On a VS Code release whose extension host
+runs Node older than `@okfit/lsp`'s `engines.node` floor (`24.11.0`),
+the extension instead launches the bundled server as a `node`
+subprocess, so a Node `24.11+` on `PATH` is required in that case when
+no earlier candidate exists (sources 1 and 2 above are unaffected
+either way).
 
 ## Settings
 
