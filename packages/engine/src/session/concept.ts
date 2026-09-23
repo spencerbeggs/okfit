@@ -5,6 +5,13 @@ import { Option } from "effect";
 /** Backslashes to forward slashes; the rest of this module treats every path as already resolved. */
 const posixOf = (value: string): string => value.split("\\").join("/");
 
+/** Drops every trailing `/` without a regex (a `/\/+$/` pattern is quadratic on a long run of slashes). */
+const stripTrailingSlashes = (path: string): string => {
+	let end = path.length;
+	while (end > 0 && path.charCodeAt(end - 1) === 0x2f) end -= 1;
+	return path.slice(0, end);
+};
+
 /**
  * The loaded concept at `absolutePath`, if any. `absolutePath` must already sit under
  * `bundle.root` (a real resolved path, never re-resolved here: `@okfit/core`'s own
@@ -16,13 +23,6 @@ const posixOf = (value: string): string => value.split("\\").join("/");
  *
  * @public
  */
-/** Drops every trailing `/` without a regex (a `/\/+$/` pattern is quadratic on a long run of slashes). */
-const stripTrailingSlashes = (path: string): string => {
-	let end = path.length;
-	while (end > 0 && path.charCodeAt(end - 1) === 0x2f) end -= 1;
-	return path.slice(0, end);
-};
-
 export const conceptFor = (bundle: LoadedBundle, absolutePath: string): Option.Option<LoadedConcept> => {
 	const root = stripTrailingSlashes(posixOf(bundle.root));
 	const target = posixOf(absolutePath);
