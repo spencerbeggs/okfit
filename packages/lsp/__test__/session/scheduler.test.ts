@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { RevalidateTier } from "@okfit/engine";
 import type { Duration } from "effect";
-import { Effect, Exit, Fiber, Ref } from "effect";
+import { Deferred, Effect, Exit, Fiber, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import type { SchedulerOptions } from "../../src/session/scheduler.js";
 import { makeScheduler } from "../../src/session/scheduler.js";
@@ -185,6 +185,69 @@ describe("makeScheduler", () => {
 			yield* TestClock.adjust("100 millis");
 			yield* scheduler.settle;
 			assert.deepStrictEqual(yield* Ref.get(runs), ["edit"]);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect(
+		"a schedule issued exactly as the chain enters the running phase is serviced as a queued run, not an aborted one",
+		() =>
+			Effect.gen(function* () {
+				const runs = yield* Ref.make<ReadonlyArray<RevalidateTier>>([]);
+				const gate = yield* Deferred.make<void>();
+				const scheduler = yield* makeScheduler({
+					delay: "150 millis",
+					maxWait: "10 seconds",
+					run: (tier) => Deferred.await(gate).pipe(Effect.andThen(Ref.update(runs, (all) => [...all, tier]))),
+				});
+				yield* scheduler.schedule("edit");
+				yield* TestClock.adjust("150 millis");
+				// The chain has transitioned to "running" and is blocked inside `run`, holding the gate: this
+				// deterministically pins it in the running phase, so the schedule below lands squarely inside
+				// the run rather than racing the pending-to-running transition itself -- a race the
+				// single-writer permit now makes impossible to observe from outside the module.
+				yield* scheduler.schedule("full");
+				// Not aborted: the in-flight run has not recorded anything yet (it is still blocked on the
+				// gate), and it is still the one and only run in flight -- a lost/aborted chain would leave
+				// this array empty forever, never producing "edit" once the gate opens.
+				assert.deepStrictEqual(yield* Ref.get(runs), []);
+				const settling = yield* Effect.forkChild(scheduler.settle);
+				yield* Deferred.succeed(gate, undefined);
+				yield* TestClock.adjust("150 millis");
+				const exit = yield* Fiber.await(settling);
+				assert.isTrue(Exit.isSuccess(exit));
+				// settle returned only once both the in-flight "edit" and the queued, merged "full" had run.
+				assert.deepStrictEqual(yield* Ref.get(runs), ["edit", "full"]);
+			}).pipe(Effect.scoped),
+	);
+
+	it.effect("a schedule racing the instant a run completes is serviced exactly once, never as a ghost entry", () =>
+		Effect.gen(function* () {
+			// Best-effort approximation of the race, not a guaranteed interleaving: forking `schedule`
+			// right as the gate that unblocks the finishing run opens puts the finalizer's reset-to-idle
+			// write and the fresh `schedule` call in contention for the same permit, but the underlying
+			// fiber scheduler decides which actually runs first. Both orderings are asserted here because
+			// the single-writer design makes both orderings converge on the same observable outcome.
+			const runs = yield* Ref.make<ReadonlyArray<RevalidateTier>>([]);
+			const gate = yield* Deferred.make<void>();
+			const scheduler = yield* makeScheduler({
+				delay: "150 millis",
+				maxWait: "10 seconds",
+				run: (tier) => Deferred.await(gate).pipe(Effect.andThen(Ref.update(runs, (all) => [...all, tier]))),
+			});
+			yield* scheduler.schedule("edit");
+			yield* TestClock.adjust("150 millis");
+			// The chain is blocked inside `run`, holding the gate. Opening it lets the chain's own
+			// continuation (recording the run, consuming any rerun, resetting the slot to idle) proceed;
+			// forking `schedule` in the same breath races it against exactly that continuation instead of
+			// against a chain still parked mid-`run` (which the first test above already covers).
+			yield* Deferred.succeed(gate, undefined);
+			const raced = yield* Effect.forkChild(scheduler.schedule("full"));
+			yield* Fiber.join(raced);
+			yield* TestClock.adjust("150 millis");
+			yield* scheduler.settle;
+			// Exactly one further run, with the merged tier -- never zero (a ghost entry nobody
+			// services) and never duplicated (two chains servicing the same queued tier).
+			assert.deepStrictEqual(yield* Ref.get(runs), ["edit", "full"]);
 		}).pipe(Effect.scoped),
 	);
 

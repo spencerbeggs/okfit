@@ -49,13 +49,18 @@ src/
                        that never goes quiet for delay still runs at most
                        maxWait after the first schedule of an idle
                        scheduler (SchedulerOptions.maxWait). State lives in
-                       one SynchronizedRef; the debounce-then-run chain
-                       reads and writes its raw backing Ref instead of the
-                       synchronized ref itself, because schedule interrupts
-                       a prior chain from inside its own serialized
-                       transition and Fiber.interrupt waits for that
-                       chain's finalizer, which would deadlock against the
-                       same permit
+                       one SynchronizedRef with a single writer at a time:
+                       schedule's idle-or-pending transition and every
+                       chain-side write (phase to running, the post-run
+                       rerun-and-reset, the finalizer's reset-to-idle) all
+                       go through the ref's own guarded modify/update, each
+                       chain-side write gated on a fiber-identity check
+                       against the entry it reads. schedule never awaits
+                       Fiber.interrupt on the chain it replaces -- that
+                       would wait on the superseded chain's finalizer,
+                       which needs the very permit schedule is holding --
+                       it forks the interrupt into the scheduler's scope
+                       instead and returns
     registry.ts     -- makeSessionRegistry: workspace folders -> one
                        BundleSession per bundle root, lazily, with config
                        discovery per folder; SessionHandle bundles a

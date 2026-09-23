@@ -1,6 +1,6 @@
 import type { RevalidateTier } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
-import { Cause, Deferred, Effect, Fiber, Option, Ref, SynchronizedRef } from "effect";
+import { Cause, Deferred, Effect, Fiber, Option, SynchronizedRef } from "effect";
 
 /**
  * The debounced revalidate trigger a feature schedules and a workspace
@@ -85,16 +85,32 @@ type State = Option.Option<Entry>;
  * `schedule` of the idle cycle (decision 9 in the phase 4 plan). Closing the
  * scope this was built under interrupts a pending or running chain.
  *
- * The scheduler's state lives in one `SynchronizedRef`: `schedule`'s
- * idle-or-pending transition runs inside `SynchronizedRef.modifyEffect`, so
- * concurrent `schedule` calls serialize on its own semaphore exactly as the
- * former `Ref` + `Semaphore` pair did. The debounce-then-run chain itself
- * reads and writes the ref's raw `backing` `Ref` instead of going through
- * that semaphore: `schedule` interrupts a prior chain from inside its own
- * serialized transition, and `Fiber.interrupt` waits for the interrupted
- * fiber's finalizers (which update this same state) to finish, so routing
- * the chain's updates through the semaphore too would deadlock `schedule`
- * against the very fiber it is interrupting.
+ * The scheduler's state lives in one `SynchronizedRef`, and it has exactly
+ * one writer at a time: `schedule`'s idle-or-pending transition, the chain's
+ * phase-to-running write, its post-run rerun-and-reset write, and the
+ * finalizer's reset-to-idle all go through the ref's own semaphore-guarded
+ * `modify`/`update` operations, never its raw `backing` `Ref`. That is what
+ * makes the two races a reviewer can otherwise construct impossible: a
+ * `schedule` call can no longer observe a chain's still-"pending" snapshot at
+ * the exact instant the chain writes "running" (it would abort a live run and
+ * drop the queued-run bookkeeping), and a chain's finalizer can no longer
+ * reset a slot a newer chain has already taken over (it would leave a ghost
+ * entry pointing at a dead fiber). Every chain-side write also carries a
+ * fiber-identity check against the entry it reads, so a write from a chain
+ * that has already been superseded — its interrupt requested but not yet
+ * delivered — is a safe no-op instead of clobbering the entry the newer chain
+ * now owns.
+ *
+ * The one place this could deadlock: `schedule`'s replace-pending branch
+ * interrupting the prior chain. `Fiber.interrupt` awaits the interrupted
+ * fiber's finalizers, and this scheduler's finalizer needs the very permit
+ * `schedule` is holding to reset itself — awaiting the interrupt inline would
+ * make `schedule` wait on a fiber that is in turn waiting on `schedule`. So
+ * `schedule` forks the interrupt into the scheduler's scope instead of
+ * awaiting it: the permit is released as soon as the new chain is recorded,
+ * the superseded chain's finalizer can then acquire it whenever the
+ * interrupt actually lands, and its identity check makes the timing of that
+ * landing irrelevant to correctness.
  *
  * @public
  */
@@ -126,15 +142,32 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 			Effect.gen(function* () {
 				// Whichever comes first: the debounce settling, or the burst having run past the ceiling.
 				yield* Effect.race(Effect.sleep(options.delay), Deferred.await(forceNow));
-				yield* Ref.update(
-					state.backing,
-					Option.map((entry) => ({ ...entry, phase: "running" as const, rerun: Option.none() })),
+
+				// Claim the slot, but only if it is still ours: a `schedule` call may already have replaced
+				// this entry (its interrupt of this fiber requested but not yet delivered). Gating `run` on
+				// that claim makes this chain's behaviour correct regardless of how quickly the interrupt
+				// actually lands, instead of depending on that timing.
+				const stillOwns = yield* SynchronizedRef.modify(state, (entry) =>
+					Option.isSome(entry) && entry.value.fiber === fiberBox.fiber
+						? ([true, Option.some({ ...entry.value, phase: "running" as const, rerun: Option.none() })] as const)
+						: ([false, entry] as const),
 				);
+				if (!stillOwns) {
+					return;
+				}
+
 				yield* options.run(tier);
-				const rerun = yield* Ref.modify(state.backing, (entry) => [
-					Option.isSome(entry) ? entry.value.rerun : Option.none<RevalidateTier>(),
-					Option.none(),
-				]);
+
+				// Consume any tier requested while this chain was running, and reset the slot to idle in the
+				// same guarded write so no observer can see "running" with the rerun already cleared but the
+				// slot not yet free. Guarded by the same identity check: this chain owns the slot throughout
+				// `run` (schedule never interrupts a running chain, only a pending one), so the check here is
+				// a defensive no-op in the ordinary path, not a case this scheduler expects to hit.
+				const rerun = yield* SynchronizedRef.modify(state, (entry) =>
+					Option.isSome(entry) && entry.value.fiber === fiberBox.fiber
+						? ([entry.value.rerun, Option.none<Entry>()] as const)
+						: ([Option.none<RevalidateTier>(), entry] as const),
+				);
 				// Already resolved (this run started from the ceiling) or no longer needed (it started from the
 				// delay elapsing first): interrupting it either way is a fast no-op.
 				yield* Fiber.interrupt(ceiling);
@@ -149,7 +182,7 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 						: Effect.logWarning(`okfit-lsp: a revalidate chain failed: ${Cause.pretty(cause)}`),
 				),
 				Effect.ensuring(
-					Ref.update(state.backing, (entry) =>
+					SynchronizedRef.update(state, (entry) =>
 						Option.isSome(entry) && entry.value.fiber === fiberBox.fiber ? Option.none() : entry,
 					),
 				),
@@ -174,7 +207,11 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 							: yield* startCycle();
 
 						if (Option.isSome(entry)) {
-							yield* Fiber.interrupt(entry.value.fiber);
+							// Forked, not awaited: awaiting here would wait for the superseded chain's finalizer,
+							// which needs this very permit to reset itself (see the module doc). Forking into the
+							// scheduler's scope still interrupts it and still gets swept up on scope close; this
+							// permit is simply released before that interrupt is delivered.
+							yield* Effect.forkIn(Fiber.interrupt(entry.value.fiber), scope);
 						}
 
 						const mergedTier = mergeTier(Option.isSome(entry) ? Option.some(entry.value.tier) : Option.none(), tier);
@@ -199,10 +236,10 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 		// `Fiber.await`, not `Fiber.join`: a chain interrupted by a later `schedule` (or one that died) must not
 		// fail `settle`, or `shutdown` would answer with an internal error. The loop then waits on the replacement.
 		const settle: Effect.Effect<void> = Effect.gen(function* () {
-			let current = yield* Ref.get(state.backing);
+			let current = yield* SynchronizedRef.get(state);
 			while (Option.isSome(current)) {
 				yield* Fiber.await(current.value.fiber);
-				current = yield* Ref.get(state.backing);
+				current = yield* SynchronizedRef.get(state);
 			}
 		});
 
