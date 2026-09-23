@@ -1,4 +1,5 @@
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
 import * as vscode from "vscode";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
@@ -6,6 +7,7 @@ import { CONFIG_GLOB } from "./config-glob.js";
 import { nextCandidate } from "./next-candidate.js";
 import type { ServerLaunch } from "./resolve-server.js";
 import { resolveServer } from "./resolve-server.js";
+import { MIN_SERVER_VERSION } from "./versions.js";
 
 // vscode-languageclient@10.1.1's package.json `exports` map only declares
 // "./node" (types + a "node" condition), not "./node.js" -- so the bare
@@ -74,6 +76,8 @@ export interface StartedClient {
 	 * every later restart.
 	 */
 	readonly watchers: ReadonlyArray<vscode.Disposable>;
+	/** Every `"workspace"` candidate `resolveServer` dropped for running an `@okfit/lsp` older than `MIN_SERVER_VERSION`. */
+	readonly outdated: ReadonlyArray<{ readonly folder: string; readonly version: string }>;
 }
 
 /** Best-effort real path; a folder or bin that cannot be resolved (e.g. it does not exist) keeps its own path. */
@@ -83,6 +87,69 @@ const realPath = (path: string): string => {
 	} catch {
 		return path;
 	}
+};
+
+/** Reads `package.json`'s `version` field at `path`, or `undefined` when it does not exist or does not parse. */
+const readPackageVersion = (path: string): string | undefined => {
+	try {
+		const pkg = JSON.parse(readFileSync(path, "utf8")) as { name?: unknown; version?: unknown };
+		return typeof pkg.version === "string" ? pkg.version : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+/** `package.json`'s `name` field at `path`, or `undefined` when it does not exist or does not parse. */
+const readPackageName = (path: string): string | undefined => {
+	try {
+		const pkg = JSON.parse(readFileSync(path, "utf8")) as { name?: unknown };
+		return typeof pkg.name === "string" ? pkg.name : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+/**
+ * Resolves the `@okfit/lsp` version a workspace folder's
+ * `node_modules/.bin/okfit-lsp` would run, without spawning it (Part A step
+ * 1): first `node_modules/@okfit/lsp/package.json`'s own `version`; if that
+ * does not exist, follow the bin's real path and walk up to the nearest
+ * `package.json` -- when that package is `@okfit/plugin` (which re-exports
+ * `okfit-lsp` as its own bin), read its own `node_modules/@okfit/lsp/
+ * package.json`, or the pnpm-resolved copy one directory up from that
+ * (`node_modules/@okfit/lsp` living as a sibling of the plugin package
+ * inside a pnpm `.pnpm` store entry). `undefined` when no version can be
+ * determined at all -- the runtime `okfit/concepts` capability gate in
+ * `startClient` below still protects an unknown-version candidate.
+ */
+const readWorkspaceServerVersion = (folderPath: string): string | undefined => {
+	const direct = readPackageVersion(join(folderPath, "node_modules", "@okfit", "lsp", "package.json"));
+	if (direct !== undefined) return direct;
+
+	const bin = join(folderPath, "node_modules", ".bin", "okfit-lsp");
+	let dir: string;
+	try {
+		dir = dirname(realpathSync(bin));
+	} catch {
+		return undefined;
+	}
+	// Walk up from the resolved bin target to the nearest package.json.
+	for (let previous: string | undefined; dir !== previous; previous = dir, dir = dirname(dir)) {
+		const pkgPath = join(dir, "package.json");
+		if (!existsSync(pkgPath)) continue;
+		const name = readPackageName(pkgPath);
+		if (name === "@okfit/plugin") {
+			const nested = readPackageVersion(join(dir, "node_modules", "@okfit", "lsp", "package.json"));
+			if (nested !== undefined) return nested;
+			// pnpm resolves @okfit/plugin's own dependency into a sibling
+			// scope directory of the store entry that holds @okfit/plugin
+			// itself, rather than nesting node_modules -- try that layout too.
+			return readPackageVersion(join(dir, "..", "@okfit", "lsp", "package.json"));
+		}
+		if (name === "@okfit/lsp") return readPackageVersion(pkgPath);
+		return undefined;
+	}
+	return undefined;
 };
 
 /**
@@ -104,14 +171,21 @@ export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 		settingPath: vscode.workspace.getConfiguration("okfit.lsp", folder.uri).get<string>("serverPath"),
 	}));
 	const bundledModule = vscode.Uri.joinPath(deps.extensionUri, "dist", "server.js").fsPath;
-	const { candidates, notes } = resolveServer({
+	const { candidates, notes, outdated } = resolveServer({
 		folders,
 		bundledModule,
 		exists: existsSync,
 		realPath,
 		hostNode: process.versions.node,
+		readVersion: readWorkspaceServerVersion,
+		minServerVersion: MIN_SERVER_VERSION,
 	});
 	for (const note of notes) deps.log(note);
+	if (outdated.length > 0) {
+		deps.log(
+			`okfit language server: ${outdated.length} workspace folder(s) run @okfit/lsp older than ${MIN_SERVER_VERSION}: ${outdated.map((o) => `${o.folder} (${o.version})`).join(", ")}.`,
+		);
+	}
 
 	for (let index = 0; index < candidates.length; index += 1) {
 		const launch = candidates[index] as ServerLaunch;
@@ -167,7 +241,7 @@ export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 		}
 
 		deps.log(`okfit language server: ${launch.source} (${targetOf(launch)})`);
-		return { client, launch, watchers };
+		return { client, launch, watchers, outdated };
 	}
 	// Unreachable: `resolveServer` never returns an empty candidate list, and
 	// the loop above always either `return`s or `throw`s on its last

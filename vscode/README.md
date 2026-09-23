@@ -71,22 +71,41 @@ picking a single answer up front:
    window order (a resource-scoped setting, read per folder).
 2. Every folder's own `node_modules/.bin/okfit-lsp` that exists, in
    window order (deduped when two folders resolve to the same server on
-   disk).
+   disk) and **version-gated**: a folder's `@okfit/lsp` version is read
+   from disk (its own `node_modules/@okfit/lsp/package.json`, or, when
+   that bin is `@okfit/plugin`'s re-export, that package's own nested or
+   pnpm-resolved `@okfit/lsp`) without spawning it, and a folder running a
+   version older than the extension's own `@okfit/lsp` dependency is
+   dropped from the candidate list -- a folder whose version cannot be
+   determined is kept (the concept-explorer capability check below still
+   protects it). A window where this drops at least one folder shows one
+   information message, once per activation, naming how many folders and
+   the minimum version needed, with a "Show folders" action that lists
+   them (with their versions) in the "okfit" output channel.
 3. The server bundled into this extension -- always available, no
    installation required.
 
 The extension starts the first candidate and, if a candidate from
 source 2 starts but does not support the concept explorer (an older
-`okfit-lsp` from a folder other than the one you're working in), falls
-through to the next candidate rather than settling for it; a candidate
-from source 1 is your explicit choice and is kept even without that
-support. The bundled source (3) normally runs in-process under the
-extension host's own Node. On a VS Code release whose extension host
-runs Node older than `@okfit/lsp`'s `engines.node` floor (`24.11.0`),
-the extension instead launches the bundled server as a `node`
-subprocess, so a Node `24.11+` on `PATH` is required in that case when
-no earlier candidate exists (sources 1 and 2 above are unaffected
-either way).
+`okfit-lsp` from a folder other than the one you're working in -- one
+whose version could not be determined ahead of time, so the version gate
+above did not already drop it), falls through to the next candidate
+rather than settling for it; a candidate from source 1 is your explicit
+choice and is kept even without that support, and even when its version
+is older than the gate above (the version gate applies only to source 2).
+The bundled source (3) normally runs in-process under the extension
+host's own Node. On a VS Code release whose extension host runs Node
+older than `@okfit/lsp`'s `engines.node` floor (`24.11.0`), the extension
+instead launches the bundled server as a `node` subprocess, so a Node
+`24.11+` on `PATH` is required in that case when no earlier candidate
+exists (sources 1 and 2 above are unaffected either way).
+
+In a large multi-root window, the concept tree also **settles**: a
+`bundleChanged` notification only triggers a debounced re-fetch (a
+trailing 250ms window, one request per burst of notifications, not one
+per notification), and each bundle root's server-side warm-up runs at
+most once per session, so a window with many folders no longer spends
+its startup repeatedly revalidating roots that never resolve.
 
 ## Settings
 

@@ -24,12 +24,30 @@ export interface ResolveInput {
 	readonly realPath: (path: string) => string;
 	/** `process.versions.node` of the extension host process; decides the bundled launch shape below. */
 	readonly hostNode: string;
+	/**
+	 * Resolves the `@okfit/lsp` version a folder's workspace `okfit-lsp`
+	 * would run, without spawning it, or `undefined` when it cannot be
+	 * determined. Called only for `"workspace"`-sourced candidates -- a
+	 * `"setting"` candidate is the user's explicit choice and is exempt from
+	 * the version gate below.
+	 */
+	readonly readVersion: (path: string) => string | undefined;
+	/**
+	 * The `@okfit/lsp` version this extension was built against. A
+	 * `"workspace"` candidate with a known version below this is dropped
+	 * from the candidate list; the runtime `okfit/concepts` capability gate
+	 * (`client.ts`'s `nextCandidate`) still protects a candidate whose
+	 * version could not be determined.
+	 */
+	readonly minServerVersion: string;
 }
 
 export interface Resolution {
 	/** Every viable launch, in priority order. Never empty: the bundled launch is always the last entry. */
 	readonly candidates: ReadonlyArray<ServerLaunch>;
 	readonly notes: ReadonlyArray<string>;
+	/** Every `"workspace"` candidate dropped for running an `@okfit/lsp` older than `minServerVersion`. */
+	readonly outdated: ReadonlyArray<{ readonly folder: string; readonly version: string }>;
 }
 
 /**
@@ -89,12 +107,18 @@ export const resolveServer = (input: ResolveInput): Resolution => {
 	}
 
 	const seenRealPaths = new Set<string>();
+	const outdated: Array<{ folder: string; version: string }> = [];
 	for (const folder of input.folders) {
 		const local = join(folder.path, "node_modules", ".bin", "okfit-lsp");
 		if (!input.exists(local)) continue;
 		const real = input.realPath(local);
 		if (seenRealPaths.has(real)) continue;
 		seenRealPaths.add(real);
+		const version = input.readVersion(folder.path);
+		if (version !== undefined && !atLeast(version, input.minServerVersion)) {
+			outdated.push({ folder: folder.path, version });
+			continue;
+		}
 		candidates.push({ kind: "command", command: local, args: ["--stdio"], source: "workspace" });
 	}
 
@@ -112,5 +136,14 @@ export const resolveServer = (input: ResolveInput): Resolution => {
 		});
 	}
 
-	return { candidates, notes };
+	return { candidates, notes, outdated };
 };
+
+/**
+ * The exact wording of the one `window.showInformationMessage` a window
+ * shows per activation when `resolveServer` dropped at least one outdated
+ * `"workspace"` candidate. Pure and pinned by a test so the notice's
+ * wording cannot drift from what `client.ts`/`extension.ts` show.
+ */
+export const outdatedNotice = (count: number, min: string): string =>
+	`okfit in ${count} workspace folder(s) is older than this extension (needs @okfit/lsp ${min}); upgrade okfit there. Using the bundled server.`;

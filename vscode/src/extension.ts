@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 import { startClient } from "./client.js";
 import { registerCommands } from "./commands.js";
+import { outdatedNotice } from "./resolve-server.js";
 import { createSerialQueue } from "./serial-queue.js";
 import { statusFor } from "./status.js";
 import { ConceptDecorations } from "./tree/decorations.js";
@@ -10,6 +11,7 @@ import type { TreeNode } from "./tree/model.js";
 import { ConceptsProvider } from "./tree/provider.js";
 import type { ConceptsResult } from "./tree/wire.js";
 import { OKFIT_COMMANDS } from "./tree/wire.js";
+import { MIN_SERVER_VERSION } from "./versions.js";
 
 // `createLanguageStatusItem`'s `selector` is never empty: VS Code hides an
 // item only through disposal, never through an empty selector, so a document
@@ -66,6 +68,10 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	let provider: ConceptsProvider | undefined;
 	let view: vscode.TreeView<TreeNode> | undefined;
 	let providerSubscription: vscode.Disposable | undefined;
+	// One notice per window per activation (decision A3): a later restart
+	// that resolves the same outdated workspace folders again does not
+	// reopen the dialog.
+	let outdatedNoticeShown = false;
 
 	// The decorations provider is not client-scoped -- it just relabels
 	// whatever the current provider's `update` last handed it -- so it is
@@ -189,6 +195,22 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 		});
 		client = started.client;
 		watchers = started.watchers;
+		// Older-workspace-server notice (Part A decision A3): shown at most once
+		// per window per activation, regardless of how many restarts resolve
+		// the same outdated folders again. Logged every time regardless.
+		if (started.outdated.length > 0) {
+			if (!outdatedNoticeShown) {
+				outdatedNoticeShown = true;
+				void vscode.window
+					.showInformationMessage(outdatedNotice(started.outdated.length, MIN_SERVER_VERSION), "Show folders")
+					.then((selection) => {
+						if (selection !== "Show folders") return;
+						logger.info(`okfit: workspace folders running an outdated @okfit/lsp (needs ${MIN_SERVER_VERSION}):`);
+						for (const { folder, version } of started.outdated) logger.info(`  ${folder}: ${version}`);
+						logger.show();
+					});
+			}
+		}
 		// `okfit.hasActions`: true only when the server advertises all three
 		// `OKFIT_COMMANDS` ids in `executeCommandProvider.commands` (Task 6
 		// decision 2) -- read once, right after start, independent of

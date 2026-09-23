@@ -17,6 +17,9 @@ export default defineConfig([
 		// tsdown's platform:"node" default (fixedExtension: true) would otherwise force
 		// .mjs regardless, which does not match the "main": "./dist/extension.js" manifest.
 		fixedExtension: false,
+		define: {
+			"process.env.__OKFIT_LSP_VERSION__": JSON.stringify(lspPkg.version),
+		},
 	},
 	{
 		entry: { server: "server/main.ts" },

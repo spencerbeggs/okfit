@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUNDLED_NODE_FLOOR, resolveServer } from "../src/resolve-server.js";
+import { BUNDLED_NODE_FLOOR, outdatedNotice, resolveServer } from "../src/resolve-server.js";
 
 const bundled = "/ext/dist/server.js";
 const existsIn = (paths: ReadonlyArray<string>) => (p: string) => paths.includes(p);
@@ -17,6 +17,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/opt/okfit-lsp", "/w/node_modules/.bin/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates[0]).toEqual({ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" });
 		expect(notes).toEqual([]);
@@ -29,6 +31,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/w/node_modules/.bin/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates[0]?.source).toBe("workspace");
 		expect(notes).toHaveLength(1);
@@ -45,6 +49,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/b/node_modules/.bin/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([
 			{ kind: "command", command: "/b/node_modules/.bin/okfit-lsp", args: ["--stdio"], source: "workspace" },
@@ -62,6 +68,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/a/node_modules/.bin/okfit-lsp", "/b/node_modules/.bin/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([
 			{ kind: "command", command: "/a/node_modules/.bin/okfit-lsp", args: ["--stdio"], source: "workspace" },
@@ -80,6 +88,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/a/node_modules/.bin/okfit-lsp", "/opt/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates[0]).toEqual({ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" });
 		expect(candidates[1]).toEqual({
@@ -100,6 +110,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/opt/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates[0]).toEqual({ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" });
 		expect(notes).toHaveLength(1);
@@ -116,6 +128,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/opt/okfit-lsp"]),
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([
 			{ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" },
@@ -133,6 +147,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/opt/okfit-lsp", "/opt/link-to-okfit-lsp"]),
 			realPath: (p) => (p === "/opt/link-to-okfit-lsp" ? "/opt/okfit-lsp" : p),
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([
 			{ kind: "command", command: "/opt/okfit-lsp", args: ["--stdio"], source: "setting" },
@@ -150,6 +166,8 @@ describe("resolveServer", () => {
 			exists: existsIn(["/a/node_modules/.bin/okfit-lsp", "/link-to-a/node_modules/.bin/okfit-lsp"]),
 			realPath: (p) => (p === "/link-to-a/node_modules/.bin/okfit-lsp" ? "/a/node_modules/.bin/okfit-lsp" : p),
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([
 			{ kind: "command", command: "/a/node_modules/.bin/okfit-lsp", args: ["--stdio"], source: "workspace" },
@@ -164,6 +182,8 @@ describe("resolveServer", () => {
 			exists: () => false,
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([{ kind: "module", module: bundled, source: "bundled" }]);
 	});
@@ -175,6 +195,8 @@ describe("resolveServer", () => {
 			exists: () => false,
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates).toEqual([{ kind: "module", module: bundled, source: "bundled" }]);
 		expect(notes).toEqual([]);
@@ -187,6 +209,8 @@ describe("resolveServer", () => {
 			exists: () => false,
 			realPath: identityRealPath,
 			hostNode: modernNode,
+			readVersion: () => undefined,
+			minServerVersion: "0.0.0",
 		});
 		expect(candidates.length).toBeGreaterThan(0);
 	});
@@ -199,6 +223,8 @@ describe("resolveServer", () => {
 				exists: () => false,
 				realPath: identityRealPath,
 				hostNode: "24.18.1",
+				readVersion: () => undefined,
+				minServerVersion: "0.0.0",
 			});
 			expect(candidates).toEqual([{ kind: "module", module: bundled, source: "bundled" }]);
 			expect(notes).toEqual([]);
@@ -211,6 +237,8 @@ describe("resolveServer", () => {
 				exists: () => false,
 				realPath: identityRealPath,
 				hostNode: "22.15.0",
+				readVersion: () => undefined,
+				minServerVersion: "0.0.0",
 			});
 			expect(candidates).toEqual([
 				{
@@ -231,9 +259,138 @@ describe("resolveServer", () => {
 				exists: () => false,
 				realPath: identityRealPath,
 				hostNode: BUNDLED_NODE_FLOOR,
+				readVersion: () => undefined,
+				minServerVersion: "0.0.0",
 			});
 			expect(candidates).toEqual([{ kind: "module", module: bundled, source: "bundled" }]);
 			expect(notes).toEqual([]);
+		});
+	});
+
+	describe("version-gated workspace candidates", () => {
+		it("drops a workspace candidate whose version is older than minServerVersion and reports it", () => {
+			const { candidates, outdated } = resolveServer({
+				folders: [{ path: "/a", settingPath: undefined }],
+				bundledModule: bundled,
+				exists: existsIn(["/a/node_modules/.bin/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: () => "0.1.0",
+				minServerVersion: "0.2.0",
+			});
+			expect(candidates).toEqual([{ kind: "module", module: bundled, source: "bundled" }]);
+			expect(outdated).toEqual([{ folder: "/a", version: "0.1.0" }]);
+		});
+
+		it("keeps a workspace candidate whose version equals minServerVersion", () => {
+			const { candidates, outdated } = resolveServer({
+				folders: [{ path: "/a", settingPath: undefined }],
+				bundledModule: bundled,
+				exists: existsIn(["/a/node_modules/.bin/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: () => "0.2.0",
+				minServerVersion: "0.2.0",
+			});
+			expect(candidates[0]?.source).toBe("workspace");
+			expect(outdated).toEqual([]);
+		});
+
+		it("keeps a workspace candidate whose version is newer than minServerVersion", () => {
+			const { candidates, outdated } = resolveServer({
+				folders: [{ path: "/a", settingPath: undefined }],
+				bundledModule: bundled,
+				exists: existsIn(["/a/node_modules/.bin/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: () => "0.3.0",
+				minServerVersion: "0.2.0",
+			});
+			expect(candidates[0]?.source).toBe("workspace");
+			expect(outdated).toEqual([]);
+		});
+
+		it("keeps a workspace candidate whose version could not be determined (unknown)", () => {
+			const { candidates, outdated } = resolveServer({
+				folders: [{ path: "/a", settingPath: undefined }],
+				bundledModule: bundled,
+				exists: existsIn(["/a/node_modules/.bin/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: () => undefined,
+				minServerVersion: "0.2.0",
+			});
+			expect(candidates[0]?.source).toBe("workspace");
+			expect(outdated).toEqual([]);
+		});
+
+		it("exempts a setting candidate from the version gate even when its version is older", () => {
+			const { candidates, outdated } = resolveServer({
+				folders: [{ path: "/a", settingPath: "/opt/okfit-lsp" }],
+				bundledModule: bundled,
+				exists: existsIn(["/opt/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: () => "0.1.0",
+				minServerVersion: "0.2.0",
+			});
+			expect(candidates[0]).toEqual({
+				kind: "command",
+				command: "/opt/okfit-lsp",
+				args: ["--stdio"],
+				source: "setting",
+			});
+			expect(outdated).toEqual([]);
+		});
+
+		it("calls readVersion with each folder's path, not the resolved bin path", () => {
+			const seen: Array<string> = [];
+			resolveServer({
+				folders: [
+					{ path: "/a", settingPath: undefined },
+					{ path: "/b", settingPath: undefined },
+				],
+				bundledModule: bundled,
+				exists: existsIn(["/a/node_modules/.bin/okfit-lsp", "/b/node_modules/.bin/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: (path) => {
+					seen.push(path);
+					return undefined;
+				},
+				minServerVersion: "0.2.0",
+			});
+			expect(seen).toEqual(["/a", "/b"]);
+		});
+
+		it("reports multiple outdated folders in window order", () => {
+			const { outdated } = resolveServer({
+				folders: [
+					{ path: "/a", settingPath: undefined },
+					{ path: "/b", settingPath: undefined },
+				],
+				bundledModule: bundled,
+				exists: existsIn(["/a/node_modules/.bin/okfit-lsp", "/b/node_modules/.bin/okfit-lsp"]),
+				realPath: identityRealPath,
+				hostNode: modernNode,
+				readVersion: (path) => (path === "/a" ? "0.1.0" : "0.1.5"),
+				minServerVersion: "0.2.0",
+			});
+			expect(outdated).toEqual([
+				{ folder: "/a", version: "0.1.0" },
+				{ folder: "/b", version: "0.1.5" },
+			]);
+		});
+	});
+
+	describe("outdatedNotice", () => {
+		it("pins the exact notice wording", () => {
+			expect(outdatedNotice(1, "0.3.0")).toBe(
+				"okfit in 1 workspace folder(s) is older than this extension (needs @okfit/lsp 0.3.0); upgrade okfit there. Using the bundled server.",
+			);
+			expect(outdatedNotice(3, "0.3.0")).toBe(
+				"okfit in 3 workspace folder(s) is older than this extension (needs @okfit/lsp 0.3.0); upgrade okfit there. Using the bundled server.",
+			);
 		});
 	});
 });

@@ -20,7 +20,19 @@ src/
                             activationEvents (pinned together by a test)
   resolve-server.ts      -- resolveServer: the pure, priority-ordered
                             server candidate-list builder (per-folder
-                            setting, per-folder workspace bin, bundled)
+                            setting, per-folder workspace bin, bundled),
+                            gated by minServerVersion -- a workspace
+                            candidate running an older @okfit/lsp is dropped
+                            and reported in result.outdated; outdatedNotice
+                            is the pinned wording for the one dialog
+                            client.ts/extension.ts show for it
+  versions.ts             -- MIN_SERVER_VERSION: the @okfit/lsp version this
+                            extension was built against, injected at build
+                            time by tsdown.config.ts
+  debounce.ts             -- createDebouncer: a tiny trailing-edge debounce
+                            with no vscode import, used by tree/provider.ts
+                            to coalesce a burst of bundleChanged
+                            notifications into one refresh
   next-candidate.ts       -- nextCandidate: the pure keep/try-next decision
                             client.ts applies to a started candidate's
                             okfit/concepts capability check
@@ -37,7 +49,11 @@ src/
   tree/
     model.ts              -- tree node shapes for the OKF Concepts view
     provider.ts            -- ConceptsProvider: a TreeDataProvider fed by
-                            okfit/concepts, refreshed on okfit/bundleChanged
+                            okfit/concepts, refreshed on okfit/bundleChanged,
+                            debounced 250ms trailing (createDebouncer) so a
+                            settling multi-root window's burst of
+                            notifications coalesces into one request; the
+                            first refresh from attach() stays immediate
     decorations.ts          -- ConceptDecorations: status and stale badges
     wire.ts                 -- the okfit/concepts wire types, mirroring
                             @okfit/lsp's ConceptsResult without importing it
@@ -71,15 +87,17 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - `build:dev` exists only so Turbo's `^build:dev` edge builds this
   member's `dist/` in the same graph as the packages it depends on.
 - `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts`,
-  `src/next-candidate.ts` and `src/status-picks.ts` never import `vscode`:
-  each is a pure function tested without the extension host
+  `src/next-candidate.ts`, `src/status-picks.ts` and `src/debounce.ts` never
+  import `vscode`: each is a pure function tested without the extension host
   (`resolveServer`'s inputs are already plain strings, callbacks and a
-  per-folder settings array, `nextCandidate` takes a source string and a
-  boolean, `statusFor` takes plain data in and returns plain data out, the
-  tree model is data shapes only, and `status-picks.ts`'s `statusPicks`/
-  `conceptUriFrom` take a `Status | undefined`/`unknown` argument and
-  plain strings). A file that needs the `vscode` API belongs next to
-  these, not inside them.
+  per-folder settings array -- including `readVersion`, an fs-backed reader
+  built in `client.ts` and passed in, not read here -- `nextCandidate` takes
+  a source string and a boolean, `statusFor` takes plain data in and returns
+  plain data out, the tree model is data shapes only, `status-picks.ts`'s
+  `statusPicks`/`conceptUriFrom` take a `Status | undefined`/`unknown`
+  argument and plain strings, and `createDebouncer` takes a delay and a
+  callback, tested with fake timers). A file that needs the `vscode` API
+  belongs next to these, not inside them.
 - `src/tree/wire.ts` copies two things verbatim from `@okfit/lsp`, rather
   than importing the package: the `okfit/concepts`/`okfit/bundleChanged`
   wire types and method names, and `OKFIT_COMMANDS`

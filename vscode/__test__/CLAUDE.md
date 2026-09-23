@@ -8,9 +8,11 @@ This project uses `@vitest-agent/plugin` for test discovery. Tests live here in
 ```text
 __test__/
   assert-version.test.ts  # lib/assert-version.sh's tag-vs-package.json version check
+  debounce.test.ts        # createDebouncer's trailing-edge coalescing, with fake timers
   manifest.test.ts        # Marketplace-manifest field and packaging assertions
   next-candidate.test.ts  # nextCandidate's keep/try-next decision
-  resolve-server.test.ts  # resolveServer's candidate-list priority order
+  resolve-server.test.ts  # resolveServer's candidate-list priority order, including the
+                           # minServerVersion gate on workspace candidates, and outdatedNotice
   serial-queue.test.ts    # createSerialQueue's run/dispose serialization
   status-model.test.ts    # statusFor's Language Status item text/detail/severity
   status-picks.test.ts    # statusPicks and conceptUriFrom
