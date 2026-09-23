@@ -19,7 +19,41 @@ describe("serve", () => {
 				supported: true,
 				changeNotifications: true,
 			});
+			assert.deepStrictEqual(result.capabilities.codeActionProvider, {
+				codeActionKinds: ["quickfix", "okfit.status", "okfit.verify"],
+			});
+			assert.deepStrictEqual(result.capabilities.executeCommandProvider, {
+				commands: ["okfit.setStatus", "okfit.markVerified", "okfit.revalidate"],
+			});
+			assert.strictEqual(result.capabilities.inlayHintProvider, true);
 			assert.strictEqual(result.serverInfo?.name, "okfit-lsp");
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("the harness answers a server-to-client applyEdit request by default, and a test can override it", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			yield* h.initialize;
+			const edit = { changes: {} };
+			const defaultResult = yield* h.transport.sendRequest<unknown, { applied: boolean }>("workspace/applyEdit", {
+				edit,
+			});
+			assert.deepStrictEqual(defaultResult, { applied: true });
+			assert.deepStrictEqual(h.serverRequests, [{ method: "workspace/applyEdit", params: { edit } }]);
+
+			h.onServerRequest<unknown, { applied: boolean; failureReason: string }>("workspace/applyEdit", () => ({
+				applied: false,
+				failureReason: "rejected",
+			}));
+			const overriddenResult = yield* h.transport.sendRequest<unknown, { applied: boolean; failureReason: string }>(
+				"workspace/applyEdit",
+				{ edit },
+			);
+			assert.deepStrictEqual(overriddenResult, { applied: false, failureReason: "rejected" });
+			assert.deepStrictEqual(h.serverRequests, [
+				{ method: "workspace/applyEdit", params: { edit } },
+				{ method: "workspace/applyEdit", params: { edit } },
+			]);
 		}).pipe(Effect.scoped),
 	);
 

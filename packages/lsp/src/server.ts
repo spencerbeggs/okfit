@@ -11,6 +11,7 @@ import { notifyBundleChanged, registerConcepts } from "./features/concepts.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
 import { registerHover } from "./features/hover.js";
+import { OKFIT_CODE_ACTION_KINDS, OKFIT_COMMANDS } from "./features/names.js";
 import { registerNavigation } from "./features/navigation.js";
 import { registerWorkspaceSymbols } from "./features/symbols.js";
 import type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
@@ -71,6 +72,9 @@ const INITIALIZE_RESULT: InitializeResult = {
 		referencesProvider: true,
 		hoverProvider: true,
 		workspaceSymbolProvider: true,
+		codeActionProvider: { codeActionKinds: [...OKFIT_CODE_ACTION_KINDS] },
+		executeCommandProvider: { commands: [...OKFIT_COMMANDS] },
+		inlayHintProvider: true,
 		experimental: { okfitConcepts: true },
 	},
 	serverInfo: { name: "okfit-lsp", version: LSP_VERSION },

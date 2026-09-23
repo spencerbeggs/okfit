@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import type { Duration, Fiber, Scope } from "effect";
 import { Effect, Logger, Queue } from "effect";
-import type { MessageConnection } from "vscode-jsonrpc/node";
+import type { GenericRequestHandler, MessageConnection } from "vscode-jsonrpc/node";
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from "vscode-jsonrpc/node";
 import { pathToUri } from "../../src/convert/uri.js";
 import type { ListenOutcome, LspTransportShape } from "../../src/protocol/LspTransport.js";
@@ -59,6 +59,16 @@ export interface Harness {
 		predicate: (notification: RecordedNotification) => boolean,
 		timeout?: Duration.Input,
 	) => Effect.Effect<RecordedNotification, "no notification">;
+	/** Every server-to-client request the harness's client answered, recorded in arrival order. */
+	readonly serverRequests: Array<{ readonly method: string; readonly params: unknown }>;
+	/**
+	 * Registers `handler` as the client's answer to `method`: `vscode-jsonrpc`'s
+	 * `MessageConnection.onRequest` keys its handler map by method name, so a
+	 * later call for the same method replaces an earlier one rather than
+	 * stacking -- a test overriding the harness's default `workspace/applyEdit`
+	 * handler before a request arrives simply calls this again.
+	 */
+	readonly onServerRequest: <P, R>(method: string, handler: (params: P) => R | Promise<R>) => void;
 }
 
 /**
@@ -135,6 +145,14 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 		}).pipe(
 			Effect.timeoutOrElse({ duration: notificationTimeout, orElse: () => Effect.fail("no notification" as const) }),
 		);
+	const serverRequests: Array<{ method: string; params: unknown }> = [];
+	const onServerRequest = <P, R>(method: string, handler: (params: P) => R | Promise<R>): void => {
+		client.onRequest(method, ((params: P) => {
+			serverRequests.push({ method, params });
+			return handler(params);
+		}) as GenericRequestHandler<R, unknown>);
+	};
+	onServerRequest("workspace/applyEdit", () => ({ applied: true }));
 	return {
 		transport,
 		client,
@@ -144,6 +162,8 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 		drainUntil,
 		pollPublished,
 		nextNotification,
+		serverRequests,
+		onServerRequest,
 	};
 }).pipe(Effect.provide(silentLogger));
 
