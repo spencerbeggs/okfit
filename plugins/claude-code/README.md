@@ -139,15 +139,16 @@ The server starts lazily, on the first `Edit` or `Write` of a `.md` file
 in the session — a `Bash` append to a `.md` file never starts it and never
 triggers a notification, since Claude Code only wires a language server to
 its own `Edit`/`Write` tools. Once running, it publishes engine
-diagnostics for every file of the bundle whose diagnostic set changed,
-delivered into the model's context after each `Edit` or `Write`.
-Diagnostics from this server are advisory only: unlike the `PostToolUse`
-hook above, nothing here blocks a tool call. See §6.4 of the LSP
-specification: Claude Code registers at most one language server per file
-extension per session, and the first one registered wins, so another
-markdown LSP plugin loaded earlier in the same session may shadow this
-one entirely, with no client-side fix available while OKF bundle files
-remain plain `.md`.
+diagnostics for every file of the bundle whose diagnostic set changed.
+Claude Code batches them: diagnostics for several files arrive together in
+one attachment in the model's context on the next `Edit` or `Write`. Diagnostics from this server
+are advisory only: unlike the `PostToolUse` hook above, nothing here blocks
+a tool call.
+
+Claude Code runs at most one language server per file extension per
+session, and the first one registered wins. Another markdown LSP plugin
+loaded earlier in the same session may therefore shadow this one entirely,
+with no fix available while OKF bundle files remain plain `.md`.
 
 ## Status
 
