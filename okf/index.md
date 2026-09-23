@@ -12,6 +12,7 @@ okf_version: "0.2"
 * [decisions](decisions/index.md)
 * [glossary](glossary/index.md)
 * [interfaces](interfaces/index.md)
+* [limitations](limitations/index.md)
 * [modules](modules/index.md)
 * [references](references/index.md)
 * [roadmaps](roadmaps/index.md)

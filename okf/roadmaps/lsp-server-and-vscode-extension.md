@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:43:39Z
-  body_sha256: a70505d4a198027871e9995e0f85f08c76b69f6448c2dfa60bc6e3748e4da887
+  at: 2026-09-23T04:04:54Z
+  body_sha256: d6fe09c0d9d5473a498f4738f6c3f740da2ce5d58f300190aaeafab0e13ed099
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -142,8 +142,17 @@ repository's own bundle.
    `okf/modules/lsp.md` produced a diagnostics attachment naming
    `broken-links` for that file; the second Edit, which removed the line,
    produced no attachment, and the file was restored (`okf/` clean).
-   Remaining: the release.
-4. **Precise ranges and navigation.** Every lint rule that knows its
+   The run left the PostToolUse validate hook's context output on rather
+   than disabled; the language server's attachment was reported
+   separately from the hook's, so the two were distinguishable in the
+   evidence. Remaining: the release.
+4. **Precise ranges and navigation.** First, config reload: on a
+   config change, rebuild the folder's session and schedule a full
+   revalidate; publish `[]` for every URI a dropped session last
+   published non-empty; carry open overlays into the rebuilt session
+   ([the phase 3 limitation](../limitations/no-config-reload-in-phase-3.md)).
+   This is a prerequisite for phase 6, since VS Code sends the
+   watched-file and workspace-folder notifications. Then every lint rule that knows its
    field or link attaches a range through the mapper core already owns
    (most rules attach none today, which the CLI and MCP tolerate and an
    editor does not). Hover, document links, definition, references,

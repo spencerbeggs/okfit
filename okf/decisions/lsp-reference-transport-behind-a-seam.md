@@ -7,8 +7,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:06:44Z
-  body_sha256: 26efa68d1ad451ab19cce9a201006428a2bd92da418560d91e3fd17689ee00c1
+  at: 2026-09-23T04:04:54Z
+  body_sha256: 22c17d15294b48181f2da2d831ecce37104d0f38cb180b9f4d26580cde21b2a9
 ---
 
 # The language server runs the reference vscode-languageserver library behind an Effect transport seam
@@ -64,9 +64,12 @@ way the MCP TypeScript SDK sits alongside `effect/unstable/ai/McpServer`.
 A feature that needs a protocol method the seam does not yet expose adds
 it to the seam first, never imports the library directly to route around
 it. A future transport — Effect-native or otherwise — is done when
-`__test__/protocol/reference.test.ts` passes unchanged against it: the
-contract is pinned to that suite, not to any implementation detail of the
-reference transport. The seam is exactly eight members because the
+`__test__/protocol/reference.test.ts` passes against it: the contract is
+pinned to that suite, not to any implementation detail of the reference
+transport. The suite is not transport-neutral yet: it constructs
+`makeReferenceTransport` directly and uses the reference-only
+`drain.fallback` option, so phase 8 swaps that constructor and that
+option, and nothing else. The seam is exactly eight members because the
 reference library's own special-casing of `initialize`, `shutdown`, and
 `exit` set that shape; a transport with a flatter lifecycle would not need
 to preserve it.

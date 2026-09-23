@@ -13,7 +13,7 @@ this server answers for any document under a discovered bundle root. It
 discovers a bundle per workspace folder the same way the CLI and MCP
 server do, and
 publishes `okfit validate`'s diagnostics as documents open, change, save,
-close, or are touched by a watched-file event outside the editor. It
+or close. It
 writes nothing to the bundle, ever — the same promise the MCP server
 makes, carried to a second front end. This first release is
 diagnostics-only: no hover, navigation, or code actions yet.
@@ -26,14 +26,26 @@ Most users never invoke this directly — the Claude Code plugin's
 when it is not installed. To run it directly, the package's own bin is
 `okfit-lsp --stdio`; `--stdio` is accepted and silently ignored, since
 streams are always stdin/stdout. `--node-ipc`, `--socket`, and `--pipe`
-are not supported.
+are not supported. `--clientProcessId=<pid>` is accepted, and the server
+still exits on `exit`. The server's own signal that the client has gone
+is its input stream closing; the underlying `vscode-languageserver`
+library separately polls that process and exits with code 1 if it
+disappears first.
 
 ## Publishing behaviour
 
 - `didOpen`/`didSave` trigger a full revalidate; `didChange`/`didClose`
-  trigger a cheaper edit-tier revalidate. A watched-file change triggers a
-  full revalidate on every live session, except a config discovery file,
-  which reloads that folder's session instead.
+  trigger a cheaper edit-tier revalidate.
+- The server registers no file watchers. When a client sends
+  `workspace/didChangeWatchedFiles` itself, a change triggers a full
+  revalidate on every live session. A config discovery file is the
+  exception: it drops that folder's session, and nothing is republished
+  until the next document event. Claude Code sends no watched-file
+  events, so a config edit during a Claude Code session needs a session
+  restart to take effect.
+- A folder whose config fails to load is logged once and retried on the
+  next `didOpen` or `didSave` under it, so fixing the config and saving
+  a document recovers it.
 - Exactly one `textDocument/publishDiagnostics` per file whose diagnostic
   set changed: an unchanged file is not republished, an emptied file
   publishes `[]`, and a file not open in the editor still publishes when

@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:43:39Z
-  body_sha256: fdf03a7800a2cfed9ff500a2ecff423d06c856d78bfc3f0e00088019285289c6
+  at: 2026-09-23T04:04:54Z
+  body_sha256: 8a4e0662255072b7dac898b85a2f40f105bc17c8649efb1297ecb2633d50a45f
 ---
 
 # LSP
@@ -26,7 +26,7 @@ Code plugin manifest's `extensionToLanguage`); this server answers for
 any document under a discovered bundle root. It discovers a bundle per
 workspace folder the same way the CLI and MCP server do, and republishes
 diagnostics as
-documents open, change, save, close, or are touched outside the editor. It
+documents open, change, save, or close. It
 writes nothing to the bundle, ever — the same promise [MCP](mcp.md) makes,
 carried to a second front end. Diagnostics only; navigation, hover, and
 code actions are later roadmap phases, not this package.
@@ -54,9 +54,22 @@ seam](../decisions/lsp-reference-transport-behind-a-seam.md).
 ## Publishing rules
 
 - `didOpen`/`didSave` schedule the `full` revalidate tier; `didChange`/
-  `didClose` schedule `edit`. A watched-file change schedules `full` on
-  every live session, except a config discovery file, which invalidates
-  that folder's session instead.
+  `didClose` schedule `edit`.
+- The server registers no file watchers. When a client sends
+  `workspace/didChangeWatchedFiles`, a change schedules `full` on every
+  live session. A config discovery file is the exception: it drops that
+  folder's session and republishes nothing until the next document
+  event. Claude Code sends no watched-file events, so a config edit
+  there needs a session restart. See [The phase 3 language server does
+  not reload a changed config or clear a dropped session's
+  diagnostics](../limitations/no-config-reload-in-phase-3.md).
+- A folder whose config fails to load logs one warning per distinct
+  error and is retried on `didOpen`, `didSave` and any watched-file
+  change under it, so fixing the config and saving recovers it.
+- `--clientProcessId` is accepted, and the server still exits on `exit`.
+  The transport's own liveness signal is the input stream closing; the
+  reference library's node entry separately polls that process and
+  exits with code 1 if it disappears first.
 - One `textDocument/publishDiagnostics` per file in the engine's `changed`
   map, and nothing else: an unchanged file is not republished, an
   emptied file publishes `[]`, and a file that is not open in the editor
@@ -94,3 +107,6 @@ three by scanning `src/`.
 - [The language server runs the reference vscode-languageserver library
   behind an Effect transport
   seam](../decisions/lsp-reference-transport-behind-a-seam.md)
+- [The phase 3 language server does not reload a changed config or clear
+  a dropped session's diagnostics](../limitations/no-config-reload-in-phase-3.md)
+  — the edge of the publishing rules above.
