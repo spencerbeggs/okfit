@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/lsp",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"private": true,
 	"description": "Language Server Protocol server for okfit: background diagnostics for an Open Knowledge Format (OKF) bundle in any LSP client, Claude Code included.",
 	"keywords": ["okf", "open-knowledge-format", "lsp", "language-server", "claude", "effect"],

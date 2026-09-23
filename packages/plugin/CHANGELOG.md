@@ -1,5 +1,28 @@
 # @okfit/plugin
 
+## 0.5.0
+
+### Features
+
+- Adds a third bin, `okfit-lsp`, alongside `okfit` and `okfit-mcp`. It
+  brings the new `@okfit/lsp` Language Server Protocol server onto the
+  project's PATH so the okfit Claude Code plugin can launch it; `okfit-lsp`
+  serves diagnostics for a discovered OKF bundle over stdio. [#176][#176]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/lsp | dependency | added | — | 0.1.0 |
+
+[#176][#176]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#176]: https://github.com/spencerbeggs/okfit/pull/176
+
 ## 0.4.5
 
 ### Dependencies
