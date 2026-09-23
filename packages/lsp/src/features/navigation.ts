@@ -22,19 +22,7 @@ import type {
 	ReferenceParams,
 } from "../protocol/types.js";
 import type { SessionRegistryShape } from "../session/registry.js";
-import { conceptAtPath, definitionOf, edgeAt, offsetOf } from "./locate.js";
-
-/**
- * Posix-normalizes `root` and joins `relative` onto it with one `/`. The
- * same tiny join `features/locate.ts` keeps privately -- core's own path
- * helpers (`internal/posixPath.ts`) stay internal, so this package holds
- * one copy of the same one-line normalisation rather than exporting it
- * across a public boundary for a two-line body.
- */
-const absolutePathOf = (root: string, relative: string): string => {
-	const normalizedRoot = root.split("\\").join("/").replace(/\/+$/, "");
-	return `${normalizedRoot}/${relative}`;
-};
+import { absolutePathOf, conceptAtPath, definitionOf, edgeAt, offsetOf } from "./locate.js";
 
 /** RFC 3986 scheme or `://` anywhere -- mirrors core's `internal/links.ts` `isUrl` exactly, kept in sync by hand since that helper is `@internal` and not in core's public barrel. */
 const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]+:/i;

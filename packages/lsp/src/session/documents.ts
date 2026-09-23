@@ -5,6 +5,7 @@
  * @packageDocumentation
  */
 import { Effect, Ref } from "effect";
+import { isUnder } from "../internal/paths.js";
 
 /** An open document's overlay text and version, as last recorded by `record`. @public */
 export interface OpenDocument {
@@ -28,9 +29,6 @@ export interface DocumentMemoryShape {
 	/** Every recorded document whose path is `root` itself or under it, as `[path, document]` pairs. */
 	readonly openUnder: (root: string) => Effect.Effect<ReadonlyArray<readonly [string, OpenDocument]>>;
 }
-
-/** Whether `path` is `root` itself or under it. */
-const isUnder = (root: string, path: string): boolean => path === root || path.startsWith(`${root}/`);
 
 /**
  * Builds a {@link DocumentMemoryShape} over a fresh `Ref`.

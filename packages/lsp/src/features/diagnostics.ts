@@ -183,6 +183,9 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 		const onWatchedFiles = (paths: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
 				const handles = yield* registry.sessions;
+				// Every workspace folder's session is independent (its own registry entry, scheduler
+				// and bundle root), so one folder's config rebuild (I/O) never needs to wait behind
+				// another's.
 				yield* Effect.forEach(
 					handles,
 					(handle) =>
@@ -203,7 +206,7 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 							);
 							yield* newHandle.scheduler.schedule("full");
 						}),
-					{ discard: true },
+					{ concurrency: "unbounded", discard: true },
 				);
 				const recovered = yield* registry.retryFailed(paths);
 				yield* Effect.forEach(recovered, (handle) => handle.scheduler.schedule("full"), { discard: true });

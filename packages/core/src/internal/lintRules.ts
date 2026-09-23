@@ -54,35 +54,23 @@ const rule =
 		return severity === "off" ? [] : body(context, severity);
 	};
 
-/** A rule that yields messages per concept, each carrying the frontmatter block range (decision 2: absent-key rules have nothing more precise to point at). */
-const perConcept = (
-	code: LintCode,
-	body: (concept: LoadedConcept, context: LintContext) => ReadonlyArray<string>,
-): LintRule =>
-	rule(code, (context, severity) =>
-		[...context.bundle.concepts.values()].flatMap((concept) =>
-			body(concept, context).map((message) =>
-				diagnostic(concept.path, code, severity, message, frontmatterPathRange(concept.document, [])),
-			),
-		),
-	);
-
-/** One offending value's message paired with the frontmatter path that names it (decision 2). */
+/** One offending value's message, optionally paired with the frontmatter path that names it; a bare string anchors at the frontmatter block (decision 2: absent-key rules have nothing more precise to point at). */
 interface RangedMessage {
 	readonly message: string;
 	readonly path: ReadonlyArray<string | number>;
 }
 
-/** A rule that yields messages per concept, each anchored at the frontmatter path that names the offending value; falls back to the frontmatter block when that path's leaf is absent (decision 2). */
-const perConceptRanged = (
+/** A rule that yields messages per concept, each anchored at the frontmatter path that names the offending value (default `[]`, the frontmatter block) and falling back to that block when the path's leaf is absent (decision 2). */
+const perConcept = (
 	code: LintCode,
-	body: (concept: LoadedConcept, context: LintContext) => ReadonlyArray<RangedMessage>,
+	body: (concept: LoadedConcept, context: LintContext) => ReadonlyArray<RangedMessage | string>,
 ): LintRule =>
 	rule(code, (context, severity) =>
 		[...context.bundle.concepts.values()].flatMap((concept) =>
-			body(concept, context).map(({ message, path }) =>
-				diagnostic(concept.path, code, severity, message, frontmatterPathRange(concept.document, path)),
-			),
+			body(concept, context).map((item) => {
+				const { message, path } = typeof item === "string" ? { message: item, path: [] } : item;
+				return diagnostic(concept.path, code, severity, message, frontmatterPathRange(concept.document, path));
+			}),
 		),
 	);
 
@@ -92,7 +80,7 @@ export const configUnknownKey: LintRule = rule("config-unknown-key", (context, s
 	),
 );
 
-export const unknownType: LintRule = perConceptRanged("unknown-type", (concept, context) =>
+export const unknownType: LintRule = perConcept("unknown-type", (concept, context) =>
 	Object.hasOwn(context.config.types ?? {}, concept.frontmatter.type)
 		? []
 		: [{ message: `Type "${concept.frontmatter.type}" is not declared in [types]`, path: ["type"] }],
@@ -104,7 +92,7 @@ export const requiredKeyMissing: LintRule = perConcept("required-key-missing", (
 	return keys.filter((key) => !present(concept.frontmatter.raw, key)).map((key) => `Required key "${key}" is missing`);
 });
 
-export const fieldValueUnknown: LintRule = perConceptRanged("field-value-unknown", (concept, context) => {
+export const fieldValueUnknown: LintRule = perConcept("field-value-unknown", (concept, context) => {
 	const fields = context.config.types?.[concept.frontmatter.type]?.fields ?? {};
 	const out: Array<RangedMessage> = [];
 	for (const [key, declaration] of Object.entries(fields)) {
@@ -124,7 +112,7 @@ export const fieldValueUnknown: LintRule = perConceptRanged("field-value-unknown
 
 // A draft is unsettled by definition, so it is exempt (issue #31): otherwise a
 // freshly authored bundle can never validate clean before a human verifies it.
-export const requireVerifiedUnmet: LintRule = perConceptRanged("require-verified-unmet", (concept, context) =>
+export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet", (concept, context) =>
 	context.config.types?.[concept.frontmatter.type]?.require_verified === true &&
 	concept.frontmatter.status !== "draft" &&
 	(concept.frontmatter.verified ?? []).length === 0
@@ -152,7 +140,7 @@ export const generatedMissing: LintRule = perConcept("generated-missing", (conce
 		: [],
 );
 
-export const actorPrefixUnknown: LintRule = perConceptRanged("actor-prefix-unknown", (concept) => {
+export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (concept) => {
 	const candidates: ReadonlyArray<{ readonly by: Actor | undefined; readonly path: ReadonlyArray<string | number> }> = [
 		{ by: concept.frontmatter.generated?.by, path: ["generated", "by"] },
 		...(concept.frontmatter.verified ?? []).map((entry, index) => ({
@@ -171,7 +159,7 @@ export const actorPrefixUnknown: LintRule = perConceptRanged("actor-prefix-unkno
 	return out;
 });
 
-export const stale: LintRule = perConceptRanged("stale", (concept, context) =>
+export const stale: LintRule = perConcept("stale", (concept, context) =>
 	context.now !== undefined &&
 	concept.frontmatter.stale_after !== undefined &&
 	Derive.isStale(concept.frontmatter, context.now)

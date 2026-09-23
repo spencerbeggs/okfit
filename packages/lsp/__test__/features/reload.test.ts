@@ -6,8 +6,9 @@ import { Deferred, Effect, Fiber, Option, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import { pathToUri } from "../../src/convert/uri.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "../../src/features/diagnostics.js";
-import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
+import type { RecordedNotification } from "../utils/fakeTransport.js";
+import { makeBlockingTransport, makeRecordingTransport } from "../utils/fakeTransport.js";
 import { copyFixtureProject } from "../utils/fixture.js";
 import { testPlatform } from "../utils/platform.js";
 
@@ -34,76 +35,6 @@ interface RecordedPublish {
 	readonly uri: string;
 	readonly diagnostics: ReadonlyArray<{ readonly code?: string | number }>;
 }
-
-interface RecordedNotification {
-	readonly method: string;
-	readonly params: unknown;
-}
-
-const die = (name: string) => (): Effect.Effect<never> =>
-	Effect.die(`fake transport: ${name} is not used by this test`);
-
-/** A transport whose `sendNotification` records every call; every other member dies if called. */
-const makeRecordingTransport = (): {
-	readonly transport: LspTransportShape;
-	readonly notifications: Array<RecordedNotification>;
-} => {
-	const notifications: Array<RecordedNotification> = [];
-	const transport = {
-		onInitialize: die("onInitialize"),
-		onInitialized: die("onInitialized"),
-		onShutdown: die("onShutdown"),
-		onRequest: die("onRequest"),
-		onNotification: die("onNotification"),
-		sendNotification: (method: string, params: unknown) =>
-			Effect.sync(() => void notifications.push({ method, params })),
-		sendRequest: die("sendRequest"),
-		listen: Effect.die("fake transport: listen is not used by this test"),
-	} as unknown as LspTransportShape;
-	return { transport, notifications };
-};
-
-/**
- * A transport whose `sendNotification` records every call like
- * {@link makeRecordingTransport}, except while `armed` is `true` a
- * `textDocument/publishDiagnostics` call for `blockUri` first resolves
- * `started` (so a test can await the moment the send is in flight,
- * independent of virtual-clock timing) and then awaits `gate` before
- * recording -- used to land an external interrupt (a rebuild's
- * `Scope.close`) squarely between a per-file publish step's send and its
- * `remember` update.
- */
-const makeBlockingTransport = (
-	blockUri: string,
-	armed: Ref.Ref<boolean>,
-	started: Deferred.Deferred<void>,
-	gate: Deferred.Deferred<void>,
-): {
-	readonly transport: LspTransportShape;
-	readonly notifications: Array<RecordedNotification>;
-} => {
-	const notifications: Array<RecordedNotification> = [];
-	const transport = {
-		onInitialize: die("onInitialize"),
-		onInitialized: die("onInitialized"),
-		onShutdown: die("onShutdown"),
-		onRequest: die("onRequest"),
-		onNotification: die("onNotification"),
-		sendNotification: (method: string, params: unknown) =>
-			Effect.gen(function* () {
-				const isBlockTarget =
-					method === "textDocument/publishDiagnostics" && (params as { uri: string }).uri === blockUri;
-				if (isBlockTarget && (yield* Ref.get(armed))) {
-					yield* Deferred.succeed(started, undefined);
-					yield* Deferred.await(gate);
-				}
-				notifications.push({ method, params });
-			}),
-		sendRequest: die("sendRequest"),
-		listen: Effect.die("fake transport: listen is not used by this test"),
-	} as unknown as LspTransportShape;
-	return { transport, notifications };
-};
 
 /** Every `textDocument/publishDiagnostics` call recorded so far, in order. */
 const published = (notifications: ReadonlyArray<RecordedNotification>): ReadonlyArray<RecordedPublish> =>

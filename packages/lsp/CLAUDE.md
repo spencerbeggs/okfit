@@ -22,6 +22,9 @@ src/
                       string, else `String(error)`; shared by
                       features/diagnostics.ts and session/registry.ts,
                       @internal, not in the barrel
+    paths.ts       -- isUnder(root, path): whether path is root itself or
+                      under it; shared by session/documents.ts and
+                      session/registry.ts, @internal, not in the barrel
   server.ts      -- serve(transport, options): wires initialize (folders,
                      capabilities, serverInfo), initialized (one log line),
                      workspace folder and watched-file notifications,

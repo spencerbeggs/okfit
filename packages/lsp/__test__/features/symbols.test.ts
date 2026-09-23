@@ -1,10 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import { DateTime, Effect, Option } from "effect";
 import { registerWorkspaceSymbols } from "../../src/features/symbols.js";
-import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
 import type { SymbolInformation, WorkspaceSymbolParams } from "../../src/protocol/types.js";
 import { SYMBOL_KIND_OBJECT } from "../../src/protocol/types.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
+import { makeCapturingTransport } from "../utils/fakeTransport.js";
 import { testPlatform } from "../utils/platform.js";
 import { makeTempBundle } from "../utils/tempBundle.js";
 
@@ -17,35 +17,6 @@ import { makeTempBundle } from "../utils/tempBundle.js";
  */
 
 const platform = testPlatform();
-
-const die = (name: string) => (): Effect.Effect<never> =>
-	Effect.die(`fake transport: ${name} is not used by this test`);
-
-/** A transport whose `onRequest` records each handler by method; every other member dies if called. */
-const makeCapturingTransport = (): {
-	readonly transport: LspTransportShape;
-	readonly call: <P, R>(method: string, params: P) => Effect.Effect<R>;
-} => {
-	const handlers = new Map<string, (params: unknown) => Effect.Effect<unknown>>();
-	const transport = {
-		onInitialize: die("onInitialize"),
-		onInitialized: die("onInitialized"),
-		onShutdown: die("onShutdown"),
-		onRequest: (method: string, handler: (params: unknown) => Effect.Effect<unknown>) =>
-			Effect.sync(() => void handlers.set(method, handler)),
-		onNotification: die("onNotification"),
-		sendNotification: die("sendNotification"),
-		sendRequest: die("sendRequest"),
-		listen: Effect.die("fake transport: listen is not used by this test"),
-	} as unknown as LspTransportShape;
-	const call = <P, R>(method: string, params: P): Effect.Effect<R> => {
-		const handler = handlers.get(method);
-		return handler === undefined
-			? Effect.die(`no handler registered for ${method}`)
-			: (handler(params) as Effect.Effect<R>);
-	};
-	return { transport, call };
-};
 
 const concept = (title: string): string => `---
 type: Module

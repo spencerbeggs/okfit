@@ -3,7 +3,6 @@ import { assert, describe, it } from "@effect/vitest";
 import { DateTime, Effect, Option } from "effect";
 import { pathToUri } from "../../src/convert/uri.js";
 import { registerNavigation } from "../../src/features/navigation.js";
-import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
 import type {
 	DefinitionParams,
 	DocumentLink,
@@ -13,6 +12,7 @@ import type {
 } from "../../src/protocol/types.js";
 import type { SessionRegistryShape } from "../../src/session/registry.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
+import { makeCapturingTransport } from "../utils/fakeTransport.js";
 import { copyFixtureProject } from "../utils/fixture.js";
 import { testPlatform } from "../utils/platform.js";
 
@@ -27,35 +27,6 @@ import { testPlatform } from "../utils/platform.js";
  */
 
 const platform = testPlatform();
-
-const die = (name: string) => (): Effect.Effect<never> =>
-	Effect.die(`fake transport: ${name} is not used by this test`);
-
-/** A transport whose `onRequest` records each handler by method; every other member dies if called. */
-const makeCapturingTransport = (): {
-	readonly transport: LspTransportShape;
-	readonly call: <P, R>(method: string, params: P) => Effect.Effect<R>;
-} => {
-	const handlers = new Map<string, (params: unknown) => Effect.Effect<unknown>>();
-	const transport = {
-		onInitialize: die("onInitialize"),
-		onInitialized: die("onInitialized"),
-		onShutdown: die("onShutdown"),
-		onRequest: (method: string, handler: (params: unknown) => Effect.Effect<unknown>) =>
-			Effect.sync(() => void handlers.set(method, handler)),
-		onNotification: die("onNotification"),
-		sendNotification: die("sendNotification"),
-		sendRequest: die("sendRequest"),
-		listen: Effect.die("fake transport: listen is not used by this test"),
-	} as unknown as LspTransportShape;
-	const call = <P, R>(method: string, params: P): Effect.Effect<R> => {
-		const handler = handlers.get(method);
-		return handler === undefined
-			? Effect.die(`no handler registered for ${method}`)
-			: (handler(params) as Effect.Effect<R>);
-	};
-	return { transport, call };
-};
 
 const setup = () =>
 	Effect.gen(function* () {

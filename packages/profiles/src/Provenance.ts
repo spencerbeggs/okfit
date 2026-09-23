@@ -79,6 +79,18 @@ export class Provenance {
 		const skipGitTier = options?.skipGitTier === true;
 		const path = yield* Path.Path;
 		const diagnostics: Array<Diagnostic> = [];
+		/** Pushes a `generated-at-drift` diagnostic, ranged at `generated.at`'s own value when found. */
+		const pushDrift = (file: string, message: string, range: DiagnosticRange | undefined): void => {
+			diagnostics.push(
+				Diagnostic.make({
+					file,
+					code: "generated-at-drift",
+					severity,
+					message,
+					...(range === undefined ? {} : { range }),
+				}),
+			);
+		};
 		for (const [, concept] of bundle.concepts) {
 			if (concept.frontmatter.generated === undefined) continue;
 			const recordedDigest = concept.frontmatter.generated.body_sha256;
@@ -88,18 +100,11 @@ export class Provenance {
 			if (recordedDigest !== undefined) {
 				const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
 				if (currentDigest === recordedDigest) continue;
-				{
-					const range = DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]);
-					diagnostics.push(
-						Diagnostic.make({
-							file: concept.path,
-							code: "generated-at-drift",
-							severity,
-							message: `the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,
-							...(range === undefined ? {} : { range }),
-						}),
-					);
-				}
+				pushDrift(
+					concept.path,
+					`the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,
+					DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]),
+				);
 				continue;
 			}
 
@@ -117,20 +122,13 @@ export class Provenance {
 			const recorded = concept.frontmatter.generated.at;
 			const matches = recorded !== undefined && DateTime.Equivalence(recorded, derived.at);
 			if (matches) continue;
-			{
-				const range = DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]);
-				diagnostics.push(
-					Diagnostic.make({
-						file: concept.path,
-						code: "generated-at-drift",
-						severity,
-						message: `generated.at is ${
-							recorded === undefined ? "missing" : encodeAt(recorded)
-						}; the last body change was ${encodeAt(derived.at)} (${derived.sha.slice(0, 7)})`,
-						...(range === undefined ? {} : { range }),
-					}),
-				);
-			}
+			pushDrift(
+				concept.path,
+				`generated.at is ${
+					recorded === undefined ? "missing" : encodeAt(recorded)
+				}; the last body change was ${encodeAt(derived.at)} (${derived.sha.slice(0, 7)})`,
+				DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]),
+			);
 		}
 		return diagnostics;
 	});

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import type { Duration, Fiber, Scope } from "effect";
-import { Effect, Queue } from "effect";
+import { Effect, Logger, Queue } from "effect";
 import type { MessageConnection } from "vscode-jsonrpc/node";
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from "vscode-jsonrpc/node";
 import { pathToUri } from "../../src/convert/uri.js";
@@ -46,6 +46,25 @@ export interface Harness {
 	) => Effect.Effect<Published, "no publish">;
 }
 
+/**
+ * Silences every log line (`serve`'s `Effect.logInfo` on `initialized`,
+ * `Effect.logWarning` on a failed revalidate): `Logger.layer([])` with
+ * `mergeWithExisting` left at its default `false` replaces the current
+ * logger set with an empty one, so nothing reaches `console.*` -- vitest's
+ * console-leak check sees no writes from this harness, without changing
+ * what the real process (`main.ts`, which keeps the default logger routed
+ * to stderr) logs in production. Provided here, around
+ * `makeReferenceTransport` itself, rather than only around `serve(...)`:
+ * the reference transport's `onInitialize`/`onNotification`/`onRequest`
+ * dispatch every handler through a `Runtime` captured once, at
+ * transport-construction time (`FiberSet.runtime`), so a later
+ * `Effect.provide` wrapped around `serve(...)` never reaches a log line a
+ * transport-dispatched handler (like `onInitialized`'s) emits -- only work
+ * forked from `serve`'s own execution (the scheduler, a revalidate) sees
+ * that later provide.
+ */
+const silentLogger = Logger.layer([]);
+
 export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.gen(function* () {
 	const clientToServer = new PassThrough();
 	const serverToClient = new PassThrough();
@@ -84,7 +103,7 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 		}).pipe(Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.fail("no publish" as const) }));
 	const pollPublished: Effect.Effect<ReadonlyArray<Published>> = Queue.clear(published);
 	return { transport, client, nextPublish, drainPublished, closeClientOutput, drainUntil, pollPublished };
-});
+}).pipe(Effect.provide(silentLogger));
 
 /** A {@link Harness} with `serve` running against a fresh copy of the fixture project. */
 export interface ServeHarness extends Harness {
@@ -116,7 +135,10 @@ export const makeServeHarness = (options: ServeHarnessOptions = {}): Effect.Effe
 		const { root } = yield* copyFixtureProject();
 		const harness = yield* makeHarness;
 		const listening = yield* Effect.forkScoped(
-			serve(harness.transport, { delay: options.delay ?? "10 millis" }).pipe(Effect.provide(testPlatform())),
+			serve(harness.transport, { delay: options.delay ?? "10 millis" }).pipe(
+				Effect.provide(testPlatform()),
+				Effect.provide(silentLogger),
+			),
 		);
 		const uriOf = (relative: string): string => pathToUri(join(root, relative));
 		const initialize = Effect.gen(function* () {

@@ -6,6 +6,7 @@ import type { GitHistory } from "@okfit/profiles";
 import type { Crypto, Duration, FileSystem, Path } from "effect";
 import { Context, Effect, Exit, Option, Ref, Result, Scope, Semaphore } from "effect";
 import { messageOf } from "../internal/messageOf.js";
+import { isUnder } from "../internal/paths.js";
 import type { Scheduler } from "./scheduler.js";
 import { makeScheduler } from "./scheduler.js";
 
@@ -124,9 +125,6 @@ interface CacheEntry {
 	readonly handle: Option.Option<SessionHandle>;
 	readonly scope: Option.Option<Scope.Closeable>;
 }
-
-/** Whether `path` is `folder` itself or under it. */
-const isUnder = (folder: string, path: string): boolean => path === folder || path.startsWith(`${folder}/`);
 
 /** The longest folder in `folders` that `path` is under (`path === folder` or `path.startsWith(folder + "/")`), else `None`. */
 const ownerOf = (folders: ReadonlySet<string>, path: string): Option.Option<string> => {

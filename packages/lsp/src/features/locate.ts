@@ -18,9 +18,11 @@ import type { Location, Position } from "../protocol/types.js";
  * slash) and joins `relative` onto it with one `/`. Mirrors the
  * normalisation the engine's own `session/concept.ts` applies to
  * `bundle.root`, since core's path helpers (`internal/posixPath.ts`) stay
- * internal.
+ * internal. Shared with `features/navigation.ts`; not in the public barrel.
+ *
+ * @internal
  */
-const absolutePathOf = (root: string, relative: string): string => {
+export const absolutePathOf = (root: string, relative: string): string => {
 	const normalizedRoot = root.split("\\").join("/").replace(/\/+$/, "");
 	return `${normalizedRoot}/${relative}`;
 };
