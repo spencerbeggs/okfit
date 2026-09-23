@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:06:44Z
-  body_sha256: 04f8107ff38839339340026e57b16976594a8e997cb5c0fa4733c9292dac1f7c
+  at: 2026-09-23T03:15:11Z
+  body_sha256: 8eef9e061382c048d53bb4366cab1ba030cb5c3844ae7625cf0d6df73fd3850b
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -135,8 +135,13 @@ repository's own bundle.
    `lspServers` entry and a `bin/start-lsp.sh` shim shaped like the MCP
    loader; the meta-package gains its third bin. A notes concept on the
    Effect-native transport starts here. Done 2026-09-23: shipped
-   diagnostics-only; dogfood evidence to follow. Remaining: the dogfood
-   check and the release.
+   diagnostics-only, and dogfooded on this repository under Claude Code
+   2.1.280 with `--plugin-dir plugins/claude-code`: the debug log shows
+   `Loaded 1 LSP server(s) from plugin: okfit` and `LSP server instance
+   started: plugin:okfit:okfit`, and an Edit appending a broken link to
+   `okf/modules/lsp.md` produced a diagnostics attachment naming
+   `broken-links` for that file (cleared once the second Edit removed the
+   line). Remaining: the release.
 4. **Precise ranges and navigation.** Every lint rule that knows its
    field or link attaches a range through the mapper core already owns
    (most rules attach none today, which the CLI and MCP tolerate and an
