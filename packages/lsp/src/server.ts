@@ -107,6 +107,15 @@ export const serve = (
 		const distribution = options?.distribution;
 
 		const publisher = yield* makeRevalidatePublisher(transport);
+		// `registerConcepts` (built below, after `registry`) needs `registry`
+		// to exist first, but `onDispose` here needs `registerConcepts`'s
+		// `forgetWarmup` -- the same box-a-forward-reference pattern
+		// `session/registry.ts`'s `buildSession` uses for its own scheduler
+		// callback. `forgetWarmup` is set once, right after `registerConcepts`
+		// resolves, before any dispose can observe it unset.
+		const conceptsBox: { forgetWarmup: ((root: string) => Effect.Effect<void>) | undefined } = {
+			forgetWarmup: undefined,
+		};
 		const registry = yield* makeSessionRegistry({
 			delay,
 			maxWait,
@@ -117,8 +126,11 @@ export const serve = (
 				),
 			onDispose: (handle) =>
 				Effect.andThen(
-					publisher.clear(handle.bundleRoot),
-					notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+					Effect.andThen(
+						publisher.clear(handle.bundleRoot),
+						notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+					),
+					Effect.suspend(() => conceptsBox.forgetWarmup?.(handle.bundleRoot) ?? Effect.void),
 				),
 		});
 		const feature = yield* makeDiagnosticsFeature(registry);
@@ -164,7 +176,8 @@ export const serve = (
 		yield* registerNavigation(transport, registry);
 		yield* registerHover(transport, registry);
 		yield* registerWorkspaceSymbols(transport, registry);
-		yield* registerConcepts(transport, registry);
+		const conceptsFeature = yield* registerConcepts(transport, registry);
+		conceptsBox.forgetWarmup = conceptsFeature.forgetWarmup;
 		yield* registerCodeActions(transport, registry, feature.documents);
 		yield* registerCommands(transport, registry, feature.documents);
 		yield* registerInlayHints(transport, registry);

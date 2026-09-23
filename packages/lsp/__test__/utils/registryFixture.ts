@@ -22,7 +22,7 @@ import { makeTempBundle } from "./tempBundle.js";
  * here, shared with `concepts.test.ts`.
  */
 export const setupRegistry = (
-	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<void>,
+	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<unknown>,
 	files: Readonly<Record<string, string>>,
 ) =>
 	Effect.gen(function* () {
@@ -54,7 +54,7 @@ export const setupRegistry = (
  * `concepts.test.ts`.
  */
 export const setupTwoFoldersRegistry = (
-	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<void>,
+	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<unknown>,
 	filesA: Readonly<Record<string, string>>,
 	filesB: Readonly<Record<string, string>>,
 ) =>
@@ -90,7 +90,7 @@ export const setupTwoFoldersRegistry = (
  * itself.
  */
 export const setupWarmupRegistry = (
-	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<void>,
+	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<unknown>,
 ) =>
 	Effect.gen(function* () {
 		const { transport, call, notifications } = makeCapturingRecordingTransport();

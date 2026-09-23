@@ -334,11 +334,24 @@ implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
 - **`okfit/concepts`** first warms up: every current workspace folder
   (`registry.folders`) gets its session built via `registry.sessionFor` if it
   has never been resolved, and every live session (`registry.sessions`) whose
-  `bundle()` is still `None` runs a first `full` revalidate through the
-  normal scheduler path (`handle.scheduler.schedule("full")` then
-  `.settle`), so a client that asks before any document is open still gets a
-  populated result. Nothing warms up on its own -- a server nobody sends this
-  request to (Claude Code, still lazy-by-default) builds no session it
+  `bundle()` is still `None` **and** whose `bundleRoot` has never been warmed
+  this session runs a first `full` revalidate through the normal scheduler
+  path (`handle.scheduler.schedule("full")` then `.settle`), so a client that
+  asks before any document is open still gets a populated result. Warm-up
+  runs **at most once per bundle root per session**: the root is recorded in
+  `registerConcepts`'s own warmed-roots set before the schedule runs, so a
+  root whose bundle still fails to load after that attempt is never
+  re-scheduled by a later request -- a multi-root window with several stale
+  workspace `@okfit/lsp` builds no longer schedules one revalidate per
+  request per broken root. Only a rebuild gives a root another attempt:
+  `server.ts` wires `registerConcepts`'s `forgetWarmup` into the registry's
+  `onDispose` callback (through a forward-reference box, since `registry`
+  must exist before `registerConcepts` can be built), which fires on a
+  config-change rebuild and on the last workspace folder resolving to a root
+  going away -- so a fixed config, or a folder re-added after removal, is
+  retried on its next `okfit/concepts` warm-up rather than staying
+  permanently skipped. Nothing warms up on its own -- a server nobody sends
+  this request to (Claude Code, still lazy-by-default) builds no session it
   otherwise wouldn't have. It then answers from every live session's
   last-loaded bundle: one `BundleSummary` per session whose `bundle()` is
   `Some` (a session whose bundle still never loaded -- no config, or one that

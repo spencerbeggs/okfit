@@ -20,7 +20,7 @@
  */
 import type { LoadedBundle, Status } from "@okfit/core";
 import { Derive } from "@okfit/core";
-import { DateTime, Effect, Option } from "effect";
+import { DateTime, Effect, Option, Ref } from "effect";
 import { pathToUri } from "../convert/uri.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
@@ -96,6 +96,20 @@ const bundleSummary = (handle: SessionHandle, now: DateTime.Utc): Effect.Effect<
 	);
 
 /**
+ * The `okfit/concepts` feature: the request handler, plus `forgetWarmup` --
+ * the hook `server.ts` wires into the registry's `onDispose`/`rebuild`
+ * callbacks so a bundle root that is rebuilt (a config-change rebuild, or
+ * its last workspace folder going away and a new one arriving) gets a fresh
+ * warm-up attempt instead of being permanently skipped by the guard below.
+ *
+ * @public
+ */
+export interface ConceptsFeature {
+	/** Clears `root` from the warmed-roots set, if present; a no-op otherwise. */
+	readonly forgetWarmup: (root: string) => Effect.Effect<void>;
+}
+
+/**
  * Wires `okfit/concepts` onto `transport`. First a warm-up: for every
  * current workspace folder (`registry.folders`), `registry.sessionFor`
  * builds its session if it has never been resolved (no `retryFailed` -- a
@@ -105,42 +119,69 @@ const bundleSummary = (handle: SessionHandle, now: DateTime.Utc): Effect.Effect<
  * bundle root, say) even once the session is built, so the handles to warm
  * are read back from `registry.sessions` -- already deduped one per bundle
  * root -- rather than collected from `sessionFor`'s own return values. For
- * each handle whose `session.bundle()` is still `None`,
+ * each handle whose `session.bundle()` is still `None` **and** whose
+ * `bundleRoot` has never been warmed this session,
  * `handle.scheduler.schedule("full")` then `handle.scheduler.settle` runs a
- * first revalidate through the normal scheduler path, so diagnostics publish
- * and `okfit/bundleChanged` fires exactly as a real edit would trigger them.
- * Only then does it answer, exactly as before, from every live session's
- * last-loaded bundle; a session whose bundle still never loaded (no config,
- * or one that failed) contributes no entry. Concepts within a bundle are
- * sorted by type, then title, then id; bundles are sorted by root.
+ * first revalidate through the normal scheduler path, so diagnostics publish and
+ * `okfit/bundleChanged` fires exactly as a real edit would trigger them --
+ * and the root is recorded as warmed before the schedule runs, so a root
+ * whose bundle still fails to load after this is never re-scheduled by a
+ * later request; only a rebuild (via `forgetWarmup`) gives it another
+ * attempt. Only then does it answer, exactly as before, from every live
+ * session's last-loaded bundle; a session whose bundle still never loaded
+ * (no config, or one that failed) contributes no entry. Concepts within a
+ * bundle are sorted by type, then title, then id; bundles are sorted by
+ * root.
  *
  * @public
  */
-export const registerConcepts = (transport: LspTransportShape, registry: SessionRegistryShape): Effect.Effect<void> =>
-	transport.onRequest<Record<string, never>, ConceptsResult>(CONCEPTS_REQUEST, () =>
-		Effect.gen(function* () {
-			const now = yield* DateTime.now;
-			const folders = yield* registry.folders;
-			yield* Effect.forEach(folders, (folder) => registry.sessionFor(folder), { discard: true });
-			const handles = yield* registry.sessions;
-			yield* Effect.forEach(
-				handles,
-				(handle) =>
-					Effect.gen(function* () {
-						const bundle = yield* handle.session.bundle();
-						if (Option.isSome(bundle)) return;
-						yield* handle.scheduler.schedule("full");
-						yield* handle.scheduler.settle;
-					}),
-				{ discard: true },
-			);
-			const summaries = yield* Effect.forEach(handles, (handle) => bundleSummary(handle, now));
-			// One session per root in the registry, so no dedupe is needed here.
-			return {
-				bundles: summaries.flatMap((s) => Option.toArray(s)).sort((a, b) => compare(a.root, b.root)),
-			};
-		}),
-	);
+export const registerConcepts = (
+	transport: LspTransportShape,
+	registry: SessionRegistryShape,
+): Effect.Effect<ConceptsFeature> =>
+	Effect.gen(function* () {
+		const warmed = yield* Ref.make<ReadonlySet<string>>(new Set());
+
+		const forgetWarmup = (root: string): Effect.Effect<void> =>
+			Ref.update(warmed, (set) => {
+				if (!set.has(root)) return set;
+				const next = new Set(set);
+				next.delete(root);
+				return next;
+			});
+
+		yield* transport.onRequest<Record<string, never>, ConceptsResult>(CONCEPTS_REQUEST, () =>
+			Effect.gen(function* () {
+				const now = yield* DateTime.now;
+				const folders = yield* registry.folders;
+				yield* Effect.forEach(folders, (folder) => registry.sessionFor(folder), { discard: true });
+				const handles = yield* registry.sessions;
+				yield* Effect.forEach(
+					handles,
+					(handle) =>
+						Effect.gen(function* () {
+							const bundle = yield* handle.session.bundle();
+							if (Option.isSome(bundle)) return;
+							const alreadyWarmed = yield* Ref.modify(warmed, (set) => {
+								if (set.has(handle.bundleRoot)) return [true, set] as const;
+								return [false, new Set(set).add(handle.bundleRoot)] as const;
+							});
+							if (alreadyWarmed) return;
+							yield* handle.scheduler.schedule("full");
+							yield* handle.scheduler.settle;
+						}),
+					{ discard: true },
+				);
+				const summaries = yield* Effect.forEach(handles, (handle) => bundleSummary(handle, now));
+				// One session per root in the registry, so no dedupe is needed here.
+				return {
+					bundles: summaries.flatMap((s) => Option.toArray(s)).sort((a, b) => compare(a.root, b.root)),
+				};
+			}),
+		);
+
+		return { forgetWarmup };
+	});
 
 /**
  * Sends `okfit/bundleChanged` for `root`: the server calls this from the

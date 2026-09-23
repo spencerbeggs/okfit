@@ -68,7 +68,11 @@ prefixes to implementations.
 
 - **`okfit/concepts`** (request, params `{}`) warms up every workspace folder
   that has never been resolved and runs a first revalidate for any bundle
-  that has never loaded, then answers with every live workspace folder's
+  that has never loaded -- once per bundle root per session; a root whose
+  bundle still fails to load after that first warm-up is not re-scheduled by
+  a later request, only by a rebuild (a config fix, or the root's last
+  workspace folder going away and a new one arriving) -- then answers with
+  every live workspace folder's
   loaded bundle as `{ bundles: [{ root, rootUri, profile, concepts: [{ id,
   uri, title, type, status, stale }] }] }`: `status` is `"draft" | "stable" |
   "deprecated" | undefined` (absent when the frontmatter has none), `stale`

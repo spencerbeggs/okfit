@@ -172,6 +172,50 @@ status_missing = "off"
 		}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
 	);
 
+	describe("once-per-root warm-up (Task 11 Part B)", () => {
+		it.live("a root whose bundle fails to load is revalidated once across two consecutive requests", () =>
+			Effect.gen(function* () {
+				const { root: plain } = yield* makeTempBundle({ "README.md": "# plain\n" });
+				const { call, notifications, registry } = yield* setupWarmupRegistry(registerConcepts);
+				yield* registry.setFolders([plain]);
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				const firstCount = notifications.filter((n) => n.method === "okfit/bundleChanged").length;
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				const secondCount = notifications.filter((n) => n.method === "okfit/bundleChanged").length;
+				assert.strictEqual(firstCount, 1);
+				assert.strictEqual(secondCount, 1);
+			}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
+		);
+
+		it.live("a rebuild of a failed root gives it another warm-up attempt", () =>
+			Effect.gen(function* () {
+				const { root: plain } = yield* makeTempBundle({ "README.md": "# plain\n" });
+				const { call, notifications, registry } = yield* setupWarmupRegistry(registerConcepts);
+				yield* registry.setFolders([plain]);
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(notifications.filter((n) => n.method === "okfit/bundleChanged").length, 1);
+				const bundleRoot = `${plain}/okf`;
+				yield* registry.rebuild(bundleRoot);
+				const afterRebuild = notifications.filter((n) => n.method === "okfit/bundleChanged").length;
+				assert.isAbove(afterRebuild, 1);
+			}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
+		);
+
+		it.effect("a healthy root is still answered on both requests", () =>
+			Effect.gen(function* () {
+				const { root, call } = yield* setup({ "a.md": concept("Alpha") });
+				const first = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				const second = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(first.bundles[0]!.root, root);
+				assert.strictEqual(second.bundles[0]!.root, root);
+				assert.deepStrictEqual(
+					second.bundles[0]!.concepts.map((c) => c.title),
+					["Alpha"],
+				);
+			}).pipe(Effect.scoped, Effect.provide(platform)),
+		);
+	});
+
 	it.effect(
 		"two workspace folders, each its own bundle: two bundles entries, sorted by root, each with only its own concepts",
 		() =>
