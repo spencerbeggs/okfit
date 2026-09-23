@@ -1,5 +1,5 @@
 import type { Exit, Scope } from "effect";
-import { Cause, Deferred, Effect, Option } from "effect";
+import { Cause, Deferred, Effect, FiberSet, Option } from "effect";
 import type { Connection, WatchDog } from "vscode-languageserver";
 import { createConnection as createServerConnection } from "vscode-languageserver";
 import {
@@ -25,15 +25,8 @@ export interface ReferenceTransportOptions {
 
 const INTERNAL_ERROR = -32603;
 
-/** An `Exit` as the value a library request handler resolves with, or the `ResponseError` it throws. */
-const settle = <A>(exit: Exit.Exit<A, LspError>): A => {
-	if (exit._tag === "Success") return exit.value;
-	const failure = Cause.findErrorOption(exit.cause);
-	if (Option.isSome(failure)) throw new ResponseError(failure.value.code, failure.value.message);
-	throw new ResponseError(INTERNAL_ERROR, Cause.pretty(exit.cause));
-};
-
-const answer = <A>(effect: Effect.Effect<A, LspError>): Promise<A> => Effect.runPromiseExit(effect).then(settle);
+/** The JSON-RPC message a defect is answered with; the cause itself goes to the client's log channel. */
+const INTERNAL_ERROR_MESSAGE = "Internal error";
 
 /**
  * The reference transport over `vscode-languageserver`.
@@ -51,7 +44,11 @@ const answer = <A>(effect: Effect.Effect<A, LspError>): Promise<A> => Effect.run
  * argv and keeps its own exit behaviour: `exit` and input end terminate the
  * process after `listen`'s outcome is recorded. `main.ts` passes streams.
  *
- * The connection is disposed when the scope closes.
+ * Handlers run as fibers of a `FiberSet` in the caller's scope, with the
+ * services and references in context when the transport was built, so a
+ * handler sees the caller's logger, `LogToStderr` and tracer. When the scope
+ * closes, in-flight handlers are interrupted first, then the connection is
+ * disposed.
  *
  * @public
  */
@@ -112,9 +109,33 @@ export const makeReferenceTransport = (
 			}),
 		);
 
+		/* Created after the dispose finalizer: scope finalizers run last-registered first, so handlers are interrupted before the connection is disposed. */
+		const runFork = yield* FiberSet.makeRuntime<never, unknown, unknown>();
+		const run = <A, E>(effect: Effect.Effect<A, E>): Promise<Exit.Exit<A, E>> =>
+			new Promise((resolve) => {
+				/* runFork evaluates synchronously; yielding first means the set tracks the fiber before any handler code runs. */
+				runFork(Effect.andThen(Effect.yieldNow, effect)).addObserver(resolve);
+			});
+		const logCause = (cause: Cause.Cause<unknown>): void => {
+			if (Cause.hasInterruptsOnly(cause)) return;
+			try {
+				connection.console.error(Cause.pretty(cause));
+			} catch {
+				/* The connection is already disposed; there is no channel left to report on. */
+			}
+		};
+		/** A request handler's result, or the `ResponseError` its promise rejects with. */
+		const answer = <A>(effect: Effect.Effect<A, LspError>): Promise<A> =>
+			run(effect).then((exit) => {
+				if (exit._tag === "Success") return exit.value;
+				const failure = Cause.findErrorOption(exit.cause);
+				if (Option.isSome(failure)) throw new ResponseError(failure.value.code, failure.value.message);
+				logCause(exit.cause);
+				throw new ResponseError(INTERNAL_ERROR, INTERNAL_ERROR_MESSAGE);
+			});
 		const report = (effect: Effect.Effect<void>): void => {
-			void Effect.runPromiseExit(effect).then((exit) => {
-				if (exit._tag === "Failure") connection.console.error(Cause.pretty(exit.cause));
+			void run(effect).then((exit) => {
+				if (exit._tag === "Failure") logCause(exit.cause);
 			});
 		};
 

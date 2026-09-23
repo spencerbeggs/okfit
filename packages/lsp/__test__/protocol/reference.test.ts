@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber } from "effect";
+import { Deferred, Effect, Fiber, References } from "effect";
 import { LspError } from "../../src/errors.js";
 import { makeHarness, notify, request } from "../utils/harness.js";
 
@@ -76,7 +76,7 @@ describe("ReferenceTransport", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.effect("the client closing its output resolves listen with reason: closed", () =>
+	it.live("the client closing its output resolves listen with reason: closed", () =>
 		Effect.gen(function* () {
 			const { transport, client, closeClientOutput } = yield* makeHarness;
 			yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
@@ -99,5 +99,63 @@ describe("ReferenceTransport", () => {
 			yield* transport.onRequest("okfit/late", () => Effect.succeed({ ok: true }));
 			assert.deepStrictEqual(yield* request(client, "okfit/late", {}), { ok: true });
 		}).pipe(Effect.scoped),
+	);
+	it.effect("a defect in a request handler answers -32603 with no stack trace, and logs the cause to the client", () =>
+		Effect.gen(function* () {
+			const { transport, client } = yield* makeHarness;
+			const logged = yield* Deferred.make<string>();
+			client.onNotification("window/logMessage", (params: { readonly message: string }) => {
+				Effect.runSync(Deferred.succeed(logged, params.message));
+			});
+			yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+			yield* transport.onRequest("okfit/die", () => Effect.die(new Error("kaboom")));
+			yield* Effect.forkChild(transport.listen);
+			yield* request(client, "initialize", { processId: null, rootUri: null, capabilities: {} });
+			const failure = yield* Effect.tryPromise({
+				try: () => client.sendRequest("okfit/die", {}),
+				catch: (error) => error as { readonly code: number; readonly message: string },
+			}).pipe(Effect.flip);
+			assert.strictEqual(failure.code, -32603);
+			assert.notInclude(failure.message, "kaboom");
+			assert.notMatch(failure.message, /\n\s+at\s/);
+			assert.include(yield* Deferred.await(logged), "kaboom");
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("handlers run with the services and references in context when the transport was built", () =>
+		Effect.gen(function* () {
+			const { transport, client } = yield* makeHarness;
+			yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+			yield* transport.onRequest("okfit/stderr", () =>
+				Effect.gen(function* () {
+					return { logToStderr: yield* References.LogToStderr };
+				}),
+			);
+			yield* Effect.forkChild(transport.listen);
+			yield* request(client, "initialize", { processId: null, rootUri: null, capabilities: {} });
+			assert.deepStrictEqual(yield* request(client, "okfit/stderr", {}), { logToStderr: true });
+		}).pipe(Effect.scoped, Effect.provideService(References.LogToStderr, true)),
+	);
+
+	it.effect("closing the transport's scope interrupts an in-flight handler", () =>
+		Effect.gen(function* () {
+			const started = yield* Deferred.make<void>();
+			const interrupted = yield* Deferred.make<void>();
+			yield* Effect.gen(function* () {
+				const { transport, client } = yield* makeHarness;
+				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+				yield* transport.onRequest("okfit/hang", () =>
+					Deferred.succeed(started, undefined).pipe(
+						Effect.andThen(Effect.never),
+						Effect.onInterrupt(() => Deferred.succeed(interrupted, undefined)),
+					),
+				);
+				yield* Effect.forkChild(transport.listen);
+				yield* request(client, "initialize", { processId: null, rootUri: null, capabilities: {} });
+				void client.sendRequest("okfit/hang", {}).catch(() => undefined);
+				yield* Deferred.await(started);
+			}).pipe(Effect.scoped);
+			assert.isTrue(yield* Deferred.isDone(interrupted));
+		}),
 	);
 });
