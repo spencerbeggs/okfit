@@ -22,8 +22,15 @@ First release.
 
 ### Commands
 
-* `OKF: Validate Bundle` — re-requests the concept list and re-publishes the tree and status item
+* `OKF: Validate Bundle` — asks the server for a fresh revalidate when it advertises `okfit.revalidate`, then re-requests the concept list and re-publishes the tree and status item
 * `OKF: Open Concept…` — a quick pick over every concept in every live bundle
+* `OKF: Set Status…` — quick pick over the two statuses a concept is not already in, applied through `workspace/executeCommand`
+* `OKF: Mark Verified` — marks a concept verified by the configured human actor, applied the same way
+* Set Status and Mark Verified appear as inline and context-menu actions on a concept in the OKF Concepts tree, and disable themselves against a server that predates them
+
+### Local install
+
+* Root `vscode:package` and `vscode:install` scripts build `@okfit/lsp` and this extension, package a `.vsix`, and reinstall it through the `code` CLI
 
 ### Publishing
 
