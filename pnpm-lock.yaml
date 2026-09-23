@@ -471,6 +471,53 @@ importers:
         version: 5.0.1(@types/node@26.6.2)(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
     publishDirectory: dist/dev/pkg
 
+  packages/lsp:
+    dependencies:
+      '@effect/platform-node':
+        specifier: catalog:effect
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
+      '@effected/git':
+        specifier: catalog:effected
+        version: 0.17.0(effect@4.0.0-rc.117)
+      '@effected/xdg':
+        specifier: catalog:effected
+        version: 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+      '@okfit/core':
+        specifier: workspace:*
+        version: link:../core/dist/dev/pkg
+      '@okfit/engine':
+        specifier: workspace:*
+        version: link:../engine/dist/dev/pkg
+      '@okfit/profiles':
+        specifier: workspace:*
+        version: link:../profiles/dist/dev/pkg
+      effect:
+        specifier: catalog:effect
+        version: 4.0.0-rc.117
+      vscode-languageserver:
+        specifier: ^10.1.1
+        version: 10.1.1
+    devDependencies:
+      '@effect/vitest':
+        specifier: catalog:effect
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1)
+      '@savvy-web/bundler':
+        specifier: ^2.4.9
+        version: 2.4.9(@types/node@26.6.2)(react@19.3.0)(redis@6.2.1)(tsx@4.23.15)(typescript@7.0.2)
+      '@types/node':
+        specifier: catalog:build
+        version: 26.6.2
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:test
+        version: 5.0.1(@types/node@26.6.2)(@vitest/coverage-istanbul@5.0.1)(@vitest/coverage-v8@5.0.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      vscode-jsonrpc:
+        specifier: ^9.0.2
+        version: 9.0.2
+    publishDirectory: dist/dev/pkg
+
   packages/mcp:
     dependencies:
       '@effect/platform-node':
@@ -612,6 +659,9 @@ importers:
       '@okfit/engine':
         specifier: workspace:*
         version: link:../packages/engine/dist/dev/pkg
+      '@okfit/lsp':
+        specifier: workspace:*
+        version: link:../packages/lsp/dist/dev/pkg
       '@okfit/mcp':
         specifier: workspace:*
         version: link:../packages/mcp/dist/dev/pkg
