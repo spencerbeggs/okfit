@@ -1,8 +1,8 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import type { Status } from "@okfit/core";
-import { Effect, Schema } from "effect";
-import { detectNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
+import { Effect, Runtime, Schema } from "effect";
+import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { splice, spliceTopLevelScalar } from "../verify/splice.js";
 
 /**
@@ -18,6 +18,7 @@ export class UnsupportedFrontmatterError extends Schema.TaggedError<UnsupportedF
 	"UnsupportedFrontmatterError",
 	{ key: Schema.String, shape: Schema.String },
 ) {
+	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
 		return `"${this.key}"'s frontmatter value is a shape FrontmatterEdits cannot edit (${this.shape}); edit it by hand`;
 	}
@@ -30,7 +31,12 @@ const shift = (edit: MarkdownEdit, by: number): MarkdownEdit =>
 /**
  * A public facade over the `verify/locate.ts` and `verify/splice.ts`
  * machinery: byte-range `MarkdownEdit`s for a concept's top-level `status`
- * scalar and its `verified` list, the same splice `okfit verify` performs.
+ * scalar and its `verified` list. `verified` builds the exact same edit
+ * `okfit verify`'s `prepareVerify` builds -- same `locate`, same `splice`,
+ * same `documentNewline` newline choice -- so its output matches
+ * `okfit verify`'s splice byte for byte; `status` reuses the identical
+ * newline rule for consistency, over `locateTopLevelScalar` and
+ * `spliceTopLevelScalar` instead.
  *
  * Every offset returned is a WHOLE-FILE offset into `source` AS PASSED --
  * BOM included when present -- so a caller can apply the edits with
@@ -54,7 +60,7 @@ export class FrontmatterEdits {
 			if (target._tag === "unsupported") {
 				return yield* new UnsupportedFrontmatterError({ key: "status", shape: target.shape });
 			}
-			const edit = spliceTopLevelScalar(target, "status", status, detectNewline(text));
+			const edit = spliceTopLevelScalar(target, "status", status, documentNewline(text));
 			return [shift(edit, bom.length)];
 		});
 
@@ -69,7 +75,7 @@ export class FrontmatterEdits {
 			if (target._tag === "unsupported") {
 				return yield* new UnsupportedFrontmatterError({ key: "verified", shape: target.shape });
 			}
-			const edit = splice(target, entry, detectNewline(text));
+			const edit = splice(target, entry, documentNewline(text));
 			return [shift(edit, bom.length)];
 		});
 }

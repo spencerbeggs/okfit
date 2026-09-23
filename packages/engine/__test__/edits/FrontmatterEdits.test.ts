@@ -21,6 +21,8 @@ describe("FrontmatterEdits.status", () => {
 		"status-crlf.md",
 		"status-bom.md",
 		"status-last-key.md",
+		"status-single-quoted.md",
+		"status-absent-anchor-last.md",
 	]) {
 		it.effect(`rewrites ${name} to the expected file`, () =>
 			Effect.map(apply(name), (out) => assert.strictEqual(out, expected(name))),
@@ -48,6 +50,36 @@ describe("FrontmatterEdits.status", () => {
 		Effect.map(FrontmatterEdits.status(read("status-plain.md"), "stable"), (edits) => {
 			assert.strictEqual(MarkdownEdit.applyAll(read("status-plain.md"), edits), read("status-plain.md"));
 		}),
+	);
+});
+
+describe("FrontmatterEdits.status unsupported shapes", () => {
+	it.effect("fails typed with no-anchor-key when neither title nor type anchors an insert", () =>
+		Effect.map(Effect.flip(FrontmatterEdits.status(read("status-no-anchor-key.md"), "deprecated")), (error) => {
+			assert.ok(error instanceof UnsupportedFrontmatterError);
+			assert.strictEqual(error.key, "status");
+			assert.strictEqual(error.shape, "no-anchor-key");
+		}),
+	);
+
+	it.effect("fails typed with status-not-scalar when status is a mapping", () =>
+		Effect.map(Effect.flip(FrontmatterEdits.status(read("status-not-scalar.md"), "deprecated")), (error) => {
+			assert.ok(error instanceof UnsupportedFrontmatterError);
+			assert.strictEqual(error.key, "status");
+			assert.strictEqual(error.shape, "status-not-scalar");
+		}),
+	);
+
+	it.effect("fails typed with status-block-scalar when status is a block-literal scalar", () =>
+		Effect.map(Effect.flip(FrontmatterEdits.status(read("status-block-scalar.md"), "deprecated")), (error) => {
+			assert.ok(error instanceof UnsupportedFrontmatterError);
+			assert.strictEqual(error.key, "status");
+			assert.strictEqual(error.shape, "status-block-scalar");
+		}),
+	);
+
+	it.effect("positive control: a supported fixture in the same describe still rewrites cleanly", () =>
+		Effect.map(apply("status-plain.md"), (out) => assert.strictEqual(out, expected("status-plain.md"))),
 	);
 });
 
