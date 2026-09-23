@@ -9,6 +9,9 @@ import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
+import { registerHover } from "./features/hover.js";
+import { registerNavigation } from "./features/navigation.js";
+import { registerWorkspaceSymbols } from "./features/symbols.js";
 import type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 import type {
 	DidChangeWatchedFilesParams,
@@ -28,6 +31,12 @@ import { LSP_VERSION } from "./version.js";
 export interface ServeOptions {
 	/** The revalidate debounce; default `"150 millis"`. */
 	readonly delay?: Duration.Input;
+	/**
+	 * Upper bound on how long a steady stream of edits can defer a
+	 * revalidate; default `"1 second"`. See `SchedulerOptions.maxWait`
+	 * (`session/scheduler.ts`).
+	 */
+	readonly maxWait?: Duration.Input;
 	/** The distribution embedding this server, named in the startup log line. */
 	readonly distribution?: Distribution;
 }
@@ -56,6 +65,11 @@ const INITIALIZE_RESULT: InitializeResult = {
 		// TextDocumentSyncKind.Full is 1; the enum lives in the library, which features never import.
 		textDocumentSync: { openClose: true, change: 1, save: true },
 		workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
+		documentLinkProvider: { resolveProvider: false },
+		definitionProvider: true,
+		referencesProvider: true,
+		hoverProvider: true,
+		workspaceSymbolProvider: true,
 	},
 	serverInfo: { name: "okfit-lsp", version: LSP_VERSION },
 };
@@ -80,10 +94,16 @@ export const serve = (
 ): Effect.Effect<ListenOutcome, never, ServeServices | Scope.Scope> =>
 	Effect.gen(function* () {
 		const delay = options?.delay ?? "150 millis";
+		const maxWait = options?.maxWait ?? "1 second";
 		const distribution = options?.distribution;
 
-		const revalidateAndPublish = yield* makeRevalidatePublisher(transport);
-		const registry = yield* makeSessionRegistry({ delay, onRevalidate: revalidateAndPublish });
+		const publisher = yield* makeRevalidatePublisher(transport);
+		const registry = yield* makeSessionRegistry({
+			delay,
+			maxWait,
+			onRevalidate: publisher.publish,
+			onDispose: (handle) => publisher.clear(handle.bundleRoot),
+		});
 		const feature = yield* makeDiagnosticsFeature(registry);
 
 		const work = yield* Queue.unbounded<Effect.Effect<void>>();
@@ -124,6 +144,9 @@ export const serve = (
 			enqueue(feature.onWatchedFiles(pathsOf(changes.map((change) => change.uri)))),
 		);
 		yield* registerDocumentSync(transport, (event) => enqueue(feature.onDocumentEvent(event)));
+		yield* registerNavigation(transport, registry);
+		yield* registerHover(transport, registry);
+		yield* registerWorkspaceSymbols(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

@@ -21,7 +21,8 @@ src/
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
   Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, bodyDigest, generatedAt, humanActorId, generatedBy, staleAfter
                          bodyDigest is sha256 over the normalised body via effect's Crypto service (issue #19); core holds the field, never computes it
-  Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config, options?), the generated-at-drift lint (S-8); not a Profile member, no range (S-12)
+  Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config, options?), the generated-at-drift lint (S-8); not a Profile member;
+                         ranges at generated.at's own value (phase 4 decision 2), range-less only when the concept's document has no frontmatter
                          Two tiers: generated.body_sha256 when recorded (pure, no git, catches a dirty body), the git date walk otherwise
 ```
 

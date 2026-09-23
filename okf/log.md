@@ -9,6 +9,12 @@
 * Added The language server runs the reference vscode-languageserver library behind an Effect transport seam
 * Updated Workspace
 * Added The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
+* Updated Claude Code plugin hooks contract
+* Updated Core
+* Updated Engine
+* Updated Profiles
+* Added The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
+* Added Two narrow interrupt windows in the LSP session registry are documented, not closed
 
 ## 2026-09-22
 

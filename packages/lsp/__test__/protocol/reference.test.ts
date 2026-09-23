@@ -2,6 +2,7 @@ import { PassThrough } from "node:stream";
 import { assert, describe, it } from "@effect/vitest";
 import type { Duration } from "effect";
 import { Deferred, Effect, Fiber, Option, References } from "effect";
+import { ResponseError } from "vscode-jsonrpc/node";
 import { LspError } from "../../src/errors.js";
 import type { ReferenceTransportOptions } from "../../src/protocol/reference.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
@@ -102,6 +103,37 @@ describe("ReferenceTransport", () => {
 			yield* transport.sendNotification("okfit/pong", { text: "back" });
 			assert.strictEqual(yield* Deferred.await(got), "back");
 		}).pipe(Effect.scoped),
+	);
+
+	it.effect("sendRequest reaches a client-side handler and returns its result", () =>
+		Effect.gen(function* () {
+			const { transport, client } = yield* makeHarness;
+			yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+			client.onRequest("okfit/$test", (params: { readonly text: string }) => ({ echo: params.text }));
+			yield* Effect.forkChild(transport.listen);
+			yield* request(client, "initialize", { processId: null, rootUri: null, capabilities: {} });
+			const result = yield* transport.sendRequest<{ readonly text: string }, { readonly echo: string }>("okfit/$test", {
+				text: "hello",
+			});
+			assert.deepStrictEqual(result, { echo: "hello" });
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect(
+		"sendRequest fails with an LspError carrying the code and message when the client answers with an error",
+		() =>
+			Effect.gen(function* () {
+				const { transport, client } = yield* makeHarness;
+				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+				client.onRequest("okfit/$test", () => {
+					throw new ResponseError(-32001, "client refused");
+				});
+				yield* Effect.forkChild(transport.listen);
+				yield* request(client, "initialize", { processId: null, rootUri: null, capabilities: {} });
+				const failure = yield* transport.sendRequest("okfit/$test", {}).pipe(Effect.flip);
+				assert.strictEqual(failure.code, -32001);
+				assert.strictEqual(failure.message, "client refused");
+			}).pipe(Effect.scoped),
 	);
 
 	it.effect("shutdown then exit resolves listen with shutdownReceived: true, and the process is still alive", () =>

@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:06:44Z
-  body_sha256: 218c0195c45549b152f94e5ec6eb2d4cee0031cb697caba69a5793326f1e3296
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 70e9c09a37f13c5c63a3c681b743d1ddf1c105aa2008b6081d2393a68e682b26
 ---
 
 # Claude Code Plugin
@@ -44,20 +44,34 @@ load the whole bundle just to learn where it is), turning the result into
 fires on `Write|Edit`, **not** `PreToolUse`: `PreToolUse` fires before the
 edited file exists on disk, and `okfit validate` has nothing to read at
 that point, so a block from `PostToolUse` is a stop-and-fix signal, not a
-prevention (`plugins/claude-code/CLAUDE.md:79-86`; M-20, this is a
-deliberate, documented spec departure). `PostToolUse` runs `okfit
-validate` with `--skip-provenance`: the git-derived fallback tier of
-`generated-at-drift` costs a git walk per concept, measured taking
-validate from about 0.5 s to 1.7 s on this bundle, so the edit-time hook
-skips that tier while CI and the MCP `validate_bundle` tool keep it. A
-migrated concept (one carrying `generated.body_sha256`) is unaffected by
-the flag and is still checked, cheaply, by content comparison even at
-edit time — see [A body digest inside generated detects real drift, not a
-rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+prevention (`plugins/claude-code/CLAUDE.md:81-82`; M-20, this is a
+deliberate, documented spec departure — see [The validate hook fires
+PostToolUse, not
+PreToolUse](../decisions/plugin-posttooluse-not-pretooluse.md),
+deprecated and superseded by [The PostToolUse hook keeps only
+conformance blocking and the generated.by check, once the language
+server delivers lint and profile
+findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)).
+As of LSP phase 4 the hook keeps exactly two jobs: it blocks on a `core.conformance`
+diagnostic for the edited file, and it reads the written file to block a
+`Write` (warn an `Edit`) of a concept with no `generated.by` when the
+config sets `actors.agent`. It no longer emits `additionalContext` for
+`core.lint` or profile diagnostics — the registered language server (see
+[LSP](lsp.md)) now delivers those findings with precise ranges directly
+in the editor (`plugins/claude-code/CLAUDE.md:86-91`). `PostToolUse` still
+runs `okfit validate` with `--skip-provenance`: the git-derived fallback
+tier of `generated-at-drift` costs a git walk per concept, measured
+taking validate from about 0.5 s to 1.7 s on this bundle, so the
+edit-time hook skips that tier while CI and the MCP `validate_bundle`
+tool keep it. A migrated concept (one carrying `generated.body_sha256`)
+is unaffected by the flag and is still checked, cheaply, by content
+comparison even at edit time — see [A body digest inside generated
+detects real drift, not a rewritten
+date](../decisions/profiles-body-sha256-detects-real-drift.md).
 Kill switches: `OKFIT_HOOKS=off`
 disables both; `OKFIT_SESSION_HOOK=off` and `OKFIT_VALIDATE_HOOK=off`
 disable one each; comparison is exact-string `off` only
-(`plugins/claude-code/CLAUDE.md:62-69`).
+(`plugins/claude-code/CLAUDE.md:64-71`).
 
 ## Distribution and MCP status
 

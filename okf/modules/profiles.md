@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: 79a961756d1a4457d85cc554995cbc12974c2a31ecece19d859164ad12b66b5b
+  at: 2026-09-23T08:11:07Z
+  body_sha256: 5f20db0d23e0444f689dc4fc3f0700413dd44e053de3e70de32d9fd53fca5b9b
 ---
 
 # Profiles
@@ -72,6 +72,13 @@ date](../decisions/profiles-body-sha256-detects-real-drift.md).
 sha256 of the P-6-normalized body — through effect's own `Crypto` service,
 never `node:crypto` directly, so it carries `Crypto.Crypto` in its R
 channel the same way `Derivation.generatedAt` carries `Git | GitHistory`.
+
+The `generated-at-drift` lint anchors its diagnostic at the `generated.at`
+value itself (`Provenance.ts`), through
+[Core](core.md)'s `DiagnosticRange.forFrontmatterPath`, rather than the
+frontmatter block. `SoftwareProject.ts`'s `project-not-at-root` check
+anchors the same way, at the misplaced Project concept's `type` value;
+`project-missing` and `project-multiple` stay bundle-level.
 
 ## Derivation is package-global
 

@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T04:04:54Z
-  body_sha256: d6fe09c0d9d5473a498f4738f6c3f740da2ce5d58f300190aaeafab0e13ed099
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 86b32e21f220aee9ec6e9d48f46dc433ff3d2892c718ed9b9781743083698a2b
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -98,9 +98,10 @@ item rather than a status-bar error count that would duplicate the
 Problems counter, inlay hints from the server rather than client-side
 decorations, no notifications for routine feedback, theme colours and
 codicons only[^vscode-ux-guidelines]. It supports multi-root workspaces:
-one language client per window, one bundle session per workspace folder
-with config discovered per folder, folders added and removed through the
-LSP workspace-folders notifications, and a resource-scoped server-path
+one language client per window, one bundle session per resolved bundle
+root shared across every workspace folder that resolves to it, config
+discovered per folder, folders added and removed through the LSP
+workspace-folders notifications, and a resource-scoped server-path
 setting[^vscode-multi-root]. reactive-vscode has no language-client
 composable, so the client is wired by hand and disposed through the
 reactive API[^reactive-vscode].
@@ -147,9 +148,10 @@ repository's own bundle.
    separately from the hook's, so the two were distinguishable in the
    evidence. Remaining: the release.
 4. **Precise ranges and navigation.** First, config reload: on a
-   config change, rebuild the folder's session and schedule a full
-   revalidate; publish `[]` for every URI a dropped session last
-   published non-empty; carry open overlays into the rebuilt session
+   config change, rebuild the affected bundle root's session and
+   schedule a full revalidate; publish `[]` for every URI a dropped
+   session last published non-empty; carry open overlays into the
+   rebuilt session
    ([the phase 3 limitation](../limitations/no-config-reload-in-phase-3.md)).
    This is a prerequisite for phase 6, since VS Code sends the
    watched-file and workspace-folder notifications. Then every lint rule that knows its
@@ -160,7 +162,21 @@ repository's own bundle.
    block-only role on conformance errors plus the Write-time
    `generated.by` check, since the server now delivers lint and profile
    findings with ranges. Releases core, profiles, lsp, the Claude Code
-   plugin. Remaining: everything.
+   plugin. Done 2026-09-23: every core lint rule that knows its field
+   anchors its diagnostic at the offending value, profiles' and engine's
+   drift, project and resource diagnostics anchor the same way, config
+   reload rebuilds a bundle root's session (shared, reference-counted,
+   across every workspace folder resolving to it) and clears a dropped
+   session's diagnostics, the scheduler's debounce carries a `maxWait` ceiling,
+   hover, document links, definition, references and workspace symbols
+   answer from the loaded bundle, and the PostToolUse hook keeps only
+   the conformance block and the `generated.by` check. Evidence: 1016
+   of 1016 Vitest tests and 97 of 97 BATS cases passing, zero API
+   Extractor warnings across all seven built packages, and the reviewed
+   commits `6b4ac1d`, `78bf22e`, `f4f6494`, `bee2f21`, `225c942`,
+   `37117e0`, `f227b7e`, `288dc1f`, `fa24671`, `10ac546`, `9d1f4e5`,
+   `eff1e78`, `5168176`. Remaining: the Claude Code dogfood check and
+   the release.
 5. **Actions.** Code actions for status (draft, stable, deprecated) and
    for marking verified by the configured human actor, computed as text
    edits over the verify splice helpers so a file is never

@@ -4,15 +4,19 @@
 # (DOCS/hook-events.md:539), so this hook validates the real bytes rather
 # than trusting tool_response, which it never reads.
 #
-# Runs one cheap `okfit context --format json` call to learn bundle_root and
-# project_root, then — only when the edited file is under bundle_root — one
-# whole-bundle `okfit validate <project_root> --format json` call, filtering
+# This hook keeps exactly two jobs now that the registered language server
+# delivers core.lint and profile findings with precise ranges directly in
+# the editor (LSP phase 4, decision 8): it runs one cheap
+# `okfit context --format json` call to learn bundle_root and project_root,
+# then — only when the edited file is under bundle_root — one whole-bundle
+# `okfit validate <project_root> --format json` call, filtering
 # diagnostics[] down to this one file by its bundle-relative posix path
-# (D-32, CLI/render/sort.ts:8-10). A core.conformance hit on that file blocks
-# (decision: "block", top-level per DOCS/hooks.md:416); a core.lint or
-# profile hit warns via additionalContext; anything else is silent. One
-# check reads the file itself: a concept the agent wrote without
-# generated.by blocks on Write and warns on Edit (okfit #74, see below).
+# (D-32, CLI/render/sort.ts:8-10). A core.conformance hit on that file
+# blocks (decision: "block", top-level per DOCS/hooks.md:416); everything
+# else `okfit validate` reports for the file is silent here, since the LSP
+# already surfaced it with a range. The second job reads the written file
+# itself: a concept the agent wrote without generated.by blocks on Write
+# and warns on Edit (okfit #74, see below).
 #
 # IMPORTANT: nothing in this script may write to stdout except the single
 # emit_noop / emit_context / emit_block call that ends each branch.
@@ -161,11 +165,8 @@ fi
 # just written (contract section 6.2, "Edge cases").
 conformance_hits=$(printf '%s' "$validate_json" | jq --arg f "$bundle_relative" \
 	'[.diagnostics[] | select(.source == "core.conformance" and .file == $f)]')
-lint_hits=$(printf '%s' "$validate_json" | jq --arg f "$bundle_relative" \
-	'[.diagnostics[] | select((.source == "core.lint" or .source == "profile") and .file == $f)]')
 
 conformance_count=$(printf '%s' "$conformance_hits" | jq 'length')
-lint_count=$(printf '%s' "$lint_hits" | jq 'length')
 
 # The generated.by check (okfit #74). okf-authoring rule 3 asks the agent
 # to stamp `generated.by: <actors.agent>` on every concept it writes, and
@@ -219,33 +220,14 @@ fi
 # Branch 9b (okfit #74): a Write that authored a whole concept without
 # generated.by blocks on its own, with the exact line to add as the reason.
 if [ "$missing_generated_by" -eq 1 ] && [ "$tool_name" = "Write" ]; then
-	reason="${bundle_relative}: ${generated_line}"
-	if [ "$lint_count" -gt 0 ]; then
-		lines=$(printf '%s' "$lint_hits" | jq -r '.[] | "  " + .code + ": " + .message')
-		reason="${reason}
-${lint_count} lint warning(s):
-${lines}"
-	fi
-	emit_block "$reason"
+	emit_block "${bundle_relative}: ${generated_line}"
 	exit 0
 fi
 
-# Branch 10: core.lint OR profile (interpretation B-7 — CLI/render/sort.ts:5
-# defines three sources; M-20 names only core.lint as warn-worthy and is
-# silent on profile, read as "not block-worthy" rather than "not handled").
-if [ "$lint_count" -gt 0 ]; then
-	lines=$(printf '%s' "$lint_hits" | jq -r '.[] | "  " + .code + ": " + .message')
-	context="${bundle_relative}: ${lint_count} lint warning(s):
-${lines}"
-	if [ "$missing_generated_by" -eq 1 ]; then
-		context="${context}
-  ${generated_line}"
-	fi
-	emit_context "PostToolUse" "$context"
-	exit 0
-fi
-
-# Branch 10b (okfit #74): an Edit of a concept with no generated.by warns.
+# Branch 10 (okfit #74): an Edit of a concept with no generated.by warns.
+# core.lint and profile diagnostics for this file are never surfaced here —
+# the registered language server already delivered them with a precise
+# range (LSP phase 4, decision 8).
 if [ "$missing_generated_by" -eq 1 ]; then
 	emit_context "PostToolUse" "${bundle_relative}: ${generated_line}"
 	exit 0

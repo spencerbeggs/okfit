@@ -1,6 +1,6 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { LoadedBundle } from "@okfit/core";
-import { Diagnostic, OkfitConfig, Timestamp } from "@okfit/core";
+import { Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
 import type { Crypto, FileSystem, PlatformError } from "effect";
 import { DateTime, Effect, Path, Schema } from "effect";
 import { Derivation } from "./Derivation.js";
@@ -31,8 +31,10 @@ const encodeAt = Schema.encodeSync(Timestamp);
  * The tier-2 fallback returns `[]` the moment a `NotARepositoryError`
  * surfaces: a bundle outside git has nothing to derive for any concept still
  * on tier 2, so the first occurrence short-circuits the whole walk, not just
- * the concept that triggered it (S-8). Emits no `range` (S-12, Judge note
- * 7): `Diagnostic.range` is `Schema.optionalKey` and is simply omitted.
+ * the concept that triggered it (S-8). Ranges at the `generated.at` value
+ * (phase 4 decision 2) via `DiagnosticRange.forFrontmatterPath`; omitted
+ * (`Diagnostic.range` is `Schema.optionalKey`) when the concept's document has
+ * no frontmatter block at all.
  *
  * `Provenance.lint` is total over severity (S-28, amending Judge note 3):
  * when `OkfitConfig.severityFor(config, "generated-at-drift")` resolves to
@@ -77,6 +79,18 @@ export class Provenance {
 		const skipGitTier = options?.skipGitTier === true;
 		const path = yield* Path.Path;
 		const diagnostics: Array<Diagnostic> = [];
+		/** Pushes a `generated-at-drift` diagnostic, ranged at `generated.at`'s own value when found. */
+		const pushDrift = (file: string, message: string, range: DiagnosticRange | undefined): void => {
+			diagnostics.push(
+				Diagnostic.make({
+					file,
+					code: "generated-at-drift",
+					severity,
+					message,
+					...(range === undefined ? {} : { range }),
+				}),
+			);
+		};
 		for (const [, concept] of bundle.concepts) {
 			if (concept.frontmatter.generated === undefined) continue;
 			const recordedDigest = concept.frontmatter.generated.body_sha256;
@@ -86,13 +100,10 @@ export class Provenance {
 			if (recordedDigest !== undefined) {
 				const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
 				if (currentDigest === recordedDigest) continue;
-				diagnostics.push(
-					Diagnostic.make({
-						file: concept.path,
-						code: "generated-at-drift",
-						severity,
-						message: `the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,
-					}),
+				pushDrift(
+					concept.path,
+					`the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,
+					DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]),
 				);
 				continue;
 			}
@@ -111,15 +122,12 @@ export class Provenance {
 			const recorded = concept.frontmatter.generated.at;
 			const matches = recorded !== undefined && DateTime.Equivalence(recorded, derived.at);
 			if (matches) continue;
-			diagnostics.push(
-				Diagnostic.make({
-					file: concept.path,
-					code: "generated-at-drift",
-					severity,
-					message: `generated.at is ${
-						recorded === undefined ? "missing" : encodeAt(recorded)
-					}; the last body change was ${encodeAt(derived.at)} (${derived.sha.slice(0, 7)})`,
-				}),
+			pushDrift(
+				concept.path,
+				`generated.at is ${
+					recorded === undefined ? "missing" : encodeAt(recorded)
+				}; the last body change was ${encodeAt(derived.at)} (${derived.sha.slice(0, 7)})`,
+				DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]),
 			);
 		}
 		return diagnostics;

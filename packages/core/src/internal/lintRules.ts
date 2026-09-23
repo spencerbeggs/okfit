@@ -6,6 +6,7 @@ import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { LinkGraph } from "../Graph.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
+import { frontmatterPathRange } from "./frontmatter.js";
 
 /** Everything one lint rule may read; built once per `Validate.lint` call. */
 export interface LintContext {
@@ -22,15 +23,6 @@ export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 const FOOTNOTE_RE = /\[\^([^\]\s]+)\]/g;
 /** A footnote definition: the label at a line start, followed by a colon. */
 const FOOTNOTE_DEFINITION_RE = /^\[\^([^\]\s]+)\]:/gm;
-
-const frontmatterRange = (concept: LoadedConcept): DiagnosticRange | undefined => {
-	const node = concept.document.frontmatter;
-	if (node === undefined) {
-		return undefined;
-	}
-	const start = node.position.start.offset;
-	return DiagnosticRange.fromOffset(concept.document.source, start, node.position.end.offset - start);
-};
 
 const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && raw[key] !== null;
 
@@ -62,16 +54,23 @@ const rule =
 		return severity === "off" ? [] : body(context, severity);
 	};
 
-/** A rule that yields messages per concept, each carrying the frontmatter block range (decision 2). */
+/** One offending value's message, optionally paired with the frontmatter path that names it; a bare string anchors at the frontmatter block (decision 2: absent-key rules have nothing more precise to point at). */
+interface RangedMessage {
+	readonly message: string;
+	readonly path: ReadonlyArray<string | number>;
+}
+
+/** A rule that yields messages per concept, each anchored at the frontmatter path that names the offending value (default `[]`, the frontmatter block) and falling back to that block when the path's leaf is absent (decision 2). */
 const perConcept = (
 	code: LintCode,
-	body: (concept: LoadedConcept, context: LintContext) => ReadonlyArray<string>,
+	body: (concept: LoadedConcept, context: LintContext) => ReadonlyArray<RangedMessage | string>,
 ): LintRule =>
 	rule(code, (context, severity) =>
 		[...context.bundle.concepts.values()].flatMap((concept) =>
-			body(concept, context).map((message) =>
-				diagnostic(concept.path, code, severity, message, frontmatterRange(concept)),
-			),
+			body(concept, context).map((item) => {
+				const { message, path } = typeof item === "string" ? { message: item, path: [] } : item;
+				return diagnostic(concept.path, code, severity, message, frontmatterPathRange(concept.document, path));
+			}),
 		),
 	);
 
@@ -84,7 +83,7 @@ export const configUnknownKey: LintRule = rule("config-unknown-key", (context, s
 export const unknownType: LintRule = perConcept("unknown-type", (concept, context) =>
 	Object.hasOwn(context.config.types ?? {}, concept.frontmatter.type)
 		? []
-		: [`Type "${concept.frontmatter.type}" is not declared in [types]`],
+		: [{ message: `Type "${concept.frontmatter.type}" is not declared in [types]`, path: ["type"] }],
 );
 
 export const requiredKeyMissing: LintRule = perConcept("required-key-missing", (concept, context) => {
@@ -95,16 +94,17 @@ export const requiredKeyMissing: LintRule = perConcept("required-key-missing", (
 
 export const fieldValueUnknown: LintRule = perConcept("field-value-unknown", (concept, context) => {
 	const fields = context.config.types?.[concept.frontmatter.type]?.fields ?? {};
-	const out: Array<string> = [];
+	const out: Array<RangedMessage> = [];
 	for (const [key, declaration] of Object.entries(fields)) {
 		if (declaration.values === undefined || !present(concept.frontmatter.raw, key)) {
 			continue;
 		}
 		const value = concept.frontmatter.raw[key];
 		if (typeof value !== "string" || !Object.hasOwn(declaration.values, value)) {
-			out.push(
-				`Value ${JSON.stringify(value)} for "${key}" is not one of: ${Object.keys(declaration.values).join(", ")}`,
-			);
+			out.push({
+				message: `Value ${JSON.stringify(value)} for "${key}" is not one of: ${Object.keys(declaration.values).join(", ")}`,
+				path: [key],
+			});
 		}
 	}
 	return out;
@@ -116,7 +116,7 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 	context.config.types?.[concept.frontmatter.type]?.require_verified === true &&
 	concept.frontmatter.status !== "draft" &&
 	(concept.frontmatter.verified ?? []).length === 0
-		? [`Type "${concept.frontmatter.type}" requires a verified entry`]
+		? [{ message: `Type "${concept.frontmatter.type}" requires a verified entry`, path: ["status"] }]
 		: [],
 );
 
@@ -141,17 +141,34 @@ export const generatedMissing: LintRule = perConcept("generated-missing", (conce
 );
 
 export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (concept) => {
-	const actors = [concept.frontmatter.generated?.by, ...(concept.frontmatter.verified ?? []).map((v) => v.by)];
-	return actors
-		.filter((by): by is Actor => by !== undefined && Actor.form(by) === "other")
-		.map((by) => `Actor "${by}" uses an unknown prefix; expected human:<id>, process:<id>, or <producer>/<version>`);
+	const candidates: ReadonlyArray<{ readonly by: Actor | undefined; readonly path: ReadonlyArray<string | number> }> = [
+		{ by: concept.frontmatter.generated?.by, path: ["generated", "by"] },
+		...(concept.frontmatter.verified ?? []).map((entry, index) => ({
+			by: entry.by,
+			path: ["verified", index, "by"] as ReadonlyArray<string | number>,
+		})),
+	];
+	const out: Array<RangedMessage> = [];
+	for (const candidate of candidates) {
+		if (candidate.by === undefined || Actor.form(candidate.by) !== "other") continue;
+		out.push({
+			message: `Actor "${candidate.by}" uses an unknown prefix; expected human:<id>, process:<id>, or <producer>/<version>`,
+			path: candidate.path,
+		});
+	}
+	return out;
 });
 
 export const stale: LintRule = perConcept("stale", (concept, context) =>
 	context.now !== undefined &&
 	concept.frontmatter.stale_after !== undefined &&
 	Derive.isStale(concept.frontmatter, context.now)
-		? [`Concept is stale since ${DateTime.formatIso(concept.frontmatter.stale_after)}`]
+		? [
+				{
+					message: `Concept is stale since ${DateTime.formatIso(concept.frontmatter.stale_after)}`,
+					path: ["stale_after"],
+				},
+			]
 		: [],
 );
 

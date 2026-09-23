@@ -36,6 +36,7 @@ src/
   session/
     BundleSession.ts        -- BundleSession (Context.Service): overlay + whole-bundle revalidate
                                 with per-file diagnostic diffs; no debounce (the LSP server schedules)
+    concept.ts                -- conceptFor: the loaded concept at an absolute path under bundle.root
     diff.ts                  -- groupByFile, diffDiagnostics (pure, engine-internal)
     range.ts                  -- withFallbackRange: range-less finding -> frontmatter block
   verify/

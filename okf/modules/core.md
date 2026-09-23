@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T19:53:53Z
-  body_sha256: 95cc168ab73ada3b82a9deb3bdac229cdab53bbbac7a7e6671f3a5e62e907cf8
+  at: 2026-09-23T08:11:07Z
+  body_sha256: a6f47d52ec81b0f4937e4dd77c5cbef8efa44911e25964877283422ce6061496
 ---
 
 # Core
@@ -84,6 +84,25 @@ enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
 `actors.agent` is set and a concept's frontmatter has no `generated` block
 at all -- surfacing the gap at validate time instead of leaving it to
 `okfit sync`'s post-commit `skipped` report.
+
+## Diagnostic ranges
+
+Every lint rule in `internal/lintRules.ts` that knows its field anchors
+its diagnostic at the offending value's own range through the shared
+mapper `internal/frontmatter.ts#frontmatterPathRange` (`@internal`,
+built from the same YAML re-parse `rangeFor` always used) and its public
+wrapper `Diagnostic.ts#DiagnosticRange.forFrontmatterPath`
+(`@public`, for consumers outside core, such as `@okfit/profiles` and
+`@okfit/engine`, that cannot reach an internal helper):
+`unknown-type` anchors at the `type` value, `field-value-unknown` at the
+offending field's value, `actor-prefix-unknown` at the offending actor
+value (`verified[i].by`, `generated.by`, `sources[i].author`), `stale` at
+`stale_after`, and `require-verified-unmet` at `status`. A rule with
+nothing to point at — `required-key-missing`, `status-missing`,
+`generated-missing` — anchors at the frontmatter block instead of a key
+that is not there. Bundle-level rules (`config-unknown-key`,
+`missing-index`) stay range-less. A quoted YAML scalar's range includes
+the surrounding quotes.
 
 ## generated.body_sha256
 

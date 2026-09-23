@@ -7,8 +7,8 @@ resource: ../../plugins/claude-code/hooks/hooks.json
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T17:11:52Z
-  body_sha256: 380e0f1329f0325fbbc61fde793c6b414036b5e631b26769b3f901883caec8df
+  at: 2026-09-23T08:32:55Z
+  body_sha256: 23fcb11247bbdcdd1ebc2c26cdddfc73c79c024a9661695b08f9dbd7f6965d66
 tags:
   - architecture
 ---
@@ -21,7 +21,7 @@ tags:
 source, `startup`/`resume`/`clear`/`compact`, re-orients) and `PostToolUse`
 (`hooks/post-tool-use/validate.sh`, matcher `Write|Edit`)
 (`plugins/claude-code/README.md:65,76-77`,
-`plugins/claude-code/CLAUDE.md:79-80`).
+`plugins/claude-code/CLAUDE.md:81-82`).
 
 ## SessionStart contract
 
@@ -37,20 +37,27 @@ scaffold one (`plugins/claude-code/README.md:65-74`,
 ## PostToolUse contract
 
 The write has already landed by the time this hook runs, so it is a
-stop-and-fix signal, never a prevention. For a path under the bundle root,
-it runs `okfit validate <project_root> --format json --skip-provenance`
-on the whole bundle, filters the diagnostics to the edited file, turns a
-`core.conformance` hit into `{"decision": "block", ...}`, and turns a
-`core.lint` hit into a non-blocking warning. One check reads the written
-file itself: when the config sets `actors.agent`, a concept file (never
-`index.md` or `log.md`) whose frontmatter has no `generated.by` blocks on
-`Write` and warns on `Edit`, with the exact `by:` value to add in the
-message ([#74](https://github.com/spencerbeggs/okfit/issues/74): the
-okf-authoring rule alone reached 109 of 268 concepts under one brief, and
-this hook is the one place that knows the write came from the agent). A
-path outside the bundle root never reaches `okfit validate` at all
-(`plugins/claude-code/README.md:76-87`,
-`plugins/claude-code/CLAUDE.md:79-86`). The drift lint costs a git walk
+stop-and-fix signal, never a prevention. As of LSP phase 4, [The
+PostToolUse hook keeps only conformance blocking and the generated.by
+check, once the language server delivers lint and profile
+findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)
+the hook keeps exactly two jobs, now that the registered language server
+delivers `core.lint` and profile findings with precise ranges directly in
+the editor. For a path under the bundle root, it runs
+`okfit validate <project_root> --format json --skip-provenance` on the
+whole bundle, filters the diagnostics to the edited file, and turns a
+`core.conformance` hit into `{"decision": "block", ...}`; every other
+diagnostic for that file — `core.lint`, profile findings — is silent
+here and no longer emitted as `additionalContext`. One check reads the
+written file itself: when the config sets `actors.agent`, a concept file
+(never `index.md` or `log.md`) whose frontmatter has no `generated.by`
+blocks on `Write` and warns on `Edit`, with the exact `by:` value to add
+in the message ([#74](https://github.com/spencerbeggs/okfit/issues/74):
+the okf-authoring rule alone reached 109 of 268 concepts under one
+brief, and this hook is the one place that knows the write came from the
+agent). A path outside the bundle root never reaches `okfit validate` at
+all (`plugins/claude-code/README.md:76-99`,
+`plugins/claude-code/CLAUDE.md:81-95`). The drift lint costs a git walk
 per concept; measured on this bundle it took validate from about 0.5 s to
 1.7 s, so the edit-time hook skips it — the lint still runs in CI and
 through the MCP `validate_bundle` tool.

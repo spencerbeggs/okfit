@@ -54,18 +54,21 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * `status: draft`, so again exempt from `require-verified-unmet`). Its
  * final review adds this bundle's first Limitation concept
  * (`okf/limitations/no-config-reload-in-phase-3.md`), which carries no
- * `verified` requirement.
+ * `verified` requirement. Phase 4 adds one more `draft` Decision
+ * (`okf/decisions/plugin-posttooluse-conformance-only-after-lsp.md`,
+ * superseding the deprecated PostToolUse one, exempt while `draft`) and a
+ * second Limitation (`okf/limitations/lsp-registry-interrupt-windows.md`).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 10,
-	Decision: 27,
+	Decision: 28,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
 	Roadmap: 1,
 	Glossary: 1,
-	Limitation: 1,
+	Limitation: 2,
 } as const;
 
 const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) => sum + n, 0);

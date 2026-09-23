@@ -16,52 +16,155 @@ src/
                      build-time constant the bundler injects -- never a
                      package.json import
   errors.ts      -- LspError: the one failure a request handler may return
-  index.ts       -- public barrel; this is what later tasks and tests import
+  index.ts       -- public barrel for embedders: the transport seam, serve,
+                     the registry, the register* features, the diagnostics
+                     publisher and feature, SYMBOL_KIND_OBJECT and the
+                     convert helpers; implementation helpers (locate.ts,
+                     renderHover, documents.ts) are @internal and tests
+                     import them from their src/ paths
   internal/
     messageOf.ts   -- messageOf: the error's `message` when it has one as a
                       string, else `String(error)`; shared by
                       features/diagnostics.ts and session/registry.ts,
                       @internal, not in the barrel
+    paths.ts       -- isUnder(root, path): whether path is root itself or
+                      under it; shared by session/documents.ts and
+                      session/registry.ts, @internal, not in the barrel
   server.ts      -- serve(transport, options): wires initialize (folders,
                      capabilities, serverInfo), initialized (one log line),
                      workspace folder and watched-file notifications,
                      document sync and diagnostics onto the transport, then
-                     listens; ServeOptions { delay, distribution }, ServeServices
+                     listens; ServeOptions { delay, maxWait, distribution },
+                     ServeServices
   convert/
     uri.ts         -- uriToPath, pathToUri: file: URI <-> absolute path,
                       percent-encoded, None for a non-file or malformed URI
     diagnostic.ts  -- SEVERITY, toLspDiagnostic: RenderedDiagnostic (engine) ->
                       LSP Diagnostic; sourceTextOf: a bundle concept's source text
+    range.ts       -- toLspRange, toLspLocation: DiagnosticRange (core) -> LSP
+                      Range/Location, end position re-mapped through the file
+                      text the same way toLspDiagnostic's does
   protocol/
     LspTransport.ts -- the seam: LspTransportShape, ListenOutcome, the
                        LspTransport service tag
     reference.ts    -- makeReferenceTransport: the seam over
                        vscode-languageserver
     types.ts        -- type-only re-exports of the protocol types
-                       (InitializeParams, LspDiagnostic, Did*Params, ...)
+                       (InitializeParams, LspDiagnostic, Did*Params,
+                       DocumentLink*, DefinitionParams, ReferenceParams,
+                       Location, Range, Position, Hover*, MarkupContent,
+                       WorkspaceSymbol*, SymbolInformation, ...) plus the
+                       numeric constant SYMBOL_KIND_OBJECT (19, SymbolKind.Object)
   session/
+    documents.ts    -- DocumentMemoryShape, makeDocumentMemory (@internal,
+                       not in the barrel): a
+                       registry-wide Ref<Map<absolutePath, {text, version}>>
+                       of open documents, keyed by absolute path (ownership
+                       shifts with the workspace folder set, so this is not
+                       per-folder); openUnder(root) filters by prefix at
+                       read time -- what the diagnostics feature re-opens
+                       onto a rebuilt session
     scheduler.ts    -- makeScheduler: the debounced revalidate trigger.
                        Scheduler { schedule, settle }; schedule coalesces a
                        burst behind a fixed delay and never downgrades a
                        tier to "edit" once "full" is requested; a schedule
-                       during a run queues exactly one more run
+                       during a run queues exactly one more run; a burst
+                       that never goes quiet for delay still runs at most
+                       maxWait after the first schedule of an idle
+                       scheduler (SchedulerOptions.maxWait). State lives in
+                       one SynchronizedRef with a single writer at a time:
+                       schedule's idle-or-pending transition and every
+                       chain-side write (phase to running, the post-run
+                       rerun-and-reset, the finalizer's reset-to-idle) all
+                       go through the ref's own guarded modify/update, each
+                       chain-side write gated on a fiber-identity check
+                       against the entry it reads. schedule never awaits
+                       Fiber.interrupt on the chain it replaces -- that
+                       would wait on the superseded chain's finalizer,
+                       which needs the very permit schedule is holding --
+                       it forks the interrupt into the scheduler's scope
+                       instead and returns
     registry.ts     -- makeSessionRegistry: workspace folders -> one
-                       BundleSession per bundle root, lazily, with config
-                       discovery per folder; SessionHandle bundles a
-                       folder's session and scheduler
+                       BundleSession per resolved bundle root, lazily, with
+                       config discovery per folder. State is one Ref of
+                       { folders: folder -> slot, roots: bundleRoot ->
+                       entry }: a folder slot is Unbuilt, Building (a
+                       Deferred concurrent callers await), Failed, or Live
+                       (pointing at a root); a root entry holds the handle,
+                       its scope and the set of folders resolving to it (the
+                       refcount). Two folders resolving to one root (/repo
+                       and /repo/okf) share one session; removing a folder
+                       disposes the root entry only when its last folder
+                       goes. SessionRegistryShape.rebuild(bundleRoot)
+                       re-resolves every folder of that root once, builds
+                       the fresh session(s), swaps them in, then disposes
+                       exactly the entry the swap replaced (onDispose runs
+                       once per session, never per folder); a folder whose
+                       config now fails is recorded as Failed and retried
+                       later like any other failed build. `sessions` lists
+                       each root once. Lock order: every transition is one
+                       synchronous Ref.modify, so nothing holds a lock
+                       across I/O -- config resolution, BundleSession.make,
+                       Scope.close and onDispose all run outside it, and a
+                       first request for an unbuilt folder stalls only
+                       callers for that same folder (they await its
+                       Building Deferred). Folders keep pointing at the
+                       outgoing session until the rebuild's swap, so a
+                       sessionFor racing a rebuild finds a valid session,
+                       never a miss
   features/
     documentSync.ts -- DocumentEvent, registerDocumentSync: the four
                        textDocument/did* notifications as events on
                        absolute paths; non-file URIs dropped
-    diagnostics.ts  -- makeRevalidatePublisher(transport): builds the
-                       RevalidatePublisher a SessionRegistry's onRevalidate
-                       calls back into (revalidate, then publishDiagnostics
-                       fan-out); makeDiagnosticsFeature(registry): builds
+    diagnostics.ts  -- makeRevalidatePublisher(transport): builds a
+                       DiagnosticsPublisher { publish, clear } --
+                       `publish` is the RevalidatePublisher a
+                       SessionRegistry's onRevalidate calls back into
+                       (revalidate, then publishDiagnostics fan-out). Each
+                       file's send-then-remember step runs inside
+                       Effect.uninterruptible: the notification is sent
+                       before the remembered-non-empty set is updated, and
+                       an external interrupt (a rebuild's or dispose's
+                       Scope.close, which awaits this chain fiber) cannot
+                       land between the two -- otherwise a revalidate that
+                       cleared a URI could be interrupted after updating
+                       memory but before sending `[]`, and a later `clear`
+                       would never re-send it. `clear(root)` publishes []
+                       for every URI still remembered for `root` and
+                       forgets it, and is what the registry's onDispose is
+                       built from.
+                       makeDiagnosticsFeature(registry): builds
                        DiagnosticsFeature { onDocumentEvent, onWatchedFiles
-                       }, the overlay updates and tier choice. The
-                       publisher is built before the registry and passed
-                       in as onRevalidate -- no mutable box, since neither
-                       constructor needs the other's result.
+                       }, owning a session/documents.ts DocumentMemoryShape
+                       so a config-change rebuild can carry every open
+                       document's overlay into the fresh session before
+                       scheduling its full revalidate. The publisher is
+                       built before the registry and passed in as
+                       onRevalidate, with `clear` composed into onDispose
+                       -- no mutable box, since the publisher exists in
+                       full before the registry needs either of its
+                       members.
+    locate.ts       -- position and identity helpers navigation.ts,
+                       hover.ts and symbols.ts share (all @internal, not in
+                       the barrel):
+                       conceptAtPath (delegates to the engine's conceptFor),
+                       offsetOf(text, position) (LSP position -> UTF-16
+                       offset, the inverse of DiagnosticRange.fromOffset's
+                       line/character mapping; a character past the end of
+                       its line clamps to that line's end), edgeAt(graph,
+                       bundleRelativePath, offset) (the outgoing edge whose
+                       recorded position contains offset, ties broken by the
+                       shorter span), definitionOf(bundle, conceptId) (see
+                       Navigation below)
+    navigation.ts   -- registerNavigation(transport, registry): textDocument/
+                       documentLink, textDocument/definition,
+                       textDocument/references (see Navigation below)
+    hover.ts        -- registerHover(transport, registry): textDocument/hover;
+                       renderHover (@internal, not in the barrel) is the
+                       pure markdown renderer, tested directly (see Navigation below)
+    symbols.ts      -- registerWorkspaceSymbols(transport, registry):
+                       workspace/symbol across every live session (see
+                       Navigation below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -76,8 +179,23 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Tier per event: `didOpen` and `didSave` schedule the `full` tier;
   `didChange` and `didClose` the `edit` tier. A watched-file change
   schedules `full` on every live session, except a config discovery file,
-  which invalidates that folder's session instead (nothing republishes
-  until the next document event: `okf/limitations/no-config-reload-in-phase-3.md`).
+  which rebuilds that session's bundle root instead -- once, however many
+  workspace folders share it: the old session's
+  diagnostics are cleared, every document still open under the new
+  session's bundle root is re-opened onto it from `session/documents.ts`'s
+  registry-wide memory, and a full revalidate is scheduled on it. A config
+  that still fails to load after the rebuild is retried later exactly like
+  any other failed build (`okf/limitations/no-config-reload-in-phase-3.md`,
+  discharged by the phase 4 rebuild path above).
+- **Dropped session.** Whenever a bundle root's session is disposed -- a
+  config-change rebuild, or `removeFolders`/`setFolders` dropping the last
+  workspace folder that resolves to it (dropping one of several folders
+  sharing a root disposes nothing) -- the registry's `onDispose` runs once
+  for that session, and `clear(root)`
+  publishes `[]` for every URI that session had last published non-empty,
+  then forgets it. A URI a normal publish already emptied (and so already
+  dropped from the remembered set) does not get a second `[]` from a later
+  dispose.
 - A folder whose config failed to load is retried on `didOpen`,
   `didSave` (`sessionFor(path, { retryFailed: true })`) and on any
   watched-file change under it (`registry.retryFailed`, which schedules
@@ -101,6 +219,75 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `didOpen` before it. `shutdown` drains that queue up to its own arrival,
   then waits for every scheduler to settle, so work sent before it is
   published before the response.
+
+## Navigation
+
+`registerNavigation` (`src/features/navigation.ts`) wires
+`textDocument/documentLink`, `textDocument/definition` and
+`textDocument/references` onto the transport. Every handler runs on the
+transport's own request fiber, never the notification queue: a request is
+answered synchronously from whatever the owning session's last revalidate
+produced, and never schedules or waits on one (decision 4 of the phase 4
+plan). `registry.sessionFor(path)` then `session.bundle()`/`session.graph()`
+gives that snapshot; a missing session, a bundle or graph that has never
+loaded (before the first revalidate), a non-`file:` URI, or a path outside
+every bundle root all answer `null`/`[]` -- never a hang.
+
+- **`textDocument/documentLink`** answers every locatable edge out of the
+  concept at the requested file: a `concept` or `file` target's `target` is
+  the resolved absolute path's `file:` URI and `range` is the edge's own
+  recorded position; a `missing` target is omitted entirely (there is
+  nothing to link to). A raw body link whose URL is an actual URL (RFC 3986
+  scheme or `://`) is never a graph edge at all -- `Graph.fromBundle` drops
+  URL, self, external and descriptor links before building edges -- so
+  `documentLinksOf` also walks `document.links` directly for those and
+  reports the URL string itself as `target`.
+- **`textDocument/definition`** finds the edge at the request position with
+  `edgeAt` (`features/locate.ts`), then locates its target (decision 5): a
+  `concept` target's definition is its first depth-1 heading's range, else
+  its frontmatter block, else `0:0` (`definitionOf`); a `file` target's
+  definition is that file's own `0:0`; a `missing` target, or no edge at the
+  position at all, answers `null`.
+- **`textDocument/references`** answers with one `Location` per predecessor
+  edge into the concept the requested file itself is (not the position under
+  the cursor) -- every edge in the graph whose `to` is that concept's id,
+  each at its own recorded range in the referring file, **excluding a
+  self-loop** (`edge.from === edge.to`): a concept whose own `resource` field
+  happens to reference its own file is, by the graph's own construction, one
+  of its own predecessor edges, but pointing a concept at itself is never a
+  reference from somewhere else, so it is filtered rather than reported.
+  `context.includeDeclaration` adds the concept's own definition location
+  (`definitionOf`) to the result.
+- **`textDocument/hover`** (`features/hover.ts`) answers one of three kinds
+  (decision 6), each rendered by the pure `renderHover`: an edge at the
+  position (`edgeAt`, body link or frontmatter path field) renders the
+  target concept's title, type, status, trust tier (`Derive.trustTier`) and
+  staleness (`Derive.staleness`, against a `now` read once per request with
+  `DateTime.now`); the `type:` value (located with
+  `DiagnosticRange.forFrontmatterPath(document, ["type"])`) renders that
+  type's `description`/`guidance` from `session.config().types`; a top-level
+  frontmatter key on its own line (`^key:`, no leading whitespace, inside the
+  frontmatter block) renders that field's `description` from
+  `session.config().types[type].fields[key]` -- located with a one-line
+  regex bounded by the frontmatter block's own range, not a second
+  `frontmatterPathRange`-style lookup, since that helper locates a value's
+  span and the key itself has none. Anything else, or any of the above with
+  nothing declared for it, answers `null`. `Hover.contents` is a
+  `MarkupContent` with `kind: "markdown"`.
+- **`workspace/symbol`** (`features/symbols.ts`) answers with one
+  `SymbolInformation` per matching concept across **every live session**
+  (`registry.sessions`, not just the requested file's session): `name` is
+  the title (the id when there is no title), `containerName` is the type,
+  `kind` is `SYMBOL_KIND_OBJECT`, `location` is `definitionOf`. The filter is
+  a case-insensitive substring over id and title; an empty query matches
+  every concept. Results are deduplicated by definition URI, not id (two
+  bundles each with a `project` concept are two symbols), sorted by id then
+  URI, and capped at 200.
+
+Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
+range conversion goes through `convert/range.ts`'s `toLspRange`/
+`toLspLocation`, which re-map a `DiagnosticRange`'s end position through the
+file text the same way `convert/diagnostic.ts`'s `toLspDiagnostic` does.
 
 ## The transport seam
 
@@ -262,5 +449,6 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
   wins on disagreement.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type
   imports are separate `import type` statements. TSDoc `@public` on every
-  `src/` export. Tab indentation.
+  barrel export; an implementation helper shared across files but kept out
+  of the barrel is `@internal`. Tab indentation.
 - Commits are conventional, DCO signed, and never on `main`.

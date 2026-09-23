@@ -4,6 +4,7 @@ import { DateTime, Effect, Layer, Path } from "effect";
 import type { Actor } from "../src/Actor.js";
 import { Bundle, LoadedBundle } from "../src/Bundle.js";
 import { Diagnostic } from "../src/Diagnostic.js";
+import { frontmatterPathRange } from "../src/internal/frontmatter.js";
 import { OkfitConfig } from "../src/OkfitConfig.js";
 import { Validate } from "../src/Validate.js";
 import { platformFor } from "./utils/lintFixtures.js";
@@ -119,6 +120,48 @@ describe("Validate", () => {
 			assert.isDefined(byCode("broken-links")[0]?.range);
 			assert.isDefined(byCode("unknown-type")[0]?.range);
 			assert.isUndefined(byCode("missing-index")[0]?.range);
+
+			// decision 2: each rule anchors at the value it complains about, never the key.
+			const misc = [...bundle.concepts.values()].find((c) => c.path === "notes/misc.md");
+			const unknownTypeRange = byCode("unknown-type")[0]?.range;
+			assert.isDefined(misc);
+			assert.isDefined(unknownTypeRange);
+			assert.strictEqual(
+				misc!.document.source.slice(unknownTypeRange!.offset, unknownTypeRange!.offset + unknownTypeRange!.length),
+				"Note",
+			);
+
+			const web = [...bundle.concepts.values()].find((c) => c.path === "modules/web.md");
+			const fieldValueRange = byCode("field-value-unknown")[0]?.range;
+			assert.isDefined(web);
+			assert.isDefined(fieldValueRange);
+			assert.strictEqual(
+				web!.document.source.slice(fieldValueRange!.offset, fieldValueRange!.offset + fieldValueRange!.length),
+				"blog",
+			);
+
+			assert.isDefined(adr);
+			const actorRange = byCode("actor-prefix-unknown")[0]?.range;
+			assert.isDefined(actorRange);
+			assert.strictEqual(
+				adr!.document.source.slice(actorRange!.offset, actorRange!.offset + actorRange!.length),
+				"team:platform",
+			);
+
+			const staleRange = byCode("stale")[0]?.range;
+			assert.isDefined(staleRange);
+			assert.strictEqual(
+				adr!.document.source.slice(staleRange!.offset, staleRange!.offset + staleRange!.length),
+				"2026-01-01T00:00:00Z",
+			);
+
+			// require-verified-unmet anchors at `status`, but adr-1.md has no status key, so it falls
+			// back to the frontmatter block (decision 2's absent-key rule); positive control beside it:
+			// actor-prefix-unknown on the same concept resolves a precise, non-block range.
+			const requireVerifiedRange = byCode("require-verified-unmet")[0]?.range;
+			const blockRange = frontmatterPathRange(adr!.document, []);
+			assert.deepStrictEqual(requireVerifiedRange, blockRange);
+			assert.notDeepEqual(actorRange, blockRange);
 		}),
 	);
 
