@@ -31,6 +31,10 @@ src/
                        burst behind a fixed delay and never downgrades a
                        tier to "edit" once "full" is requested; a schedule
                        during a run queues exactly one more run
+    registry.ts     -- makeSessionRegistry: workspace folders -> one
+                       BundleSession per bundle root, lazily, with config
+                       discovery per folder; SessionHandle bundles a
+                       folder's session and scheduler
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it

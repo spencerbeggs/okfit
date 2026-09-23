@@ -24,6 +24,13 @@ export type {
 	LspDiagnostic,
 	WorkspaceFolder,
 } from "./protocol/types.js";
+export type {
+	SessionHandle,
+	SessionRegistryOptions,
+	SessionRegistryServices,
+	SessionRegistryShape,
+} from "./session/registry.js";
+export { SessionRegistry, makeSessionRegistry } from "./session/registry.js";
 export type { Scheduler, SchedulerOptions } from "./session/scheduler.js";
 export { makeScheduler } from "./session/scheduler.js";
 export { LSP_VERSION } from "./version.js";
