@@ -25,6 +25,12 @@ src/
                        vscode-languageserver
     types.ts        -- type-only re-exports of the protocol types
                        (InitializeParams, LspDiagnostic, Did*Params, ...)
+  session/
+    scheduler.ts    -- makeScheduler: the debounced revalidate trigger.
+                       Scheduler { schedule, settle }; schedule coalesces a
+                       burst behind a fixed delay and never downgrades a
+                       tier to "edit" once "full" is requested; a schedule
+                       during a run queues exactly one more run
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
