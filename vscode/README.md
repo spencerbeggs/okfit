@@ -5,16 +5,48 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 (OKF) bundles, powered by the
 [`@okfit/lsp`](https://www.npmjs.com/package/@okfit/lsp) language server.
 
-> **Preview.** This extension is early: today it only scaffolds the
-> workspace and activates on an okfit config file. Language features land
-> in later releases.
+> **Preview.** This extension is early: it starts the okfit language
+> server and surfaces diagnostics, hover, navigation and workspace
+> symbols. A tree view, commands and a concept explorer land in later
+> releases.
 
-## What it is
+## Features
 
-`okfit` bundles the okfit language server directly into the extension, so
-installing it from the Marketplace needs no separate global install. It
-activates when a workspace contains a `.okfit.toml`, `okfit.toml`, or
-`.config/okfit.toml` file.
+- **Diagnostics.** Every OKF lint the `@okfit/engine` reports, published
+  with a precise range and re-published as you edit or save.
+- **Hover.** A link, a `type:` value, or a frontmatter key renders the
+  target concept's title, type, status and staleness, or that field's own
+  description.
+- **Go to definition** and **find references** for links between
+  concepts.
+- **Workspace symbols.** Every concept across every open bundle, searched
+  by id or title.
+- A concept explorer and Language Status item are planned for a later
+  release.
+
+## Requirements
+
+A workspace containing an OKF bundle with a `.okfit.toml`, `okfit.toml`,
+or `.config/okfit.toml` config file -- the extension activates on any of
+these.
+
+The extension resolves which `okfit-lsp` to run, in this order:
+
+1. `okfit.lsp.serverPath`, if set and the path exists.
+2. A workspace folder's own `node_modules/.bin/okfit-lsp`, in window
+   order (the first folder that has one wins).
+3. The server bundled into this extension -- always available, no
+   installation required.
+
+## Settings
+
+- **`okfit.lsp.serverPath`** (`string`, resource scope, default `""`) --
+  absolute path of an `okfit-lsp` executable to run instead of the
+  workspace's or the bundled server. Leave empty to auto-detect.
+- **`okfit.lsp.trace.server`** (`"off" | "messages" | "verbose"`, window
+  scope, default `"off"`) -- traces the communication between VS Code and
+  the okfit language server, in the "okfit language server" output
+  channel.
 
 ## Development
 
@@ -22,5 +54,16 @@ activates when a workspace contains a `.okfit.toml`, `okfit.toml`, or
 pnpm --filter @okfit/vscode-extension build
 ```
 
-Then launch the "Run okfit extension" configuration from VS Code's Run and
-Debug view.
+Then launch the "Run okfit extension" configuration from VS Code's Run
+and Debug view. The output channel named "okfit" logs which server
+source (`setting`, `workspace`, or `bundled`) was resolved; "okfit
+language server" carries the language client's own trace when
+`okfit.lsp.trace.server` is not `"off"`.
+
+To try a packaged build without the debugger:
+
+```bash
+pnpm --filter @okfit/vscode-extension build
+pnpm --filter @okfit/vscode-extension package
+code --install-extension vscode/okfit.vsix --force
+```

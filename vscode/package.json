@@ -32,7 +32,26 @@
 		"types:check": "tsc --noEmit",
 		"vscode:prepublish": "pnpm run build"
 	},
-	"contributes": {},
+	"contributes": {
+		"configuration": {
+			"title": "okfit",
+			"properties": {
+				"okfit.lsp.serverPath": {
+					"type": "string",
+					"default": "",
+					"scope": "resource",
+					"markdownDescription": "Absolute path of an `okfit-lsp` executable to run instead of the workspace's or the bundled server. Leave empty to auto-detect."
+				},
+				"okfit.lsp.trace.server": {
+					"type": "string",
+					"enum": ["off", "messages", "verbose"],
+					"default": "off",
+					"scope": "window",
+					"description": "Trace the communication between VS Code and the okfit language server."
+				}
+			}
+		}
+	},
 	"activationEvents": ["workspaceContains:**/{.okfit.toml,okfit.toml,.config/okfit.toml}"],
 	"dependencies": {},
 	"devDependencies": {
