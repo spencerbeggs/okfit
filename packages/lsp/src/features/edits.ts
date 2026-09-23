@@ -8,9 +8,12 @@
  * Every edit is computed against the document's CURRENT text -- the open
  * editor buffer when there is one, not the last-revalidated snapshot, which
  * lags an edit by the scheduler's debounce plus a whole-bundle load -- and
- * sent as a `documentChanges` entry carrying that buffer's version, so a
- * client whose buffer has moved on since refuses the edit instead of
- * applying it at stale offsets.
+ * sent as a `documentChanges` entry carrying that buffer's version. A
+ * command's edit goes over `workspace/applyEdit`, so a client whose buffer
+ * has moved on since refuses it instead of applying it at stale offsets; a
+ * code action's edit carries no version on the client side
+ * (`vscode-languageclient` and VS Code both drop it), so it stays safe only
+ * because it is computed from the current buffer at request time.
  *
  * @packageDocumentation
  */

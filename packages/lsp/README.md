@@ -107,9 +107,14 @@ client from starting.
   resolves to.
 
 Both edit commands, and the code actions, compute their edit against the
-document's current editor text (or the file on disk when it is not open) and
-send it as a versioned `documentChanges` entry, so a client whose buffer has
-changed since refuses the edit rather than applying it at stale offsets.
+document's current editor text (or the file on disk when it is not open).
+The commands send it as a versioned `documentChanges` entry over
+`workspace/applyEdit`, so a client whose buffer has changed since refuses
+the edit rather than applying it at stale offsets. A code action's edit is
+not versioned on the client side -- `vscode-languageclient` and VS Code
+both drop the version when applying a code action -- so it stays safe only
+because it is computed from the current buffer at request time, not because
+a stale one is refused.
 
 ## Status
 

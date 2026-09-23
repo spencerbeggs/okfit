@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T22:30:37Z
-  body_sha256: 4cdf6bec7eb0093951a6dc560ea0ccb8b63e959d51293e02ad0930c3ce6be1d7
+  at: 2026-09-23T22:40:12Z
+  body_sha256: 5c895bffbb3d54eee55ccf23b342d6c0a481cdeae924ad4bda601af8734602d2
 ---
 
 # LSP
@@ -79,7 +79,11 @@ version from the diagnostics feature's open-document memory (else the file
 as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits` wrap
 [Engine](engine.md)'s `FrontmatterEdits.status`/`.verified` over that text,
 and `versionedEdit` sends the result as `documentChanges` carrying the
-version, so a client whose buffer has moved on refuses a stale edit. `registerInlayHints` (`src/features/inlayHints.ts`)
+version. A command's edit goes over `workspace/applyEdit`, so a client
+whose buffer has moved on refuses a stale one; a code action's edit carries
+no version on the client side (`vscode-languageclient` and VS Code both
+drop it), so it stays safe only because it is computed from the current
+buffer at request time. `registerInlayHints` (`src/features/inlayHints.ts`)
 answers `textDocument/inlayHint` with up to two hints per concept, computed
 by the pure `hintsFor(concept, now)`: a trust/staleness hint (`unverified`,
 `machine-confirmed`, or `human-reviewed by <by>`, `· stale` appended when
