@@ -494,9 +494,12 @@ describe("okfit validate: OKFIT_NOW", () => {
 			assert.strictEqual(after.exitCode, 0);
 			// Captured this session: severity "info" (DEFAULT_LINT's stale: "info"),
 			// so the exit code never moves; only the diagnostic's presence does.
+			// `stale` anchors at the `stale_after` value itself, not the frontmatter
+			// block (phase 4 decision 2), so the range now points at line 9 (the
+			// inserted `stale_after:` line), column 14 (the value, past the key).
 			assert.strictEqual(
 				after.stdout,
-				"modules/core.md:1:1 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
+				"modules/core.md:9:14 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
 			);
 			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 16 concepts (okf)\n");
 		}).pipe(Effect.provide(NodeServices.layer)),

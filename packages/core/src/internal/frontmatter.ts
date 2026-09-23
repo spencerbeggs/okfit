@@ -1,4 +1,4 @@
-import type { Frontmatter } from "@effected/markdown";
+import type { Frontmatter, MarkdownDocument } from "@effected/markdown";
 import type { YamlPath } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import { Effect, Option, Result } from "effect";
@@ -22,27 +22,41 @@ interface Context {
 	readonly node: Frontmatter;
 }
 
-const blockRange = (context: Context): DiagnosticRange =>
-	DiagnosticRange.fromOffset(
-		context.text,
-		context.node.position.start.offset,
-		context.node.position.end.offset - context.node.position.start.offset,
-	);
+const blockRange = (text: string, node: Frontmatter): DiagnosticRange =>
+	DiagnosticRange.fromOffset(text, node.position.start.offset, node.position.end.offset - node.position.start.offset);
 
 /**
- * Lazily parses `node.value` as YAML only when a `FamilyIssue.path` needs a range (D-14, D-15;
+ * Lazily parses `node.value` as YAML only when `path` needs a range (D-14, D-15;
  * diagnostic-range-and-position-mapping.md section 5). Falls back to the whole frontmatter block
  * when `path` is `[]`, the leaf can't be found, or the YAML re-parse itself is fatal (it already
  * decoded once upstream, so a fatal re-parse should not happen; this is defense only).
  */
-const rangeFor = (context: Context, path: ReadonlyArray<string | number>): DiagnosticRange => {
-	if (path.length === 0) return blockRange(context);
-	const parsed = Effect.runSync(Effect.result(YamlDocument.parse(context.node.value)));
-	if (Result.isFailure(parsed) || parsed.success.contents === null) return blockRange(context);
+const pathRange = (text: string, node: Frontmatter, path: ReadonlyArray<string | number>): DiagnosticRange => {
+	if (path.length === 0) return blockRange(text, node);
+	const parsed = Effect.runSync(Effect.result(YamlDocument.parse(node.value)));
+	if (Result.isFailure(parsed) || parsed.success.contents === null) return blockRange(text, node);
 	const hit = parsed.success.contents.find(path as YamlPath);
-	if (Option.isNone(hit)) return blockRange(context);
-	return DiagnosticRange.fromOffset(context.text, toFileOffset(context.text, hit.value.offset), hit.value.length);
+	if (Option.isNone(hit)) return blockRange(text, node);
+	return DiagnosticRange.fromOffset(text, toFileOffset(text, hit.value.offset), hit.value.length);
 };
+
+/**
+ * Maps a frontmatter YAML path to a precise range inside `document.source` (decision 2 of the
+ * phase 4 plan): the whole frontmatter block for `path: []`, `undefined` only when the document
+ * has no frontmatter block at all, and the block again as a fallback when the leaf named by
+ * `path` cannot be found (an absent key, or a fatal re-parse that should not happen once the
+ * document already decoded once upstream).
+ *
+ * @internal
+ */
+export const frontmatterPathRange = (
+	document: MarkdownDocument,
+	path: ReadonlyArray<string | number>,
+): DiagnosticRange | undefined =>
+	document.frontmatter === undefined ? undefined : pathRange(document.source, document.frontmatter, path);
+
+const rangeFor = (context: Context, path: ReadonlyArray<string | number>): DiagnosticRange =>
+	pathRange(context.text, context.node, path);
 
 const toDiagnostic = (context: Context, issue: FamilyIssue): Diagnostic =>
 	Diagnostic.make({

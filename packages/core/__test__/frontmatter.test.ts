@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
 import { Effect, Option } from "effect";
-import { decodeConcept } from "../src/internal/frontmatter.js";
+import { decodeConcept, frontmatterPathRange } from "../src/internal/frontmatter.js";
 
 const OPTIONS = MarkdownParseOptions.make({ frontmatter: true });
 
@@ -42,4 +42,68 @@ describe("internal/frontmatter", () => {
 			assert.isAbove(result.diagnostics[0]!.range!.offset, text.indexOf("generated:"));
 		}),
 	);
+
+	describe("frontmatterPathRange", () => {
+		it.effect("resolves a top-level key's own range", () =>
+			Effect.gen(function* () {
+				const text = "---\ntype: Module\ntitle: Widget\n---\n\n# Widget\n";
+				const document = yield* MarkdownDocument.parse(text, OPTIONS);
+				const range = frontmatterPathRange(document, ["type"]);
+				assert.isDefined(range);
+				assert.strictEqual(text.slice(range!.offset, range!.offset + range!.length), "Module");
+			}),
+		);
+
+		it.effect("resolves a nested key's own range", () =>
+			Effect.gen(function* () {
+				const text = "---\ntype: Module\ngenerated:\n  by: human:ada\n---\n\n# Widget\n";
+				const document = yield* MarkdownDocument.parse(text, OPTIONS);
+				const range = frontmatterPathRange(document, ["generated", "by"]);
+				assert.isDefined(range);
+				assert.strictEqual(text.slice(range!.offset, range!.offset + range!.length), "human:ada");
+			}),
+		);
+
+		it.effect("resolves an array index's own range", () =>
+			Effect.gen(function* () {
+				const text = "---\ntype: Module\nverified:\n  - by: human:ada\n    at: 2025-01-01T00:00:00Z\n---\n\n# Widget\n";
+				const document = yield* MarkdownDocument.parse(text, OPTIONS);
+				const range = frontmatterPathRange(document, ["verified", 0, "by"]);
+				assert.isDefined(range);
+				assert.strictEqual(text.slice(range!.offset, range!.offset + range!.length), "human:ada");
+			}),
+		);
+
+		it.effect(
+			"falls back to the frontmatter block when the leaf is missing, unlike a present leaf (positive control)",
+			() =>
+				Effect.gen(function* () {
+					const text = "---\ntype: Module\ntitle: Widget\n---\n\n# Widget\n";
+					const document = yield* MarkdownDocument.parse(text, OPTIONS);
+					const block = frontmatterPathRange(document, []);
+					const missing = frontmatterPathRange(document, ["nope"]);
+					assert.deepStrictEqual(missing, block);
+					const present = frontmatterPathRange(document, ["title"]);
+					assert.notDeepEqual(present, block);
+				}),
+		);
+
+		it.effect("returns undefined when the document has no frontmatter block at all", () =>
+			Effect.gen(function* () {
+				const text = "# Widget\n\nNo frontmatter here.\n";
+				const document = yield* MarkdownDocument.parse(text, OPTIONS);
+				assert.isUndefined(frontmatterPathRange(document, ["type"]));
+			}),
+		);
+
+		it.effect("resolves a value's own range on CRLF source", () =>
+			Effect.gen(function* () {
+				const text = "---\r\ntype: Module\r\ntitle: Widget\r\n---\r\n\r\n# Widget\r\n";
+				const document = yield* MarkdownDocument.parse(text, OPTIONS);
+				const range = frontmatterPathRange(document, ["title"]);
+				assert.isDefined(range);
+				assert.strictEqual(text.slice(range!.offset, range!.offset + range!.length), "Widget");
+			}),
+		);
+	});
 });
