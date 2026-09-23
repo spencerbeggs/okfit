@@ -187,6 +187,10 @@ src/
                        textDocument/codeAction (see Code actions below)
     commands.ts     -- registerCommands(transport, registry): workspace/
                        executeCommand, RevalidateResult (see Commands below)
+    inlayHints.ts   -- registerInlayHints(transport, registry):
+                       textDocument/inlayHint; the pure hintsFor(concept, now)
+                       (@public, tested without a harness) (see Inlay hints
+                       below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -458,6 +462,46 @@ naming it (`-32601`).
   whose set actually changed.
 
 `registerCommands` is registered on `transport` after `registerCodeActions`
+in `server.ts`.
+
+## Inlay hints
+
+`registerInlayHints` (`src/features/inlayHints.ts`) wires `textDocument/
+inlayHint` onto the transport, answering from the requested file's owning
+session's last-loaded concept via `edits.ts`'s `conceptSnapshot` -- same
+posture as hover, navigation and code actions: a missing session, an
+unloaded bundle, a non-`file:` URI, or a path outside every bundle root all
+answer `[]`, never a hang.
+
+Up to two hints per concept, both computed by the pure `hintsFor(concept,
+now)` (`@public`, exported from the barrel, tested with no harness) before
+either is positioned against a document:
+
+- A trust/staleness hint, labeled `unverified`, `machine-confirmed`, or
+  `human-reviewed by <by>` naming the newest `verified[]` entry whose `by`
+  starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
+  three-way split, with the human-reviewed case's actor resolved here since
+  the derivation itself only reports the tier. `· stale` is appended when
+  `Derive.isStale(concept.frontmatter, now)`. Anchored on the `status`
+  field's own value when the frontmatter carries an explicit `status` key,
+  else on `type`'s (every concept has one, and `Derive.status`'s `"stable"`
+  default when `status` is absent leaves nothing else to anchor on).
+- A `generated.at` age hint, only when `generated.at` is set: `today` under
+  one whole day old, `1 day ago`, else `N days ago` -- whole days between
+  `generated.at` and `now`, floored (the same `DateTime.toEpochMillis`
+  arithmetic `Derive.staleReport` uses).
+
+`registerInlayHints` resolves each hint's position by re-running
+`DiagnosticRange.forFrontmatterPath` against the live document with the same
+path `hintsFor` named, then takes `toLspRange(...).end` -- the label reads
+immediately after the value, `kind: INLAY_HINT_KIND_TYPE`, `paddingLeft:
+true`. When that lookup cannot locate the named leaf and falls back to the
+whole frontmatter block (a flow-mapping document, say, whose per-key lookups
+all fail), the hint is dropped rather than mis-anchored at the block's own
+end -- detected by comparing the resolved range's `offset`/`length` against
+`forFrontmatterPath(document, [])`'s.
+
+`registerInlayHints` is registered on `transport` after `registerCommands`
 in `server.ts`.
 
 ## The transport seam

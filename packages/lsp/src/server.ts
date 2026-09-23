@@ -13,6 +13,7 @@ import { notifyBundleChanged, registerConcepts } from "./features/concepts.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
 import { registerHover } from "./features/hover.js";
+import { registerInlayHints } from "./features/inlayHints.js";
 import { OKFIT_CODE_ACTION_KINDS, OKFIT_COMMANDS } from "./features/names.js";
 import { registerNavigation } from "./features/navigation.js";
 import { registerWorkspaceSymbols } from "./features/symbols.js";
@@ -166,6 +167,7 @@ export const serve = (
 		yield* registerConcepts(transport, registry);
 		yield* registerCodeActions(transport, registry);
 		yield* registerCommands(transport, registry);
+		yield* registerInlayHints(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

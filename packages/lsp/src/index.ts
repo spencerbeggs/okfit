@@ -26,6 +26,8 @@ export { registerDocumentSync } from "./features/documentSync.js";
 export type { EditFailure } from "./features/edits.js";
 export { describeFailure, humanActor, statusTextEdits, verifiedTextEdits } from "./features/edits.js";
 export { registerHover } from "./features/hover.js";
+export type { InlayHintPath, InlayHintSpec } from "./features/inlayHints.js";
+export { hintsFor, registerInlayHints } from "./features/inlayHints.js";
 export { OKFIT_CODE_ACTION_KINDS, OKFIT_COMMANDS } from "./features/names.js";
 export { registerNavigation } from "./features/navigation.js";
 export { registerWorkspaceSymbols } from "./features/symbols.js";
@@ -50,6 +52,8 @@ export type {
 	HoverParams,
 	InitializeParams,
 	InitializeResult,
+	InlayHint,
+	InlayHintParams,
 	Location,
 	LspDiagnostic,
 	MarkupContent,
@@ -62,7 +66,7 @@ export type {
 	WorkspaceFolder,
 	WorkspaceSymbolParams,
 } from "./protocol/types.js";
-export { CODE_ACTION_KIND_QUICKFIX, SYMBOL_KIND_OBJECT } from "./protocol/types.js";
+export { CODE_ACTION_KIND_QUICKFIX, INLAY_HINT_KIND_TYPE, SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
 export type {
