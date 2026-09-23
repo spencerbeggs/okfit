@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTree, decorationFor, iconFor, staleCount } from "../src/tree/model.js";
+import { buildTree, decorationFor, iconFor, shouldApplyRefresh, staleCount } from "../src/tree/model.js";
 import type { ConceptsResult } from "../src/tree/wire.js";
 
 const c = (over: Partial<ConceptsResult["bundles"][number]["concepts"][number]>) => ({
@@ -84,5 +84,28 @@ describe("decorationFor", () => {
 		const x = buildTree(one)[0]!;
 		const dec = x.kind === "type" && x.children[0]?.kind === "concept" ? decorationFor(x.children[0]) : "unset";
 		expect(dec).toBeUndefined();
+	});
+
+	it("badges a deprecated concept", () => {
+		const deprecated: ConceptsResult = {
+			bundles: [{ ...one.bundles[0]!, concepts: [c({ id: "modules/c", title: "C", status: "deprecated" })] }],
+		};
+		const node = buildTree(deprecated)[0]!;
+		const concept = node.kind === "type" ? node.children[0] : undefined;
+		expect(concept?.kind === "concept" && decorationFor(concept)).toEqual({ badge: "X", tooltip: "Deprecated" });
+	});
+});
+
+describe("shouldApplyRefresh", () => {
+	it("applies a result whose generation is still current and the provider is not disposed", () => {
+		expect(shouldApplyRefresh(1, 1, false)).toBe(true);
+	});
+
+	it("drops a stale result superseded by a later refresh", () => {
+		expect(shouldApplyRefresh(1, 2, false)).toBe(false);
+	});
+
+	it("drops any result once the provider is disposed, even at the current generation", () => {
+		expect(shouldApplyRefresh(1, 1, true)).toBe(false);
 	});
 });

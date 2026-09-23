@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 import type { ConceptDecorations } from "./decorations.js";
 import type { TreeNode } from "./model.js";
-import { buildTree, iconFor, staleCount } from "./model.js";
+import { buildTree, iconFor, shouldApplyRefresh, staleCount } from "./model.js";
 import type { ConceptsResult } from "./wire.js";
 import { BUNDLE_CHANGED_NOTIFICATION, CONCEPTS_REQUEST } from "./wire.js";
 
@@ -20,10 +20,18 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 	private readonly subscriptions: Array<vscode.Disposable> = [];
 
 	private view: vscode.TreeView<TreeNode> | undefined;
+	// Bumped by every `refresh()` call; a resolving request applies its
+	// result only when its own generation is still the current one, so an
+	// earlier, slower `sendRequest` that resolves after a later one (the
+	// `bundleChanged` handler and `attach()` can both fire `refresh()`
+	// without waiting on each other) cannot clobber a newer result or badge.
+	private generation = 0;
+	private disposed = false;
 
 	constructor(
 		private readonly client: LanguageClient,
 		private readonly decorations: ConceptDecorations,
+		private readonly log: (error: string | Error) => void,
 	) {
 		this.subscriptions.push(client.onNotification(BUNDLE_CHANGED_NOTIFICATION, () => void this.refresh()));
 	}
@@ -39,7 +47,26 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 	}
 
 	async refresh(): Promise<void> {
-		this.result = await this.client.sendRequest<ConceptsResult>(CONCEPTS_REQUEST, {});
+		const generation = ++this.generation;
+		let result: ConceptsResult;
+		try {
+			result = await this.client.sendRequest<ConceptsResult>(CONCEPTS_REQUEST, {});
+		} catch (error) {
+			// A request on a stopping or already-stopped client (a restart's
+			// `disposeTree()` + `stopQuietly()` raced this call) rejects; log
+			// it once instead of letting it surface as an unhandled rejection,
+			// but only while the provider is still meant to be live -- once
+			// `dispose()` has run, the rejection is expected noise from
+			// teardown, not something worth a log line.
+			if (!this.disposed) this.log(error instanceof Error ? error : String(error));
+			return;
+		}
+		// The request may have resolved after a later `refresh()` started (or
+		// after this provider was disposed mid-flight); either way, an
+		// out-of-order or torn-down result must never overwrite a newer one
+		// or write into a disposed view.
+		if (!shouldApplyRefresh(generation, this.generation, this.disposed)) return;
+		this.result = result;
 		this.roots = buildTree(this.result);
 		this.decorations.update(this.roots);
 		const stale = staleCount(this.result);
@@ -77,6 +104,7 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 	}
 
 	dispose(): void {
+		this.disposed = true;
 		for (const s of this.subscriptions) s.dispose();
 		this.changed.dispose();
 	}

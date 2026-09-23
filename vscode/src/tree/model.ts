@@ -104,3 +104,15 @@ export const decorationFor = (
 	if (node.status === "deprecated") return { badge: "X", tooltip: "Deprecated" };
 	return undefined;
 };
+
+/**
+ * Whether an in-flight `refresh()`'s result -- minted at generation
+ * `requested` -- should still be applied. A later `refresh()` call bumps the
+ * provider's own generation past `requested` before this one resolves, so an
+ * out-of-order response is dropped rather than clobbering a newer one; a
+ * disposed provider never applies anything, regardless of generation. Pure,
+ * so `ConceptsProvider.refresh()` can be exercised without a live `vscode`
+ * host or a real `LanguageClient`.
+ */
+export const shouldApplyRefresh = (requested: number, current: number, disposed: boolean): boolean =>
+	!disposed && requested === current;

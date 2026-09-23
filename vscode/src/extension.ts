@@ -62,7 +62,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 			log: logger.info,
 			show: logger.show,
 		});
-		provider = new ConceptsProvider(client, decorations);
+		provider = new ConceptsProvider(client, decorations, logger.error);
 		view = vscode.window.createTreeView<TreeNode>("okfit.concepts", {
 			treeDataProvider: provider,
 			showCollapseAll: true,
