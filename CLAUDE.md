@@ -60,6 +60,7 @@ pnpm lint:md      # markdownlint
 pnpm test         # Vitest across the monorepo (builds dist/dev first)
 pnpm test:bats    # BATS for plugin shell scripts
 pnpm claude       # Claude Code with the local plugin loaded
+pnpm vscode:install  # build, package, reinstall the extension locally
 ```
 
 Run one package's tests with `pnpm vitest run packages/core`. The

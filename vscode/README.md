@@ -112,12 +112,11 @@ twice. The output channel named "okfit" logs which server source
 server" carries the language client's own trace when
 `okfit.lsp.trace.server` is not `"off"`.
 
-To try a packaged build without the debugger:
+To try a packaged build without the debugger, from the repo root:
 
 ```bash
-pnpm --filter @okfit/vscode-extension build
-pnpm --filter @okfit/vscode-extension package
-code --install-extension vscode/okfit.vsix --force
+pnpm vscode:package   # builds @okfit/lsp and this extension, then packages okfit.vsix
+pnpm vscode:install    # vscode:package, then uninstall/reinstall okfit.okfit via the code CLI
 ```
 
 ## Publishing

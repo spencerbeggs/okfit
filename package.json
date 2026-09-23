@@ -39,7 +39,9 @@
 		"test:coverage": "vitest run --coverage",
 		"test:watch": "vitest --watch",
 		"typecheck": "turbo run types:check --log-prefix=none --log-order=grouped",
-		"types:check": "tsc --noEmit"
+		"types:check": "tsc --noEmit",
+		"vscode:install": "pnpm vscode:package && node --experimental-strip-types vscode/lib/install-vsix.ts",
+		"vscode:package": "turbo run build:dev --filter=@okfit/lsp && pnpm --filter @okfit/vscode-extension build && pnpm --filter @okfit/vscode-extension package"
 	},
 	"devDependencies": {
 		"@effected/toml": "catalog:effected",

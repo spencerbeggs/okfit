@@ -49,6 +49,9 @@ lib/
                             whose name is rewritten to the Marketplace name
                             "okfit" (the workspace name stays
                             @okfit/vscode-extension for pnpm and changesets)
+  install-vsix.ts        -- uninstalls then installs okfit.vsix via the
+                            `code` CLI, run by the root `vscode:install`
+                            script after `vscode:package`
   assert-version.sh      -- asserts a release tag's version matches
                             package.json's version before packaging
 ```
