@@ -27,7 +27,9 @@ describe("toLspDiagnostic", () => {
 	it("a range spanning a newline ends on the later line", () => {
 		const offset = text.indexOf("# A");
 		const lsp = toLspDiagnostic({ ...base, range: DiagnosticRange.fromOffset(text, offset, 5) }, text);
-		assert.deepStrictEqual(lsp.range.end, { line: 6, character: 1 });
+		assert.deepStrictEqual(lsp.range.end, { line: 6, character: 0 });
+		const stopsBeforeNewline = toLspDiagnostic({ ...base, range: DiagnosticRange.fromOffset(text, offset, 3) }, text);
+		assert.deepStrictEqual(stopsBeforeNewline.range.end, { line: 4, character: 3 });
 	});
 	it("without text, end is start plus length on the same line", () => {
 		const lsp = toLspDiagnostic(

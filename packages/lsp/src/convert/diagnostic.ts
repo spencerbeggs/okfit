@@ -22,18 +22,6 @@ export const SEVERITY = { error: 1, warning: 2, info: 3 } as const;
 const ZERO_RANGE: LspDiagnostic["range"] = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
 
 /**
- * The exclusive end position of `range` within `text`. `character` lands at
- * `0` only when the range's tail is one or more line terminators, which
- * would otherwise read as the start of a line the range never touches;
- * nudge that one position forward so the end always sits on a line the
- * range actually covers.
- */
-const endFromText = (text: string, range: DiagnosticRange): { readonly line: number; readonly character: number } => {
-	const { line, character } = DiagnosticRange.fromOffset(text, range.offset + range.length, 0);
-	return character === 0 ? { line, character: 1 } : { line, character };
-};
-
-/**
  * `diagnostic` as an LSP `Diagnostic`. `text` is the source of the file the
  * diagnostic points at; when given and `diagnostic.range` is set, the end
  * position is computed from the text so it lands correctly across a
@@ -52,7 +40,9 @@ export const toLspDiagnostic = (diagnostic: RenderedDiagnostic, text: string | u
 					end:
 						text === undefined
 							? { line: range.line, character: range.character + range.length }
-							: endFromText(text, range),
+							: (({ line, character }) => ({ line, character }))(
+									DiagnosticRange.fromOffset(text, range.offset + range.length, 0),
+								),
 				};
 	return {
 		range: lspRange,
