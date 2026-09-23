@@ -6,9 +6,8 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 [`@okfit/lsp`](https://www.npmjs.com/package/@okfit/lsp) language server.
 
 > **Preview.** This extension is early: it starts the okfit language
-> server and surfaces diagnostics, hover, navigation and workspace
-> symbols. A tree view, commands and a concept explorer land in later
-> releases.
+> server and surfaces diagnostics, hover, navigation, workspace symbols,
+> a concept explorer and a Language Status item.
 
 ## Features
 
@@ -21,8 +20,26 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
   concepts.
 - **Workspace symbols.** Every concept across every open bundle, searched
   by id or title.
-- A concept explorer and Language Status item are planned for a later
-  release.
+- **OKF Concepts explorer.** A tree view (Explorer sidebar) grouping
+  every live bundle's concepts by type, with a stale-count badge and
+  status decorations.
+- **Language Status item.** Shows the active document's bundle and
+  profile, or the worst diagnostic severity among that bundle's own
+  files, in the editor's status area.
+
+## Commands
+
+- **OKF: Validate Bundle** (`okfit.validateBundle`) -- re-requests the
+  concept list from the language server and re-publishes the tree and
+  status item. The server already revalidates on watched-file and
+  document changes, so this refreshes the client's view of the last
+  published result rather than forcing a new validation pass; a
+  server-side revalidate command lands in a later release.
+- **OKF: Open Concept…** (`okfit.openConcept`) -- a quick pick over every
+  concept in every live bundle, opening the picked concept's document.
+
+Both commands appear in the Command Palette only while a bundle is live,
+and as toolbar actions on the OKF Concepts view's title bar.
 
 ## Requirements
 

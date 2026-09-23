@@ -68,7 +68,45 @@
 				"contents": "No OKF bundle found in this workspace.\nAn OKF bundle is an `okf/` directory described by an okfit config file (`.okfit.toml`, `okfit.toml` or `.config/okfit.toml`).\n[Learn about okfit](https://github.com/spencerbeggs/okfit#readme)",
 				"when": "!okfit.hasBundle"
 			}
-		]
+		],
+		"commands": [
+			{
+				"command": "okfit.validateBundle",
+				"title": "Validate Bundle",
+				"category": "OKF",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "okfit.openConcept",
+				"title": "Open Concept…",
+				"category": "OKF",
+				"icon": "$(go-to-file)"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "okfit.validateBundle",
+					"when": "okfit.hasBundle"
+				},
+				{
+					"command": "okfit.openConcept",
+					"when": "okfit.hasBundle"
+				}
+			],
+			"view/title": [
+				{
+					"command": "okfit.validateBundle",
+					"when": "view == okfit.concepts",
+					"group": "navigation@1"
+				},
+				{
+					"command": "okfit.openConcept",
+					"when": "view == okfit.concepts",
+					"group": "navigation@2"
+				}
+			]
+		}
 	},
 	"activationEvents": ["workspaceContains:**/{.okfit.toml,okfit.toml,.config/okfit.toml}"],
 	"dependencies": {},

@@ -2,11 +2,30 @@ import { defineExtension, defineLogger, useDisposable, watch } from "reactive-vs
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 import { startClient } from "./client.js";
+import { registerCommands } from "./commands.js";
 import { config } from "./config.js";
 import { createSerialQueue } from "./serial-queue.js";
+import { statusFor } from "./status.js";
 import { ConceptDecorations } from "./tree/decorations.js";
 import type { TreeNode } from "./tree/model.js";
 import { ConceptsProvider } from "./tree/provider.js";
+
+// `createLanguageStatusItem`'s `selector` is never empty: VS Code hides an
+// item only through disposal, never through an empty selector, so a document
+// outside every live bundle gets routed at a pattern nothing on disk matches
+// rather than tearing the item down and rebuilding it per document.
+const NO_BUNDLE_SELECTOR: vscode.DocumentSelector = [{ pattern: "**/.okfit-none" }];
+
+const statusSeverity = (severity: "error" | "warning" | "information"): vscode.LanguageStatusSeverity => {
+	switch (severity) {
+		case "error":
+			return vscode.LanguageStatusSeverity.Error;
+		case "warning":
+			return vscode.LanguageStatusSeverity.Warning;
+		default:
+			return vscode.LanguageStatusSeverity.Information;
+	}
+};
 
 // reactive-vscode@1.0.2 ships defineLogger, not the useLogger name the extension
 // used before it: defineLogger(name) builds a LogOutputChannel-backed logger,
@@ -35,6 +54,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	let client: LanguageClient | undefined;
 	let provider: ConceptsProvider | undefined;
 	let view: vscode.TreeView<TreeNode> | undefined;
+	let providerSubscription: vscode.Disposable | undefined;
 
 	// The decorations provider is not client-scoped -- it just relabels
 	// whatever the current provider's `update` last handed it -- so it is
@@ -45,10 +65,49 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	useDisposable(vscode.window.registerFileDecorationProvider(decorations));
 	useDisposable(decorations);
 
+	// One item for the whole activation -- VS Code hides an item only through
+	// disposal, never through an empty selector or blank text, so a document
+	// outside every live bundle keeps the item but routes its selector at
+	// `NO_BUNDLE_SELECTOR` (decision 4) rather than tearing it down.
+	const statusItem = vscode.languages.createLanguageStatusItem("okfit.status", NO_BUNDLE_SELECTOR);
+	useDisposable(statusItem);
+	statusItem.command = { command: "okfit.validateBundle", title: "Validate" };
+
+	const updateStatus = () => {
+		const documentUri = vscode.window.activeTextEditor?.document.uri.toString();
+		const result = provider?.current;
+		if (documentUri === undefined || result === undefined) {
+			statusItem.text = "";
+			statusItem.severity = vscode.LanguageStatusSeverity.Information;
+			statusItem.selector = NO_BUNDLE_SELECTOR;
+			return;
+		}
+		const diagnostics = vscode.languages
+			.getDiagnostics()
+			.flatMap(([uri, diags]) => diags.map((d) => ({ uri: uri.toString(), severity: d.severity })));
+		const status = statusFor({ documentUri, result, diagnostics });
+		if (status === undefined) {
+			statusItem.text = "";
+			statusItem.severity = vscode.LanguageStatusSeverity.Information;
+			statusItem.selector = NO_BUNDLE_SELECTOR;
+			return;
+		}
+		statusItem.text = status.text;
+		statusItem.detail = status.detail;
+		statusItem.severity = statusSeverity(status.severity);
+		statusItem.selector = [{ pattern: `${status.detail}/**` }];
+	};
+	useDisposable(vscode.window.onDidChangeActiveTextEditor(() => updateStatus()));
+	useDisposable(vscode.languages.onDidChangeDiagnostics(() => updateStatus()));
+
+	registerCommands(() => provider);
+
 	// Disposes the tree provider and view for the client that is about to be
 	// replaced or stopped; called from inside the serial queue only, so it
 	// never races a concurrent `start`.
 	const disposeTree = () => {
+		providerSubscription?.dispose();
+		providerSubscription = undefined;
 		view?.dispose();
 		provider?.dispose();
 		view = undefined;
@@ -68,8 +127,10 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 			showCollapseAll: true,
 		});
 		provider.attach(view);
+		providerSubscription = provider.onDidChangeTreeData(() => updateStatus());
 	};
 	await start();
+	updateStatus();
 	// `watch`'s callback is not itself serialized against overlapping
 	// invocations -- two rapid `okfit.lsp.serverPath` edits would otherwise
 	// both call `stop()`/`start()` concurrently and leak a client. Every
