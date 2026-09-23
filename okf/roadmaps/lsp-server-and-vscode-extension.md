@@ -33,8 +33,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:53:10Z
-  body_sha256: 13f771cf44be379304cd55da6248a4671083d3d62c3964e6f9d15063ab1c013b
+  at: 2026-09-23T22:30:37Z
+  body_sha256: a2e2eb906e28fea4f7b00eaa3bd50a7e69853390d6095027d007867894d50b08
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -201,7 +201,7 @@ repository's own bundle.
    actions](../decisions/engine-frontmatter-edits-shared-surface.md).
    `@okfit/lsp` gained `textDocument/codeAction` (Set status, Mark
    verified, `status-missing` quick fixes), `workspace/executeCommand`
-   (`okfit.setStatus`, `okfit.markVerified`, `okfit.revalidate`, edits
+   (`okfit.lsp.setStatus`, `okfit.lsp.markVerified`, `okfit.lsp.revalidate`, edits
    applied through `workspace/applyEdit`, never written to disk), and
    `textDocument/inlayHint`. Evidence: `@okfit/engine` 291 of 291 Vitest
    tests passing (6 new for `FrontmatterEdits`), `@okfit/lsp` 173 of 173

@@ -1,7 +1,7 @@
 ---
 type: Module
 title: VS Code Extension
-description: The okfit VS Code extension -- a language client for @okfit/lsp plus a concept explorer, Language Status item and commands, published to the Marketplace and Open VSX.
+description: The okfit VS Code extension -- a language client for @okfit/lsp plus a concept explorer, Language Status item and commands, publishable to the Marketplace and Open VSX (first release pending).
 status: draft
 resource: ../../vscode
 kind: plugin
@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:53:10Z
-  body_sha256: 84bf09be168ff1d594acd479ad5e2a245cc4ba17c70485f064ca660f7c94d7e7
+  at: 2026-09-23T22:30:37Z
+  body_sha256: fd77e88446909c848ee6abc9f9fc09496041df0ee87b03fb866870571e506736
 ---
 
 # VS Code Extension
@@ -223,7 +223,7 @@ free it.
   fsPath interpolated into a glob, so it holds on Windows paths and roots
   containing `[`, `{` or `*`.
 - **OKF: Validate Bundle** (`okfit.validateBundle`) -- when the started
-  client advertises `okfit.revalidate` (LSP roadmap phase 5), asks the
+  client advertises `okfit.lsp.revalidate` (LSP roadmap phase 5), asks the
   server to run a fresh `full` revalidate first over `workspace/
   executeCommand`, then re-requests the concept list and re-publishes the
   tree and status item; an older server that does not advertise it falls
@@ -240,15 +240,24 @@ free it.
 - **OKF: Set Status…** (`okfit.setStatus`) -- resolves the target concept's
   URI from the invoking tree node or the active editor
   (`vscode/src/status-picks.ts`'s `conceptUriFrom`), shows a quick pick over
-  the two statuses the concept is not already in
-  (`statusPicks`, `Status`'s own literal order), and sends `workspace/
-  executeCommand` `okfit.setStatus [uri, status]`; the server computes the
+  the statuses the concept is not already in -- all three when it has no
+  explicit `status` (`statusPicks`, `Status`'s own literal order) -- and
+  sends `workspace/executeCommand` `okfit.lsp.setStatus [uri, status]`; the server computes the
   edit and applies it through `workspace/applyEdit`, and a `{ applied:
   false, failureReason }` or transport failure surfaces as one error
   dialog (`vscode/src/commands.ts`'s `runEditCommand`).
 - **OKF: Mark Verified** (`okfit.markVerified`) -- same URI resolution and
-  `workspace/applyEdit` round trip, over `okfit.markVerified [uri]`; the
-  server resolves the human actor and computes the edit.
+  `workspace/applyEdit` round trip, over `okfit.lsp.markVerified [uri]`;
+  the server resolves the human actor and computes the edit.
+
+The extension's own command ids (`okfit.setStatus`, `okfit.markVerified`,
+`okfit.validateBundle`) and the server's (`okfit.lsp.*`) must never
+coincide: `vscode-languageclient` registers every id in the server's
+`executeCommandProvider.commands` as a VS Code command, and a duplicate
+throws "command already exists" during client initialization, so the
+language server never starts. `vscode/__test__/manifest.test.ts` asserts
+no id in `vscode/src/tree/wire.ts`'s `OKFIT_COMMANDS` copy appears in
+`package.json`'s `contributes.commands`.
 
 All four commands appear in the Command Palette only while a bundle is
 live (`okfit.hasBundle`, or `okfit.isConcept && okfit.hasActions` for the
@@ -259,7 +268,7 @@ Status and Mark Verified. `okfit.isConcept` and `okfit.hasActions` are
 context keys the extension sets from the active document's bundle
 membership and the started client's `executeCommandProvider.commands`
 list, so both commands disable themselves against a server that predates
-`okfit.setStatus`/`okfit.markVerified`, and during a client restart
+`okfit.lsp.setStatus`/`okfit.lsp.markVerified`, and during a client restart
 (`vscode/src/commands.ts`'s `getClient() === undefined` guard logs instead
 of showing a dialog).
 

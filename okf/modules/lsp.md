@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:50:18Z
-  body_sha256: 8db39db7c4b6d1d1988b7b96460965a0d7fd0131a128eae84818c19f0bb60567
+  at: 2026-09-23T22:30:37Z
+  body_sha256: 4cdf6bec7eb0093951a6dc560ea0ccb8b63e959d51293e02ad0930c3ce6be1d7
 ---
 
 # LSP
@@ -46,33 +46,40 @@ actions](../decisions/engine-frontmatter-edits-shared-surface.md).
 `executeCommandProvider: { commands: OKFIT_COMMANDS }`, and
 `inlayHintProvider: true`, alongside the diagnostics push the server has
 offered since phase 3. `features/names.ts`'s `OKFIT_COMMANDS`
-(`okfit.setStatus`, `okfit.markVerified`, `okfit.revalidate`) and
-`OKFIT_CODE_ACTION_KINDS` (`quickfix`, `okfit.status`, `okfit.verify`) are
-the exact strings both `server.ts` and the VS Code extension agree on,
-without either importing the other.
+(`okfit.lsp.setStatus`, `okfit.lsp.markVerified`, `okfit.lsp.revalidate`)
+and `OKFIT_CODE_ACTION_KINDS` (`quickfix`, `okfit.status`, `okfit.verify`)
+are the exact strings both `server.ts` and the VS Code extension agree on,
+without either importing the other. The command ids sit under `okfit.lsp.`
+because `vscode-languageclient` registers every advertised id as a VS Code
+command: an id the extension also contributes (its own `okfit.setStatus`,
+`okfit.markVerified`) throws "command already exists" while the client
+initializes, and the server never starts.
 
 ## Code actions, commands, and inlay hints
 
 `registerCodeActions` (`src/features/actions.ts`) answers
-`textDocument/codeAction` from the requested file's owning session's
-last-loaded concept: one `Set status: <status>` action (kind
-`okfit.status`) per `Status` literal the concept is not already in, in
-`Status`'s own literal order (`draft`, `stable`, `deprecated`), and one
-`Mark verified by <actor>` action (kind `okfit.verify`) when a human actor
-resolves and the concept is neither a draft nor already verified by that
-actor. When `context.diagnostics` carries a `status-missing` diagnostic
-every status action is promoted to kind `quickfix`, carries that
-diagnostic, and the `draft` action alone is `isPreferred`. `registerCommands`
-(`src/features/commands.ts`) answers `workspace/executeCommand` for the
-three `OKFIT_COMMANDS`: `okfit.setStatus [uri, status]` and
-`okfit.markVerified [uri]` compute a `TextEdit` and send it to the client
-with `workspace/applyEdit`, answering the client's own result verbatim;
-`okfit.revalidate [rootUri?]` schedules a `full` revalidate on one named
-bundle root or every live session and answers the root URIs revalidated.
-Both features share `features/edits.ts`'s `statusTextEdits`/
-`verifiedTextEdits`, thin wrappers over [Engine](engine.md)'s
-`FrontmatterEdits.status`/`.verified` that convert each edit's whole-file
-offset to an LSP range. `registerInlayHints` (`src/features/inlayHints.ts`)
+`textDocument/codeAction` for a concept in its session's last-loaded
+snapshot. On a `status-missing` diagnostic it offers `Set status: draft`
+(preferred) and `Set status: stable` as `quickfix` actions. When the request
+range touches the frontmatter block, or `context.only` names the kind, it
+also offers one `Set status: <status>` action (kind `okfit.status`) per
+status the raw frontmatter `status` is not already -- all three when there
+is no explicit status -- and one `Mark verified by <actor>` action (kind
+`okfit.verify`) when a human actor resolves and the concept is neither a
+draft nor already verified by that actor; the actor is cached per session
+handle. `registerCommands` (`src/features/commands.ts`) answers
+`workspace/executeCommand` for the three `OKFIT_COMMANDS`:
+`okfit.lsp.setStatus [uri, status]` and `okfit.lsp.markVerified [uri]`
+compute a `TextEdit` and send it to the client with `workspace/applyEdit`,
+answering the client's own result verbatim; `okfit.lsp.revalidate
+[rootUri?]` schedules a `full` revalidate on one named bundle root or every
+live session and answers the root URIs revalidated. Both features share
+`features/edits.ts`: `editTarget` reads the document's current text and
+version from the diagnostics feature's open-document memory (else the file
+as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits` wrap
+[Engine](engine.md)'s `FrontmatterEdits.status`/`.verified` over that text,
+and `versionedEdit` sends the result as `documentChanges` carrying the
+version, so a client whose buffer has moved on refuses a stale edit. `registerInlayHints` (`src/features/inlayHints.ts`)
 answers `textDocument/inlayHint` with up to two hints per concept, computed
 by the pure `hintsFor(concept, now)`: a trust/staleness hint (`unverified`,
 `machine-confirmed`, or `human-reviewed by <by>`, `· stale` appended when
