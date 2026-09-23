@@ -9,7 +9,9 @@ import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
+import { registerHover } from "./features/hover.js";
 import { registerNavigation } from "./features/navigation.js";
+import { registerWorkspaceSymbols } from "./features/symbols.js";
 import type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 import type {
 	DidChangeWatchedFilesParams,
@@ -66,6 +68,8 @@ const INITIALIZE_RESULT: InitializeResult = {
 		documentLinkProvider: { resolveProvider: false },
 		definitionProvider: true,
 		referencesProvider: true,
+		hoverProvider: true,
+		workspaceSymbolProvider: true,
 	},
 	serverInfo: { name: "okfit-lsp", version: LSP_VERSION },
 };
@@ -141,6 +145,8 @@ export const serve = (
 		);
 		yield* registerDocumentSync(transport, (event) => enqueue(feature.onDocumentEvent(event)));
 		yield* registerNavigation(transport, registry);
+		yield* registerHover(transport, registry);
+		yield* registerWorkspaceSymbols(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

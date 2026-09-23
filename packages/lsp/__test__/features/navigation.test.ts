@@ -77,6 +77,10 @@ const setup = () =>
 			betaPath: join(root, "okf", "modules", "beta.md"),
 			gammaPath: join(root, "okf", "modules", "gamma.md"),
 			lonelyPath: join(root, "okf", "modules", "lonely.md"),
+			epsilonPath: join(root, "okf", "modules", "epsilon.md"),
+			etaPath: join(root, "okf", "modules", "eta.md"),
+			zetaPath: join(root, "okf", "modules", "zeta.md"),
+			zetaReferrerPath: join(root, "okf", "modules", "zeta-referrer.md"),
 		};
 	});
 
@@ -105,6 +109,39 @@ generated:
 # Alpha
 
 See [Beta](beta.md) and [Missing](missing.md) and [Example](https://example.com/).
+`;
+
+/** A fragment link (`#usage`) on an otherwise-valid target, isolated from ALPHA so it does not add a second edge into beta and skew the reference-count assertions elsewhere. */
+const ETA = `---
+type: Module
+title: Eta
+description: A control concept used only by @okfit/lsp's own tests, exercising a fragment link.
+generated:
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+---
+
+# Eta
+
+See [Beta Section](beta.md#usage).
+`;
+
+/** `executor.resource` -- a path field beyond `resource` and `sources.resource` (`internal/links.ts`'s `pathFieldsOf`); the `Attested Computation` family's keys are top-level, not nested under `attested`. */
+const EPSILON = `---
+type: Attested Computation
+title: Epsilon
+description: A control concept used only by @okfit/lsp's own tests, exercising executor.resource.
+runtime: test-runtime
+computation: gamma.md
+executor:
+  resource: gamma.md
+  receipt: []
+generated:
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+---
+
+# Epsilon
 `;
 
 const GAMMA = `---
@@ -163,6 +200,35 @@ generated:
 Nothing points at this concept.
 `;
 
+/** Its own `resource` field references itself -- a genuine self-loop edge (addendum A). */
+const ZETA = `---
+type: Module
+title: Zeta
+description: A control concept whose own resource field references itself, used only by @okfit/lsp's own tests.
+resource: zeta.md
+generated:
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+---
+
+# Zeta
+`;
+
+/** The one real referrer to zeta.md, distinct from zeta's own self-loop. */
+const ZETA_REFERRER = `---
+type: Module
+title: Zeta Referrer
+description: The one real referrer to zeta.md, used only by @okfit/lsp's own tests.
+generated:
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+---
+
+# Zeta Referrer
+
+See [Zeta](zeta.md).
+`;
+
 describe("registerNavigation", () => {
 	describe("textDocument/documentLink", () => {
 		it.effect(
@@ -184,6 +250,35 @@ describe("registerNavigation", () => {
 					assert.isTrue(links.some((link) => link.target === "https://example.com/")); // raw URL, never a graph edge
 					assert.isFalse(links.some((link) => link.target?.endsWith("missing.md"))); // dangling target: omitted
 				}).pipe(Effect.provide(platform), Effect.scoped),
+		);
+
+		it.effect(
+			"a fragment link (`x.md#heading`) still resolves to its file target -- the fragment is stripped before resolution, not treated as part of the path",
+			() =>
+				Effect.gen(function* () {
+					const { registry, call, betaPath, etaPath } = yield* setup();
+					yield* openAndRevalidate(registry, etaPath, ETA);
+
+					const links = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
+						textDocument: { uri: pathToUri(etaPath) },
+					});
+
+					assert.isTrue(links.some((link) => link.target === pathToUri(betaPath)));
+				}).pipe(Effect.provide(platform), Effect.scoped),
+		);
+
+		it.effect("executor.resource, a path field beyond resource and sources.resource, resolves to its target", () =>
+			Effect.gen(function* () {
+				const { registry, call, gammaPath, epsilonPath } = yield* setup();
+				yield* openAndRevalidate(registry, gammaPath, GAMMA);
+				yield* openAndRevalidate(registry, epsilonPath, EPSILON);
+
+				const links = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
+					textDocument: { uri: pathToUri(epsilonPath) },
+				});
+
+				assert.isTrue(links.some((link) => link.target === pathToUri(gammaPath)));
+			}).pipe(Effect.provide(platform), Effect.scoped),
 		);
 
 		it.effect("an empty list before the first revalidate; a non-file URI answers the same way", () =>
@@ -273,6 +368,25 @@ describe("registerNavigation", () => {
 						context: { includeDeclaration: false },
 					});
 					assert.deepStrictEqual(none, []);
+				}).pipe(Effect.provide(platform), Effect.scoped),
+		);
+
+		it.effect(
+			"a self-loop edge (a concept's own resource pointing at itself) is filtered from its own references; the real referrer still appears (positive control)",
+			() =>
+				Effect.gen(function* () {
+					const { registry, call, zetaPath, zetaReferrerPath } = yield* setup();
+					yield* openAndRevalidate(registry, zetaPath, ZETA);
+					yield* openAndRevalidate(registry, zetaReferrerPath, ZETA_REFERRER);
+
+					const references = yield* call<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", {
+						textDocument: { uri: pathToUri(zetaPath) },
+						position: { line: 0, character: 0 },
+						context: { includeDeclaration: false },
+					});
+
+					assert.strictEqual(references.length, 1);
+					assert.strictEqual(references[0]?.uri, pathToUri(zetaReferrerPath));
 				}).pipe(Effect.provide(platform), Effect.scoped),
 		);
 

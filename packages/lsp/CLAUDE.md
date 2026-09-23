@@ -141,6 +141,12 @@ src/
     navigation.ts   -- registerNavigation(transport, registry): textDocument/
                        documentLink, textDocument/definition,
                        textDocument/references (see Navigation below)
+    hover.ts        -- registerHover(transport, registry): textDocument/hover;
+                       renderHover is the pure markdown renderer, tested
+                       directly (see Navigation below)
+    symbols.ts      -- registerWorkspaceSymbols(transport, registry):
+                       workspace/symbol across every live session (see
+                       Navigation below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -224,11 +230,37 @@ every bundle root all answer `null`/`[]` -- never a hang.
 - **`textDocument/references`** answers with one `Location` per predecessor
   edge into the concept the requested file itself is (not the position under
   the cursor) -- every edge in the graph whose `to` is that concept's id,
-  each at its own recorded range in the referring file. A concept whose own
-  `resource` field happens to reference its own file is, by the graph's own
-  construction, one of its own predecessor edges (a genuine self-loop), so
-  it can appear in its own reference list. `context.includeDeclaration` adds
-  the concept's own definition location (`definitionOf`) to the result.
+  each at its own recorded range in the referring file, **excluding a
+  self-loop** (`edge.from === edge.to`): a concept whose own `resource` field
+  happens to reference its own file is, by the graph's own construction, one
+  of its own predecessor edges, but pointing a concept at itself is never a
+  reference from somewhere else, so it is filtered rather than reported.
+  `context.includeDeclaration` adds the concept's own definition location
+  (`definitionOf`) to the result.
+- **`textDocument/hover`** (`features/hover.ts`) answers one of three kinds
+  (decision 6), each rendered by the pure `renderHover`: an edge at the
+  position (`edgeAt`, body link or frontmatter path field) renders the
+  target concept's title, type, status, trust tier (`Derive.trustTier`) and
+  staleness (`Derive.staleness`, against a `now` read once per request with
+  `DateTime.now`); the `type:` value (located with
+  `DiagnosticRange.forFrontmatterPath(document, ["type"])`) renders that
+  type's `description`/`guidance` from `session.config().types`; a top-level
+  frontmatter key on its own line (`^key:`, no leading whitespace, inside the
+  frontmatter block) renders that field's `description` from
+  `session.config().types[type].fields[key]` -- located with a one-line
+  regex bounded by the frontmatter block's own range, not a second
+  `frontmatterPathRange`-style lookup, since that helper locates a value's
+  span and the key itself has none. Anything else, or any of the above with
+  nothing declared for it, answers `null`. `Hover.contents` is a
+  `MarkupContent` with `kind: "markdown"`.
+- **`workspace/symbol`** (`features/symbols.ts`) answers with one
+  `SymbolInformation` per matching concept across **every live session**
+  (`registry.sessions`, not just the requested file's session): `name` is
+  the title (the id when there is no title), `containerName` is the type,
+  `kind` is `SYMBOL_KIND_OBJECT`, `location` is `definitionOf`. The filter is
+  a case-insensitive substring over id and title; an empty query matches
+  every concept. Results are deduplicated by id, sorted by id, and capped at
+  200.
 
 Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
 range conversion goes through `convert/range.ts`'s `toLspRange`/

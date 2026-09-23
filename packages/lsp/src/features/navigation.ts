@@ -147,7 +147,7 @@ export const registerNavigation = (transport: LspTransportShape, registry: Sessi
 				const id = concept.value.id;
 				const locations: Array<Location> = [];
 				for (const edge of graph.edges) {
-					if (edge.to !== id) continue;
+					if (edge.to !== id || edge.from === edge.to) continue;
 					const position = edge.data.position;
 					if (position === undefined) continue;
 					const referrer = bundle.concepts.get(edge.from as ConceptId);

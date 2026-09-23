@@ -13,8 +13,10 @@ export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } fr
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
+export { registerHover, renderHover } from "./features/hover.js";
 export { conceptAtPath, definitionOf, edgeAt, offsetOf } from "./features/locate.js";
 export { registerNavigation } from "./features/navigation.js";
+export { registerWorkspaceSymbols } from "./features/symbols.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 export { LspTransport } from "./protocol/LspTransport.js";
 export type { ReferenceTransportOptions } from "./protocol/reference.js";

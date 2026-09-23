@@ -22,9 +22,18 @@ describe("offsetOf", () => {
 		assert.strictEqual(offsetOf("abc\r\ndef", { line: 1, character: 0 }), 5);
 	});
 
-	it("counts an astral character earlier on the line as two UTF-16 code units (the surrogate pair), matching how the LSP protocol itself counts characters", () => {
-		// U+1F600 GRINNING FACE is a surrogate pair: two UTF-16 code units.
-		assert.strictEqual(offsetOf("\u{1F600}abc", { line: 0, character: 2 }), 2);
+	it("counts a UTF-16 code unit for a surrogate pair on a preceding line and another inside the target line before the position -- a code-point counter would land short on both", () => {
+		// Line 0 carries an astral character (U+1F600, a surrogate pair: two UTF-16 code units) so the offset that
+		// crosses into line 1 only comes out right if the newline search itself counts code units, not code points.
+		const line0 = "\u{1F600}ab";
+		// Line 1 also carries an astral character before the requested position, so the within-line count must
+		// also treat it as two code units, not one.
+		const line1Prefix = "c\u{1F600}";
+		const text = `${line0}\n${line1Prefix}de`;
+		// Independent of `offsetOf`: JS string `.length` already counts UTF-16 code units, which is exactly the
+		// unit LSP positions use, so this arithmetic is the ground truth a correct implementation must match.
+		const expected = line0.length + 1 /* the LF */ + line1Prefix.length;
+		assert.strictEqual(offsetOf(text, { line: 1, character: line1Prefix.length }), expected);
 	});
 
 	it("a lone CR (no following LF) still counts as one line break", () => {
@@ -33,14 +42,32 @@ describe("offsetOf", () => {
 });
 
 const targetContent = "---\ntype: Module\ntitle: Target\nresource: target.md\n---\n\n# Target\n";
-/** CRLF throughout, plus an astral character (a surrogate pair) on the line before the link, so the link's own
- * offset only comes out right if `edgeAt`'s underlying position mapping counts UTF-16 code units, not code points. */
-const bContent =
-	"---\r\ntype: Module\r\ntitle: B\r\nresource: b.md\r\n---\r\n\r\n# B\r\n\r\nEmoji \u{1F600} leads to [Target](target.md) here.\r\n";
+/**
+ * CRLF throughout, with a surrogate-pair astral character on a line
+ * preceding the link AND another inside the link's own line before the
+ * link itself, so the link's offset only comes out right if `edgeAt`'s
+ * underlying position mapping counts UTF-16 code units across a line break
+ * and within a line, not code points. Built from named segments so the
+ * expected offset below is computed independently of the graph's own
+ * output (each segment's `.length` is JS's own UTF-16 code-unit count, the
+ * unit LSP positions use).
+ */
+const B_FRONTMATTER = "---\r\ntype: Module\r\ntitle: B\r\nresource: b.md\r\n---\r\n";
+const B_BLANK_1 = "\r\n";
+const B_HEADING = "# \u{1F600}B\r\n"; // astral character on the line preceding the link's own line
+const B_BLANK_2 = "\r\n";
+const B_LINK_PREFIX = "Emoji \u{1F600} leads to "; // astral character before the link, same line
+const B_LINK_TEXT = "[Target](target.md)";
+const B_LINK_SUFFIX = " here.\r\n";
+const bContent = B_FRONTMATTER + B_BLANK_1 + B_HEADING + B_BLANK_2 + B_LINK_PREFIX + B_LINK_TEXT + B_LINK_SUFFIX;
+/** Independent of the parser: plain UTF-16 code-unit arithmetic over the segments above. */
+const expectedLinkOffset =
+	B_FRONTMATTER.length + B_BLANK_1.length + B_HEADING.length + B_BLANK_2.length + B_LINK_PREFIX.length;
+const expectedLinkLength = B_LINK_TEXT.length;
 
 describe("edgeAt", () => {
 	it.effect(
-		"finds the edge whose span contains an offset inside a CRLF source with a multi-byte character earlier on the same line; a one-before/one-after offset misses (positive control above)",
+		"finds the edge whose span contains an offset computed by hand, independent of the parser, inside a CRLF source with multi-byte characters both on a preceding line and before the link on its own line; a one-before/one-after offset misses (positive control above)",
 		() =>
 			Effect.gen(function* () {
 				const { root } = yield* makeTempBundle({ "b.md": bContent, "target.md": targetContent });
@@ -49,18 +76,20 @@ describe("edgeAt", () => {
 				const edges = graph.edges.filter((link) => link.from === "b" && link.to === "target");
 				assert.strictEqual(edges.length, 1);
 				const position = edges[0]!.data.position!;
+				assert.strictEqual(position.offset, expectedLinkOffset);
+				assert.strictEqual(position.length, expectedLinkLength);
 
-				const atStart = edgeAt(graph, "b.md", position.offset);
+				const atStart = edgeAt(graph, "b.md", expectedLinkOffset);
 				assert.isTrue(Option.isSome(atStart));
 				assert.strictEqual(Option.getOrThrow(atStart).to, "target");
 
-				const atLastChar = edgeAt(graph, "b.md", position.offset + position.length - 1);
+				const atLastChar = edgeAt(graph, "b.md", expectedLinkOffset + expectedLinkLength - 1);
 				assert.isTrue(Option.isSome(atLastChar));
 
-				const justBefore = edgeAt(graph, "b.md", position.offset - 1);
+				const justBefore = edgeAt(graph, "b.md", expectedLinkOffset - 1);
 				assert.isTrue(Option.isNone(justBefore));
 
-				const justAfter = edgeAt(graph, "b.md", position.offset + position.length);
+				const justAfter = edgeAt(graph, "b.md", expectedLinkOffset + expectedLinkLength);
 				assert.isTrue(Option.isNone(justAfter));
 			}).pipe(Effect.provide(platform), Effect.scoped),
 	);
