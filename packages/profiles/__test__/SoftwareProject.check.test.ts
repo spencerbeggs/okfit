@@ -128,7 +128,13 @@ describe("software-project bad fixtures", () => {
 				assert.deepStrictEqual(codes(found), bad.check);
 				for (const d of found) {
 					assert.strictEqual(d.severity, "error");
-					assert.isFalse("range" in d);
+					// decision 2: project-multiple and project-not-at-root range at the misplaced
+					// concept's `type` value; project-missing is bundle-level and stays range-less.
+					if (d.code === "project-missing") {
+						assert.isFalse("range" in d);
+					} else {
+						assert.isDefined(d.range);
+					}
 				}
 			}),
 		);
@@ -144,6 +150,20 @@ describe("software-project bad fixtures", () => {
 			assert.match(none[0]?.message ?? "", /No Project concept .*project\.md/);
 			const nested = profile.check(yield* load("bad/project-in-subdir"));
 			assert.match(nested[0]?.message ?? "", /"modules\/project\.md" is below the bundle root/);
+		}),
+	);
+
+	it.effect("project-multiple and project-not-at-root range at the misplaced concept's type value", () =>
+		Effect.gen(function* () {
+			const two = profile.check(yield* load("bad/two-projects"));
+			for (const d of two) {
+				assert.isDefined(d.range);
+				assert.strictEqual(d.range!.length, "Project".length);
+			}
+			const nested = profile.check(yield* load("bad/project-in-subdir"));
+			const notAtRoot = nested.find((d) => d.code === "project-not-at-root");
+			assert.isDefined(notAtRoot?.range);
+			assert.strictEqual(notAtRoot!.range!.length, "Project".length);
 		}),
 	);
 

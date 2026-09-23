@@ -96,6 +96,16 @@ describe("internal/frontmatter", () => {
 			}),
 		);
 
+		it.effect("includes the delimiting quotes for a double-quoted scalar value (a yaml kit quirk)", () =>
+			Effect.gen(function* () {
+				const text = '---\ntype: Module\ntitle: "Widget"\n---\n\n# Widget\n';
+				const document = yield* MarkdownDocument.parse(text, OPTIONS);
+				const range = frontmatterPathRange(document, ["title"]);
+				assert.isDefined(range);
+				assert.strictEqual(text.slice(range!.offset, range!.offset + range!.length), '"Widget"');
+			}),
+		);
+
 		it.effect("resolves a value's own range on CRLF source", () =>
 			Effect.gen(function* () {
 				const text = "---\r\ntype: Module\r\ntitle: Widget\r\n---\r\n\r\n# Widget\r\n";

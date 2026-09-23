@@ -1,7 +1,8 @@
 import type { LoadedBundle } from "@okfit/core";
-import { ConceptId, DiagnosticRange } from "@okfit/core";
+import { DiagnosticRange } from "@okfit/core";
 import { Option } from "effect";
 import type { RenderedDiagnostic } from "../render/sort.js";
+import { conceptFor } from "./concept.js";
 
 const FILE_START = DiagnosticRange.make({ offset: 0, length: 0, line: 0, character: 0 });
 
@@ -17,10 +18,7 @@ const FILE_START = DiagnosticRange.make({ offset: 0, length: 0, line: 0, charact
  */
 export const withFallbackRange = (bundle: LoadedBundle, diagnostic: RenderedDiagnostic): RenderedDiagnostic => {
 	if (diagnostic.range !== undefined || diagnostic.file === "") return diagnostic;
-	const concept = Option.match(ConceptId.fromPath(diagnostic.file), {
-		onNone: () => undefined,
-		onSome: (id) => bundle.concepts.get(id),
-	});
+	const concept = Option.getOrUndefined(conceptFor(bundle, `${bundle.root}/${diagnostic.file}`));
 	const node = concept?.document.frontmatter;
 	if (concept === undefined || node === undefined) return { ...diagnostic, range: FILE_START };
 	return {

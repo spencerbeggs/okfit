@@ -1,5 +1,7 @@
+import type { MarkdownDocument } from "@effected/markdown";
 import { Schema } from "effect";
 import { lineCharacter } from "./internal/position.js";
+import { frontmatterPathSpan } from "./internal/yamlPathSpan.js";
 
 /** @public */
 export const DiagnosticSeverity = Schema.Literals(["error", "warning", "info"]);
@@ -65,6 +67,28 @@ export class DiagnosticRange extends Schema.Class<DiagnosticRange>("DiagnosticRa
 	static readonly fromOffset = (text: string, offset: number, length: number): DiagnosticRange => {
 		const { line, character } = lineCharacter(text, offset);
 		return DiagnosticRange.make({ offset, length, line, character });
+	};
+
+	/**
+	 * Maps a frontmatter YAML path to the range of its own value inside `document.source`
+	 * (decision 2 of the phase 4 plan): the whole frontmatter block for `path: []`, `undefined`
+	 * only when the document has no frontmatter block at all, and the block again as a fallback
+	 * when the leaf named by `path` cannot be found (an absent key). For a double-quoted scalar
+	 * value, the returned range includes the delimiting quote characters, since the yaml kit
+	 * reports a quoted scalar's offset and length inclusive of them.
+	 *
+	 * The public entry point for `@okfit/profiles` and `@okfit/engine`; `@okfit/core`'s own lint
+	 * rules call the internal `frontmatterPathRange` (`internal/frontmatter.ts`) directly.
+	 *
+	 * @public
+	 */
+	static readonly forFrontmatterPath = (
+		document: MarkdownDocument,
+		path: ReadonlyArray<string | number>,
+	): DiagnosticRange | undefined => {
+		if (document.frontmatter === undefined) return undefined;
+		const span = frontmatterPathSpan(document.source, document.frontmatter, path);
+		return DiagnosticRange.fromOffset(document.source, span.offset, span.length);
 	};
 }
 

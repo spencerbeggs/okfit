@@ -1,4 +1,5 @@
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
+import { DiagnosticRange } from "@okfit/core";
 import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js"; // (checked) contract section 2 lists Layout, Profile, ProfileDiagnostic; ProfileDiagnosticCode is added type-only for the local `diagnostic` helper and changes no exported surface
 
 /**
@@ -282,11 +283,17 @@ const layout: Layout = {
 
 const PROJECT_TYPE = "Project";
 
-const diagnostic = (file: string, code: ProfileDiagnosticCode, message: string): ProfileDiagnostic => ({
+const diagnostic = (
+	file: string,
+	code: ProfileDiagnosticCode,
+	message: string,
+	range?: DiagnosticRange,
+): ProfileDiagnostic => ({
 	file,
 	code,
 	severity: "error",
 	message,
+	...(range === undefined ? {} : { range }),
 });
 
 /** Plain code-unit order on `file` then `code` (decision 6); never locale-dependent. */
@@ -303,7 +310,10 @@ const compare = (a: ProfileDiagnostic, b: ProfileDiagnostic): number => {
  * (`CORE/Bundle.ts:98`; `Concept.type` `CORE/Concept.ts:27`). The rules are
  * independent: two Projects with one nested yield three diagnostics. The file
  * name `project.md` is layout guidance, not checked. Severity is always
- * `error`; no `range`. Output is sorted by `file` then `code`.
+ * `error`. `project-multiple` and `project-not-at-root` range at the
+ * misplaced concept's `type` value (phase 4 decision 2, via
+ * `DiagnosticRange.forFrontmatterPath`); `project-missing` is bundle-level
+ * (`file: ""`) and stays range-less. Output is sorted by `file` then `code`.
  */
 const check = (bundle: LoadedBundle): ReadonlyArray<ProfileDiagnostic> => {
 	const projects = [...bundle.concepts.values()].filter((concept) => concept.frontmatter.type === PROJECT_TYPE);
@@ -328,6 +338,7 @@ const check = (bundle: LoadedBundle): ReadonlyArray<ProfileDiagnostic> => {
 					project.path,
 					"project-multiple",
 					`Project concept "${project.path}" is one of ${projects.length}; software-project expects exactly one (others: ${others.join(", ")})`,
+					DiagnosticRange.forFrontmatterPath(project.document, ["type"]),
 				),
 			);
 		}
@@ -339,6 +350,7 @@ const check = (bundle: LoadedBundle): ReadonlyArray<ProfileDiagnostic> => {
 					project.path,
 					"project-not-at-root",
 					`Project concept "${project.path}" is below the bundle root; software-project expects it beside ${layout.root.index}`,
+					DiagnosticRange.forFrontmatterPath(project.document, ["type"]),
 				),
 			);
 		}

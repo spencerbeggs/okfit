@@ -1,7 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
-import { MarkdownDocument } from "@effected/markdown";
+import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
 import { Actor, Concept, ConceptId, Generated, LoadedBundle, LoadedConcept, OkfitConfig, Timestamp } from "@okfit/core";
 import type { Crypto } from "effect";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result, Schema } from "effect";
@@ -17,6 +17,7 @@ const topic = F4_ENTRIES[F4_LOG_ORDER.indexOf("topic")]!;
 const history = entriesOf(F4_ENTRIES);
 const blobs = blobsOf(F4_ENTRIES);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
+const FRONTMATTER_OPTIONS = MarkdownParseOptions.make({ frontmatter: true });
 const conceptId = Option.getOrThrow(ConceptId.normalize(REL));
 
 const conceptWith = (generated?: Generated, source?: string): LoadedConcept =>
@@ -96,6 +97,26 @@ describe("Provenance.lint", () => {
 		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history }))),
 	);
 
+	it.effect("ranges tier 2's drift at generated.at's own value when the concept has real frontmatter", () =>
+		Effect.gen(function* () {
+			const generated = Generated.make({
+				by: actor("human:okfit-test"),
+				at: DateTime.makeUnsafe("2020-01-01T00:00:00Z"),
+			});
+			const concept = LoadedConcept.make({
+				...conceptWith(generated),
+				document: Result.getOrThrow(MarkdownDocument.parseResult(HEAD_TEXT, FRONTMATTER_OPTIONS)),
+			});
+			const result = yield* Provenance.lint(bundleOf(concept), OkfitConfig.DEFAULTS);
+			assert.strictEqual(result.length, 1);
+			assert.isDefined(result[0]?.range);
+			assert.strictEqual(
+				HEAD_TEXT.slice(result[0]!.range!.offset, result[0]!.range!.offset + result[0]!.range!.length),
+				"2026-03-01T08:00:00Z", // the document's own generated.at value (STAMP_THREE), not the recorded generated block above
+			);
+		}).pipe(Effect.provide(world({ worktree: HEAD_TEXT, head: Option.some(HEAD_TEXT), blobs, history }))),
+	);
+
 	describe("tier 1: generated.body_sha256 present (issue #19)", () => {
 		const SOURCE = "---\ntype: Module\ntitle: Digested\n---\n\n# Digested\n\nBody text.\n";
 		const OTHER_SOURCE = "---\ntype: Module\ntitle: Digested\n---\n\n# Digested\n\nA different body.\n";
@@ -155,6 +176,36 @@ describe("Provenance.lint", () => {
 				const result = yield* Provenance.lint(bundleOf(conceptWith(generated, OTHER_SOURCE)), OkfitConfig.DEFAULTS);
 				assert.strictEqual(result.length, 1);
 				assert.strictEqual(result[0]?.code, "generated-at-drift");
+			}).pipe(Effect.provide(noGit)),
+		);
+
+		it.effect("ranges the drift at generated.at's own value when the concept has real frontmatter", () =>
+			Effect.gen(function* () {
+				const staleDigest = yield* digestOf(SOURCE);
+				const documentSource =
+					'---\ntype: Module\ntitle: Digested\ngenerated:\n  by: human:okfit-test\n  at: "2020-01-01T00:00:00Z"\n---\n\n# Digested\n\nA different body.\n';
+				const generated = Generated.make({ by: actor("human:okfit-test"), body_sha256: staleDigest });
+				const concept = LoadedConcept.make({
+					...conceptWith(generated, OTHER_SOURCE),
+					document: Result.getOrThrow(MarkdownDocument.parseResult(documentSource, FRONTMATTER_OPTIONS)),
+				});
+				const result = yield* Provenance.lint(bundleOf(concept), OkfitConfig.DEFAULTS);
+				assert.strictEqual(result.length, 1);
+				assert.isDefined(result[0]?.range);
+				assert.strictEqual(
+					documentSource.slice(result[0]!.range!.offset, result[0]!.range!.offset + result[0]!.range!.length),
+					'"2020-01-01T00:00:00Z"',
+				);
+			}).pipe(Effect.provide(noGit)),
+		);
+
+		it.effect("stays range-less for a concept with no frontmatter document at all (positive control above)", () =>
+			Effect.gen(function* () {
+				const staleDigest = yield* digestOf(SOURCE);
+				const generated = Generated.make({ by: actor("human:okfit-test"), body_sha256: staleDigest });
+				const result = yield* Provenance.lint(bundleOf(conceptWith(generated, OTHER_SOURCE)), OkfitConfig.DEFAULTS);
+				assert.strictEqual(result.length, 1);
+				assert.isUndefined(result[0]?.range);
 			}).pipe(Effect.provide(noGit)),
 		);
 	});

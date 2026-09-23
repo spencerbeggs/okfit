@@ -1,5 +1,5 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Diagnostic, OkfitConfig as OkfitConfigNS } from "@okfit/core";
+import { Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 
@@ -28,11 +28,20 @@ const stripSuffix = (value: string): string => {
 	return at === -1 ? value : value.slice(0, at);
 };
 
-/** Every `resource` value on a concept: the top-level field, then each source's. */
-const resourceValuesOf = (concept: LoadedConcept): Array<string> => {
-	const values: Array<string> = [];
-	if (concept.frontmatter.resource !== undefined) values.push(concept.frontmatter.resource);
-	for (const source of concept.frontmatter.sources ?? []) values.push(source.resource);
+/** One `resource`/`sources[i].resource` value, paired with the frontmatter path that names it. */
+interface ResourceValue {
+	readonly value: string;
+	readonly path: ReadonlyArray<string | number>;
+}
+
+/** Every `resource` value on a concept, each with its own frontmatter path: the top-level field, then each source's. */
+const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> => {
+	const values: Array<ResourceValue> = [];
+	if (concept.frontmatter.resource !== undefined)
+		values.push({ value: concept.frontmatter.resource, path: ["resource"] });
+	concept.frontmatter.sources?.forEach((source, index) => {
+		values.push({ value: source.resource, path: ["sources", index, "resource"] });
+	});
 	return values;
 };
 
@@ -43,9 +52,11 @@ const resourceValuesOf = (concept: LoadedConcept): Array<string> => {
  * pattern) or a literal path resolved in D-23 order: relative to the
  * concept's own directory, then (for a bare path) relative to the bundle
  * root, or with a leading `/` relative to the bundle root only; only the
- * latter is checked against the filesystem. Total over severity (mirrors
- * `Provenance.lint`'s S-28 posture): returns `[]`, touching neither
- * `FileSystem` nor `Path`, the moment
+ * latter is checked against the filesystem. Ranges at the offending value
+ * (phase 4 decision 2, via `DiagnosticRange.forFrontmatterPath`) using the
+ * `["resource"]` or `["sources", index, "resource"]` path the value came
+ * from. Total over severity (mirrors `Provenance.lint`'s S-28 posture):
+ * returns `[]`, touching neither `FileSystem` nor `Path`, the moment
  * `OkfitConfig.severityFor(config, "source-resource-missing")` is `"off"`.
  *
  * @public
@@ -61,7 +72,7 @@ export const lintResources = (
 		const path = yield* Path.Path;
 		const diagnostics: Array<Diagnostic> = [];
 		for (const [, concept] of bundle.concepts) {
-			for (const value of resourceValuesOf(concept)) {
+			for (const { value, path: fieldPath } of resourceValuesOf(concept)) {
 				if (isDescriptor(value)) continue;
 				const stripped = stripSuffix(value);
 				// D-23 order: a leading `/` is bundle-root-relative; otherwise file-relative
@@ -80,12 +91,14 @@ export const lintResources = (
 					}
 				}
 				if (exists) continue;
+				const range = DiagnosticRange.forFrontmatterPath(concept.document, fieldPath);
 				diagnostics.push(
 					Diagnostic.make({
 						file: concept.path,
 						code: "source-resource-missing",
 						severity,
 						message: `Resource "${value}" does not exist relative to ${concept.path}`,
+						...(range === undefined ? {} : { range }),
 					}),
 				);
 			}

@@ -1,13 +1,11 @@
 import type { Frontmatter, MarkdownDocument } from "@effected/markdown";
-import type { YamlPath } from "@effected/yaml";
-import { YamlDocument } from "@effected/yaml";
-import { Effect, Option, Result } from "effect";
+import { Option } from "effect";
 import type { Concept } from "../Concept.js";
 import type { DiagnosticSeverity } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { FamilyIssue } from "./conceptDecode.js";
 import { decodeConcept as decodeEnvelope } from "./conceptDecode.js";
-import { toFileOffset } from "./position.js";
+import { frontmatterPathSpan } from "./yamlPathSpan.js";
 
 /** D-34 default severities for a `FamilyIssue`'s lint code; `type-missing` (D-33) is always "error". */
 const FAMILY_ISSUE_SEVERITY: Record<FamilyIssue["code"], DiagnosticSeverity> = {
@@ -22,22 +20,9 @@ interface Context {
 	readonly node: Frontmatter;
 }
 
-const blockRange = (text: string, node: Frontmatter): DiagnosticRange =>
-	DiagnosticRange.fromOffset(text, node.position.start.offset, node.position.end.offset - node.position.start.offset);
-
-/**
- * Lazily parses `node.value` as YAML only when `path` needs a range (D-14, D-15;
- * diagnostic-range-and-position-mapping.md section 5). Falls back to the whole frontmatter block
- * when `path` is `[]`, the leaf can't be found, or the YAML re-parse itself is fatal (it already
- * decoded once upstream, so a fatal re-parse should not happen; this is defense only).
- */
-const pathRange = (text: string, node: Frontmatter, path: ReadonlyArray<string | number>): DiagnosticRange => {
-	if (path.length === 0) return blockRange(text, node);
-	const parsed = Effect.runSync(Effect.result(YamlDocument.parse(node.value)));
-	if (Result.isFailure(parsed) || parsed.success.contents === null) return blockRange(text, node);
-	const hit = parsed.success.contents.find(path as YamlPath);
-	if (Option.isNone(hit)) return blockRange(text, node);
-	return DiagnosticRange.fromOffset(text, toFileOffset(text, hit.value.offset), hit.value.length);
+const spanToRange = (text: string, path: ReadonlyArray<string | number>, node: Frontmatter): DiagnosticRange => {
+	const span = frontmatterPathSpan(text, node, path);
+	return DiagnosticRange.fromOffset(text, span.offset, span.length);
 };
 
 /**
@@ -45,7 +30,9 @@ const pathRange = (text: string, node: Frontmatter, path: ReadonlyArray<string |
  * phase 4 plan): the whole frontmatter block for `path: []`, `undefined` only when the document
  * has no frontmatter block at all, and the block again as a fallback when the leaf named by
  * `path` cannot be found (an absent key, or a fatal re-parse that should not happen once the
- * document already decoded once upstream).
+ * document already decoded once upstream). For a double-quoted scalar value, the returned range
+ * includes the delimiting quote characters, since the yaml kit reports a quoted scalar's offset
+ * and length inclusive of them.
  *
  * @internal
  */
@@ -53,10 +40,10 @@ export const frontmatterPathRange = (
 	document: MarkdownDocument,
 	path: ReadonlyArray<string | number>,
 ): DiagnosticRange | undefined =>
-	document.frontmatter === undefined ? undefined : pathRange(document.source, document.frontmatter, path);
+	document.frontmatter === undefined ? undefined : spanToRange(document.source, path, document.frontmatter);
 
 const rangeFor = (context: Context, path: ReadonlyArray<string | number>): DiagnosticRange =>
-	pathRange(context.text, context.node, path);
+	spanToRange(context.text, path, context.node);
 
 const toDiagnostic = (context: Context, issue: FamilyIssue): Diagnostic =>
 	Diagnostic.make({
