@@ -98,7 +98,7 @@ export const registerCommands = (
 		if (picked) await vscode.window.showTextDocument(vscode.Uri.parse(picked.uri));
 	});
 
-	/** Quick pick over the two statuses the concept does not already have (`status-picks.ts`), then `workspace/executeCommand` `okfit.lsp.setStatus [uri, status]`. */
+	/** Quick pick over the statuses the concept does not already have (`status-picks.ts`), then `workspace/executeCommand` `okfit.lsp.setStatus [uri, status]`. */
 	useCommand("okfit.setStatus", async (arg?: unknown) => {
 		const client = getClient();
 		if (client === undefined) {

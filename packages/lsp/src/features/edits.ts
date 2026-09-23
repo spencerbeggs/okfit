@@ -1,25 +1,35 @@
 /**
  * The shared edit machinery `features/actions.ts` (`textDocument/codeAction`)
- * and `features/commands.ts` (`workspace/executeCommand`) both build on:
- * `TextEdit`s for setting a concept's `status` or appending a `verified`
- * entry, and the human-actor resolution both a code action's title and the
- * `verified` edit itself depend on.
+ * and `features/commands.ts` (`workspace/executeCommand`) both build on: the
+ * {@link EditTarget} a request edits, `TextEdit`s for setting a concept's
+ * `status` or appending a `verified` entry, the human-actor resolution the
+ * `verified` edit depends on, and the versioned `WorkspaceEdit` both send.
+ *
+ * Every edit is computed against the document's CURRENT text -- the open
+ * editor buffer when there is one, not the last-revalidated snapshot, which
+ * lags an edit by the scheduler's debounce plus a whole-bundle load -- and
+ * sent as a `documentChanges` entry carrying that buffer's version, so a
+ * client whose buffer has moved on since refuses the edit instead of
+ * applying it at stale offsets.
  *
  * @packageDocumentation
  */
 import type { Git } from "@effected/git";
 import type { MarkdownEdit } from "@effected/markdown";
+import { FrontmatterSource } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
+import { YamlDocument } from "@effected/yaml";
 import type { LoadedConcept, OkfitConfig, Status } from "@okfit/core";
-import { Derive, DiagnosticRange, Timestamp } from "@okfit/core";
+import { DiagnosticRange, Timestamp } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, Option, Schema } from "effect";
 import { toLspRange } from "../convert/range.js";
 import { messageOf } from "../internal/messageOf.js";
-import type { TextEdit } from "../protocol/types.js";
-import type { SessionRegistryShape } from "../session/registry.js";
+import type { Range, TextEdit, WorkspaceEdit } from "../protocol/types.js";
+import type { OpenDocuments } from "../session/documents.js";
+import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
 import { conceptAtPath } from "./locate.js";
 
 /**
@@ -45,7 +55,7 @@ interface ConceptSnapshot {
 	readonly projectRoot: string;
 }
 
-/** Mirrors `features/hover.ts`'s `snapshotFor`, but for the concept `edits.ts`'s callers need rather than hover's bundle/graph pair. @internal */
+/** Mirrors `features/hover.ts`'s `snapshotFor`, but for the concept `inlayHints.ts` needs rather than hover's bundle/graph pair. @internal */
 export const conceptSnapshot = (
 	registry: SessionRegistryShape,
 	path: string,
@@ -64,6 +74,81 @@ export const conceptSnapshot = (
 		});
 	});
 
+/**
+ * One concept document as a request edits it: the text every offset and
+ * range is computed against, the version a client checks before applying,
+ * and the frontmatter facts the action set and the `verified` guards read --
+ * all taken from that same text.
+ *
+ * @public
+ */
+export interface EditTarget {
+	/** The owning session: its `folder` is the actor-resolution cwd, and its identity keys a per-session cache. */
+	readonly handle: SessionHandle;
+	/** The open editor buffer's text, else the file as the last revalidate loaded it. */
+	readonly text: string;
+	/** The open editor buffer's version, else `null` (the document is not open). */
+	readonly version: number | null;
+	/** The raw top-level `status` value when it is a string, else `undefined` (no explicit status). */
+	readonly status: string | undefined;
+	/** Every `verified[].by` string in the frontmatter, in order. */
+	readonly verifiedBy: ReadonlyArray<string>;
+	/** The frontmatter block, opening fence through closing fence, as an LSP range over `text`. */
+	readonly frontmatter: Range;
+}
+
+/** `value[key]` when `value` is a plain object, else `undefined`. */
+const field = (value: unknown, key: string): unknown =>
+	typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)[key]
+		: undefined;
+
+/**
+ * The concept at `path` as the editor currently holds it, or `None` when
+ * `path` is not a concept in its session's last-loaded snapshot, or its
+ * current text has no frontmatter block or unparseable frontmatter YAML
+ * (mid-edit, say -- no edit could be spliced into it either).
+ *
+ * @public
+ */
+export const editTarget = (
+	registry: SessionRegistryShape,
+	documents: OpenDocuments,
+	path: string,
+): Effect.Effect<Option.Option<EditTarget>> =>
+	Effect.gen(function* () {
+		const owner = yield* registry.sessionFor(path);
+		if (Option.isNone(owner)) return Option.none();
+		const bundle = yield* owner.value.session.bundle();
+		if (Option.isNone(bundle)) return Option.none();
+		const concept = conceptAtPath(bundle.value, path);
+		if (Option.isNone(concept)) return Option.none();
+		const open = yield* documents.get(path);
+		const text = Option.isSome(open) ? open.value.text : concept.value.document.source;
+		const version = Option.isSome(open) ? open.value.version : null;
+		const split = FrontmatterSource.split(text);
+		if (split.frontmatter === undefined) return Option.none();
+		const parsed = yield* Effect.option(YamlDocument.parse(split.frontmatter.value));
+		if (Option.isNone(parsed)) return Option.none();
+		const data = parsed.value.toValue();
+		const status = field(data, "status");
+		const verified = field(data, "verified");
+		const verifiedBy = Array.isArray(verified)
+			? verified.flatMap((entry) => {
+					const by = field(entry, "by");
+					return typeof by === "string" ? [by] : [];
+				})
+			: [];
+		return Option.some({
+			handle: owner.value,
+			text,
+			version,
+			status: typeof status === "string" ? status : undefined,
+			verifiedBy,
+			frontmatter: toLspRange(text, DiagnosticRange.fromOffset(text, 0, split.bodyOffset)),
+		});
+	});
+
 /** `UnsupportedFrontmatterError`/`YamlParseError` (`FrontmatterEdits`'s two failure modes) as an `EditFailure`. */
 const toEditFailure = (error: UnsupportedFrontmatterError | YamlParseError, key: string): EditFailure =>
 	error instanceof UnsupportedFrontmatterError
@@ -77,100 +162,72 @@ const toTextEdit = (source: string, edit: MarkdownEdit): TextEdit => ({
 });
 
 /**
- * `TextEdit`s that set the concept at `path`'s top-level `status` to
- * `status`, or `EditFailure` when `path` is not a concept or its `status`
- * shape is one `FrontmatterEdits.status` cannot splice.
+ * `TextEdit`s over `target.text` that set its top-level `status` to
+ * `status`, or `EditFailure` when its `status` shape is one
+ * `FrontmatterEdits.status` cannot splice.
  *
  * @public
  */
 export const statusTextEdits = (
-	registry: SessionRegistryShape,
-	path: string,
+	target: EditTarget,
 	status: Status,
 ): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure> =>
-	Effect.gen(function* () {
-		const snapshot = yield* conceptSnapshot(registry, path);
-		if (Option.isNone(snapshot)) return yield* Effect.fail<EditFailure>({ _tag: "NotAConcept" });
-		const source = snapshot.value.concept.document.source;
-		const edits = yield* FrontmatterEdits.status(source, status).pipe(
-			Effect.mapError((error): EditFailure => toEditFailure(error, "status")),
-		);
-		return edits.map((edit) => toTextEdit(source, edit));
-	});
+	FrontmatterEdits.status(target.text, status).pipe(
+		Effect.mapError((error): EditFailure => toEditFailure(error, "status")),
+		Effect.map((edits) => edits.map((edit) => toTextEdit(target.text, edit))),
+	);
 
 /**
- * `TextEdit`s that append one `verified` entry (`by` the resolved human
- * actor, `at` the encoded `now`) to the concept at `path`, or `EditFailure`
- * when `path` is not a concept, the concept is a draft (OKF concepts never
- * verify a draft), the concept already carries a `verified` entry by the
- * resolved actor, the actor cannot be resolved, or the `verified` shape is
- * one `FrontmatterEdits.verified` cannot splice.
+ * `TextEdit`s over `target.text` that append one `verified` entry (`by`
+ * `actor`, `at` the encoded `now`), or `EditFailure` when the concept is a
+ * draft or already carries a `verified` entry by `actor` (the editor action
+ * follows `okfit verify --batch`'s skip rules, not the single-concept
+ * `okfit verify <id>`), or the `verified` shape is one
+ * `FrontmatterEdits.verified` cannot splice.
  *
  * @public
  */
 export const verifiedTextEdits = (
-	registry: SessionRegistryShape,
-	path: string,
+	target: EditTarget,
+	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Git> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure> =>
 	Effect.gen(function* () {
-		const snapshot = yield* conceptSnapshot(registry, path);
-		if (Option.isNone(snapshot)) return yield* Effect.fail<EditFailure>({ _tag: "NotAConcept" });
-		const { concept, config, projectRoot } = snapshot.value;
-		if (Derive.status(concept.frontmatter) === "draft") {
-			return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
-		}
-		const actor = yield* Derivation.generatedBy({ writer: "human", cwd: projectRoot, config }).pipe(
-			Effect.mapError((error): EditFailure => ({ _tag: "ActorUnresolved", message: messageOf(error) })),
-		);
-		const already = (concept.frontmatter.verified ?? []).find((entry) => entry.by === actor);
-		if (already !== undefined) return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: already.by });
+		if (target.status === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
+		if (target.verifiedBy.includes(actor))
+			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
 		const at = Schema.encodeSync(Timestamp)(now);
-		const source = concept.document.source;
-		const edits = yield* FrontmatterEdits.verified(source, { by: actor, at }).pipe(
+		const edits = yield* FrontmatterEdits.verified(target.text, { by: actor, at }).pipe(
 			Effect.mapError((error): EditFailure => toEditFailure(error, "verified")),
 		);
-		return edits.map((edit) => toTextEdit(source, edit));
+		return edits.map((edit) => toTextEdit(target.text, edit));
 	});
 
-/** The project root a resolution failure was already logged for, so a repeated call logs at most once each. */
-const loggedActorFailures = new Set<string>();
-
 /**
- * The human actor a `verified` edit for the concept at `path` would resolve
- * to, or `None` when it cannot be resolved (git has no `user.name`/
- * `user.email` to derive one from, or `path` is not a concept). A resolution
- * failure is logged once per project root, at `logDebug`, never to stdout.
+ * The human actor a `verified` edit in `handle`'s session resolves to
+ * (`Derivation.generatedBy` in the session's workspace folder), or
+ * `ActorUnresolved` when git has no `user.name`/`user.email` to derive one
+ * from. Only that typed failure is mapped; a defect (a git subprocess crash)
+ * or an interrupt still propagates.
  *
  * @public
  */
-export const humanActor = (
-	registry: SessionRegistryShape,
-	path: string,
-): Effect.Effect<Option.Option<string>, never, Git> =>
-	Effect.gen(function* () {
-		const snapshot = yield* conceptSnapshot(registry, path);
-		if (Option.isNone(snapshot)) return Option.none();
-		const { config, projectRoot } = snapshot.value;
-		return yield* Derivation.generatedBy({ writer: "human", cwd: projectRoot, config }).pipe(
-			Effect.map((actor): Option.Option<string> => Option.some(actor)),
-			// `Effect.catch` recovers only `generatedBy`'s typed `GeneratedByError`
-			// channel; a defect (a git subprocess crash) or an interrupt (a
-			// shutdown mid-resolution) still propagates rather than being read as
-			// "no actor" -- `Effect.catchCause` would have swallowed both.
-			Effect.catch((error) =>
-				Effect.gen(function* () {
-					if (!loggedActorFailures.has(projectRoot)) {
-						loggedActorFailures.add(projectRoot);
-						yield* Effect.logDebug(
-							`okfit-lsp: could not resolve a human actor for ${projectRoot}: ${messageOf(error)}`,
-						);
-					}
-					return Option.none<string>();
-				}),
-			),
-		);
-	});
+export const resolveActor = (handle: SessionHandle): Effect.Effect<string, EditFailure, Git> =>
+	Derivation.generatedBy({ writer: "human", cwd: handle.folder, config: handle.session.config() }).pipe(
+		Effect.mapError((error): EditFailure => ({ _tag: "ActorUnresolved", message: messageOf(error) })),
+	);
+
+/**
+ * `edits` as a `WorkspaceEdit` over one document at `uri`, versioned with
+ * `target.version` (`null` for a document that is not open) so a client
+ * refuses it once the buffer has changed since the text it was computed
+ * against.
+ *
+ * @public
+ */
+export const versionedEdit = (uri: string, target: EditTarget, edits: ReadonlyArray<TextEdit>): WorkspaceEdit => ({
+	documentChanges: [{ textDocument: { uri, version: target.version }, edits: [...edits] }],
+});
 
 /**
  * `failure` as a short human-readable message, for a command handler
@@ -189,6 +246,6 @@ export const describeFailure = (failure: EditFailure): string => {
 		case "AlreadyVerified":
 			return `already verified by ${failure.by}`;
 		case "DraftCannotBeVerified":
-			return "a draft concept cannot be verified";
+			return "the editor's Mark verified skips a draft concept, as okfit verify --batch does";
 	}
 };

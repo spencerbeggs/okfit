@@ -16,17 +16,16 @@ const DESCRIPTIONS: Readonly<Record<Status, string>> = {
 };
 
 /**
- * The two statuses `current` is not already in, in `Status`'s own literal
- * order -- `undefined` (no `status` frontmatter key) reads as `stable`, the
- * same default `Derive.status` applies server-side.
+ * The statuses `current` is not already in, in `Status`'s own literal order
+ * -- all three when `current` is `undefined` (no explicit `status` key), so
+ * an implicit `stable` can be made explicit, matching the server's own
+ * status code actions.
  */
-export const statusPicks = (current: Status | undefined): ReadonlyArray<StatusPick> => {
-	const effective = current ?? "stable";
-	return ORDER.filter((status) => status !== effective).map((status) => ({
+export const statusPicks = (current: Status | undefined): ReadonlyArray<StatusPick> =>
+	ORDER.filter((status) => status !== current).map((status) => ({
 		label: status,
 		description: DESCRIPTIONS[status],
 	}));
-};
 
 /** The shape of a `TreeNode` concept node's argument to `okfit.setStatus`/`okfit.markVerified`, without importing `tree/model.js`'s full union. */
 interface ConceptNodeArg {

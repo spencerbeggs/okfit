@@ -11,6 +11,7 @@ import { sourceTextOf, toLspDiagnostic } from "../convert/diagnostic.js";
 import { pathToUri } from "../convert/uri.js";
 import { messageOf } from "../internal/messageOf.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
+import type { OpenDocuments } from "../session/documents.js";
 import { makeDocumentMemory } from "../session/documents.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
 import type { DocumentEvent } from "./documentSync.js";
@@ -36,6 +37,8 @@ export interface DiagnosticsFeature {
 	 * scheduled if it now builds.
 	 */
 	readonly onWatchedFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void>;
+	/** The open-document memory `onDocumentEvent` records into: each open buffer's current text and version, for the features that compute edits against it. */
+	readonly documents: OpenDocuments;
 }
 
 /**
@@ -219,5 +222,5 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 				yield* Effect.forEach(recovered, (handle) => handle.scheduler.schedule("full"), { discard: true });
 			});
 
-		return { onDocumentEvent, onWatchedFiles };
+		return { onDocumentEvent, onWatchedFiles, documents };
 	});

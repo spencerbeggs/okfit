@@ -23,8 +23,15 @@ export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } fr
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
-export type { EditFailure } from "./features/edits.js";
-export { describeFailure, humanActor, statusTextEdits, verifiedTextEdits } from "./features/edits.js";
+export type { EditFailure, EditTarget } from "./features/edits.js";
+export {
+	describeFailure,
+	editTarget,
+	resolveActor,
+	statusTextEdits,
+	verifiedTextEdits,
+	versionedEdit,
+} from "./features/edits.js";
 export { registerHover } from "./features/hover.js";
 export type { InlayHintPath, InlayHintSpec } from "./features/inlayHints.js";
 export { hintsFor, registerInlayHints } from "./features/inlayHints.js";
@@ -69,6 +76,7 @@ export type {
 export { CODE_ACTION_KIND_QUICKFIX, INLAY_HINT_KIND_TYPE, SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
+export type { OpenDocument, OpenDocuments } from "./session/documents.js";
 export type {
 	SessionForOptions,
 	SessionHandle,

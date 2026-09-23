@@ -165,8 +165,8 @@ export const serve = (
 		yield* registerHover(transport, registry);
 		yield* registerWorkspaceSymbols(transport, registry);
 		yield* registerConcepts(transport, registry);
-		yield* registerCodeActions(transport, registry);
-		yield* registerCommands(transport, registry);
+		yield* registerCodeActions(transport, registry, feature.documents);
+		yield* registerCommands(transport, registry, feature.documents);
 		yield* registerInlayHints(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {

@@ -101,3 +101,27 @@ export const testPlatformWithIdentity = (): Layer.Layer<SessionRegistryServices>
  */
 export const testPlatformWithGitDefect = (): Layer.Layer<SessionRegistryServices> =>
 	Layer.mergeAll(testEnv(), gitConfigGetDiesTest, gitHistoryTest);
+
+/**
+ * As {@link testPlatformWithIdentity}, but every `configGet("user.email")`
+ * call increments `counter.email` first -- one per human-actor resolution
+ * (`Derivation.generatedBy` reads `user.email` exactly once), so a test can
+ * assert how many resolutions a feature made.
+ *
+ * @public
+ */
+export const testPlatformCountingIdentity = (counter: { email: number }): Layer.Layer<SessionRegistryServices> =>
+	Layer.mergeAll(
+		testEnv(),
+		Git.layerTest({
+			configGet: (_cwd, key) => {
+				if (key === "user.email") {
+					counter.email++;
+					return Effect.succeed(Option.some(FIXTURE_IDENTITY_EMAIL));
+				}
+				if (key === "user.name") return Effect.succeed(Option.some(FIXTURE_IDENTITY_NAME));
+				return Effect.succeed(Option.none());
+			},
+		}),
+		gitHistoryTest,
+	);

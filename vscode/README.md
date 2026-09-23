@@ -41,8 +41,9 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
   it falls back to refreshing the tree from the last published result.
 - **OKF: Open Concept…** (`okfit.openConcept`) -- a quick pick over every
   concept in every live bundle, opening the picked concept's document.
-- **OKF: Set Status…** (`okfit.setStatus`) -- a quick pick over the two
-  statuses a concept does not already have, then asks the language server
+- **OKF: Set Status…** (`okfit.setStatus`) -- a quick pick over the
+  statuses a concept does not already have (all three when it has no
+  explicit `status`), then asks the language server
   to apply the frontmatter edit. Available from the Command Palette while
   the active editor is on a concept, and from the OKF Concepts view's
   item context menu.

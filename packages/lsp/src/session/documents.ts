@@ -4,13 +4,25 @@
  *
  * @packageDocumentation
  */
-import { Effect, Ref } from "effect";
+import { Effect, Option, Ref } from "effect";
 import { isUnder } from "../internal/paths.js";
 
-/** An open document's overlay text and version, as last recorded by `record`. @internal */
+/** An open document's overlay text and version, as last recorded by `record`. @public */
 export interface OpenDocument {
 	readonly text: string;
 	readonly version: number;
+}
+
+/**
+ * The read side of the open-document memory: what an edit-computing feature
+ * (code actions, commands) reads to compute against the editor's current
+ * buffer rather than the last-revalidated snapshot.
+ *
+ * @public
+ */
+export interface OpenDocuments {
+	/** `path`'s overlay as last recorded, or `None` when `path` is not open. */
+	readonly get: (path: string) => Effect.Effect<Option.Option<OpenDocument>>;
 }
 
 /**
@@ -21,7 +33,7 @@ export interface OpenDocument {
  *
  * @internal
  */
-export interface DocumentMemoryShape {
+export interface DocumentMemoryShape extends OpenDocuments {
 	/** Records (or replaces) `path`'s overlay. */
 	readonly record: (path: string, text: string, version: number) => Effect.Effect<void>;
 	/** Forgets `path`; a no-op if it was not recorded. */
@@ -53,5 +65,8 @@ export const makeDocumentMemory = (): Effect.Effect<DocumentMemoryShape> =>
 		const openUnder = (root: string): Effect.Effect<ReadonlyArray<readonly [string, OpenDocument]>> =>
 			Effect.map(Ref.get(ref), (map) => [...map.entries()].filter(([path]) => isUnder(root, path)));
 
-		return { record, forget, openUnder };
+		const get = (path: string): Effect.Effect<Option.Option<OpenDocument>> =>
+			Effect.map(Ref.get(ref), (map) => Option.fromNullishOr(map.get(path)));
+
+		return { record, forget, openUnder, get };
 	});

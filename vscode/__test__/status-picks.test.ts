@@ -6,8 +6,8 @@ describe("statusPicks", () => {
 		expect(statusPicks("stable").map((p) => p.label)).toEqual(["draft", "deprecated"]);
 	});
 
-	it("offers draft and deprecated when the concept has no status (reads as stable)", () => {
-		expect(statusPicks(undefined).map((p) => p.label)).toEqual(["draft", "deprecated"]);
+	it("offers all three when the concept has no explicit status, so stable can be made explicit", () => {
+		expect(statusPicks(undefined).map((p) => p.label)).toEqual(["draft", "stable", "deprecated"]);
 	});
 
 	it("offers stable and deprecated for a draft concept", () => {

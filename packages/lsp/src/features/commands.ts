@@ -4,7 +4,9 @@
  * `okfit.lsp.markVerified`, `okfit.lsp.revalidate`.
  *
  * `okfit.lsp.setStatus` and `okfit.lsp.markVerified` compute a `TextEdit` with
- * `features/edits.ts` (task 3), send it to the client with
+ * `features/edits.ts` against the concept's current text (the open buffer,
+ * else the file as last loaded) and send it, versioned with that buffer's
+ * version (`versionedEdit`), to the client with
  * `transport.sendRequest<ApplyWorkspaceEditParams,
  * ApplyWorkspaceEditResult>("workspace/applyEdit", ...)`, and answer with the
  * client's own result verbatim -- a transport failure of that request already
@@ -34,9 +36,17 @@ import type {
 	ExecuteCommandParams,
 	TextEdit,
 } from "../protocol/types.js";
+import type { OpenDocuments } from "../session/documents.js";
 import type { SessionRegistryShape } from "../session/registry.js";
-import type { EditFailure } from "./edits.js";
-import { describeFailure, statusTextEdits, verifiedTextEdits } from "./edits.js";
+import type { EditFailure, EditTarget } from "./edits.js";
+import {
+	describeFailure,
+	editTarget,
+	resolveActor,
+	statusTextEdits,
+	verifiedTextEdits,
+	versionedEdit,
+} from "./edits.js";
 
 /** `[uri, status]` for `okfit.lsp.setStatus`. */
 const SetStatusArgs = Schema.Tuple([Schema.String, Status]);
@@ -65,47 +75,64 @@ const toLspError = (failure: EditFailure): LspError =>
 const notAConcept: LspError = toLspError({ _tag: "NotAConcept" });
 
 /**
- * Send `edits` to the client as a single-file `workspace/applyEdit` under
- * `label`, and answer its result verbatim -- the round trip
- * `okfit.lsp.setStatus` and `okfit.lsp.markVerified` both make, differing only in
- * which edits they compute and what they label the edit.
+ * Send `edits` to the client as a single-file, versioned `workspace/applyEdit`
+ * under `label`, and answer its result verbatim -- the round trip
+ * `okfit.lsp.setStatus` and `okfit.lsp.markVerified` both make, differing
+ * only in which edits they compute and what they label the edit.
  */
 const applyConceptEdit = (
 	transport: LspTransportShape,
 	uri: string,
+	target: EditTarget,
 	label: string,
 	edits: ReadonlyArray<TextEdit>,
 ): Effect.Effect<ApplyWorkspaceEditResult, LspError> =>
 	transport.sendRequest<ApplyWorkspaceEditParams, ApplyWorkspaceEditResult>("workspace/applyEdit", {
 		label,
-		edit: { changes: { [uri]: [...edits] } },
+		edit: versionedEdit(uri, target, edits),
+	});
+
+/** The concept at `uri` as the editor currently holds it, or `notAConcept`. */
+const targetFor = (
+	registry: SessionRegistryShape,
+	documents: OpenDocuments,
+	uri: string,
+): Effect.Effect<EditTarget, LspError> =>
+	Effect.gen(function* () {
+		const path = uriToPath(uri);
+		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
+		const target = yield* editTarget(registry, documents, path.value);
+		if (Option.isNone(target)) return yield* Effect.fail(notAConcept);
+		return target.value;
 	});
 
 const handleSetStatus = (
 	registry: SessionRegistryShape,
+	documents: OpenDocuments,
 	transport: LspTransportShape,
 	args: ReadonlyArray<unknown> | undefined,
-): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
+): Effect.Effect<ApplyWorkspaceEditResult, LspError> =>
 	Effect.gen(function* () {
 		const [uri, status] = yield* decodeArgs(SetStatusArgs, args, "okfit.lsp.setStatus expects [uri, status]");
-		const path = uriToPath(uri);
-		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
-		const edits = yield* statusTextEdits(registry, path.value, status).pipe(Effect.mapError(toLspError));
-		return yield* applyConceptEdit(transport, uri, `Set status: ${status}`, edits);
+		const target = yield* targetFor(registry, documents, uri);
+		const edits = yield* statusTextEdits(target, status).pipe(Effect.mapError(toLspError));
+		return yield* applyConceptEdit(transport, uri, target, `Set status: ${status}`, edits);
 	});
 
 const handleMarkVerified = (
 	registry: SessionRegistryShape,
+	documents: OpenDocuments,
 	transport: LspTransportShape,
 	args: ReadonlyArray<unknown> | undefined,
 ): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
 	Effect.gen(function* () {
 		const [uri] = yield* decodeArgs(MarkVerifiedArgs, args, "okfit.lsp.markVerified expects [uri]");
-		const path = uriToPath(uri);
-		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
+		const target = yield* targetFor(registry, documents, uri);
+		if (target.status === "draft") return yield* Effect.fail(toLspError({ _tag: "DraftCannotBeVerified" }));
+		const actor = yield* resolveActor(target.handle).pipe(Effect.mapError(toLspError));
 		const now = yield* DateTime.now;
-		const edits = yield* verifiedTextEdits(registry, path.value, now).pipe(Effect.mapError(toLspError));
-		return yield* applyConceptEdit(transport, uri, "Mark verified", edits);
+		const edits = yield* verifiedTextEdits(target, actor, now).pipe(Effect.mapError(toLspError));
+		return yield* applyConceptEdit(transport, uri, target, "Mark verified", edits);
 	});
 
 /** Result of `okfit.lsp.revalidate`. @public */
@@ -138,14 +165,15 @@ const unknownCommand = (command: string): LspError =>
 
 const dispatch = (
 	registry: SessionRegistryShape,
+	documents: OpenDocuments,
 	transport: LspTransportShape,
 	params: ExecuteCommandParams,
 ): Effect.Effect<unknown, LspError, Git> => {
 	switch (params.command) {
 		case "okfit.lsp.setStatus":
-			return handleSetStatus(registry, transport, params.arguments);
+			return handleSetStatus(registry, documents, transport, params.arguments);
 		case "okfit.lsp.markVerified":
-			return handleMarkVerified(registry, transport, params.arguments);
+			return handleMarkVerified(registry, documents, transport, params.arguments);
 		case "okfit.lsp.revalidate":
 			return handleRevalidate(registry, params.arguments);
 		default:
@@ -155,18 +183,19 @@ const dispatch = (
 
 /**
  * Wires `workspace/executeCommand` onto `transport` for the three okfit
- * commands. See the file header for each command's argument shape, result
- * and failure mapping.
+ * commands, computing edits against `documents`' open buffers. See the file
+ * header for each command's argument shape, result and failure mapping.
  *
  * @public
  */
 export const registerCommands = (
 	transport: LspTransportShape,
 	registry: SessionRegistryShape,
+	documents: OpenDocuments,
 ): Effect.Effect<void, never, Git> =>
 	Effect.gen(function* () {
 		const context = yield* Effect.context<Git>();
 		yield* transport.onRequest<ExecuteCommandParams, unknown>("workspace/executeCommand", (params) =>
-			dispatch(registry, transport, params).pipe(Effect.provideContext(context)),
+			dispatch(registry, documents, transport, params).pipe(Effect.provideContext(context)),
 		);
 	});

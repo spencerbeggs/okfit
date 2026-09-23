@@ -3,8 +3,10 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import type { ApplyWorkspaceEditParams, ApplyWorkspaceEditResult } from "../../src/protocol/types.js";
+import type { ServeHarness } from "../utils/harness.js";
 import { makeServeHarness, request } from "../utils/harness.js";
 import { testPlatform, testPlatformWithIdentity } from "../utils/platform.js";
+import { applyTextEdit, singleDocumentEdit } from "../utils/textEdits.js";
 
 /**
  * `registerCommands`, task 4 of the LSP-actions plan. Against a full
@@ -44,45 +46,6 @@ ${GENERATED}
 # Draft Concept
 `;
 
-interface Position {
-	readonly line: number;
-	readonly character: number;
-}
-
-/** Applies one `TextEdit` (as `toLspRange` computed it) to `text`, converting line/character back to an offset -- mirrors `actions.test.ts`'s own helper. */
-const applyEdit = (
-	text: string,
-	edit: { readonly range: { readonly start: Position; readonly end: Position }; readonly newText: string },
-): string => {
-	const toOffset = (position: Position): number => {
-		let offset = 0;
-		let line = 0;
-		while (line < position.line && offset < text.length) {
-			const code = text.charCodeAt(offset);
-			if (code === 0x0d) {
-				offset++;
-				if (text.charCodeAt(offset) === 0x0a) offset++;
-				line++;
-			} else if (code === 0x0a) {
-				offset++;
-				line++;
-			} else {
-				offset++;
-			}
-		}
-		const lineStart = offset;
-		while (offset < text.length && offset - lineStart < position.character) {
-			const code = text.charCodeAt(offset);
-			if (code === 0x0d || code === 0x0a) break;
-			offset++;
-		}
-		return offset;
-	};
-	const start = toOffset(edit.range.start);
-	const end = toOffset(edit.range.end);
-	return text.slice(0, start) + edit.newText + text.slice(end);
-};
-
 const executeCommand = <R>(client: Parameters<typeof request>[0], command: string, args: ReadonlyArray<unknown>) =>
 	request<R>(client, "workspace/executeCommand", { command, arguments: args });
 
@@ -92,6 +55,13 @@ const executeCommandFailure = (client: Parameters<typeof request>[0], command: s
 		try: () => client.sendRequest("workspace/executeCommand", { command, arguments: args }),
 		catch: (error) => error as { readonly code: number; readonly message: string },
 	}).pipe(Effect.flip);
+
+/** The `WorkspaceEdit` of the `index`th `workspace/applyEdit` the harness's client received. */
+const appliedEdit = (h: ServeHarness, index: number): ApplyWorkspaceEditParams["edit"] => {
+	const received = h.serverRequests[index];
+	if (received === undefined) throw new Error(`no server request #${index}`);
+	return (received.params as ApplyWorkspaceEditParams).edit;
+};
 
 describe("registerCommands", () => {
 	it.live(
@@ -115,10 +85,12 @@ describe("registerCommands", () => {
 				const [applyEdit1] = h.serverRequests;
 				assert.strictEqual(applyEdit1?.method, "workspace/applyEdit");
 				const params = applyEdit1?.params as ApplyWorkspaceEditParams;
-				const edits = params.edit.changes?.[uri];
-				assert.isDefined(edits);
-				assert.strictEqual(edits?.length, 1);
-				assert.include(applyEdit(STABLE_SOURCE, edits?.[0] as (typeof edits)[number]), "status: deprecated");
+				const change = singleDocumentEdit(params.edit, uri);
+				assert.strictEqual(change.version, 1);
+				assert.strictEqual(
+					applyTextEdit(STABLE_SOURCE, change.edit),
+					STABLE_SOURCE.replace("title: Stable Concept\n", "title: Stable Concept\nstatus: deprecated\n"),
+				);
 			}).pipe(Effect.scoped),
 	);
 
@@ -173,9 +145,46 @@ describe("registerCommands", () => {
 				assert.strictEqual(h.serverRequests.length, 1);
 				const [applyEdit1] = h.serverRequests;
 				const params = applyEdit1?.params as ApplyWorkspaceEditParams;
-				const edits = params.edit.changes?.[uri];
-				assert.isDefined(edits);
-				assert.include(applyEdit(STABLE_SOURCE, edits?.[0] as (typeof edits)[number]), "human:");
+				const change = singleDocumentEdit(params.edit, uri);
+				assert.strictEqual(change.version, 1);
+				assert.include(applyTextEdit(STABLE_SOURCE, change.edit), "human:");
+			}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"a buffer changed within the debounce window: setStatus then markVerified compute against the new text and carry its version, and a second markVerified sees the first",
+		() =>
+			Effect.gen(function* () {
+				// A debounce far longer than the test: no change below is revalidated, so the session's snapshot
+				// still holds the opened text throughout while the buffer moves on.
+				const h = yield* makeServeHarness({ platform: identityPlatform, delay: "400 millis" });
+				yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
+				yield* h.initialize;
+				yield* h.open("okf/modules/stable.md");
+				yield* h.nextPublish();
+				const uri = h.uriOf("okf/modules/stable.md");
+
+				yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.setStatus", [uri, "deprecated"]);
+				const statusChange = singleDocumentEdit(appliedEdit(h, 0), uri);
+				// The client applies the edit: the buffer gains a line above where `verified` goes.
+				const afterStatus = applyTextEdit(STABLE_SOURCE, statusChange.edit);
+				yield* h.change("okf/modules/stable.md", afterStatus, 2);
+				yield* Effect.sleep("50 millis");
+
+				yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.markVerified", [uri]);
+				const verifyChange = singleDocumentEdit(appliedEdit(h, 1), uri);
+				assert.strictEqual(verifyChange.version, 2);
+				const afterVerify = applyTextEdit(afterStatus, verifyChange.edit);
+				assert.match(
+					afterVerify,
+					/\nstatus: deprecated\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\n---\n/,
+				);
+				yield* h.change("okf/modules/stable.md", afterVerify, 3);
+				yield* Effect.sleep("50 millis");
+
+				const failure = yield* executeCommandFailure(h.client, "okfit.lsp.markVerified", [uri]);
+				assert.strictEqual(failure.message, "already verified by human:fixture-author");
+				assert.strictEqual(h.serverRequests.length, 2);
 			}).pipe(Effect.scoped),
 	);
 

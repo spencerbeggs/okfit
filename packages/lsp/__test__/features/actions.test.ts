@@ -2,9 +2,11 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import type { CodeAction, CodeActionParams, LspDiagnostic } from "../../src/protocol/types.js";
+import type { CodeAction, CodeActionParams, LspDiagnostic, Range } from "../../src/protocol/types.js";
+import type { ServeHarness } from "../utils/harness.js";
 import { makeServeHarness, request } from "../utils/harness.js";
-import { testPlatform, testPlatformWithIdentity } from "../utils/platform.js";
+import { testPlatform, testPlatformCountingIdentity, testPlatformWithIdentity } from "../utils/platform.js";
+import { applyTextEdit, singleDocumentEdit } from "../utils/textEdits.js";
 
 /**
  * `registerCodeActions`, task 3 of the LSP-actions plan. Against a full
@@ -79,151 +81,109 @@ ${GENERATED}
 # Bom Concept
 `;
 
-/** Applies one `TextEdit` (as `toLspRange` computed it) to `text`, converting line/character back to an offset the same way `offsetOf` does. */
-const applyEdit = (
-	text: string,
-	edit: { readonly range: { readonly start: Position; readonly end: Position }; readonly newText: string },
-): string => {
-	const toOffset = (position: Position): number => {
-		let offset = 0;
-		let line = 0;
-		while (line < position.line && offset < text.length) {
-			const code = text.charCodeAt(offset);
-			if (code === 0x0d) {
-				offset++;
-				if (text.charCodeAt(offset) === 0x0a) offset++;
-				line++;
-			} else if (code === 0x0a) {
-				offset++;
-				line++;
-			} else {
-				offset++;
-			}
-		}
-		const lineStart = offset;
-		while (offset < text.length && offset - lineStart < position.character) {
-			const code = text.charCodeAt(offset);
-			if (code === 0x0d || code === 0x0a) break;
-			offset++;
-		}
-		return offset;
-	};
-	const start = toOffset(edit.range.start);
-	const end = toOffset(edit.range.end);
-	return text.slice(0, start) + edit.newText + text.slice(end);
-};
+/** Line 0, character 0: inside every fixture's frontmatter (the opening fence). */
+const FRONTMATTER: Range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
 
-interface Position {
-	readonly line: number;
-	readonly character: number;
-}
+/** A position inside every fixture's body, well past the closing fence. */
+const BODY: Range = { start: { line: 9, character: 0 }, end: { line: 9, character: 0 } };
 
 const requestCodeAction = (
 	client: Parameters<typeof request>[0],
 	uri: string,
-	diagnostics: ReadonlyArray<LspDiagnostic> = [],
+	options: {
+		readonly range?: Range;
+		readonly diagnostics?: ReadonlyArray<LspDiagnostic>;
+		readonly only?: ReadonlyArray<string>;
+	} = {},
 ) =>
 	request<ReadonlyArray<CodeAction>>(client, "textDocument/codeAction", {
 		textDocument: { uri },
-		range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
-		context: { diagnostics: [...diagnostics] },
+		range: options.range ?? FRONTMATTER,
+		context: {
+			diagnostics: [...(options.diagnostics ?? [])],
+			...(options.only === undefined ? {} : { only: [...options.only] }),
+		},
 	} satisfies CodeActionParams);
 
 const titleOf = (action: CodeAction): string => action.title;
-const changeOf = (action: CodeAction, uri: string) => {
-	const edits = action.edit?.changes?.[uri];
-	if (edits === undefined || edits.length !== 1) throw new Error(`expected exactly one TextEdit on ${action.title}`);
-	return edits[0];
-};
+
+/** `action`'s one versioned document change for `uri`. */
+const changeOf = (action: CodeAction, uri: string) => singleDocumentEdit(action.edit, uri);
+
+/** `[title, kind, isPreferred]` per action, in order: the whole observable action set at a glance. */
+const shapeOf = (actions: ReadonlyArray<CodeAction>) =>
+	actions.map((action) => [action.title, action.kind, action.isPreferred === true] as const);
+
+/** Opens `relative` (written with `source` first) and waits for its first publish. */
+const openConcept = (h: ServeHarness, relative: string, source: string) =>
+	Effect.gen(function* () {
+		yield* Effect.promise(() => writeFile(join(h.root, relative), source, "utf8"));
+		yield* h.initialize;
+		yield* h.open(relative);
+		yield* h.nextPublish();
+		return h.uriOf(relative);
+	});
 
 describe("registerCodeActions", () => {
 	it.live(
-		"a stable concept offers `Set status: draft`/`Set status: deprecated` and `Mark verified by <actor>`, never `Set status: stable` (positive control for the verify action)",
+		"a concept with no explicit status offers all three statuses and `Mark verified by <actor>`, each a versioned edit (positive control for the verify action)",
 		() =>
 			Effect.gen(function* () {
 				const h = yield* makeServeHarness({ platform: identityPlatform });
-				yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
-				yield* h.initialize;
-				yield* h.open("okf/modules/stable.md");
-				yield* h.nextPublish();
-
-				const uri = h.uriOf("okf/modules/stable.md");
+				const uri = yield* openConcept(h, "okf/modules/stable.md", STABLE_SOURCE);
 				const actions = yield* requestCodeAction(h.client, uri);
 
-				assert.deepStrictEqual(
-					actions.map(titleOf).sort(),
-					["Mark verified by human:fixture-author", "Set status: deprecated", "Set status: draft"].sort(),
+				assert.deepStrictEqual(shapeOf(actions), [
+					["Set status: draft", "okfit.status", false],
+					["Set status: stable", "okfit.status", false],
+					["Set status: deprecated", "okfit.status", false],
+					["Mark verified by human:fixture-author", "okfit.verify", false],
+				]);
+				for (const action of actions) assert.strictEqual(changeOf(action, uri).version, 1);
+
+				const stable = changeOf(actions[1] as CodeAction, uri);
+				assert.strictEqual(
+					applyTextEdit(STABLE_SOURCE, stable.edit),
+					STABLE_SOURCE.replace("title: Stable Concept\n", "title: Stable Concept\nstatus: stable\n"),
 				);
-				assert.isFalse(actions.some((action) => action.title === "Set status: stable"));
-
-				const draft = actions.find((action) => action.title === "Set status: draft");
-				assert.isDefined(draft);
-				assert.strictEqual(draft?.kind, "okfit.status");
-				const draftEdit = changeOf(draft as CodeAction, uri);
-				assert.include(applyEdit(STABLE_SOURCE, draftEdit), "status: draft");
-
-				const deprecated = actions.find((action) => action.title === "Set status: deprecated");
-				assert.strictEqual(deprecated?.kind, "okfit.status");
-				const deprecatedEdit = changeOf(deprecated as CodeAction, uri);
-				assert.include(applyEdit(STABLE_SOURCE, deprecatedEdit), "status: deprecated");
-
-				const verify = actions.find((action) => action.title.startsWith("Mark verified by"));
-				assert.strictEqual(verify?.kind, "okfit.verify");
-				const verifyEdit = changeOf(verify as CodeAction, uri);
-				assert.include(applyEdit(STABLE_SOURCE, verifyEdit), FIXTURE_ACTOR);
+				const verify = changeOf(actions[3] as CodeAction, uri);
+				assert.include(applyTextEdit(STABLE_SOURCE, verify.edit), FIXTURE_ACTOR);
 			}).pipe(Effect.scoped),
 	);
 
-	it.live("git identity absent: status actions present, `Mark verified` absent (the default case)", () =>
+	it.live("git identity absent: the three status actions, no `Mark verified` (the default case)", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: noIdentityPlatform });
-			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
-			yield* h.initialize;
-			yield* h.open("okf/modules/stable.md");
-			yield* h.nextPublish();
-
-			const uri = h.uriOf("okf/modules/stable.md");
+			const uri = yield* openConcept(h, "okf/modules/stable.md", STABLE_SOURCE);
 			const actions = yield* requestCodeAction(h.client, uri);
-
-			assert.deepStrictEqual(actions.map(titleOf).sort(), ["Set status: deprecated", "Set status: draft"].sort());
+			assert.deepStrictEqual(actions.map(titleOf), [
+				"Set status: draft",
+				"Set status: stable",
+				"Set status: deprecated",
+			]);
 		}).pipe(Effect.scoped),
 	);
 
 	it.live("a draft concept offers `stable`/`deprecated`, never `Mark verified`", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
-			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "draft.md"), DRAFT_SOURCE, "utf8"));
-			yield* h.initialize;
-			yield* h.open("okf/modules/draft.md");
-			yield* h.nextPublish();
-
-			const uri = h.uriOf("okf/modules/draft.md");
+			const uri = yield* openConcept(h, "okf/modules/draft.md", DRAFT_SOURCE);
 			const actions = yield* requestCodeAction(h.client, uri);
-
-			assert.deepStrictEqual(actions.map(titleOf).sort(), ["Set status: deprecated", "Set status: stable"].sort());
+			assert.deepStrictEqual(actions.map(titleOf), ["Set status: stable", "Set status: deprecated"]);
 		}).pipe(Effect.scoped),
 	);
 
 	it.live("a concept already verified by the resolved actor offers no `Mark verified` action", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
-			yield* Effect.promise(() =>
-				writeFile(join(h.root, "okf", "modules", "verified.md"), ALREADY_VERIFIED_SOURCE, "utf8"),
-			);
-			yield* h.initialize;
-			yield* h.open("okf/modules/verified.md");
-			yield* h.nextPublish();
-
-			const uri = h.uriOf("okf/modules/verified.md");
+			const uri = yield* openConcept(h, "okf/modules/verified.md", ALREADY_VERIFIED_SOURCE);
 			const actions = yield* requestCodeAction(h.client, uri);
-
-			assert.isFalse(actions.some((action) => action.title.startsWith("Mark verified")));
-			assert.deepStrictEqual(actions.map(titleOf).sort(), ["Set status: deprecated", "Set status: draft"].sort());
+			assert.deepStrictEqual(actions.map(titleOf), ["Set status: draft", "Set status: deprecated"]);
 		}).pipe(Effect.scoped),
 	);
 
 	it.live(
-		"a `status-missing` diagnostic in context promotes the status actions to `quickfix`, attaches the diagnostic, and prefers `draft` (positive control above proves `okfit.status` is the default kind)",
+		"a `status-missing` diagnostic: quick fixes `draft` (preferred) and `stable` anywhere, plus `deprecated` as a status action in the frontmatter",
 		() =>
 			Effect.gen(function* () {
 				const h = yield* makeServeHarness({ platform: noIdentityPlatform });
@@ -244,44 +204,100 @@ describe("registerCodeActions", () => {
 					(statusMissing as { readonly data?: { readonly source?: string } }).data?.source,
 					"core.lint",
 				);
-
+				const diagnostics = [statusMissing as unknown as LspDiagnostic];
 				const uri = h.uriOf("okf/modules/stable.md");
-				const actions = yield* requestCodeAction(h.client, uri, [statusMissing as unknown as LspDiagnostic]);
 
-				const statusActions = actions.filter((action) => action.title.startsWith("Set status:"));
-				assert.strictEqual(statusActions.length, 2);
-				for (const action of statusActions) {
-					assert.strictEqual(action.kind, "quickfix");
-					assert.deepStrictEqual(action.diagnostics, [statusMissing as unknown as LspDiagnostic]);
-					assert.strictEqual(action.isPreferred === true, action.title === "Set status: draft");
-				}
+				const inFrontmatter = yield* requestCodeAction(h.client, uri, { diagnostics });
+				assert.deepStrictEqual(shapeOf(inFrontmatter), [
+					["Set status: draft", "quickfix", true],
+					["Set status: stable", "quickfix", false],
+					["Set status: deprecated", "okfit.status", false],
+				]);
+				for (const action of inFrontmatter.slice(0, 2)) assert.deepStrictEqual(action.diagnostics, diagnostics);
+
+				const inBody = yield* requestCodeAction(h.client, uri, { diagnostics, range: BODY });
+				assert.deepStrictEqual(shapeOf(inBody), [
+					["Set status: draft", "quickfix", true],
+					["Set status: stable", "quickfix", false],
+				]);
 			}).pipe(Effect.scoped),
 	);
 
-	it.live("a document edited after it was opened: the status edit's range still targets the live `status:` line", () =>
-		Effect.gen(function* () {
-			const h = yield* makeServeHarness({ platform: noIdentityPlatform });
-			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
-			yield* h.initialize;
-			yield* h.open("okf/modules/stable.md");
-			yield* h.nextPublish();
+	it.live(
+		"a body-range request with no diagnostics answers `[]`; `context.only` naming a kind offers it anywhere (frontmatter-range positive control above)",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness({ platform: identityPlatform });
+				const uri = yield* openConcept(h, "okf/modules/stable.md", STABLE_SOURCE);
 
-			const changed = STABLE_SOURCE.replace(
-				"Used only by `registerCodeActions`'s own tests.",
-				"Used only by `registerCodeActions`'s own tests.\n\nAn extra paragraph shifts every later offset.",
-			);
-			yield* h.change("okf/modules/stable.md", changed, 2);
-			// The appended paragraph changes nothing diagnostically, so no second publish fires (only a
-			// changed diagnostic set republishes); wait out the scheduler's debounce instead.
-			yield* Effect.sleep("200 millis");
+				assert.deepStrictEqual(yield* requestCodeAction(h.client, uri, { range: BODY }), []);
+				assert.deepStrictEqual(
+					(yield* requestCodeAction(h.client, uri, { range: BODY, only: ["okfit.verify"] })).map(titleOf),
+					["Mark verified by human:fixture-author"],
+				);
+				assert.deepStrictEqual(
+					(yield* requestCodeAction(h.client, uri, { range: BODY, only: ["okfit"] })).map(titleOf),
+					[
+						"Set status: draft",
+						"Set status: stable",
+						"Set status: deprecated",
+						"Mark verified by human:fixture-author",
+					],
+				);
+				assert.deepStrictEqual(yield* requestCodeAction(h.client, uri, { only: ["quickfix"] }), []);
+			}).pipe(Effect.scoped),
+	);
 
-			const uri = h.uriOf("okf/modules/stable.md");
-			const actions = yield* requestCodeAction(h.client, uri);
-			const draft = actions.find((action) => action.title === "Set status: draft");
-			assert.isDefined(draft);
-			const edit = changeOf(draft as CodeAction, uri);
-			assert.include(applyEdit(changed, edit), "status: draft");
-		}).pipe(Effect.scoped),
+	it.live(
+		"the human actor is resolved once for the first frontmatter request, cached after, and never for a body request",
+		() =>
+			Effect.gen(function* () {
+				const counter = { email: 0 };
+				const h = yield* makeServeHarness({ platform: testPlatformCountingIdentity(counter) });
+				const uri = yield* openConcept(h, "okf/modules/stable.md", STABLE_SOURCE);
+				const before = counter.email;
+
+				yield* requestCodeAction(h.client, uri, { range: BODY });
+				assert.strictEqual(counter.email - before, 0);
+				const first = yield* requestCodeAction(h.client, uri);
+				assert.isTrue(first.some((action) => action.kind === "okfit.verify"));
+				assert.strictEqual(counter.email - before, 1);
+				yield* requestCodeAction(h.client, uri);
+				assert.strictEqual(counter.email - before, 1);
+			}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"a buffer changed within the debounce window: edits are computed against the new text and carry its version",
+		() =>
+			Effect.gen(function* () {
+				// A debounce far longer than the test: the change below is never revalidated, so the session's
+				// snapshot still holds the opened text while the buffer has moved on.
+				const h = yield* makeServeHarness({ platform: identityPlatform, delay: "400 millis" });
+				const uri = yield* openConcept(h, "okf/modules/stable.md", STABLE_SOURCE);
+
+				// One new line above `title:` (shifting the status insert down a line) and a `verified` entry
+				// by the resolved actor (which the stale snapshot does not have).
+				const changed = STABLE_SOURCE.replace(
+					"type: Module\n",
+					`type: Module\nresource: stable.md\nverified:\n  - by: "${FIXTURE_ACTOR}"\n    at: "2026-01-01T00:00:00Z"\n`,
+				);
+				yield* h.change("okf/modules/stable.md", changed, 2);
+				yield* Effect.sleep("50 millis");
+
+				const actions = yield* requestCodeAction(h.client, uri);
+				assert.deepStrictEqual(actions.map(titleOf), [
+					"Set status: draft",
+					"Set status: stable",
+					"Set status: deprecated",
+				]);
+				const draft = changeOf(actions[0] as CodeAction, uri);
+				assert.strictEqual(draft.version, 2);
+				assert.strictEqual(
+					applyTextEdit(changed, draft.edit),
+					changed.replace("title: Stable Concept\n", "title: Stable Concept\nstatus: draft\n"),
+				);
+			}).pipe(Effect.scoped),
 	);
 
 	it.live("a non-concept file under the folder answers `[]` (positive control above)", () =>
@@ -302,12 +318,7 @@ describe("registerCodeActions", () => {
 		() =>
 			Effect.gen(function* () {
 				const h = yield* makeServeHarness({ platform: noIdentityPlatform });
-				yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "flow.md"), FLOW_SOURCE, "utf8"));
-				yield* h.initialize;
-				yield* h.open("okf/modules/flow.md");
-				yield* h.nextPublish();
-
-				const uri = h.uriOf("okf/modules/flow.md");
+				const uri = yield* openConcept(h, "okf/modules/flow.md", FLOW_SOURCE);
 				const actions = yield* requestCodeAction(h.client, uri);
 				assert.deepStrictEqual(
 					actions.filter((action) => action.title.startsWith("Set status:")),

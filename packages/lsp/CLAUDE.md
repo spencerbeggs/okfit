@@ -56,8 +56,10 @@ src/
                        WorkspaceSymbol*, SymbolInformation, ...) plus the
                        numeric constant SYMBOL_KIND_OBJECT (19, SymbolKind.Object)
   session/
-    documents.ts    -- DocumentMemoryShape, makeDocumentMemory (@internal,
-                       not in the barrel): a
+    documents.ts    -- OpenDocument, OpenDocuments (@public: the read-only
+                       get(path) view code actions and commands compute
+                       edits against); DocumentMemoryShape,
+                       makeDocumentMemory (@internal, not in the barrel): a
                        registry-wide Ref<Map<absolutePath, {text, version}>>
                        of open documents, keyed by absolute path (ownership
                        shifts with the workspace folder set, so this is not
@@ -134,8 +136,10 @@ src/
                        forgets it, and is what the registry's onDispose is
                        built from.
                        makeDiagnosticsFeature(registry): builds
-                       DiagnosticsFeature { onDocumentEvent, onWatchedFiles
-                       }, owning a session/documents.ts DocumentMemoryShape
+                       DiagnosticsFeature { onDocumentEvent, onWatchedFiles,
+                       documents }, owning a session/documents.ts
+                       DocumentMemoryShape (exposed read-only as
+                       `documents`)
                        so a config-change rebuild can carry every open
                        document's overlay into the fresh session before
                        scheduling its full revalidate. The publisher is
@@ -175,17 +179,19 @@ src/
                        INITIALIZE_RESULT.capabilities, shared with the
                        features that implement them and copied into the VS
                        Code extension
-    edits.ts        -- EditFailure, statusTextEdits, verifiedTextEdits,
-                       humanActor, describeFailure: the edit machinery
-                       actions.ts and commands.ts share -- TextEdits for a
-                       concept's status or verified entry, and human-actor
-                       resolution; also conceptSnapshot (@internal, not in
-                       the barrel), the registry -> {concept, config,
-                       projectRoot} lookup both draw on (see Code actions
-                       below)
-    actions.ts      -- registerCodeActions(transport, registry):
+    edits.ts        -- EditFailure, EditTarget, editTarget, statusTextEdits,
+                       verifiedTextEdits, resolveActor, versionedEdit,
+                       describeFailure: the edit machinery actions.ts and
+                       commands.ts share -- one request's target (current
+                       buffer text and version), TextEdits for a concept's
+                       status or verified entry, human-actor resolution and
+                       the versioned WorkspaceEdit; also conceptSnapshot
+                       (@internal, not in the barrel), the registry ->
+                       {concept, config, projectRoot} lookup inlayHints.ts
+                       draws on (see Code actions below)
+    actions.ts      -- registerCodeActions(transport, registry, documents):
                        textDocument/codeAction (see Code actions below)
-    commands.ts     -- registerCommands(transport, registry): workspace/
+    commands.ts     -- registerCommands(transport, registry, documents): workspace/
                        executeCommand, RevalidateResult (see Commands below)
     inlayHints.ts   -- registerInlayHints(transport, registry):
                        textDocument/inlayHint; the pure hintsFor(concept, now)
@@ -359,66 +365,75 @@ implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
 ## Code actions
 
 `registerCodeActions` (`src/features/actions.ts`) wires `textDocument/
-codeAction` onto the transport, answering from the requested file's owning
-session's last-loaded concept -- a missing session, an unloaded bundle, a
-non-`file:` URI, or a path outside every bundle root all answer `[]`, never
-a hang, same posture as hover and navigation. Every edit it offers is
-computed by `src/features/edits.ts`, the module `src/features/commands.ts`
-(Commands below) also shares:
+codeAction` onto the transport. A missing session, an unloaded bundle, a
+non-`file:` URI, a path outside every bundle root, or a buffer whose
+frontmatter no longer parses all answer `[]`, never a hang, same posture as
+hover and navigation. Every edit it offers is computed by
+`src/features/edits.ts`, the module `src/features/commands.ts` (Commands
+below) also shares:
 
-- `conceptSnapshot(registry, path)` (`@internal`, not in the barrel) mirrors
-  `hover.ts`'s `snapshotFor`, but answers `{ concept, config, projectRoot }`
-  for the concept at `path` rather than hover's bundle/graph pair;
-  `projectRoot` is `handle.folder` -- the workspace folder whose config
-  resolution built the owning session -- never `bundleRoot` (V-7's
-  `generatedBy` cwd).
-- `statusTextEdits(registry, path, status)` and `verifiedTextEdits(registry,
-  path, now)` wrap `@okfit/engine`'s `FrontmatterEdits.status`/`.verified`:
-  each `MarkdownEdit`'s whole-file offset into `concept.document.source` is
-  converted to an LSP range with `DiagnosticRange.fromOffset` then
-  `toLspRange`, against that same `source` -- no BOM adjustment, because a
-  file whose bytes open with a BOM never decodes as a concept at all
-  (`frontmatter-missing`, since core never strips one before scanning for
-  the opening fence): `document.source` can therefore never itself carry a
-  leading BOM, and every offset `FrontmatterEdits` returns already lines up
-  with it directly (`__test__/features/actions.test.ts`'s BOM case proves
-  this rather than a BOM-adjusted offset). `verifiedTextEdits` fails
-  `DraftCannotBeVerified` for a draft concept and `AlreadyVerified` when the
-  resolved actor already carries a `verified` entry; both wrap
-  `Derivation.generatedBy({ writer: "human", cwd: projectRoot, config })`
-  and fail `ActorUnresolved` when it does.
-- `humanActor(registry, path)` resolves the same actor
-  `verifiedTextEdits` would, answering `Option.none()` instead of failing --
-  a code action's title needs to know whether a human actor resolves at all
-  before it can decide whether to offer `Mark verified`. Only
-  `generatedBy`'s typed `GeneratedByError` channel maps to `Option.none()`
-  (`Effect.catch`, not `Effect.catchCause`): a defect (a git subprocess
-  crash) or an interrupt still propagates rather than being read as "no
-  actor". A resolution failure is logged once per project root, at
-  `logDebug`, never to stdout (a module-level `Set` tracks which roots have
-  already logged).
+- `editTarget(registry, documents, path)` resolves one request's
+  `EditTarget`, once per request: the concept must exist in its session's
+  last-loaded snapshot, but every edit is computed against its **current**
+  text -- `documents.get(path)`'s open buffer (the diagnostics feature's
+  document memory, `DiagnosticsFeature.documents`) when there is one, else
+  the file as the last revalidate loaded it. The snapshot lags a keystroke
+  by the scheduler's debounce plus a whole-bundle load; splicing at its
+  offsets corrupted a buffer that had moved on (final review I1). The raw
+  `status` and every `verified[].by` are read from that same text
+  (`FrontmatterSource.split` + `YamlDocument.parse(...).toValue()`), as is
+  the frontmatter block's LSP range. `version` is the buffer's version, or
+  `null` for a document that is not open.
+- `versionedEdit(uri, target, edits)` wraps the edits as `documentChanges:
+  [{ textDocument: { uri, version }, edits }]`, never unversioned `changes`,
+  so a client whose buffer changed after the request refuses the edit
+  instead of applying it at stale offsets.
+- `statusTextEdits(target, status)` and `verifiedTextEdits(target, actor,
+  now)` wrap `@okfit/engine`'s `FrontmatterEdits.status`/`.verified`: each
+  `MarkdownEdit`'s whole-file offset into `target.text` becomes an LSP range
+  with `DiagnosticRange.fromOffset` then `toLspRange` over that same text --
+  no BOM adjustment, because a file whose bytes open with a BOM never
+  decodes as a concept at all (`frontmatter-missing`), which
+  `__test__/features/actions.test.ts`'s BOM case proves. `verifiedTextEdits`
+  fails `DraftCannotBeVerified` for a draft and `AlreadyVerified` when
+  `actor` already carries a `verified` entry -- `okfit verify --batch`'s
+  skip rules, not the single-concept `okfit verify <id>`'s.
+- `resolveActor(handle)` wraps `Derivation.generatedBy({ writer: "human",
+  cwd: handle.folder, config })` (`handle.folder`, never `bundleRoot`: V-7's
+  cwd) and fails `ActorUnresolved` on its typed failure only; a defect (a
+  git subprocess crash) or an interrupt still propagates.
 - `describeFailure(failure)` renders any `EditFailure` as a short message,
-  what `commands.ts`'s `okfit.lsp.setStatus`/`okfit.lsp.markVerified` handlers surface
-  as an `LspError`'s message when an edit could not be computed;
-  `registerCodeActions` itself never surfaces one -- a failed edit just means
-  that action is omitted (`Effect.option` around every
-  `statusTextEdits`/`verifiedTextEdits` call).
+  what `commands.ts` surfaces as an `LspError`'s message; a code action
+  never surfaces one -- a failed edit just omits that action.
 
-`registerCodeActions` offers one `Set status: <status>` action (kind
-`okfit.status`) per `Status` literal the concept is not already in, in
-`Status`'s own literal order (`draft`, `stable`, `deprecated` --
-`Derive.status`'s `"stable"` default when the frontmatter key is absent
-counts as the concept's status here), and one `Mark verified by <actor>`
-action (kind `okfit.verify`) when `humanActor` resolves and
-`verifiedTextEdits` succeeds. When `params.context.diagnostics` carries a
-`status-missing` diagnostic (`code === "status-missing"` and, when the
-diagnostic carries `data`, `data.source === "core.lint"` --
-`convert/diagnostic.ts`'s own shape), every status action is promoted to
-kind `quickfix`, carries that diagnostic in its own `diagnostics`, and the
-`draft` action alone is `isPreferred`. `registerCodeActions` requires `Git`
-in its own `R` (`Derivation.generatedBy`'s requirement); it captures its
-context once, the same pattern `session/registry.ts` uses, so the handler
-passed to `transport.onRequest` itself needs none.
+The action set, in order:
+
+- **Quick fixes.** On a `status-missing` diagnostic in
+  `params.context.diagnostics` (`code === "status-missing"` and, when it
+  carries `data`, `data.source === "core.lint"`): `Set status: draft`
+  (`isPreferred`) and `Set status: stable`, kind `quickfix`, each carrying
+  that diagnostic. Offered wherever the request range sits (the client only
+  sends an overlapping diagnostic), unless `context.only` excludes
+  `quickfix`.
+- **Status actions** (kind `okfit.status`): `Set status: <status>` for each
+  status the raw frontmatter `status` is not already -- all three when there
+  is no explicit status, so an implicit `stable` can be made explicit -- in
+  `Status`'s literal order, minus any a quick fix already offers.
+- **Verify action** (kind `okfit.verify`): `Mark verified by <actor>` when
+  the actor resolves and `verifiedTextEdits` succeeds.
+
+The status and verify actions are offered only when `params.range`
+intersects the frontmatter block (opening fence through closing fence) or
+`context.only` names their kind (hierarchically: `okfit` names both); a
+cursor in body prose gets no lightbulb and spawns no git subprocess. The
+actor is resolved at most once per request and cached per `SessionHandle`
+in the feature's own `WeakMap` -- a config-change rebuild installs a fresh
+handle, so it gets a fresh lookup. A failed resolution is not cached (fixing
+git identity takes effect on the next request) and is logged at `logDebug`
+once per handle, never to stdout. `registerCodeActions` requires `Git` in
+its own `R`; it captures its context once, the same pattern
+`session/registry.ts` uses, so the handler passed to `transport.onRequest`
+itself needs none.
 
 ## Commands
 
@@ -437,8 +452,9 @@ naming the expected shape (`-32602`), and an unrecognized command id fails
 naming it (`-32601`).
 
 - **`okfit.lsp.setStatus`** -- args `[uri, status]`
-  (`Schema.Tuple([Schema.String, Status])`). Computes `statusTextEdits`,
-  sends it to the client with `transport.sendRequest<ApplyWorkspaceEditParams,
+  (`Schema.Tuple([Schema.String, Status])`). Resolves the `EditTarget`
+  (the open buffer, else the loaded file; `NotAConcept` otherwise), computes
+  `statusTextEdits`, sends it as a `versionedEdit` to the client with `transport.sendRequest<ApplyWorkspaceEditParams,
   ApplyWorkspaceEditResult>("workspace/applyEdit", { label, edit })`, and
   answers the client's own `ApplyWorkspaceEditResult` verbatim -- a `{
   applied: false, failureReason }` the client returns is not an `LspError`,
@@ -447,9 +463,12 @@ naming it (`-32601`).
   whose message is `describeFailure(failure)`, under `-32803` ("request
   failed").
 - **`okfit.lsp.markVerified`** -- args `[uri]` (`Schema.Tuple([Schema.String])`).
-  Same `workspace/applyEdit` round trip, over `verifiedTextEdits(registry,
-  path, now)` (`now` read once per request with `DateTime.now`, the same
-  posture as `registerCodeActions`).
+  Same `workspace/applyEdit` round trip, over `verifiedTextEdits(target,
+  actor, now)` with the actor from `resolveActor` (uncached: an explicit
+  command always reads git afresh) and `now` read once per request with
+  `DateTime.now`. The draft and already-verified checks read the same
+  current text, so a second quick Mark verified sees the first's entry once
+  the client has applied it.
 - **`okfit.lsp.revalidate`** -- args `[rootUri?]`, an optional single-string
   tuple (`Schema.Tuple([Schema.optionalKey(Schema.String)])`) so the client
   may send `[]` or omit `arguments` entirely. `rootUri` present: schedules a

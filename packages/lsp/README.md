@@ -106,6 +106,11 @@ client from starting.
   the root URIs it revalidated -- `{ roots: [] }` for a root no live session
   resolves to.
 
+Both edit commands, and the code actions, compute their edit against the
+document's current editor text (or the file on disk when it is not open) and
+send it as a versioned `documentChanges` entry, so a client whose buffer has
+changed since refuses the edit rather than applying it at stale offsets.
+
 ## Status
 
 Diagnostics, navigation, hover, code actions and commands, shipped through
