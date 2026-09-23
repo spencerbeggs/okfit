@@ -12,6 +12,7 @@ export type { ResolveProjectConfigInput, ResolvedProjectConfig } from "./config/
 export { DEFAULT_PROFILE_NAME, resolveProjectConfig } from "./config/resolve.js";
 export type { ContextResult, ContextRunOptions } from "./context/run.js";
 export { runContext } from "./context/run.js";
+export { FrontmatterEdits, UnsupportedFrontmatterError } from "./edits/FrontmatterEdits.js";
 export {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
