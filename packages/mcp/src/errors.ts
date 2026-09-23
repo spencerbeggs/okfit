@@ -18,7 +18,7 @@ export type Remediation = typeof Remediation.Type;
  * `{ isError: true, content: [{ type: "text", text: error.message }] }`
  * and never surfaces `structuredContent` for it
  * (`.repos/effect/packages/effect/src/unstable/ai/McpServer.ts:1774-1778,1842-1846`
- * at effect@4.0.0-rc.116: `toolErrorResult` and `declaredFailureResult`'s
+ * at `effect@4.0.0-rc.116`: `toolErrorResult` and `declaredFailureResult`'s
  * `error instanceof Error` branch; confirmed empirically in Task B1's own
  * build). Since rc.116 that declared branch is rendered WITHOUT a log line
  * — only an internal failure goes through `Effect.logError` — so the
