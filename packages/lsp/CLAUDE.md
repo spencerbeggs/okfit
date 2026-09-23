@@ -72,14 +72,24 @@ src/
                        BundleSession per bundle root, lazily, with config
                        discovery per folder; SessionHandle bundles a
                        folder's session and scheduler; SessionRegistryShape
-                       .rebuild(folder) disposes the folder's current entry
-                       (running the registry's onDispose on its old handle,
-                       if it had one) and builds a fresh one through the
-                       same path sessionFor uses -- a config that fails to
+                       .rebuild(folder) builds a fresh entry and swaps it
+                       into the cache in place of the old one, then disposes
+                       the old one (running the registry's onDispose on its
+                       old handle, if it had one) -- a config that fails to
                        load is recorded as a failure and retried later
                        exactly like any other failed build.
                        removeFolders/setFolders also run onDispose for
-                       every folder they drop
+                       every folder they drop. Lock order: the registry's
+                       single gate semaphore guards only the cache map's
+                       reads and writes, never Scope.close or onDispose --
+                       both run with the gate released so disposing one
+                       folder never stalls sessionFor/entryFor for another.
+                       rebuild swaps the fresh entry in before disposing the
+                       old one and never removes the folder from the cache
+                       in between, so a sessionFor racing the same folder
+                       mid-rebuild finds the still-valid outgoing session
+                       instead of a miss -- see the docstring for why this
+                       makes a per-folder lock unnecessary
   features/
     documentSync.ts -- DocumentEvent, registerDocumentSync: the four
                        textDocument/did* notifications as events on
@@ -88,11 +98,19 @@ src/
                        DiagnosticsPublisher { publish, clear } --
                        `publish` is the RevalidatePublisher a
                        SessionRegistry's onRevalidate calls back into
-                       (revalidate, then publishDiagnostics fan-out,
-                       remembering the URIs each bundle root last published
-                       non-empty), `clear(root)` publishes [] for every
-                       URI still remembered for `root` and forgets it, and
-                       is what the registry's onDispose is built from.
+                       (revalidate, then publishDiagnostics fan-out). Each
+                       file's send-then-remember step runs inside
+                       Effect.uninterruptible: the notification is sent
+                       before the remembered-non-empty set is updated, and
+                       an external interrupt (a rebuild's or dispose's
+                       Scope.close, which awaits this chain fiber) cannot
+                       land between the two -- otherwise a revalidate that
+                       cleared a URI could be interrupted after updating
+                       memory but before sending `[]`, and a later `clear`
+                       would never re-send it. `clear(root)` publishes []
+                       for every URI still remembered for `root` and
+                       forgets it, and is what the registry's onDispose is
+                       built from.
                        makeDiagnosticsFeature(registry): builds
                        DiagnosticsFeature { onDocumentEvent, onWatchedFiles
                        }, owning a session/documents.ts DocumentMemoryShape

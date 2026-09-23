@@ -145,6 +145,19 @@ const ownerOf = (folders: ReadonlySet<string>, path: string): Option.Option<stri
  * for that folder, so a folder that stays broken costs one log line, not
  * one per retry.
  *
+ * **Lock order.** The single `gate` semaphore guards only the cache map's
+ * reads and writes (`entryFor`'s check-and-insert, `takeEntry`'s
+ * read-and-delete, `rebuild`'s read and its later swap-in) -- never a
+ * disposed entry's cleanup. `Scope.close` and `onDispose` (both potentially
+ * slow: `Scope.close` awaits an in-flight publish's chain fiber, `onDispose`
+ * is transport I/O) always run with the gate released, so disposing one
+ * folder never stalls `sessionFor`/`entryFor` for another. `rebuild` swaps
+ * the fresh entry in before disposing the old one, and never removes the
+ * folder from the cache in between, so a `sessionFor` racing the same folder
+ * mid-rebuild finds the outgoing (still valid) session instead of a miss --
+ * this is what keeps a per-folder lock unnecessary for the map-only critical
+ * section to be correct.
+ *
  * @public
  */
 export const makeSessionRegistry = (
@@ -171,19 +184,35 @@ export const makeSessionRegistry = (
 			});
 
 		/**
-		 * Close (if it owns a scope), drop a folder's cache entry, run
-		 * `onDispose` on its old handle (if it had a live session), and
-		 * return that old handle; a no-op (returning `None`) for a folder
-		 * never built.
+		 * Reads and removes a folder's cache entry as one gated step (`undefined`
+		 * for a folder never built); cleanup (`Scope.close`, `onDispose`) is the
+		 * caller's job, run outside the gate. Lock order: the gate guards only
+		 * this map mutation, never the disposal that follows it.
 		 */
-		const disposeFolder = (folder: string): Effect.Effect<Option.Option<SessionHandle>> =>
+		const takeEntry = (folder: string): Effect.Effect<CacheEntry | undefined> =>
+			gate.withPermit(
+				Effect.gen(function* () {
+					const entry = (yield* Ref.get(cache)).get(folder);
+					if (entry === undefined) return undefined;
+					yield* Ref.update(cache, (map) => {
+						const next = new Map(map);
+						next.delete(folder);
+						return next;
+					});
+					return entry;
+				}),
+			);
+
+		/**
+		 * Closes an entry's scope (if it owns one) and runs `onDispose` on its
+		 * handle (if it had a live session), outside the gate: both can be slow
+		 * (`Scope.close` awaits an in-flight publish's chain fiber; `onDispose`
+		 * is transport I/O), and neither must stall an unrelated folder's
+		 * `sessionFor`/`entryFor`. Returns the old handle, or `None` for
+		 * `undefined` or a cached config failure (which owns no scope or handle).
+		 */
+		const cleanupEntry = (entry: CacheEntry | undefined): Effect.Effect<Option.Option<SessionHandle>> =>
 			Effect.gen(function* () {
-				const entry = (yield* Ref.get(cache)).get(folder);
-				yield* Ref.update(cache, (map) => {
-					const next = new Map(map);
-					next.delete(folder);
-					return next;
-				});
 				if (entry === undefined) return Option.none();
 				if (Option.isSome(entry.scope)) {
 					yield* Scope.close(entry.scope.value, Exit.void);
@@ -194,8 +223,14 @@ export const makeSessionRegistry = (
 				return entry.handle;
 			});
 
-		/** {@link disposeFolder}, holding `gate`'s permit: for every caller outside `entryFor`/`rebuild`, which already hold it. */
-		const disposeGated = (folder: string): Effect.Effect<void> => gate.withPermit(Effect.asVoid(disposeFolder(folder)));
+		/**
+		 * Removes a folder's cache entry (gated) and disposes it (ungated): for
+		 * `removeFolders`/`setFolders` and the shutdown finalizer, none of which
+		 * need the folder to keep a (even briefly stale) entry the way
+		 * {@link rebuild} does.
+		 */
+		const disposeFolder = (folder: string): Effect.Effect<void> =>
+			Effect.asVoid(Effect.flatMap(takeEntry(folder), cleanupEntry));
 
 		const buildEntry = (folder: string): Effect.Effect<CacheEntry> =>
 			Effect.gen(function* () {
@@ -263,31 +298,47 @@ export const makeSessionRegistry = (
 			);
 
 		/**
-		 * Disposes a folder's current entry (`onDispose` runs on its old
-		 * handle, if it had one) and builds a fresh one, exactly as a miss
-		 * through `entryFor` would; a failed rebuild is cached and retried
-		 * later exactly as today.
+		 * Builds a fresh entry for `folder` and swaps it into the cache in
+		 * place of whatever was there, then disposes the old one (`onDispose`
+		 * runs on its old handle, if it had one); a failed rebuild is cached
+		 * and retried later exactly as today.
+		 *
+		 * Lock order, deliberately never a per-folder lock: the gate is taken
+		 * twice, briefly, once to read the previous entry and once to install
+		 * the new one -- never held across `buildEntry` (config resolution and
+		 * `BundleSession.make`, both I/O) or the old entry's cleanup
+		 * (`Scope.close`/`onDispose`, run only after the swap). Between the two
+		 * gated steps the folder's cache entry is the OUTGOING one, not absent:
+		 * a `sessionFor`/`entryFor` call racing this same folder during a
+		 * rebuild sees a valid, still-functioning session and uses it, rather
+		 * than finding a miss and starting its own concurrent build (which the
+		 * map-only critical section could not otherwise prevent without a
+		 * per-folder lock). The old scope is closed and `onDispose` has
+		 * completed before this returns, so a caller that schedules a full
+		 * revalidate on the returned handle right after `rebuild` resolves is
+		 * guaranteed the old session's diagnostics were already cleared.
 		 */
 		const rebuild = (folder: string): Effect.Effect<Option.Option<SessionHandle>> =>
-			gate.withPermit(
-				Effect.gen(function* () {
-					yield* disposeFolder(folder);
-					const built = yield* buildEntry(folder);
-					yield* Ref.update(cache, (map) => {
+			Effect.gen(function* () {
+				const previous = yield* gate.withPermit(Effect.map(Ref.get(cache), (map) => map.get(folder)));
+				const built = yield* buildEntry(folder);
+				yield* gate.withPermit(
+					Ref.update(cache, (map) => {
 						const next = new Map(map);
 						next.set(folder, built);
 						return next;
-					});
-					return built.handle;
-				}),
-			);
+					}),
+				);
+				yield* cleanupEntry(previous);
+				return built.handle;
+			});
 
 		const setFolders = (next: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
 				const nextSet = new Set(next);
 				const previous = yield* Ref.get(folders);
 				const removed = [...previous].filter((folder) => !nextSet.has(folder));
-				yield* Effect.forEach(removed, disposeGated, { discard: true });
+				yield* Effect.forEach(removed, disposeFolder, { discard: true });
 				yield* Effect.forEach(removed, forgetLogged, { discard: true });
 				yield* Ref.set(folders, nextSet);
 			});
@@ -297,7 +348,7 @@ export const makeSessionRegistry = (
 
 		const removeFolders = (removed: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
-				yield* Effect.forEach(removed, disposeGated, { discard: true });
+				yield* Effect.forEach(removed, disposeFolder, { discard: true });
 				yield* Effect.forEach(removed, forgetLogged, { discard: true });
 				yield* Ref.update(folders, (current) => {
 					const next = new Set(current);
@@ -342,7 +393,7 @@ export const makeSessionRegistry = (
 		yield* Effect.addFinalizer(() =>
 			Effect.gen(function* () {
 				const map = yield* Ref.get(cache);
-				yield* Effect.forEach([...map.keys()], disposeGated, { discard: true });
+				yield* Effect.forEach([...map.keys()], disposeFolder, { discard: true });
 			}),
 		);
 

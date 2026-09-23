@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { Deferred, Effect, Fiber, Option, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import { pathToUri } from "../../src/convert/uri.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "../../src/features/diagnostics.js";
@@ -57,6 +57,48 @@ const makeRecordingTransport = (): {
 		onNotification: die("onNotification"),
 		sendNotification: (method: string, params: unknown) =>
 			Effect.sync(() => void notifications.push({ method, params })),
+		sendRequest: die("sendRequest"),
+		listen: Effect.die("fake transport: listen is not used by this test"),
+	} as unknown as LspTransportShape;
+	return { transport, notifications };
+};
+
+/**
+ * A transport whose `sendNotification` records every call like
+ * {@link makeRecordingTransport}, except while `armed` is `true` a
+ * `textDocument/publishDiagnostics` call for `blockUri` first resolves
+ * `started` (so a test can await the moment the send is in flight,
+ * independent of virtual-clock timing) and then awaits `gate` before
+ * recording -- used to land an external interrupt (a rebuild's
+ * `Scope.close`) squarely between a per-file publish step's send and its
+ * `remember` update.
+ */
+const makeBlockingTransport = (
+	blockUri: string,
+	armed: Ref.Ref<boolean>,
+	started: Deferred.Deferred<void>,
+	gate: Deferred.Deferred<void>,
+): {
+	readonly transport: LspTransportShape;
+	readonly notifications: Array<RecordedNotification>;
+} => {
+	const notifications: Array<RecordedNotification> = [];
+	const transport = {
+		onInitialize: die("onInitialize"),
+		onInitialized: die("onInitialized"),
+		onShutdown: die("onShutdown"),
+		onRequest: die("onRequest"),
+		onNotification: die("onNotification"),
+		sendNotification: (method: string, params: unknown) =>
+			Effect.gen(function* () {
+				const isBlockTarget =
+					method === "textDocument/publishDiagnostics" && (params as { uri: string }).uri === blockUri;
+				if (isBlockTarget && (yield* Ref.get(armed))) {
+					yield* Deferred.succeed(started, undefined);
+					yield* Deferred.await(gate);
+				}
+				notifications.push({ method, params });
+			}),
 		sendRequest: die("sendRequest"),
 		listen: Effect.die("fake transport: listen is not used by this test"),
 	} as unknown as LspTransportShape;
@@ -293,5 +335,109 @@ describe("config reload and dropped-session cleanup", () => {
 				),
 			);
 		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect(
+		"(f) an interrupt landing mid-send never desyncs `remember` from what the client received (discriminating: an interrupt that could land right after `remember` but before the send completes would drop the URI silently)",
+		() =>
+			Effect.gen(function* () {
+				const { root } = yield* copyFixtureProject();
+				const alphaPath = join(root, "okf", "modules", "alpha.md");
+				const alphaUri = pathToUri(alphaPath);
+				const armed = yield* Ref.make(false);
+				const started = yield* Deferred.make<void>();
+				const gate = yield* Deferred.make<void>();
+				const { transport, notifications } = makeBlockingTransport(alphaUri, armed, started, gate);
+				const publisher = yield* makeRevalidatePublisher(transport);
+				const registry = yield* makeSessionRegistry({
+					delay: "10 millis",
+					maxWait: "10 seconds",
+					onRevalidate: publisher.publish,
+					onDispose: (handle) => publisher.clear(handle.bundleRoot),
+				});
+				yield* registry.setFolders([root]);
+
+				const alphaOnDisk = yield* Effect.promise(() => readFile(alphaPath, "utf8"));
+				const alphaBroken = BROKEN_LINK(alphaOnDisk);
+
+				// A session owning alpha.md, driven directly (not through the diagnostics feature or its
+				// scheduler): this isolates the exact mechanism finding 1 describes -- a fiber running
+				// `publisher.publish` gets externally interrupted -- from the registry's own dispose timing,
+				// which real filesystem I/O in `buildEntry` would make the interrupt's arrival non-deterministic
+				// relative to the test's own steps.
+				const handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
+				yield* handle.session.open(alphaPath, alphaBroken, 1);
+
+				// First publish (unarmed): alpha has a broken link, so it becomes remembered non-empty.
+				yield* publisher.publish(handle, "full");
+				assert.isTrue(published(notifications).some((p) => p.uri === alphaUri && p.diagnostics.length > 0));
+
+				notifications.length = 0;
+				yield* handle.session.change(alphaPath, alphaOnDisk, 2);
+				yield* Ref.set(armed, true);
+
+				// Second publish: fixing alpha clears its diagnostics. Fork it so the test can interrupt it
+				// mid-flight, exactly as `Scope.close` would interrupt the scheduler's chain fiber on a
+				// rebuild or dispose.
+				const publishFiber = yield* Effect.forkChild(publisher.publish(handle, "full"));
+				yield* Deferred.await(started);
+
+				// The send for alphaUri is in flight and blocked on `gate`; nothing has been recorded yet.
+				assert.deepStrictEqual(published(notifications), []);
+
+				// Request the interrupt now, with `startImmediately` so the request is delivered to
+				// `publishFiber` before this fiber's next line runs, landing it squarely between the send and
+				// `remember` (had the fix not made that span uninterruptible). Forked, since under the fix this
+				// hangs until `gate` is released below.
+				const interruptFiber = yield* Effect.forkChild(Fiber.interrupt(publishFiber), { startImmediately: true });
+
+				// Release the blocked send: the fix's ordering (send, then remember, both uninterruptible)
+				// means the notification always lands before the interrupt can take effect.
+				yield* Deferred.succeed(gate, undefined);
+				yield* Fiber.join(interruptFiber);
+
+				// Exactly one [] for alphaUri. Under the pre-fix ordering (`remember` before the send), the
+				// interrupt above would have landed while the fiber was suspended on `gate` -- an interruptible
+				// point -- aborting the send after `remember` had already deleted alphaUri from the remembered
+				// set: this assertion would then see zero publishes for alphaUri, not one.
+				assert.deepStrictEqual(published(notifications), [{ uri: alphaUri, diagnostics: [] }]);
+			}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect(
+		"(g) the same setup without an interrupt also yields exactly one [] for the cleared URI (positive control for (f))",
+		() =>
+			Effect.gen(function* () {
+				const { root } = yield* copyFixtureProject();
+				const alphaPath = join(root, "okf", "modules", "alpha.md");
+				const alphaUri = pathToUri(alphaPath);
+				const armed = yield* Ref.make(false);
+				const started = yield* Deferred.make<void>();
+				const gate = yield* Deferred.make<void>();
+				// Never armed, so `sendNotification` never blocks: the same wiring as (f), minus the interrupt.
+				const { transport, notifications } = makeBlockingTransport(alphaUri, armed, started, gate);
+				const publisher = yield* makeRevalidatePublisher(transport);
+				const registry = yield* makeSessionRegistry({
+					delay: "10 millis",
+					maxWait: "10 seconds",
+					onRevalidate: publisher.publish,
+					onDispose: (handle) => publisher.clear(handle.bundleRoot),
+				});
+				yield* registry.setFolders([root]);
+
+				const alphaOnDisk = yield* Effect.promise(() => readFile(alphaPath, "utf8"));
+				const alphaBroken = BROKEN_LINK(alphaOnDisk);
+
+				const handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
+				yield* handle.session.open(alphaPath, alphaBroken, 1);
+				yield* publisher.publish(handle, "full");
+				assert.isTrue(published(notifications).some((p) => p.uri === alphaUri && p.diagnostics.length > 0));
+
+				notifications.length = 0;
+				yield* handle.session.change(alphaPath, alphaOnDisk, 2);
+				yield* publisher.publish(handle, "full");
+
+				assert.deepStrictEqual(published(notifications), [{ uri: alphaUri, diagnostics: [] }]);
+			}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 });

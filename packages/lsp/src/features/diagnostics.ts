@@ -106,11 +106,22 @@ export const makeRevalidatePublisher = (
 						const target = file === "" ? path.join(handle.bundleRoot, "index.md") : path.join(handle.bundleRoot, file);
 						const uri = pathToUri(target);
 						const text = sourceTextOf(bundle, file);
-						remember(handle.bundleRoot, uri, diagnostics.length === 0);
-						return transport.sendNotification("textDocument/publishDiagnostics", {
-							uri,
-							diagnostics: diagnostics.map((diagnostic) => toLspDiagnostic(diagnostic, text)),
-						});
+						const isEmpty = diagnostics.length === 0;
+						// Uninterruptible as one unit: the send must land before `remember` is updated, or a
+						// `Scope.close` (a rebuild/dispose) interrupting this fiber between the two could delete a
+						// URI from the remembered set without the client ever having received the `[]` that
+						// justified the deletion -- `clear` would then never re-send it, leaving the client with a
+						// stale diagnostic forever. `Effect.uninterruptible` defers that interrupt until this
+						// per-file step (send, then remember) has completed.
+						return Effect.uninterruptible(
+							Effect.gen(function* () {
+								yield* transport.sendNotification("textDocument/publishDiagnostics", {
+									uri,
+									diagnostics: diagnostics.map((diagnostic) => toLspDiagnostic(diagnostic, text)),
+								});
+								remember(handle.bundleRoot, uri, isEmpty);
+							}),
+						);
 					},
 					{ discard: true },
 				);
