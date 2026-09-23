@@ -11,8 +11,18 @@ import { Effect, Layer, Option } from "effect";
 import type { SessionRegistryServices } from "../../src/session/registry.js";
 
 /** Layers memoize by reference; bind these once per file rather than reconstructing them per call. */
-const gitTest = Git.layerTest({});
 const gitHistoryTest = GitHistory.layerTest({});
+
+/**
+ * `configGet` always answers `Option.none()`: the real production shape of
+ * "no git identity configured" (`Derivation.generatedBy` resolves
+ * `HumanActorUnresolvedError`, a typed failure) -- not
+ * `Git.layerTest({})`'s own unstubbed-method die, which models a test
+ * double's own bug, never a production outcome.
+ */
+const gitTest = Git.layerTest({
+	configGet: () => Effect.succeed(Option.none()),
+});
 
 /**
  * The identity a git checkout serves back for {@link testPlatformWithIdentity}: local part
@@ -29,6 +39,11 @@ const gitIdentityTest = Git.layerTest({
 		if (key === "user.name") return Effect.succeed(Option.some(FIXTURE_IDENTITY_NAME));
 		return Effect.succeed(Option.none());
 	},
+});
+
+/** `configGet` dies instead of failing typed -- the positive control that a `Git` defect propagates rather than reading as "no identity". */
+const gitConfigGetDiesTest = Git.layerTest({
+	configGet: () => Effect.die(new Error("okfit-lsp test: Git.configGet defect")),
 });
 
 /** Fresh, per-call temp XDG directories, mirroring `packages/engine/__test__/config/resolve.test.ts:19-34`. */
@@ -54,11 +69,10 @@ const testEnv = (): Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | 
 
 /**
  * `SessionRegistryServices` over fresh, per-call temp XDG directories.
- * `Git.layerTest({})` leaves `configGet` unstubbed, so a caller that
- * exercises human-actor resolution (`Derivation.generatedBy`) against this
- * layer dies -- `@okfit/lsp`'s own actor-resolution helpers catch that as a
- * resolution failure and answer `Option.none()`, so this layer alone already
- * proves "no git identity to derive an actor from".
+ * `configGet` always answers `Option.none()`, so `Derivation.generatedBy`
+ * fails its typed `HumanActorUnresolvedError` -- `@okfit/lsp`'s own
+ * actor-resolution helpers catch that and answer `Option.none()`, so this
+ * layer alone already proves "no git identity to derive an actor from".
  *
  * @public
  */
@@ -76,3 +90,14 @@ export const testPlatform = (): Layer.Layer<SessionRegistryServices> =>
  */
 export const testPlatformWithIdentity = (): Layer.Layer<SessionRegistryServices> =>
 	Layer.mergeAll(testEnv(), gitIdentityTest, gitHistoryTest);
+
+/**
+ * As {@link testPlatform}, but `configGet` dies instead of failing typed:
+ * the positive control that a `Git` defect (a subprocess crash, say)
+ * propagates out of `Derivation.generatedBy` and its callers rather than
+ * being read as "no identity to resolve".
+ *
+ * @public
+ */
+export const testPlatformWithGitDefect = (): Layer.Layer<SessionRegistryServices> =>
+	Layer.mergeAll(testEnv(), gitConfigGetDiesTest, gitHistoryTest);

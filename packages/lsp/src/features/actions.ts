@@ -24,6 +24,7 @@ import { DateTime, Effect, Option } from "effect";
 import { uriToPath } from "../convert/uri.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { CodeAction, CodeActionParams } from "../protocol/types.js";
+import { CODE_ACTION_KIND_QUICKFIX } from "../protocol/types.js";
 import type { SessionRegistryShape } from "../session/registry.js";
 import { conceptSnapshot, humanActor, statusTextEdits, verifiedTextEdits } from "./edits.js";
 
@@ -74,7 +75,7 @@ export const registerCodeActions = (
 							? { title: `Set status: ${status}`, kind: "okfit.status", edit }
 							: {
 									title: `Set status: ${status}`,
-									kind: "quickfix",
+									kind: CODE_ACTION_KIND_QUICKFIX,
 									diagnostics: [statusMissing],
 									isPreferred: status === "draft",
 									edit,

@@ -386,9 +386,13 @@ computed by `src/features/edits.ts`, the module `src/features/commands.ts`
 - `humanActor(registry, path)` resolves the same actor
   `verifiedTextEdits` would, answering `Option.none()` instead of failing --
   a code action's title needs to know whether a human actor resolves at all
-  before it can decide whether to offer `Mark verified`. A resolution
-  failure is logged once per project root, at `logDebug`, never to stdout
-  (a module-level `Set` tracks which roots have already logged).
+  before it can decide whether to offer `Mark verified`. Only
+  `generatedBy`'s typed `GeneratedByError` channel maps to `Option.none()`
+  (`Effect.result`, not `Effect.catchCause`): a defect (a git subprocess
+  crash) or an interrupt still propagates rather than being read as "no
+  actor". A resolution failure is logged once per project root, at
+  `logDebug`, never to stdout (a module-level `Set` tracks which roots have
+  already logged).
 - `describeFailure(failure)` renders any `EditFailure` as a short message,
   what `commands.ts`'s `okfit.setStatus`/`okfit.markVerified` handlers surface
   as an `LspError`'s message when an edit could not be computed;
