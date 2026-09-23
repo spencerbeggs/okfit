@@ -165,6 +165,37 @@ generated:
 Nothing here is read by production code.
 `;
 
+/**
+ * A YAML anchor/alias shape: `generated` is `*g`, an alias to the anchor
+ * `provenance` defines. `Yaml.parse` (the frontmatter decoder `Bundle.ts`
+ * uses) resolves aliases when building the plain JS value handed to the
+ * concept schema -- `generated.at` decodes present, so `hintsFor` emits the
+ * `generated.at` spec -- but `YamlDocument.find` (what
+ * `DiagnosticRange.forFrontmatterPath` walks) does not follow an alias node:
+ * `find(["generated", "at"])` reaches the `YamlAlias` node at `generated` and
+ * stops, since it is not a `YamlMap`, so the lookup falls back to the whole
+ * frontmatter block. This is the one document shape in this feature's field
+ * set that reaches `registerInlayHints`'s `isFallback` branch rather than the
+ * `range === undefined` one: probed directly against
+ * `DiagnosticRange.forFrontmatterPath` before writing this case (`genAt`
+ * equals `whole`, `status` resolves normally).
+ */
+const ALIASED_GENERATED_SOURCE = `---
+type: Module
+title: Aliased Generated
+description: A tiny synthetic concept used only by @okfit/lsp's own inlay hint tests.
+status: stable
+provenance: &g
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+generated: *g
+---
+
+# Aliased Generated
+
+Nothing here is read by production code.
+`;
+
 describe("registerInlayHints", () => {
 	it.effect("`textDocument/inlayHint` positions the trust hint at the end of `status`'s own value range", () =>
 		Effect.gen(function* () {
@@ -250,6 +281,54 @@ describe("registerInlayHints", () => {
 				const expectedRange = DiagnosticRange.forFrontmatterPath(document, ["status"]);
 				if (expectedRange === undefined) throw new Error("expected a `status` range in the fixture source");
 				const expectedPosition = toLspRange(GENERATED_NO_AT_SOURCE, expectedRange).end;
+
+				assert.strictEqual(hints[0]?.position.line, expectedPosition.line);
+				assert.strictEqual(hints[0]?.position.character, expectedPosition.character);
+			}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect(
+		"`generated` aliased to an anchored field: the generated-age hint is dropped by the block-fallback guard, not by `hintsFor` never emitting it",
+		() =>
+			Effect.gen(function* () {
+				const { root } = yield* copyFixtureProject();
+				const conceptPath = join(root, "okf", "modules", "status.md");
+				yield* Effect.promise(() => writeFile(conceptPath, ALIASED_GENERATED_SOURCE, "utf8"));
+
+				const { transport, call } = makeCapturingTransport();
+				const registry = yield* makeSessionRegistry({
+					delay: "10 millis",
+					maxWait: "10 seconds",
+					onRevalidate: () => Effect.void,
+					onDispose: () => Effect.void,
+				});
+				yield* registerInlayHints(transport, registry);
+				yield* registry.setFolders([root]);
+
+				const handle = Option.getOrThrow(yield* registry.sessionFor(conceptPath));
+				yield* handle.session.open(conceptPath, ALIASED_GENERATED_SOURCE, 1);
+				const now = yield* DateTime.now;
+				yield* handle.session.revalidate({ now, tier: "full" });
+
+				const hints = yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", {
+					textDocument: { uri: pathToUri(conceptPath) },
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+				});
+
+				// `generated` decodes here (the yaml frontmatter decoder resolves the
+				// alias, so `concept.frontmatter.generated.at` is present and
+				// `hintsFor` emits the `generated.at` spec) -- so a single hint means
+				// `registerInlayHints`'s `isFallback` guard dropped it after
+				// `DiagnosticRange.forFrontmatterPath` fell back to the whole
+				// frontmatter block, not that the spec was never emitted.
+				assert.strictEqual(hints.length, 1);
+
+				const document = Result.getOrThrow(
+					MarkdownDocument.parseResult(ALIASED_GENERATED_SOURCE, { frontmatter: true }),
+				);
+				const expectedRange = DiagnosticRange.forFrontmatterPath(document, ["status"]);
+				if (expectedRange === undefined) throw new Error("expected a `status` range in the fixture source");
+				const expectedPosition = toLspRange(ALIASED_GENERATED_SOURCE, expectedRange).end;
 
 				assert.strictEqual(hints[0]?.position.line, expectedPosition.line);
 				assert.strictEqual(hints[0]?.position.character, expectedPosition.character);
