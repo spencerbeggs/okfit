@@ -30,14 +30,14 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 ## Commands
 
 - **OKF: Validate Bundle** (`okfit.validateBundle`) -- asks the language
-  server to run a fresh full revalidate (`okfit.revalidate`), then
+  server to run a fresh full revalidate (`okfit.lsp.revalidate`), then
   re-requests the concept list and re-publishes the tree and status item.
   The extension watches every markdown file and the okfit config glob and
   forwards both as `didChangeWatchedFiles`, so the server already
   revalidates on document changes and on markdown/config changes made
   outside an editor (Explorer, `git checkout`/`pull`, a codegen run); this
   command is the manual fallback when a watcher event is missed. Against
-  an older language server that does not advertise `okfit.revalidate`,
+  an older language server that does not advertise `okfit.lsp.revalidate`,
   it falls back to refreshing the tree from the last published result.
 - **OKF: Open Concept…** (`okfit.openConcept`) -- a quick pick over every
   concept in every live bundle, opening the picked concept's document.

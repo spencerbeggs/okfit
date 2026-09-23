@@ -1,15 +1,15 @@
 /**
  * `registerCommands`: `workspace/executeCommand` for the three okfit commands
- * `features/names.ts`'s `OKFIT_COMMANDS` advertises -- `okfit.setStatus`,
- * `okfit.markVerified`, `okfit.revalidate`.
+ * `features/names.ts`'s `OKFIT_COMMANDS` advertises -- `okfit.lsp.setStatus`,
+ * `okfit.lsp.markVerified`, `okfit.lsp.revalidate`.
  *
- * `okfit.setStatus` and `okfit.markVerified` compute a `TextEdit` with
+ * `okfit.lsp.setStatus` and `okfit.lsp.markVerified` compute a `TextEdit` with
  * `features/edits.ts` (task 3), send it to the client with
  * `transport.sendRequest<ApplyWorkspaceEditParams,
  * ApplyWorkspaceEditResult>("workspace/applyEdit", ...)`, and answer with the
  * client's own result verbatim -- a transport failure of that request already
  * fails as an `LspError` (`LspTransportShape.sendRequest`'s own contract).
- * `okfit.revalidate` schedules a `full` revalidate (`handle.scheduler.schedule("full")`
+ * `okfit.lsp.revalidate` schedules a `full` revalidate (`handle.scheduler.schedule("full")`
  * then `.settle`, the same warm-up path `features/concepts.ts` uses) on one
  * named bundle root or, with no argument, every live session, and answers
  * with the root URIs it revalidated.
@@ -38,11 +38,11 @@ import type { SessionRegistryShape } from "../session/registry.js";
 import type { EditFailure } from "./edits.js";
 import { describeFailure, statusTextEdits, verifiedTextEdits } from "./edits.js";
 
-/** `[uri, status]` for `okfit.setStatus`. */
+/** `[uri, status]` for `okfit.lsp.setStatus`. */
 const SetStatusArgs = Schema.Tuple([Schema.String, Status]);
-/** `[uri]` for `okfit.markVerified`. */
+/** `[uri]` for `okfit.lsp.markVerified`. */
 const MarkVerifiedArgs = Schema.Tuple([Schema.String]);
-/** `[rootUri?]` for `okfit.revalidate`: the array may be empty. */
+/** `[rootUri?]` for `okfit.lsp.revalidate`: the array may be empty. */
 const RevalidateArgs = Schema.Tuple([Schema.optionalKey(Schema.String)]);
 
 /** `params.arguments` (`undefined` when the client sent none) decoded through `schema`, or `LspError` naming `expected`. */
@@ -67,7 +67,7 @@ const notAConcept: LspError = toLspError({ _tag: "NotAConcept" });
 /**
  * Send `edits` to the client as a single-file `workspace/applyEdit` under
  * `label`, and answer its result verbatim -- the round trip
- * `okfit.setStatus` and `okfit.markVerified` both make, differing only in
+ * `okfit.lsp.setStatus` and `okfit.lsp.markVerified` both make, differing only in
  * which edits they compute and what they label the edit.
  */
 const applyConceptEdit = (
@@ -87,7 +87,7 @@ const handleSetStatus = (
 	args: ReadonlyArray<unknown> | undefined,
 ): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
 	Effect.gen(function* () {
-		const [uri, status] = yield* decodeArgs(SetStatusArgs, args, "okfit.setStatus expects [uri, status]");
+		const [uri, status] = yield* decodeArgs(SetStatusArgs, args, "okfit.lsp.setStatus expects [uri, status]");
 		const path = uriToPath(uri);
 		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
 		const edits = yield* statusTextEdits(registry, path.value, status).pipe(Effect.mapError(toLspError));
@@ -100,7 +100,7 @@ const handleMarkVerified = (
 	args: ReadonlyArray<unknown> | undefined,
 ): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
 	Effect.gen(function* () {
-		const [uri] = yield* decodeArgs(MarkVerifiedArgs, args, "okfit.markVerified expects [uri]");
+		const [uri] = yield* decodeArgs(MarkVerifiedArgs, args, "okfit.lsp.markVerified expects [uri]");
 		const path = uriToPath(uri);
 		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
 		const now = yield* DateTime.now;
@@ -108,9 +108,9 @@ const handleMarkVerified = (
 		return yield* applyConceptEdit(transport, uri, "Mark verified", edits);
 	});
 
-/** Result of `okfit.revalidate`. @public */
+/** Result of `okfit.lsp.revalidate`. @public */
 export interface RevalidateResult {
-	/** The root URIs of every session `okfit.revalidate` scheduled a `full` revalidate for. */
+	/** The root URIs of every session `okfit.lsp.revalidate` scheduled a `full` revalidate for. */
 	readonly roots: ReadonlyArray<string>;
 }
 
@@ -119,7 +119,7 @@ const handleRevalidate = (
 	args: ReadonlyArray<unknown> | undefined,
 ): Effect.Effect<RevalidateResult, LspError> =>
 	Effect.gen(function* () {
-		const [rootUri] = yield* decodeArgs(RevalidateArgs, args, "okfit.revalidate expects [rootUri?]");
+		const [rootUri] = yield* decodeArgs(RevalidateArgs, args, "okfit.lsp.revalidate expects [rootUri?]");
 		const handles = yield* registry.sessions;
 		const rootPath = rootUri === undefined ? Option.none<string>() : uriToPath(rootUri);
 		const targets =
@@ -142,11 +142,11 @@ const dispatch = (
 	params: ExecuteCommandParams,
 ): Effect.Effect<unknown, LspError, Git> => {
 	switch (params.command) {
-		case "okfit.setStatus":
+		case "okfit.lsp.setStatus":
 			return handleSetStatus(registry, transport, params.arguments);
-		case "okfit.markVerified":
+		case "okfit.lsp.markVerified":
 			return handleMarkVerified(registry, transport, params.arguments);
-		case "okfit.revalidate":
+		case "okfit.lsp.revalidate":
 			return handleRevalidate(registry, params.arguments);
 		default:
 			return Effect.fail(unknownCommand(params.command));

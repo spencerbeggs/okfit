@@ -95,7 +95,7 @@ const executeCommandFailure = (client: Parameters<typeof request>[0], command: s
 
 describe("registerCommands", () => {
 	it.live(
-		"okfit.setStatus sends one workspace/applyEdit that sets the concept's status, and answers the client's result",
+		"okfit.lsp.setStatus sends one workspace/applyEdit that sets the concept's status, and answers the client's result",
 		() =>
 			Effect.gen(function* () {
 				const h = yield* makeServeHarness({ platform: noIdentityPlatform });
@@ -105,7 +105,7 @@ describe("registerCommands", () => {
 				yield* h.nextPublish();
 
 				const uri = h.uriOf("okf/modules/stable.md");
-				const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.setStatus", [
+				const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.setStatus", [
 					uri,
 					"deprecated",
 				]);
@@ -122,7 +122,7 @@ describe("registerCommands", () => {
 			}).pipe(Effect.scoped),
 	);
 
-	it.live("okfit.setStatus carries the client's applyEdit failure verbatim, no error", () =>
+	it.live("okfit.lsp.setStatus carries the client's applyEdit failure verbatim, no error", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: noIdentityPlatform });
 			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
@@ -132,13 +132,16 @@ describe("registerCommands", () => {
 			yield* h.nextPublish();
 
 			const uri = h.uriOf("okf/modules/stable.md");
-			const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.setStatus", [uri, "deprecated"]);
+			const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.setStatus", [
+				uri,
+				"deprecated",
+			]);
 
 			assert.deepStrictEqual(result, { applied: false, failureReason: "nope" });
 		}).pipe(Effect.scoped),
 	);
 
-	it.live("okfit.markVerified on a draft fails with a message naming it a draft", () =>
+	it.live("okfit.lsp.markVerified on a draft fails with a message naming it a draft", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
 			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "draft.md"), DRAFT_SOURCE, "utf8"));
@@ -147,14 +150,14 @@ describe("registerCommands", () => {
 			yield* h.nextPublish();
 
 			const uri = h.uriOf("okf/modules/draft.md");
-			const failure = yield* executeCommandFailure(h.client, "okfit.markVerified", [uri]);
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.markVerified", [uri]);
 
 			assert.include(failure.message, "draft");
 		}).pipe(Effect.scoped),
 	);
 
 	it.live(
-		"okfit.markVerified on a stable concept with a resolved identity sends one applyEdit carrying the actor (positive control)",
+		"okfit.lsp.markVerified on a stable concept with a resolved identity sends one applyEdit carrying the actor (positive control)",
 		() =>
 			Effect.gen(function* () {
 				const h = yield* makeServeHarness({ platform: identityPlatform });
@@ -164,7 +167,7 @@ describe("registerCommands", () => {
 				yield* h.nextPublish();
 
 				const uri = h.uriOf("okf/modules/stable.md");
-				const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.markVerified", [uri]);
+				const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.markVerified", [uri]);
 
 				assert.deepStrictEqual(result, { applied: true });
 				assert.strictEqual(h.serverRequests.length, 1);
@@ -176,7 +179,7 @@ describe("registerCommands", () => {
 			}).pipe(Effect.scoped),
 	);
 
-	it.live('okfit.setStatus [uri, "bogus"] fails with the argument message', () =>
+	it.live('okfit.lsp.setStatus [uri, "bogus"] fails with the argument message', () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: noIdentityPlatform });
 			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
@@ -185,9 +188,9 @@ describe("registerCommands", () => {
 			yield* h.nextPublish();
 
 			const uri = h.uriOf("okf/modules/stable.md");
-			const failure = yield* executeCommandFailure(h.client, "okfit.setStatus", [uri, "bogus"]);
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.setStatus", [uri, "bogus"]);
 
-			assert.strictEqual(failure.message, "okfit.setStatus expects [uri, status]");
+			assert.strictEqual(failure.message, "okfit.lsp.setStatus expects [uri, status]");
 		}).pipe(Effect.scoped),
 	);
 
@@ -202,18 +205,22 @@ describe("registerCommands", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.live("okfit.revalidate [] revalidates every live session and lists its root URI", () =>
+	it.live("okfit.lsp.revalidate [] revalidates every live session and lists its root URI", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: noIdentityPlatform });
 			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
 			yield* h.initialize;
 			yield* h.open("okf/modules/stable.md");
 			// Drain `didOpen`'s own publish + bundleChanged first (the positive control that
-			// a session already exists), so the assertions below are `okfit.revalidate`'s own.
+			// a session already exists), so the assertions below are `okfit.lsp.revalidate`'s own.
 			yield* h.nextPublish();
 			yield* h.nextNotification((notification) => notification.method === "okfit/bundleChanged");
 
-			const result = yield* executeCommand<{ readonly roots: ReadonlyArray<string> }>(h.client, "okfit.revalidate", []);
+			const result = yield* executeCommand<{ readonly roots: ReadonlyArray<string> }>(
+				h.client,
+				"okfit.lsp.revalidate",
+				[],
+			);
 
 			assert.deepStrictEqual(result.roots, [h.uriOf("okf")]);
 			// The diagnostic set is unchanged, so no second publish fires (Publishing
@@ -223,7 +230,7 @@ describe("registerCommands", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.live("okfit.revalidate [otherRootUri] for an unknown root answers `{ roots: [] }`", () =>
+	it.live("okfit.lsp.revalidate [otherRootUri] for an unknown root answers `{ roots: [] }`", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: noIdentityPlatform });
 			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
@@ -231,9 +238,11 @@ describe("registerCommands", () => {
 			yield* h.open("okf/modules/stable.md");
 			yield* h.nextPublish();
 
-			const result = yield* executeCommand<{ readonly roots: ReadonlyArray<string> }>(h.client, "okfit.revalidate", [
-				"file:///not/a/known/root",
-			]);
+			const result = yield* executeCommand<{ readonly roots: ReadonlyArray<string> }>(
+				h.client,
+				"okfit.lsp.revalidate",
+				["file:///not/a/known/root"],
+			);
 
 			assert.deepStrictEqual(result.roots, []);
 		}).pipe(Effect.scoped),

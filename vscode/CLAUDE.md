@@ -84,9 +84,13 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   than importing the package: the `okfit/concepts`/`okfit/bundleChanged`
   wire types and method names, and `OKFIT_COMMANDS`
   (`packages/lsp/src/features/names.ts`) -- the three `workspace/
-  executeCommand` ids the extension checks the server advertises before
+  executeCommand` ids (`okfit.lsp.setStatus`, `okfit.lsp.markVerified`,
+  `okfit.lsp.revalidate`) the extension checks the server advertises before
   enabling `okfit.setStatus`/`okfit.markVerified`/a real
-  `okfit.validateBundle`.
+  `okfit.validateBundle`. The server's ids must never equal a command this
+  extension contributes: `vscode-languageclient` registers every advertised
+  id itself, and a duplicate throws "command already exists" during client
+  initialization. `__test__/manifest.test.ts` guards it.
 - Everything the extension needs at runtime is bundled; nothing is read
   from `node_modules` at activation. `vsce package` is always run
   `--no-dependencies` (`lib/package-vsix.ts:13`) -- both `dist/extension.js`

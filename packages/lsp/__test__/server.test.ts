@@ -23,7 +23,7 @@ describe("serve", () => {
 				codeActionKinds: ["quickfix", "okfit.status", "okfit.verify"],
 			});
 			assert.deepStrictEqual(result.capabilities.executeCommandProvider, {
-				commands: ["okfit.setStatus", "okfit.markVerified", "okfit.revalidate"],
+				commands: ["okfit.lsp.setStatus", "okfit.lsp.markVerified", "okfit.lsp.revalidate"],
 			});
 			assert.strictEqual(result.capabilities.inlayHintProvider, true);
 			assert.strictEqual(result.serverInfo?.name, "okfit-lsp");

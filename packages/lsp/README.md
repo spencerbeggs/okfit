@@ -85,18 +85,21 @@ prefixes to implementations.
 `workspace/executeCommand` (the server advertises `executeCommandProvider.commands`
 in `initialize`'s result) answers three okfit command ids. Arguments are
 `ExecuteCommandParams.arguments`, an array positional by index; a wrong shape
-fails naming what was expected.
+fails naming what was expected. The ids sit under `okfit.lsp.` so they never
+collide with a client extension's own command ids: `vscode-languageclient`
+registers every advertised id as an editor command, and a duplicate stops the
+client from starting.
 
-- **`okfit.setStatus`** -- args `[uri, status]` (`status` one of `"draft" |
+- **`okfit.lsp.setStatus`** -- args `[uri, status]` (`status` one of `"draft" |
   "stable" | "deprecated"`). Computes the `TextEdit` that sets the concept at
   `uri`'s top-level `status`, sends it to the client with `workspace/applyEdit`,
   and answers the client's own `ApplyWorkspaceEditResult` verbatim.
-- **`okfit.markVerified`** -- args `[uri]`. Computes the `TextEdit` that
+- **`okfit.lsp.markVerified`** -- args `[uri]`. Computes the `TextEdit` that
   appends a `verified` entry (the resolved git identity, `Derivation.generatedBy`)
   to the concept at `uri`, sends it the same way, and answers the client's
   result. Fails when the concept is a draft, already verified by that actor,
   or no actor resolves.
-- **`okfit.revalidate`** -- args `[rootUri?]`, or no arguments at all.
+- **`okfit.lsp.revalidate`** -- args `[rootUri?]`, or no arguments at all.
   Schedules a full revalidate (republishing diagnostics and sending
   `okfit/bundleChanged`) on the named bundle root, or on every live session
   when the argument is omitted, and answers `{ roots: [rootUri, ...] }` with

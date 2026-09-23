@@ -398,7 +398,7 @@ computed by `src/features/edits.ts`, the module `src/features/commands.ts`
   `logDebug`, never to stdout (a module-level `Set` tracks which roots have
   already logged).
 - `describeFailure(failure)` renders any `EditFailure` as a short message,
-  what `commands.ts`'s `okfit.setStatus`/`okfit.markVerified` handlers surface
+  what `commands.ts`'s `okfit.lsp.setStatus`/`okfit.lsp.markVerified` handlers surface
   as an `LspError`'s message when an edit could not be computed;
   `registerCodeActions` itself never surfaces one -- a failed edit just means
   that action is omitted (`Effect.option` around every
@@ -424,7 +424,11 @@ passed to `transport.onRequest` itself needs none.
 
 `registerCommands` (`src/features/commands.ts`) wires `workspace/
 executeCommand` onto the transport for the three ids `features/names.ts`'s
-`OKFIT_COMMANDS` advertises. Like `registerCodeActions`, it requires `Git` in
+`OKFIT_COMMANDS` advertises. The ids live under `okfit.lsp.` on purpose:
+`vscode-languageclient` registers every advertised id as a VS Code command,
+so an id a client extension also contributes (the okfit extension's own
+`okfit.setStatus`/`okfit.markVerified`) makes client initialization throw
+"command already exists" -- never advertise an id a client might own. Like `registerCodeActions`, it requires `Git` in
 its own `R` and captures its context once, so the handler passed to
 `transport.onRequest` itself needs none. Each command's `arguments` (an
 `ExecuteCommandParams.arguments` array, positional by index) is decoded
@@ -432,7 +436,7 @@ through a small `Schema.Tuple`; a decode failure fails with an `LspError`
 naming the expected shape (`-32602`), and an unrecognized command id fails
 naming it (`-32601`).
 
-- **`okfit.setStatus`** -- args `[uri, status]`
+- **`okfit.lsp.setStatus`** -- args `[uri, status]`
   (`Schema.Tuple([Schema.String, Status])`). Computes `statusTextEdits`,
   sends it to the client with `transport.sendRequest<ApplyWorkspaceEditParams,
   ApplyWorkspaceEditResult>("workspace/applyEdit", { label, edit })`, and
@@ -442,11 +446,11 @@ naming it (`-32601`).
   contract). An `EditFailure` from `statusTextEdits` fails as an `LspError`
   whose message is `describeFailure(failure)`, under `-32803` ("request
   failed").
-- **`okfit.markVerified`** -- args `[uri]` (`Schema.Tuple([Schema.String])`).
+- **`okfit.lsp.markVerified`** -- args `[uri]` (`Schema.Tuple([Schema.String])`).
   Same `workspace/applyEdit` round trip, over `verifiedTextEdits(registry,
   path, now)` (`now` read once per request with `DateTime.now`, the same
   posture as `registerCodeActions`).
-- **`okfit.revalidate`** -- args `[rootUri?]`, an optional single-string
+- **`okfit.lsp.revalidate`** -- args `[rootUri?]`, an optional single-string
   tuple (`Schema.Tuple([Schema.optionalKey(Schema.String)])`) so the client
   may send `[]` or omit `arguments` entirely. `rootUri` present: schedules a
   `full` revalidate (`handle.scheduler.schedule("full")` then `.settle`, the

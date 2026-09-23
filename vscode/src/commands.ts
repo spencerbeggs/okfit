@@ -8,7 +8,7 @@ import type { ConceptsProvider } from "./tree/provider.js";
 /**
  * `ApplyWorkspaceEditResult`'s shape, copied rather than imported from
  * `vscode-languageserver` (only `vscode-languageclient` is a dependency of
- * this extension) -- `okfit.setStatus` and `okfit.markVerified` answer with
+ * this extension) -- the server's `okfit.lsp.setStatus` and `okfit.lsp.markVerified` answer with
  * this verbatim (`packages/lsp/src/features/commands.ts`).
  */
 interface ApplyWorkspaceEditResult {
@@ -52,7 +52,8 @@ const statusOf = (provider: ConceptsProvider | undefined, uri: string): Status |
 
 /**
  * Registers `okfit.validateBundle`, `okfit.openConcept`, `okfit.setStatus`
- * and `okfit.markVerified`. `getClient` and `getProvider` are read fresh on
+ * and `okfit.markVerified`, which call the server's `okfit.lsp.*` commands
+ * (`tree/wire.ts`'s `OKFIT_COMMANDS`) -- never the same ids. `getClient` and `getProvider` are read fresh on
  * every invocation rather than captured once -- both are rebuilt on every
  * language-client restart (`extension.ts`).
  */
@@ -61,7 +62,7 @@ export const registerCommands = (
 	getClient: () => LanguageClient | undefined,
 	log: (message: string) => void,
 ): void => {
-	/** The server revalidates on watched-file and document events already; this re-requests the concept list and re-publishes the tree. When the server advertises `okfit.revalidate` (LSP roadmap phase 5), it is asked to run a fresh `full` revalidate first; an older server that does not falls back to the refresh-only behaviour. */
+	/** The server revalidates on watched-file and document events already; this re-requests the concept list and re-publishes the tree. When the server advertises `okfit.lsp.revalidate` (LSP roadmap phase 5), it is asked to run a fresh `full` revalidate first; an older server that does not falls back to the refresh-only behaviour. */
 	useCommand("okfit.validateBundle", async () => {
 		const client = getClient();
 		if (client === undefined) {
@@ -71,10 +72,14 @@ export const registerCommands = (
 			// Quiet log line, no dialog: the tree refresh below is still a
 			// reasonable no-op response to an otherwise-disabled command.
 			log("okfit language server is not running -- Validate Bundle only refreshes the tree.");
-		} else if (supportsCommand(client, "okfit.revalidate")) {
-			await executeOnServer(client, "okfit.revalidate", []);
+		} else if (supportsCommand(client, "okfit.lsp.revalidate")) {
+			try {
+				await executeOnServer(client, "okfit.lsp.revalidate", []);
+			} catch (error) {
+				void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+			}
 		} else {
-			log("okfit language server does not advertise okfit.revalidate -- Validate Bundle only refreshes the tree.");
+			log("okfit language server does not advertise okfit.lsp.revalidate -- Validate Bundle only refreshes the tree.");
 		}
 		await getProvider()?.refresh();
 	});
@@ -93,7 +98,7 @@ export const registerCommands = (
 		if (picked) await vscode.window.showTextDocument(vscode.Uri.parse(picked.uri));
 	});
 
-	/** Quick pick over the two statuses the concept does not already have (`status-picks.ts`), then `workspace/executeCommand` `okfit.setStatus [uri, status]`. */
+	/** Quick pick over the two statuses the concept does not already have (`status-picks.ts`), then `workspace/executeCommand` `okfit.lsp.setStatus [uri, status]`. */
 	useCommand("okfit.setStatus", async (arg?: unknown) => {
 		const client = getClient();
 		if (client === undefined) {
@@ -113,10 +118,10 @@ export const registerCommands = (
 			{ placeHolder: "Set status" },
 		);
 		if (picked === undefined) return;
-		await runEditCommand(client, "okfit.setStatus", [uri, picked.label], "okfit.setStatus failed.");
+		await runEditCommand(client, "okfit.lsp.setStatus", [uri, picked.label], "okfit.setStatus failed.");
 	});
 
-	/** `workspace/executeCommand` `okfit.markVerified [uri]`; the server resolves the human actor and computes the edit. */
+	/** `workspace/executeCommand` `okfit.lsp.markVerified [uri]`; the server resolves the human actor and computes the edit. */
 	useCommand("okfit.markVerified", async (arg?: unknown) => {
 		const client = getClient();
 		if (client === undefined) {
@@ -125,6 +130,6 @@ export const registerCommands = (
 		}
 		const uri = conceptUriFrom(arg, activeDocumentUri());
 		if (uri === undefined) return;
-		await runEditCommand(client, "okfit.markVerified", [uri], "okfit.markVerified failed.");
+		await runEditCommand(client, "okfit.lsp.markVerified", [uri], "okfit.markVerified failed.");
 	});
 };

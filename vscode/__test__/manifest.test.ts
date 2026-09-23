@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONFIG_GLOB } from "../src/config-glob.js";
+import { OKFIT_COMMANDS } from "../src/tree/wire.js";
 
 const root = join(import.meta.dirname, "..");
 const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as Record<string, unknown>;
@@ -89,5 +90,17 @@ describe("extension manifest", () => {
 				expect(contextMenu.some((e) => e.command === id && e.group === group)).toBe(true);
 			}
 		}
+	});
+
+	// vscode-languageclient registers every id in the server's
+	// executeCommandProvider.commands as a VS Code command; one that the
+	// extension also contributes throws "command already exists" during client
+	// initialization and the language server never starts.
+	it("contributes no command id the server advertises in executeCommandProvider.commands", () => {
+		const contributed = (manifest.contributes as { commands: Array<{ command: string }> }).commands.map(
+			(c) => c.command,
+		);
+		expect(contributed.length).toBeGreaterThan(0);
+		for (const id of OKFIT_COMMANDS) expect(contributed).not.toContain(id);
 	});
 });

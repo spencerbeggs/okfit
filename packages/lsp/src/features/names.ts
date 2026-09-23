@@ -9,7 +9,7 @@
  */
 
 /** Command ids the server advertises in `executeCommandProvider.commands`. @public */
-export const OKFIT_COMMANDS = ["okfit.setStatus", "okfit.markVerified", "okfit.revalidate"] as const;
+export const OKFIT_COMMANDS = ["okfit.lsp.setStatus", "okfit.lsp.markVerified", "okfit.lsp.revalidate"] as const;
 
 /** Code action kinds the server advertises in `codeActionProvider.codeActionKinds`. @public */
 export const OKFIT_CODE_ACTION_KINDS = ["quickfix", "okfit.status", "okfit.verify"] as const;
