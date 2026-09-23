@@ -5,7 +5,11 @@
  * @internal
  */
 
-/** The error's `message` when it has one as a string, else `String(error)`. */
+/**
+ * The error's `message` when it has one as a string, else `String(error)`.
+ *
+ * @internal
+ */
 export const messageOf = (error: unknown): string => {
 	if (typeof error === "object" && error !== null && "message" in error) {
 		const message = (error as { readonly message: unknown }).message;

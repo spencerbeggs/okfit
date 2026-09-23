@@ -8,8 +8,8 @@
 export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
-export type { DiagnosticsFeature } from "./features/diagnostics.js";
-export { makeDiagnosticsFeature } from "./features/diagnostics.js";
+export type { DiagnosticsFeature, RevalidatePublisher } from "./features/diagnostics.js";
+export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";

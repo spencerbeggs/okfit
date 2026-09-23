@@ -27,7 +27,12 @@ export interface DiagnosticsFeature {
 	readonly onWatchedFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void>;
 }
 
-/** The registry's scheduler callback: read now, revalidate, publish every changed file. */
+/**
+ * The registry's scheduler callback: read now, revalidate, publish every
+ * changed file.
+ *
+ * @public
+ */
 export type RevalidatePublisher = (handle: SessionHandle, tier: RevalidateTier) => Effect.Effect<void>;
 
 /**

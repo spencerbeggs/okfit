@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:06:44Z
-  body_sha256: ade55370f55fb02d5a1c7d7d8c57e69262e1cc56facc34b0ac02288cf66c6edd
+  at: 2026-09-23T03:43:39Z
+  body_sha256: fdf03a7800a2cfed9ff500a2ecff423d06c856d78bfc3f0e00088019285289c6
 ---
 
 # LSP
@@ -21,8 +21,11 @@ generated:
 `@okfit/lsp` is the `okfit-lsp` bin: a Language Server Protocol server over
 stdio that publishes [Engine](engine.md)'s validate diagnostics for a
 discovered OKF bundle into any LSP client, Claude Code included, without a
-tool call. It registers for `.md`, discovers a bundle per workspace folder
-the same way the CLI and MCP server do, and republishes diagnostics as
+tool call. The `.md` binding is the client's own registration (the Claude
+Code plugin manifest's `extensionToLanguage`); this server answers for
+any document under a discovered bundle root. It discovers a bundle per
+workspace folder the same way the CLI and MCP server do, and republishes
+diagnostics as
 documents open, change, save, close, or are touched outside the editor. It
 writes nothing to the bundle, ever — the same promise [MCP](mcp.md) makes,
 carried to a second front end. Diagnostics only; navigation, hover, and

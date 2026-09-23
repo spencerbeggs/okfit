@@ -7,8 +7,11 @@ Language Server Protocol server for [okfit](https://github.com/spencerbeggs/okfi
 ## What it is
 
 `@okfit/lsp` speaks the Language Server Protocol over stdio for one or
-more discovered OKF bundles. It registers for `.md`, discovers a bundle
-per workspace folder the same way the CLI and MCP server do, and
+more discovered OKF bundles. The `.md` binding is the client's own
+registration (the Claude Code plugin manifest's `extensionToLanguage`);
+this server answers for any document under a discovered bundle root. It
+discovers a bundle per workspace folder the same way the CLI and MCP
+server do, and
 publishes `okfit validate`'s diagnostics as documents open, change, save,
 close, or are touched by a watched-file event outside the editor. It
 writes nothing to the bundle, ever — the same promise the MCP server

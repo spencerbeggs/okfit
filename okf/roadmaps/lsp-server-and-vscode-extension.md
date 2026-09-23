@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:15:11Z
-  body_sha256: 8eef9e061382c048d53bb4366cab1ba030cb5c3844ae7625cf0d6df73fd3850b
+  at: 2026-09-23T03:43:39Z
+  body_sha256: a70505d4a198027871e9995e0f85f08c76b69f6448c2dfa60bc6e3748e4da887
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -140,8 +140,9 @@ repository's own bundle.
    `Loaded 1 LSP server(s) from plugin: okfit` and `LSP server instance
    started: plugin:okfit:okfit`, and an Edit appending a broken link to
    `okf/modules/lsp.md` produced a diagnostics attachment naming
-   `broken-links` for that file (cleared once the second Edit removed the
-   line). Remaining: the release.
+   `broken-links` for that file; the second Edit, which removed the line,
+   produced no attachment, and the file was restored (`okf/` clean).
+   Remaining: the release.
 4. **Precise ranges and navigation.** Every lint rule that knows its
    field or link attaches a range through the mapper core already owns
    (most rules attach none today, which the CLI and MCP tolerate and an
