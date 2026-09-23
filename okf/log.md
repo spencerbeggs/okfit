@@ -18,6 +18,7 @@
 * Added Publish the VS Code extension
 * Added The VS Code extension lives at vscode/, not under plugins/ or packages/
 * Added VS Code Extension
+* Added Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 
 ## 2026-09-22
 
