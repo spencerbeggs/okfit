@@ -260,4 +260,17 @@ describe("SessionRegistry", () => {
 			assert.strictEqual(warnings.length, 2);
 		}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([capturingLogger])));
 	});
+
+	it.effect("folders reports the workspace folder set in insertion order; removeFolders drops from it", () =>
+		Effect.gen(function* () {
+			const a = yield* copyFixtureProject();
+			const b = yield* copyFixtureProject();
+			const registry = yield* make();
+			assert.deepStrictEqual(yield* registry.folders, []);
+			yield* registry.setFolders([a.root, b.root]);
+			assert.deepStrictEqual(yield* registry.folders, [a.root, b.root]);
+			yield* registry.removeFolders([a.root]);
+			assert.deepStrictEqual(yield* registry.folders, [b.root]);
+		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
 });

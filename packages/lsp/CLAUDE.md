@@ -304,10 +304,18 @@ specification reserves `$/` for its own and leaves vendor prefixes to
 implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
 `{ okfitConcepts: true }` so a client can feature-detect.
 
-- **`okfit/concepts`** answers from every live session's (`registry.sessions`)
-  last-loaded bundle, never triggering or waiting on a revalidate: one
-  `BundleSummary` per session whose `bundle()` is `Some` (a session that has
-  never revalidated contributes no entry), each carrying `root`, `rootUri`,
+- **`okfit/concepts`** first warms up: every current workspace folder
+  (`registry.folders`) gets its session built via `registry.sessionFor` if it
+  has never been resolved, and every live session (`registry.sessions`) whose
+  `bundle()` is still `None` runs a first `full` revalidate through the
+  normal scheduler path (`handle.scheduler.schedule("full")` then
+  `.settle`), so a client that asks before any document is open still gets a
+  populated result. Nothing warms up on its own -- a server nobody sends this
+  request to (Claude Code, still lazy-by-default) builds no session it
+  otherwise wouldn't have. It then answers from every live session's
+  last-loaded bundle: one `BundleSummary` per session whose `bundle()` is
+  `Some` (a session whose bundle still never loaded -- no config, or one that
+  failed -- contributes no entry), each carrying `root`, `rootUri`,
   the resolved `profile` name (`session.config().bundle?.profile`, with the
   documented `"none"` sentinel -- profile merging disabled -- mapped to
   `undefined`; `OkfitConfig.DEFAULTS.bundle.profile` is always

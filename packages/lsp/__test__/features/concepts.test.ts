@@ -1,12 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Logger } from "effect";
 import { pathToUri } from "../../src/convert/uri.js";
 import type { ConceptsResult } from "../../src/features/concepts.js";
 import { registerConcepts } from "../../src/features/concepts.js";
-import { makeSessionRegistry } from "../../src/session/registry.js";
-import { makeCapturingTransport } from "../utils/fakeTransport.js";
 import { testPlatform } from "../utils/platform.js";
-import { setupRegistry, setupTwoFoldersRegistry } from "../utils/registryFixture.js";
+import { setupRegistry, setupTwoFoldersRegistry, setupWarmupRegistry } from "../utils/registryFixture.js";
 import { makeTempBundle } from "../utils/tempBundle.js";
 
 /**
@@ -129,22 +127,49 @@ status_missing = "off"
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 
-	it.effect("a session whose bundle never loaded contributes no entry", () =>
+	// The old "a session whose bundle never loaded contributes no entry" case is no longer reachable:
+	// `registerConcepts` now warms up every workspace folder before answering, so a folder whose config
+	// resolves gets its session built and a first `full` revalidate run before the handler answers. The
+	// warm-up cases below replace it.
+
+	// `it.live`, not `it.effect`: the warm-up runs the real scheduler (`schedule` then `settle`), which
+	// sleeps out the (real, 10ms) debounce delay -- under `it.effect`'s virtual `TestClock`, which nothing
+	// here advances, that sleep never resolves and the test hangs until it times out.
+	it.live("warms up a folder that has no session yet", () =>
 		Effect.gen(function* () {
-			const { root } = yield* makeTempBundle({ ".okfit.toml": CONFIG });
-			const { transport, call } = makeCapturingTransport();
-			const registry = yield* makeSessionRegistry({
-				delay: "10 millis",
-				maxWait: "10 seconds",
-				onRevalidate: () => Effect.void,
-				onDispose: () => Effect.void,
-			});
-			yield* registerConcepts(transport, registry);
+			const { root } = yield* makeTempBundle({ "a.md": concept("Alpha"), ".okfit.toml": CONFIG });
+			const { call, notifications, registry } = yield* setupWarmupRegistry(registerConcepts);
+			// No sessionFor/revalidate call before the request: the folder has never been resolved.
 			yield* registry.setFolders([root]);
-			// No revalidate: bundle() is None.
 			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
-			assert.deepStrictEqual(result.bundles, []);
+			assert.strictEqual(result.bundles.length, 1);
+			assert.strictEqual(result.bundles[0]!.root, root);
+			assert.deepStrictEqual(
+				result.bundles[0]!.concepts.map((c) => c.title),
+				["Alpha"],
+			);
+			// The warm-up went through the normal scheduler path (publish, then notify), not a bypass.
+			assert.isTrue(
+				notifications.some((n) => n.method === "textDocument/publishDiagnostics" || n.method === "okfit/bundleChanged"),
+			);
 		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.live("a folder without an okfit config contributes nothing and does not fail", () =>
+		// `plain` has no `.okfit.toml` anywhere upward of it, so config resolution falls back to
+		// `OkfitConfig.DEFAULTS` (`bundle.path: "okf"`) rather than failing outright; the warm-up still
+		// builds a session for it, but that session's bundle root (`plain/okf`) does not exist on disk, so
+		// its revalidate fails and logs a warning (expected here, hence the silenced logger) and contributes
+		// no bundle entry -- exactly like a folder whose config genuinely failed to parse.
+		Effect.gen(function* () {
+			const { root: plain } = yield* makeTempBundle({ "README.md": "# plain\n" });
+			const { root: bundleRoot } = yield* makeTempBundle({ "a.md": concept("Alpha"), ".okfit.toml": CONFIG });
+			const { call, registry } = yield* setupWarmupRegistry(registerConcepts);
+			yield* registry.setFolders([plain, bundleRoot]);
+			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+			assert.strictEqual(result.bundles.length, 1);
+			assert.strictEqual(result.bundles[0]!.root, bundleRoot);
+		}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
 	);
 
 	it.effect(

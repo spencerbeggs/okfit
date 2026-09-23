@@ -50,6 +50,7 @@ export const makeFakeRegistry = (
 		sessionFor: (path) =>
 			Effect.succeed(path.startsWith(`${bundleRoot}/`) ? Option.some(handle) : Option.none<SessionHandle>()),
 		sessions: Effect.succeed([handle]),
+		folders: unused("folders")(),
 		retryFailed: () => Effect.succeed([]),
 		rebuild: unused("rebuild"),
 	};

@@ -64,6 +64,8 @@ export interface SessionRegistryShape {
 	readonly sessionFor: (path: string, options?: SessionForOptions) => Effect.Effect<Option.Option<SessionHandle>>;
 	/** Every live session, one per bundle root however many folders share it (for watched-files fan-out). */
 	readonly sessions: Effect.Effect<ReadonlyArray<SessionHandle>>;
+	/** The current workspace folder set, in insertion order (the order `setFolders`/`addFolders` added them). */
+	readonly folders: Effect.Effect<ReadonlyArray<string>>;
 	/** Absolute paths; rebuilds every workspace folder whose last build failed and that contains one of them, returning the sessions that now serve them (each once). */
 	readonly retryFailed: (paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<SessionHandle>>;
 	/**
@@ -532,6 +534,10 @@ export const makeSessionRegistry = (
 			[...current.roots.values()].map((entry) => entry.handle),
 		);
 
+		const folders: Effect.Effect<ReadonlyArray<string>> = Effect.map(Ref.get(state), (current) => [
+			...current.folders.keys(),
+		]);
+
 		const retryFailed = (paths: ReadonlyArray<string>): Effect.Effect<ReadonlyArray<SessionHandle>> =>
 			Effect.gen(function* () {
 				const failed = [...(yield* Ref.get(state)).folders.entries()]
@@ -547,5 +553,5 @@ export const makeSessionRegistry = (
 
 		yield* Effect.addFinalizer(() => dropFolders((current) => current.folders.keys()));
 
-		return { setFolders, addFolders, removeFolders, sessionFor, sessions, retryFailed, rebuild };
+		return { setFolders, addFolders, removeFolders, sessionFor, sessions, folders, retryFailed, rebuild };
 	});

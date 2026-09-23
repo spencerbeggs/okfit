@@ -65,12 +65,14 @@ extension's concept explorer); neither is part of the LSP standard, and the
 LSP specification reserves `$/` for its own extensions, leaving vendor
 prefixes to implementations.
 
-- **`okfit/concepts`** (request, params `{}`) answers every live workspace
-  folder's last-loaded bundle as `{ bundles: [{ root, rootUri, profile,
-  concepts: [{ id, uri, title, type, status, stale }] }] }`: `status` is
-  `"draft" | "stable" | "deprecated" | undefined` (absent when the
-  frontmatter has none), `stale` is computed against the request time, and a
-  session whose bundle has never loaded contributes no bundle entry.
+- **`okfit/concepts`** (request, params `{}`) warms up every workspace folder
+  that has never been resolved and runs a first revalidate for any bundle
+  that has never loaded, then answers with every live workspace folder's
+  loaded bundle as `{ bundles: [{ root, rootUri, profile, concepts: [{ id,
+  uri, title, type, status, stale }] }] }`: `status` is `"draft" | "stable" |
+  "deprecated" | undefined` (absent when the frontmatter has none), `stale`
+  is computed against the request time, and a bundle that still failed to
+  load (no config, or one that failed) contributes no bundle entry.
 - **`okfit/bundleChanged`** (notification, params `{ rootUri, reason:
   "revalidated" | "dropped" }`) is sent after every revalidate of a bundle
   root's diagnostics and after that root's session is dropped, so a client

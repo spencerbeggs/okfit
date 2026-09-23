@@ -264,4 +264,20 @@ describe("serve", () => {
 			assert.ok(published.diagnostics.length > 0);
 		}).pipe(Effect.scoped),
 	);
+
+	it.live("okfit/concepts warms up the bundle when no document has been opened yet", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			yield* h.initialize;
+			// No didOpen: the folder's session has never been resolved before this request.
+			const result = yield* request<{ readonly bundles: ReadonlyArray<{ readonly root: string }> }>(
+				h.client,
+				"okfit/concepts",
+				{},
+			);
+			assert.isTrue(result.bundles.length > 0);
+			const revalidated = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+			assert.deepStrictEqual(revalidated.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
+		}).pipe(Effect.scoped),
+	);
 });

@@ -1,9 +1,11 @@
 import { DateTime, Effect, Option } from "effect";
 import { TestClock } from "effect/testing";
+import { notifyBundleChanged } from "../../src/features/concepts.js";
+import { makeRevalidatePublisher } from "../../src/features/diagnostics.js";
 import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
 import type { SessionRegistryShape } from "../../src/session/registry.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
-import { makeCapturingTransport } from "./fakeTransport.js";
+import { makeCapturingRecordingTransport, makeCapturingTransport } from "./fakeTransport.js";
 import { makeTempBundle } from "./tempBundle.js";
 
 /**
@@ -75,4 +77,38 @@ export const setupTwoFoldersRegistry = (
 			yield* handle.session.revalidate({ now, tier: "full" });
 		}
 		return { rootA, rootB, call };
+	});
+
+/**
+ * A registry wired with the same `onRevalidate`/`onDispose` shape
+ * `server.ts` builds (the real `makeRevalidatePublisher`'s `publish`/`clear`,
+ * plus `notifyBundleChanged`), so a scheduler-driven revalidate -- including
+ * `registerConcepts`'s own warm-up -- actually loads the bundle and sends the
+ * notifications a client would see, instead of the other fixtures' plain
+ * `Effect.void` stub. No folder is set and no session is built here: the
+ * caller sets folders (`registry.setFolders`) to exercise the warm-up path
+ * itself.
+ */
+export const setupWarmupRegistry = (
+	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<void>,
+) =>
+	Effect.gen(function* () {
+		const { transport, call, notifications } = makeCapturingRecordingTransport();
+		const publisher = yield* makeRevalidatePublisher(transport);
+		const registry = yield* makeSessionRegistry({
+			delay: "10 millis",
+			maxWait: "10 seconds",
+			onRevalidate: (handle, tier) =>
+				Effect.andThen(
+					publisher.publish(handle, tier),
+					notifyBundleChanged(transport, handle.bundleRoot, "revalidated"),
+				),
+			onDispose: (handle) =>
+				Effect.andThen(
+					publisher.clear(handle.bundleRoot),
+					notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+				),
+		});
+		yield* register(transport, registry);
+		return { call, notifications, registry };
 	});
