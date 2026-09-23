@@ -133,6 +133,21 @@ generated:
 See [Target](beta.md) for detail. Plain text with nothing to hover over.
 `;
 
+/** Links to a missing target (`missing.md`, no such file) and a file-kind target (`notes.txt`, a real bundle file that is never a concept). */
+const SOURCE_WITH_BROKEN_LINKS = `---
+type: Module
+title: Source With Broken Links
+description: A tiny synthetic concept used only by @okfit/lsp's own hover tests.
+generated:
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+---
+
+# Source With Broken Links
+
+See [Missing](missing.md) and [Notes](notes.txt).
+`;
+
 const positionOf = (text: string, needle: string): { readonly line: number; readonly character: number } => {
 	const offset = text.indexOf(needle);
 	const before = text.slice(0, offset);
@@ -186,6 +201,54 @@ describe("registerHover", () => {
 			assert.include(value, "Target Concept");
 			assert.include(value, "`Module`");
 		}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect(
+		"hover on a missing-kind edge answers null; hover on a file-kind edge (a link to a non-concept file) answers null (positive control above)",
+		() =>
+			Effect.gen(function* () {
+				const { root, registry, call } = yield* setup();
+				yield* Effect.promise(() => writeFile(join(root, "okf", "modules", "notes.txt"), "not a concept\n", "utf8"));
+				const brokenPath = join(root, "okf", "modules", "broken.md");
+				yield* openAndRevalidate(registry, brokenPath, SOURCE_WITH_BROKEN_LINKS);
+
+				const missingPosition = positionOf(SOURCE_WITH_BROKEN_LINKS, "[Missing]");
+				const missingHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+					textDocument: { uri: pathToUri(brokenPath) },
+					position: { line: missingPosition.line, character: missingPosition.character + 1 },
+				});
+				assert.isNull(missingHover);
+
+				const notesPosition = positionOf(SOURCE_WITH_BROKEN_LINKS, "[Notes]");
+				const notesHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+					textDocument: { uri: pathToUri(brokenPath) },
+					position: { line: notesPosition.line, character: notesPosition.character + 1 },
+				});
+				assert.isNull(notesHover);
+			}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect(
+		"a field key does not fire on a nested key (generated.by) or on the type key itself; a top-level field key still fires (positive control above)",
+		() =>
+			Effect.gen(function* () {
+				const { registry, call, sourcePath } = yield* setup();
+				yield* openAndRevalidate(registry, sourcePath, SOURCE);
+
+				const nested = positionOf(SOURCE, "by:");
+				const nestedHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+					textDocument: { uri: pathToUri(sourcePath) },
+					position: nested,
+				});
+				assert.isNull(nestedHover);
+
+				const typeKey = positionOf(SOURCE, "type: Module");
+				const typeKeyHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+					textDocument: { uri: pathToUri(sourcePath) },
+					position: typeKey,
+				});
+				assert.isNull(typeKeyHover);
+			}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 
 	it.effect("the type: value renders the declared type's description and guidance", () =>

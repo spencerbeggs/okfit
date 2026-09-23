@@ -87,6 +87,28 @@ const setup = (files: Readonly<Record<string, string>>) =>
 		return { root, call };
 	});
 
+/** Two independent temp bundles, each its own workspace folder, both revalidated; returns a `call` bound across both live sessions. */
+const setupTwoFolders = (filesA: Readonly<Record<string, string>>, filesB: Readonly<Record<string, string>>) =>
+	Effect.gen(function* () {
+		const { root: rootA } = yield* makeTempBundle({ ...filesA, ".okfit.toml": CONFIG });
+		const { root: rootB } = yield* makeTempBundle({ ...filesB, ".okfit.toml": CONFIG });
+		const { transport, call } = makeCapturingTransport();
+		const registry = yield* makeSessionRegistry({
+			delay: "10 millis",
+			maxWait: "10 seconds",
+			onRevalidate: () => Effect.void,
+			onDispose: () => Effect.void,
+		});
+		yield* registerWorkspaceSymbols(transport, registry);
+		yield* registry.setFolders([rootA, rootB]);
+		for (const root of [rootA, rootB]) {
+			const handle = Option.getOrThrow(yield* registry.sessionFor(root));
+			const now = yield* DateTime.now;
+			yield* handle.session.revalidate({ now, tier: "full" });
+		}
+		return { rootA, rootB, call };
+	});
+
 describe("registerWorkspaceSymbols", () => {
 	it.effect("an empty query returns every concept, sorted by id", () =>
 		Effect.gen(function* () {
@@ -132,6 +154,27 @@ describe("registerWorkspaceSymbols", () => {
 		}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 
+	it.effect(
+		"two workspace folders, each with its own bundle: an empty query returns concepts from both (a query matching only one bundle's concept returns that one, control below)",
+		() =>
+			Effect.gen(function* () {
+				const { call } = yield* setupTwoFolders({ "alpha.md": concept("Alpha") }, { "bravo.md": concept("Bravo") });
+
+				const all = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {
+					query: "",
+				});
+				assert.deepStrictEqual(all.map((symbol) => symbol.name).toSorted(), ["Alpha", "Bravo"]);
+
+				const onlyOne = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {
+					query: "Alpha",
+				});
+				assert.deepStrictEqual(
+					onlyOne.map((symbol) => symbol.name),
+					["Alpha"],
+				);
+			}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
 	it.effect("a query matching nothing answers [] (beside the control above)", () =>
 		Effect.gen(function* () {
 			const { call } = yield* setup({ "a.md": concept("Alpha") });
@@ -147,18 +190,29 @@ describe("registerWorkspaceSymbols", () => {
 		}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 
-	it.effect("results are capped at 200 even when more concepts match", () =>
-		Effect.gen(function* () {
-			const files: Record<string, string> = {};
-			for (let index = 0; index < 250; index++) {
-				const id = String(index).padStart(3, "0");
-				files[`c-${id}.md`] = concept(`Concept ${id}`);
-			}
-			const { call } = yield* setup(files);
-			const symbols = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {
-				query: "",
-			});
-			assert.strictEqual(symbols.length, 200);
-		}).pipe(Effect.provide(platform), Effect.scoped),
+	it.effect(
+		"results are capped at 200 even when more concepts match, keeping the lexicographically smallest 200 ids in order",
+		() =>
+			Effect.gen(function* () {
+				const ids: Array<string> = [];
+				const files: Record<string, string> = {};
+				for (let index = 0; index < 250; index++) {
+					const id = String(index).padStart(3, "0");
+					ids.push(`c-${id}`);
+					files[`c-${id}.md`] = concept(`Concept ${id}`);
+				}
+				const { call } = yield* setup(files);
+				const symbols = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {
+					query: "",
+				});
+				assert.strictEqual(symbols.length, 200);
+
+				const expectedIds = [...ids].sort().slice(0, 200);
+				const expectedNames = expectedIds.map((id) => `Concept ${id.slice(2)}`);
+				assert.deepStrictEqual(
+					symbols.map((symbol) => symbol.name),
+					expectedNames,
+				);
+			}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 });
