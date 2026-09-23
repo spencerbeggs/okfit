@@ -1,6 +1,6 @@
 import type { RevalidateTier } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
-import { Effect, Fiber, Option, Ref, Semaphore } from "effect";
+import { Cause, Effect, Fiber, Option, Ref, Semaphore } from "effect";
 
 /**
  * The debounced revalidate trigger a feature schedules and a workspace
@@ -18,7 +18,7 @@ export interface Scheduler {
 	 * and orphan one of their forked chains.
 	 */
 	readonly schedule: (tier: RevalidateTier) => Effect.Effect<void>;
-	/** Wait for a run in flight (or just scheduled) to finish; a no-op when idle. Tests and shutdown use it. */
+	/** Wait for a run in flight (or just scheduled) to finish; a no-op when idle. Never fails, even when a chain it waited on was interrupted or died. Tests and shutdown use it. */
 	readonly settle: Effect.Effect<void>;
 }
 
@@ -89,6 +89,12 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 					yield* schedule(rerun.value);
 				}
 			}).pipe(
+				// A later `schedule` interrupting this chain is the normal path; anything else is a defect worth a line.
+				Effect.tapCause((cause) =>
+					Cause.hasInterruptsOnly(cause)
+						? Effect.void
+						: Effect.logWarning(`okfit-lsp: a revalidate chain failed: ${Cause.pretty(cause)}`),
+				),
 				Effect.ensuring(
 					Ref.update(state, (entry) =>
 						Option.isSome(entry) && entry.value.fiber === fiberBox.fiber ? Option.none() : entry,
@@ -124,10 +130,12 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 				}),
 			);
 
+		// `Fiber.await`, not `Fiber.join`: a chain interrupted by a later `schedule` (or one that died) must not
+		// fail `settle`, or `shutdown` would answer with an internal error. The loop then waits on the replacement.
 		const settle: Effect.Effect<void> = Effect.gen(function* () {
 			let current = yield* Ref.get(state);
 			while (Option.isSome(current)) {
-				yield* Fiber.join(current.value.fiber);
+				yield* Fiber.await(current.value.fiber);
 				current = yield* Ref.get(state);
 			}
 		});

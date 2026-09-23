@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { RevalidateTier } from "@okfit/engine";
-import { Effect, Fiber, Ref } from "effect";
+import { Effect, Exit, Fiber, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import { makeScheduler } from "../../src/session/scheduler.js";
 
@@ -97,6 +97,22 @@ describe("makeScheduler", () => {
 			yield* Fiber.join(a);
 			yield* Fiber.join(b);
 			yield* TestClock.adjust("150 millis");
+			yield* scheduler.settle;
+			assert.deepStrictEqual(yield* Ref.get(runs), ["full"]);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("settle succeeds when the chain it is waiting on is interrupted by a later schedule", () =>
+		Effect.gen(function* () {
+			const { runs, scheduler } = yield* recorder;
+			yield* scheduler.schedule("edit");
+			const settling = yield* Effect.forkChild(scheduler.settle);
+			yield* Effect.yieldNow;
+			// Replaces the pending chain `settling` is waiting on.
+			yield* scheduler.schedule("full");
+			yield* TestClock.adjust("150 millis");
+			const exit = yield* Fiber.await(settling);
+			assert.isTrue(Exit.isSuccess(exit));
 			yield* scheduler.settle;
 			assert.deepStrictEqual(yield* Ref.get(runs), ["full"]);
 		}).pipe(Effect.scoped),

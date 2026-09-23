@@ -83,7 +83,12 @@ type WriterMessage = Parameters<StreamMessageWriter["write"]>[0];
  * `onExit` handler, and on input `end`/`close` when handed raw streams, so it
  * is not used in this mode. The parent-process liveness poll the library runs
  * for `initialize`'s `processId` is not installed either; a vanished client
- * closes the input stream, which resolves `listen` with `"closed"`.
+ * closes the input stream, which resolves `listen` with `"closed"`. Importing
+ * this module still evaluates the node entry, whose module body installs a
+ * second liveness poll, a never-unref'd interval, when `--clientProcessId`
+ * is in `process.argv`; this transport cannot remove it, so it keeps the
+ * event loop alive after `listen` resolves and the caller must exit the
+ * process explicitly (`main.ts` does).
  *
  * The library decodes and dispatches buffered frames asynchronously, so the
  * input stream's `end` can arrive while messages it delivered are still

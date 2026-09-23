@@ -26,6 +26,20 @@ export interface SessionHandle {
 }
 
 /**
+ * Options for {@link SessionRegistryShape.sessionFor}.
+ *
+ * @public
+ */
+export interface SessionForOptions {
+	/**
+	 * Rebuild the owning folder's entry when its last build failed (a config
+	 * that did not load) instead of answering from the cached failure. The
+	 * full-tier document events (`open`, `save`) set it; an edit does not.
+	 */
+	readonly retryFailed?: boolean;
+}
+
+/**
  * The registry a protocol handler drives: workspace folders in, sessions
  * out. Folder set changes never build a session eagerly; a session is
  * built the first time `sessionFor` needs it.
@@ -40,10 +54,12 @@ export interface SessionRegistryShape {
 	/** Absolute paths; disposes their sessions. */
 	readonly removeFolders: (folders: ReadonlyArray<string>) => Effect.Effect<void>;
 	/** The session owning an absolute document path, if the path is under a workspace folder whose bundle root contains it. */
-	readonly sessionFor: (path: string) => Effect.Effect<Option.Option<SessionHandle>>;
+	readonly sessionFor: (path: string, options?: SessionForOptions) => Effect.Effect<Option.Option<SessionHandle>>;
 	/** Every live session (for watched-files fan-out). */
 	readonly sessions: Effect.Effect<ReadonlyArray<SessionHandle>>;
-	/** Forget a folder's cached session (config changed or failed); the next sessionFor rebuilds it. */
+	/** Absolute paths; rebuilds every workspace folder whose last build failed and that contains one of them, returning the sessions that now build. */
+	readonly retryFailed: (paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<SessionHandle>>;
+	/** Forget a folder's cached session (config changed); the next sessionFor rebuilds it. */
 	readonly invalidate: (folder: string) => Effect.Effect<void>;
 }
 
@@ -87,11 +103,14 @@ interface CacheEntry {
 	readonly scope: Option.Option<Scope.Closeable>;
 }
 
+/** Whether `path` is `folder` itself or under it. */
+const isUnder = (folder: string, path: string): boolean => path === folder || path.startsWith(`${folder}/`);
+
 /** The longest folder in `folders` that `path` is under (`path === folder` or `path.startsWith(folder + "/")`), else `None`. */
 const ownerOf = (folders: ReadonlySet<string>, path: string): Option.Option<string> => {
 	let owner: string | undefined;
 	for (const folder of folders) {
-		if (path === folder || path.startsWith(`${folder}/`)) {
+		if (isUnder(folder, path)) {
 			if (owner === undefined || folder.length > owner.length) {
 				owner = folder;
 			}
@@ -103,9 +122,12 @@ const ownerOf = (folders: ReadonlySet<string>, path: string): Option.Option<stri
 /**
  * Builds a {@link SessionRegistryShape}: workspace folders map to one engine
  * `BundleSession` per bundle root, lazily. A folder's session is built on
- * first use (`sessionFor`, never `setFolders`/`addFolders`), so a folder
- * with a broken config costs one log line per `invalidate`, not per
- * document opened under it.
+ * first use (`sessionFor`, never `setFolders`/`addFolders`). A folder whose
+ * config fails to load caches the failure; `sessionFor` with `retryFailed`
+ * and `retryFailed` rebuild it, so fixing the config recovers the folder. A
+ * failure is logged only when its message differs from the last one logged
+ * for that folder, so a folder that stays broken costs one log line, not
+ * one per retry.
  *
  * @public
  */
@@ -121,6 +143,16 @@ export const makeSessionRegistry = (
 		const folders = yield* Ref.make<ReadonlySet<string>>(new Set());
 		const cache = yield* Ref.make<ReadonlyMap<string, CacheEntry>>(new Map());
 		const gate = yield* Semaphore.make(1);
+		/** The last config failure logged per folder; cleared when the folder builds or is removed. */
+		const lastLogged = yield* Ref.make<ReadonlyMap<string, string>>(new Map());
+
+		const forgetLogged = (folder: string): Effect.Effect<void> =>
+			Ref.update(lastLogged, (map) => {
+				if (!map.has(folder)) return map;
+				const next = new Map(map);
+				next.delete(folder);
+				return next;
+			});
 
 		/** Close (if it owns a scope) and drop a folder's cache entry, if any; a no-op for a folder never built. */
 		const invalidate = (folder: string): Effect.Effect<void> =>
@@ -147,9 +179,15 @@ export const makeSessionRegistry = (
 				);
 
 				if (Result.isFailure(resolved)) {
-					yield* Effect.logWarning(`okfit-lsp: no bundle for ${folder}: ${messageOf(resolved.failure)}`);
+					const message = messageOf(resolved.failure);
+					const previous = (yield* Ref.get(lastLogged)).get(folder);
+					if (previous !== message) {
+						yield* Effect.logWarning(`okfit-lsp: no bundle for ${folder}: ${message}`);
+						yield* Ref.update(lastLogged, (map) => new Map(map).set(folder, message));
+					}
 					return { handle: Option.none(), scope: Option.none() };
 				}
+				yield* forgetLogged(folder);
 
 				const config = resolved.success;
 				const folderScope = yield* Scope.make();
@@ -178,11 +216,12 @@ export const makeSessionRegistry = (
 				return { handle: Option.some(handle), scope: Option.some(folderScope) };
 			}).pipe(Effect.provideContext(context));
 
-		const entryFor = (folder: string): Effect.Effect<CacheEntry> =>
+		/** The folder's cached entry, built on a miss; a cached failure is rebuilt too when `retry` is set (it owns no scope to close). */
+		const entryFor = (folder: string, retry: boolean): Effect.Effect<CacheEntry> =>
 			gate.withPermit(
 				Effect.gen(function* () {
 					const existing = (yield* Ref.get(cache)).get(folder);
-					if (existing !== undefined) return existing;
+					if (existing !== undefined && (Option.isSome(existing.handle) || !retry)) return existing;
 					const built = yield* buildEntry(folder);
 					yield* Ref.update(cache, (map) => {
 						const next = new Map(map);
@@ -199,6 +238,7 @@ export const makeSessionRegistry = (
 				const previous = yield* Ref.get(folders);
 				const removed = [...previous].filter((folder) => !nextSet.has(folder));
 				yield* Effect.forEach(removed, invalidate, { discard: true });
+				yield* Effect.forEach(removed, forgetLogged, { discard: true });
 				yield* Ref.set(folders, nextSet);
 			});
 
@@ -208,6 +248,7 @@ export const makeSessionRegistry = (
 		const removeFolders = (removed: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
 				yield* Effect.forEach(removed, invalidate, { discard: true });
+				yield* Effect.forEach(removed, forgetLogged, { discard: true });
 				yield* Ref.update(folders, (current) => {
 					const next = new Set(current);
 					for (const folder of removed) next.delete(folder);
@@ -215,12 +256,15 @@ export const makeSessionRegistry = (
 				});
 			});
 
-		const sessionFor = (path: string): Effect.Effect<Option.Option<SessionHandle>> =>
+		const sessionFor = (
+			path: string,
+			sessionOptions: SessionForOptions = {},
+		): Effect.Effect<Option.Option<SessionHandle>> =>
 			Effect.gen(function* () {
 				const currentFolders = yield* Ref.get(folders);
 				const owner = ownerOf(currentFolders, path);
 				if (Option.isNone(owner)) return Option.none();
-				const entry = yield* entryFor(owner.value);
+				const entry = yield* entryFor(owner.value, sessionOptions.retryFailed === true);
 				if (Option.isNone(entry.handle)) return Option.none();
 				const handle = entry.handle.value;
 				if (path !== handle.bundleRoot && !path.startsWith(`${handle.bundleRoot}/`)) return Option.none();
@@ -231,6 +275,20 @@ export const makeSessionRegistry = (
 			[...map.values()].flatMap((entry) => (Option.isSome(entry.handle) ? [entry.handle.value] : [])),
 		);
 
+		const retryFailed = (paths: ReadonlyArray<string>): Effect.Effect<ReadonlyArray<SessionHandle>> =>
+			Effect.gen(function* () {
+				const currentFolders = yield* Ref.get(folders);
+				const map = yield* Ref.get(cache);
+				const failed = [...map.entries()]
+					.filter(
+						([folder, entry]) =>
+							Option.isNone(entry.handle) && currentFolders.has(folder) && paths.some((path) => isUnder(folder, path)),
+					)
+					.map(([folder]) => folder);
+				const rebuilt = yield* Effect.forEach(failed, (folder) => entryFor(folder, true));
+				return rebuilt.flatMap((entry) => (Option.isSome(entry.handle) ? [entry.handle.value] : []));
+			});
+
 		yield* Effect.addFinalizer(() =>
 			Effect.gen(function* () {
 				const map = yield* Ref.get(cache);
@@ -238,5 +296,5 @@ export const makeSessionRegistry = (
 			}),
 		);
 
-		return { setFolders, addFolders, removeFolders, sessionFor, sessions, invalidate };
+		return { setFolders, addFolders, removeFolders, sessionFor, sessions, retryFailed, invalidate };
 	});

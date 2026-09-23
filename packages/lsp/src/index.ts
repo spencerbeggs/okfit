@@ -31,6 +31,7 @@ export type {
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
 export type {
+	SessionForOptions,
 	SessionHandle,
 	SessionRegistryOptions,
 	SessionRegistryServices,

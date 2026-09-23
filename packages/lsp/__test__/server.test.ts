@@ -5,11 +5,14 @@ import { makeServeHarness, notify, request } from "./utils/harness.js";
 const BROKEN = (text: string) => text.replace("See [Beta](beta.md).", "See [Gamma](gamma.md).");
 const readFixture = (root: string, relative: string) =>
 	Effect.promise(() => import("node:fs/promises").then((fs) => fs.readFile(`${root}/${relative}`, "utf8")));
+const writeFixture = (root: string, relative: string, text: string) =>
+	Effect.promise(() => import("node:fs/promises").then((fs) => fs.writeFile(`${root}/${relative}`, text, "utf8")));
+const BROKEN_CONFIG = "[lint\nbroken = ";
 
 describe("serve", () => {
 	it.live("initialize advertises full sync, save, and workspace folders, and names the server", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			const result = yield* h.initialize;
 			assert.deepStrictEqual(result.capabilities.textDocumentSync, { openClose: true, change: 1, save: true });
 			assert.deepStrictEqual(result.capabilities.workspace?.workspaceFolders, {
@@ -24,7 +27,7 @@ describe("serve", () => {
 		"opening a clean concept publishes nothing; breaking its link publishes one broken-links warning with a range",
 		() =>
 			Effect.gen(function* () {
-				const h = yield* makeServeHarness;
+				const h = yield* makeServeHarness();
 				yield* h.initialize;
 				yield* h.open("okf/modules/alpha.md");
 				assert.deepStrictEqual(yield* h.drainPublished, []);
@@ -42,7 +45,7 @@ describe("serve", () => {
 
 	it.live("fixing the link publishes an empty list for the file", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			yield* h.initialize;
 			const text = yield* readFixture(h.root, "okf/modules/alpha.md");
 			yield* h.open("okf/modules/alpha.md", BROKEN(text));
@@ -55,7 +58,8 @@ describe("serve", () => {
 
 	it.live("a burst of changes publishes once", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			// A debounce wide enough that a scheduling gap under load cannot split the three changes into two runs.
+			const h = yield* makeServeHarness({ delay: "250 millis" });
 			yield* h.initialize;
 			const text = yield* readFixture(h.root, "okf/modules/alpha.md");
 			yield* h.open("okf/modules/alpha.md");
@@ -70,7 +74,7 @@ describe("serve", () => {
 
 	it.live("editing beta so alpha's link breaks publishes against alpha, a file that is not open (cross-file)", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			yield* h.initialize;
 			// alpha links beta.md#beta; renaming beta's only heading leaves that anchor dangling.
 			const beta = yield* readFixture(h.root, "okf/modules/beta.md");
@@ -82,7 +86,7 @@ describe("serve", () => {
 
 	it.live("closing an unsaved broken document reverts its diagnostics to the disk state", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			yield* h.initialize;
 			const text = yield* readFixture(h.root, "okf/modules/alpha.md");
 			yield* h.open("okf/modules/alpha.md", BROKEN(text));
@@ -97,7 +101,7 @@ describe("serve", () => {
 		"a markdown file outside the bundle publishes nothing, while the same edit inside the bundle publishes (control)",
 		() =>
 			Effect.gen(function* () {
-				const h = yield* makeServeHarness;
+				const h = yield* makeServeHarness();
 				yield* h.initialize;
 				yield* h.open("README.md", "# Not a concept\n\nSee [nowhere](nowhere.md).\n");
 				yield* h.change("README.md", "# Not a concept\n\nSee [elsewhere](elsewhere.md).\n", 2);
@@ -114,7 +118,7 @@ describe("serve", () => {
 
 	it.live("a non-file URI is ignored and the server keeps answering", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			yield* h.initialize;
 			yield* notify(h.client, "textDocument/didOpen", {
 				textDocument: { uri: "untitled:Untitled-1", languageId: "markdown", version: 1, text: "# x" },
@@ -129,7 +133,7 @@ describe("serve", () => {
 
 	it.live("a workspace folder added at runtime is served; one removed stops being served", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			// initialize with NO folders, then add the fixture root.
 			yield* request(h.client, "initialize", {
 				processId: null,
@@ -162,7 +166,7 @@ describe("serve", () => {
 		"shutdown drains queued document work: a publish for an edit sent just before shutdown precedes the response",
 		() =>
 			Effect.gen(function* () {
-				const h = yield* makeServeHarness;
+				const h = yield* makeServeHarness();
 				yield* h.initialize;
 				const text = yield* readFixture(h.root, "okf/modules/alpha.md");
 				yield* h.open("okf/modules/alpha.md", BROKEN(text));
@@ -179,9 +183,50 @@ describe("serve", () => {
 			}).pipe(Effect.scoped),
 	);
 
+	it.live(
+		"a folder whose config failed recovers on save once the config is fixed: nothing publishes while broken, the save publishes",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness();
+				const config = yield* readFixture(h.root, ".okfit.toml");
+				const alpha = yield* readFixture(h.root, "okf/modules/alpha.md");
+				yield* writeFixture(h.root, ".okfit.toml", BROKEN_CONFIG);
+				yield* h.initialize;
+				// alpha is broken on disk and in the editor: a healthy folder would publish a broken-links warning for it.
+				yield* writeFixture(h.root, "okf/modules/alpha.md", BROKEN(alpha));
+				yield* h.open("okf/modules/alpha.md");
+				yield* Effect.sleep("100 millis");
+				assert.deepStrictEqual(yield* h.drainPublished, []);
+				yield* writeFixture(h.root, ".okfit.toml", config);
+				yield* h.save("okf/modules/alpha.md");
+				const published = yield* h.drainUntil((p) => p.uri === h.uriOf("okf/modules/alpha.md"), "2 seconds");
+				assert.ok(published.diagnostics.some((d) => d.code === "broken-links"));
+			}).pipe(Effect.scoped),
+	);
+
+	it.live("a folder whose config failed recovers on a watched-file change under it once the config is fixed", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			const config = yield* readFixture(h.root, ".okfit.toml");
+			const alpha = yield* readFixture(h.root, "okf/modules/alpha.md");
+			yield* writeFixture(h.root, ".okfit.toml", BROKEN_CONFIG);
+			yield* h.initialize;
+			yield* writeFixture(h.root, "okf/modules/alpha.md", BROKEN(alpha));
+			yield* h.open("okf/modules/alpha.md");
+			yield* Effect.sleep("100 millis");
+			assert.deepStrictEqual(yield* h.drainPublished, []);
+			yield* writeFixture(h.root, ".okfit.toml", config);
+			yield* notify(h.client, "workspace/didChangeWatchedFiles", {
+				changes: [{ uri: h.uriOf(".okfit.toml"), type: 2 }],
+			});
+			const published = yield* h.drainUntil((p) => p.uri === h.uriOf("okf/modules/alpha.md"), "2 seconds");
+			assert.ok(published.diagnostics.some((d) => d.code === "broken-links"));
+		}).pipe(Effect.scoped),
+	);
+
 	it.live("a bundle-level diagnostic publishes against the bundle's index.md", () =>
 		Effect.gen(function* () {
-			const h = yield* makeServeHarness;
+			const h = yield* makeServeHarness();
 			yield* h.initialize;
 			// Remove the Project concept from the overlay: software-project's "exactly one Project" is bundle-level.
 			yield* h.open(

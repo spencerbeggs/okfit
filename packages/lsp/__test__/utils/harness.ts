@@ -104,43 +104,50 @@ export interface ServeHarness extends Harness {
 	readonly uriOf: (relative: string) => string;
 }
 
-/** Copies the fixture, builds a transport pair, and forks `serve` with a 10 ms debounce under `testPlatform()`. */
-export const makeServeHarness: Effect.Effect<ServeHarness, never, Scope.Scope> = Effect.gen(function* () {
-	const { root } = yield* copyFixtureProject();
-	const harness = yield* makeHarness;
-	const listening = yield* Effect.forkScoped(
-		serve(harness.transport, { delay: "10 millis" }).pipe(Effect.provide(testPlatform())),
-	);
-	const uriOf = (relative: string): string => pathToUri(join(root, relative));
-	const initialize = Effect.gen(function* () {
-		const result = yield* request<InitializeResult>(harness.client, "initialize", {
-			processId: null,
-			rootUri: pathToUri(root),
-			capabilities: {},
-			workspaceFolders: [{ uri: pathToUri(root), name: "project" }],
-			initializationOptions: {},
-		});
-		yield* notify(harness.client, "initialized", {});
-		return result;
-	});
-	const open = (relative: string, text?: string) =>
-		Effect.gen(function* () {
-			const body = text ?? (yield* Effect.promise(() => readFile(join(root, relative), "utf8")));
-			yield* notify(harness.client, "textDocument/didOpen", {
-				textDocument: { uri: uriOf(relative), languageId: "markdown", version: 1, text: body },
+/** Options for {@link makeServeHarness}. */
+export interface ServeHarnessOptions {
+	/** The scheduler's debounce; defaults to 10 ms. A test asserting a count of publishes needs one wide enough to hold its burst under load. */
+	readonly delay?: Duration.Input;
+}
+
+/** Copies the fixture, builds a transport pair, and forks `serve` with `delay` (10 ms by default) under `testPlatform()`. */
+export const makeServeHarness = (options: ServeHarnessOptions = {}): Effect.Effect<ServeHarness, never, Scope.Scope> =>
+	Effect.gen(function* () {
+		const { root } = yield* copyFixtureProject();
+		const harness = yield* makeHarness;
+		const listening = yield* Effect.forkScoped(
+			serve(harness.transport, { delay: options.delay ?? "10 millis" }).pipe(Effect.provide(testPlatform())),
+		);
+		const uriOf = (relative: string): string => pathToUri(join(root, relative));
+		const initialize = Effect.gen(function* () {
+			const result = yield* request<InitializeResult>(harness.client, "initialize", {
+				processId: null,
+				rootUri: pathToUri(root),
+				capabilities: {},
+				workspaceFolders: [{ uri: pathToUri(root), name: "project" }],
+				initializationOptions: {},
 			});
+			yield* notify(harness.client, "initialized", {});
+			return result;
 		});
-	const change = (relative: string, text: string, version = 2) =>
-		notify(harness.client, "textDocument/didChange", {
-			textDocument: { uri: uriOf(relative), version },
-			contentChanges: [{ text }],
-		});
-	const save = (relative: string) =>
-		notify(harness.client, "textDocument/didSave", { textDocument: { uri: uriOf(relative) } });
-	const close = (relative: string) =>
-		notify(harness.client, "textDocument/didClose", { textDocument: { uri: uriOf(relative) } });
-	return { ...harness, root, listening, initialize, open, change, save, close, uriOf };
-});
+		const open = (relative: string, text?: string) =>
+			Effect.gen(function* () {
+				const body = text ?? (yield* Effect.promise(() => readFile(join(root, relative), "utf8")));
+				yield* notify(harness.client, "textDocument/didOpen", {
+					textDocument: { uri: uriOf(relative), languageId: "markdown", version: 1, text: body },
+				});
+			});
+		const change = (relative: string, text: string, version = 2) =>
+			notify(harness.client, "textDocument/didChange", {
+				textDocument: { uri: uriOf(relative), version },
+				contentChanges: [{ text }],
+			});
+		const save = (relative: string) =>
+			notify(harness.client, "textDocument/didSave", { textDocument: { uri: uriOf(relative) } });
+		const close = (relative: string) =>
+			notify(harness.client, "textDocument/didClose", { textDocument: { uri: uriOf(relative) } });
+		return { ...harness, root, listening, initialize, open, change, save, close, uriOf };
+	});
 
 /** `client.sendRequest` as an Effect. */
 export const request = <R>(client: MessageConnection, method: string, params: unknown): Effect.Effect<R> =>

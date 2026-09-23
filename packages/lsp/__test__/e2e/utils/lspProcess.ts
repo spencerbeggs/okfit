@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { resolve } from "node:path";
 import type { Cause, PlatformError, Scope } from "effect";
 import { Effect, Queue, Ref, Stream } from "effect";
@@ -48,39 +49,46 @@ const parseHeader = (header: string): number | null => {
 };
 
 /** The result of one {@link takeFrames} call. */
-interface TakeFramesResult {
-	/** Every complete frame's decoded body, in arrival order. */
+export interface TakeFramesResult {
+	/** Every complete frame's body, decoded as UTF-8, in arrival order. */
 	readonly frames: ReadonlyArray<string>;
-	/** Whatever `buffer` did not consume: a partial trailing frame, or (when `malformed` is set) the unparsed residue starting at the bad header. */
-	readonly rest: string;
+	/** Whatever `buffer` did not consume, still as bytes: a partial trailing frame, or (when `malformed` is set) the unparsed residue starting at the bad header. */
+	readonly rest: Buffer;
 	/** The header block that failed to parse, or `null` when every header seen so far was valid. */
 	readonly malformed: string | null;
 }
 
 /**
  * Extracts every complete `Content-Length` frame from the head of `buffer`,
- * stopping at the first partial trailing frame or unparseable header. Shared
- * by {@link assertOnlyFrames} (given a whole capture at once, so `rest` is
- * only ever a partial trailing frame or true residue) and `spawnLsp`'s
- * stdout parser (given one chunk at a time, `rest` carried into the next
- * call as `pending`).
+ * stopping at the first partial trailing frame or unparseable header.
+ * `Content-Length` counts bytes, so the scan runs over bytes and decodes a
+ * body only once it is complete: counting decoded characters instead would
+ * desync on the first non-ASCII character. Shared by {@link assertOnlyFrames}
+ * (given a whole capture at once, so `rest` is only ever a partial trailing
+ * frame or true residue) and `spawnLsp`'s stdout parser (given one chunk at a
+ * time, `rest` carried into the next call as `pending`).
+ *
+ * @public
  */
-const takeFrames = (buffer: string): TakeFramesResult => {
+export const takeFrames = (buffer: Buffer): TakeFramesResult => {
 	const frames: Array<string> = [];
 	let pending = buffer;
 	while (true) {
 		const headerEnd = pending.indexOf(CRLFCRLF);
 		if (headerEnd === -1) break;
-		const header = pending.slice(0, headerEnd);
+		const header = pending.subarray(0, headerEnd).toString("utf8");
 		const length = parseHeader(header);
 		if (length === null) return { frames, rest: pending, malformed: header };
 		const bodyStart = headerEnd + CRLFCRLF.length;
 		if (pending.length - bodyStart < length) break;
-		frames.push(pending.slice(bodyStart, bodyStart + length));
-		pending = pending.slice(bodyStart + length);
+		frames.push(pending.subarray(bodyStart, bodyStart + length).toString("utf8"));
+		pending = pending.subarray(bodyStart + length);
 	}
 	return { frames, rest: pending, malformed: null };
 };
+
+/** One `Content-Length` frame around `body`, the length counted in UTF-8 bytes. */
+export const frameOf = (body: string): string => `Content-Length: ${Buffer.byteLength(body, "utf8")}${CRLFCRLF}${body}`;
 
 /** A live LSP server process a test can write to while it runs, framed with `Content-Length`. */
 export interface LspProcess {
@@ -109,7 +117,8 @@ export interface LspProcess {
  * @public
  */
 export const assertOnlyFrames = (raw: string): void => {
-	const { rest, malformed } = takeFrames(raw);
+	const { rest: restBytes, malformed } = takeFrames(Buffer.from(raw, "utf8"));
+	const rest = restBytes.toString("utf8");
 	if (malformed !== null) {
 		assert.fail(`stdout carried a non-frame header: ${JSON.stringify(malformed)}`);
 	}
@@ -130,29 +139,35 @@ export const assertOnlyFrames = (raw: string): void => {
  * one scope -- but frames stdout on `Content-Length` instead of newlines
  * and additionally records the raw, undecoded stdout text so a test can
  * prove nothing but frames crossed the wire (`assertOnlyFrames`).
+ * `extraArgs` follow `--stdio` on the command line (for example
+ * `--clientProcessId=<pid>`).
  *
  * @public
  */
 export const spawnLsp = (
 	env: Readonly<Record<string, string>>,
+	extraArgs: ReadonlyArray<string> = [],
 ): Effect.Effect<LspProcess, PlatformError.PlatformError, ChildProcessSpawner.ChildProcessSpawner | Scope.Scope> =>
 	Effect.gen(function* () {
 		const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-		const handle = yield* spawner.spawn(ChildProcess.make(process.execPath, [LSP_BIN, "--stdio"], { env }));
+		const handle = yield* spawner.spawn(
+			ChildProcess.make(process.execPath, [LSP_BIN, "--stdio", ...extraArgs], { env }),
+		);
 
 		const encoder = new TextEncoder();
 		const stdin = yield* Queue.make<Uint8Array, Cause.Done>();
 		yield* Stream.run(Stream.fromQueue(stdin), handle.stdin).pipe(Effect.forkScoped);
 
 		const messages = yield* Queue.unbounded<unknown>();
-		const rawRef = yield* Ref.make("");
-		let pending = "";
-		yield* Stream.decodeText(handle.stdout)
+		// Raw bytes, decoded only on read, so a multi-byte character split across two chunks survives.
+		const rawRef = yield* Ref.make<ReadonlyArray<Uint8Array>>([]);
+		let pending: Buffer = Buffer.alloc(0);
+		yield* handle.stdout
 			.pipe(
-				Stream.runForEach((text) =>
+				Stream.runForEach((chunk) =>
 					Effect.gen(function* () {
-						yield* Ref.update(rawRef, (current) => current + text);
-						pending += text;
+						yield* Ref.update(rawRef, (current) => [...current, chunk]);
+						pending = Buffer.concat([pending, chunk]);
 						const { frames, rest } = takeFrames(pending);
 						pending = rest;
 						yield* Effect.forEach(frames, (body) => Queue.offer(messages, JSON.parse(body) as unknown), {
@@ -168,11 +183,8 @@ export const spawnLsp = (
 			.pipe(Stream.runForEach((text) => Ref.update(stderrRef, (current) => current + text)))
 			.pipe(Effect.forkScoped);
 
-		const send = (message: unknown): Effect.Effect<void> => {
-			const body = JSON.stringify(message);
-			const frame = `Content-Length: ${body.length}${CRLFCRLF}${body}`;
-			return Queue.offer(stdin, encoder.encode(frame)).pipe(Effect.asVoid);
-		};
+		const send = (message: unknown): Effect.Effect<void> =>
+			Queue.offer(stdin, encoder.encode(frameOf(JSON.stringify(message)))).pipe(Effect.asVoid);
 
 		return {
 			send,
@@ -180,6 +192,6 @@ export const spawnLsp = (
 			closeStdin: Queue.end(stdin).pipe(Effect.asVoid),
 			exitCode: handle.exitCode,
 			stderrSoFar: Ref.get(stderrRef),
-			rawStdoutSoFar: Ref.get(rawRef),
+			rawStdoutSoFar: Effect.map(Ref.get(rawRef), (chunks) => Buffer.concat(chunks).toString("utf8")),
 		};
 	});

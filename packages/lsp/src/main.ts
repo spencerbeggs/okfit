@@ -85,8 +85,8 @@ export const main = async (options: MainOptions = {}): Promise<void> => {
 		// clean `shutdown` + `exit` sequence leaves stdin still open (the LSP
 		// spec's own contract: the server terminates itself on `exit`, the
 		// client is not required to close the pipe). `unref` it now that
-		// `listen` has resolved so a code-0 teardown can rely on the loop
-		// draining naturally, matching `packages/mcp/src/main.ts`'s teardown.
+		// `listen` has resolved; the teardown below still exits explicitly,
+		// since stdin is not the only handle that can hold the loop open.
 		process.stdin.unref();
 		return outcome;
 	}).pipe(
@@ -113,15 +113,22 @@ export const main = async (options: MainOptions = {}): Promise<void> => {
 		// 1) rather than a hardcoded 0, since unlike the MCP server this one
 		// distinguishes a clean disconnect (0) from `exit` without `shutdown`
 		// (1); the runner's own `onExit` only calls `process.exit` itself when
-		// the code is non-zero or a signal was received, so code 0 still
-		// relies on the event loop draining naturally, exactly as
-		// `packages/mcp/src/main.ts`'s teardown does.
+		// the code is non-zero or a signal was received, so the success
+		// branch then calls `process.exit` itself: code 0 cannot rely on the
+		// event loop draining (see the comment in the branch).
 		teardown: (exit, onExit) => {
 			// `Runtime.Teardown`'s own signature is generic (`<E, A>(exit: Exit.Exit<E, A>, onExit: (code: number) =>
 			// void) => void`), so inside this literal `exit.value` is typed abstractly as that generic `E`, not
 			// concretely as `number` -- even though `program`'s success channel is `number` at every call site. The
 			// cast is this well-known higher-order-generic-literal quirk, not a real type hole.
-			if (Exit.isSuccess(exit)) return onExit(exit.value as number);
+			if (Exit.isSuccess(exit)) {
+				const code = exit.value as number;
+				onExit(code);
+				// The runner's `onExit` leaves a code-0 exit to the event loop draining. It never drains when the
+				// client passed `--clientProcessId`: the library's node entry, loaded by `protocol/reference.ts`,
+				// installs a never-unref'd liveness interval at module load. Exit explicitly, as LSP's `exit` requires.
+				return process.exit(code);
+			}
 			if (Cause.hasInterruptsOnly(exit.cause)) return onExit(0);
 			return Runtime.defaultTeardown(exit, onExit);
 		},

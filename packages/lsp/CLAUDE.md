@@ -76,7 +76,13 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Tier per event: `didOpen` and `didSave` schedule the `full` tier;
   `didChange` and `didClose` the `edit` tier. A watched-file change
   schedules `full` on every live session, except a config discovery file,
-  which invalidates that folder's session instead.
+  which invalidates that folder's session instead (nothing republishes
+  until the next document event: `okf/limitations/no-config-reload-in-phase-3.md`).
+- A folder whose config failed to load is retried on `didOpen`,
+  `didSave` (`sessionFor(path, { retryFailed: true })`) and on any
+  watched-file change under it (`registry.retryFailed`, which schedules
+  `full` on each folder that now builds). The failure is logged again
+  only when its message differs from the last one logged for the folder.
 - One `textDocument/publishDiagnostics` per file in the engine's
   `changed` map, and nothing else: a file whose set did not change is not
   republished, a file whose set became empty publishes `[]`, and a file
@@ -188,23 +194,30 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
   the authority on a clean shutdown; `"closed"` means the input ended with
   no `exit` among the messages it delivered.
 - **`main.ts`'s program calls `process.stdin.unref()` once `listen` has
-  resolved, then hands its own mapped exit code to the `onExit` callback
-  `NodeRuntime.runMain`'s runner provides, matching
-  `packages/mcp/src/main.ts`'s teardown.** That callback
+  resolved; the success branch of its `teardown` then hands the mapped
+  exit code to the `onExit` callback `NodeRuntime.runMain`'s runner
+  provides and calls `process.exit(code)` itself.** That callback
   (`@effect/platform-node-shared`'s `NodeRuntime.js`) only calls
-  `process.exit` itself when the code is non-zero or a signal was
-  received; for a code-`0` success it relies on Node's event loop draining
-  naturally. `process.stdin`, once read, keeps the loop alive on its own --
-  so a clean `shutdown` + `exit` sequence with stdin still open (the LSP
-  spec's own contract: the server terminates itself on `exit`, the client
-  is never required to close the pipe first) would otherwise hang the
-  process forever at code `0`; unref-ing stdin after `listen` resolves lets
-  the loop drain instead. Unlike the MCP server, this one still
-  distinguishes a clean disconnect (`0`) from `exit` without `shutdown`
-  (`1`): the success branch of `main.ts`'s `teardown` calls `onExit`
-  with the program's own mapped code rather than a hardcoded `0`, so code
-  `1` is still forced through `process.exit` by the runner's own check. The
-  interrupts-only branch calls `onExit(0)` directly, same as MCP.
+  `process.exit` when the code is non-zero or a signal was received; for a
+  code-`0` success it relies on Node's event loop draining. Two handles
+  prevent that: `process.stdin`, once read, stays open after a clean
+  `shutdown` + `exit` (the LSP contract: the server terminates itself on
+  `exit`, the client never has to close the pipe first), and, when the
+  client passes `--clientProcessId`, the library's node entry installs a
+  never-unref'd liveness interval at module load that nothing in this
+  package can clear. The explicit exit covers both; covered by the
+  `--clientProcessId` case in `__test__/e2e/server.e2e.test.ts`. Unlike
+  the MCP server, this one still distinguishes a clean disconnect (`0`)
+  from `exit` without `shutdown` (`1`): `onExit` gets the program's own
+  mapped code, never a hardcoded `0`. The interrupts-only branch calls
+  `onExit(0)` directly, same as MCP.
+- **`process.exit` does not flush.** Writes to `process.stdout` and
+  `process.stderr` are asynchronous when they are pipes on macOS, and
+  `process.exit` discards any still pending. Anything the client must
+  receive has to be written before `listen` resolves: the `"closed"`
+  drain waits for the transport's outstanding writes (bounded by
+  `WRITE_SETTLE_TIMEOUT`), but `exit` resolves at once, so a response or
+  log line still in flight at `exit` can be lost.
 - `Logger.layer([Logger.consolePretty()])` and `Layer.succeed(Logger.LogToStderr,
   true)` are both provided in `main.ts`, exactly as `packages/mcp/src/main.ts`
   does -- without the second, every log line (`serve`'s `Effect.logInfo` on

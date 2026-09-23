@@ -23,7 +23,7 @@ import type { DocumentEvent } from "./documentSync.js";
 export interface DiagnosticsFeature {
 	/** Updates the owning session's overlay and schedules a revalidate; a document outside every bundle root is ignored. */
 	readonly onDocumentEvent: (event: DocumentEvent) => Effect.Effect<void>;
-	/** Absolute paths; a config file change invalidates its folder's session, anything else schedules a full revalidate. */
+	/** Absolute paths; a config file change invalidates its folder's session, anything else schedules a full revalidate; a folder whose config failed is retried when a path under it changes, and a full revalidate is scheduled if it now builds. */
 	readonly onWatchedFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void>;
 }
 
@@ -78,7 +78,8 @@ export const makeRevalidatePublisher = (
 
 /**
  * Builds a {@link DiagnosticsFeature} over `registry`. Open and save
- * schedule the `full` tier, change and close the `edit` tier.
+ * schedule the `full` tier, change and close the `edit` tier. Open and save
+ * also retry a folder whose config failed to load.
  *
  * @public
  */
@@ -86,7 +87,9 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 	Effect.sync(() => {
 		const onDocumentEvent = (event: DocumentEvent): Effect.Effect<void> =>
 			Effect.gen(function* () {
-				const owner = yield* registry.sessionFor(event.path);
+				// The full-tier triggers retry a folder whose config failed, so fixing the config and saving recovers it.
+				const retryFailed = event.kind === "open" || event.kind === "save";
+				const owner = yield* registry.sessionFor(event.path, { retryFailed });
 				if (Option.isNone(owner)) return;
 				const { session, scheduler } = owner.value;
 				switch (event.kind) {
@@ -117,6 +120,8 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 						}),
 					{ discard: true },
 				);
+				const recovered = yield* registry.retryFailed(paths);
+				yield* Effect.forEach(recovered, (handle) => handle.scheduler.schedule("full"), { discard: true });
 			});
 
 		return { onDocumentEvent, onWatchedFiles };

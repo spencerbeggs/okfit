@@ -1,9 +1,10 @@
+import { Buffer } from "node:buffer";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { pathToUri } from "../../src/convert/uri.js";
-import { assertOnlyFrames, spawnLsp } from "./utils/lspProcess.js";
+import { assertOnlyFrames, frameOf, spawnLsp, takeFrames } from "./utils/lspProcess.js";
 import { makeSandbox } from "./utils/sandbox.js";
 
 /** A JSON-RPC response or notification frame, loosely typed for the assertions each case needs. */
@@ -47,6 +48,17 @@ describe("assertOnlyFrames", () => {
 
 	it("passes on one complete frame followed by a partial trailing header", () => {
 		assert.doesNotThrow(() => assertOnlyFrames("Content-Length: 2\r\n\r\n{}Content-Length: 2"));
+	});
+});
+
+describe("takeFrames", () => {
+	it("frames a non-ASCII body by bytes, so the frame after it still parses", () => {
+		// "é" and "→" are 2 and 3 UTF-8 bytes: a character count would cut the first body short and misread the next header.
+		const body = JSON.stringify({ message: "broken link → café" });
+		const { frames, rest, malformed } = takeFrames(Buffer.from(frameOf(body) + frameOf("{}"), "utf8"));
+		assert.deepStrictEqual(frames, [body, "{}"]);
+		assert.strictEqual(rest.length, 0);
+		assert.strictEqual(malformed, null);
 	});
 });
 
@@ -114,6 +126,24 @@ describe("okfit-lsp over real stdio", () => {
 
 			yield* server.send({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null });
 			yield* server.send({ jsonrpc: "2.0", method: "exit", params: null });
+		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+	);
+
+	it.live("shutdown then exit exits 0 within two seconds when launched with --clientProcessId", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* makeSandbox();
+			// The library's node entry installs a never-unref'd liveness interval at module load when this flag is in argv.
+			const server = yield* spawnLsp(sandbox.env, [`--clientProcessId=${process.pid}`]);
+			yield* server.send({ jsonrpc: "2.0", id: 1, method: "initialize", params: initializeParams(sandbox.cwd) });
+			yield* server.nextMessage;
+			yield* server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
+			yield* server.send({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null });
+			yield* server.nextMessage;
+			yield* server.send({ jsonrpc: "2.0", method: "exit", params: null });
+			const code = yield* server.exitCode.pipe(
+				Effect.timeoutOrElse({ duration: "2 seconds", orElse: () => Effect.fail("did not exit" as const) }),
+			);
+			assert.strictEqual(code, 0);
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 
