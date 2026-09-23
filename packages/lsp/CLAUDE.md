@@ -13,6 +13,13 @@ src/
                      package.json import
   errors.ts      -- LspError: the one failure a request handler may return
   index.ts       -- public barrel; this is what later tasks and tests import
+  protocol/
+    LspTransport.ts -- the seam: LspTransportShape, ListenOutcome, the
+                       LspTransport service tag
+    reference.ts    -- makeReferenceTransport: the seam over
+                       vscode-languageserver
+    types.ts        -- type-only re-exports of the protocol types
+                       (InitializeParams, LspDiagnostic, Did*Params, ...)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -21,6 +28,38 @@ extend this tree; read the file before assuming its export list from this
 tree alone.
 
 Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
+
+## The transport seam
+
+Features code against `LspTransportShape` (`src/protocol/LspTransport.ts`),
+never the library. Its eight members:
+
+- `onInitialize`, `onInitialized`, `onShutdown` -- the lifecycle hooks.
+- `onRequest(method, handler)` -- an `LspError` failure is answered as a
+  JSON-RPC error with the error's `code` and `message`; a defect as `-32603`.
+- `onNotification(method, handler)` -- a defect is reported to the client
+  as a `window/logMessage` error, never to stdout.
+- `sendNotification` -- a send on a closed connection is dropped.
+- `sendRequest` -- a JSON-RPC error answer fails with an `LspError`.
+- `listen` -- starts reading and resolves with a `ListenOutcome` when the
+  connection ends. Call once.
+
+`ListenOutcome.reason` is `"exit"` (the client sent `exit`) or `"closed"`
+(the input stream ended first); `shutdownReceived` says whether `shutdown`
+came before. A transport never exits the process: the caller maps the
+outcome to an exit code. Registration is not order-sensitive; a handler
+registered after `listen` still answers.
+
+The reference transport, given `streams`, builds the connection on the
+library's server core (`createConnection(factory, watchDog, features)` from
+the root entry) with its own watchdog, because the library's node entry
+calls `process.exit` after any `onExit` handler and on raw-stream
+`end`/`close`. Without `streams` it falls back to the node entry's argv
+handling and that exit behaviour; `main.ts` passes `process.stdin` and
+`process.stdout` as `streams`.
+
+A future Effect-native transport is done when
+`__test__/protocol/reference.test.ts` passes unchanged against it.
 
 ## Rules
 

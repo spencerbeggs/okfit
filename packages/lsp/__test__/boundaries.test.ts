@@ -18,8 +18,12 @@ const sources = (): ReadonlyArray<{ readonly file: string; readonly code: string
 /** `process.env.__PACKAGE_VERSION__` in version.ts is a build-time constant; bin.ts and main.ts own the process. */
 const MAY_READ_PROCESS = new Set(["bin.ts", "main.ts", "version.ts"]);
 
-/** Only the reference transport and the process entry may see the library. */
-const MAY_IMPORT_LIBRARY = new Set(["protocol/reference.ts", "main.ts"]);
+/**
+ * Only the reference transport and the process entry may see the library.
+ * protocol/types.ts is type-only: `export type` re-exports of the protocol
+ * types, erased at build, so importing it never loads the library.
+ */
+const MAY_IMPORT_LIBRARY = new Set(["protocol/reference.ts", "main.ts", "protocol/types.ts"]);
 
 describe("@okfit/lsp boundaries", () => {
 	it("no file under src/ reads `process` except bin.ts, main.ts and version.ts", () => {
@@ -36,7 +40,7 @@ describe("@okfit/lsp boundaries", () => {
 		assert.deepStrictEqual(offenders, []);
 	});
 
-	it("only protocol/reference.ts and main.ts import vscode-languageserver", () => {
+	it("only protocol/reference.ts, main.ts and the type-only protocol/types.ts import vscode-languageserver", () => {
 		const offenders = sources()
 			.filter(({ file, code }) => !MAY_IMPORT_LIBRARY.has(file) && /from\s*["']vscode-languageserver/.test(code))
 			.map(({ file }) => file);
