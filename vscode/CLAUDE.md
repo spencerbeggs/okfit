@@ -26,8 +26,13 @@ src/
                             okfit/concepts capability check
   status.ts              -- statusFor: pure function to the Language
                             Status item's text, detail and severity
+  status-picks.ts         -- statusPicks, conceptUriFrom: pure helpers for
+                            okfit.setStatus's quick pick and the tree-node-
+                            or-active-editor argument resolution both
+                            commands share
   commands.ts             -- registerCommands: okfit.validateBundle,
-                            okfit.openConcept
+                            okfit.openConcept, okfit.setStatus,
+                            okfit.markVerified
   serial-queue.ts         -- createSerialQueue: serializes client restarts
   tree/
     model.ts              -- tree node shapes for the OKF Concepts view
@@ -62,14 +67,23 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `node_modules` dependency.
 - `build:dev` exists only so Turbo's `^build:dev` edge builds this
   member's `dist/` in the same graph as the packages it depends on.
-- `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts` and
-  `src/next-candidate.ts` never import `vscode`: each is a pure function
-  tested without the extension host (`resolveServer`'s inputs are already
-  plain strings, callbacks and a per-folder settings array, `nextCandidate`
-  takes a source string and a boolean, `statusFor` takes plain data in and
-  returns plain data out, and the tree
-  model is data shapes only). A file that needs the `vscode` API belongs
-  next to these, not inside them.
+- `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts`,
+  `src/next-candidate.ts` and `src/status-picks.ts` never import `vscode`:
+  each is a pure function tested without the extension host
+  (`resolveServer`'s inputs are already plain strings, callbacks and a
+  per-folder settings array, `nextCandidate` takes a source string and a
+  boolean, `statusFor` takes plain data in and returns plain data out, the
+  tree model is data shapes only, and `status-picks.ts`'s `statusPicks`/
+  `conceptUriFrom` take a `Status | undefined`/`unknown` argument and
+  plain strings). A file that needs the `vscode` API belongs next to
+  these, not inside them.
+- `src/tree/wire.ts` copies two things verbatim from `@okfit/lsp`, rather
+  than importing the package: the `okfit/concepts`/`okfit/bundleChanged`
+  wire types and method names, and `OKFIT_COMMANDS`
+  (`packages/lsp/src/features/names.ts`) -- the three `workspace/
+  executeCommand` ids the extension checks the server advertises before
+  enabling `okfit.setStatus`/`okfit.markVerified`/a real
+  `okfit.validateBundle`.
 - Everything the extension needs at runtime is bundled; nothing is read
   from `node_modules` at activation. `vsce package` is always run
   `--no-dependencies` (`lib/package-vsix.ts:13`) -- both `dist/extension.js`

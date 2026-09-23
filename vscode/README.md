@@ -29,21 +29,32 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 
 ## Commands
 
-- **OKF: Validate Bundle** (`okfit.validateBundle`) -- re-requests the
-  concept list from the language server and re-publishes the tree and
-  status item. The extension watches every markdown file and the okfit
-  config glob and forwards both as `didChangeWatchedFiles`, so the server
-  already revalidates on document changes and on markdown/config changes
-  made outside an editor (Explorer, `git checkout`/`pull`, a codegen run);
-  this command refreshes the client's view of the last published result
-  rather than forcing a new validation pass, and is the manual fallback
-  when a watcher event is missed. A server-side revalidate command lands
-  in a later release.
+- **OKF: Validate Bundle** (`okfit.validateBundle`) -- asks the language
+  server to run a fresh full revalidate (`okfit.revalidate`), then
+  re-requests the concept list and re-publishes the tree and status item.
+  The extension watches every markdown file and the okfit config glob and
+  forwards both as `didChangeWatchedFiles`, so the server already
+  revalidates on document changes and on markdown/config changes made
+  outside an editor (Explorer, `git checkout`/`pull`, a codegen run); this
+  command is the manual fallback when a watcher event is missed. Against
+  an older language server that does not advertise `okfit.revalidate`,
+  it falls back to refreshing the tree from the last published result.
 - **OKF: Open Concept…** (`okfit.openConcept`) -- a quick pick over every
   concept in every live bundle, opening the picked concept's document.
+- **OKF: Set Status…** (`okfit.setStatus`) -- a quick pick over the two
+  statuses a concept does not already have, then asks the language server
+  to apply the frontmatter edit. Available from the Command Palette while
+  the active editor is on a concept, and from the OKF Concepts view's
+  item context menu.
+- **OKF: Mark Verified** (`okfit.markVerified`) -- asks the language
+  server to add a `verified` entry for the resolved human actor. Same
+  availability as Set Status.
 
-Both commands appear in the Command Palette only while a bundle is live,
-and as toolbar actions on the OKF Concepts view's title bar.
+`okfit.validateBundle` and `okfit.openConcept` appear in the Command
+Palette only while a bundle is live, and as toolbar actions on the OKF
+Concepts view's title bar. `okfit.setStatus` and `okfit.markVerified`
+appear only while the language server advertises them (an older
+`@okfit/lsp` may not).
 
 ## Requirements
 

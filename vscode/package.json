@@ -86,6 +86,18 @@
 				"title": "Open Concept…",
 				"category": "OKF",
 				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "okfit.setStatus",
+				"title": "Set Status…",
+				"category": "OKF",
+				"icon": "$(tag)"
+			},
+			{
+				"command": "okfit.markVerified",
+				"title": "Mark Verified",
+				"category": "OKF",
+				"icon": "$(verified)"
 			}
 		],
 		"menus": {
@@ -97,6 +109,14 @@
 				{
 					"command": "okfit.openConcept",
 					"when": "okfit.hasBundle"
+				},
+				{
+					"command": "okfit.setStatus",
+					"when": "okfit.isConcept && okfit.hasActions"
+				},
+				{
+					"command": "okfit.markVerified",
+					"when": "okfit.isConcept && okfit.hasActions"
 				}
 			],
 			"view/title": [
@@ -109,6 +129,23 @@
 					"command": "okfit.openConcept",
 					"when": "view == okfit.concepts",
 					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "okfit.setStatus",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "inline"
+				},
+				{
+					"command": "okfit.setStatus",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "okfit@1"
+				},
+				{
+					"command": "okfit.markVerified",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "okfit@1"
 				}
 			]
 		}

@@ -39,3 +39,11 @@ export interface BundleChangedParams {
 export const CONCEPTS_REQUEST = "okfit/concepts";
 /** The notification method name. */
 export const BUNDLE_CHANGED_NOTIFICATION = "okfit/bundleChanged";
+
+/**
+ * Command ids the server advertises in `executeCommandProvider.commands`,
+ * copied verbatim from `packages/lsp/src/features/names.ts`'s
+ * `OKFIT_COMMANDS` (Task 6) -- same rationale as this file's own header: the
+ * extension never imports `@okfit/lsp`.
+ */
+export const OKFIT_COMMANDS = ["okfit.setStatus", "okfit.markVerified", "okfit.revalidate"] as const;

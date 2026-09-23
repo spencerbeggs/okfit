@@ -9,6 +9,7 @@ import { ConceptDecorations } from "./tree/decorations.js";
 import type { TreeNode } from "./tree/model.js";
 import { ConceptsProvider } from "./tree/provider.js";
 import type { ConceptsResult } from "./tree/wire.js";
+import { OKFIT_COMMANDS } from "./tree/wire.js";
 
 // `createLanguageStatusItem`'s `selector` is never empty: VS Code hides an
 // item only through disposal, never through an empty selector, so a document
@@ -124,10 +125,34 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 		// (backslashes) and for roots containing `[`, `{` or `*`.
 		statusItem.selector = [{ pattern: new vscode.RelativePattern(vscode.Uri.file(status.detail), "**") }];
 	};
-	useDisposable(vscode.window.onDidChangeActiveTextEditor(() => updateStatus()));
+
+	// `okfit.isConcept`: true when the active editor's document is one of the
+	// current `okfit/concepts` result's concepts (Task 6 decision 3) --
+	// re-normalized through `vscode.Uri.parse(...).toString()` the same way
+	// `updateStatus`'s `normalizedResult` re-normalizes `rootUri`, since a
+	// concept's `uri` comes from the server's own `pathToUri` (never
+	// percent-encoded) while `documentUri` is VS Code's own `Uri.toString()`.
+	const updateIsConcept = async (): Promise<void> => {
+		const documentUri = vscode.window.activeTextEditor?.document.uri.toString();
+		const result = provider?.current;
+		const isConcept =
+			documentUri !== undefined &&
+			(result?.bundles.some((b) => b.concepts.some((c) => vscode.Uri.parse(c.uri).toString() === documentUri)) ??
+				false);
+		await vscode.commands.executeCommand("setContext", "okfit.isConcept", isConcept);
+	};
+	const refreshContexts = () => {
+		updateStatus();
+		void updateIsConcept();
+	};
+	useDisposable(vscode.window.onDidChangeActiveTextEditor(() => refreshContexts()));
 	useDisposable(vscode.languages.onDidChangeDiagnostics(() => updateStatus()));
 
-	registerCommands(() => provider);
+	registerCommands(
+		() => provider,
+		() => client,
+		logger.info,
+	);
 
 	// Disposes the tree provider and view for the client that is about to be
 	// replaced or stopped; called from inside the serial queue only, so it
@@ -149,6 +174,19 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 		});
 		client = started.client;
 		watchers = started.watchers;
+		// `okfit.hasActions`: true only when the server advertises all three
+		// `OKFIT_COMMANDS` ids in `executeCommandProvider.commands` (Task 6
+		// decision 2) -- read once, right after start, independent of
+		// `okfit/concepts` support below (a server can advertise commands
+		// without the concept explorer, or vice versa).
+		const advertised = started.client.initializeResult?.capabilities.executeCommandProvider?.commands;
+		const hasActions = OKFIT_COMMANDS.every((command) => advertised?.includes(command) ?? false);
+		await vscode.commands.executeCommand("setContext", "okfit.hasActions", hasActions);
+		if (!hasActions) {
+			logger.info(
+				`okfit language server (${started.launch.source}: ${started.launch.kind === "command" ? started.launch.command : started.launch.module}) does not advertise ${OKFIT_COMMANDS.join(", ")} -- Set Status and Mark Verified stay disabled.`,
+			);
+		}
 		// Feature-detect `okfit/concepts` instead of assuming it: any project
 		// whose `okfit.lsp.serverPath`, or workspace `node_modules/.bin/okfit-lsp`
 		// (or an `@okfit/plugin` wrapping it), resolves to `@okfit/lsp` <= 0.2.0
@@ -173,7 +211,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 			showCollapseAll: true,
 		});
 		provider.attach(view);
-		providerSubscription = provider.onDidChangeTreeData(() => updateStatus());
+		providerSubscription = provider.onDidChangeTreeData(() => refreshContexts());
 	};
 	// A restart trigger's callback is not itself serialized against
 	// overlapping invocations -- two rapid `okfit.lsp.serverPath` edits would
@@ -205,7 +243,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 				await start();
 			})
 			.catch(() => undefined)
-			.then(() => updateStatus());
+			.then(() => refreshContexts());
 	};
 
 	// Registered *before* the first `start()` runs (decision I4): a broken
@@ -241,5 +279,5 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	// failure dialog -- so activation always resolves; the listener above,
 	// already registered, is the recovery path for a failed first start.
 	await queue.run(start).catch(() => undefined);
-	updateStatus();
+	refreshContexts();
 });

@@ -39,4 +39,41 @@ describe("extension manifest", () => {
 	it("declares no runtime dependencies (both entries are bundled)", () => {
 		expect(manifest.dependencies ?? {}).toEqual({});
 	});
+
+	it("registers the action commands under category OKF", () => {
+		const commands = (manifest.contributes as { commands: Array<{ command: string; category?: string }> }).commands;
+		for (const id of ["okfit.setStatus", "okfit.markVerified"]) {
+			const entry = commands.find((c) => c.command === id);
+			expect(entry).toBeDefined();
+			expect(entry?.category).toBe("OKF");
+		}
+	});
+
+	it("gates the action commands in the command palette on okfit.isConcept && okfit.hasActions", () => {
+		const palette = (manifest.contributes as { menus: { commandPalette: Array<{ command: string; when?: string }> } })
+			.menus.commandPalette;
+		for (const id of ["okfit.setStatus", "okfit.markVerified"]) {
+			const entry = palette.find((p) => p.command === id);
+			expect(entry?.when).toBe("okfit.isConcept && okfit.hasActions");
+		}
+	});
+
+	it("adds view/item/context entries for the action commands gated on okfit.hasActions", () => {
+		const menus = (
+			manifest.contributes as {
+				menus: Record<string, Array<{ command: string; when?: string; group?: string }>>;
+			}
+		).menus;
+		const contextMenu = menus["view/item/context"];
+		expect(contextMenu).toBeDefined();
+		const ids = new Set((contextMenu ?? []).map((e) => e.command));
+		expect(ids.has("okfit.setStatus")).toBe(true);
+		expect(ids.has("okfit.markVerified")).toBe(true);
+		const groups = new Set((contextMenu ?? []).map((e) => e.group));
+		expect(groups.has("inline")).toBe(true);
+		expect(groups.has("okfit@1")).toBe(true);
+		for (const entry of contextMenu ?? []) {
+			expect(entry.when).toBe("viewItem == okfit.concept && okfit.hasActions");
+		}
+	});
 });
