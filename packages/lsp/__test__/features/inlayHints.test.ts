@@ -144,6 +144,27 @@ generated:
 Nothing here is read by production code.
 `;
 
+/**
+ * `generated` block present but with no `at` key: `["generated", "at"]`
+ * decodes to `undefined` on the concept itself (D-15's `optionalKey`), so
+ * `hintsFor` never emits that spec in the first place -- exercising the
+ * end-to-end absence through the full request handler, not just the pure
+ * `hintsFor` case already covered above.
+ */
+const GENERATED_NO_AT_SOURCE = `---
+type: Module
+title: Generated Without At
+description: A tiny synthetic concept used only by @okfit/lsp's own inlay hint tests.
+status: stable
+generated:
+  by: "human:fixture-author"
+---
+
+# Generated Without At
+
+Nothing here is read by production code.
+`;
+
 describe("registerInlayHints", () => {
 	it.effect("`textDocument/inlayHint` positions the trust hint at the end of `status`'s own value range", () =>
 		Effect.gen(function* () {
@@ -181,6 +202,57 @@ describe("registerInlayHints", () => {
 					hint.position.line === expectedPosition.line && hint.position.character === expectedPosition.character,
 			);
 			assert.isDefined(statusHint);
+
+			// Positive control for the leaf-absent fallback below: a resolvable
+			// `generated.at` yields the age hint too, so its absence there is a
+			// property of the missing key, not of the handler dropping every
+			// second hint unconditionally.
+			assert.strictEqual(hints.length, 2);
 		}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect(
+		"a `generated` block with no `at` key: the generated-age hint is dropped, the status hint still resolves",
+		() =>
+			Effect.gen(function* () {
+				const { root } = yield* copyFixtureProject();
+				const conceptPath = join(root, "okf", "modules", "status.md");
+				yield* Effect.promise(() => writeFile(conceptPath, GENERATED_NO_AT_SOURCE, "utf8"));
+
+				const { transport, call } = makeCapturingTransport();
+				const registry = yield* makeSessionRegistry({
+					delay: "10 millis",
+					maxWait: "10 seconds",
+					onRevalidate: () => Effect.void,
+					onDispose: () => Effect.void,
+				});
+				yield* registerInlayHints(transport, registry);
+				yield* registry.setFolders([root]);
+
+				const handle = Option.getOrThrow(yield* registry.sessionFor(conceptPath));
+				yield* handle.session.open(conceptPath, GENERATED_NO_AT_SOURCE, 1);
+				const now = yield* DateTime.now;
+				yield* handle.session.revalidate({ now, tier: "full" });
+
+				const hints = yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", {
+					textDocument: { uri: pathToUri(conceptPath) },
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+				});
+
+				// `concept.frontmatter.generated.at` decodes to `undefined` when the
+				// key is absent (D-15's `optionalKey`), so `hintsFor` never emits the
+				// generated-age spec at all here -- this proves the end-to-end
+				// absence through the full request handler, not just `hintsFor`'s own
+				// pure "absent `generated`: no second hint" case.
+				assert.strictEqual(hints.length, 1);
+
+				const document = Result.getOrThrow(MarkdownDocument.parseResult(GENERATED_NO_AT_SOURCE, { frontmatter: true }));
+				const expectedRange = DiagnosticRange.forFrontmatterPath(document, ["status"]);
+				if (expectedRange === undefined) throw new Error("expected a `status` range in the fixture source");
+				const expectedPosition = toLspRange(GENERATED_NO_AT_SOURCE, expectedRange).end;
+
+				assert.strictEqual(hints[0]?.position.line, expectedPosition.line);
+				assert.strictEqual(hints[0]?.position.character, expectedPosition.character);
+			}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 });

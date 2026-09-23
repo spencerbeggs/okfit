@@ -48,8 +48,12 @@ const GENERATED_AT_PATH: InlayHintPath = ["generated", "at"];
 /** `human-reviewed by <by>` for the newest `verified[]` entry whose `by` starts with `human:` (greatest `at`). */
 const newestHumanBy = (concept: Concept): string => {
 	const humans = (concept.verified ?? []).filter((entry) => Actor.isHuman(entry.by));
-	const newest = humans.reduce((latest, entry) =>
-		DateTimeService.toEpochMillis(entry.at) > DateTimeService.toEpochMillis(latest.at) ? entry : latest,
+	const [first, ...rest] = humans;
+	if (first === undefined) throw new Error("newestHumanBy called with no human `verified` entries");
+	const newest = rest.reduce(
+		(latest, entry) =>
+			DateTimeService.toEpochMillis(entry.at) > DateTimeService.toEpochMillis(latest.at) ? entry : latest,
+		first,
 	);
 	return newest.by;
 };
