@@ -2,7 +2,11 @@
 	"$schema": "vscode://schemas/launch",
 	"configurations": [
 		{
-			"args": ["--extensionDevelopmentPath=${workspaceFolder}/vscode", "${workspaceFolder}"],
+			"args": [
+				"--disable-extension=okfit.okfit",
+				"--extensionDevelopmentPath=${workspaceFolder}/vscode",
+				"${workspaceFolder}"
+			],
 			"name": "Run okfit extension",
 			"outFiles": ["${workspaceFolder}/vscode/dist/**/*.js"],
 			"preLaunchTask": "okfit: build extension",

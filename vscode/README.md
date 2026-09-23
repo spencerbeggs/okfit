@@ -83,9 +83,12 @@ pnpm --filter @okfit/vscode-extension build
 ```
 
 Then launch the "Run okfit extension" configuration from VS Code's Run
-and Debug view. The output channel named "okfit" logs which server
-source (`setting`, `workspace`, or `bundled`) was resolved; "okfit
-language server" carries the language client's own trace when
+and Debug view. It passes `--disable-extension=okfit.okfit`, so the
+Extension Development Host window disables an installed Marketplace copy
+of this extension rather than registering the same views and commands
+twice. The output channel named "okfit" logs which server source
+(`setting`, `workspace`, or `bundled`) was resolved; "okfit language
+server" carries the language client's own trace when
 `okfit.lsp.trace.server` is not `"off"`.
 
 To try a packaged build without the debugger:
