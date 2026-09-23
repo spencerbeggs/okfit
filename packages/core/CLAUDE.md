@@ -22,7 +22,7 @@ src/
   Actor.ts Timestamp.ts Source.ts Generated.ts Verification.ts Status.ts AttestedComputation.ts
   Concept.ts ConceptId.ts Diagnostic.ts IndexDocument.ts LogDocument.ts Bundle.ts Graph.ts Derive.ts Validate.ts
   OkfitConfig.ts    -- spec 4.2 struct, DEFAULTS, merge, severityFor, read, OkfitConfigFile tag
-  internal/         -- engine: posixPath, position, frontmatter, reserved, links, lintRules, templates;
+  internal/         -- engine: posixPath, position, yamlPathSpan (YAML path to file span, shared by frontmatter.ts and Diagnostic.ts), frontmatter, reserved, links, lintRules, templates;
                        walk.ts is a thin adapter over @effected/walker's descend (record mode for
                        unreadable directories), not a hand-rolled recursive walker
 ```
