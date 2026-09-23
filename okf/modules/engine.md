@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T19:59:30Z
-  body_sha256: 7f7ce013220733f70e3ddb6c1d7af9595aef76a63284834dcedd49a105e867c5
+  at: 2026-09-23T08:11:07Z
+  body_sha256: be652e5cd0f6cd24e1515edf9a0c76e146d02bc0fbcce92b4e9b3012be0e2914
 ---
 
 # Engine
@@ -123,7 +123,13 @@ files whose diagnostics changed, including files not open; `tier: "edit"`
 skips the git tier. Debounce is the caller's: the language server
 schedules, the session serializes overlapping calls. A range-less
 finding is anchored on the concept's frontmatter block
-(`session/range.ts#withFallbackRange`). `external/ExternalReferences.ts`
+(`session/range.ts#withFallbackRange`), which now calls the public
+`session/concept.ts#conceptFor(bundle, absolutePath)` helper to resolve
+the concept a fallback range belongs to. `validate/resources.ts`'s
+`source-resource-missing` lint anchors at the offending `resource` /
+`sources[i].resource` value itself, through
+[Core](core.md)'s `DiagnosticRange.forFrontmatterPath`, rather than the
+frontmatter block. `external/ExternalReferences.ts`
 ships only `layerNoop` until the HTTP layer lands.
 
 ## Process boundary

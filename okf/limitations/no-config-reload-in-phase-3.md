@@ -2,7 +2,7 @@
 type: Limitation
 title: The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
 description: A config change drops a folder's session without revalidating, and a dropped session never clears what it published, so diagnostics go stale until the next document event; Claude Code sends neither notification that triggers the path, so a config edit there needs a session restart.
-status: stable
+status: deprecated
 bounds: ../modules/lsp.md
 tags:
   - dx
@@ -15,8 +15,8 @@ sources:
     resource: ../roadmaps/lsp-server-and-vscode-extension.md
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T04:04:54Z
-  body_sha256: 305c6c0833901bd526232af6a47363644a57163ad682b90f87f1f1380ee67a64
+  at: 2026-09-23T08:11:07Z
+  body_sha256: 45fa900c2ac1fe2eee016c8a823c34dcade2e45740aafb2a54d5323403451b95
 ---
 
 # The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
@@ -68,3 +68,14 @@ and it must land before phase 6, since VS Code sends both notifications.
 [^diagnostics-feature]: `../../packages/lsp/src/features/diagnostics.ts`
 [^session-registry]: `../../packages/lsp/src/session/registry.ts`
 [^lsp-roadmap]: `../roadmaps/lsp-server-and-vscode-extension.md`
+
+## Discharged
+
+Phase 4 (2026-09-23) shipped the fix described above: on a config-file
+watched change, `registry.rebuild(folder)` disposes the folder's old
+session, carries its open document overlays into the fresh one, and
+schedules a full revalidate; the publisher remembers, per session root,
+every URI it last published non-empty and publishes `[]` for each of
+them when that session is disposed, whether by a config rebuild or by
+`workspace/didChangeWorkspaceFolders` removing the folder. See
+[LSP](../modules/lsp.md).

@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T04:04:54Z
-  body_sha256: 8a4e0662255072b7dac898b85a2f40f105bc17c8649efb1297ecb2633d50a45f
+  at: 2026-09-23T08:11:07Z
+  body_sha256: 9d6ef7090a51dbe894bfcaebf79e0fa9915575e6866bbf86398152e3c5f74e55
 ---
 
 # LSP
@@ -28,8 +28,46 @@ workspace folder the same way the CLI and MCP server do, and republishes
 diagnostics as
 documents open, change, save, or close. It
 writes nothing to the bundle, ever — the same promise [MCP](mcp.md) makes,
-carried to a second front end. Diagnostics only; navigation, hover, and
-code actions are later roadmap phases, not this package.
+carried to a second front end. Phase 4 (2026-09-23) added precise
+diagnostic ranges, config reload, and navigation (hover, document links,
+definition, references, workspace symbols); code actions remain a later
+roadmap phase, not this package.
+
+## Capabilities
+
+`initialize` advertises `documentLinkProvider: { resolveProvider: false }`,
+`definitionProvider: true`, `referencesProvider: true`,
+`hoverProvider: true`, and `workspaceSymbolProvider: true`, alongside the
+diagnostics push the server has offered since phase 3.
+
+## Navigation
+
+Every navigation handler answers from the folder's last revalidated
+snapshot (`session.bundle()`/`session.graph()`); none of them trigger a
+revalidate or wait on the scheduler, and before a folder's first
+revalidate completes they answer `null`/`[]` rather than hang.
+
+- `textDocument/documentLink` returns one link per edge in the open
+  file: a concept or file target resolves to that target's absolute path
+  as a URI, a raw URL stays a link to itself, and a `missing` target is
+  omitted.
+- `textDocument/definition` resolves the edge at the request position to
+  its target concept's definition location — the H1 heading's range when
+  it has one, else the frontmatter block, else `0:0` — and `null` off an
+  edge.
+- `textDocument/references` returns one `Location` per edge that points
+  at the concept under the cursor (self-loop edges excluded), plus the
+  definition location itself when `context.includeDeclaration` is set.
+- `textDocument/hover` returns `null` off any recognised position, and
+  otherwise a markdown `MarkupContent`: on a link or path-field edge, the
+  target's title, type, status, trust tier and staleness (tier and
+  staleness computed from `Derive`, given `now`); on the `type:` value,
+  that type's description and guidance from the config vocabulary; on a
+  top-level frontmatter field key, that field's description.
+- `workspace/symbol` returns one `SymbolInformation` per concept across
+  every live session, merged, filtered by a case-insensitive substring
+  match over id and title (an empty query returns all), capped at 200
+  results and sorted by id.
 
 ## The transport seam
 
@@ -54,18 +92,22 @@ seam](../decisions/lsp-reference-transport-behind-a-seam.md).
 ## Publishing rules
 
 - `didOpen`/`didSave` schedule the `full` revalidate tier; `didChange`/
-  `didClose` schedule `edit`.
+  `didClose` schedule `edit`. The scheduler's debounce carries a
+  `maxWait` ceiling (default 1 s, measured from the first `schedule` of
+  an idle scheduler), so a steady stream of edits still publishes rather
+  than debouncing forever.
 - The server registers no file watchers. When a client sends
   `workspace/didChangeWatchedFiles`, a change schedules `full` on every
-  live session. A config discovery file is the exception: it drops that
-  folder's session and republishes nothing until the next document
-  event. Claude Code sends no watched-file events, so a config edit
-  there needs a session restart. See [The phase 3 language server does
-  not reload a changed config or clear a dropped session's
-  diagnostics](../limitations/no-config-reload-in-phase-3.md).
+  live session. A config discovery file rebuilds that folder's session
+  instead: the old session is disposed (its open document overlays
+  carried into the fresh one), a full revalidate is scheduled on the
+  rebuilt session, and every URI the dropped session last published
+  non-empty receives `[]` exactly once. `workspace/didChangeWorkspaceFolders`
+  removing a folder clears its session the same way.
 - A folder whose config fails to load logs one warning per distinct
   error and is retried on `didOpen`, `didSave` and any watched-file
-  change under it, so fixing the config and saving recovers it.
+  change under it, so fixing the config and saving recovers it; its
+  diagnostics have already been cleared by the dispose above.
 - `--clientProcessId` is accepted, and the server still exits on `exit`.
   The transport's own liveness signal is the input stream closing; the
   reference library's node entry separately polls that process and
@@ -109,4 +151,4 @@ three by scanning `src/`.
   seam](../decisions/lsp-reference-transport-behind-a-seam.md)
 - [The phase 3 language server does not reload a changed config or clear
   a dropped session's diagnostics](../limitations/no-config-reload-in-phase-3.md)
-  — the edge of the publishing rules above.
+  — discharged in phase 4 by the config reload rule above.

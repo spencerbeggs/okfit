@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T04:04:54Z
-  body_sha256: d6fe09c0d9d5473a498f4738f6c3f740da2ce5d58f300190aaeafab0e13ed099
+  at: 2026-09-23T08:11:07Z
+  body_sha256: 87662c6f83f8f5615bc8d27df3c8d65b12bb14af9c2e40a14564739f580a1fa6
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -160,7 +160,20 @@ repository's own bundle.
    block-only role on conformance errors plus the Write-time
    `generated.by` check, since the server now delivers lint and profile
    findings with ranges. Releases core, profiles, lsp, the Claude Code
-   plugin. Remaining: everything.
+   plugin. Done 2026-09-23: every core lint rule that knows its field
+   anchors its diagnostic at the offending value, profiles' and engine's
+   drift, project and resource diagnostics anchor the same way, config
+   reload rebuilds a folder's session and clears a dropped session's
+   diagnostics, the scheduler's debounce carries a `maxWait` ceiling,
+   hover, document links, definition, references and workspace symbols
+   answer from the loaded bundle, and the PostToolUse hook keeps only
+   the conformance block and the `generated.by` check. Evidence: 1016
+   of 1016 Vitest tests and 97 of 97 BATS cases passing, zero API
+   Extractor warnings across all seven built packages, and the reviewed
+   commits `6b4ac1d`, `78bf22e`, `f4f6494`, `bee2f21`, `225c942`,
+   `37117e0`, `f227b7e`, `288dc1f`, `fa24671`, `10ac546`, `9d1f4e5`,
+   `eff1e78`, `5168176`. Remaining: the Claude Code dogfood check and
+   the release.
 5. **Actions.** Code actions for status (draft, stable, deprecated) and
    for marking verified by the configured human actor, computed as text
    edits over the verify splice helpers so a file is never
