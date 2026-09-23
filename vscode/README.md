@@ -84,3 +84,25 @@ pnpm --filter @okfit/vscode-extension build
 pnpm --filter @okfit/vscode-extension package
 code --install-extension vscode/okfit.vsix --force
 ```
+
+## Publishing
+
+Releases are cut by changesets like every other workspace member: a merged
+changeset for `@okfit/vscode-extension` produces the tag
+`@okfit/vscode-extension@X.Y.Z` and a GitHub release. The
+`VS Code Marketplace` workflow runs on that release: it packages the
+extension, attaches `okfit.vsix` to the release, then publishes to the
+Visual Studio Marketplace and Open VSX. Run it by hand with
+`workflow_dispatch` and `dry_run: true` to produce the `.vsix` without
+publishing.
+
+Repository configuration it needs:
+
+| Name | Kind | Purpose |
+| :-- | :-- | :-- |
+| `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | variables | Microsoft Entra ID workload identity federation for `vsce publish --azure-credential` (the recommended path; Azure DevOps global PATs retire on 2026-12-01) |
+| `VSCE_PAT` | secret | Fallback: a Marketplace **Manage** PAT. When set, the workflow uses it instead of federation. |
+| `OVSX_PAT` | secret | Open VSX access token for the `okfit` namespace |
+
+The Marketplace publisher `okfit` and the Open VSX namespace `okfit` must
+exist before the first publish.

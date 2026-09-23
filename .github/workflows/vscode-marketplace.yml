@@ -1,0 +1,98 @@
+name: VS Code Marketplace
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package (for example @okfit/vscode-extension@0.1.0)
+        type: string
+        required: true
+      dry_run:
+        description: Package and attach the .vsix without publishing
+        type: boolean
+        default: true
+
+concurrency:
+  group: vscode-marketplace-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Package and publish
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, '@okfit/vscode-extension@')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+    outputs:
+      has_pat: ${{ steps.pat.outputs.has_pat }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 0
+
+      - name: Setup Runtime
+        uses: savvy-web/silk-runtime-action@v1
+        with:
+          ignore-scripts: false
+
+      - name: Check for a Marketplace PAT
+        id: pat
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: echo "has_pat=$([ -n "$VSCE_PAT" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Assert tag matches manifest
+        run: bash vscode/lib/assert-version.sh "$TAG" vscode/package.json
+
+      - name: Build
+        run: |
+          pnpm turbo run build:prod --filter=@okfit/lsp
+          pnpm --filter @okfit/vscode-extension build
+
+      - name: Package
+        run: pnpm --filter @okfit/vscode-extension package
+
+      - name: Attach .vsix to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" vscode/okfit.vsix --clobber
+
+      - name: Upload .vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: okfit-vsix
+          path: vscode/okfit.vsix
+
+      - name: Azure login (workload identity federation)
+        if: env.DRY_RUN != 'true' && steps.pat.outputs.has_pat != 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publish to the VS Code Marketplace
+        if: env.DRY_RUN != 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -n "${VSCE_PAT:-}" ]; then
+            pnpm --filter @okfit/vscode-extension exec vsce publish --packagePath okfit.vsix --skip-duplicate
+          else
+            pnpm --filter @okfit/vscode-extension exec vsce publish --packagePath okfit.vsix --azure-credential --skip-duplicate
+          fi
+
+      - name: Publish to Open VSX
+        if: env.DRY_RUN != 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: pnpm --filter @okfit/vscode-extension exec ovsx publish okfit.vsix --pat "$OVSX_PAT" --skip-duplicate
