@@ -37,4 +37,31 @@ describe("session/concept conceptFor", () => {
 			assert.isTrue(Option.isNone(conceptFor(bundle, `${ROOT}/missing.md`)));
 		}).pipe(Effect.provide(platform)),
 	);
+
+	it.effect("a bundle root with a trailing slash still resolves the same concept (positive control above)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const trailing = { ...bundle, root: `${bundle.root}/` };
+			const found = conceptFor(trailing, `${ROOT}/a.md`);
+			assert.isTrue(Option.isSome(found));
+			assert.strictEqual(Option.getOrThrow(found).path, "a.md");
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("returns None for a path equal to the root itself (no relative file component)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			assert.isTrue(Option.isNone(conceptFor(bundle, ROOT)));
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect(
+		"returns None for a sibling directory that merely shares the root as a string prefix (`/x/okfoo/a.md` under `/x/okf`)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: ROOT });
+				const sibling = `${ROOT}oo/a.md`;
+				assert.isTrue(Option.isNone(conceptFor(bundle, sibling)));
+			}).pipe(Effect.provide(platform)),
+	);
 });

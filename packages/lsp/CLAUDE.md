@@ -33,13 +33,20 @@ src/
                       percent-encoded, None for a non-file or malformed URI
     diagnostic.ts  -- SEVERITY, toLspDiagnostic: RenderedDiagnostic (engine) ->
                       LSP Diagnostic; sourceTextOf: a bundle concept's source text
+    range.ts       -- toLspRange, toLspLocation: DiagnosticRange (core) -> LSP
+                      Range/Location, end position re-mapped through the file
+                      text the same way toLspDiagnostic's does
   protocol/
     LspTransport.ts -- the seam: LspTransportShape, ListenOutcome, the
                        LspTransport service tag
     reference.ts    -- makeReferenceTransport: the seam over
                        vscode-languageserver
     types.ts        -- type-only re-exports of the protocol types
-                       (InitializeParams, LspDiagnostic, Did*Params, ...)
+                       (InitializeParams, LspDiagnostic, Did*Params,
+                       DocumentLink*, DefinitionParams, ReferenceParams,
+                       Location, Range, Position, Hover*, MarkupContent,
+                       WorkspaceSymbol*, SymbolInformation, ...) plus the
+                       numeric constant SYMBOL_KIND_OBJECT (19, SymbolKind.Object)
   session/
     documents.ts    -- DocumentMemoryShape, makeDocumentMemory: a
                        registry-wide Ref<Map<absolutePath, {text, version}>>
@@ -122,6 +129,18 @@ src/
                        -- no mutable box, since the publisher exists in
                        full before the registry needs either of its
                        members.
+    locate.ts       -- position and identity helpers navigation.ts shares:
+                       conceptAtPath (delegates to the engine's conceptFor),
+                       offsetOf(text, position) (LSP position -> UTF-16
+                       offset, the inverse of DiagnosticRange.fromOffset's
+                       line/character mapping), edgeAt(graph,
+                       bundleRelativePath, offset) (the outgoing edge whose
+                       recorded position contains offset, ties broken by the
+                       shorter span), definitionOf(bundle, conceptId) (see
+                       Navigation below)
+    navigation.ts   -- registerNavigation(transport, registry): textDocument/
+                       documentLink, textDocument/definition,
+                       textDocument/references (see Navigation below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -173,6 +192,48 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `didOpen` before it. `shutdown` drains that queue up to its own arrival,
   then waits for every scheduler to settle, so work sent before it is
   published before the response.
+
+## Navigation
+
+`registerNavigation` (`src/features/navigation.ts`) wires
+`textDocument/documentLink`, `textDocument/definition` and
+`textDocument/references` onto the transport. Every handler runs on the
+transport's own request fiber, never the notification queue: a request is
+answered synchronously from whatever the owning session's last revalidate
+produced, and never schedules or waits on one (decision 4 of the phase 4
+plan). `registry.sessionFor(path)` then `session.bundle()`/`session.graph()`
+gives that snapshot; a missing session, a bundle or graph that has never
+loaded (before the first revalidate), a non-`file:` URI, or a path outside
+every bundle root all answer `null`/`[]` -- never a hang.
+
+- **`textDocument/documentLink`** answers every locatable edge out of the
+  concept at the requested file: a `concept` or `file` target's `target` is
+  the resolved absolute path's `file:` URI and `range` is the edge's own
+  recorded position; a `missing` target is omitted entirely (there is
+  nothing to link to). A raw body link whose URL is an actual URL (RFC 3986
+  scheme or `://`) is never a graph edge at all -- `Graph.fromBundle` drops
+  URL, self, external and descriptor links before building edges -- so
+  `documentLinksOf` also walks `document.links` directly for those and
+  reports the URL string itself as `target`.
+- **`textDocument/definition`** finds the edge at the request position with
+  `edgeAt` (`features/locate.ts`), then locates its target (decision 5): a
+  `concept` target's definition is its first depth-1 heading's range, else
+  its frontmatter block, else `0:0` (`definitionOf`); a `file` target's
+  definition is that file's own `0:0`; a `missing` target, or no edge at the
+  position at all, answers `null`.
+- **`textDocument/references`** answers with one `Location` per predecessor
+  edge into the concept the requested file itself is (not the position under
+  the cursor) -- every edge in the graph whose `to` is that concept's id,
+  each at its own recorded range in the referring file. A concept whose own
+  `resource` field happens to reference its own file is, by the graph's own
+  construction, one of its own predecessor edges (a genuine self-loop), so
+  it can appear in its own reference list. `context.includeDeclaration` adds
+  the concept's own definition location (`definitionOf`) to the result.
+
+Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
+range conversion goes through `convert/range.ts`'s `toLspRange`/
+`toLspLocation`, which re-map a `DiagnosticRange`'s end position through the
+file text the same way `convert/diagnostic.ts`'s `toLspDiagnostic` does.
 
 ## The transport seam
 

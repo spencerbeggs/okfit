@@ -9,6 +9,7 @@ import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
+import { registerNavigation } from "./features/navigation.js";
 import type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 import type {
 	DidChangeWatchedFilesParams,
@@ -62,6 +63,9 @@ const INITIALIZE_RESULT: InitializeResult = {
 		// TextDocumentSyncKind.Full is 1; the enum lives in the library, which features never import.
 		textDocumentSync: { openClose: true, change: 1, save: true },
 		workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
+		documentLinkProvider: { resolveProvider: false },
+		definitionProvider: true,
+		referencesProvider: true,
 	},
 	serverInfo: { name: "okfit-lsp", version: LSP_VERSION },
 };
@@ -136,6 +140,7 @@ export const serve = (
 			enqueue(feature.onWatchedFiles(pathsOf(changes.map((change) => change.uri)))),
 		);
 		yield* registerDocumentSync(transport, (event) => enqueue(feature.onDocumentEvent(event)));
+		yield* registerNavigation(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

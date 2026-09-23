@@ -6,28 +6,44 @@
  * @packageDocumentation
  */
 export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js";
+export { toLspLocation, toLspRange } from "./convert/range.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
 export type { DiagnosticsFeature, RevalidatePublisher } from "./features/diagnostics.js";
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
+export { conceptAtPath, definitionOf, edgeAt, offsetOf } from "./features/locate.js";
+export { registerNavigation } from "./features/navigation.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 export { LspTransport } from "./protocol/LspTransport.js";
 export type { ReferenceTransportOptions } from "./protocol/reference.js";
 export { makeReferenceTransport } from "./protocol/reference.js";
 export type {
+	DefinitionParams,
 	DidChangeTextDocumentParams,
 	DidChangeWatchedFilesParams,
 	DidChangeWorkspaceFoldersParams,
 	DidCloseTextDocumentParams,
 	DidOpenTextDocumentParams,
 	DidSaveTextDocumentParams,
+	DocumentLink,
+	DocumentLinkParams,
+	Hover,
+	HoverParams,
 	InitializeParams,
 	InitializeResult,
+	Location,
 	LspDiagnostic,
+	MarkupContent,
+	Position,
+	Range,
+	ReferenceParams,
+	SymbolInformation,
 	WorkspaceFolder,
+	WorkspaceSymbolParams,
 } from "./protocol/types.js";
+export { SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
 export type {
