@@ -13,6 +13,11 @@ src/
                      package.json import
   errors.ts      -- LspError: the one failure a request handler may return
   index.ts       -- public barrel; this is what later tasks and tests import
+  convert/
+    uri.ts         -- uriToPath, pathToUri: file: URI <-> absolute path,
+                      percent-encoded, None for a non-file or malformed URI
+    diagnostic.ts  -- SEVERITY, toLspDiagnostic: RenderedDiagnostic (engine) ->
+                      LSP Diagnostic; sourceTextOf: a bundle concept's source text
   protocol/
     LspTransport.ts -- the seam: LspTransportShape, ListenOutcome, the
                        LspTransport service tag

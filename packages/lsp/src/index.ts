@@ -5,6 +5,8 @@
  *
  * @packageDocumentation
  */
+export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js";
+export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 export { LspTransport } from "./protocol/LspTransport.js";
