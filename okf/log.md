@@ -15,6 +15,9 @@
 * Updated Profiles
 * Added The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 * Added Two narrow interrupt windows in the LSP session registry are documented, not closed
+* Added Publish the VS Code extension
+* Added The VS Code extension lives at vscode/, not under plugins/ or packages/
+* Added VS Code Extension
 
 ## 2026-09-22
 
