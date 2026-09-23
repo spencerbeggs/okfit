@@ -30,8 +30,14 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   build time (K-32).
 - No file under `src/` writes to stdout: no `process.stdout`, no
   `console.log`/`info`/`debug`/`table`.
-- Only `protocol/reference.ts` knows `vscode-languageserver`. A feature
-  that needs a protocol method it does not have adds it to the seam first.
+- Only `src/protocol/reference.ts`, `src/main.ts` and the type-only
+  `src/protocol/types.ts` (created in Task 2) may import from
+  `vscode-languageserver*`. A feature imports the seam
+  (`../protocol/LspTransport.js`) and the engine, never the library
+  directly; a feature that needs a protocol method it does not have adds
+  it to the seam first.
+- `now` is read once per revalidate at the server boundary (`DateTime.now`)
+  and passed into the engine; nothing in the engine reads a `Clock`.
 - Effect v4 only, at the version in `catalog:effect`. Consult
   `.repos/effect/packages/effect/src` for what v4 exports; `node_modules`
   wins on disagreement.
