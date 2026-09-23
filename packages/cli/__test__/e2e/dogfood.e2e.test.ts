@@ -51,7 +51,10 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (`okf/glossary/ghost-workspace.md`); neither type requires `verified`.
  * Phase 3 of the LSP roadmap adds `okf/modules/lsp.md` (Module +1) and
  * `okf/decisions/lsp-reference-transport-behind-a-seam.md` (Decision +1,
- * `status: draft`, so again exempt from `require-verified-unmet`).
+ * `status: draft`, so again exempt from `require-verified-unmet`). Its
+ * final review adds this bundle's first Limitation concept
+ * (`okf/limitations/no-config-reload-in-phase-3.md`), which carries no
+ * `verified` requirement.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
@@ -62,6 +65,7 @@ const EXPECTED_CONCEPT_COUNTS = {
 	Reference: 1,
 	Roadmap: 1,
 	Glossary: 1,
+	Limitation: 1,
 } as const;
 
 const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) => sum + n, 0);
