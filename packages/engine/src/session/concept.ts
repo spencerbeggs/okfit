@@ -16,8 +16,15 @@ const posixOf = (value: string): string => value.split("\\").join("/");
  *
  * @public
  */
+/** Drops every trailing `/` without a regex (a `/\/+$/` pattern is quadratic on a long run of slashes). */
+const stripTrailingSlashes = (path: string): string => {
+	let end = path.length;
+	while (end > 0 && path.charCodeAt(end - 1) === 0x2f) end -= 1;
+	return path.slice(0, end);
+};
+
 export const conceptFor = (bundle: LoadedBundle, absolutePath: string): Option.Option<LoadedConcept> => {
-	const root = posixOf(bundle.root).replace(/\/+$/, "");
+	const root = stripTrailingSlashes(posixOf(bundle.root));
 	const target = posixOf(absolutePath);
 	const prefix = `${root}/`;
 	if (!target.startsWith(prefix)) return Option.none();

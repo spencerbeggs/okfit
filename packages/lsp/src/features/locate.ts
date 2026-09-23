@@ -13,6 +13,13 @@ import { toLspLocation } from "../convert/range.js";
 import { pathToUri } from "../convert/uri.js";
 import type { Location, Position } from "../protocol/types.js";
 
+/** Drops every trailing `/` without a regex (a `/\/+$/` pattern is quadratic on a long run of slashes). */
+const stripTrailingSlashes = (path: string): string => {
+	let end = path.length;
+	while (end > 0 && path.charCodeAt(end - 1) === 0x2f) end -= 1;
+	return path.slice(0, end);
+};
+
 /**
  * Posix-normalizes `root` (backslashes to forward slashes, no trailing
  * slash) and joins `relative` onto it with one `/`. Mirrors the
@@ -23,7 +30,7 @@ import type { Location, Position } from "../protocol/types.js";
  * @internal
  */
 export const absolutePathOf = (root: string, relative: string): string => {
-	const normalizedRoot = root.split("\\").join("/").replace(/\/+$/, "");
+	const normalizedRoot = stripTrailingSlashes(root.split("\\").join("/"));
 	return `${normalizedRoot}/${relative}`;
 };
 
