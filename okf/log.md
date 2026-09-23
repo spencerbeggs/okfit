@@ -13,6 +13,7 @@
 * Updated Core
 * Updated Engine
 * Updated Profiles
+* Added The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 
 ## 2026-09-22
 
