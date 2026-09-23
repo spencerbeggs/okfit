@@ -49,11 +49,14 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * roadmap (the scratchpad ghost workspace) adds one more Module concept
  * (`okf/modules/scratchpad.md`) and this bundle's first Glossary concept
  * (`okf/glossary/ghost-workspace.md`); neither type requires `verified`.
+ * Phase 3 of the LSP roadmap adds `okf/modules/lsp.md` (Module +1) and
+ * `okf/decisions/lsp-reference-transport-behind-a-seam.md` (Decision +1,
+ * `status: draft`, so again exempt from `require-verified-unmet`).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
-	Module: 9,
-	Decision: 26,
+	Module: 10,
+	Decision: 27,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
