@@ -1,10 +1,15 @@
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
+import type { Debouncer } from "../debounce.js";
+import { createDebouncer } from "../debounce.js";
 import type { ConceptDecorations } from "./decorations.js";
 import type { TreeNode } from "./model.js";
 import { buildTree, iconFor, shouldApplyRefresh, staleCount } from "./model.js";
 import type { ConceptsResult } from "./wire.js";
 import { BUNDLE_CHANGED_NOTIFICATION, CONCEPTS_REQUEST } from "./wire.js";
+
+/** Trailing debounce window for a `bundleChanged`-driven refresh: one request per burst, not one per notification. */
+const REFRESH_DEBOUNCE_MS = 250;
 
 /**
  * `vscode.TreeDataProvider` for the "OKF Concepts" explorer view. Built once
@@ -27,13 +32,20 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 	// without waiting on each other) cannot clobber a newer result or badge.
 	private generation = 0;
 	private disposed = false;
+	// A burst of `bundleChanged` notifications (a settling concept tree
+	// across many workspace folders, say) used to fire one `okfit/concepts`
+	// request per notification; this coalesces a burst into one trailing
+	// request 250ms after it goes quiet. `attach()`'s first refresh bypasses
+	// it -- the initial population should not wait out a debounce window.
+	private readonly refreshDebouncer: Debouncer;
 
 	constructor(
 		private readonly client: LanguageClient,
 		private readonly decorations: ConceptDecorations,
 		private readonly log: (error: string | Error) => void,
 	) {
-		this.subscriptions.push(client.onNotification(BUNDLE_CHANGED_NOTIFICATION, () => void this.refresh()));
+		this.refreshDebouncer = createDebouncer(REFRESH_DEBOUNCE_MS, () => void this.refresh());
+		this.subscriptions.push(client.onNotification(BUNDLE_CHANGED_NOTIFICATION, () => this.refreshDebouncer.trigger()));
 	}
 
 	/** Called once right after `createTreeView`; the badge needs the view and the view needs this provider. */
@@ -109,6 +121,7 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 
 	dispose(): void {
 		this.disposed = true;
+		this.refreshDebouncer.dispose();
 		for (const s of this.subscriptions) s.dispose();
 		this.changed.dispose();
 	}
