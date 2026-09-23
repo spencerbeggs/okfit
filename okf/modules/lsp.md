@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T18:05:30Z
-  body_sha256: cf28a682e944ef13d7b9f35f9245ecf0d248a850d6182eb398b2798dbc7c949b
+  at: 2026-09-23T21:50:18Z
+  body_sha256: 8db39db7c4b6d1d1988b7b96460965a0d7fd0131a128eae84818c19f0bb60567
 ---
 
 # LSP
@@ -30,15 +30,58 @@ documents open, change, save, or close. It
 writes nothing to the bundle, ever — the same promise [MCP](mcp.md) makes,
 carried to a second front end. Phase 4 (2026-09-23) added precise
 diagnostic ranges, config reload, and navigation (hover, document links,
-definition, references, workspace symbols); code actions remain a later
-roadmap phase, not this package.
+definition, references, workspace symbols); phase 5 (2026-09-23) added
+code actions, commands, and inlay hints -- every edit they offer is
+computed over the byte-range splice machinery, never a re-serialisation --
+see [Frontmatter splices are a shared engine surface for the CLI's verify
+and the language server's
+actions](../decisions/engine-frontmatter-edits-shared-surface.md).
 
 ## Capabilities
 
 `initialize` advertises `documentLinkProvider: { resolveProvider: false }`,
 `definitionProvider: true`, `referencesProvider: true`,
-`hoverProvider: true`, and `workspaceSymbolProvider: true`, alongside the
-diagnostics push the server has offered since phase 3.
+`hoverProvider: true`, `workspaceSymbolProvider: true`,
+`codeActionProvider: { codeActionKinds: OKFIT_CODE_ACTION_KINDS }`,
+`executeCommandProvider: { commands: OKFIT_COMMANDS }`, and
+`inlayHintProvider: true`, alongside the diagnostics push the server has
+offered since phase 3. `features/names.ts`'s `OKFIT_COMMANDS`
+(`okfit.setStatus`, `okfit.markVerified`, `okfit.revalidate`) and
+`OKFIT_CODE_ACTION_KINDS` (`quickfix`, `okfit.status`, `okfit.verify`) are
+the exact strings both `server.ts` and the VS Code extension agree on,
+without either importing the other.
+
+## Code actions, commands, and inlay hints
+
+`registerCodeActions` (`src/features/actions.ts`) answers
+`textDocument/codeAction` from the requested file's owning session's
+last-loaded concept: one `Set status: <status>` action (kind
+`okfit.status`) per `Status` literal the concept is not already in, in
+`Status`'s own literal order (`draft`, `stable`, `deprecated`), and one
+`Mark verified by <actor>` action (kind `okfit.verify`) when a human actor
+resolves and the concept is neither a draft nor already verified by that
+actor. When `context.diagnostics` carries a `status-missing` diagnostic
+every status action is promoted to kind `quickfix`, carries that
+diagnostic, and the `draft` action alone is `isPreferred`. `registerCommands`
+(`src/features/commands.ts`) answers `workspace/executeCommand` for the
+three `OKFIT_COMMANDS`: `okfit.setStatus [uri, status]` and
+`okfit.markVerified [uri]` compute a `TextEdit` and send it to the client
+with `workspace/applyEdit`, answering the client's own result verbatim;
+`okfit.revalidate [rootUri?]` schedules a `full` revalidate on one named
+bundle root or every live session and answers the root URIs revalidated.
+Both features share `features/edits.ts`'s `statusTextEdits`/
+`verifiedTextEdits`, thin wrappers over [Engine](engine.md)'s
+`FrontmatterEdits.status`/`.verified` that convert each edit's whole-file
+offset to an LSP range. `registerInlayHints` (`src/features/inlayHints.ts`)
+answers `textDocument/inlayHint` with up to two hints per concept, computed
+by the pure `hintsFor(concept, now)`: a trust/staleness hint (`unverified`,
+`machine-confirmed`, or `human-reviewed by <by>`, `· stale` appended when
+stale) anchored after the `status:` value when present, else after
+`type:`; and, only when `generated.at` is set, an age hint (`today`, `1 day
+ago`, `N days ago`) after its value. All three features answer `[]`/fail
+closed the same way navigation does: a missing session, an unloaded
+bundle, a non-`file:` URI, or a path outside every bundle root, never a
+hang.
 
 ## Navigation
 

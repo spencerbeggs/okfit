@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T19:54:30Z
-  body_sha256: 67ff790dac1042c05d0f00fa735f0ecdbd4c33fc54c1d7fbb3ad4841b5c1ec3b
+  at: 2026-09-23T21:50:18Z
+  body_sha256: c81f07541fca2135fc1a35d74fc074635acb7523c3f689113662d2174f7fde8b
 ---
 
 # VS Code Extension
@@ -222,22 +222,52 @@ free it.
   `vscode.Uri.file(status.detail)` plus a `RelativePattern`, not a raw
   fsPath interpolated into a glob, so it holds on Windows paths and roots
   containing `[`, `{` or `*`.
-- **OKF: Validate Bundle** (`okfit.validateBundle`) -- re-requests the
-  concept list from the language server and re-publishes the tree and
-  status item; the client watches every markdown file and the okfit config
-  glob (`vscode/src/client.ts`'s `synchronize.fileEvents`) and forwards
-  both as `didChangeWatchedFiles`, so the server already revalidates on
-  document changes and on markdown/config changes made outside an editor,
-  and this command refreshes the client's view of the last published
-  result rather than forcing a server-side revalidate
-  (`vscode/src/commands.ts:7-9`). Pull diagnostics are not advertised in
-  this release.
+- **OKF: Validate Bundle** (`okfit.validateBundle`) -- when the started
+  client advertises `okfit.revalidate` (LSP roadmap phase 5), asks the
+  server to run a fresh `full` revalidate first over `workspace/
+  executeCommand`, then re-requests the concept list and re-publishes the
+  tree and status item; an older server that does not advertise it falls
+  back to the refresh-only behaviour (`vscode/src/commands.ts`'s
+  `useCommand("okfit.validateBundle", ...)`). The client also watches
+  every markdown file and the okfit config glob
+  (`vscode/src/client.ts`'s `synchronize.fileEvents`) and forwards both as
+  `didChangeWatchedFiles`, so the server already revalidates on document
+  changes and on markdown/config changes made outside an editor. Pull
+  diagnostics are not advertised in this release.
 - **OKF: Open Concept…** (`okfit.openConcept`) -- a quick pick over every
   concept in every live bundle, opening the picked concept's document
-  (`vscode/src/commands.ts:10-22`).
+  (`vscode/src/commands.ts`).
+- **OKF: Set Status…** (`okfit.setStatus`) -- resolves the target concept's
+  URI from the invoking tree node or the active editor
+  (`vscode/src/status-picks.ts`'s `conceptUriFrom`), shows a quick pick over
+  the two statuses the concept is not already in
+  (`statusPicks`, `Status`'s own literal order), and sends `workspace/
+  executeCommand` `okfit.setStatus [uri, status]`; the server computes the
+  edit and applies it through `workspace/applyEdit`, and a `{ applied:
+  false, failureReason }` or transport failure surfaces as one error
+  dialog (`vscode/src/commands.ts`'s `runEditCommand`).
+- **OKF: Mark Verified** (`okfit.markVerified`) -- same URI resolution and
+  `workspace/applyEdit` round trip, over `okfit.markVerified [uri]`; the
+  server resolves the human actor and computes the edit.
 
-Both commands appear in the Command Palette only while a bundle is live,
-and as toolbar actions on the OKF Concepts view's title bar.
+All four commands appear in the Command Palette only while a bundle is
+live (`okfit.hasBundle`, or `okfit.isConcept && okfit.hasActions` for the
+latter two), and as toolbar actions on the OKF Concepts view's title bar
+(`view/title`) or inline actions on a concept tree item (`view/item/
+context`, both the `inline` group and the `okfit@1` submenu group) for Set
+Status and Mark Verified. `okfit.isConcept` and `okfit.hasActions` are
+context keys the extension sets from the active document's bundle
+membership and the started client's `executeCommandProvider.commands`
+list, so both commands disable themselves against a server that predates
+`okfit.setStatus`/`okfit.markVerified`, and during a client restart
+(`vscode/src/commands.ts`'s `getClient() === undefined` guard logs instead
+of showing a dialog).
+
+The root workspace's `vscode:package` and `vscode:install` scripts build
+`@okfit/lsp`, build and package this extension (`vsce package
+--no-dependencies`), then uninstall and reinstall the resulting `.vsix`
+through the `code` CLI (`vscode/lib/install-vsix.ts`) -- the local-install
+path a human runs instead of the Marketplace for a same-machine check.
 
 ## Distribution
 
@@ -252,12 +282,12 @@ the VS Code extension](../runbooks/publish-vscode-extension.md).
 ## Not in scope
 
 Phase 6 (this extension) was sequenced before phase 5 (Actions) on
-2026-09-23, so this release ships without the Set Status and Mark Verified
-commands and without inlay hints -- those land once phase 5's engine-side
-code actions exist for the client to call. Completion of link targets and
-type names, semantic tokens, and a web extension build are deferred
-further still, tracked in [An @okfit/lsp language server and a VS Code
-extension over the shared
+2026-09-23; phase 5 landed the same day and Set Status and Mark Verified
+joined this extension in the Views and commands section above. A quick
+fix beyond `status-missing`, a batch verify command, and a code lens are
+still out of scope, as are completion of link targets and type names,
+semantic tokens, and a web extension build, tracked in [An @okfit/lsp
+language server and a VS Code extension over the shared
 engine](../roadmaps/lsp-server-and-vscode-extension.md).
 
 ## Links
