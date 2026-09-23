@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T18:12:49Z
-  body_sha256: a860bfb1ebaa4be82daaf6ff30f695c7ff7ce34b0e78c8514f55adff1db3834a
+  at: 2026-09-23T18:22:42Z
+  body_sha256: 60f7ca67a07041157657df2e7cf46559d5d23900cd8041b89b343b4950a2bc26
 ---
 
 # VS Code Extension
@@ -36,7 +36,7 @@ methods).
 
 ## Layout
 
-- `src/extension.ts` (`vscode/src/extension.ts:1-170`) -- the extension
+- `src/extension.ts` (`vscode/src/extension.ts:1-172`) -- the extension
   host entry, built with `reactive-vscode`'s `defineExtension`: builds the
   file-decoration provider and Language Status item once per activation,
   starts the language client, the `ConceptsProvider` tree and its
@@ -45,12 +45,16 @@ methods).
   change, and the final stop on deactivation) through one `SerialQueue`
   (`vscode/src/serial-queue.ts`) so overlapping `stop()`/`start()` calls
   can never leak a client.
-- `src/client.ts` (`vscode/src/client.ts:33-74`) -- `startClient`: resolves
+- `src/client.ts` (`vscode/src/client.ts:33-73`) -- `startClient`: resolves
   the server with `resolveServer` (below), builds the `LanguageClient` with
   a `markdown` and config-glob `documentSelector`, and on a start failure
   logs which of the three resolution sources it tried and shows one error
   dialog with an "Open Output" action -- no retry; the next explicit
   `okfit.lsp.serverPath` change is the only retry path.
+- `src/config-glob.ts` (`vscode/src/config-glob.ts:1-7`) -- `CONFIG_GLOB`:
+  the okfit config-file glob shared by `client.ts`'s file-system watcher
+  and the extension manifest's `activationEvents`, pinned together by
+  `__test__/manifest.test.ts` so the two can never drift apart silently.
 - `src/resolve-server.ts` (`vscode/src/resolve-server.ts:25-41`) --
   `resolveServer`: the pure, three-step server resolution (Server
   resolution below).
@@ -120,7 +124,7 @@ A `client.start()` failure is not retried automatically; see Layout above.
 - **Language Status item** (`okfit.status`) -- one item for the whole
   activation, routed at `NO_BUNDLE_SELECTOR` (a pattern nothing on disk
   matches) when no live bundle owns the active document rather than being
-  disposed and rebuilt per document (`vscode/src/extension.ts:17,68-99`);
+  disposed and rebuilt per document (`vscode/src/extension.ts:17,68-101`);
   its command opens `okfit.validateBundle`. `statusFor`
   (`vscode/src/status.ts:19-30`) computes its text, detail and severity
   from the active document's bundle and the workspace's own diagnostics.
