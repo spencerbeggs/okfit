@@ -564,6 +564,9 @@ importers:
       '@okfit/cli':
         specifier: workspace:*
         version: link:../cli/dist/dev/pkg
+      '@okfit/lsp':
+        specifier: workspace:*
+        version: link:../lsp/dist/dev/pkg
       '@okfit/mcp':
         specifier: workspace:*
         version: link:../mcp/dist/dev/pkg

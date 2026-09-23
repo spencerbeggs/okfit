@@ -82,4 +82,28 @@ describe("@okfit/plugin bins", () => {
 			assert.strictEqual(result.exitCode, 0);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
+
+	it.effect("okfit-lsp completes initialize, shutdown and exit over stdio with exit code 0", () =>
+		Effect.gen(function* () {
+			const frame = (message: unknown) => {
+				const body = JSON.stringify(message);
+				return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+			};
+			const stdin = [
+				frame({
+					jsonrpc: "2.0",
+					id: 1,
+					method: "initialize",
+					params: { processId: null, rootUri: null, capabilities: {} },
+				}),
+				frame({ jsonrpc: "2.0", method: "initialized", params: {} }),
+				frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }),
+				frame({ jsonrpc: "2.0", method: "exit", params: null }),
+			].join("");
+			const result = yield* runBin("okfit-lsp.js", ["--stdio"], { stdin });
+			assert.strictEqual(result.exitCode, 0);
+			assert.ok(result.stdout.includes('"name":"okfit-lsp"'));
+			assert.ok(result.stderr.includes("via @okfit/plugin"));
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
 });

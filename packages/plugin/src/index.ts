@@ -1,5 +1,6 @@
 /**
- * okfit meta-package. Installing it provides the `okfit` and `okfit-mcp` bins.
+ * okfit meta-package. Installing it provides the `okfit`, `okfit-mcp` and
+ * `okfit-lsp` bins.
  *
  * @packageDocumentation
  */
@@ -11,4 +12,4 @@ export { PLUGIN_VERSION } from "./version.js";
  *
  * @public
  */
-export const OKFIT_BINS = ["okfit", "okfit-mcp"] as const;
+export const OKFIT_BINS = ["okfit", "okfit-mcp", "okfit-lsp"] as const;

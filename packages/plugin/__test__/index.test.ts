@@ -4,8 +4,8 @@ import cliPackageJson from "../../cli/package.json" with { type: "json" };
 import { OKFIT_BINS, PLUGIN_VERSION } from "../src/index.js";
 
 describe("@okfit/plugin", () => {
-	it("names both bins it installs", () => {
-		expect(OKFIT_BINS).toEqual(["okfit", "okfit-mcp"]);
+	it("names all three bins it installs", () => {
+		expect(OKFIT_BINS).toEqual(["okfit", "okfit-mcp", "okfit-lsp"]);
 	});
 
 	it("resolves @okfit/cli through the workspace", () => {
