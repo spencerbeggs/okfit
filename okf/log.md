@@ -8,6 +8,7 @@
 * Updated Plugin
 * Added The language server runs the reference vscode-languageserver library behind an Effect transport seam
 * Updated Workspace
+* Added The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
 
 ## 2026-09-22
 
