@@ -19,7 +19,7 @@ function lastStderrLine(stderr: string): string {
 	return lines.at(-1) ?? "";
 }
 
-const uninstall = spawnSync(code, ["--uninstall-extension", extensionId], { encoding: "utf8" });
+const uninstall = spawnSync(code, ["--uninstall-extension", extensionId], { encoding: "utf8", shell: false });
 if (uninstall.error) {
 	console.error(`install-vsix: could not run "${code}" -- is it on PATH? (${uninstall.error.message})`);
 	process.exit(1);
@@ -28,7 +28,7 @@ if (uninstall.status !== 0) {
 	console.log(`install-vsix: uninstall skipped -- ${lastStderrLine(uninstall.stderr)}`);
 }
 
-const install = spawnSync(code, ["--install-extension", vsix, "--force"], { encoding: "utf8" });
+const install = spawnSync(code, ["--install-extension", vsix, "--force"], { encoding: "utf8", shell: false });
 if (install.error) {
 	console.error(`install-vsix: could not run "${code}" -- is it on PATH? (${install.error.message})`);
 	process.exit(1);
@@ -38,10 +38,12 @@ if (install.status !== 0) {
 	process.exit(install.status ?? 1);
 }
 
-const list = spawnSync(code, ["--list-extensions", "--show-versions"], { encoding: "utf8" });
+const list = spawnSync(code, ["--list-extensions", "--show-versions"], { encoding: "utf8", shell: false });
 const installedLine = list.stdout.split("\n").find((line) => line.startsWith(`${extensionId}@`));
 if (installedLine) {
 	console.log(installedLine);
+} else {
+	console.log(`install-vsix: installed, but no "${extensionId}@" line found in --list-extensions output`);
 }
 
 console.log("Reload the VS Code window to load the new build.");

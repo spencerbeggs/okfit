@@ -28,7 +28,12 @@ import { DateTime, Effect, Option, Result, Schema } from "effect";
 import { pathToUri, uriToPath } from "../convert/uri.js";
 import { LspError } from "../errors.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
-import type { ApplyWorkspaceEditParams, ApplyWorkspaceEditResult, ExecuteCommandParams } from "../protocol/types.js";
+import type {
+	ApplyWorkspaceEditParams,
+	ApplyWorkspaceEditResult,
+	ExecuteCommandParams,
+	TextEdit,
+} from "../protocol/types.js";
 import type { SessionRegistryShape } from "../session/registry.js";
 import type { EditFailure } from "./edits.js";
 import { describeFailure, statusTextEdits, verifiedTextEdits } from "./edits.js";
@@ -59,6 +64,23 @@ const toLspError = (failure: EditFailure): LspError =>
 /** `LspError` for a `uri` that is not a `file:` URI: mirrors `describeFailure`'s `NotAConcept` wording. */
 const notAConcept: LspError = toLspError({ _tag: "NotAConcept" });
 
+/**
+ * Send `edits` to the client as a single-file `workspace/applyEdit` under
+ * `label`, and answer its result verbatim -- the round trip
+ * `okfit.setStatus` and `okfit.markVerified` both make, differing only in
+ * which edits they compute and what they label the edit.
+ */
+const applyConceptEdit = (
+	transport: LspTransportShape,
+	uri: string,
+	label: string,
+	edits: ReadonlyArray<TextEdit>,
+): Effect.Effect<ApplyWorkspaceEditResult, LspError> =>
+	transport.sendRequest<ApplyWorkspaceEditParams, ApplyWorkspaceEditResult>("workspace/applyEdit", {
+		label,
+		edit: { changes: { [uri]: [...edits] } },
+	});
+
 const handleSetStatus = (
 	registry: SessionRegistryShape,
 	transport: LspTransportShape,
@@ -69,10 +91,7 @@ const handleSetStatus = (
 		const path = uriToPath(uri);
 		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
 		const edits = yield* statusTextEdits(registry, path.value, status).pipe(Effect.mapError(toLspError));
-		return yield* transport.sendRequest<ApplyWorkspaceEditParams, ApplyWorkspaceEditResult>("workspace/applyEdit", {
-			label: `Set status: ${status}`,
-			edit: { changes: { [uri]: [...edits] } },
-		});
+		return yield* applyConceptEdit(transport, uri, `Set status: ${status}`, edits);
 	});
 
 const handleMarkVerified = (
@@ -86,10 +105,7 @@ const handleMarkVerified = (
 		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
 		const now = yield* DateTime.now;
 		const edits = yield* verifiedTextEdits(registry, path.value, now).pipe(Effect.mapError(toLspError));
-		return yield* transport.sendRequest<ApplyWorkspaceEditParams, ApplyWorkspaceEditResult>("workspace/applyEdit", {
-			label: "Mark verified",
-			edit: { changes: { [uri]: [...edits] } },
-		});
+		return yield* applyConceptEdit(transport, uri, "Mark verified", edits);
 	});
 
 /** Result of `okfit.revalidate`. @public */
@@ -111,7 +127,7 @@ const handleRevalidate = (
 		yield* Effect.forEach(
 			targets,
 			(handle) => Effect.andThen(handle.scheduler.schedule("full"), handle.scheduler.settle),
-			{ discard: true },
+			{ discard: true, concurrency: "unbounded" },
 		);
 		return { roots: targets.map((handle) => pathToUri(handle.bundleRoot)) };
 	});

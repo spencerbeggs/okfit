@@ -16,6 +16,10 @@
  * kind `quickfix`, carries that diagnostic in its own `diagnostics`, and the
  * `draft` action alone is `isPreferred`.
  *
+ * `params.context.only` (the client's requested-kinds filter) is
+ * deliberately not honoured: the LSP specification allows a client to
+ * filter the returned actions itself, so this always answers the full set.
+ *
  * @packageDocumentation
  */
 import type { Git } from "@effected/git";

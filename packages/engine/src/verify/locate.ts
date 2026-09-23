@@ -93,6 +93,37 @@ const hasMergeKey = (node: YamlNode): boolean => {
 	return false;
 };
 
+/** {@link parseTopLevelMapping}'s result: the parsed mapping, or the `unsupported` shape it failed at. @internal */
+type ParsedTopLevelMapping =
+	| { readonly value: string; readonly valueStart: number; readonly contents: YamlMap }
+	| { readonly _tag: "unsupported"; readonly shape: string };
+
+/**
+ * The shared prologue every locator in this file starts with: split
+ * `source`'s frontmatter, parse its value, and confirm the parsed document
+ * is a (non-flow) top-level mapping. Returns the same `"no-frontmatter"` /
+ * `"not-a-mapping"` `unsupported` shapes each locator returned inline
+ * before this helper existed -- callers still name those shapes themselves,
+ * this only removes the duplicated parsing steps that produced them.
+ *
+ * @internal
+ */
+const parseTopLevelMapping = Effect.fn("okfit/verify/parseTopLevelMapping")(function* (
+	source: string,
+): Generator<Effect.Effect<YamlDocument, YamlParseError>, ParsedTopLevelMapping> {
+	const block = FrontmatterSource.split(source).frontmatter;
+	if (block === undefined) return { _tag: "unsupported", shape: "no-frontmatter" } as const;
+
+	const value = block.value;
+	const valueStart = 3 + (block.newline ?? "\n").length;
+
+	const document = yield* YamlDocument.parse(value);
+	const contents = document.contents;
+	if (!(contents instanceof YamlMap)) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
+
+	return { value, valueStart, contents };
+});
+
 /**
  * Split `source`'s frontmatter, parse its value, find the top-level
  * `verified` pair, and classify it (contract §3.1). Fails only when the
@@ -108,16 +139,13 @@ const hasMergeKey = (node: YamlNode): boolean => {
  */
 export const locate = Effect.fn("okfit/verify/locate")(function* (
 	source: string,
-): Generator<Effect.Effect<YamlDocument, YamlParseError>, Located> {
-	const block = FrontmatterSource.split(source).frontmatter;
-	if (block === undefined) return { _tag: "unsupported", shape: "no-frontmatter" } as const;
-
-	const value = block.value;
-	const valueStart = 3 + (block.newline ?? "\n").length;
-
-	const document = yield* YamlDocument.parse(value);
-	const contents = document.contents;
-	if (!(contents instanceof YamlMap)) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
+): Generator<
+	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
+	Located
+> {
+	const parsed = yield* parseTopLevelMapping(source);
+	if ("_tag" in parsed) return parsed;
+	const { value, valueStart, contents } = parsed;
 
 	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "verified");
 	if (pair === undefined) return { _tag: "absent", insertAt: valueStart + value.length } as const;
@@ -222,16 +250,13 @@ export type GeneratedLocated =
 const locateGeneratedField = Effect.fn("okfit/verify/locateGeneratedField")(function* (
 	source: string,
 	field: "at" | "body_sha256",
-): Generator<Effect.Effect<YamlDocument, YamlParseError>, GeneratedLocated> {
-	const block = FrontmatterSource.split(source).frontmatter;
-	if (block === undefined) return { _tag: "unsupported", shape: "no-frontmatter" } as const;
-
-	const value = block.value;
-	const valueStart = 3 + (block.newline ?? "\n").length;
-
-	const document = yield* YamlDocument.parse(value);
-	const contents = document.contents;
-	if (!(contents instanceof YamlMap)) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
+): Generator<
+	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
+	GeneratedLocated
+> {
+	const parsed = yield* parseTopLevelMapping(source);
+	if ("_tag" in parsed) return parsed;
+	const { value, valueStart, contents } = parsed;
 
 	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "generated");
 	if (pair === undefined) return { _tag: "unsupported", shape: "no-generated-key" } as const;
@@ -329,16 +354,13 @@ export type TopLevelScalarLocated =
 export const locateTopLevelScalar = Effect.fn("okfit/verify/locateTopLevelScalar")(function* (
 	source: string,
 	key: string,
-): Generator<Effect.Effect<YamlDocument, YamlParseError>, TopLevelScalarLocated> {
-	const block = FrontmatterSource.split(source).frontmatter;
-	if (block === undefined) return { _tag: "unsupported", shape: "no-frontmatter" } as const;
-
-	const value = block.value;
-	const valueStart = 3 + (block.newline ?? "\n").length;
-
-	const document = yield* YamlDocument.parse(value);
-	const contents = document.contents;
-	if (!(contents instanceof YamlMap)) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
+): Generator<
+	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
+	TopLevelScalarLocated
+> {
+	const parsed = yield* parseTopLevelMapping(source);
+	if ("_tag" in parsed) return parsed;
+	const { value, valueStart, contents } = parsed;
 	if (contents.style === "flow") return { _tag: "unsupported", shape: "flow-mapping" } as const;
 
 	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
@@ -392,14 +414,13 @@ export type GeneratedBlockLocated =
 /** @internal */
 export const locateGeneratedBlock = Effect.fn("okfit/verify/locateGeneratedBlock")(function* (
 	source: string,
-): Generator<Effect.Effect<YamlDocument, YamlParseError>, GeneratedBlockLocated> {
-	const block = FrontmatterSource.split(source).frontmatter;
-	if (block === undefined) return { _tag: "unsupported", shape: "no-frontmatter" } as const;
-	const value = block.value;
-	const valueStart = 3 + (block.newline ?? "\n").length;
-	const document = yield* YamlDocument.parse(value);
-	const contents = document.contents;
-	if (!(contents instanceof YamlMap)) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
+): Generator<
+	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
+	GeneratedBlockLocated
+> {
+	const parsed = yield* parseTopLevelMapping(source);
+	if ("_tag" in parsed) return parsed;
+	const { value, valueStart, contents } = parsed;
 	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "generated");
 	if (pair !== undefined) return { _tag: "unsupported", shape: "generated-present" } as const;
 	return { _tag: "absent", insertAt: valueStart + value.length } as const;

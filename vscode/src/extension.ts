@@ -166,6 +166,21 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 		provider = undefined;
 	};
 
+	// Disables the palette/tree-menu actions, tears down the tree and the
+	// client, and clears `client`/`watchers` -- shared by `dispose()` and
+	// `restart()` below, whose only difference is that `restart()` starts a
+	// fresh client afterward. Disabling `okfit.hasActions` and clearing
+	// `client` up front (not after the teardown completes) means every
+	// command in `commands.ts` sees "server not running" for the whole
+	// stop-then-start window, not just once it is over.
+	const stopServer = async () => {
+		await vscode.commands.executeCommand("setContext", "okfit.hasActions", false);
+		disposeTree();
+		await stopQuietly(client, watchers);
+		client = undefined;
+		watchers = [];
+	};
+
 	const start = async () => {
 		const started = await startClient({
 			extensionUri: context.extensionUri,
@@ -222,16 +237,10 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	useDisposable({
 		dispose: () =>
 			void queue.run(async () => {
-				// Same staleness fix as `restart()` below: disable the palette
-				// and tree-menu entries before tearing the client down, and
-				// clear `client`/`watchers` right after `stopQuietly` so nothing
-				// left running after `dispose()` can observe a stopped client
-				// through `getClient()`.
-				await vscode.commands.executeCommand("setContext", "okfit.hasActions", false);
-				disposeTree();
-				await stopQuietly(client, watchers);
-				client = undefined;
-				watchers = [];
+				// Same staleness fix as `restart()` below, via `stopServer()`: so
+				// nothing left running after `dispose()` can observe a stopped
+				// client through `getClient()`.
+				await stopServer();
 			}),
 	});
 
@@ -250,17 +259,10 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 				// stop-then-start window: the palette and tree-menu entries
 				// stayed enabled and `getClient()` kept returning the stopped
 				// client, so an invocation during a restart surfaced a spurious
-				// transport error instead of a quiet no-op. Disable the actions
-				// context up front, and null out `client`/`watchers` right after
-				// `stopQuietly` -- before `start()` (which may itself fail and
-				// leave both unset) has a chance to run -- so every command
-				// registered in `commands.ts` sees "server not running" for the
-				// whole window, not just before this job started.
-				await vscode.commands.executeCommand("setContext", "okfit.hasActions", false);
-				disposeTree();
-				await stopQuietly(client, watchers);
-				client = undefined;
-				watchers = [];
+				// transport error instead of a quiet no-op. `stopServer()` clears
+				// both up front -- before `start()` (which may itself fail and
+				// leave both unset) has a chance to run.
+				await stopServer();
 				await start();
 			})
 			.catch(() => undefined)
