@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:50:18Z
-  body_sha256: c81f07541fca2135fc1a35d74fc074635acb7523c3f689113662d2174f7fde8b
+  at: 2026-09-23T21:53:10Z
+  body_sha256: 84bf09be168ff1d594acd479ad5e2a245cc4ba17c70485f064ca660f7c94d7e7
 ---
 
 # VS Code Extension
@@ -277,7 +277,11 @@ Marketplace` workflow packages and publishes to the Visual Studio
 Marketplace and Open VSX, checking for a `VSCE_PAT` secret first and
 falling back to Microsoft Entra ID workload identity federation only when
 none is set. Procedure, secrets table and dry-run instructions: [Publish
-the VS Code extension](../runbooks/publish-vscode-extension.md).
+the VS Code extension](../runbooks/publish-vscode-extension.md). This
+extension ships in the repository unreleased on this branch, by the
+owner's decision; its first Marketplace and Open VSX release, the
+publisher registration, the icon and the federation credentials are the
+next phase.
 
 ## Not in scope
 

@@ -33,8 +33,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:50:18Z
-  body_sha256: d8f9c54f3830555d5b2db877681ba36ac16f506cbe6be99f2889080be1b836c7
+  at: 2026-09-23T21:53:10Z
+  body_sha256: 13f771cf44be379304cd55da6248a4671083d3d62c3964e6f9d15063ab1c013b
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -223,9 +223,13 @@ repository's own bundle.
    and Mark Verified commands and inline tree actions phase 5 unblocked,
    and by the `vscode:package`/`vscode:install` root scripts for a
    local-install check. Evidence: `@okfit/vscode-extension` 63 of 63
-   Vitest tests passing. Remaining: the Marketplace publisher
-   registration, the icon asset, the federation credentials, the first
-   release, and the owner's own VS Code UI pass -- lightbulb on a
+   Vitest tests passing. This extension ships in the repository
+   unreleased on this branch by the owner's decision; no
+   `@okfit/vscode-extension` changeset accompanies it, and its first
+   Marketplace and Open VSX release is the next phase. Remaining: the
+   Marketplace publisher registration, the icon asset, the federation
+   credentials, the first release, and the owner's own VS Code UI pass --
+   lightbulb on a
    concept's frontmatter to confirm the code actions render; Set status
    through both the lightbulb and the OKF Concepts tree's inline/context-
    menu action; Mark verified by `human:spencer` appearing and applying;
