@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:34:50Z
-  body_sha256: 6256c33a2833fb3fa598228231e9349ef2545ea370947e7bc7cd922426d7648f
+  at: 2026-09-23T18:05:30Z
+  body_sha256: cf28a682e944ef13d7b9f35f9245ecf0d248a850d6182eb398b2798dbc7c949b
 ---
 
 # LSP
@@ -68,6 +68,24 @@ revalidate completes they answer `null`/`[]` rather than hang.
   every live session, merged, filtered by a case-insensitive substring
   match over id and title (an empty query returns all), capped at 200
   results and sorted by id.
+
+## Custom methods
+
+`registerConcepts` (`src/features/concepts.ts`) wires `okfit/concepts` onto
+the transport, and `notifyBundleChanged` sends `okfit/bundleChanged` --
+okfit's own protocol extensions for an editor's concept explorer, named
+with the `okfit/` prefix since the LSP specification reserves `$/` for its
+own extensions and leaves vendor prefixes to implementations. The
+[VS Code Extension](vscode-extension.md)'s OKF Concepts tree view and
+Language Status item are the first consumer.
+`INITIALIZE_RESULT.capabilities.experimental` advertises `{ okfitConcepts:
+true }` so a client can feature-detect the pair before calling either.
+`okfit/concepts` answers from every live session's last-loaded bundle
+without triggering or waiting on a revalidate; `okfit/bundleChanged` is
+sent from the registry's own revalidate and dispose callbacks, after
+diagnostics for the same change have already published, so a client that
+re-fetches `okfit/concepts` on this notification never races the
+diagnostics it would otherwise cross-reference.
 
 ## The transport seam
 
@@ -154,6 +172,9 @@ three by scanning `src/`.
   this server.
 - [Claude Code Plugin](claude-code-plugin.md) — registers
   `lspServers.okfit` and loads this server lazily.
+- [VS Code Extension](vscode-extension.md) — the language client and
+  concept explorer built on this server, including `okfit/concepts` and
+  `okfit/bundleChanged`.
 - [The language server runs the reference vscode-languageserver library
   behind an Effect transport
   seam](../decisions/lsp-reference-transport-behind-a-seam.md)

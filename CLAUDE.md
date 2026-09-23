@@ -19,7 +19,10 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
 
 - **The workspace root, every package, and the Claude Code plugin** --
   `okf/modules/*.md` (`workspace`, `core`, `profiles`, `engine`, `cli`,
-  `mcp`, `lsp`, `plugin`, `claude-code-plugin`).
+  `mcp`, `lsp`, `plugin`, `claude-code-plugin`, `vscode-extension`).
+- **The VS Code extension** -- `vscode/CLAUDE.md`,
+  `okf/modules/vscode-extension.md`,
+  `okf/runbooks/publish-vscode-extension.md`.
 - **Durable architectural choices** (why something is built the way it
   is, not just what it does) -- `okf/decisions/*.md`.
 - **Rules contributors and agents must follow** -- `okf/conventions/*.md`.

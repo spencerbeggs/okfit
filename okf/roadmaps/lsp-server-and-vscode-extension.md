@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:32:55Z
-  body_sha256: 86b32e21f220aee9ec6e9d48f46dc433ff3d2892c718ed9b9781743083698a2b
+  at: 2026-09-23T18:05:30Z
+  body_sha256: cf2191cbe5c833753223bc1ca45224176066acec57bb66c07f904abd099a1583
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -104,7 +104,13 @@ discovered per folder, folders added and removed through the LSP
 workspace-folders notifications, and a resource-scoped server-path
 setting[^vscode-multi-root]. reactive-vscode has no language-client
 composable, so the client is wired by hand and disposed through the
-reactive API[^reactive-vscode].
+reactive API[^reactive-vscode]. Phase 6 was sequenced before phase 5 on
+2026-09-22, by the owner's decision[^owner-brainstorm], so the extension's
+first release ships without Set Status, Mark Verified or inlay hints; the
+extension's tracking package lives at `vscode/`, sibling to `packages/*`
+and `plugins/claude-code`, not under either -- see [The VS Code extension
+lives at vscode/, not under plugins/ or
+packages/](../decisions/vscode-extension-at-repo-root.md).
 
 ## Phases
 
@@ -181,12 +187,20 @@ repository's own bundle.
    for marking verified by the configured human actor, computed as text
    edits over the verify splice helpers so a file is never
    re-serialised; mechanical quick fixes; execute-command; inlay hints
-   after the `status:` line. Releases engine, lsp. Remaining: everything.
-6. **VS Code extension.** The reactive-vscode package, language client,
-   Explorer tree with per-type icons and a numeric stale badge, Language
-   Status item, commands under one category scoped to OKF documents,
-   Welcome view for the empty state, multi-root support, publishing.
-   First extension release. Remaining: everything.
+   after the `status:` line. Releases engine, lsp. Remaining: everything;
+   the extension's Set Status and Mark Verified commands wait on it.
+6. **VS Code extension.** The `vscode/` workspace member (tracking
+   package `@okfit/vscode-extension`, Marketplace id `okfit`, publisher
+   `okfit`), a `reactive-vscode` language client with per-folder server
+   resolution (`okfit.lsp.serverPath`, then a workspace folder's own
+   `node_modules/.bin/okfit-lsp`, then the bundled server, all launched
+   over stdio), the OKF Concepts explorer tree with status and stale
+   badges, a Language Status item, the Validate Bundle and Open Concept
+   commands, multi-root support, and the `VS Code Marketplace` GitHub
+   Actions workflow (Marketplace and Open VSX, federation-first with a
+   PAT fallback). Done 2026-09-23. Remaining: the Marketplace publisher
+   registration, the icon asset, the federation credentials, the first
+   release; Set Status and Mark Verified follow phase 5.
 7. **External references for real.** An HTTP-backed
    `ExternalReferences` layer over `@effected/store`'s TTL `Cache` in
    the XDG cache directory, an `external-unreachable` lint that core
