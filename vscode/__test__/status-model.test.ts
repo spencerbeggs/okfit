@@ -34,4 +34,22 @@ describe("statusFor", () => {
 	it("is undefined for a document outside every bundle", () => {
 		expect(statusFor({ documentUri: "file:///elsewhere/readme.md", result, diagnostics: [] })).toBeUndefined();
 	});
+
+	it("matches a percent-encoded document against a percent-encoded root (I5)", () => {
+		// Before the fix, `bundle.rootUri` came straight from Node's
+		// `pathToFileURL` -- `file:///w/my@repo/okf`, `@` left unencoded --
+		// while `documentUri` came from VS Code's own `Uri.toString()`, which
+		// percent-encodes `@` as `%40`. `under()`'s plain `startsWith` never
+		// matched that pair, so the status item silently never showed for a
+		// bundle root containing a reserved character. The extension now
+		// normalizes `rootUri` through `vscode.Uri.parse(...).toString()`
+		// before calling `statusFor` (extension.ts's `updateStatus`), so by the
+		// time `statusFor` sees it, `rootUri` is already percent-encoded the
+		// same way `documentUri` is -- exactly what this fixture reproduces.
+		const encoded: ConceptsResult = {
+			bundles: [{ root: "/w/my@repo/okf", rootUri: "file:///w/my%40repo/okf", profile: undefined, concepts: [] }],
+		};
+		const s = statusFor({ documentUri: "file:///w/my%40repo/okf/a.md", result: encoded, diagnostics: [] });
+		expect(s?.detail).toBe("/w/my@repo/okf");
+	});
 });

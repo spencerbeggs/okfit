@@ -28,8 +28,13 @@ export interface ClientDeps {
 
 const targetOf = (launch: ServerLaunch): string => (launch.kind === "command" ? launch.command : launch.module);
 
+export interface StartedClient {
+	readonly client: LanguageClient;
+	readonly launch: ServerLaunch;
+}
+
 /** Builds and starts the one language client for this window. The caller owns disposal via `client.stop()`. */
-export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => {
+export const startClient = async (deps: ClientDeps): Promise<StartedClient> => {
 	const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
 	const bundledModule = vscode.Uri.joinPath(deps.extensionUri, "dist", "server.js").fsPath;
 	const { launch, notes } = resolveServer({
@@ -37,6 +42,7 @@ export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => 
 		folders,
 		bundledModule,
 		exists: existsSync,
+		hostNode: process.versions.node,
 	});
 	for (const note of notes) deps.log(note);
 	deps.log(`okfit language server: ${launch.source} (${targetOf(launch)})`);
@@ -46,7 +52,18 @@ export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => 
 			{ scheme: "file", language: "markdown" },
 			{ scheme: "file", pattern: CONFIG_GLOB },
 		],
-		synchronize: { fileEvents: vscode.workspace.createFileSystemWatcher(CONFIG_GLOB) },
+		// Two watchers: the config glob (for the server's own config-driven
+		// session rebuild) and every markdown file (so a concept file created,
+		// deleted or renamed outside an open editor -- Explorer, `git
+		// checkout`/`pull`, a codegen run -- still reaches the server as a
+		// `didChangeWatchedFiles` event; the server treats any non-config path
+		// as a `full` revalidate and already debounces it).
+		synchronize: {
+			fileEvents: [
+				vscode.workspace.createFileSystemWatcher(CONFIG_GLOB),
+				vscode.workspace.createFileSystemWatcher("**/*.md"),
+			],
+		},
 		outputChannelName: "okfit language server",
 	};
 	const client = new LanguageClient("okfit.lsp", "okfit language server", serverOptions(launch), clientOptions);
@@ -59,8 +76,10 @@ export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => 
 		// with no mention of which of the three resolution sources (setting,
 		// workspace, bundled) or which path it tried -- log that here, then
 		// show exactly one dialog with an action to open the channel that has
-		// it. No retry: the caller (extension.ts) re-attempts only on the
-		// next explicit `okfit.lsp.serverPath` change, never automatically.
+		// it. Not retried here: the caller (extension.ts) re-attempts on the
+		// next explicit `okfit.lsp.serverPath` change, including after the
+		// very first failed start -- its `watch` is registered before that
+		// first attempt runs.
 		deps.log(`okfit language server failed to start (${launch.source}: ${targetOf(launch)}): ${message}`);
 		void vscode.window
 			.showErrorMessage(`okfit language server failed to start (${launch.source}: ${targetOf(launch)}).`, "Open Output")
@@ -69,5 +88,5 @@ export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => 
 			});
 		throw error;
 	}
-	return client;
+	return { client, launch };
 };

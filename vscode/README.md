@@ -31,10 +31,14 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 
 - **OKF: Validate Bundle** (`okfit.validateBundle`) -- re-requests the
   concept list from the language server and re-publishes the tree and
-  status item. The server already revalidates on watched-file and
-  document changes, so this refreshes the client's view of the last
-  published result rather than forcing a new validation pass; a
-  server-side revalidate command lands in a later release.
+  status item. The extension watches every markdown file and the okfit
+  config glob and forwards both as `didChangeWatchedFiles`, so the server
+  already revalidates on document changes and on markdown/config changes
+  made outside an editor (Explorer, `git checkout`/`pull`, a codegen run);
+  this command refreshes the client's view of the last published result
+  rather than forcing a new validation pass, and is the manual fallback
+  when a watcher event is missed. A server-side revalidate command lands
+  in a later release.
 - **OKF: Open Concept…** (`okfit.openConcept`) -- a quick pick over every
   concept in every live bundle, opening the picked concept's document.
 
@@ -54,6 +58,13 @@ The extension resolves which `okfit-lsp` to run, in this order:
    order (the first folder that has one wins).
 3. The server bundled into this extension -- always available, no
    installation required.
+
+The bundled source (3) normally runs in-process under the extension
+host's own Node. On a VS Code release whose extension host runs Node
+older than `@okfit/lsp`'s `engines.node` floor (`24.11.0`), the extension
+instead launches the bundled server as a `node` subprocess, so a Node
+`24.11+` on `PATH` is required in that case when no workspace-local
+`okfit-lsp` exists (sources 1 and 2 above are unaffected either way).
 
 ## Settings
 
