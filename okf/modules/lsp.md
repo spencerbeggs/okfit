@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T22:40:12Z
-  body_sha256: 5c895bffbb3d54eee55ccf23b342d6c0a481cdeae924ad4bda601af8734602d2
+  at: 2026-09-23T23:39:29Z
+  body_sha256: 8db1b750cfaca7b98ec5c244d9d6dbce3834fd4b2131e6faf48d127bb1037acf
 ---
 
 # LSP
@@ -134,12 +134,21 @@ own extensions and leaves vendor prefixes to implementations. The
 Language Status item are the first consumer.
 `INITIALIZE_RESULT.capabilities.experimental` advertises `{ okfitConcepts:
 true }` so a client can feature-detect the pair before calling either.
-`okfit/concepts` answers from every live session's last-loaded bundle
-without triggering or waiting on a revalidate; `okfit/bundleChanged` is
-sent from the registry's own revalidate and dispose callbacks, after
-diagnostics for the same change have already published, so a client that
-re-fetches `okfit/concepts` on this notification never races the
-diagnostics it would otherwise cross-reference.
+`okfit/concepts` warms up every current workspace folder that has never
+been resolved, and runs a first `full` revalidate for any bundle root that
+has never loaded -- **at most once per bundle root per session**: the root
+is recorded as warmed before the revalidate is scheduled, so a root whose
+bundle still fails to load after that attempt is not re-scheduled by a
+later request. Only a rebuild gives a root another attempt -- `server.ts`
+wires `registerConcepts`'s `forgetWarmup` into the session registry's
+`onDispose` callback, which fires on a config-change rebuild and when a
+root's last workspace folder goes away, so a fixed config or a re-added
+folder is retried on its next warm-up. It then answers from every live
+session's last-loaded bundle; `okfit/bundleChanged` is sent from the
+registry's own revalidate and dispose callbacks, after diagnostics for the
+same change have already published, so a client that re-fetches
+`okfit/concepts` on this notification never races the diagnostics it would
+otherwise cross-reference.
 
 ## The transport seam
 

@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T22:30:37Z
-  body_sha256: fd77e88446909c848ee6abc9f9fc09496041df0ee87b03fb866870571e506736
+  at: 2026-09-23T23:39:29Z
+  body_sha256: 6e74b5d481bbfc1387ca0e72b905e5d5eb4e055f5aed05c570a57c046023648e
 ---
 
 # VS Code Extension
@@ -134,10 +134,33 @@ tries each in turn:
 2. Every folder's `<folder>/node_modules/.bin/okfit-lsp` that exists, in
    window order, deduped by real path so two folders that resolve to the
    same on-disk server (a symlink, or one nested inside the other) only
-   candidate once (`source: "workspace"`).
+   candidate once (`source: "workspace"`), and version-gated: `client.ts`'s
+   `readWorkspaceServerVersion` resolves the folder's `@okfit/lsp` version
+   from disk without spawning it (`node_modules/@okfit/lsp/package.json`
+   directly, or, when the bin resolves to `@okfit/plugin`'s own re-export,
+   that package's nested or pnpm-sibling `@okfit/lsp`); `resolveServer`
+   drops a candidate whose known version is older than
+   `minServerVersion` (`MIN_SERVER_VERSION`, `src/versions.ts` --
+   `@okfit/lsp`'s version at the extension's own build time, injected by
+   `tsdown.config.ts`) into `result.outdated`, an unknown version is kept
+   (the capability check below still protects it). This exists because an
+   owner's large multi-root window (18 folders) used to spawn every one of
+   13 older workspace `okfit-lsp` binaries in turn, run the handshake, see
+   no capability, and move on -- roughly 7 seconds before the bundled
+   server it needed all along ever started.
 3. The server bundled into the extension itself, `dist/server.js`, built
    from `server/main.ts` -- always available, no installation required;
    always the last candidate, so the list is never empty.
+
+When `resolveServer` drops at least one source-2 candidate, `extension.ts`
+shows one `window.showInformationMessage` per window per activation
+(`outdatedNotice`, `resolve-server.ts` -- the pinned wording), with a "Show
+folders" action that logs the dropped folders and their versions to the
+"okfit" output channel and reveals it; a later restart within the same
+activation that resolves the same outdated folders again does not reopen
+the dialog. The source-1 setting is exempt from this gate -- it is the
+user's explicit choice, same as it is exempt from the capability check
+below.
 
 `startClient` starts the first candidate and, after `start()`, checks
 `initializeResult?.capabilities.experimental?.okfitConcepts === true`.
@@ -193,7 +216,14 @@ free it.
   every live bundle's concepts by type, with a numeric stale-count badge
   per bundle and status decorations (`ConceptDecorations`,
   `src/tree/decorations.ts`) fed by `okfit/concepts` and refreshed on
-  `okfit/bundleChanged`. Built only when the started client's
+  `okfit/bundleChanged`, debounced through `src/debounce.ts`'s
+  `createDebouncer` (a trailing 250ms window, no `vscode` import, unit
+  tested with fake timers): a burst of `bundleChanged` notifications --
+  many bundle roots settling at once in a large multi-root window --
+  coalesces into one `okfit/concepts` re-fetch instead of one per
+  notification. `attach()`'s first `refresh()` bypasses the debouncer, so
+  the initial tree populates immediately rather than waiting out the
+  window. Built only when the started client's
   `initializeResult.capabilities.experimental.okfitConcepts` is `true`
   (`extension.ts`'s `start`): a resolved `okfit-lsp` published before this
   capability existed -- most likely a workspace's own
