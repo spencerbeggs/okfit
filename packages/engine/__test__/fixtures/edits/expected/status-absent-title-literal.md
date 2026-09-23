@@ -1,0 +1,13 @@
+---
+type: Module
+title: |
+  A literal
+  title
+status: deprecated
+description: Short.
+generated:
+  by: "human:fixture-author"
+  at: "2026-01-01T00:00:00Z"
+---
+
+# Alpha

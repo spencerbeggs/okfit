@@ -23,6 +23,8 @@ describe("FrontmatterEdits.status", () => {
 		"status-last-key.md",
 		"status-single-quoted.md",
 		"status-absent-anchor-last.md",
+		"status-absent-title-folded.md",
+		"status-absent-title-literal.md",
 	]) {
 		it.effect(`rewrites ${name} to the expected file`, () =>
 			Effect.map(apply(name), (out) => assert.strictEqual(out, expected(name))),

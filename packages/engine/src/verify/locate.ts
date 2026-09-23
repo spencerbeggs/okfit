@@ -392,8 +392,11 @@ export const locateTopLevelScalar = Effect.fn("okfit/verify/locateTopLevelScalar
 		resolved.pair.value !== null
 			? resolved.pair.value.offset + resolved.pair.value.length
 			: resolved.pair.key.offset + resolved.pair.key.length;
+	// A block scalar's (`|`/`>`) span already includes its trailing newline, so
+	// the next line after it starts at `end` itself; seeking another newline
+	// would land inside the following key's value.
 	const nl = value.indexOf("\n", end);
-	const insertAt = nl === -1 ? value.length : nl + 1;
+	const insertAt = value[end - 1] === "\n" ? end : nl === -1 ? value.length : nl + 1;
 	return { _tag: "insertAfterKey", insertAt: valueStart + insertAt, afterKey: resolved.afterKey } as const;
 });
 
