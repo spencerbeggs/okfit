@@ -1,6 +1,6 @@
 import type { RevalidateTier } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
-import { Effect, Fiber, Option, Ref } from "effect";
+import { Effect, Fiber, Option, Ref, Semaphore } from "effect";
 
 /**
  * The debounced revalidate trigger a feature schedules and a workspace
@@ -11,7 +11,12 @@ import { Effect, Fiber, Option, Ref } from "effect";
  * @public
  */
 export interface Scheduler {
-	/** Coalesce with any pending run; "full" never downgrades to "edit". */
+	/**
+	 * Coalesce with any pending run; "full" never downgrades to "edit".
+	 * Calls are serialized (a one-permit semaphore), so concurrent handlers
+	 * calling `schedule` at the same time cannot both observe an idle slot
+	 * and orphan one of their forked chains.
+	 */
 	readonly schedule: (tier: RevalidateTier) => Effect.Effect<void>;
 	/** Wait for a run in flight (or just scheduled) to finish; a no-op when idle. Tests and shutdown use it. */
 	readonly settle: Effect.Effect<void>;
@@ -66,6 +71,7 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 	Effect.gen(function* () {
 		const scope = yield* Effect.scope;
 		const state = yield* Ref.make<State>(Option.none());
+		const gate = yield* Semaphore.make(1);
 
 		const chain = (fiberBox: { fiber: Fiber.Fiber<void> | undefined }, tier: RevalidateTier): Effect.Effect<void> =>
 			Effect.gen(function* () {
@@ -91,30 +97,32 @@ export const makeScheduler = (options: SchedulerOptions): Effect.Effect<Schedule
 			);
 
 		const schedule = (tier: RevalidateTier): Effect.Effect<void> =>
-			Effect.gen(function* () {
-				const action = yield* Ref.modify(state, (entry): readonly [ScheduleAction, State] => {
-					if (Option.isSome(entry) && entry.value.phase === "running") {
-						return [
-							{ _tag: "merged" },
-							Option.some({ ...entry.value, rerun: Option.some(mergeTier(entry.value.rerun, tier)) }),
-						];
+			gate.withPermit(
+				Effect.gen(function* () {
+					const action = yield* Ref.modify(state, (entry): readonly [ScheduleAction, State] => {
+						if (Option.isSome(entry) && entry.value.phase === "running") {
+							return [
+								{ _tag: "merged" },
+								Option.some({ ...entry.value, rerun: Option.some(mergeTier(entry.value.rerun, tier)) }),
+							];
+						}
+						const priorFiber = Option.isSome(entry) ? Option.some(entry.value.fiber) : Option.none();
+						const priorTier = Option.isSome(entry) ? Option.some(entry.value.tier) : Option.none();
+						return [{ _tag: "start", priorFiber, tier: mergeTier(priorTier, tier) }, Option.none()];
+					});
+
+					if (action._tag === "merged") return;
+
+					if (Option.isSome(action.priorFiber)) {
+						yield* Fiber.interrupt(action.priorFiber.value);
 					}
-					const priorFiber = Option.isSome(entry) ? Option.some(entry.value.fiber) : Option.none();
-					const priorTier = Option.isSome(entry) ? Option.some(entry.value.tier) : Option.none();
-					return [{ _tag: "start", priorFiber, tier: mergeTier(priorTier, tier) }, Option.none()];
-				});
 
-				if (action._tag === "merged") return;
-
-				if (Option.isSome(action.priorFiber)) {
-					yield* Fiber.interrupt(action.priorFiber.value);
-				}
-
-				const fiberBox: { fiber: Fiber.Fiber<void> | undefined } = { fiber: undefined };
-				const fiber = yield* Effect.forkIn(chain(fiberBox, action.tier), scope);
-				fiberBox.fiber = fiber;
-				yield* Ref.set(state, Option.some({ fiber, phase: "pending", tier: action.tier, rerun: Option.none() }));
-			});
+					const fiberBox: { fiber: Fiber.Fiber<void> | undefined } = { fiber: undefined };
+					const fiber = yield* Effect.forkIn(chain(fiberBox, action.tier), scope);
+					fiberBox.fiber = fiber;
+					yield* Ref.set(state, Option.some({ fiber, phase: "pending", tier: action.tier, rerun: Option.none() }));
+				}),
+			);
 
 		const settle: Effect.Effect<void> = Effect.gen(function* () {
 			let current = yield* Ref.get(state);

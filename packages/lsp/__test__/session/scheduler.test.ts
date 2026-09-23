@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { RevalidateTier } from "@okfit/engine";
-import { Effect, Ref } from "effect";
+import { Effect, Fiber, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import { makeScheduler } from "../../src/session/scheduler.js";
 
@@ -71,6 +71,34 @@ describe("makeScheduler", () => {
 			yield* TestClock.adjust("1 second");
 			yield* scheduler.settle;
 			assert.deepStrictEqual(yield* Ref.get(runs), ["edit", "edit"]);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("concurrent schedule calls contending for a pending chain coalesce into one run", () =>
+		Effect.gen(function* () {
+			const { runs, scheduler } = yield* recorder;
+			yield* scheduler.schedule("edit");
+			const a = yield* Effect.forkChild(scheduler.schedule("edit"));
+			const b = yield* Effect.forkChild(scheduler.schedule("edit"));
+			yield* Fiber.join(a);
+			yield* Fiber.join(b);
+			yield* TestClock.adjust("150 millis");
+			yield* scheduler.settle;
+			assert.deepStrictEqual(yield* Ref.get(runs), ["edit"]);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("a full among concurrent schedule calls contending for a pending chain wins the single run", () =>
+		Effect.gen(function* () {
+			const { runs, scheduler } = yield* recorder;
+			yield* scheduler.schedule("edit");
+			const a = yield* Effect.forkChild(scheduler.schedule("edit"));
+			const b = yield* Effect.forkChild(scheduler.schedule("full"));
+			yield* Fiber.join(a);
+			yield* Fiber.join(b);
+			yield* TestClock.adjust("150 millis");
+			yield* scheduler.settle;
+			assert.deepStrictEqual(yield* Ref.get(runs), ["full"]);
 		}).pipe(Effect.scoped),
 	);
 
