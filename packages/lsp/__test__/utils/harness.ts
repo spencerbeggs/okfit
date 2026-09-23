@@ -1,10 +1,17 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import type { Duration, Scope } from "effect";
+import type { Duration, Fiber, Scope } from "effect";
 import { Effect, Queue } from "effect";
 import type { MessageConnection } from "vscode-jsonrpc/node";
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from "vscode-jsonrpc/node";
-import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
+import { pathToUri } from "../../src/convert/uri.js";
+import type { ListenOutcome, LspTransportShape } from "../../src/protocol/LspTransport.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
+import type { InitializeResult } from "../../src/protocol/types.js";
+import { serve } from "../../src/server.js";
+import { copyFixtureProject } from "./fixture.js";
+import { testPlatform } from "./platform.js";
 
 /** One published `textDocument/publishDiagnostics` payload, as JSON. */
 export interface Published {
@@ -30,6 +37,11 @@ export interface Harness {
 	/** Every publish received so far, drained. */
 	readonly drainPublished: Effect.Effect<ReadonlyArray<Published>>;
 	readonly closeClientOutput: Effect.Effect<void>;
+	/** Takes publishes until one satisfies `predicate` and returns it; fails when none does within `timeout` in total. */
+	readonly drainUntil: (
+		predicate: (published: Published) => boolean,
+		timeout?: Duration.Input,
+	) => Effect.Effect<Published, "no publish">;
 }
 
 export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.gen(function* () {
@@ -61,7 +73,70 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 		}
 	});
 	const closeClientOutput = Effect.sync(() => clientToServer.end());
-	return { transport, client, nextPublish, drainPublished, closeClientOutput };
+	const drainUntil = (predicate: (published: Published) => boolean, timeout: Duration.Input = "5 seconds") =>
+		Effect.gen(function* () {
+			while (true) {
+				const next = yield* Queue.take(published);
+				if (predicate(next)) return next;
+			}
+		}).pipe(Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.fail("no publish" as const) }));
+	return { transport, client, nextPublish, drainPublished, closeClientOutput, drainUntil };
+});
+
+/** A {@link Harness} with `serve` running against a fresh copy of the fixture project. */
+export interface ServeHarness extends Harness {
+	/** The fixture copy's root (realpath-resolved). */
+	readonly root: string;
+	/** The forked `serve`; joins with its `ListenOutcome`. */
+	readonly listening: Fiber.Fiber<ListenOutcome>;
+	/** `initialize` with `root` as the one workspace folder, then `initialized`. */
+	readonly initialize: Effect.Effect<InitializeResult>;
+	/** `textDocument/didOpen` at version 1; reads the file from disk when `text` is omitted. */
+	readonly open: (relative: string, text?: string) => Effect.Effect<void>;
+	/** `textDocument/didChange` with one whole-document change; `version` defaults to 2. */
+	readonly change: (relative: string, text: string, version?: number) => Effect.Effect<void>;
+	readonly save: (relative: string) => Effect.Effect<void>;
+	readonly close: (relative: string) => Effect.Effect<void>;
+	/** The `file:` URI of `relative` under `root` (`""` is `root` itself). */
+	readonly uriOf: (relative: string) => string;
+}
+
+/** Copies the fixture, builds a transport pair, and forks `serve` with a 10 ms debounce under `testPlatform()`. */
+export const makeServeHarness: Effect.Effect<ServeHarness, never, Scope.Scope> = Effect.gen(function* () {
+	const { root } = yield* copyFixtureProject();
+	const harness = yield* makeHarness;
+	const listening = yield* Effect.forkScoped(
+		serve(harness.transport, { delay: "10 millis" }).pipe(Effect.provide(testPlatform())),
+	);
+	const uriOf = (relative: string): string => pathToUri(join(root, relative));
+	const initialize = Effect.gen(function* () {
+		const result = yield* request<InitializeResult>(harness.client, "initialize", {
+			processId: null,
+			rootUri: pathToUri(root),
+			capabilities: {},
+			workspaceFolders: [{ uri: pathToUri(root), name: "project" }],
+			initializationOptions: {},
+		});
+		yield* notify(harness.client, "initialized", {});
+		return result;
+	});
+	const open = (relative: string, text?: string) =>
+		Effect.gen(function* () {
+			const body = text ?? (yield* Effect.promise(() => readFile(join(root, relative), "utf8")));
+			yield* notify(harness.client, "textDocument/didOpen", {
+				textDocument: { uri: uriOf(relative), languageId: "markdown", version: 1, text: body },
+			});
+		});
+	const change = (relative: string, text: string, version = 2) =>
+		notify(harness.client, "textDocument/didChange", {
+			textDocument: { uri: uriOf(relative), version },
+			contentChanges: [{ text }],
+		});
+	const save = (relative: string) =>
+		notify(harness.client, "textDocument/didSave", { textDocument: { uri: uriOf(relative) } });
+	const close = (relative: string) =>
+		notify(harness.client, "textDocument/didClose", { textDocument: { uri: uriOf(relative) } });
+	return { ...harness, root, listening, initialize, open, change, save, close, uriOf };
 });
 
 /** `client.sendRequest` as an Effect. */

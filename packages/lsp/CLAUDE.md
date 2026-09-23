@@ -13,6 +13,11 @@ src/
                      package.json import
   errors.ts      -- LspError: the one failure a request handler may return
   index.ts       -- public barrel; this is what later tasks and tests import
+  server.ts      -- serve(transport, options): wires initialize (folders,
+                     capabilities, serverInfo), initialized (one log line),
+                     workspace folder and watched-file notifications,
+                     document sync and diagnostics onto the transport, then
+                     listens; ServeOptions { delay, distribution }, ServeServices
   convert/
     uri.ts         -- uriToPath, pathToUri: file: URI <-> absolute path,
                       percent-encoded, None for a non-file or malformed URI
@@ -35,6 +40,14 @@ src/
                        BundleSession per bundle root, lazily, with config
                        discovery per folder; SessionHandle bundles a
                        folder's session and scheduler
+  features/
+    documentSync.ts -- DocumentEvent, registerDocumentSync: the four
+                       textDocument/did* notifications as events on
+                       absolute paths; non-file URIs dropped
+    diagnostics.ts  -- makeDiagnosticsFeature: DiagnosticsFeature
+                       { onDocumentEvent, onWatchedFiles,
+                       revalidateAndPublish }, the overlay updates, tier
+                       choice and publishDiagnostics fan-out
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -43,6 +56,29 @@ extend this tree; read the file before assuming its export list from this
 tree alone.
 
 Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
+
+## Publishing rules
+
+- Tier per event: `didOpen` and `didSave` schedule the `full` tier;
+  `didChange` and `didClose` the `edit` tier. A watched-file change
+  schedules `full` on every live session, except a config discovery file,
+  which invalidates that folder's session instead.
+- One `textDocument/publishDiagnostics` per file in the engine's
+  `changed` map, and nothing else: a file whose set did not change is not
+  republished, a file whose set became empty publishes `[]`, and a file
+  that is not open publishes like one that is (a cross-file break).
+- A bundle-level diagnostic (engine file `""`, for example
+  software-project's `project-missing`) publishes against the bundle
+  root's `index.md`.
+- A revalidate that fails logs one warning naming the bundle root and
+  publishes nothing.
+- A non-`file:` URI (`untitled:`, ...) is ignored. So is a document outside
+  every bundle root (a workspace folder's `README.md`, or any file while no
+  folder is open); a folder added later serves the next event for it.
+- Notification work runs on one queue drained by a single fiber, in the
+  order the client sent it; the transport itself runs every handler on its
+  own fiber, so without the queue a `didChange` could overtake the
+  `didOpen` before it. `shutdown` waits for every scheduler to settle.
 
 ## The transport seam
 

@@ -8,6 +8,10 @@
 export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
+export type { DiagnosticsFeature } from "./features/diagnostics.js";
+export { makeDiagnosticsFeature } from "./features/diagnostics.js";
+export type { DocumentEvent } from "./features/documentSync.js";
+export { registerDocumentSync } from "./features/documentSync.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 export { LspTransport } from "./protocol/LspTransport.js";
 export type { ReferenceTransportOptions } from "./protocol/reference.js";
@@ -24,6 +28,8 @@ export type {
 	LspDiagnostic,
 	WorkspaceFolder,
 } from "./protocol/types.js";
+export type { ServeOptions, ServeServices } from "./server.js";
+export { serve } from "./server.js";
 export type {
 	SessionHandle,
 	SessionRegistryOptions,
