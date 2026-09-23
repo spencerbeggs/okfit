@@ -65,6 +65,12 @@ export interface SessionRegistryShape {
 	 * uses, so a config that fails to load is recorded as a failure and
 	 * retried later exactly as today. Returns the new handle, or `None` when
 	 * the rebuild itself failed.
+	 *
+	 * Invariant a caller must keep: nothing schedules a revalidate on the new
+	 * handle until `rebuild` has resolved. The publisher's memory is keyed by
+	 * bundle root, which the old and new sessions share, and `onDispose`
+	 * clears that root; a publish from the new session before the clear
+	 * would be wiped or answered with a spurious empty set.
 	 */
 	readonly rebuild: (folder: string) => Effect.Effect<Option.Option<SessionHandle>>;
 }
