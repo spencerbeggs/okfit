@@ -21,12 +21,20 @@ const MAY_READ_PROCESS = new Set(["bin.ts", "main.ts", "version.ts"]);
 /**
  * `main.ts` passes `process.stdin`/`process.stdout` as `streams` to
  * `makeReferenceTransport` (the controller ruling in `protocol/reference.ts`'s
- * TSDoc): the transport, not this file, ever calls `.write` on them. The
- * "writes to stdout" rule below still catches an actual `process.stdout.write`
- * or `console.log` anywhere, including here -- it just needs to see past a
- * bare `process.stdout` reference passed as an object.
+ * TSDoc): the transport, not this file, ever calls `.write` on them. This
+ * allowlist exempts ONLY that bare-reference form (`STDOUT_BARE_REFERENCE`
+ * below) for `main.ts`. It does NOT exempt `main.ts` from
+ * `STDOUT_WRITE_CALL`, which is checked in every file with no allowlist at
+ * all -- a `process.stdout.write(...)` (or any other method call on
+ * `process.stdout`) added to `main.ts` itself must still fail this test.
  */
 const MAY_REFERENCE_STDOUT = new Set(["main.ts"]);
+
+/** `process.stdout.<anything>(...)` -- an actual call, never just allowlisted. */
+const STDOUT_WRITE_CALL = /\bprocess\s*\.\s*stdout\s*\.\s*\w+\s*\(/;
+/** A bare `process.stdout` reference, method call or not; `main.ts` alone may pass this one, as an object. */
+const STDOUT_BARE_REFERENCE = /\bprocess\s*\.\s*stdout\b/;
+const CONSOLE_WRITE = /\bconsole\s*\.\s*(log|info|debug|table)\s*\(/;
 
 /**
  * Only the reference transport and the process entry may see the library.
@@ -47,8 +55,9 @@ describe("@okfit/lsp boundaries", () => {
 		const offenders = sources()
 			.filter(
 				({ file, code }) =>
-					(!MAY_REFERENCE_STDOUT.has(file) && /\bprocess\s*\.\s*stdout\b/.test(code)) ||
-					/\bconsole\s*\.\s*(log|info|debug|table)\s*\(/.test(code),
+					STDOUT_WRITE_CALL.test(code) ||
+					(!MAY_REFERENCE_STDOUT.has(file) && STDOUT_BARE_REFERENCE.test(code)) ||
+					CONSOLE_WRITE.test(code),
 			)
 			.map(({ file }) => file);
 		assert.deepStrictEqual(offenders, []);
@@ -62,9 +71,12 @@ describe("@okfit/lsp boundaries", () => {
 	});
 
 	it("the scanner catches a stdout write (positive control)", () => {
-		assert.isTrue(/\bconsole\s*\.\s*(log|info|debug|table)\s*\(/.test(stripComments("const x = 1; console.log(x);")));
-		assert.isFalse(
-			/\bconsole\s*\.\s*(log|info|debug|table)\s*\(/.test(stripComments("// console.log(x)\nconsole.error(1);")),
-		);
+		assert.isTrue(CONSOLE_WRITE.test(stripComments("const x = 1; console.log(x);")));
+		assert.isFalse(CONSOLE_WRITE.test(stripComments("// console.log(x)\nconsole.error(1);")));
+	});
+
+	it("STDOUT_WRITE_CALL catches a process.stdout method call even where a bare reference is allowlisted (positive control)", () => {
+		assert.isTrue(STDOUT_WRITE_CALL.test(stripComments('process.stdout.write("x");')));
+		assert.isFalse(STDOUT_WRITE_CALL.test(stripComments("const streams = { output: process.stdout };")));
 	});
 });

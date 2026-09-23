@@ -17,8 +17,35 @@ export const LSP_BIN: string = resolve(
 	"okfit-lsp.js",
 );
 
+const CRLF = "\r\n";
 const CRLFCRLF = "\r\n\r\n";
-const CONTENT_LENGTH = /^Content-Length:\s*(\d+)\s*$/im;
+const CONTENT_LENGTH_LINE = /^Content-Length:\s*(\d+)$/i;
+const CONTENT_TYPE_LINE = /^Content-Type:\s*\S.*$/i;
+
+/**
+ * Parses a frame header block -- the text before the blank line separating
+ * it from the body -- into its declared body length, or `null` when the
+ * block is not *exactly* a valid LSP header: one `Content-Length` line,
+ * optionally one `Content-Type` line, and nothing else. Anchoring per-line
+ * (rather than testing the whole block with a multiline `m`-flagged regex)
+ * is the point: a leading blank line or a stray log line sharing the block
+ * with a real header must fail to parse, not be silently absorbed into it.
+ */
+const parseHeader = (header: string): number | null => {
+	const lines = header.split(CRLF).filter((line) => line.length > 0);
+	let length: number | null = null;
+	for (const line of lines) {
+		const match = CONTENT_LENGTH_LINE.exec(line);
+		if (match !== null) {
+			if (length !== null) return null; // a duplicate Content-Length line is not a valid header either
+			length = Number(match[1]);
+			continue;
+		}
+		if (CONTENT_TYPE_LINE.test(line)) continue;
+		return null;
+	}
+	return length;
+};
 
 /** A live LSP server process a test can write to while it runs, framed with `Content-Length`. */
 export interface LspProcess {
@@ -52,9 +79,10 @@ export const assertOnlyFrames = (raw: string): void => {
 		const headerEnd = pending.indexOf(CRLFCRLF);
 		if (headerEnd === -1) break;
 		const header = pending.slice(0, headerEnd);
-		const match = CONTENT_LENGTH.exec(header);
-		assert.ok(match !== null, `stdout carried a non-frame header: ${JSON.stringify(header)}`);
-		const length = Number(match[1]);
+		const length = parseHeader(header);
+		if (length === null) {
+			assert.fail(`stdout carried a non-frame header: ${JSON.stringify(header)}`);
+		}
 		const bodyStart = headerEnd + CRLFCRLF.length;
 		if (pending.length - bodyStart < length) {
 			// A partial trailing frame: the header is complete but the body has not fully arrived yet.
@@ -106,9 +134,8 @@ export const spawnLsp = (
 							const headerEnd = pending.indexOf(CRLFCRLF);
 							if (headerEnd === -1) break;
 							const header = pending.slice(0, headerEnd);
-							const match = CONTENT_LENGTH.exec(header);
-							if (match === null) break;
-							const length = Number(match[1]);
+							const length = parseHeader(header);
+							if (length === null) break;
 							const bodyStart = headerEnd + CRLFCRLF.length;
 							if (pending.length - bodyStart < length) break;
 							const body = pending.slice(bodyStart, bodyStart + length);

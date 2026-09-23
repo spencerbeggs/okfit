@@ -28,6 +28,28 @@ const initializeParams = (cwd: string) => ({
 	workspaceFolders: [{ uri: pathToUri(cwd), name: "p" }],
 });
 
+describe("assertOnlyFrames", () => {
+	it("throws when a stray leading newline shares a header block with a real frame", () => {
+		assert.throws(() => assertOnlyFrames("\nContent-Length: 2\r\n\r\n{}"));
+	});
+
+	it("throws when a stray log line shares a header block with a real frame", () => {
+		assert.throws(() => assertOnlyFrames("some stray log line\nContent-Length: 2\r\n\r\n{}"));
+	});
+
+	it("throws on residue after the last complete frame", () => {
+		assert.throws(() => assertOnlyFrames("Content-Length: 2\r\n\r\n{}stray"));
+	});
+
+	it("passes on two back-to-back complete frames", () => {
+		assert.doesNotThrow(() => assertOnlyFrames("Content-Length: 2\r\n\r\n{}Content-Length: 2\r\n\r\n{}"));
+	});
+
+	it("passes on one complete frame followed by a partial trailing header", () => {
+		assert.doesNotThrow(() => assertOnlyFrames("Content-Length: 2\r\n\r\n{}Content-Length: 2"));
+	});
+});
+
 describe("okfit-lsp over real stdio", () => {
 	it.live("initialize answers with the server name and stdout carries nothing but frames", () =>
 		Effect.gen(function* () {
