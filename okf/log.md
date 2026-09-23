@@ -1,5 +1,14 @@
 # Log
 
+## 2026-09-23
+
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Claude Code Plugin
+* Added LSP
+* Updated Plugin
+* Added The language server runs the reference vscode-languageserver library behind an Effect transport seam
+* Updated Workspace
+
 ## 2026-09-22
 
 * Updated okfit CLI — validate, init, context, verify, sync, lint, graph, stale
