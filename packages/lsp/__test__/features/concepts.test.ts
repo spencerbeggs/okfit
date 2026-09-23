@@ -187,17 +187,59 @@ status_missing = "off"
 			}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
 		);
 
+		// `revalidatedCount` (not the raw `okfit/bundleChanged` total) is the signal here: `rebuild` itself
+		// fires a "dropped" notification via `onDispose` regardless of whether `forgetWarmup` is wired,
+		// so counting every `bundleChanged` (as an earlier version of this test did) rises across the
+		// rebuild even when the warm-up guard was never reset -- a false positive that never actually
+		// issued a second `okfit/concepts` request against the rebuilt root. Only a real re-schedule (a
+		// second "revalidated") proves the retry.
+		const revalidatedCount = (notifications: ReadonlyArray<{ readonly method: string; readonly params: unknown }>) =>
+			notifications.filter(
+				(n) => n.method === "okfit/bundleChanged" && (n.params as { readonly reason: string }).reason === "revalidated",
+			).length;
+
 		it.live("a rebuild of a failed root gives it another warm-up attempt", () =>
 			Effect.gen(function* () {
 				const { root: plain } = yield* makeTempBundle({ "README.md": "# plain\n" });
 				const { call, notifications, registry } = yield* setupWarmupRegistry(registerConcepts);
 				yield* registry.setFolders([plain]);
+
+				// First request: the root has never been warmed, so it schedules a revalidate (which fails --
+				// `plain/okf` does not exist -- but still notifies, same as `onRevalidate` always does).
 				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
-				assert.strictEqual(notifications.filter((n) => n.method === "okfit/bundleChanged").length, 1);
+				assert.strictEqual(revalidatedCount(notifications), 1);
+
+				// Second request: the root is now warmed, so nothing schedules -- no new "revalidated".
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(revalidatedCount(notifications), 1);
+
+				// `rebuild` disposes the warmed session (its own "dropped" notification, not counted above)
+				// and, when `forgetWarmup` is wired into `onDispose` (as `server.ts` wires it), forgets the
+				// root -- so a third request treats it as unwarmed again and schedules one more revalidate.
 				const bundleRoot = `${plain}/okf`;
 				yield* registry.rebuild(bundleRoot);
-				const afterRebuild = notifications.filter((n) => n.method === "okfit/bundleChanged").length;
-				assert.isAbove(afterRebuild, 1);
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(revalidatedCount(notifications), 2);
+			}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
+		);
+
+		// The negative control: proves the assertion above can fail. With `wireForgetWarmup: false`, the
+		// fixture's `onDispose` never calls `forgetWarmup`, so the rebuilt root stays in the warmed set and
+		// the third request schedules nothing new -- exactly the false-positive shape the original version
+		// of this test had, now caught rather than passing by accident.
+		it.live("without forgetWarmup wired, a rebuild does not give a failed root another warm-up attempt", () =>
+			Effect.gen(function* () {
+				const { root: plain } = yield* makeTempBundle({ "README.md": "# plain\n" });
+				const { call, notifications, registry } = yield* setupWarmupRegistry(registerConcepts, {
+					wireForgetWarmup: false,
+				});
+				yield* registry.setFolders([plain]);
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(revalidatedCount(notifications), 1);
+				const bundleRoot = `${plain}/okf`;
+				yield* registry.rebuild(bundleRoot);
+				yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(revalidatedCount(notifications), 1);
 			}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([]))),
 		);
 

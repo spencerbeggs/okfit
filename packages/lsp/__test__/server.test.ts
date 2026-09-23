@@ -314,4 +314,48 @@ describe("serve", () => {
 			assert.deepStrictEqual(revalidated.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
 		}).pipe(Effect.scoped),
 	);
+
+	it.live(
+		"okfit/concepts re-warms a bundle root after a config-change rebuild forgets it (production forgetWarmup wiring)",
+		() =>
+			Effect.gen(function* () {
+				// Proves server.ts's own conceptsBox wiring -- registerConcepts's forgetWarmup threaded into
+				// the registry's onDispose -- not just the test fixture's copy of it (concepts.test.ts).
+				const h = yield* makeServeHarness();
+				yield* h.initialize;
+
+				// Warm the root once via okfit/concepts (no document ever opened).
+				const first = yield* request<{ readonly bundles: ReadonlyArray<{ readonly root: string }> }>(
+					h.client,
+					"okfit/concepts",
+					{},
+				);
+				assert.isTrue(first.bundles.length > 0);
+				yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+
+				// Break the bundle root on disk, then touch the config to force a rebuild (configChanged is
+				// true for any change to a config file, regardless of content). registry.rebuild disposes the
+				// warmed session -- forgetWarmup runs here, if server.ts wired it -- and installs a fresh one;
+				// diagnostics.ts's onWatchedFiles schedules a full revalidate on that fresh session directly
+				// (independent of registerConcepts's own warm-up guard), and it fails, since the bundle root
+				// is now gone. Drain that notification: it is not the evidence this test needs.
+				yield* Effect.promise(() =>
+					import("node:fs/promises").then((fs) => fs.rm(`${h.root}/okf`, { recursive: true })),
+				);
+				const config = yield* readFixture(h.root, ".okfit.toml");
+				yield* writeFixture(h.root, ".okfit.toml", `${config}\n`);
+				yield* notify(h.client, "workspace/didChangeWatchedFiles", {
+					changes: [{ uri: h.uriOf(".okfit.toml"), type: 2 }],
+				});
+				yield* h.nextNotification((n) => n.method === "okfit/bundleChanged", "2 seconds");
+
+				// A second okfit/concepts request. With forgetWarmup wired, the rebuild above forgot this
+				// root, so this request treats it as unwarmed and schedules its own revalidate attempt -- a
+				// second "revalidated" notification beyond the rebuild's own. Without that wiring the root
+				// would still read as warmed from the very first request, and this would time out.
+				yield* request(h.client, "okfit/concepts", {});
+				const rewarmed = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged", "2 seconds");
+				assert.deepStrictEqual(rewarmed.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
+			}).pipe(Effect.scoped),
+	);
 });

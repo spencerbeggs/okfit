@@ -1,5 +1,6 @@
 import { DateTime, Effect, Option } from "effect";
 import { TestClock } from "effect/testing";
+import type { ConceptsFeature } from "../../src/features/concepts.js";
 import { notifyBundleChanged } from "../../src/features/concepts.js";
 import { makeRevalidatePublisher } from "../../src/features/diagnostics.js";
 import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
@@ -88,13 +89,28 @@ export const setupTwoFoldersRegistry = (
  * `Effect.void` stub. No folder is set and no session is built here: the
  * caller sets folders (`registry.setFolders`) to exercise the warm-up path
  * itself.
+ *
+ * `register` must be `registerConcepts` itself (or something with the same
+ * shape): its returned `ConceptsFeature.forgetWarmup` is threaded into
+ * `onDispose` through the same forward-reference box `server.ts` uses,
+ * *unless* `wireForgetWarmup` is explicitly `false` -- the negative control
+ * a caller uses to prove a test that exercises this wiring can actually
+ * fail. `registerConcepts` is called after the registry exists (it needs
+ * `registry` itself), so the box is necessary here for the same reason it is
+ * in `server.ts`: `onDispose` is a registry constructor option, and the
+ * registry must exist before `registerConcepts` can be built.
  */
 export const setupWarmupRegistry = (
-	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<unknown>,
+	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<ConceptsFeature>,
+	options: { readonly wireForgetWarmup?: boolean } = {},
 ) =>
 	Effect.gen(function* () {
+		const wireForgetWarmup = options.wireForgetWarmup ?? true;
 		const { transport, call, notifications } = makeCapturingRecordingTransport();
 		const publisher = yield* makeRevalidatePublisher(transport);
+		const conceptsBox: { forgetWarmup: ((root: string) => Effect.Effect<void>) | undefined } = {
+			forgetWarmup: undefined,
+		};
 		const registry = yield* makeSessionRegistry({
 			delay: "10 millis",
 			maxWait: "10 seconds",
@@ -105,10 +121,16 @@ export const setupWarmupRegistry = (
 				),
 			onDispose: (handle) =>
 				Effect.andThen(
-					publisher.clear(handle.bundleRoot),
-					notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+					Effect.andThen(
+						publisher.clear(handle.bundleRoot),
+						notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+					),
+					Effect.suspend(() =>
+						wireForgetWarmup ? (conceptsBox.forgetWarmup?.(handle.bundleRoot) ?? Effect.void) : Effect.void,
+					),
 				),
 		});
-		yield* register(transport, registry);
+		const feature = yield* register(transport, registry);
+		conceptsBox.forgetWarmup = feature.forgetWarmup;
 		return { call, notifications, registry };
 	});
