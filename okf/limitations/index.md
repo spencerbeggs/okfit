@@ -1,3 +1,4 @@
 # Limitation
 
 * [The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics](no-config-reload-in-phase-3.md) - A config change drops a folder's session without revalidating, and a dropped session never clears what it published, so diagnostics go stale until the next document event; Claude Code sends neither notification that triggers the path, so a config edit there needs a session restart.
+* [Two narrow interrupt windows in the LSP session registry are documented, not closed](lsp-registry-interrupt-windows.md) - An interrupt landing in one of two narrow windows inside the session registry's rebuild and folder-build paths either skips a session's dispose or leaks its scope; both windows need a fiber interrupted at a point only shutdown or transport scope close can reach, and phase 4's final review accepted them as documented edges rather than fixed.

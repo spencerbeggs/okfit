@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:32:55Z
-  body_sha256: 4f21e087eb024a5ad8d76887874a420e0012c836ab6f4dd42b80c8d996000e2a
+  at: 2026-09-23T08:34:50Z
+  body_sha256: 6256c33a2833fb3fa598228231e9349ef2545ea370947e7bc7cd922426d7648f
 ---
 
 # LSP
@@ -160,3 +160,8 @@ three by scanning `src/`.
 - [The phase 3 language server does not reload a changed config or clear
   a dropped session's diagnostics](../limitations/no-config-reload-in-phase-3.md)
   — discharged in phase 4 by the config reload rule above.
+- [Two narrow interrupt windows in the LSP session registry are
+  documented, not
+  closed](../limitations/lsp-registry-interrupt-windows.md) — the
+  `rebuild` swap-then-dispose gap and a folder build's make-then-install
+  gap, both accepted rather than fixed.
