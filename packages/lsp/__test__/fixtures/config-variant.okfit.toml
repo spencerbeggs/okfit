@@ -1,0 +1,9 @@
+[lint]
+# The "old" config for the reload tests (__test__/features/reload.test.ts):
+# status_missing "on" (warn) makes alpha.md and beta.md -- both without a
+# status or a verified entry -- report status-missing, unlike the base
+# fixture's .okfit.toml, which turns it off. Swapping back to the base
+# config is the "new" config: the diagnostic set differs by exactly this
+# one rule, so a config-change rebuild has something to actually clear.
+generated_at_drift = "off"
+status_missing = "warn"

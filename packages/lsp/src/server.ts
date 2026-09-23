@@ -89,8 +89,13 @@ export const serve = (
 		const maxWait = options?.maxWait ?? "1 second";
 		const distribution = options?.distribution;
 
-		const revalidateAndPublish = yield* makeRevalidatePublisher(transport);
-		const registry = yield* makeSessionRegistry({ delay, maxWait, onRevalidate: revalidateAndPublish });
+		const publisher = yield* makeRevalidatePublisher(transport);
+		const registry = yield* makeSessionRegistry({
+			delay,
+			maxWait,
+			onRevalidate: publisher.publish,
+			onDispose: (handle) => publisher.clear(handle.bundleRoot),
+		});
 		const feature = yield* makeDiagnosticsFeature(registry);
 
 		const work = yield* Queue.unbounded<Effect.Effect<void>>();

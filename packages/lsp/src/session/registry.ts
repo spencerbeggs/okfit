@@ -59,8 +59,14 @@ export interface SessionRegistryShape {
 	readonly sessions: Effect.Effect<ReadonlyArray<SessionHandle>>;
 	/** Absolute paths; rebuilds every workspace folder whose last build failed and that contains one of them, returning the sessions that now build. */
 	readonly retryFailed: (paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<SessionHandle>>;
-	/** Forget a folder's cached session (config changed); the next sessionFor rebuilds it. */
-	readonly invalidate: (folder: string) => Effect.Effect<void>;
+	/**
+	 * Disposes a folder's current entry (running `onDispose` on its old handle,
+	 * if it had one) and builds a fresh one through the same path `sessionFor`
+	 * uses, so a config that fails to load is recorded as a failure and
+	 * retried later exactly as today. Returns the new handle, or `None` when
+	 * the rebuild itself failed.
+	 */
+	readonly rebuild: (folder: string) => Effect.Effect<Option.Option<SessionHandle>>;
 }
 
 /**
@@ -83,6 +89,14 @@ export interface SessionRegistryOptions {
 	readonly maxWait: Duration.Input;
 	/** Called by the scheduler for a session; the registry owns neither publishing nor `now`. */
 	readonly onRevalidate: (handle: SessionHandle, tier: RevalidateTier) => Effect.Effect<void>;
+	/**
+	 * Called with a folder's old handle whenever that folder's entry is
+	 * disposed with a live session -- `removeFolders`, `setFolders` dropping
+	 * it, and `rebuild` -- so the caller can clear whatever it published for
+	 * that session. Never called for a folder whose cached entry had no
+	 * handle (a failed config).
+	 */
+	readonly onDispose: (oldHandle: SessionHandle) => Effect.Effect<void>;
 }
 
 /**
@@ -156,8 +170,13 @@ export const makeSessionRegistry = (
 				return next;
 			});
 
-		/** Close (if it owns a scope) and drop a folder's cache entry, if any; a no-op for a folder never built. */
-		const invalidate = (folder: string): Effect.Effect<void> =>
+		/**
+		 * Close (if it owns a scope), drop a folder's cache entry, run
+		 * `onDispose` on its old handle (if it had a live session), and
+		 * return that old handle; a no-op (returning `None`) for a folder
+		 * never built.
+		 */
+		const disposeFolder = (folder: string): Effect.Effect<Option.Option<SessionHandle>> =>
 			Effect.gen(function* () {
 				const entry = (yield* Ref.get(cache)).get(folder);
 				yield* Ref.update(cache, (map) => {
@@ -165,10 +184,18 @@ export const makeSessionRegistry = (
 					next.delete(folder);
 					return next;
 				});
-				if (entry !== undefined && Option.isSome(entry.scope)) {
+				if (entry === undefined) return Option.none();
+				if (Option.isSome(entry.scope)) {
 					yield* Scope.close(entry.scope.value, Exit.void);
 				}
+				if (Option.isSome(entry.handle)) {
+					yield* options.onDispose(entry.handle.value);
+				}
+				return entry.handle;
 			});
+
+		/** {@link disposeFolder}, holding `gate`'s permit: for every caller outside `entryFor`/`rebuild`, which already hold it. */
+		const disposeGated = (folder: string): Effect.Effect<void> => gate.withPermit(Effect.asVoid(disposeFolder(folder)));
 
 		const buildEntry = (folder: string): Effect.Effect<CacheEntry> =>
 			Effect.gen(function* () {
@@ -235,12 +262,32 @@ export const makeSessionRegistry = (
 				}),
 			);
 
+		/**
+		 * Disposes a folder's current entry (`onDispose` runs on its old
+		 * handle, if it had one) and builds a fresh one, exactly as a miss
+		 * through `entryFor` would; a failed rebuild is cached and retried
+		 * later exactly as today.
+		 */
+		const rebuild = (folder: string): Effect.Effect<Option.Option<SessionHandle>> =>
+			gate.withPermit(
+				Effect.gen(function* () {
+					yield* disposeFolder(folder);
+					const built = yield* buildEntry(folder);
+					yield* Ref.update(cache, (map) => {
+						const next = new Map(map);
+						next.set(folder, built);
+						return next;
+					});
+					return built.handle;
+				}),
+			);
+
 		const setFolders = (next: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
 				const nextSet = new Set(next);
 				const previous = yield* Ref.get(folders);
 				const removed = [...previous].filter((folder) => !nextSet.has(folder));
-				yield* Effect.forEach(removed, invalidate, { discard: true });
+				yield* Effect.forEach(removed, disposeGated, { discard: true });
 				yield* Effect.forEach(removed, forgetLogged, { discard: true });
 				yield* Ref.set(folders, nextSet);
 			});
@@ -250,7 +297,7 @@ export const makeSessionRegistry = (
 
 		const removeFolders = (removed: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
-				yield* Effect.forEach(removed, invalidate, { discard: true });
+				yield* Effect.forEach(removed, disposeGated, { discard: true });
 				yield* Effect.forEach(removed, forgetLogged, { discard: true });
 				yield* Ref.update(folders, (current) => {
 					const next = new Set(current);
@@ -295,9 +342,9 @@ export const makeSessionRegistry = (
 		yield* Effect.addFinalizer(() =>
 			Effect.gen(function* () {
 				const map = yield* Ref.get(cache);
-				yield* Effect.forEach([...map.keys()], invalidate, { discard: true });
+				yield* Effect.forEach([...map.keys()], disposeGated, { discard: true });
 			}),
 		);
 
-		return { setFolders, addFolders, removeFolders, sessionFor, sessions, retryFailed, invalidate };
+		return { setFolders, addFolders, removeFolders, sessionFor, sessions, retryFailed, rebuild };
 	});

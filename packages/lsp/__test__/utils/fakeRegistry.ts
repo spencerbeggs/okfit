@@ -51,7 +51,7 @@ export const makeFakeRegistry = (
 			Effect.succeed(path.startsWith(`${bundleRoot}/`) ? Option.some(handle) : Option.none<SessionHandle>()),
 		sessions: Effect.succeed([handle]),
 		retryFailed: () => Effect.succeed([]),
-		invalidate: unused("invalidate"),
+		rebuild: unused("rebuild"),
 	};
 	return { registry, calls };
 };

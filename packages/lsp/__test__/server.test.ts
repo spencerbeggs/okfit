@@ -156,6 +156,10 @@ describe("serve", () => {
 			yield* notify(h.client, "workspace/didChangeWorkspaceFolders", {
 				event: { added: [], removed: [{ uri: h.uriOf(""), name: "project" }] },
 			});
+			// Removing the folder clears what it had published (task 4's dispose behaviour): drain that
+			// before asserting the later edit, now unserved, publishes nothing further.
+			const cleared = yield* h.nextPublish();
+			assert.deepStrictEqual(cleared, { uri: h.uriOf("okf/modules/alpha.md"), diagnostics: [] });
 			yield* h.change("okf/modules/alpha.md", BROKEN(text).replace("gamma", "delta"), 3);
 			yield* Effect.sleep("100 millis");
 			assert.deepStrictEqual(yield* h.drainPublished, []);

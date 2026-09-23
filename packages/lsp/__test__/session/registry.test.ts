@@ -15,7 +15,13 @@ const platform = testPlatform();
 const BROKEN_CONFIG = "[lint\nbroken = ";
 const OTHER_BROKEN_CONFIG = "[lint]\nstatus_missing = 42\n";
 const FIXED_CONFIG = '[lint]\ngenerated_at_drift = "off"\n';
-const make = () => makeSessionRegistry({ delay: "10 millis", maxWait: "10 seconds", onRevalidate: () => Effect.void });
+const make = () =>
+	makeSessionRegistry({
+		delay: "10 millis",
+		maxWait: "10 seconds",
+		onRevalidate: () => Effect.void,
+		onDispose: () => Effect.void,
+	});
 
 describe("SessionRegistry", () => {
 	it.effect("a document under the folder's bundle root gets a session whose root is the bundle root", () =>
@@ -84,7 +90,7 @@ describe("SessionRegistry", () => {
 			}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 
-	it.effect("a malformed folder still recovers after invalidate", () =>
+	it.effect("a malformed folder still recovers after rebuild", () =>
 		Effect.gen(function* () {
 			const { root } = yield* copyFixtureProject();
 			yield* Effect.promise(() => writeFile(join(root, ".okfit.toml"), BROKEN_CONFIG, "utf8"));
@@ -93,8 +99,43 @@ describe("SessionRegistry", () => {
 			const file = join(root, "okf", "modules", "alpha.md");
 			assert.isTrue(Option.isNone(yield* registry.sessionFor(file)));
 			yield* Effect.promise(() => writeFile(join(root, ".okfit.toml"), FIXED_CONFIG, "utf8"));
-			yield* registry.invalidate(root);
+			assert.isTrue(Option.isSome(yield* registry.rebuild(root)));
 			assert.isTrue(Option.isSome(yield* registry.sessionFor(file)));
+		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect("rebuild disposes the old handle through onDispose and returns the fresh one", () =>
+		Effect.gen(function* () {
+			const { root } = yield* copyFixtureProject();
+			const disposed: Array<string> = [];
+			const registry = yield* makeSessionRegistry({
+				delay: "10 millis",
+				maxWait: "10 seconds",
+				onRevalidate: () => Effect.void,
+				onDispose: (oldHandle) => Effect.sync(() => void disposed.push(oldHandle.folder)),
+			});
+			yield* registry.setFolders([root]);
+			const file = join(root, "okf", "modules", "alpha.md");
+			const before = Option.getOrThrow(yield* registry.sessionFor(file));
+			const rebuilt = Option.getOrThrow(yield* registry.rebuild(root));
+			assert.deepStrictEqual(disposed, [root]);
+			assert.notStrictEqual(rebuilt.session, before.session);
+		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect("rebuild on a folder never built runs onDispose zero times (control for the dispose case above)", () =>
+		Effect.gen(function* () {
+			const { root } = yield* copyFixtureProject();
+			const disposed: Array<string> = [];
+			const registry = yield* makeSessionRegistry({
+				delay: "10 millis",
+				maxWait: "10 seconds",
+				onRevalidate: () => Effect.void,
+				onDispose: (oldHandle) => Effect.sync(() => void disposed.push(oldHandle.folder)),
+			});
+			yield* registry.setFolders([root]);
+			assert.isTrue(Option.isSome(yield* registry.rebuild(root)));
+			assert.deepStrictEqual(disposed, []);
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 

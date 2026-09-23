@@ -41,6 +41,13 @@ src/
     types.ts        -- type-only re-exports of the protocol types
                        (InitializeParams, LspDiagnostic, Did*Params, ...)
   session/
+    documents.ts    -- DocumentMemoryShape, makeDocumentMemory: a
+                       registry-wide Ref<Map<absolutePath, {text, version}>>
+                       of open documents, keyed by absolute path (ownership
+                       shifts with the workspace folder set, so this is not
+                       per-folder); openUnder(root) filters by prefix at
+                       read time -- what the diagnostics feature re-opens
+                       onto a rebuilt session
     scheduler.ts    -- makeScheduler: the debounced revalidate trigger.
                        Scheduler { schedule, settle }; schedule coalesces a
                        burst behind a fixed delay and never downgrades a
@@ -64,20 +71,39 @@ src/
     registry.ts     -- makeSessionRegistry: workspace folders -> one
                        BundleSession per bundle root, lazily, with config
                        discovery per folder; SessionHandle bundles a
-                       folder's session and scheduler
+                       folder's session and scheduler; SessionRegistryShape
+                       .rebuild(folder) disposes the folder's current entry
+                       (running the registry's onDispose on its old handle,
+                       if it had one) and builds a fresh one through the
+                       same path sessionFor uses -- a config that fails to
+                       load is recorded as a failure and retried later
+                       exactly like any other failed build.
+                       removeFolders/setFolders also run onDispose for
+                       every folder they drop
   features/
     documentSync.ts -- DocumentEvent, registerDocumentSync: the four
                        textDocument/did* notifications as events on
                        absolute paths; non-file URIs dropped
-    diagnostics.ts  -- makeRevalidatePublisher(transport): builds the
-                       RevalidatePublisher a SessionRegistry's onRevalidate
-                       calls back into (revalidate, then publishDiagnostics
-                       fan-out); makeDiagnosticsFeature(registry): builds
+    diagnostics.ts  -- makeRevalidatePublisher(transport): builds a
+                       DiagnosticsPublisher { publish, clear } --
+                       `publish` is the RevalidatePublisher a
+                       SessionRegistry's onRevalidate calls back into
+                       (revalidate, then publishDiagnostics fan-out,
+                       remembering the URIs each bundle root last published
+                       non-empty), `clear(root)` publishes [] for every
+                       URI still remembered for `root` and forgets it, and
+                       is what the registry's onDispose is built from.
+                       makeDiagnosticsFeature(registry): builds
                        DiagnosticsFeature { onDocumentEvent, onWatchedFiles
-                       }, the overlay updates and tier choice. The
-                       publisher is built before the registry and passed
-                       in as onRevalidate -- no mutable box, since neither
-                       constructor needs the other's result.
+                       }, owning a session/documents.ts DocumentMemoryShape
+                       so a config-change rebuild can carry every open
+                       document's overlay into the fresh session before
+                       scheduling its full revalidate. The publisher is
+                       built before the registry and passed in as
+                       onRevalidate, with `clear` composed into onDispose
+                       -- no mutable box, since the publisher exists in
+                       full before the registry needs either of its
+                       members.
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -92,8 +118,20 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Tier per event: `didOpen` and `didSave` schedule the `full` tier;
   `didChange` and `didClose` the `edit` tier. A watched-file change
   schedules `full` on every live session, except a config discovery file,
-  which invalidates that folder's session instead (nothing republishes
-  until the next document event: `okf/limitations/no-config-reload-in-phase-3.md`).
+  which rebuilds that folder's session instead: the old session's
+  diagnostics are cleared, every document still open under the new
+  session's bundle root is re-opened onto it from `session/documents.ts`'s
+  registry-wide memory, and a full revalidate is scheduled on it. A config
+  that still fails to load after the rebuild is retried later exactly like
+  any other failed build (`okf/limitations/no-config-reload-in-phase-3.md`,
+  discharged by the phase 4 rebuild path above).
+- **Dropped session.** Whenever a folder's entry is disposed with a live
+  session -- a config-change rebuild, `removeFolders`, or `setFolders`
+  dropping it -- the registry's `onDispose` runs, and `clear(root)`
+  publishes `[]` for every URI that session had last published non-empty,
+  then forgets it. A URI a normal publish already emptied (and so already
+  dropped from the remembered set) does not get a second `[]` from a later
+  dispose.
 - A folder whose config failed to load is retried on `didOpen`,
   `didSave` (`sessionFor(path, { retryFailed: true })`) and on any
   watched-file change under it (`registry.retryFailed`, which schedules
