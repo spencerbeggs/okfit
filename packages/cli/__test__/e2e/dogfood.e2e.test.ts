@@ -68,7 +68,7 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 11,
-	Decision: 29,
+	Decision: 30,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
