@@ -50,7 +50,25 @@
 					"description": "Trace the communication between VS Code and the okfit language server."
 				}
 			}
-		}
+		},
+		"views": {
+			"explorer": [
+				{
+					"id": "okfit.concepts",
+					"name": "OKF Concepts",
+					"icon": "$(book)",
+					"contextualTitle": "OKF Concepts",
+					"visibility": "collapsed"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "okfit.concepts",
+				"contents": "No OKF bundle found in this workspace.\nAn OKF bundle is an `okf/` directory described by an okfit config file (`.okfit.toml`, `okfit.toml` or `.config/okfit.toml`).\n[Learn about okfit](https://github.com/spencerbeggs/okfit#readme)",
+				"when": "!okfit.hasBundle"
+			}
+		]
 	},
 	"activationEvents": ["workspaceContains:**/{.okfit.toml,okfit.toml,.config/okfit.toml}"],
 	"dependencies": {},
