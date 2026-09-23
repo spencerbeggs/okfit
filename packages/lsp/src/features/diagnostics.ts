@@ -9,6 +9,7 @@ import type { RevalidateTier } from "@okfit/engine";
 import { DateTime, Effect, Option, Path, Result } from "effect";
 import { sourceTextOf, toLspDiagnostic } from "../convert/diagnostic.js";
 import { pathToUri } from "../convert/uri.js";
+import { messageOf } from "../internal/messageOf.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
 import type { DocumentEvent } from "./documentSync.js";
@@ -24,34 +25,60 @@ export interface DiagnosticsFeature {
 	readonly onDocumentEvent: (event: DocumentEvent) => Effect.Effect<void>;
 	/** Absolute paths; a config file change invalidates its folder's session, anything else schedules a full revalidate. */
 	readonly onWatchedFiles: (paths: ReadonlyArray<string>) => Effect.Effect<void>;
-	/** The scheduler callback: read now, revalidate, publish every changed file. */
-	readonly revalidateAndPublish: (handle: SessionHandle, tier: RevalidateTier) => Effect.Effect<void>;
 }
 
-/** The error's `message` when it has one as a string, else `String(error)`. */
-const messageOf = (error: unknown): string => {
-	if (typeof error === "object" && error !== null && "message" in error) {
-		const message = (error as { readonly message: unknown }).message;
-		if (typeof message === "string") return message;
-	}
-	return String(error);
-};
+/** The registry's scheduler callback: read now, revalidate, publish every changed file. */
+export type RevalidatePublisher = (handle: SessionHandle, tier: RevalidateTier) => Effect.Effect<void>;
 
 /**
- * Builds a {@link DiagnosticsFeature} over `transport` and `registry`.
- * Open and save schedule the `full` tier, change and close the `edit` tier.
+ * Builds the {@link RevalidatePublisher} a `SessionRegistry` calls back into.
  * A bundle-level diagnostic (engine file `""`) publishes against the bundle
- * root's `index.md`. A failed revalidate logs a warning and publishes nothing.
+ * root's `index.md`. A failed revalidate logs a warning and publishes
+ * nothing. Built before the registry, since the registry needs it as its
+ * `onRevalidate` option.
  *
  * @public
  */
-export const makeDiagnosticsFeature = (
+export const makeRevalidatePublisher = (
 	transport: LspTransportShape,
-	registry: SessionRegistryShape,
-): Effect.Effect<DiagnosticsFeature, never, Path.Path> =>
+): Effect.Effect<RevalidatePublisher, never, Path.Path> =>
 	Effect.gen(function* () {
 		const path = yield* Path.Path;
 
+		return (handle: SessionHandle, tier: RevalidateTier): Effect.Effect<void> =>
+			Effect.gen(function* () {
+				const now = yield* DateTime.now;
+				const result = yield* Effect.result(handle.session.revalidate({ now, tier }));
+				if (Result.isFailure(result)) {
+					yield* Effect.logWarning(
+						`okfit-lsp: revalidate failed for ${handle.bundleRoot}: ${messageOf(result.failure)}`,
+					);
+					return;
+				}
+				const { changed, bundle } = result.success;
+				yield* Effect.forEach(
+					changed,
+					([file, diagnostics]) => {
+						const target = file === "" ? path.join(handle.bundleRoot, "index.md") : path.join(handle.bundleRoot, file);
+						const text = sourceTextOf(bundle, file);
+						return transport.sendNotification("textDocument/publishDiagnostics", {
+							uri: pathToUri(target),
+							diagnostics: diagnostics.map((diagnostic) => toLspDiagnostic(diagnostic, text)),
+						});
+					},
+					{ discard: true },
+				);
+			});
+	});
+
+/**
+ * Builds a {@link DiagnosticsFeature} over `registry`. Open and save
+ * schedule the `full` tier, change and close the `edit` tier.
+ *
+ * @public
+ */
+export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.Effect<DiagnosticsFeature> =>
+	Effect.sync(() => {
 		const onDocumentEvent = (event: DocumentEvent): Effect.Effect<void> =>
 			Effect.gen(function* () {
 				const owner = yield* registry.sessionFor(event.path);
@@ -87,30 +114,5 @@ export const makeDiagnosticsFeature = (
 				);
 			});
 
-		const revalidateAndPublish = (handle: SessionHandle, tier: RevalidateTier): Effect.Effect<void> =>
-			Effect.gen(function* () {
-				const now = yield* DateTime.now;
-				const result = yield* Effect.result(handle.session.revalidate({ now, tier }));
-				if (Result.isFailure(result)) {
-					yield* Effect.logWarning(
-						`okfit-lsp: revalidate failed for ${handle.bundleRoot}: ${messageOf(result.failure)}`,
-					);
-					return;
-				}
-				const { changed, bundle } = result.success;
-				yield* Effect.forEach(
-					changed,
-					([file, diagnostics]) => {
-						const target = file === "" ? path.join(handle.bundleRoot, "index.md") : path.join(handle.bundleRoot, file);
-						const text = sourceTextOf(bundle, file);
-						return transport.sendNotification("textDocument/publishDiagnostics", {
-							uri: pathToUri(target),
-							diagnostics: diagnostics.map((diagnostic) => toLspDiagnostic(diagnostic, text)),
-						});
-					},
-					{ discard: true },
-				);
-			});
-
-		return { onDocumentEvent, onWatchedFiles, revalidateAndPublish };
+		return { onDocumentEvent, onWatchedFiles };
 	});

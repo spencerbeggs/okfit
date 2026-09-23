@@ -7,8 +7,7 @@ import type { Distribution } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
 import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
-import type { DiagnosticsFeature } from "./features/diagnostics.js";
-import { makeDiagnosticsFeature } from "./features/diagnostics.js";
+import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
 import type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
 import type {
@@ -83,20 +82,9 @@ export const serve = (
 		const delay = options?.delay ?? "150 millis";
 		const distribution = options?.distribution;
 
-		// The registry's scheduler callback needs the feature, and the feature
-		// needs the registry: the callback reads the feature late, and no
-		// schedule can fire before `feature` is set (sessions are built lazily
-		// by a document event, which is only handled after registration below).
-		const box: { feature: DiagnosticsFeature | undefined } = { feature: undefined };
-		const registry = yield* makeSessionRegistry({
-			delay,
-			onRevalidate: (handle, tier) =>
-				Effect.suspend(() =>
-					box.feature === undefined ? Effect.void : box.feature.revalidateAndPublish(handle, tier),
-				),
-		});
-		const feature = yield* makeDiagnosticsFeature(transport, registry);
-		box.feature = feature;
+		const revalidateAndPublish = yield* makeRevalidatePublisher(transport);
+		const registry = yield* makeSessionRegistry({ delay, onRevalidate: revalidateAndPublish });
+		const feature = yield* makeDiagnosticsFeature(registry);
 
 		const work = yield* Queue.unbounded<Effect.Effect<void>>();
 		yield* Effect.forkScoped(

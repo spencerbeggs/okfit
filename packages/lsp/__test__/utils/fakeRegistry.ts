@@ -1,6 +1,5 @@
 import type { BundleSessionShape, RevalidateTier } from "@okfit/engine";
 import { Effect, Option } from "effect";
-import type { LspTransportShape } from "../../src/protocol/LspTransport.js";
 import type { SessionHandle, SessionRegistryShape } from "../../src/session/registry.js";
 
 /** One recorded call on the fake session or scheduler, in call order. */
@@ -54,16 +53,4 @@ export const makeFakeRegistry = (
 		invalidate: unused("invalidate"),
 	};
 	return { registry, calls };
-};
-
-/** A transport whose every member dies: the document-event path never touches it. */
-export const unusedTransport: LspTransportShape = {
-	onInitialize: unused("onInitialize"),
-	onInitialized: unused("onInitialized"),
-	onShutdown: unused("onShutdown"),
-	onRequest: unused("onRequest"),
-	onNotification: unused("onNotification"),
-	sendNotification: unused("sendNotification"),
-	sendRequest: unused("sendRequest"),
-	listen: Effect.die("fake: listen is not used by this test"),
 };

@@ -60,17 +60,35 @@ export const main = async (options: MainOptions = {}): Promise<void> => {
 	process.on("uncaughtException", (error) => fatal("uncaught exception", error));
 	process.on("unhandledRejection", (reason) => fatal("unhandled rejection", reason));
 
-	const NodeRuntime = await import("@effect/platform-node/NodeRuntime");
-	const { OkfitPlatform } = await import("@okfit/engine");
-	const { Git } = await import("@effected/git");
-	const { GitHistory } = await import("@okfit/profiles");
-	const { Cause, Effect, Exit, Layer, Logger, Runtime } = await import("effect");
-	const { makeReferenceTransport } = await import("./protocol/reference.js");
-	const { serve } = await import("./server.js");
+	const [
+		NodeRuntime,
+		{ OkfitPlatform },
+		{ Git },
+		{ GitHistory },
+		{ Cause, Effect, Exit, Layer, Logger, Runtime },
+		{ makeReferenceTransport },
+		{ serve },
+	] = await Promise.all([
+		import("@effect/platform-node/NodeRuntime"),
+		import("@okfit/engine"),
+		import("@effected/git"),
+		import("@okfit/profiles"),
+		import("effect"),
+		import("./protocol/reference.js"),
+		import("./server.js"),
+	]);
 
 	const program = Effect.gen(function* () {
 		const transport = yield* makeReferenceTransport({ streams: { input: process.stdin, output: process.stdout } });
-		return yield* serve(transport, options);
+		const outcome = yield* serve(transport, options);
+		// `process.stdin`, once read, keeps the event loop alive on its own; a
+		// clean `shutdown` + `exit` sequence leaves stdin still open (the LSP
+		// spec's own contract: the server terminates itself on `exit`, the
+		// client is not required to close the pipe). `unref` it now that
+		// `listen` has resolved so a code-0 teardown can rely on the loop
+		// draining naturally, matching `packages/mcp/src/main.ts`'s teardown.
+		process.stdin.unref();
+		return outcome;
 	}).pipe(
 		Effect.scoped,
 		Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(OkfitPlatform))),
@@ -91,36 +109,20 @@ export const main = async (options: MainOptions = {}): Promise<void> => {
 		// main fiber's `Cause` contains only interruptions; map it to 0 so a
 		// clean disconnect does not read as a crash. Any other failure keeps
 		// the default behaviour -- same split `packages/mcp/src/main.ts` uses.
-		//
-		// One deviation from that mirror, verified against
-		// `@effect/platform-node-shared@4.0.0-rc.117`'s `NodeRuntime.js`: the
-		// success and interrupt branches call `process.exit` themselves rather
-		// than the `onExit` callback the runner hands in. That callback only
-		// calls `process.exit` when the code is non-zero or a signal was
-		// received (`code => { if (receivedSignal || code !== 0)
-		// process.exit(code); }`) -- for a code-0 success it relies on
-		// Node's event loop draining naturally. `process.stdin`, once read,
-		// keeps the loop alive on its own even after the LSP `exit`
-		// notification's `finish("exit")` has resolved `listen` and this
-		// program has completed, so a clean `shutdown` + `exit` sequence
-		// with stdin still open (the LSP spec's own contract: the server
-		// terminates itself on `exit`, the client is not required to close
-		// the pipe) would otherwise hang the process forever at code 0 --
-		// reproduced directly against the built bin before this fix, fixed
-		// by calling `process.exit` unconditionally here instead.
+		// On success, `onExit` is handed the program's own mapped code (0 or
+		// 1) rather than a hardcoded 0, since unlike the MCP server this one
+		// distinguishes a clean disconnect (0) from `exit` without `shutdown`
+		// (1); the runner's own `onExit` only calls `process.exit` itself when
+		// the code is non-zero or a signal was received, so code 0 still
+		// relies on the event loop draining naturally, exactly as
+		// `packages/mcp/src/main.ts`'s teardown does.
 		teardown: (exit, onExit) => {
 			// `Runtime.Teardown`'s own signature is generic (`<E, A>(exit: Exit.Exit<E, A>, onExit: (code: number) =>
 			// void) => void`), so inside this literal `exit.value` is typed abstractly as that generic `E`, not
 			// concretely as `number` -- even though `program`'s success channel is `number` at every call site. The
 			// cast is this well-known higher-order-generic-literal quirk, not a real type hole.
-			if (Exit.isSuccess(exit)) {
-				process.exit(exit.value as number);
-				return;
-			}
-			if (Cause.hasInterruptsOnly(exit.cause)) {
-				process.exit(0);
-				return;
-			}
+			if (Exit.isSuccess(exit)) return onExit(exit.value as number);
+			if (Cause.hasInterruptsOnly(exit.cause)) return onExit(0);
 			return Runtime.defaultTeardown(exit, onExit);
 		},
 	});

@@ -17,6 +17,11 @@ src/
                      package.json import
   errors.ts      -- LspError: the one failure a request handler may return
   index.ts       -- public barrel; this is what later tasks and tests import
+  internal/
+    messageOf.ts   -- messageOf: the error's `message` when it has one as a
+                      string, else `String(error)`; shared by
+                      features/diagnostics.ts and session/registry.ts,
+                      @internal, not in the barrel
   server.ts      -- serve(transport, options): wires initialize (folders,
                      capabilities, serverInfo), initialized (one log line),
                      workspace folder and watched-file notifications,
@@ -48,10 +53,15 @@ src/
     documentSync.ts -- DocumentEvent, registerDocumentSync: the four
                        textDocument/did* notifications as events on
                        absolute paths; non-file URIs dropped
-    diagnostics.ts  -- makeDiagnosticsFeature: DiagnosticsFeature
-                       { onDocumentEvent, onWatchedFiles,
-                       revalidateAndPublish }, the overlay updates, tier
-                       choice and publishDiagnostics fan-out
+    diagnostics.ts  -- makeRevalidatePublisher(transport): builds the
+                       RevalidatePublisher a SessionRegistry's onRevalidate
+                       calls back into (revalidate, then publishDiagnostics
+                       fan-out); makeDiagnosticsFeature(registry): builds
+                       DiagnosticsFeature { onDocumentEvent, onWatchedFiles
+                       }, the overlay updates and tier choice. The
+                       publisher is built before the registry and passed
+                       in as onRevalidate -- no mutable box, since neither
+                       constructor needs the other's result.
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -128,14 +138,19 @@ handler waits for the handler `FiberSet` to empty, then for every earlier
 message's processing to settle (tracked through the connection's
 `messageStrategy`, which covers a request's response write) and for the
 transport-owned writer's outstanding writes, bounded by
-`WRITE_SETTLE_TIMEOUT`, and resolves `"closed"`. `exit` itself does not wait:
-with the library's default unlimited parallelism the queue dispatches `exit`
-without waiting for an earlier `shutdown`'s reply, so a client that does not
-wait for that reply may not get it. The sentinel's params carry a token minted
-per transport, so a client sending `okfit/$inputEnded` itself is ignored. An
-input that ends in the middle of a frame swallows the sentinel into that
-frame, so `SENTINEL_FALLBACK_TIMEOUT` (2 s) after the input ends the same
-drain runs without it; the sentinel's arrival cancels the fallback. The
+`WRITE_SETTLE_TIMEOUT` (2 s default), and resolves `"closed"`. `exit` itself
+does not wait: with the library's default unlimited parallelism the queue
+dispatches `exit` without waiting for an earlier `shutdown`'s reply, so a
+client that does not wait for that reply may not get it. The sentinel's
+params carry a token minted per transport, so a client sending
+`okfit/$inputEnded` itself is ignored. An input that ends in the middle of a
+frame swallows the sentinel into that frame, so `SENTINEL_FALLBACK_TIMEOUT`
+(2 s default) after the input ends the same drain runs without it; the
+sentinel's arrival cancels the fallback. Both bounds are injectable through
+`ReferenceTransportOptions.drain` (`{ fallback, writeSettle }`); `main.ts`
+passes nothing, so both stay at their defaults, and the truncated-frame case
+in `__test__/protocol/reference.test.ts` passes a short `fallback` so the
+suite does not wait out the production bound. The
 `PassThrough` is built with `emitClose: false`, so the reader never marks the
 connection Closed and a drained handler can still send; the scope finalizer
 interrupts a running drain, unpipes the input, ends the `PassThrough` and
@@ -172,19 +187,24 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
   or the input stream simply closing -- exits `0`. `shutdownReceived` is
   the authority on a clean shutdown; `"closed"` means the input ended with
   no `exit` among the messages it delivered.
-- **`process.exit` is called directly in `main.ts`'s `teardown`, not
-  through the `onExit` callback `NodeRuntime.runMain`'s own runner hands
-  in.** That callback (`@effect/platform-node-shared`'s `NodeRuntime.js`)
-  only calls `process.exit` itself when the code is non-zero or a signal
-  was received; for a code-`0` success it relies on Node's event loop
-  draining naturally. `process.stdin`, once read, keeps the loop alive on
-  its own -- so a clean `shutdown` + `exit` sequence with stdin still open
-  (the LSP spec's own contract: the server terminates itself on `exit`,
-  the client is never required to close the pipe first) would otherwise
-  hang the process forever at code `0`. Reproduced directly against the
-  built bin before this fix; `main.ts`'s `teardown` now calls
-  `process.exit` unconditionally for both the success and the
-  interrupts-only branches instead of delegating to `onExit`.
+- **`main.ts`'s program calls `process.stdin.unref()` once `listen` has
+  resolved, then hands its own mapped exit code to the `onExit` callback
+  `NodeRuntime.runMain`'s runner provides, matching
+  `packages/mcp/src/main.ts`'s teardown.** That callback
+  (`@effect/platform-node-shared`'s `NodeRuntime.js`) only calls
+  `process.exit` itself when the code is non-zero or a signal was
+  received; for a code-`0` success it relies on Node's event loop draining
+  naturally. `process.stdin`, once read, keeps the loop alive on its own --
+  so a clean `shutdown` + `exit` sequence with stdin still open (the LSP
+  spec's own contract: the server terminates itself on `exit`, the client
+  is never required to close the pipe first) would otherwise hang the
+  process forever at code `0`; unref-ing stdin after `listen` resolves lets
+  the loop drain instead. Unlike the MCP server, this one still
+  distinguishes a clean disconnect (`0`) from `exit` without `shutdown`
+  (`1`): the success branch of `main.ts`'s `teardown` calls `onExit`
+  with the program's own mapped code rather than a hardcoded `0`, so code
+  `1` is still forced through `process.exit` by the runner's own check. The
+  interrupts-only branch calls `onExit(0)` directly, same as MCP.
 - `Logger.layer([Logger.consolePretty()])` and `Layer.succeed(Logger.LogToStderr,
   true)` are both provided in `main.ts`, exactly as `packages/mcp/src/main.ts`
   does -- without the second, every log line (`serve`'s `Effect.logInfo` on

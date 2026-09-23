@@ -47,6 +47,41 @@ const parseHeader = (header: string): number | null => {
 	return length;
 };
 
+/** The result of one {@link takeFrames} call. */
+interface TakeFramesResult {
+	/** Every complete frame's decoded body, in arrival order. */
+	readonly frames: ReadonlyArray<string>;
+	/** Whatever `buffer` did not consume: a partial trailing frame, or (when `malformed` is set) the unparsed residue starting at the bad header. */
+	readonly rest: string;
+	/** The header block that failed to parse, or `null` when every header seen so far was valid. */
+	readonly malformed: string | null;
+}
+
+/**
+ * Extracts every complete `Content-Length` frame from the head of `buffer`,
+ * stopping at the first partial trailing frame or unparseable header. Shared
+ * by {@link assertOnlyFrames} (given a whole capture at once, so `rest` is
+ * only ever a partial trailing frame or true residue) and `spawnLsp`'s
+ * stdout parser (given one chunk at a time, `rest` carried into the next
+ * call as `pending`).
+ */
+const takeFrames = (buffer: string): TakeFramesResult => {
+	const frames: Array<string> = [];
+	let pending = buffer;
+	while (true) {
+		const headerEnd = pending.indexOf(CRLFCRLF);
+		if (headerEnd === -1) break;
+		const header = pending.slice(0, headerEnd);
+		const length = parseHeader(header);
+		if (length === null) return { frames, rest: pending, malformed: header };
+		const bodyStart = headerEnd + CRLFCRLF.length;
+		if (pending.length - bodyStart < length) break;
+		frames.push(pending.slice(bodyStart, bodyStart + length));
+		pending = pending.slice(bodyStart + length);
+	}
+	return { frames, rest: pending, malformed: null };
+};
+
 /** A live LSP server process a test can write to while it runs, framed with `Content-Length`. */
 export interface LspProcess {
 	/** JSON-encode one message and write it, `Content-Length`-framed, to the child's stdin. */
@@ -74,25 +109,13 @@ export interface LspProcess {
  * @public
  */
 export const assertOnlyFrames = (raw: string): void => {
-	let pending = raw;
-	while (true) {
-		const headerEnd = pending.indexOf(CRLFCRLF);
-		if (headerEnd === -1) break;
-		const header = pending.slice(0, headerEnd);
-		const length = parseHeader(header);
-		if (length === null) {
-			assert.fail(`stdout carried a non-frame header: ${JSON.stringify(header)}`);
-		}
-		const bodyStart = headerEnd + CRLFCRLF.length;
-		if (pending.length - bodyStart < length) {
-			// A partial trailing frame: the header is complete but the body has not fully arrived yet.
-			return;
-		}
-		pending = pending.slice(bodyStart + length);
+	const { rest, malformed } = takeFrames(raw);
+	if (malformed !== null) {
+		assert.fail(`stdout carried a non-frame header: ${JSON.stringify(malformed)}`);
 	}
 	assert.ok(
-		pending.length === 0 || "Content-Length:".startsWith(pending) || pending.startsWith("Content-Length:"),
-		`stdout carried residue outside any frame: ${JSON.stringify(pending)}`,
+		rest.length === 0 || "Content-Length:".startsWith(rest) || rest.startsWith("Content-Length:"),
+		`stdout carried residue outside any frame: ${JSON.stringify(rest)}`,
 	);
 };
 
@@ -130,18 +153,11 @@ export const spawnLsp = (
 					Effect.gen(function* () {
 						yield* Ref.update(rawRef, (current) => current + text);
 						pending += text;
-						while (true) {
-							const headerEnd = pending.indexOf(CRLFCRLF);
-							if (headerEnd === -1) break;
-							const header = pending.slice(0, headerEnd);
-							const length = parseHeader(header);
-							if (length === null) break;
-							const bodyStart = headerEnd + CRLFCRLF.length;
-							if (pending.length - bodyStart < length) break;
-							const body = pending.slice(bodyStart, bodyStart + length);
-							pending = pending.slice(bodyStart + length);
-							yield* Queue.offer(messages, JSON.parse(body) as unknown);
-						}
+						const { frames, rest } = takeFrames(pending);
+						pending = rest;
+						yield* Effect.forEach(frames, (body) => Queue.offer(messages, JSON.parse(body) as unknown), {
+							discard: true,
+						});
 					}),
 				),
 			)

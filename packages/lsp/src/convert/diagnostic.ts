@@ -32,18 +32,18 @@ const ZERO_RANGE: LspDiagnostic["range"] = { start: { line: 0, character: 0 }, e
  */
 export const toLspDiagnostic = (diagnostic: RenderedDiagnostic, text: string | undefined): LspDiagnostic => {
 	const { range } = diagnostic;
-	const lspRange =
-		range === undefined
-			? ZERO_RANGE
-			: {
-					start: { line: range.line, character: range.character },
-					end:
-						text === undefined
-							? { line: range.line, character: range.character + range.length }
-							: (({ line, character }) => ({ line, character }))(
-									DiagnosticRange.fromOffset(text, range.offset + range.length, 0),
-								),
-				};
+	let lspRange = ZERO_RANGE;
+	if (range !== undefined) {
+		const start = { line: range.line, character: range.character };
+		let end: { line: number; character: number };
+		if (text === undefined) {
+			end = { line: range.line, character: range.character + range.length };
+		} else {
+			const { line, character } = DiagnosticRange.fromOffset(text, range.offset + range.length, 0);
+			end = { line, character };
+		}
+		lspRange = { start, end };
+	}
 	return {
 		range: lspRange,
 		severity: SEVERITY[diagnostic.severity],

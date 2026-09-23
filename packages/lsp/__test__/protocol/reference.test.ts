@@ -3,6 +3,7 @@ import { assert, describe, it } from "@effect/vitest";
 import type { Duration } from "effect";
 import { Deferred, Effect, Fiber, Option, References } from "effect";
 import { LspError } from "../../src/errors.js";
+import type { ReferenceTransportOptions } from "../../src/protocol/reference.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import { makeHarness, notify, request } from "../utils/harness.js";
 
@@ -27,7 +28,7 @@ const withListenTimeout = <A, E, R>(self: Effect.Effect<A, E, R>, duration: Dura
  * a whole batch as one chunk and end the input in the same tick (the harness's
  * `MessageConnection` frames and sends one message at a time).
  */
-const makeRawTransport = () =>
+const makeRawTransport = (drain?: ReferenceTransportOptions["drain"]) =>
 	Effect.gen(function* () {
 		const input = new PassThrough();
 		const serverToClient = new PassThrough();
@@ -35,7 +36,10 @@ const makeRawTransport = () =>
 		serverToClient.on("data", (chunk: Buffer) => {
 			written += chunk.toString("utf8");
 		});
-		const transport = yield* makeReferenceTransport({ streams: { input, output: serverToClient } });
+		const transport = yield* makeReferenceTransport({
+			streams: { input, output: serverToClient },
+			...(drain === undefined ? {} : { drain }),
+		});
 		return { input, output: { text: () => written }, transport };
 	});
 
@@ -259,15 +263,16 @@ describe("ReferenceTransport", () => {
 		"an input that ends in the middle of a frame after a valid initialize resolves listen with reason: closed",
 		() =>
 			Effect.gen(function* () {
-				const { input, output, transport } = yield* makeRawTransport();
+				// The sentinel is swallowed into the truncated frame, so this exercises the fallback drain; a short
+				// bound keeps the case fast instead of waiting out the production default (`reference.ts`'s TSDoc).
+				const { input, output, transport } = yield* makeRawTransport({ fallback: "100 millis" });
 				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
 				const listening = yield* Effect.forkChild(transport.listen);
 				yield* Effect.sync(() => input.end(`${initializeFrame}Content-Length: 500\r\n\r\n{"jsonrpc":`));
-				const outcome = yield* Fiber.join(listening).pipe((self) => withListenTimeout(self, "5 seconds"));
+				const outcome = yield* Fiber.join(listening).pipe(withListenTimeout);
 				assert.include(output.text(), '"id":1', "the initialize response should have been written");
 				assert.deepStrictEqual(outcome, { reason: "closed", shutdownReceived: false });
 			}).pipe(Effect.scoped),
-		10_000,
 	);
 
 	it.live("a client that sends okfit/$inputEnded itself does not end the session", () =>

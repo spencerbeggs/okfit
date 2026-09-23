@@ -5,17 +5,9 @@ import { BundleSession, provideConfig, resolveProjectConfig } from "@okfit/engin
 import type { GitHistory } from "@okfit/profiles";
 import type { Crypto, Duration, FileSystem, Path } from "effect";
 import { Context, Effect, Exit, Option, Ref, Result, Scope, Semaphore } from "effect";
+import { messageOf } from "../internal/messageOf.js";
 import type { Scheduler } from "./scheduler.js";
 import { makeScheduler } from "./scheduler.js";
-
-/** The error's `message` when it has one as a string, else `String(error)`. */
-const messageOf = (error: unknown): string => {
-	if (typeof error === "object" && error !== null && "message" in error) {
-		const message = (error as { readonly message: unknown }).message;
-		if (typeof message === "string") return message;
-	}
-	return String(error);
-};
 
 /**
  * One workspace folder's live session: the folder itself, its resolved
@@ -89,10 +81,10 @@ export type SessionRegistryServices =
 	| GitHistory
 	| Crypto.Crypto;
 
-/** One folder's cache entry: the built handle (if config resolution and `BundleSession.make` succeeded) plus the scope it owns. */
+/** One folder's cache entry: the built handle (if config resolution and `BundleSession.make` succeeded) plus the scope it owns, if any -- a failed config resolution builds no scope. */
 interface CacheEntry {
 	readonly handle: Option.Option<SessionHandle>;
-	readonly scope: Scope.Closeable;
+	readonly scope: Option.Option<Scope.Closeable>;
 }
 
 /** The longest folder in `folders` that `path` is under (`path === folder` or `path.startsWith(folder + "/")`), else `None`. */
@@ -130,8 +122,8 @@ export const makeSessionRegistry = (
 		const cache = yield* Ref.make<ReadonlyMap<string, CacheEntry>>(new Map());
 		const gate = yield* Semaphore.make(1);
 
-		/** Close and drop a folder's cache entry, if any; a no-op for a folder never built. */
-		const dispose = (folder: string): Effect.Effect<void> =>
+		/** Close (if it owns a scope) and drop a folder's cache entry, if any; a no-op for a folder never built. */
+		const invalidate = (folder: string): Effect.Effect<void> =>
 			Effect.gen(function* () {
 				const entry = (yield* Ref.get(cache)).get(folder);
 				yield* Ref.update(cache, (map) => {
@@ -139,14 +131,13 @@ export const makeSessionRegistry = (
 					next.delete(folder);
 					return next;
 				});
-				if (entry !== undefined) {
-					yield* Scope.close(entry.scope, Exit.void);
+				if (entry !== undefined && Option.isSome(entry.scope)) {
+					yield* Scope.close(entry.scope.value, Exit.void);
 				}
 			});
 
 		const buildEntry = (folder: string): Effect.Effect<CacheEntry> =>
 			Effect.gen(function* () {
-				const folderScope = yield* Scope.make();
 				const resolved = yield* Effect.result(
 					resolveProjectConfig({
 						pathArg: Option.none(),
@@ -157,10 +148,11 @@ export const makeSessionRegistry = (
 
 				if (Result.isFailure(resolved)) {
 					yield* Effect.logWarning(`okfit-lsp: no bundle for ${folder}: ${messageOf(resolved.failure)}`);
-					return { handle: Option.none(), scope: folderScope };
+					return { handle: Option.none(), scope: Option.none() };
 				}
 
 				const config = resolved.success;
+				const folderScope = yield* Scope.make();
 				const session = yield* BundleSession.make({
 					root: config.bundleRoot,
 					config: config.config,
@@ -183,7 +175,7 @@ export const makeSessionRegistry = (
 				);
 				const handle: SessionHandle = { folder, bundleRoot: config.bundleRoot, session, scheduler };
 				handleBox.handle = handle;
-				return { handle: Option.some(handle), scope: folderScope };
+				return { handle: Option.some(handle), scope: Option.some(folderScope) };
 			}).pipe(Effect.provideContext(context));
 
 		const entryFor = (folder: string): Effect.Effect<CacheEntry> =>
@@ -206,7 +198,7 @@ export const makeSessionRegistry = (
 				const nextSet = new Set(next);
 				const previous = yield* Ref.get(folders);
 				const removed = [...previous].filter((folder) => !nextSet.has(folder));
-				yield* Effect.forEach(removed, dispose, { discard: true });
+				yield* Effect.forEach(removed, invalidate, { discard: true });
 				yield* Ref.set(folders, nextSet);
 			});
 
@@ -215,7 +207,7 @@ export const makeSessionRegistry = (
 
 		const removeFolders = (removed: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
-				yield* Effect.forEach(removed, dispose, { discard: true });
+				yield* Effect.forEach(removed, invalidate, { discard: true });
 				yield* Ref.update(folders, (current) => {
 					const next = new Set(current);
 					for (const folder of removed) next.delete(folder);
@@ -239,12 +231,10 @@ export const makeSessionRegistry = (
 			[...map.values()].flatMap((entry) => (Option.isSome(entry.handle) ? [entry.handle.value] : [])),
 		);
 
-		const invalidate = (folder: string): Effect.Effect<void> => dispose(folder);
-
 		yield* Effect.addFinalizer(() =>
 			Effect.gen(function* () {
 				const map = yield* Ref.get(cache);
-				yield* Effect.forEach([...map.keys()], dispose, { discard: true });
+				yield* Effect.forEach([...map.keys()], invalidate, { discard: true });
 			}),
 		);
 

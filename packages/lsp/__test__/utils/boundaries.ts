@@ -1,5 +1,5 @@
 /**
- * Whole-file text scanners backing `__test__/boundaries.test.ts` (K-9, K-39).
+ * Whole-file text scanners backing `__test__/boundaries.test.ts`.
  * Test-only helpers, not part of the package's public surface.
  */
 

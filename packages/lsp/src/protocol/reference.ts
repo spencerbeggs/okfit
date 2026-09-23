@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
-import type { Exit, Fiber, Scope } from "effect";
+import type { Duration, Exit, Fiber, Scope } from "effect";
 import { Cause, Deferred, Effect, FiberSet, Option, Predicate } from "effect";
 import type { Connection, WatchDog } from "vscode-languageserver";
 import { createConnection as createServerConnection } from "vscode-languageserver";
@@ -23,6 +23,14 @@ import type { ListenOutcome, LspTransportShape } from "./LspTransport.js";
 export interface ReferenceTransportOptions {
 	/** Omitted: the library reads `--stdio`/`--node-ipc`/`--socket`/`--pipe` from argv (main.ts). */
 	readonly streams?: { readonly input: NodeJS.ReadableStream; readonly output: NodeJS.WritableStream };
+	/**
+	 * Overrides the two drain bounds documented on `SENTINEL_FALLBACK_TIMEOUT`
+	 * and `WRITE_SETTLE_TIMEOUT`; both default to those constants. A test
+	 * exercising the truncated-frame fallback passes a short `fallback` so the
+	 * case does not have to wait out the production bound. `main.ts` passes
+	 * nothing.
+	 */
+	readonly drain?: { readonly fallback?: Duration.Input; readonly writeSettle?: Duration.Input };
 }
 
 const INTERNAL_ERROR = -32603;
@@ -44,22 +52,24 @@ const inputEndedFrame = (token: string): string => {
 };
 
 /**
- * How long after the input ends the transport waits for its sentinel to be
- * dispatched before draining without it. The sentinel is never dispatched when
- * the input ended in the middle of a frame: the reader counts the sentinel's
- * bytes toward the truncated frame. Decoding and queueing whatever was already
- * buffered takes milliseconds even for a large batch, so two seconds only
- * delays `"closed"` for a client that died mid-write, and never cuts short a
- * batch that is still being dispatched.
+ * Default for `options.drain.fallback`: how long after the input ends the
+ * transport waits for its sentinel to be dispatched before draining without
+ * it. The sentinel is never dispatched when the input ended in the middle of
+ * a frame: the reader counts the sentinel's bytes toward the truncated
+ * frame. Decoding and queueing whatever was already buffered takes
+ * milliseconds even for a large batch, so two seconds only delays
+ * `"closed"` for a client that died mid-write, and never cuts short a batch
+ * that is still being dispatched.
  */
-const SENTINEL_FALLBACK_TIMEOUT = "2 seconds";
+const SENTINEL_FALLBACK_TIMEOUT: Duration.Input = "2 seconds";
 
 /**
- * How long the `"closed"` drain waits, once every handler has finished, for the
- * library's outstanding writes to complete. A peer that stops reading while
- * holding the pipe open never completes a write; `listen` still resolves.
+ * Default for `options.drain.writeSettle`: how long the `"closed"` drain
+ * waits, once every handler has finished, for the library's outstanding
+ * writes to complete. A peer that stops reading while holding the pipe open
+ * never completes a write; `listen` still resolves.
  */
-const WRITE_SETTLE_TIMEOUT = "2 seconds";
+const WRITE_SETTLE_TIMEOUT: Duration.Input = "2 seconds";
 
 type WriterMessage = Parameters<StreamMessageWriter["write"]>[0];
 
@@ -148,6 +158,8 @@ export const makeReferenceTransport = (
 		};
 
 		const streams = options?.streams;
+		const sentinelFallbackTimeout = options?.drain?.fallback ?? SENTINEL_FALLBACK_TIMEOUT;
+		const writeSettleTimeout = options?.drain?.writeSettle ?? WRITE_SETTLE_TIMEOUT;
 		/* `emitClose: false`: the reader's `onClose` would mark the connection Closed before the drain runs, and a drained handler could no longer send. The finalizer's `dispose` closes it instead. */
 		const readerInput = new PassThrough({ emitClose: false });
 		const sentinelToken = randomUUID();
@@ -211,7 +223,7 @@ export const makeReferenceTransport = (
 			Effect.gen(function* () {
 				yield* FiberSet.awaitEmpty(handlers);
 				yield* Effect.promise(() => Promise.all([...messages(), ...writesInFlight])).pipe(
-					Effect.timeoutOption(WRITE_SETTLE_TIMEOUT),
+					Effect.timeoutOption(writeSettleTimeout),
 				);
 				finish("closed");
 			});
@@ -224,7 +236,7 @@ export const makeReferenceTransport = (
 			streams.input.unpipe(readerInput);
 			readerInput.end(inputEndedFrame(sentinelToken));
 			fallback = runDrain(
-				Effect.sleep(SENTINEL_FALLBACK_TIMEOUT).pipe(
+				Effect.sleep(sentinelFallbackTimeout).pipe(
 					Effect.andThen(
 						Effect.suspend(() => (sentinelSeen ? Effect.void : drainThenClose(() => [...messagesInFlight]))),
 					),

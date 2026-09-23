@@ -44,15 +44,17 @@ const CONSOLE_WRITE = /\bconsole\s*\.\s*(log|info|debug|table)\s*\(/;
 const MAY_IMPORT_LIBRARY = new Set(["protocol/reference.ts", "main.ts", "protocol/types.ts"]);
 
 describe("@okfit/lsp boundaries", () => {
+	const all = sources();
+
 	it("no file under src/ reads `process` except bin.ts, main.ts and version.ts", () => {
-		const offenders = sources()
+		const offenders = all
 			.filter(({ file, code }) => !MAY_READ_PROCESS.has(file) && /\bprocess\s*\./.test(code))
 			.map(({ file }) => file);
 		assert.deepStrictEqual(offenders, []);
 	});
 
 	it("no file under src/ writes to stdout: no process.stdout, console.log/info/debug/table", () => {
-		const offenders = sources()
+		const offenders = all
 			.filter(
 				({ file, code }) =>
 					STDOUT_WRITE_CALL.test(code) ||
@@ -64,7 +66,7 @@ describe("@okfit/lsp boundaries", () => {
 	});
 
 	it("only protocol/reference.ts, main.ts and the type-only protocol/types.ts import vscode-languageserver", () => {
-		const offenders = sources()
+		const offenders = all
 			.filter(({ file, code }) => !MAY_IMPORT_LIBRARY.has(file) && /from\s*["']vscode-languageserver/.test(code))
 			.map(({ file }) => file);
 		assert.deepStrictEqual(offenders, []);

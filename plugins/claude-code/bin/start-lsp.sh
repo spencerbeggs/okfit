@@ -5,13 +5,13 @@
 # Detects the project's package manager only to choose the install-command
 # line in the not-installed message below; the exec target is always
 # either the project's own node_modules/.bin/okfit-lsp or npx, never a
-# package-manager dispatch (Judge note A-14 — the deliberate divergence
-# from vitest-agent/plugins/claude-code/bin/start-mcp.sh:27-32, which
-# execs through pnpm/yarn/bun/npx). Zero jq dependency at runtime: the
+# package-manager dispatch -- a deliberate divergence from
+# vitest-agent/plugins/claude-code/bin/start-mcp.sh:27-32, which execs
+# through pnpm/yarn/bun/npx. Zero jq dependency at runtime: the
 # packageManager field is read with grep/sed. Detection order follows
 # vitest-agent/plugins/claude-code/bin/start-mcp.mjs:44-67 (packageManager
 # field first) and :34-40 (lockfile order: pnpm-lock.yaml, bun.lock,
-# bun.lockb, yarn.lock, package-lock.json — interpretation B-5).
+# bun.lockb, yarn.lock, package-lock.json).
 
 set -eu
 
