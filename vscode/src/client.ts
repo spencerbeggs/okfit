@@ -23,7 +23,11 @@ export interface ClientDeps {
 	readonly extensionUri: vscode.Uri;
 	readonly settingPath: string | undefined;
 	readonly log: (message: string) => void;
+	/** Reveals the "okfit" output channel; wired to `defineLogger`'s `show`. */
+	readonly show: () => void;
 }
+
+const targetOf = (launch: ServerLaunch): string => (launch.kind === "command" ? launch.command : launch.module);
 
 /** Builds and starts the one language client for this window. The caller owns disposal via `client.stop()`. */
 export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => {
@@ -36,7 +40,7 @@ export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => 
 		exists: existsSync,
 	});
 	for (const note of notes) deps.log(note);
-	deps.log(`okfit language server: ${launch.source} (${launch.kind === "command" ? launch.command : launch.module})`);
+	deps.log(`okfit language server: ${launch.source} (${targetOf(launch)})`);
 
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [
@@ -47,6 +51,24 @@ export const startClient = async (deps: ClientDeps): Promise<LanguageClient> => 
 		outputChannelName: "okfit language server",
 	};
 	const client = new LanguageClient("okfit.lsp", "okfit language server", serverOptions(launch), clientOptions);
-	await client.start();
+	try {
+		await client.start();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		// `client.start()`'s own failure surfaces to the user only as a generic
+		// vscode-languageclient error and VS Code's "activation failed" toast,
+		// with no mention of which of the three resolution sources (setting,
+		// workspace, bundled) or which path it tried -- log that here, then
+		// show exactly one dialog with an action to open the channel that has
+		// it. No retry: the caller (extension.ts) re-attempts only on the
+		// next explicit `okfit.lsp.serverPath` change, never automatically.
+		deps.log(`okfit language server failed to start (${launch.source}: ${targetOf(launch)}): ${message}`);
+		void vscode.window
+			.showErrorMessage(`okfit language server failed to start (${launch.source}: ${targetOf(launch)}).`, "Open Output")
+			.then((selection) => {
+				if (selection === "Open Output") deps.show();
+			});
+		throw error;
+	}
 	return client;
 };
