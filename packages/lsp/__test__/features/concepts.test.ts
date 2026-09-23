@@ -1,13 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
-import { DateTime, Effect, Option } from "effect";
-import { TestClock } from "effect/testing";
+import { Effect } from "effect";
 import { pathToUri } from "../../src/convert/uri.js";
 import type { ConceptsResult } from "../../src/features/concepts.js";
 import { registerConcepts } from "../../src/features/concepts.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
 import { makeCapturingTransport } from "../utils/fakeTransport.js";
 import { testPlatform } from "../utils/platform.js";
-import { setupRegistry } from "../utils/registryFixture.js";
+import { setupRegistry, setupTwoFoldersRegistry } from "../utils/registryFixture.js";
 import { makeTempBundle } from "../utils/tempBundle.js";
 
 /**
@@ -105,34 +104,28 @@ status_missing = "off"
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 
-	it.effect("reports the configured profile name when the config sets one", () =>
+	it.effect("reports the configured profile name unchanged when it differs from the default", () =>
+		// Both other non-"none" cases above resolve to "software-project" -- the unset case because it is
+		// `OkfitConfig.DEFAULTS.bundle.profile`, and a mutant that hardcoded that string would still pass
+		// them. An unrecognized profile name merges only `DEFAULTS < file` (`resolveProjectConfig` logs a
+		// warning and falls back to `DEFAULTS` as `base` when the name doesn't resolve to a real profile),
+		// but the file's own literal `bundle.profile` value survives that merge unchanged, so this still
+		// exercises a real, distinct round trip through `session.config()` without needing a second real
+		// profile package.
 		Effect.gen(function* () {
-			const { root } = yield* makeTempBundle({
-				"project.md": `---\ntype: Project\ntitle: Fixture\ngenerated:\n  by: "human:fixture-author"\n  at: "2026-01-01T00:00:00Z"\n---\n\n# Fixture\n`,
+			const { call } = yield* setupRegistry(registerConcepts, {
+				"a.md": concept("Alpha"),
 				".okfit.toml": `[bundle]
 path = "."
-profile = "software-project"
+profile = "docs-only"
 
 [lint]
 generated_at_drift = "off"
 status_missing = "off"
 `,
 			});
-			const { transport, call } = makeCapturingTransport();
-			const registry = yield* makeSessionRegistry({
-				delay: "10 millis",
-				maxWait: "10 seconds",
-				onRevalidate: () => Effect.void,
-				onDispose: () => Effect.void,
-			});
-			yield* registerConcepts(transport, registry);
-			yield* registry.setFolders([root]);
-			const handle = Option.getOrThrow(yield* registry.sessionFor(root));
-			yield* TestClock.setTime(Date.now());
-			const now = yield* DateTime.now;
-			yield* handle.session.revalidate({ now, tier: "full" });
 			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
-			assert.strictEqual(result.bundles[0]!.profile, "software-project");
+			assert.strictEqual(result.bundles[0]!.profile, "docs-only");
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 
@@ -152,5 +145,34 @@ status_missing = "off"
 			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
 			assert.deepStrictEqual(result.bundles, []);
 		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect(
+		"two workspace folders, each its own bundle: two bundles entries, sorted by root, each with only its own concepts",
+		() =>
+			Effect.gen(function* () {
+				const { rootA, rootB, call } = yield* setupTwoFoldersRegistry(
+					registerConcepts,
+					{ "alpha.md": concept("Alpha"), ".okfit.toml": CONFIG },
+					{ "bravo.md": concept("Bravo"), ".okfit.toml": CONFIG },
+				);
+				const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+				assert.strictEqual(result.bundles.length, 2);
+				const [sortedA, sortedB] = [rootA, rootB].toSorted();
+				assert.deepStrictEqual(
+					result.bundles.map((b) => b.root),
+					[sortedA, sortedB],
+				);
+				const bundleA = result.bundles.find((b) => b.root === rootA)!;
+				const bundleB = result.bundles.find((b) => b.root === rootB)!;
+				assert.deepStrictEqual(
+					bundleA.concepts.map((c) => c.title),
+					["Alpha"],
+				);
+				assert.deepStrictEqual(
+					bundleB.concepts.map((c) => c.title),
+					["Bravo"],
+				);
+			}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 });

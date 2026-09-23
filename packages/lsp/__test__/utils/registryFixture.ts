@@ -44,3 +44,35 @@ export const setupRegistry = (
 		yield* handle.session.revalidate({ now, tier: "full" });
 		return { root, call };
 	});
+
+/**
+ * Two independent temp bundles, each its own workspace folder, both
+ * revalidated; returns a `call` bound across both live sessions.
+ * `symbols.test.ts`'s original `setupTwoFolders`, now shared with
+ * `concepts.test.ts`.
+ */
+export const setupTwoFoldersRegistry = (
+	register: (transport: LspTransportShape, registry: SessionRegistryShape) => Effect.Effect<void>,
+	filesA: Readonly<Record<string, string>>,
+	filesB: Readonly<Record<string, string>>,
+) =>
+	Effect.gen(function* () {
+		const { root: rootA } = yield* makeTempBundle(filesA);
+		const { root: rootB } = yield* makeTempBundle(filesB);
+		const { transport, call } = makeCapturingTransport();
+		const registry = yield* makeSessionRegistry({
+			delay: "10 millis",
+			maxWait: "10 seconds",
+			onRevalidate: () => Effect.void,
+			onDispose: () => Effect.void,
+		});
+		yield* register(transport, registry);
+		yield* registry.setFolders([rootA, rootB]);
+		yield* TestClock.setTime(Date.now());
+		for (const root of [rootA, rootB]) {
+			const handle = Option.getOrThrow(yield* registry.sessionFor(root));
+			const now = yield* DateTime.now;
+			yield* handle.session.revalidate({ now, tier: "full" });
+		}
+		return { rootA, rootB, call };
+	});
