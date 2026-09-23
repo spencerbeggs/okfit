@@ -2,7 +2,7 @@
 	"name": "@okfit/plugin",
 	"version": "0.4.5",
 	"private": true,
-	"description": "Install this one package to get the okfit CLI and MCP server in your repository. Depends on @okfit/cli and @okfit/mcp.",
+	"description": "Install this one package to get the okfit CLI, MCP server and LSP server in your repository. Depends on @okfit/cli, @okfit/mcp and @okfit/lsp.",
 	"keywords": ["okf", "open-knowledge-format", "claude", "agent", "mcp", "cli"],
 	"homepage": "https://github.com/spencerbeggs/okfit/tree/main/packages/plugin#readme",
 	"bugs": {
@@ -26,6 +26,7 @@
 	},
 	"bin": {
 		"okfit": "./src/bin/okfit.ts",
+		"okfit-lsp": "./src/bin/okfit-lsp.ts",
 		"okfit-mcp": "./src/bin/okfit-mcp.ts"
 	},
 	"scripts": {
@@ -36,6 +37,7 @@
 	},
 	"dependencies": {
 		"@okfit/cli": "workspace:*",
+		"@okfit/lsp": "workspace:*",
 		"@okfit/mcp": "workspace:*"
 	},
 	"devDependencies": {

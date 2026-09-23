@@ -45,16 +45,27 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * same reason. The rc.116 MCP port (#162) adds one more `draft` Decision
  * superseding the deprecated protocol-era one, again unverified by an
  * agent and exempt only while `draft`. The LSP roadmap adds one Roadmap
- * concept, which carries no `verified` requirement.
+ * concept, which carries no `verified` requirement. Task 0 of the LSP
+ * roadmap (the scratchpad ghost workspace) adds one more Module concept
+ * (`okf/modules/scratchpad.md`) and this bundle's first Glossary concept
+ * (`okf/glossary/ghost-workspace.md`); neither type requires `verified`.
+ * Phase 3 of the LSP roadmap adds `okf/modules/lsp.md` (Module +1) and
+ * `okf/decisions/lsp-reference-transport-behind-a-seam.md` (Decision +1,
+ * `status: draft`, so again exempt from `require-verified-unmet`). Its
+ * final review adds this bundle's first Limitation concept
+ * (`okf/limitations/no-config-reload-in-phase-3.md`), which carries no
+ * `verified` requirement.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
-	Module: 8,
-	Decision: 26,
+	Module: 10,
+	Decision: 27,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
 	Roadmap: 1,
+	Glossary: 1,
+	Limitation: 1,
 } as const;
 
 const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) => sum + n, 0);

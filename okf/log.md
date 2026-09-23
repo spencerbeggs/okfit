@@ -1,11 +1,24 @@
 # Log
 
+## 2026-09-23
+
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Claude Code Plugin
+* Added LSP
+* Updated Plugin
+* Added The language server runs the reference vscode-languageserver library behind an Effect transport seam
+* Updated Workspace
+* Added The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics
+
 ## 2026-09-22
 
 * Updated okfit CLI — validate, init, context, verify, sync, lint, graph, stale
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated An @okfit/lsp language server and a VS Code extension over the shared engine
 * Updated Engine
+* Added Ghost workspace
+* Updated Workspace
+* Added scratchpad
 
 ## 2026-09-20
 

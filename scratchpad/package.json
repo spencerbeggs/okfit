@@ -1,0 +1,35 @@
+{
+	"name": "scratchpad",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Agent probe workspace — typed probes against the kit and the catalog effect beta. Never published.",
+	"type": "module",
+	"scripts": {
+		"check": "tsc --noEmit",
+		"probe": "tsx",
+		"reset": "tsx lib/scripts/reset.ts"
+	},
+	"dependencies": {
+		"@effected/git": "catalog:effected",
+		"@effected/markdown": "catalog:effected",
+		"@effected/memfs": "catalog:effected",
+		"@effected/xdg": "catalog:effected",
+		"@okfit/cli": "workspace:*",
+		"@okfit/core": "workspace:*",
+		"@okfit/engine": "workspace:*",
+		"@okfit/lsp": "workspace:*",
+		"@okfit/mcp": "workspace:*",
+		"@okfit/plugin": "workspace:*",
+		"@okfit/profiles": "workspace:*"
+	},
+	"devDependencies": {
+		"@effect/platform-node": "catalog:effect",
+		"@effect/vitest": "catalog:effect",
+		"@types/node": "catalog:build",
+		"effect": "catalog:effect",
+		"tsx": "^4.23.12",
+		"typescript": "catalog:build",
+		"vscode-jsonrpc": "^9.0.2",
+		"vscode-languageserver": "^10.1.1"
+	}
+}

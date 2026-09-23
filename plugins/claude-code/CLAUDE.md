@@ -40,6 +40,7 @@ plugins/claude-code/
       posttooluse.{write-clean,edit-clean,edit-index,write-outside,read-ignored}.json
   bin/
     start-mcp.sh                       -- POSIX sh loader; pm detect, exec local bin, npx fallback
+    start-lsp.sh                       -- POSIX sh loader for okfit-lsp; same shape, --stdio forwarded
   __test__/
     manifest.bats
     session-start-orientation.bats
@@ -47,6 +48,7 @@ plugins/claude-code/
     agent-skill-registration.bats
     hooks-json.bats
     loader.bats
+    lsp-loader.bats
     lib/
       render-fixture.sh                -- __REPO_ROOT__ substitution
     fixtures/
@@ -89,7 +91,10 @@ directly, because the repo strips executable bits on commit.
 
 `.claude-plugin/plugin.json` registers `mcpServers.mcp`, running
 `bin/start-mcp.sh`, which exposes the six tools named explicitly in
-`agents/okf-docs.md`'s `tools:` block.
+`agents/okf-docs.md`'s `tools:` block. It also registers
+`lspServers.okfit`, running `bin/start-lsp.sh --stdio` through `sh` for
+the `.md` extension, which publishes engine diagnostics into the model's
+context as the bundle changes.
 
 Run the BATS suite with `pnpm test:bats` from the repo root (covers every
 `.bats` file under `__test__/`), or a single file directly with

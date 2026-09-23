@@ -38,3 +38,7 @@ docs/superpowers/
 .playwright-mcp
 .mcp.json
 .claude/dogfood/
+
+# Scratchpad ghost workspace working areas (see okf/modules/scratchpad.md)
+scratchpad/probes/
+scratchpad/__test__/*.test.ts

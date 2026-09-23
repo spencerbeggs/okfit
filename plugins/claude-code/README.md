@@ -125,7 +125,32 @@ it supports, `2025-11-25` and `2025-06-18`, newest first, so a client
 negotiates the newest one both sides understand on its own. It is never
 set in the manifest.
 
+## LSP server
+
+`.claude-plugin/plugin.json` registers `lspServers.okfit`, running
+`bin/start-lsp.sh --stdio` (`__test__/lsp-loader.bats`) through `sh`, for
+the `.md` extension (`extensionToLanguage`) with `diagnostics: true`. The
+loader resolves the project's own `node_modules/.bin/okfit-lsp` first and
+falls back to `npx --yes @okfit/lsp` when it is not installed — the same
+shape as the MCP loader above. `stdout` is the LSP server's protocol wire,
+so every shim message the loader itself prints goes to stderr.
+
+The server starts lazily, on the first `Edit` or `Write` of a `.md` file
+in the session — a `Bash` append to a `.md` file never starts it and never
+triggers a notification, since Claude Code only wires a language server to
+its own `Edit`/`Write` tools. Once running, it publishes engine
+diagnostics for every file of the bundle whose diagnostic set changed.
+Claude Code batches them: diagnostics for several files arrive together in
+one attachment in the model's context on the next `Edit` or `Write`. Diagnostics from this server
+are advisory only: unlike the `PostToolUse` hook above, nothing here blocks
+a tool call.
+
+Claude Code runs at most one language server per file extension per
+session, and the first one registered wins. Another markdown LSP plugin
+loaded earlier in the same session may therefore shadow this one entirely,
+with no fix available while OKF bundle files remain plain `.md`.
+
 ## Status
 
-Skills, the `okf-docs` agent, both hooks, and the MCP server registration
-are implemented and tested.
+Skills, the `okf-docs` agent, both hooks, and the MCP and LSP server
+registrations are implemented and tested.

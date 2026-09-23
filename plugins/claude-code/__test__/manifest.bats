@@ -22,3 +22,11 @@ setup() {
   run jq -r '.private' "$PKG"
   [ "$output" = "true" ]
 }
+
+@test "manifest registers the okfit LSP server through the sh shim with --stdio" {
+  [ "$(jq -r '.lspServers.okfit.command' "$MANIFEST")" = "sh" ]
+  [ "$(jq -r '.lspServers.okfit.args[0]' "$MANIFEST")" = '${CLAUDE_PLUGIN_ROOT}/bin/start-lsp.sh' ]
+  [ "$(jq -r '.lspServers.okfit.args[1]' "$MANIFEST")" = "--stdio" ]
+  [ "$(jq -r '.lspServers.okfit.extensionToLanguage[".md"]' "$MANIFEST")" = "markdown" ]
+  [ "$(jq -r '.lspServers.okfit.diagnostics' "$MANIFEST")" = "true" ]
+}

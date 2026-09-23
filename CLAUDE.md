@@ -19,7 +19,7 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
 
 - **The workspace root, every package, and the Claude Code plugin** --
   `okf/modules/*.md` (`workspace`, `core`, `profiles`, `engine`, `cli`,
-  `mcp`, `plugin`, `claude-code-plugin`).
+  `mcp`, `lsp`, `plugin`, `claude-code-plugin`).
 - **Durable architectural choices** (why something is built the way it
   is, not just what it does) -- `okf/decisions/*.md`.
 - **Rules contributors and agents must follow** -- `okf/conventions/*.md`.
@@ -29,6 +29,9 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
   plugin's hooks, the MCP stub) -- `okf/interfaces/*.md`.
 - **External material this repo must cite reliably** --
   `okf/references/okf-spec.md`.
+- **The typed probe workspace** (a ghost workspace: real to the tooling,
+  excluded from release/CI/coverage) -- `scratchpad/CLAUDE.md`,
+  `okf/modules/scratchpad.md`, `okf/glossary/ghost-workspace.md`.
 
 Each package has its own `CLAUDE.md` and `__test__/CLAUDE.md`.
 

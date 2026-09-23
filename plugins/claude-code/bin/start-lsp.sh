@@ -1,0 +1,80 @@
+#!/usr/bin/env sh
+# start-lsp.sh — plugin LSP server loader; stdout is the protocol wire, so
+# every message here goes to stderr.
+#
+# Detects the project's package manager only to choose the install-command
+# line in the not-installed message below; the exec target is always
+# either the project's own node_modules/.bin/okfit-lsp or npx, never a
+# package-manager dispatch -- a deliberate divergence from
+# vitest-agent/plugins/claude-code/bin/start-mcp.sh:27-32, which execs
+# through pnpm/yarn/bun/npx. Zero jq dependency at runtime: the
+# packageManager field is read with grep/sed. Detection order follows
+# vitest-agent/plugins/claude-code/bin/start-mcp.mjs:44-67 (packageManager
+# field first) and :34-40 (lockfile order: pnpm-lock.yaml, bun.lock,
+# bun.lockb, yarn.lock, package-lock.json).
+
+set -eu
+
+ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+export OKFIT_PROJECT_DIR="$ROOT"
+
+# detect_pm — prints one of npm/pnpm/yarn/bun on stdout. Package.json's
+# packageManager field wins outright over any lockfile (even a co-present
+# one); otherwise the first lockfile present in source order wins; npm is
+# the default.
+detect_pm() {
+	pm=""
+	if [ -f "$ROOT/package.json" ]; then
+		pm=$(grep -o '"packageManager"[[:space:]]*:[[:space:]]*"[^"]*"' "$ROOT/package.json" 2>/dev/null \
+			| sed -E 's/.*:[[:space:]]*"([a-z]+)@.*/\1/')
+	fi
+	case "$pm" in
+		npm | pnpm | yarn | bun)
+			printf '%s\n' "$pm"
+			return
+			;;
+	esac
+	if [ -f "$ROOT/pnpm-lock.yaml" ]; then
+		printf '%s\n' "pnpm"
+	elif [ -f "$ROOT/bun.lock" ]; then
+		printf '%s\n' "bun"
+	elif [ -f "$ROOT/bun.lockb" ]; then
+		printf '%s\n' "bun"
+	elif [ -f "$ROOT/yarn.lock" ]; then
+		printf '%s\n' "yarn"
+	elif [ -f "$ROOT/package-lock.json" ]; then
+		printf '%s\n' "npm"
+	else
+		printf '%s\n' "npm"
+	fi
+}
+
+# install_line pm — prints the one install command line matching pm.
+install_line() {
+	case "$1" in
+		pnpm) printf '  pnpm add -D @okfit/plugin\n' ;;
+		yarn) printf '  yarn add -D @okfit/plugin\n' ;;
+		bun) printf '  bun add -d @okfit/plugin\n' ;;
+		*) printf '  npm install --save-dev @okfit/plugin\n' ;;
+	esac
+}
+
+BIN="$ROOT/node_modules/.bin/okfit-lsp"
+if [ -x "$BIN" ]; then
+	exec "$BIN" "$@"
+fi
+
+PM="$(detect_pm)"
+{
+	printf 'okfit plugin: okfit-lsp is not installed in this project.\n'
+	printf '\n'
+	printf 'Detected package manager: %s\n' "$PM"
+	printf 'Project directory: %s\n' "$ROOT"
+	printf '\n'
+	printf 'Install it with:\n'
+	install_line "$PM"
+	printf '\n'
+	printf 'Falling back to `npx --yes @okfit/lsp`, which will download it.\n'
+} >&2
+
+exec npx --yes @okfit/lsp "$@"
