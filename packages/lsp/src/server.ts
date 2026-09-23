@@ -28,6 +28,12 @@ import { LSP_VERSION } from "./version.js";
 export interface ServeOptions {
 	/** The revalidate debounce; default `"150 millis"`. */
 	readonly delay?: Duration.Input;
+	/**
+	 * Upper bound on how long a steady stream of edits can defer a
+	 * revalidate; default `"1 second"`. See `SchedulerOptions.maxWait`
+	 * (`session/scheduler.ts`).
+	 */
+	readonly maxWait?: Duration.Input;
 	/** The distribution embedding this server, named in the startup log line. */
 	readonly distribution?: Distribution;
 }
@@ -80,10 +86,11 @@ export const serve = (
 ): Effect.Effect<ListenOutcome, never, ServeServices | Scope.Scope> =>
 	Effect.gen(function* () {
 		const delay = options?.delay ?? "150 millis";
+		const maxWait = options?.maxWait ?? "1 second";
 		const distribution = options?.distribution;
 
 		const revalidateAndPublish = yield* makeRevalidatePublisher(transport);
-		const registry = yield* makeSessionRegistry({ delay, onRevalidate: revalidateAndPublish });
+		const registry = yield* makeSessionRegistry({ delay, maxWait, onRevalidate: revalidateAndPublish });
 		const feature = yield* makeDiagnosticsFeature(registry);
 
 		const work = yield* Queue.unbounded<Effect.Effect<void>>();

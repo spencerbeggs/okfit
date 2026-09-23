@@ -79,6 +79,8 @@ export class SessionRegistry extends Context.Service<SessionRegistry, SessionReg
  */
 export interface SessionRegistryOptions {
 	readonly delay: Duration.Input;
+	/** Threaded straight to `makeScheduler`'s `SchedulerOptions.maxWait` for every session this registry builds. */
+	readonly maxWait: Duration.Input;
 	/** Called by the scheduler for a session; the registry owns neither publishing nor `now`. */
 	readonly onRevalidate: (handle: SessionHandle, tier: RevalidateTier) => Effect.Effect<void>;
 }
@@ -208,6 +210,7 @@ export const makeSessionRegistry = (
 				)(
 					makeScheduler({
 						delay: options.delay,
+						maxWait: options.maxWait,
 						run: (tier) => options.onRevalidate(handleBox.handle as SessionHandle, tier),
 					}),
 				);

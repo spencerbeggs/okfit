@@ -15,7 +15,7 @@ const platform = testPlatform();
 const BROKEN_CONFIG = "[lint\nbroken = ";
 const OTHER_BROKEN_CONFIG = "[lint]\nstatus_missing = 42\n";
 const FIXED_CONFIG = '[lint]\ngenerated_at_drift = "off"\n';
-const make = () => makeSessionRegistry({ delay: "10 millis", onRevalidate: () => Effect.void });
+const make = () => makeSessionRegistry({ delay: "10 millis", maxWait: "10 seconds", onRevalidate: () => Effect.void });
 
 describe("SessionRegistry", () => {
 	it.effect("a document under the folder's bundle root gets a session whose root is the bundle root", () =>

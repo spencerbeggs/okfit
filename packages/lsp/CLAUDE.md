@@ -26,7 +26,8 @@ src/
                      capabilities, serverInfo), initialized (one log line),
                      workspace folder and watched-file notifications,
                      document sync and diagnostics onto the transport, then
-                     listens; ServeOptions { delay, distribution }, ServeServices
+                     listens; ServeOptions { delay, maxWait, distribution },
+                     ServeServices
   convert/
     uri.ts         -- uriToPath, pathToUri: file: URI <-> absolute path,
                       percent-encoded, None for a non-file or malformed URI
@@ -44,7 +45,17 @@ src/
                        Scheduler { schedule, settle }; schedule coalesces a
                        burst behind a fixed delay and never downgrades a
                        tier to "edit" once "full" is requested; a schedule
-                       during a run queues exactly one more run
+                       during a run queues exactly one more run; a burst
+                       that never goes quiet for delay still runs at most
+                       maxWait after the first schedule of an idle
+                       scheduler (SchedulerOptions.maxWait). State lives in
+                       one SynchronizedRef; the debounce-then-run chain
+                       reads and writes its raw backing Ref instead of the
+                       synchronized ref itself, because schedule interrupts
+                       a prior chain from inside its own serialized
+                       transition and Fiber.interrupt waits for that
+                       chain's finalizer, which would deadlock against the
+                       same permit
     registry.ts     -- makeSessionRegistry: workspace folders -> one
                        BundleSession per bundle root, lazily, with config
                        discovery per folder; SessionHandle bundles a
