@@ -29,6 +29,12 @@ export interface Published {
 	}>;
 }
 
+/** One notification of any method the client received, recorded alongside {@link Published}'s own queue. */
+export interface RecordedNotification {
+	readonly method: string;
+	readonly params: unknown;
+}
+
 export interface Harness {
 	readonly transport: LspTransportShape;
 	readonly client: MessageConnection;
@@ -44,6 +50,15 @@ export interface Harness {
 		predicate: (published: Published) => boolean,
 		timeout?: Duration.Input,
 	) => Effect.Effect<Published, "no publish">;
+	/**
+	 * Next notification of any method (recorded independently of `nextPublish`'s
+	 * own queue, so consuming one does not affect the other) satisfying
+	 * `predicate`; fails after `timeout`.
+	 */
+	readonly nextNotification: (
+		predicate: (notification: RecordedNotification) => boolean,
+		timeout?: Duration.Input,
+	) => Effect.Effect<RecordedNotification, "no notification">;
 }
 
 /**
@@ -74,8 +89,14 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 		new StreamMessageWriter(clientToServer),
 	);
 	const published = yield* Queue.unbounded<Published>();
-	client.onNotification("textDocument/publishDiagnostics", (params: Published) => {
-		Effect.runSync(Queue.offer(published, params));
+	const notifications = yield* Queue.unbounded<RecordedNotification>();
+	// A star handler, not a per-method one: it sees every notification the server sends, `textDocument/publishDiagnostics`
+	// included, feeding both this generic queue and `published`'s own so existing `Published`-only accessors are unaffected.
+	client.onNotification((method: string, params: unknown) => {
+		Effect.runSync(Queue.offer(notifications, { method, params }));
+		if (method === "textDocument/publishDiagnostics") {
+			Effect.runSync(Queue.offer(published, params as Published));
+		}
 	});
 	client.listen();
 	yield* Effect.addFinalizer(() => Effect.sync(() => client.dispose()));
@@ -102,7 +123,28 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 			}
 		}).pipe(Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.fail("no publish" as const) }));
 	const pollPublished: Effect.Effect<ReadonlyArray<Published>> = Queue.clear(published);
-	return { transport, client, nextPublish, drainPublished, closeClientOutput, drainUntil, pollPublished };
+	const nextNotification = (
+		predicate: (notification: RecordedNotification) => boolean,
+		notificationTimeout: Duration.Input = "5 seconds",
+	) =>
+		Effect.gen(function* () {
+			while (true) {
+				const next = yield* Queue.take(notifications);
+				if (predicate(next)) return next;
+			}
+		}).pipe(
+			Effect.timeoutOrElse({ duration: notificationTimeout, orElse: () => Effect.fail("no notification" as const) }),
+		);
+	return {
+		transport,
+		client,
+		nextPublish,
+		drainPublished,
+		closeClientOutput,
+		drainUntil,
+		pollPublished,
+		nextNotification,
+	};
 }).pipe(Effect.provide(silentLogger));
 
 /** A {@link Harness} with `serve` running against a fresh copy of the fixture project. */

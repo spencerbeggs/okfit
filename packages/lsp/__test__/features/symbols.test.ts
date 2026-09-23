@@ -7,6 +7,7 @@ import { SYMBOL_KIND_OBJECT } from "../../src/protocol/types.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
 import { makeCapturingTransport } from "../utils/fakeTransport.js";
 import { testPlatform } from "../utils/platform.js";
+import { setupRegistry } from "../utils/registryFixture.js";
 import { makeTempBundle } from "../utils/tempBundle.js";
 
 /**
@@ -41,23 +42,7 @@ status_missing = "off"
 
 /** Builds a registry over a temp bundle, revalidates every live session, and returns a `call` bound to `registerWorkspaceSymbols`. */
 const setup = (files: Readonly<Record<string, string>>) =>
-	Effect.gen(function* () {
-		const { root } = yield* makeTempBundle({ ...files, ".okfit.toml": CONFIG });
-		const { transport, call } = makeCapturingTransport();
-		const registry = yield* makeSessionRegistry({
-			delay: "10 millis",
-			maxWait: "10 seconds",
-			onRevalidate: () => Effect.void,
-			onDispose: () => Effect.void,
-		});
-		yield* registerWorkspaceSymbols(transport, registry);
-		yield* registry.setFolders([root]);
-		// Any path under root resolves to the one session this bundle owns.
-		const handle = Option.getOrThrow(yield* registry.sessionFor(root));
-		const now = yield* DateTime.now;
-		yield* handle.session.revalidate({ now, tier: "full" });
-		return { root, call };
-	});
+	setupRegistry(registerWorkspaceSymbols, { ...files, ".okfit.toml": CONFIG });
 
 /** Two independent temp bundles, each its own workspace folder, both revalidated; returns a `call` bound across both live sessions. */
 const setupTwoFolders = (filesA: Readonly<Record<string, string>>, filesB: Readonly<Record<string, string>>) =>

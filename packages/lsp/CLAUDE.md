@@ -165,6 +165,11 @@ src/
     symbols.ts      -- registerWorkspaceSymbols(transport, registry):
                        workspace/symbol across every live session (see
                        Navigation below)
+    concepts.ts     -- registerConcepts(transport, registry) and
+                       notifyBundleChanged(transport, root, reason): the
+                       okfit/concepts request and okfit/bundleChanged
+                       notification, okfit's own protocol extensions for an
+                       editor's concept explorer (see Custom methods below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -288,6 +293,39 @@ Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
 range conversion goes through `convert/range.ts`'s `toLspRange`/
 `toLspLocation`, which re-map a `DiagnosticRange`'s end position through the
 file text the same way `convert/diagnostic.ts`'s `toLspDiagnostic` does.
+
+## Custom methods
+
+`registerConcepts` (`src/features/concepts.ts`) wires `okfit/concepts` onto
+the transport for the VS Code extension's concept explorer (LSP roadmap
+phase 6); `notifyBundleChanged` (same file) sends `okfit/bundleChanged`. Both
+are okfit protocol extensions, named with the `okfit/` prefix since the LSP
+specification reserves `$/` for its own and leaves vendor prefixes to
+implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
+`{ okfitConcepts: true }` so a client can feature-detect.
+
+- **`okfit/concepts`** answers from every live session's (`registry.sessions`)
+  last-loaded bundle, never triggering or waiting on a revalidate: one
+  `BundleSummary` per session whose `bundle()` is `Some` (a session that has
+  never revalidated contributes no entry), each carrying `root`, `rootUri`,
+  the resolved `profile` name (`session.config().bundle?.profile`, with the
+  documented `"none"` sentinel -- profile merging disabled -- mapped to
+  `undefined`; `OkfitConfig.DEFAULTS.bundle.profile` is always
+  `"software-project"`, so an unset `profile` key never itself yields
+  `undefined`), and one `ConceptSummary` per concept with a definition
+  location (`definitionOf`, `features/locate.ts` -- same exclusion as
+  `workspace/symbol`). A concept's `status` is its raw frontmatter value,
+  `undefined` when absent (not `Derive.status`'s `"stable"` default); `stale`
+  is `Derive.isStale` against `now` read once per request. Concepts are
+  sorted by type, then title, then id; bundles by root.
+- **`okfit/bundleChanged`** is sent from the registry's own `onRevalidate` and
+  `onDispose` callbacks (`server.ts`), after `publisher.publish`/`.clear`
+  respectively -- never from `features/diagnostics.ts` itself -- so a client
+  that re-fetches `okfit/concepts` on this notification always sees the
+  diagnostics the matching publish already sent. `reason` is `"revalidated"`
+  for a completed revalidate (regardless of whether anything was actually
+  republished) and `"dropped"` for a disposed session (a config-change
+  rebuild, or the last workspace folder resolving to that root going away).
 
 ## The transport seam
 

@@ -7,6 +7,7 @@ import type { Distribution } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
 import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
+import { notifyBundleChanged, registerConcepts } from "./features/concepts.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
 import { registerHover } from "./features/hover.js";
@@ -70,6 +71,7 @@ const INITIALIZE_RESULT: InitializeResult = {
 		referencesProvider: true,
 		hoverProvider: true,
 		workspaceSymbolProvider: true,
+		experimental: { okfitConcepts: true },
 	},
 	serverInfo: { name: "okfit-lsp", version: LSP_VERSION },
 };
@@ -101,8 +103,16 @@ export const serve = (
 		const registry = yield* makeSessionRegistry({
 			delay,
 			maxWait,
-			onRevalidate: publisher.publish,
-			onDispose: (handle) => publisher.clear(handle.bundleRoot),
+			onRevalidate: (handle, tier) =>
+				Effect.andThen(
+					publisher.publish(handle, tier),
+					notifyBundleChanged(transport, handle.bundleRoot, "revalidated"),
+				),
+			onDispose: (handle) =>
+				Effect.andThen(
+					publisher.clear(handle.bundleRoot),
+					notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+				),
 		});
 		const feature = yield* makeDiagnosticsFeature(registry);
 
@@ -147,6 +157,7 @@ export const serve = (
 		yield* registerNavigation(transport, registry);
 		yield* registerHover(transport, registry);
 		yield* registerWorkspaceSymbols(transport, registry);
+		yield* registerConcepts(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

@@ -228,6 +228,29 @@ describe("serve", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.live(
+		"okfit/bundleChanged notifies after a revalidate publishes, and again with reason dropped once the folder is removed",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness();
+				yield* h.initialize;
+				const text = yield* readFixture(h.root, "okf/modules/alpha.md");
+				yield* h.open("okf/modules/alpha.md", BROKEN(text));
+				const published = yield* h.nextPublish();
+				assert.strictEqual(published.uri, h.uriOf("okf/modules/alpha.md"));
+				const revalidated = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+				assert.deepStrictEqual(revalidated.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
+
+				yield* notify(h.client, "workspace/didChangeWorkspaceFolders", {
+					event: { added: [], removed: [{ uri: h.uriOf(""), name: "project" }] },
+				});
+				// Dropping the session's last folder clears what it had published (task 4's dispose behaviour).
+				yield* h.nextPublish();
+				const dropped = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+				assert.deepStrictEqual(dropped.params, { rootUri: h.uriOf("okf"), reason: "dropped" });
+			}).pipe(Effect.scoped),
+	);
+
 	it.live("a bundle-level diagnostic publishes against the bundle's index.md", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness();

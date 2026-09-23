@@ -58,6 +58,25 @@ disappears first.
   notification batch; in Claude Code that batch reaches the model's
   context on the next `Edit` or `Write` tool call, not immediately.
 
+## Custom methods
+
+Two `okfit/`-prefixed extensions, for editor front ends (the VS Code
+extension's concept explorer); neither is part of the LSP standard, and the
+LSP specification reserves `$/` for its own extensions, leaving vendor
+prefixes to implementations.
+
+- **`okfit/concepts`** (request, params `{}`) answers every live workspace
+  folder's last-loaded bundle as `{ bundles: [{ root, rootUri, profile,
+  concepts: [{ id, uri, title, type, status, stale }] }] }`: `status` is
+  `"draft" | "stable" | "deprecated" | undefined` (absent when the
+  frontmatter has none), `stale` is computed against the request time, and a
+  session whose bundle has never loaded contributes no bundle entry.
+- **`okfit/bundleChanged`** (notification, params `{ rootUri, reason:
+  "revalidated" | "dropped" }`) is sent after every revalidate of a bundle
+  root's diagnostics and after that root's session is dropped, so a client
+  knows when to re-fetch `okfit/concepts`. The server advertises support with
+  `experimental: { okfitConcepts: true }` in `initialize`'s result.
+
 ## Status
 
 Diagnostics only, shipped in phase 3 of the LSP roadmap. Navigation,

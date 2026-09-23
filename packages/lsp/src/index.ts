@@ -9,6 +9,13 @@ export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js
 export { toLspLocation, toLspRange } from "./convert/range.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
+export type { BundleChangedParams, BundleSummary, ConceptSummary, ConceptsResult } from "./features/concepts.js";
+export {
+	BUNDLE_CHANGED_NOTIFICATION,
+	CONCEPTS_REQUEST,
+	notifyBundleChanged,
+	registerConcepts,
+} from "./features/concepts.js";
 export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } from "./features/diagnostics.js";
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
