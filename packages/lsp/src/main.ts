@@ -79,11 +79,10 @@ export const main = async (options: MainOptions = {}): Promise<void> => {
 		// without this reference every log line lands on stdout, the
 		// JSON-RPC wire.
 		Effect.provide(Layer.succeed(Logger.LogToStderr, true)),
-		// `shutdownReceived` is the authority on whether the client shut down
-		// cleanly: an `exit` that races the input stream's own end may report
-		// `reason: "closed"` instead of `"exit"`, which harmlessly maps to 0
-		// below alongside every other outcome. Only an `exit` that never saw
-		// `shutdown` is a genuine non-clean disconnect.
+		// An `exit` delivered before the input ends always resolves
+		// `reason: "exit"`; `"closed"` means the input ended without one, and
+		// maps to 0. Only an `exit` that never saw `shutdown` is a non-clean
+		// disconnect.
 		Effect.map((outcome) => (outcome.reason === "exit" && !outcome.shutdownReceived ? 1 : 0)),
 	);
 

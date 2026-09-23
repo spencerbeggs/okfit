@@ -115,28 +115,25 @@ calls `process.exit` after any `onExit` handler and on raw-stream
 handling and that exit behaviour; `main.ts` passes `process.stdin` and
 `process.stdout` as `streams`.
 
-**Drain rule for `"closed"`.** The raw stream's `"end"`/`"close"` fires as
-soon as Node has delivered every byte, but `vscode-jsonrpc` decodes and
-dispatches each buffered frame asynchronously (its reader's capacity-1
-semaphore, and its connection's own message queue -- unlimited-parallelism
-by default, so messages pipeline rather than wait on one another's
-response writes) -- all of it on the `setImmediate` macrotask queue, which
-always runs strictly after the same-tick stream event. `reference.ts`
-therefore never resolves `"closed"` straight from that raw event: it polls
-on `setImmediate` until dispatch activity (tracked through `answer`/
-`report`, the two chokepoints every registration goes through) and any
-in-flight response write (`streams.output.write`, wrapped for exactly this)
-have both been quiet for `DRAIN_IDLE_TICKS` consecutive ticks -- self-scaling
-to an arbitrarily long batch, since any further dispatch resets the idle
-counter. A client that writes a whole conversation as one chunk and closes
-its output in the same tick -- exactly what `packages/plugin`'s e2e test
-and a scripted client do -- still gets every response it's owed, and if
-that batch's tail was `exit`, `watchDog.exit`'s `finish("exit")` (called
-synchronously, with no drain wait of its own -- see the comment above
-`pollDrain` in `reference.ts` for why that asymmetry is deliberate) always
-wins the single-shot outcome before the drain loop could otherwise report
-`"closed"`. Covered by `__test__/protocol/reference.test.ts`'s "one chunk,
-same-tick close" case.
+**Input end and the drain.** `vscode-jsonrpc` decodes and dispatches
+buffered frames asynchronously, so the input's `end` can arrive before the
+messages it delivered are dispatched. The library's reader therefore reads a
+transport-owned `PassThrough`: the input is piped into it with
+`{ end: false }`, and on the input's first `end` or `close` the transport
+writes one frame of the reserved notification `okfit/$inputEnded`, then
+ends it. The reader's decode queue and the connection's message queue are
+both FIFO, so that notification is dispatched after every earlier message;
+an `exit` among them has already resolved `listen` with `"exit"`. Its
+handler waits for the handler `FiberSet` to empty, then for every earlier
+message's processing to settle (tracked through the connection's
+`messageStrategy`, which covers a request's response write) and for the
+transport-owned writer's outstanding writes, bounded by
+`WRITE_SETTLE_TIMEOUT`, and resolves `"closed"`. `exit` itself does not wait:
+with the library's default unlimited parallelism the queue dispatches `exit`
+without waiting for an earlier `shutdown`'s reply, so a client that does not
+wait for that reply may not get it. The scope finalizer interrupts a running
+drain, unpipes the input and ends the `PassThrough`. Covered by the one-chunk
+cases in `__test__/protocol/reference.test.ts`.
 
 A future Effect-native transport is done when
 `__test__/protocol/reference.test.ts` passes unchanged against it.
@@ -163,8 +160,8 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
 - **Exit code.** `1` only when the outcome is `reason: "exit"` with
   `shutdownReceived: false`; every other outcome -- `shutdown` then `exit`,
   or the input stream simply closing -- exits `0`. `shutdownReceived` is
-  the authority: an `exit` that races the stream's own end may report
-  `"closed"` instead of `"exit"`, which harmlessly still maps to `0`.
+  the authority on a clean shutdown; `"closed"` means the input ended with
+  no `exit` among the messages it delivered.
 - **`process.exit` is called directly in `main.ts`'s `teardown`, not
   through the `onExit` callback `NodeRuntime.runMain`'s own runner hands
   in.** That callback (`@effect/platform-node-shared`'s `NodeRuntime.js`)

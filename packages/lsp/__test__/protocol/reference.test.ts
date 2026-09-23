@@ -5,6 +5,41 @@ import { LspError } from "../../src/errors.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import { makeHarness, notify, request } from "../utils/harness.js";
 
+/** One framed JSON-RPC message, as a client writes it to the server's input. */
+const frame = (message: unknown): string => {
+	const body = JSON.stringify(message);
+	return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+};
+
+const initializeFrame = frame({
+	jsonrpc: "2.0",
+	id: 1,
+	method: "initialize",
+	params: { processId: null, rootUri: null, capabilities: {} },
+});
+
+const withListenTimeout = <A, E, R>(self: Effect.Effect<A, E, R>) =>
+	self.pipe(
+		Effect.timeoutOrElse({ duration: "2 seconds", orElse: () => Effect.fail("listen never resolved" as const) }),
+	);
+
+/**
+ * A reference transport over raw in-memory streams, for tests that must write
+ * a whole batch as one chunk and end the input in the same tick (the harness's
+ * `MessageConnection` frames and sends one message at a time).
+ */
+const makeRawTransport = () =>
+	Effect.gen(function* () {
+		const input = new PassThrough();
+		const serverToClient = new PassThrough();
+		let written = "";
+		serverToClient.on("data", (chunk: Buffer) => {
+			written += chunk.toString("utf8");
+		});
+		const transport = yield* makeReferenceTransport({ streams: { input, output: serverToClient } });
+		return { input, output: { text: () => written }, transport };
+	});
+
 describe("ReferenceTransport", () => {
 	it.effect("initialize runs the registered handler and returns its result", () =>
 		Effect.gen(function* () {
@@ -93,19 +128,10 @@ describe("ReferenceTransport", () => {
 	);
 
 	it.live(
-		"a client that writes initialize, initialized, shutdown and exit as one chunk and ends its output in the same tick still gets every response, and listen resolves exit/shutdownReceived: true (Task 8 drain-before-closed rule)",
+		"a client that writes initialize, initialized, shutdown and exit as one chunk and ends its output in the same tick gets the initialize response, and listen resolves exit with shutdownReceived: true",
 		() =>
 			Effect.gen(function* () {
-				const clientToServer = new PassThrough();
-				const serverToClient = new PassThrough();
-				let serverOut = "";
-				serverToClient.on("data", (chunk: Buffer) => {
-					serverOut += chunk.toString("utf8");
-				});
-
-				const transport = yield* makeReferenceTransport({
-					streams: { input: clientToServer, output: serverToClient },
-				});
+				const { input, output, transport } = yield* makeRawTransport();
 				let initializeCalled = false;
 				let shutdownCalled = false;
 				yield* transport.onInitialize(() => {
@@ -116,40 +142,110 @@ describe("ReferenceTransport", () => {
 					shutdownCalled = true;
 					return Effect.void;
 				});
-
 				const listening = yield* Effect.forkChild(transport.listen);
-
-				const frame = (message: unknown): string => {
-					const body = JSON.stringify(message);
-					return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
-				};
-				const batch = [
-					frame({
-						jsonrpc: "2.0",
-						id: 1,
-						method: "initialize",
-						params: { processId: null, rootUri: null, capabilities: {} },
-					}),
-					frame({ jsonrpc: "2.0", method: "initialized", params: {} }),
-					frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }),
-					frame({ jsonrpc: "2.0", method: "exit", params: null }),
-				].join("");
-				// Write everything and end the stream in the SAME tick -- this is
-				// the exact shape @effected/commands' Run.collect + a single-chunk
-				// stdin Stream produces for packages/plugin's e2e test.
-				yield* Effect.sync(() => clientToServer.end(batch));
-
-				const outcome = yield* Fiber.join(listening).pipe(
-					Effect.timeoutOrElse({
-						duration: "2 seconds",
-						orElse: () => Effect.fail("listen never resolved" as const),
-					}),
+				yield* Effect.sync(() =>
+					input.end(
+						[
+							initializeFrame,
+							frame({ jsonrpc: "2.0", method: "initialized", params: {} }),
+							frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }),
+							frame({ jsonrpc: "2.0", method: "exit", params: null }),
+						].join(""),
+					),
 				);
-
+				const outcome = yield* Fiber.join(listening).pipe(withListenTimeout);
 				assert.isTrue(initializeCalled, "onInitialize should have been dispatched");
 				assert.isTrue(shutdownCalled, "onShutdown should have been dispatched");
-				assert.include(serverOut, '"id":1', "the initialize response should have been written");
+				assert.include(output.text(), '"id":1', "the initialize response should have been written");
 				assert.deepStrictEqual(outcome, { reason: "exit", shutdownReceived: true });
+			}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"a one-chunk batch of 30 notifications with no handler between initialize and shutdown/exit, ended and closed in the same tick, still resolves exit with shutdownReceived: true",
+		() =>
+			Effect.gen(function* () {
+				const { input, transport } = yield* makeRawTransport();
+				let shutdownCalled = false;
+				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+				yield* transport.onShutdown(() => {
+					shutdownCalled = true;
+					return Effect.void;
+				});
+				const listening = yield* Effect.forkChild(transport.listen);
+				const unhandled = Array.from({ length: 30 }, (_, index) =>
+					index % 2 === 0
+						? frame({ jsonrpc: "2.0", method: "$/cancelRequest", params: { id: 10_000 + index } })
+						: frame({ jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings: {} } }),
+				);
+				// A default PassThrough auto-destroys after `end`, so the input emits both `end` and `close`.
+				yield* Effect.sync(() =>
+					input.end(
+						[
+							initializeFrame,
+							...unhandled,
+							frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }),
+							frame({ jsonrpc: "2.0", method: "exit", params: null }),
+						].join(""),
+					),
+				);
+				const outcome = yield* Fiber.join(listening).pipe(withListenTimeout);
+				assert.isTrue(shutdownCalled, "onShutdown should have been dispatched");
+				assert.deepStrictEqual(outcome, { reason: "exit", shutdownReceived: true });
+			}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"a one-chunk batch with no exit, ended in the same tick, resolves closed only after a slow notification handler has finished and every response is written",
+		() =>
+			Effect.gen(function* () {
+				const { input, output, transport } = yield* makeRawTransport();
+				let handlerFinished = false;
+				let handlerFinishedBeforeListen = false;
+				let initializeAnsweredBeforeListen = false;
+				let slowRequestAnsweredBeforeListen = false;
+				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+				yield* transport.onNotification("okfit/slow", () =>
+					Effect.sleep("30 millis").pipe(
+						Effect.andThen(
+							Effect.sync(() => {
+								handlerFinished = true;
+							}),
+						),
+					),
+				);
+				yield* transport.onRequest("okfit/slowRequest", () => Effect.sleep("30 millis").pipe(Effect.as({ ok: true })));
+				const listening = yield* Effect.forkChild(
+					transport.listen.pipe(
+						Effect.tap(() =>
+							Effect.sync(() => {
+								handlerFinishedBeforeListen = handlerFinished;
+								initializeAnsweredBeforeListen = output.text().includes('"id":1');
+								slowRequestAnsweredBeforeListen = output.text().includes('"id":2');
+							}),
+						),
+					),
+				);
+				yield* Effect.sync(() =>
+					input.end(
+						[
+							initializeFrame,
+							frame({ jsonrpc: "2.0", method: "okfit/slow", params: {} }),
+							frame({ jsonrpc: "2.0", id: 2, method: "okfit/slowRequest", params: {} }),
+						].join(""),
+					),
+				);
+				const outcome = yield* Fiber.join(listening).pipe(withListenTimeout);
+				assert.isTrue(handlerFinishedBeforeListen, "the slow handler should have finished before listen resolved");
+				assert.isTrue(
+					initializeAnsweredBeforeListen,
+					"the initialize response should have been written before listen resolved",
+				);
+				assert.isTrue(
+					slowRequestAnsweredBeforeListen,
+					"the slow request's response should have been written before listen resolved",
+				);
+				assert.deepStrictEqual(outcome, { reason: "closed", shutdownReceived: false });
 			}).pipe(Effect.scoped),
 	);
 
