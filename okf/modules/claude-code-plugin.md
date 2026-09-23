@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-  body_sha256: e9a693099fe91274dacac71e6a67a2feb28a973526540abbc6b9ce5eb4067626
+  at: 2026-09-23T03:06:44Z
+  body_sha256: 218c0195c45549b152f94e5ec6eb2d4cee0031cb697caba69a5793326f1e3296
 ---
 
 # Claude Code Plugin
@@ -68,3 +68,19 @@ consuming repo's own `node_modules/.bin/okfit-mcp` and falls back to `npx
 `agents/okf-docs.md`'s `tools:` block and reach an agent as
 `mcp__plugin_okfit_mcp__<tool>` (`plugins/claude-code/CLAUDE.md:88-90`; see
 `okf/interfaces/okfit-mcp.md`).
+
+`.claude-plugin/plugin.json` also registers `lspServers.okfit`, running
+`bin/start-lsp.sh --stdio` through `sh`, for the `.md` extension
+(`extensionToLanguage`) with `diagnostics: true`; the loader resolves
+`node_modules/.bin/okfit-lsp` first and falls back to
+`npx --yes @okfit/lsp`, the same shape as `bin/start-mcp.sh` — see
+[LSP](lsp.md). The server starts lazily, on the first `Edit` or `Write` of
+a `.md` file in the session, and publishes diagnostics batched into the
+model's context on the next `Edit` or `Write`; they are advisory only and
+never block a tool call, unlike the `PostToolUse` hook above. Claude Code
+runs at most one language server per file extension per session, and the
+first one registered wins (`plugins/claude-code/README.md`'s §6.4 note on
+the LSP server) — another markdown LSP plugin loaded earlier in the same
+session shadows this one entirely, with no fix available while OKF bundle
+files remain plain `.md`. This is Claude Code's own behaviour, not
+something this plugin's manifest opts into or could opt out of.

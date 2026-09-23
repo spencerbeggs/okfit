@@ -1,14 +1,14 @@
 ---
 type: Module
 title: Plugin
-description: The meta-package a consuming repository installs to get both the okfit CLI and okfit-mcp bins on PATH.
+description: The meta-package a consuming repository installs to get the okfit CLI, okfit-mcp, and okfit-lsp bins on PATH.
 status: stable
 resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T16:27:51Z
-  body_sha256: 025fad39bb8ea01c1d301a23df6f47e4f691654b4ee28e55e5cf5599cf693f90
+  at: 2026-09-23T03:06:44Z
+  body_sha256: e5b6c0ad48c94fffe0e6edbdfa0b4d1e9ace520d042e610d978451ad21bda462
 ---
 
 # Plugin
@@ -16,18 +16,21 @@ generated:
 ## Purpose
 
 `@okfit/plugin` is the meta-package. It ships no behavior of its own; it
-exists so a consuming repo installs one package and gets both bins. The
-Claude Code plugin's loader (`plugins/claude-code`) runs `okfit-mcp` from
-the consuming repo's install of this package
+exists so a consuming repo installs one package and gets all three bins.
+The Claude Code plugin's loaders (`plugins/claude-code`) run `okfit-mcp`
+and `okfit-lsp` from the consuming repo's install of this package
 (`packages/plugin/CLAUDE.md:1-6`): `pnpm add -D @okfit/plugin`
-(`packages/plugin/README.md:3-7`). The plugin registers that bin as
-`mcpServers.mcp`, so the six tools it serves reach an agent as
-`mcp__plugin_okfit_mcp__<tool>` — see `okf/interfaces/okfit-mcp.md`.
+(`packages/plugin/README.md:3-7`). The plugin registers those bins as
+`mcpServers.mcp` and `lspServers.okfit`, so the six MCP tools reach an
+agent as `mcp__plugin_okfit_mcp__<tool>` — see
+`okf/interfaces/okfit-mcp.md` — and the language server publishes
+diagnostics without a tool call — see [LSP](lsp.md).
 
 ## Dependencies, not peers
 
-`@okfit/cli` and `@okfit/mcp` are declared as regular `dependencies`, each
-with its own bin shim under `src/bin/`. Each shim calls its front end's
+`@okfit/cli`, `@okfit/mcp`, and `@okfit/lsp` are declared as regular
+`dependencies`, each with its own bin shim under `src/bin/okfit.ts`,
+`src/bin/okfit-mcp.ts`, and `src/bin/okfit-lsp.ts`. Each shim calls its front end's
 `main({ distribution: { name: "@okfit/plugin", version: PLUGIN_VERSION } })`,
 so a report or `okfit --version` produced through this package names it
 (`via @okfit/plugin <version>`) while a direct install of a front end

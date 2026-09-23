@@ -29,8 +29,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T19:59:30Z
-  body_sha256: ea310acd69d2012c41c4ad6b1f816e9fc240a71c23d36dff33f9424779c7d193
+  at: 2026-09-23T03:06:44Z
+  body_sha256: 04f8107ff38839339340026e57b16976594a8e997cb5c0fa4733c9292dac1f7c
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -64,7 +64,8 @@ Two new workspace packages join [Engine](../modules/engine.md),
   feature. Standalone stdio is what lets one server serve Claude Code,
   VS Code, Neovim and Zed alike[^vscode-lsp-guide]; the
   yaml-language-server and its separate vscode-yaml extension are the
-  precedent for the split[^yaml-language-server].
+  precedent for the split[^yaml-language-server]. Shipped in phase 3
+  with diagnostics only.
 - `plugins/vscode` is a private, tag-only workspace package like the
   Claude Code plugin: reactive-vscode 1.x, one ES-module entry (desktop
   hosts load ESM since VS Code 1.100; the web host is still
@@ -124,8 +125,8 @@ repository's own bundle.
    `ExternalReferences` with only its no-op layer, the rule that a
    diagnostic without a range maps to the concept's frontmatter block
    rather than line zero, and the unsaved-document inputs for CLI and
-   MCP. Releases engine, cli, mcp. Remaining: the release, which waits
-   for the owner to call it (no changesets until then).
+   MCP. Releases engine, cli, mcp. Remaining: nothing (released
+   2026-09-22 in engine 0.7.5, cli 0.6.5, mcp 0.5.2).
 3. **Server, diagnostics only.** `packages/lsp` with the transport
    seam, the reference implementation, document sync, push diagnostics,
    a test that nothing under `src/` writes to stdout (Claude Code counts
@@ -133,7 +134,9 @@ repository's own bundle.
    child-process smoke test. The Claude Code plugin gains its
    `lspServers` entry and a `bin/start-lsp.sh` shim shaped like the MCP
    loader; the meta-package gains its third bin. A notes concept on the
-   Effect-native transport starts here. Remaining: everything.
+   Effect-native transport starts here. Done 2026-09-23: shipped
+   diagnostics-only; dogfood evidence to follow. Remaining: the dogfood
+   check and the release.
 4. **Precise ranges and navigation.** Every lint rule that knows its
    field or link attaches a range through the mapper core already owns
    (most rules attach none today, which the CLI and MCP tolerate and an

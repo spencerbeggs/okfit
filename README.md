@@ -12,6 +12,7 @@ OKF is a directory of markdown files with YAML frontmatter that captures what a 
 | `@okfit/profiles` | Named configuration profiles, starting with `software-project` |
 | `@okfit/cli` | The `okfit` command line |
 | `@okfit/mcp` | The `okfit-mcp` Model Context Protocol server |
+| `@okfit/lsp` | The okfit-lsp language server |
 | `@okfit/plugin` | The one package to install in a repository |
 
 The Claude Code plugin lives in `plugins/claude-code`.
