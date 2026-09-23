@@ -42,25 +42,35 @@ const published = (notifications: ReadonlyArray<RecordedNotification>): Readonly
 		.filter((notification) => notification.method === "textDocument/publishDiagnostics")
 		.map((notification) => notification.params as RecordedPublish);
 
-/** A fresh fixture copy wired with a real registry, publisher and diagnostics feature; one workspace folder, `root`. */
-const setup = () =>
+/**
+ * A fresh fixture copy wired with a real registry, publisher and diagnostics
+ * feature. The workspace folders are `root` alone unless `foldersOf` names
+ * others; `disposed` records the bundle root of every `onDispose` call.
+ */
+const setup = (foldersOf: (root: string) => ReadonlyArray<string> = (root) => [root]) =>
 	Effect.gen(function* () {
 		const { root } = yield* copyFixtureProject();
 		const { transport, notifications } = makeRecordingTransport();
 		const publisher = yield* makeRevalidatePublisher(transport);
+		const disposed: Array<string> = [];
 		const registry = yield* makeSessionRegistry({
 			delay: "10 millis",
 			maxWait: "10 seconds",
 			onRevalidate: publisher.publish,
-			onDispose: (handle) => publisher.clear(handle.bundleRoot),
+			onDispose: (handle) =>
+				Effect.andThen(
+					Effect.sync(() => void disposed.push(handle.bundleRoot)),
+					publisher.clear(handle.bundleRoot),
+				),
 		});
 		const feature = yield* makeDiagnosticsFeature(registry);
-		yield* registry.setFolders([root]);
+		yield* registry.setFolders(foldersOf(root));
 		return {
 			root,
 			registry,
 			feature,
 			notifications,
+			disposed,
 			alphaPath: join(root, "okf", "modules", "alpha.md"),
 			betaPath: join(root, "okf", "modules", "beta.md"),
 			configPath: join(root, ".okfit.toml"),
@@ -369,6 +379,106 @@ describe("config reload and dropped-session cleanup", () => {
 				yield* publisher.publish(handle, "full");
 
 				assert.deepStrictEqual(published(notifications), [{ uri: alphaUri, diagnostics: [] }]);
+			}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+	it.effect(
+		"(h) two folders sharing one bundle root: removing the outer folder clears nothing and a later edit still publishes; removing the last folder clears it (control)",
+		() =>
+			Effect.gen(function* () {
+				const { root, registry, feature, notifications, alphaPath } = yield* setup((root) => [root, join(root, "okf")]);
+				const alphaOnDisk = yield* Effect.promise(() => readFile(alphaPath, "utf8"));
+				const alphaUri = pathToUri(alphaPath);
+
+				// README.md is the outer folder's own document: outside the bundle, so ignored, but it resolves
+				// that folder onto the shared root.
+				yield* feature.onDocumentEvent({
+					kind: "open",
+					path: join(root, "README.md"),
+					text: yield* Effect.promise(() => readFile(join(root, "README.md"), "utf8")),
+					version: 1,
+				});
+				yield* feature.onDocumentEvent({ kind: "open", path: alphaPath, text: BROKEN_LINK(alphaOnDisk), version: 1 });
+				assert.strictEqual((yield* registry.sessions).length, 1);
+				let handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
+				yield* TestClock.adjust("20 millis");
+				yield* handle.scheduler.settle;
+				assert.isTrue(published(notifications).some((p) => p.uri === alphaUri && p.diagnostics.length > 0));
+
+				notifications.length = 0;
+				yield* registry.removeFolders([root]);
+				assert.deepStrictEqual(published(notifications), []);
+
+				// A different broken link: the diagnostics change, so the surviving session publishes them.
+				const otherBroken = alphaOnDisk.replace("See [Beta](beta.md).", "See [Elsewhere](elsewhere.md).");
+				yield* feature.onDocumentEvent({ kind: "change", path: alphaPath, text: otherBroken, version: 2 });
+				handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
+				yield* TestClock.adjust("20 millis");
+				yield* handle.scheduler.settle;
+				const afterEdit = published(notifications).filter((p) => p.uri === alphaUri);
+				assert.strictEqual(afterEdit.length, 1);
+				assert.isTrue((afterEdit[0]?.diagnostics.length ?? 0) > 0);
+
+				notifications.length = 0;
+				yield* registry.removeFolders([join(root, "okf")]);
+				assert.deepStrictEqual(published(notifications), [{ uri: alphaUri, diagnostics: [] }]);
+			}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect(
+		"(i) a config change with two folders sharing one bundle root rebuilds it once and publishes each changed file exactly once",
+		() =>
+			Effect.gen(function* () {
+				const { root, registry, feature, notifications, disposed, alphaPath, betaPath, configPath } = yield* setup(
+					(root) => [root, join(root, "okf")],
+				);
+				const baseConfig = yield* Effect.promise(() => readFile(configPath, "utf8"));
+				const oldConfig = yield* Effect.promise(() => readFile(OLD_CONFIG_VARIANT_PATH, "utf8"));
+				yield* Effect.promise(() => writeFile(configPath, oldConfig, "utf8"));
+				const alphaUri = pathToUri(alphaPath);
+				const betaUri = pathToUri(betaPath);
+
+				yield* feature.onDocumentEvent({
+					kind: "open",
+					path: join(root, "README.md"),
+					text: yield* Effect.promise(() => readFile(join(root, "README.md"), "utf8")),
+					version: 1,
+				});
+				for (const path of [alphaPath, betaPath]) {
+					yield* feature.onDocumentEvent({
+						kind: "open",
+						path,
+						text: yield* Effect.promise(() => readFile(path, "utf8")),
+						version: 1,
+					});
+				}
+				assert.strictEqual((yield* registry.sessions).length, 1);
+				let handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
+				yield* TestClock.adjust("20 millis");
+				yield* handle.scheduler.settle;
+				const initial = published(notifications);
+				assert.isTrue(
+					initial.some((p) => p.uri === alphaUri && p.diagnostics.some((d) => d.code === "status-missing")),
+				);
+				assert.isTrue(initial.some((p) => p.uri === betaUri && p.diagnostics.some((d) => d.code === "status-missing")));
+
+				notifications.length = 0;
+				yield* Effect.promise(() => writeFile(configPath, baseConfig, "utf8"));
+				yield* feature.onWatchedFiles([configPath]);
+				assert.deepStrictEqual(disposed, [join(root, "okf")]);
+				assert.strictEqual((yield* registry.sessions).length, 1);
+				handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
+				yield* TestClock.adjust("20 millis");
+				yield* handle.scheduler.settle;
+
+				const afterSwap = published(notifications);
+				assert.deepStrictEqual(
+					afterSwap.filter((p) => p.uri === alphaUri),
+					[{ uri: alphaUri, diagnostics: [] }],
+				);
+				assert.deepStrictEqual(
+					afterSwap.filter((p) => p.uri === betaUri),
+					[{ uri: betaUri, diagnostics: [] }],
+				);
 			}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 });

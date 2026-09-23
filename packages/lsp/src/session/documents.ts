@@ -7,7 +7,7 @@
 import { Effect, Ref } from "effect";
 import { isUnder } from "../internal/paths.js";
 
-/** An open document's overlay text and version, as last recorded by `record`. @public */
+/** An open document's overlay text and version, as last recorded by `record`. @internal */
 export interface OpenDocument {
 	readonly text: string;
 	readonly version: number;
@@ -19,7 +19,7 @@ export interface OpenDocument {
  * folder set, so this memory is not scoped to a folder itself; `openUnder`
  * filters by prefix at read time instead.
  *
- * @public
+ * @internal
  */
 export interface DocumentMemoryShape {
 	/** Records (or replaces) `path`'s overlay. */
@@ -33,7 +33,7 @@ export interface DocumentMemoryShape {
 /**
  * Builds a {@link DocumentMemoryShape} over a fresh `Ref`.
  *
- * @public
+ * @internal
  */
 export const makeDocumentMemory = (): Effect.Effect<DocumentMemoryShape> =>
 	Effect.gen(function* () {

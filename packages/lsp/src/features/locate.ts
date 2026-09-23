@@ -32,7 +32,7 @@ export const absolutePathOf = (root: string, relative: string): string => {
  * `conceptFor` -- the one path-to-concept lookup every navigation handler
  * shares.
  *
- * @public
+ * @internal
  */
 export const conceptAtPath = (bundle: LoadedBundle, absolutePath: string): Option.Option<LoadedConcept> =>
 	conceptFor(bundle, absolutePath);
@@ -44,9 +44,10 @@ export const conceptAtPath = (bundle: LoadedBundle, absolutePath: string): Optio
  * exactly the inverse of `DiagnosticRange.fromOffset`'s line/character
  * mapping. `position.character` is added as-is, in UTF-16 code units, which
  * is how a JavaScript string already indexes, so an astral character
- * earlier on the line needs no special handling.
+ * earlier on the line needs no special handling. A character past the end
+ * of its line clamps to that line's end, never the next line's start.
  *
- * @public
+ * @internal
  */
 export const offsetOf = (text: string, position: Position): number => {
 	let offset = 0;
@@ -64,7 +65,15 @@ export const offsetOf = (text: string, position: Position): number => {
 			offset++;
 		}
 	}
-	return offset + position.character;
+	// Clamp to the line's own end (its line break, or the end of text), as the LSP spec asks for a
+	// character past the end of the line: never let it run on into the next line.
+	const lineStart = offset;
+	while (offset < text.length && offset - lineStart < position.character) {
+		const code = text.charCodeAt(offset);
+		if (code === 0x0d || code === 0x0a) break;
+		offset++;
+	}
+	return offset;
 };
 
 /**
@@ -74,7 +83,7 @@ export const offsetOf = (text: string, position: Position): number => {
  * `bundleRelativePath` is not a concept id, the concept has no outgoing
  * edges, or none of them locate `offset`.
  *
- * @public
+ * @internal
  */
 export const edgeAt = (graph: LinkGraph, bundleRelativePath: string, offset: number): Option.Option<GraphLink> => {
 	const id = ConceptId.fromPath(bundleRelativePath);
@@ -100,7 +109,7 @@ export const edgeAt = (graph: LinkGraph, bundleRelativePath: string, offset: num
  * block, else the file's very start (`0:0`). `None` when `conceptId` is not
  * loaded in `bundle`.
  *
- * @public
+ * @internal
  */
 export const definitionOf = (bundle: LoadedBundle, conceptId: ConceptId): Option.Option<Location> => {
 	const concept = bundle.concepts.get(conceptId);

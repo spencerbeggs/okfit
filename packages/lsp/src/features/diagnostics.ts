@@ -25,9 +25,10 @@ export interface DiagnosticsFeature {
 	/** Updates the owning session's overlay and open-document memory, then schedules a revalidate; a document outside every bundle root is ignored. */
 	readonly onDocumentEvent: (event: DocumentEvent) => Effect.Effect<void>;
 	/**
-	 * Absolute paths; a config file change rebuilds its folder's session
-	 * (the old one's diagnostics are cleared by the registry's `onDispose`),
-	 * carries every open document the new session owns into it, and
+	 * Absolute paths; a config file change rebuilds its bundle root's session
+	 * once, however many workspace folders share it (the old one's
+	 * diagnostics are cleared by the registry's `onDispose`), carries every
+	 * open document the new session owns into it, and
 	 * schedules a full revalidate on it -- a config that fails to load again
 	 * is retried later exactly as before. Anything else schedules a full
 	 * revalidate on every live session. A folder whose config failed is
@@ -182,10 +183,10 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 
 		const onWatchedFiles = (paths: ReadonlyArray<string>): Effect.Effect<void> =>
 			Effect.gen(function* () {
+				// One handle per bundle root, however many workspace folders share it, so a config change
+				// rebuilds each root exactly once; distinct roots are independent (their own entry, scheduler
+				// and publisher memory), so one root's rebuild (I/O) never waits behind another's.
 				const handles = yield* registry.sessions;
-				// Every workspace folder's session is independent (its own registry entry, scheduler
-				// and bundle root), so one folder's config rebuild (I/O) never needs to wait behind
-				// another's.
 				yield* Effect.forEach(
 					handles,
 					(handle) =>
@@ -195,16 +196,22 @@ export const makeDiagnosticsFeature = (registry: SessionRegistryShape): Effect.E
 								yield* handle.scheduler.schedule("full");
 								return;
 							}
-							const rebuilt = yield* registry.rebuild(handle.folder);
-							if (Option.isNone(rebuilt)) return;
-							const newHandle = rebuilt.value;
-							const overlays = yield* documents.openUnder(newHandle.bundleRoot);
+							const rebuilt = yield* registry.rebuild(handle.bundleRoot);
 							yield* Effect.forEach(
-								overlays,
-								([documentPath, document]) => newHandle.session.open(documentPath, document.text, document.version),
+								rebuilt,
+								(newHandle) =>
+									Effect.gen(function* () {
+										const overlays = yield* documents.openUnder(newHandle.bundleRoot);
+										yield* Effect.forEach(
+											overlays,
+											([documentPath, document]) =>
+												newHandle.session.open(documentPath, document.text, document.version),
+											{ discard: true },
+										);
+										yield* newHandle.scheduler.schedule("full");
+									}),
 								{ discard: true },
 							);
-							yield* newHandle.scheduler.schedule("full");
 						}),
 					{ concurrency: "unbounded", discard: true },
 				);

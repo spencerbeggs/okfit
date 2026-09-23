@@ -36,6 +36,13 @@ describe("offsetOf", () => {
 		assert.strictEqual(offsetOf(text, { line: 1, character: line1Prefix.length }), expected);
 	});
 
+	it("clamps a character past the end of its line to that line's end, not the next line's start (in-range control first)", () => {
+		assert.strictEqual(offsetOf("abc\ndef", { line: 0, character: 3 }), 3);
+		assert.strictEqual(offsetOf("abc\ndef", { line: 0, character: 5 }), 3);
+		assert.strictEqual(offsetOf("abc\r\ndef", { line: 0, character: 9 }), 3);
+		assert.strictEqual(offsetOf("abc\ndef", { line: 1, character: 99 }), 7);
+	});
+
 	it("a lone CR (no following LF) still counts as one line break", () => {
 		assert.strictEqual(offsetOf("abc\rdef", { line: 1, character: 0 }), 4);
 	});

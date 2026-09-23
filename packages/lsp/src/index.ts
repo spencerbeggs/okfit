@@ -13,8 +13,7 @@ export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } fr
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
-export { registerHover, renderHover } from "./features/hover.js";
-export { conceptAtPath, definitionOf, edgeAt, offsetOf } from "./features/locate.js";
+export { registerHover } from "./features/hover.js";
 export { registerNavigation } from "./features/navigation.js";
 export { registerWorkspaceSymbols } from "./features/symbols.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
@@ -48,8 +47,6 @@ export type {
 export { SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
-export type { DocumentMemoryShape, OpenDocument } from "./session/documents.js";
-export { makeDocumentMemory } from "./session/documents.js";
 export type {
 	SessionForOptions,
 	SessionHandle,

@@ -18,6 +18,9 @@ import { definitionOf } from "./locate.js";
 /** Results are capped at this many entries (decision 7). */
 const WORKSPACE_SYMBOL_LIMIT = 200;
 
+/** Plain code-unit string order. */
+const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 /** `id`/`title` compare case-insensitively against `query`, unless `query` is empty, which always matches. */
 const matches = (query: string, id: ConceptId, title: string): boolean => {
 	if (query === "") return true;
@@ -45,7 +48,9 @@ const symbolsOf = (bundle: LoadedBundle, query: string): ReadonlyArray<readonly 
  * Wires `workspace/symbol` onto `transport`, answering from every live
  * session's (`registry.sessions`) last-loaded bundle: case-insensitive
  * substring over id and title, an empty query matches every concept, capped
- * at 200 results (`WORKSPACE_SYMBOL_LIMIT`) sorted by id (decision 7).
+ * at 200 results (`WORKSPACE_SYMBOL_LIMIT`) sorted by id (decision 7), then by
+ * URI. One symbol per definition URI: the same id in two bundles is two
+ * symbols.
  *
  * @public
  */
@@ -57,15 +62,19 @@ export const registerWorkspaceSymbols = (
 		Effect.gen(function* () {
 			const handles = yield* registry.sessions;
 			const bundles = yield* Effect.forEach(handles, (handle) => handle.session.bundle());
-			const byId = new Map<ConceptId, SymbolInformation>();
+			// Keyed by the definition's URI, not the bare id: two bundles can each carry the same id (every
+			// software-project bundle has `project`), and those are two symbols. The registry holds one
+			// session per bundle root, so the same concept never arrives twice.
+			const byUri = new Map<string, readonly [ConceptId, SymbolInformation]>();
 			for (const bundle of bundles) {
 				if (Option.isNone(bundle)) continue;
-				for (const [id, symbol] of symbolsOf(bundle.value, params.query)) {
-					if (!byId.has(id)) byId.set(id, symbol);
+				for (const entry of symbolsOf(bundle.value, params.query)) {
+					const uri = entry[1].location.uri;
+					if (!byUri.has(uri)) byUri.set(uri, entry);
 				}
 			}
-			return [...byId.entries()]
-				.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+			return [...byUri.values()]
+				.sort(([a, x], [b, y]) => compare(a, b) || compare(x.location.uri, y.location.uri))
 				.slice(0, WORKSPACE_SYMBOL_LIMIT)
 				.map(([, symbol]) => symbol);
 		}),

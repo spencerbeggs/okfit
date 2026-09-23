@@ -16,7 +16,12 @@ src/
                      build-time constant the bundler injects -- never a
                      package.json import
   errors.ts      -- LspError: the one failure a request handler may return
-  index.ts       -- public barrel; this is what later tasks and tests import
+  index.ts       -- public barrel for embedders: the transport seam, serve,
+                     the registry, the register* features, the diagnostics
+                     publisher and feature, SYMBOL_KIND_OBJECT and the
+                     convert helpers; implementation helpers (locate.ts,
+                     renderHover, documents.ts) are @internal and tests
+                     import them from their src/ paths
   internal/
     messageOf.ts   -- messageOf: the error's `message` when it has one as a
                       string, else `String(error)`; shared by
@@ -51,7 +56,8 @@ src/
                        WorkspaceSymbol*, SymbolInformation, ...) plus the
                        numeric constant SYMBOL_KIND_OBJECT (19, SymbolKind.Object)
   session/
-    documents.ts    -- DocumentMemoryShape, makeDocumentMemory: a
+    documents.ts    -- DocumentMemoryShape, makeDocumentMemory (@internal,
+                       not in the barrel): a
                        registry-wide Ref<Map<absolutePath, {text, version}>>
                        of open documents, keyed by absolute path (ownership
                        shifts with the workspace folder set, so this is not
@@ -79,27 +85,33 @@ src/
                        it forks the interrupt into the scheduler's scope
                        instead and returns
     registry.ts     -- makeSessionRegistry: workspace folders -> one
-                       BundleSession per bundle root, lazily, with config
-                       discovery per folder; SessionHandle bundles a
-                       folder's session and scheduler; SessionRegistryShape
-                       .rebuild(folder) builds a fresh entry and swaps it
-                       into the cache in place of the old one, then disposes
-                       the old one (running the registry's onDispose on its
-                       old handle, if it had one) -- a config that fails to
-                       load is recorded as a failure and retried later
-                       exactly like any other failed build.
-                       removeFolders/setFolders also run onDispose for
-                       every folder they drop. Lock order: the registry's
-                       single gate semaphore guards only the cache map's
-                       reads and writes, never Scope.close or onDispose --
-                       both run with the gate released so disposing one
-                       folder never stalls sessionFor/entryFor for another.
-                       rebuild swaps the fresh entry in before disposing the
-                       old one and never removes the folder from the cache
-                       in between, so a sessionFor racing the same folder
-                       mid-rebuild finds the still-valid outgoing session
-                       instead of a miss -- see the docstring for why this
-                       makes a per-folder lock unnecessary
+                       BundleSession per resolved bundle root, lazily, with
+                       config discovery per folder. State is one Ref of
+                       { folders: folder -> slot, roots: bundleRoot ->
+                       entry }: a folder slot is Unbuilt, Building (a
+                       Deferred concurrent callers await), Failed, or Live
+                       (pointing at a root); a root entry holds the handle,
+                       its scope and the set of folders resolving to it (the
+                       refcount). Two folders resolving to one root (/repo
+                       and /repo/okf) share one session; removing a folder
+                       disposes the root entry only when its last folder
+                       goes. SessionRegistryShape.rebuild(bundleRoot)
+                       re-resolves every folder of that root once, builds
+                       the fresh session(s), swaps them in, then disposes
+                       exactly the entry the swap replaced (onDispose runs
+                       once per session, never per folder); a folder whose
+                       config now fails is recorded as Failed and retried
+                       later like any other failed build. `sessions` lists
+                       each root once. Lock order: every transition is one
+                       synchronous Ref.modify, so nothing holds a lock
+                       across I/O -- config resolution, BundleSession.make,
+                       Scope.close and onDispose all run outside it, and a
+                       first request for an unbuilt folder stalls only
+                       callers for that same folder (they await its
+                       Building Deferred). Folders keep pointing at the
+                       outgoing session until the rebuild's swap, so a
+                       sessionFor racing a rebuild finds a valid session,
+                       never a miss
   features/
     documentSync.ts -- DocumentEvent, registerDocumentSync: the four
                        textDocument/did* notifications as events on
@@ -132,11 +144,14 @@ src/
                        -- no mutable box, since the publisher exists in
                        full before the registry needs either of its
                        members.
-    locate.ts       -- position and identity helpers navigation.ts shares:
+    locate.ts       -- position and identity helpers navigation.ts,
+                       hover.ts and symbols.ts share (all @internal, not in
+                       the barrel):
                        conceptAtPath (delegates to the engine's conceptFor),
                        offsetOf(text, position) (LSP position -> UTF-16
                        offset, the inverse of DiagnosticRange.fromOffset's
-                       line/character mapping), edgeAt(graph,
+                       line/character mapping; a character past the end of
+                       its line clamps to that line's end), edgeAt(graph,
                        bundleRelativePath, offset) (the outgoing edge whose
                        recorded position contains offset, ties broken by the
                        shorter span), definitionOf(bundle, conceptId) (see
@@ -145,8 +160,8 @@ src/
                        documentLink, textDocument/definition,
                        textDocument/references (see Navigation below)
     hover.ts        -- registerHover(transport, registry): textDocument/hover;
-                       renderHover is the pure markdown renderer, tested
-                       directly (see Navigation below)
+                       renderHover (@internal, not in the barrel) is the
+                       pure markdown renderer, tested directly (see Navigation below)
     symbols.ts      -- registerWorkspaceSymbols(transport, registry):
                        workspace/symbol across every live session (see
                        Navigation below)
@@ -164,16 +179,19 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Tier per event: `didOpen` and `didSave` schedule the `full` tier;
   `didChange` and `didClose` the `edit` tier. A watched-file change
   schedules `full` on every live session, except a config discovery file,
-  which rebuilds that folder's session instead: the old session's
+  which rebuilds that session's bundle root instead -- once, however many
+  workspace folders share it: the old session's
   diagnostics are cleared, every document still open under the new
   session's bundle root is re-opened onto it from `session/documents.ts`'s
   registry-wide memory, and a full revalidate is scheduled on it. A config
   that still fails to load after the rebuild is retried later exactly like
   any other failed build (`okf/limitations/no-config-reload-in-phase-3.md`,
   discharged by the phase 4 rebuild path above).
-- **Dropped session.** Whenever a folder's entry is disposed with a live
-  session -- a config-change rebuild, `removeFolders`, or `setFolders`
-  dropping it -- the registry's `onDispose` runs, and `clear(root)`
+- **Dropped session.** Whenever a bundle root's session is disposed -- a
+  config-change rebuild, or `removeFolders`/`setFolders` dropping the last
+  workspace folder that resolves to it (dropping one of several folders
+  sharing a root disposes nothing) -- the registry's `onDispose` runs once
+  for that session, and `clear(root)`
   publishes `[]` for every URI that session had last published non-empty,
   then forgets it. A URI a normal publish already emptied (and so already
   dropped from the remembered set) does not get a second `[]` from a later
@@ -262,8 +280,9 @@ every bundle root all answer `null`/`[]` -- never a hang.
   the title (the id when there is no title), `containerName` is the type,
   `kind` is `SYMBOL_KIND_OBJECT`, `location` is `definitionOf`. The filter is
   a case-insensitive substring over id and title; an empty query matches
-  every concept. Results are deduplicated by id, sorted by id, and capped at
-  200.
+  every concept. Results are deduplicated by definition URI, not id (two
+  bundles each with a `project` concept are two symbols), sorted by id then
+  URI, and capped at 200.
 
 Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
 range conversion goes through `convert/range.ts`'s `toLspRange`/
@@ -430,5 +449,6 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
   wins on disagreement.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type
   imports are separate `import type` statements. TSDoc `@public` on every
-  `src/` export. Tab indentation.
+  barrel export; an implementation helper shared across files but kept out
+  of the barrel is `@internal`. Tab indentation.
 - Commits are conventional, DCO signed, and never on `main`.

@@ -71,7 +71,7 @@ const renderFieldHover = (key: string, description: string): string => `**${key}
  * one of `target`, `type` or `field` is set by the caller per request;
  * calling with none set renders `undefined` (no hover).
  *
- * @public
+ * @internal
  */
 export const renderHover = (input: {
 	readonly target?: { readonly concept: LoadedConcept; readonly now: DateTime.Utc };

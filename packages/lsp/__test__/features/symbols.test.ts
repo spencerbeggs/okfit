@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { DateTime, Effect, Option } from "effect";
+import { pathToUri } from "../../src/convert/uri.js";
 import { registerWorkspaceSymbols } from "../../src/features/symbols.js";
 import type { SymbolInformation, WorkspaceSymbolParams } from "../../src/protocol/types.js";
 import { SYMBOL_KIND_OBJECT } from "../../src/protocol/types.js";
@@ -142,6 +143,33 @@ describe("registerWorkspaceSymbols", () => {
 				assert.deepStrictEqual(
 					onlyOne.map((symbol) => symbol.name),
 					["Alpha"],
+				);
+			}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect(
+		"two bundles each carrying the same id (`project`) are two symbols, one per definition URI; a title matching only one returns that one (control)",
+		() =>
+			Effect.gen(function* () {
+				const { rootA, rootB, call } = yield* setupTwoFolders(
+					{ "project.md": concept("First Project") },
+					{ "project.md": concept("Second Project") },
+				);
+				const all = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {
+					query: "project",
+				});
+				assert.deepStrictEqual(all.map((symbol) => symbol.name).toSorted(), ["First Project", "Second Project"]);
+				assert.deepStrictEqual(
+					all.map((symbol) => symbol.location.uri).toSorted(),
+					[pathToUri(`${rootA}/project.md`), pathToUri(`${rootB}/project.md`)].toSorted(),
+				);
+
+				const onlyOne = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {
+					query: "Second",
+				});
+				assert.deepStrictEqual(
+					onlyOne.map((symbol) => symbol.name),
+					["Second Project"],
 				);
 			}).pipe(Effect.provide(platform), Effect.scoped),
 	);
