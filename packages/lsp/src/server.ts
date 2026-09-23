@@ -5,7 +5,7 @@
  */
 import type { Distribution } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
-import { Cause, Effect, Exit, Option, Queue } from "effect";
+import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
 import type { DiagnosticsFeature } from "./features/diagnostics.js";
 import { makeDiagnosticsFeature } from "./features/diagnostics.js";
@@ -68,8 +68,10 @@ const INITIALIZE_RESULT: InitializeResult = {
  * fiber drains in order, so document events and workspace-folder changes
  * apply in the order the client sent them even though the transport runs
  * each handler on its own fiber. A defect in one unit of work is logged and
- * the queue keeps draining. `shutdown` waits for every session's scheduler
- * to settle, so a revalidate in flight finishes before the process exits.
+ * the queue keeps draining. `shutdown` first waits for the queue to drain
+ * up to its own arrival, then for every session's scheduler to settle, so
+ * work the client sent before `shutdown` is revalidated and published
+ * before the response.
  *
  * @public
  */
@@ -136,6 +138,10 @@ export const serve = (
 		yield* registerDocumentSync(transport, (event) => enqueue(feature.onDocumentEvent(event)));
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
+				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.
+				const drained = yield* Deferred.make<void>();
+				yield* enqueue(Deferred.succeed(drained, undefined));
+				yield* Deferred.await(drained);
 				const handles = yield* registry.sessions;
 				yield* Effect.forEach(handles, (handle) => handle.scheduler.settle, { discard: true });
 			}),

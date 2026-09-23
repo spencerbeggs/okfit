@@ -148,7 +148,35 @@ describe("serve", () => {
 			yield* h.change("okf/modules/alpha.md", BROKEN(text), 2);
 			const published = yield* h.nextPublish();
 			assert.strictEqual(published.diagnostics[0].code, "broken-links");
+			// The publish above is the positive control: once the folder is removed, the same kind of edit publishes nothing.
+			yield* notify(h.client, "workspace/didChangeWorkspaceFolders", {
+				event: { added: [], removed: [{ uri: h.uriOf(""), name: "project" }] },
+			});
+			yield* h.change("okf/modules/alpha.md", BROKEN(text).replace("gamma", "delta"), 3);
+			yield* Effect.sleep("100 millis");
+			assert.deepStrictEqual(yield* h.drainPublished, []);
 		}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"shutdown drains queued document work: a publish for an edit sent just before shutdown precedes the response",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness;
+				yield* h.initialize;
+				const text = yield* readFixture(h.root, "okf/modules/alpha.md");
+				yield* h.open("okf/modules/alpha.md", BROKEN(text));
+				yield* request(h.client, "shutdown", null);
+				// Taken without waiting: only publishes that arrived before the shutdown response count.
+				const before = yield* h.pollPublished;
+				assert.ok(
+					before.some(
+						(p) => p.uri === h.uriOf("okf/modules/alpha.md") && p.diagnostics.some((d) => d.code === "broken-links"),
+					),
+				);
+				yield* notify(h.client, "exit", null);
+				assert.deepStrictEqual(yield* Fiber.join(h.listening), { reason: "exit", shutdownReceived: true });
+			}).pipe(Effect.scoped),
 	);
 
 	it.live("a bundle-level diagnostic publishes against the bundle's index.md", () =>

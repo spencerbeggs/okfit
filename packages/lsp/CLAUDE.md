@@ -78,7 +78,9 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Notification work runs on one queue drained by a single fiber, in the
   order the client sent it; the transport itself runs every handler on its
   own fiber, so without the queue a `didChange` could overtake the
-  `didOpen` before it. `shutdown` waits for every scheduler to settle.
+  `didOpen` before it. `shutdown` drains that queue up to its own arrival,
+  then waits for every scheduler to settle, so work sent before it is
+  published before the response.
 
 ## The transport seam
 

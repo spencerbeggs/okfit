@@ -37,6 +37,8 @@ export interface Harness {
 	/** Every publish received so far, drained. */
 	readonly drainPublished: Effect.Effect<ReadonlyArray<Published>>;
 	readonly closeClientOutput: Effect.Effect<void>;
+	/** Every publish already received, taken without waiting for more. */
+	readonly pollPublished: Effect.Effect<ReadonlyArray<Published>>;
 	/** Takes publishes until one satisfies `predicate` and returns it; fails when none does within `timeout` in total. */
 	readonly drainUntil: (
 		predicate: (published: Published) => boolean,
@@ -80,7 +82,8 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 				if (predicate(next)) return next;
 			}
 		}).pipe(Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.fail("no publish" as const) }));
-	return { transport, client, nextPublish, drainPublished, closeClientOutput, drainUntil };
+	const pollPublished: Effect.Effect<ReadonlyArray<Published>> = Queue.clear(published);
+	return { transport, client, nextPublish, drainPublished, closeClientOutput, drainUntil, pollPublished };
 });
 
 /** A {@link Harness} with `serve` running against a fresh copy of the fixture project. */
