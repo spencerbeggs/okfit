@@ -1,6 +1,7 @@
 import { PassThrough } from "node:stream";
 import { assert, describe, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber, References } from "effect";
+import type { Duration } from "effect";
+import { Deferred, Effect, Fiber, Option, References } from "effect";
 import { LspError } from "../../src/errors.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import { makeHarness, notify, request } from "../utils/harness.js";
@@ -18,10 +19,8 @@ const initializeFrame = frame({
 	params: { processId: null, rootUri: null, capabilities: {} },
 });
 
-const withListenTimeout = <A, E, R>(self: Effect.Effect<A, E, R>) =>
-	self.pipe(
-		Effect.timeoutOrElse({ duration: "2 seconds", orElse: () => Effect.fail("listen never resolved" as const) }),
-	);
+const withListenTimeout = <A, E, R>(self: Effect.Effect<A, E, R>, duration: Duration.Input = "2 seconds") =>
+	self.pipe(Effect.timeoutOrElse({ duration, orElse: () => Effect.fail("listen never resolved" as const) }));
 
 /**
  * A reference transport over raw in-memory streams, for tests that must write
@@ -196,7 +195,7 @@ describe("ReferenceTransport", () => {
 	);
 
 	it.live(
-		"a one-chunk batch with no exit, ended in the same tick, resolves closed only after a slow notification handler has finished and every response is written",
+		"a one-chunk batch with no exit, ended in the same tick, resolves closed only after a slow notification handler has finished, and its notification and every response are written",
 		() =>
 			Effect.gen(function* () {
 				const { input, output, transport } = yield* makeRawTransport();
@@ -204,9 +203,11 @@ describe("ReferenceTransport", () => {
 				let handlerFinishedBeforeListen = false;
 				let initializeAnsweredBeforeListen = false;
 				let slowRequestAnsweredBeforeListen = false;
+				let pongSentBeforeListen = false;
 				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
 				yield* transport.onNotification("okfit/slow", () =>
 					Effect.sleep("30 millis").pipe(
+						Effect.andThen(transport.sendNotification("okfit/pong", { from: "drain" })),
 						Effect.andThen(
 							Effect.sync(() => {
 								handlerFinished = true;
@@ -222,6 +223,7 @@ describe("ReferenceTransport", () => {
 								handlerFinishedBeforeListen = handlerFinished;
 								initializeAnsweredBeforeListen = output.text().includes('"id":1');
 								slowRequestAnsweredBeforeListen = output.text().includes('"id":2');
+								pongSentBeforeListen = output.text().includes('"method":"okfit/pong"');
 							}),
 						),
 					),
@@ -245,8 +247,52 @@ describe("ReferenceTransport", () => {
 					slowRequestAnsweredBeforeListen,
 					"the slow request's response should have been written before listen resolved",
 				);
+				assert.isTrue(
+					pongSentBeforeListen,
+					"the notification the slow handler sent should have been written before listen resolved",
+				);
 				assert.deepStrictEqual(outcome, { reason: "closed", shutdownReceived: false });
 			}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"an input that ends in the middle of a frame after a valid initialize resolves listen with reason: closed",
+		() =>
+			Effect.gen(function* () {
+				const { input, output, transport } = yield* makeRawTransport();
+				yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+				const listening = yield* Effect.forkChild(transport.listen);
+				yield* Effect.sync(() => input.end(`${initializeFrame}Content-Length: 500\r\n\r\n{"jsonrpc":`));
+				const outcome = yield* Fiber.join(listening).pipe((self) => withListenTimeout(self, "5 seconds"));
+				assert.include(output.text(), '"id":1', "the initialize response should have been written");
+				assert.deepStrictEqual(outcome, { reason: "closed", shutdownReceived: false });
+			}).pipe(Effect.scoped),
+		10_000,
+	);
+
+	it.live("a client that sends okfit/$inputEnded itself does not end the session", () =>
+		Effect.gen(function* () {
+			const { input, transport } = yield* makeRawTransport();
+			const after = yield* Deferred.make<void>();
+			yield* transport.onInitialize(() => Effect.succeed({ capabilities: {} }));
+			yield* transport.onRequest("okfit/after", () => Deferred.succeed(after, undefined).pipe(Effect.as({ ok: true })));
+			const listening = yield* Effect.forkChild(transport.listen);
+			yield* Effect.sync(() =>
+				input.write(
+					[
+						initializeFrame,
+						frame({ jsonrpc: "2.0", method: "okfit/$inputEnded", params: null }),
+						frame({ jsonrpc: "2.0", id: 2, method: "okfit/after", params: {} }),
+					].join(""),
+				),
+			);
+			yield* Deferred.await(after);
+			const early = yield* Fiber.join(listening).pipe(Effect.timeoutOption("200 millis"));
+			assert.isTrue(Option.isNone(early), "listen should still be pending while the input is open");
+			yield* Effect.sync(() => input.end());
+			const outcome = yield* Fiber.join(listening).pipe(withListenTimeout);
+			assert.deepStrictEqual(outcome, { reason: "closed", shutdownReceived: false });
+		}).pipe(Effect.scoped),
 	);
 
 	it.effect("a handler registered after listen has started still answers (registration is not order-sensitive)", () =>

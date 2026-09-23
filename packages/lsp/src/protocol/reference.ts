@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
-import type { Exit, Scope } from "effect";
-import { Cause, Deferred, Effect, FiberSet, Option } from "effect";
+import type { Exit, Fiber, Scope } from "effect";
+import { Cause, Deferred, Effect, FiberSet, Option, Predicate } from "effect";
 import type { Connection, WatchDog } from "vscode-languageserver";
 import { createConnection as createServerConnection } from "vscode-languageserver";
 import {
@@ -31,16 +32,27 @@ const INTERNAL_ERROR_MESSAGE = "Internal error";
 
 /**
  * The reserved notification the transport appends to its own reader input when
- * the caller's input stream ends. No client sends it; it only ever comes from
- * the transport itself.
+ * the caller's input stream ends. Its params carry a token minted per
+ * transport, so a client that sends this method itself is ignored.
  */
 const INPUT_ENDED_METHOD = "okfit/$inputEnded";
 
-/** The frame that carries `INPUT_ENDED_METHOD`, in the wire's `Content-Length` framing. */
-const INPUT_ENDED_FRAME = (() => {
-	const body = JSON.stringify({ jsonrpc: "2.0", method: INPUT_ENDED_METHOD, params: null });
+/** One `Content-Length` frame of `INPUT_ENDED_METHOD` carrying `token`. */
+const inputEndedFrame = (token: string): string => {
+	const body = JSON.stringify({ jsonrpc: "2.0", method: INPUT_ENDED_METHOD, params: { token } });
 	return `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n${body}`;
-})();
+};
+
+/**
+ * How long after the input ends the transport waits for its sentinel to be
+ * dispatched before draining without it. The sentinel is never dispatched when
+ * the input ended in the middle of a frame: the reader counts the sentinel's
+ * bytes toward the truncated frame. Decoding and queueing whatever was already
+ * buffered takes milliseconds even for a large batch, so two seconds only
+ * delays `"closed"` for a client that died mid-write, and never cuts short a
+ * batch that is still being dispatched.
+ */
+const SENTINEL_FALLBACK_TIMEOUT = "2 seconds";
 
 /**
  * How long the `"closed"` drain waits, once every handler has finished, for the
@@ -77,7 +89,14 @@ type WriterMessage = Parameters<StreamMessageWriter["write"]>[0];
  * every earlier message's processing (a request's response write included)
  * and for every write the transport's writer has outstanding, and resolves
  * `listen` with `"closed"`. The write wait is bounded by
- * `WRITE_SETTLE_TIMEOUT`; the handler wait is not.
+ * `WRITE_SETTLE_TIMEOUT`; the handler wait is not. The notification's params
+ * carry a token minted per transport, and a copy sent by the client is
+ * ignored. When the input ends in the middle of a frame the reader never
+ * dispatches the sentinel, so `SENTINEL_FALLBACK_TIMEOUT` after the input
+ * ends the same drain runs without it; the sentinel's arrival cancels that
+ * fallback. The owned `PassThrough` does not emit `close`, so the connection
+ * stays open, and a handler can still send, until the scope's finalizer
+ * disposes it.
  *
  * Without `streams`, the library's node entry reads the connection kind from
  * argv and keeps its own exit behaviour: `exit` and input end terminate the
@@ -129,14 +148,10 @@ export const makeReferenceTransport = (
 		};
 
 		const streams = options?.streams;
-		const readerInput = new PassThrough();
+		/* `emitClose: false`: the reader's `onClose` would mark the connection Closed before the drain runs, and a drained handler could no longer send. The finalizer's `dispose` closes it instead. */
+		const readerInput = new PassThrough({ emitClose: false });
+		const sentinelToken = randomUUID();
 		let inputEnded = false;
-		const onInputEnded = (): void => {
-			if (inputEnded || !streams) return;
-			inputEnded = true;
-			streams.input.unpipe(readerInput);
-			readerInput.end(INPUT_ENDED_FRAME);
-		};
 
 		const connection: Connection = streams
 			? createServerConnection(
@@ -148,7 +163,10 @@ export const makeReferenceTransport = (
 							track(writesInFlight, written);
 							return written;
 						};
-						return createProtocolConnection(new StreamMessageReader(readerInput), writer, logger, {
+						const reader = new StreamMessageReader(readerInput);
+						/* The reader re-arms a 10 s partial-message timer forever on a truncated frame and never clears it on dispose; nothing here listens for it. */
+						reader.partialMessageTimeout = 0;
+						return createProtocolConnection(reader, writer, logger, {
 							messageStrategy: {
 								handleMessage: (message, next) => {
 									const result = next(message);
@@ -170,12 +188,6 @@ export const makeReferenceTransport = (
 		});
 		connection.onExit(() => finish("exit"));
 
-		if (streams) {
-			streams.input.pipe(readerInput, { end: false });
-			streams.input.once("end", onInputEnded);
-			streams.input.once("close", onInputEnded);
-		}
-
 		yield* Effect.addFinalizer(() =>
 			Effect.sync(() => {
 				if (streams) {
@@ -194,21 +206,45 @@ export const makeReferenceTransport = (
 		/* The drain runs outside `handlers`, so it can wait for that set to empty; its own set interrupts it when the scope closes. */
 		const runDrain = yield* FiberSet.makeRuntime<never, void, never>();
 
+		/** Waits for every handler, then for `messages` and the writer's outstanding writes (bounded), and resolves `"closed"`. */
+		const drainThenClose = (messages: () => ReadonlyArray<Promise<void>>): Effect.Effect<void> =>
+			Effect.gen(function* () {
+				yield* FiberSet.awaitEmpty(handlers);
+				yield* Effect.promise(() => Promise.all([...messages(), ...writesInFlight])).pipe(
+					Effect.timeoutOption(WRITE_SETTLE_TIMEOUT),
+				);
+				finish("closed");
+			});
+
+		let sentinelSeen = false;
+		let fallback: Fiber.Fiber<void> | undefined;
+		const onInputEnded = (): void => {
+			if (inputEnded || !streams) return;
+			inputEnded = true;
+			streams.input.unpipe(readerInput);
+			readerInput.end(inputEndedFrame(sentinelToken));
+			fallback = runDrain(
+				Effect.sleep(SENTINEL_FALLBACK_TIMEOUT).pipe(
+					Effect.andThen(
+						Effect.suspend(() => (sentinelSeen ? Effect.void : drainThenClose(() => [...messagesInFlight]))),
+					),
+				),
+			);
+		};
+
 		if (streams) {
-			connection.onNotification(INPUT_ENDED_METHOD, () => {
+			connection.onNotification(INPUT_ENDED_METHOD, (params: unknown) => {
+				if (!inputEnded || !Predicate.hasProperty(params, "token") || params.token !== sentinelToken) return;
+				sentinelSeen = true;
+				fallback?.interruptUnsafe();
 				if (finished) return;
 				/* Taken synchronously: this notification's own processing is not yet in the set, and nothing is dispatched after it. */
 				const earlierMessages = [...messagesInFlight];
-				runDrain(
-					Effect.gen(function* () {
-						yield* FiberSet.awaitEmpty(handlers);
-						yield* Effect.promise(() => Promise.all([...earlierMessages, ...writesInFlight])).pipe(
-							Effect.timeoutOption(WRITE_SETTLE_TIMEOUT),
-						);
-						finish("closed");
-					}),
-				);
+				runDrain(drainThenClose(() => earlierMessages));
 			});
+			streams.input.pipe(readerInput, { end: false });
+			streams.input.once("end", onInputEnded);
+			streams.input.once("close", onInputEnded);
 		}
 
 		const run = <A, E>(effect: Effect.Effect<A, E>): Promise<Exit.Exit<A, E>> =>

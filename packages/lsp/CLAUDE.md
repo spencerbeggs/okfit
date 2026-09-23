@@ -131,9 +131,19 @@ transport-owned writer's outstanding writes, bounded by
 `WRITE_SETTLE_TIMEOUT`, and resolves `"closed"`. `exit` itself does not wait:
 with the library's default unlimited parallelism the queue dispatches `exit`
 without waiting for an earlier `shutdown`'s reply, so a client that does not
-wait for that reply may not get it. The scope finalizer interrupts a running
-drain, unpipes the input and ends the `PassThrough`. Covered by the one-chunk
-cases in `__test__/protocol/reference.test.ts`.
+wait for that reply may not get it. The sentinel's params carry a token minted
+per transport, so a client sending `okfit/$inputEnded` itself is ignored. An
+input that ends in the middle of a frame swallows the sentinel into that
+frame, so `SENTINEL_FALLBACK_TIMEOUT` (2 s) after the input ends the same
+drain runs without it; the sentinel's arrival cancels the fallback. The
+`PassThrough` is built with `emitClose: false`, so the reader never marks the
+connection Closed and a drained handler can still send; the scope finalizer
+interrupts a running drain, unpipes the input, ends the `PassThrough` and
+disposes the connection. The reader's partial-message timer is disabled
+(`partialMessageTimeout = 0`): on a truncated frame it re-arms forever and
+survives `dispose`, keeping the event loop alive. Covered by the one-chunk,
+truncated-frame and spoofed-sentinel cases in
+`__test__/protocol/reference.test.ts`.
 
 A future Effect-native transport is done when
 `__test__/protocol/reference.test.ts` passes unchanged against it.
