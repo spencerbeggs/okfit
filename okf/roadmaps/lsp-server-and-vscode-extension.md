@@ -13,6 +13,10 @@ sources:
     resource: conversation with the repository owner
     author: human:spencer
     last_modified: 2026-09-22T00:00:00Z
+  - id: owner-sequencing
+    resource: conversation with the repository owner
+    author: human:spencer
+    last_modified: 2026-09-23T00:00:00Z
   - id: claude-code-plugins-reference
     resource: https://code.claude.com/docs/en/plugins-reference.md
   - id: vscode-lsp-guide
@@ -29,8 +33,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T18:05:30Z
-  body_sha256: cf2191cbe5c833753223bc1ca45224176066acec57bb66c07f904abd099a1583
+  at: 2026-09-23T18:12:49Z
+  body_sha256: 450d326d55f9629f15ca9b5b5cc90a31995be9eca567be141555ddac847bf8a2
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -105,7 +109,7 @@ workspace-folders notifications, and a resource-scoped server-path
 setting[^vscode-multi-root]. reactive-vscode has no language-client
 composable, so the client is wired by hand and disposed through the
 reactive API[^reactive-vscode]. Phase 6 was sequenced before phase 5 on
-2026-09-22, by the owner's decision[^owner-brainstorm], so the extension's
+2026-09-23, by the owner's decision[^owner-sequencing], so the extension's
 first release ships without Set Status, Mark Verified or inlay hints; the
 extension's tracking package lives at `vscode/`, sibling to `packages/*`
 and `plugins/claude-code`, not under either -- see [The VS Code extension
@@ -228,6 +232,7 @@ then markdownlint-cli2 keeps its job unchanged, since it is a command
 rather than a language server and never competes for the `.md` slot.
 
 [^owner-brainstorm]: conversation with the repository owner
+[^owner-sequencing]: conversation with the repository owner
 [^claude-code-plugins-reference]: <https://code.claude.com/docs/en/plugins-reference.md>
 [^vscode-lsp-guide]: <https://code.visualstudio.com/api/language-extensions/language-server-extension-guide>
 [^vscode-1-100-notes]: <https://code.visualstudio.com/updates/v1_100>

@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T18:05:30Z
-  body_sha256: 2caddadf005707446b0ee9c326597d9e8ddff79d783b400556c2fa562d07cc14
+  at: 2026-09-23T18:12:49Z
+  body_sha256: a860bfb1ebaa4be82daaf6ff30f695c7ff7ce34b0e78c8514f55adff1db3834a
 ---
 
 # VS Code Extension
@@ -76,13 +76,13 @@ methods).
 - `server/main.ts` -- the bundled language server entry: calls
   `@okfit/lsp`'s `main`'s program with a `Distribution` shaped for the
   extension host.
-- `lib/package-vsix.ts` (`vscode/lib/package-vsix.ts:1-22`) -- runs `vsce
+- `lib/package-vsix.ts` (`vscode/lib/package-vsix.ts:1-21`) -- runs `vsce
   package --no-dependencies` against a copy of `package.json` whose `name`
   is rewritten to the Marketplace name `okfit` (the workspace package stays
   `@okfit/vscode-extension` for pnpm and changesets); the only place that
   rewrite happens, since `vsce publish --packagePath` reads the name from
   inside an already-built `.vsix`.
-- `lib/assert-version.sh` (`vscode/lib/assert-version.sh:1-19`) -- asserts
+- `lib/assert-version.sh` (`vscode/lib/assert-version.sh:1-18`) -- asserts
   a release tag's version matches `package.json`'s `version` before the
   publish workflow packages anything.
 
@@ -140,16 +140,13 @@ and as toolbar actions on the OKF Concepts view's title bar.
 
 ## Distribution
 
-Releases are cut by changesets like every other workspace member: a merged
-changeset for `@okfit/vscode-extension` produces the tag
-`@okfit/vscode-extension@X.Y.Z` and a GitHub release, which the `VS Code
-Marketplace` workflow (`.github/workflows/vscode-marketplace.yml`)
-packages, attaches `okfit.vsix` to, then publishes to the Visual Studio
-Marketplace and Open VSX using Microsoft Entra ID workload identity
-federation (falling back to a `VSCE_PAT` secret when set) and an
-`OVSX_PAT` secret respectively. Procedure, secrets table and dry-run
-instructions: [Publish the VS Code
-extension](../runbooks/publish-vscode-extension.md).
+Tag-only, like `plugins/claude-code`: a merged changeset for
+`@okfit/vscode-extension` tags a GitHub release, which the `VS Code
+Marketplace` workflow packages and publishes to the Visual Studio
+Marketplace and Open VSX, checking for a `VSCE_PAT` secret first and
+falling back to Microsoft Entra ID workload identity federation only when
+none is set. Procedure, secrets table and dry-run instructions: [Publish
+the VS Code extension](../runbooks/publish-vscode-extension.md).
 
 ## Not in scope
 

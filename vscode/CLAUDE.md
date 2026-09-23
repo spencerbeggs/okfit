@@ -1,8 +1,9 @@
 # @okfit/vscode-extension
 
-The `okfit` VS Code extension. Ships a language client for `@okfit/lsp`
-plus (in later tasks) a tree view and commands, bundled by `tsdown` into
-two ESM entries: `dist/extension.js` (the extension host process) and
+The `okfit` VS Code extension. Ships a language client for `@okfit/lsp`,
+the OKF Concepts explorer tree view, a Language Status item, and the
+Validate Bundle and Open Concept commands, bundled by `tsdown` into two
+ESM entries: `dist/extension.js` (the extension host process) and
 `dist/server.js` (the language server, bundled standalone so the `.vsix`
 ships no `node_modules`).
 
