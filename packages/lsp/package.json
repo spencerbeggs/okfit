@@ -22,7 +22,11 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./main": "./src/main.ts",
 		"./package.json": "./package.json"
+	},
+	"bin": {
+		"okfit-lsp": "./src/bin.ts"
 	},
 	"scripts": {
 		"build:dev": "node savvy.build.ts --target dev",

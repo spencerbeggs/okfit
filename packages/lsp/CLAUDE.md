@@ -8,6 +8,10 @@ included; the server writes nothing, ever, to the bundle.
 
 ```text
 src/
+  bin.ts         -- the shebang entry point: imports and awaits main()
+  main.ts        -- crash guards, OkfitPlatform + Git.layer + GitHistory.layer,
+                     runMain; the process boundary -- owns process.stdin/stdout
+                     and the exit code
   version.ts     -- LSP_VERSION, read from process.env.__PACKAGE_VERSION__, a
                      build-time constant the bundler injects -- never a
                      package.json import
@@ -114,14 +118,74 @@ handling and that exit behaviour; `main.ts` passes `process.stdin` and
 A future Effect-native transport is done when
 `__test__/protocol/reference.test.ts` passes unchanged against it.
 
+## The process boundary: `bin.ts` and `main.ts`
+
+`bin.ts` is the shebang entry point, nothing else: imports and awaits
+`main()`. `main.ts` mirrors `packages/mcp/src/main.ts`'s crash-guard
+prologue (`uncaughtException`/`unhandledRejection` installed before any
+dynamic import, so a throw during module evaluation still reaches stderr)
+and owns everything the package boundary test allows it to: it is the one
+file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
+`process`.
+
+- **`streams` are mandatory, not optional.** `main.ts` always calls
+  `makeReferenceTransport({ streams: { input: process.stdin, output:
+  process.stdout } })`. Omitting `streams` falls back to the library's own
+  node-entry argv handling, whose `finally` calls `process.exit` itself
+  before `listen` ever resolves -- `main.ts` would never get a
+  `ListenOutcome` to map to an exit code. `--stdio` on the command line is
+  therefore accepted and silently ignored (never read); `--node-ipc`,
+  `--socket` and `--pipe`, which only make sense for the library's own argv
+  path, are not supported at all.
+- **Exit code.** `1` only when the outcome is `reason: "exit"` with
+  `shutdownReceived: false`; every other outcome -- `shutdown` then `exit`,
+  or the input stream simply closing -- exits `0`. `shutdownReceived` is
+  the authority: an `exit` that races the stream's own end may report
+  `"closed"` instead of `"exit"`, which harmlessly still maps to `0`.
+- **`process.exit` is called directly in `main.ts`'s `teardown`, not
+  through the `onExit` callback `NodeRuntime.runMain`'s own runner hands
+  in.** That callback (`@effect/platform-node-shared`'s `NodeRuntime.js`)
+  only calls `process.exit` itself when the code is non-zero or a signal
+  was received; for a code-`0` success it relies on Node's event loop
+  draining naturally. `process.stdin`, once read, keeps the loop alive on
+  its own -- so a clean `shutdown` + `exit` sequence with stdin still open
+  (the LSP spec's own contract: the server terminates itself on `exit`,
+  the client is never required to close the pipe first) would otherwise
+  hang the process forever at code `0`. Reproduced directly against the
+  built bin before this fix; `main.ts`'s `teardown` now calls
+  `process.exit` unconditionally for both the success and the
+  interrupts-only branches instead of delegating to `onExit`.
+- `Logger.layer([Logger.consolePretty()])` and `Layer.succeed(Logger.LogToStderr,
+  true)` are both provided in `main.ts`, exactly as `packages/mcp/src/main.ts`
+  does -- without the second, every log line (`serve`'s `Effect.logInfo` on
+  `initialized`, `Effect.logWarning` on a failed revalidate) lands on
+  stdout, the JSON-RPC wire, instead of stderr.
+
+## Three test tiers
+
+Classified by filename suffix, as the root `vitest.config.ts` already does:
+
+- `.test.ts` -- in-process against a harness built on `makeReferenceTransport`
+  over in-memory streams (`__test__/utils/harness.ts`), no child process.
+- `.e2e.test.ts` (`__test__/e2e/`) -- spawns the real built bin,
+  `dist/dev/pkg/bin/okfit-lsp.js`, with `--stdio`, framed on
+  `Content-Length` (`__test__/e2e/utils/lspProcess.ts`), against a
+  hermetic sandbox with the fixture project copied into `cwd`
+  (`__test__/e2e/utils/sandbox.ts`). Uses `it.live`, not `it.effect`: the
+  exit-code assertions time out against real elapsed time, not the virtual
+  clock.
+- `.bats` -- the plugin's shell scripts, not this package.
+
 ## Rules
 
 - No file under `src/` reads `process` except `bin.ts`, `main.ts` and
   `version.ts` -- `version.ts`'s `process.env.__PACKAGE_VERSION__` is not a
   runtime read at all: the bundler replaces it with a string literal at
   build time (K-32).
-- No file under `src/` writes to stdout: no `process.stdout`, no
-  `console.log`/`info`/`debug`/`table`.
+- No file under `src/` writes to stdout: no `console.log`/`info`/`debug`/`table`
+  anywhere, and no call to `.write` on `process.stdout` outside `main.ts`,
+  which only ever passes the stream object itself to `makeReferenceTransport`
+  as `streams.output` -- the transport, not `main.ts`, ever writes to it.
 - Only `src/protocol/reference.ts`, `src/main.ts` and the type-only
   `src/protocol/types.ts` (created in Task 2) may import from
   `vscode-languageserver*`. A feature imports the seam
