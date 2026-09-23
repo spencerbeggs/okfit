@@ -83,9 +83,13 @@ something these two caps guarantee against on their own.
 fires before the edited file exists on disk, and `okfit validate` has
 nothing to read at that point. The write has already landed by the time
 `PostToolUse` fires, so a block from that hook is a stop-and-fix signal, not
-a prevention. Besides the validate diagnostics, the hook reads the written
-file and blocks a `Write` (warns an `Edit`) of a concept with no
-`generated.by` when the config sets `actors.agent`. Both hook `command` entries in `hooks.json` invoke their
+a prevention. The hook keeps exactly two jobs (LSP phase 4, decision 8): it
+blocks on a `core.conformance` diagnostic for the edited file, and it reads
+the written file to block a `Write` (warn an `Edit`) of a concept with no
+`generated.by` when the config sets `actors.agent`. It no longer emits
+`additionalContext` for `core.lint` or profile diagnostics — the registered
+language server now delivers those findings with precise ranges directly in
+the editor. Both hook `command` entries in `hooks.json` invoke their
 script as `bash "${CLAUDE_PLUGIN_ROOT}/hooks/..."` rather than executing it
 directly, because the repo strips executable bits on commit.
 

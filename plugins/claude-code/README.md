@@ -74,23 +74,27 @@ shows the `software-project` profile's default vocabulary, plus a note that
 running `okfit init` would scaffold a config.
 
 **`PostToolUse` — `hooks/post-tool-use/validate.sh`.** Runs after a `Write`
-or `Edit` whose path falls under the bundle root. **The write has already
-landed by the time this hook runs** — Claude Code only reports a completed
-tool call to `PostToolUse` — so this hook is a stop-and-fix signal, not a
-prevention: it runs `okfit validate --format json --skip-provenance` scoped
-to the whole bundle, filters the diagnostics down to the edited file, and
-turns any `core.conformance` diagnostic for that file into
+or `Edit` whose path falls under the bundle root, and keeps exactly two jobs
+now that the registered language server (see LSP server, below) delivers
+`core.lint` and profile findings with precise ranges directly in the editor
+(LSP phase 4, decision 8). **The write has already landed by the time this
+hook runs** — Claude Code only reports a completed tool call to
+`PostToolUse` — so this hook is a stop-and-fix signal, not a prevention: it
+runs `okfit validate --format json --skip-provenance` scoped to the whole
+bundle, filters the diagnostics down to the edited file, and turns any
+`core.conformance` diagnostic for that file into
 `{"decision": "block", "reason": "..."}`, which tells Claude to fix the file
-immediately before continuing. A `core.lint` diagnostic for the file becomes
-a non-blocking `additionalContext` warning instead. The hook also reads the
-written file: when the config sets `actors.agent`, a concept file with no
-`generated.by` in its frontmatter blocks on `Write` and warns on `Edit`,
-naming the exact `by:` value to add — `index.md` and `log.md` are exempt,
-and a repo that leaves `actors.agent` unset is never checked. Diagnostics
-for every other file are ignored, and a path outside the bundle root is never even
-passed to `okfit validate`. `--skip-provenance` skips the
-`generated-at-drift` lint's git tier for this edit-time call — without it,
-every single `Write`/`Edit` would pay for a `repoRoot` + `show HEAD` +
+immediately before continuing. Every other diagnostic `okfit validate`
+reports for the file — `core.lint`, `profile` — is silent here, since the
+LSP already surfaced it with a range; the hook never emits
+`additionalContext` for either. The second job reads the written file:
+when the config sets `actors.agent`, a concept file with no `generated.by`
+in its frontmatter blocks on `Write` and warns on `Edit`, naming the exact
+`by:` value to add — `index.md` and `log.md` are exempt, and a repo that
+leaves `actors.agent` unset is never checked. A path outside the bundle
+root is never even passed to `okfit validate`. `--skip-provenance` skips
+the `generated-at-drift` lint's git tier for this edit-time call — without
+it, every single `Write`/`Edit` would pay for a `repoRoot` + `show HEAD` +
 `log --follow` + N `show` subprocess burst per concept; CI and the MCP
 `validate_bundle` tool omit the flag and still run that lint.
 

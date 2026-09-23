@@ -226,31 +226,28 @@ _run_hook_file() {
 	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 }
 
-@test "warns without blocking on a core.lint diagnostic for the edited file" {
+@test "is silent on a core.lint diagnostic for the edited file (LSP phase 4, decision 8)" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":1,"diagnostics":[{"source":"core.lint","file":"modules/example.md","code":"broken-links","severity":"warning","message":"dangling link"}]}' 1
 	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
 	[ "$status" -eq 0 ]
-	_hook_output | jq -e '(.decision // "none") != "block"'
-	_hook_output | jq -e '.hookSpecificOutput.additionalContext
-		| contains("modules/example.md: 1 lint warning(s):") and contains("broken-links")'
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 }
 
-@test "warns without blocking on a profile diagnostic for the edited file" {
+@test "is silent on a profile diagnostic for the edited file (LSP phase 4, decision 8)" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":1,"diagnostics":[{"source":"profile","file":"modules/example.md","code":"project-missing","severity":"error","message":"missing Project"}]}' 1
 	run _run_hook_file "$FIXTURES/posttooluse.write-clean.json"
 	[ "$status" -eq 0 ]
-	_hook_output | jq -e '(.decision // "none") != "block"'
-	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("project-missing")'
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 }
 
-@test "surfaces a warn-severity generated-at-drift diagnostic as context, not a block" {
+@test "is silent on a warn-severity generated-at-drift diagnostic (LSP phase 4, decision 8)" {
 	_stub_cli "$(_ctx "$REPO_ROOT" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"okf/modules/example.md","code":"generated-at-drift","severity":"warn","message":"the body has changed since generated.at was last stamped: generated.body_sha256 is 89afe0f9...842f3ff9, the current body hashes to 3f7a1c2b...9e01ab77"}]}' 0
 	run _run_hook_file "$FIXTURES/posttooluse.edit-clean.json"
 	[ "$status" -eq 0 ]
-	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("generated-at-drift") and contains("modules/example.md")'
+	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 }
 
 @test "ignores a bundle-level diagnostic whose file is the empty string" {
@@ -400,7 +397,7 @@ title: Core')
 	_hook_output | jq -e '.continue == true and .suppressOutput == true'
 }
 
-@test "lint warnings and a missing generated.by are reported together on an Edit (#74)" {
+@test "only the generated.by warning is reported on an Edit, even with lint warnings present (#74, LSP phase 4 decision 8)" {
 	local proj
 	proj=$(_bundle_with modules/core.md 'type: Module
 title: Core')
@@ -408,7 +405,21 @@ title: Core')
 		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"modules/core.md","code":"stale","severity":"warning","message":"m"}]}'
 	run _run_hook '{"tool_name":"Edit","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
 	[ "$status" -eq 0 ]
-	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("stale:") and contains("generated.by")'
+	_hook_output | jq -e '.hookSpecificOutput.additionalContext | contains("generated.by") and (contains("stale:") | not)'
+}
+
+@test "a conformance error still blocks when lint warnings are also present for the file (LSP phase 4 decision 8)" {
+	local proj
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core
+generated:
+  by: okfit/claude-code')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/core.md","code":"type-missing","severity":"error","message":"type is required"},{"source":"core.lint","file":"modules/core.md","code":"stale","severity":"warning","message":"m"}]}' 2
+	run _run_hook '{"tool_name":"Edit","tool_input":{"file_path":"'"$proj"'/okf/modules/core.md"},"cwd":"'"$proj"'"}' "$PATH" "$proj" "$proj"
+	[ "$status" -eq 0 ]
+	_hook_output | jq -e '.decision == "block"'
+	_hook_output | jq -e '.reason | contains("type-missing") and (contains("stale") | not)'
 }
 
 @test "resolves node_modules/.bin/okfit with OKFIT_CLI_CMD unset (Important 2, real okfit binary)" {
