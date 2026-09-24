@@ -10,6 +10,9 @@ generated:
   by: okfit/claude-code
   at: 2026-09-23T18:05:30Z
   body_sha256: 1a274f2ee03e85823263b79fc4fc1ecf900ce49122b42da56183fee4d51c2631
+verified:
+  - by: human:spencer
+    at: 2026-09-24T00:30:18Z
 ---
 
 # The VS Code extension lives at vscode/, not under plugins/ or packages/

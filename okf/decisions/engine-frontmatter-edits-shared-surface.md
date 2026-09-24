@@ -10,6 +10,9 @@ generated:
   at: 2026-09-23T21:50:18Z
   body_sha256: 6c0a6f220b99e8dfa67a35abb97e2234f23b8de0410d99964c67b2a62e79416e
 status: draft
+verified:
+  - by: human:spencer
+    at: 2026-09-24T00:30:18Z
 ---
 
 # Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
