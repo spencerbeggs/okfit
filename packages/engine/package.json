@@ -35,7 +35,7 @@
 		"@effect/platform-node": "catalog:effect",
 		"@effected/app": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
-		"@effected/engine": "^0.1.0",
+		"@effected/engine": "catalog:effected",
 		"@effected/git": "catalog:effected",
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",
