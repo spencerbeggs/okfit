@@ -1,5 +1,28 @@
 # @okfit/cli
 
+## 0.6.7
+
+### Bug Fixes
+
+- `NO_COLOR` now disables colour for any non-empty value, matching the [no-color.org](https://no-color.org) rule. Previously only `NO_COLOR=1` had an effect; `NO_COLOR=true`, `NO_COLOR=yes`, or any other non-empty value was ignored. [#186][#186]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.7.0 | ^0.8.0 |
+| @effected/markdown | dependency | updated | ^0.12.0 | ^0.12.1 |
+| @okfit/engine | dependency | updated | 0.8.0 | 0.9.0 |
+| @effected/engine | dependency | added | — | ^0.1.0 |
+
+[#186][#186]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#186]: https://github.com/spencerbeggs/okfit/pull/186
+
 ## 0.6.6
 
 ### Documentation
