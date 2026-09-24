@@ -25,7 +25,7 @@ src/
                                    for anything that moved there. It is what `initialize`
                                    reports; validate_bundle's envelope names the engine as
                                    engine_version and the launching meta-package as
-                                   distribution (okf/decisions/engine-version-is-the-comparable-version.md)
+                                   distribution (okf/decisions/engine-version-is-the-comparable-version-effected-kit.md)
   server.ts                    -- ServerLayer: McpToolkit.layer + resource layers over
                                    McpStdio.layer (both @effected/mcp)
   toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); handler wiring

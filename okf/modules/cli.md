@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: 77a89ee484268185b8d274f21987f596e5d59577ccade778455cd88e644018e5
+  at: 2026-09-24T16:04:08Z
+  body_sha256: e56c638b25da5408efcc0e91ad3d3bb7358a3b91bbd60ec20f1529a17235edfb
 ---
 
 # CLI
@@ -66,7 +66,7 @@ failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md`).
 `ENGINE_VERSION` and `OKF_SPEC_VERSION`; `main(options?)` accepts the
 `distribution` the meta-package's bin shim passes through — see [The
 engine version, not the producer version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version.md)).
+on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)).
 `internal/tty.ts`, this package's former sole reader of `isTTY`/
 `NO_COLOR`, is deleted: colour is now `@effected/cli`'s `CliColor`
 decision, read through the ambient `ConfigProvider` rather than

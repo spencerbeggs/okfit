@@ -7,7 +7,7 @@ The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`,
 `@effected/cli` for output and failure rendering. This package is a
 presentation shell over `@okfit/engine`: config discovery and the
 validate/verify/sync/init/context programs live there, not here -- see
-`okf/decisions/engine-front-end-split.md`.
+`okf/decisions/engine-front-end-split-effected-kit.md`.
 
 `okfit context` prints the same orientation data (project root, bundle
 root, config path, profile, vocabulary) without loading the bundle — cheap
@@ -52,7 +52,7 @@ src/
                               (from @okfit/engine) and OKF_SPEC_VERSION, and `via <name>
                               <version>` when main() was given a distribution; the engine and
                               OKF numbers are the ones a reader compares
-                              (okf/decisions/engine-version-is-the-comparable-version.md)
+                              (okf/decisions/engine-version-is-the-comparable-version-effected-kit.md)
   errors.ts                -- renderFailure and its private helpers only; the typed error
                               classes themselves (ConfigPathNotFoundError,
                               InitOverwriteError, ConfigMalformedError,

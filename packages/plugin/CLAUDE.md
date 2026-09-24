@@ -29,8 +29,8 @@ package: `okfit --version` prints `via @okfit/plugin <version>` and every
 `@okfit/cli` or `@okfit/mcp` reports `distribution: null`. The engine
 version (`engine_version`) and the OKF version are the numbers a reader
 compares; this package's version is packaging
-(`okf/decisions/engine-version-is-the-comparable-version.md`). `@okfit/cli`,
+(`okf/decisions/engine-version-is-the-comparable-version-effected-kit.md`). `@okfit/cli`,
 `@okfit/mcp` and `@okfit/lsp` are regular `dependencies`, not peers -- see
-`okf/decisions/engine-front-end-split.md` for why a peer arrangement can
+`okf/decisions/engine-front-end-split-effected-kit.md` for why a peer arrangement can
 never produce a runnable bin here, and do not revert this to a peer
 declaration.

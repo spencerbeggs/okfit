@@ -5,8 +5,8 @@ description: Only bin.ts, main.ts, commands/*.ts, and internal/exit.ts read proc
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: 339e2fba5103c51bf9bcd34e928176bbc03fbe727b53f0973376d07e173dac7d
+  at: 2026-09-24T16:04:08Z
+  body_sha256: b8c20b93b90904d220a1acd988f551a24d5362dc31b66dcaff6814be95870795
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
@@ -42,7 +42,7 @@ imports `App`, `AppStore`, `AppCache`, or anything else from that module.
 Config discovery, and the `AppConfig.layer` call that needs
 `@effected/app`, moved to `@okfit/engine`'s `config/layer.ts` (see
 [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split.md)); this
+cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md)); this
 package has had no reason to import the module since.
 
 ## Enforcement

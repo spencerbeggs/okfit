@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T20:14:00Z
-  body_sha256: 20a7ef57f14697d04a0ebff44beb26f9d2bcc60c28aeb6e20dfd3c48445c56f8
+  at: 2026-09-24T16:04:08Z
+  body_sha256: e2f0961cbeba94dcdcaed7a89a3e9519877beaf3fdcfc54ba27b717f2144f426
 tags:
   - architecture
 verified:
@@ -246,7 +246,7 @@ is `{ "name", "version" }` for the meta-package the bin was installed
 through (`@okfit/plugin`) and `null` for a direct install of `@okfit/cli`
 or `@okfit/mcp`. The rule, from [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version.md): compare
+on](../decisions/engine-version-is-the-comparable-version-effected-kit.md): compare
 `engine_version` and `okf_version`; everything else is packaging.
 `okfit --version` prints the same numbers in one line, plus the config
 schema version — `okfit <cli> (engine <engine>, okf <okf>, config-schema

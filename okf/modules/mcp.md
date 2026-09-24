@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: b24305335c0567246ea2972faebbd77f90e031e440739eacadb45cd31571cd09
+  at: 2026-09-24T16:04:08Z
+  body_sha256: 3c09e7fe0825f9f3c674548b950762edfe4ebdcd602bce6029d0b60177a455b6
 ---
 
 # MCP
@@ -35,7 +35,7 @@ wraps, and the `render`/`json` envelope pieces its tools re-export
 unchanged -- and no longer depends on `@okfit/cli` at all, so
 `pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
 command tree. See [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split.md).
+cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md).
 
 It also depends directly on `@effected/mcp` and `@effected/engine`: the
 server assembly, its error shape, and project-root resolution build on
@@ -56,7 +56,7 @@ Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
 (`MCP_VERSION`, what `initialize` reports; the `validate_bundle` envelope
 names the engine separately — see [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version.md)),
+on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)),
 `server.ts` (`ServerLayer`: `McpToolkit.layer` and resource layers
 over `McpStdio.layer`, its three-adapter `protocols` list and the exported
 `SERVER_INSTRUCTIONS` string -- see [The MCP server is Effect-native and

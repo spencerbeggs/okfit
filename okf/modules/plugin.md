@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T03:06:44Z
-  body_sha256: e5b6c0ad48c94fffe0e6edbdfa0b4d1e9ace520d042e610d978451ad21bda462
+  at: 2026-09-24T16:04:08Z
+  body_sha256: 9a78f78b4fb0f122aa5fcb31077ee541183277cbaf43b8f425c7831b8d9881c9
 ---
 
 # Plugin
@@ -36,9 +36,9 @@ so a report or `okfit --version` produced through this package names it
 (`via @okfit/plugin <version>`) while a direct install of a front end
 reports `distribution: null` — see [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version.md). A package manager links
+on](../decisions/engine-version-is-the-comparable-version-effected-kit.md). A package manager links
 `node_modules/.bin` entries only for an importer's DIRECT dependencies, so
 the peer arrangement the spec calls for could never produce a runnable
 bin -- this is settled, not provisional. See [A shared @okfit/engine
-package replaces cli-as-copy-contract](../decisions/engine-front-end-split.md)
+package replaces cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md)
 for the full reasoning and the alternatives rejected.

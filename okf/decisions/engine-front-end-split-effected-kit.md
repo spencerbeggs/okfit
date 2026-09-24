@@ -4,14 +4,15 @@ title: A shared @okfit/engine package replaces cli-as-copy-contract
 description: The platform layer, config discovery, and the validate/verify/sync/init/context programs moved into a new @okfit/engine package that both @okfit/cli and @okfit/mcp depend on directly, replacing an auto-installed peer-dependency arrangement that could never produce a runnable bin.
 tags:
   - architecture
+status: draft
+supersedes: engine-front-end-split.md
+sources:
+  - id: boundaries-test
+    resource: ../../packages/cli/__test__/boundaries.test.ts
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T05:07:51Z
-  body_sha256: 3513ba15ce5fd7a876222abe2cb25ff8d177d41b7e040ae60300115bc8edf6bf
-status: deprecated
-verified:
-  - by: human:spencer
-    at: 2026-09-09T04:18:14Z
+  at: 2026-09-24T16:04:08Z
+  body_sha256: f1340e32e0cab2c30dd87189cdd890bba953d98749f5c7c720cf59d7c3155289
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract
@@ -83,11 +84,20 @@ story would only have been half true.
 
 `pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
 command tree. `@okfit/cli` carries a narrower `process`-read allowlist
-(`bin.ts`, `main.ts`, `commands/`, `internal/exit.ts`, `internal/tty.ts`,
-`version.ts`) than before, since everything under `config/`, `validate/`,
-`verify/`, `sync/`, `init/`, and the envelope halves of `render/` moved
-to `@okfit/engine`, which enforces its own boundary test with no
-allowlist at all — no file under `engine/src` may read `process`.
+(`bin.ts`, `main.ts`, `commands/**`, `internal/exit.ts`), enforced by
+`@effected/workspaces/testing`'s `SourceBoundary` in
+`packages/cli/__test__/boundaries.test.ts`,[^boundaries-test] than
+before, since everything under `config/`, `validate/`, `verify/`,
+`sync/`, `init/`, and the envelope halves of `render/` moved to
+`@okfit/engine`, which enforces its own boundary test with no allowlist
+at all — no file under `engine/src` may read `process`. Colour comes
+from `@effected/cli`'s `CliColor.enabled`, read from the ambient
+`ConfigProvider`, never a `process` read this package performs directly
+— the package's own `internal/tty.ts` no longer exists
+([front-ends-adopt-the-effected-kit](front-ends-adopt-the-effected-kit.md)).
 Outside the workspace, installing only the packed plugin now yields both
 bins in `node_modules/.bin/`: `okfit --version` exits 0, and `okfit-mcp`
 answers a JSON-RPC `initialize` on stdout with empty stderr.
+
+[^boundaries-test]: ../../packages/cli/**test**/boundaries.test.ts
+</content>

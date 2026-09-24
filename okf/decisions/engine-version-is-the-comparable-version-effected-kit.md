@@ -6,11 +6,8 @@ tags:
   - architecture
   - release
   - dx
-generated:
-  by: okfit/claude-code
-  at: 2026-09-16T16:38:37Z
-  body_sha256: 10d7392824743c631d1cbad382271dcb84717323d4fe06d32b302bb910cca7b2
-status: deprecated
+status: draft
+supersedes: engine-version-is-the-comparable-version.md
 sources:
   - id: okfit-137
     resource: https://github.com/spencerbeggs/okfit/issues/137
@@ -21,9 +18,12 @@ sources:
     resource: conversation with the repository owner
     author: human:spencer
     last_modified: 2026-09-16T00:00:00Z
-verified:
-  - by: human:spencer
-    at: 2026-09-16T16:42:10Z
+  - id: version-formatter
+    resource: ../../packages/cli/src/internal/versionFormatter.ts
+generated:
+  by: okfit/claude-code
+  at: 2026-09-24T16:04:08Z
+  body_sha256: a21bd8b1fa83abe73308e410da6beb01504bece7c2ed0846f4260032c4c24452
 ---
 
 # The engine version, not the producer version, is what a report is compared on
@@ -121,8 +121,13 @@ packaging.[^owner-ruling]
   make the package graph cyclic.
 - **A separate `okfit version` subcommand with `--format json`.** Every
   `--format json` envelope already carries the triple, so a dedicated
-  probe only adds surface; `--version` is overridden through
-  `CliOutput.Formatter.formatVersion` instead.
+  probe only adds surface; `--version` is overridden instead, through
+  [`internal/versionFormatter.ts`](../../packages/cli/src/internal/versionFormatter.ts),
+  built on `@effected/cli`'s `CliColor.formatterLayer` and reading
+  `@effected/engine`'s `CurrentDistribution`[^version-formatter] — the
+  mechanism that replaced this package's original hand-rolled
+  `CliOutput.Formatter` override
+  ([front-ends-adopt-the-effected-kit](front-ends-adopt-the-effected-kit.md)).
 - **Leave the schema identity and build in `@okfit/engine`, next to
   `init`.** Rejected: `init` merely writes the directive, and splitting
   shape from identity across two packages is what let the version label
@@ -151,3 +156,5 @@ packaging.[^owner-ruling]
 [^okfit-75]: <https://github.com/spencerbeggs/okfit/issues/75>
 [^okfit-137]: <https://github.com/spencerbeggs/okfit/issues/137>
 [^owner-ruling]: conversation with the repository owner, 2026-09-16
+[^version-formatter]: ../../packages/cli/src/internal/versionFormatter.ts
+</content>
