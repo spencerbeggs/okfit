@@ -1,7 +1,10 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { findAppImportNames, stripComments } from "./utils/boundaries.js";
+import { SourceBoundary } from "@effected/workspaces/testing";
+import { Effect } from "effect";
+import { findAppImportNames } from "./utils/boundaries.js";
 
 const SRC_ROOT = join(import.meta.dirname, "..", "src");
 
@@ -15,28 +18,35 @@ const walk = (dir: string): ReadonlyArray<string> =>
 		return entry.isFile() && entry.name.endsWith(".ts") ? [full] : [];
 	});
 
-/**
- * `version.ts`'s `process.env.__PACKAGE_VERSION__` is a build-time constant
- * `@savvy-web/bundler` replaces at compile time (K-32), not a runtime
- * environment read -- the same carve-out `@okfit/cli` and `@okfit/mcp`
- * document for their own `version.ts`. Every other file under `src/` must
- * never read `process` at all.
- */
-const isAllowedToReadProcess = (relativePath: string): boolean => relativePath === "version.ts";
-
 describe("@okfit/engine boundaries", () => {
-	it("no file under src/ reads `process` -- exactly one allowlisted file (version.ts)", () => {
-		const offenders = walk(SRC_ROOT).filter(
-			(file) =>
-				!isAllowedToReadProcess(relative(SRC_ROOT, file)) &&
-				/\bprocess\s*\./.test(stripComments(readFileSync(file, "utf8"))),
-		);
-		assert.deepStrictEqual(
-			offenders.map((file) => relative(SRC_ROOT, file)),
-			[],
-		);
-	});
+	// `@effected/workspaces/testing`'s `SourceBoundary` replaces this
+	// package's own hand-rolled comment-stripping `process` scanner (K-32):
+	// its "process" rule already exempts `process.env.__PACKAGE_VERSION__`
+	// -- the ONE token `version.ts` reads -- unconditionally (the bundler
+	// substitutes it at build time), so this package's own allowlist can be
+	// truly empty; no other file under `src/` may read `process` at all.
+	it.effect(
+		"no file under src/ reads `process` -- SourceBoundary's own `__PACKAGE_VERSION__` exemption covers version.ts",
+		() =>
+			Effect.gen(function* () {
+				const fixtureFailures = SourceBoundary.verifyFixtures();
+				assert.deepStrictEqual(fixtureFailures, []);
+				const scan = yield* SourceBoundary.scan({ root: SRC_ROOT, rules: ["process"] });
+				// Non-vacuity: an empty `root` glob or a typo'd path would
+				// otherwise report a spotless boundary because nothing was
+				// scanned at all.
+				assert.isAbove(scan.files.length, 0);
+				assert.deepStrictEqual(scan.violations, []);
+			}).pipe(Effect.provide(NodeServices.layer)),
+	);
 
+	// SourceBoundary's `forbidImports` only forbids a whole specifier, never
+	// specific named imports from an otherwise-legitimate module -- this
+	// package's own `config/layer.ts` legitimately imports `AppConfig` from
+	// `@effected/app`, so a blanket `{ forbidImports: ["@effected/app"] }`
+	// is not available here the way it is for `@okfit/cli` (which imports
+	// nothing from that module at all -- see `packages/cli/__test__/boundaries.test.ts`).
+	// This scanner stays hand-rolled for that reason.
 	it("no file under src/ imports App, AppStore or AppCache from @effected/app (K-9)", () => {
 		const offenders = walk(SRC_ROOT).flatMap((file) => {
 			const names = findAppImportNames(readFileSync(file, "utf8"));
