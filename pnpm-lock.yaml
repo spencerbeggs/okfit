@@ -6,8 +6,8 @@ importers:
   .:
     configDependencies:
       '@effected/pnpm-plugin-effect':
-        specifier: 0.11.0
-        version: 0.11.0
+        specifier: 0.11.1
+        version: 0.11.1
       '@savvy-web/pnpm-plugin-silk':
         specifier: 0.42.0
         version: 0.42.0
@@ -18,8 +18,8 @@ importers:
 
 packages:
 
-  '@effected/pnpm-plugin-effect@0.11.0':
-    resolution: {integrity: sha512-BTM4CshUSQvYUN6w6uKexdeNrCZK3tat7yB5aENbVDte5FlMzyfr5qFdgbMr/o2WeZrvZyZ2+sTU/+YvZ3a2qA==}
+  '@effected/pnpm-plugin-effect@0.11.1':
+    resolution: {integrity: sha512-m35mtvgU4nbE8ZHd4EFqKu5jJeQY0gPUYHzKTno57JT/QeHzM9RRLNQsIcG0npsFYBxJfJ1tC/NH4zEWc2gdxQ==}
 
   '@pnpm/exe.android-arm64@12.6.0':
     resolution: {integrity: sha512-kviIHft9h02q+7N2In7tSL9T/HRUSGwYmU74YPtsWU5ee7vgqPyC0JT6RRX6miW+NxX1CvHgQxg69qq1qTLJYQ==}
@@ -108,7 +108,7 @@ packages:
 
 snapshots:
 
-  '@effected/pnpm-plugin-effect@0.11.0': {}
+  '@effected/pnpm-plugin-effect@0.11.1': {}
 
   '@pnpm/exe.android-arm64@12.6.0':
     optional: true
@@ -225,8 +225,8 @@ catalogs:
       specifier: ^0.12.1
       version: 0.12.1
     '@effected/mcp':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.1.1
+      version: 0.1.1
     '@effected/memfs':
       specifier: ^0.9.0
       version: 0.9.0
@@ -570,7 +570,7 @@ importers:
         version: 0.17.0(effect@4.0.0-rc.117)
       '@effected/mcp':
         specifier: catalog:effected
-        version: 0.1.0(@effected/engine@0.1.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+        version: 0.1.1(@effected/engine@0.1.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/xdg':
         specifier: catalog:effected
         version: 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
@@ -829,8 +829,8 @@ packages:
     resolution: {integrity: sha512-rbAE25KUfjU/s3XHUdJgceoCP5dEOpMx85J04kF+QMdta73XkuG9JGHHinch+XIoKpBdqljin+KqURpJriSzLA==}
     engines: {node: '>=22.0.0'}
 
-  '@azure/msal-browser@5.22.0':
-    resolution: {integrity: sha512-5kgu9xeEKgGc2JeidxAtU15NJTqiH/CMCRRQAJ4Rac56kB7KVg91vbNmn+z3RO1vNomPN69UvjKG9h1Pghx6dQ==}
+  '@azure/msal-browser@5.23.0':
+    resolution: {integrity: sha512-IRCwkRCK47hBXK+7bu67UZWY7HS0Jx1dZgi4C1HVbjlBum8Jy8fb2l87xFr6HxdQJWy951zRUHtwwDITHFAtaA==}
     engines: {node: '>=0.8.0'}
 
   '@azure/msal-common@16.14.1':
@@ -1200,8 +1200,8 @@ packages:
       '@effected/yaml':
         optional: true
 
-  '@effected/mcp@0.1.0':
-    resolution: {integrity: sha512-mruiKKTHUX88tQe0QcmH35JCVhow57/+Byyv3lKIIq/3Ttoh+tJ1o1bQ6rBl48LfeT0aLDb2pKZL1AbNZG7W6g==}
+  '@effected/mcp@0.1.1':
+    resolution: {integrity: sha512-nhhCChDBBkDtHnU2gKno667lBE/CNCgZr6TwGl7B8cu3gO21EIjFJ/uW16z6BwB+FyMTXMEm2dsfdqy60IgZYA==}
     engines: {node: '>=24.11.0'}
     peerDependencies:
       '@effected/engine': ^0.1.0
@@ -4988,7 +4988,7 @@ snapshots:
       '@azure/core-tracing': 1.4.0
       '@azure/core-util': 1.14.0(supports-color@8.1.1)
       '@azure/logger': 1.4.0(supports-color@8.1.1)
-      '@azure/msal-browser': 5.22.0
+      '@azure/msal-browser': 5.23.0
       '@azure/msal-node': 6.0.1
       open: 10.2.0
       tslib: 2.8.1
@@ -5002,7 +5002,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@azure/msal-browser@5.22.0':
+  '@azure/msal-browser@5.23.0':
     dependencies:
       '@azure/msal-common': 16.14.1
 
@@ -5452,7 +5452,7 @@ snapshots:
       '@effected/toml': 0.9.0(effect@4.0.0-rc.117)
       '@effected/yaml': 0.17.0(effect@4.0.0-rc.117)
 
-  '@effected/mcp@0.1.0(@effected/engine@0.1.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
+  '@effected/mcp@0.1.1(@effected/engine@0.1.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
     dependencies:
       '@effected/engine': 0.1.0(effect@4.0.0-rc.117)
       effect: 4.0.0-rc.117

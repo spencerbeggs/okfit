@@ -8,5 +8,5 @@ allowBuilds:
   keytar: false
 autoInstallPeers: true
 configDependencies:
-  "@effected/pnpm-plugin-effect": 0.11.0+sha512-BTM4CshUSQvYUN6w6uKexdeNrCZK3tat7yB5aENbVDte5FlMzyfr5qFdgbMr/o2WeZrvZyZ2+sTU/+YvZ3a2qA==
+  "@effected/pnpm-plugin-effect": 0.11.1+sha512-m35mtvgU4nbE8ZHd4EFqKu5jJeQY0gPUYHzKTno57JT/QeHzM9RRLNQsIcG0npsFYBxJfJ1tC/NH4zEWc2gdxQ==
   "@savvy-web/pnpm-plugin-silk": 0.42.0+sha512-2KQ/+3C+ciQ+1I/Vpfr+875Guta0YtCPNodeZkB2kegaraItEGwaYxIx8OocWglaoCbYC44acTJhQwxIRWhNdw==
