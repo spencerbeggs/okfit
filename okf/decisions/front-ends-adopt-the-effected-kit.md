@@ -2,7 +2,7 @@
 type: Decision
 title: okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
 description: "@okfit/cli, @okfit/mcp, @okfit/engine and the workspace's own boundary tests now depend on effected's front-end kit -- @effected/engine, @effected/cli, @effected/mcp, and @effected/workspaces -- in place of copies this repository hand-rolled and maintained itself."
-status: draft
+status: stable
 tags:
   - architecture
   - deps
@@ -27,6 +27,9 @@ sources:
     resource: ../../__test__/workspaceLayering.test.ts
   - id: pnpm-plugin-effect
     resource: npm:@effected/pnpm-plugin-effect
+verified:
+  - by: human:spencer
+    at: 2026-09-24T15:59:56Z
 ---
 
 # okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
