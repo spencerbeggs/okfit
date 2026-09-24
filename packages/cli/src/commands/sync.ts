@@ -1,3 +1,4 @@
+import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import type { SyncMode } from "@okfit/engine";
 import {
@@ -12,7 +13,6 @@ import {
 import { GitHistory } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanSync } from "../render/sync.js";
@@ -123,7 +123,7 @@ export const syncCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
-			const distribution = yield* Distribution;
+			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const path = yield* Path.Path;

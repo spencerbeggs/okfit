@@ -6,22 +6,21 @@ import { findAppImportNames, stripComments } from "./utils/boundaries.js";
 const SRC_ROOT = join(import.meta.dirname, "..", "src");
 
 /**
- * K-39's allowlist: `bin.ts`, `main.ts` (created in a later task -- listing
- * it now is a deliberate forward reference and is inert while the file does
- * not exist), every file under `commands/`, `internal/exit.ts`,
- * `internal/tty.ts`, and `version.ts`. `version.ts`'s
+ * K-39's allowlist: `bin.ts`, `main.ts`, every file under `commands/`,
+ * `internal/exit.ts`, and `version.ts`. `version.ts`'s
  * `process.env.__PACKAGE_VERSION__` is a build-time constant that
  * `@savvy-web/bundler` replaces at compile time (K-32) -- not a runtime
  * environment read -- so it is allowlisted alongside the other deliberate
- * `process` touchpoints. Everything else under `src/` must never read
- * `process`.
+ * `process` touchpoints. `internal/tty.ts` (the hand-rolled colour decision)
+ * is gone -- colour is now `@effected/cli`'s `CliColor.enabled`, read
+ * through the ambient `ConfigProvider`, never `process`, directly. Everything
+ * else under `src/` must never read `process`.
  */
 const isAllowedToReadProcess = (relativePath: string): boolean =>
 	relativePath === "bin.ts" ||
 	relativePath === "main.ts" ||
 	relativePath.startsWith("commands/") ||
 	relativePath === "internal/exit.ts" ||
-	relativePath === "internal/tty.ts" ||
 	relativePath === "version.ts";
 
 const walk = (dir: string): ReadonlyArray<string> =>

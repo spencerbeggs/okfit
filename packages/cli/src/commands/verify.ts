@@ -1,3 +1,4 @@
+import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
 import {
@@ -15,7 +16,6 @@ import {
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanVerify, humanVerifyBatch } from "../render/verify.js";
@@ -123,7 +123,7 @@ export const verifyCommand = Command.make(
 			const effectivePath = idIsPath ? input.id : input.path;
 
 			const discoveryCwd = Option.getOrElse(effectivePath, () => cwd);
-			const distribution = yield* Distribution;
+			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const path = yield* Path.Path;

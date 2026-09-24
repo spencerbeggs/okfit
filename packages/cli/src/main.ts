@@ -5,15 +5,15 @@
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import { CliLogger, CliRuntime } from "@effected/cli";
-import type { Distribution } from "@okfit/engine";
+import { CliRuntime } from "@effected/cli";
+import type { Distribution } from "@effected/engine";
+import { CurrentDistribution } from "@effected/engine";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
-import { CliOutput, Command } from "effect/unstable/cli";
+import { Command } from "effect/unstable/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
-import { Distribution as DistributionRef } from "./internal/distribution.js";
-import { versionFormatter } from "./internal/versionFormatter.js";
+import { versionFormatterLayer } from "./internal/versionFormatter.js";
 import { CLI_VERSION } from "./version.js";
 
 /**
@@ -43,6 +43,17 @@ export interface MainOptions {
  * Run the okfit CLI. Owns the process: installs the runtime teardown and
  * sets the exit code. `NodeRuntime.runMain` does not return a promise.
  *
+ * Assembled with `@effected/cli`'s `CliRuntime.main` (okfit #137 /
+ * effect-v4-cli's `recipes.md#the-main-assembly`), which already provides
+ * `platform` INSIDE failure reporting, a fresh `CliExit` cell, and the
+ * logger outermost -- the same order this package used to assemble by
+ * hand. `CliRuntime.main`/`reportFailures` also already remap a
+ * `CliError.ShowHelp` carrying parse errors to `usageExitCode` (64) and
+ * leave a bare `--help`/root invocation at 0 (`Command.runWith` has
+ * already rendered the help document either way), so the hand-rolled
+ * `catchTag("ShowHelp", ...)` remap this package used to carry is gone --
+ * it duplicated what the kit's own assembly already does.
+ *
  * @public
  */
 export const main = (options: MainOptions = {}): void => {
@@ -50,33 +61,34 @@ export const main = (options: MainOptions = {}): void => {
 
 	const program = Effect.gen(function* () {
 		const now = yield* nowEffect;
-		return yield* Command.run(rootCommand, { version: CLI_VERSION }).pipe(
-			Effect.provideService(Now, now),
-			Effect.provideService(DistributionRef, distribution),
-			// K-7/K-30: `ShowHelp` carries its own exit code — 0 with no errors, 1 with
-			// parse errors. Remap only the second to 64 (BSD EX_USAGE);
-			// `CliRuntime.reported` is the kit's own marker helper and also sets
-			// `Runtime.errorReported`, whose polarity is inverted.
-			Effect.catchTag("ShowHelp", (help) => Effect.fail(CliRuntime.reported(help, help.errors.length > 0 ? 64 : 0))),
-		);
+		return yield* Command.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
 	}).pipe(
-		// okfit #137: only `formatVersion` differs from the built-in formatter;
-		// help/error rendering stay byte-identical (`internal/versionFormatter.ts`).
-		Effect.provide(CliOutput.layer(versionFormatter(options.distribution))),
-		// Provided here, INSIDE `reportFailures` below, so a failure while
-		// building `OkfitPlatform` (an `XdgEnvError` from an unset `HOME`, K-13)
-		// is itself rendered and mapped to `exitCode: 3`, rather than escaping to
-		// `NodeRuntime.runMain`'s own fatal-error path — a stack trace on stdout
-		// and exit `1`.
-		Effect.provide(OkfitPlatform),
-		// K-30. `renderFailure` returns `[]` for a `ShowHelp`, because
-		// `Command.runWith` already rendered the help document. The `exitCode: 3`
-		// fallback is the infrastructure tier for any typed error that carries no
-		// code of its own.
-		CliRuntime.reportFailures({ exitCode: 3, render: renderFailure }),
+		// okfit #137: only `formatVersion` differs from `CliColor`'s own default
+		// formatter; help/error rendering stay whatever `CliColor` decides
+		// (`internal/versionFormatter.ts`).
+		Effect.provide(versionFormatterLayer),
+		// Outermost so `versionFormatterLayer`'s own read of `CurrentDistribution`
+		// (built via `Effect.provide` above, which builds its layer against the
+		// ambient context supplied from here) sees the distribution this run was
+		// given, not the reference's own `Option.none()` default.
+		Effect.provideService(CurrentDistribution, distribution),
 	);
 
-	// `CliLogger.layer()` has no requirements of its own, so it is provided
-	// outermost, last — it must be available no matter which branch above fails.
-	NodeRuntime.runMain(program.pipe(Effect.provide(CliLogger.layer())));
+	NodeRuntime.runMain(
+		CliRuntime.main(program, {
+			// Provided INSIDE failure reporting, so a failure while building
+			// `OkfitPlatform` (an `XdgEnvError` from an unset `HOME`, K-13) is
+			// itself rendered and mapped to `exitCode: 3`, rather than escaping to
+			// `NodeRuntime.runMain`'s own fatal-error path -- a stack trace on
+			// stdout and exit `1`.
+			platform: OkfitPlatform,
+			// K-30. `renderFailure` returns `[]` for a `ShowHelp`, because
+			// `CliRuntime.main` never renders one itself (`Command.runWith`
+			// already rendered the help document). The `exitCode: 3` fallback is
+			// the infrastructure tier for any typed error that carries no code of
+			// its own.
+			exitCode: 3,
+			render: renderFailure,
+		}),
+	);
 };

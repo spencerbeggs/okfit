@@ -200,9 +200,6 @@ catalogs:
     '@effected/app':
       specifier: ^0.18.0
       version: 0.18.0
-    '@effected/cli':
-      specifier: ^0.7.0
-      version: 0.7.0
     '@effected/commands':
       specifier: ^0.9.0
       version: 0.9.0
@@ -253,6 +250,9 @@ catalogs:
 overrides:
   '@effect/vitest>vitest': ^5.0.1
   '@microsoft/api-extractor>typescript': ^6.0.3
+  '@effected/cli': file:../effected/packages/cli/dist/prod/npm/pkg
+  '@effected/engine': file:../effected/packages/engine/dist/prod/npm/pkg
+  '@effected/mcp': file:../effected/packages/mcp/dist/prod/npm/pkg
 
 importers:
 
@@ -292,11 +292,14 @@ importers:
         specifier: catalog:effect
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
       '@effected/cli':
-        specifier: catalog:effected
-        version: 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+        specifier: file:../../../effected/packages/cli/dist/prod/npm/pkg
+        version: file:../effected/packages/cli/dist/prod/npm/pkg(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/config-file':
         specifier: catalog:effected
         version: 0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+      '@effected/engine':
+        specifier: file:../../../effected/packages/engine/dist/prod/npm/pkg
+        version: file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@effected/git':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.0-rc.117)
@@ -414,6 +417,9 @@ importers:
       '@effected/config-file':
         specifier: catalog:effected
         version: 0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+      '@effected/engine':
+        specifier: file:../../../effected/packages/engine/dist/prod/npm/pkg
+        version: file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@effected/git':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.0-rc.117)
@@ -529,9 +535,15 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
+      '@effected/engine':
+        specifier: file:../../../effected/packages/engine/dist/prod/npm/pkg
+        version: file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@effected/git':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.0-rc.117)
+      '@effected/mcp':
+        specifier: file:../../../effected/packages/mcp/dist/prod/npm/pkg
+        version: file:../effected/packages/mcp/dist/prod/npm/pkg(@effected/engine@file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/xdg':
         specifier: catalog:effected
         version: 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
@@ -1079,8 +1091,8 @@ packages:
       '@effected/xdg': ^0.7.0
       effect: 4.0.0-rc.117
 
-  '@effected/cli@0.7.0':
-    resolution: {integrity: sha512-/yTkr4bAsufKJst56DpCJ6r6+EE8+JHWr5+DbhT6jpFTg+3q9CPUEIoElXy9bFwoaruG9MwLj/x4Sc1c1uTrKg==}
+  '@effected/cli@file:../effected/packages/cli/dist/prod/npm/pkg':
+    resolution: {directory: ../effected/packages/cli/dist/prod/npm/pkg, type: directory}
     engines: {node: '>=24.11.0'}
     peerDependencies:
       '@effected/config-file': ^0.12.0
@@ -1103,6 +1115,12 @@ packages:
       '@effected/toml': ^0.9.0
       '@effected/walker': ^0.12.0
       '@effected/yaml': ^0.17.0
+      effect: 4.0.0-rc.117
+
+  '@effected/engine@file:../effected/packages/engine/dist/prod/npm/pkg':
+    resolution: {directory: ../effected/packages/engine/dist/prod/npm/pkg, type: directory}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
       effect: 4.0.0-rc.117
 
   '@effected/git@0.17.0':
@@ -1154,6 +1172,13 @@ packages:
         optional: true
       '@effected/yaml':
         optional: true
+
+  '@effected/mcp@file:../effected/packages/mcp/dist/prod/npm/pkg':
+    resolution: {directory: ../effected/packages/mcp/dist/prod/npm/pkg, type: directory}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
+      '@effected/engine': ^0.0.0
+      effect: 4.0.0-rc.117
 
   '@effected/memfs@0.9.0':
     resolution: {integrity: sha512-jJbtY+k02epj1w5ZQjn1UkJX+AcWJlTaG3W6zwrtZz/9t1tiV7LRD0WrgsGKD7KNOMAO15ZcmLiucwZ5AHTiTw==}
@@ -3096,8 +3121,8 @@ packages:
   effect@4.0.0-rc.117:
     resolution: {integrity: sha512-UUyi9QiOW4nySFIBM3KnYbNMd9EZliOdKfBcyLD0mPMPheO2fkuXS5y0opjWc9oqzlJxPQICEGm8gGw3kh9j/w==}
 
-  electron-to-chromium@1.5.435:
-    resolution: {integrity: sha512-hwZNgb6JmRlmQX/L0yojyu6upuvtR7iGS1hB/9nc7I9vCsvekahqh3noFeXUBRirv9+Hk7E6v/LFz4CW6FvpWA==}
+  electron-to-chromium@1.5.437:
+    resolution: {integrity: sha512-1z60R0Nb+kYPnGUrQ6PvMjTVINDGMfqQZ/mI5FJIHvTotlA6noI+YJWakbjaFM+qhLXg9WnK3RUeYSO5ixSHJA==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -5340,7 +5365,7 @@ snapshots:
       '@effected/xdg': 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       effect: 4.0.0-rc.117
 
-  '@effected/cli@0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
+  '@effected/cli@file:../effected/packages/cli/dist/prod/npm/pkg(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
     dependencies:
       effect: 4.0.0-rc.117
     optionalDependencies:
@@ -5356,6 +5381,10 @@ snapshots:
       '@effected/toml': 0.9.0(effect@4.0.0-rc.117)
       '@effected/walker': 0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/yaml': 0.17.0(effect@4.0.0-rc.117)
+      effect: 4.0.0-rc.117
+
+  '@effected/engine@file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117)':
+    dependencies:
       effect: 4.0.0-rc.117
 
   '@effected/git@0.17.0(effect@4.0.0-rc.117)':
@@ -5390,6 +5419,11 @@ snapshots:
       '@effected/toml': 0.9.0(effect@4.0.0-rc.117)
       '@effected/yaml': 0.17.0(effect@4.0.0-rc.117)
 
+  '@effected/mcp@file:../effected/packages/mcp/dist/prod/npm/pkg(@effected/engine@file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
+    dependencies:
+      '@effected/engine': file:../effected/packages/engine/dist/prod/npm/pkg(effect@4.0.0-rc.117)
+      effect: 4.0.0-rc.117
+
   '@effected/memfs@0.9.0(effect@4.0.0-rc.117)':
     dependencies:
       effect: 4.0.0-rc.117
@@ -5411,7 +5445,7 @@ snapshots:
   '@effected/schemastore-cli@0.15.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/schemastore@0.15.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(redis@6.2.1)':
     dependencies:
       '@effect/platform-node': 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
-      '@effected/cli': 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+      '@effected/cli': file:../effected/packages/cli/dist/prod/npm/pkg(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/schemastore': 0.15.0(effect@4.0.0-rc.117)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
@@ -6951,7 +6985,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.11.25
       caniuse-lite: 1.0.30001810
-      electron-to-chromium: 1.5.435
+      electron-to-chromium: 1.5.437
       node-releases: 2.0.56
       update-browserslist-db: 1.3.3(browserslist@4.29.0)
 
@@ -7222,7 +7256,7 @@ snapshots:
 
   effect@4.0.0-rc.117: {}
 
-  electron-to-chromium@1.5.435: {}
+  electron-to-chromium@1.5.437: {}
 
   emoji-regex@10.6.0: {}
 

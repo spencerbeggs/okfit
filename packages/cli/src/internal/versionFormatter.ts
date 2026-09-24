@@ -1,8 +1,8 @@
+import { CliColor } from "@effected/cli";
+import { CurrentDistribution, distributionSuffix } from "@effected/engine";
 import { CONFIG_SCHEMA_VERSION, OKF_SPEC_VERSION } from "@okfit/core";
-import type { Distribution } from "@okfit/engine";
 import { ENGINE_VERSION } from "@okfit/engine";
-import { CliOutput } from "effect/unstable/cli";
-import { useColor } from "./tty.js";
+import { Effect, Layer } from "effect";
 
 /**
  * `okfit --version`'s full text (okfit #137):
@@ -13,18 +13,27 @@ import { useColor } from "./tty.js";
  * exactly `okfit <CLI_VERSION>`; this appends the engine, okf, and
  * distribution parts.
  *
- * Only `formatVersion` is overridden -- every other `Formatter` method
- * (help, error rendering) is `CliOutput.defaultFormatter`'s own, built with
- * the SAME colour decision (`internal/tty.ts#useColor`, "exactly the
- * framework's own colour rule") the rest of this package already uses, so
- * help/error output is byte-identical to the built-in formatter.
+ * Built on `@effected/cli`'s `CliColor.formatterLayer` (the kit's one
+ * colour-decision point, read through the ambient `ConfigProvider`, never
+ * `process` directly) and `@effected/engine`'s `distributionSuffix` for the
+ * `via <name> <version>` segment -- the shape `effect-v4-cli`'s
+ * `recipes.md#version-formatter` teaches. Only `formatVersion` is
+ * overridden; every other `Formatter` method (help, error rendering) is
+ * `CliColor.formatterLayer`'s own default, so help/error output stays
+ * consistent with the rest of the program's colour decision.
+ *
+ * `Layer.unwrap` around `Effect.map(CurrentDistribution, ...)` reads the
+ * distribution once, from the ambient `CurrentDistribution` reference
+ * `main.ts` provides, rather than threading it in as a constructor argument
+ * the way the hand-rolled formatter used to.
  *
  * @internal
  */
-export const versionFormatter = (distribution: Distribution | undefined): CliOutput.Formatter => ({
-	...CliOutput.defaultFormatter({ colors: useColor() }),
-	formatVersion: (name: string, version: string): string => {
-		const via = distribution === undefined ? "" : ` via ${distribution.name} ${distribution.version}`;
-		return `${name} ${version}${via} (engine ${ENGINE_VERSION}, okf ${OKF_SPEC_VERSION}, config-schema ${CONFIG_SCHEMA_VERSION})`;
-	},
-});
+export const versionFormatterLayer = Layer.unwrap(
+	Effect.map(CurrentDistribution, (distribution) =>
+		CliColor.formatterLayer({
+			formatVersion: (name: string, version: string): string =>
+				`${name} ${version}${distributionSuffix(distribution)} (engine ${ENGINE_VERSION}, okf ${OKF_SPEC_VERSION}, config-schema ${CONFIG_SCHEMA_VERSION})`,
+		}),
+	),
+);

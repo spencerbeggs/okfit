@@ -1,3 +1,4 @@
+import { CurrentDistribution } from "@effected/engine";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import {
 	Now,
@@ -10,7 +11,6 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanStale, staleSummary } from "../render/stale.js";
@@ -54,7 +54,7 @@ export const staleCommand = Command.make("stale", { path: pathArg, config: confi
 		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
 		const now = yield* Now;
 		const path = yield* Path.Path;
-		const distribution = yield* Distribution;
+		const distribution = yield* CurrentDistribution;
 
 		const body = Effect.gen(function* () {
 			const resolved = yield* resolveProjectConfig({
