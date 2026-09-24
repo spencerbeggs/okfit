@@ -69,13 +69,10 @@ export interface OkfitMcpHarness {
  * internally by `McpHarness.make`, over queue-backed stdio -- see
  * `@effected/mcp/testing`'s own reference for why a harness is passed a
  * server layer WITHOUT its own `Stdio`. Pulling in `NodeServices.layer`
- * wholesale (this package's own hand-rolled harness never did, since it
- * built `Stdio.layerTest` itself before this migration) satisfies the
- * server's `Stdio` requirement with the REAL `process.stdin`/`stdout`
- * before `McpHarness.make` ever gets a chance to inject its test queues --
- * every test then hangs waiting on real stdin that a vitest worker never
- * provides, discovered by bisecting a from-scratch minimal reproduction
- * down to exactly this one substitution.
+ * wholesale satisfies the server's `Stdio` requirement with the REAL
+ * `process.stdin`/`stdout` before `McpHarness.make` ever gets a chance to
+ * inject its test queues -- every test then hangs waiting on real stdin
+ * that a vitest worker never provides.
  */
 const NodePlatformLayer = Layer.provideMerge(
 	NodeChildProcessSpawner.layer,
@@ -104,10 +101,8 @@ const unwrapResult = <A>(response: JsonRpcMessage): A =>
 /**
  * An in-process MCP client for `ServerLayer(projectRoot)`, over
  * `@effected/mcp/testing`'s `McpHarness` -- the kit's own in-process,
- * queue-backed-stdio test client, replacing this package's former hand-port
- * of Effect's own `McpStdioHarness`
- * (`.repos/effect/packages/effect/test/unstable/ai/McpServer/TestUtils/McpStdioHarness.ts`).
- * What this wrapper still owns: the real platform layer (`Xdg`/`AppDirs`/
+ * queue-backed-stdio test client. What this wrapper still owns: the real
+ * platform layer (`Xdg`/`AppDirs`/
  * the individual Node platform layers), the `ProtocolVersion` string ->
  * `McpProtocol.ProtocolAdapter` mapping this package's tests are already
  * written against, and unwrapping `callTool`/`readResource`'s `.result` for

@@ -43,8 +43,8 @@ export interface MainOptions {
  * Run the okfit CLI. Owns the process: installs the runtime teardown and
  * sets the exit code. `NodeRuntime.runMain` does not return a promise.
  *
- * Assembled with `@effected/cli`'s `CliRuntime.main` (okfit #137 /
- * effect-v4-cli's `recipes.md#the-main-assembly`), which already provides
+ * Assembled with `@effected/cli`'s `CliRuntime.main` (`effect-v4-cli`'s
+ * `recipes.md#the-main-assembly`), which already provides
  * `platform` INSIDE failure reporting, a fresh `CliExit` cell, and the
  * logger outermost -- the same order this package used to assemble by
  * hand. `CliRuntime.main`/`reportFailures` also already remap a
@@ -63,7 +63,7 @@ export const main = (options: MainOptions = {}): void => {
 		const now = yield* nowEffect;
 		return yield* Command.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
 	}).pipe(
-		// okfit #137: only `formatVersion` differs from `CliColor`'s own default
+		// Only `formatVersion` differs from `CliColor`'s own default
 		// formatter; help/error rendering stay whatever `CliColor` decides
 		// (`internal/versionFormatter.ts`).
 		Effect.provide(versionFormatterLayer),

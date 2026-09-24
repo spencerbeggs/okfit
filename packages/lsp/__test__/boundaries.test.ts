@@ -12,12 +12,9 @@ const readSrc = (file: string): string => readFileSync(join(SRC_ROOT, file), "ut
 
 describe("@okfit/lsp boundaries", () => {
 	/**
-	 * `@effected/workspaces/testing`'s `SourceBoundary` now expresses this
+	 * `@effected/workspaces/testing`'s `SourceBoundary` expresses this
 	 * package's whole `src/` boundary (`CLAUDE.md`'s Rules section) in ONE
-	 * scan, where round 2 could only fold in the `process`/`node:process`
-	 * half (`allow` exempts a file from every rule, and the old `"console-write"`
-	 * rule banned `console.error` outright -- see the round-2 report). Two
-	 * additions from the kit close both gaps:
+	 * scan. Two kit features make that possible:
 	 *
 	 * - `allowRules` (not `allow`) waives one NAMED rule per file, leaving
 	 *   every other rule still enforced on it. `main.ts` is exempt from
@@ -26,11 +23,10 @@ describe("@okfit/lsp boundaries", () => {
 	 *   `allow` could not express that split, since it would have exempted
 	 *   `main.ts` from a stray `console.log` or `.write()` call too.
 	 * - `"console-stdout"` spares a member access to `console.error`/`.warn`/
-	 *   `.trace`/`.assert` (Node's own stderr-routed methods), where the old
-	 *   `"console-write"` (now just `"console"`) forbade the global outright.
-	 *   This package's own policy only needs `.error` spared; the extra three
-	 *   are simply never triggered by anything under `src/` (confirmed below
-	 *   by this scan's own `scan.violations` staying empty).
+	 *   `.trace`/`.assert` (Node's own stderr-routed methods). This package's
+	 *   own policy only needs `.error` spared; the extra three are simply
+	 *   never triggered by anything under `src/` (confirmed below by this
+	 *   scan's own `scan.violations` staying empty).
 	 *
 	 * `"stdout-write"` itself needs no `allowRules` entry for `main.ts`'s bare
 	 * `process.stdout` handle (passed to `makeReferenceTransport` as a stream
@@ -38,19 +34,19 @@ describe("@okfit/lsp boundaries", () => {
 	 * a bare reference -- so "may hold the handle, must never call `.write()`
 	 * on it" falls out of the rule's own definition with nothing to waive.
 	 *
-	 * This also folds in the former hand-rolled "only these three files import
-	 * `vscode-languageserver`" check as `{ forbidImports: ["vscode-languageserver"] }`
-	 * with its own `allowRules.forbidImports` entry -- `forbidImports` matches a
-	 * specifier that equals an entry OR is a subpath of one, so it catches both
-	 * the bare `"vscode-languageserver"` import and the `"vscode-languageserver/node"`
-	 * subpath `protocol/reference.ts` uses, and (per `SourceBoundary.importSpecifiers`)
-	 * a type-only import too, which is why `protocol/types.ts` needs the same
-	 * waiver despite never loading the library at runtime.
+	 * `{ forbidImports: ["vscode-languageserver"] }` with its own
+	 * `allowRules.forbidImports` entry expresses "only these files import
+	 * `vscode-languageserver`" -- `forbidImports` matches a specifier that
+	 * equals an entry OR is a subpath of one, so it catches both the bare
+	 * `"vscode-languageserver"` import and the `"vscode-languageserver/node"`
+	 * subpath `protocol/reference.ts` uses, and (per
+	 * `SourceBoundary.importSpecifiers`) a type-only import too, which is why
+	 * `protocol/types.ts` needs the same waiver despite never loading the
+	 * library at runtime.
 	 *
-	 * Nothing in this package's boundary is left inexpressible: every hand-rolled
-	 * check round 2 (and the original suite) carried is now one `SourceBoundary.scan`
-	 * call plus the positive controls below, which prove the rules discriminate
-	 * rather than pass vacuously.
+	 * Nothing in this package's boundary is left inexpressible: the whole
+	 * policy is one `SourceBoundary.scan` call plus the positive controls
+	 * below, which prove the rules discriminate rather than pass vacuously.
 	 */
 	it.effect("expresses this package's whole src/ boundary in one scan", () =>
 		Effect.gen(function* () {

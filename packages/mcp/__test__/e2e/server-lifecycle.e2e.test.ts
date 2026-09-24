@@ -13,13 +13,10 @@ const MISSING_BUNDLE_FIXTURE = resolve(import.meta.dirname, "..", "fixtures", "m
 const MCP_BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "bin", "okfit-mcp.js");
 
 /**
- * Spawn the built bin as a long-lived server, over `@effected/mcp/testing`'s
- * `McpProcess` -- this package no longer hand-ports the queue/stream
- * plumbing a spawned server test client needs (`e2e/utils/mcpProcess.ts`,
- * deleted alongside this migration): `McpProcess.spawn` provides the same
- * `send`/`nextLine`/`closeStdin`/`exitCode`/`stderrSoFar` shape, plus
- * `readUntilResponse`, which subsumes this file's own former
- * notification-interleaving helper below.
+ * Spawns the built bin as a long-lived server over `@effected/mcp/testing`'s
+ * `McpProcess`, which provides `send`/`nextLine`/`closeStdin`/`exitCode`/
+ * `stderrSoFar` plus `readUntilResponse` (used below to skip past
+ * interleaved notifications).
  */
 const spawnMcp = (env: Readonly<Record<string, string>>) =>
 	McpProcess.spawn(ChildProcess.make(process.execPath, [MCP_BIN], { env }));

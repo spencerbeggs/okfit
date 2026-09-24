@@ -1,5 +1,5 @@
-import { readdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { SourceBoundary } from "@effected/workspaces/testing";
@@ -7,20 +7,13 @@ import { Effect } from "effect";
 
 const SRC_ROOT = join(import.meta.dirname, "..", "src");
 
-const walk = (dir: string): ReadonlyArray<string> =>
-	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-		const full = join(dir, entry.name);
-		if (entry.isDirectory()) return walk(full);
-		return entry.isFile() && entry.name.endsWith(".ts") ? [full] : [];
-	});
-
 describe("src boundaries (K-9, K-39)", () => {
 	// `@effected/workspaces/testing`'s `SourceBoundary` replaces this
 	// package's own hand-rolled comment-stripping scanner (`findAppImportNames`/
-	// `stripComments`, deleted alongside this migration). Two rules in one
-	// scan, since this package -- unlike `@okfit/engine`, which legitimately
-	// imports `AppConfig` from `@effected/app` -- imports NOTHING from that
-	// module at all (config discovery moved to `@okfit/engine`): a blanket
+	// `stripComments`, now deleted). Two rules in one scan, since this
+	// package -- unlike `@okfit/engine`, which legitimately imports
+	// `AppConfig` from `@effected/app` -- imports NOTHING from that module at
+	// all (config discovery moved to `@okfit/engine`): a blanket
 	// `{ forbidImports: ["@effected/app"] }` is available here and is
 	// strictly stronger than K-9's original "these three names" rule.
 	// `version.ts` needs no `allow` entry: SourceBoundary's `process` rule
@@ -56,22 +49,16 @@ describe("src boundaries (K-9, K-39)", () => {
 		assert.deepStrictEqual(allowed, []);
 	});
 
-	it("every source file under src/ is visited (non-vacuity, direct)", () => {
-		assert.isAbove(walk(SRC_ROOT).length, 0);
-	});
-
-	// Reads every file once more, outside SourceBoundary's own walk, purely
-	// to keep this suite's historical guarantee that at least one real file
-	// exists at every relative path the K-39 allowlist names -- a renamed
-	// or removed `bin.ts`/`main.ts`/`internal/exit.ts` should fail loudly
-	// here rather than silently narrowing what the allowlist ever exempts.
+	// Pins that every K-39-allowlisted relative path still names a real
+	// file: a renamed or removed `bin.ts`/`main.ts`/`internal/exit.ts`
+	// should fail loudly here rather than silently narrowing what the
+	// allowlist ever exempts.
 	it("every K-39-allowlisted relative path still names a real file", () => {
-		const files = walk(SRC_ROOT).map((file) => relative(SRC_ROOT, file).split("\\").join("/"));
 		for (const allowed of ["bin.ts", "main.ts", "internal/exit.ts"]) {
-			assert.ok(files.includes(allowed), `expected ${allowed} to exist under src/`);
+			assert.ok(existsSync(join(SRC_ROOT, allowed)), `expected ${allowed} to exist under src/`);
 		}
 		assert.ok(
-			files.some((file) => file.startsWith("commands/")),
+			readdirSync(join(SRC_ROOT, "commands")).some((file) => file.endsWith(".ts")),
 			"expected at least one file under commands/",
 		);
 	});
