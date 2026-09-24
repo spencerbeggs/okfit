@@ -11,8 +11,8 @@ sources:
     resource: ../../packages/cli/__test__/boundaries.test.ts
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: f1340e32e0cab2c30dd87189cdd890bba953d98749f5c7c720cf59d7c3155289
+  at: 2026-09-24T16:07:02Z
+  body_sha256: dabd73dc1de7f4e603db86193dbbb7603fedc9e13296822ce0f332db5e64dea3
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract
@@ -99,5 +99,4 @@ Outside the workspace, installing only the packed plugin now yields both
 bins in `node_modules/.bin/`: `okfit --version` exits 0, and `okfit-mcp`
 answers a JSON-RPC `initialize` on stdout with empty stderr.
 
-[^boundaries-test]: ../../packages/cli/**test**/boundaries.test.ts
-</content>
+[^boundaries-test]: `packages/cli/__test__/boundaries.test.ts`

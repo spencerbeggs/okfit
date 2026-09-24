@@ -22,8 +22,8 @@ sources:
     resource: ../../packages/cli/src/internal/versionFormatter.ts
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: a21bd8b1fa83abe73308e410da6beb01504bece7c2ed0846f4260032c4c24452
+  at: 2026-09-24T16:07:02Z
+  body_sha256: 874fd08c90f163131148eb23c1dd0b7b71167e58c60f9887cdef1cf90b5fc8ba
 ---
 
 # The engine version, not the producer version, is what a report is compared on
@@ -157,4 +157,3 @@ packaging.[^owner-ruling]
 [^okfit-137]: <https://github.com/spencerbeggs/okfit/issues/137>
 [^owner-ruling]: conversation with the repository owner, 2026-09-16
 [^version-formatter]: ../../packages/cli/src/internal/versionFormatter.ts
-</content>
