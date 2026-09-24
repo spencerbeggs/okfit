@@ -1,9 +1,10 @@
+import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { ConceptId as ConceptIdType, GraphNodeKind } from "@okfit/core";
 import { ConceptId, Graph } from "@okfit/core";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { ConceptNotFound, InvalidArgument, McpToolError, composeRemediatedMessage, truncateEchoed } from "../errors.js";
+import { ConceptNotFound, InvalidArgument, McpToolError } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import { ConceptNeighborsSuccess } from "../schema/tools.js";
@@ -33,8 +34,8 @@ export const conceptNeighbors = Tool.make("concept_neighbors", {
 /**
  * Deviation from the brief's literal snippet, matching the ruling binding
  * every C task (progress.md): `message` is composed through
- * {@link composeRemediatedMessage} at construction, since a declared typed
- * failure under `failureMode: "error"` never reaches the wire with
+ * `ToolFailure.message` (`@effected/mcp`) at construction, since a declared
+ * typed failure under `failureMode: "error"` never reaches the wire with
  * `structuredContent` — only `error.message` does.
  *
  * @public
@@ -51,7 +52,7 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 			return yield* Effect.fail(
 				new InvalidArgument({
 					argument: "id",
-					message: composeRemediatedMessage("id must not be empty", remediation),
+					message: ToolFailure.message("id must not be empty", remediation),
 					remediation,
 				}),
 			);
@@ -65,7 +66,7 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 			return yield* Effect.fail(
 				new ConceptNotFound({
 					id: params.id,
-					message: composeRemediatedMessage(`no concept "${truncateEchoed(params.id)}" in this bundle`, remediation),
+					message: ToolFailure.message(`no concept "${ToolFailure.truncate(params.id)}" in this bundle`, remediation),
 					remediation,
 				}),
 			);

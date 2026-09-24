@@ -38,6 +38,7 @@
 		"@effect/platform-node": "catalog:effect",
 		"@effected/cli": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
+		"@effected/engine": "catalog:effected",
 		"@effected/git": "catalog:effected",
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",
@@ -53,6 +54,7 @@
 	"devDependencies": {
 		"@effect/vitest": "catalog:effect",
 		"@effected/commands": "catalog:effected",
+		"@effected/workspaces": "catalog:effected",
 		"@savvy-web/bundler": "^2.4.9",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",

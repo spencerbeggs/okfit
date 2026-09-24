@@ -1,3 +1,5 @@
+import { CliColor } from "@effected/cli";
+import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import {
@@ -14,9 +16,7 @@ import {
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
-import { useColor } from "../internal/tty.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
 import { CLI_VERSION } from "../version.js";
@@ -70,7 +70,7 @@ export const lintCommand = Command.make(
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
 			const now = yield* Now;
 			const path = yield* Path.Path;
-			const distribution = yield* Distribution;
+			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const resolved = yield* resolveProjectConfig({
@@ -105,7 +105,8 @@ export const lintCommand = Command.make(
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(JsonEnvelope)(envelope)));
 				} else {
-					for (const diagnosticLine of human(diagnostics, { color: useColor() })) {
+					const color = yield* CliColor.enabled;
+					for (const diagnosticLine of human(diagnostics, { color })) {
 						yield* Console.log(diagnosticLine);
 					}
 					const counts: Counts = {

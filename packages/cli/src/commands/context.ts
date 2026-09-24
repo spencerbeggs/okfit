@@ -1,3 +1,4 @@
+import { CurrentDistribution } from "@effected/engine";
 import {
 	ContextEnvelope,
 	contextEnvelope,
@@ -8,7 +9,6 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Distribution } from "../internal/distribution.js";
 import { setExitCode } from "../internal/exit.js";
 import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
@@ -56,7 +56,7 @@ export const contextCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
-			const distribution = yield* Distribution;
+			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const resolved = yield* resolveProjectConfig({

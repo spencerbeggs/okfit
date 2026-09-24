@@ -389,9 +389,11 @@ that one case.
 
 Every message `okfit` prints is lowercase, starts `error:` or `warning:`,
 never ends with a trailing period, and renders a path relative to the
-current directory when the path is under it, absolute otherwise. Colour, when
-stdout is a TTY and `NO_COLOR` is not `1`, wraps only the severity word —
-never the code, the path, or the message text.
+current directory when the path is under it, absolute otherwise. Colour,
+when stdout is a TTY and `NO_COLOR` is unset or empty (the
+[no-color.org](https://no-color.org) rule: any non-empty `NO_COLOR` value
+disables colour), wraps only the severity word — never the code, the
+path, or the message text.
 
 ## License
 

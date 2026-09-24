@@ -6,7 +6,7 @@ validate/verify/sync/init/context programs shared by `@okfit/cli` and
 Neither front end duplicates this logic; `@okfit/cli` renders it as a
 human/JSON CLI, `@okfit/mcp` serves it as MCP tools, and `@okfit/mcp`
 depends on this package directly rather than on `@okfit/cli` -- see
-`okf/decisions/engine-front-end-split.md` for why.
+`okf/decisions/engine-front-end-split-effected-kit.md` for why.
 
 ## Layout
 

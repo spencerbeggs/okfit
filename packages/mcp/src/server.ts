@@ -1,10 +1,11 @@
 import { Git } from "@effected/git";
+import { McpStdio, McpToolkit } from "@effected/mcp";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { Distribution } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import type { FileSystem, Path, Stdio } from "effect";
 import { Layer } from "effect";
-import { McpProtocol, McpServer } from "effect/unstable/ai";
+import { McpProtocol } from "effect/unstable/ai";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { ConceptResources } from "./resources/conceptResource.js";
 import { IndexResource } from "./resources/indexResource.js";
@@ -14,9 +15,8 @@ import { MCP_VERSION } from "./version.js";
 /**
  * Everything `ServerLayer` still needs from the platform: the four services
  * `describe_vocabulary`'s declared `Tool.make` dependencies pull through
- * `McpServer.toolkit`'s own `Tool.HandlerServices<Tools>` requirement, plus
- * `Stdio`, which `McpServer.layerStdio` itself requires
- * (`unstable/ai/McpServer.ts:1207-1216`) and which the brief's own
+ * `McpToolkit.layer`'s own `Tool.HandlerServices<Tools>` requirement, plus
+ * `Stdio`, which `McpStdio.layer` itself requires and which the brief's own
  * `PlatformServices` literal omitted.
  *
  * `ChildProcessSpawner` is new (contract §10.3, S-16): `validate_bundle`'s
@@ -77,24 +77,34 @@ export const SERVER_INSTRUCTIONS: string = [
  * The whole server as one layer: the toolkit, one static resource per
  * concept (`okf://concept/<id>`, built once at boot — see
  * {@link ConceptResources}), and `okf://index` (re-read from disk on every
- * call), over `McpServer.layerStdio`.
+ * call), over `@effected/mcp`'s `McpStdio.layer`.
  *
- * `protocols` ships three adapters, newest first. `McpProtocol.v2026_07_28`
- * is the stateless adapter (SEP-2575): no `initialize`, no session, every
- * request self-identifies through `params._meta`, and the client discovers
- * the server with `server/discover`. The two stateful adapters stay
- * because `initialize` matches stateful adapters only — a client that
- * opens with `initialize` (Claude Code by default, Copilot, Cursor, the
- * Inspector) would otherwise get `METHOD_NOT_FOUND`. Array order is
- * load-bearing: a request with no session and no `_meta` protocol version
- * falls to `protocols[0]`, and `server/discover` advertises every listed
- * adapter in `supportedVersions`. The runtime allows at most one stateless
- * adapter; a second fails the layer with `Cause.IllegalArgumentError`.
- * Never reduce this to one entry.
+ * `McpStdio.layer` (not core's own `McpServer.layerStdio`, hand-wired) is
+ * load-bearing, not a style choice: it wraps core's stdin decoder with a
+ * guard that answers a non-JSON line with a JSON-RPC `-32700` and keeps
+ * serving, where hand-wiring `layerStdio` directly wedges permanently on
+ * the first bad line (effect-v4-mcp's `server-wiring.md#stdin-guard`). It
+ * also merges `LogToStderr` into everything it provides, so `main.ts` no
+ * longer assembles a logger of its own. `McpToolkit.layer` (not core's
+ * `McpServer.toolkit`) reports every unknown argument key a strict tool
+ * call carries, at every depth, in one response, instead of only the
+ * first.
  *
- * `Cause.IllegalArgumentError` in `layerStdio`'s signature is left
- * unhandled: `protocols` is a static literal, so it is an implementer-time
- * defect, not a runtime condition.
+ * `protocols` ships three adapters, newest first -- the same list
+ * `McpStdio.protocols` defaults to, spelled out here since the decision
+ * behind the exact order is this package's own
+ * (`okf/decisions/mcp-stateless-first-protocol-list.md`), not the kit's.
+ * `McpProtocol.v2026_07_28` is the stateless adapter (SEP-2575): no
+ * `initialize`, no session, every request self-identifies through
+ * `params._meta`, and the client discovers the server with
+ * `server/discover`. The two stateful adapters stay because `initialize`
+ * matches stateful adapters only — a client that opens with `initialize`
+ * (Claude Code by default, Copilot, Cursor, the Inspector) would otherwise
+ * get `METHOD_NOT_FOUND`. Array order is load-bearing: a request with no
+ * session and no `_meta` protocol version falls to `protocols[0]`, and
+ * `server/discover` advertises every listed adapter in `supportedVersions`.
+ * The runtime allows at most one stateless adapter; a second fails the
+ * layer. Never reduce this to one entry.
  *
  * @public
  */
@@ -103,7 +113,7 @@ export const ServerLayer = (
 	options: ServerOptions = {},
 ): Layer.Layer<never, never, PlatformServices> =>
 	Layer.mergeAll(
-		McpServer.toolkit(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot, options.distribution))),
+		McpToolkit.layer(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot, options.distribution))),
 		ConceptResources(projectRoot),
 		IndexResource(projectRoot),
 	).pipe(
@@ -114,12 +124,11 @@ export const ServerLayer = (
 		// needs `Git`/`GitHistory` themselves, only the discharge.
 		Layer.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
 		Layer.provide(
-			McpServer.layerStdio({
+			McpStdio.layer({
 				name: "okfit",
 				version: MCP_VERSION,
 				instructions: SERVER_INSTRUCTIONS,
 				protocols: [McpProtocol.v2026_07_28, McpProtocol.v2025_11_25, McpProtocol.v2025_06_18],
 			}),
 		),
-		Layer.orDie,
 	);

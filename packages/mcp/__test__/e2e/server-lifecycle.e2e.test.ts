@@ -2,13 +2,25 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
+import { McpProcess } from "@effected/mcp/testing";
 import { Effect } from "effect";
-import type { McpProcess } from "./utils/mcpProcess.js";
-import { spawnMcp } from "./utils/mcpProcess.js";
+import { ChildProcess } from "effect/unstable/process";
+import { readUntilErrorCode } from "./utils/wire.js";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
 const CLI_BIN = resolve(REPO_ROOT, "packages", "cli", "dist", "dev", "pkg", "bin", "okfit.js");
 const MISSING_BUNDLE_FIXTURE = resolve(import.meta.dirname, "..", "fixtures", "missing-bundle");
+/** The built dev bin, resolved from this file's own location, never from cwd. */
+const MCP_BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "bin", "okfit-mcp.js");
+
+/**
+ * Spawns the built bin as a long-lived server over `@effected/mcp/testing`'s
+ * `McpProcess`, which provides `send`/`nextLine`/`closeStdin`/`exitCode`/
+ * `stderrSoFar` plus `readUntilResponse` (used below to skip past
+ * interleaved notifications).
+ */
+const spawnMcp = (env: Readonly<Record<string, string>>) =>
+	McpProcess.spawn(ChildProcess.make(process.execPath, [MCP_BIN], { env }));
 
 const ENV = {
 	PATH: process.env.PATH ?? "",
@@ -35,50 +47,20 @@ const STATELESS_META = {
 } as const;
 
 /**
- * Read stdout lines until one carries the requested `id`, skipping any
- * unsolicited notification in between.
- *
- * Not part of the brief's normative `McpProcess` interface (only
- * `nextLine` is), and needed here rather than assumed away: this server
- * sends `notifications/tools/list_changed` and (once, sometimes twice --
- * once per registered resource layer) `notifications/resources/list_changed`
+ * This server sends `notifications/tools/list_changed` and (once, sometimes
+ * twice -- once per registered resource layer) `notifications/resources/list_changed`
  * after boot, and their arrival on stdout interleaves with the next
  * request/response pair rather than always preceding it -- reproduced
  * directly against the built bin, where a `validate_bundle` call (slow
  * enough to leave room for the notification) received three notification
- * lines before its own response. A `nextLine`-per-expected-line loop, as
- * the brief's literal case bodies assumed, is not reliable against this
- * server's real output ordering.
+ * lines before its own response. `@effected/mcp/testing`'s `McpProcess.readUntilResponse`
+ * is exactly this: it reads past interleaved notifications to the matching
+ * id and returns `{ response, seen }`, `seen` carrying every line read along
+ * the way (notifications included) for the one case below that wants to
+ * inspect all of them.
  */
-interface JsonRpcLine {
-	readonly jsonrpc?: unknown;
-	readonly id?: unknown;
-	readonly method?: unknown;
-	readonly result?: unknown;
-	readonly error?: unknown;
-}
-
-/**
- * Read and collect every stdout line up to and including the one carrying
- * the requested `id`. `seen` carries every line read along the way
- * (notifications included) so a case that wants to inspect all of them
- * (e.g. that each one parses as JSON-RPC) still can.
- */
-const readUntilResponse = (
-	server: McpProcess,
-	id: number,
-): Effect.Effect<{ readonly response: JsonRpcLine; readonly seen: ReadonlyArray<JsonRpcLine> }> =>
-	Effect.gen(function* () {
-		const seen: Array<JsonRpcLine> = [];
-		while (true) {
-			const parsed = JSON.parse(yield* server.nextLine) as JsonRpcLine;
-			seen.push(parsed);
-			if (parsed.id === id) return { response: parsed, seen };
-		}
-	});
-
-const readResponse = (server: McpProcess, id: number): Effect.Effect<JsonRpcLine> =>
-	Effect.map(readUntilResponse(server, id), ({ response }) => response);
+const readResponse = (server: McpProcess, id: number) =>
+	Effect.map(server.readUntilResponse(id), ({ response }) => response);
 
 describe("server lifecycle", () => {
 	it.effect("completes the initialize handshake and lists six tools over real stdio", () =>
@@ -104,10 +86,10 @@ describe("server lifecycle", () => {
 		Effect.gen(function* () {
 			const server = yield* spawnMcp(ENV);
 			yield* server.send(INITIALIZE);
-			const { seen: fromInitialize } = yield* readUntilResponse(server, 1);
+			const { seen: fromInitialize } = yield* server.readUntilResponse(1);
 			yield* server.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 			yield* server.send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-			const { seen: fromToolsList } = yield* readUntilResponse(server, 2);
+			const { seen: fromToolsList } = yield* server.readUntilResponse(2);
 			// A failing tool call is the one wire-reachable path that used to
 			// emit a log line (final whole-branch review, Important finding 2).
 			// Since effect@4.0.0-rc.116 a DECLARED failure is rendered without
@@ -120,7 +102,7 @@ describe("server lifecycle", () => {
 				method: "tools/call",
 				params: { name: "get_concept", arguments: { id: "nope" } },
 			});
-			const { seen: fromFailingCall } = yield* readUntilResponse(server, 3);
+			const { seen: fromFailingCall } = yield* server.readUntilResponse(3);
 			for (const line of [...fromInitialize, ...fromToolsList, ...fromFailingCall]) {
 				assert.strictEqual(line.jsonrpc, "2.0");
 			}
@@ -258,6 +240,40 @@ describe("server lifecycle", () => {
 	// `runMain`'s `teardown` option (review Minor finding 3), since 130
 	// conventionally means "killed by SIGINT" and this is the ordinary end
 	// of every session.
+	// I4 (final whole-branch review): `McpStdio.layer`'s stdin guard is
+	// "load-bearing, not a style choice" (server.ts's own doc comment), but
+	// nothing under `__test__` exercised it before this test. A malformed
+	// line gets `-32700`, a syntactically-JSON-but-not-JSON-RPC value (a bare
+	// `null`) gets `-32600`, both with `id: null`, and the server keeps
+	// serving afterward -- proven here by completing a real `initialize`
+	// right after. `McpProcess.sendRaw` writes the two malformed lines
+	// exactly as given (no JSON encoding), and `readUntilErrorCode`
+	// (`./utils/wire.ts`) reads past any interleaved notification to the
+	// matching error frame, the same "skip what you don't want" posture
+	// `readUntilResponse` uses for a response id.
+	it.effect("recovers from a malformed stdin line and a non-JSON-RPC value, and keeps serving", () =>
+		Effect.gen(function* () {
+			const server = yield* spawnMcp(ENV);
+
+			yield* server.sendRaw("not json\n");
+			const parseError = yield* readUntilErrorCode(server, -32700);
+			assert.strictEqual(parseError.id, null);
+
+			yield* server.sendRaw("null\n");
+			const invalidRequest = yield* readUntilErrorCode(server, -32600);
+			assert.strictEqual(invalidRequest.id, null);
+
+			yield* server.send(INITIALIZE);
+			const initialized = (yield* readResponse(server, 1)) as {
+				readonly result: { readonly protocolVersion: string; readonly serverInfo: { readonly name: string } };
+			};
+			assert.strictEqual(initialized.result.serverInfo.name, "okfit");
+			assert.strictEqual(initialized.result.protocolVersion, "2025-11-25");
+
+			yield* server.closeStdin;
+		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+	);
+
 	it.effect("exits 0 within two seconds of stdin closing", () =>
 		Effect.gen(function* () {
 			const server = yield* spawnMcp(ENV);

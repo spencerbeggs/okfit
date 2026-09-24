@@ -1,34 +1,32 @@
-import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as NodeChildProcessSpawner from "@effect/platform-node/NodeChildProcessSpawner";
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
+import * as NodePath from "@effect/platform-node/NodePath";
+import type { JsonRpcMessage, McpTestFailure, ServedResource, ServedTool } from "@effected/mcp/testing";
+import { McpHarness } from "@effected/mcp/testing";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { Scope } from "effect";
-import { Deferred, Effect, Layer, Queue, Sink, Stdio, Stream } from "effect";
+import { Effect, Layer } from "effect";
+import { McpProtocol } from "effect/unstable/ai";
 import type { ServerOptions } from "../../src/server.js";
 import { ServerLayer } from "../../src/server.js";
 
-export interface JsonRpcMessage {
-	readonly jsonrpc: "2.0";
-	readonly id?: string | number | null | undefined;
-	readonly method?: string | undefined;
-	readonly params?: unknown;
-	readonly result?: unknown;
-	readonly error?: unknown;
-}
+export type { ServedResource } from "@effected/mcp/testing";
 
-export interface ServedTool {
-	readonly name: string;
-	readonly title?: string;
-	readonly description?: string;
-	readonly inputSchema: Record<string, unknown>;
-	readonly outputSchema?: Record<string, unknown>;
-	readonly annotations?: Record<string, unknown>;
-}
-export interface ServedResource {
-	readonly uri?: string;
-	readonly uriTemplate?: string;
-	readonly name: string;
-	readonly description?: string;
-	readonly mimeType?: string;
-}
+/**
+ * The three adapters `ServerLayer` declares, spelled as the wire-format
+ * strings this package's own tests already use, mapped onto
+ * `@effected/mcp/testing`'s `McpHarness`, which takes a `McpProtocol.ProtocolAdapter`
+ * rather than a bare string.
+ */
+export type ProtocolVersion = "2026-07-28" | "2025-11-25" | "2025-06-18";
+
+const PROTOCOL_ADAPTERS: Record<ProtocolVersion, McpProtocol.ProtocolAdapter> = {
+	"2026-07-28": McpProtocol.v2026_07_28,
+	"2025-11-25": McpProtocol.v2025_11_25,
+	"2025-06-18": McpProtocol.v2025_06_18,
+};
+
 export interface CallToolResult {
 	readonly content: ReadonlyArray<{ readonly type: string; readonly text?: string }>;
 	readonly structuredContent?: unknown;
@@ -37,23 +35,6 @@ export interface CallToolResult {
 export interface ReadResourceResult {
 	readonly contents: ReadonlyArray<{ readonly uri: string; readonly mimeType?: string; readonly text?: string }>;
 }
-export interface CompleteResult {
-	readonly completion: { readonly values: ReadonlyArray<string>; readonly total?: number; readonly hasMore?: boolean };
-}
-
-/**
- * The three adapters `ServerLayer` declares. `2026-07-28` is stateless: the
- * harness injects `params._meta` (protocol version, client capabilities,
- * client info) on every request and notification, and `initialize` is
- * never sent -- `discover` is the opening call instead. The other two are
- * stateful and open with `initialize` carrying that version.
- */
-export type ProtocolVersion = "2026-07-28" | "2025-11-25" | "2025-06-18";
-
-export interface HarnessOptions extends ServerOptions {
-	readonly protocolVersion?: ProtocolVersion;
-}
-
 export interface DiscoverResult {
 	readonly supportedVersions: ReadonlyArray<string>;
 	readonly capabilities: Record<string, unknown>;
@@ -62,47 +43,79 @@ export interface DiscoverResult {
 	readonly resultType?: string;
 }
 
-export interface OkfitMcpHarness {
-	readonly protocolVersion: ProtocolVersion;
-	readonly initialize: Effect.Effect<JsonRpcMessage>;
-	readonly discover: Effect.Effect<JsonRpcMessage>;
-	readonly sendRaw: (message: unknown) => Effect.Effect<void>;
-	readonly sendRequest: (method: string, params?: unknown) => Effect.Effect<JsonRpcMessage>;
-	readonly sendNotification: (method: string, params?: unknown) => Effect.Effect<void>;
-	readonly listTools: Effect.Effect<ReadonlyArray<ServedTool>>;
-	readonly callTool: (name: string, args?: unknown) => Effect.Effect<CallToolResult>;
-	readonly listResources: Effect.Effect<ReadonlyArray<ServedResource>>;
-	readonly readResource: (uri: string) => Effect.Effect<ReadResourceResult>;
-	readonly complete: (uri: string, argument: { name: string; value: string }) => Effect.Effect<CompleteResult>;
-	readonly takeStderr: Effect.Effect<string>;
+export interface HarnessOptions extends ServerOptions {
+	readonly protocolVersion?: ProtocolVersion;
 }
 
-const isJsonRpcMessage = (value: unknown): value is JsonRpcMessage =>
-	typeof value === "object" && value !== null && (value as JsonRpcMessage).jsonrpc === "2.0";
-
-const isResponse = (message: JsonRpcMessage): message is JsonRpcMessage & { readonly id: string | number } =>
-	(typeof message.id === "string" || typeof message.id === "number") && message.method === undefined;
-
-const requestKey = (id: string | number) => `${typeof id}:${id}`;
+export interface OkfitMcpHarness {
+	readonly protocolVersion: ProtocolVersion;
+	readonly initialize: Effect.Effect<JsonRpcMessage, McpTestFailure>;
+	readonly discover: Effect.Effect<JsonRpcMessage, McpTestFailure>;
+	readonly sendRequest: (method: string, params?: unknown) => Effect.Effect<JsonRpcMessage, McpTestFailure>;
+	readonly listTools: Effect.Effect<ReadonlyArray<ServedTool>, McpTestFailure>;
+	readonly callTool: (name: string, args?: unknown) => Effect.Effect<CallToolResult, McpTestFailure>;
+	readonly listResources: Effect.Effect<ReadonlyArray<ServedResource>, McpTestFailure>;
+	readonly readResource: (uri: string) => Effect.Effect<ReadResourceResult, McpTestFailure>;
+}
 
 /**
- * The real platform layer, minus a live `Stdio`: `Xdg`/`AppDirs` composed
- * exactly as `bin.ts` does, so `resolveProjectConfig` and `Bundle.load` run
- * against a real fixture directory on disk. `Stdio` is supplied separately,
- * per test, by {@link makeHarness} via `Stdio.layerTest`.
+ * The real platform layer, minus `Stdio` (and `Terminal`, which no code path
+ * here needs): `Xdg`/`AppDirs` composed exactly as `bin.ts` does, so
+ * `resolveProjectConfig` and `Bundle.load` run against a real fixture
+ * directory on disk, over the individual `FileSystem`/`Path`/`Crypto`/
+ * `ChildProcessSpawner` layers `@effect/platform-node/NodeServices`' own
+ * source composes internally -- deliberately NOT the `NodeServices.layer`
+ * bundle itself, which also carries `NodeStdio.layer`. `Stdio` is supplied
+ * internally by `McpHarness.make`, over queue-backed stdio -- see
+ * `@effected/mcp/testing`'s own reference for why a harness is passed a
+ * server layer WITHOUT its own `Stdio`. Pulling in `NodeServices.layer`
+ * wholesale satisfies the server's `Stdio` requirement with the REAL
+ * `process.stdin`/`stdout` before `McpHarness.make` ever gets a chance to
+ * inject its test queues -- every test then hangs waiting on real stdin
+ * that a vitest worker never provides.
  */
+const NodePlatformLayer = Layer.provideMerge(
+	NodeChildProcessSpawner.layer,
+	Layer.mergeAll(NodeFileSystem.layer, NodeCrypto.layer, NodePath.layer),
+);
 const PlatformLayer = Layer.mergeAll(
 	Xdg.layer,
 	AppDirs.layer({ namespace: "okfit" }).pipe(Layer.provide(Xdg.layer)),
-).pipe(Layer.provideMerge(NodeServices.layer));
+).pipe(Layer.provideMerge(NodePlatformLayer));
 
 /**
- * An in-process JSON-RPC-over-stdio harness for `ServerLayer(projectRoot)`,
- * ported from Effect's own `McpStdioHarness`
- * (`.repos/effect/packages/effect/test/unstable/ai/McpServer/TestUtils/McpStdioHarness.ts`).
- * The one difference from upstream: this builds the real `ServerLayer`, not
- * a bare `McpServer.layerStdio`, over the real platform layer, so config
- * discovery and bundle loading run against an actual directory on disk.
+ * `tools/call` and `resources/read` return the whole `JsonRpcMessage` from
+ * `@effected/mcp/testing`'s `McpHarness` (a JSON-RPC error is data, same as
+ * every other request) -- unwrapped here to `.result` for the common case
+ * this package's own tests want, matching the shape the hand-rolled harness
+ * this replaces returned. A caller that needs to see a JSON-RPC-level
+ * `.error` (this package's own protocol- and resource-failure tests) still
+ * goes through `sendRequest` directly, which is never unwrapped.
+ * `listResources` needs none of this: `McpHarness.listResources` already
+ * unwraps `resources/list`'s `.result.resources` and fails typed
+ * (`ErrorResponse`) on a JSON-RPC error, so it is exposed here verbatim.
+ */
+const unwrapResult = <A>(response: JsonRpcMessage): A =>
+	(response.error === undefined ? response.result : response) as A;
+
+/**
+ * An in-process MCP client for `ServerLayer(projectRoot)`, over
+ * `@effected/mcp/testing`'s `McpHarness` -- the kit's own in-process,
+ * queue-backed-stdio test client. What this wrapper still owns: the real
+ * platform layer (`Xdg`/`AppDirs`/
+ * the individual Node platform layers), the `ProtocolVersion` string ->
+ * `McpProtocol.ProtocolAdapter` mapping this package's tests are already
+ * written against, and unwrapping `callTool`/`readResource`'s `.result` for
+ * the common case (see {@link unwrapResult}). `listResources` is the kit's
+ * own convenience method, passed through unchanged.
+ *
+ * `McpHarness.make`'s own error channel is `Xdg.layer`'s real (K-13,
+ * `packages/engine/src/platform.ts`) `XdgEnvError` -- `ServerLayer` itself
+ * never fails to build. Production code renders it (a caller's
+ * responsibility per K-13's own doc comment); a test fixture's `HOME` is
+ * never unset, so it is discharged with `Effect.orDie` here rather than
+ * threading a typed failure every one of this package's tests would then
+ * have to declare and never actually exercise.
  *
  * @public
  */
@@ -111,167 +124,20 @@ export const makeHarness = (
 	options: HarnessOptions = {},
 ): Effect.Effect<OkfitMcpHarness, never, Scope.Scope> =>
 	Effect.gen(function* () {
-		const protocolVersion: ProtocolVersion = options.protocolVersion ?? "2025-11-25";
-		const stateless = protocolVersion === "2026-07-28";
+		const protocolVersion = options.protocolVersion ?? "2025-11-25";
 		const serverOptions: ServerOptions =
 			options.distribution === undefined ? {} : { distribution: options.distribution };
-		const stdin = yield* Queue.unbounded<Uint8Array>();
-		const stdout = yield* Queue.unbounded<string | Uint8Array>();
-		const stderr = yield* Queue.unbounded<string | Uint8Array>();
-		const messages = yield* Queue.unbounded<JsonRpcMessage>();
-		const rawStderr = yield* Queue.unbounded<string>();
-		const responseQueues = new Map<string, Queue.Queue<JsonRpcMessage>>();
-		const encoder = new TextEncoder();
-		const stdoutDecoder = new TextDecoder();
-		const stderrDecoder = new TextDecoder();
-		let nextRequestId = 1;
-
-		const stdioLayer = Stdio.layerTest({
-			stdin: Stream.fromQueue(stdin),
-			// biome-ignore lint/suspicious/useIterableCallbackReturn: Sink.forEach's callback returns the offering Effect; this is not Array#forEach.
-			stdout: () => Sink.forEach((chunk: string | Uint8Array) => Queue.offer(stdout, chunk)),
-			// biome-ignore lint/suspicious/useIterableCallbackReturn: Sink.forEach's callback returns the offering Effect; this is not Array#forEach.
-			stderr: () => Sink.forEach((chunk: string | Uint8Array) => Queue.offer(stderr, chunk)),
-		});
-
-		const ready = yield* Deferred.make<void>();
-		yield* Effect.gen(function* () {
-			yield* Layer.build(
-				ServerLayer(projectRoot, serverOptions).pipe(Layer.provide(stdioLayer), Layer.provide(PlatformLayer)),
-			);
-			yield* Deferred.succeed(ready, undefined);
-			return yield* Effect.never;
-		}).pipe(Effect.scoped, Effect.forkScoped);
-		yield* Deferred.await(ready);
-
-		const routeFrame = (frame: unknown): Effect.Effect<void> =>
-			Effect.gen(function* () {
-				if (!isJsonRpcMessage(frame)) return;
-				if (isResponse(frame)) {
-					const responseQueue = responseQueues.get(requestKey(frame.id));
-					if (responseQueue !== undefined) {
-						yield* Queue.offer(responseQueue, frame);
-						return;
-					}
-				}
-				yield* Queue.offer(messages, frame);
-			});
-
-		yield* Effect.gen(function* () {
-			let pending = "";
-			while (true) {
-				const chunk = yield* Queue.take(stdout);
-				const text = typeof chunk === "string" ? chunk : stdoutDecoder.decode(chunk, { stream: true });
-				pending += text;
-				let newline = pending.indexOf("\n");
-				while (newline !== -1) {
-					const line = pending.slice(0, newline);
-					pending = pending.slice(newline + 1);
-					if (line.length > 0) {
-						const frame = JSON.parse(line) as unknown;
-						if (!isJsonRpcMessage(frame)) {
-							return yield* Effect.die(new Error(`stdout carried a non-JSON-RPC line: ${line}`));
-						}
-						yield* routeFrame(frame);
-					}
-					newline = pending.indexOf("\n");
-				}
-			}
-		}).pipe(Effect.forkScoped);
-
-		yield* Effect.gen(function* () {
-			while (true) {
-				const chunk = yield* Queue.take(stderr);
-				yield* Queue.offer(
-					rawStderr,
-					typeof chunk === "string" ? chunk : stderrDecoder.decode(chunk, { stream: true }),
-				);
-			}
-		}).pipe(Effect.forkScoped);
-
-		const sendChunk = (chunk: string | Uint8Array): Effect.Effect<void> =>
-			Queue.offer(stdin, typeof chunk === "string" ? encoder.encode(chunk) : chunk);
-		const sendRaw = (message: unknown): Effect.Effect<void> => sendChunk(`${JSON.stringify(message)}\n`);
-		// Ported from upstream's `withRequestMetadata`: on the stateless adapter
-		// every frame carries the protocol fields under `params._meta`, merged
-		// over any `_meta` the caller passed so the protocol fields win.
-		const requestMetadata = {
-			"io.modelcontextprotocol/protocolVersion": protocolVersion,
-			"io.modelcontextprotocol/clientCapabilities": {},
-			"io.modelcontextprotocol/clientInfo": { name: "okfit-test", version: "0.0.0" },
-		};
-		const withRequestMetadata = (params: unknown): unknown => {
-			if (!stateless) return params;
-			const base = typeof params === "object" && params !== null ? (params as Record<string, unknown>) : {};
-			const callerMeta =
-				typeof base._meta === "object" && base._meta !== null ? (base._meta as Record<string, unknown>) : {};
-			return { ...base, _meta: { ...callerMeta, ...requestMetadata } };
-		};
-		const paramsField = (params: unknown) =>
-			params === undefined && !stateless ? {} : { params: withRequestMetadata(params) };
-		const sendNotification = (method: string, params?: unknown): Effect.Effect<void> =>
-			sendRaw({ jsonrpc: "2.0", method, ...paramsField(params) });
-		const sendRequest = (method: string, params?: unknown): Effect.Effect<JsonRpcMessage> =>
-			Effect.gen(function* () {
-				const id = nextRequestId++;
-				const responseQueue = yield* Queue.unbounded<JsonRpcMessage>();
-				const key = requestKey(id);
-				responseQueues.set(key, responseQueue);
-				yield* sendRaw({ jsonrpc: "2.0", id, method, ...paramsField(params) });
-				return yield* Queue.take(responseQueue).pipe(Effect.ensuring(Effect.sync(() => responseQueues.delete(key))));
-			});
-
-		const discover: Effect.Effect<JsonRpcMessage> = sendRequest("server/discover");
-		// On the stateless adapter there is no handshake: `initialize` would be
-		// answered with METHOD_NOT_FOUND, so it degrades to `server/discover`
-		// and the existing tests keep their opening call unchanged.
-		const initialize: Effect.Effect<JsonRpcMessage> = stateless
-			? discover
-			: Effect.gen(function* () {
-					const response = yield* sendRequest("initialize", {
-						protocolVersion,
-						capabilities: {},
-						clientInfo: { name: "okfit-test", version: "0.0.0" },
-					});
-					yield* sendNotification("notifications/initialized");
-					return response;
-				});
-
-		const listTools: Effect.Effect<ReadonlyArray<ServedTool>> = sendRequest("tools/list").pipe(
-			Effect.map((response) => (response.result as { readonly tools: ReadonlyArray<ServedTool> }).tools),
-		);
-		const callTool = (name: string, args?: unknown): Effect.Effect<CallToolResult> =>
-			sendRequest("tools/call", { name, arguments: args ?? {} }).pipe(
-				Effect.map((response) =>
-					response.error === undefined ? (response.result as CallToolResult) : (response as never),
-				),
-			);
-		const listResources: Effect.Effect<ReadonlyArray<ServedResource>> = sendRequest("resources/list").pipe(
-			Effect.map((response) => (response.result as { readonly resources: ReadonlyArray<ServedResource> }).resources),
-		);
-		const readResource = (uri: string): Effect.Effect<ReadResourceResult> =>
-			sendRequest("resources/read", { uri }).pipe(
-				Effect.map((response) =>
-					response.error === undefined ? (response.result as ReadResourceResult) : (response as never),
-				),
-			);
-		const complete = (uri: string, argument: { name: string; value: string }): Effect.Effect<CompleteResult> =>
-			sendRequest("completion/complete", { ref: { type: "ref/resource", uri }, argument }).pipe(
-				Effect.map((response) => response.result as CompleteResult),
-			);
-
+		const harness = yield* McpHarness.make(ServerLayer(projectRoot, serverOptions).pipe(Layer.provide(PlatformLayer)), {
+			protocol: PROTOCOL_ADAPTERS[protocolVersion],
+		}).pipe(Effect.orDie);
 		return {
 			protocolVersion,
-			initialize,
-			discover,
-			sendRaw,
-			sendRequest,
-			sendNotification,
-			listTools,
-			callTool,
-			listResources,
-			readResource,
-			complete,
-			takeStderr: Queue.take(rawStderr),
+			initialize: harness.initialize,
+			discover: harness.discover,
+			sendRequest: (method, params) => harness.request(method, params),
+			listTools: harness.listTools,
+			callTool: (name, args) => harness.callTool(name, args).pipe(Effect.map(unwrapResult<CallToolResult>)),
+			listResources: harness.listResources,
+			readResource: (uri) => harness.readResource(uri).pipe(Effect.map(unwrapResult<ReadResourceResult>)),
 		};
 	});

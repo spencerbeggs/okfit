@@ -62,7 +62,8 @@ describe("describe_vocabulary", () => {
 	// asked this task to discover and record (Step 17). The controller's fix
 	// round (progress.md, "Ruling (B1, binds every C task)") resolved it by
 	// composing the remediation hint into every `McpToolError` member's own
-	// `message` at construction (`errors.ts`'s `composeRemediatedMessage`), so
+	// `message` at construction, through `@effected/mcp`'s
+	// `ToolFailure.message(raw, remediation)` (`errors.ts`'s doc comment), so
 	// the hint still reaches the wire even though `structuredContent` doesn't
 	// carry it — asserted here directly against the response text.
 	it.effect("fails ConfigError for a malformed config file, with the remediation hint in the wire message", () =>

@@ -1,3 +1,4 @@
+import { CliColor } from "@effected/cli";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile, SCHEMA_DIRECTIVE } from "@okfit/core";
 import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";
@@ -19,7 +20,6 @@ import { GitHistory, Profiles } from "@okfit/profiles";
 import { Console, DateTime, Effect, FileSystem, Layer, Option, Path } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { setExitCode } from "../internal/exit.js";
-import { useColor } from "../internal/tty.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
 
@@ -217,7 +217,8 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 					Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
 				);
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
-				for (const line of human(diagnostics, { color: useColor() })) {
+				const color = yield* CliColor.enabled;
+				for (const line of human(diagnostics, { color })) {
 					yield* Console.log(line);
 				}
 				yield* Console.error(

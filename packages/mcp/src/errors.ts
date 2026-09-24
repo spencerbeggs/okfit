@@ -1,113 +1,68 @@
+import { Remediation } from "@effected/engine";
+import { ToolFailure } from "@effected/mcp";
 import { Schema } from "effect";
 
-/** What a caller should do next about a failed tool call. @public */
-export const Remediation = Schema.Struct({
-	hint: Schema.String,
-	suggestedTool: Schema.optionalKey(Schema.String),
-});
-/** @public */
-export type Remediation = typeof Remediation.Type;
-
 /**
- * Compose a self-contained wire message from a raw cause message and its
- * remediation: the human message, then the hint, then `Try <suggestedTool>.`
- * when one is present. Every `McpToolError` member's `message` field is
- * built through this at construction — under `failureMode: "error"` (the
- * only mode this contract's tools use), `McpServer`'s own `registerToolkit`
- * collapses a caught typed failure to
- * `{ isError: true, content: [{ type: "text", text: error.message }] }`
- * and never surfaces `structuredContent` for it
- * (`.repos/effect/packages/effect/src/unstable/ai/McpServer.ts:1774-1778,1842-1846`
- * at `effect@4.0.0-rc.116`: `toolErrorResult` and `declaredFailureResult`'s
- * `error instanceof Error` branch; confirmed empirically in Task B1's own
- * build). Since rc.116 that declared branch is rendered WITHOUT a log line
- * — only an internal failure goes through `Effect.logError` — so the
- * message text is the whole of what a client ever sees. `remediation` itself is
- * left on the schema unchanged, both for anything that inspects the typed
- * error directly (a defect handler, a future in-process caller) and
- * because it is what this function reads to build `message`.
- *
- * @public
+ * What a caller should do next about a failed tool call. Re-exported from
+ * `@effected/engine` -- the shape `ToolFailure.fields` (below) expects, in
+ * place of the hand-rolled `{ hint, suggestedTool? }` struct this module
+ * used to declare. @public
  */
-export const composeRemediatedMessage = (message: string, remediation: Remediation): string =>
-	remediation.suggestedTool === undefined
-		? `${message} ${remediation.hint}`
-		: `${message} ${remediation.hint} Try ${remediation.suggestedTool}.`;
+export { Remediation };
 
-const ECHO_LIMIT = 200;
-
-/**
- * Truncate a caller-supplied value before it is echoed back inside an
- * error's `message` — the only field a `failureMode: "error"` failure
- * actually delivers to the wire (see {@link composeRemediatedMessage}'s
- * doc comment). Without this, a pathological argument (a multi-megabyte
- * `id`, say) is echoed once in the response's `content[0].text` and once
- * more in the corresponding log line, wasting an agent's context on what
- * is usually a pure typo (final whole-branch review, Minor finding 5).
- *
- * @public
- */
-export const truncateEchoed = (value: string, limit: number = ECHO_LIMIT): string =>
-	value.length > limit ? `${value.slice(0, limit)}…` : value;
+// `ToolFailure.fields` (`@effected/mcp`) spreads `{ message: Schema.String,
+// remediation: Remediation }` into every error below, replacing this
+// module's own `composeRemediatedMessage`/`truncateEchoed`. Under
+// `failureMode: "error"` (the only mode this contract's tools use),
+// `McpServer`'s own `registerToolkit` collapses a caught typed failure to
+// `{ isError: true, content: [{ type: "text", text: error.message }] }`
+// and never surfaces `structuredContent` for it, so every constructor call
+// site composes `message` through `ToolFailure.message(raw, remediation)`
+// and truncates a caller-supplied value first through
+// `ToolFailure.truncate(value, limit?)` -- both in the tool files that
+// construct these errors, not here.
 
 /**
- * Config discovery, parsing, or validation failed. `message` is composed
- * through {@link composeRemediatedMessage} at construction, so it is what
- * reaches the wire as `tools/call`'s `content[0].text` (see that
- * function's doc comment for why). @public
+ * Config discovery, parsing, or validation failed. @public
  */
 export class ConfigError extends Schema.TaggedError<ConfigError>()("ConfigError", {
-	message: Schema.String,
-	remediation: Remediation,
+	...ToolFailure.fields,
 }) {}
 
 /**
- * The configured bundle root does not exist or could not be read.
- * `message` is composed through {@link composeRemediatedMessage} at
- * construction, so it is what reaches the wire as `tools/call`'s
- * `content[0].text`. @public
+ * The configured bundle root does not exist or could not be read. @public
  */
 export class BundleNotFound extends Schema.TaggedError<BundleNotFound>()("BundleNotFound", {
+	...ToolFailure.fields,
 	root: Schema.String,
-	message: Schema.String,
-	remediation: Remediation,
 }) {}
 
 /**
- * No concept in the bundle has the requested id. `message` is composed
- * through {@link composeRemediatedMessage} at construction, so it is what
- * reaches the wire as `tools/call`'s `content[0].text`. @public
+ * No concept in the bundle has the requested id. @public
  */
 export class ConceptNotFound extends Schema.TaggedError<ConceptNotFound>()("ConceptNotFound", {
+	...ToolFailure.fields,
 	id: Schema.String,
-	message: Schema.String,
-	remediation: Remediation,
 }) {}
 
 /**
  * A requested type or tag name is not declared in the resolved config.
- * `message` is composed through {@link composeRemediatedMessage} at
- * construction, so it is what reaches the wire as `tools/call`'s
- * `content[0].text`. @public
+ * @public
  */
 export class UnknownVocabulary extends Schema.TaggedError<UnknownVocabulary>()("UnknownVocabulary", {
+	...ToolFailure.fields,
 	kind: Schema.Literals(["type", "tag"]),
 	requested: Schema.String,
 	valid: Schema.Array(Schema.String),
-	message: Schema.String,
-	remediation: Remediation,
 }) {}
 
 /**
  * A tool argument was structurally acceptable but semantically invalid.
- * `message` is composed through {@link composeRemediatedMessage} at
- * construction, so it is what reaches the wire as `tools/call`'s
- * `content[0].text`. @public
+ * @public
  */
 export class InvalidArgument extends Schema.TaggedError<InvalidArgument>()("InvalidArgument", {
+	...ToolFailure.fields,
 	argument: Schema.String,
-	message: Schema.String,
-	remediation: Remediation,
 }) {}
 
 /** The one failure schema every tool declares (N-14). @public */

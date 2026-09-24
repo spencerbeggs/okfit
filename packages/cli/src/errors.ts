@@ -32,9 +32,11 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 1. A `ShowHelp` (any `_tag === "ShowHelp"`) renders as `[]` — the empty
  *    array. `Command.runWith` has already rendered the help document and any
  *    parse errors before re-failing, so a second rendering here would print
- *    "Help requested" after the help text. This is why the K-30 remap in
- *    `bin.ts` can run ahead of `reportFailures` without corrupting `--help`
- *    output.
+ *    "Help requested" after the help text. In practice this branch is
+ *    defensive only: `@effected/cli`'s `CliRuntime.main`/`reportFailures`
+ *    already handles a `ShowHelp` before `render` is ever called
+ *    (`main.ts`'s own doc comment), so `renderFailure` never actually sees
+ *    one on the path this package uses.
  * 2. `ConfigPathNotFoundError` renders as its own `error: <message>` line;
  *    `InitOverwriteError` renders as the K-51 header, one two-space-indented
  *    relativised path per conflict, and the literal `Nothing was written.`.

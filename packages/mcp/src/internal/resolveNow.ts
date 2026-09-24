@@ -1,6 +1,7 @@
+import { ToolFailure } from "@effected/mcp";
 import { Timestamp } from "@okfit/core";
 import { DateTime, Effect, Schema } from "effect";
-import { InvalidArgument, composeRemediatedMessage } from "../errors.js";
+import { InvalidArgument } from "../errors.js";
 
 /**
  * An optional ISO-8601 `now` argument, else the Effect clock. Decoding
@@ -22,7 +23,7 @@ export const resolveNow = (input: string | undefined): Effect.Effect<DateTime.Ut
 					};
 					return new InvalidArgument({
 						argument: "now",
-						message: composeRemediatedMessage(String(issue), remediation),
+						message: ToolFailure.message(String(issue), remediation),
 						remediation,
 					});
 				}),

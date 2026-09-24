@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-09-23T18:05:30Z
-  body_sha256: a073592f8550a66a5e7d8ed5a60608282513ab2e4f24f4bff63f6fb7332943ef
+  at: 2026-09-24T15:35:44Z
+  body_sha256: 1849a00762b9f72894f1a2decc92e06b882f18a1c6401442180dd6b724e2cca7
 ---
 
 # Workspace
@@ -37,6 +37,13 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 - `scratchpad/` -- a ghost workspace member: a private typed-probe venue,
   never published, excluded from changesets, CI and coverage; see
   [scratchpad](scratchpad.md).
+- `layers.json` -- the intended package-dependency layering (`plugin` →
+  `cli`/`mcp`/`lsp` → `engine` → `profiles` → `core`), checked against the
+  real package manifest graph by `__test__/workspaceLayering.test.ts`
+  through `@effected/workspaces/testing`'s `WorkspaceLayering`/
+  `LayerPolicy` -- see [okfit's front ends build on
+  @effected/{engine,cli,mcp} rather than hand-rolled
+  equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 
 ## Rules
 

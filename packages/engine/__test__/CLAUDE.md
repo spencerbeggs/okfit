@@ -44,12 +44,22 @@ End-to-end coverage of the assembled program lives in `@okfit/cli`'s and
 - **`@effect/vitest` throughout; `expect` is banned (K-42).** Use `it`,
   `it.effect`, `describe`, and `assert` from `@effect/vitest`, never `expect`
   from plain `vitest`.
-- **`boundaries.test.ts` allowlists exactly one file, `src/version.ts`.**
-  Unlike `@okfit/cli`'s copy of the same scanner, which excuses `bin.ts`,
-  `commands/*`, and a handful of other files, this package's version fails
-  on any other file under `engine/src` that reads `process`. The one
-  exception is not a runtime read: `version.ts`'s
-  `process.env.__PACKAGE_VERSION__` is replaced with a string literal by the
-  bundler at build time (K-32), the same carve-out cli and mcp document for
-  their own `version.ts`. Do not widen it -- a real `process` read belongs
-  in a front end, never in the shared engine.
+- **`boundaries.test.ts`'s `process`/`node:process` scan allowlists no file
+  at all.** Unlike `@okfit/cli`'s and `@okfit/lsp`'s own
+  `SourceBoundary`-based scans (`@effected/workspaces/testing`), which
+  allowlist `bin.ts`, `main.ts`, `commands/*`, and a handful of other files,
+  this package's scan runs both the `"process"` and `"node:process"` rules
+  with no `allow` list and fails on any file under `engine/src` that reads
+  `process` -- whether as a bare `process.x` reference or as a
+  `node:process`/`process` module import -- since the `"process"` rule alone
+  does not catch the latter. `src/version.ts` needs no entry:
+  `SourceBoundary`'s `process` rule exempts `process.env.__PACKAGE_VERSION__`
+  unconditionally, since the bundler replaces it with a string literal at
+  build time (K-32), the same carve-out cli and mcp document for their own
+  `version.ts`. Do not widen it -- a real `process` read belongs in a
+  front end, never in the shared engine. A second, hand-rolled scanner
+  (`findAppImportNames`) stays alongside `SourceBoundary` for the
+  `App`/`AppStore`/`AppCache` import check: `SourceBoundary`'s
+  `forbidImports` only forbids a whole module specifier, never specific
+  named imports from an otherwise-legitimate one, and this package
+  legitimately imports `AppConfig` from `@effected/app`.

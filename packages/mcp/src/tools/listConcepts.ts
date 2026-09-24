@@ -1,8 +1,9 @@
+import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { McpToolError, UnknownVocabulary, composeRemediatedMessage, truncateEchoed } from "../errors.js";
+import { McpToolError, UnknownVocabulary } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import type { ListConceptsParams } from "../schema/tools.js";
@@ -35,24 +36,24 @@ export const listConcepts = Tool.make("list_concepts", {
 
 /**
  * Deviation from the brief's literal snippet: `message` is composed through
- * {@link composeRemediatedMessage} (per the controller's ruling binding every
- * C task, progress.md), and the raw message embeds the full `valid` list
- * rather than leaving it only on the schema's `valid` field — a declared
- * typed failure under `failureMode: "error"` never reaches the wire with
- * `structuredContent` (B1's finding), so `valid` would otherwise be
- * unreachable to a real caller reading only `content[0].text`.
+ * `ToolFailure.message` (`@effected/mcp`), and the raw message embeds the
+ * full `valid` list rather than leaving it only on the schema's `valid`
+ * field — a declared typed failure under `failureMode: "error"` never
+ * reaches the wire with `structuredContent` (B1's finding), so `valid`
+ * would otherwise be unreachable to a real caller reading only
+ * `content[0].text`.
  */
 const unknown = (kind: "type" | "tag", requested: string, valid: ReadonlyArray<string>) => {
 	const remediation = {
 		hint: "Use one of the listed type names, or call describe_vocabulary.",
 		suggestedTool: "describe_vocabulary",
 	};
-	const rawMessage = `"${truncateEchoed(requested)}" is not a ${kind} declared by this project's okfit config. Valid ${kind}s: ${valid.join(", ")}.`;
+	const rawMessage = `"${ToolFailure.truncate(requested)}" is not a ${kind} declared by this project's okfit config. Valid ${kind}s: ${valid.join(", ")}.`;
 	return new UnknownVocabulary({
 		kind,
 		requested,
 		valid,
-		message: composeRemediatedMessage(rawMessage, remediation),
+		message: ToolFailure.message(rawMessage, remediation),
 		remediation,
 	});
 };

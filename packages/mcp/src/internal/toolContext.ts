@@ -1,3 +1,4 @@
+import { ToolFailure } from "@effected/mcp";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
@@ -5,7 +6,7 @@ import type { ResolvedProjectConfig } from "@okfit/engine";
 import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import type { FileSystem, Path } from "effect";
 import { Effect, Option } from "effect";
-import { BundleNotFound, ConfigError, composeRemediatedMessage } from "../errors.js";
+import { BundleNotFound, ConfigError } from "../errors.js";
 
 /**
  * The error's `message` when it has one as a string, else `String(error)`.
@@ -48,7 +49,7 @@ export const resolveConfigOnly = (
 		Effect.mapError((cause) => {
 			const remediation = { hint: CONFIG_HINT, suggestedTool: "describe_vocabulary" };
 			return new ConfigError({
-				message: composeRemediatedMessage(messageOf(cause), remediation),
+				message: ToolFailure.message(messageOf(cause), remediation),
 				remediation,
 			});
 		}),
@@ -82,7 +83,7 @@ export const loadToolContext = (
 				};
 				return new BundleNotFound({
 					root: resolved.bundleRoot,
-					message: composeRemediatedMessage(cause.message, remediation),
+					message: ToolFailure.message(cause.message, remediation),
 					remediation,
 				});
 			}),

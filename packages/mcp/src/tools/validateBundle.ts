@@ -1,4 +1,5 @@
 import { Git } from "@effected/git";
+import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import type { Distribution } from "@okfit/engine";
@@ -6,7 +7,7 @@ import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provide
 import { GitHistory } from "@okfit/profiles";
 import { Crypto, Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/unstable/ai";
-import { BundleNotFound, InvalidArgument, McpToolError, composeRemediatedMessage } from "../errors.js";
+import { BundleNotFound, InvalidArgument, McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";
 import type { ValidateBundleParams } from "../schema/tools.js";
@@ -85,7 +86,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 					};
 					return new InvalidArgument({
 						argument: "documents",
-						message: composeRemediatedMessage(cause.message, remediation),
+						message: ToolFailure.message(cause.message, remediation),
 						remediation,
 					});
 				}
@@ -94,7 +95,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 				};
 				return new BundleNotFound({
 					root: resolved.bundleRoot,
-					message: composeRemediatedMessage(cause.message, remediation),
+					message: ToolFailure.message(cause.message, remediation),
 					remediation,
 				});
 			}),

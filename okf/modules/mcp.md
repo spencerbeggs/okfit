@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-20T01:54:25Z
-  body_sha256: fa26fa866d78cbdeb3a1df75aba59f9da793e214995f24f8b10171b0de5a160b
+  at: 2026-09-24T16:04:08Z
+  body_sha256: 3c09e7fe0825f9f3c674548b950762edfe4ebdcd602bce6029d0b60177a455b6
 ---
 
 # MCP
@@ -35,28 +35,46 @@ wraps, and the `render`/`json` envelope pieces its tools re-export
 unchanged -- and no longer depends on `@okfit/cli` at all, so
 `pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
 command tree. See [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split.md).
+cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md).
+
+It also depends directly on `@effected/mcp` and `@effected/engine`: the
+server assembly, its error shape, and project-root resolution build on
+that kit rather than on hand-rolled equivalents -- see [okfit's front ends
+build on @effected/{engine,cli,mcp} rather than hand-rolled
+equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 
 ## Status
 
-The server implements MCP over stdio (`effect/unstable/ai/McpServer`):
+The server implements MCP over stdio, on `@effected/mcp`'s
+`McpStdio`/`McpToolkit` (themselves built on `effect/unstable/ai/McpServer`):
 six read-only tools and static concept resources; see
 `okf/interfaces/okfit-mcp.md`.
 
 Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
-(crash guards, `OkfitPlatform`, `runMain`), `index.ts` (programmatic
-barrel), `version.ts`
+(crash guards, `OkfitPlatform`, `McpStdio.launch`/`.teardown`), `index.ts`
+(programmatic barrel), `version.ts`
 (`MCP_VERSION`, what `initialize` reports; the `validate_bundle` envelope
 names the engine separately — see [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version.md)),
-`server.ts` (`ServerLayer`: toolkit and resource layers
-over `layerStdio`, its three-adapter `protocols` list and the exported
+on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)),
+`server.ts` (`ServerLayer`: `McpToolkit.layer` and resource layers
+over `McpStdio.layer`, its three-adapter `protocols` list and the exported
 `SERVER_INSTRUCTIONS` string -- see [The MCP server is Effect-native and
 lists the stateless 2026-07-28 adapter
 first](../decisions/mcp-stateless-first-protocol-list.md)), `toolkit.ts` (`OkfitToolkit`, the six tools plus
-handler wiring), `errors.ts` (`McpToolError` union,
-`composeRemediatedMessage`), `schema/` (per-tool parameter and success
+handler wiring), `errors.ts` (`McpToolError` union, built on
+`@effected/mcp`'s `ToolFailure` and `@effected/engine`'s `Remediation`),
+`schema/` (per-tool parameter and success
 schemas), `tools/` (one file per tool), `resources/` (the index and
-concept resources), `internal/` (project root resolution, per-call
+concept resources), `internal/` (project root resolution over
+`@effected/engine`'s `LaunchContext.projectDir`, per-call
 config/bundle loading, the optional-`now` helper).
+
+`McpToolkit.layer` closes every served tool's `inputSchema`
+(`additionalProperties: false` at every object node) and rejects an
+unknown argument with one `InvalidParams` naming every unknown key at
+every depth; `McpStdio.layer` answers a non-JSON stdin line with a
+JSON-RPC `-32700` and valid JSON that is not a JSON-RPC message with
+`-32600`, in both cases without dropping the connection. See
+`okf/interfaces/okfit-mcp.md` for the tool and resource contract this
+holds for.

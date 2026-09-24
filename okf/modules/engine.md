@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:50:18Z
-  body_sha256: 419888ffdbbe493e338a9c88ea3777bd83eac78d91c416d2b09297908d7cd14d
+  at: 2026-09-24T16:04:08Z
+  body_sha256: 56657a6e44e5b5c7829fe898147e44472a6bf304bc331141a7bdaa6ff9bc8bd6
 ---
 
 # Engine
@@ -23,7 +23,7 @@ validate/verify/sync/init/context programs shared by `@okfit/cli` and
 (`packages/engine/CLAUDE.md:1-6`). It replaces the arrangement where
 `@okfit/cli`'s own barrel was the copy contract `@okfit/mcp` depended on
 — see [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split.md) for why.
+cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md) for why.
 `@okfit/mcp` depends on this package directly and no longer depends on
 `@okfit/cli` at all.
 
@@ -54,7 +54,14 @@ envelope renderer stamps it as `engine_version` itself rather than taking
 it from the caller; the renderers also take an optional `distribution`
 the front ends thread through from `main()`. See [The engine version, not
 the producer version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version.md).
+on](../decisions/engine-version-is-the-comparable-version-effected-kit.md).
+
+`render/distribution.ts`'s `Distribution`/`DistributionField` are now
+re-exported from `@effected/engine` rather than declared locally, so
+`@okfit/cli`'s `CurrentDistribution` reference and every envelope in this
+package agree on one shape -- see [okfit's front ends build on
+@effected/{engine,cli,mcp} rather than hand-rolled
+equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 
 `validate/run.ts#run` and `sync/run.ts#runSync` both now carry
 `Crypto.Crypto` in their dependencies, satisfied for free wherever
