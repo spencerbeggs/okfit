@@ -1,0 +1,22 @@
+{
+	"layers": [
+		["@okfit/plugin"],
+		["@okfit/cli", "@okfit/mcp", "@okfit/lsp"],
+		["@okfit/engine"],
+		["@okfit/profiles"],
+		["@okfit/core"]
+	],
+	"tooling": ["@okfit/claude-code-plugin"],
+	"unconstrained": ["okfit", "scratchpad", "@okfit/vscode-extension"],
+	"requiredEdges": [
+		"@okfit/plugin -> @okfit/cli",
+		"@okfit/plugin -> @okfit/mcp",
+		"@okfit/plugin -> @okfit/lsp",
+		"@okfit/cli -> @okfit/engine",
+		"@okfit/mcp -> @okfit/engine",
+		"@okfit/lsp -> @okfit/engine",
+		"@okfit/engine -> @okfit/core",
+		"@okfit/engine -> @okfit/profiles",
+		"@okfit/profiles -> @okfit/core"
+	]
+}
