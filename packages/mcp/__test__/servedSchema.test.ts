@@ -23,17 +23,17 @@ const TOOL_NAMES = [
 /**
  * Recursively assert that every node whose `type` is `"object"` declares
  * `additionalProperties` explicitly, and that any object with declared
- * `properties` is open (`true`), descending properties, items, prefixItems,
- * anyOf, oneOf, allOf and $defs. One structural test, not six hand-written
- * ones.
+ * `properties` is closed (`false`), descending properties, items,
+ * prefixItems, anyOf, oneOf, allOf and $defs. One structural test, not six
+ * hand-written ones.
  */
-const walkOpen = (node: unknown, path: string, seen: Set<unknown>): void => {
+const walkClosed = (node: unknown, path: string, seen: Set<unknown>): void => {
 	if (typeof node !== "object" || node === null) return;
 	if (seen.has(node)) return;
 	seen.add(node);
 	if (Array.isArray(node)) {
 		node.forEach((child, index) => {
-			walkOpen(child, `${path}[${index}]`, seen);
+			walkClosed(child, `${path}[${index}]`, seen);
 		});
 		return;
 	}
@@ -41,7 +41,7 @@ const walkOpen = (node: unknown, path: string, seen: Set<unknown>): void => {
 	if (record.type === "object") {
 		assert.isBoolean(record.additionalProperties, `${path} is an object without an explicit additionalProperties`);
 		if (record.properties !== undefined) {
-			assert.strictEqual(record.additionalProperties, true, `${path} declares properties but is not open`);
+			assert.strictEqual(record.additionalProperties, false, `${path} declares properties but is not closed`);
 		}
 	}
 	for (const key of ["properties", "items", "prefixItems", "anyOf", "oneOf", "allOf", "$defs"]) {
@@ -49,10 +49,10 @@ const walkOpen = (node: unknown, path: string, seen: Set<unknown>): void => {
 		if (child === undefined) continue;
 		if (key === "properties" || key === "$defs") {
 			for (const [name, value] of Object.entries(child as Record<string, unknown>)) {
-				walkOpen(value, `${path}.${key}.${name}`, seen);
+				walkClosed(value, `${path}.${key}.${name}`, seen);
 			}
 		} else {
-			walkOpen(child, `${path}.${key}`, seen);
+			walkClosed(child, `${path}.${key}`, seen);
 		}
 	}
 };
@@ -65,22 +65,33 @@ describe("served schema", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.effect("every tool's input schema leaves unmodeled properties open, matching the decoder", () =>
+	it.effect("every tool's input schema is closed, and an unknown key is reported by name", () =>
 		Effect.gen(function* () {
-			// Since effect@4.0.0-rc.113 (#8147) `Schema.toJsonSchemaDocument`
-			// leaves unmodeled object properties open by default, matching the
-			// decoder's `onExcessProperty: "ignore"`, and `Tool` compiles input
-			// schemas with no options — so the closed-world input contract N-15
-			// asked for is no longer expressible from this package. This pins the
-			// served shape so a future upstream flip is caught here rather than by
-			// a client. Input only: an output schema may legitimately carry an open
-			// record — get_concept.outputSchema's `frontmatter`
-			// (`Schema.Record(Schema.String, Schema.Unknown)`) drops
+			// `@effected/mcp`'s `McpToolkit.layer` (`server.ts`) registers every
+			// unannotated tool strict by default (`strict: "all"`), restoring the
+			// closed-world input contract N-15 originally asked for: core serves
+			// `additionalProperties: false` on every object node of a strict
+			// tool's input schema again, where the bare `McpServer.toolkit` this
+			// package used before left every tool open (matching the decoder's
+			// then-default `onExcessProperty: "ignore"`). Input only: an output
+			// schema may legitimately carry an open record — get_concept.outputSchema's
+			// `frontmatter` (`Schema.Record(Schema.String, Schema.Unknown)`) drops
 			// `additionalProperties` entirely.
 			const tools = yield* (yield* open()).listTools;
 			for (const tool of tools) {
-				walkOpen(tool.inputSchema, `${tool.name}.inputSchema`, new Set());
+				walkClosed(tool.inputSchema, `${tool.name}.inputSchema`, new Set());
 			}
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("an unknown top-level argument is rejected naming every unknown key, not only the first", () =>
+		Effect.gen(function* () {
+			const harness = yield* open();
+			const result = yield* harness.callTool("get_concept", { id: "metrics/revenue", bogus: 1, extra: 2 });
+			assert.strictEqual(result.isError, true);
+			const text = result.content[0]?.text ?? "";
+			assert.include(text, "bogus");
+			assert.include(text, "extra");
 		}).pipe(Effect.scoped),
 	);
 
