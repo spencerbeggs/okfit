@@ -11,6 +11,12 @@
 * Added okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated process reads confined to the CLI's boundary files
+* Updated A shared @okfit/engine package replaces cli-as-copy-contract
+* Updated Core
+* Updated Plugin
+* Updated The engine version, not the producer version, is what a report is compared on
+* Updated okfit CLI — validate, init, context, verify, sync, lint, graph, stale
+* Updated okfit config file schema
 
 ## 2026-09-23
 
