@@ -36,11 +36,14 @@ describe("workspace layering", () => {
 	it.effect("an upward edge is a violation (positive control)", () =>
 		Effect.gen(function* () {
 			// "top-down": index 0 is the TOP layer, and an edge may only point
-			// to a layer strictly BELOW it (a higher index). Putting the real
-			// bottom layer (`core`) at index 0 and the real top layer
-			// (`engine`) at index 1 inverts okfit's actual layering on purpose,
-			// so the real `@okfit/core -> @okfit/engine` edge below points
-			// UPWARD against this policy and must be flagged.
+			// to a layer strictly BELOW it (a higher index). `@okfit/engine` at
+			// index 0 and `@okfit/core` at index 1 is okfit's real order (engine
+			// sits above core). The edge below is synthetic, not the real one:
+			// the live graph only ever has `@okfit/engine -> @okfit/core`
+			// (downward). `@okfit/core -> @okfit/engine` never exists on the
+			// live graph -- it is manufactured here, from the bottom layer to
+			// the top one, purely so this policy must flag it as an UPWARD
+			// violation.
 			const policy = yield* LayerPolicy.decode({
 				layers: [["@okfit/engine"], ["@okfit/core"]],
 				tooling: [],
