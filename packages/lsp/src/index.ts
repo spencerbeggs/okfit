@@ -9,11 +9,39 @@ export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js
 export { toLspLocation, toLspRange } from "./convert/range.js";
 export { pathToUri, uriToPath } from "./convert/uri.js";
 export { LspError } from "./errors.js";
+export { registerCodeActions } from "./features/actions.js";
+export type { RevalidateResult } from "./features/commands.js";
+export { registerCommands } from "./features/commands.js";
+export type {
+	BundleChangedParams,
+	BundleSummary,
+	ConceptSummary,
+	ConceptsFeature,
+	ConceptsResult,
+} from "./features/concepts.js";
+export {
+	BUNDLE_CHANGED_NOTIFICATION,
+	CONCEPTS_REQUEST,
+	notifyBundleChanged,
+	registerConcepts,
+} from "./features/concepts.js";
 export type { DiagnosticsFeature, DiagnosticsPublisher, RevalidatePublisher } from "./features/diagnostics.js";
 export { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 export type { DocumentEvent } from "./features/documentSync.js";
 export { registerDocumentSync } from "./features/documentSync.js";
+export type { EditFailure, EditTarget } from "./features/edits.js";
+export {
+	describeFailure,
+	editTarget,
+	resolveActor,
+	statusTextEdits,
+	verifiedTextEdits,
+	versionedEdit,
+} from "./features/edits.js";
 export { registerHover } from "./features/hover.js";
+export type { InlayHintPath, InlayHintSpec } from "./features/inlayHints.js";
+export { hintsFor, registerInlayHints } from "./features/inlayHints.js";
+export { OKFIT_CODE_ACTION_KINDS, OKFIT_COMMANDS } from "./features/names.js";
 export { registerNavigation } from "./features/navigation.js";
 export { registerWorkspaceSymbols } from "./features/symbols.js";
 export type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
@@ -21,6 +49,9 @@ export { LspTransport } from "./protocol/LspTransport.js";
 export type { ReferenceTransportOptions } from "./protocol/reference.js";
 export { makeReferenceTransport } from "./protocol/reference.js";
 export type {
+	CodeAction,
+	CodeActionContext,
+	CodeActionParams,
 	DefinitionParams,
 	DidChangeTextDocumentParams,
 	DidChangeWatchedFilesParams,
@@ -34,6 +65,8 @@ export type {
 	HoverParams,
 	InitializeParams,
 	InitializeResult,
+	InlayHint,
+	InlayHintParams,
 	Location,
 	LspDiagnostic,
 	MarkupContent,
@@ -41,12 +74,15 @@ export type {
 	Range,
 	ReferenceParams,
 	SymbolInformation,
+	TextEdit,
+	WorkspaceEdit,
 	WorkspaceFolder,
 	WorkspaceSymbolParams,
 } from "./protocol/types.js";
-export { SYMBOL_KIND_OBJECT } from "./protocol/types.js";
+export { CODE_ACTION_KIND_QUICKFIX, INLAY_HINT_KIND_TYPE, SYMBOL_KIND_OBJECT } from "./protocol/types.js";
 export type { ServeOptions, ServeServices } from "./server.js";
 export { serve } from "./server.js";
+export type { OpenDocument, OpenDocuments } from "./session/documents.js";
 export type {
 	SessionForOptions,
 	SessionHandle,

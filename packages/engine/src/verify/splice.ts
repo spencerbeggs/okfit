@@ -1,5 +1,5 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { GeneratedBlockLocated, GeneratedLocated, Located } from "./locate.js";
+import type { GeneratedBlockLocated, GeneratedLocated, Located, TopLevelScalarLocated } from "./locate.js";
 
 /** Every {@link Located} case that names an edit; `unsupported` is unrepresentable here. @internal */
 export type SpliceTarget = Exclude<Located, { readonly _tag: "unsupported" }>;
@@ -148,6 +148,30 @@ export const spliceGeneratedFields = (
 		spliceGenerated(atTarget, encodedAt, newline, "at"),
 		spliceGenerated(bodySha256Target, bodySha256, newline, "body_sha256"),
 	];
+};
+
+/**
+ * Build the one edit for `target` (a top-level scalar key such as
+ * `status`). Never calls a YAML stringifier: the only syntax emitted is
+ * `<key>: `, the preserved quote character (if any), and `newline`.
+ *
+ * @internal
+ */
+export const spliceTopLevelScalar = (
+	target: Exclude<TopLevelScalarLocated, { readonly _tag: "unsupported" }>,
+	key: string,
+	value: string,
+	newline: "\n" | "\r\n",
+): MarkdownEdit => {
+	switch (target._tag) {
+		case "insertAfterKey":
+			return MarkdownEdit.make({ offset: target.insertAt, length: 0, content: `${key}: ${value}${newline}` });
+		case "replaceScalar": {
+			const quoted =
+				target.quote === "single-quoted" ? `'${value}'` : target.quote === "double-quoted" ? `"${value}"` : value;
+			return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: quoted });
+		}
+	}
 };
 
 /**

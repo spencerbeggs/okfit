@@ -42,3 +42,7 @@ docs/superpowers/
 # Scratchpad ghost workspace working areas (see okf/modules/scratchpad.md)
 scratchpad/probes/
 scratchpad/__test__/*.test.ts
+
+# VS Code extension packaging
+vscode/*.vsix
+vscode/package.json.workspace

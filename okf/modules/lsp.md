@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:34:50Z
-  body_sha256: 6256c33a2833fb3fa598228231e9349ef2545ea370947e7bc7cd922426d7648f
+  at: 2026-09-23T23:39:29Z
+  body_sha256: 8db1b750cfaca7b98ec5c244d9d6dbce3834fd4b2131e6faf48d127bb1037acf
 ---
 
 # LSP
@@ -30,15 +30,69 @@ documents open, change, save, or close. It
 writes nothing to the bundle, ever — the same promise [MCP](mcp.md) makes,
 carried to a second front end. Phase 4 (2026-09-23) added precise
 diagnostic ranges, config reload, and navigation (hover, document links,
-definition, references, workspace symbols); code actions remain a later
-roadmap phase, not this package.
+definition, references, workspace symbols); phase 5 (2026-09-23) added
+code actions, commands, and inlay hints -- every edit they offer is
+computed over the byte-range splice machinery, never a re-serialisation --
+see [Frontmatter splices are a shared engine surface for the CLI's verify
+and the language server's
+actions](../decisions/engine-frontmatter-edits-shared-surface.md).
 
 ## Capabilities
 
 `initialize` advertises `documentLinkProvider: { resolveProvider: false }`,
 `definitionProvider: true`, `referencesProvider: true`,
-`hoverProvider: true`, and `workspaceSymbolProvider: true`, alongside the
-diagnostics push the server has offered since phase 3.
+`hoverProvider: true`, `workspaceSymbolProvider: true`,
+`codeActionProvider: { codeActionKinds: OKFIT_CODE_ACTION_KINDS }`,
+`executeCommandProvider: { commands: OKFIT_COMMANDS }`, and
+`inlayHintProvider: true`, alongside the diagnostics push the server has
+offered since phase 3. `features/names.ts`'s `OKFIT_COMMANDS`
+(`okfit.lsp.setStatus`, `okfit.lsp.markVerified`, `okfit.lsp.revalidate`)
+and `OKFIT_CODE_ACTION_KINDS` (`quickfix`, `okfit.status`, `okfit.verify`)
+are the exact strings both `server.ts` and the VS Code extension agree on,
+without either importing the other. The command ids sit under `okfit.lsp.`
+because `vscode-languageclient` registers every advertised id as a VS Code
+command: an id the extension also contributes (its own `okfit.setStatus`,
+`okfit.markVerified`) throws "command already exists" while the client
+initializes, and the server never starts.
+
+## Code actions, commands, and inlay hints
+
+`registerCodeActions` (`src/features/actions.ts`) answers
+`textDocument/codeAction` for a concept in its session's last-loaded
+snapshot. On a `status-missing` diagnostic it offers `Set status: draft`
+(preferred) and `Set status: stable` as `quickfix` actions. When the request
+range touches the frontmatter block, or `context.only` names the kind, it
+also offers one `Set status: <status>` action (kind `okfit.status`) per
+status the raw frontmatter `status` is not already -- all three when there
+is no explicit status -- and one `Mark verified by <actor>` action (kind
+`okfit.verify`) when a human actor resolves and the concept is neither a
+draft nor already verified by that actor; the actor is cached per session
+handle. `registerCommands` (`src/features/commands.ts`) answers
+`workspace/executeCommand` for the three `OKFIT_COMMANDS`:
+`okfit.lsp.setStatus [uri, status]` and `okfit.lsp.markVerified [uri]`
+compute a `TextEdit` and send it to the client with `workspace/applyEdit`,
+answering the client's own result verbatim; `okfit.lsp.revalidate
+[rootUri?]` schedules a `full` revalidate on one named bundle root or every
+live session and answers the root URIs revalidated. Both features share
+`features/edits.ts`: `editTarget` reads the document's current text and
+version from the diagnostics feature's open-document memory (else the file
+as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits` wrap
+[Engine](engine.md)'s `FrontmatterEdits.status`/`.verified` over that text,
+and `versionedEdit` sends the result as `documentChanges` carrying the
+version. A command's edit goes over `workspace/applyEdit`, so a client
+whose buffer has moved on refuses a stale one; a code action's edit carries
+no version on the client side (`vscode-languageclient` and VS Code both
+drop it), so it stays safe only because it is computed from the current
+buffer at request time. `registerInlayHints` (`src/features/inlayHints.ts`)
+answers `textDocument/inlayHint` with up to two hints per concept, computed
+by the pure `hintsFor(concept, now)`: a trust/staleness hint (`unverified`,
+`machine-confirmed`, or `human-reviewed by <by>`, `· stale` appended when
+stale) anchored after the `status:` value when present, else after
+`type:`; and, only when `generated.at` is set, an age hint (`today`, `1 day
+ago`, `N days ago`) after its value. All three features answer `[]`/fail
+closed the same way navigation does: a missing session, an unloaded
+bundle, a non-`file:` URI, or a path outside every bundle root, never a
+hang.
 
 ## Navigation
 
@@ -68,6 +122,33 @@ revalidate completes they answer `null`/`[]` rather than hang.
   every live session, merged, filtered by a case-insensitive substring
   match over id and title (an empty query returns all), capped at 200
   results and sorted by id.
+
+## Custom methods
+
+`registerConcepts` (`src/features/concepts.ts`) wires `okfit/concepts` onto
+the transport, and `notifyBundleChanged` sends `okfit/bundleChanged` --
+okfit's own protocol extensions for an editor's concept explorer, named
+with the `okfit/` prefix since the LSP specification reserves `$/` for its
+own extensions and leaves vendor prefixes to implementations. The
+[VS Code Extension](vscode-extension.md)'s OKF Concepts tree view and
+Language Status item are the first consumer.
+`INITIALIZE_RESULT.capabilities.experimental` advertises `{ okfitConcepts:
+true }` so a client can feature-detect the pair before calling either.
+`okfit/concepts` warms up every current workspace folder that has never
+been resolved, and runs a first `full` revalidate for any bundle root that
+has never loaded -- **at most once per bundle root per session**: the root
+is recorded as warmed before the revalidate is scheduled, so a root whose
+bundle still fails to load after that attempt is not re-scheduled by a
+later request. Only a rebuild gives a root another attempt -- `server.ts`
+wires `registerConcepts`'s `forgetWarmup` into the session registry's
+`onDispose` callback, which fires on a config-change rebuild and when a
+root's last workspace folder goes away, so a fixed config or a re-added
+folder is retried on its next warm-up. It then answers from every live
+session's last-loaded bundle; `okfit/bundleChanged` is sent from the
+registry's own revalidate and dispose callbacks, after diagnostics for the
+same change have already published, so a client that re-fetches
+`okfit/concepts` on this notification never races the diagnostics it would
+otherwise cross-reference.
 
 ## The transport seam
 
@@ -154,6 +235,9 @@ three by scanning `src/`.
   this server.
 - [Claude Code Plugin](claude-code-plugin.md) — registers
   `lspServers.okfit` and loads this server lazily.
+- [VS Code Extension](vscode-extension.md) — the language client and
+  concept explorer built on this server, including `okfit/concepts` and
+  `okfit/bundleChanged`.
 - [The language server runs the reference vscode-languageserver library
   behind an Effect transport
   seam](../decisions/lsp-reference-transport-behind-a-seam.md)

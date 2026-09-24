@@ -98,3 +98,38 @@ export const makeCapturingTransport = (): {
 	};
 	return { transport, call };
 };
+
+/**
+ * A transport combining {@link makeCapturingTransport}'s `onRequest` capture
+ * with {@link makeRecordingTransport}'s `sendNotification` recording, for a
+ * test that needs to both call a registered handler and observe the
+ * notifications a warm-up (or any other side effect inside that handler)
+ * sends along the way.
+ */
+export const makeCapturingRecordingTransport = (): {
+	readonly transport: LspTransportShape;
+	readonly call: <P, R>(method: string, params: P) => Effect.Effect<R>;
+	readonly notifications: Array<RecordedNotification>;
+} => {
+	const handlers = new Map<string, (params: unknown) => Effect.Effect<unknown>>();
+	const notifications: Array<RecordedNotification> = [];
+	const transport = {
+		onInitialize: die("onInitialize"),
+		onInitialized: die("onInitialized"),
+		onShutdown: die("onShutdown"),
+		onRequest: (method: string, handler: (params: unknown) => Effect.Effect<unknown>) =>
+			Effect.sync(() => void handlers.set(method, handler)),
+		onNotification: die("onNotification"),
+		sendNotification: (method: string, params: unknown) =>
+			Effect.sync(() => void notifications.push({ method, params })),
+		sendRequest: die("sendRequest"),
+		listen: Effect.die("fake transport: listen is not used by this test"),
+	} as unknown as LspTransportShape;
+	const call = <P, R>(method: string, params: P): Effect.Effect<R> => {
+		const handler = handlers.get(method);
+		return handler === undefined
+			? Effect.die(`no handler registered for ${method}`)
+			: (handler(params) as Effect.Effect<R>);
+	};
+	return { transport, call, notifications };
+};

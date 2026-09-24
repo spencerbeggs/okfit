@@ -11,6 +11,9 @@ generated:
   body_sha256: 23fcb11247bbdcdd1ebc2c26cdddfc73c79c024a9661695b08f9dbd7f6965d66
 tags:
   - architecture
+verified:
+  - by: human:spencer
+    at: 2026-09-24T00:18:08.679Z
 ---
 
 # Claude Code plugin hooks contract

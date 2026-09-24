@@ -58,17 +58,24 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (`okf/decisions/plugin-posttooluse-conformance-only-after-lsp.md`,
  * superseding the deprecated PostToolUse one, exempt while `draft`) and a
  * second Limitation (`okf/limitations/lsp-registry-interrupt-windows.md`).
+ * The VS Code extension work (phase 6, ahead of phase 5) adds one more
+ * Module (`okf/modules/vscode-extension.md`), one more Decision
+ * (`okf/decisions/vscode-extension-at-repo-root.md`, `status: draft`,
+ * exempt from `require-verified-unmet` while `draft`), and this bundle's
+ * first Runbook (`okf/runbooks/publish-vscode-extension.md`, which carries
+ * no `verified` requirement).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
-	Module: 10,
-	Decision: 28,
+	Module: 11,
+	Decision: 30,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
 	Roadmap: 1,
 	Glossary: 1,
 	Limitation: 2,
+	Runbook: 1,
 } as const;
 
 const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) => sum + n, 0);

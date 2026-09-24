@@ -1,0 +1,183 @@
+{
+	"name": "@okfit/vscode-extension",
+	"displayName": "okfit",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Diagnostics, navigation and a concept explorer for Open Knowledge Format (OKF) bundles, powered by the okfit language server.",
+	"categories": ["Linters", "Programming Languages"],
+	"keywords": ["okf", "open-knowledge-format", "okfit", "knowledge", "documentation", "lsp"],
+	"homepage": "https://github.com/spencerbeggs/okfit/tree/main/vscode#readme",
+	"bugs": {
+		"url": "https://github.com/spencerbeggs/okfit/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/spencerbeggs/okfit.git",
+		"directory": "vscode"
+	},
+	"license": "MIT",
+	"qna": false,
+	"author": {
+		"name": "C. Spencer Beggs",
+		"email": "spencer@beggs.codes",
+		"url": "https://spencerbeg.gs"
+	},
+	"publisher": "okfit",
+	"type": "module",
+	"main": "./dist/extension.js",
+	"scripts": {
+		"build": "tsdown",
+		"build:dev": "tsdown",
+		"package": "node --experimental-strip-types lib/package-vsix.ts",
+		"types:check": "tsc --noEmit",
+		"vscode:prepublish": "pnpm run build"
+	},
+	"contributes": {
+		"configuration": {
+			"title": "okfit",
+			"properties": {
+				"okfit.lsp.serverPath": {
+					"type": "string",
+					"default": "",
+					"scope": "resource",
+					"markdownDescription": "Absolute path of an `okfit-lsp` executable to run instead of the workspace's or the bundled server. Leave empty to auto-detect."
+				},
+				"okfit.lsp.trace.server": {
+					"type": "string",
+					"enum": ["off", "messages", "verbose"],
+					"default": "off",
+					"scope": "window",
+					"description": "Trace the communication between VS Code and the okfit language server."
+				}
+			}
+		},
+		"views": {
+			"explorer": [
+				{
+					"id": "okfit.concepts",
+					"name": "OKF Concepts",
+					"icon": "$(book)",
+					"contextualTitle": "OKF Concepts",
+					"visibility": "collapsed"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "okfit.concepts",
+				"contents": "This workspace's okfit language server predates the concept explorer.\nUpgrade `@okfit/lsp` (or the workspace's `okfit-lsp`) to a version that advertises the `okfit/concepts` capability, or clear the `okfit.lsp.serverPath` setting to use the version bundled with this extension.",
+				"when": "okfit.serverTooOld"
+			},
+			{
+				"view": "okfit.concepts",
+				"contents": "No OKF bundle found in this workspace.\nAn OKF bundle is an `okf/` directory described by an okfit config file (`.okfit.toml`, `okfit.toml` or `.config/okfit.toml`).\n[Learn about okfit](https://github.com/spencerbeggs/okfit#readme)",
+				"when": "!okfit.hasBundle && !okfit.serverTooOld"
+			}
+		],
+		"commands": [
+			{
+				"command": "okfit.validateBundle",
+				"title": "Validate Bundle",
+				"category": "OKF",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "okfit.openConcept",
+				"title": "Open Concept…",
+				"category": "OKF",
+				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "okfit.setStatus",
+				"title": "Set Status…",
+				"category": "OKF",
+				"icon": "$(tag)"
+			},
+			{
+				"command": "okfit.markVerified",
+				"title": "Mark Verified",
+				"category": "OKF",
+				"icon": "$(verified)"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "okfit.validateBundle",
+					"when": "okfit.hasBundle"
+				},
+				{
+					"command": "okfit.openConcept",
+					"when": "okfit.hasBundle"
+				},
+				{
+					"command": "okfit.setStatus",
+					"when": "okfit.isConcept && okfit.hasActions"
+				},
+				{
+					"command": "okfit.markVerified",
+					"when": "okfit.isConcept && okfit.hasActions"
+				}
+			],
+			"view/title": [
+				{
+					"command": "okfit.validateBundle",
+					"when": "view == okfit.concepts",
+					"group": "navigation@1"
+				},
+				{
+					"command": "okfit.openConcept",
+					"when": "view == okfit.concepts",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "okfit.setStatus",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "inline"
+				},
+				{
+					"command": "okfit.setStatus",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "okfit@1"
+				},
+				{
+					"command": "okfit.markVerified",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "inline"
+				},
+				{
+					"command": "okfit.markVerified",
+					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "okfit@1"
+				}
+			]
+		}
+	},
+	"activationEvents": ["workspaceContains:**/{.okfit.toml,okfit.toml,.config/okfit.toml}"],
+	"dependencies": {},
+	"devDependencies": {
+		"@okfit/lsp": "workspace:*",
+		"@savvy-web/bundler": "^2.4.9",
+		"@types/node": "catalog:build",
+		"@types/vscode": "^1.100.0",
+		"@vscode/vsce": "^4.0.0",
+		"ovsx": "^1.2.0",
+		"reactive-vscode": "^1.0.2",
+		"tsdown": "^0.23.0",
+		"typescript": "catalog:build",
+		"vitest": "catalog:test",
+		"vscode-languageclient": "^10.1.1"
+	},
+	"engines": {
+		"vscode": "^1.100.0"
+	},
+	"icon": "assets/icon.png",
+	"galleryBanner": {
+		"color": "#1e1e1e",
+		"theme": "dark"
+	},
+	"preview": true,
+	"pricing": "Free"
+}

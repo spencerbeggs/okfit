@@ -1,14 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import type { Duration, Fiber, Scope } from "effect";
+import type { Duration, Fiber, Layer, Scope } from "effect";
 import { Effect, Logger, Queue } from "effect";
-import type { MessageConnection } from "vscode-jsonrpc/node";
+import type { GenericRequestHandler, MessageConnection } from "vscode-jsonrpc/node";
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from "vscode-jsonrpc/node";
 import { pathToUri } from "../../src/convert/uri.js";
 import type { ListenOutcome, LspTransportShape } from "../../src/protocol/LspTransport.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import type { InitializeResult } from "../../src/protocol/types.js";
+import type { ServeServices } from "../../src/server.js";
 import { serve } from "../../src/server.js";
 import { copyFixtureProject } from "./fixture.js";
 import { testPlatform } from "./platform.js";
@@ -29,6 +30,12 @@ export interface Published {
 	}>;
 }
 
+/** One notification of any method the client received, recorded alongside {@link Published}'s own queue. */
+export interface RecordedNotification {
+	readonly method: string;
+	readonly params: unknown;
+}
+
 export interface Harness {
 	readonly transport: LspTransportShape;
 	readonly client: MessageConnection;
@@ -44,6 +51,25 @@ export interface Harness {
 		predicate: (published: Published) => boolean,
 		timeout?: Duration.Input,
 	) => Effect.Effect<Published, "no publish">;
+	/**
+	 * Next notification of any method (recorded independently of `nextPublish`'s
+	 * own queue, so consuming one does not affect the other) satisfying
+	 * `predicate`; fails after `timeout`.
+	 */
+	readonly nextNotification: (
+		predicate: (notification: RecordedNotification) => boolean,
+		timeout?: Duration.Input,
+	) => Effect.Effect<RecordedNotification, "no notification">;
+	/** Every server-to-client request the harness's client answered, recorded in arrival order. */
+	readonly serverRequests: Array<{ readonly method: string; readonly params: unknown }>;
+	/**
+	 * Registers `handler` as the client's answer to `method`: `vscode-jsonrpc`'s
+	 * `MessageConnection.onRequest` keys its handler map by method name, so a
+	 * later call for the same method replaces an earlier one rather than
+	 * stacking -- a test overriding the harness's default `workspace/applyEdit`
+	 * handler before a request arrives simply calls this again.
+	 */
+	readonly onServerRequest: <P, R>(method: string, handler: (params: P) => R | Promise<R>) => void;
 }
 
 /**
@@ -74,8 +100,14 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 		new StreamMessageWriter(clientToServer),
 	);
 	const published = yield* Queue.unbounded<Published>();
-	client.onNotification("textDocument/publishDiagnostics", (params: Published) => {
-		Effect.runSync(Queue.offer(published, params));
+	const notifications = yield* Queue.unbounded<RecordedNotification>();
+	// A star handler, not a per-method one: it sees every notification the server sends, `textDocument/publishDiagnostics`
+	// included, feeding both this generic queue and `published`'s own so existing `Published`-only accessors are unaffected.
+	client.onNotification((method: string, params: unknown) => {
+		Effect.runSync(Queue.offer(notifications, { method, params }));
+		if (method === "textDocument/publishDiagnostics") {
+			Effect.runSync(Queue.offer(published, params as Published));
+		}
 	});
 	client.listen();
 	yield* Effect.addFinalizer(() => Effect.sync(() => client.dispose()));
@@ -102,7 +134,38 @@ export const makeHarness: Effect.Effect<Harness, never, Scope.Scope> = Effect.ge
 			}
 		}).pipe(Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.fail("no publish" as const) }));
 	const pollPublished: Effect.Effect<ReadonlyArray<Published>> = Queue.clear(published);
-	return { transport, client, nextPublish, drainPublished, closeClientOutput, drainUntil, pollPublished };
+	const nextNotification = (
+		predicate: (notification: RecordedNotification) => boolean,
+		notificationTimeout: Duration.Input = "5 seconds",
+	) =>
+		Effect.gen(function* () {
+			while (true) {
+				const next = yield* Queue.take(notifications);
+				if (predicate(next)) return next;
+			}
+		}).pipe(
+			Effect.timeoutOrElse({ duration: notificationTimeout, orElse: () => Effect.fail("no notification" as const) }),
+		);
+	const serverRequests: Array<{ method: string; params: unknown }> = [];
+	const onServerRequest = <P, R>(method: string, handler: (params: P) => R | Promise<R>): void => {
+		client.onRequest(method, ((params: P) => {
+			serverRequests.push({ method, params });
+			return handler(params);
+		}) as GenericRequestHandler<R, unknown>);
+	};
+	onServerRequest("workspace/applyEdit", () => ({ applied: true }));
+	return {
+		transport,
+		client,
+		nextPublish,
+		drainPublished,
+		closeClientOutput,
+		drainUntil,
+		pollPublished,
+		nextNotification,
+		serverRequests,
+		onServerRequest,
+	};
 }).pipe(Effect.provide(silentLogger));
 
 /** A {@link Harness} with `serve` running against a fresh copy of the fixture project. */
@@ -127,16 +190,24 @@ export interface ServeHarness extends Harness {
 export interface ServeHarnessOptions {
 	/** The scheduler's debounce; defaults to 10 ms. A test asserting a count of publishes needs one wide enough to hold its burst under load. */
 	readonly delay?: Duration.Input;
+	/**
+	 * The platform layer `serve` runs under; defaults to `testPlatform()`.
+	 * `serve` is forked and fully provided inside this constructor, so a
+	 * `Effect.provide` wrapped around the returned harness's own effects
+	 * never reaches it -- a test needing a different `Git` double (a real
+	 * identity, say) passes its own layer here instead.
+	 */
+	readonly platform?: Layer.Layer<ServeServices>;
 }
 
-/** Copies the fixture, builds a transport pair, and forks `serve` with `delay` (10 ms by default) under `testPlatform()`. */
+/** Copies the fixture, builds a transport pair, and forks `serve` with `delay` (10 ms by default) under `options.platform` (`testPlatform()` by default). */
 export const makeServeHarness = (options: ServeHarnessOptions = {}): Effect.Effect<ServeHarness, never, Scope.Scope> =>
 	Effect.gen(function* () {
 		const { root } = yield* copyFixtureProject();
 		const harness = yield* makeHarness;
 		const listening = yield* Effect.forkScoped(
 			serve(harness.transport, { delay: options.delay ?? "10 millis" }).pipe(
-				Effect.provide(testPlatform()),
+				Effect.provide(options.platform ?? testPlatform()),
 				Effect.provide(silentLogger),
 			),
 		);

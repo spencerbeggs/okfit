@@ -7,9 +7,14 @@ import type { Distribution } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
 import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
 import { uriToPath } from "./convert/uri.js";
+import { registerCodeActions } from "./features/actions.js";
+import { registerCommands } from "./features/commands.js";
+import { notifyBundleChanged, registerConcepts } from "./features/concepts.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "./features/diagnostics.js";
 import { registerDocumentSync } from "./features/documentSync.js";
 import { registerHover } from "./features/hover.js";
+import { registerInlayHints } from "./features/inlayHints.js";
+import { OKFIT_CODE_ACTION_KINDS, OKFIT_COMMANDS } from "./features/names.js";
 import { registerNavigation } from "./features/navigation.js";
 import { registerWorkspaceSymbols } from "./features/symbols.js";
 import type { ListenOutcome, LspTransportShape } from "./protocol/LspTransport.js";
@@ -70,6 +75,10 @@ const INITIALIZE_RESULT: InitializeResult = {
 		referencesProvider: true,
 		hoverProvider: true,
 		workspaceSymbolProvider: true,
+		codeActionProvider: { codeActionKinds: [...OKFIT_CODE_ACTION_KINDS] },
+		executeCommandProvider: { commands: [...OKFIT_COMMANDS] },
+		inlayHintProvider: true,
+		experimental: { okfitConcepts: true },
 	},
 	serverInfo: { name: "okfit-lsp", version: LSP_VERSION },
 };
@@ -98,11 +107,31 @@ export const serve = (
 		const distribution = options?.distribution;
 
 		const publisher = yield* makeRevalidatePublisher(transport);
+		// `registerConcepts` (built below, after `registry`) needs `registry`
+		// to exist first, but `onDispose` here needs `registerConcepts`'s
+		// `forgetWarmup` -- the same box-a-forward-reference pattern
+		// `session/registry.ts`'s `buildSession` uses for its own scheduler
+		// callback. `forgetWarmup` is set once, right after `registerConcepts`
+		// resolves, before any dispose can observe it unset.
+		const conceptsBox: { forgetWarmup: ((root: string) => Effect.Effect<void>) | undefined } = {
+			forgetWarmup: undefined,
+		};
 		const registry = yield* makeSessionRegistry({
 			delay,
 			maxWait,
-			onRevalidate: publisher.publish,
-			onDispose: (handle) => publisher.clear(handle.bundleRoot),
+			onRevalidate: (handle, tier) =>
+				Effect.andThen(
+					publisher.publish(handle, tier),
+					notifyBundleChanged(transport, handle.bundleRoot, "revalidated"),
+				),
+			onDispose: (handle) =>
+				Effect.andThen(
+					Effect.andThen(
+						publisher.clear(handle.bundleRoot),
+						notifyBundleChanged(transport, handle.bundleRoot, "dropped"),
+					),
+					Effect.suspend(() => conceptsBox.forgetWarmup?.(handle.bundleRoot) ?? Effect.void),
+				),
 		});
 		const feature = yield* makeDiagnosticsFeature(registry);
 
@@ -147,6 +176,11 @@ export const serve = (
 		yield* registerNavigation(transport, registry);
 		yield* registerHover(transport, registry);
 		yield* registerWorkspaceSymbols(transport, registry);
+		const conceptsFeature = yield* registerConcepts(transport, registry);
+		conceptsBox.forgetWarmup = conceptsFeature.forgetWarmup;
+		yield* registerCodeActions(transport, registry, feature.documents);
+		yield* registerCommands(transport, registry, feature.documents);
+		yield* registerInlayHints(transport, registry);
 		yield* transport.onShutdown(() =>
 			Effect.gen(function* () {
 				// A marker unit: once it runs, every unit queued before shutdown has run and scheduled its revalidate.

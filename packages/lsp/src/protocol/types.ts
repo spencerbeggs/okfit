@@ -8,6 +8,18 @@
  */
 export type {
 	/** @public */
+	ApplyWorkspaceEditParams,
+	/** @public */
+	ApplyWorkspaceEditResult,
+	/** @public */
+	CodeAction,
+	/** @public */
+	CodeActionContext,
+	/** @public */
+	CodeActionParams,
+	/** @public */
+	Command,
+	/** @public */
 	DefinitionParams,
 	/** @public */
 	Diagnostic as LspDiagnostic,
@@ -28,6 +40,8 @@ export type {
 	/** @public */
 	DocumentLinkParams,
 	/** @public */
+	ExecuteCommandParams,
+	/** @public */
 	Hover,
 	/** @public */
 	HoverParams,
@@ -35,6 +49,10 @@ export type {
 	InitializeParams,
 	/** @public */
 	InitializeResult,
+	/** @public */
+	InlayHint,
+	/** @public */
+	InlayHintParams,
 	/** @public */
 	Location,
 	/** @public */
@@ -47,6 +65,10 @@ export type {
 	ReferenceParams,
 	/** @public */
 	SymbolInformation,
+	/** @public */
+	TextEdit,
+	/** @public */
+	WorkspaceEdit,
 	/** @public */
 	WorkspaceFolder,
 	/** @public */
@@ -62,3 +84,19 @@ export type {
  * @public
  */
 export const SYMBOL_KIND_OBJECT = 19;
+
+/**
+ * The library's `CodeActionKind.QuickFix` value: a code action kind features
+ * never import the enum to spell.
+ *
+ * @public
+ */
+export const CODE_ACTION_KIND_QUICKFIX = "quickfix";
+
+/**
+ * The library's `InlayHintKind.Type` value: an inlay hint kind features
+ * never import the enum to spell.
+ *
+ * @public
+ */
+export const INLAY_HINT_KIND_TYPE = 1;

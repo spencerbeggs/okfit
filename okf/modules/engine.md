@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: be652e5cd0f6cd24e1515edf9a0c76e146d02bc0fbcce92b4e9b3012be0e2914
+  at: 2026-09-23T21:50:18Z
+  body_sha256: 419888ffdbbe493e338a9c88ea3777bd83eac78d91c416d2b09297908d7cd14d
 ---
 
 # Engine
@@ -131,6 +131,25 @@ the concept a fallback range belongs to. `validate/resources.ts`'s
 [Core](core.md)'s `DiagnosticRange.forFrontmatterPath`, rather than the
 frontmatter block. `external/ExternalReferences.ts`
 ships only `layerNoop` until the HTTP layer lands.
+
+## Frontmatter edits
+
+`edits/FrontmatterEdits.ts`'s `FrontmatterEdits` is a `Context`-free public
+facade over `verify/locate.ts` and `verify/splice.ts`: `.status(source,
+status)` and `.verified(source, entry)` each return `MarkdownEdit`s at
+whole-file offsets into `source` as passed, BOM included, so a caller can
+apply them with `MarkdownEdit.applyAll` or map them to editor ranges
+without adjustment. `.verified` reuses the exact `locate`/`splice`/
+`documentNewline` calls `okfit verify`'s `prepareVerify` makes, so its
+output matches `okfit verify`'s splice byte for byte; `.status` applies the
+same newline rule over `locateTopLevelScalar`/`spliceTopLevelScalar`
+instead. A shape neither locator recognises fails closed with
+`UnsupportedFrontmatterError`, never a partial write. `@okfit/lsp`'s code
+actions and commands are the first caller besides `okfit verify` itself --
+see [Frontmatter splices are a shared engine surface for the CLI's verify
+and the language server's
+actions](../decisions/engine-frontmatter-edits-shared-surface.md), which
+supersedes the CLI-private splice decision.
 
 ## Process boundary
 

@@ -8,5 +8,6 @@
 * [MCP](mcp.md) - The okfit-mcp Model Context Protocol server, exposing six read-only tools and static concept resources over stdio.
 * [Plugin](plugin.md) - The meta-package a consuming repository installs to get the okfit CLI, okfit-mcp, and okfit-lsp bins on PATH.
 * [Profiles](profiles.md) - The opinionated layer over core -- named okfit config profiles plus derivation rules for generated.at and generated.by.
+* [VS Code Extension](vscode-extension.md) - The okfit VS Code extension -- a language client for @okfit/lsp plus a concept explorer, Language Status item and commands, publishable to the Marketplace and Open VSX (first release pending).
 * [Workspace](workspace.md) - The monorepo root -- workspace layout, shared rules, and the build, lint, and release commands every package uses.
 * [scratchpad](scratchpad.md) - A committed but never-published pnpm workspace member that lets agents write typed probes fast against the kit's own @okfit packages and the catalog effect prerelease.

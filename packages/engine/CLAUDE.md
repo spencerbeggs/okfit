@@ -23,6 +23,11 @@ src/
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   context/
     run.ts                 -- runContext: index.md stat only, never Bundle.load
+  edits/
+    FrontmatterEdits.ts     -- FrontmatterEdits (Context-free facade), UnsupportedFrontmatterError:
+                               MarkdownEdits for a concept's top-level `status` scalar and its
+                               `verified` list, whole-file offsets into the source as passed (BOM
+                               included), over the verify/locate.ts and verify/splice.ts machinery
   external/
     ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
                                  (phase 7 adds layerHttp)
@@ -40,8 +45,10 @@ src/
     diff.ts                  -- groupByFile, diffDiagnostics (pure, engine-internal)
     range.ts                  -- withFallbackRange: range-less finding -> frontmatter block
   verify/
-    locate.ts               -- Located, locate, stripBom, documentNewline (pure)
-    splice.ts                -- SpliceTarget, VerifyEntry, splice (pure, never a YAML serialiser)
+    locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
+                                locateTopLevelScalar (pure)
+    splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
+                                 (pure, never a YAML serialiser)
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically
   sync/

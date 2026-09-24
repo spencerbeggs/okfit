@@ -19,7 +19,41 @@ describe("serve", () => {
 				supported: true,
 				changeNotifications: true,
 			});
+			assert.deepStrictEqual(result.capabilities.codeActionProvider, {
+				codeActionKinds: ["quickfix", "okfit.status", "okfit.verify"],
+			});
+			assert.deepStrictEqual(result.capabilities.executeCommandProvider, {
+				commands: ["okfit.lsp.setStatus", "okfit.lsp.markVerified", "okfit.lsp.revalidate"],
+			});
+			assert.strictEqual(result.capabilities.inlayHintProvider, true);
 			assert.strictEqual(result.serverInfo?.name, "okfit-lsp");
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("the harness answers a server-to-client applyEdit request by default, and a test can override it", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			yield* h.initialize;
+			const edit = { changes: {} };
+			const defaultResult = yield* h.transport.sendRequest<unknown, { applied: boolean }>("workspace/applyEdit", {
+				edit,
+			});
+			assert.deepStrictEqual(defaultResult, { applied: true });
+			assert.deepStrictEqual(h.serverRequests, [{ method: "workspace/applyEdit", params: { edit } }]);
+
+			h.onServerRequest<unknown, { applied: boolean; failureReason: string }>("workspace/applyEdit", () => ({
+				applied: false,
+				failureReason: "rejected",
+			}));
+			const overriddenResult = yield* h.transport.sendRequest<unknown, { applied: boolean; failureReason: string }>(
+				"workspace/applyEdit",
+				{ edit },
+			);
+			assert.deepStrictEqual(overriddenResult, { applied: false, failureReason: "rejected" });
+			assert.deepStrictEqual(h.serverRequests, [
+				{ method: "workspace/applyEdit", params: { edit } },
+				{ method: "workspace/applyEdit", params: { edit } },
+			]);
 		}).pipe(Effect.scoped),
 	);
 
@@ -228,6 +262,29 @@ describe("serve", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.live(
+		"okfit/bundleChanged notifies after a revalidate publishes, and again with reason dropped once the folder is removed",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness();
+				yield* h.initialize;
+				const text = yield* readFixture(h.root, "okf/modules/alpha.md");
+				yield* h.open("okf/modules/alpha.md", BROKEN(text));
+				const published = yield* h.nextPublish();
+				assert.strictEqual(published.uri, h.uriOf("okf/modules/alpha.md"));
+				const revalidated = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+				assert.deepStrictEqual(revalidated.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
+
+				yield* notify(h.client, "workspace/didChangeWorkspaceFolders", {
+					event: { added: [], removed: [{ uri: h.uriOf(""), name: "project" }] },
+				});
+				// Dropping the session's last folder clears what it had published (task 4's dispose behaviour).
+				yield* h.nextPublish();
+				const dropped = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+				assert.deepStrictEqual(dropped.params, { rootUri: h.uriOf("okf"), reason: "dropped" });
+			}).pipe(Effect.scoped),
+	);
+
 	it.live("a bundle-level diagnostic publishes against the bundle's index.md", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness();
@@ -240,5 +297,65 @@ describe("serve", () => {
 			const published = yield* h.drainUntil((p) => p.uri === h.uriOf("okf/index.md"));
 			assert.ok(published.diagnostics.length > 0);
 		}).pipe(Effect.scoped),
+	);
+
+	it.live("okfit/concepts warms up the bundle when no document has been opened yet", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			yield* h.initialize;
+			// No didOpen: the folder's session has never been resolved before this request.
+			const result = yield* request<{ readonly bundles: ReadonlyArray<{ readonly root: string }> }>(
+				h.client,
+				"okfit/concepts",
+				{},
+			);
+			assert.isTrue(result.bundles.length > 0);
+			const revalidated = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+			assert.deepStrictEqual(revalidated.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
+		}).pipe(Effect.scoped),
+	);
+
+	it.live(
+		"okfit/concepts re-warms a bundle root after a config-change rebuild forgets it (production forgetWarmup wiring)",
+		() =>
+			Effect.gen(function* () {
+				// Proves server.ts's own conceptsBox wiring -- registerConcepts's forgetWarmup threaded into
+				// the registry's onDispose -- not just the test fixture's copy of it (concepts.test.ts).
+				const h = yield* makeServeHarness();
+				yield* h.initialize;
+
+				// Warm the root once via okfit/concepts (no document ever opened).
+				const first = yield* request<{ readonly bundles: ReadonlyArray<{ readonly root: string }> }>(
+					h.client,
+					"okfit/concepts",
+					{},
+				);
+				assert.isTrue(first.bundles.length > 0);
+				yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+
+				// Break the bundle root on disk, then touch the config to force a rebuild (configChanged is
+				// true for any change to a config file, regardless of content). registry.rebuild disposes the
+				// warmed session -- forgetWarmup runs here, if server.ts wired it -- and installs a fresh one;
+				// diagnostics.ts's onWatchedFiles schedules a full revalidate on that fresh session directly
+				// (independent of registerConcepts's own warm-up guard), and it fails, since the bundle root
+				// is now gone. Drain that notification: it is not the evidence this test needs.
+				yield* Effect.promise(() =>
+					import("node:fs/promises").then((fs) => fs.rm(`${h.root}/okf`, { recursive: true })),
+				);
+				const config = yield* readFixture(h.root, ".okfit.toml");
+				yield* writeFixture(h.root, ".okfit.toml", `${config}\n`);
+				yield* notify(h.client, "workspace/didChangeWatchedFiles", {
+					changes: [{ uri: h.uriOf(".okfit.toml"), type: 2 }],
+				});
+				yield* h.nextNotification((n) => n.method === "okfit/bundleChanged", "2 seconds");
+
+				// A second okfit/concepts request. With forgetWarmup wired, the rebuild above forgot this
+				// root, so this request treats it as unwarmed and schedules its own revalidate attempt -- a
+				// second "revalidated" notification beyond the rebuild's own. Without that wiring the root
+				// would still read as warmed from the very first request, and this would time out.
+				yield* request(h.client, "okfit/concepts", {});
+				const rewarmed = yield* h.nextNotification((n) => n.method === "okfit/bundleChanged", "2 seconds");
+				assert.deepStrictEqual(rewarmed.params, { rootUri: h.uriOf("okf"), reason: "revalidated" });
+			}).pipe(Effect.scoped),
 	);
 });

@@ -56,8 +56,10 @@ src/
                        WorkspaceSymbol*, SymbolInformation, ...) plus the
                        numeric constant SYMBOL_KIND_OBJECT (19, SymbolKind.Object)
   session/
-    documents.ts    -- DocumentMemoryShape, makeDocumentMemory (@internal,
-                       not in the barrel): a
+    documents.ts    -- OpenDocument, OpenDocuments (@public: the read-only
+                       get(path) view code actions and commands compute
+                       edits against); DocumentMemoryShape,
+                       makeDocumentMemory (@internal, not in the barrel): a
                        registry-wide Ref<Map<absolutePath, {text, version}>>
                        of open documents, keyed by absolute path (ownership
                        shifts with the workspace folder set, so this is not
@@ -134,8 +136,10 @@ src/
                        forgets it, and is what the registry's onDispose is
                        built from.
                        makeDiagnosticsFeature(registry): builds
-                       DiagnosticsFeature { onDocumentEvent, onWatchedFiles
-                       }, owning a session/documents.ts DocumentMemoryShape
+                       DiagnosticsFeature { onDocumentEvent, onWatchedFiles,
+                       documents }, owning a session/documents.ts
+                       DocumentMemoryShape (exposed read-only as
+                       `documents`)
                        so a config-change rebuild can carry every open
                        document's overlay into the fresh session before
                        scheduling its full revalidate. The publisher is
@@ -165,6 +169,34 @@ src/
     symbols.ts      -- registerWorkspaceSymbols(transport, registry):
                        workspace/symbol across every live session (see
                        Navigation below)
+    concepts.ts     -- registerConcepts(transport, registry) and
+                       notifyBundleChanged(transport, root, reason): the
+                       okfit/concepts request and okfit/bundleChanged
+                       notification, okfit's own protocol extensions for an
+                       editor's concept explorer (see Custom methods below)
+    names.ts        -- OKFIT_COMMANDS, OKFIT_CODE_ACTION_KINDS: the command
+                       ids and code action kinds server.ts advertises in
+                       INITIALIZE_RESULT.capabilities, shared with the
+                       features that implement them and copied into the VS
+                       Code extension
+    edits.ts        -- EditFailure, EditTarget, editTarget, statusTextEdits,
+                       verifiedTextEdits, resolveActor, versionedEdit,
+                       describeFailure: the edit machinery actions.ts and
+                       commands.ts share -- one request's target (current
+                       buffer text and version), TextEdits for a concept's
+                       status or verified entry, human-actor resolution and
+                       the versioned WorkspaceEdit; also conceptSnapshot
+                       (@internal, not in the barrel), the registry ->
+                       {concept, config, projectRoot} lookup inlayHints.ts
+                       draws on (see Code actions below)
+    actions.ts      -- registerCodeActions(transport, registry, documents):
+                       textDocument/codeAction (see Code actions below)
+    commands.ts     -- registerCommands(transport, registry, documents): workspace/
+                       executeCommand, RevalidateResult (see Commands below)
+    inlayHints.ts   -- registerInlayHints(transport, registry):
+                       textDocument/inlayHint; the pure hintsFor(concept, now)
+                       (@public, tested without a harness) (see Inlay hints
+                       below)
 ```
 
 The Layout tree above is a map, not a substitute for reading source: it
@@ -288,6 +320,225 @@ Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
 range conversion goes through `convert/range.ts`'s `toLspRange`/
 `toLspLocation`, which re-map a `DiagnosticRange`'s end position through the
 file text the same way `convert/diagnostic.ts`'s `toLspDiagnostic` does.
+
+## Custom methods
+
+`registerConcepts` (`src/features/concepts.ts`) wires `okfit/concepts` onto
+the transport for the VS Code extension's concept explorer (LSP roadmap
+phase 6); `notifyBundleChanged` (same file) sends `okfit/bundleChanged`. Both
+are okfit protocol extensions, named with the `okfit/` prefix since the LSP
+specification reserves `$/` for its own and leaves vendor prefixes to
+implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
+`{ okfitConcepts: true }` so a client can feature-detect.
+
+- **`okfit/concepts`** first warms up: every current workspace folder
+  (`registry.folders`) gets its session built via `registry.sessionFor` if it
+  has never been resolved, and every live session (`registry.sessions`) whose
+  `bundle()` is still `None` **and** whose `bundleRoot` has never been warmed
+  this session runs a first `full` revalidate through the normal scheduler
+  path (`handle.scheduler.schedule("full")` then `.settle`), so a client that
+  asks before any document is open still gets a populated result. Warm-up
+  runs **at most once per bundle root per session**: the root is recorded in
+  `registerConcepts`'s own warmed-roots set before the schedule runs, so a
+  root whose bundle still fails to load after that attempt is never
+  re-scheduled by a later request -- a multi-root window with several stale
+  workspace `@okfit/lsp` builds no longer schedules one revalidate per
+  request per broken root. Only a rebuild gives a root another attempt:
+  `server.ts` wires `registerConcepts`'s `forgetWarmup` into the registry's
+  `onDispose` callback (through a forward-reference box, since `registry`
+  must exist before `registerConcepts` can be built), which fires on a
+  config-change rebuild and on the last workspace folder resolving to a root
+  going away -- so a fixed config, or a folder re-added after removal, is
+  retried on its next `okfit/concepts` warm-up rather than staying
+  permanently skipped. Nothing warms up on its own -- a server nobody sends
+  this request to (Claude Code, still lazy-by-default) builds no session it
+  otherwise wouldn't have. It then answers from every live session's
+  last-loaded bundle: one `BundleSummary` per session whose `bundle()` is
+  `Some` (a session whose bundle still never loaded -- no config, or one that
+  failed -- contributes no entry), each carrying `root`, `rootUri`,
+  the resolved `profile` name (`session.config().bundle?.profile`, with the
+  documented `"none"` sentinel -- profile merging disabled -- mapped to
+  `undefined`; `OkfitConfig.DEFAULTS.bundle.profile` is always
+  `"software-project"`, so an unset `profile` key never itself yields
+  `undefined`), and one `ConceptSummary` per concept with a definition
+  location (`definitionOf`, `features/locate.ts` -- same exclusion as
+  `workspace/symbol`). A concept's `status` is its raw frontmatter value,
+  `undefined` when absent (not `Derive.status`'s `"stable"` default); `stale`
+  is `Derive.isStale` against `now` read once per request. Concepts are
+  sorted by type, then title, then id; bundles by root.
+- **`okfit/bundleChanged`** is sent from the registry's own `onRevalidate` and
+  `onDispose` callbacks (`server.ts`), after `publisher.publish`/`.clear`
+  respectively -- never from `features/diagnostics.ts` itself -- so a client
+  that re-fetches `okfit/concepts` on this notification always sees the
+  diagnostics the matching publish already sent. `reason` is `"revalidated"`
+  for a completed revalidate (regardless of whether anything was actually
+  republished) and `"dropped"` for a disposed session (a config-change
+  rebuild, or the last workspace folder resolving to that root going away).
+
+## Code actions
+
+`registerCodeActions` (`src/features/actions.ts`) wires `textDocument/
+codeAction` onto the transport. A missing session, an unloaded bundle, a
+non-`file:` URI, a path outside every bundle root, or a buffer whose
+frontmatter no longer parses all answer `[]`, never a hang, same posture as
+hover and navigation. Every edit it offers is computed by
+`src/features/edits.ts`, the module `src/features/commands.ts` (Commands
+below) also shares:
+
+- `editTarget(registry, documents, path)` resolves one request's
+  `EditTarget`, once per request: the concept must exist in its session's
+  last-loaded snapshot, but every edit is computed against its **current**
+  text -- `documents.get(path)`'s open buffer (the diagnostics feature's
+  document memory, `DiagnosticsFeature.documents`) when there is one, else
+  the file as the last revalidate loaded it. The snapshot lags a keystroke
+  by the scheduler's debounce plus a whole-bundle load; splicing at its
+  offsets corrupted a buffer that had moved on (final review I1). The raw
+  `status` and every `verified[].by` are read from that same text
+  (`FrontmatterSource.split` + `YamlDocument.parse(...).toValue()`), as is
+  the frontmatter block's LSP range. `version` is the buffer's version, or
+  `null` for a document that is not open.
+- `versionedEdit(uri, target, edits)` wraps the edits as `documentChanges:
+  [{ textDocument: { uri, version }, edits }]`, never unversioned `changes`,
+  so a client whose buffer changed after the request refuses the edit
+  instead of applying it at stale offsets.
+- `statusTextEdits(target, status)` and `verifiedTextEdits(target, actor,
+  now)` wrap `@okfit/engine`'s `FrontmatterEdits.status`/`.verified`: each
+  `MarkdownEdit`'s whole-file offset into `target.text` becomes an LSP range
+  with `DiagnosticRange.fromOffset` then `toLspRange` over that same text --
+  no BOM adjustment, because a file whose bytes open with a BOM never
+  decodes as a concept at all (`frontmatter-missing`), which
+  `__test__/features/actions.test.ts`'s BOM case proves. `verifiedTextEdits`
+  fails `DraftCannotBeVerified` for a draft and `AlreadyVerified` when
+  `actor` already carries a `verified` entry -- `okfit verify --batch`'s
+  skip rules, not the single-concept `okfit verify <id>`'s.
+- `resolveActor(handle)` wraps `Derivation.generatedBy({ writer: "human",
+  cwd: handle.folder, config })` (`handle.folder`, never `bundleRoot`: V-7's
+  cwd) and fails `ActorUnresolved` on its typed failure only; a defect (a
+  git subprocess crash) or an interrupt still propagates.
+- `describeFailure(failure)` renders any `EditFailure` as a short message,
+  what `commands.ts` surfaces as an `LspError`'s message; a code action
+  never surfaces one -- a failed edit just omits that action.
+
+The action set, in order:
+
+- **Quick fixes.** On a `status-missing` diagnostic in
+  `params.context.diagnostics` (`code === "status-missing"` and, when it
+  carries `data`, `data.source === "core.lint"`): `Set status: draft`
+  (`isPreferred`) and `Set status: stable`, kind `quickfix`, each carrying
+  that diagnostic. Offered wherever the request range sits (the client only
+  sends an overlapping diagnostic), unless `context.only` excludes
+  `quickfix`.
+- **Status actions** (kind `okfit.status`): `Set status: <status>` for each
+  status the raw frontmatter `status` is not already -- all three when there
+  is no explicit status, so an implicit `stable` can be made explicit -- in
+  `Status`'s literal order, minus any a quick fix already offers.
+- **Verify action** (kind `okfit.verify`): `Mark verified by <actor>` when
+  the actor resolves and `verifiedTextEdits` succeeds.
+
+The status and verify actions are offered only when `params.range`
+intersects the frontmatter block (opening fence through closing fence) or
+`context.only` names their kind (hierarchically: `okfit` names both); a
+cursor in body prose gets no lightbulb and spawns no git subprocess. The
+actor is resolved at most once per request and cached per `SessionHandle`
+in the feature's own `WeakMap` -- a config-change rebuild installs a fresh
+handle, so it gets a fresh lookup. A failed resolution is not cached (fixing
+git identity takes effect on the next request) and is logged at `logDebug`
+once per handle, never to stdout. `registerCodeActions` requires `Git` in
+its own `R`; it captures its context once, the same pattern
+`session/registry.ts` uses, so the handler passed to `transport.onRequest`
+itself needs none.
+
+## Commands
+
+`registerCommands` (`src/features/commands.ts`) wires `workspace/
+executeCommand` onto the transport for the three ids `features/names.ts`'s
+`OKFIT_COMMANDS` advertises. The ids live under `okfit.lsp.` on purpose:
+`vscode-languageclient` registers every advertised id as a VS Code command,
+so an id a client extension also contributes (the okfit extension's own
+`okfit.setStatus`/`okfit.markVerified`) makes client initialization throw
+"command already exists" -- never advertise an id a client might own. Like `registerCodeActions`, it requires `Git` in
+its own `R` and captures its context once, so the handler passed to
+`transport.onRequest` itself needs none. Each command's `arguments` (an
+`ExecuteCommandParams.arguments` array, positional by index) is decoded
+through a small `Schema.Tuple`; a decode failure fails with an `LspError`
+naming the expected shape (`-32602`), and an unrecognized command id fails
+naming it (`-32601`).
+
+- **`okfit.lsp.setStatus`** -- args `[uri, status]`
+  (`Schema.Tuple([Schema.String, Status])`). Resolves the `EditTarget`
+  (the open buffer, else the loaded file; `NotAConcept` otherwise), computes
+  `statusTextEdits`, sends it as a `versionedEdit` to the client with `transport.sendRequest<ApplyWorkspaceEditParams,
+  ApplyWorkspaceEditResult>("workspace/applyEdit", { label, edit })`, and
+  answers the client's own `ApplyWorkspaceEditResult` verbatim -- a `{
+  applied: false, failureReason }` the client returns is not an `LspError`,
+  only a transport failure of that request is (`sendRequest`'s own
+  contract). An `EditFailure` from `statusTextEdits` fails as an `LspError`
+  whose message is `describeFailure(failure)`, under `-32803` ("request
+  failed").
+- **`okfit.lsp.markVerified`** -- args `[uri]` (`Schema.Tuple([Schema.String])`).
+  Same `workspace/applyEdit` round trip, over `verifiedTextEdits(target,
+  actor, now)` with the actor from `resolveActor` (uncached: an explicit
+  command always reads git afresh) and `now` read once per request with
+  `DateTime.now`. The draft and already-verified checks read the same
+  current text, so a second quick Mark verified sees the first's entry once
+  the client has applied it.
+- **`okfit.lsp.revalidate`** -- args `[rootUri?]`, an optional single-string
+  tuple (`Schema.Tuple([Schema.optionalKey(Schema.String)])`) so the client
+  may send `[]` or omit `arguments` entirely. `rootUri` present: schedules a
+  `full` revalidate (`handle.scheduler.schedule("full")` then `.settle`, the
+  same warm-up path `okfit/concepts` uses) on the one live session whose
+  `handle.bundleRoot` matches it (`uriToPath`), or none when no session
+  matches. `rootUri` absent: every live session (`registry.sessions`).
+  Answers `{ roots }`, the revalidated sessions' `bundleRoot`s as `file:`
+  URIs (`pathToUri`) -- `{ roots: [] }` for an unmatched `rootUri` or no live
+  sessions. A revalidate that changes nothing in a session's diagnostic set
+  still fires `okfit/bundleChanged` (`reason: "revalidated"`, same rule as
+  every other revalidate) even though no `textDocument/publishDiagnostics`
+  follows it, since `onRevalidate`'s publish step only republishes a file
+  whose set actually changed.
+
+`registerCommands` is registered on `transport` after `registerCodeActions`
+in `server.ts`.
+
+## Inlay hints
+
+`registerInlayHints` (`src/features/inlayHints.ts`) wires `textDocument/
+inlayHint` onto the transport, answering from the requested file's owning
+session's last-loaded concept via `edits.ts`'s `conceptSnapshot` -- same
+posture as hover, navigation and code actions: a missing session, an
+unloaded bundle, a non-`file:` URI, or a path outside every bundle root all
+answer `[]`, never a hang.
+
+Up to two hints per concept, both computed by the pure `hintsFor(concept,
+now)` (`@public`, exported from the barrel, tested with no harness) before
+either is positioned against a document:
+
+- A trust/staleness hint, labeled `unverified`, `machine-confirmed`, or
+  `human-reviewed by <by>` naming the newest `verified[]` entry whose `by`
+  starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
+  three-way split, with the human-reviewed case's actor resolved here since
+  the derivation itself only reports the tier. `· stale` is appended when
+  `Derive.isStale(concept.frontmatter, now)`. Anchored on the `status`
+  field's own value when the frontmatter carries an explicit `status` key,
+  else on `type`'s (every concept has one, and `Derive.status`'s `"stable"`
+  default when `status` is absent leaves nothing else to anchor on).
+- A `generated.at` age hint, only when `generated.at` is set: `today` under
+  one whole day old, `1 day ago`, else `N days ago` -- whole days between
+  `generated.at` and `now`, floored (the same `DateTime.toEpochMillis`
+  arithmetic `Derive.staleReport` uses).
+
+`registerInlayHints` resolves each hint's position by re-running
+`DiagnosticRange.forFrontmatterPath` against the live document with the same
+path `hintsFor` named, then takes `toLspRange(...).end` -- the label reads
+immediately after the value, `kind: INLAY_HINT_KIND_TYPE`, `paddingLeft:
+true`. When that lookup cannot locate the named leaf and falls back to the
+whole frontmatter block (a flow-mapping document, say, whose per-key lookups
+all fail), the hint is dropped rather than mis-anchored at the block's own
+end -- detected by comparing the resolved range's `offset`/`length` against
+`forFrontmatterPath(document, [])`'s.
+
+`registerInlayHints` is registered on `transport` after `registerCommands`
+in `server.ts`.
 
 ## The transport seam
 

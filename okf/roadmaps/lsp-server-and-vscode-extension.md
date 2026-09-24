@@ -13,6 +13,10 @@ sources:
     resource: conversation with the repository owner
     author: human:spencer
     last_modified: 2026-09-22T00:00:00Z
+  - id: owner-sequencing
+    resource: conversation with the repository owner
+    author: human:spencer
+    last_modified: 2026-09-23T00:00:00Z
   - id: claude-code-plugins-reference
     resource: https://code.claude.com/docs/en/plugins-reference.md
   - id: vscode-lsp-guide
@@ -29,8 +33,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:32:55Z
-  body_sha256: 86b32e21f220aee9ec6e9d48f46dc433ff3d2892c718ed9b9781743083698a2b
+  at: 2026-09-23T22:30:37Z
+  body_sha256: a2e2eb906e28fea4f7b00eaa3bd50a7e69853390d6095027d007867894d50b08
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -104,7 +108,14 @@ discovered per folder, folders added and removed through the LSP
 workspace-folders notifications, and a resource-scoped server-path
 setting[^vscode-multi-root]. reactive-vscode has no language-client
 composable, so the client is wired by hand and disposed through the
-reactive API[^reactive-vscode].
+reactive API[^reactive-vscode]. Phase 6 was sequenced before phase 5 on
+2026-09-23, by the owner's decision[^owner-sequencing], so the extension's
+first release shipped without Set Status, Mark Verified or inlay hints,
+picking them up once phase 5 landed the same day; the
+extension's tracking package lives at `vscode/`, sibling to `packages/*`
+and `plugins/claude-code`, not under either -- see [The VS Code extension
+lives at vscode/, not under plugins/ or
+packages/](../decisions/vscode-extension-at-repo-root.md).
 
 ## Phases
 
@@ -181,12 +192,50 @@ repository's own bundle.
    for marking verified by the configured human actor, computed as text
    edits over the verify splice helpers so a file is never
    re-serialised; mechanical quick fixes; execute-command; inlay hints
-   after the `status:` line. Releases engine, lsp. Remaining: everything.
-6. **VS Code extension.** The reactive-vscode package, language client,
-   Explorer tree with per-type icons and a numeric stale badge, Language
-   Status item, commands under one category scoped to OKF documents,
-   Welcome view for the empty state, multi-root support, publishing.
-   First extension release. Remaining: everything.
+   after the `status:` or `type:` line and `generated.at`'s age. Releases
+   engine, lsp. Done 2026-09-23: `@okfit/engine` gained the
+   `FrontmatterEdits` public facade (`status`/`verified`) over the
+   `verify/locate.ts`/`verify/splice.ts` machinery, superseding the
+   CLI-private splice decision -- see [Frontmatter splices are a shared
+   engine surface for the CLI's verify and the language server's
+   actions](../decisions/engine-frontmatter-edits-shared-surface.md).
+   `@okfit/lsp` gained `textDocument/codeAction` (Set status, Mark
+   verified, `status-missing` quick fixes), `workspace/executeCommand`
+   (`okfit.lsp.setStatus`, `okfit.lsp.markVerified`, `okfit.lsp.revalidate`, edits
+   applied through `workspace/applyEdit`, never written to disk), and
+   `textDocument/inlayHint`. Evidence: `@okfit/engine` 291 of 291 Vitest
+   tests passing (6 new for `FrontmatterEdits`), `@okfit/lsp` 173 of 173
+   Vitest tests passing (task reports along the way recorded 141, 150,
+   158, 161 and 171 as each feature landed); the extension's Set Status
+   and Mark Verified commands (phase 6, below) shipped on top of this
+   phase the same day. Remaining: nothing; the owner's own VS Code UI
+   pass (below) is still owed.
+6. **VS Code extension.** The `vscode/` workspace member (tracking
+   package `@okfit/vscode-extension`, Marketplace id `okfit`, publisher
+   `okfit`), a `reactive-vscode` language client with per-folder server
+   resolution (`okfit.lsp.serverPath`, then a workspace folder's own
+   `node_modules/.bin/okfit-lsp`, then the bundled server, all launched
+   over stdio), the OKF Concepts explorer tree with status and stale
+   badges, a Language Status item, the Validate Bundle and Open Concept
+   commands, multi-root support, and the `VS Code Marketplace` GitHub
+   Actions workflow (Marketplace and Open VSX, federation-first with a
+   PAT fallback). Done 2026-09-23, joined the same day by the Set Status
+   and Mark Verified commands and inline tree actions phase 5 unblocked,
+   and by the `vscode:package`/`vscode:install` root scripts for a
+   local-install check. Evidence: `@okfit/vscode-extension` 63 of 63
+   Vitest tests passing. This extension ships in the repository
+   unreleased on this branch by the owner's decision; no
+   `@okfit/vscode-extension` changeset accompanies it, and its first
+   Marketplace and Open VSX release is the next phase. Remaining: the
+   Marketplace publisher registration, the icon asset, the federation
+   credentials, the first release, and the owner's own VS Code UI pass --
+   lightbulb on a
+   concept's frontmatter to confirm the code actions render; Set status
+   through both the lightbulb and the OKF Concepts tree's inline/context-
+   menu action; Mark verified by `human:spencer` appearing and applying;
+   inlay hints showing after `status:`/`type:` and `generated.at`; the
+   quick fix on a status-less concept; and Validate Bundle re-publishing
+   after an edit made in another editor outside VS Code.
 7. **External references for real.** An HTTP-backed
    `ExternalReferences` layer over `@effected/store`'s TTL `Cache` in
    the XDG cache directory, an `external-unreachable` lint that core
@@ -214,6 +263,7 @@ then markdownlint-cli2 keeps its job unchanged, since it is a command
 rather than a language server and never competes for the `.md` slot.
 
 [^owner-brainstorm]: conversation with the repository owner
+[^owner-sequencing]: conversation with the repository owner
 [^claude-code-plugins-reference]: <https://code.claude.com/docs/en/plugins-reference.md>
 [^vscode-lsp-guide]: <https://code.visualstudio.com/api/language-extensions/language-server-extension-guide>
 [^vscode-1-100-notes]: <https://code.visualstudio.com/updates/v1_100>
