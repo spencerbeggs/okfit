@@ -10,6 +10,10 @@ describe("resolveMcpProjectRoot", () => {
 		assert.strictEqual(resolveMcpProjectRoot({ CLAUDE_PROJECT_DIR: "/b" }, "/c"), "/b");
 	});
 
+	it("skips an empty OKFIT_PROJECT_DIR and falls back to CLAUDE_PROJECT_DIR", () => {
+		assert.strictEqual(resolveMcpProjectRoot({ OKFIT_PROJECT_DIR: "", CLAUDE_PROJECT_DIR: "/b" }, "/c"), "/b");
+	});
+
 	it("falls back to cwd when neither is set", () => {
 		assert.strictEqual(resolveMcpProjectRoot({}, "/c"), "/c");
 	});

@@ -5,6 +5,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { McpProcess } from "@effected/mcp/testing";
 import { Effect } from "effect";
 import { ChildProcess } from "effect/unstable/process";
+import { readUntilErrorCode } from "./utils/wire.js";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
 const CLI_BIN = resolve(REPO_ROOT, "packages", "cli", "dist", "dev", "pkg", "bin", "okfit.js");
@@ -239,6 +240,40 @@ describe("server lifecycle", () => {
 	// `runMain`'s `teardown` option (review Minor finding 3), since 130
 	// conventionally means "killed by SIGINT" and this is the ordinary end
 	// of every session.
+	// I4 (final whole-branch review): `McpStdio.layer`'s stdin guard is
+	// "load-bearing, not a style choice" (server.ts's own doc comment), but
+	// nothing under `__test__` exercised it before this test. A malformed
+	// line gets `-32700`, a syntactically-JSON-but-not-JSON-RPC value (a bare
+	// `null`) gets `-32600`, both with `id: null`, and the server keeps
+	// serving afterward -- proven here by completing a real `initialize`
+	// right after. `McpProcess.sendRaw` writes the two malformed lines
+	// exactly as given (no JSON encoding), and `readUntilErrorCode`
+	// (`./utils/wire.ts`) reads past any interleaved notification to the
+	// matching error frame, the same "skip what you don't want" posture
+	// `readUntilResponse` uses for a response id.
+	it.effect("recovers from a malformed stdin line and a non-JSON-RPC value, and keeps serving", () =>
+		Effect.gen(function* () {
+			const server = yield* spawnMcp(ENV);
+
+			yield* server.sendRaw("not json\n");
+			const parseError = yield* readUntilErrorCode(server, -32700);
+			assert.strictEqual(parseError.id, null);
+
+			yield* server.sendRaw("null\n");
+			const invalidRequest = yield* readUntilErrorCode(server, -32600);
+			assert.strictEqual(invalidRequest.id, null);
+
+			yield* server.send(INITIALIZE);
+			const initialized = (yield* readResponse(server, 1)) as {
+				readonly result: { readonly protocolVersion: string; readonly serverInfo: { readonly name: string } };
+			};
+			assert.strictEqual(initialized.result.serverInfo.name, "okfit");
+			assert.strictEqual(initialized.result.protocolVersion, "2025-11-25");
+
+			yield* server.closeStdin;
+		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+	);
+
 	it.effect("exits 0 within two seconds of stdin closing", () =>
 		Effect.gen(function* () {
 			const server = yield* spawnMcp(ENV);
