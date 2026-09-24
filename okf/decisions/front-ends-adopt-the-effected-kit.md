@@ -8,8 +8,8 @@ tags:
   - deps
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: 310f5e3e2ecbdee0d4e61efbbef23f18903cf6f1905d1369ac7aa4eb6266ee5b
+  at: 2026-09-24T16:29:49Z
+  body_sha256: bc2f607f0af0366c34ec13ae535fbb539110dcc5ff6c5e5d31f404dde50117a2
 sources:
   - id: main-ts
     resource: ../../packages/cli/src/main.ts
@@ -52,7 +52,7 @@ package:
   remap for stdin EOF.
 - `@okfit/cli`, `@okfit/engine`, and `@okfit/lsp` each carried their own
   `__test__/utils/boundaries.ts` scanner -- comment-stripping, `process`-
-  read detection, and (for `cli` and `lsp`) an import-name walker -- three
+  read detection, and (for `cli` and `engine`) an import-name walker -- three
   independently maintained copies of the same logic, with no check at all
   that the workspace's package-dependency graph itself honoured its
   intended layering.
@@ -188,4 +188,4 @@ duplication in place.
 [^mcp-server-ts]: ../../packages/mcp/src/server.ts
 [^mcp-errors-ts]: ../../packages/mcp/src/errors.ts
 [^layers-json]: ../../layers.json
-[^workspace-layering-test]: ../../**test**/workspaceLayering.test.ts
+[^workspace-layering-test]: `__test__/workspaceLayering.test.ts`
