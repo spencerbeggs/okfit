@@ -6,8 +6,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-20T01:54:25Z
-  body_sha256: 43f33795db5bb513e0f6b68d6e30846f1fce8fd7f43fd788e4760eacb81e4012
+  at: 2026-09-24T15:35:44Z
+  body_sha256: af58bdd37c1bd70a70d607eca0fe69f44034ee3f8e41159f8d0495733ac5ae7a
 status: draft
 supersedes: mcp-effect-native-legacy-era.md
 sources:
@@ -118,11 +118,26 @@ populated, so every member's message still carries its remediation hint
 inline. New in rc.116, `registerToolkit` renders that declared branch
 without any log line; only an internal, unexpected failure goes through
 `Effect.logError` and the `ErrorReporter`.[^mcp-server-ts] This package
-has no port of that code path -- it uses native `McpServer.toolkit` -- so
-nothing was rebased, but a test that wants to prove stderr log routing
-can no longer trigger it through a declared failure; the e2e that did so
-now targets the boot-time `could not load the bundle` `logError` in
-`resources/conceptResource.ts`.
+has no port of that code path -- it runs core's `registerToolkit`
+unchanged, now reached through `@effected/mcp`'s `McpToolkit.layer`
+rather than core's own `McpServer.toolkit` called directly (see [okfit's
+front ends build on @effected/{engine,cli,mcp} rather than hand-rolled
+equivalents](front-ends-adopt-the-effected-kit.md)) -- so nothing of the
+declared-failure rendering was rebased, but a test that wants to prove
+stderr log routing can no longer trigger it through a declared failure;
+the e2e that did so now targets the boot-time `could not load the
+bundle` `logError` in `resources/conceptResource.ts`.
+
+`McpToolkit.layer` also closes every strict tool's served `inputSchema`
+(`additionalProperties: false` at every object node) and, on an unknown
+argument, fails with one `InvalidParams` naming every unknown key at
+every depth rather than only the first, which is what core's own
+`registerToolkit` reports on its own. `McpStdio.layer`, used here in
+place of hand-wiring `McpServer.layerStdio` directly, additionally
+answers a stdin line that is not JSON with a JSON-RPC `-32700` and keeps
+serving, and JSON that is not a JSON-RPC message with `-32600` and keeps
+serving -- both new behaviour this package did not have before adopting
+the kit.
 
 The second Effect limitation the superseded Decision recorded is
 unchanged: a resource URI template's parametric segment cannot span a

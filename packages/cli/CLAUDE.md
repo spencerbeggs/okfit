@@ -40,8 +40,9 @@ for the full table and the JSON envelope.
 ```text
 src/
   bin.ts               -- the shebang entry point: imports and calls main(), nothing else
-  main.ts               -- the assembled program: resolves Now, provides OkfitPlatform,
-                            CliRuntime.reportFailures, NodeRuntime.runMain
+  main.ts               -- the assembled program: resolves Now, provides OkfitPlatform and
+                            the CliColor-based version formatter, runs on @effected/cli's
+                            CliRuntime.main
   index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
                              Counts, human, line, summary, VerifyLines, humanVerify, CLI_VERSION
   version.ts              -- CLI_VERSION, read from process.env.__PACKAGE_VERSION__ (K-32), a
@@ -73,7 +74,10 @@ src/
                                       VerifyEnvelope)
   internal/
     exit.ts                       -- setExitCode(code); the only writer of process.exitCode
-    tty.ts                         -- useColor(); the only reader of isTTY/NO_COLOR
+    versionFormatter.ts            -- versionFormatterLayer: @effected/cli's CliColor.formatterLayer,
+                                       only formatVersion overridden; colour itself is @effected/cli's
+                                       own decision, read from the ambient ConfigProvider, never a
+                                       process read this package performs
 ```
 
 This tree names files and their headline exports, not every symbol a file
@@ -89,15 +93,23 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `node_modules` wins on disagreement.
 - **Process boundary (K-9, K-49), enforced by `__test__/boundaries.test.ts`.**
   `process` is read ONLY in `bin.ts`, `main.ts`, every file under
-  `commands/`, `internal/exit.ts`, `internal/tty.ts`, and `version.ts`
-  (`version.ts`'s `process.env.__PACKAGE_VERSION__` is a build-time constant
-  the bundler replaces, not a runtime environment read -- allowlisted
-  alongside the deliberate touchpoints for that reason). Every file under
-  `render/` is pure or Effect-typed with no `process` access and no
-  `@effect/platform-node` import. This package no longer imports `App`,
-  `AppStore`, or `AppCache` from `@effected/app` at all -- config discovery,
-  and the `AppConfig.layer` call that needs `@effected/app`, both live in
-  `@okfit/engine`'s `config/layer.ts` now.
+  `commands/`, `internal/exit.ts`, and `version.ts` (`version.ts`'s
+  `process.env.__PACKAGE_VERSION__` is a build-time constant the bundler
+  replaces, not a runtime environment read; `@effected/workspaces/testing`'s
+  `SourceBoundary` exempts it unconditionally, so it needs no explicit
+  allowlist entry). `internal/tty.ts`, this package's former sole reader of
+  `isTTY`/`NO_COLOR`, is deleted: colour is now `@effected/cli`'s `CliColor`
+  decision, read through the ambient `ConfigProvider`, never a `process`
+  read this package performs itself -- see [okfit's front ends build on
+  @effected/{engine,cli,mcp} rather than hand-rolled
+  equivalents](../../okf/decisions/front-ends-adopt-the-effected-kit.md).
+  Every file under `render/` is pure or Effect-typed with no `process`
+  access and no `@effect/platform-node` import. This package imports
+  nothing from `@effected/app` at all -- enforced as a blanket
+  `{ forbidImports: ["@effected/app"] }` `SourceBoundary` rule, broader
+  than a three-name (`App`/`AppStore`/`AppCache`) allowlist -- config
+  discovery, and the `AppConfig.layer` call that needs `@effected/app`,
+  both live in `@okfit/engine`'s `config/layer.ts` now.
 - **Dependency closure (K-35).** `package.json`'s `dependencies` block is the
   FULL runtime closure this package's own code, plus core's and profiles'
   peers, need: `@okfit/core`'s peers (`effect`, `@effected/config-file`,

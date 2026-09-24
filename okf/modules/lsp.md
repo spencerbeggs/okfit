@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T23:39:29Z
-  body_sha256: 8db1b750cfaca7b98ec5c244d9d6dbce3834fd4b2131e6faf48d127bb1037acf
+  at: 2026-09-24T15:35:44Z
+  body_sha256: 69aa79d235d1b1563dbf732c946e9e82a7852556da48e71ddbc642643b5b686c
 ---
 
 # LSP
@@ -225,7 +225,12 @@ stdout — the transport is the only writer, and only through the stream
 `main.ts` hands it; only `src/protocol/reference.ts`, `src/main.ts`, and
 the type-only `src/protocol/types.ts` may import from
 `vscode-languageserver*`. `__test__/boundaries.test.ts` enforces all
-three by scanning `src/`.
+three in one `@effected/workspaces/testing` `SourceBoundary.scan` call,
+using `allowRules` to waive one named rule per file (so `main.ts` is
+exempt from the `process` rule but still checked for a stray stdout
+write) rather than exempting a file from every rule at once -- see
+[okfit's front ends build on @effected/{engine,cli,mcp} rather than
+hand-rolled equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 
 ## Links
 

@@ -7,8 +7,8 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-22T20:14:00Z
-  body_sha256: aa986561e9d672b4cd82e505f438a9d7af00c2c00cfccb58e95909ed42f04689
+  at: 2026-09-24T15:35:44Z
+  body_sha256: 76bf1d2c7f5c996c8ecb5e8406e1c8cdb4c1f969a6c7e89bf37c5cd4278a7506
 tags:
   - architecture
 verified:
@@ -58,6 +58,25 @@ failure schema:
 A failing call reaches the client as `isError: true`, with the
 remediation hint folded directly into `content[0].text` — there is no
 separate structured error field on the wire.
+
+## Strict input and malformed-frame recovery
+
+Every served tool's `inputSchema` is closed: `additionalProperties: false`
+at every object node. A call carrying an argument the schema does not
+accept fails with a JSON-RPC `InvalidParams` (`-32602`) or, on a revision
+that surfaces tool failures as an `isError` result instead (see the
+Errors section above), an `isError: true` result -- either way naming
+every unknown key path at every depth in one message, plus the accepted
+params at that level, rather than only the first excess key.
+
+Below the tool layer, the transport itself recovers from a malformed
+frame rather than wedging: a stdin line that is not JSON gets a JSON-RPC
+parse error (`-32700`, `id: null`) and the server keeps serving; a line
+that is syntactically JSON but not a JSON-RPC request or response --
+`null`, a bare scalar, an object with neither `method` nor `id` -- gets
+`-32600` (`id: null`) and the server keeps serving. Both replies are
+written before the offending line reaches the tool/resource dispatch this
+table otherwise describes.
 
 ## Server identity
 
