@@ -14,8 +14,6 @@ export {
 	McpToolError,
 	Remediation,
 	UnknownVocabulary,
-	composeRemediatedMessage,
-	truncateEchoed,
 } from "./errors.js";
 export { ConceptResources } from "./resources/conceptResource.js";
 export { IndexResource } from "./resources/indexResource.js";
