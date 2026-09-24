@@ -1,5 +1,29 @@
 # @okfit/engine
 
+## 0.9.0
+
+### Features
+
+- `FrontmatterEdits` — a public, `Context`-free facade over the `okfit verify` splice machinery: `.status(source, status)` and `.verified(source, entry)` return `MarkdownEdit`s at whole-file offsets into `source` as passed (BOM included), so a caller can apply them directly or map them to editor ranges without adjustment. `.verified` matches `okfit verify`'s own splice byte for byte
+- `UnsupportedFrontmatterError` — raised instead of a partial write when a frontmatter shape `FrontmatterEdits` cannot splice safely [#181][#181]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/markdown | dependency | updated | ^0.12.0 | ^0.12.1 |
+| @effected/engine | dependency | added | — | ^0.1.0 |
+
+[#186][#186]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#181]: https://github.com/spencerbeggs/okfit/pull/181
+
+[#186]: https://github.com/spencerbeggs/okfit/pull/186
+
 ## 0.8.0
 
 ### Features
