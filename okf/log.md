@@ -1,5 +1,17 @@
 # Log
 
+## 2026-09-24
+
+* Updated CLI
+* Updated Engine
+* Updated LSP
+* Updated MCP
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated Workspace
+* Added okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated process reads confined to the CLI's boundary files
+
 ## 2026-09-23
 
 * Updated An @okfit/lsp language server and a VS Code extension over the shared engine
