@@ -6,7 +6,7 @@ tags:
   - architecture
   - release
   - dx
-status: draft
+status: stable
 supersedes: engine-version-is-the-comparable-version.md
 sources:
   - id: okfit-137
@@ -24,6 +24,9 @@ generated:
   by: okfit/claude-code
   at: 2026-09-24T16:07:02Z
   body_sha256: 874fd08c90f163131148eb23c1dd0b7b71167e58c60f9887cdef1cf90b5fc8ba
+verified:
+  - by: human:spencer
+    at: 2026-09-24T16:07:36Z
 ---
 
 # The engine version, not the producer version, is what a report is compared on

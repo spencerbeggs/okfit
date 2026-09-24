@@ -4,7 +4,7 @@ title: A shared @okfit/engine package replaces cli-as-copy-contract
 description: The platform layer, config discovery, and the validate/verify/sync/init/context programs moved into a new @okfit/engine package that both @okfit/cli and @okfit/mcp depend on directly, replacing an auto-installed peer-dependency arrangement that could never produce a runnable bin.
 tags:
   - architecture
-status: draft
+status: stable
 supersedes: engine-front-end-split.md
 sources:
   - id: boundaries-test
@@ -13,6 +13,9 @@ generated:
   by: okfit/claude-code
   at: 2026-09-24T16:07:02Z
   body_sha256: dabd73dc1de7f4e603db86193dbbb7603fedc9e13296822ce0f332db5e64dea3
+verified:
+  - by: human:spencer
+    at: 2026-09-24T16:07:36Z
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract
