@@ -2,7 +2,7 @@ import * as NodeChildProcessSpawner from "@effect/platform-node/NodeChildProcess
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
-import type { JsonRpcMessage, McpTestFailure, ServedTool } from "@effected/mcp/testing";
+import type { JsonRpcMessage, McpTestFailure, ServedResource, ServedTool } from "@effected/mcp/testing";
 import { McpHarness } from "@effected/mcp/testing";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { Scope } from "effect";
@@ -10,6 +10,8 @@ import { Effect, Layer } from "effect";
 import { McpProtocol } from "effect/unstable/ai";
 import type { ServerOptions } from "../../src/server.js";
 import { ServerLayer } from "../../src/server.js";
+
+export type { ServedResource } from "@effected/mcp/testing";
 
 /**
  * The three adapters `ServerLayer` declares, spelled as the wire-format
@@ -25,13 +27,6 @@ const PROTOCOL_ADAPTERS: Record<ProtocolVersion, McpProtocol.ProtocolAdapter> = 
 	"2025-06-18": McpProtocol.v2025_06_18,
 };
 
-export interface ServedResource {
-	readonly uri?: string;
-	readonly uriTemplate?: string;
-	readonly name: string;
-	readonly description?: string;
-	readonly mimeType?: string;
-}
 export interface CallToolResult {
 	readonly content: ReadonlyArray<{ readonly type: string; readonly text?: string }>;
 	readonly structuredContent?: unknown;
@@ -99,6 +94,9 @@ const PlatformLayer = Layer.mergeAll(
  * this replaces returned. A caller that needs to see a JSON-RPC-level
  * `.error` (this package's own protocol- and resource-failure tests) still
  * goes through `sendRequest` directly, which is never unwrapped.
+ * `listResources` needs none of this: `McpHarness.listResources` already
+ * unwraps `resources/list`'s `.result.resources` and fails typed
+ * (`ErrorResponse`) on a JSON-RPC error, so it is exposed here verbatim.
  */
 const unwrapResult = <A>(response: JsonRpcMessage): A =>
 	(response.error === undefined ? response.result : response) as A;
@@ -113,7 +111,8 @@ const unwrapResult = <A>(response: JsonRpcMessage): A =>
  * the individual Node platform layers), the `ProtocolVersion` string ->
  * `McpProtocol.ProtocolAdapter` mapping this package's tests are already
  * written against, and unwrapping `callTool`/`readResource`'s `.result` for
- * the common case (see {@link unwrapResult}).
+ * the common case (see {@link unwrapResult}). `listResources` is the kit's
+ * own convenience method, passed through unchanged.
  *
  * `McpHarness.make`'s own error channel is `Xdg.layer`'s real (K-13,
  * `packages/engine/src/platform.ts`) `XdgEnvError` -- `ServerLayer` itself
@@ -136,11 +135,6 @@ export const makeHarness = (
 		const harness = yield* McpHarness.make(ServerLayer(projectRoot, serverOptions).pipe(Layer.provide(PlatformLayer)), {
 			protocol: PROTOCOL_ADAPTERS[protocolVersion],
 		}).pipe(Effect.orDie);
-		const listResources: Effect.Effect<ReadonlyArray<ServedResource>, McpTestFailure> = harness
-			.request("resources/list")
-			.pipe(
-				Effect.map((response) => (response.result as { readonly resources: ReadonlyArray<ServedResource> }).resources),
-			);
 		return {
 			protocolVersion,
 			initialize: harness.initialize,
@@ -148,7 +142,7 @@ export const makeHarness = (
 			sendRequest: (method, params) => harness.request(method, params),
 			listTools: harness.listTools,
 			callTool: (name, args) => harness.callTool(name, args).pipe(Effect.map(unwrapResult<CallToolResult>)),
-			listResources,
+			listResources: harness.listResources,
 			readResource: (uri) => harness.readResource(uri).pipe(Effect.map(unwrapResult<ReadResourceResult>)),
 		};
 	});
