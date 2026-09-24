@@ -44,7 +44,10 @@
 		"vscode:package": "turbo run build:dev --filter=@okfit/lsp && pnpm --filter @okfit/vscode-extension build && pnpm --filter @okfit/vscode-extension package"
 	},
 	"devDependencies": {
+		"@effect/platform-node": "catalog:effect",
+		"@effect/vitest": "catalog:effect",
 		"@effected/toml": "catalog:effected",
+		"@effected/workspaces": "catalog:effected",
 		"@okfit/cli": "workspace:*",
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^4.2.7",

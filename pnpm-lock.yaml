@@ -253,14 +253,24 @@ overrides:
   '@effected/cli': file:../effected/packages/cli/dist/prod/npm/pkg
   '@effected/engine': file:../effected/packages/engine/dist/prod/npm/pkg
   '@effected/mcp': file:../effected/packages/mcp/dist/prod/npm/pkg
+  '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg
 
 importers:
 
   .:
     devDependencies:
+      '@effect/platform-node':
+        specifier: catalog:effect
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
+      '@effect/vitest':
+        specifier: catalog:effect
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1)
       '@effected/toml':
         specifier: catalog:effected
         version: 0.9.0(effect@4.0.0-rc.117)
+      '@effected/workspaces':
+        specifier: file:../effected/packages/workspaces/dist/prod/npm/pkg
+        version: file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@okfit/cli':
         specifier: workspace:*
         version: link:packages/cli/dist/dev/pkg
@@ -340,6 +350,9 @@ importers:
       '@effected/commands':
         specifier: catalog:effected
         version: 0.9.0(effect@4.0.0-rc.117)
+      '@effected/workspaces':
+        specifier: file:../../../effected/packages/workspaces/dist/prod/npm/pkg
+        version: file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@savvy-web/bundler':
         specifier: ^2.4.9
         version: 2.4.9(@types/node@26.6.2)(react@19.3.0)(redis@6.2.1)(tsx@4.23.15)(typescript@7.0.2)
@@ -463,6 +476,9 @@ importers:
       '@effected/memfs':
         specifier: catalog:effected
         version: 0.9.0(effect@4.0.0-rc.117)
+      '@effected/workspaces':
+        specifier: file:../../../effected/packages/workspaces/dist/prod/npm/pkg
+        version: file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@savvy-web/bundler':
         specifier: ^2.4.9
         version: 2.4.9(@types/node@26.6.2)(react@19.3.0)(redis@6.2.1)(tsx@4.23.15)(typescript@7.0.2)
@@ -513,6 +529,9 @@ importers:
       '@effect/vitest':
         specifier: catalog:effect
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1)
+      '@effected/workspaces':
+        specifier: file:../../../effected/packages/workspaces/dist/prod/npm/pkg
+        version: file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@savvy-web/bundler':
         specifier: ^2.4.9
         version: 2.4.9(@types/node@26.6.2)(react@19.3.0)(redis@6.2.1)(tsx@4.23.15)(typescript@7.0.2)
@@ -1258,8 +1277,8 @@ packages:
       '@effected/glob': ^0.8.0
       effect: 4.0.0-rc.117
 
-  '@effected/workspaces@0.25.0':
-    resolution: {integrity: sha512-Tqp50ruoUXBxx2SypG2JDCFBgoQfYrTQLvuTKGeDnwaniN6RKpOXyzYfMkAbhvomWfadV2TyKhSyja2VUQZxrg==}
+  '@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg':
+    resolution: {directory: ../effected/packages/workspaces/dist/prod/npm/pkg, type: directory}
     engines: {node: '>=24.11.0'}
     peerDependencies:
       effect: 4.0.0-rc.117
@@ -2040,6 +2059,7 @@ packages:
 
   '@savvy-web/silk-core@0.4.4':
     resolution: {integrity: sha512-I3mz5MeS+iIWkYg+i3xLJW9az5uThEkaFkceWGVXuCoFpiGod9mbsvu+hVkbpSeeTOdZQTR1hFf2KIHKL88LSw==}
+    version: 0.4.4
     peerDependencies:
       '@effected/templates': ^0.8.0
       '@effected/workspaces': ^0.25.0
@@ -2047,6 +2067,7 @@ packages:
 
   '@savvy-web/silk-effects@9.1.2':
     resolution: {integrity: sha512-9lFli7pQfYHrUf0P6LKpsw4vA1ygZy9TxvLfCsV39lppm/Q7hETaCQ4xLSu0hEfndAZny1X1AKN8cs6tnutAoA==}
+    version: 9.1.2
     peerDependencies:
       '@effected/commands': ^0.9.0
       '@effected/git': ^0.17.0
@@ -5494,7 +5515,7 @@ snapshots:
       '@effected/glob': 0.8.0(effect@4.0.0-rc.117)
       effect: 4.0.0-rc.117
 
-  '@effected/workspaces@0.25.0(effect@4.0.0-rc.117)':
+  '@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)':
     dependencies:
       '@effected/commands': 0.9.0(effect@4.0.0-rc.117)
       '@effected/git': 0.17.0(effect@4.0.0-rc.117)
@@ -6083,8 +6104,8 @@ snapshots:
     dependencies:
       '@effected/commands': 0.9.0(effect@4.0.0-rc.117)
       '@effected/git': 0.17.0(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
-      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
+      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
       effect: 4.0.0-rc.117
     transitivePeerDependencies:
       - '@effected/templates'
@@ -6097,9 +6118,9 @@ snapshots:
       '@effected/git': 0.17.0(effect@4.0.0-rc.117)
       '@effected/jsonc': 0.13.0(effect@4.0.0-rc.117)
       '@effected/templates': 0.8.0(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@effected/yaml': 0.17.0(effect@4.0.0-rc.117)
-      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
+      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
       effect: 4.0.0-rc.117
     transitivePeerDependencies:
       - bufferutil
@@ -6112,8 +6133,8 @@ snapshots:
       '@effect/platform-node': 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
       '@effected/commands': 0.9.0(effect@4.0.0-rc.117)
       '@effected/git': 0.17.0(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
-      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
+      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
       effect: 4.0.0-rc.117
     transitivePeerDependencies:
       - '@effected/templates'
@@ -6122,14 +6143,14 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@savvy-web/silk-core@0.4.4(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
+  '@savvy-web/silk-core@0.4.4(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)':
     dependencies:
       '@effected/github-references': 0.5.0(effect@4.0.0-rc.117)
       '@effected/templates': 0.8.0(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       effect: 4.0.0-rc.117
 
-  '@savvy-web/silk-effects@9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)':
+  '@savvy-web/silk-effects@9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)':
     dependencies:
       '@changesets/apply-release-plan': 8.1.1
       '@changesets/changelog-git': 1.0.0
@@ -6146,10 +6167,10 @@ snapshots:
       '@effected/templates': 0.8.0(effect@4.0.0-rc.117)
       '@effected/toml': 0.9.0(effect@4.0.0-rc.117)
       '@effected/walker': 0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@effected/yaml': 0.17.0(effect@4.0.0-rc.117)
       '@manypkg/get-packages': 3.1.0
-      '@savvy-web/silk-core': 0.4.4(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
+      '@savvy-web/silk-core': 0.4.4(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       effect: 4.0.0-rc.117
       mdast-util-heading-range: 4.0.0
       mdast-util-to-string: 4.0.0
@@ -6171,11 +6192,11 @@ snapshots:
       '@effected/commands': 0.9.0(effect@4.0.0-rc.117)
       '@effected/git': 0.17.0(effect@4.0.0-rc.117)
       '@effected/templates': 0.8.0(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@savvy-web/changelog': 1.0.6(@effected/templates@0.8.0(effect@4.0.0-rc.117))(supports-color@8.1.1)
       '@savvy-web/cli': 3.2.7(redis@6.2.1)(supports-color@8.1.1)
       '@savvy-web/mcp': 3.2.3(@effected/templates@0.8.0(effect@4.0.0-rc.117))(redis@6.2.1)(supports-color@8.1.1)
-      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@0.25.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
+      '@savvy-web/silk-effects': 9.1.2(@effected/commands@0.9.0(effect@4.0.0-rc.117))(@effected/git@0.17.0(effect@4.0.0-rc.117))(@effected/templates@0.8.0(effect@4.0.0-rc.117))(@effected/workspaces@file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)(supports-color@8.1.1)
       '@types/bun': 1.4.2
       '@types/node': 26.6.2
       '@vitest/coverage-istanbul': 5.0.1(vitest@5.0.1)
@@ -6209,7 +6230,7 @@ snapshots:
       '@effected/semver': 0.9.0(effect@4.0.0-rc.117)
       '@effected/tsconfig-json': 0.11.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/walker': 0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@microsoft/api-extractor': 7.59.2(@types/node@26.6.2)
       '@microsoft/tsdoc': 0.16.0
       '@microsoft/tsdoc-config': 0.18.2
@@ -6503,7 +6524,7 @@ snapshots:
     dependencies:
       '@effect/platform-node': 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
       '@effect/sql-sqlite-node': 4.0.0-rc.117(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@vitest-agent/engine': 0.2.5(redis@6.2.1)
       '@vitest-agent/sdk': 5.1.2
       '@vitest-agent/sidecar': 2.2.2
@@ -6522,7 +6543,7 @@ snapshots:
       '@effected/jsonc': 0.13.0(effect@4.0.0-rc.117)
       '@effected/toml': 0.9.0(effect@4.0.0-rc.117)
       '@effected/walker': 0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@effected/xdg': 0.7.0(@effected/config-file@0.12.0(@effected/jsonc@0.13.0(effect@4.0.0-rc.117))(@effected/toml@0.9.0(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/yaml@0.17.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(@effected/walker@0.12.0(@effected/glob@0.8.0(effect@4.0.0-rc.117))(effect@4.0.0-rc.117))(effect@4.0.0-rc.117)
       '@effected/yaml': 0.17.0(effect@4.0.0-rc.117)
       '@vitest-agent/sdk': 5.1.2
@@ -6550,7 +6571,7 @@ snapshots:
     dependencies:
       '@effect/platform-node': 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
       '@effected/glob': 0.8.0(effect@4.0.0-rc.117)
-      '@effected/workspaces': 0.25.0(effect@4.0.0-rc.117)
+      '@effected/workspaces': file:../effected/packages/workspaces/dist/prod/npm/pkg(effect@4.0.0-rc.117)
       '@vitest-agent/cli': 3.1.5(redis@6.2.1)
       '@vitest-agent/engine': 0.2.5(redis@6.2.1)
       '@vitest-agent/mcp': 4.3.1(redis@6.2.1)(vitest@5.0.1)
