@@ -24,7 +24,7 @@ describe("src boundaries (K-9, K-39)", () => {
 			assert.deepStrictEqual(fixtureFailures, []);
 			const scan = yield* SourceBoundary.scan({
 				root: SRC_ROOT,
-				rules: ["process", { forbidImports: ["@effected/app"] }],
+				rules: ["process", "node:process", { forbidImports: ["@effected/app"] }],
 				allow: ["bin.ts", "main.ts", "commands/**", "internal/exit.ts"],
 			});
 			// Non-vacuity: an empty `root` glob or a typo'd path would
@@ -47,6 +47,17 @@ describe("src boundaries (K-9, K-39)", () => {
 			["process"],
 		);
 		assert.deepStrictEqual(allowed, []);
+	});
+
+	// A positive control for the `"node:process"` rule: the `"process"` rule
+	// alone misses a named/default/namespace import of the `node:process`
+	// specifier (review finding I2), so this proves the second rule catches
+	// what the first one does not.
+	it("SourceBoundary.check flags a node:process import outside the allowlist", () => {
+		const offending = SourceBoundary.check("render/human.ts", 'import { stdout } from "node:process";', [
+			"node:process",
+		]);
+		assert.isAbove(offending.length, 0);
 	});
 
 	// Pins that every K-39-allowlisted relative path still names a real
