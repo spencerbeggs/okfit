@@ -1,27 +1,11 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { findAppImportNames, stripComments } from "./utils/boundaries.js";
+import { SourceBoundary } from "@effected/workspaces/testing";
+import { Effect } from "effect";
 
 const SRC_ROOT = join(import.meta.dirname, "..", "src");
-
-/**
- * K-39's allowlist: `bin.ts`, `main.ts`, every file under `commands/`,
- * `internal/exit.ts`, and `version.ts`. `version.ts`'s
- * `process.env.__PACKAGE_VERSION__` is a build-time constant that
- * `@savvy-web/bundler` replaces at compile time (K-32) -- not a runtime
- * environment read -- so it is allowlisted alongside the other deliberate
- * `process` touchpoints. `internal/tty.ts` (the hand-rolled colour decision)
- * is gone -- colour is now `@effected/cli`'s `CliColor.enabled`, read
- * through the ambient `ConfigProvider`, never `process`, directly. Everything
- * else under `src/` must never read `process`.
- */
-const isAllowedToReadProcess = (relativePath: string): boolean =>
-	relativePath === "bin.ts" ||
-	relativePath === "main.ts" ||
-	relativePath.startsWith("commands/") ||
-	relativePath === "internal/exit.ts" ||
-	relativePath === "version.ts";
 
 const walk = (dir: string): ReadonlyArray<string> =>
 	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -30,77 +14,65 @@ const walk = (dir: string): ReadonlyArray<string> =>
 		return entry.isFile() && entry.name.endsWith(".ts") ? [full] : [];
 	});
 
-describe("findAppImportNames (K-9 scanner)", () => {
-	it("catches a Biome-wrapped multi-line named import that a line-scoped check would miss", () => {
-		const wrapped = ["import {", "\tApp,", '} from "@effected/app";', ""].join("\n");
-		assert.deepStrictEqual(findAppImportNames(wrapped), ["App"]);
+describe("src boundaries (K-9, K-39)", () => {
+	// `@effected/workspaces/testing`'s `SourceBoundary` replaces this
+	// package's own hand-rolled comment-stripping scanner (`findAppImportNames`/
+	// `stripComments`, deleted alongside this migration). Two rules in one
+	// scan, since this package -- unlike `@okfit/engine`, which legitimately
+	// imports `AppConfig` from `@effected/app` -- imports NOTHING from that
+	// module at all (config discovery moved to `@okfit/engine`): a blanket
+	// `{ forbidImports: ["@effected/app"] }` is available here and is
+	// strictly stronger than K-9's original "these three names" rule.
+	// `version.ts` needs no `allow` entry: SourceBoundary's `process` rule
+	// exempts `process.env.__PACKAGE_VERSION__` unconditionally.
+	it.effect("process is read only on the K-39 allowlist, and nothing imports @effected/app (K-9)", () =>
+		Effect.gen(function* () {
+			const fixtureFailures = SourceBoundary.verifyFixtures();
+			assert.deepStrictEqual(fixtureFailures, []);
+			const scan = yield* SourceBoundary.scan({
+				root: SRC_ROOT,
+				rules: ["process", { forbidImports: ["@effected/app"] }],
+				allow: ["bin.ts", "main.ts", "commands/**", "internal/exit.ts"],
+			});
+			// Non-vacuity: an empty `root` glob or a typo'd path would
+			// otherwise report a spotless boundary because nothing was
+			// scanned at all.
+			assert.isAbove(scan.files.length, 0);
+			assert.deepStrictEqual(scan.violations, []);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	// A positive control, kept as a plain assertion over the raw scanner
+	// (no filesystem): proves the scan discriminates a real allowlisted vs.
+	// non-allowlisted `process` read rather than passing vacuously.
+	it("SourceBoundary.check flags process outside the allowlist and spares the allowlisted forms", () => {
+		const offending = SourceBoundary.check("render/human.ts", "export const x = process.argv;", ["process"]);
+		assert.isAbove(offending.length, 0);
+		const allowed = SourceBoundary.check(
+			"version.ts",
+			'export const CLI_VERSION = process.env.__PACKAGE_VERSION__ ?? "0.0.0";',
+			["process"],
+		);
+		assert.deepStrictEqual(allowed, []);
 	});
 
-	it("extracts every forbidden name across an aliased, type-prefixed, multi-name list", () => {
-		const source = 'import { type AppCache, App as MyApp, AppStore } from "@effected/app";\n';
-		assert.deepStrictEqual(findAppImportNames(source), ["App", "AppStore", "AppCache"]);
+	it("every source file under src/ is visited (non-vacuity, direct)", () => {
+		assert.isAbove(walk(SRC_ROOT).length, 0);
 	});
 
-	it("finds nothing when the file never imports from @effected/app", () => {
-		assert.deepStrictEqual(findAppImportNames('import { Effect } from "effect";\n'), []);
+	// Reads every file once more, outside SourceBoundary's own walk, purely
+	// to keep this suite's historical guarantee that at least one real file
+	// exists at every relative path the K-39 allowlist names -- a renamed
+	// or removed `bin.ts`/`main.ts`/`internal/exit.ts` should fail loudly
+	// here rather than silently narrowing what the allowlist ever exempts.
+	it("every K-39-allowlisted relative path still names a real file", () => {
+		const files = walk(SRC_ROOT).map((file) => relative(SRC_ROOT, file).split("\\").join("/"));
+		for (const allowed of ["bin.ts", "main.ts", "internal/exit.ts"]) {
+			assert.ok(files.includes(allowed), `expected ${allowed} to exist under src/`);
+		}
+		assert.ok(
+			files.some((file) => file.startsWith("commands/")),
+			"expected at least one file under commands/",
+		);
 	});
-
-	it("catches a namespace import", () => {
-		assert.deepStrictEqual(findAppImportNames('import * as App from "@effected/app";\n'), ["App"]);
-	});
-
-	it("catches a re-export", () => {
-		assert.deepStrictEqual(findAppImportNames('export { App } from "@effected/app";\n'), ["App"]);
-	});
-
-	it("catches a default import alongside a named import", () => {
-		assert.deepStrictEqual(findAppImportNames('import App, { AppConfig } from "@effected/app";\n'), ["App"]);
-	});
-
-	it("catches an import type form", () => {
-		assert.deepStrictEqual(findAppImportNames('import type { App } from "@effected/app";\n'), ["App"]);
-	});
-
-	it("does not flag AppConfig, which is not a forbidden name", () => {
-		assert.deepStrictEqual(findAppImportNames('import { AppConfig } from "@effected/app";\n'), []);
-	});
-});
-
-describe("stripComments", () => {
-	it("does not treat // inside a string literal as a comment start", () => {
-		const source = 'const url = "http://x"; process.exit();';
-		assert.isTrue(stripComments(source).includes("process"));
-	});
-
-	it("strips a /* */ block comment containing the word process", () => {
-		assert.isFalse(/\bprocess\b/.test(stripComments("/* process */ ok();")));
-	});
-
-	it("strips a // line comment containing the word process", () => {
-		assert.isFalse(/\bprocess\b/.test(stripComments("// process\nok();")));
-	});
-
-	it("does not strip a string literal that itself contains /* process */ as text", () => {
-		const source = 'const s = "/* process */";';
-		assert.isTrue(stripComments(source).includes("process"));
-	});
-});
-
-describe("src boundaries (K-39)", () => {
-	const files = walk(SRC_ROOT);
-
-	it("finds at least one source file to check", () => {
-		assert.isTrue(files.length > 0);
-	});
-
-	for (const file of files) {
-		const relativePath = relative(SRC_ROOT, file).split("\\").join("/");
-		const contents = readFileSync(file, "utf8");
-
-		it(`${relativePath} touches process only if it is on the K-39 allowlist`, () => {
-			const referencesProcess = /\bprocess\b/.test(stripComments(contents));
-			if (isAllowedToReadProcess(relativePath)) return;
-			assert.isFalse(referencesProcess, `${relativePath} references process but is not on the K-39 allowlist`);
-		});
-	}
 });
