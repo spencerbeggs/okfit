@@ -30,6 +30,8 @@ sources:
 verified:
   - by: human:spencer
     at: 2026-09-24T15:59:56Z
+  - by: human:spencer
+    at: 2026-09-24T17:51:15Z
 ---
 
 # okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
