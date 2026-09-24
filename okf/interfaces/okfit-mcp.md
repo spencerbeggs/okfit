@@ -11,6 +11,9 @@ generated:
   body_sha256: aa986561e9d672b4cd82e505f438a9d7af00c2c00cfccb58e95909ed42f04689
 tags:
   - architecture
+verified:
+  - by: human:spencer
+    at: 2026-09-24T00:18:14.360Z
 ---
 
 # okfit-mcp — MCP tool and resource contract
