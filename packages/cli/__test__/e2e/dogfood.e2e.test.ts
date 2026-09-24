@@ -63,14 +63,18 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (`okf/decisions/vscode-extension-at-repo-root.md`, `status: draft`,
  * exempt from `require-verified-unmet` while `draft`), and this bundle's
  * first Runbook (`okf/runbooks/publish-vscode-extension.md`, which carries
- * no `verified` requirement). The effected front-end kit adoption adds one
- * more Decision (`okf/decisions/front-ends-adopt-the-effected-kit.md`,
- * `status: draft`, exempt from `require-verified-unmet` while `draft`).
+ * no `verified` requirement). The effected front-end kit adoption adds three
+ * Decisions: `okf/decisions/front-ends-adopt-the-effected-kit.md` (stable and
+ * human-verified), and two `status: draft` successors,
+ * `engine-version-is-the-comparable-version-effected-kit.md` and
+ * `engine-front-end-split-effected-kit.md`, which supersede the originals they
+ * are named after (both now `deprecated`) and are exempt from
+ * `require-verified-unmet` while `draft`.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 11,
-	Decision: 31,
+	Decision: 33,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
