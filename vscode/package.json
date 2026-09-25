@@ -159,7 +159,7 @@
 	"dependencies": {},
 	"devDependencies": {
 		"@okfit/lsp": "workspace:*",
-		"@savvy-web/bundler": "^2.4.10",
+		"@savvy-web/bundler": "^2.4.11",
 		"@types/node": "catalog:build",
 		"@types/vscode": "^1.100.0",
 		"@vscode/vsce": "^4.0.0",
