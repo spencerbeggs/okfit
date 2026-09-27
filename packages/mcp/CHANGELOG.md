@@ -1,5 +1,21 @@
 # @okfit/mcp
 
+## 0.6.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/mcp | dependency | updated | ^0.1.1 | ^0.2.0 |
+
+[#192][#192]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#192]: https://github.com/spencerbeggs/okfit/pull/192
+
 ## 0.6.0
 
 ### Breaking Changes

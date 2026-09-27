@@ -1,5 +1,21 @@
 # @okfit/cli
 
+## 0.6.8
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.8.0 | ^0.9.0 |
+
+[#192][#192]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#192]: https://github.com/spencerbeggs/okfit/pull/192
+
 ## 0.6.7
 
 ### Bug Fixes
