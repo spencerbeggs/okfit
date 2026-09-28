@@ -1,5 +1,5 @@
 import type { Distribution } from "@okfit/engine";
-import { Toolkit } from "effect/unstable/ai";
+import { Toolkit } from "effect/ai";
 import { conceptNeighbors, handleConceptNeighbors } from "./tools/conceptNeighbors.js";
 import { describeVocabulary, handleDescribeVocabulary } from "./tools/describeVocabulary.js";
 import { getConcept, handleGetConcept } from "./tools/getConcept.js";

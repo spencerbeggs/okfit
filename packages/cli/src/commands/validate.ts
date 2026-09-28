@@ -16,7 +16,7 @@ import {
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { setExitCode } from "../internal/exit.js";
 import { readDocumentText } from "../internal/stdin.js";
 import type { Counts } from "../render/human.js";

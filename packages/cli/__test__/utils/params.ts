@@ -1,5 +1,5 @@
 /**
- * Structural helpers for asserting on `effect/unstable/cli`'s `Flag`/`Argument`
+ * Structural helpers for asserting on `effect/cli`'s `Flag`/`Argument`
  * values directly, never through `Command.run` (contract §6.1's
  * `commands.test.ts` row). Test-only, not part of the package's public
  * surface.

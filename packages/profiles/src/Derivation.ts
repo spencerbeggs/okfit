@@ -3,7 +3,8 @@ import { Git } from "@effected/git";
 import { FrontmatterSource } from "@effected/markdown";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
-import { Crypto, DateTime, Duration, Effect, Encoding, FileSystem, Option, Path, Schema } from "effect";
+import { Crypto, DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
+import * as Hex from "effect/encoding/Hex";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
 import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 import { GitHistory } from "./GitHistory.js";
@@ -130,12 +131,12 @@ const body = (text: string): string => normalise(FrontmatterSource.split(text).b
 // preferred over a direct `node:crypto` import so this stays a service requirement like `Git`/
 // `GitHistory`/`FileSystem`/`Path` rather than a hidden Node dependency; `NodeServices.layer`
 // (already provided at every call site through `OkfitPlatform`) supplies the live implementation.
-// `Encoding.encodeHex` (EF/Encoding.ts:405) renders the digest bytes as lowercase hex.
+// `Hex.encode` (EF/encoding/Hex.ts:32) renders the digest bytes as lowercase hex.
 const bodyDigest = (text: string): Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =>
 	Effect.gen(function* () {
 		const crypto = yield* Crypto.Crypto;
 		const bytes = yield* crypto.digest("SHA-256", new TextEncoder().encode(body(text)));
-		return Encoding.encodeHex(bytes);
+		return Hex.encode(bytes);
 	});
 
 /** The text before the first `@` (the whole value when there is none), or undefined when empty or containing whitespace. */

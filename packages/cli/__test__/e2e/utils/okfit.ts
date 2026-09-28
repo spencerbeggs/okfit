@@ -3,8 +3,8 @@ import type { CommandFailedError, CommandOutputError } from "@effected/commands"
 import { Run } from "@effected/commands"; // CMD/Run.d.ts:452
 import type { Effect } from "effect";
 import { Stream } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
-import { ChildProcess } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
+import { ChildProcess } from "effect/process";
 
 /** The built dev bin, resolved from this file's own location (contract section 6.3). */
 export const BIN: string = resolve(import.meta.dirname, "..", "..", "..", "dist", "dev", "pkg", "bin", "okfit.js");

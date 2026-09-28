@@ -35,9 +35,10 @@ const LONG_DURATION_RE = /^\d+(?:\.\d+)?\s+(?:nanos?|micros?|millis?|seconds?|mi
 // check is what `Schema.toJsonSchemaDocument` actually lowers into the
 // document's `pattern` keyword (the same mechanism `Actor.ts` uses), so an
 // editor rejects a value (e.g. "soon") that okfit itself would otherwise
-// fail the whole config load on.
+// fail the whole config load on. The `u` flag is load-bearing: `isPattern`
+// exports a `pattern` only for a Unicode-mode RegExp (EF/Schema.ts isPattern).
 const STALE_AFTER_PATTERN_RE =
-	/^(?:\d+[hdw]|\d+(?:\.\d+)?\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?))$/;
+	/^(?:\d+[hdw]|\d+(?:\.\d+)?\s+(?:nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?))$/u;
 const HOUR_MILLIS = 3_600_000;
 const DAY_MILLIS = 86_400_000;
 const WEEK_MILLIS = 604_800_000;

@@ -8,7 +8,7 @@ import { NodeServices } from "@effect/platform-node"; // PN/src/index.ts:90; lay
 import { afterAll, assert, beforeAll, describe, it } from "@effect/vitest";
 import { Git, GitCommand, NotARepositoryError } from "@effected/git"; // GIT/index.d.ts:1918, :65, :778
 import { DateTime, Effect, Layer } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
 import { GitHistory, GitHistoryError } from "../../src/GitHistory.js";
 import {
 	CONFLICT_ENTRIES,

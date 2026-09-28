@@ -1,7 +1,7 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Layer, Path } from "effect";
-import { McpSchema, McpServer } from "effect/unstable/ai";
+import { McpSchema, McpServer } from "effect/ai";
 import { loadToolContext } from "../internal/toolContext.js";
 
 /**
@@ -11,7 +11,7 @@ import { loadToolContext } from "../internal/toolContext.js";
  * Amends N-19 and contract §6.1 (Ruling, task C4): a `McpServer.resource`
  * URI **template** routes a `McpSchema.param` through a single path
  * segment only — `FindMyWay`'s parametric matcher stops a param at the
- * next `/` (`.repos/effect/packages/effect/src/unstable/http/FindMyWay/internal/router.ts:355-360`),
+ * next `/` (`.repos/effect/packages/effect/src/http/FindMyWay/internal/router.ts:460-463`),
  * and every non-root OKF concept id nests under a type directory (D-12),
  * e.g. `metrics/revenue`. A templated `okf://concept/{id}` therefore never
  * routes a real bundle id. Static per-concept resources sidestep the
@@ -31,7 +31,7 @@ import { loadToolContext } from "../internal/toolContext.js";
  *
  * `content` builds the full `ReadResourceResult` itself, `mimeType`
  * included, rather than returning a bare string: verified against source
- * (`resolveResourceContent`, `unstable/ai/McpServer.ts:2324-2343`), a bare
+ * (`resolveResourceContent`, `ai/McpServer.ts:2556-2576`), a bare
  * string is wrapped as `{ contents: [{ uri, text }] }` with no `mimeType`
  * at all — the declared `mimeType` option only documents the resource in
  * `resources/list`, it is never merged into a `resources/read` response.

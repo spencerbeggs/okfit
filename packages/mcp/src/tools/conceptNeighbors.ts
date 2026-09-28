@@ -3,7 +3,7 @@ import { AppDirs, Xdg } from "@effected/xdg";
 import type { ConceptId as ConceptIdType, GraphNodeKind } from "@okfit/core";
 import { ConceptId, Graph } from "@okfit/core";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 import { ConceptNotFound, InvalidArgument, McpToolError } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";

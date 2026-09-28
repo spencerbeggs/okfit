@@ -1,7 +1,7 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { DateTime, Effect, FileSystem, Path } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { loadToolContext } from "../internal/toolContext.js";

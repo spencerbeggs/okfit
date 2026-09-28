@@ -2,7 +2,7 @@ import { Schema } from "effect";
 import { Actor } from "./Actor.js";
 import { Timestamp } from "./Timestamp.js";
 
-const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
+const SHA256_HEX_RE = /^[0-9a-f]{64}$/u;
 
 /**
  * A lowercase 64-character hex sha256 digest of a concept's body, as `@okfit/profiles`'

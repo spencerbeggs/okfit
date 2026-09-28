@@ -2,7 +2,7 @@ import { CurrentDistribution } from "@effected/engine";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { setExitCode } from "../internal/exit.js";
 import { CLI_VERSION } from "../version.js";
 

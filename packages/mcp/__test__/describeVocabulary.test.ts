@@ -57,7 +57,7 @@ describe("describe_vocabulary", () => {
 	// returns `{ isError: true, content: [{ type: "text", text: error.message }] }`
 	// — the `_tag`/`remediation` shape lives only in the failed `Effect`'s
 	// typed error, not in what `tools/call` serializes
-	// (`unstable/ai/McpServer.ts:1502-1506,1576-1584`, verified by running this
+	// (`ai/McpServer.ts:1782-1786,1854-1858`, verified by running this
 	// exact case and reading its raw response). This is a fact the brief itself
 	// asked this task to discover and record (Step 17). The controller's fix
 	// round (progress.md, "Ruling (B1, binds every C task)") resolved it by
