@@ -14,7 +14,7 @@
 | @effected/app | dependency | updated | ^0.18.0 | ^0.19.0 |
 | @effected/config-file | dependency | updated | ^0.12.0 | ^0.13.0 |
 | @effected/engine | dependency | updated | ^0.1.0 | ^0.2.0 |
-| @effected/git | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/git | dependency | updated | ^0.17.0 | ^0.18.1 |
 | @effected/glob | dependency | updated | ^0.8.0 | ^0.9.0 |
 | @effected/jsonc | dependency | updated | ^0.13.0 | ^0.14.0 |
 | @effected/markdown | dependency | updated | ^0.12.1 | ^0.14.0 |

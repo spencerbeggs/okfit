@@ -13,7 +13,7 @@
 | @effect/platform-node | dependency | updated | 4.0.0-rc.117 | 4.0.0-rc.118 |
 | @effected/config-file | dependency | added | — | ^0.13.0 |
 | @effected/engine | dependency | updated | ^0.1.0 | ^0.2.0 |
-| @effected/git | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/git | dependency | updated | ^0.17.0 | ^0.18.1 |
 | @effected/glob | dependency | added | — | ^0.9.0 |
 | @effected/jsonc | dependency | added | — | ^0.14.0 |
 | @effected/markdown | dependency | added | — | ^0.14.0 |
