@@ -7,6 +7,8 @@
 * Updated MCP
 * Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
 * Updated The language server runs the reference vscode-languageserver library behind an Effect transport seam
+* Updated Workspace
+* Updated okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
 
 ## 2026-09-24
 
