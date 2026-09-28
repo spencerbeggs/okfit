@@ -30,7 +30,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 
 ## Rules
 
-- Effect v4 only, at the version in `catalog:effect`. `@okfit/core`, `@effected/git`, and `@effected/markdown` are peers (Convention A); nothing under `src/` imports `@effect/platform-node` or `node:child_process` directly — `GitHistory.layer` goes through `effect/unstable/process`.
+- Effect v4 only, at the version in `catalog:effect`. `@okfit/core`, `@effected/git`, and `@effected/markdown` are peers (Convention A); nothing under `src/` imports `@effect/platform-node` or `node:child_process` directly — `GitHistory.layer` goes through `effect/process`.
 - `SoftwareProject.ts` is never re-exported from `src/index.ts`; `softwareProject` is reachable only as `Profiles.softwareProject`. Nothing under `internal/` crosses the barrel.
 - `Derivation` is package-global, not per profile. It never rewrites `generated.by` on re-derivation and never substitutes `now` for an uncommitted body — both are the caller's decision.
 - No `process.cwd()` and no environment reads anywhere in `src/`: `writer` and `cwd` are explicit arguments (P-16).

@@ -2,7 +2,7 @@ import type { GitCommandError, NotARepositoryError } from "@effected/git"; // GI
 import { Git } from "@effected/git"; // GIT/index.d.ts:65, :2054; log :1700
 import { Timestamp } from "@okfit/core"; // CORE/Timestamp.ts:19
 import { Context, Effect, Layer, Schema } from "effect"; // EF/index.ts:112, :147, :152, :292, :522
-import type { ChildProcessSpawner } from "effect/unstable/process"; // EF/unstable/process/index.ts:15
+import type { ChildProcessSpawner } from "effect/process"; // EF/process/index.ts:18
 
 /**
  * One record of the path log, newest first (P-3, P-5): the commit, both dates decoded through core's

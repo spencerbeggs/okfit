@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { contextCommand } from "./context.js";
 import { graphCommand } from "./graph.js";
 import { initCommand } from "./init.js";

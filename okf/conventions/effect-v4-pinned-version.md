@@ -5,8 +5,8 @@ description: Every okfit package uses Effect v4 at the version pinned in catalog
 status: stable
 generated:
   by: human:spencer
-  at: 2026-09-06T10:47:04Z
-  body_sha256: 81caf78e7ef19ee972484a72835cc613079846d8f9d8b4cfcd6238c8922c8fac
+  at: 2026-09-28T19:49:01Z
+  body_sha256: 3df975ebfce43bc0b24182733c5428bbc289ada9781a6c1d9896e8d3c8d3ea74
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
@@ -34,6 +34,6 @@ what v4 exports, `node_modules` wins — it is what actually builds and runs
 
 ## Where it's restated
 
-`packages/cli/CLAUDE.md:70-72` (v4 only, `.repos/effect/packages/effect/src/unstable/cli`
-for `effect/unstable/cli`, `node_modules` wins) and
+`packages/cli/CLAUDE.md:70-72` (v4 only, `.repos/effect/packages/effect/src/cli`
+for `effect/cli`, `node_modules` wins) and
 `packages/profiles/CLAUDE.md:28` (v4 only, at the `catalog:effect` version).

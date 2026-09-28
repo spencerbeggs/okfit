@@ -11,7 +11,7 @@ import { Provenance } from "../../src/Provenance.js";
 import { git, initRepo, makeTempDir, removeDir } from "../utils/git.js";
 
 // P-30: both live layers over the real spawner; provideMerge keeps FileSystem, Path, Crypto and the
-// spawner in scope (`NodeServices.layer` bundles Crypto too, EF/unstable Crypto's Node backend).
+// spawner in scope (`NodeServices.layer` bundles Crypto too, EF/Crypto.ts's Node backend).
 const TestLayer = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer));
 const run = <A, E>(effect: Effect.Effect<A, E, Git | GitHistory | NodeServices.NodeServices>): Effect.Effect<A, E> =>
 	effect.pipe(Effect.provide(TestLayer));

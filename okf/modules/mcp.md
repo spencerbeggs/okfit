@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: 3c09e7fe0825f9f3c674548b950762edfe4ebdcd602bce6029d0b60177a455b6
+  at: 2026-09-28T19:49:01Z
+  body_sha256: 125619afc428c01c559a5738e6be931e8af47cd496c5f80bd870c32b63eb8719
 ---
 
 # MCP
@@ -46,7 +46,7 @@ equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 ## Status
 
 The server implements MCP over stdio, on `@effected/mcp`'s
-`McpStdio`/`McpToolkit` (themselves built on `effect/unstable/ai/McpServer`):
+`McpStdio`/`McpToolkit` (themselves built on `effect/ai/McpServer`):
 six read-only tools and static concept resources; see
 `okf/interfaces/okfit-mcp.md`.
 

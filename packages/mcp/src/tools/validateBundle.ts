@@ -6,7 +6,7 @@ import type { Distribution } from "@okfit/engine";
 import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provideDocuments, run } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Crypto, Effect, FileSystem, Option, Path } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 import { BundleNotFound, InvalidArgument, McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";

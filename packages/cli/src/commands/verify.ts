@@ -15,7 +15,7 @@ import {
 	verifyEnvelope,
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanVerify, humanVerifyBatch } from "../render/verify.js";

@@ -3,7 +3,7 @@ import { CurrentDistribution } from "@effected/engine";
 import { CONFIG_SCHEMA_VERSION, OKF_SPEC_VERSION } from "@okfit/core";
 import { ENGINE_VERSION } from "@okfit/engine";
 import { Effect, Option, Stdio } from "effect";
-import { CliOutput } from "effect/unstable/cli";
+import { CliOutput } from "effect/cli";
 import { versionFormatterLayer } from "../../src/internal/versionFormatter.js";
 
 const withFormatter = <A>(

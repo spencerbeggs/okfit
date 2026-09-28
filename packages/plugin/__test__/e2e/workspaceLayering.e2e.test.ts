@@ -5,7 +5,7 @@ import { Workspaces } from "@effected/workspaces";
 import { LayerEdge, LayerPolicy, WorkspaceLayering } from "@effected/workspaces/testing";
 import { Effect, Layer } from "effect";
 
-const REPO_ROOT = resolve(import.meta.dirname, "..");
+const REPO_ROOT = resolve(import.meta.dirname, "../../../..");
 const Live = Workspaces.layer({ cwd: REPO_ROOT }).pipe(Layer.provideMerge(NodeServices.layer));
 
 /**

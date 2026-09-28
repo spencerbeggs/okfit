@@ -4,7 +4,7 @@ import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { McpProcess } from "@effected/mcp/testing";
 import { Effect } from "effect";
-import { ChildProcess } from "effect/unstable/process";
+import { ChildProcess } from "effect/process";
 import { readUntilErrorCode } from "./utils/wire.js";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");

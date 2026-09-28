@@ -1,7 +1,7 @@
 ---
 type: Module
 title: CLI
-description: The okfit command line -- validate, init, context, and verify, built on effect/unstable/cli and @effected/cli.
+description: The okfit command line -- validate, init, context, and verify, built on effect/cli and @effected/cli.
 status: stable
 resource: ../../packages/cli
 kind: package
@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: e56c638b25da5408efcc0e91ad3d3bb7358a3b91bbd60ec20f1529a17235edfb
+  at: 2026-09-28T19:49:01Z
+  body_sha256: 5ae2055d5d87f5829c89545ae7a9ea8f6f09bd2f9892dba854f94257029b60f4
 ---
 
 # CLI
@@ -19,7 +19,7 @@ generated:
 
 `@okfit/cli` is the `okfit` bin: `okfit validate`, `okfit init`,
 `okfit context`, `okfit verify`, and `okfit sync`; built on
-`effect/unstable/cli` for the command tree, flags, and help, and
+`effect/cli` for the command tree, flags, and help, and
 `@effected/cli`'s `CliRuntime.main`/`CliColor` for assembly, failure
 rendering, and colour. It
 is a presentation shell over [Engine](engine.md): config discovery and the

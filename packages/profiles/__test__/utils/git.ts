@@ -3,15 +3,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Run } from "@effected/commands"; // CMD/Run.d.ts:452
 import { Effect } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
-import { ChildProcess } from "effect/unstable/process";
+import type { ChildProcessSpawner } from "effect/process";
+import { ChildProcess } from "effect/process";
 import type { HistoryStep } from "../fixtures/history.js";
 import { FIXTURE_AUTHOR_EMAIL, FIXTURE_AUTHOR_NAME } from "../fixtures/history.js";
 
 /**
  * P-34: no host config, no system config, C locale, no credential prompt.
  * Merged with `extendEnv: true` so the child keeps `PATH`
- * (EF/unstable/process/ChildProcess.ts:393, :405).
+ * (EF/process/ChildProcess.ts:405, :426).
  */
 export const FIXTURE_ENV = {
 	GIT_CONFIG_GLOBAL: "/dev/null",

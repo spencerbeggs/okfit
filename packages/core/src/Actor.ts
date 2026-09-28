@@ -2,7 +2,7 @@ import type { Brand } from "effect";
 import { Schema } from "effect";
 
 // D-18; concept-id-link-resolution-and-actor-grammar.md section 6.
-const ACTOR_RE = /^(?:[^\s/:]+\/[^\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\s]+)$/;
+const ACTOR_RE = /^(?:[^\s/:]+\/[^\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\s]+)$/u;
 
 /**
  * An OKF actor string: `<producer>/<version>`, `human:<id>`, `process:<id>`,

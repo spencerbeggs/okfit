@@ -10,7 +10,7 @@ import type { Distribution } from "@effected/engine";
 import { CurrentDistribution } from "@effected/engine";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
 import { versionFormatterLayer } from "./internal/versionFormatter.js";

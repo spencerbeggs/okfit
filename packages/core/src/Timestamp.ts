@@ -3,7 +3,7 @@ import { Function as Fn, Schema, SchemaTransformation } from "effect";
 
 // D-16. DateTimeUtcFromString appends "Z" to offset-less input (internal/dateTime.ts:229-232);
 // spec 3.1's explicit-offset rule is enforced here (yaml-scalar-resolution-for-timestamps.md section 7).
-const OFFSET_RE = /(?:Z|[+-]\d{2}:\d{2})$/;
+const OFFSET_RE = /(?:Z|[+-]\d{2}:\d{2})$/u;
 
 // P-18 (profiles decisions.md). `DateTimeUtcFromString` encodes with `DateTime.formatIso`, which always
 // writes milliseconds ("...T08:00:00.000Z"). Git and the OKF sample bundles write whole seconds
