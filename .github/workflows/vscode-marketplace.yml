@@ -67,14 +67,14 @@ jobs:
         run: gh release upload "$TAG" vscode/okfit.vsix --clobber
 
       - name: Upload .vsix artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: okfit-vsix
           path: vscode/okfit.vsix
 
       - name: Azure login (workload identity federation)
         if: env.DRY_RUN != 'true' && steps.pat.outputs.has_pat != 'true'
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
