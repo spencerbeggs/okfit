@@ -3,7 +3,7 @@
 The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`,
 `okfit verify`, and `okfit sync` -- the full list is
 `okf/interfaces/cli-commands.md`'s to keep, not counted here. Built on
-`effect/unstable/cli` for the command tree, flags, and help;
+`effect/cli` for the command tree, flags, and help;
 `@effected/cli` for output and failure rendering. This package is a
 presentation shell over `@okfit/engine`: config discovery and the
 validate/verify/sync/init/context programs live there, not here -- see
@@ -89,7 +89,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 ## Rules
 
 - Effect v4 only, at the version in `catalog:effect`. Consult
-  `.repos/effect/packages/effect/src/unstable/cli` for `effect/unstable/cli`;
+  `.repos/effect/packages/effect/src/cli` for `effect/cli`;
   `node_modules` wins on disagreement.
 - **Process boundary (K-9, K-49), enforced by `__test__/boundaries.test.ts`.**
   `process` is read ONLY in `bin.ts`, `main.ts`, every file under

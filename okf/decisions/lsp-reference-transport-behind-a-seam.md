@@ -7,8 +7,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T04:04:54Z
-  body_sha256: 22c17d15294b48181f2da2d831ecce37104d0f38cb180b9f4d26580cde21b2a9
+  at: 2026-09-28T19:49:01Z
+  body_sha256: e0bacc18c97b35c769c3dbea10e6cae75380e40e9d422156ad5f2243e87d9925
 ---
 
 # The language server runs the reference vscode-languageserver library behind an Effect transport seam
@@ -19,7 +19,7 @@ generated:
 Protocol's `initialize`/`initialized`/`shutdown`/`exit` lifecycle,
 request/notification dispatch, and Content-Length framing over stdio. No
 Effect-native LSP transport exists, unlike MCP, where
-`effect/unstable/ai/McpServer` already gave [MCP](../modules/mcp.md) an Effect-native
+`effect/ai/McpServer` already gave [MCP](../modules/mcp.md) an Effect-native
 option — see [The MCP server is Effect-native and speaks the legacy
 protocol era](mcp-effect-native-legacy-era.md). The reference
 `vscode-languageserver` library is the de facto standard every other LSP
@@ -57,7 +57,7 @@ on — too much risk for a first release whose scope is diagnostics only.
 The MCP TypeScript-SDK-style route `mcp-effect-native-legacy-era.md`
 rejected for MCP has no LSP equivalent to weigh in the first place: there
 is no separately maintained "LSP SDK" alongside the reference library the
-way the MCP TypeScript SDK sits alongside `effect/unstable/ai/McpServer`.
+way the MCP TypeScript SDK sits alongside `effect/ai/McpServer`.
 
 ## Consequences
 
