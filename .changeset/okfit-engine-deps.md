@@ -2,6 +2,10 @@
 "@okfit/engine": patch
 ---
 
+## Bug Fixes
+
+* Declared the `@effected/*` peers that `@okfit/core` and `@okfit/profiles` require, so installs no longer satisfy them from whatever version sits at the consumer root
+
 ## Dependencies
 
 | Dependency | Type | Action | From | To |
@@ -14,6 +18,7 @@
 | @effected/glob | dependency | updated | ^0.8.0 | ^0.9.0 |
 | @effected/jsonc | dependency | updated | ^0.13.0 | ^0.14.0 |
 | @effected/markdown | dependency | updated | ^0.12.1 | ^0.14.0 |
+| @effected/schemastore | dependency | added | — | ^0.16.0 |
 | @effected/store | dependency | updated | ^0.10.0 | ^0.11.0 |
 | @effected/toml | dependency | updated | ^0.9.0 | ^0.10.0 |
 | @effected/walker | dependency | updated | ^0.12.0 | ^0.13.0 |

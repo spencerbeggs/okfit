@@ -44,18 +44,10 @@
 		"vscode:package": "turbo run build:dev --filter=@okfit/lsp && pnpm --filter @okfit/vscode-extension build && pnpm --filter @okfit/vscode-extension package"
 	},
 	"devDependencies": {
-		"@effect/platform-node": "catalog:effect",
-		"@effect/vitest": "catalog:effect",
-		"@effected/toml": "catalog:effected",
-		"@effected/workspaces": "catalog:effected",
 		"@okfit/cli": "workspace:*",
 		"@okfit/plugin": "workspace:*",
-		"@savvy-web/silk": "^4.2.11",
-		"@vitest-agent/plugin": "^5.0.1",
-		"ajv": "^8.20.0",
-		"bats": "^1.13.0",
-		"effect": "catalog:effect",
-		"vitest": "catalog:test"
+		"@savvy-web/silk": "^4.2.12",
+		"@vitest-agent/plugin": "^5.0.2"
 	},
 	"engines": {
 		"node": ">=24.11.0"

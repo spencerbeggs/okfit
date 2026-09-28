@@ -8,8 +8,8 @@ tags:
   - deps
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:29:49Z
-  body_sha256: bc2f607f0af0366c34ec13ae535fbb539110dcc5ff6c5e5d31f404dde50117a2
+  at: 2026-09-28T20:26:24Z
+  body_sha256: efc14094c73730ab2a4499378de5e51ebade22a0615970ebed952c25a52f7bf7
 sources:
   - id: main-ts
     resource: ../../packages/cli/src/main.ts
@@ -24,7 +24,7 @@ sources:
   - id: layers-json
     resource: ../../layers.json
   - id: workspace-layering-test
-    resource: ../../__test__/workspaceLayering.test.ts
+    resource: ../../packages/plugin/__test__/e2e/workspaceLayering.e2e.test.ts
   - id: pnpm-plugin-effect
     resource: npm:@effected/pnpm-plugin-effect
 verified:
@@ -105,7 +105,7 @@ replacing the hand-rolled equivalent each one used before, at the versions
   literal, unexpanded `${CLAUDE_PROJECT_DIR}` placeholder -- protection the
   old hand-rolled `??` chain did not have.
 - **The workspace root** gained `layers.json` and
-  `__test__/workspaceLayering.test.ts`, checking the real package manifest
+  `packages/plugin/__test__/e2e/workspaceLayering.e2e.test.ts`, checking the real package manifest
   dependency graph against the intended layering (`plugin` → `cli`/`mcp`/
   `lsp` → `engine` → `profiles` → `core`) with `@effected/workspaces/testing`'s
   `WorkspaceLayering`/`LayerPolicy` -- a check that did not exist in any
@@ -190,4 +190,4 @@ duplication in place.
 [^mcp-server-ts]: ../../packages/mcp/src/server.ts
 [^mcp-errors-ts]: ../../packages/mcp/src/errors.ts
 [^layers-json]: ../../layers.json
-[^workspace-layering-test]: `__test__/workspaceLayering.test.ts`
+[^workspace-layering-test]: `packages/plugin/__test__/e2e/workspaceLayering.e2e.test.ts`

@@ -10,10 +10,17 @@
 		"reset": "tsx lib/scripts/reset.ts"
 	},
 	"dependencies": {
+		"@effected/config-file": "catalog:effected",
 		"@effected/git": "catalog:effected",
+		"@effected/glob": "catalog:effected",
+		"@effected/jsonc": "catalog:effected",
 		"@effected/markdown": "catalog:effected",
 		"@effected/memfs": "catalog:effected",
+		"@effected/schemastore": "catalog:effected",
+		"@effected/toml": "catalog:effected",
+		"@effected/walker": "catalog:effected",
 		"@effected/xdg": "catalog:effected",
+		"@effected/yaml": "catalog:effected",
 		"@okfit/cli": "workspace:*",
 		"@okfit/core": "workspace:*",
 		"@okfit/engine": "workspace:*",
