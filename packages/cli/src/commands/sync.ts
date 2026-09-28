@@ -12,7 +12,7 @@ import {
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanSync } from "../render/sync.js";
@@ -39,7 +39,7 @@ const configFlag = Flag.File("config").pipe(
  * existing 64 remap — no new error class, no hand-built `ShowHelp`
  * (contract §11, S-13, judge note 9).
  *
- * Note: `Flag.Literals`'s installed signature (`effect/unstable/cli/Flag.ts:169-172`)
+ * Note: `Flag.Literals`'s installed signature (`effect/cli/Flag.ts:178-181`)
  * takes `(name: string, literals: ReadonlyArray<string>)`, matching
  * `formatFlag` below — not the `[value, label]` tuple-pair form
  * `Flag.ChoiceWithValue` takes. The contract's own `onlyFlag` sketch
@@ -67,7 +67,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 
 /** #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). */
 const ISO_DATE = Schema.String.pipe(
-	Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected a YYYY-MM-DD date" })),
+	Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u, { message: "Expected a YYYY-MM-DD date" })),
 );
 
 const sinceFlag = Flag.String("since").pipe(

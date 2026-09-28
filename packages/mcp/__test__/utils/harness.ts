@@ -7,7 +7,7 @@ import { McpHarness } from "@effected/mcp/testing";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { Scope } from "effect";
 import { Effect, Layer } from "effect";
-import { McpProtocol } from "effect/unstable/ai";
+import { McpProtocol } from "effect/ai";
 import type { ServerOptions } from "../../src/server.js";
 import { ServerLayer } from "../../src/server.js";
 

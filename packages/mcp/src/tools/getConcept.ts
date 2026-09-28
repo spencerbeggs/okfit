@@ -2,7 +2,7 @@ import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { ConceptId, Derive, Graph } from "@okfit/core";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 import { ConceptNotFound, InvalidArgument, McpToolError } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { GetConceptSuccess } from "../schema/tools.js";

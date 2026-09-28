@@ -1,22 +1,22 @@
 ---
 type: Decision
 title: The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
-description: The okfit-mcp server stays on effect/unstable/ai/McpServer and declares three protocol adapters, the stateless 2026-07-28 revision first and the two stateful ones behind it, with an agent-facing instructions string surfaced on both initialize and server/discover.
+description: The okfit-mcp server stays on effect/ai/McpServer and declares three protocol adapters, the stateless 2026-07-28 revision first and the two stateful ones behind it, with an agent-facing instructions string surfaced on both initialize and server/discover.
 tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: af58bdd37c1bd70a70d607eca0fe69f44034ee3f8e41159f8d0495733ac5ae7a
+  at: 2026-09-28T19:49:01Z
+  body_sha256: 98259c9016992a47767e715bdf7bb70deb19e2241587feab3d899916fb56e250
 status: draft
 supersedes: mcp-effect-native-legacy-era.md
 sources:
   - id: server-ts
     resource: ../../packages/mcp/src/server.ts
   - id: mcp-runtime
-    resource: ../../.repos/effect/packages/effect/src/unstable/ai/internal/mcpRuntime.ts
+    resource: ../../.repos/effect/packages/effect/src/ai/internal/mcpRuntime.ts
   - id: mcp-server-ts
-    resource: ../../.repos/effect/packages/effect/src/unstable/ai/McpServer.ts
+    resource: ../../.repos/effect/packages/effect/src/ai/McpServer.ts
   - id: claude-code-capture
     resource: stdin capture of Claude Code 2.1.278 launching okfit-mcp
     author: human:spencer
@@ -27,10 +27,10 @@ sources:
 
 ## Context
 
-The superseded Decision chose `effect/unstable/ai/McpServer` over the MCP
+The superseded Decision chose `effect/ai/McpServer` over the MCP
 TypeScript SDK and declared `[v2025_11_25, v2025_06_18]` because, at the
 time, Effect shipped no adapter newer than `2025-11-25`. Effect
-`4.0.0-rc.116` (the `catalog:effect` pin) ships `McpProtocol.v2026_07_28`,
+`4.0.0-rc.118` (the `catalog:effect` pin) ships `McpProtocol.v2026_07_28`,
 an adapter for the stateless MCP revision (SEP-2575): there is no
 `initialize` and no session; a client opens with `server/discover` and
 every request self-identifies through
@@ -41,7 +41,7 @@ settled for the older era.
 
 ## Decision
 
-`@okfit/mcp` remains built on `effect/unstable/ai/McpServer` at the
+`@okfit/mcp` remains built on `effect/ai/McpServer` at the
 `catalog:effect` pin; nothing about the SDK comparison changed. Every tool
 and resource still obeys the era-agnostic constraints the superseded
 Decision stated, carried forward verbatim: no `initialize`-time state
@@ -145,6 +145,6 @@ unchanged: a resource URI template's parametric segment cannot span a
 each, registered once at boot.
 
 [^server-ts]: `../../packages/mcp/src/server.ts`
-[^mcp-runtime]: `../../.repos/effect/packages/effect/src/unstable/ai/internal/mcpRuntime.ts`
-[^mcp-server-ts]: `../../.repos/effect/packages/effect/src/unstable/ai/McpServer.ts`
+[^mcp-runtime]: `../../.repos/effect/packages/effect/src/ai/internal/mcpRuntime.ts`
+[^mcp-server-ts]: `../../.repos/effect/packages/effect/src/ai/McpServer.ts`
 [^claude-code-capture]: stdin capture of Claude Code 2.1.278 launching okfit-mcp, 2026-09-19

@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import { resolve } from "node:path";
 import type { Cause, PlatformError, Scope } from "effect";
 import { Effect, Queue, Ref, Stream } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 /** The built dev bin, resolved from this file's own location, never from cwd. */
 export const LSP_BIN: string = resolve(

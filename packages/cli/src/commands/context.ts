@@ -8,7 +8,7 @@ import {
 	runContext,
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { setExitCode } from "../internal/exit.js";
 import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";

@@ -1,5 +1,37 @@
 # @okfit/lsp
 
+## 0.3.1
+
+### Bug Fixes
+
+- Declared the `@effected/*` peers that `@okfit/core` and `@okfit/profiles` require, so installs no longer satisfy them from whatever version sits at the consumer root [#196][#196]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.0-rc.117 | 4.0.0-rc.118 |
+| @effected/git | dependency | updated | ^0.17.0 | ^0.18.1 |
+| @effected/markdown | dependency | updated | ^0.12.1 | ^0.14.0 |
+| @effected/xdg | dependency | updated | ^0.7.0 | ^0.8.0 |
+| @effected/yaml | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @okfit/core | dependency | updated | 0.8.0 | 0.8.1 |
+| @okfit/engine | dependency | updated | 0.9.0 | 0.9.1 |
+| @okfit/profiles | dependency | updated | 0.8.0 | 0.8.1 |
+| effect | dependency | updated | 4.0.0-rc.117 | 4.0.0-rc.118 |
+| @effected/config-file | dependency | added | — | ^0.13.0 |
+| @effected/glob | dependency | added | — | ^0.9.0 |
+| @effected/jsonc | dependency | added | — | ^0.14.0 |
+| @effected/schemastore | dependency | added | — | ^0.16.0 |
+| @effected/toml | dependency | added | — | ^0.10.0 |
+| @effected/walker | dependency | added | — | ^0.13.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#196]: https://github.com/spencerbeggs/okfit/pull/196
+
 ## 0.3.0
 
 ### Features

@@ -1,5 +1,5 @@
 import { Effect, FileSystem, Path } from "effect";
-import { McpSchema, McpServer } from "effect/unstable/ai";
+import { McpSchema, McpServer } from "effect/ai";
 import { loadToolContext } from "../internal/toolContext.js";
 
 /**
@@ -20,7 +20,7 @@ import { loadToolContext } from "../internal/toolContext.js";
  *
  * `content` builds the full `ReadResourceResult` itself, `mimeType`
  * included, rather than returning a bare string: verified against source
- * (`resolveResourceContent`, `unstable/ai/McpServer.ts:2324-2343`), a bare
+ * (`resolveResourceContent`, `ai/McpServer.ts:2556-2576`), a bare
  * string is wrapped as `{ contents: [{ uri, text }] }` with no `mimeType`
  * at all — the declared `mimeType` option only documents the resource in
  * `resources/list`, it is never merged into a `resources/read` response.

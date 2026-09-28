@@ -1,7 +1,7 @@
 # @okfit/mcp
 
 The `okfit-mcp` bin: an MCP server over stdio, built on `@effected/mcp`'s
-`McpStdio`/`McpToolkit` (themselves built on `effect/unstable/ai`'s
+`McpStdio`/`McpToolkit` (themselves built on `effect/ai`'s
 `McpServer`), exposing six read-only tools and the bundle index plus one
 resource per concept against an OKF bundle. The server writes nothing,
 ever, to the bundle, the config, or anywhere else — `validate_bundle` now

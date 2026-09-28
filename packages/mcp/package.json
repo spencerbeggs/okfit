@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/mcp",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"private": true,
 	"description": "Model Context Protocol server for okfit: query and understand Open Knowledge Format (OKF) bundles from an agent.",
 	"keywords": ["okf", "open-knowledge-format", "mcp", "model-context-protocol", "claude", "effect"],
@@ -36,10 +36,18 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
+		"@effected/config-file": "catalog:effected",
 		"@effected/engine": "catalog:effected",
 		"@effected/git": "catalog:effected",
+		"@effected/glob": "catalog:effected",
+		"@effected/jsonc": "catalog:effected",
+		"@effected/markdown": "catalog:effected",
 		"@effected/mcp": "catalog:effected",
+		"@effected/schemastore": "catalog:effected",
+		"@effected/toml": "catalog:effected",
+		"@effected/walker": "catalog:effected",
 		"@effected/xdg": "catalog:effected",
+		"@effected/yaml": "catalog:effected",
 		"@okfit/core": "workspace:*",
 		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
@@ -47,7 +55,7 @@
 	},
 	"devDependencies": {
 		"@effect/vitest": "catalog:effect",
-		"@savvy-web/bundler": "^2.4.13",
+		"@savvy-web/bundler": "^2.4.15",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"

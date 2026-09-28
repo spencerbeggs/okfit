@@ -1,7 +1,7 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import { contextEnvelope } from "@okfit/engine";
 import { Effect, FileSystem, Option, Path } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";
 import { DescribeVocabularySuccess } from "../schema/tools.js";
@@ -14,7 +14,7 @@ const DESCRIPTION =
  * needs (`resolveConfigOnly` -> `resolveProjectConfig`/`provideConfig`);
  * without it `Tool.HandlerServices` infers `never` and the handler record
  * passed to `Toolkit.toLayer` fails to typecheck against `HandlersFrom`
- * (verified against `.repos/effect/packages/effect/src/unstable/ai/Tool.ts`
+ * (verified against `.repos/effect/packages/effect/src/ai/Tool.ts`
  * `dependencies`/`HandlerServices`; not spelled out in the brief's snippet).
  *
  * `parameters` is `Tool.EmptyParams`, not the brief's `Schema.Struct({})`:
@@ -23,7 +23,7 @@ const DESCRIPTION =
  * its JSON Schema, reproduced in isolation against a minimal tool and
  * confirmed fixed by switching to `Tool.EmptyParams` — the same schema
  * Effect's own MCP conformance fixtures use for parameterless tools
- * (`.repos/effect/packages/effect/test/unstable/ai/McpServer/McpConformance/McpConformanceFixtures.ts:29`).
+ * (`.repos/effect/packages/effect/test/ai/McpServer/McpConformance/McpConformanceFixtures.ts:38`).
  *
  * @public
  */

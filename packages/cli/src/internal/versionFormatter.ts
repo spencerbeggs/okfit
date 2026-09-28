@@ -9,7 +9,7 @@ import { Effect, Layer } from "effect";
  * `<name> <version>[ via <distName> <distVersion>] (engine <ENGINE_VERSION>, okf <OKF_SPEC_VERSION>, config-schema <CONFIG_SCHEMA_VERSION>)`.
  * `GlobalFlag.Version`'s built-in `run` calls `formatter.formatVersion(command.name,
  * version)` (`command.name` is always `"okfit"`, `version` is `CLI_VERSION` --
- * `unstable/cli/GlobalFlag.ts:180-186`), so those two arguments alone are
+ * `cli/GlobalFlag.ts:189-199`), so those two arguments alone are
  * exactly `okfit <CLI_VERSION>`; this appends the engine, okf, and
  * distribution parts.
  *

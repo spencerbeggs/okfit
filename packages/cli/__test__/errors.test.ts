@@ -10,7 +10,7 @@ import {
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
 import { Option, Result, Schema } from "effect";
-import { CliError } from "effect/unstable/cli";
+import { CliError } from "effect/cli";
 import { renderFailure } from "../src/errors.js";
 
 describe("renderFailure", () => {
