@@ -1,5 +1,20 @@
 # @okfit/cli
 
+## 0.6.10
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/schemastore | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @okfit/core | dependency | updated | 0.8.1 | 0.8.2 |
+| @okfit/engine | dependency | updated | 0.9.1 | 0.9.2 |
+| @okfit/profiles | dependency | updated | 0.8.1 | 0.8.1 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.6.9
 
 ### Bug Fixes

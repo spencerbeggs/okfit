@@ -1,5 +1,17 @@
 # @okfit/core
 
+## 0.8.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/schemastore | peerDependency | updated | ^0.16.0 | ^0.17.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 0.8.1
 
 ### Bug Fixes
