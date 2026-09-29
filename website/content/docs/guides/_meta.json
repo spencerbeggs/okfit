@@ -1,0 +1,22 @@
+[
+	{
+		"type": "file",
+		"name": "adopting-okfit.mdx",
+		"label": "Adopting okfit in a Repository"
+	},
+	{
+		"type": "file",
+		"name": "writing-concepts.mdx",
+		"label": "Writing Concepts"
+	},
+	{
+		"type": "file",
+		"name": "keeping-a-bundle-current.mdx",
+		"label": "Keeping a Bundle Current"
+	},
+	{
+		"type": "file",
+		"name": "customizing-the-vocabulary.mdx",
+		"label": "Customizing the Vocabulary"
+	}
+]

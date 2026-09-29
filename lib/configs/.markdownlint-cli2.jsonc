@@ -107,6 +107,13 @@
 				"MD025": false
 			},
 			"filter": ["okf/**/index.md"]
+		},
+		{
+			"combine": "merge",
+			"config": {
+				"MD025": { "front_matter_title": "" }
+			},
+			"filter": ["website/content/**/*.{md,mdx}"]
 		}
 	]
 }

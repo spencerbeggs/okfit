@@ -23,6 +23,9 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
 - **The VS Code extension** -- `vscode/CLAUDE.md`,
   `okf/modules/vscode-extension.md`,
   `okf/runbooks/publish-vscode-extension.md`.
+- **The documentation website** (RSPress, `okfit.dev`) --
+  `website/CLAUDE.md`, `okf/modules/website.md`,
+  `okf/roadmaps/documentation-site.md`.
 - **Durable architectural choices** (why something is built the way it
   is, not just what it does) -- `okf/decisions/*.md`.
 - **Rules contributors and agents must follow** -- `okf/conventions/*.md`.

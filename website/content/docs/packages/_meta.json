@@ -1,0 +1,51 @@
+[
+	{
+		"type": "dir",
+		"name": "../../plugin",
+		"label": "@okfit/plugin",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "../../cli",
+		"label": "@okfit/cli",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "../../mcp",
+		"label": "@okfit/mcp",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "../../engine",
+		"label": "@okfit/engine",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "../../lsp",
+		"label": "@okfit/lsp",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "../../profiles",
+		"label": "@okfit/profiles",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "../../core",
+		"label": "@okfit/core",
+		"collapsed": true,
+		"collapsible": true
+	}
+]

@@ -1,5 +1,12 @@
 # Log
 
+## 2026-09-29
+
+* Added A documentation site at okfit.dev
+* Added User docs live under /docs; package hierarchies live at the site root beside their generated API
+* Added Website
+* Updated Workspace
+
 ## 2026-09-28
 
 * Updated CLI

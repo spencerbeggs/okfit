@@ -1,0 +1,31 @@
+{
+	"name": "docs",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Documentation site for the okfit project.",
+	"type": "module",
+	"scripts": {
+		"build": "rspress build",
+		"dev": "node lib/scripts/dev.mts",
+		"preview": "node lib/scripts/preview.mts",
+		"types:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@okfit/cli": "workspace:*",
+		"@okfit/core": "workspace:*",
+		"@okfit/engine": "workspace:*",
+		"@okfit/lsp": "workspace:*",
+		"@okfit/mcp": "workspace:*",
+		"@okfit/plugin": "workspace:*",
+		"@okfit/profiles": "workspace:*"
+	},
+	"devDependencies": {
+		"@rspress/core": "catalog:docs",
+		"@types/node": "catalog:docs",
+		"@types/react": "catalog:docs",
+		"@types/react-dom": "catalog:docs",
+		"react": "catalog:docs",
+		"react-dom": "catalog:docs",
+		"rspress-plugin-api-extractor": "^0.18.7"
+	}
+}

@@ -3,6 +3,7 @@ packages:
   - plugins/*
   - scratchpad
   - vscode
+  - website
 allowBuilds:
   "@vscode/vsce-sign": false
   keytar: false

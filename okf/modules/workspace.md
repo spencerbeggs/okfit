@@ -8,9 +8,9 @@ kind: workspace
 tags:
   - architecture
 generated:
-  by: human:spencer
-  at: 2026-09-28T20:26:24Z
-  body_sha256: 81e66d32785aafc4ca8a670adfaa212a41859a411336484f509fa4334d4feeb5
+  by: okfit/claude-code
+  at: 2026-09-29T22:18:38Z
+  body_sha256: 10eb89eaa3f318ead432d0079999b0389b754855c97b782cfd8b4ca397bf6549
 ---
 
 # Workspace
@@ -19,7 +19,7 @@ generated:
 
 okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 `profiles`, `engine`, `cli`, `mcp`, `lsp`, `plugin`) plus `plugins/claude-code`,
-`vscode`, and
+`vscode`, `website`, and
 `.repos/effect`: read-only vendored Effect v4 source that is never written to
 (`CLAUDE.md:16-27`). Each package has its own `CLAUDE.md` and
 `__test__/CLAUDE.md` (`CLAUDE.md:30`).
@@ -33,6 +33,9 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 - `vscode` -- the `okfit` VS Code extension (`@okfit/vscode-extension`),
   tagged but never published to npm; see [VS Code
   Extension](vscode-extension.md).
+- `website` -- the RSPress documentation site (package `docs`, private,
+  never published), fed by each package's prod-build API models; see
+  [Website](website.md).
 - `.repos/effect` -- read-only vendored Effect v4 source.
 - `scratchpad/` -- a ghost workspace member: a private typed-probe venue,
   never published, excluded from changesets, CI and coverage; see
@@ -64,6 +67,8 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 - `pnpm test` -- Vitest across the monorepo; builds `dist/dev` first.
 - `pnpm test:bats` -- BATS for the plugin's shell scripts.
 - `pnpm claude` -- Claude Code with the local plugin loaded.
+- `pnpm dev` and `pnpm preview` -- the documentation site's dev server and
+  built-site preview, run through Turbo filtered to `docs`.
 
 Scope a single package's tests with `pnpm vitest run packages/core`
 (`CLAUDE.md:55`).

@@ -1,0 +1,51 @@
+[
+	{
+		"text": "Docs",
+		"link": "/docs",
+		"activeMatch": "^/docs(?!/packages)(/.*)?$",
+		"position": "right"
+	},
+	{
+		"text": "Packages",
+		"link": "/docs/packages",
+		"activeMatch": "^/(docs/packages|cli|core|engine|lsp|mcp|plugin|profiles)(/.*)?$",
+		"position": "right",
+		"items": [
+			{
+				"text": "@okfit/plugin",
+				"link": "/plugin",
+				"activeMatch": "^/plugin(/.*)?$"
+			},
+			{
+				"text": "@okfit/cli",
+				"link": "/cli",
+				"activeMatch": "^/cli(/.*)?$"
+			},
+			{
+				"text": "@okfit/mcp",
+				"link": "/mcp",
+				"activeMatch": "^/mcp(/.*)?$"
+			},
+			{
+				"text": "@okfit/engine",
+				"link": "/engine",
+				"activeMatch": "^/engine(/.*)?$"
+			},
+			{
+				"text": "@okfit/lsp",
+				"link": "/lsp",
+				"activeMatch": "^/lsp(/.*)?$"
+			},
+			{
+				"text": "@okfit/profiles",
+				"link": "/profiles",
+				"activeMatch": "^/profiles(/.*)?$"
+			},
+			{
+				"text": "@okfit/core",
+				"link": "/core",
+				"activeMatch": "^/core(/.*)?$"
+			}
+		]
+	}
+]

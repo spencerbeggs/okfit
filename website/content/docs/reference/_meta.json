@@ -1,0 +1,22 @@
+[
+	{
+		"type": "file",
+		"name": "config.mdx",
+		"label": "Config"
+	},
+	{
+		"type": "file",
+		"name": "diagnostics.mdx",
+		"label": "Diagnostics"
+	},
+	{
+		"type": "file",
+		"name": "software-project-profile.mdx",
+		"label": "Software Project Profile"
+	},
+	{
+		"type": "file",
+		"name": "frontmatter-fields.mdx",
+		"label": "Frontmatter Fields"
+	}
+]

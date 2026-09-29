@@ -1,0 +1,32 @@
+[
+	{
+		"type": "file",
+		"name": "open-knowledge-format.mdx",
+		"label": "The Open Knowledge Format"
+	},
+	{
+		"type": "file",
+		"name": "types-and-tags.mdx",
+		"label": "Vocabulary: Types and Tags"
+	},
+	{
+		"type": "file",
+		"name": "profiles.mdx",
+		"label": "Profiles"
+	},
+	{
+		"type": "file",
+		"name": "provenance-and-trust.mdx",
+		"label": "Provenance and Trust"
+	},
+	{
+		"type": "file",
+		"name": "engine-and-tools.mdx",
+		"label": "One Engine, Many Tools"
+	},
+	{
+		"type": "file",
+		"name": "agents-in-the-loop.mdx",
+		"label": "Agents in the Loop"
+	}
+]

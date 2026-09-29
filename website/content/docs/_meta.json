@@ -1,0 +1,62 @@
+[
+	{
+		"type": "file",
+		"name": "index.mdx",
+		"label": "Overview"
+	},
+	{
+		"type": "dir",
+		"name": "how-it-works",
+		"label": "How It Works",
+		"collapsed": true,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "guides",
+		"label": "Guides",
+		"collapsed": false,
+		"collapsible": true
+	},
+	{
+		"type": "dir",
+		"name": "packages",
+		"label": "Packages",
+		"collapsed": true
+	},
+	{
+		"type": "section-header",
+		"label": "Tools"
+	},
+	{
+		"type": "file",
+		"name": "claude-code-plugin.mdx",
+		"label": "Claude Code Plugin"
+	},
+	{
+		"type": "file",
+		"name": "cli.mdx",
+		"label": "CLI"
+	},
+	{
+		"type": "file",
+		"name": "vscode-plugin.mdx",
+		"label": "VS Code Extension"
+	},
+	{
+		"type": "file",
+		"name": "mcp-server.mdx",
+		"label": "MCP Server"
+	},
+	{
+		"type": "file",
+		"name": "language-server.mdx",
+		"label": "Language Server"
+	},
+	{
+		"type": "dir-section-header",
+		"name": "reference",
+		"label": "Reference",
+		"collapsed": false
+	}
+]

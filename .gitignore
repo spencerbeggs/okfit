@@ -46,3 +46,8 @@ scratchpad/__test__/*.test.ts
 # VS Code extension packaging
 vscode/*.vsix
 vscode/package.json.workspace
+
+# Docs ignores
+website/lib/models/*
+website/content/*/api/
+**/.api-docs/**
