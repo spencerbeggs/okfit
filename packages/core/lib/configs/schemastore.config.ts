@@ -11,6 +11,7 @@ import { okfitConfigDocumentFields, okfitConfigSchemaHost } from "../../src/Okfi
 
 export default defineConfig({
 	outputDir: "../../../../schemas",
+	name: "okfit",
 	schemas: {
 		[okfitConfigSchemaHost.name]: {
 			schema: okfitConfigDocumentFields,
