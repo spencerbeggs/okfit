@@ -1,12 +1,11 @@
-import { resolve } from "node:path";
+import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { Workspaces } from "@effected/workspaces";
+import { WorkspaceDiscovery, Workspaces } from "@effected/workspaces";
 import { LayerEdge, LayerPolicy, WorkspaceLayering } from "@effected/workspaces/testing";
 import { Effect, Layer } from "effect";
 
-const REPO_ROOT = resolve(import.meta.dirname, "../../../..");
-const Live = Workspaces.layer({ cwd: REPO_ROOT }).pipe(Layer.provideMerge(NodeServices.layer));
+const Live = Workspaces.layer({ cwd: import.meta.dirname }).pipe(Layer.provideMerge(NodeServices.layer));
 
 /**
  * Holds okfit's own package graph to the committed `layers.json` (K-9's
@@ -16,15 +15,18 @@ const Live = Workspaces.layer({ cwd: REPO_ROOT }).pipe(Layer.provideMerge(NodeSe
  * engine, which depends only on `@okfit/profiles` and `@okfit/core`. No
  * front end may depend on another, and nothing may depend upward. `okfit`
  * (the private root), `scratchpad` (the ghost workspace, which legitimately
- * depends on every package as a probe venue) and `@okfit/vscode-extension`
- * (a separate consumer that only build-time devDepends on `@okfit/lsp`) are
+ * depends on every package as a probe venue), `@okfit/vscode-extension`
+ * (a separate consumer that only build-time devDepends on `@okfit/lsp`)
+ * and `docs` (the okfit.dev site, private and unpublished) are
  * `unconstrained`; `@okfit/claude-code-plugin` (no code, changeset
  * versioning only) is `tooling`.
  */
 describe("workspace layering", () => {
 	it.effect("the live package graph honours layers.json, non-vacuously", () =>
 		Effect.gen(function* () {
-			const policy = yield* LayerPolicy.load(resolve(REPO_ROOT, "layers.json"));
+			const discovery = yield* WorkspaceDiscovery;
+			const { root } = yield* discovery.info();
+			const policy = yield* LayerPolicy.load(join(root, "layers.json"));
 			const report = yield* WorkspaceLayering.checkWorkspace(policy);
 			assert.deepStrictEqual(report.violations, []);
 			// Non-vacuity: a discovery bug that silently found zero edges would
