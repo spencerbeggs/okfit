@@ -19,7 +19,7 @@
 		}
 	],
 	"commit": false,
-	"ignore": ["scratchpad"],
+	"ignore": ["scratchpad", "docs"],
 	"privatePackages": {
 		"tag": true,
 		"version": true
