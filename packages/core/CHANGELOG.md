@@ -1,5 +1,21 @@
 # @okfit/core
 
+## 0.8.3
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/walker | peerDependency | updated | ^0.13.0 | ^0.14.0 |
+
+[#203][#203]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#203]: https://github.com/spencerbeggs/okfit/pull/203
+
 ## 0.8.2
 
 ### Dependencies
