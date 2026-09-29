@@ -4,7 +4,15 @@
 	"tasks": {
 		"build": {
 			"cache": false,
-			"dependsOn": ["^build:prod"],
+			"dependsOn": [
+				"@okfit/cli#build:prod",
+				"@okfit/core#build:prod",
+				"@okfit/engine#build:prod",
+				"@okfit/lsp#build:prod",
+				"@okfit/mcp#build:prod",
+				"@okfit/plugin#build:prod",
+				"@okfit/profiles#build:prod"
+			],
 			"outputLogs": "full",
 			"outputs": ["dist/**"]
 		},

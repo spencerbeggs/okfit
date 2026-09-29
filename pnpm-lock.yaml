@@ -870,28 +870,6 @@ importers:
         version: 10.1.2
 
   website:
-    dependencies:
-      '@okfit/cli':
-        specifier: workspace:*
-        version: link:../packages/cli/dist/dev/pkg
-      '@okfit/core':
-        specifier: workspace:*
-        version: link:../packages/core/dist/dev/pkg
-      '@okfit/engine':
-        specifier: workspace:*
-        version: link:../packages/engine/dist/dev/pkg
-      '@okfit/lsp':
-        specifier: workspace:*
-        version: link:../packages/lsp/dist/dev/pkg
-      '@okfit/mcp':
-        specifier: workspace:*
-        version: link:../packages/mcp/dist/dev/pkg
-      '@okfit/plugin':
-        specifier: workspace:*
-        version: link:../packages/plugin/dist/dev/pkg
-      '@okfit/profiles':
-        specifier: workspace:*
-        version: link:../packages/profiles/dist/dev/pkg
     devDependencies:
       '@rspress/core':
         specifier: catalog:docs

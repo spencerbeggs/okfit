@@ -10,15 +10,6 @@
 		"preview": "node lib/scripts/preview.mts",
 		"types:check": "tsc --noEmit"
 	},
-	"dependencies": {
-		"@okfit/cli": "workspace:*",
-		"@okfit/core": "workspace:*",
-		"@okfit/engine": "workspace:*",
-		"@okfit/lsp": "workspace:*",
-		"@okfit/mcp": "workspace:*",
-		"@okfit/plugin": "workspace:*",
-		"@okfit/profiles": "workspace:*"
-	},
 	"devDependencies": {
 		"@rspress/core": "catalog:docs",
 		"@types/node": "catalog:docs",
