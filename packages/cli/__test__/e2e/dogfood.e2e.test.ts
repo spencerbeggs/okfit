@@ -68,16 +68,20 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * `okf/decisions/front-ends-adopt-the-effected-kit.md`, and two successors,
  * `engine-version-is-the-comparable-version-effected-kit.md` and
  * `engine-front-end-split-effected-kit.md`, which supersede the originals they
- * are named after (both now `deprecated`).
+ * are named after (both now `deprecated`). The okfit.dev documentation site
+ * adds one more Module (`okf/modules/website.md`), one more Decision
+ * (`okf/decisions/website-package-pages-at-root.md`, `status: draft`, exempt
+ * from `require-verified-unmet` while `draft`), and a second Roadmap
+ * (`okf/roadmaps/documentation-site.md`).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
-	Module: 11,
-	Decision: 33,
+	Module: 12,
+	Decision: 34,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
-	Roadmap: 1,
+	Roadmap: 2,
 	Glossary: 1,
 	Limitation: 2,
 	Runbook: 1,

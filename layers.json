@@ -7,7 +7,7 @@
 		["@okfit/core"]
 	],
 	"tooling": ["@okfit/claude-code-plugin"],
-	"unconstrained": ["okfit", "scratchpad", "@okfit/vscode-extension"],
+	"unconstrained": ["okfit", "scratchpad", "@okfit/vscode-extension", "docs"],
 	"requiredEdges": [
 		"@okfit/plugin -> @okfit/cli",
 		"@okfit/plugin -> @okfit/mcp",
