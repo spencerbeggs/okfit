@@ -235,8 +235,8 @@ with the exact fragment.
 `--all` and `--type <Type>` (repeatable) attest in batch: every concept whose
 type sets `require_verified` (or of the named types) that you have not
 already verified. A batch skips a concept and reports why: `draft`,
-`deprecated`, or `already-verified`. A `deprecated` concept is never
-re-attested.
+`deprecated`, or `already-verified`. A batch never re-attests a
+`deprecated` concept; verifying one by id is still allowed.
 
 This is a human-run command: it records **your** attestation that you
 reviewed the concept, so no agent, hook, or MCP tool ever invokes it.
@@ -252,8 +252,8 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
   `--tag <tag>` (repeatable, each must be declared in the config),
   `--status draft|stable|deprecated` (repeatable), and `--verified` or
   `--unverified`.
-- `okfit query get <id> [path]` prints one concept: the summary fields, its
-  raw frontmatter and its outgoing links.
+- `okfit query get <id> [path]` prints one concept: the summary fields and its
+  outgoing links. `--format json` also includes the raw frontmatter.
 - `okfit query neighbors <id> [path]` prints a concept's outgoing and
   incoming links.
 

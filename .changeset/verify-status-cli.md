@@ -6,7 +6,7 @@
 
 ### Settle a draft in one command
 
-`okfit verify <id> --stable` (or `--draft`) sets the concept's `status` in the same write as the attestation. Passing both flags, or either with `--all` or `--type`, exits `64`. A concept already at the target status gets no status edit, and the output and JSON envelope report the change as `status: { from, to }`.
+`okfit verify <id> --stable` (or `--draft`, closing #185) sets the concept's `status` in the same write as the attestation. Passing both flags, or either with `--all` or `--type`, exits `64`. A concept already at the target status gets no status edit, and the output and JSON envelope report the change as `status: { from, to }`.
 
 ### okfit query
 
@@ -17,4 +17,5 @@
 
 ## Bug Fixes
 
-* `okfit verify --all` and `--type` skip `deprecated` concepts instead of re-attesting them, reporting the reason `deprecated`, closing #143 and #185
+* `okfit verify --all` and `--type` skip `deprecated` concepts instead of re-attesting them, reporting the reason `deprecated`, closing #143
+* `okfit verify` no longer drops a leading UTF-8 byte-order mark when it writes a concept back
