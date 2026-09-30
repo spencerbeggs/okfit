@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-30T17:53:20Z
-  body_sha256: 1b859af3fe09c7f7710af7364273af3d4cbd904d61f39c205fc76eb4b4d369b5
+  at: 2026-09-30T18:08:38Z
+  body_sha256: e08be49013bff2132dc3dadbb9e7b40cd9183bebac6effe227d5c1c434df582e
 tags:
   - architecture
 verified:
@@ -96,13 +96,14 @@ unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type`, is exit `64`. The human line ends `; status A -> B`,
-`; status already X` or `; status (absent) -> X`, and a dry run adds `would
-set status:` with the fragment. Exactly one of `<id>` or `--all`/`--type`
+`--all`/`--type`, is exit `64`. The human line carries `; status A -> B`,
+`; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
+set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Exactly one of `<id>` or `--all`/`--type`
 must be given; otherwise, or for an undeclared type, exit `64`. `--format json` prints a `VerifyBatchEnvelope`
 (`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
 dry run included), `3` on any failure — an unknown or reserved id, a concept
-whose `verified` shape cannot be edited safely, or an unresolved git
+whose `verified` shape cannot be edited safely, a `status` shape that cannot be
+edited safely under `--stable`/`--draft` (for example a block scalar), or an unresolved git
 identity; there is no `1`/`2` content tier. This is a human-run command: no
 agent, hook, or MCP tool ever invokes it.
 
@@ -115,7 +116,7 @@ neighbors <id> [path]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
 `3` for an unknown id; `64` for an undeclared type or tag or for
-`--verified` with `--unverified`. The status list is `query list --status`;
+`--verified` with `--unverified`. A concept with no `status` reads as `stable`, so `query list --status stable` includes it. The status list is `query list --status`;
 there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 ## okfit sync
