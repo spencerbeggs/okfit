@@ -62,7 +62,6 @@ describe("okfit query (e2e)", () => {
 			assert.include(ids, "glossary/zeta");
 			assert.include(ids, "project");
 			assert.match(r.stderr, /^\d+ concepts in /);
-			process.stdout.write(`--- query list ---\n${r.stdout}${r.stderr}`);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -108,7 +107,12 @@ describe("okfit query (e2e)", () => {
 			const r = await run(["query", "get", "project"], cwd, env);
 			assert.strictEqual(r.exitCode, 0);
 			assert.isTrue(r.stdout.startsWith("project\n"));
-			process.stdout.write(`--- query get ---\n${r.stdout}`);
+			const json = await run(["query", "get", "project", "--format", "json"], cwd, env);
+			assert.strictEqual(json.exitCode, 0);
+			const body = JSON.parse(json.stdout) as { concept: { frontmatter: Record<string, unknown> } };
+			assert.isFalse("raw" in body.concept.frontmatter);
+			assert.strictEqual(body.concept.frontmatter.type, "Project");
+			assert.strictEqual(body.concept.frontmatter.status, "draft");
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -121,8 +125,10 @@ describe("okfit query (e2e)", () => {
 			assert.strictEqual(human.exitCode, 3);
 			const r = await run(["query", "get", "nope", "--format", "json"], cwd, env);
 			assert.strictEqual(r.exitCode, 3);
-			const body = JSON.parse(r.stdout) as { error?: unknown };
+			const body = JSON.parse(r.stdout) as { error?: unknown; schema?: unknown; okfit_version?: unknown };
 			assert.isDefined(body.error);
+			assert.isDefined(body.schema);
+			assert.isDefined(body.okfit_version);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -136,8 +142,7 @@ describe("okfit query (e2e)", () => {
 			const body = JSON.parse(r.stdout) as { outgoing: unknown[]; incoming: unknown[] };
 			assert.isTrue(Array.isArray(body.outgoing));
 			assert.isTrue(Array.isArray(body.incoming));
-			const human = await run(["query", "neighbors", "project"], cwd, env);
-			process.stdout.write(`--- query neighbors ---\n${human.stdout}`);
+			assert.isTrue((body.incoming as Array<{ id: string }>).some((n) => n.id === "glossary/zeta"));
 		} finally {
 			await removeSandbox(sandbox);
 		}

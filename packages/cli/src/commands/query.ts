@@ -1,7 +1,7 @@
 import { CurrentDistribution } from "@effected/engine";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
-import type { ConceptFilter, Distribution, QueryLink } from "@okfit/engine";
+import type { ConceptFilter, Distribution } from "@okfit/engine";
 import {
 	ConceptQuery,
 	QueryGetEnvelope,
@@ -193,13 +193,12 @@ export const queryGetCommand = Command.make(
 			Effect.gen(function* () {
 				const { concept, links } = yield* ConceptQuery.get(bundle, input.id);
 				const summary = toConceptSummary(concept);
-				const queryLinks: ReadonlyArray<QueryLink> = links;
 				if (input.format === "json") {
 					const envelope = queryGetEnvelope({
 						okfitVersion: CLI_VERSION,
 						concept: summary,
-						frontmatter: concept.frontmatter as Readonly<Record<string, unknown>>,
-						links: queryLinks,
+						frontmatter: concept.frontmatter.raw,
+						links: links,
 						...distributionOf(distribution),
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(QueryGetEnvelope)(envelope)));
@@ -207,7 +206,7 @@ export const queryGetCommand = Command.make(
 					for (const line of humanQueryGet({
 						summary,
 						verified: concept.frontmatter.verified ?? [],
-						links: queryLinks,
+						links: links,
 					})) {
 						yield* Console.log(line);
 					}
