@@ -61,7 +61,7 @@ describe("okfit query (e2e)", () => {
 			assert.include(ids, "glossary/alpha");
 			assert.include(ids, "glossary/zeta");
 			assert.include(ids, "project");
-			assert.match(r.stderr, /^\d+ concepts in /);
+			assert.match(r.stderr, /^\d+ concepts? in /);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -123,6 +123,8 @@ describe("okfit query (e2e)", () => {
 		try {
 			const human = await run(["query", "get", "nope"], cwd, env);
 			assert.strictEqual(human.exitCode, 3);
+			assert.include(human.stderr, 'error: no concept "nope" in this bundle');
+			assert.notInclude(human.stderr, "QueryConceptNotFoundError");
 			const r = await run(["query", "get", "nope", "--format", "json"], cwd, env);
 			assert.strictEqual(r.exitCode, 3);
 			const body = JSON.parse(r.stdout) as { error?: unknown; schema?: unknown; okfit_version?: unknown };

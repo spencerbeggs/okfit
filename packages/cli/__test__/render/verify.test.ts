@@ -53,7 +53,7 @@ describe("humanVerify", () => {
 				statusFragment: "stable",
 			}),
 			[
-				"would verify decisions/x by human:ada at 2026-09-16T12:00:00Z (dry run, nothing written); status draft -> stable",
+				"would verify decisions/x by human:ada at 2026-09-16T12:00:00Z; status draft -> stable (dry run, nothing written)",
 				"would write:",
 				"  verified:",
 				"    - by: human:ada",

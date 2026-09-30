@@ -5,6 +5,9 @@ import {
 	ConfigPathNotFoundError,
 	DocumentPathError,
 	InitOverwriteError,
+	QueryConceptNotFoundError,
+	QuerySelectionError,
+	QueryUnknownVocabularyError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
@@ -62,6 +65,9 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    contradictory, empty, or named an undeclared type.
  * 5c. `DocumentPathError` and `DocumentStdinIsTerminalError` (`--document`)
  *    each render as one `error: <message>` line.
+ * 5d. `QueryUnknownVocabularyError`, `QueryConceptNotFoundError` and
+ *    `QuerySelectionError` (`okfit query`) each render as one
+ *    `error: <message>` line.
  * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`/
  *    `BundleDepthExceededError`, config-file's other errors, `XdgEnvError`
  *    (the K-13 `HOME`-unset case) — renders as the single line
@@ -86,6 +92,9 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof SyncStagedLogError) return [`error: ${error.message}`];
 	if (error instanceof VerifySelectionError) return [`error: ${error.message}`];
+	if (error instanceof QueryUnknownVocabularyError) return [`error: ${error.message}`];
+	if (error instanceof QueryConceptNotFoundError) return [`error: ${error.message}`];
+	if (error instanceof QuerySelectionError) return [`error: ${error.message}`];
 	if (error instanceof DocumentPathError) return [`error: ${error.message}`];
 	if (error instanceof DocumentStdinIsTerminalError) return [`error: ${error.message}`];
 	if (hasTag(error, "ConfigValidationError")) {

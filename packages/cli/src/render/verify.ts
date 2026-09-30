@@ -47,7 +47,7 @@ export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => {
 	return [
 		...input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`),
 		input.dryRun
-			? `would verify ${input.id} by ${input.by} at ${input.at} (dry run, nothing written)${statusSuffix}`
+			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffix} (dry run, nothing written)`
 			: `verified ${input.id} by ${input.by} at ${input.at}${statusSuffix}`,
 		...(input.dryRun ? ["would write:", ...indentFragment(input.fragment)] : []),
 		...(input.dryRun && input.statusFragment !== null

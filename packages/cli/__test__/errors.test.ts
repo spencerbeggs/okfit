@@ -6,6 +6,9 @@ import {
 	ConfigPathNotFoundError,
 	DocumentPathError,
 	InitOverwriteError,
+	QueryConceptNotFoundError,
+	QuerySelectionError,
+	QueryUnknownVocabularyError,
 	VerifyConceptNotFoundError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
@@ -53,6 +56,16 @@ describe("renderFailure", () => {
 		const error = new ConfigValidationError({ path: Option.none(), issue });
 		const expected = [`error: ${String(error)}`, ...ConfigIssueRenderer.render(error).map((line) => `  ${line}`)];
 		assert.deepStrictEqual(renderFailure(error), expected);
+	});
+
+	it("renders the okfit query errors as one error line, without the class name", () => {
+		for (const error of [
+			new QueryConceptNotFoundError({ id: "nope", reason: "not-a-concept" }),
+			new QueryUnknownVocabularyError({ kind: "type", requested: "Nope", valid: ["Decision"] }),
+			new QuerySelectionError({ reason: "verified-conflict" }),
+		]) {
+			assert.deepStrictEqual(renderFailure(error), [`error: ${error.message}`]);
+		}
 	});
 
 	it("renders any other error as a single error line", () => {

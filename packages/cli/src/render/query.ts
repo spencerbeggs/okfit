@@ -12,11 +12,12 @@ export const humanQueryList = (items: ReadonlyArray<ConceptSummary>): ReadonlyAr
 	items.map((item) => `${item.id}  ${item.status}  ${item.type}  ${item.title}`);
 
 /**
- * `<N> concepts in <root>` — the one-line stderr summary.
+ * `<N> concepts in <root>` (`1 concept` for one) — the one-line stderr summary.
  *
  * @public
  */
-export const queryListSummary = (total: number, root: string): string => `${total} concepts in ${root}`;
+export const queryListSummary = (total: number, root: string): string =>
+	`${total} ${total === 1 ? "concept" : "concepts"} in ${root}`;
 
 /**
  * The bare id, then `key: value` lines, one `verified:` line per attestation,

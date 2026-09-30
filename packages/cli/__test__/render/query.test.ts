@@ -30,6 +30,7 @@ describe("humanQueryList", () => {
 describe("queryListSummary", () => {
 	it("reads `<N> concepts in <root>`", () => {
 		assert.strictEqual(queryListSummary(3, "okf"), "3 concepts in okf");
+		assert.strictEqual(queryListSummary(1, "okf"), "1 concept in okf");
 	});
 });
 
