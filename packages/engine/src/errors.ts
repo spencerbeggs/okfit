@@ -63,7 +63,8 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
 }
 
 /**
- * V-14: fail closed on a `verified` shape the classifier does not name.
+ * V-14: fail closed on a `verified` (or, under `--stable`/`--draft`, `status`)
+ * shape the classifier does not name; `key` says which, omitted meaning `verified`.
  * `shape` is one of `"alias"`, `"merge-key"`, `"scalar"`, `"empty"` (and,
  * defensively, `"no-frontmatter"` or `"not-a-mapping"`, neither reachable
  * for a concept that reached `bundle.concepts`). The file is never opened
@@ -73,11 +74,15 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
  */
 export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<VerifyUnsupportedFrontmatterError>()(
 	"VerifyUnsupportedFrontmatterError",
-	{ id: Schema.String, shape: Schema.String },
+	{
+		id: Schema.String,
+		shape: Schema.String,
+		key: Schema.optionalKey(Schema.Literals(["verified", "status"])),
+	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		return `"${this.id}"'s verified value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
+		return `"${this.id}"'s ${this.key ?? "verified"} value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
 	}
 }
 

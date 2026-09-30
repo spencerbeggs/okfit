@@ -1,14 +1,14 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
+import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { Bundle, ConceptId, Timestamp } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { VerifyConceptNotFoundError, VerifySelectionError, VerifyUnsupportedFrontmatterError } from "../errors.js";
-import { documentNewline, locate, stripBom } from "./locate.js";
+import { documentNewline, locate, locateTopLevelScalar, stripBom } from "./locate.js";
 import type { VerifyBatchSkipReason } from "./select.js";
 import { selectAttestable } from "./select.js";
-import { splice } from "./splice.js";
+import { mergeSameOffset, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
  * The only four diagnostic codes that can co-occur with a MISSING
@@ -39,6 +39,8 @@ export interface VerifyOptions {
 	/** `--at` when given, else the `Now` service (K-47/K-49). */
 	readonly at: DateTime.Utc;
 	readonly dryRun: boolean;
+	/** Issue #185: also set the concept's `status` in the same write. */
+	readonly status?: "stable" | "draft";
 }
 
 /** @internal */
@@ -57,6 +59,10 @@ export interface VerifyResult {
 	readonly dryRun: boolean;
 	/** The exact bytes `splice`'s edit would insert, written or not. */
 	readonly fragment: string;
+	/** `null` when no status flag was given; `from` is the RAW frontmatter status. */
+	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
+	/** The exact status bytes spliced, or `null` when no status edit was made. */
+	readonly statusFragment: string | null;
 }
 
 /**
@@ -97,6 +103,7 @@ interface PreparedVerify {
 	readonly absolutePath: string;
 	readonly finalText: string;
 	readonly fragment: string;
+	readonly statusFragment: string | null;
 	readonly priorAt: ReadonlyArray<string>;
 }
 
@@ -106,24 +113,45 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	concept: LoadedConcept,
 	actor: Actor,
 	at: string,
+	status: "stable" | "draft" | undefined,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const absolutePath = path.join(bundle.root, concept.path);
-	const source = yield* fs.readFileString(absolutePath);
+	// `readFileString` decodes with a BOM-stripping `TextDecoder`, which would
+	// make `stripBom` a no-op and silently drop the BOM on write-back.
+	const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(yield* fs.readFile(absolutePath));
 	const { text, bom } = stripBom(source);
 	const located = yield* locate(text);
 	if (located._tag === "unsupported") {
-		return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: located.shape });
+		return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: located.shape, key: "verified" });
 	}
 	const priorAt = (concept.frontmatter.verified ?? [])
 		.filter((entry) => entry.by === actor)
 		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
-	const edit = splice(located, { by: actor, at }, documentNewline(text));
+	const newline = documentNewline(text);
+	const verifiedEdit = splice(located, { by: actor, at }, newline);
+	let statusEdit: MarkdownEdit | undefined;
+	// A concept already at the target makes no edit, so an unsupported `status`
+	// shape on it is deliberately never located: there is nothing to fail on.
+	if (status !== undefined && concept.frontmatter.status !== status) {
+		const target = yield* locateTopLevelScalar(text, "status");
+		if (target._tag === "unsupported") {
+			return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: target.shape, key: "status" });
+		}
+		statusEdit = spliceTopLevelScalar(target, "status", status, newline);
+	}
+	// Status first on equal offsets, so `mergeSameOffset` emits `status:` before `verified:`.
+	const edits = mergeSameOffset(
+		[verifiedEdit, ...(statusEdit === undefined ? [] : [statusEdit])].toSorted(
+			(a, b) => a.offset - b.offset || (a === statusEdit ? -1 : b === statusEdit ? 1 : 0),
+		),
+	);
 	return {
 		absolutePath,
-		finalText: bom + MarkdownEdit.applyAll(text, [edit]),
-		fragment: edit.content,
+		finalText: bom + MarkdownEdit.applyAll(text, edits),
+		fragment: verifiedEdit.content,
+		statusFragment: statusEdit?.content ?? null,
 		priorAt,
 	} satisfies PreparedVerify;
 });
@@ -146,8 +174,9 @@ const writeVerified = Effect.fn("okfit/verify/writeVerified")(function* (absolut
  * human actor from git, splices exactly one entry into the concept's
  * frontmatter and writes it back atomically.
  *
- * Nothing here reads `status`, `stale_after`, or a type's
- * `require_verified`: `verify` is mechanical, not config-aware (V-4, V-5).
+ * Nothing here reads `stale_after` or a type's `require_verified`; `status`
+ * is read only to skip a no-op edit under `options.status` (#185). `verify`
+ * is mechanical, not config-aware (V-4, V-5).
  *
  * @internal
  */
@@ -204,7 +233,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// like a real run would (I3): there is no cheaper preview path that skips
 	// classification, and the edit itself is computed unconditionally so a
 	// dry run reports the exact fragment it would write.
-	const prepared = yield* prepareVerify(bundle, concept, actor, at);
+	const prepared = yield* prepareVerify(bundle, concept, actor, at, options.status);
 
 	// Step 15 (I4/V-16): a temp file beside the real target, then a rename
 	// over it, mode preserved -- see `writeVerified`'s own comments.
@@ -219,6 +248,8 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		priorAt: prepared.priorAt,
 		dryRun: options.dryRun,
 		fragment: prepared.fragment,
+		status: options.status === undefined ? null : { from: concept.frontmatter.status ?? null, to: options.status },
+		statusFragment: prepared.statusFragment,
 	} satisfies VerifyResult;
 });
 
@@ -255,7 +286,11 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	// Every concept is located before any is written: one unsupported
 	// shape fails the whole batch with the tree untouched.
 	for (const concept of selection.candidates) {
-		prepared.push({ id: concept.id, conceptPath: concept.path, ...(yield* prepareVerify(bundle, concept, actor, at)) });
+		prepared.push({
+			id: concept.id,
+			conceptPath: concept.path,
+			...(yield* prepareVerify(bundle, concept, actor, at, undefined)),
+		});
 	}
 
 	if (!options.dryRun) {

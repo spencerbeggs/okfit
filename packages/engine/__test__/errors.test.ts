@@ -73,4 +73,14 @@ describe("VerifyUnsupportedFrontmatterError", () => {
 			'"decisions/alias-case"\'s verified value is a shape okfit verify cannot edit (alias); edit it by hand',
 		);
 	});
+
+	it("names status when key is status, and verified when key is omitted", () => {
+		const error = new VerifyUnsupportedFrontmatterError({ id: "decisions/x", shape: "scalar", key: "status" });
+		assert.strictEqual(
+			error.message,
+			'"decisions/x"\'s status value is a shape okfit verify cannot edit (scalar); edit it by hand',
+		);
+		const plain = new VerifyUnsupportedFrontmatterError({ id: "decisions/x", shape: "scalar" });
+		assert.isTrue(plain.message.includes("verified value"));
+	});
 });

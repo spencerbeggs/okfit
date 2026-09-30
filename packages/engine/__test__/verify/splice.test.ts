@@ -6,7 +6,7 @@ import { YamlDocument } from "@effected/yaml";
 import { Verification } from "@okfit/core";
 import { Effect, Schema } from "effect";
 import { documentNewline, locate, stripBom } from "../../src/verify/locate.js";
-import { splice } from "../../src/verify/splice.js";
+import { mergeSameOffset, splice } from "../../src/verify/splice.js";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "verify");
 const read = (name: string): string => readFileSync(join(FIXTURES, name), "utf8");
@@ -129,4 +129,26 @@ describe("splice", () => {
 			assert.isTrue(applied.includes("\n# This concept exercises comment preservation.\n"));
 		}),
 	);
+});
+
+describe("mergeSameOffset", () => {
+	const ins = (offset: number, content: string) => MarkdownEdit.make({ offset, length: 0, content });
+
+	it("folds two zero-length inserts at one offset into one edit, input order preserved", () => {
+		const merged = mergeSameOffset([ins(10, "status: stable\n"), ins(10, "verified:\n  - by: x\n")]);
+		assert.strictEqual(merged.length, 1);
+		assert.strictEqual(merged[0]?.offset, 10);
+		assert.strictEqual(merged[0]?.length, 0);
+		assert.strictEqual(merged[0]?.content, "status: stable\nverified:\n  - by: x\n");
+	});
+
+	it("returns edits at different offsets unchanged and in order", () => {
+		const edits = [ins(5, "a"), ins(10, "b")];
+		assert.deepStrictEqual(mergeSameOffset(edits), edits);
+	});
+
+	it("returns a single edit unchanged", () => {
+		const edits = [ins(5, "a")];
+		assert.deepStrictEqual(mergeSameOffset(edits), edits);
+	});
 });
