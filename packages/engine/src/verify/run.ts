@@ -4,10 +4,10 @@ import { Bundle, ConceptId, Timestamp } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
-import { VerifyConceptNotFoundError, VerifySelectionError, VerifyUnsupportedFrontmatterError } from "../errors.js";
+import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "./locate.js";
 import type { VerifyBatchSkipReason } from "./select.js";
-import { selectAttestable } from "./select.js";
+import { resolveBatchTypes, selectAttestable } from "./select.js";
 import { mergeSameOffset, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
@@ -266,18 +266,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
  */
 export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function* (options: VerifyBatchOptions) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
-	const declared = options.config.types ?? {};
-
-	let types: ReadonlySet<string>;
-	if (options.types.length > 0) {
-		for (const type of options.types) {
-			if (!Object.hasOwn(declared, type))
-				return yield* new VerifySelectionError({ reason: "unknown-type", detail: type });
-		}
-		types = new Set(options.types);
-	} else {
-		types = new Set(Object.entries(declared).flatMap(([name, spec]) => (spec.require_verified === true ? [name] : [])));
-	}
+	const types = yield* resolveBatchTypes(options.config, options.types);
 
 	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);

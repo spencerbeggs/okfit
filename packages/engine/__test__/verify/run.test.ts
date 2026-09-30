@@ -225,6 +225,17 @@ describe("runVerify status (issue #185)", () => {
 		),
 	);
 
+	it.effect("verifying a single deprecated concept by id stays allowed and leaves status untouched", () =>
+		withConcept("---\ntype: Decision\ntitle: T\nstatus: deprecated\n---\n", (root, file) =>
+			Effect.gen(function* () {
+				const result = yield* run(root, undefined);
+				const after = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.strictEqual(after, `---\ntype: Decision\ntitle: T\nstatus: deprecated\n${VERIFIED}---\n`);
+				assert.isNull(result.statusFragment);
+			}),
+		),
+	);
+
 	it.effect("collision: status and verified both land at the end of the frontmatter", () =>
 		withConcept("---\ntype: Decision\ntitle: T\n---\n", (root, file) =>
 			Effect.gen(function* () {

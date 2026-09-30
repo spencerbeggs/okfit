@@ -1,4 +1,6 @@
-import type { LoadedBundle, LoadedConcept } from "@okfit/core";
+import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
+import { Effect } from "effect";
+import { VerifySelectionError } from "../errors.js";
 
 /**
  * Why a candidate concept was skipped by batch selection: `"draft"` and
@@ -48,4 +50,30 @@ export const selectAttestable = (
 		candidates.push(concept);
 	}
 	return { candidates, skipped };
+};
+
+/**
+ * The batch type-resolution rule shared by `runVerifyBatch` and any future
+ * interactive picker: explicit `types` must each be declared in
+ * `config.types` (else `VerifySelectionError` with reason `unknown-type`);
+ * an empty `types` selects every declared type whose `require_verified` is
+ * `true`.
+ *
+ * @public
+ */
+export const resolveBatchTypes = (
+	config: OkfitConfig,
+	types: ReadonlyArray<string>,
+): Effect.Effect<ReadonlySet<string>, VerifySelectionError> => {
+	const declared = config.types ?? {};
+	if (types.length === 0) {
+		return Effect.succeed(
+			new Set(Object.entries(declared).flatMap(([name, spec]) => (spec.require_verified === true ? [name] : []))),
+		);
+	}
+	for (const type of types) {
+		if (!Object.hasOwn(declared, type))
+			return Effect.fail(new VerifySelectionError({ reason: "unknown-type", detail: type }));
+	}
+	return Effect.succeed(new Set(types));
 };

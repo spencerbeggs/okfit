@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { Bundle } from "@okfit/core";
-import { Effect } from "effect";
-import { selectAttestable } from "../../src/verify/select.js";
+import type { Actor } from "@okfit/core";
+import { Bundle, OkfitConfig } from "@okfit/core";
+import { Effect, Exit } from "effect";
+import { resolveBatchTypes, selectAttestable } from "../../src/verify/select.js";
 
 describe("selectAttestable (issues #138, #143)", () => {
 	const decision = (title: string, extra = ""): string =>
@@ -42,6 +43,41 @@ describe("selectAttestable (issues #138, #143)", () => {
 				]);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+});
+
+describe("resolveBatchTypes", () => {
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: { require_verified: true }, Module: {}, Gotcha: { require_verified: false } },
+		actors: { humans: ["human:ada" as Actor] },
+		extensions: {},
+	});
+
+	it.effect("defaults to every type with require_verified = true", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual([...(yield* resolveBatchTypes(config, []))], ["Decision"]);
+		}),
+	);
+
+	it.effect("returns explicit declared types as given", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual([...(yield* resolveBatchTypes(config, ["Module"]))], ["Module"]);
+		}),
+	);
+
+	it.effect("fails an undeclared explicit type with unknown-type", () =>
+		Effect.gen(function* () {
+			const exit = yield* Effect.exit(resolveBatchTypes(config, ["Decision", "Nope"]));
+			assert.isTrue(Exit.isFailure(exit));
+			if (Exit.isFailure(exit)) {
+				const error = exit.cause.reasons.map((r) => (r as { error?: unknown }).error)[0] as {
+					reason: string;
+					detail: string;
+				};
+				assert.strictEqual(error.reason, "unknown-type");
+				assert.strictEqual(error.detail, "Nope");
 			}
 		}),
 	);
