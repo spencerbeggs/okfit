@@ -136,13 +136,17 @@ export class SyncStagedLogError extends Schema.TaggedError<SyncStagedLogError>()
  * @public
  */
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
-	reason: Schema.Literals(["no-selection", "id-and-batch", "unknown-type"]),
+	reason: Schema.Literals(["no-selection", "id-and-batch", "unknown-type", "status-conflict", "status-and-batch"]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
 		if (this.reason === "no-selection") return "verify needs a concept id, --all, or --type <Type>";
 		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
+		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
+		if (this.reason === "status-and-batch") {
+			return "--stable and --draft need a concept id; batch mode never changes status";
+		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}
 }

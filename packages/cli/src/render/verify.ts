@@ -9,6 +9,10 @@ export interface VerifyLines {
 	readonly dryRun: boolean;
 	/** The exact bytes a real run would splice in; printed only when `dryRun`. */
 	readonly fragment: string;
+	/** Issue #185: the status change requested, or `null` when no status flag was given. */
+	readonly status: { readonly from: string | null; readonly to: string } | null;
+	/** The exact status bytes a real run would splice in; printed only when `dryRun`. */
+	readonly statusFragment: string | null;
 }
 
 /**
@@ -33,13 +37,24 @@ const indentFragment = (fragment: string): ReadonlyArray<string> => {
  *
  * @public
  */
-export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => [
-	...input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`),
-	input.dryRun
-		? `would verify ${input.id} by ${input.by} at ${input.at} (dry run, nothing written)`
-		: `verified ${input.id} by ${input.by} at ${input.at}`,
-	...(input.dryRun ? ["would write:", ...indentFragment(input.fragment)] : []),
-];
+export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => {
+	const statusSuffix =
+		input.status === null
+			? ""
+			: input.status.from === input.status.to
+				? `; status already ${input.status.to}`
+				: `; status ${input.status.from ?? "(absent)"} -> ${input.status.to}`;
+	return [
+		...input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`),
+		input.dryRun
+			? `would verify ${input.id} by ${input.by} at ${input.at} (dry run, nothing written)${statusSuffix}`
+			: `verified ${input.id} by ${input.by} at ${input.at}${statusSuffix}`,
+		...(input.dryRun ? ["would write:", ...indentFragment(input.fragment)] : []),
+		...(input.dryRun && input.statusFragment !== null
+			? ["would set status:", ...indentFragment(input.statusFragment)]
+			: []),
+	];
+};
 
 /** Issue #138: `humanVerifyBatch`'s input shape. @public */
 export interface VerifyBatchLines {

@@ -5,6 +5,7 @@ import {
 	ConfigPathNotFoundError,
 	InitOverwriteError,
 	VerifyConceptNotFoundError,
+	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "../src/errors.js";
 
@@ -82,5 +83,19 @@ describe("VerifyUnsupportedFrontmatterError", () => {
 		);
 		const plain = new VerifyUnsupportedFrontmatterError({ id: "decisions/x", shape: "scalar" });
 		assert.isTrue(plain.message.includes("verified value"));
+	});
+});
+
+describe("VerifySelectionError status reasons (#185)", () => {
+	it("status-conflict exits 64 and names both flags", () => {
+		const error = new VerifySelectionError({ reason: "status-conflict" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, "verify takes --stable or --draft, not both");
+	});
+
+	it("status-and-batch exits 64 and explains batch mode never changes status", () => {
+		const error = new VerifySelectionError({ reason: "status-and-batch" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, "--stable and --draft need a concept id; batch mode never changes status");
 	});
 });

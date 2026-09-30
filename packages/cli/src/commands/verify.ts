@@ -49,6 +49,18 @@ const typeFlag = Flag.String("type").pipe(
 	),
 );
 
+/** Issue #185: settle the concept in the same write as the attestation. */
+const stableFlag = Flag.Boolean("stable").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("also set status: stable in the same write; needs a concept id"),
+);
+
+/** Issue #185: record a review without settling. */
+const draftFlag = Flag.Boolean("draft").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("also set (or keep) status: draft in the same write; needs a concept id"),
+);
+
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context's. */
 const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
 	Argument.optional,
@@ -81,8 +93,8 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 );
 
 /**
- * `okfit verify [<id>] [path] [--all] [--type <Type>]... [--config <file>]
- * [--at <iso>] [--dry-run] [--format human|json]`.
+ * `okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
+ * [--config <file>] [--at <iso>] [--dry-run] [--format human|json]`.
  *
  * Handler order fixed by contract §2.3. Steps 1–3 are `context`'s handler
  * in substance — stat `--config` (K-1) via `provideConfig`, discover,
@@ -104,6 +116,8 @@ export const verifyCommand = Command.make(
 		config: configFlag,
 		all: allFlag,
 		type: typeFlag,
+		stable: stableFlag,
+		draft: draftFlag,
 		at: atFlag,
 		dryRun: dryRunFlag,
 		format: formatFlag,
@@ -152,6 +166,10 @@ export const verifyCommand = Command.make(
 					return yield* new VerifySelectionError({ reason: "id-and-batch" });
 				}
 				if (Option.isNone(input.id) && !batch) return yield* new VerifySelectionError({ reason: "no-selection" });
+
+				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });
+				const status = input.stable ? "stable" : input.draft ? "draft" : undefined;
+				if (status !== undefined && batch) return yield* new VerifySelectionError({ reason: "status-and-batch" });
 
 				if (batch) {
 					const result = yield* runVerifyBatch({
@@ -202,6 +220,7 @@ export const verifyCommand = Command.make(
 					config: resolved.config,
 					at,
 					dryRun: input.dryRun,
+					...(status === undefined ? {} : { status }),
 				});
 
 				const displayPath = `${displayRoot(cwd, result.bundleRoot, path)}/${result.conceptPath}`;
@@ -214,6 +233,7 @@ export const verifyCommand = Command.make(
 						by: result.by,
 						at: result.at,
 						dryRun: result.dryRun,
+						status: result.status,
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
@@ -226,6 +246,8 @@ export const verifyCommand = Command.make(
 						priorAt: result.priorAt,
 						dryRun: result.dryRun,
 						fragment: result.fragment,
+						status: result.status,
+						statusFragment: result.statusFragment,
 					})) {
 						yield* Console.log(line);
 					}
@@ -259,6 +281,7 @@ export const verifyCommand = Command.make(
 			"{ by: human:<id>, at: <now> }, to its frontmatter. The actor is always your own git identity; " +
 			"there is no --by. Give a concept id, or --all/--type <Type> (repeatable) to attest a batch of " +
 			"unverified concepts at once; exactly one of the two selections is required. " +
+			"With a concept id, --stable or --draft also sets its status in the same write. " +
 			"This is a human-run command: no agent, hook, or MCP tool ever invokes it.",
 	),
 );

@@ -1,3 +1,4 @@
+import { Status } from "@okfit/core";
 import { Schema } from "effect";
 import type { VerifyBatchSkipReason } from "../verify/select.js";
 import { ENGINE_VERSION } from "../version.js";
@@ -21,6 +22,8 @@ export const VerifyEnvelope = Schema.Struct({
 	id: Schema.String,
 	path: Schema.String,
 	verified: Schema.Struct({ by: Schema.String, at: Schema.String }),
+	/** Issue #185: the status change `--stable`/`--draft` made; `null` when neither flag was given. */
+	status: Schema.NullOr(Schema.Struct({ from: Schema.NullOr(Status), to: Schema.Literals(["stable", "draft"]) })),
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),
 });
@@ -42,6 +45,7 @@ export const verifyEnvelope = (input: {
 	readonly by: string;
 	readonly at: string;
 	readonly dryRun: boolean;
+	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
 	readonly distribution?: Distribution;
 }): VerifyEnvelope => ({
 	schema: 1,
@@ -51,6 +55,7 @@ export const verifyEnvelope = (input: {
 	id: input.id,
 	path: input.path,
 	verified: { by: input.by, at: input.at },
+	status: input.status,
 	dry_run: input.dryRun,
 	exit_code: 0,
 });

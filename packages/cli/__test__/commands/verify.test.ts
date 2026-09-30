@@ -22,7 +22,7 @@ describe("verifyCommand", () => {
 		assert.deepStrictEqual(verifyCommand.subcommands, []);
 	});
 
-	it("declares the id and path arguments and the config/all/type/at/dry-run/format flags, by name; no --by (V-7)", () => {
+	it("declares the id and path arguments and the config/all/type/stable/draft/at/dry-run/format flags, by name; no --by (V-7)", () => {
 		const config = configOf(verifyCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -30,7 +30,7 @@ describe("verifyCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "all", "type", "at", "dry-run", "format"],
+			["config", "all", "type", "stable", "draft", "at", "dry-run", "format"],
 		);
 	});
 
@@ -55,5 +55,12 @@ describe("verifyCommand", () => {
 		const dryRunFlag = config.flags.find((flag) => nameOf(flag) === "dry-run");
 		if (dryRunFlag === undefined) throw new Error("expected a --dry-run flag");
 		assert.strictEqual(primitiveTypeOf(dryRunFlag)._tag, "Boolean");
+	});
+
+	it.each(["stable", "draft"])("--%s is a boolean primitive (#185)", (name) => {
+		const config = configOf(verifyCommand);
+		const flag = config.flags.find((candidate) => nameOf(candidate) === name);
+		if (flag === undefined) throw new Error(`expected a --${name} flag`);
+		assert.strictEqual(primitiveTypeOf(flag)._tag, "Boolean");
 	});
 });
