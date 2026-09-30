@@ -61,14 +61,14 @@ export const sessionConfig = (lint: OkfitConfig["lint"] = {}): OkfitConfig => ({
  * memfs, posix `Path`, real `Crypto`, and `Git`/`GitHistory` doubles that die on
  * any call (their "die by default" posture, packages/engine/__test__/validate/run.test.ts)
  * so a test that reaches the git tier fails loudly. `faults`, when given, is
- * registered on the memfs volume (delegate-by-default `layerFaultyWith`).
+ * registered on the memfs volume (delegate-by-default `layerWith(seed, { faults })`).
  */
 export const sessionPlatform = (
 	seed: MemoryFileSystemSeed,
 	faults?: MemoryFileSystemFaults,
 ): Layer.Layer<FileSystem.FileSystem | Path.Path | Crypto.Crypto | Git | GitHistory> =>
 	Layer.mergeAll(
-		faults === undefined ? MemoryFileSystem.layerWith(seed) : MemoryFileSystem.layerFaultyWith(seed, faults),
+		MemoryFileSystem.layerWith(seed, { faults }),
 		Path.layer,
 		NodeCrypto.layer,
 		Git.layerTest({}),
