@@ -43,7 +43,9 @@ for the simplicity of one agent running one skill straight through.
    directions.
 6. Tell the user what changed. Separately, list any concept step 3's
    `okfit validate` reported as `require-verified-unmet` as "awaiting human
-   verification" and stop there — this skill never runs `okfit verify`.
+   verification" and stop there — this skill never runs `okfit verify`. Tell
+   the human that once they have reviewed a draft, `okfit verify <id>
+   --stable` settles it in one write: the attestation and the promotion.
 
 ## Ends by reporting, never committing
 

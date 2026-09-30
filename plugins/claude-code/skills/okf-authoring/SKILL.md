@@ -24,7 +24,9 @@ already carries today.
 
 `okfit verify` is the one legitimate way this field is ever written: a human
 runs it directly, from their own shell. Never run it yourself, even when
-asked, and never treat its existence as a loophole in this rule.
+asked, and never treat its existence as a loophole in this rule. When a
+human has reviewed a draft and wants it settled, `okfit verify <id> --stable`
+attests and promotes it in one write; that too is theirs to run.
 
 ## The nineteen rules
 

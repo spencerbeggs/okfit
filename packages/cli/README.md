@@ -1,6 +1,6 @@
 # @okfit/cli
 
-The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
+The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
 
 > **Part of the okfit kit.** Most users want **[@okfit/plugin](https://www.npmjs.com/package/@okfit/plugin)**, which pulls this package in automatically.
 
@@ -11,7 +11,10 @@ okfit [--help] [--version]
 okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
 okfit init [path] [--profile <name>] [--config <file>] [--help]
 okfit context [path] [--config <file>] [--format human|json] [--help]
-okfit verify <id> [path] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
+okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
+okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--config <file>] [--format human|json]
+okfit query get <id> [path] [--config <file>] [--format human|json]
+okfit query neighbors <id> [path] [--config <file>] [--format human|json]
 ```
 
 `okfit --version` prints `okfit <cli> (engine <engine>, okf <okf>,
@@ -220,8 +223,42 @@ file and an atomic rename, and the target's mode is preserved on the
 replacement, but the file is not skipped just because it is `chmod`-ed
 read-only.
 
+`--stable` or `--draft` sets the concept's `status` in the same write as the
+attestation, so settling a reviewed draft is one command:
+`okfit verify <id> --stable`. Passing both is a usage error (exit `64`), as
+is passing either with `--all` or `--type`: promotion is a per-concept
+decision. A concept already at the requested status gets no status edit. The
+human line ends `; status <from> -> <to>`, `; status already <to>` or
+`; status (absent) -> <to>`, and a dry run adds a `would set status:` line
+with the exact fragment.
+
+`--all` and `--type <Type>` (repeatable) attest in batch: every concept whose
+type sets `require_verified` (or of the named types) that you have not
+already verified. A batch skips a concept and reports why: `draft`,
+`deprecated`, or `already-verified`. A `deprecated` concept is never
+re-attested.
+
 This is a human-run command: it records **your** attestation that you
 reviewed the concept, so no agent, hook, or MCP tool ever invokes it.
+
+### `okfit query`
+
+Read-only lookups over the bundle, backed by the engine's `ConceptQuery`
+layer (the same one the MCP `list_concepts`, `get_concept` and
+`concept_neighbors` tools use). Bare `okfit query` prints help.
+
+- `okfit query list [path]` lists concepts as summaries (id, type, title,
+  description, status, tags, path). Filters: `--type <Type>` and
+  `--tag <tag>` (repeatable, each must be declared in the config),
+  `--status draft|stable|deprecated` (repeatable), and `--verified` or
+  `--unverified`.
+- `okfit query get <id> [path]` prints one concept: the summary fields, its
+  raw frontmatter and its outgoing links.
+- `okfit query neighbors <id> [path]` prints a concept's outgoing and
+  incoming links.
+
+Exit `0` on success, `3` for an unknown id, `64` for an undeclared type or
+tag or for `--verified` together with `--unverified`.
 
 ## Config discovery
 
@@ -346,6 +383,19 @@ envelope to stdout and exits `3`:
 ```
 
 `init` has no `--format`; it is human output only.
+
+`okfit verify --format json` prints `VerifyEnvelope` (`schema`, `okfit_version`,
+`engine_version`, `distribution`, `id`, `path`, `verified`, `status`,
+`dry_run`, `exit_code`), where `status` is `{ "from": ..., "to": ... }` when
+`--stable` or `--draft` was given and `null` otherwise. With `--all` or
+`--type` it prints `VerifyBatchEnvelope`, whose `skipped[].reason` is one of
+`draft`, `deprecated` or `already-verified`.
+
+`okfit query list --format json` prints `QueryListEnvelope` (`total`, `items`);
+`query get` prints `QueryGetEnvelope` (`concept`: the summary fields plus
+`frontmatter` and `links`); `query neighbors` prints `QueryNeighborsEnvelope`
+(`id`, `outgoing`, `incoming`). Each carries `schema`, `okfit_version`,
+`engine_version` and `distribution`.
 
 `okfit context --format json` prints its own envelope, distinct from the
 one above:

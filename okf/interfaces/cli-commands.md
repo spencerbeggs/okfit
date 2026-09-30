@@ -1,14 +1,14 @@
 ---
 type: Interface
-title: okfit CLI — validate, init, context, verify, sync, lint, graph, stale
+title: okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 description: The okfit command line's subcommands, their flags, exit codes, and JSON envelopes.
 kind: cli
 resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: e2f0961cbeba94dcdcaed7a89a3e9519877beaf3fdcfc54ba27b717f2144f426
+  at: 2026-09-30T17:53:20Z
+  body_sha256: 1b859af3fe09c7f7710af7364273af3d4cbd904d61f39c205fc76eb4b4d369b5
 tags:
   - architecture
 verified:
@@ -16,18 +16,19 @@ verified:
     at: 2026-09-24T00:18:10.948Z
 ---
 
-# okfit CLI — validate, init, context, verify, sync, lint, graph, stale
+# okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 
 ## Subcommands and [path]
 
-`okfit` has eight subcommands: `validate`, `init`, `context`, `verify`,
-`sync`, `lint`, `graph`, `stale`. Each
+`okfit` has nine subcommands: `validate`, `init`, `context`, `verify`,
+`query`, `sync`, `lint`, `graph`, `stale`. Each
 takes an optional `[path]` as its first positional argument — the **project
 root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
 default) — defaulting to the current directory (the Subcommands and
 [path] section of `packages/cli/README.md`). `verify` additionally takes an
 optional `<id>` before `[path]`, required unless `--all` and/or `--type` is
-given instead.
+given instead. `query` takes its own subcommand (`list`, `get`, `neighbors`),
+then `<id>` where it needs one, then `[path]`.
 
 ## okfit validate
 
@@ -77,8 +78,8 @@ never runs conformance or lint checks (the `okfit context` section of
 
 ## okfit verify
 
-`okfit verify [<id>] [path] [--all] [--type <Type>]... [--config <file>]
-[--at <iso>] [--dry-run] [--format human|json]` appends one attestation, `{
+`okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
+[--config <file>] [--at <iso>] [--dry-run] [--format human|json]` appends one attestation, `{
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
 file back. `<id>` is a concept id with or without a leading slash or
 trailing `.md`. The actor is always your own git identity; there is no
@@ -87,17 +88,35 @@ including a repeat by the same person. `--at <iso>` records a different
 instant; `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified` and that
 carries no entry by you; `--type <Type>` (repeatable) narrows or replaces
-that selection; `status: draft` concepts and ones you already verified are
-reported as skipped. The dry run prints one fragment per concept in write
+that selection; `status: draft` and `deprecated` concepts and ones you
+already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
+is `draft`, `deprecated` or `already-verified`). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
-Exactly one of `<id>` or `--all`/`--type` must be given; otherwise, or for an
-undeclared type, exit `64`. `--format json` prints a `VerifyBatchEnvelope`
+`--stable` or `--draft` sets `status` in the same write as the attestation,
+so settling a reviewed draft is `okfit verify <id> --stable`; a concept
+already at the target gets no status edit. Passing both flags, or either with
+`--all`/`--type`, is exit `64`. The human line ends `; status A -> B`,
+`; status already X` or `; status (absent) -> X`, and a dry run adds `would
+set status:` with the fragment. Exactly one of `<id>` or `--all`/`--type`
+must be given; otherwise, or for an undeclared type, exit `64`. `--format json` prints a `VerifyBatchEnvelope`
 (`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
 dry run included), `3` on any failure — an unknown or reserved id, a concept
 whose `verified` shape cannot be edited safely, or an unresolved git
 identity; there is no `1`/`2` content tier. This is a human-run command: no
 agent, hook, or MCP tool ever invokes it.
+
+## okfit query
+
+`okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status
+draft|stable|deprecated]... [--verified|--unverified] [--config <file>]
+[--format human|json]`, `okfit query get <id> [path]` and `okfit query
+neighbors <id> [path]` are read-only lookups over the bundle, backed by the
+engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
+`concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
+`3` for an unknown id; `64` for an undeclared type or tag or for
+`--verified` with `--unverified`. The status list is `query list --status`;
+there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 ## okfit sync
 
@@ -262,10 +281,16 @@ carries `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
 (`okf/interfaces/okfit-config-schema.md`). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
 `okfit_version`, `engine_version`, `distribution`, `id`, `path`,
-`verified`, `dry_run`, `exit_code`. `okfit verify --all`/`--type
+`verified`, `status` (`{ from, to }` or `null` without `--stable`/`--draft`),
+`dry_run`, `exit_code`. `okfit verify --all`/`--type
 --format json` prints a distinct `VerifyBatchEnvelope` instead, with
 `schema`, `okfit_version`, `engine_version`, `distribution`, `verified_by`,
 `verified_at`, `concepts`, `skipped`, `dry_run`, `exit_code`.
+`okfit query list --format json` prints `QueryListEnvelope` (`schema`,
+`okfit_version`, `engine_version`, `distribution`, `total`, `items`);
+`query get` prints `QueryGetEnvelope` (same header, `concept`: the summary
+fields plus `frontmatter` and `links`); `query neighbors` prints
+`QueryNeighborsEnvelope` (same header, `id`, `outgoing`, `incoming`).
 `okfit lint --format json` reuses `JsonEnvelope` unchanged — same shape as
 `okfit validate`'s — with `summary.conformance_errors` always `0` and no
 `core.conformance`-sourced entry ever in `diagnostics`. `okfit graph
