@@ -3,6 +3,7 @@ import { contextCommand } from "./context.js";
 import { graphCommand } from "./graph.js";
 import { initCommand } from "./init.js";
 import { lintCommand } from "./lint.js";
+import { queryCommand } from "./query.js";
 import { staleCommand } from "./stale.js";
 import { syncCommand } from "./sync.js";
 import { validateCommand } from "./validate.js";
@@ -16,8 +17,9 @@ import { verifyCommand } from "./verify.js";
  * `okfit` therefore prints the root help and exits `0` with no code in this
  * package at all.
  *
- * `validate`, `init`, `context`, `verify`, `sync`, `lint`, `graph`, and
- * `stale` are the whole command tree; nothing else is registered here.
+ * `validate`, `init`, `context`, `verify`, `sync`, `lint`, `graph`,
+ * `stale`, and `query` (with its `list`/`get`/`neighbors`) are the whole
+ * command tree; nothing else is registered here.
  * Each is appended in introduction order, never reordered in, so
  * `--help`'s subcommand list reads that way too (contract §4.2). The
  * top-level description is left unchanged: neither `context` nor `verify`
@@ -37,5 +39,6 @@ export const rootCommand = Command.make("okfit", {}).pipe(
 		lintCommand,
 		graphCommand,
 		staleCommand,
+		queryCommand,
 	]),
 );
