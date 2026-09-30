@@ -4,11 +4,14 @@ title: One engine query layer serves the MCP tools, the CLI and the verify picke
 description: "@okfit/engine's ConceptQuery is the single read-only query layer under the MCP concept tools, okfit query, and the future interactive okfit verify picker; there is no okfit status command."
 tags:
   - architecture
-status: draft
+status: stable
 generated:
   by: okfit/claude-code
   at: 2026-09-30T17:53:20Z
   body_sha256: 1c2dc9f30be104052c3325f1cca2ef15740bdc6d2f64187d2d4d8d42d77da33b
+verified:
+  - by: human:spencer
+    at: 2026-09-30T18:15:00Z
 ---
 
 # One engine query layer serves the MCP tools, the CLI and the verify picker
