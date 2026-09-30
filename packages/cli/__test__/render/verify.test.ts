@@ -54,4 +54,15 @@ describe("humanVerifyBatch", () => {
 			"verified 1, skipped 1",
 		]);
 	});
+
+	it("renders a deprecated skip (#143)", () => {
+		const lines = humanVerifyBatch({
+			by: "human:ada",
+			at: "2026-09-16T12:00:00Z",
+			dryRun: false,
+			verified: [],
+			skipped: [{ id: "decisions/c", reason: "deprecated" }],
+		});
+		assert.deepStrictEqual(lines, ["skipped decisions/c: deprecated", "verified 0, skipped 1"]);
+	});
 });

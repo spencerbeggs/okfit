@@ -65,6 +65,31 @@ describe("runVerifyBatch (issue #138)", () => {
 			}),
 	);
 
+	it.effect("skips a deprecated concept and leaves its file byte-identical (#143)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-batch-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const deprecated = decision("D", "status: deprecated\n");
+				yield* Effect.promise(() => writeFile(join(root, "decisions", "d.md"), deprecated));
+				const result = yield* runVerifyBatch({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: false,
+					types: [],
+				}).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(result.verified, []);
+				assert.deepStrictEqual(result.skipped, [{ id: "decisions/d", reason: "deprecated" }]);
+				const after = yield* Effect.promise(() => readFile(join(root, "decisions", "d.md"), "utf8"));
+				assert.strictEqual(after, deprecated);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
 	it.effect("--type narrows to the named types and rejects an undeclared one", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-batch-")));

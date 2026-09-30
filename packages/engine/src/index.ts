@@ -86,4 +86,6 @@ export type {
 	VerifyResult,
 } from "./verify/run.js";
 export { runVerify, runVerifyBatch } from "./verify/run.js";
+export type { AttestableSelection } from "./verify/select.js";
+export { selectAttestable } from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

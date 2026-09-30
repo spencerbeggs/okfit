@@ -1,3 +1,4 @@
+import type { VerifyBatchSkipReason } from "@okfit/engine";
 /** @public */
 export interface VerifyLines {
 	readonly id: string;
@@ -46,7 +47,7 @@ export interface VerifyBatchLines {
 	readonly at: string;
 	readonly dryRun: boolean;
 	readonly verified: ReadonlyArray<{ readonly id: string; readonly fragment: string }>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "draft" | "already-verified" }>;
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: VerifyBatchSkipReason }>;
 }
 
 /**
@@ -57,7 +58,9 @@ export interface VerifyBatchLines {
  */
 export const humanVerifyBatch = (input: VerifyBatchLines): ReadonlyArray<string> => [
 	...input.skipped.map((entry) =>
-		entry.reason === "draft" ? `skipped ${entry.id}: draft` : `skipped ${entry.id}: already verified by ${input.by}`,
+		entry.reason === "already-verified"
+			? `skipped ${entry.id}: already verified by ${input.by}`
+			: `skipped ${entry.id}: ${entry.reason}`,
 	),
 	...input.verified.flatMap((entry) =>
 		input.dryRun

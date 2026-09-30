@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import type { VerifyBatchSkipReason } from "../verify/select.js";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
 import { DistributionField } from "./distribution.js";
@@ -70,7 +71,9 @@ export const VerifyBatchEnvelope = Schema.Struct({
 	verified_by: Schema.String,
 	verified_at: Schema.String,
 	concepts: Schema.Array(Schema.Struct({ id: Schema.String, path: Schema.String })),
-	skipped: Schema.Array(Schema.Struct({ id: Schema.String, reason: Schema.Literals(["draft", "already-verified"]) })),
+	skipped: Schema.Array(
+		Schema.Struct({ id: Schema.String, reason: Schema.Literals(["draft", "deprecated", "already-verified"]) }),
+	),
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),
 });
@@ -88,7 +91,7 @@ export const verifyBatchEnvelope = (input: {
 	readonly by: string;
 	readonly at: string;
 	readonly concepts: ReadonlyArray<{ readonly id: string; readonly path: string }>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "draft" | "already-verified" }>;
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: VerifyBatchSkipReason }>;
 	readonly dryRun: boolean;
 	readonly distribution?: Distribution;
 }): VerifyBatchEnvelope => ({

@@ -6,6 +6,8 @@ import type { DateTime } from "effect";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { VerifyConceptNotFoundError, VerifySelectionError, VerifyUnsupportedFrontmatterError } from "../errors.js";
 import { documentNewline, locate, stripBom } from "./locate.js";
+import type { VerifyBatchSkipReason } from "./select.js";
+import { selectAttestable } from "./select.js";
 import { splice } from "./splice.js";
 
 /**
@@ -74,14 +76,7 @@ export interface VerifyBatchOptions {
 	readonly types: ReadonlyArray<string>;
 }
 
-/**
- * Why {@link runVerifyBatch} skipped a candidate concept: `"draft"` for
- * `status === "draft"`, `"already-verified"` when the resolved actor already
- * carries a `verified` entry.
- *
- * @public
- */
-export type VerifyBatchSkipReason = "draft" | "already-verified";
+export type { VerifyBatchSkipReason } from "./select.js";
 
 /**
  * The result of {@link runVerifyBatch}.
@@ -230,7 +225,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 /**
  * Issue #138. Attests every concept selected by `options.types` (or, when
  * empty, every type whose declaration sets `require_verified = true`) that
- * is not a draft and does not already carry a `verified` entry by the
+ * is not a draft, is not deprecated (#143) and does not already carry a `verified` entry by the
  * resolved actor. Every candidate is located FIRST -- an unsupported
  * `verified` shape on any one of them fails the whole batch with nothing
  * written, mirroring `runVerify`'s own fail-closed rule at batch scale.
@@ -255,21 +250,12 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);
 
-	const skipped: Array<{ readonly id: string; readonly reason: VerifyBatchSkipReason }> = [];
+	const selection = selectAttestable(bundle, types, actor);
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
-	for (const [id, concept] of bundle.concepts) {
-		if (!types.has(concept.frontmatter.type)) continue;
-		if (concept.frontmatter.status === "draft") {
-			skipped.push({ id, reason: "draft" });
-			continue;
-		}
-		if ((concept.frontmatter.verified ?? []).some((entry) => entry.by === actor)) {
-			skipped.push({ id, reason: "already-verified" });
-			continue;
-		}
-		// Every concept is located before any is written: one unsupported
-		// shape fails the whole batch with the tree untouched.
-		prepared.push({ id, conceptPath: concept.path, ...(yield* prepareVerify(bundle, concept, actor, at)) });
+	// Every concept is located before any is written: one unsupported
+	// shape fails the whole batch with the tree untouched.
+	for (const concept of selection.candidates) {
+		prepared.push({ id: concept.id, conceptPath: concept.path, ...(yield* prepareVerify(bundle, concept, actor, at)) });
 	}
 
 	if (!options.dryRun) {
@@ -282,6 +268,6 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 		at,
 		dryRun: options.dryRun,
 		verified: prepared.map(({ id, conceptPath, fragment }) => ({ id, conceptPath, fragment })),
-		skipped,
+		skipped: selection.skipped,
 	} satisfies VerifyBatchResult;
 });
