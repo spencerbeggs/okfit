@@ -16,7 +16,8 @@ src/
                             platform layer both front ends provide
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError,
-                             DocumentPathError
+                             DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
+                             QuerySelectionError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
@@ -33,6 +34,9 @@ src/
                                  (phase 7 adds layerHttp)
   validate/
     run.ts                 -- Now (Context.Service), RunOptions, RunResult, run
+  query/
+    ConceptQuery.ts          -- ConceptFilter, ConceptLink, ConceptNeighbor, ConceptQuery.list/get/neighbors
+                                (read-only bundle queries; the MCP tools and `okfit query` share them)
   overlay/
     layer.ts               -- OverlayDocuments (Context.Service), makeOverlayFileSystem,
                                layerOverlayFileSystem: editor buffers shadowing the ambient FileSystem
@@ -47,6 +51,7 @@ src/
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
+    select.ts                -- VerifyBatchSkipReason, AttestableSelection, selectAttestable (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
                                  (pure, never a YAML serialiser)
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
@@ -63,6 +68,7 @@ src/
   render/
     context.ts                     -- ContextEnvelope/ContextType/ContextTag, contextEnvelope (envelope half)
     verify.ts                       -- VerifyEnvelope, verifyEnvelope (envelope half)
+    query.ts                         -- ConceptSummary, toConceptSummary, Query{List,Get,Neighbors}Envelope + builders
     sort.ts                          -- RenderedDiagnostic, DiagnosticSource, collect, sort (pure)
     json.ts                           -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary, json, jsonError (pure)
     exit.ts                           -- Tally, tally, forDiagnostics (pure)

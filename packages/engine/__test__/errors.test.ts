@@ -4,6 +4,9 @@ import {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
 	InitOverwriteError,
+	QueryConceptNotFoundError,
+	QuerySelectionError,
+	QueryUnknownVocabularyError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
@@ -97,5 +100,29 @@ describe("VerifySelectionError status reasons (#185)", () => {
 		const error = new VerifySelectionError({ reason: "status-and-batch" });
 		assert.strictEqual(error[Runtime.errorExitCode], 64);
 		assert.strictEqual(error.message, "--stable and --draft need a concept id; batch mode never changes status");
+	});
+});
+
+describe("query errors", () => {
+	it("QueryUnknownVocabularyError exits 64 and lists declared names", () => {
+		const error = new QueryUnknownVocabularyError({ kind: "tag", requested: "zz", valid: ["a", "b"] });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, 'tag "zz" is not declared in the config; declared: a, b');
+	});
+
+	it("QueryConceptNotFoundError exits 3 with a reason-specific message", () => {
+		const empty = new QueryConceptNotFoundError({ id: "", reason: "empty-id" });
+		assert.strictEqual(empty[Runtime.errorExitCode], 3);
+		assert.strictEqual(empty.message, "a concept id must not be empty");
+		assert.strictEqual(
+			new QueryConceptNotFoundError({ id: "x", reason: "not-a-concept" }).message,
+			'no concept "x" in this bundle',
+		);
+	});
+
+	it("QuerySelectionError exits 64", () => {
+		const error = new QuerySelectionError({ reason: "verified-conflict" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, "query list takes --verified or --unverified, not both");
 	});
 });

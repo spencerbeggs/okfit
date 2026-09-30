@@ -178,3 +178,58 @@ export class DocumentPathError extends Schema.TaggedError<DocumentPathError>()("
 		return `document path "${this.path}" ${DOCUMENT_PATH_REASON_TEXT[this.reason]}`;
 	}
 }
+
+/**
+ * `okfit query list` named a type or tag the config does not declare. `valid`
+ * is the sorted declared names. Exit 64: a usage error.
+ *
+ * @public
+ */
+export class QueryUnknownVocabularyError extends Schema.TaggedError<QueryUnknownVocabularyError>()(
+	"QueryUnknownVocabularyError",
+	{
+		kind: Schema.Literals(["type", "tag"]),
+		requested: Schema.String,
+		valid: Schema.Array(Schema.String),
+	},
+) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return `${this.kind} "${this.requested}" is not declared in the config; declared: ${this.valid.join(", ")}`;
+	}
+}
+
+/**
+ * A query's concept id named no concept: empty after normalisation
+ * (`empty-id`) or absent from the bundle (`not-a-concept`). Exit 3.
+ *
+ * @public
+ */
+export class QueryConceptNotFoundError extends Schema.TaggedError<QueryConceptNotFoundError>()(
+	"QueryConceptNotFoundError",
+	{
+		id: Schema.String,
+		reason: Schema.Literals(["empty-id", "not-a-concept"]),
+	},
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		if (this.reason === "empty-id") return "a concept id must not be empty";
+		return `no concept "${this.id}" in this bundle`;
+	}
+}
+
+/**
+ * `okfit query list` was given contradictory selection flags. Exit 64: a
+ * usage error.
+ *
+ * @public
+ */
+export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>()("QuerySelectionError", {
+	reason: Schema.Literals(["verified-conflict"]),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return "query list takes --verified or --unverified, not both";
+	}
+}
