@@ -1,6 +1,6 @@
 import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
-import { Derive } from "@okfit/core";
+import { ConceptQuery } from "@okfit/engine";
 import { Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError, UnknownVocabulary } from "../errors.js";
@@ -62,31 +62,11 @@ const unknown = (kind: "type" | "tag", requested: string, valid: ReadonlyArray<s
 export const handleListConcepts = (projectRoot: string, params: ListConceptsParams) =>
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
-		const declaredTypes = Object.keys(ctx.config.types ?? {}).toSorted();
-		const declaredTags = Object.keys(ctx.config.tags ?? {}).toSorted();
-
-		if (params.type !== undefined && !declaredTypes.includes(params.type)) {
-			return yield* Effect.fail(unknown("type", params.type, declaredTypes));
-		}
-		const requestedTags = params.tags ?? [];
-		for (const tag of requestedTags) {
-			if (!declaredTags.includes(tag)) {
-				return yield* Effect.fail(unknown("tag", tag, declaredTags));
-			}
-		}
-
-		const filtered = [...ctx.bundle.concepts.values()]
-			.filter((concept) => {
-				if (params.type !== undefined && concept.frontmatter.type !== params.type) return false;
-				const tags = concept.frontmatter.tags ?? [];
-				if (!requestedTags.every((tag) => tags.includes(tag))) return false;
-				if (params.status !== undefined && Derive.status(concept.frontmatter) !== params.status) return false;
-				return true;
-			})
-			// Sort by id for a stable, deterministic page order: ids are unique,
-			// so this needs no secondary key, and a lexicographic compare avoids
-			// locale-sensitive collation across repeated calls.
-			.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+		const filtered = yield* ConceptQuery.list(ctx.bundle, ctx.config, {
+			...(params.type === undefined ? {} : { types: [params.type] }),
+			...(params.tags === undefined ? {} : { tags: params.tags }),
+			...(params.status === undefined ? {} : { statuses: [params.status] }),
+		}).pipe(Effect.catchTag("QueryUnknownVocabularyError", (e) => Effect.fail(unknown(e.kind, e.requested, e.valid))));
 
 		const limit = params.limit ?? 200;
 		const offset = params.offset ?? 0;

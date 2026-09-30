@@ -1,8 +1,8 @@
 import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
-import type { ConceptId as ConceptIdType, GraphNodeKind } from "@okfit/core";
-import { ConceptId, Graph } from "@okfit/core";
-import { Effect, FileSystem, Option, Path, Schema } from "effect";
+import type { ConceptNeighbor } from "@okfit/engine";
+import { ConceptQuery } from "@okfit/engine";
+import { Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { ConceptNotFound, InvalidArgument, McpToolError } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
@@ -43,58 +43,43 @@ export const conceptNeighbors = Tool.make("concept_neighbors", {
 export const handleConceptNeighbors = (projectRoot: string, params: { readonly id: string }) =>
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
-		const normalized = ConceptId.normalize(params.id);
-		if (Option.isNone(normalized)) {
-			const remediation = {
-				hint: "Pass a bundle-relative concept id such as decisions/cli-exit-codes.",
-				suggestedTool: "list_concepts",
-			};
-			return yield* Effect.fail(
-				new InvalidArgument({
-					argument: "id",
-					message: ToolFailure.message("id must not be empty", remediation),
-					remediation,
-				}),
-			);
-		}
-		const id = normalized.value;
-		if (!ctx.bundle.concepts.has(id)) {
-			const remediation = {
-				hint: "Call list_concepts to see the ids this bundle contains.",
-				suggestedTool: "list_concepts",
-			};
-			return yield* Effect.fail(
-				new ConceptNotFound({
-					id: params.id,
-					message: ToolFailure.message(`no concept "${ToolFailure.truncate(params.id)}" in this bundle`, remediation),
-					remediation,
-				}),
-			);
-		}
+		const result = yield* ConceptQuery.neighbors(ctx.bundle, params.id).pipe(
+			Effect.catchTag("QueryConceptNotFoundError", (e): Effect.Effect<never, InvalidArgument | ConceptNotFound> => {
+				if (e.reason === "empty-id") {
+					const remediation = {
+						hint: "Pass a bundle-relative concept id such as decisions/cli-exit-codes.",
+						suggestedTool: "list_concepts",
+					};
+					return Effect.fail(
+						new InvalidArgument({
+							argument: "id",
+							message: ToolFailure.message("id must not be empty", remediation),
+							remediation,
+						}),
+					);
+				}
+				const remediation = {
+					hint: "Call list_concepts to see the ids this bundle contains.",
+					suggestedTool: "list_concepts",
+				};
+				return Effect.fail(
+					new ConceptNotFound({
+						id: params.id,
+						message: ToolFailure.message(`no concept "${ToolFailure.truncate(params.id)}" in this bundle`, remediation),
+						remediation,
+					}),
+				);
+			}),
+		);
 
-		// Here successors/predecessors are correct, unlike in get_concept: this
-		// tool reports unique neighbours only and needs no per-edge data (J-23).
-		// The lookup above is repeated on purpose even though successors/
-		// predecessors themselves return [] for an unknown id: an unknown id is
-		// a caller mistake, and an empty result would hide it.
-		const graph = Graph.fromBundle(ctx.bundle);
-		const project = (node: { readonly id: string; readonly kind: GraphNodeKind }) => {
-			if (node.kind !== "concept") return { id: node.id, kind: node.kind, summary: null };
-			// A "concept"-kind node is by construction present in bundle.concepts
-			// (Graph.fromBundle derives node kinds from the same lookup index).
-			// The undefined branch below is the contract's own instruction to
-			// emit summary: null rather than throw if that invariant is ever
-			// violated (J-4).
-			const concept = ctx.bundle.concepts.get(node.id as ConceptIdType);
-			return {
-				id: node.id,
-				kind: node.kind,
-				summary: concept === undefined ? null : toConceptSummary(concept),
-			};
-		};
+		const project = (neighbor: ConceptNeighbor) => ({
+			id: neighbor.id,
+			kind: neighbor.kind,
+			summary: neighbor.concept === null ? null : toConceptSummary(neighbor.concept),
+		});
 
 		return {
-			outgoing: graph.successors(id).map(project),
-			incoming: graph.predecessors(id).map(project),
+			outgoing: result.outgoing.map(project),
+			incoming: result.incoming.map(project),
 		};
 	});
