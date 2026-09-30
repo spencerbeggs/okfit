@@ -72,12 +72,14 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * adds one more Module (`okf/modules/website.md`), one more Decision
  * (`okf/decisions/website-package-pages-at-root.md`, `status: draft`, exempt
  * from `require-verified-unmet` while `draft`), and a second Roadmap
- * (`okf/roadmaps/documentation-site.md`).
+ * (`okf/roadmaps/documentation-site.md`). The verify-status and query work
+ * adds one more `draft` Decision (`okf/decisions/engine-concept-query-layer.md`),
+ * unverified by an agent and exempt from `require-verified-unmet` while `draft`.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 34,
+	Decision: 35,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,
