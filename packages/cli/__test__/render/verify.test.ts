@@ -10,8 +10,58 @@ describe("humanVerify", () => {
 			priorAt: [],
 			dryRun: false,
 			fragment: "verified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n",
+			status: null,
+			statusFragment: null,
 		});
 		assert.deepStrictEqual(lines, ["verified project by human:ada at 2026-09-16T12:00:00Z"]);
+	});
+
+	const base = {
+		id: "decisions/x",
+		by: "human:ada",
+		at: "2026-09-16T12:00:00Z",
+		priorAt: [],
+		dryRun: false,
+		fragment: "verified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n",
+		statusFragment: null,
+	} as const;
+
+	it("appends the status transition to the success line (#185)", () => {
+		assert.deepStrictEqual(humanVerify({ ...base, status: { from: "draft", to: "stable" } }), [
+			"verified decisions/x by human:ada at 2026-09-16T12:00:00Z; status draft -> stable",
+		]);
+	});
+
+	it("says `status already stable` when from equals to", () => {
+		assert.deepStrictEqual(humanVerify({ ...base, status: { from: "stable", to: "stable" } }), [
+			"verified decisions/x by human:ada at 2026-09-16T12:00:00Z; status already stable",
+		]);
+	});
+
+	it("renders an absent prior status as (absent)", () => {
+		assert.deepStrictEqual(humanVerify({ ...base, status: { from: null, to: "stable" } }), [
+			"verified decisions/x by human:ada at 2026-09-16T12:00:00Z; status (absent) -> stable",
+		]);
+	});
+
+	it("follows would write: with would set status: under --dry-run", () => {
+		assert.deepStrictEqual(
+			humanVerify({
+				...base,
+				dryRun: true,
+				status: { from: "draft", to: "stable" },
+				statusFragment: "stable",
+			}),
+			[
+				"would verify decisions/x by human:ada at 2026-09-16T12:00:00Z; status draft -> stable (dry run, nothing written)",
+				"would write:",
+				"  verified:",
+				"    - by: human:ada",
+				"      at: 2026-09-16T12:00:00Z",
+				"would set status:",
+				"  stable",
+			],
+		);
 	});
 });
 
@@ -53,5 +103,16 @@ describe("humanVerifyBatch", () => {
 			"verified decisions/a by human:ada at 2026-09-16T12:00:00Z",
 			"verified 1, skipped 1",
 		]);
+	});
+
+	it("renders a deprecated skip (#143)", () => {
+		const lines = humanVerifyBatch({
+			by: "human:ada",
+			at: "2026-09-16T12:00:00Z",
+			dryRun: false,
+			verified: [],
+			skipped: [{ id: "decisions/c", reason: "deprecated" }],
+		});
+		assert.deepStrictEqual(lines, ["skipped decisions/c: deprecated", "verified 0, skipped 1"]);
 	});
 });

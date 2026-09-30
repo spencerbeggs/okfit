@@ -13,6 +13,7 @@ describe("verifyEnvelope", () => {
 				by: "human:spencer",
 				at: "2026-09-16T00:00:00Z",
 				dryRun: false,
+				status: null,
 			});
 			assert.deepStrictEqual(built, {
 				schema: 1,
@@ -22,6 +23,7 @@ describe("verifyEnvelope", () => {
 				id: "decisions/x",
 				path: "okf/decisions/x.md",
 				verified: { by: "human:spencer", at: "2026-09-16T00:00:00Z" },
+				status: null,
 				dry_run: false,
 				exit_code: 0,
 			});
@@ -37,6 +39,7 @@ describe("verifyEnvelope", () => {
 				by: "human:spencer",
 				at: "2026-09-16T00:00:00Z",
 				dryRun: false,
+				status: null,
 				distribution: { name: "@okfit/plugin", version: "0.3.7" },
 			});
 			assert.deepStrictEqual(built.distribution, { name: "@okfit/plugin", version: "0.3.7" });
@@ -52,9 +55,29 @@ describe("verifyEnvelope", () => {
 				by: "human:spencer",
 				at: "2026-09-16T00:00:00Z",
 				dryRun: true,
+				status: null,
 			});
 			const encoded = Schema.encodeSync(VerifyEnvelope)(built);
 			const decoded = Schema.decodeUnknownSync(VerifyEnvelope)(encoded);
+			assert.deepStrictEqual(decoded, built);
+		}),
+	);
+});
+
+describe("verifyEnvelope status (#185)", () => {
+	it.effect("carries the status transition and round-trips through the schema", () =>
+		Effect.sync(() => {
+			const built = verifyEnvelope({
+				okfitVersion: "0.1.0",
+				id: "decisions/x",
+				path: "okf/decisions/x.md",
+				by: "human:spencer",
+				at: "2026-09-16T00:00:00Z",
+				dryRun: false,
+				status: { from: "draft", to: "stable" },
+			});
+			assert.deepStrictEqual(built.status, { from: "draft", to: "stable" });
+			const decoded = Schema.decodeUnknownSync(VerifyEnvelope)(Schema.encodeSync(VerifyEnvelope)(built));
 			assert.deepStrictEqual(decoded, built);
 		}),
 	);

@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-28T19:49:01Z
-  body_sha256: 125619afc428c01c559a5738e6be931e8af47cd496c5f80bd870c32b63eb8719
+  at: 2026-09-30T17:53:20Z
+  body_sha256: 7cd52ed1a1c2ad8273bd3eb2191f0e709d7f672f1742f7dfa4d9ce2df4099b62
 ---
 
 # MCP
@@ -48,7 +48,9 @@ equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 The server implements MCP over stdio, on `@effected/mcp`'s
 `McpStdio`/`McpToolkit` (themselves built on `effect/ai/McpServer`):
 six read-only tools and static concept resources; see
-`okf/interfaces/okfit-mcp.md`.
+`okf/interfaces/okfit-mcp.md`. `list_concepts`, `get_concept` and
+`concept_neighbors` delegate to [Engine](engine.md)'s `ConceptQuery`; the
+wire contract is unchanged.
 
 Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
 (crash guards, `OkfitPlatform`, `McpStdio.launch`/`.teardown`), `index.ts`

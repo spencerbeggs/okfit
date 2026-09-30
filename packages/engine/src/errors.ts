@@ -63,7 +63,8 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
 }
 
 /**
- * V-14: fail closed on a `verified` shape the classifier does not name.
+ * V-14: fail closed on a `verified` (or, under `--stable`/`--draft`, `status`)
+ * shape the classifier does not name; `key` says which, omitted meaning `verified`.
  * `shape` is one of `"alias"`, `"merge-key"`, `"scalar"`, `"empty"` (and,
  * defensively, `"no-frontmatter"` or `"not-a-mapping"`, neither reachable
  * for a concept that reached `bundle.concepts`). The file is never opened
@@ -73,11 +74,15 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
  */
 export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<VerifyUnsupportedFrontmatterError>()(
 	"VerifyUnsupportedFrontmatterError",
-	{ id: Schema.String, shape: Schema.String },
+	{
+		id: Schema.String,
+		shape: Schema.String,
+		key: Schema.optionalKey(Schema.Literals(["verified", "status"])),
+	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		return `"${this.id}"'s verified value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
+		return `"${this.id}"'s ${this.key ?? "verified"} value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
 	}
 }
 
@@ -131,13 +136,17 @@ export class SyncStagedLogError extends Schema.TaggedError<SyncStagedLogError>()
  * @public
  */
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
-	reason: Schema.Literals(["no-selection", "id-and-batch", "unknown-type"]),
+	reason: Schema.Literals(["no-selection", "id-and-batch", "unknown-type", "status-conflict", "status-and-batch"]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
 		if (this.reason === "no-selection") return "verify needs a concept id, --all, or --type <Type>";
 		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
+		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
+		if (this.reason === "status-and-batch") {
+			return "--stable and --draft need a concept id; batch mode never changes status";
+		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}
 }
@@ -167,5 +176,60 @@ export class DocumentPathError extends Schema.TaggedError<DocumentPathError>()("
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
 		return `document path "${this.path}" ${DOCUMENT_PATH_REASON_TEXT[this.reason]}`;
+	}
+}
+
+/**
+ * `okfit query list` named a type or tag the config does not declare. `valid`
+ * is the sorted declared names. Exit 64: a usage error.
+ *
+ * @public
+ */
+export class QueryUnknownVocabularyError extends Schema.TaggedError<QueryUnknownVocabularyError>()(
+	"QueryUnknownVocabularyError",
+	{
+		kind: Schema.Literals(["type", "tag"]),
+		requested: Schema.String,
+		valid: Schema.Array(Schema.String),
+	},
+) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return `${this.kind} "${this.requested}" is not declared in the config; declared: ${this.valid.join(", ")}`;
+	}
+}
+
+/**
+ * A query's concept id named no concept: empty after normalisation
+ * (`empty-id`) or absent from the bundle (`not-a-concept`). Exit 3.
+ *
+ * @public
+ */
+export class QueryConceptNotFoundError extends Schema.TaggedError<QueryConceptNotFoundError>()(
+	"QueryConceptNotFoundError",
+	{
+		id: Schema.String,
+		reason: Schema.Literals(["empty-id", "not-a-concept"]),
+	},
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		if (this.reason === "empty-id") return "a concept id must not be empty";
+		return `no concept "${this.id}" in this bundle`;
+	}
+}
+
+/**
+ * `okfit query list` was given contradictory selection flags. Exit 64: a
+ * usage error.
+ *
+ * @public
+ */
+export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>()("QuerySelectionError", {
+	reason: Schema.Literals(["verified-conflict"]),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return "query list takes --verified or --unverified, not both";
 	}
 }

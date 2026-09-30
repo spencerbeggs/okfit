@@ -1,5 +1,13 @@
 # Log
 
+## 2026-09-30
+
+* Updated CLI
+* Updated Engine
+* Updated MCP
+* Added One engine query layer serves the MCP tools, the CLI and the verify picker
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+
 ## 2026-09-29
 
 * Added A documentation site at okfit.dev

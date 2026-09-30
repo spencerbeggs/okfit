@@ -18,6 +18,9 @@ export {
 	ConfigPathNotFoundError,
 	DocumentPathError,
 	InitOverwriteError,
+	QueryConceptNotFoundError,
+	QuerySelectionError,
+	QueryUnknownVocabularyError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
@@ -34,6 +37,8 @@ export { provideDocuments, resolveDocumentPath } from "./overlay/documents.js";
 export type { OverlayDocument, OverlayDocumentsShape } from "./overlay/layer.js";
 export { OverlayDocuments, layerOverlayFileSystem, makeOverlayFileSystem } from "./overlay/layer.js";
 export { OkfitPlatform } from "./platform.js";
+export type { ConceptFilter, ConceptLink, ConceptNeighbor } from "./query/ConceptQuery.js";
+export { ConceptQuery } from "./query/ConceptQuery.js";
 export {
 	ContextEnvelope,
 	ContextField,
@@ -54,6 +59,18 @@ export {
 	graphEnvelope,
 } from "./render/graph.js";
 export { JsonDiagnostic, JsonEnvelope, JsonErrorEnvelope, JsonSummary, json, jsonError } from "./render/json.js";
+export {
+	ConceptSummary,
+	QueryGetEnvelope,
+	QueryLink,
+	QueryListEnvelope,
+	QueryNeighbor,
+	QueryNeighborsEnvelope,
+	queryGetEnvelope,
+	queryListEnvelope,
+	queryNeighborsEnvelope,
+	toConceptSummary,
+} from "./render/query.js";
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
@@ -86,4 +103,6 @@ export type {
 	VerifyResult,
 } from "./verify/run.js";
 export { runVerify, runVerifyBatch } from "./verify/run.js";
+export type { AttestableSelection } from "./verify/select.js";
+export { resolveBatchTypes, selectAttestable } from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: 56657a6e44e5b5c7829fe898147e44472a6bf304bc331141a7bdaa6ff9bc8bd6
+  at: 2026-09-30T17:53:20Z
+  body_sha256: d1ef8ed62259289b31f94765b5e7384a03be75dcec0d33d3c7376e77047585b5
 ---
 
 # Engine
@@ -87,7 +87,24 @@ empty or undeclared-type selection is a typed `VerifySelectionError`
 (exit `64`) -- a new usage tier the single-id path has no equivalent of;
 an unknown single id is exit `3`, not `64`. `render/*.ts`
 gained `VerifyBatchEnvelope` alongside the single-concept
-`VerifyEnvelope` for `--format json`.
+`VerifyEnvelope` for `--format json`. `verify/select.ts#selectAttestable`
+holds the selection rules once (skip `draft`, `deprecated` and
+already-verified concepts, each with its reason), and `runVerify` takes an
+optional target status that it splices in the same write as the attestation
+through `FrontmatterEdits.status`; the envelope's `status` field reports
+`{ from, to }`. Writing a concept back keeps a leading UTF-8 byte-order
+mark.
+
+## Concept queries
+
+`query/ConceptQuery.ts`'s `ConceptQuery` is the one read-only query layer
+over a loaded bundle: `list` (filter by type, tag, status, verified),
+`get` and `neighbors`, with `render/query.ts` shaping the results into
+`QueryListEnvelope`, `QueryGetEnvelope` and `QueryNeighborsEnvelope`. The
+MCP tools, `okfit query` and the future interactive `okfit verify` picker
+all call it, so selection and filtering rules live once -- see [One engine
+query layer serves the MCP tools, the CLI and the verify
+picker](../decisions/engine-concept-query-layer.md).
 
 `sync/run.ts#runSync` walks git lazily now: a concept whose recorded
 `generated.body_sha256` still matches its current body, and that log mode

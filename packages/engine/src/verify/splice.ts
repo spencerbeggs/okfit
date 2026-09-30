@@ -191,3 +191,31 @@ export const spliceGeneratedBlock = (
 		length: 0,
 		content: `generated:${newline}  by: ${fields.by}${newline}  at: ${fields.at}${newline}  body_sha256: ${fields.bodySha256}${newline}`,
 	});
+
+/**
+ * Issue #185: `okfit verify --stable` splices `status` and `verified` in one
+ * write. When `status` is absent it is inserted after `title:` (else `type:`),
+ * and when `verified` is absent it is appended as the last key, so both land
+ * on the same offset when that anchor is the last key. `MarkdownEdit.applyAll`
+ * rejects two zero-length inserts at one offset, the same case
+ * `spliceGeneratedFields` merges, so this folds them into one edit, input
+ * order preserved.
+ *
+ * @internal
+ */
+export const mergeSameOffset = (edits: ReadonlyArray<MarkdownEdit>): ReadonlyArray<MarkdownEdit> => {
+	const out: Array<MarkdownEdit> = [];
+	for (const edit of edits) {
+		const previous = out.at(-1);
+		if (previous !== undefined && previous.length === 0 && edit.length === 0 && previous.offset === edit.offset) {
+			out[out.length - 1] = MarkdownEdit.make({
+				offset: edit.offset,
+				length: 0,
+				content: previous.content + edit.content,
+			});
+		} else {
+			out.push(edit);
+		}
+	}
+	return out;
+};

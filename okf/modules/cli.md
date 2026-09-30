@@ -1,7 +1,7 @@
 ---
 type: Module
 title: CLI
-description: The okfit command line -- validate, init, context, and verify, built on effect/cli and @effected/cli.
+description: The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli.
 status: stable
 resource: ../../packages/cli
 kind: package
@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-28T19:49:01Z
-  body_sha256: 5ae2055d5d87f5829c89545ae7a9ea8f6f09bd2f9892dba854f94257029b60f4
+  at: 2026-09-30T17:53:20Z
+  body_sha256: 22bd2455c56cbe5b5e0e24cfdbeb22eff2628e04904b6bc1c17eea4832a34293
 ---
 
 # CLI
@@ -18,7 +18,7 @@ generated:
 ## Purpose
 
 `@okfit/cli` is the `okfit` bin: `okfit validate`, `okfit init`,
-`okfit context`, `okfit verify`, and `okfit sync`; built on
+`okfit context`, `okfit verify`, `okfit query`, and `okfit sync`; built on
 `effect/cli` for the command tree, flags, and help, and
 `@effected/cli`'s `CliRuntime.main`/`CliColor` for assembly, failure
 rendering, and colour. It
@@ -33,7 +33,7 @@ orientation data (project root, bundle root, config path, profile,
 vocabulary) without loading the bundle -- cheap enough for a Claude Code
 hook to call on every session and every in-bundle write. `verify` also
 takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
-at once instead of one id at a time, and `sync` also takes `--since
+at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, and `sync` also takes `--since
 <YYYY-MM-DD>` (widens the log floor) and `--staged` (the pre-commit
 shape: stamps only the git index with `now` and re-adds what it writes)
 -- see [Engine](engine.md) for what each does; this package only threads

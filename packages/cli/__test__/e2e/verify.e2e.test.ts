@@ -457,4 +457,93 @@ describe("okfit verify (e2e)", () => {
 			await removeSandbox(elsewhere);
 		}
 	});
+
+	describe("--stable / --draft (#185)", () => {
+		const NOW = { OKFIT_NOW: "2026-09-07T00:00:00.000Z" };
+
+		it("--stable settles status and attests in one write", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const before = await readProject(cwd);
+				const run = await withServices(runOkfit(["verify", "project", "--stable"], { cwd, env: { ...env, ...NOW } }));
+				assert.strictEqual(run.exitCode, 0);
+				assert.strictEqual(
+					run.stdout,
+					"verified project by human:ada at 2026-09-07T00:00:00Z; status draft -> stable\n",
+				);
+				assert.strictEqual(
+					await readProject(cwd),
+					before.replace(
+						"status: draft\n",
+						"status: stable\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n",
+					),
+				);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("--stable --draft exits 64 and writes nothing", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const before = await readProject(cwd);
+				const run = await withServices(
+					runOkfit(["verify", "project", "--stable", "--draft"], { cwd, env: { ...env, ...NOW } }),
+				);
+				assert.strictEqual(run.exitCode, 64);
+				assert.strictEqual(await readProject(cwd), before);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("a status flag with --all or --type exits 64", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const before = await readProject(cwd);
+				const all = await withServices(runOkfit(["verify", "--all", "--stable"], { cwd, env: { ...env, ...NOW } }));
+				assert.strictEqual(all.exitCode, 64);
+				const typed = await withServices(
+					runOkfit(["verify", "--type", "Project", "--draft"], { cwd, env: { ...env, ...NOW } }),
+				);
+				assert.strictEqual(typed.exitCode, 64);
+				assert.strictEqual(await readProject(cwd), before);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("--dry-run prints would set status: and writes nothing", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const before = await readProject(cwd);
+				const run = await withServices(
+					runOkfit(["verify", "project", "--stable", "--dry-run"], { cwd, env: { ...env, ...NOW } }),
+				);
+				assert.strictEqual(run.exitCode, 0);
+				assert.isTrue(run.stdout.includes("would set status:"));
+				assert.strictEqual(await readProject(cwd), before);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("--format json carries the status transition, and null without a flag", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const withFlag = await withServices(
+					runOkfit(["verify", "project", "--stable", "--format", "json"], { cwd, env: { ...env, ...NOW } }),
+				);
+				assert.strictEqual(withFlag.exitCode, 0);
+				assert.deepStrictEqual(JSON.parse(withFlag.stdout).status, { from: "draft", to: "stable" });
+				const without = await withServices(
+					runOkfit(["verify", "project", "--format", "json"], { cwd, env: { ...env, ...NOW } }),
+				);
+				assert.strictEqual(without.exitCode, 0);
+				assert.strictEqual(JSON.parse(without.stdout).status, null);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+	});
 });

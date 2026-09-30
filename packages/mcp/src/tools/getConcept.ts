@@ -1,9 +1,10 @@
-import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
-import { ConceptId, Derive, Graph } from "@okfit/core";
-import { Effect, FileSystem, Option, Path, Schema } from "effect";
+import { Derive } from "@okfit/core";
+import { ConceptQuery } from "@okfit/engine";
+import { Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
-import { ConceptNotFound, InvalidArgument, McpToolError } from "../errors.js";
+import { McpToolError } from "../errors.js";
+import { toConceptLookupFailure } from "../internal/conceptNotFound.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { GetConceptSuccess } from "../schema/tools.js";
 
@@ -43,51 +44,12 @@ export const getConcept = Tool.make("get_concept", {
 export const handleGetConcept = (projectRoot: string, params: { readonly id: string }) =>
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
-		const normalized = ConceptId.normalize(params.id);
-		if (Option.isNone(normalized)) {
-			const remediation = {
-				hint: "Pass a bundle-relative concept id such as decisions/cli-exit-codes.",
-				suggestedTool: "list_concepts",
-			};
-			return yield* Effect.fail(
-				new InvalidArgument({
-					argument: "id",
-					message: ToolFailure.message("id must not be empty", remediation),
-					remediation,
-				}),
-			);
-		}
-		const id = normalized.value;
-		const concept = ctx.bundle.concepts.get(id);
-		if (concept === undefined) {
-			const remediation = {
-				hint: "Call list_concepts to see the ids this bundle contains.",
-				suggestedTool: "list_concepts",
-			};
-			return yield* Effect.fail(
-				new ConceptNotFound({
-					id: params.id,
-					message: ToolFailure.message(`no concept "${ToolFailure.truncate(params.id)}" in this bundle`, remediation),
-					remediation,
-				}),
-			);
-		}
-
-		// Read graph.edges rather than LinkGraph.successors: successors returns
-		// unique target nodes only and drops the per-edge source/field this
-		// result reports (J-23).
-		const graph = Graph.fromBundle(ctx.bundle);
-		const links = graph.edges
-			.filter((edge) => edge.from === id)
-			.map((edge) => ({
-				to: edge.to,
-				kind: Option.match(graph.node(edge.to), { onNone: () => "missing" as const, onSome: (node) => node.kind }),
-				source: edge.data.source,
-				...(edge.data.field === undefined ? {} : { field: edge.data.field }),
-			}));
+		const { concept, links } = yield* ConceptQuery.get(ctx.bundle, params.id).pipe(
+			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
+		);
 
 		return {
-			id,
+			id: concept.id,
 			type: concept.frontmatter.type,
 			title: Derive.title(concept),
 			description: concept.frontmatter.description ?? null,

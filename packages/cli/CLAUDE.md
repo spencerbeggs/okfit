@@ -65,11 +65,13 @@ src/
     context.ts                -- contextCommand: flags/argument, the full handler
     verify.ts                  -- verifyCommand: flags/argument, the full handler
     sync.ts                     -- syncCommand: flags/argument, the full handler
+    query.ts                     -- queryCommand (list/get/neighbors subcommands over @okfit/engine's ConceptQuery)
   render/
     context.ts                  -- humanContext (human half; the envelope half is
                                     @okfit/engine's ContextEnvelope/contextEnvelope)
     human.ts                     -- Counts, line, human, summary (validate's human renderer)
     sync.ts                       -- humanSync (human half of @okfit/engine's SyncEnvelope)
+    query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
     verify.ts                      -- VerifyLines, humanVerify (human half of @okfit/engine's
                                       VerifyEnvelope)
   internal/

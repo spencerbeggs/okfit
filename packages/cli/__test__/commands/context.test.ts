@@ -56,7 +56,7 @@ describe("contextCommand", () => {
 });
 
 describe("rootCommand", () => {
-	it("registers validate, init, context, verify, sync, lint, graph, stale, in that order (introduction order)", () => {
+	it("registers validate, init, context, verify, sync, lint, graph, stale, query, in that order (introduction order)", () => {
 		// `Command.subcommands` is grouped (`{ group, commands }[]`), not a flat
 		// array (same shape `__test__/commands/init.test.ts` already asserted
 		// against for the two-command tree; this is that same assertion, moved
@@ -65,7 +65,7 @@ describe("rootCommand", () => {
 		// order (never reordered in) per issue #17.
 		assert.deepStrictEqual(
 			rootCommand.subcommands.flatMap((group) => group.commands.map((command) => command.name)),
-			["validate", "init", "context", "verify", "sync", "lint", "graph", "stale"],
+			["validate", "init", "context", "verify", "sync", "lint", "graph", "stale", "query"],
 		);
 	});
 });

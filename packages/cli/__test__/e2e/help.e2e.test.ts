@@ -29,6 +29,7 @@ describe("okfit --help", () => {
 			assert.isTrue(stdout.includes("context"));
 			assert.isTrue(stdout.includes("verify"));
 			assert.isTrue(stdout.includes("sync"));
+			assert.isTrue(stdout.includes("query"));
 		}),
 	);
 });
