@@ -1,5 +1,21 @@
 # @okfit/engine
 
+## 0.9.4
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/xdg | dependency | updated | ^0.8.1 | ^0.8.2 |
+
+[#209][#209]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#209]: https://github.com/spencerbeggs/okfit/pull/209
+
 ## 0.9.3
 
 ### Dependencies

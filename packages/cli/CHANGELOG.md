@@ -1,5 +1,13 @@
 # @okfit/cli
 
+## 0.6.12
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/engine | dependency | updated | 0.9.3 | 0.9.4 |
+
 ## 0.6.11
 
 ### Dependencies
