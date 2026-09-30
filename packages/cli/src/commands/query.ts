@@ -73,7 +73,8 @@ const unverifiedFlag = Flag.Boolean("unverified").pipe(
 
 /**
  * Shared skeleton: discover config, load the bundle, run `use`, and — under
- * `--format json` — apply the K-22 stdout error envelope.
+ * `--format json` — apply the K-22 stdout error envelope. `precheck` runs
+ * first, before any config discovery, so an invalid flag combination fails fast.
  */
 const run = <A, E, R>(
 	input: {
@@ -87,7 +88,7 @@ const run = <A, E, R>(
 		readonly root: string;
 		readonly distribution: Option.Option<Distribution>;
 	}) => Effect.Effect<A, E, R>,
-	pre?: Effect.Effect<void, QuerySelectionError>,
+	precheck?: Effect.Effect<void, QuerySelectionError>,
 ) =>
 	Effect.gen(function* () {
 		const cwd = process.cwd();
@@ -96,7 +97,7 @@ const run = <A, E, R>(
 		const distribution = yield* CurrentDistribution;
 
 		const body = Effect.gen(function* () {
-			if (pre !== undefined) yield* pre;
+			if (precheck !== undefined) yield* precheck;
 			const resolved = yield* resolveProjectConfig({
 				pathArg: input.path,
 				explicitConfigPath: input.config,
@@ -198,7 +199,7 @@ export const queryGetCommand = Command.make(
 						okfitVersion: CLI_VERSION,
 						concept: summary,
 						frontmatter: concept.frontmatter.raw,
-						links: links,
+						links,
 						...distributionOf(distribution),
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(QueryGetEnvelope)(envelope)));
@@ -206,7 +207,7 @@ export const queryGetCommand = Command.make(
 					for (const line of humanQueryGet({
 						summary,
 						verified: concept.frontmatter.verified ?? [],
-						links: links,
+						links,
 					})) {
 						yield* Console.log(line);
 					}

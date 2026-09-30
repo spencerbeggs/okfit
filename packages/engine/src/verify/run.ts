@@ -141,6 +141,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		}
 		statusEdit = spliceTopLevelScalar(target, "status", status, newline);
 	}
+	// Tie-break by object identity (`a === statusEdit`): the two edits are otherwise indistinguishable.
 	// Status first on equal offsets, so `mergeSameOffset` emits `status:` before `verified:`.
 	const edits = mergeSameOffset(
 		[verifiedEdit, ...(statusEdit === undefined ? [] : [statusEdit])].toSorted(

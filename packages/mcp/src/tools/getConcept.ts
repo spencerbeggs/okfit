@@ -1,10 +1,10 @@
-import { ToolFailure } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { ConceptQuery } from "@okfit/engine";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
-import { ConceptNotFound, InvalidArgument, McpToolError } from "../errors.js";
+import { McpToolError } from "../errors.js";
+import { toConceptLookupFailure } from "../internal/conceptNotFound.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { GetConceptSuccess } from "../schema/tools.js";
 
@@ -45,32 +45,7 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
 		const { concept, links } = yield* ConceptQuery.get(ctx.bundle, params.id).pipe(
-			Effect.catchTag("QueryConceptNotFoundError", (e): Effect.Effect<never, InvalidArgument | ConceptNotFound> => {
-				if (e.reason === "empty-id") {
-					const remediation = {
-						hint: "Pass a bundle-relative concept id such as decisions/cli-exit-codes.",
-						suggestedTool: "list_concepts",
-					};
-					return Effect.fail(
-						new InvalidArgument({
-							argument: "id",
-							message: ToolFailure.message("id must not be empty", remediation),
-							remediation,
-						}),
-					);
-				}
-				const remediation = {
-					hint: "Call list_concepts to see the ids this bundle contains.",
-					suggestedTool: "list_concepts",
-				};
-				return Effect.fail(
-					new ConceptNotFound({
-						id: params.id,
-						message: ToolFailure.message(`no concept "${ToolFailure.truncate(params.id)}" in this bundle`, remediation),
-						remediation,
-					}),
-				);
-			}),
+			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
 		);
 
 		return {
