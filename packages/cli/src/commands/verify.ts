@@ -12,6 +12,7 @@ import {
 	resolveProjectConfig,
 	runVerify,
 	runVerifyBatch,
+	runVerifyIds,
 	verifyBatchEnvelope,
 	verifyEnvelope,
 } from "@okfit/engine";
@@ -20,6 +21,7 @@ import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
 import { humanVerify, humanVerifyBatch } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
+import { pickConcepts } from "./verify-picker.js";
 
 /**
  * V-6: tolerant id, normalised through `ConceptId.normalize`; never
@@ -165,11 +167,50 @@ export const verifyCommand = Command.make(
 				if (Option.isSome(input.id) && Option.isSome(input.path) && batch) {
 					return yield* new VerifySelectionError({ reason: "id-and-batch" });
 				}
-				if (Option.isNone(input.id) && !batch) return yield* new VerifySelectionError({ reason: "no-selection" });
-
 				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });
 				const status = input.stable ? "stable" : input.draft ? "draft" : undefined;
-				if (status !== undefined && batch) return yield* new VerifySelectionError({ reason: "status-and-batch" });
+				// The picker's promote toggle stands in for --stable; --stable/--draft
+				// still need a concept id, picked or not.
+				if (status !== undefined && (batch || Option.isNone(input.id))) {
+					return yield* new VerifySelectionError({ reason: "status-and-batch" });
+				}
+
+				// Bare `verify`: pick interactively. Without `otherwise`, a run that
+				// cannot mount a screen (agent/ci audience, pipe, --format json)
+				// fails `NotInteractive`, which is the 64 below, not a prompt.
+				if (Option.isNone(input.id) && !batch) {
+					// Decide before touching the bundle, so a non-interactive run is a
+					// plain 64 whatever state the bundle or git identity is in.
+					if (!(yield* CliInteractive)) return yield* new VerifySelectionError({ reason: "no-selection" });
+					const picked = yield* pickConcepts({
+						bundleRoot: resolved.bundleRoot,
+						projectRoot: resolved.projectRoot,
+						config: resolved.config,
+					}).pipe(
+						Effect.catchTag("NotInteractive", () => Effect.fail(new VerifySelectionError({ reason: "no-selection" }))),
+					);
+					if (picked === undefined) return;
+					const result = yield* runVerifyIds({
+						bundleRoot: resolved.bundleRoot,
+						projectRoot: resolved.projectRoot,
+						config: resolved.config,
+						at,
+						dryRun: input.dryRun,
+						ids: picked.ids,
+						promote: picked.promote,
+					});
+					// --format json never reaches here: it makes the run non-interactive.
+					for (const line of humanVerifyBatch({
+						by: result.by,
+						at: result.at,
+						dryRun: result.dryRun,
+						verified: result.verified,
+						skipped: result.skipped,
+					})) {
+						yield* Console.log(line);
+					}
+					return;
+				}
 
 				if (batch) {
 					const result = yield* runVerifyBatch({

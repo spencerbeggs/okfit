@@ -404,7 +404,15 @@ describe("okfit verify (e2e)", () => {
 		try {
 			const none = await withServices(runOkfit(["verify"], { cwd, env }));
 			assert.strictEqual(none.exitCode, 64);
-			assert.match(none.stderr, /needs a concept id, --all, or --type/);
+			assert.match(
+				none.stderr,
+				/needs a concept id, --all, or --type <Type> \(run in a terminal to pick interactively\)/,
+			);
+
+			// An agent audience never gets a picker either: same 64, same hint.
+			const agent = await withServices(runOkfit(["verify", "--agent"], { cwd, env }));
+			assert.strictEqual(agent.exitCode, 64);
+			assert.match(agent.stderr, /run in a terminal to pick interactively/);
 
 			// Final-review F1: the JSON error envelope's `exit_code` must match
 			// the process's own exit -- `VerifySelectionError` carries
@@ -507,6 +515,19 @@ describe("okfit verify (e2e)", () => {
 					runOkfit(["verify", "--type", "Project", "--draft"], { cwd, env: { ...env, ...NOW } }),
 				);
 				assert.strictEqual(typed.exitCode, 64);
+				assert.strictEqual(await readProject(cwd), before);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("a status flag with no concept id exits 64 naming the id requirement, never opening the picker (#217)", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const before = await readProject(cwd);
+				const bare = await withServices(runOkfit(["verify", "--stable"], { cwd, env: { ...env, ...NOW } }));
+				assert.strictEqual(bare.exitCode, 64);
+				assert.include(bare.stderr, "--stable and --draft need a concept id");
 				assert.strictEqual(await readProject(cwd), before);
 			} finally {
 				await removeSandbox(sandbox);

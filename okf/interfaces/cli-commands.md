@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-30T18:08:38Z
-  body_sha256: e08be49013bff2132dc3dadbb9e7b40cd9183bebac6effe227d5c1c434df582e
+  at: 2026-10-01T07:16:09Z
+  body_sha256: 3a70449a72ca3d7a2696ec5d8d43e142ebf06bcb348b2c74c8d2a59223a48426
 tags:
   - architecture
 verified:
@@ -69,6 +69,15 @@ overwrites: if any target path already exists, nothing is written and it
 exits `3`. `--profile <name>` picks the profile to scaffold; an
 unrecognised name is a warning, not a failure, and `init` continues with
 the default profile (the `okfit init` section of `packages/cli/README.md`).
+`--bundle <dir>` sets the bundle directory (project-relative; default the
+resolved `bundle.path`, `okf`) and `--config-location
+<.config/okfit.toml|okfit.toml|.okfit.toml>` sets where the config file is
+written (default `.config/okfit.toml`); a `--bundle` that is empty, absolute,
+the project root itself, or escapes it is a usage error (exit `64`). When
+interactive, `init` prompts for whichever of profile, bundle directory and
+config location was not given as a flag, in that order; Esc or Ctrl-C exits
+`130` with nothing written, and a non-interactive run takes the defaults
+unchanged.
 
 ## okfit context
 
@@ -100,8 +109,16 @@ so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
 `--all`/`--type`, is exit `64`. The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
-set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Exactly one of `<id>` or `--all`/`--type`
-must be given; otherwise, or for an undeclared type, exit `64`. `--format json` prints a `VerifyBatchEnvelope`
+set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both `<id>` and `--all`/`--type`, or an undeclared type, is exit `64`.
+Giving neither opens a picker when the run is interactive (a human audience
+with a terminal on stdin and stdout, and not `--format json`): every concept
+of a `require_verified` type you have not attested, drafts included and
+deprecated excluded, grouped by type, then a confirm step whose "promote K
+drafts to stable" toggle is on by default. The picked ids are attested in one
+all-or-nothing write; an empty pick writes nothing and exits `0`, and Esc,
+`q`, Ctrl-C or answering no exits `130` with nothing written. Not
+interactive, giving neither is exit `64` (`… (run in a terminal to pick
+interactively)`). `--format json` prints a `VerifyBatchEnvelope`
 (`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
 dry run included), `3` on any failure — an unknown or reserved id, a concept
 whose `verified` shape cannot be edited safely, a `status` shape that cannot be

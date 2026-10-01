@@ -141,7 +141,8 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 }) {
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
-		if (this.reason === "no-selection") return "verify needs a concept id, --all, or --type <Type>";
+		if (this.reason === "no-selection")
+			return "verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)";
 		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "status-and-batch") {

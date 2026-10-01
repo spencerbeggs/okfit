@@ -1,4 +1,4 @@
-import { CliExit, CliPrompt, CliTheme } from "@effected/cli";
+import { CliExit, CliTheme } from "@effected/cli";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile, SCHEMA_DIRECTIVE } from "@okfit/core";
 import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";
@@ -16,9 +16,11 @@ import {
 	run,
 	targetPaths,
 } from "@okfit/engine";
-import { GitHistory, PROFILE_NAMES, Profiles } from "@okfit/profiles";
+import { GitHistory, Profiles } from "@okfit/profiles";
 import { Console, DateTime, Effect, FileSystem, Layer, Option, Path } from "effect";
-import { Argument, Command, Flag, Prompt } from "effect/cli";
+import { Argument, Command, Flag } from "effect/cli";
+import type { InitConfigLocation } from "../internal/initWizard.js";
+import { INIT_CONFIG_LOCATIONS, initWizard } from "../internal/initWizard.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
 
@@ -47,20 +49,24 @@ const configFlag = Flag.File("config").pipe(
  * contract (P-38), not a parser-level `CliError.InvalidValue`.
  */
 const profileFlag = Flag.String("profile").pipe(
-	// #217: `Some` when given or picked, `None` when neither -- the handler
-	// then falls back to the config's `bundle.profile`, a default only known
-	// after discovery, so it cannot be the fallback's static `otherwise`.
-	Flag.map(Option.some),
-	Flag.withFallbackPrompt(
-		CliPrompt.fallback(
-			Prompt.Select({
-				message: "Profile to scaffold with",
-				choices: PROFILE_NAMES.map((name) => ({ title: name, value: Option.some<string>(name) })),
-			}),
-			{ flag: "profile", otherwise: Option.none<string>() },
-		),
+	Flag.optional,
+	Flag.withDescription(
+		"profile to scaffold with (default: the config's bundle.profile or software-project; prompted for when interactive)",
 	),
-	Flag.withDescription("profile to scaffold with (default: the config's bundle.profile or software-project)"),
+);
+
+/** `--bundle <dir>`: project-relative; validated by the wizard before anything else (usage error, exit 64). */
+const bundleFlag = Flag.String("bundle").pipe(
+	Flag.optional,
+	Flag.withDescription(
+		"bundle directory, relative to the project root (default: the config's bundle.path or okf; prompted for when interactive)",
+	),
+);
+
+/** `--config-location`: where the config file is written, one of the three discovered names (C-1). */
+const configLocationFlag = Flag.Literals("config-location", INIT_CONFIG_LOCATIONS).pipe(
+	Flag.optional,
+	Flag.withDescription("where to write the config file (default: .config/okfit.toml; prompted for when interactive)"),
 );
 
 /**
@@ -91,8 +97,13 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
 });
 
 /**
- * `okfit init [path] [--profile <name>] [--config <file>]` (K-2, K-3; no
- * `--format`, human output only, K-6).
+ * `okfit init [path] [--profile <name>] [--bundle <dir>] [--config-location <name>]
+ * [--config <file>]` (K-2, K-3; no `--format`, human output only, K-6).
+ *
+ * Interactive runs prompt (the kit's Ink screens, `initWizard`) for each of
+ * profile, bundle directory and config location whose flag was not given;
+ * every prompt happens after discovery and before any write (step 4), so a
+ * cancel exits 130 with nothing written.
  *
  * Handler order, fixed by the contract:
  *
@@ -104,7 +115,8 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
  *     `sources[0]`.
  *  4. `profileName = Option.getOrElse(input.profile, () =>
  *     fileConfig.bundle?.profile ?? DEFAULTS.bundle.profile)` (K-3, the one
- *     difference from `validate`'s step 4). `Profiles.get(profileName)`.
+ *     difference from `validate`'s step 4), then `--bundle`/`--config-location`
+ *     likewise, all three through `initWizard`. `Profiles.get(profileName)`.
  *     `None` and `profileName !== "none"` warns (K-4); `"none"` is silent.
  *  5. `merged = OkfitConfig.merge(OkfitConfig.merge(DEFAULTS, profileConfig),
  *     fileConfig)`, `profileConfig` falling back to `NO_PROFILE_CONFIG` when
@@ -131,9 +143,9 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
  *
  * @public
  */
-export const initCommand = Command.make("init", { path: pathArg, config: configFlag, profile: profileFlag }, (input) =>
+/** The `init` handler body, parameterised on `cwd` so tests can drive it against a temp project. */
+export const initProgram = (input: InitInput, cwd: string) =>
 	Effect.gen(function* () {
-		const cwd = process.cwd();
 		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
 
 		yield* provideConfig({ explicitConfigPath: input.config, discoveryCwd })(
@@ -143,7 +155,19 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 				const winner = sources[0];
 				const fileConfig: OkfitConfig = winner === undefined ? { extensions: {} } : winner.value;
 
-				const profileName = Option.getOrElse(input.profile, () => fileConfig.bundle?.profile ?? DEFAULT_PROFILE_NAME);
+				// Every prompt happens here, before any write: a cancel (exit 130)
+				// leaves the disk untouched. A setting given as a flag is never
+				// prompted for; a non-interactive run takes the defaults.
+				const defaultBundle = fileConfig.bundle?.path ?? DEFAULT_BUNDLE_PATH;
+				const answers = yield* initWizard(
+					{ profile: input.profile, bundle: input.bundle, location: input.configLocation },
+					{
+						profile: fileConfig.bundle?.profile ?? DEFAULT_PROFILE_NAME,
+						bundle: defaultBundle,
+						location: CONFIG_RELATIVE_PATH,
+					},
+				);
+				const profileName = answers.profile;
 				const profile = Profiles.get(profileName);
 				if (Option.isNone(profile) && profileName !== "none") {
 					yield* Console.error(`warning: unknown profile "${profileName}"; continuing with defaults`);
@@ -153,7 +177,10 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 					onNone: () => NO_PROFILE_CONFIG,
 					onSome: (resolved) => resolved.config,
 				});
-				const merged = OkfitConfig.merge(OkfitConfig.merge(OkfitConfig.DEFAULTS, profileConfig), fileConfig);
+				const mergedBase = OkfitConfig.merge(OkfitConfig.merge(OkfitConfig.DEFAULTS, profileConfig), fileConfig);
+				// The chosen bundle directory wins over every layer: it flows into the
+				// bundle root, the written config's `bundle.path`, and the self-validate.
+				const merged: OkfitConfig = { ...mergedBase, bundle: { ...mergedBase.bundle, path: answers.bundle } };
 
 				if (merged.okf_version !== undefined && merged.okf_version !== OKF_SPEC_VERSION) {
 					yield* Console.error(
@@ -200,22 +227,23 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 					return yield* new InitOverwriteError({ paths: existing, cwd });
 				}
 
-				for (const target of paths) {
+				// `targetPaths` names all three config locations so the overwrite
+				// check sees any of them; only the chosen one is written, so only
+				// its parent is created (no stray `.config/` beside `okfit.toml`).
+				const configTargets = new Set(INIT_CONFIG_LOCATIONS.map((location) => `${projectRoot}/${location}`));
+				const written = [...paths.filter((target) => !configTargets.has(target)), `${projectRoot}/${answers.location}`];
+				for (const target of written) {
 					yield* fs.makeDirectory(path.dirname(target), { recursive: true });
 				}
 
-				const bundlePath = merged.bundle?.path ?? DEFAULT_BUNDLE_PATH;
+				const bundlePath = answers.bundle;
 				// The `#:schema` directive rides `write`'s `header` option (C-10, C-22;
 				// effected#650): the service emits it verbatim ahead of the document,
 				// and because SCHEMA_DIRECTIVE already ends in a newline nothing is
 				// added between them, so the bytes match the hand-prepended form.
-				yield* configFile.write(
-					configValue({ ...scaffoldOptions, bundlePath }),
-					`${projectRoot}/${CONFIG_RELATIVE_PATH}`,
-					{
-						header: SCHEMA_DIRECTIVE,
-					},
-				);
+				yield* configFile.write(configValue({ ...scaffoldOptions, bundlePath }), `${projectRoot}/${answers.location}`, {
+					header: SCHEMA_DIRECTIVE,
+				});
 
 				const scaffoldFiles = yield* files(scaffoldOptions);
 				for (const file of scaffoldFiles) {
@@ -238,7 +266,22 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 				yield* CliExit.set(forDiagnostics(diagnostics));
 			}),
 		);
-	}),
+	});
+
+/** `okfit init`'s parsed flags and argument. */
+interface InitInput {
+	readonly path: Option.Option<string>;
+	readonly config: Option.Option<string>;
+	readonly profile: Option.Option<string>;
+	readonly bundle: Option.Option<string>;
+	readonly configLocation: Option.Option<InitConfigLocation>;
+}
+
+/** @public */
+export const initCommand = Command.make(
+	"init",
+	{ path: pathArg, config: configFlag, profile: profileFlag, bundle: bundleFlag, configLocation: configLocationFlag },
+	(input) => initProgram(input, process.cwd()),
 ).pipe(
 	Command.withDescription(
 		"Scaffold a new OKF bundle: a config file, the bundle's root and per-directory index files, a project stub, and an initial log entry.",

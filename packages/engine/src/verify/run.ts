@@ -6,8 +6,8 @@ import type { DateTime } from "effect";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "./locate.js";
-import type { VerifyBatchSkipReason } from "./select.js";
-import { resolveBatchTypes, selectAttestable } from "./select.js";
+import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
+import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "./select.js";
 import { mergeSameOffset, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
@@ -359,4 +359,33 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 		verified: prepared.map(({ id, conceptPath, fragment }) => ({ id, conceptPath, fragment })),
 		skipped: [],
 	} satisfies VerifyBatchResult;
+});
+
+/**
+ * Options for {@link loadPickerCandidates}.
+ *
+ * @public
+ */
+export interface PickerCandidatesOptions {
+	readonly bundleRoot: string;
+	readonly projectRoot: string;
+	readonly config: OkfitConfig;
+}
+
+/**
+ * The interactive verify picker's starting point: loads the bundle, resolves
+ * the human actor from git exactly as {@link runVerify} does, and selects the
+ * rows that actor may still attest. Reads only; nothing is written.
+ *
+ * @public
+ */
+export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates")(function* (
+	options: PickerCandidatesOptions,
+) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
+	return { by, candidates: selectPickerCandidates(bundle, options.config, by) } satisfies {
+		readonly by: string;
+		readonly candidates: ReadonlyArray<PickerCandidate>;
+	};
 });

@@ -9,6 +9,7 @@
 
 export { rootCommand } from "./commands/root.js";
 export { renderFailure } from "./errors.js";
+export { InitBundleDirError } from "./internal/initWizard.js";
 export { DocumentStdinIsTerminalError } from "./internal/stdin.js";
 export { humanContext } from "./render/context.js";
 export type { Counts, SeverityPaint } from "./render/human.js";

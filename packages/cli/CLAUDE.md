@@ -75,6 +75,8 @@ src/
     verify.ts                      -- VerifyLines, humanVerify (human half of @okfit/engine's
                                       VerifyEnvelope)
   internal/
+    initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
+                                      the init handler before any write), checkBundleDir, InitBundleDirError (64)
     exit.ts                       -- setExitCode(code); the only writer of process.exitCode
     versionFormatter.ts            -- versionFormatterLayer: @effected/cli's CliColor.formatterLayer,
                                        only formatVersion overridden; colour itself is @effected/cli's
