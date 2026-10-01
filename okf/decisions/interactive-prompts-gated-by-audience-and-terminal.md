@@ -5,11 +5,14 @@ description: okfit prompts only when the audience is human and stdin and stdout 
 tags:
   - architecture
   - dx
-status: draft
+status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-01T18:31:01Z
   body_sha256: 6897eb8caef48ad3b2923e0c9b2d15c22468f7f3c36bec2375a4529004f01255
+verified:
+  - by: human:spencer
+    at: 2026-10-01T23:24:55Z
 ---
 
 # Interactive prompts are gated by audience and terminal, and the audience never refuses a command
