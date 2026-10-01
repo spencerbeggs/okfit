@@ -79,11 +79,9 @@ const relativeToCwd = (path: string, cwd: string): string => {
  */
 export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (hasTag(error, "ShowHelp")) return [];
-	// #217: a consumer `render` replaces `CliRuntime`'s default one, so the kit's
-	// two fixed lines are repeated here. Neither gets an `error:` prefix: a
-	// person backing out is not an error (exit 130).
-	if (error instanceof Cancelled) return ["cancelled; nothing written"];
-	if (error instanceof NotInteractive) return ["not interactive: run in a terminal or pass the flag"];
+	// #217: the kit's own fixed line is each error's `message`. Neither gets
+	// an `error:` prefix: a person backing out is not an error (exit 130).
+	if (error instanceof Cancelled || error instanceof NotInteractive) return [error.message];
 	if (error instanceof ConfigPathNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof ConfigMalformedError) return [`error: ${error.message}`];
 	if (error instanceof InitOverwriteError) {

@@ -14,3 +14,4 @@ configDependencies:
 overrides:
   "@effected/cli": file:../effected/packages/cli/dist/prod/npm/pkg
   "@effected/env": file:../effected/packages/env/dist/prod/npm/pkg
+  "@effected/github-commands": file:../effected/packages/github-commands/dist/prod/npm/pkg
