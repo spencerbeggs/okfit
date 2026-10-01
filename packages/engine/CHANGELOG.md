@@ -1,5 +1,48 @@
 # @okfit/engine
 
+## 0.11.0
+
+### Features
+
+#### Verify an explicit list of concepts
+
+- `runVerifyIds` verifies a given list of concept ids all-or-nothing: if any id cannot be attested, nothing is written. An optional `promote` flag moves drafts to stable in the same write (closes #214)
+- `selectPickerCandidates` and `loadPickerCandidates` expose the concepts an interactive picker can offer, with `PickerCandidate`, `PickerCandidatesOptions` and `VerifyIdsOptions` for front ends
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.0-rc.118 | ^4.0.0 |
+| @effected/app | dependency | updated | ^0.19.1 | ^0.20.0 |
+| @effected/config-file | dependency | updated | ^0.13.1 | ^0.14.0 |
+| @effected/engine | dependency | updated | ^0.2.0 | ^0.3.0 |
+| @effected/git | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/glob | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @effected/jsonc | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/markdown | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/schemastore | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/store | dependency | updated | ^0.11.0 | ^0.12.0 |
+| @effected/toml | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/walker | dependency | updated | ^0.14.1 | ^0.15.0 |
+| @effected/xdg | dependency | updated | ^0.8.2 | ^0.9.0 |
+| @effected/yaml | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @okfit/core | dependency | updated | 0.8.3 | 0.8.4 |
+| @okfit/profiles | dependency | updated | 0.8.2 | 0.8.3 |
+| effect | dependency | updated | 4.0.0-rc.118 | ^4.0.0 |
+
+[#225][#225]
+
+### Other
+
+- The `VerifySelectionError` no-selection message now ends "(run in a terminal to pick interactively)" [#225][#225]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#225]: https://github.com/spencerbeggs/okfit/pull/225
+
 ## 0.10.0
 
 ### Features

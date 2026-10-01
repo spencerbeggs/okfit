@@ -1,5 +1,24 @@
 # @okfit/profiles
 
+## 0.8.3
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.8.3 | 0.8.4 |
+| @effected/git | peerDependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/markdown | peerDependency | updated | ^0.14.0 | ^0.15.0 |
+| effect | peerDependency | updated | 4.0.0-rc.118 | ^4.0.0 |
+
+[#225][#225]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#225]: https://github.com/spencerbeggs/okfit/pull/225
+
 ## 0.8.2
 
 ### Dependencies

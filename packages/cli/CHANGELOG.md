@@ -1,5 +1,66 @@
 # @okfit/cli
 
+## 0.8.0
+
+### Breaking Changes
+
+- The exported `line` and `human` renderers take `{ paint: SeverityPaint }` instead of `{ color: boolean }`. `SeverityPaint` is a new exported type; callers that passed `color` must supply a paint function per severity instead
+
+### Features
+
+#### Interactive verify picker
+
+- A bare `okfit verify` in a terminal opens an interactive picker: choose concepts by type, review a confirm step with a promote-drafts toggle, and the selection is written in one all-or-nothing pass
+- Esc, `q`, Ctrl-C or answering no exits 130 with nothing written
+- Without a terminal, a bare `okfit verify` exits 64 with the hint "(run in a terminal to pick interactively)"
+
+#### Interactive init
+
+- `okfit init` prompts for the profile, the bundle directory and the config location when run in a terminal
+- New flags `--bundle <dir>` and `--config-location <.config/okfit.toml|okfit.toml|.okfit.toml>` answer those prompts up front; `InitBundleDirError` is exported for an invalid bundle directory
+
+#### Audience flags
+
+- New global flags `--audience <human|agent|ci>`, `--human`, `--agent` and `--ci` choose who the output is for, and `OKFIT_AUDIENCE` sets it from the environment
+- Passing more than one of them exits 64; an audience never refuses a command
+
+#### Colour
+
+- Colour now follows Node's precedence: `FORCE_COLOR` beats `NO_COLOR`
+- The interactive screens use `ink` and `react`, loaded only when a screen mounts, so non-interactive commands do not pay for them [#225][#225]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.0-rc.118 | ^4.0.0 |
+| @effected/cli | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/config-file | dependency | updated | ^0.13.1 | ^0.14.0 |
+| @effected/engine | dependency | updated | ^0.2.0 | ^0.3.0 |
+| @effected/git | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/glob | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @effected/jsonc | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/markdown | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/schemastore | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/toml | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/walker | dependency | updated | ^0.14.1 | ^0.15.0 |
+| @effected/yaml | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @okfit/core | dependency | updated | 0.8.3 | 0.8.4 |
+| @okfit/engine | dependency | updated | 0.10.0 | 0.11.0 |
+| @okfit/profiles | dependency | updated | 0.8.2 | 0.8.3 |
+| effect | dependency | updated | 4.0.0-rc.118 | ^4.0.0 |
+| @effected/env | dependency | added | — | ^0.1.0 |
+| ink | dependency | added | — | ^7.1.1 |
+| react | dependency | added | — | ^19.2.0 |
+
+[#225][#225]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#225]: https://github.com/spencerbeggs/okfit/pull/225
+
 ## 0.7.0
 
 ### Features
