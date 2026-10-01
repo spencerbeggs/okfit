@@ -1,6 +1,6 @@
 # Module
 
-* [CLI](cli.md) - The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli.
+* [CLI](cli.md) - The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli, with audience flags and interactive prompts.
 * [Claude Code Plugin](claude-code-plugin.md) - The Claude Code plugin that teaches agents OKF v0.2 and keeps a repository's okf bundle current.
 * [Core](core.md) - The no-internal-deps base package -- OKF v0.2 frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
 * [Engine](engine.md) - The shared okfit engine -- platform layer, config discovery, and the validate/verify/sync/init/context programs both the CLI and the MCP server depend on directly.

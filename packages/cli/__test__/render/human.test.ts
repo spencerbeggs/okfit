@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import { CliTheme } from "@effected/cli";
 import { DiagnosticRange } from "@okfit/core";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { Effect, Path } from "effect";
@@ -55,20 +56,23 @@ describe("line", () => {
 	);
 
 	it.effect("colour wraps only the severity word, never the code, path or message", () =>
-		Effect.sync(() => {
-			const colored = line(base, { color: true });
+		Effect.gen(function* () {
+			const theme = yield* CliTheme;
+			const painted = theme.paint("error", "error");
+			assert.isTrue(painted.includes(ESC));
 			assert.strictEqual(
-				colored,
-				`modules/router.md ${ESC}[31merror${ESC}[0m required-key-missing missing required key "description"`,
+				line(base, { paint: theme.paint }),
+				`modules/router.md ${painted} required-key-missing missing required key "description"`,
 			);
-		}),
+		}).pipe(Effect.provide(CliTheme.layerTest({ color: "basic" }))),
 	);
 
-	it.effect("colour false (the default) never emits an escape byte", () =>
-		Effect.sync(() => {
-			assert.isFalse(line(base, { color: false }).includes(ESC));
+	it.effect("no paint (the default), or a colourless theme, never emits an escape byte", () =>
+		Effect.gen(function* () {
+			const theme = yield* CliTheme;
+			assert.isFalse(line(base, { paint: theme.paint }).includes(ESC));
 			assert.isFalse(line(base).includes(ESC));
-		}),
+		}).pipe(Effect.provide(CliTheme.layerTest({ color: "none" }))),
 	);
 });
 

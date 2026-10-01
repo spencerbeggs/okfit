@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-30T17:53:20Z
-  body_sha256: d1ef8ed62259289b31f94765b5e7384a03be75dcec0d33d3c7376e77047585b5
+  at: 2026-10-01T18:31:01Z
+  body_sha256: dac57d542a6b8388d9b14cfcc5376d2bf23a16167ec118c336d1496c7faf0ead
 ---
 
 # Engine
@@ -95,13 +95,23 @@ through `FrontmatterEdits.status`; the envelope's `status` field reports
 `{ from, to }`. Writing a concept back keeps a leading UTF-8 byte-order
 mark.
 
+`verify/run.ts#runVerifyIds` is the explicit-id sibling of
+`runVerifyBatch` (issue 214): it attests exactly the ids it is given,
+all-or-nothing, with an optional promote-drafts step that sets `status:
+stable` in the same write. `verify/select.ts#selectPickerCandidates` and
+`verify/run.ts#loadPickerCandidates` list what the interactive `okfit
+verify` picker offers: concepts of a `require_verified` type the caller has
+not attested, drafts included and deprecated excluded. A bare `verify` with
+no selection is still a `VerifySelectionError` (exit `64`); its message now
+ends `(run in a terminal to pick interactively)`.
+
 ## Concept queries
 
 `query/ConceptQuery.ts`'s `ConceptQuery` is the one read-only query layer
 over a loaded bundle: `list` (filter by type, tag, status, verified),
 `get` and `neighbors`, with `render/query.ts` shaping the results into
 `QueryListEnvelope`, `QueryGetEnvelope` and `QueryNeighborsEnvelope`. The
-MCP tools, `okfit query` and the future interactive `okfit verify` picker
+MCP tools, `okfit query` and the interactive `okfit verify` picker
 all call it, so selection and filtering rules live once -- see [One engine
 query layer serves the MCP tools, the CLI and the verify
 picker](../decisions/engine-concept-query-layer.md).

@@ -22,7 +22,7 @@ describe("initCommand", () => {
 		assert.deepStrictEqual(initCommand.subcommands, []);
 	});
 
-	it("declares exactly the path argument and the config/profile flags, by name; no --format (K-6, contract §6.1)", () => {
+	it("declares exactly the path argument and the config/profile/bundle/config-location flags, by name; no --format (K-6, contract §6.1)", () => {
 		const config = configOf(initCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -30,7 +30,7 @@ describe("initCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "profile"],
+			["config", "profile", "bundle", "config-location"],
 		);
 	});
 

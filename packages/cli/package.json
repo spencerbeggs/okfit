@@ -39,6 +39,7 @@
 		"@effected/cli": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
 		"@effected/engine": "catalog:effected",
+		"@effected/env": "catalog:effected",
 		"@effected/git": "catalog:effected",
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",
@@ -50,7 +51,9 @@
 		"@okfit/core": "workspace:*",
 		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
-		"effect": "catalog:effect"
+		"effect": "catalog:effect",
+		"ink": "^7.1.1",
+		"react": "^19.2.0"
 	},
 	"devDependencies": {
 		"@effect/vitest": "catalog:effect",
@@ -58,6 +61,7 @@
 		"@effected/workspaces": "catalog:effected",
 		"@savvy-web/bundler": "^2.4.18",
 		"@types/node": "catalog:build",
+		"@types/react": "^19.2.0",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"
 	},

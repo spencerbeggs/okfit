@@ -1,12 +1,12 @@
 ---
 type: Convention
 title: process reads confined to the CLI's boundary files
-description: Only bin.ts, main.ts, commands/*.ts, and internal/exit.ts read process; every other file under packages/cli/src is pure or Effect-typed.
+description: Only bin.ts, main.ts, and commands/*.ts read process; every other file under packages/cli/src is pure or Effect-typed.
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: b8c20b93b90904d220a1acd988f551a24d5362dc31b66dcaff6814be95870795
+  at: 2026-10-01T18:31:01Z
+  body_sha256: 9bbdda6d22ef32fcb0b4f664a4d0abe51e6cfbc3816d987692bbc4ce0ab73ed5
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
@@ -16,8 +16,7 @@ stale_after: "2026-12-05T00:00:00Z"
 
 ## Rule
 
-`process` is read only in `bin.ts`, `main.ts`, `commands/*.ts`, and
-`internal/exit.ts`; every file under `render/`, `validate/`, `init/`, and
+`process` is read only in `bin.ts`, `main.ts`, and `commands/*.ts`; every file under `render/`, `validate/`, `init/`, and
 `config/anchor.ts` has no `process` access and no `@effect/platform-node`
 import (`packages/cli/CLAUDE.md`). `internal/tty.ts`, this package's former
 `isTTY`/`NO_COLOR` reader, is gone: colour is now decided by
@@ -26,7 +25,11 @@ rather than `process` directly, so this package performs no colour-related
 `process` read of its own at all. `version.ts`'s
 `process.env.__PACKAGE_VERSION__` needs no allowlist entry either: it is a
 build-time constant the bundler substitutes, which `SourceBoundary`'s
-`process` rule (below) exempts unconditionally.
+`process` rule (below) exempts unconditionally. `internal/exit.ts` (the
+former sole writer of `process.exitCode`) is deleted too: exit codes are set
+through `@effected/cli`'s `CliExit.set`, and the interactive screens, the
+audience and the terminal checks all go through the kit's services, so none
+of them is a `process` read of this package's own.
 
 ## Why
 
@@ -52,7 +55,7 @@ other conventions in this bundle, this one fails a build when violated.
 It runs on `@effected/workspaces/testing`'s `SourceBoundary`, in place of
 this package's own former hand-rolled comment-stripping scanner: one scan
 combining a `process`-read rule (allowlisting `bin.ts`, `main.ts`,
-`commands/**`, and `internal/exit.ts`) with a blanket
+and `commands/**`) with a blanket
 `{ forbidImports: ["@effected/app"] }` rule, broader than a three-name
 (`App`/`AppStore`/`AppCache`) allowlist would be — see [okfit's front ends
 build on @effected/{engine,cli,mcp} rather than hand-rolled

@@ -126,3 +126,14 @@ describe("query errors", () => {
 		assert.strictEqual(error.message, "query list takes --verified or --unverified, not both");
 	});
 });
+
+describe("VerifySelectionError no-selection", () => {
+	it("exits 64 and hints at the interactive picker", () => {
+		const error = new VerifySelectionError({ reason: "no-selection" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(
+			error.message,
+			"verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)",
+		);
+	});
+});

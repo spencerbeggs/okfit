@@ -6,8 +6,8 @@ import type { DateTime } from "effect";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "./locate.js";
-import type { VerifyBatchSkipReason } from "./select.js";
-import { resolveBatchTypes, selectAttestable } from "./select.js";
+import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
+import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "./select.js";
 import { mergeSameOffset, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
@@ -170,6 +170,39 @@ const writeVerified = Effect.fn("okfit/verify/writeVerified")(function* (absolut
 		.pipe(Effect.onError(() => fs.remove(tempPath, { force: true }).pipe(Effect.ignore)));
 });
 
+/** Steps 7a-7d of runVerify, shared with `runVerifyIds`: tolerant id, reserved file, located concept. */
+const resolveConcept = (bundle: LoadedBundle, rawId: string) =>
+	Effect.gen(function* () {
+		// Step 7a: tolerant id, the MCP tools' own convention.
+		const normalized = ConceptId.normalize(rawId);
+		if (Option.isNone(normalized)) {
+			return yield* new VerifyConceptNotFoundError({ id: rawId, root: bundle.root, reason: "not-a-concept" });
+		}
+		const id = normalized.value;
+		const conceptFile = ConceptId.toPath(id);
+
+		// Step 7b.
+		if (ConceptId.isReservedFile(conceptFile)) {
+			return yield* new VerifyConceptNotFoundError({ id, root: bundle.root, reason: "reserved" });
+		}
+
+		// Steps 7c and 7d.
+		const concept = bundle.concepts.get(id);
+		if (concept === undefined) {
+			const diagnostic = bundle.diagnostics.find(
+				(entry) => entry.file === conceptFile && UNDECODABLE_CODES.has(entry.code),
+			);
+			return yield* new VerifyConceptNotFoundError({
+				id,
+				root: bundle.root,
+				...(diagnostic === undefined
+					? { reason: "not-a-concept" as const }
+					: { reason: "undecodable" as const, diagnosticCode: diagnostic.code }),
+			});
+		}
+		return { id, concept };
+	});
+
 /**
  * Contract §2.3 steps 6–15. Loads the bundle, resolves the id, resolves the
  * human actor from git, splices exactly one entry into the concept's
@@ -186,37 +219,8 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// core path. Its diagnostics feed the `undecodable` reason below.
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 
-	// Step 7a: tolerant id, the MCP tools' own convention.
-	const normalized = ConceptId.normalize(options.id);
-	if (Option.isNone(normalized)) {
-		return yield* new VerifyConceptNotFoundError({
-			id: options.id,
-			root: bundle.root,
-			reason: "not-a-concept",
-		});
-	}
-	const id = normalized.value;
-	const conceptFile = ConceptId.toPath(id);
-
-	// Step 7b.
-	if (ConceptId.isReservedFile(conceptFile)) {
-		return yield* new VerifyConceptNotFoundError({ id, root: bundle.root, reason: "reserved" });
-	}
-
-	// Steps 7c and 7d.
-	const concept = bundle.concepts.get(id);
-	if (concept === undefined) {
-		const diagnostic = bundle.diagnostics.find(
-			(entry) => entry.file === conceptFile && UNDECODABLE_CODES.has(entry.code),
-		);
-		return yield* new VerifyConceptNotFoundError({
-			id,
-			root: bundle.root,
-			...(diagnostic === undefined
-				? { reason: "not-a-concept" as const }
-				: { reason: "undecodable" as const, diagnosticCode: diagnostic.code }),
-		});
-	}
+	// Steps 7a-7d: tolerant id, reserved files, undecodable concepts.
+	const { id, concept } = yield* resolveConcept(bundle, options.id);
 
 	// Step 8 (V-7, V-18): once per process, always the git identity, no --by.
 	const actor = yield* Derivation.generatedBy({
@@ -295,4 +299,93 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 		verified: prepared.map(({ id, conceptPath, fragment }) => ({ id, conceptPath, fragment })),
 		skipped: selection.skipped,
 	} satisfies VerifyBatchResult;
+});
+
+/**
+ * Issue #214: options for {@link runVerifyIds}.
+ *
+ * @public
+ */
+export interface VerifyIdsOptions {
+	readonly bundleRoot: string;
+	readonly projectRoot: string;
+	readonly config: OkfitConfig;
+	readonly at: DateTime.Utc;
+	readonly dryRun: boolean;
+	/** Concept ids, resolved as `runVerify` resolves one (tolerant: leading slash, trailing `.md`). */
+	readonly ids: ReadonlyArray<string>;
+	/** Also set `status: stable` on every selected concept whose status is `draft`. Default `false`. */
+	readonly promote?: boolean;
+}
+
+/**
+ * Issue #214. Attests an explicit list of concept ids in one all-or-nothing
+ * batch. Every id is resolved exactly as {@link runVerify} resolves it, and
+ * every concept is located and spliced BEFORE any file is written, so one
+ * unknown id, reserved file or unsupported `verified`/`status` shape fails the
+ * whole call with the tree untouched. An explicit pick is never second-guessed:
+ * drafts, deprecated and already-attested concepts are all attested, and
+ * `skipped` is always empty. Duplicate ids (after normalisation) are written
+ * once. With `promote`, a draft's `status` becomes `stable` in the same write.
+ *
+ * @public
+ */
+export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (options: VerifyIdsOptions) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
+	const at = Schema.encodeSync(Timestamp)(options.at);
+
+	const concepts = new Map<string, LoadedConcept>();
+	for (const rawId of options.ids) {
+		const { id, concept } = yield* resolveConcept(bundle, rawId);
+		concepts.set(id, concept);
+	}
+
+	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
+	for (const [id, concept] of concepts) {
+		const status = options.promote === true && concept.frontmatter.status === "draft" ? "stable" : undefined;
+		prepared.push({ id, conceptPath: concept.path, ...(yield* prepareVerify(bundle, concept, actor, at, status)) });
+	}
+
+	if (!options.dryRun) {
+		for (const entry of prepared) yield* writeVerified(entry.absolutePath, entry.finalText);
+	}
+
+	return {
+		bundleRoot: bundle.root,
+		by: actor,
+		at,
+		dryRun: options.dryRun,
+		verified: prepared.map(({ id, conceptPath, fragment }) => ({ id, conceptPath, fragment })),
+		skipped: [],
+	} satisfies VerifyBatchResult;
+});
+
+/**
+ * Options for {@link loadPickerCandidates}.
+ *
+ * @public
+ */
+export interface PickerCandidatesOptions {
+	readonly bundleRoot: string;
+	readonly projectRoot: string;
+	readonly config: OkfitConfig;
+}
+
+/**
+ * The interactive verify picker's starting point: loads the bundle, resolves
+ * the human actor from git exactly as {@link runVerify} does, and selects the
+ * rows that actor may still attest. Reads only; nothing is written.
+ *
+ * @public
+ */
+export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates")(function* (
+	options: PickerCandidatesOptions,
+) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
+	return { by, candidates: selectPickerCandidates(bundle, options.config, by) } satisfies {
+		readonly by: string;
+		readonly candidates: ReadonlyArray<PickerCandidate>;
+	};
 });

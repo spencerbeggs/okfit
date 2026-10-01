@@ -13,7 +13,6 @@ import {
 import { GitHistory } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanSync } from "../render/sync.js";
 import { CLI_VERSION } from "../version.js";
@@ -169,8 +168,6 @@ export const syncCommand = Command.make(
 						yield* Console.log(line);
 					}
 				}
-
-				setExitCode(0);
 			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 			// K-22: under --format json an infrastructure failure ALSO gets a

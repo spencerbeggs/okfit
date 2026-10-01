@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -158,6 +158,38 @@ describe("okfit init", () => {
 
 		const after = await readFile(`${cwd}/okf/project.md`, "utf8");
 		assert.strictEqual(after, before);
+	});
+
+	it("--bundle writes the bundle and bundle.path there", async () => {
+		const { cwd, env } = await makeSandbox();
+		const result = await withServices(runOkfit(["init", "--bundle", "docs/kb"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 0);
+		assert.strictEqual(result.stdout, "Initialized docs/kb with the software-project profile\n");
+		assert.include(await readFile(`${cwd}/.config/okfit.toml`, "utf8"), 'path = "docs/kb"');
+		assert.include(await readFile(`${cwd}/docs/kb/project.md`, "utf8"), "type: Project");
+		const validate = await withServices(runOkfit(["validate"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(validate.exitCode, 0);
+	});
+
+	it("--config-location okfit.toml writes ./okfit.toml and not .config/okfit.toml", async () => {
+		const { cwd, env } = await makeSandbox();
+		const result = await withServices(
+			runOkfit(["init", "--config-location", "okfit.toml"], { cwd, env: baseEnv(env) }),
+		);
+		assert.strictEqual(result.exitCode, 0);
+		assert.include(await readFile(`${cwd}/okfit.toml`, "utf8"), 'path = "okf"');
+		// No stray `.config/` directory either: only the chosen location's parent is created.
+		assert.notInclude(await readdir(cwd), ".config");
+	});
+
+	it("a --bundle that escapes the project root is a usage error (64) and writes nothing", async () => {
+		const { cwd, env } = await makeSandbox();
+		const result = await withServices(runOkfit(["init", "--bundle", "../out"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 64);
+		assert.strictEqual(result.stdout, "");
+		assert.include(result.stderr, 'error: invalid bundle directory "../out": must not escape the project root');
+		const missing = await readFile(`${cwd}/.config/okfit.toml`, "utf8").catch(() => undefined);
+		assert.isUndefined(missing);
 	});
 
 	it("--profile none skips profile config but still scaffolds and validates clean (decision 2, decision 3)", async () => {

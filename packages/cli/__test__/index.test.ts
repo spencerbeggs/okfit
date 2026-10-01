@@ -9,6 +9,7 @@ import * as Barrel from "../src/index.js";
 const VALUES = [
 	"CLI_VERSION",
 	"DocumentStdinIsTerminalError",
+	"InitBundleDirError",
 	"human",
 	"humanContext",
 	"humanVerify",

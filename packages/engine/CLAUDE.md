@@ -51,11 +51,14 @@ src/
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
-    select.ts                -- VerifyBatchSkipReason, AttestableSelection, selectAttestable (pure)
+    select.ts                -- VerifyBatchSkipReason, AttestableSelection, selectAttestable,
+                                 PickerCandidate, selectPickerCandidates (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
                                  (pure, never a YAML serialiser)
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
-                                  resolves the actor, splices, and writes atomically
+                                  resolves the actor, splices, and writes atomically; also
+                                  runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
+                                  optional promote) and loadPickerCandidates
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
     index.ts                   -- syncIndex

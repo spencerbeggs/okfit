@@ -1,4 +1,4 @@
-import { ConfigIssueRenderer } from "@effected/cli";
+import { Cancelled, ConfigIssueRenderer, NotInteractive } from "@effected/cli";
 import type { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,
@@ -13,6 +13,7 @@ import {
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
+import { InitBundleDirError } from "./internal/initWizard.js";
 import { DocumentStdinIsTerminalError } from "./internal/stdin.js";
 
 const hasTag = (error: unknown, tag: string): boolean =>
@@ -53,6 +54,8 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    type-only import — this is the "path unknown" case, K-46) renders as
  *    `error: ${String(error)}` followed by one two-space-indented
  *    `ConfigIssueRenderer.render(error)` line per entry.
+ * 4a. `InitBundleDirError` (`okfit init --bundle`, exit 64) renders as one
+ *    `error: <message>` line.
  * 5. `VerifyConceptNotFoundError` and `VerifyUnsupportedFrontmatterError`
  *    each render as their own `error: <message>` line; both messages
  *    already name the concept id and what to do about it, and neither
@@ -79,6 +82,9 @@ const relativeToCwd = (path: string, cwd: string): string => {
  */
 export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (hasTag(error, "ShowHelp")) return [];
+	// #217: the kit's own fixed line is each error's `message`. Neither gets
+	// an `error:` prefix: a person backing out is not an error (exit 130).
+	if (error instanceof Cancelled || error instanceof NotInteractive) return [error.message];
 	if (error instanceof ConfigPathNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof ConfigMalformedError) return [`error: ${error.message}`];
 	if (error instanceof InitOverwriteError) {
@@ -88,6 +94,7 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 			"Nothing was written.",
 		];
 	}
+	if (error instanceof InitBundleDirError) return [`error: ${error.message}`];
 	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof SyncStagedLogError) return [`error: ${error.message}`];

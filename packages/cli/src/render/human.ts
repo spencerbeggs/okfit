@@ -10,19 +10,14 @@ export interface Counts {
 	readonly concepts: number;
 }
 
-/** The ANSI escape character, built from its code point so the source never carries a raw control byte. */
-const ESC = String.fromCharCode(27);
-
-/** ANSI SGR codes for the severity word only (K-19); reset after, never applied elsewhere. */
-const SEVERITY_COLOR: Record<RenderedDiagnostic["severity"], string> = {
-	error: `${ESC}[31m`,
-	warning: `${ESC}[33m`,
-	info: `${ESC}[36m`,
-};
-const RESET = `${ESC}[0m`;
-
-const colorize = (severity: RenderedDiagnostic["severity"], color: boolean): string =>
-	color ? `${SEVERITY_COLOR[severity]}${severity}${RESET}` : severity;
+/**
+ * Paints one severity word. `CliTheme`'s `paint` fits as-is: severities are
+ * a subset of its token names, and it is the identity when colour is `none`
+ * (#217 retired this module's hand-rolled ANSI table onto the theme).
+ *
+ * @public
+ */
+export type SeverityPaint = (severity: RenderedDiagnostic["severity"], text: string) => string;
 
 /**
  * K-16. With a range:
@@ -30,15 +25,15 @@ const colorize = (severity: RenderedDiagnostic["severity"], color: boolean): str
  * Without one: `<file> <severity> <code> <message>`. `file: ""` renders as
  * the literal `(bundle)`. Core's range is zero-based (D-32,
  * `CORE/Diagnostic.ts:49-57`); the `+ 1`s here are the only place it becomes
- * one-based. Colour, when `color` is `true`, wraps ONLY the severity word
+ * one-based. Colour, when a `paint` is given, wraps ONLY the severity word
  * (K-19) — never the code, the path, or the message.
  *
  * @public
  */
-export const line = (diagnostic: RenderedDiagnostic, options?: { readonly color?: boolean }): string => {
-	const color = options?.color ?? false;
+export const line = (diagnostic: RenderedDiagnostic, options?: { readonly paint?: SeverityPaint }): string => {
 	const file = diagnostic.file === "" ? "(bundle)" : diagnostic.file;
-	const severity = colorize(diagnostic.severity, color);
+	const severity =
+		options?.paint === undefined ? diagnostic.severity : options.paint(diagnostic.severity, diagnostic.severity);
 	const location =
 		diagnostic.range === undefined ? file : `${file}:${diagnostic.range.line + 1}:${diagnostic.range.character + 1}`;
 	return `${location} ${severity} ${diagnostic.code} ${diagnostic.message}`;
@@ -52,7 +47,7 @@ export const line = (diagnostic: RenderedDiagnostic, options?: { readonly color?
  */
 export const human = (
 	diagnostics: ReadonlyArray<RenderedDiagnostic>,
-	options?: { readonly color?: boolean },
+	options?: { readonly paint?: SeverityPaint },
 ): ReadonlyArray<string> => sort(diagnostics).map((d) => line(d, options));
 
 /**

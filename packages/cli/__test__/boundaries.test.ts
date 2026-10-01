@@ -25,7 +25,7 @@ describe("src boundaries (K-9, K-39)", () => {
 			const scan = yield* SourceBoundary.scan({
 				root: SRC_ROOT,
 				rules: ["process", "node:process", { forbidImports: ["@effected/app"] }],
-				allow: ["bin.ts", "main.ts", "commands/**", "internal/exit.ts"],
+				allow: ["bin.ts", "main.ts", "commands/**"],
 			});
 			// Non-vacuity: an empty `root` glob or a typo'd path would
 			// otherwise report a spotless boundary because nothing was
@@ -61,11 +61,11 @@ describe("src boundaries (K-9, K-39)", () => {
 	});
 
 	// Pins that every K-39-allowlisted relative path still names a real
-	// file: a renamed or removed `bin.ts`/`main.ts`/`internal/exit.ts`
+	// file: a renamed or removed `bin.ts`/`main.ts`
 	// should fail loudly here rather than silently narrowing what the
 	// allowlist ever exempts.
 	it("every K-39-allowlisted relative path still names a real file", () => {
-		for (const allowed of ["bin.ts", "main.ts", "internal/exit.ts"]) {
+		for (const allowed of ["bin.ts", "main.ts"]) {
 			assert.ok(existsSync(join(SRC_ROOT, allowed)), `expected ${allowed} to exist under src/`);
 		}
 		assert.ok(

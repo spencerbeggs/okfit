@@ -96,13 +96,15 @@ export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type {
+	PickerCandidatesOptions,
 	VerifyBatchOptions,
 	VerifyBatchResult,
 	VerifyBatchSkipReason,
+	VerifyIdsOptions,
 	VerifyOptions,
 	VerifyResult,
 } from "./verify/run.js";
-export { runVerify, runVerifyBatch } from "./verify/run.js";
-export type { AttestableSelection } from "./verify/select.js";
-export { resolveBatchTypes, selectAttestable } from "./verify/select.js";
+export { loadPickerCandidates, runVerify, runVerifyBatch, runVerifyIds } from "./verify/run.js";
+export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
+export { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

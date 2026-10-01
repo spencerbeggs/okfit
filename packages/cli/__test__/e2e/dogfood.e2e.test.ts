@@ -75,11 +75,13 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (`okf/roadmaps/documentation-site.md`). The verify-status and query work
  * adds one more `draft` Decision (`okf/decisions/engine-concept-query-layer.md`),
  * unverified by an agent and exempt from `require-verified-unmet` while `draft`.
+ * The interactive CLI work (#217) adds another `draft` Decision
+ * (`okf/decisions/interactive-prompts-gated-by-audience-and-terminal.md`).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 35,
+	Decision: 36,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,

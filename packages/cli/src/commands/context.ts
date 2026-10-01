@@ -9,7 +9,6 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
 
@@ -102,8 +101,6 @@ export const contextCommand = Command.make(
 						yield* Console.log(contextLine);
 					}
 				}
-
-				setExitCode(0);
 			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 			// K-22: under --format json, an infrastructure failure ALSO gets a stdout

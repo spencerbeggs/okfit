@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ConfigIssueRenderer } from "@effected/cli";
+import { Cancelled, ConfigIssueRenderer, NotInteractive } from "@effected/cli";
 import { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,
@@ -17,6 +17,14 @@ import { CliError } from "effect/cli";
 import { renderFailure } from "../src/errors.js";
 
 describe("renderFailure", () => {
+	it("renders the kit's Cancelled and NotInteractive as their own fixed line, unprefixed (#217)", () => {
+		assert.deepStrictEqual(renderFailure(new Cancelled({ reason: "escape" })), ["cancelled; nothing written"]);
+		assert.deepStrictEqual(renderFailure(new Cancelled({ reason: "interrupt" })), ["cancelled; nothing written"]);
+		assert.deepStrictEqual(renderFailure(new NotInteractive({})), [
+			"not interactive: run in a terminal or pass the flag",
+		]);
+	});
+
 	it("renders a ShowHelp as no lines (K-30: Command.runWith already printed the help)", () => {
 		const showHelp = new CliError.ShowHelp({ commandPath: ["okfit"], errors: [] });
 		assert.deepStrictEqual(renderFailure(showHelp), []);

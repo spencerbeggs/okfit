@@ -9,7 +9,7 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 ```text
 okfit [--help] [--version]
 okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
-okfit init [path] [--profile <name>] [--config <file>] [--help]
+okfit init [path] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
 okfit context [path] [--config <file>] [--format human|json] [--help]
 okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
 okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--config <file>] [--format human|json]
@@ -164,6 +164,21 @@ config's `bundle.profile`, itself defaulting to `software-project`); an
 unrecognised name is a warning, not a failure — `init` continues with the
 default profile.
 
+`--bundle <dir>` sets the bundle directory, relative to the project root
+(default: the config's `bundle.path`, itself defaulting to `okf`). It is
+written to the config's `bundle.path` and is where the scaffold goes. An
+empty, absolute, or root-escaping value (`..`) is a usage error (exit `64`).
+
+`--config-location <.config/okfit.toml|okfit.toml|.okfit.toml>` sets where
+the config file is written (default `.config/okfit.toml`); all three are
+locations discovery already reads.
+
+When the run is interactive, `init` asks for each of the profile, the bundle
+directory, and the config location that was not given as a flag, in that
+order, with the default pre-selected. Esc or Ctrl-C at any prompt exits `130`
+with `cancelled; nothing written`; every prompt happens before the first
+write. Piped or scripted runs never prompt and behave exactly as before.
+
 ### `okfit context`
 
 Prints the resolved project root, bundle root, config path, profile, and
@@ -237,6 +252,15 @@ type sets `require_verified` (or of the named types) that you have not
 already verified. A batch skips a concept and reports why: `draft`,
 `deprecated`, or `already-verified`. A batch never re-attests a
 `deprecated` concept; verifying one by id is still allowed.
+
+Bare `okfit verify` in a terminal opens a picker: every concept of a
+`require_verified` type you have not attested, drafts included and
+deprecated excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
+section, Enter continues). A confirm step follows, with a "promote K drafts
+to stable" toggle that is on by default. The picked concepts are attested in
+one all-or-nothing write. Esc, `q`, Ctrl-C or answering no exits `130` with
+nothing written. Without a terminal (a pipe, an agent or CI audience, or
+`--format json`) bare `verify` is a usage error (exit `64`).
 
 This is a human-run command: it records **your** attestation that you
 reviewed the concept, so no agent, hook, or MCP tool ever invokes it.
