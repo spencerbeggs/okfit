@@ -1,5 +1,23 @@
 # @okfit/mcp
 
+## 0.6.6
+
+### Refactoring
+
+- `list_concepts`, `get_concept` and `concept_neighbors` now delegate to `@okfit/engine`'s `ConceptQuery`; the tool contracts are unchanged [#213][#213]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/engine | dependency | updated | 0.9.4 | 0.10.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#213]: https://github.com/spencerbeggs/okfit/pull/213
+
 ## 0.6.5
 
 ### Dependencies

@@ -1,5 +1,13 @@
 # @okfit/lsp
 
+## 0.3.5
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/engine | dependency | updated | 0.9.4 | 0.10.0 |
+
 ## 0.3.4
 
 ### Dependencies
