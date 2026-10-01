@@ -1,4 +1,4 @@
-import { CliColor } from "@effected/cli";
+import { CliExit, CliTheme } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
@@ -16,7 +16,6 @@ import {
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
 import { CLI_VERSION } from "../version.js";
@@ -105,8 +104,8 @@ export const lintCommand = Command.make(
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(JsonEnvelope)(envelope)));
 				} else {
-					const color = yield* CliColor.enabled;
-					for (const diagnosticLine of human(diagnostics, { color })) {
+					const theme = yield* CliTheme;
+					for (const diagnosticLine of human(diagnostics, { paint: theme.paint })) {
 						yield* Console.log(diagnosticLine);
 					}
 					const counts: Counts = {
@@ -118,7 +117,7 @@ export const lintCommand = Command.make(
 					yield* Console.error(summary(counts, displayRoot(cwd, bundleRoot, path)));
 				}
 
-				setExitCode(code);
+				yield* CliExit.set(code);
 			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 			// K-22: under --format json, an infrastructure failure ALSO gets a stdout

@@ -1,3 +1,4 @@
+import { CliAudience } from "@effected/cli";
 import { Command } from "effect/cli";
 import { contextCommand } from "./context.js";
 import { graphCommand } from "./graph.js";
@@ -30,6 +31,10 @@ import { verifyCommand } from "./verify.js";
  */
 export const rootCommand = Command.make("okfit", {}).pipe(
 	Command.withDescription("Open Knowledge Format (OKF) v0.2 tooling: validate and scaffold bundles."),
+	// #217: `--audience <human|agent|ci>`, `--human`, `--agent`, `--ci`, valid
+	// on every subcommand. `CliAudience.run` in `main.ts` resolves them before
+	// core parses; more than one is a usage error (exit 64).
+	Command.withSharedFlags(CliAudience.flags()),
 	Command.withSubcommands([
 		validateCommand,
 		initCommand,

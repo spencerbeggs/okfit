@@ -39,6 +39,7 @@
 		"@effected/cli": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
 		"@effected/engine": "catalog:effected",
+		"@effected/env": "^0.1.0",
 		"@effected/git": "catalog:effected",
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",

@@ -11,7 +11,6 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanStale, staleSummary } from "../render/stale.js";
 import { CLI_VERSION } from "../version.js";
@@ -88,8 +87,6 @@ export const staleCommand = Command.make("stale", { path: pathArg, config: confi
 					staleSummary(envelope.summary.stale, envelope.summary.concepts, displayRoot(cwd, bundleRoot, path)),
 				);
 			}
-
-			setExitCode(0);
 		}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 		// K-22: under --format json, an infrastructure failure ALSO gets a stdout

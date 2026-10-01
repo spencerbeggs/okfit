@@ -3,7 +3,6 @@ import { OKF_SPEC_VERSION } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
@@ -76,8 +75,6 @@ export const graphCommand = Command.make("graph", { path: pathArg, config: confi
 			} else {
 				yield* Console.log(result.graph.toMermaid());
 			}
-
-			setExitCode(0);
 		}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 		// K-22: under --format json, an infrastructure failure ALSO gets a stdout

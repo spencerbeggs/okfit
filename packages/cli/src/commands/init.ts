@@ -1,4 +1,4 @@
-import { CliColor } from "@effected/cli";
+import { CliExit, CliPrompt, CliTheme } from "@effected/cli";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile, SCHEMA_DIRECTIVE } from "@okfit/core";
 import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";
@@ -16,10 +16,9 @@ import {
 	run,
 	targetPaths,
 } from "@okfit/engine";
-import { GitHistory, Profiles } from "@okfit/profiles";
+import { GitHistory, PROFILE_NAMES, Profiles } from "@okfit/profiles";
 import { Console, DateTime, Effect, FileSystem, Layer, Option, Path } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
+import { Argument, Command, Flag, Prompt } from "effect/cli";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
 
@@ -48,7 +47,19 @@ const configFlag = Flag.File("config").pipe(
  * contract (P-38), not a parser-level `CliError.InvalidValue`.
  */
 const profileFlag = Flag.String("profile").pipe(
-	Flag.optional,
+	// #217: `Some` when given or picked, `None` when neither -- the handler
+	// then falls back to the config's `bundle.profile`, a default only known
+	// after discovery, so it cannot be the fallback's static `otherwise`.
+	Flag.map(Option.some),
+	Flag.withFallbackPrompt(
+		CliPrompt.fallback(
+			Prompt.Select({
+				message: "Profile to scaffold with",
+				choices: PROFILE_NAMES.map((name) => ({ title: name, value: Option.some<string>(name) })),
+			}),
+			{ flag: "profile", otherwise: Option.none<string>() },
+		),
+	),
 	Flag.withDescription("profile to scaffold with (default: the config's bundle.profile or software-project)"),
 );
 
@@ -113,7 +124,7 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
  * 10. `Console.log` the K-51 success line.
  * 11. self-validate (K-29): `run({ root: bundleRoot, config: merged,
  *     profile, now })` over the bundle just written, rendered exactly as
- *     `validate --format human` does, `setExitCode` to its
+ *     `validate --format human` does, `CliExit.set` to its
  *     `forDiagnostics` result. The handler SUCCEEDS (K-7); the failure path
  *     is only `InitOverwriteError` at step 8, or an infrastructure error
  *     that already carries its own `[Runtime.errorExitCode]`.
@@ -217,14 +228,14 @@ export const initCommand = Command.make("init", { path: pathArg, config: configF
 					Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
 				);
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
-				const color = yield* CliColor.enabled;
-				for (const line of human(diagnostics, { color })) {
+				const theme = yield* CliTheme;
+				for (const line of human(diagnostics, { paint: theme.paint })) {
 					yield* Console.log(line);
 				}
 				yield* Console.error(
 					summary(countsOf(diagnostics, result.bundle.concepts.size), displayRoot(cwd, bundleRoot, path)),
 				);
-				setExitCode(forDiagnostics(diagnostics));
+				yield* CliExit.set(forDiagnostics(diagnostics));
 			}),
 		);
 	}),

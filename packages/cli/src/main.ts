@@ -5,12 +5,11 @@
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import { CliRuntime } from "@effected/cli";
+import { CliAudience, CliRuntime } from "@effected/cli";
 import type { Distribution } from "@effected/engine";
 import { CurrentDistribution } from "@effected/engine";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
-import { Command } from "effect/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
 import { versionFormatterLayer } from "./internal/versionFormatter.js";
@@ -61,7 +60,7 @@ export const main = (options: MainOptions = {}): void => {
 
 	const program = Effect.gen(function* () {
 		const now = yield* nowEffect;
-		return yield* Command.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
+		return yield* CliAudience.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
 	}).pipe(
 		// Only `formatVersion` differs from `CliColor`'s own default
 		// formatter; help/error rendering stay whatever `CliColor` decides
@@ -89,6 +88,11 @@ export const main = (options: MainOptions = {}): void => {
 			// its own.
 			exitCode: 3,
 			render: renderFailure,
+			// #217: builds `@effected/env`'s runtime and terminal services, the
+			// audience (flag > `OKFIT_AUDIENCE` > detection), `CliTheme` and
+			// `CliInteractive`, and gates the terminal and `--wizard` when the run
+			// is not interactive -- inside failure reporting, like `platform`.
+			env: { audienceEnvVar: "OKFIT_AUDIENCE" },
 		}),
 	);
 };

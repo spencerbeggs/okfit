@@ -1,3 +1,4 @@
+import { CliInteractive } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
@@ -16,7 +17,6 @@ import {
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanVerify, humanVerifyBatch } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
@@ -204,7 +204,6 @@ export const verifyCommand = Command.make(
 							yield* Console.log(line);
 						}
 					}
-					setExitCode(0);
 					return;
 				}
 
@@ -252,8 +251,6 @@ export const verifyCommand = Command.make(
 						yield* Console.log(line);
 					}
 				}
-
-				setExitCode(0);
 			}).pipe(
 				// Contract §12 note 8: `Derivation.generatedBy` requires `Git`, and
 				// no other okfit CLI file provides it. `Git.layer` needs
@@ -261,6 +258,9 @@ export const verifyCommand = Command.make(
 				// already supplies, so this is the whole fix.
 				Effect.provide(Git.layer),
 				provideConfig({ explicitConfigPath: input.config, discoveryCwd }),
+				// #217: machine output never prompts. Narrows only, so `--format
+				// human` keeps whatever the audience and terminal decided.
+				CliInteractive.unless(input.format === "json"),
 			);
 
 			// K-22: under --format json an infrastructure failure ALSO gets a

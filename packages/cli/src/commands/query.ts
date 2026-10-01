@@ -18,7 +18,6 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { setExitCode } from "../internal/exit.js";
 import { displayRoot } from "../render/human.js";
 import { humanQueryGet, humanQueryList, humanQueryNeighbors, queryListSummary } from "../render/query.js";
 import { CLI_VERSION } from "../version.js";
@@ -110,7 +109,6 @@ const run = <A, E, R>(
 				root: displayRoot(cwd, resolved.bundleRoot, path),
 				distribution,
 			});
-			setExitCode(0);
 		}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
 
 		// K-22: under --format json, an infrastructure failure ALSO gets a stdout envelope.
