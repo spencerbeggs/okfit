@@ -1,5 +1,9 @@
 # Log
 
+## 2026-10-01
+
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+
 ## 2026-09-30
 
 * Updated CLI
