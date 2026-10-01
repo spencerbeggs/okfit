@@ -3,6 +3,10 @@
 ## 2026-10-01
 
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated CLI
+* Updated Engine
+* Added Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated process reads confined to the CLI's boundary files
 
 ## 2026-09-30
 
