@@ -35,6 +35,14 @@ Exit codes: `0` clean, `1` lint/profile errors, `2` conformance errors, `3`
 infrastructure failure, `64` usage error, `130` interrupt. See `README.md`
 for the full table and the JSON envelope.
 
+Global audience flags (`--audience <human|agent|ci>`, `--human`, `--agent`,
+`--ci`, env `OKFIT_AUDIENCE`; more than one is exit `64`) are valid on every
+subcommand. The audience shapes output and gates prompting; it never
+refuses a command. Prompts (the `okfit verify` picker, the `okfit init`
+wizard) run only when interactive and are loaded lazily (`ink`/`react`);
+cancelling is exit `130` with nothing written. `render/human.ts`'s `line`
+and `human` take `{ paint }` (the kit's `SeverityPaint`), not `{ color }`.
+
 ## Layout
 
 ```text
@@ -42,7 +50,7 @@ src/
   bin.ts               -- the shebang entry point: imports and calls main(), nothing else
   main.ts               -- the assembled program: resolves Now, provides OkfitPlatform and
                             the CliColor-based version formatter, runs on @effected/cli's
-                            CliRuntime.main
+                            CliRuntime.main (env wiring, audienceEnvVar OKFIT_AUDIENCE) via CliAudience.run
   index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
                              Counts, human, line, summary, VerifyLines, humanVerify, CLI_VERSION
   version.ts              -- CLI_VERSION, read from process.env.__PACKAGE_VERSION__ (K-32), a
@@ -59,11 +67,14 @@ src/
                               VerifyConceptNotFoundError,
                               VerifyUnsupportedFrontmatterError) live in @okfit/engine now
   commands/
-    root.ts               -- rootCommand: subcommands only, no handler
+    root.ts               -- rootCommand: subcommands and the shared audience flags
+                              (--audience, --human, --agent, --ci), no handler
     validate.ts            -- validateCommand: flags/argument, the full handler
     init.ts                 -- initCommand: flags/argument, the full handler
     context.ts                -- contextCommand: flags/argument, the full handler
     verify.ts                  -- verifyCommand: flags/argument, the full handler
+    verify-picker.ts            -- the interactive picker bare `okfit verify` opens (MultiSelect by type, Confirm
+                                    with a promote-drafts toggle, then engine's runVerifyIds)
     sync.ts                     -- syncCommand: flags/argument, the full handler
     query.ts                     -- queryCommand (list/get/neighbors subcommands over @okfit/engine's ConceptQuery)
   render/
@@ -77,7 +88,6 @@ src/
   internal/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)
-    exit.ts                       -- setExitCode(code); the only writer of process.exitCode
     versionFormatter.ts            -- versionFormatterLayer: @effected/cli's CliColor.formatterLayer,
                                        only formatVersion overridden; colour itself is @effected/cli's
                                        own decision, read from the ambient ConfigProvider, never a
@@ -97,12 +107,13 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `node_modules` wins on disagreement.
 - **Process boundary (K-9, K-49), enforced by `__test__/boundaries.test.ts`.**
   `process` is read ONLY in `bin.ts`, `main.ts`, every file under
-  `commands/`, `internal/exit.ts`, and `version.ts` (`version.ts`'s
+  `commands/`, and `version.ts` (`version.ts`'s
   `process.env.__PACKAGE_VERSION__` is a build-time constant the bundler
   replaces, not a runtime environment read; `@effected/workspaces/testing`'s
   `SourceBoundary` exempts it unconditionally, so it needs no explicit
   allowlist entry). `internal/tty.ts`, this package's former sole reader of
-  `isTTY`/`NO_COLOR`, is deleted: colour is now `@effected/cli`'s `CliColor`
+  `isTTY`/`NO_COLOR`, is deleted, as is `internal/exit.ts` (exit codes go
+  through `CliExit.set`): colour is now `@effected/cli`'s `CliTheme`
   decision, read through the ambient `ConfigProvider`, never a `process`
   read this package performs itself -- see [okfit's front ends build on
   @effected/{engine,cli,mcp} rather than hand-rolled
