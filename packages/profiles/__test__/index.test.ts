@@ -21,6 +21,7 @@ const VALUES = [
 	"Profiles",
 	"Provenance",
 	"PUBLICATION_TYPE",
+	"Publications",
 	"SURFACE_TYPE",
 ] as const;
 

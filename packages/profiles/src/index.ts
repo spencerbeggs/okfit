@@ -23,4 +23,5 @@ export type { Layout, LayoutDirectory, Profile, ProfileName } from "./Profile.js
 export { PROFILE_NAMES, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js";
 export { Profiles } from "./Profiles.js";
 export { Provenance } from "./Provenance.js";
-export { PUBLICATION_TYPE, SURFACE_TYPE } from "./Publications.js";
+export type { RendersEntry } from "./Publications.js";
+export { PUBLICATION_TYPE, Publications, SURFACE_TYPE } from "./Publications.js";

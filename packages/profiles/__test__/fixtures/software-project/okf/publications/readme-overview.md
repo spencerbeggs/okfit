@@ -7,7 +7,7 @@ resource: ../../README.md
 surface: ../surfaces/readme.md
 renders:
   - path: ../interfaces/cli.md
-    body_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+    body_sha256: a0b477cfa7c6ad5766a85ca174f2e0a88e870586b7dee9d5ced1eb61344b63af
 ---
 
 # README overview
