@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: 5f20db0d23e0444f689dc4fc3f0700413dd44e053de3e70de32d9fd53fca5b9b
+  at: 2026-10-02T23:48:25Z
+  body_sha256: 365bfecb85c19d94e0e4e7993975642fbea87f542611a6198b9d68be1baa2f3f
 ---
 
 # Profiles
@@ -79,6 +79,18 @@ value itself (`Provenance.ts`), through
 frontmatter block. `SoftwareProject.ts`'s `project-not-at-root` check
 anchors the same way, at the misplaced Project concept's `type` value;
 `project-missing` and `project-multiple` stay bundle-level.
+
+## Publication linting
+
+`Publications.lint(bundle, config)` runs the `publication-drift` and
+`publication-orphan` lints over concepts of type `Publication`, requiring
+`Crypto.Crypto`. A Publication whose `renders` entry carries a
+`body_sha256` that no longer matches `Derivation.bodyDigest` of the rendered
+source concept reports drift; a `surface` or `renders[].path` that resolves
+to no bundle concept (or a malformed `renders` list) reports an orphan.
+`@okfit/engine`'s `validate/run.ts#run` appends both to `report.lint`, as it
+does `lintSurfaces` (`surface-unmatched`, in `validate/surfaces.ts`), which
+warns when a Surface's glob `resource` matches nothing on disk.
 
 ## Derivation is package-global
 
