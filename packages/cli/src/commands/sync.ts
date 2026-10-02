@@ -4,17 +4,19 @@ import type { SyncMode } from "@okfit/engine";
 import {
 	Now,
 	SyncEnvelope,
+	SyncPublicationConflictError,
 	jsonError,
 	provideConfig,
 	resolveProjectConfig,
 	runSync,
+	stampPublication,
 	syncEnvelope,
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
-import { humanSync } from "../render/sync.js";
+import { humanPublication, humanSync } from "../render/sync.js";
 import { CLI_VERSION } from "../version.js";
 
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context/verify's. */
@@ -84,6 +86,11 @@ const stagedFlag = Flag.Boolean("staged").pipe(
 	),
 );
 
+const publicationFlag = Flag.String("publication").pipe(
+	Flag.optional,
+	Flag.withDescription("restamp one Publication's renders digests after re-rendering its page; runs nothing else"),
+);
+
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
  * [--format human|json] [--since <YYYY-MM-DD>] [--staged]`.
@@ -117,6 +124,7 @@ export const syncCommand = Command.make(
 		format: formatFlag,
 		since: sinceFlag,
 		staged: stagedFlag,
+		publication: publicationFlag,
 	},
 	(input) =>
 		Effect.gen(function* () {
@@ -131,6 +139,36 @@ export const syncCommand = Command.make(
 					explicitConfigPath: input.config,
 					cwd,
 				});
+
+				if (Option.isSome(input.publication)) {
+					const conflicts = [
+						...(input.only.length > 0 ? ["--only"] : []),
+						...(input.staged ? ["--staged"] : []),
+						...(Option.isSome(input.since) ? ["--since"] : []),
+					];
+					if (conflicts.length > 0) return yield* new SyncPublicationConflictError({ flags: conflicts });
+					const stamped = yield* stampPublication({
+						bundleRoot: resolved.bundleRoot,
+						id: input.publication.value,
+						dryRun: input.dryRun,
+					});
+					if (input.format === "json") {
+						const envelope = syncEnvelope({
+							okfitVersion: CLI_VERSION,
+							root: displayRoot(cwd, resolved.bundleRoot, path),
+							dryRun: input.dryRun,
+							publication: stamped,
+							// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+							...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
+						});
+						yield* Console.log(JSON.stringify(Schema.encodeSync(SyncEnvelope)(envelope)));
+					} else {
+						for (const line of humanPublication(stamped, input.dryRun)) {
+							yield* Console.log(line);
+						}
+					}
+					return;
+				}
 
 				const modes: ReadonlySet<SyncMode> =
 					input.only.length > 0

@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-01T07:16:09Z
-  body_sha256: 3a70449a72ca3d7a2696ec5d8d43e142ebf06bcb348b2c74c8d2a59223a48426
+  at: 2026-10-02T23:58:13Z
+  body_sha256: c69180aa3965e3abb4f749a45914d6c01b62585dfdc51d9f3ea0148e76ee4aee
 tags:
   - architecture
 verified:
@@ -141,7 +141,7 @@ there is no `okfit status` command. `stale` and `graph` stay top-level.
 ## okfit sync
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
-[--format human|json] [--since <YYYY-MM-DD>] [--staged]` is the one command that regenerates every
+[--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>]` is the one command that regenerates every
 derived-content family: `generated.at` and `generated.body_sha256` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
@@ -179,6 +179,19 @@ the next commit reconciles it.
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,
 `exit_code`, `generated`, `index`, `log` — each of the latter three an
 object with `selected`, `written`, `unchanged`, `skipped`.
+
+`--publication <id>` restamps one Publication's `renders` digests from the
+current bodies of its source concepts, after its page has been
+re-rendered, and runs nothing else (`--dry-run` and `--format` still
+apply). Combining it with `--only`, `--staged` or `--since` is a usage
+error, exit `64`; so is an unknown id, a concept that is not a Publication,
+or a `renders` entry that points at no concept, each with nothing written
+and a hint to run `okfit query --type Publication`. A `renders` value that
+is not a block-style list of entries fails exit `3`, like any other
+unsupported frontmatter shape. Success exits `0`. Plain `okfit sync` never
+restamps Publications. In the JSON envelope the three modes are all
+`selected: false` and an extra `publication` member carries `id`,
+`written` and the stamped `digests`.
 
 ## okfit lint
 

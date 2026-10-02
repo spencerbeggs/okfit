@@ -37,9 +37,19 @@ export const SyncEnvelope = Schema.Struct({
 	generated: SyncModeEnvelope,
 	index: SyncModeEnvelope,
 	log: SyncModeEnvelope,
+	/** Present only for `okfit sync --publication`; then the three modes are all `selected: false`. */
+	publication: Schema.optionalKey(
+		Schema.Struct({
+			id: Schema.String,
+			written: Schema.Boolean,
+			digests: Schema.Array(Schema.Struct({ path: Schema.String, body_sha256: Schema.String })),
+		}),
+	),
 });
 /** @public */
 export type SyncEnvelope = typeof SyncEnvelope.Type;
+
+const NOT_SELECTED: SyncModeEnvelope = { selected: false, written: [], unchanged: [], skipped: [] };
 
 const toModeEnvelope = (mode: SyncResult["generated"]): SyncModeEnvelope => ({
 	selected: mode.selected,
@@ -59,7 +69,12 @@ export const syncEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly root: string;
 	readonly dryRun: boolean;
-	readonly result: SyncResult;
+	readonly result?: SyncResult;
+	readonly publication?: {
+		readonly id: string;
+		readonly written: boolean;
+		readonly digests: ReadonlyArray<{ readonly path: string; readonly body_sha256: string }>;
+	};
 	readonly distribution?: Distribution;
 }): SyncEnvelope => ({
 	schema: 1,
@@ -69,7 +84,16 @@ export const syncEnvelope = (input: {
 	root: input.root,
 	dry_run: input.dryRun,
 	exit_code: 0,
-	generated: toModeEnvelope(input.result.generated),
-	index: toModeEnvelope(input.result.index),
-	log: toModeEnvelope(input.result.log),
+	generated: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.generated),
+	index: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.index),
+	log: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.log),
+	...(input.publication === undefined
+		? {}
+		: {
+				publication: {
+					id: input.publication.id,
+					written: input.publication.written,
+					digests: input.publication.digests.map((d) => ({ path: d.path, body_sha256: d.body_sha256 })),
+				},
+			}),
 });

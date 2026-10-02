@@ -47,3 +47,26 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 	);
 	return lines;
 };
+
+/**
+ * Human output for `okfit sync --publication`: one line per rendered source's
+ * digest, then whether the Publication file changed.
+ *
+ * @public
+ */
+export const humanPublication = (
+	result: {
+		readonly id: string;
+		readonly written: boolean;
+		readonly digests: ReadonlyArray<{ readonly path: string; readonly body_sha256: string }>;
+	},
+	dryRun: boolean,
+): ReadonlyArray<string> => [
+	`publication ${result.id}:`,
+	...result.digests.map((d) => `  ${d.path} ${d.body_sha256}`),
+	result.written
+		? dryRun
+			? `would restamp ${result.id} (dry run, nothing written)`
+			: `restamped ${result.id}`
+		: `unchanged ${result.id}`,
+];
