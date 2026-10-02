@@ -1,7 +1,8 @@
-import { MarkdownEdit } from "@effected/markdown";
+import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import type { Status } from "@okfit/core";
-import { Effect, Runtime, Schema } from "effect";
+import { DiagnosticRange } from "@okfit/core";
+import { Effect, Result, Runtime, Schema } from "effect";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { splice, spliceTopLevelScalar } from "../verify/splice.js";
 
@@ -77,5 +78,64 @@ export class FrontmatterEdits {
 			}
 			const edit = splice(target, entry, documentNewline(text));
 			return [shift(edit, bom.length)];
+		});
+
+	/**
+	 * Edits that stamp `renders[i].body_sha256` with `digests[i]`: an existing value is replaced in
+	 * place, a missing key is inserted on the line after `renders[i].path` at that key's column.
+	 * Block-style `renders` only; flow style fails with `UnsupportedFrontmatterError`.
+	 */
+	static readonly rendersDigests = (
+		source: string,
+		digests: ReadonlyArray<string>,
+	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
+		Effect.gen(function* () {
+			const { text, bom } = stripBom(source);
+			const unsupported = (shape: string) => new UnsupportedFrontmatterError({ key: "renders", shape });
+			const parsed = MarkdownDocument.parseResult(text, { frontmatter: true });
+			if (Result.isFailure(parsed)) return yield* unsupported("unparseable");
+			const document = parsed.success;
+			const block = DiagnosticRange.forFrontmatterPath(document, []);
+			const rendersSpan = DiagnosticRange.forFrontmatterPath(document, ["renders"]);
+			if (block === undefined || rendersSpan === undefined || rendersSpan.offset === block.offset) {
+				return yield* unsupported("absent");
+			}
+			if (text.charAt(rendersSpan.offset) === "[") return yield* unsupported("flow-sequence");
+			const newline = documentNewline(text);
+			const edits: Array<MarkdownEdit> = [];
+			for (const [index, digest] of digests.entries()) {
+				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
+				if (digestSpan !== undefined && digestSpan.offset !== block.offset) {
+					const content = digestSpan.length === 0 ? ` ${digest}` : digest;
+					edits.push(
+						shift(MarkdownEdit.make({ offset: digestSpan.offset, length: digestSpan.length, content }), bom.length),
+					);
+					continue;
+				}
+				const pathSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "path"]);
+				if (pathSpan === undefined || pathSpan.offset === block.offset) return yield* unsupported("missing-path");
+				const lineStart = text.lastIndexOf("\n", pathSpan.offset - 1) + 1;
+				const prefix = /^[ ]*(?:-[ ]+)*(?:"path"|'path'|path)[ ]*:[ ]*$/u.exec(text.slice(lineStart, pathSpan.offset));
+				if (prefix === null) return yield* unsupported("flow-mapping");
+				const column = /^[ ]*(?:-[ ]+)*/u.exec(prefix[0])?.[0].length ?? 0;
+				const newlineAt = text.indexOf("\n", pathSpan.offset + pathSpan.length);
+				const lineEnd =
+					newlineAt === -1
+						? text.length
+						: newlineAt > 0 && text.charAt(newlineAt - 1) === "\r"
+							? newlineAt - 1
+							: newlineAt;
+				edits.push(
+					shift(
+						MarkdownEdit.make({
+							offset: lineEnd,
+							length: 0,
+							content: `${newline}${" ".repeat(column)}body_sha256: ${digest}`,
+						}),
+						bom.length,
+					),
+				);
+			}
+			return edits;
 		});
 }
