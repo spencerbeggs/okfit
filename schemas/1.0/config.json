@@ -574,6 +574,72 @@
 							]
 						}
 					}
+				},
+				"publication_drift": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "publication-drift",
+					"description": "A Publication's renders[].body_sha256 is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"publication_orphan": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "publication-orphan",
+					"description": "A Publication's surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body_sha256 } entries. Default \"error\".",
+					"default": "error",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"surface_unmatched": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "surface-unmatched",
+					"description": "A Surface's resource glob matches no file or directory; legitimate in a brand-new monorepo, so it only warns. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
 				}
 			},
 			"additionalProperties": false,
