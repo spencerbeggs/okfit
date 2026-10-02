@@ -1,5 +1,23 @@
 # @okfit/engine
 
+## 0.11.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/schemastore | dependency | updated | ^0.18.0 | ^0.20.0 |
+| @okfit/core | dependency | updated | 0.8.4 | 0.8.5 |
+| @okfit/profiles | dependency | updated | 0.8.3 | 0.8.3 |
+
+[#235][#235]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#235]: https://github.com/spencerbeggs/okfit/pull/235
+
 ## 0.11.0
 
 ### Features
