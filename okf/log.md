@@ -3,6 +3,9 @@
 ## 2026-10-02
 
 * Updated okfit config file schema
+* Updated Core
+* Updated Engine
+* Updated Profiles
 
 ## 2026-10-01
 
