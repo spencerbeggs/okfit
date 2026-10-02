@@ -16,11 +16,13 @@ import { writeAtomic } from "./write.js";
  */
 export class PublicationNotFoundError extends Schema.TaggedError<PublicationNotFoundError>()(
 	"PublicationNotFoundError",
-	{ id: Schema.String },
+	{ id: Schema.String, publication: Schema.optionalKey(Schema.String) },
 ) {
-	override readonly [Runtime.errorExitCode] = 2;
+	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
-		return `no concept "${this.id}" in the bundle`;
+		return this.publication === undefined
+			? `no concept "${this.id}" in the bundle`
+			: `a renders entry of "${this.publication}" points at "${this.id}", which is not a concept in the bundle; fix that renders entry`;
 	}
 }
 
@@ -33,7 +35,7 @@ export class NotAPublicationError extends Schema.TaggedError<NotAPublicationErro
 	id: Schema.String,
 	type: Schema.String,
 }) {
-	override readonly [Runtime.errorExitCode] = 2;
+	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
 		return `"${this.id}" is a ${this.type}, not a ${PUBLICATION_TYPE}`;
 	}
@@ -84,7 +86,7 @@ export const stampPublication = (options: {
 			const sourceId = Publications.resolveRef(concept.path, entry.path);
 			const source = sourceId === "" ? undefined : bundle.concepts.get(sourceId as ConceptId);
 			if (source === undefined) {
-				return yield* new PublicationNotFoundError({ id: sourceId === "" ? entry.path : sourceId });
+				return yield* new PublicationNotFoundError({ id: sourceId === "" ? entry.path : sourceId, publication: id });
 			}
 			digests.push({ path: entry.path, body_sha256: yield* Derivation.bodyDigest(source.document.source) });
 		}

@@ -159,4 +159,18 @@ describe("FrontmatterEdits.rendersDigests", () => {
 			},
 		),
 	);
+
+	it.effect("replaces a quoted digest value, quotes included", () => {
+		const source = pub(`  - path: a.md\n    body_sha256: "${"0".repeat(64)}"`);
+		return Effect.map(stampRenders(source, [D1]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+		);
+	});
+
+	it.effect("fails typed on a document with no frontmatter", () =>
+		Effect.map(Effect.flip(FrontmatterEdits.rendersDigests("no frontmatter\n", [D1])), (error) => {
+			assert.ok(error instanceof UnsupportedFrontmatterError);
+			assert.strictEqual(error.key, "renders");
+		}),
+	);
 });
