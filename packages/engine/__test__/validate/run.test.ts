@@ -295,3 +295,42 @@ describe("Now", () => {
 		}).pipe(Effect.provideService(Now, now)),
 	);
 });
+
+describe("run — publication-drift lint", () => {
+	it.effect("appends a publication-drift diagnostic for a stale Publication", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-publication-drift-")));
+			try {
+				yield* Effect.promise(() =>
+					writeFile(join(root, "source.md"), "---\ntype: Module\n---\n\n# Source\n\nBody.\n"),
+				);
+				yield* Effect.promise(() => writeFile(join(root, "surface.md"), "---\ntype: Surface\n---\n\n# Surface\n"));
+				yield* Effect.promise(() =>
+					writeFile(
+						join(root, "pub.md"),
+						`---\ntype: Publication\nsurface: surface\nrenders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
+					),
+				);
+				const config: OkfitConfig = {
+					...OkfitConfig.DEFAULTS,
+					types: { Module: {}, Surface: {}, Publication: {} },
+					lint: {
+						...ONLY_DRIFT_LINT,
+						generated_at_drift: "off",
+						publication_drift: "warn",
+						publication_orphan: "off",
+						surface_unmatched: "off",
+					},
+				};
+				const result = yield* run({ root, config, profile: Option.none(), now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+				);
+				assert.strictEqual(result.report.lint.length, 1);
+				assert.strictEqual(result.report.lint[0]?.code, "publication-drift");
+				assert.strictEqual(result.report.lint[0]?.file, "pub.md");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(nodePlatform)),
+	);
+});
