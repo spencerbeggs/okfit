@@ -14,8 +14,8 @@ Never commit directly to `main`. Create a branch for each task and do the work t
 
 ```typescript
 import { readFile } from "node:fs/promises";
-import type { Concept } from "./concept.js";
-import { load } from "./load.js";
+import type { ExampleType } from "./example-module.js";
+import { exampleValue } from "./example-module.js";
 ```
 
 Bare package specifiers such as `effect` are not affected. These rules apply to relative and built-in specifiers only.

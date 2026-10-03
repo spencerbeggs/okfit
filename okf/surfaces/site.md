@@ -9,8 +9,8 @@ resource: ../../website/content
 url: "https://okfit.dev"
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:23:03Z
-  body_sha256: 6fe0ad2acfe0c2249b718223d9eaf91b449c49f6db302690926a4e7be8037f97
+  at: 2026-10-03T00:39:07Z
+  body_sha256: e6bc7f653954bcea576cbe5325014b2f615d37e8f8621f7c1b0162ba138caa98
 tags:
   - docs
 ---
@@ -24,8 +24,6 @@ People using the project who want guides, reference and worked tutorials. This i
 ## Required structure
 
 Organize pages by what the reader is trying to do: a getting-started path first, task guides next, reference last. Give every page one clear job, a sentence-case title and a short summary before the first heading. Link between pages instead of repeating their content.
-
-Replace the placeholder `url` in this concept's frontmatter with the real published address before relying on it.
 
 ## okfit specifics
 
