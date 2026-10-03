@@ -4,18 +4,14 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
+import type { Crypto, FileSystem, Path } from "effect";
 import { Effect, Runtime } from "effect";
+import { UnsupportedFrontmatterError } from "../../src/edits/FrontmatterEdits.js";
 import { NotAPublicationError, PublicationNotFoundError, stampPublication } from "../../src/sync/publication.js";
 
 const withBundle = <A, E>(
 	files: Record<string, string>,
-	use: (
-		root: string,
-	) => Effect.Effect<
-		A,
-		E,
-		import("effect").FileSystem.FileSystem | import("effect").Path.Path | import("effect").Crypto.Crypto
-	>,
+	use: (root: string) => Effect.Effect<A, E, FileSystem.FileSystem | Path.Path | Crypto.Crypto>,
 ) =>
 	Effect.gen(function* () {
 		const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-stamp-")));
@@ -67,6 +63,19 @@ describe("stampPublication", () => {
 			}),
 		),
 	);
+
+	it.effect("fails UnsupportedFrontmatterError (shape malformed) for a non-list renders, writing nothing", () => {
+		const bad = "---\ntype: Publication\nresource: page.md\nsurface: surfaces/s\nrenders: nope\n---\n\nNotes.\n";
+		return withBundle({ ...files, "publications/p.md": bad }, (root) =>
+			Effect.gen(function* () {
+				const e = yield* Effect.flip(stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false }));
+				assert.ok(e instanceof UnsupportedFrontmatterError);
+				assert.strictEqual(e.key, "renders");
+				assert.strictEqual(e.shape, "malformed");
+				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "publications/p.md"), "utf8")), bad);
+			}),
+		);
+	});
 
 	it.effect("fails PublicationNotFoundError for an unknown id", () =>
 		withBundle(files, (root) =>

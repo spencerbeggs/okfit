@@ -175,6 +175,52 @@ describe("locateGeneratedBlock", () => {
 			assert.strictEqual(located._tag, "unsupported");
 		}),
 	);
+
+	for (const spelling of ["generated:", "generated: ~", "generated: null"]) {
+		it.effect(`classifies a null-valued \`${spelling}\` as replaceable, spanning exactly that line (#144)`, () =>
+			Effect.gen(function* () {
+				const source = `---\ntype: Module\n${spelling}\ntitle: T\n---\n\nBody.\n`;
+				const located = yield* locateGeneratedBlock(source);
+				assert.strictEqual(located._tag, "replace");
+				if (located._tag !== "replace") return;
+				assert.strictEqual(source.slice(located.start, located.end), `${spelling}\n`);
+			}),
+		);
+	}
+
+	for (const [name, source, line] of [
+		["NULL", "---\ntype: Module\ngenerated: NULL\ntitle: T\n---\n", "generated: NULL\n"],
+		["a trailing comment", "---\ntype: Module\ngenerated: ~ # todo\ntitle: T\n---\n", "generated: ~ # todo\n"],
+		["CRLF", "---\r\ntype: Module\r\ngenerated: ~\r\ntitle: T\r\n---\r\n", "generated: ~\r\n"],
+		["a value on the next line", "---\ntype: Module\ngenerated:\n  ~\ntitle: T\n---\n", "generated:\n  ~\n"],
+		["the last key", "---\ntype: Module\ngenerated: ~\n---\n", "generated: ~\n"],
+		["a quoted key", '---\ntype: Module\n"generated": ~\ntitle: T\n---\n', '"generated": ~\n'],
+	] as const) {
+		it.effect(`classifies ${name} as replaceable`, () =>
+			Effect.gen(function* () {
+				const located = yield* locateGeneratedBlock(source);
+				assert.strictEqual(located._tag, "replace");
+				if (located._tag !== "replace") return;
+				assert.strictEqual(source.slice(located.start, located.end), line);
+			}),
+		);
+	}
+
+	for (const spelling of ["generated: !!null", "generated: &a ~", "generated: !!null ~", "generated: &a"]) {
+		it.effect(`classifies a tagged or anchored \`${spelling}\` as unsupported`, () =>
+			Effect.gen(function* () {
+				const located = yield* locateGeneratedBlock(`---\ntype: Module\n${spelling}\ntitle: T\n---\n`);
+				assert.strictEqual(located._tag, "unsupported");
+			}),
+		);
+	}
+
+	it.effect("still treats a non-null generated value as unsupported", () =>
+		Effect.gen(function* () {
+			const located = yield* locateGeneratedBlock("---\ntype: Module\ngenerated: nope\n---\n");
+			assert.strictEqual(located._tag, "unsupported");
+		}),
+	);
 });
 
 describe("spliceGeneratedBlock", () => {
@@ -558,6 +604,54 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			}
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
+
+	for (const spelling of ["generated:", "generated: ~"]) {
+		it.effect(`replaces a null-valued \`${spelling}\` line with the full block from agent (#144)`, () =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-null-")));
+				try {
+					const nullSource = SOURCE.replace("title: Digested\n", `${spelling}\ntitle: Digested\n`);
+					yield* Effect.promise(() => writeFile(join(root, "module.md"), nullSource));
+					const concept = LoadedConcept.make({
+						id: Option.getOrThrow(ConceptId.normalize("module.md")),
+						path: "module.md",
+						frontmatter: Concept.make({ type: "Module", extensions: {}, raw: {} }),
+						document: Result.getOrThrow(MarkdownDocument.parseResult(nullSource)),
+						computationBody: Option.none(),
+					});
+					const result = yield* syncGenerated(bundleWith(concept, root), {
+						provenance: new Map([[concept.id, committed]]),
+						dryRun: false,
+						agent: "okfit/claude-code" as Actor,
+					});
+					assert.deepStrictEqual(result.written, [concept.id]);
+					assert.deepStrictEqual(result.skipped, []);
+					const digest = yield* digestOf(nullSource);
+					const out = yield* Effect.promise(() => readFile(join(root, "module.md"), "utf8"));
+					assert.strictEqual(
+						out,
+						[
+							"---",
+							"type: Module",
+							"generated:",
+							"  by: okfit/claude-code",
+							`  at: ${ENCODED_DERIVED_AT}`,
+							`  body_sha256: ${digest}`,
+							"title: Digested",
+							"---",
+							"",
+							"# Digested",
+							"",
+							"Body text.",
+							"",
+						].join("\n"),
+					);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}).pipe(Effect.provide(NodeServices.layer)),
+		);
+	}
 
 	it.effect("skips generated-missing when the concept has no block and no agent is configured", () =>
 		Effect.gen(function* () {

@@ -11,15 +11,16 @@ allowed-tools: Read, Write, Edit, Glob, Grep, mcp__plugin_okfit_mcp__get_concept
 
 # docs-templates
 
-Defaults for page structure. **The Surface body always overrides a template default.** Before using any skeleton, `get_concept` the Surface the page belongs to (`mcp__plugin_okfit_mcp__get_concept`, ids under `surfaces/`) and follow its required and forbidden sections; fall back to the defaults here only where it is silent. No Surface yet: run `docs-detect-shape` first.
+Defaults for page structure. **The Surface body always overrides a template default.** Before using any skeleton, `get_concept` the Surface the page belongs to (`mcp__plugin_okfit_mcp__get_concept`, ids under `surfaces/`) and follow its required and forbidden sections; fall back to the defaults here only where it is silent. No Surface yet: use the defaults here, and suggest `docs-detect-shape` to set Surfaces up.
 
 ## Pick the shape
 
-Use the `docs-detect-shape` classification: single-package and sub-package get a package README, monorepo-root gets a router README. Read the matching reference when you write:
+Classify the target from its `package.json` and workspace files. A repo with no real sub-package (a `package.json` outside the root that `pnpm-workspace.yaml` or `workspaces` globs match) is a **single package** and gets a package README. A **monorepo root** has at least one such sub-package and gets a router README that lists the packages and carries no badges. A package that sits under a parent's workspace globs is a **monorepo sub-package** and gets a package README built from its own `package.json`. A self-referential workspace (`workspaces: ["."]`) is still a single package. `docs-detect-shape` carries the full rules and writes Surfaces; this paragraph is enough to pick a skeleton. Read the matching reference when you write:
 
 - `references/readme-package.md` when writing a README for a published package.
 - `references/readme-router.md` when writing a monorepo root README.
 - `references/docs-toc.md` when scaffolding `docs/`, adding a page to it, or rebuilding its table of contents.
+- `references/contributor-guide.md` when writing a task-shaped contributor page in `docs/`, such as making a pull request.
 
 ## Rules for every page
 

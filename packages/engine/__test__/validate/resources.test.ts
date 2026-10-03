@@ -150,6 +150,7 @@ describe("validate/resources lintResources", () => {
 					conceptAt("a.md", { resource: "https://x/y" }),
 					conceptAt("b.md", { resource: "src/**" }),
 					conceptAt("c.md", { sources: [{ resource: "the git history" }] }),
+					conceptAt("d.md", { resource: "@(.github|docs)" }),
 				);
 				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
 				assert.deepStrictEqual(diagnostics, []);

@@ -6,8 +6,8 @@ import { Effect, FileSystem, Path } from "effect";
 /** A `resource`/`sources[].resource` value that names a URL, not a bundle-relative path (D-24). */
 const SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 
-/** Glob metacharacters that mark a value as a descriptor pattern, not a literal path. */
-const GLOB_RE = /[*?[{]/;
+/** Glob metacharacters, extglob openers included, that mark a value as a pattern rather than a literal path. */
+export const GLOB_RE = /[*?[{]|[@+!]\(/;
 
 /**
  * True when `value` is a descriptor (a URL, a scope description, or a glob

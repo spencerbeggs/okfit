@@ -129,6 +129,7 @@ const handleMarkVerified = (
 		const [uri] = yield* decodeArgs(MarkVerifiedArgs, args, "okfit.lsp.markVerified expects [uri]");
 		const target = yield* targetFor(registry, documents, uri);
 		if (target.status === "draft") return yield* Effect.fail(toLspError({ _tag: "DraftCannotBeVerified" }));
+		if (target.status === "deprecated") return yield* Effect.fail(toLspError({ _tag: "DeprecatedCannotBeVerified" }));
 		const actor = yield* resolveActor(target.handle).pipe(Effect.mapError(toLspError));
 		const now = yield* DateTime.now;
 		const edits = yield* verifiedTextEdits(target, actor, now).pipe(Effect.mapError(toLspError));

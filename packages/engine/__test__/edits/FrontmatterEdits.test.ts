@@ -167,6 +167,19 @@ describe("FrontmatterEdits.rendersDigests", () => {
 		);
 	});
 
+	// MarkdownDocument.parseResult never fails on malformed frontmatter YAML (it
+	// is lenient), so the "unparseable" shape is a defensive branch that real
+	// input cannot reach; invalid YAML surfaces as another typed shape instead.
+	it.effect("fails typed, never crashes, when the frontmatter is not valid YAML", () =>
+		Effect.map(
+			Effect.flip(FrontmatterEdits.rendersDigests("---\ntype: Publication\nrenders: [unclosed\n---\n\nBody.\n", [D1])),
+			(error) => {
+				assert.ok(error instanceof UnsupportedFrontmatterError);
+				assert.strictEqual(error.key, "renders");
+			},
+		),
+	);
+
 	it.effect("fails typed on a document with no frontmatter", () =>
 		Effect.map(Effect.flip(FrontmatterEdits.rendersDigests("no frontmatter\n", [D1])), (error) => {
 			assert.ok(error instanceof UnsupportedFrontmatterError);

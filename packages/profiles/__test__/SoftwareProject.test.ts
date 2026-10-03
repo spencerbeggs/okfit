@@ -14,7 +14,7 @@ const TOML_FENCE = /```toml\r?\n([\s\S]*?)```/;
 
 /** Sentence count: terminator followed by whitespace or end of text. */
 const sentences = (text: string): number => text.split(/(?<=[.!?])\s+/).length;
-const MARKDOWN = /[*`[#]|(?:^|\s)_|_(?:\s|$)/; // snake_case field names are plain text; only emphasis underscores count
+const MARKDOWN = /[*`[#]|(?<![A-Za-z0-9])_|_(?![A-Za-z0-9])/; // an underscore is plain text only inside an identifier (snake_case)
 
 const guidanceStrings = (): { descriptions: ReadonlyArray<string>; guidances: ReadonlyArray<string> } => {
 	const descriptions: Array<string> = [];

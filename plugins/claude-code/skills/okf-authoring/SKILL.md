@@ -78,8 +78,11 @@ attests and promotes it in one write; that too is theirs to run.
     or file; only parameter values.
 13. Write `runtime` on an Attested Computation anyway -- core only lints its
     absence (D-20); do not lean on that leniency.
-14. Absent `status` reads as `stable`; write `draft` only when genuinely
-    unreviewed, never `stable` defensively.
+14. Always write `status` explicitly, never leave it absent: `draft` when the
+    concept is unreviewed, `stable` when it is settled. A Decision follows its
+    verified rule instead: write it `draft` and leave settling it to the
+    human, who runs `okfit verify <id> --stable`; never write `stable` on a
+    Decision yourself.
 15. When authoring new `verified` (rare -- rule 2 says don't), always emit
     list form.
 16. Never delete an unrecognised frontmatter key -- extensions are legal

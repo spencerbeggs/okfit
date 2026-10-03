@@ -35,10 +35,17 @@ for the simplicity of one agent running one skill straight through.
    branch needs no restamp pass. All three are
    derived (`okf-spec`'s reserved-files section plus the
    `profiles-generated-at-is-author-date` Decision) -- never hand-edit any
-   of them. A repository whose pre-commit hook runs `okfit sync --staged`
-   needs no second pass here; otherwise expect the stamp to land in a
-   follow-up commit. Report what `sync` wrote, left unchanged, or skipped
-   (and why) to whoever reads the sweep's output.
+   of them. Report what `sync` wrote, left unchanged, or skipped (and why)
+   to whoever reads the sweep's output. A concept with uncommitted edits is
+   reported skipped (dirty) until it is committed, so tell the human the
+   order to follow once they commit: after the commit, run
+   `okfit sync --dry-run`, and make a stamp commit only if it reports
+   writes. A pre-commit hook with the SAVVY-OKF section runs
+   `okfit sync --staged`, which may already have stamped `generated.at` and
+   `generated.body_sha256` into the commit, leaving nothing to stamp. That
+   hook path never writes `log.md`, so the follow-up sync may write only
+   `log.md`; commit that alone as the second commit. Never create an empty
+   stamp commit.
 5. Check CLAUDE.md pointer coverage with `okf-context`'s checklist, in both
    directions.
 6. Tell the user what changed. Separately, list any concept step 3's

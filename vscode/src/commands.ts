@@ -1,6 +1,7 @@
 import { useCommand } from "reactive-vscode";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
+import { finishEditCommand } from "./save-after-apply.js";
 import { conceptUriFrom, statusPicks } from "./status-picks.js";
 import type { Status } from "./tree/model.js";
 import type { ConceptsProvider } from "./tree/provider.js";
@@ -25,7 +26,11 @@ const supportsCommand = (client: LanguageClient, command: string): boolean =>
 const executeOnServer = <R>(client: LanguageClient, command: string, args: ReadonlyArray<unknown>): Promise<R> =>
 	client.sendRequest<R>("workspace/executeCommand", { command, arguments: [...args] });
 
-/** Runs a server-applied edit command and surfaces a failure -- `applied: false` or a transport error -- as one error dialog. Shared by `okfit.setStatus` and `okfit.markVerified`, the extension's only two commands with this shape. */
+/**
+ * Runs a server-applied edit command and surfaces a failure -- `applied: false` or a transport error -- as one error dialog. Shared by `okfit.setStatus` and `okfit.markVerified`, the extension's only two commands with this shape.
+ *
+ * These commands are the tree and palette entry points, so an applied edit is saved straight away (#182): there is no open editor to show the dirty state, and the server never writes files. A lightbulb code action does not pass through here and stays dirty.
+ */
 const runEditCommand = async (
 	client: LanguageClient,
 	command: string,
@@ -34,7 +39,11 @@ const runEditCommand = async (
 ): Promise<void> => {
 	try {
 		const result = await executeOnServer<ApplyWorkspaceEditResult>(client, command, args);
-		if (!result.applied) void vscode.window.showErrorMessage(result.failureReason ?? fallbackMessage);
+		await finishEditCommand(result, args, fallbackMessage, {
+			open: (target) => vscode.workspace.openTextDocument(vscode.Uri.parse(target)),
+			showError: (message) => void vscode.window.showErrorMessage(message),
+			showWarning: (message) => void vscode.window.showWarningMessage(message),
+		});
 	} catch (error) {
 		void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
 	}

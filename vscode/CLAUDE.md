@@ -51,6 +51,11 @@ src/
                             okfit.setStatus's quick pick and the tree-node-
                             or-active-editor argument resolution both
                             commands share
+  save-after-apply.ts     -- saveAfterApply: the pure decision to save a
+                            document after the tree/palette edit commands
+                            applied (#182), over an injected `open`;
+                            finishEditCommand: runEditCommand's post-apply
+                            step over injected open/showError/showWarning
   commands.ts             -- registerCommands: okfit.validateBundle,
                             okfit.openConcept, okfit.setStatus,
                             okfit.markVerified
@@ -96,7 +101,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - `build:dev` exists only so Turbo's `^build:dev` edge builds this
   member's `dist/` in the same graph as the packages it depends on.
 - `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts`,
-  `src/next-candidate.ts`, `src/status-picks.ts`, `src/debounce.ts` and
+  `src/next-candidate.ts`, `src/status-picks.ts`, `src/save-after-apply.ts`,
+  `src/debounce.ts` and
   `src/server-version.ts` never import `vscode`: each is a pure function
   tested without the extension host (`resolveServer`'s inputs are already
   plain strings, callbacks and a per-folder settings array -- including

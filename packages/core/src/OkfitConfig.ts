@@ -648,10 +648,10 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"generated-at-drift": "generated_at_drift",
 	"status-missing": "status_missing",
 	"source-resource-missing": "source_resource_missing",
+	"generated-missing": "generated_missing",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
-	"generated-missing": "generated_missing",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -675,10 +675,10 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	generated_at_drift: "warn",
 	status_missing: "off",
 	source_resource_missing: "warn",
+	generated_missing: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",
 	surface_unmatched: "warn",
-	generated_missing: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

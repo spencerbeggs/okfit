@@ -64,7 +64,9 @@ tool call replaces a shell round trip, not the checking itself. The two
 reports are the same engine's output: compare their `engine_version` and
 `okf_version`, and never read a differing `okfit_version` as drift — that
 field is each front end's own version and the two version independently.
-Stamps
+Writes
+`status` explicitly on every concept (`draft` when unreviewed, `stable` when
+settled, always `draft` for a Decision; see `okf-authoring` rule 14). Stamps
 `generated.by` with the configured agent actor on every concept it writes
 before it writes it: the hook blocks a `Write` that lands without one and
 warns on an `Edit`, and a stamp added after the block is a wasted round
@@ -75,7 +77,11 @@ list the concepts the branch's diff touches, reconcile each against
 reports, run `okfit sync` to regenerate `generated.at`,
 `generated.body_sha256`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
-changed — sequentially, in this one context.
+changed — sequentially, in this one context. In the report, tell the human
+how to stamp after they commit: run `okfit sync --dry-run` and commit only
+what it reports it would write. A pre-commit hook running
+`okfit sync --staged` may already have stamped the concepts, and the hook
+never writes `log.md`, so the follow-up sync may write only `log.md`.
 
 ## What this agent does NOT do
 

@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:10:20Z
-  body_sha256: e2e85a2b100259aa59ce4b81a7654a2905fd553fd0235ef56919add18c2bf6a9
+  at: 2026-10-03T01:27:01Z
+  body_sha256: eb2c638499a51f04edc5e4e9ab6cd956e19dc7a8169d0b93b6d30e57a1b86351
 ---
 
 # Profiles
@@ -91,9 +91,15 @@ anchors the same way, at the misplaced Project concept's `type` value;
 `publication-orphan` lints over concepts of type `Publication`, requiring
 `Crypto.Crypto`. A Publication whose `renders` entry carries a
 `body_sha256` that no longer matches `Derivation.bodyDigest` of the rendered
-source concept reports drift; a `surface` or `renders[].path` that resolves
-to no bundle concept (or a malformed `renders` list) reports an orphan.
-`@okfit/engine`'s `validate/run.ts#run` appends both to `report.lint`, as it
+source concept reports drift. An orphan is reported for a `surface` that
+resolves to no bundle concept or to a concept whose type is not `Surface`
+(the message names the actual type), a `renders[].path` that resolves to
+nothing, an empty `renders` list, or a malformed one. An absent `surface` is
+skipped here and left to `required-key-missing`.
+`@okfit/engine`'s `validate/run.ts#run` runs these lints only when the
+resolved profile is `software-project`, so a `profile = "none"` repository
+that declares its own `Publication` type gets none of them. It appends them to
+`report.lint`, as it
 does `lintSurfaces` (`surface-unmatched`, in `validate/surfaces.ts`), which
 warns when a Surface's glob `resource` matches nothing on disk.
 

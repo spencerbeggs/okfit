@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T23:39:29Z
-  body_sha256: 6e74b5d481bbfc1387ca0e72b905e5d5eb4e055f5aed05c570a57c046023648e
+  at: 2026-10-03T01:30:00Z
+  body_sha256: c59d438649e7becf0c00f0781aaddc1f95c4687fae6d52dd80c7d50fbd4a7630
 ---
 
 # VS Code Extension
@@ -275,7 +275,12 @@ free it.
   sends `workspace/executeCommand` `okfit.lsp.setStatus [uri, status]`; the server computes the
   edit and applies it through `workspace/applyEdit`, and a `{ applied:
   false, failureReason }` or transport failure surfaces as one error
-  dialog (`vscode/src/commands.ts`'s `runEditCommand`).
+  dialog (`vscode/src/commands.ts`'s `runEditCommand`). Once the edit is
+  applied, `runEditCommand` saves the document (`save-after-apply.ts`'s
+  `saveAfterApply`, #182) -- opening it first when it was not in an editor --
+  because the server never writes files and these tree/palette entry points
+  have no open editor to show a dirty buffer. A lightbulb code action is
+  applied by VS Code itself and stays dirty, like any quick fix.
 - **OKF: Mark Verified** (`okfit.markVerified`) -- same URI resolution and
   `workspace/applyEdit` round trip, over `okfit.lsp.markVerified [uri]`;
   the server resolves the human actor and computes the edit.

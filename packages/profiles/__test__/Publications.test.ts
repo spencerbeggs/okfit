@@ -182,6 +182,108 @@ describe("Publications.lint", () => {
 		}),
 	);
 
+	it.effect("publication-orphan when renders is an empty list", () =>
+		Effect.gen(function* () {
+			const pub = publication(
+				{ surface: "../surfaces/readme.md", renders: [] },
+				"surface: ../surfaces/readme.md\nrenders: []\n",
+			);
+			const result = yield* run(bundleOf(surface, pub));
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0]?.code, "publication-orphan");
+			assert.include(result[0]?.message, "renders must name at least one source");
+			assert.isDefined(result[0]?.range);
+		}),
+	);
+
+	it.effect("publication-orphan naming the actual type when surface resolves to a non-Surface concept", () =>
+		Effect.gen(function* () {
+			const a = yield* digestOf(sourceA);
+			const pub = publication(
+				{ surface: "../interfaces/b.md", renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
+				`surface: ../interfaces/b.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+			);
+			const result = yield* run(bundleOf(sourceA, sourceB, pub));
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0]?.code, "publication-orphan");
+			assert.include(result[0]?.message, "Interface");
+			assert.include(result[0]?.message, "Surface");
+		}),
+	);
+
+	it.effect("skips the surface check when surface is absent", () =>
+		Effect.gen(function* () {
+			const a = yield* digestOf(sourceA);
+			const pub = publication(
+				{ renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
+				`renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+			);
+			assert.deepStrictEqual(yield* run(bundleOf(sourceA, pub)), []);
+		}),
+	);
+
+	describe("severity combinations", () => {
+		// One stale source (drift) plus an unresolvable surface (orphan).
+		const both = () =>
+			publication(
+				{ surface: "../surfaces/missing.md", renders: [{ path: "../interfaces/a.md", body_sha256: STALE }] },
+				`surface: ../surfaces/missing.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n`,
+			);
+		const withLint = (lint: Partial<OkfitConfig["lint"]>): OkfitConfig => ({
+			...OkfitConfig.DEFAULTS,
+			lint: { ...OkfitConfig.DEFAULTS.lint, ...lint },
+		});
+
+		it.effect("default severities report both codes", () =>
+			Effect.gen(function* () {
+				const result = yield* run(bundleOf(sourceA, both()));
+				assert.deepStrictEqual(
+					result.map((d) => [d.code, d.severity]),
+					[
+						["publication-drift", "warning"],
+						["publication-orphan", "error"],
+					].sort(([a], [b]) => (a < b ? -1 : 1)),
+				);
+			}),
+		);
+
+		it.effect("drift off with orphan on reports only the orphan", () =>
+			Effect.gen(function* () {
+				const result = yield* run(bundleOf(sourceA, both()), withLint({ publication_drift: "off" }));
+				assert.deepStrictEqual(
+					result.map((d) => d.code),
+					["publication-orphan"],
+				);
+			}),
+		);
+
+		it.effect("orphan off with drift on reports only the drift", () =>
+			Effect.gen(function* () {
+				const result = yield* run(bundleOf(sourceA, both()), withLint({ publication_orphan: "off" }));
+				assert.deepStrictEqual(
+					result.map((d) => d.code),
+					["publication-drift"],
+				);
+			}),
+		);
+
+		it.effect("an override raises the severity of each code", () =>
+			Effect.gen(function* () {
+				const result = yield* run(
+					bundleOf(sourceA, both()),
+					withLint({ publication_drift: "error", publication_orphan: "warn" }),
+				);
+				assert.deepStrictEqual(
+					result.map((d) => [d.code, d.severity]),
+					[
+						["publication-drift", "error"],
+						["publication-orphan", "warning"],
+					],
+				);
+			}),
+		);
+	});
+
 	it.effect("returns [] for both codes when both are off", () =>
 		Effect.gen(function* () {
 			const pub = publication(

@@ -404,14 +404,19 @@ export const locateTopLevelScalar = Effect.fn("okfit/verify/locateTopLevelScalar
  * Where a whole `generated:` block mapping would be inserted when the
  * frontmatter has no `generated` key at all (issue #73): the end of the
  * frontmatter value, the same slot `locate` uses for an absent `verified`.
- * `unsupported` covers no frontmatter, a non-mapping document, or a
- * `generated` key that already exists (the caller should be on the
- * `locateGenerated` path instead).
+ * `replace` is a `generated` key whose value is null (`generated:` alone,
+ * `generated: ~` or `generated: null`, issue #144): the lint reports it as
+ * missing, so sync replaces its whole line, `start` to `end` (the line
+ * terminator included), with the block. `unsupported` covers no frontmatter,
+ * a non-mapping document, or a `generated` key that already holds a
+ * non-null value (the caller should be on the `locateGenerated` path
+ * instead).
  *
  * @internal
  */
 export type GeneratedBlockLocated =
 	| { readonly _tag: "absent"; readonly insertAt: number }
+	| { readonly _tag: "replace"; readonly start: number; readonly end: number }
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
 /** @internal */
@@ -425,6 +430,29 @@ export const locateGeneratedBlock = Effect.fn("okfit/verify/locateGeneratedBlock
 	if ("_tag" in parsed) return parsed;
 	const { value, valueStart, contents } = parsed;
 	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "generated");
-	if (pair !== undefined) return { _tag: "unsupported", shape: "generated-present" } as const;
+	if (pair !== undefined) {
+		const node = pair.value;
+		// Only an untagged, unanchored plain null: `!!null` or `&a ~` carry
+		// syntax a whole-line replace would drop or duplicate (an alias may
+		// point at the anchor).
+		const isNull =
+			node === null ||
+			(node instanceof YamlScalar &&
+				node.style === "plain" &&
+				node.value === null &&
+				node.tag === undefined &&
+				node.anchor === undefined);
+		if (!isNull || contents.style === "flow") return { _tag: "unsupported", shape: "generated-present" } as const;
+		// The whole line: from its start to just past its terminator.
+		const lineStart = value.lastIndexOf("\n", pair.key.offset - 1) + 1;
+		const tail = node === null ? pair.key.offset + pair.key.length : node.offset + node.length;
+		const nl = value.indexOf("\n", tail);
+		const lineEnd = nl === -1 ? value.length : nl + 1;
+		// The span must be non-empty and begin with the key (only indentation before it).
+		if (lineStart >= lineEnd || value.slice(lineStart, pair.key.offset).trim() !== "") {
+			return { _tag: "unsupported", shape: "generated-present" } as const;
+		}
+		return { _tag: "replace", start: valueStart + lineStart, end: valueStart + lineEnd } as const;
+	}
 	return { _tag: "absent", insertAt: valueStart + value.length } as const;
 });

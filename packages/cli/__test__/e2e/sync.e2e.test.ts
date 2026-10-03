@@ -930,6 +930,53 @@ describe("okfit sync --publication", () => {
 		}
 	});
 
+	it("exits 3 for a malformed renders list (UnsupportedFrontmatterError), writing nothing", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const malformed = PUBLICATION.replace("renders:\n  - path: ../modules/x.md", "renders: not-a-list");
+			assert.notStrictEqual(malformed, PUBLICATION);
+			await writeFile(pubPath, malformed, "utf8");
+			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 3, run.stderr);
+			assert.match(run.stderr, /renders/);
+			assert.strictEqual(await readFile(pubPath, "utf8"), malformed);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("reports written: true in JSON and the human restamp lines, dry run and real", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const dryJson = await withServices(
+				runOkfit(["sync", "--publication", "publications/pr", "--dry-run", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(dryJson.exitCode, 0, dryJson.stderr);
+			const dry = JSON.parse(dryJson.stdout) as {
+				readonly dry_run: boolean;
+				readonly publication: { readonly written: boolean };
+			};
+			assert.strictEqual(dry.dry_run, true);
+			assert.strictEqual(dry.publication.written, true);
+			assert.strictEqual(await readFile(pubPath, "utf8"), PUBLICATION);
+
+			const dryHuman = await withServices(
+				runOkfit(["sync", "--publication", "publications/pr", "--dry-run"], { cwd, env }),
+			);
+			assert.match(dryHuman.stdout, /would restamp publications\/pr \(dry run, nothing written\)/);
+
+			const real = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
+			assert.strictEqual(real.exitCode, 0, real.stderr);
+			assert.match(real.stdout, /restamped publications\/pr/);
+			assert.notMatch(real.stdout, /would restamp/);
+
+			const again = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
+			assert.match(again.stdout, /unchanged publications\/pr/);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("--dry-run writes nothing", async () => {
 		const { sandbox, cwd, env, pubPath } = await seededPublication();
 		try {

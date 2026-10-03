@@ -89,6 +89,28 @@ describe("syncEnvelope", () => {
 		}),
 	);
 
+	it("with a publication and no result: three unselected modes and the publication member", () => {
+		const publication = {
+			id: "publications/pr",
+			written: true,
+			digests: [{ path: "../modules/x.md", body_sha256: "a" }],
+		};
+		const built = syncEnvelope({ okfitVersion: "0.1.0", root: "okf", dryRun: true, publication });
+		const unselected = { selected: false, written: [], unchanged: [], skipped: [] };
+		assert.deepStrictEqual(built.generated, unselected);
+		assert.deepStrictEqual(built.index, unselected);
+		assert.deepStrictEqual(built.log, unselected);
+		assert.deepStrictEqual(built.publication, publication);
+		assert.strictEqual(built.dry_run, true);
+		assert.strictEqual(built.exit_code, 0);
+		assert.deepStrictEqual(Schema.decodeUnknownSync(SyncEnvelope)(Schema.encodeSync(SyncEnvelope)(built)), built);
+	});
+
+	it("omits the publication key when none is given", () => {
+		const built = syncEnvelope({ okfitVersion: "0.1.0", root: "okf", dryRun: false, result: baseResult });
+		assert.isFalse("publication" in built);
+	});
+
 	it("rejects an unknown skipped[].reason value (contract §9.1: reason is the closed SkipReason)", () => {
 		const built = syncEnvelope({
 			okfitVersion: "0.1.0",

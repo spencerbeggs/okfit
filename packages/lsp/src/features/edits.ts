@@ -48,7 +48,8 @@ export type EditFailure =
 	| { readonly _tag: "Unsupported"; readonly key: string; readonly shape: string }
 	| { readonly _tag: "ActorUnresolved"; readonly message: string }
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
-	| { readonly _tag: "DraftCannotBeVerified" };
+	| { readonly _tag: "DraftCannotBeVerified" }
+	| { readonly _tag: "DeprecatedCannotBeVerified" };
 
 /** The owning session's last-loaded concept, config and project root for `path`; `None` when there is no session, no loaded bundle, or `path` is not a concept. */
 interface ConceptSnapshot {
@@ -183,9 +184,9 @@ export const statusTextEdits = (
 /**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
  * `actor`, `at` the encoded `now`), or `EditFailure` when the concept is a
- * draft or already carries a `verified` entry by `actor` (the editor action
- * follows `okfit verify --batch`'s skip rules, not the single-concept
- * `okfit verify <id>`), or the `verified` shape is one
+ * draft, is deprecated, or already carries a `verified` entry by `actor` (the
+ * editor action follows `okfit verify --batch`'s skip rules, not the
+ * single-concept `okfit verify <id>`), or the `verified` shape is one
  * `FrontmatterEdits.verified` cannot splice.
  *
  * @public
@@ -197,6 +198,7 @@ export const verifiedTextEdits = (
 ): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure> =>
 	Effect.gen(function* () {
 		if (target.status === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
+		if (target.status === "deprecated") return yield* Effect.fail<EditFailure>({ _tag: "DeprecatedCannotBeVerified" });
 		if (target.verifiedBy.includes(actor))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
 		const at = Schema.encodeSync(Timestamp)(now);
@@ -250,5 +252,7 @@ export const describeFailure = (failure: EditFailure): string => {
 			return `already verified by ${failure.by}`;
 		case "DraftCannotBeVerified":
 			return "the editor's Mark verified skips a draft concept, as okfit verify --batch does";
+		case "DeprecatedCannotBeVerified":
+			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
 	}
 };

@@ -164,7 +164,7 @@ export const registerCodeActions = (
 					}
 				}
 
-				if (offer("okfit.verify") && target.status !== "draft") {
+				if (offer("okfit.verify") && target.status !== "draft" && target.status !== "deprecated") {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;
