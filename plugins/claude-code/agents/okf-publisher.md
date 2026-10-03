@@ -56,7 +56,9 @@ Run this loop; each step needs the one before it.
    (or `validate_bundle`) and read the three docs lints: `publication-drift`
    (warn; a source changed since the page was rendered), `publication-orphan`
    (error; a `renders` path or surface no longer resolves) and
-   `surface-unmatched` (warn; a Surface's `resource` path or glob matches nothing on disk). If no Surfaces
+   `surface-unmatched` (warn; a Surface's `resource` path or glob matches nothing on disk).
+   Only error severities fail `okfit validate`, so a clean exit can still carry
+   warnings you are expected to fix. If no Surfaces
    exist, run steps 1-3 of `docs-detect-shape` (detect and recommend) and stop
    there; report the recommendation. Writing Surfaces is step 4, which
    belongs to `okf-docs` or the main session.
@@ -68,7 +70,12 @@ Run this loop; each step needs the one before it.
    the page, apply `docs-templates` and `docs-humanize`, and `docs-badges` only where the
    Surface body calls for badges, then
    run `okfit sync --publication <concept id>`. It exits 64 on an unknown or
-   non-Publication id; recheck the id rather than retrying.
+   non-Publication id or a `renders` entry that points at no concept (recheck
+   rather than retrying), and 3 on a malformed `renders` list (report it). A
+   source edit that adds no fact still needs the restamp, even when the page
+   text comes out unchanged. A plain `okfit sync` skips a Publication whose
+   body has uncommitted edits (dirty); report that the edit needs committing
+   rather than working around it.
 4. **Finish.** Run `okfit validate` and confirm the drift lint no longer
    fires for each page rendered.
 5. **Report.** Per page: rendered, skipped, or blocked, with the reason.

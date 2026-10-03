@@ -12,6 +12,17 @@ allowed-tools: Read, Edit, Glob, Grep
 
 Emit or normalize the standard badge block of a package README. The package's `package.json` is the only source for badge values; never copy a name or version from existing badge text.
 
+## Read the package
+
+Read the `package.json` next to the README (for a sub-package, its own, not the root's). Take these fields and nothing else:
+
+- `name`: the npm badge's package name.
+- `license`: the SPDX identifier for the License badge. A missing `license` means no License badge; ask rather than guess.
+- `engines`: the node, bun and deno ranges for the Runtime badges. Treat `*`, empty or `>=0` as absent.
+- `typescript` in `dependencies`, `devDependencies` or `peerDependencies`: the version floor for the TypeScript badge, with `^`, `~` and `>=` stripped. A `catalog:` or `workspace:` spec means reading the version from the catalog or workspace file; if it cannot be resolved, ask.
+
+Report any field you could not read as null.
+
 ## Rules
 
 - Four standard badges, in this order: npm version, License, Runtime, TypeScript.
@@ -23,4 +34,4 @@ Emit or normalize the standard badge block of a package README. The package's `p
 
 Read `references/badge-formats.md` when building the URLs: it carries the shields.io templates, color table, URL-encoding rules, the standard-vs-custom identification table and a worked example.
 
-For shape and metadata, use the `docs-detect-shape` skill's detection step. Report what was emitted, what was skipped and why, and which custom badges were kept.
+To tell a package README from a monorepo-root README, check whether the directory holds sub-packages that `pnpm-workspace.yaml` or `workspaces` globs match; `docs-detect-shape` has the full rules. Report what was emitted, what was skipped and why, and which custom badges were kept.

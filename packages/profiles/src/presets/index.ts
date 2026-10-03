@@ -1,5 +1,6 @@
 import type { DocsPreset } from "../Profile.js";
 import {
+	CONTRIBUTOR_GUIDES,
 	DOCS_PACKAGE,
 	DOCS_PACKAGES,
 	DOCS_REPO,
@@ -36,9 +37,9 @@ export const DOCS_PRESETS: ReadonlyArray<DocsPreset> = [
 	{
 		name: "monorepo-shared-docs",
 		description:
-			"A monorepo with routing READMEs plus a shared root docs/ folder and per-package docs/ folders read on the forge.",
+			"A monorepo with routing READMEs plus a shared root docs/ folder, contributor guides and per-package docs/ folders read on the forge.",
 		additive: false,
-		surfaces: [README_ROOT, README_PACKAGES, DOCS_REPO, DOCS_PACKAGES],
+		surfaces: [README_ROOT, README_PACKAGES, DOCS_REPO, DOCS_PACKAGES, CONTRIBUTOR_GUIDES],
 	},
 	{
 		name: "site",
