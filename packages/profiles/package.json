@@ -45,7 +45,7 @@
 		"@effected/walker": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
 		"@okfit/core": "workspace:*",
-		"@savvy-web/bundler": "^2.4.20",
+		"@savvy-web/bundler": "^2.4.21",
 		"@types/node": "catalog:build",
 		"effect": "catalog:effect",
 		"typescript": "catalog:build",
