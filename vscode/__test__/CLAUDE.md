@@ -13,6 +13,7 @@ __test__/
   next-candidate.test.ts  # nextCandidate's keep/try-next decision
   resolve-server.test.ts  # resolveServer's candidate-list priority order, including the
                            # minServerVersion gate on workspace candidates, and outdatedNotice
+  save-after-apply.test.ts # saveAfterApply's save-or-skip decision, with a fake document
   serial-queue.test.ts    # createSerialQueue's run/dispose serialization
   server-version.test.ts  # readWorkspaceServerVersion's pnpm-layout reader paths (direct,
                            # @okfit/plugin nested, .pnpm sibling, unresolvable bin, malformed json)
