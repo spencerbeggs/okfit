@@ -5,6 +5,7 @@
 ## Bug Fixes
 
 - `validate` now runs the publication lints only under the `software-project` profile, so a repository using `profile = "none"` that declares its own `Publication` type no longer gets them.
+- `source-resource-missing` now treats an extglob resource such as `@(.github|docs)` as a pattern, as `surface-unmatched` does, instead of warning that the literal path does not exist.
 
 ## Performance
 

@@ -4,9 +4,7 @@ import { Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfi
 import { SURFACE_TYPE } from "@okfit/profiles";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path, Result } from "effect";
-
-/** Glob metacharacters that mark a Surface `resource` as a pattern rather than a literal path. */
-const GLOB_RE = /[*?[{]|[@+!]\(/;
+import { GLOB_RE } from "./resources.js";
 
 /**
  * Lists `root` breadth-first, only as deep as `segments` (the glob's remaining
