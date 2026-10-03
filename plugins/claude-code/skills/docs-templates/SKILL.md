@@ -20,6 +20,7 @@ Classify the target from its `package.json` and workspace files. A repo with no 
 - `references/readme-package.md` when writing a README for a published package.
 - `references/readme-router.md` when writing a monorepo root README.
 - `references/docs-toc.md` when scaffolding `docs/`, adding a page to it, or rebuilding its table of contents.
+- `references/contributor-guide.md` when writing a task-shaped contributor page in `docs/`, such as making a pull request.
 
 ## Rules for every page
 

@@ -127,6 +127,35 @@ const ONE_PAGE_ROOT_SKELETON = [
 	FENCE,
 ].join("\n");
 
+const CONTRIBUTOR_GUIDE_SKELETON = [
+	`${FENCE}markdown`,
+	"# <task, as a verb phrase: Make a pull request>",
+	"",
+	"<one sentence: what this guide gets the reader to>",
+	"",
+	"## Who this is for",
+	"",
+	"<the reader, e.g. a first-time contributor with a fork, and what they should already know>",
+	"",
+	"## Before you start",
+	"",
+	"<prerequisites as a list: tools and versions, access, a clean checkout, an issue to work from>",
+	"",
+	"## Steps",
+	"",
+	"1. <imperative step, with the exact command in a code fence>",
+	"2. <next step>",
+	"",
+	"## What success looks like",
+	"",
+	"<the observable end state: the passing check, the open PR, the command output>",
+	"",
+	"## Rules this guide follows",
+	"",
+	"<one bullet per rule the steps restate, each linking to the page that owns it>",
+	FENCE,
+].join("\n");
+
 const body = (...parts: ReadonlyArray<string>): string => parts.join("\n\n");
 
 /** The package README: published to npm, the package's onboarding page. */
@@ -360,6 +389,34 @@ export const DOCS_PACKAGES: SurfaceTemplate = docsRepo({
 	linksTo: "readme-packages.md",
 	reader: USERS_DOCS_READER,
 });
+
+/** Step-by-step contributor guides in the root `docs/`, read on the forge. */
+export const CONTRIBUTOR_GUIDES: SurfaceTemplate = {
+	file: "surfaces/contributor-guides.md",
+	frontmatter: {
+		type: "Surface",
+		status: "draft",
+		title: "Contributor guides",
+		description:
+			"Task-shaped contributor guides in the root docs/, such as making a pull request, read in place on the forge.",
+		kind: "repo",
+		audience: "contributors",
+		resource: "../../docs",
+		links_to: "readme-root.md",
+	},
+	body: body(
+		"# Contributor guides",
+		"## Who reads this",
+		"Contributors about to do one concrete thing in the repository, such as open a pull request or cut a release. They follow the page top to bottom with a terminal open, so each guide is a procedure, not an essay.",
+		"## Required structure",
+		"Write one guide per task, named `{NN}-{slug}.md` like every other page in `docs/`, for example `01-making-a-pull-request.md`. Use this outline and omit no section:",
+		CONTRIBUTOR_GUIDE_SKELETON,
+		"State each rule the steps rely on once, in its own bullet under the last section, and link to the page that owns it rather than restating the rationale. Take commands from the repository's scripts and verify them before writing them down.",
+		"## Other surfaces",
+		"Reference material and architecture notes belong in the shared docs folder surface; the root README only routes to these guides.",
+		RULES,
+	),
+};
 
 /** The documentation website. */
 export const SITE: SurfaceTemplate = {

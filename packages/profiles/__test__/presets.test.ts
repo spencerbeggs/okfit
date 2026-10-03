@@ -68,6 +68,7 @@ describe("softwareProject.docsPresets", () => {
 			"surfaces/readme-root.md:contributors:",
 		]);
 		assert.deepStrictEqual(shape("monorepo-shared-docs"), [
+			"surfaces/contributor-guides.md:contributors:readme-root.md",
 			"surfaces/docs-packages.md:users:readme-packages.md",
 			"surfaces/docs-repo.md:contributors:readme-root.md",
 			"surfaces/readme-packages.md:users:",

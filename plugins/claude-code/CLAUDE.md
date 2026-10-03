@@ -24,7 +24,7 @@ plugins/claude-code/
     okf-finalize/SKILL.md              -- branch-end sweep
     docs-detect-shape/SKILL.md         -- repo shape, preset recommendation, Surface setup
     docs-templates/SKILL.md            -- README and docs/ shapes; Surface body wins
-      references/readme-package.md, readme-router.md, docs-toc.md
+      references/readme-package.md, readme-router.md, docs-toc.md, contributor-guide.md
     docs-badges/SKILL.md               -- the standard badge block
       references/badge-formats.md
     docs-humanize/SKILL.md             -- AI-tell rewrite pass
