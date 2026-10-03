@@ -77,6 +77,8 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * unverified by an agent and exempt from `require-verified-unmet` while `draft`.
  * The interactive CLI work (#217) adds another `draft` Decision
  * (`okf/decisions/interactive-prompts-gated-by-audience-and-terminal.md`).
+ *
+ * The docs-surfaces work adds four `Surface` concepts and one `Publication`.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
@@ -89,6 +91,8 @@ const EXPECTED_CONCEPT_COUNTS = {
 	Glossary: 1,
 	Limitation: 2,
 	Runbook: 1,
+	Surface: 4,
+	Publication: 1,
 } as const;
 
 const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) => sum + n, 0);
