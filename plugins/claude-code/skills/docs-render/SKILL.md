@@ -27,7 +27,7 @@ Input: a Publication concept id (for example `publications/readme-cli`). If none
 
 ## Gotcha
 
-**Never restamp without re-rendering.** `okfit sync --publication` only records the sources' current digests; it does not check the page. Running it alone makes drift vanish while the page is still stale, which is the exact failure the lint exists to catch. Do step 4 first, always, even when the diff looks trivial.
+**Never restamp without re-rendering.** `okfit sync --publication` only records the sources' current digests; it does not check the page. Running it alone makes drift vanish while the page is still stale, which is the exact failure the lint exists to catch. Do step 5 (the re-render) first, always, even when the diff looks trivial.
 
 **A source edit that adds no fact still needs a restamp.** The digest covers the source's whole body, so a wording-only change makes the page drift. Re-read the sources, re-render, and if the page text comes out unchanged, leave the page as it is and run the restamp anyway. Never invent a change to the page, and never skip the restamp.
 
