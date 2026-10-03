@@ -1,5 +1,37 @@
 # @okfit/claude-code-plugin
 
+## 0.9.0
+
+### Breaking Changes
+
+- Remove the `npm-readme` skill. Its README template content now lives in `docs-templates` and its badge guidance in `docs-badges`; invoke those instead. [#237][#237]
+
+### Features
+
+- Add a `contributor-guides` Surface template to the `monorepo-shared-docs` docs preset (audience `contributors`, resource the root `docs/` folder), with a skeleton for task-shaped guides: who it is for, prerequisites, numbered steps, what success looks like, and the rules it restates.
+- Add a contributor-guide reference to the `docs-templates` skill with the same skeleton. [#247][#247]
+
+* Add five docs skills: `docs-detect-shape`, `docs-templates`, `docs-badges`, `docs-humanize` and `docs-render`, covering shape detection, README and docs-TOC templates, badge blocks, de-AI-ifying prose, and rendering pages from the OKF bundle.
+* Add the `okf-publisher` agent, which publishes docs pages rendered from the OKF bundle and restamps them with `okfit sync --publication`.
+* Narrow the `okf-docs` agent to writing inside `okf/` only; publishing pages outside the bundle now belongs to `okf-publisher`.
+
+### Bug Fixes
+
+- Correct the `docs-render` skill and `okf-publisher` agent: `okfit sync --publication` exits 64 for a bad id or an unresolvable `renders` source and 3 for a malformed `renders` list, the orphan check now runs before rendering, and both document the no-fact source edit and the uncommitted Publication edit.
+- Make `docs-badges` and `docs-templates` self-contained: `docs-badges` reads its own `package.json` fields and `docs-templates` carries the single-package, monorepo-root and sub-package shape rule instead of depending on `docs-detect-shape` having run. [#247][#247]
+
+### Documentation
+
+- Update the `okf-config` skill's lint table with the `publication-drift`, `publication-orphan`, and `surface-unmatched` codes. [#237][#237]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
+[#247]: https://github.com/spencerbeggs/okfit/pull/247
+
 ## 0.8.1
 
 ### Documentation

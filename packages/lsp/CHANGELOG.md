@@ -1,5 +1,31 @@
 # @okfit/lsp
 
+## 0.3.8
+
+### Features
+
+- The language server now reports the docs-surface diagnostics `publication-drift`, `publication-orphan`, and `surface-unmatched`, picked up from `@okfit/engine`'s validate. [#247][#247]
+
+### Bug Fixes
+
+- `okfit-lsp` no longer crashes with `process.stdin.unref is not a function` when started with stdin from a file or `/dev/null` instead of a pipe. [#247][#247]
+
+* The language server no longer offers the "Mark verified" code action on a deprecated concept, and `okfit.lsp.markVerified` now refuses one, matching `okfit verify --batch`. [#247][#247]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.8.5 | 0.9.0 |
+| @okfit/engine | dependency | updated | 0.11.1 | 0.12.0 |
+| @okfit/profiles | dependency | updated | 0.8.3 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#247]: https://github.com/spencerbeggs/okfit/pull/247
+
 ## 0.3.7
 
 ### Dependencies
