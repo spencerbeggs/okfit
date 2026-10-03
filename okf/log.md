@@ -14,6 +14,7 @@
 * Updated okfit config file schema
 * Updated LSP
 * Updated VS Code Extension
+* Updated Engine
 
 ## 2026-10-02
 
