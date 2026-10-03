@@ -12,6 +12,14 @@ const profile = Profiles.softwareProject;
 const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, profile.config);
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const presets = profile.docsPresets;
+const RULE_PHRASES = [
+	"Use sentence case for every heading",
+	"Give every code fence a language identifier",
+	"Show the expected output of every example",
+	"Never invent output, paths, identifiers or messages",
+	"Lead install commands with npm or npx",
+	"Never write a specific version number in prose",
+];
 
 const render = (template: SurfaceTemplate): string => {
 	const lines = Object.entries(template.frontmatter).map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
@@ -23,8 +31,10 @@ const writeBundle = async (preset: DocsPreset): Promise<string> => {
 	await writeFile(join(root, "index.md"), '---\nokf_version: "0.2"\n---\n\n# Project\n\n* [t](project.md) - t.\n');
 	await writeFile(
 		join(root, "project.md"),
-		"---\ntype: Project\ntitle: t\ndescription: A test project.\n---\n\n# t\n\nBody.\n",
+		"---\ntype: Project\nstatus: stable\ntitle: t\ndescription: A test project.\n---\n\n# t\n\nBody.\n",
 	);
+	await mkdir(join(root, "surfaces"), { recursive: true });
+	await writeFile(join(root, "surfaces", "index.md"), "# Surfaces\n\n* [x](x.md) - x.\n");
 	for (const surface of preset.surfaces) {
 		const target = join(root, surface.file);
 		await mkdir(dirname(target), { recursive: true });
@@ -56,10 +66,10 @@ describe("softwareProject.docsPresets", () => {
 				const root = yield* Effect.promise(() => writeBundle(preset));
 				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(platform));
 				const report = Validate.all(bundle, merged);
-				const errors = [...report.conformance, ...report.lint, ...profile.check(bundle)].filter(
-					(d) => d.severity === "error",
+				const noisy = [...report.conformance, ...report.lint, ...profile.check(bundle)].filter(
+					(d) => d.severity === "error" || d.severity === "warning",
 				);
-				assert.deepStrictEqual(errors, []);
+				assert.deepStrictEqual(noisy, []);
 				assert.strictEqual(bundle.concepts.size, preset.surfaces.length + 1);
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}),
@@ -68,8 +78,8 @@ describe("softwareProject.docsPresets", () => {
 		for (const surface of preset.surfaces) {
 			it(`${preset.name}/${surface.file}: body carries each durable rule`, () => {
 				const body = surface.body.toLowerCase();
-				for (const rule of ["sentence case", "language", "expected output", "never invent", "npm", "version number"]) {
-					assert.include(body, rule, `${surface.file} lacks "${rule}"`);
+				for (const rule of RULE_PHRASES) {
+					assert.include(body, rule.toLowerCase(), `${surface.file} lacks "${rule}"`);
 				}
 				assert.strictEqual(surface.frontmatter.type, "Surface");
 			});

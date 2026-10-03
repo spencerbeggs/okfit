@@ -87,6 +87,7 @@ export interface SurfaceTemplate {
 	readonly file: string;
 	readonly frontmatter: {
 		readonly type: "Surface";
+		readonly status: "draft";
 		readonly title: string;
 		readonly description: string;
 		readonly kind: "site" | "repo" | "readme";

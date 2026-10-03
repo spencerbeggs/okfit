@@ -93,6 +93,40 @@ const DOCS_TOC_SKELETON = [
 	FENCE,
 ].join("\n");
 
+const ONE_PAGE_PACKAGE_SKELETON = [
+	`${FENCE}markdown`,
+	"# <package-name>",
+	"",
+	"<badges, built with the docs badge tooling rather than typed by hand>",
+	"",
+	"<one-paragraph tagline>",
+	"",
+	"## Install",
+	"",
+	"<npm command and at most one alternative line>",
+	"",
+	"## Quick start",
+	"",
+	"<one minimal example with expected output as comments>",
+	"",
+	"**Full documentation: <link to the site>**",
+	FENCE,
+].join("\n");
+
+const ONE_PAGE_ROOT_SKELETON = [
+	`${FENCE}markdown`,
+	"# <repo-name>",
+	"",
+	"<one-paragraph summary of the repository>",
+	"",
+	"**Full documentation: <link to the site>**",
+	"",
+	"## Packages",
+	"",
+	"<table with Package and Purpose columns, each package linked to its directory>",
+	FENCE,
+].join("\n");
+
 const body = (...parts: ReadonlyArray<string>): string => parts.join("\n\n");
 
 /** The package README: published to npm, the package's onboarding page. */
@@ -100,6 +134,7 @@ export const README_PACKAGE: SurfaceTemplate = {
 	file: "surfaces/readme-package.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Package README",
 		description: "The README published to npm for a package, written for people who install it.",
 		kind: "readme",
@@ -125,6 +160,7 @@ export const README_PACKAGE_ONE_PAGE: SurfaceTemplate = {
 	file: "surfaces/readme-package.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Package README",
 		description: "A one-page README published to npm that routes readers to the documentation site.",
 		kind: "readme",
@@ -137,9 +173,9 @@ export const README_PACKAGE_ONE_PAGE: SurfaceTemplate = {
 		"## Who reads this",
 		"People deciding whether to install the package. The documentation site carries the full guides, so this page stays short.",
 		"## Required structure",
-		"Write a title, the badges, a one-paragraph tagline, the install command, one minimal quick-start example with expected output, a single link to the documentation site, and the license line. Nothing else.",
-		SINGLE_PACKAGE_SKELETON,
-		"Replace the Features and Documentation sections with one sentence and a link to the site.",
+		"Write exactly this and nothing more: the title, the badges, a tagline, the install command, one quick start, and a prominent link to the documentation site.",
+		ONE_PAGE_PACKAGE_SKELETON,
+		"Leave out Features, Documentation and every other section; the site carries them.",
 		"## Other surfaces",
 		"Anything longer than a quick start belongs on the documentation site this surface links to.",
 		RULES,
@@ -151,6 +187,7 @@ export const README_ROOT: SurfaceTemplate = {
 	file: "surfaces/readme-root.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Repository README",
 		description: "The monorepo root README: a hub that explains the packages and how they relate.",
 		kind: "readme",
@@ -176,6 +213,7 @@ export const README_ROOT_ONE_PAGE: SurfaceTemplate = {
 	file: "surfaces/readme-root.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Repository README",
 		description: "A one-page monorepo root README that routes readers to the documentation site.",
 		kind: "readme",
@@ -188,8 +226,8 @@ export const README_ROOT_ONE_PAGE: SurfaceTemplate = {
 		"## Who reads this",
 		"People who landed on the repository and need to find the package or guide they want.",
 		"## Required structure",
-		"Write a title, a one-paragraph summary, the packages table, a single link to the documentation site, the requirements and the license line. Carry no badges.",
-		MONOREPO_ROOT_SKELETON,
+		"Write exactly this and nothing more: the title, a one-paragraph summary, a prominent link to the documentation site, and the packages table. Carry no badges.",
+		ONE_PAGE_ROOT_SKELETON,
 		"## Other surfaces",
 		"Guides and reference belong on the documentation site this surface links to.",
 		RULES,
@@ -201,6 +239,7 @@ export const README_PACKAGES: SurfaceTemplate = {
 	file: "surfaces/readme-packages.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Sub-package READMEs",
 		description: "The README inside each monorepo package, published to npm with the package.",
 		kind: "readme",
@@ -225,6 +264,7 @@ export const README_PACKAGES_ONE_PAGE: SurfaceTemplate = {
 	file: "surfaces/readme-packages.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Sub-package READMEs",
 		description: "A one-page README inside each monorepo package that routes readers to the documentation site.",
 		kind: "readme",
@@ -237,8 +277,8 @@ export const README_PACKAGES_ONE_PAGE: SurfaceTemplate = {
 		"## Who reads this",
 		"People installing one package from npm. The documentation site carries the full guides, so each page stays short.",
 		"## Required structure",
-		"Write a title, the badges, a one-paragraph tagline, the install command, one minimal quick-start example with expected output, a link to the package's page on the documentation site, and the license line.",
-		SINGLE_PACKAGE_SKELETON,
+		"Write exactly this and nothing more: the title, the badges, a tagline, the install command, one quick start, and a prominent link to the package's page on the documentation site.",
+		ONE_PAGE_PACKAGE_SKELETON,
 		"## Other surfaces",
 		"Anything longer than a quick start belongs on the documentation site this surface links to.",
 		RULES,
@@ -250,6 +290,7 @@ export const DOCS_REPO: SurfaceTemplate = {
 	file: "surfaces/docs-repo.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Repository docs folder",
 		description: "Topical markdown pages in docs/, read in place on the forge and linked from the READMEs.",
 		kind: "repo",
@@ -276,6 +317,7 @@ export const SITE: SurfaceTemplate = {
 	file: "surfaces/site.md",
 	frontmatter: {
 		type: "Surface",
+		status: "draft",
 		title: "Documentation site",
 		description: "The published documentation website: guides, reference and tutorials for people using the project.",
 		kind: "site",

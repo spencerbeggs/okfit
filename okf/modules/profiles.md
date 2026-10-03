@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:06:25Z
-  body_sha256: 369a679e764a263e02374bf6cc7c8953b1267f2ea2641cefcd0931dad8d23f65
+  at: 2026-10-03T00:10:20Z
+  body_sha256: e2e85a2b100259aa59ce4b81a7654a2905fd553fd0235ef56919add18c2bf6a9
 ---
 
 # Profiles
@@ -26,16 +26,18 @@ git config). Core stays opinion-free; everything that says what a bundle
 ## Layout
 
 `Profile.ts` holds the shared types (`Layout`, `ProfileDiagnostic`,
-`Profile`, `DocsPreset`, `SurfaceTemplate`). `presets/` holds the
-`software-project` docs-surface presets (`npm-package`, `monorepo-router`,
-`monorepo-shared-docs`, and the additive `site`): Surface templates whose
-bodies are page-author instructions, exposed as `Profile.docsPresets`. `SoftwareProject.ts` holds the `software-project` literal,
+`Profile`). `SoftwareProject.ts` holds the `software-project` literal,
 layout, and check -- never re-exported, reachable only via
 `Profiles.softwareProject`. `Profiles.ts` is the facade: `get(name)`,
 `softwareProject`. `GitHistory.ts` and `BodyProvenance.ts` are the
 git-log-walking primitives. `Derivation.ts` is the
 `body`/`generatedAt`/`humanActorId`/`generatedBy`/`staleAfter` facade
 (`packages/profiles/CLAUDE.md:8-22`).
+
+`presets/` holds the docs-surface presets (`DocsPreset`, `SurfaceTemplate`):
+`npm-package`, `monorepo-router`, `monorepo-shared-docs` and the additive
+`site`. Each is a set of Surface templates whose bodies instruct the page
+author, exposed as `Profile.docsPresets`.
 
 `GitHistory.layer` no longer spawns git itself: it is a thin adapter over
 `@effected/git` 0.12.0's `Git.log`, forwarding `paths: [path], follow:

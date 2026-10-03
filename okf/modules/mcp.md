@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:06:25Z
-  body_sha256: a745bffe780d61b19d91038e8b5cafab86e1831b0694741dff9aed9ecaf3412b
+  at: 2026-10-03T00:10:20Z
+  body_sha256: 47a68a89dc097e4f1b34ee749ab7eb4379f002ea6cd72e20f85d28b16b704f4e
 ---
 
 # MCP
@@ -19,7 +19,8 @@ generated:
 `@okfit/core`: `list_concepts`, `get_concept`, `concept_neighbors`,
 `stale_report`, `validate_bundle`, and `describe_vocabulary` — see
 `okf/interfaces/okfit-mcp.md` for the exact contract. It gives agents
-structured access to an OKF bundle (`describe_vocabulary` also returns the profile's `docs_presets`) (`packages/mcp/README.md:3`). For the
+structured access to an OKF bundle (`packages/mcp/README.md:3`). `describe_vocabulary` also returns the
+resolved profile's `docs_presets`. For the
 `generated-at-drift` lint's fallback tier (a concept with no recorded
 `generated.body_sha256`), `validate_bundle` still spawns read-only `git
 log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
