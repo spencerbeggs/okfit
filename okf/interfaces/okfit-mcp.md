@@ -7,8 +7,8 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: 76bf1d2c7f5c996c8ecb5e8406e1c8cdb4c1f969a6c7e89bf37c5cd4278a7506
+  at: 2026-10-03T00:10:20Z
+  body_sha256: 6a6959843331d0526b3c0b1817fe43b8484fa8e495fa91bafe4467870f46c9fb
 tags:
   - architecture
 verified:
@@ -22,12 +22,14 @@ verified:
 
 | Tool | Returns | Key argument/filter | Primary failure mode |
 | --- | --- | --- | --- |
-| `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, and the config's declared type and tag vocabulary. | none (`Tool.EmptyParams`) | `ConfigError` |
+| `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`. | none (`Tool.EmptyParams`) | `ConfigError` |
 | `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `limit`/`offset` | `UnknownVocabulary` for an undeclared type or tag |
 | `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | `ConceptNotFound`, `InvalidArgument` for an empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | `ConceptNotFound`, `InvalidArgument` |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | `ConfigError` |
 | `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged: `engine_version` and `okf_version` match the CLI's over one bundle, while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now`; optional `documents: [{ path, text }]` (bundle-relative posix `.md` paths) validated in place of disk, a not-yet-written file under an existing directory included, nothing written | `BundleNotFound`; `InvalidArgument` for a document path that is absolute, escapes the bundle, is not `.md`, repeats, or sits under a directory that does not exist |
+
+`docs_presets` lists the resolved profile's docs-surface presets, each with `name`, `description`, `additive` and `surfaces` (`file`, `frontmatter`, `body`); the docs skills write those surfaces as Surface concepts. It is `[]` when the profile is `none` or unresolved.
 
 ## Resources
 

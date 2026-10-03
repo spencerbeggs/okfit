@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:11:07Z
-  body_sha256: 5f20db0d23e0444f689dc4fc3f0700413dd44e053de3e70de32d9fd53fca5b9b
+  at: 2026-10-03T00:10:20Z
+  body_sha256: e2e85a2b100259aa59ce4b81a7654a2905fd553fd0235ef56919add18c2bf6a9
 ---
 
 # Profiles
@@ -33,6 +33,11 @@ layout, and check -- never re-exported, reachable only via
 git-log-walking primitives. `Derivation.ts` is the
 `body`/`generatedAt`/`humanActorId`/`generatedBy`/`staleAfter` facade
 (`packages/profiles/CLAUDE.md:8-22`).
+
+`presets/` holds the docs-surface presets (`DocsPreset`, `SurfaceTemplate`):
+`npm-package`, `monorepo-router`, `monorepo-shared-docs` and the additive
+`site`. Each is a set of Surface templates whose bodies instruct the page
+author, exposed as `Profile.docsPresets`.
 
 `GitHistory.layer` no longer spawns git itself: it is a thin adapter over
 `@effected/git` 0.12.0's `Git.log`, forwarding `paths: [path], follow:
@@ -79,6 +84,18 @@ value itself (`Provenance.ts`), through
 frontmatter block. `SoftwareProject.ts`'s `project-not-at-root` check
 anchors the same way, at the misplaced Project concept's `type` value;
 `project-missing` and `project-multiple` stay bundle-level.
+
+## Publication linting
+
+`Publications.lint(bundle, config)` runs the `publication-drift` and
+`publication-orphan` lints over concepts of type `Publication`, requiring
+`Crypto.Crypto`. A Publication whose `renders` entry carries a
+`body_sha256` that no longer matches `Derivation.bodyDigest` of the rendered
+source concept reports drift; a `surface` or `renders[].path` that resolves
+to no bundle concept (or a malformed `renders` list) reports an orphan.
+`@okfit/engine`'s `validate/run.ts#run` appends both to `report.lint`, as it
+does `lintSurfaces` (`surface-unmatched`, in `validate/surfaces.ts`), which
+warns when a Surface's glob `resource` matches nothing on disk.
 
 ## Derivation is package-global
 

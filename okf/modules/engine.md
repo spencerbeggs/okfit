@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-01T18:31:01Z
-  body_sha256: dac57d542a6b8388d9b14cfcc5376d2bf23a16167ec118c336d1496c7faf0ead
+  at: 2026-10-02T23:48:25Z
+  body_sha256: 5e8f2d5c0178cdb77f22f8043d8ee7be287d07a76f5f9b86dd886bf793bfb0f7
 ---
 
 # Engine
@@ -163,7 +163,11 @@ the concept a fallback range belongs to. `validate/resources.ts`'s
 `source-resource-missing` lint anchors at the offending `resource` /
 `sources[i].resource` value itself, through
 [Core](core.md)'s `DiagnosticRange.forFrontmatterPath`, rather than the
-frontmatter block. `external/ExternalReferences.ts`
+frontmatter block. `validate/run.ts#run` also appends
+`Publications.lint` (`publication-drift`, `publication-orphan`) and
+`validate/surfaces.ts#lintSurfaces` (`surface-unmatched`: a Surface's glob
+`resource` matching nothing, warned and ranged at the `resource` value; a
+literal `resource` stays `source-resource-missing`'s). `external/ExternalReferences.ts`
 ships only `layerNoop` until the HTTP layer lands.
 
 ## Frontmatter edits

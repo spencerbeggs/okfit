@@ -81,8 +81,8 @@ _field_value() {
 	}
 }
 
-@test "all six skill names are registered under skills:" {
-	local expected="okf-spec okf-authoring okf-config okf-context okf-finalize npm-readme"
+@test "all five okf skill names are registered under skills:" {
+	local expected="okf-spec okf-authoring okf-config okf-context okf-finalize"
 	for skill in $expected; do
 		_skills_block "$AGENTS/okf-docs.md" | grep -qx -- "$skill" || {
 			echo "okf-docs.md does not list $skill under skills:" >&2
@@ -122,13 +122,54 @@ _field_value() {
 	}
 }
 
-@test "the agent roster is exactly okf-docs" {
+@test "the agent roster is exactly okf-docs and okf-publisher" {
 	local found
 	found="$(cd "$AGENTS" && ls -1 *.md | sed 's/\.md$//' | sort | tr '\n' ' ')"
-	[ "$found" = "okf-docs " ] || {
-		echo "agent roster is '$found', expected 'okf-docs'" >&2
+	[ "$found" = "okf-docs okf-publisher " ] || {
+		echo "agent roster is '$found', expected 'okf-docs okf-publisher'" >&2
 		return 1
 	}
+}
+
+@test "okf-publisher preloads the five docs skills under skills:" {
+	for skill in docs-render docs-templates docs-badges docs-humanize docs-detect-shape; do
+		_skills_block "$AGENTS/okf-publisher.md" | grep -qx -- "$skill" || {
+			echo "okf-publisher.md does not list $skill under skills:" >&2
+			return 1
+		}
+	done
+}
+
+@test "no skill name leaks into okf-publisher.md's tools: block" {
+	for skill in "$PLUGIN_ROOT"/skills/*/; do
+		name="$(basename "$skill")"
+		if _tools_block "$AGENTS/okf-publisher.md" | grep -qx -- "$name"; then
+			echo "okf-publisher.md lists the skill '$name' under tools:" >&2
+			return 1
+		fi
+	done
+}
+
+@test "every skill okf-publisher.md names has a SKILL.md on disk" {
+	local count=0
+	while IFS= read -r name; do
+		[ -n "$name" ] || continue
+		count=$((count + 1))
+		[ -f "$PLUGIN_ROOT/skills/$name/SKILL.md" ] || {
+			echo "okf-publisher.md names skill '$name', which has no SKILL.md" >&2
+			return 1
+		}
+	done < <(_skills_block "$AGENTS/okf-publisher.md")
+	[ "$count" -gt 0 ]
+}
+
+@test "okf-publisher.md names the sync --publication restamp and a boundaries section" {
+	grep -q 'okfit sync --publication' "$AGENTS/okf-publisher.md"
+	grep -q 'What this agent does NOT do' "$AGENTS/okf-publisher.md"
+}
+
+@test "okf-docs.md points outside-bundle writes at okf-publisher" {
+	grep -q 'okf-publisher' "$AGENTS/okf-docs.md"
 }
 
 @test "every skills/*/SKILL.md has non-empty name and description frontmatter" {
@@ -155,4 +196,14 @@ _field_value() {
 			return 1
 		}
 	done
+}
+
+@test "the skill roster is the okf skills plus the five docs skills, with no npm-readme" {
+	local found expected
+	found="$(cd "$PLUGIN_ROOT/skills" && ls -1 | sort | tr '\n' ' ')"
+	expected="docs-badges docs-detect-shape docs-humanize docs-render docs-templates okf-authoring okf-config okf-context okf-finalize okf-spec "
+	[ "$found" = "$expected" ] || {
+		echo "skill roster is '$found', expected '$expected'" >&2
+		return 1
+	}
 }

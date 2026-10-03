@@ -163,6 +163,54 @@ description = "The ISO 8601 date the failure happened or was first observed."
 description = "A path relative to this concept file to the test, check, or config that now stops the failure recurring."
 kind = "path"
 
+[types.Surface]
+description = "A documentation surface: where one kind of published docs lives, who reads it, and how it is written."
+guidance = "Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point links_to at the Surface this one routes readers to."
+required = ["kind", "audience", "resource"]
+
+[types.Surface.fields.kind]
+description = "How the surface is published."
+
+[types.Surface.fields.kind.values]
+site = "A built website workspace, such as an RSPress site, published at a URL."
+repo = "Markdown read in place on the forge, such as a docs/ directory on GitHub."
+readme = "README files: the repository root's, each package's, or both."
+
+[types.Surface.fields.audience]
+description = "Who the surface is written for."
+
+[types.Surface.fields.audience.values]
+users = "People installing or calling what this repository ships."
+contributors = "People changing this repository: setup, workflow, and internals."
+agents = "Coding agents working in this repository."
+
+[types.Surface.fields.resource]
+description = "A path relative to this concept file to the surface root, or a glob pattern when the surface spans many directories, such as every package directory."
+kind = "path"
+
+[types.Surface.fields.url]
+description = "Where a site surface is published, as an absolute URL."
+
+[types.Surface.fields.links_to]
+description = "The Surface this one routes readers to, such as a one-page README pointing at the site."
+kind = "path"
+
+[types.Publication]
+description = "A published page that restates facts this bundle owns, and the concepts it was rendered from."
+guidance = "Create one only for a page whose content comes from bundle concepts; the bundle is the source of truth and the page is re-rendered when a source changes. Use the body for rendering notes: what is audience-specific, what is deliberately left out, and what a re-render must keep."
+required = ["resource", "surface", "renders"]
+
+[types.Publication.fields.resource]
+description = "A path relative to this concept file to the published page."
+kind = "path"
+
+[types.Publication.fields.surface]
+description = "The Surface concept this page is published on."
+kind = "path"
+
+[types.Publication.fields.renders]
+description = "The source concepts as a list of entries that each hold a path and a body digest; okfit sync --publication stamps each digest."
+
 [tags.architecture]
 description = "Concerns the shape of the system rather than one module."
 

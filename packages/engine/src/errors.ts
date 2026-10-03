@@ -131,6 +131,22 @@ export class SyncStagedLogError extends Schema.TaggedError<SyncStagedLogError>()
 }
 
 /**
+ * `okfit sync --publication` runs nothing else, so combining it with a mode
+ * or selection flag (`--only`, `--staged`, `--since`) is a usage error. Exit 64.
+ *
+ * @public
+ */
+export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublicationConflictError>()(
+	"SyncPublicationConflictError",
+	{ flags: Schema.Array(Schema.String) },
+) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return `--publication restamps one Publication and runs nothing else; it cannot combine with ${this.flags.join(", ")}`;
+	}
+}
+
+/**
  * Issue #138: `okfit verify`'s selection was contradictory or empty. Exit 64: a usage error.
  *
  * @public

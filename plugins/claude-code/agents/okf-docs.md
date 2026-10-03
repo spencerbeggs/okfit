@@ -5,7 +5,7 @@ description: >
   current under the resolved config, using the config's own type and tag
   vocabulary rather than inventing one. Use when writing or editing a concept
   under okf/, running the branch-end okf-finalize sweep, checking CLAUDE.md
-  pointer coverage against index.md, or drafting a package README. Trigger
+  pointer coverage against index.md. Trigger
   phrases -- "add a concept to okf", "update the bundle for this change",
   "check the bundle against CLAUDE.md", "run the finalize sweep on okf".
 tools:
@@ -33,7 +33,6 @@ skills:
   - okf-config
   - okf-context
   - okf-finalize
-  - npm-readme
 model: inherit
 ---
 
@@ -85,8 +84,11 @@ changed — sequentially, in this one context.
 - Never runs `okfit verify`, even when asked — the Bash tool can reach it,
   but running it would fabricate the very attestation the command exists to
   record. Tell the human it is theirs to run.
-- Never edits source code, tests, or any file outside the bundle,
-  `CLAUDE.md` files, and package `README.md`s.
+- Never edits source code, tests, or any file outside the bundle and
+  `CLAUDE.md` files.
+- Never writes outside `okf/` beyond `CLAUDE.md` pointers. READMEs, `docs/`
+  pages, and every other published page belong to `okf-publisher`; hand the
+  request to it.
 - Never commits, pushes, or writes a changeset.
 - Never hand-edits `index.md` or `log.md` — both are derived; the agent
   runs `okfit sync` after its concept edits and never hand-edits either

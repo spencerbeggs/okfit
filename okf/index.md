@@ -14,6 +14,8 @@ okf_version: "0.2"
 * [interfaces](interfaces/index.md)
 * [limitations](limitations/index.md)
 * [modules](modules/index.md)
+* [publications](publications/index.md)
 * [references](references/index.md)
 * [roadmaps](roadmaps/index.md)
 * [runbooks](runbooks/index.md)
+* [surfaces](surfaces/index.md)

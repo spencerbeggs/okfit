@@ -19,7 +19,9 @@ export type {
 export { AgentActorUnconfiguredError, Derivation, HumanActorUnresolvedError } from "./Derivation.js";
 export type { GitHistoryShape, PathLogOptions } from "./GitHistory.js";
 export { GitHistory, GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
-export type { Layout, LayoutDirectory, Profile, ProfileName } from "./Profile.js";
+export type { DocsPreset, Layout, LayoutDirectory, Profile, ProfileName, SurfaceTemplate } from "./Profile.js";
 export { PROFILE_NAMES, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js";
 export { Profiles } from "./Profiles.js";
 export { Provenance } from "./Provenance.js";
+export type { RendersEntry } from "./Publications.js";
+export { PUBLICATION_TYPE, Publications, SURFACE_TYPE } from "./Publications.js";

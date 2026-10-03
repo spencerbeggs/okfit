@@ -21,6 +21,8 @@ export { ConceptSummary, toConceptSummary } from "./schema/ConceptSummary.js";
 export {
 	ConceptNeighborsSuccess,
 	DescribeVocabularySuccess,
+	DocsPreset,
+	DocsPresetSurface,
 	GetConceptSuccess,
 	ListConceptsParams,
 	ListConceptsSuccess,

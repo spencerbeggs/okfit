@@ -5,9 +5,12 @@ import {
 	ConfigPathNotFoundError,
 	DocumentPathError,
 	InitOverwriteError,
+	NotAPublicationError,
+	PublicationNotFoundError,
 	QueryConceptNotFoundError,
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
+	SyncPublicationConflictError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
@@ -98,6 +101,17 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof SyncStagedLogError) return [`error: ${error.message}`];
+	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
+	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a
+	// renders entry that points nowhere is a fix-the-entry error and needs none.
+	if (error instanceof PublicationNotFoundError) {
+		return error.publication === undefined
+			? [`error: ${error.message}`, "hint: run okfit query --type Publication to list publication ids"]
+			: [`error: ${error.message}`];
+	}
+	if (error instanceof NotAPublicationError) {
+		return [`error: ${error.message}`, "hint: run okfit query --type Publication to list publication ids"];
+	}
 	if (error instanceof VerifySelectionError) return [`error: ${error.message}`];
 	if (error instanceof QueryUnknownVocabularyError) return [`error: ${error.message}`];
 	if (error instanceof QueryConceptNotFoundError) return [`error: ${error.message}`];

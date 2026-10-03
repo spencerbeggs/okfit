@@ -2,10 +2,11 @@ import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
 import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
-import { Provenance } from "@okfit/profiles";
+import { Provenance, Publications } from "@okfit/profiles";
 import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 import { lintResources } from "./resources.js";
+import { lintSurfaces } from "./surfaces.js";
 
 /**
  * K-47's ambient clock. `bin.ts` resolves `OKFIT_NOW` (or the wall clock)
@@ -75,6 +76,10 @@ export interface RunResult {
  * the same `report.lint` array every other core lint diagnostic already
  * does.
  *
+ * It then appends `lintResources`, `Publications.lint` (`publication-drift`
+ * and `publication-orphan`) and `lintSurfaces` (`surface-unmatched`), each
+ * of which gates itself on its own severity.
+ *
  * K-52 holds structurally: `Bundle.load`'s failure short-circuits the
  * generator, so `profile.check` never runs on a bundle that did not load.
  *
@@ -104,5 +109,11 @@ export const run = (
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
 		const resources = yield* lintResources(bundle, options.config);
-		return { bundle, report: { ...report, lint: [...report.lint, ...provenance, ...resources] }, profileDiagnostics };
+		const publications = yield* Publications.lint(bundle, options.config);
+		const surfaces = yield* lintSurfaces(bundle, options.config);
+		return {
+			bundle,
+			report: { ...report, lint: [...report.lint, ...provenance, ...resources, ...publications, ...surfaces] },
+			profileDiagnostics,
+		};
 	});

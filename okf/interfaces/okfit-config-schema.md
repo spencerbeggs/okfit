@@ -7,8 +7,8 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: c7960124b11be99a922dba46ef328daeaa8b7b84ffb0749fdcd7351d17f8d0b2
+  at: 2026-10-02T23:29:51Z
+  body_sha256: 5c37e417286a9f608466a83c8cbe36d635c21f35f62679eab5e25d7f4ceedc80
 tags:
   - architecture
 verified:
@@ -63,12 +63,12 @@ in.
 
 ## Lint severities
 
-The twenty default lint codes: `broken_links`, `missing_index`,
+The twenty-three default lint codes: `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
-`walk_unreadable`, `generated_at_drift`, `source_resource_missing`, and `generated_missing`
-default `warn`;
+`walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
+`publication_drift`, and `surface_unmatched` default `warn`;
 `unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
-`family_invalid`, and `computation_runtime_missing` default `error`;
+`family_invalid`, `computation_runtime_missing`, and `publication_orphan` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
 `status_missing` defaults `off`, because the spec reads an absent `status`
 as `stable` and core keeps no opinion about it -- the software-project
@@ -82,6 +82,7 @@ heading slugs (issue #69).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [A body digest inside generated detects real
 drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+The three docs-surface lints are named in core but run in `@okfit/profiles` (`publication_*`) and `@okfit/engine` (`surface_unmatched`).
 `generated_missing` (issue #73) fires only when `actors.agent` is set: a
 concept with no `generated` block would otherwise only surface as a skip in
 `okfit sync`'s post-commit report, after the commit already landed.

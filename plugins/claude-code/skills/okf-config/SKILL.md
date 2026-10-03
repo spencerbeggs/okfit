@@ -76,6 +76,9 @@ validation on the file without any further setup.
   | `status_missing` | `off` |
   | `source_resource_missing` | `warn` |
   | `generated_missing` | `warn` |
+  | `publication_drift` | `warn` |
+  | `publication_orphan` | `error` |
+  | `surface_unmatched` | `warn` |
 
   Two extra facts worth stating: `unknown_type` is forced `off` when the
   merged config declares no types at all, and `status_missing` (a concept

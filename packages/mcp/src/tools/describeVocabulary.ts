@@ -7,7 +7,7 @@ import { resolveConfigOnly } from "../internal/toolContext.js";
 import { DescribeVocabularySuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Returns this project's resolved okfit configuration: the project root, bundle root, active profile, configured agent actor, and the full set of concept types and tags the config declares, each with its description. Call this first, before filtering or writing any concept, to learn which type and tag names actually exist in this project.";
+	"Returns this project's resolved okfit configuration: project root, bundle root, active profile, agent actor, every concept type and tag the config declares, and docs_presets, the active profile's Surface templates (empty without a profile). Call this first, before filtering or writing any concept, to learn which names exist.";
 
 /**
  * `dependencies` names the platform services `handleDescribeVocabulary`
@@ -53,6 +53,7 @@ export const handleDescribeVocabulary = (projectRoot: string) =>
 			indexExists: false,
 			config: resolved.config,
 		});
+		const docsPresets = Option.match(resolved.profile, { onNone: () => [], onSome: (p) => p.docsPresets });
 		return {
 			project_root: envelope.project_root,
 			bundle_root: envelope.bundle_root,
@@ -62,5 +63,11 @@ export const handleDescribeVocabulary = (projectRoot: string) =>
 			agent: envelope.actors.agent,
 			types: envelope.types,
 			tags: envelope.tags,
+			docs_presets: docsPresets.map((preset) => ({
+				name: preset.name,
+				description: preset.description,
+				additive: preset.additive,
+				surfaces: preset.surfaces.map((s) => ({ file: s.file, frontmatter: s.frontmatter, body: s.body })),
+			})),
 		};
 	});

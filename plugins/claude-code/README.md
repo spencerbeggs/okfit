@@ -43,21 +43,25 @@ pnpm exec bats plugins/claude-code/__test__/hooks-json.bats
 | `okf-config` | The okfit config file: discovery order, the TOML schema table by table, lint severities, and what the `software-project` profile contributes. |
 | `okf-context` | CLAUDE.md as a thin router into the bundle, checked against `index.md` — a pointer-coverage checklist. |
 | `okf-finalize` | Branch-end sweep: reconcile touched concepts, run `okfit validate`, regenerate derived files, check CLAUDE.md pointer coverage, and report. |
-| `npm-readme` | Writes or refreshes a package README: shape detection, section order, prose rules, and the badge block. |
+| `docs-detect-shape` | Detects the repo's shape, recommends a docs preset from `describe_vocabulary`, and writes draft Surface concepts after asking where each surface lives. |
+| `docs-templates` | Section order and skeletons for a package README, a monorepo router README and a `docs/` folder with its TOC. The Surface body overrides a template default. |
+| `docs-badges` | Builds or normalizes the standard shields.io badge block, preserving custom badges. |
+| `docs-humanize` | Rewrites a docs file to remove AI tells without changing facts, code or links. |
+| `docs-render` | Re-renders a Publication's page from its sources, humanizes it, runs `okfit sync --publication`, and checks the drift is gone. |
 
 Every skill is both user- and model-invocable (no `disable-model-invocation`)
-and is preloaded, in full, by the `okf-docs` agent below.
+and the five `okf-*` skills are preloaded, in full, by the `okf-docs` agent below.
 
 ## Agent
 
-`agents/okf-docs.md` is the plugin's one agent. It keeps a repository's
+The plugin ships two agents, split by write direction. `agents/okf-publisher.md` renders published pages outside `okf/` from Surface and Publication concepts and preloads the five `docs-*` skills. `agents/okf-docs.md` is the bundle writer. It keeps a repository's
 `okf/` bundle and its CLAUDE.md pointer files current under the resolved
 config's own type and tag vocabulary — never inventing one of its own. It
-preloads all six skills above (`skills:`, not `Skill` in `tools:`, so their
+preloads the five `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their
 full content is injected rather than merely discoverable). See its own
 `## What this agent does NOT do` section for the boundary rather than a
 restatement here: in short, it never touches `verified`, never edits
-anything outside the bundle, CLAUDE.md files, and package READMEs, and never
+anything outside the bundle and CLAUDE.md files (published pages go to `okf-publisher`), and never
 commits, pushes, or writes a changeset.
 
 ## Hooks
