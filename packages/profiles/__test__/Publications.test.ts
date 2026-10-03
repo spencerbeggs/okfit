@@ -222,6 +222,68 @@ describe("Publications.lint", () => {
 		}),
 	);
 
+	describe("severity combinations", () => {
+		// One stale source (drift) plus an unresolvable surface (orphan).
+		const both = () =>
+			publication(
+				{ surface: "../surfaces/missing.md", renders: [{ path: "../interfaces/a.md", body_sha256: STALE }] },
+				`surface: ../surfaces/missing.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n`,
+			);
+		const withLint = (lint: Partial<OkfitConfig["lint"]>): OkfitConfig => ({
+			...OkfitConfig.DEFAULTS,
+			lint: { ...OkfitConfig.DEFAULTS.lint, ...lint },
+		});
+
+		it.effect("default severities report both codes", () =>
+			Effect.gen(function* () {
+				const result = yield* run(bundleOf(sourceA, both()));
+				assert.deepStrictEqual(
+					result.map((d) => [d.code, d.severity]),
+					[
+						["publication-drift", "warning"],
+						["publication-orphan", "error"],
+					].sort(([a], [b]) => (a < b ? -1 : 1)),
+				);
+			}),
+		);
+
+		it.effect("drift off with orphan on reports only the orphan", () =>
+			Effect.gen(function* () {
+				const result = yield* run(bundleOf(sourceA, both()), withLint({ publication_drift: "off" }));
+				assert.deepStrictEqual(
+					result.map((d) => d.code),
+					["publication-orphan"],
+				);
+			}),
+		);
+
+		it.effect("orphan off with drift on reports only the drift", () =>
+			Effect.gen(function* () {
+				const result = yield* run(bundleOf(sourceA, both()), withLint({ publication_orphan: "off" }));
+				assert.deepStrictEqual(
+					result.map((d) => d.code),
+					["publication-drift"],
+				);
+			}),
+		);
+
+		it.effect("an override raises the severity of each code", () =>
+			Effect.gen(function* () {
+				const result = yield* run(
+					bundleOf(sourceA, both()),
+					withLint({ publication_drift: "error", publication_orphan: "warn" }),
+				);
+				assert.deepStrictEqual(
+					result.map((d) => [d.code, d.severity]),
+					[
+						["publication-drift", "error"],
+						["publication-orphan", "warning"],
+					],
+				);
+			}),
+		);
+	});
+
 	it.effect("returns [] for both codes when both are off", () =>
 		Effect.gen(function* () {
 			const pub = publication(
