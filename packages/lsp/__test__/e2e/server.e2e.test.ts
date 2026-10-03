@@ -196,10 +196,10 @@ describe("okfit-lsp over real stdio", () => {
 						closeSync(devNull);
 						let stdout = "";
 						let stderr = "";
-						child.stdout.on("data", (chunk: Buffer) => {
+						child.stdout?.on("data", (chunk: Buffer) => {
 							stdout += chunk.toString();
 						});
-						child.stderr.on("data", (chunk: Buffer) => {
+						child.stderr?.on("data", (chunk: Buffer) => {
 							stderr += chunk.toString();
 						});
 						child.on("close", (code) => resolve({ code, stdout, stderr }));
