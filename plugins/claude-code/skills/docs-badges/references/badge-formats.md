@@ -1,6 +1,6 @@
 # Badge formats
 
-Load when: writing or normalizing a badge block.
+Load when: building or normalizing a badge block.
 
 ## shields.io templates
 
@@ -55,3 +55,16 @@ For `{ name: "@okfit/cli", license: "MIT", runtime: "node", engineRange:
 [![Node.js %3E%3D20](https://img.shields.io/badge/Node.js-%3E%3D20-5fa04e.svg)](https://nodejs.org/)
 [![TypeScript 5.6](https://img.shields.io/badge/TypeScript-5.6-3178c6.svg)](https://www.typescriptlang.org/)
 ```
+
+## Standard versus custom badges
+
+A badge is standard only when both the URL pattern and the link target match.
+
+| Standard badge | URL pattern | Link target |
+| --- | --- | --- |
+| npm | `/npm/v/` | `npmjs.com/package/...` |
+| License | `/badge/License-` | `opensource.org/licenses/...` |
+| Runtime (Node) | `/badge/Node.js-` | `nodejs.org` |
+| Runtime (Bun) | `/badge/Bun-` | `bun.sh` |
+| Runtime (Deno) | `/badge/Deno-` | `deno.com` |
+| TypeScript | `/badge/TypeScript-` | `typescriptlang.org` |

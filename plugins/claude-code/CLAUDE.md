@@ -22,10 +22,16 @@ plugins/claude-code/
       references/example-config.toml
     okf-context/SKILL.md               -- CLAUDE.md-as-router checklist
     okf-finalize/SKILL.md              -- branch-end sweep
-    npm-readme/SKILL.md                -- README order, shape detection, badges
+    docs-detect-shape/SKILL.md         -- repo shape, preset recommendation, Surface setup
+    docs-templates/SKILL.md            -- README and docs/ shapes; Surface body wins
+      references/readme-package.md, readme-router.md, docs-toc.md
+    docs-badges/SKILL.md               -- the standard badge block
       references/badge-formats.md
+    docs-humanize/SKILL.md             -- AI-tell rewrite pass
+      references/humanizer-pairs.md
+    docs-render/SKILL.md               -- re-render a Publication, then restamp
   agents/
-    okf-docs.md                        -- the one agent; preloads all six skills
+    okf-docs.md                        -- the one agent; preloads the five okf skills
   hooks/
     hooks.json                         -- SessionStart (no matcher) + PostToolUse (Write|Edit)
     lib/

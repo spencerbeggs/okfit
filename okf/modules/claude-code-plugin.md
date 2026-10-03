@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:32:55Z
-  body_sha256: 70e9c09a37f13c5c63a3c681b743d1ddf1c105aa2008b6081d2393a68e682b26
+  at: 2026-10-03T00:14:55Z
+  body_sha256: 20f783fc1060528a4159a35b5a1ef32ef7d3b0f6b05d0ffcc66b77081523f0fa
 ---
 
 # Claude Code Plugin
@@ -27,9 +27,10 @@ tags are cut, nothing publishes to npm; distribution is through the
 
 ## Layout
 
-Six skills (`okf-spec`, `okf-authoring`, `okf-config`, `okf-context`,
-`okf-finalize`, `npm-readme`) and the one agent (`okf-docs`) that preloads
-all six (`plugins/claude-code/CLAUDE.md:18-28`; the skills table at
+Ten skills (`okf-spec`, `okf-authoring`, `okf-config`, `okf-context`,
+`okf-finalize`, and the docs set `docs-detect-shape`, `docs-templates`,
+`docs-badges`, `docs-humanize`, `docs-render`) and the one agent (`okf-docs`)
+that preloads the five `okf-*` skills (`plugins/claude-code/CLAUDE.md:18-28`; the skills table at
 `plugins/claude-code/README.md:39-46`). Two hooks
 (`hooks/session-start/orientation.sh`, `hooks/post-tool-use/validate.sh`)
 plus shared `hooks/lib/` helpers and `hooks/fixtures/` stdin envelopes,

@@ -5,7 +5,7 @@ description: >
   current under the resolved config, using the config's own type and tag
   vocabulary rather than inventing one. Use when writing or editing a concept
   under okf/, running the branch-end okf-finalize sweep, checking CLAUDE.md
-  pointer coverage against index.md, or drafting a package README. Trigger
+  pointer coverage against index.md. Trigger
   phrases -- "add a concept to okf", "update the bundle for this change",
   "check the bundle against CLAUDE.md", "run the finalize sweep on okf".
 tools:
@@ -33,7 +33,6 @@ skills:
   - okf-config
   - okf-context
   - okf-finalize
-  - npm-readme
 model: inherit
 ---
 

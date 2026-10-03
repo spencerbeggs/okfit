@@ -81,8 +81,8 @@ _field_value() {
 	}
 }
 
-@test "all six skill names are registered under skills:" {
-	local expected="okf-spec okf-authoring okf-config okf-context okf-finalize npm-readme"
+@test "all five okf skill names are registered under skills:" {
+	local expected="okf-spec okf-authoring okf-config okf-context okf-finalize"
 	for skill in $expected; do
 		_skills_block "$AGENTS/okf-docs.md" | grep -qx -- "$skill" || {
 			echo "okf-docs.md does not list $skill under skills:" >&2
@@ -155,4 +155,14 @@ _field_value() {
 			return 1
 		}
 	done
+}
+
+@test "the skill roster is the okf skills plus the five docs skills, with no npm-readme" {
+	local found expected
+	found="$(cd "$PLUGIN_ROOT/skills" && ls -1 | sort | tr '\n' ' ')"
+	expected="docs-badges docs-detect-shape docs-humanize docs-render docs-templates okf-authoring okf-config okf-context okf-finalize okf-spec "
+	[ "$found" = "$expected" ] || {
+		echo "skill roster is '$found', expected '$expected'" >&2
+		return 1
+	}
 }
