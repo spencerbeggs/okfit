@@ -46,6 +46,8 @@ ${GENERATED}
 # Draft Concept
 `;
 
+const DEPRECATED_SOURCE = DRAFT_SOURCE.replace("status: draft", "status: deprecated").replaceAll("Draft", "Deprecated");
+
 const executeCommand = <R>(client: Parameters<typeof request>[0], command: string, args: ReadonlyArray<unknown>) =>
 	request<R>(client, "workspace/executeCommand", { command, arguments: args });
 
@@ -128,6 +130,23 @@ describe("registerCommands", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.live("okfit.lsp.markVerified on a deprecated concept fails with a message naming it deprecated", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* Effect.promise(() =>
+				writeFile(join(h.root, "okf", "modules", "deprecated.md"), DEPRECATED_SOURCE, "utf8"),
+			);
+			yield* h.initialize;
+			yield* h.open("okf/modules/deprecated.md");
+			yield* h.nextPublish();
+
+			const uri = h.uriOf("okf/modules/deprecated.md");
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.markVerified", [uri]);
+
+			assert.include(failure.message, "deprecated");
+		}).pipe(Effect.scoped),
+	);
+
 	it.live(
 		"okfit.lsp.markVerified on a stable concept with a resolved identity sends one applyEdit carrying the actor (positive control)",
 		() =>
@@ -164,7 +183,7 @@ describe("registerCommands", () => {
 				yield* h.nextPublish();
 				const uri = h.uriOf("okf/modules/stable.md");
 
-				yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.setStatus", [uri, "deprecated"]);
+				yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.setStatus", [uri, "stable"]);
 				const statusChange = singleDocumentEdit(appliedEdit(h, 0), uri);
 				// The client applies the edit: the buffer gains a line above where `verified` goes.
 				const afterStatus = applyTextEdit(STABLE_SOURCE, statusChange.edit);
@@ -177,7 +196,7 @@ describe("registerCommands", () => {
 				const afterVerify = applyTextEdit(afterStatus, verifyChange.edit);
 				assert.match(
 					afterVerify,
-					/\nstatus: deprecated\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\n---\n/,
+					/\nstatus: stable\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\n---\n/,
 				);
 				yield* h.change("okf/modules/stable.md", afterVerify, 3);
 				yield* Effect.sleep("50 millis");

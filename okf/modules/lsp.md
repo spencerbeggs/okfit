@@ -66,7 +66,7 @@ also offers one `Set status: <status>` action (kind `okfit.status`) per
 status the raw frontmatter `status` is not already -- all three when there
 is no explicit status -- and one `Mark verified by <actor>` action (kind
 `okfit.verify`) when a human actor resolves and the concept is neither a
-draft nor already verified by that actor; the actor is cached per session
+draft, deprecated, nor already verified by that actor; the actor is cached per session
 handle. `registerCommands` (`src/features/commands.ts`) answers
 `workspace/executeCommand` for the three `OKFIT_COMMANDS`:
 `okfit.lsp.setStatus [uri, status]` and `okfit.lsp.markVerified [uri]`

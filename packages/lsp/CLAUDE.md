@@ -408,7 +408,8 @@ below) also shares:
   no BOM adjustment, because a file whose bytes open with a BOM never
   decodes as a concept at all (`frontmatter-missing`), which
   `__test__/features/actions.test.ts`'s BOM case proves. `verifiedTextEdits`
-  fails `DraftCannotBeVerified` for a draft and `AlreadyVerified` when
+  fails `DraftCannotBeVerified` for a draft, `DeprecatedCannotBeVerified` for a
+  deprecated concept and `AlreadyVerified` when
   `actor` already carries a `verified` entry -- `okfit verify --batch`'s
   skip rules, not the single-concept `okfit verify <id>`'s.
 - `resolveActor(handle)` wraps `Derivation.generatedBy({ writer: "human",
@@ -433,7 +434,8 @@ The action set, in order:
   is no explicit status, so an implicit `stable` can be made explicit -- in
   `Status`'s literal order, minus any a quick fix already offers.
 - **Verify action** (kind `okfit.verify`): `Mark verified by <actor>` when
-  the actor resolves and `verifiedTextEdits` succeeds.
+  the actor resolves and `verifiedTextEdits` succeeds (never on a draft or
+  deprecated concept).
 
 The status and verify actions are offered only when `params.range`
 intersects the frontmatter block (opening fence through closing fence) or
@@ -479,7 +481,7 @@ naming it (`-32601`).
   Same `workspace/applyEdit` round trip, over `verifiedTextEdits(target,
   actor, now)` with the actor from `resolveActor` (uncached: an explicit
   command always reads git afresh) and `now` read once per request with
-  `DateTime.now`. The draft and already-verified checks read the same
+  `DateTime.now`. The draft, deprecated and already-verified checks read the same
   current text, so a second quick Mark verified sees the first's entry once
   the client has applied it.
 - **`okfit.lsp.revalidate`** -- args `[rootUri?]`, an optional single-string
