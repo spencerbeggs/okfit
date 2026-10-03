@@ -971,4 +971,35 @@ describe("okfit sync --publication", () => {
 			await removeSandbox(sandbox);
 		}
 	});
+
+	it("plain sync leaves a committed Publication's renders digests byte-identical while drift persists", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const configPath = join(cwd, ".config", "okfit.toml");
+			const config = await readFile(configPath, "utf8");
+			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
+			await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
+			await commit(cwd, { message: "add publication", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+			const rendersOf = (text: string) =>
+				text.split("\n").filter((l) => /^renders:|^ {2}- path:|^ {4}body_sha256:/.test(l));
+			const stamped = rendersOf(await readFile(pubPath, "utf8"));
+			assert.isTrue(stamped.some((l) => l.includes("body_sha256")));
+
+			// A source change (drift) and a Publication body edit, both committed.
+			await writeFile(join(cwd, "okf", "modules", "x.md"), SOURCE.replace("Body.", "Changed body."), "utf8");
+			const before = await readFile(pubPath, "utf8");
+			await writeFile(pubPath, before.replace("Notes.", "Edited notes."), "utf8");
+			await commit(cwd, { message: "change source", authoredAt: "2026-09-03T00:00:00+00:00" }, env);
+			assert.strictEqual(await driftCount(cwd, env), 1);
+
+			const run = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			const after = await readFile(pubPath, "utf8");
+			assert.deepStrictEqual(rendersOf(after), stamped);
+			assert.include(after, "Edited notes.");
+			assert.strictEqual(await driftCount(cwd, env), 1);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
 });
