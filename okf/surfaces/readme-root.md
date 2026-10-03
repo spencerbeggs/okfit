@@ -8,8 +8,8 @@ audience: contributors
 resource: ../../README.md
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:23:03Z
-  body_sha256: 81529aaffdb0293102e6c0f33215023ab5b958128b1607081c2d20eba2235879
+  at: 2026-10-03T01:30:23Z
+  body_sha256: dd09f8ef62245167425b60a81a9291d96c4f719c4a0a2fcdf90ac9211b93c8c3
 tags:
   - docs
 ---
