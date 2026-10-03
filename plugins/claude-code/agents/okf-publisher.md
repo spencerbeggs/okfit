@@ -56,7 +56,7 @@ Run this loop; each step needs the one before it.
    (or `validate_bundle`) and read the three docs lints: `publication-drift`
    (warn; a source changed since the page was rendered), `publication-orphan`
    (error; a `renders` path or surface no longer resolves) and
-   `surface-unmatched` (warn; a Surface has no Publication). If no Surfaces
+   `surface-unmatched` (warn; a Surface's `resource` path or glob matches nothing on disk). If no Surfaces
    exist, run steps 1-3 of `docs-detect-shape` (detect and recommend) and stop
    there; report the recommendation. Writing Surfaces is step 4, which
    belongs to `okf-docs` or the main session.

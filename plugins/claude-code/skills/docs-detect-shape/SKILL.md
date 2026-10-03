@@ -7,7 +7,7 @@ description: >-
   concepts yet, when asked "what shape is this repo", "which docs presets
   apply", "set up documentation surfaces", or before writing a README or docs
   page whose shape is unknown.
-allowed-tools: Read, Glob, Grep, Write, Bash(okfit validate*), Bash(ls *), mcp__plugin_okfit_mcp__describe_vocabulary, mcp__plugin_okfit_mcp__list_concepts, mcp__plugin_okfit_mcp__get_concept, mcp__plugin_okfit_mcp__validate_bundle
+allowed-tools: Read, Glob, Grep, Write, Bash(okfit validate:*), Bash(pnpm exec okfit validate:*), Bash(npx okfit validate:*), Bash(node_modules/.bin/okfit validate:*), Bash(ls *), mcp__plugin_okfit_mcp__describe_vocabulary, mcp__plugin_okfit_mcp__list_concepts, mcp__plugin_okfit_mcp__get_concept, mcp__plugin_okfit_mcp__validate_bundle
 ---
 
 # docs-detect-shape
@@ -43,8 +43,11 @@ Gotchas:
 
 - **Never overwrite an existing Surface.** List `okf/surfaces/` first (or `list_concepts`); skip any file that exists and say so.
 - **Keep only the variants that match the repo.** In the `site` preset, `readme-package` and `readme-root` both target `../../README.md`. Write the one that fits the shape (root README of a single package: `readme-package`; of a monorepo: `readme-root`), not both.
-- Write each preset template's `frontmatter` and `body` to `okf/surfaces/<file>` as given, keeping `status: draft`. Apply the user's resource and URL answers.
+- **A `site` variant replaces the base preset's file of the same name.** When you add `site` to a base preset, write the `site` preset's `readme-package.md`, `readme-root.md` or `readme-packages.md` in place of the base preset's file of that name, never alongside it.
+- Write each preset template's `frontmatter` and `body` to `okf/surfaces/<file>` as given. Apply the user's resource and URL answers.
+
+File recipe for each Surface: a `---` frontmatter block, a blank line, then the body. Emit the frontmatter fields in this order, omitting the optional ones the template lacks: `type`, `status`, `title`, `description`, `kind`, `audience`, `resource`, `links_to`, `url`. Keep `status: draft`; never set `verified`. Write `generated.by` only (the agent actor string, per `okf-authoring`'s actor convention); leave `generated.at` and every other `generated` key out, because `okfit sync` completes them.
 
 ## 5. Validate
 
-Run `okfit validate` (or `mcp__plugin_okfit_mcp__validate_bundle`) and fix anything it reports. Then grep `okf/surfaces/` for `example.invalid`; while any match remains, refuse to finish and ask the user for the real URL. Surfaces stay `draft` until the user promotes them.
+Run `okfit validate` (or `pnpm exec okfit validate`, `npx okfit validate` or `node_modules/.bin/okfit validate`, whichever the repo installs; or `mcp__plugin_okfit_mcp__validate_bundle`) and fix anything it reports. Then grep `okf/surfaces/` for `example.invalid`; while any match remains, refuse to finish and ask the user for the real URL. Surfaces stay `draft` until the user promotes them.
