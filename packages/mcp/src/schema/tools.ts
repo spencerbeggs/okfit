@@ -8,6 +8,7 @@ export const DocsPresetSurface = Schema.Struct({
 	file: Schema.String,
 	frontmatter: Schema.Struct({
 		type: Schema.Literal("Surface"),
+		status: Schema.Literal("draft"),
 		title: Schema.String,
 		description: Schema.String,
 		kind: Schema.Literals(["site", "repo", "readme"]),

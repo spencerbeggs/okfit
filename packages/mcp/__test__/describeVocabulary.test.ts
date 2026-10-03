@@ -110,7 +110,10 @@ describe("describe_vocabulary docs_presets", () => {
 			);
 			for (const preset of data.docs_presets) {
 				assert.isAbove(preset.surfaces.length, 0);
-				for (const s of preset.surfaces) assert.strictEqual(s.frontmatter.type, "Surface");
+				for (const s of preset.surfaces) {
+					assert.strictEqual(s.frontmatter.type, "Surface");
+					assert.strictEqual(s.frontmatter.status, "draft");
+				}
 			}
 		}).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
 	);
