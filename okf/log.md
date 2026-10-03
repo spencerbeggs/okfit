@@ -6,6 +6,11 @@
 * Updated Profiles
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated Claude Code Plugin
+* Added Contributor guide -- making a pull request
+* Added Contributor guides
+* Added Documentation site
+* Added Repository README
+* Added Sub-package READMEs
 
 ## 2026-10-02
 
