@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
@@ -84,6 +84,63 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*"));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					assert.strictEqual(diagnostics.length, 1);
+					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
+				}),
+		),
+	);
+
+	it.effect("warns, not fails, when the static prefix is a file", () =>
+		withRepo(
+			(repo) => writeFile(join(repo, "README.md"), "x"),
+			(root) =>
+				Effect.gen(function* () {
+					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../README.md/*"));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					assert.strictEqual(diagnostics.length, 1);
+					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
+				}),
+		),
+	);
+
+	it.effect("matches a multi-segment glob", () =>
+		withRepo(
+			(repo) =>
+				mkdir(join(repo, "packages", "a"), { recursive: true }).then(() =>
+					writeFile(join(repo, "packages", "a", "README.md"), "x"),
+				),
+			(root) =>
+				Effect.gen(function* () {
+					const hit = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/README.md"));
+					assert.deepStrictEqual(yield* lintSurfaces(hit, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+					const miss = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/docs"));
+					const diagnostics = yield* lintSurfaces(miss, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					assert.strictEqual(diagnostics.length, 1);
+				}),
+		),
+	);
+
+	it.effect("matches a recursive ** glob", () =>
+		withRepo(
+			(repo) =>
+				mkdir(join(repo, "packages", "a", "deep"), { recursive: true }).then(() =>
+					writeFile(join(repo, "packages", "a", "deep", "x.md"), "x"),
+				),
+			(root) =>
+				Effect.gen(function* () {
+					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/**/x.md"));
+					assert.deepStrictEqual(yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+				}),
+		),
+	);
+
+	it.effect("warns with the compile message when the glob does not compile", () =>
+		withRepo(
+			(repo) => mkdir(join(repo, "packages"), { recursive: true }).then(() => undefined),
+			(root) =>
+				Effect.gen(function* () {
+					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/[a"));
 					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
 					assert.strictEqual(diagnostics.length, 1);
 					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");

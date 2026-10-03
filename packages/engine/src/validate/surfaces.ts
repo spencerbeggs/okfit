@@ -15,8 +15,8 @@ const GLOB_RE = /[*?[{]/;
  * The pattern is resolved against the concept's directory into a repo-absolute
  * pattern, split at its first metacharacter segment into a static `prefix` and
  * a `rest`; the `prefix` directory is listed (recursively when `rest` spans
- * segments) and `rest` is matched against the entries. A missing `prefix`, an
- * empty match, or a `rest` that fails to compile all count as unmatched, and
+ * segments) and `rest` is matched against the entries. A missing or unreadable
+ * `prefix` (for example a file), an empty match, or a `rest` that fails to compile all count as unmatched, and
  * report a warning (a brand-new monorepo legitimately has no packages yet),
  * ranged at the `["resource"]` frontmatter value. Total over severity (mirrors
  * `lintResources`): returns `[]`, touching neither `FileSystem` nor `Path`,
@@ -44,14 +44,16 @@ export const lintSurfaces = (
 			const prefix = segments.slice(0, firstGlob).join(path.sep) || path.sep;
 			const rest = segments.slice(firstGlob).join("/");
 			let problem: string | undefined;
-			if (!(yield* fs.exists(prefix))) {
+			if (!(yield* fs.exists(prefix).pipe(Effect.orElseSucceed(() => false)))) {
 				problem = "";
 			} else {
 				const compiled = GlobPattern.compileResult(rest);
 				if (Result.isFailure(compiled)) {
 					problem = `: ${compiled.failure.message}`;
 				} else {
-					const entries = yield* fs.readDirectory(prefix, { recursive: rest.includes("**") || rest.includes("/") });
+					const entries = yield* fs
+						.readDirectory(prefix, { recursive: rest.includes("**") || rest.includes("/") })
+						.pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
 					if (!entries.some((entry) => compiled.success.matches(entry.split(path.sep).join("/")))) problem = "";
 				}
 			}
