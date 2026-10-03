@@ -11,6 +11,8 @@
 * Added Documentation site
 * Added Repository README
 * Added Sub-package READMEs
+* Updated LSP
+* Updated VS Code Extension
 
 ## 2026-10-02
 

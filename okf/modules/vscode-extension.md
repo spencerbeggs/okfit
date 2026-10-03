@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T23:39:29Z
-  body_sha256: 6e74b5d481bbfc1387ca0e72b905e5d5eb4e055f5aed05c570a57c046023648e
+  at: 2026-10-03T01:30:00Z
+  body_sha256: c59d438649e7becf0c00f0781aaddc1f95c4687fae6d52dd80c7d50fbd4a7630
 ---
 
 # VS Code Extension
