@@ -77,7 +77,7 @@ export interface RunResult {
  * does.
  *
  * It then appends `lintResources`, `Publications.lint` (`publication-drift`
- * and `publication-orphan`) and `lintSurfaces` (`surface-unmatched`), each
+ * and `publication-orphan`, only under the `software-project` profile) and `lintSurfaces` (`surface-unmatched`), each
  * of which gates itself on its own severity.
  *
  * K-52 holds structurally: `Bundle.load`'s failure short-circuits the
@@ -109,7 +109,11 @@ export const run = (
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
 		const resources = yield* lintResources(bundle, options.config);
-		const publications = yield* Publications.lint(bundle, options.config);
+		// Publication lints are software-project's; any other profile (or none)
+		// may declare its own `Publication` type with different semantics.
+		const publications = Option.exists(options.profile, (profile) => profile.name === "software-project")
+			? yield* Publications.lint(bundle, options.config)
+			: [];
 		const surfaces = yield* lintSurfaces(bundle, options.config);
 		return {
 			bundle,

@@ -87,7 +87,6 @@ export class Publications {
 		const orphanSeverity = OkfitConfig.severityFor(config, "publication-orphan");
 		if (driftSeverity === "off" && orphanSeverity === "off") return [];
 		const diagnostics: Array<Diagnostic> = [];
-		const exists = (id: string): boolean => Option.exists(ConceptId.normalize(id), (key) => bundle.concepts.has(key));
 		const push = (
 			concept: LoadedConcept,
 			code: "publication-drift" | "publication-orphan",
@@ -105,14 +104,32 @@ export class Publications {
 			const resource = String(concept.frontmatter.raw.resource ?? concept.path);
 			if (orphanSeverity !== "off") {
 				const surface = concept.frontmatter.raw.surface;
-				if (typeof surface !== "string" || !exists(resolveRef(concept.path, surface))) {
-					push(
-						concept,
-						"publication-orphan",
-						orphanSeverity,
-						`surface ${JSON.stringify(surface)} does not resolve to a concept in the bundle`,
-						["surface"],
-					);
+				// An absent surface is `required-key-missing`'s to report.
+				if (surface !== undefined) {
+					const target =
+						typeof surface === "string"
+							? Option.match(ConceptId.normalize(resolveRef(concept.path, surface)), {
+									onNone: () => undefined,
+									onSome: (key) => bundle.concepts.get(key),
+								})
+							: undefined;
+					if (target === undefined) {
+						push(
+							concept,
+							"publication-orphan",
+							orphanSeverity,
+							`surface ${JSON.stringify(surface)} does not resolve to a concept in the bundle`,
+							["surface"],
+						);
+					} else if (target.frontmatter.type !== SURFACE_TYPE) {
+						push(
+							concept,
+							"publication-orphan",
+							orphanSeverity,
+							`surface ${JSON.stringify(surface)} resolves to a concept of type ${JSON.stringify(target.frontmatter.type)}, not ${SURFACE_TYPE}`,
+							["surface"],
+						);
+					}
 				}
 			}
 			const renders = rendersOf(concept);
@@ -125,6 +142,12 @@ export class Publications {
 						"renders must be a list of { path, body_sha256 } entries",
 						["renders"],
 					);
+				}
+				continue;
+			}
+			if (renders.length === 0) {
+				if (orphanSeverity !== "off") {
+					push(concept, "publication-orphan", orphanSeverity, "renders must name at least one source", ["renders"]);
 				}
 				continue;
 			}

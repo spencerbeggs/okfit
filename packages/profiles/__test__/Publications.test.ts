@@ -182,6 +182,46 @@ describe("Publications.lint", () => {
 		}),
 	);
 
+	it.effect("publication-orphan when renders is an empty list", () =>
+		Effect.gen(function* () {
+			const pub = publication(
+				{ surface: "../surfaces/readme.md", renders: [] },
+				"surface: ../surfaces/readme.md\nrenders: []\n",
+			);
+			const result = yield* run(bundleOf(surface, pub));
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0]?.code, "publication-orphan");
+			assert.include(result[0]?.message, "renders must name at least one source");
+			assert.isDefined(result[0]?.range);
+		}),
+	);
+
+	it.effect("publication-orphan naming the actual type when surface resolves to a non-Surface concept", () =>
+		Effect.gen(function* () {
+			const a = yield* digestOf(sourceA);
+			const pub = publication(
+				{ surface: "../interfaces/b.md", renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
+				`surface: ../interfaces/b.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+			);
+			const result = yield* run(bundleOf(sourceA, sourceB, pub));
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0]?.code, "publication-orphan");
+			assert.include(result[0]?.message, "Interface");
+			assert.include(result[0]?.message, "Surface");
+		}),
+	);
+
+	it.effect("skips the surface check when surface is absent", () =>
+		Effect.gen(function* () {
+			const a = yield* digestOf(sourceA);
+			const pub = publication(
+				{ renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
+				`renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+			);
+			assert.deepStrictEqual(yield* run(bundleOf(sourceA, pub)), []);
+		}),
+	);
+
 	it.effect("returns [] for both codes when both are off", () =>
 		Effect.gen(function* () {
 			const pub = publication(
