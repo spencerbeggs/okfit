@@ -75,7 +75,11 @@ list the concepts the branch's diff touches, reconcile each against
 reports, run `okfit sync` to regenerate `generated.at`,
 `generated.body_sha256`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
-changed — sequentially, in this one context.
+changed — sequentially, in this one context. In the report, tell the human
+how to stamp after they commit: run `okfit sync --dry-run` and commit only
+what it reports it would write. A pre-commit hook running
+`okfit sync --staged` may already have stamped the concepts, and the hook
+never writes `log.md`, so the follow-up sync may write only `log.md`.
 
 ## What this agent does NOT do
 
