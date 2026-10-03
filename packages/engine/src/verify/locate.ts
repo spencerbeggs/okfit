@@ -432,13 +432,26 @@ export const locateGeneratedBlock = Effect.fn("okfit/verify/locateGeneratedBlock
 	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "generated");
 	if (pair !== undefined) {
 		const node = pair.value;
-		const isNull = node === null || (node instanceof YamlScalar && node.style === "plain" && node.value === null);
+		// Only an untagged, unanchored plain null: `!!null` or `&a ~` carry
+		// syntax a whole-line replace would drop or duplicate (an alias may
+		// point at the anchor).
+		const isNull =
+			node === null ||
+			(node instanceof YamlScalar &&
+				node.style === "plain" &&
+				node.value === null &&
+				node.tag === undefined &&
+				node.anchor === undefined);
 		if (!isNull || contents.style === "flow") return { _tag: "unsupported", shape: "generated-present" } as const;
 		// The whole line: from its start to just past its terminator.
 		const lineStart = value.lastIndexOf("\n", pair.key.offset - 1) + 1;
 		const tail = node === null ? pair.key.offset + pair.key.length : node.offset + node.length;
 		const nl = value.indexOf("\n", tail);
 		const lineEnd = nl === -1 ? value.length : nl + 1;
+		// The span must be non-empty and begin with the key (only indentation before it).
+		if (lineStart >= lineEnd || value.slice(lineStart, pair.key.offset).trim() !== "") {
+			return { _tag: "unsupported", shape: "generated-present" } as const;
+		}
 		return { _tag: "replace", start: valueStart + lineStart, end: valueStart + lineEnd } as const;
 	}
 	return { _tag: "absent", insertAt: valueStart + value.length } as const;

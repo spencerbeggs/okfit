@@ -188,6 +188,33 @@ describe("locateGeneratedBlock", () => {
 		);
 	}
 
+	for (const [name, source, line] of [
+		["NULL", "---\ntype: Module\ngenerated: NULL\ntitle: T\n---\n", "generated: NULL\n"],
+		["a trailing comment", "---\ntype: Module\ngenerated: ~ # todo\ntitle: T\n---\n", "generated: ~ # todo\n"],
+		["CRLF", "---\r\ntype: Module\r\ngenerated: ~\r\ntitle: T\r\n---\r\n", "generated: ~\r\n"],
+		["a value on the next line", "---\ntype: Module\ngenerated:\n  ~\ntitle: T\n---\n", "generated:\n  ~\n"],
+		["the last key", "---\ntype: Module\ngenerated: ~\n---\n", "generated: ~\n"],
+		["a quoted key", '---\ntype: Module\n"generated": ~\ntitle: T\n---\n', '"generated": ~\n'],
+	] as const) {
+		it.effect(`classifies ${name} as replaceable`, () =>
+			Effect.gen(function* () {
+				const located = yield* locateGeneratedBlock(source);
+				assert.strictEqual(located._tag, "replace");
+				if (located._tag !== "replace") return;
+				assert.strictEqual(source.slice(located.start, located.end), line);
+			}),
+		);
+	}
+
+	for (const spelling of ["generated: !!null", "generated: &a ~", "generated: !!null ~", "generated: &a"]) {
+		it.effect(`classifies a tagged or anchored \`${spelling}\` as unsupported`, () =>
+			Effect.gen(function* () {
+				const located = yield* locateGeneratedBlock(`---\ntype: Module\n${spelling}\ntitle: T\n---\n`);
+				assert.strictEqual(located._tag, "unsupported");
+			}),
+		);
+	}
+
 	it.effect("still treats a non-null generated value as unsupported", () =>
 		Effect.gen(function* () {
 			const located = yield* locateGeneratedBlock("---\ntype: Module\ngenerated: nope\n---\n");
