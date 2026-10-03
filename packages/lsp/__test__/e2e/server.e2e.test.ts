@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
+import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
@@ -181,17 +182,27 @@ describe("okfit-lsp over real stdio", () => {
 	it.live("launched with stdin from /dev/null, exits 0 and writes nothing to stderr (#198)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* makeSandbox();
-			// A shell redirect gives the child an fs.ReadStream for stdin, which has no `unref`.
+			// A file descriptor for stdin gives the child an fs.ReadStream, which has no `unref`.
 			const result = yield* Effect.promise(
 				() =>
 					new Promise<{ readonly code: number | null; readonly stdout: string; readonly stderr: string }>((resolve) => {
-						execFile(
-							"sh",
-							["-c", 'exec "$0" "$1" --stdio </dev/null', process.execPath, LSP_BIN],
-							{ env: sandbox.env, cwd: sandbox.cwd, timeout: 10_000 },
-							(error, stdout, stderr) =>
-								resolve({ code: error === null ? 0 : ((error as { code?: number }).code ?? 1), stdout, stderr }),
-						);
+						const devNull = openSync("/dev/null", "r");
+						const child = spawn(process.execPath, [LSP_BIN, "--stdio"], {
+							env: sandbox.env,
+							cwd: sandbox.cwd,
+							stdio: [devNull, "pipe", "pipe"],
+							timeout: 10_000,
+						});
+						closeSync(devNull);
+						let stdout = "";
+						let stderr = "";
+						child.stdout.on("data", (chunk: Buffer) => {
+							stdout += chunk.toString();
+						});
+						child.stderr.on("data", (chunk: Buffer) => {
+							stderr += chunk.toString();
+						});
+						child.on("close", (code) => resolve({ code, stdout, stderr }));
 					}),
 			);
 			assert.strictEqual(result.stdout, "");
