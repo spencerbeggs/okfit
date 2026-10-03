@@ -30,7 +30,7 @@ These exemplars adapt the humanizer skill's principles to technical user-facing 
 
 **Before:** The function returns a value. The method yields a result. The procedure produces an outcome.
 
-**After:** The function returns a value. The function returns a value. (When you mean the same thing, use the same word.)
+**After:** The function returns a value. The method returns a value. The procedure returns a value. (When you mean the same thing, use the same word.)
 
 ## Copula avoidance
 

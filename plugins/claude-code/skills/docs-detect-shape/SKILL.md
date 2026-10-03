@@ -29,7 +29,7 @@ Report the result as a short YAML block (`kind`, `packageName`, `license`, `runt
 
 ## 2. Recommend a preset
 
-Call `mcp__plugin_okfit_mcp__describe_vocabulary` and read `docs_presets` (`name`, `description`, `additive`, `surfaces`). Pick the base preset for the detected kind (`npm-package`, `monorepo-router`, `monorepo-shared-docs`) and add `site` when `website/` exists, since `site` is additive. Name the recommendation and why; do not apply it silently.
+Call `mcp__plugin_okfit_mcp__describe_vocabulary` and read `docs_presets` (`name`, `description`, `additive`, `surfaces`). If `docs_presets` is `[]` (profile `none`), tell the user no presets exist for this profile and stop; write no Surfaces. Otherwise pick the base preset for the detected kind (`npm-package`, `monorepo-router`, `monorepo-shared-docs`) and add `site` when `website/` exists, since `site` is additive. Name the recommendation and why; do not apply it silently.
 
 ## 3. Ask where each surface lives
 
@@ -45,4 +45,4 @@ Gotchas:
 
 ## 5. Validate
 
-Run `okfit validate` (or `mcp__plugin_okfit_mcp__validate_bundle`) and fix anything it reports. Surfaces stay `draft` until the user promotes them.
+Run `okfit validate` (or `mcp__plugin_okfit_mcp__validate_bundle`) and fix anything it reports. Then grep `okf/surfaces/` for `example.invalid`; while any match remains, refuse to finish and ask the user for the real URL. Surfaces stay `draft` until the user promotes them.

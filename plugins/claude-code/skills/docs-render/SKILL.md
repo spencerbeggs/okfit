@@ -20,7 +20,7 @@ Input: a Publication concept id (for example `publications/readme-cli`). If none
 4. Rewrite the page at `resource` to the Surface's rules and the Publication's notes, using only facts from those sources. Anything else the page says is dropped or flagged to the user, never invented. Keep `docs-badges` blocks via that skill, and reach for `docs-templates` for section order.
 5. Run the `docs-humanize` skill on the page.
 6. Run `okfit sync --publication <concept id>`. It restamps the `body_sha256` digests; exit 64 means a bad id, so recheck it.
-7. Run `okfit validate` and confirm `publication-drift` no longer fires for this Publication. Fix anything else it reports.
+7. Run `okfit validate` and confirm `publication-drift` no longer fires for this Publication. Fix anything else it reports, with one exception: if `validate_bundle` reports `publication-orphan` for this Publication (a `renders` path or the surface does not resolve), stop and tell the user. Never guess a replacement source.
 
 ## Gotcha
 

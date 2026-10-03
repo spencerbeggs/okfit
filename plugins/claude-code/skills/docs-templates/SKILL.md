@@ -6,7 +6,7 @@ description: >-
   restructuring a README or docs page, adding a page to docs/, or rebuilding a
   docs TOC ("scaffold a package README", "add a docs page", "update the docs
   TOC").
-allowed-tools: Read, Write, Edit, Glob, Grep
+allowed-tools: Read, Write, Edit, Glob, Grep, mcp__plugin_okfit_mcp__get_concept
 ---
 
 # docs-templates
