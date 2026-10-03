@@ -148,6 +148,69 @@ describe("validate/surfaces lintSurfaces", () => {
 		),
 	);
 
+	it.effect("bounds the walk to the glob depth and skips node_modules and dot-directories", () =>
+		withRepo(
+			(repo) =>
+				mkdir(join(repo, "packages", "a", "node_modules", "x"), { recursive: true })
+					.then(() => mkdir(join(repo, "packages", "a", "deep", "deeper"), { recursive: true }))
+					.then(() => mkdir(join(repo, "packages", ".hidden"), { recursive: true }))
+					.then(() => writeFile(join(repo, "packages", "a", "README.md"), "x")),
+			(root) =>
+				Effect.gen(function* () {
+					const calls: Array<string> = [];
+					const counting = Layer.effect(
+						FileSystem.FileSystem,
+						Effect.gen(function* () {
+							const real = yield* FileSystem.FileSystem;
+							return {
+								...real,
+								readDirectory: (path: string, options?: Parameters<FileSystem.FileSystem["readDirectory"]>[1]) => {
+									calls.push(path);
+									return real.readDirectory(path, options);
+								},
+							};
+						}),
+					).pipe(Layer.provide(NodeFileSystem.layer));
+					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/README.md"));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(
+						Effect.provide(Layer.mergeAll(counting, NodePath.layer)),
+					);
+					assert.deepStrictEqual(diagnostics, []);
+					assert.deepStrictEqual(
+						calls.map((call) => call.slice(call.indexOf("packages"))),
+						["packages", join("packages", "a")],
+					);
+				}),
+		),
+	);
+
+	it.effect("walks node_modules when the pattern names it", () =>
+		withRepo(
+			(repo) => mkdir(join(repo, "packages", "a", "node_modules", "x"), { recursive: true }).then(() => undefined),
+			(root) =>
+				Effect.gen(function* () {
+					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/node_modules/*"));
+					assert.deepStrictEqual(yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+				}),
+		),
+	);
+
+	it.effect("splits on the resource as written when the bundle root path contains a metacharacter", () =>
+		Effect.gen(function* () {
+			const base = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-lint-[surfaces]-")));
+			try {
+				yield* Effect.promise(async () => {
+					await mkdir(join(base, "okf", "surfaces"), { recursive: true });
+					await mkdir(join(base, "packages", "a"), { recursive: true });
+				});
+				const bundle = bundleOf(join(base, "okf"), surfaceAt("surfaces/pkgs.md", "../../packages/*"));
+				assert.deepStrictEqual(yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+			} finally {
+				yield* Effect.promise(() => rm(base, { recursive: true, force: true }));
+			}
+		}),
+	);
+
 	it.effect("ignores literal resources (source-resource-missing owns them)", () =>
 		withRepo(
 			async () => undefined,
