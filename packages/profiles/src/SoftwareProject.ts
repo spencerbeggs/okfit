@@ -1,6 +1,7 @@
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js"; // (checked) contract section 2 lists Layout, Profile, ProfileDiagnostic; ProfileDiagnosticCode is added type-only for the local `diagnostic` helper and changes no exported surface
+import { DOCS_PRESETS } from "./presets/index.js";
 
 /**
  * Hand-authored, typed `OkfitConfig` (P-25). Sets ONLY `concepts`, `types`,
@@ -415,4 +416,4 @@ const check = (bundle: LoadedBundle): ReadonlyArray<ProfileDiagnostic> => {
  *
  * @public
  */
-export const softwareProject: Profile = { name: "software-project", config, layout, check };
+export const softwareProject: Profile = { name: "software-project", config, layout, docsPresets: DOCS_PRESETS, check };

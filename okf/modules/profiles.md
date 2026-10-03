@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-02T23:48:25Z
-  body_sha256: 365bfecb85c19d94e0e4e7993975642fbea87f542611a6198b9d68be1baa2f3f
+  at: 2026-10-03T00:06:25Z
+  body_sha256: 369a679e764a263e02374bf6cc7c8953b1267f2ea2641cefcd0931dad8d23f65
 ---
 
 # Profiles
@@ -26,7 +26,10 @@ git config). Core stays opinion-free; everything that says what a bundle
 ## Layout
 
 `Profile.ts` holds the shared types (`Layout`, `ProfileDiagnostic`,
-`Profile`). `SoftwareProject.ts` holds the `software-project` literal,
+`Profile`, `DocsPreset`, `SurfaceTemplate`). `presets/` holds the
+`software-project` docs-surface presets (`npm-package`, `monorepo-router`,
+`monorepo-shared-docs`, and the additive `site`): Surface templates whose
+bodies are page-author instructions, exposed as `Profile.docsPresets`. `SoftwareProject.ts` holds the `software-project` literal,
 layout, and check -- never re-exported, reachable only via
 `Profiles.softwareProject`. `Profiles.ts` is the facade: `get(name)`,
 `softwareProject`. `GitHistory.ts` and `BodyProvenance.ts` are the

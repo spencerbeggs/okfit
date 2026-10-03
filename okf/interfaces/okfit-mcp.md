@@ -7,8 +7,8 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: 76bf1d2c7f5c996c8ecb5e8406e1c8cdb4c1f969a6c7e89bf37c5cd4278a7506
+  at: 2026-10-03T00:06:25Z
+  body_sha256: 59fe31daa2d166253bf3dee3214c056608db83f1dd866241ba3dfc7ee4efc08b
 tags:
   - architecture
 verified:
@@ -22,7 +22,7 @@ verified:
 
 | Tool | Returns | Key argument/filter | Primary failure mode |
 | --- | --- | --- | --- |
-| `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, and the config's declared type and tag vocabulary. | none (`Tool.EmptyParams`) | `ConfigError` |
+| `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`: the software-project profile's docs-surface presets (`name`, `description`, `additive`, and `surfaces` of `file`, `frontmatter`, `body`), which the docs skills write as Surface concepts. | none (`Tool.EmptyParams`) | `ConfigError` |
 | `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `limit`/`offset` | `UnknownVocabulary` for an undeclared type or tag |
 | `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | `ConceptNotFound`, `InvalidArgument` for an empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | `ConceptNotFound`, `InvalidArgument` |

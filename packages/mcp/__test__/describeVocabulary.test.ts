@@ -83,3 +83,26 @@ describe("describe_vocabulary", () => {
 		}).pipe(Effect.scoped),
 	);
 });
+
+describe("describe_vocabulary docs_presets", () => {
+	it.effect("returns the four docs presets with snake_case keys", () =>
+		Effect.gen(function* () {
+			const { result } = yield* call("project");
+			const data = result.structuredContent as DescribeVocabularySuccess;
+			assert.deepStrictEqual(data.docs_presets.map((p) => p.name).sort(), [
+				"monorepo-router",
+				"monorepo-shared-docs",
+				"npm-package",
+				"site",
+			]);
+			assert.deepStrictEqual(
+				data.docs_presets.filter((p) => p.additive).map((p) => p.name),
+				["site"],
+			);
+			for (const preset of data.docs_presets) {
+				assert.isAbove(preset.surfaces.length, 0);
+				for (const s of preset.surfaces) assert.strictEqual(s.frontmatter.type, "Surface");
+			}
+		}).pipe(Effect.scoped),
+	);
+});

@@ -1,5 +1,6 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import { contextEnvelope } from "@okfit/engine";
+import { Profiles } from "@okfit/profiles";
 import { Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
@@ -7,7 +8,8 @@ import { resolveConfigOnly } from "../internal/toolContext.js";
 import { DescribeVocabularySuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Returns this project's resolved okfit configuration: the project root, bundle root, active profile, configured agent actor, and the full set of concept types and tags the config declares, each with its description. Call this first, before filtering or writing any concept, to learn which type and tag names actually exist in this project.";
+	"Returns this project's resolved okfit configuration: project root, bundle root, active profile, agent actor, every concept type and tag the config declares, and docs_presets, the Surface templates for each repository shape. Call this first, before filtering or writing any concept, to learn which names exist.";
+("Returns this project's resolved okfit configuration: the project root, bundle root, active profile, configured agent actor, the full set of concept types and tags the config declares, each with its description, and docs_presets: the documentation-surface templates (Surface concept frontmatter and body) for each repository shape. Call this first, before filtering or writing any concept, to learn which type and tag names actually exist in this project.");
 
 /**
  * `dependencies` names the platform services `handleDescribeVocabulary`
@@ -62,5 +64,11 @@ export const handleDescribeVocabulary = (projectRoot: string) =>
 			agent: envelope.actors.agent,
 			types: envelope.types,
 			tags: envelope.tags,
+			docs_presets: Profiles.softwareProject.docsPresets.map((preset) => ({
+				name: preset.name,
+				description: preset.description,
+				additive: preset.additive,
+				surfaces: preset.surfaces.map((s) => ({ file: s.file, frontmatter: s.frontmatter, body: s.body })),
+			})),
 		};
 	});

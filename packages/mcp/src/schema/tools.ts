@@ -3,6 +3,34 @@ import { ContextTag, ContextType } from "@okfit/engine";
 import { Schema } from "effect";
 import { ConceptSummary } from "./ConceptSummary.js";
 
+/** One Surface template inside a docs preset, as `describe_vocabulary` reports it. @public */
+export const DocsPresetSurface = Schema.Struct({
+	file: Schema.String,
+	frontmatter: Schema.Struct({
+		type: Schema.Literal("Surface"),
+		title: Schema.String,
+		description: Schema.String,
+		kind: Schema.Literals(["site", "repo", "readme"]),
+		audience: Schema.Literals(["users", "contributors", "agents"]),
+		resource: Schema.String,
+		links_to: Schema.optionalKey(Schema.String),
+		url: Schema.optionalKey(Schema.String),
+	}),
+	body: Schema.String,
+});
+/** @public */
+export type DocsPresetSurface = typeof DocsPresetSurface.Type;
+
+/** One docs-surface preset the active profile offers. @public */
+export const DocsPreset = Schema.Struct({
+	name: Schema.String,
+	description: Schema.String,
+	additive: Schema.Boolean,
+	surfaces: Schema.Array(DocsPresetSurface),
+});
+/** @public */
+export type DocsPreset = typeof DocsPreset.Type;
+
 /** `describe_vocabulary`'s result (§5.2). @public */
 export const DescribeVocabularySuccess = Schema.Struct({
 	project_root: Schema.String,
@@ -13,6 +41,7 @@ export const DescribeVocabularySuccess = Schema.Struct({
 	agent: Schema.NullOr(Schema.String),
 	types: Schema.Array(ContextType),
 	tags: Schema.Array(ContextTag),
+	docs_presets: Schema.Array(DocsPreset),
 });
 /** @public */
 export type DescribeVocabularySuccess = typeof DescribeVocabularySuccess.Type;
