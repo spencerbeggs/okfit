@@ -31,7 +31,8 @@ plugins/claude-code/
       references/humanizer-pairs.md
     docs-render/SKILL.md               -- re-render a Publication, then restamp
   agents/
-    okf-docs.md                        -- the one agent; preloads the five okf skills
+    okf-docs.md                        -- writes the bundle; preloads the five okf skills
+    okf-publisher.md                   -- writes published pages outside okf/; preloads the five docs skills
   hooks/
     hooks.json                         -- SessionStart (no matcher) + PostToolUse (Write|Edit)
     lib/

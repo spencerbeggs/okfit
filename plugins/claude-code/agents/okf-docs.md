@@ -84,8 +84,11 @@ changed — sequentially, in this one context.
 - Never runs `okfit verify`, even when asked — the Bash tool can reach it,
   but running it would fabricate the very attestation the command exists to
   record. Tell the human it is theirs to run.
-- Never edits source code, tests, or any file outside the bundle,
-  `CLAUDE.md` files, and package `README.md`s.
+- Never edits source code, tests, or any file outside the bundle and
+  `CLAUDE.md` files.
+- Never writes outside `okf/` beyond `CLAUDE.md` pointers. READMEs, `docs/`
+  pages, and every other published page belong to `okf-publisher`; hand the
+  request to it.
 - Never commits, pushes, or writes a changeset.
 - Never hand-edits `index.md` or `log.md` — both are derived; the agent
   runs `okfit sync` after its concept edits and never hand-edits either

@@ -122,13 +122,54 @@ _field_value() {
 	}
 }
 
-@test "the agent roster is exactly okf-docs" {
+@test "the agent roster is exactly okf-docs and okf-publisher" {
 	local found
 	found="$(cd "$AGENTS" && ls -1 *.md | sed 's/\.md$//' | sort | tr '\n' ' ')"
-	[ "$found" = "okf-docs " ] || {
-		echo "agent roster is '$found', expected 'okf-docs'" >&2
+	[ "$found" = "okf-docs okf-publisher " ] || {
+		echo "agent roster is '$found', expected 'okf-docs okf-publisher'" >&2
 		return 1
 	}
+}
+
+@test "okf-publisher preloads the five docs skills under skills:" {
+	for skill in docs-render docs-templates docs-badges docs-humanize docs-detect-shape; do
+		_skills_block "$AGENTS/okf-publisher.md" | grep -qx -- "$skill" || {
+			echo "okf-publisher.md does not list $skill under skills:" >&2
+			return 1
+		}
+	done
+}
+
+@test "no skill name leaks into okf-publisher.md's tools: block" {
+	for skill in "$PLUGIN_ROOT"/skills/*/; do
+		name="$(basename "$skill")"
+		if _tools_block "$AGENTS/okf-publisher.md" | grep -qx -- "$name"; then
+			echo "okf-publisher.md lists the skill '$name' under tools:" >&2
+			return 1
+		fi
+	done
+}
+
+@test "every skill okf-publisher.md names has a SKILL.md on disk" {
+	local count=0
+	while IFS= read -r name; do
+		[ -n "$name" ] || continue
+		count=$((count + 1))
+		[ -f "$PLUGIN_ROOT/skills/$name/SKILL.md" ] || {
+			echo "okf-publisher.md names skill '$name', which has no SKILL.md" >&2
+			return 1
+		}
+	done < <(_skills_block "$AGENTS/okf-publisher.md")
+	[ "$count" -gt 0 ]
+}
+
+@test "okf-publisher.md has no write path into okf/ other than sync" {
+	grep -q 'okfit sync --publication' "$AGENTS/okf-publisher.md"
+	grep -q 'What this agent does NOT do' "$AGENTS/okf-publisher.md"
+}
+
+@test "okf-docs.md points outside-bundle writes at okf-publisher" {
+	grep -q 'okf-publisher' "$AGENTS/okf-docs.md"
 }
 
 @test "every skills/*/SKILL.md has non-empty name and description frontmatter" {

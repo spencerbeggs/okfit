@@ -54,14 +54,14 @@ and the five `okf-*` skills are preloaded, in full, by the `okf-docs` agent belo
 
 ## Agent
 
-`agents/okf-docs.md` is the plugin's one agent. It keeps a repository's
+The plugin ships two agents, split by write direction. `agents/okf-publisher.md` renders published pages outside `okf/` from Surface and Publication concepts and preloads the five `docs-*` skills. `agents/okf-docs.md` is the bundle writer. It keeps a repository's
 `okf/` bundle and its CLAUDE.md pointer files current under the resolved
 config's own type and tag vocabulary — never inventing one of its own. It
 preloads the five `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their
 full content is injected rather than merely discoverable). See its own
 `## What this agent does NOT do` section for the boundary rather than a
 restatement here: in short, it never touches `verified`, never edits
-anything outside the bundle, CLAUDE.md files, and package READMEs, and never
+anything outside the bundle and CLAUDE.md files (published pages go to `okf-publisher`), and never
 commits, pushes, or writes a changeset.
 
 ## Hooks
