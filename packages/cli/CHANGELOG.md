@@ -1,5 +1,25 @@
 # @okfit/cli
 
+## 0.9.0
+
+### Features
+
+- Add `okfit sync --publication <id>` to restamp the `renders` digests of a single Publication after you re-render its page. Combining it with `--only`, `--staged`, or `--since` exits 64. [#237][#237]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.8.5 | 0.9.0 |
+| @okfit/engine | dependency | updated | 0.11.1 | 0.12.0 |
+| @okfit/profiles | dependency | updated | 0.8.3 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
 ## 0.8.1
 
 ### Dependencies

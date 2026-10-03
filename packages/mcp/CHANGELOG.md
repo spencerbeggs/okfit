@@ -1,5 +1,25 @@
 # @okfit/mcp
 
+## 0.7.0
+
+### Features
+
+- `describe_vocabulary` now returns `docs_presets`, the resolved profile's Surface templates (each with `name`, `description`, `additive`, and `surfaces`). It is an empty array when the profile is none. [#237][#237]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.8.5 | 0.9.0 |
+| @okfit/engine | dependency | updated | 0.11.1 | 0.12.0 |
+| @okfit/profiles | dependency | updated | 0.8.3 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
 ## 0.6.8
 
 ### Dependencies

@@ -1,5 +1,18 @@
 # @okfit/core
 
+## 0.9.0
+
+### Features
+
+- Add three lint codes to `LintCode` and the `[lint]` config table: `publication-drift` (default `warn`), `publication-orphan` (default `error`), and `surface-unmatched` (default `warn`).
+- Regenerate the published config JSON Schema so editors accept the new severities. [#237][#237]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
 ## 0.8.5
 
 ### Dependencies

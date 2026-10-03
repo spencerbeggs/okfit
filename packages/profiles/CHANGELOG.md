@@ -1,5 +1,39 @@
 # @okfit/profiles
 
+## 0.9.0
+
+### Breaking Changes
+
+- `Profile` now requires `docsPresets: ReadonlyArray<DocsPreset>`. Custom `Profile` implementations must add it; an empty array is valid. [#237][#237]
+
+### Features
+
+- Add a `contributor-guides` Surface template to the `monorepo-shared-docs` docs preset (audience `contributors`, resource the root `docs/` folder), with a skeleton for task-shaped guides: who it is for, prerequisites, numbered steps, what success looks like, and the rules it restates.
+- Add a contributor-guide reference to the `docs-templates` skill with the same skeleton. [#247][#247]
+
+* Add `DocsPreset` and `SurfaceTemplate` types and a required `docsPresets` member on `Profile`. The `software-project` profile ships four presets of starter Surface concept templates: `npm-package`, `monorepo-router`, `monorepo-shared-docs`, and an additive `site` preset that swaps the README templates for one-page variants linking to the site.
+
+- Add `Surface` and `Publication` concept types to the `software-project` profile, stored under `surfaces/` and `publications/`. A Surface describes where one kind of published docs lives and who reads it; a Publication records which concepts a published page was rendered from.
+- Add a `Publications` export with `resolveRef`, `rendersOf`, and `lint`. `lint` reports `publication-drift` when a source concept changed after the page was rendered, and `publication-orphan` when a publication references a concept that does not exist. [#237][#237]
+
+### Bug Fixes
+
+- `publication-orphan` now also fires for an empty `renders` list and for a `surface` that resolves to a concept that is not a `Surface`; the message names the actual type. An absent `surface` is left to `required-key-missing` instead of producing a second, unclear message. [#247][#247]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.8.5 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
+[#247]: https://github.com/spencerbeggs/okfit/pull/247
+
 ## 0.8.3
 
 ### Dependencies

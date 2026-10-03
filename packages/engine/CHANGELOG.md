@@ -1,5 +1,42 @@
 # @okfit/engine
 
+## 0.12.0
+
+### Features
+
+- `validate` now runs the publication lints (`publication-drift`, `publication-orphan`), so the CLI, MCP server, and language server report them.
+- `validate` also checks each Surface's resource glob and reports `surface-unmatched` when it matches no files. [#237][#237]
+
+* Add `stampPublication`, which re-stamps one Publication's `renders` digests so a re-rendered page stops reporting `publication-drift`. `FrontmatterEdits` gains a `rendersDigests` edit to carry the new digests.
+* Add `PublicationNotFoundError`, `NotAPublicationError`, and `SyncPublicationConflictError`; all map to exit code 64.
+* The sync JSON envelope gains an optional `publication` member naming the page that was restamped. [#237][#237]
+
+### Bug Fixes
+
+- `okfit sync` now replaces a null-valued `generated` key (`generated:` alone or `generated: ~`) with the full block from `actors.agent`, instead of skipping the concept as `generated-unsupported` while `generated-missing` promised sync would create it. A tagged or anchored null (`!!null`, `&a ~`) is still skipped as unsupported. [#247][#247]
+
+* `validate` now runs the publication lints only under the `software-project` profile, so a repository using `profile = "none"` that declares its own `Publication` type no longer gets them.
+* `source-resource-missing` now treats an extglob resource such as `@(.github|docs)` as a pattern, as `surface-unmatched` does, instead of warning that the literal path does not exist.
+
+### Performance
+
+- `okfit sync` now replaces a null-valued `generated` key (`generated:` alone or `generated: ~`) with the full block from `actors.agent`, instead of skipping the concept as `generated-unsupported` while `generated-missing` promised sync would create it. A tagged or anchored null (`!!null`, `&a ~`) is still skipped as unsupported. [#247][#247]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.8.5 | 0.9.0 |
+| @okfit/profiles | dependency | updated | 0.8.3 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
+[#247]: https://github.com/spencerbeggs/okfit/pull/247
+
 ## 0.11.1
 
 ### Dependencies
