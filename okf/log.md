@@ -5,6 +5,7 @@
 * Updated MCP
 * Updated Profiles
 * Updated okfit-mcp — MCP tool and resource contract
+* Updated Claude Code Plugin
 
 ## 2026-10-02
 
