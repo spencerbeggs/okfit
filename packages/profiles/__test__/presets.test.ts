@@ -53,6 +53,34 @@ describe("softwareProject.docsPresets", () => {
 		]);
 	});
 
+	it("composes each preset as the spec's table says", () => {
+		const shape = (name: string) =>
+			presets
+				.find((p) => p.name === name)
+				?.surfaces.map((x) => `${x.file}:${x.frontmatter.audience}:${x.frontmatter.links_to ?? ""}`)
+				.sort();
+		assert.deepStrictEqual(shape("npm-package"), [
+			"surfaces/docs-repo.md:users:",
+			"surfaces/readme-package.md:users:docs-repo.md",
+		]);
+		assert.deepStrictEqual(shape("monorepo-router"), [
+			"surfaces/readme-packages.md:users:",
+			"surfaces/readme-root.md:contributors:",
+		]);
+		assert.deepStrictEqual(shape("monorepo-shared-docs"), [
+			"surfaces/docs-packages.md:users:readme-packages.md",
+			"surfaces/docs-repo.md:contributors:readme-root.md",
+			"surfaces/readme-packages.md:users:",
+			"surfaces/readme-root.md:contributors:",
+		]);
+		const site = presets.find((p) => p.name === "site")?.surfaces ?? [];
+		assert.strictEqual(site.find((x) => x.file === "surfaces/site.md")?.frontmatter.audience, "users");
+		assert.isString(site.find((x) => x.file === "surfaces/site.md")?.frontmatter.url);
+		for (const x of site.filter((y) => y.frontmatter.kind === "readme")) {
+			assert.strictEqual(x.frontmatter.links_to, "site.md");
+		}
+	});
+
 	it("marks only site additive", () => {
 		assert.deepStrictEqual(
 			presets.filter((p) => p.additive).map((p) => p.name),

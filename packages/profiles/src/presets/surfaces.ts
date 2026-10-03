@@ -140,6 +140,7 @@ export const README_PACKAGE: SurfaceTemplate = {
 		kind: "readme",
 		audience: "users",
 		resource: "../../README.md",
+		links_to: "docs-repo.md",
 	},
 	body: body(
 		"# Package README",
@@ -191,13 +192,13 @@ export const README_ROOT: SurfaceTemplate = {
 		title: "Repository README",
 		description: "The monorepo root README: a hub that explains the packages and how they relate.",
 		kind: "readme",
-		audience: "users",
+		audience: "contributors",
 		resource: "../../README.md",
 	},
 	body: body(
 		"# Repository README",
 		"## Who reads this",
-		"People who landed on the repository and need to find the package they want. This page routes; it does not document any one package.",
+		"Contributors and visitors who landed on the repository and need to find the package they want. This page routes; it does not document any one package.",
 		"## Required structure",
 		"Follow this outline. Carry no badges on this page; they belong on each package README.",
 		MONOREPO_ROOT_SKELETON,
@@ -217,7 +218,7 @@ export const README_ROOT_ONE_PAGE: SurfaceTemplate = {
 		title: "Repository README",
 		description: "A one-page monorepo root README that routes readers to the documentation site.",
 		kind: "readme",
-		audience: "users",
+		audience: "contributors",
 		resource: "../../README.md",
 		links_to: "site.md",
 	},
@@ -285,23 +286,31 @@ export const README_PACKAGES_ONE_PAGE: SurfaceTemplate = {
 	),
 };
 
-/** A `docs/` folder of topical pages read on the forge. */
-export const DOCS_REPO: SurfaceTemplate = {
-	file: "surfaces/docs-repo.md",
+const docsRepo = (options: {
+	readonly file: string;
+	readonly title: string;
+	readonly description: string;
+	readonly audience: "users" | "contributors";
+	readonly resource: string;
+	readonly linksTo?: string;
+	readonly reader: string;
+	readonly title1: string;
+}): SurfaceTemplate => ({
+	file: options.file,
 	frontmatter: {
 		type: "Surface",
 		status: "draft",
-		title: "Repository docs folder",
-		description: "Topical markdown pages in docs/, read in place on the forge and linked from the READMEs.",
+		title: options.title,
+		description: options.description,
 		kind: "repo",
-		audience: "users",
-		resource: "../../docs",
-		links_to: "readme-root.md",
+		audience: options.audience,
+		resource: options.resource,
+		...(options.linksTo === undefined ? {} : { links_to: options.linksTo }),
 	},
 	body: body(
-		"# Repository docs folder",
+		`# ${options.title1}`,
 		"## Who reads this",
-		"People who finished the README and want a guide, the API reference or troubleshooting help. They read the files on the forge, so every page must read well as plain markdown.",
+		options.reader,
 		"## Required structure",
 		"Name every page `{NN}-{slug}.md`: a two-digit zero-padded number and a kebab-case slug, such as `01-getting-started.md`. Start from `01-getting-started.md`, `02-api-reference.md` and `03-troubleshooting.md`; later topical pages slot between the first and the last two. Keep `README.md` as the table of contents:",
 		DOCS_TOC_SKELETON,
@@ -310,7 +319,47 @@ export const DOCS_REPO: SurfaceTemplate = {
 		"The one-page pitch and install command belong in the README; contributor workflow belongs in contributor docs.",
 		RULES,
 	),
-};
+});
+
+const USERS_DOCS_READER =
+	"People who finished the README and want a guide, the API reference or troubleshooting help. They read the files on the forge, so every page must read well as plain markdown.";
+
+/** A `docs/` folder of topical pages for a single package, read on the forge. */
+export const DOCS_PACKAGE: SurfaceTemplate = docsRepo({
+	file: "surfaces/docs-repo.md",
+	title: "Repository docs folder",
+	title1: "Repository docs folder",
+	description: "Topical markdown pages in docs/, read in place on the forge and linked from the README.",
+	audience: "users",
+	resource: "../../docs",
+	reader: USERS_DOCS_READER,
+});
+
+/** The root `docs/` folder of a monorepo: shared contributor pages read on the forge. */
+export const DOCS_REPO: SurfaceTemplate = docsRepo({
+	file: "surfaces/docs-repo.md",
+	title: "Repository docs folder",
+	title1: "Repository docs folder",
+	description:
+		"Shared contributor pages in the root docs/, read in place on the forge and linked from the root README.",
+	audience: "contributors",
+	resource: "../../docs",
+	linksTo: "readme-root.md",
+	reader:
+		"Contributors who need the shared workflow, architecture notes or release process. They read the files on the forge, so every page must read well as plain markdown.",
+});
+
+/** The `docs/` folder inside each monorepo package. */
+export const DOCS_PACKAGES: SurfaceTemplate = docsRepo({
+	file: "surfaces/docs-packages.md",
+	title: "Sub-package docs folders",
+	title1: "Sub-package docs folders",
+	description: "Topical markdown pages in each package's docs/, read in place on the forge and linked from its README.",
+	audience: "users",
+	resource: "../../packages/*/docs",
+	linksTo: "readme-packages.md",
+	reader: USERS_DOCS_READER,
+});
 
 /** The documentation website. */
 export const SITE: SurfaceTemplate = {

@@ -1,5 +1,7 @@
 import type { DocsPreset } from "../Profile.js";
 import {
+	DOCS_PACKAGE,
+	DOCS_PACKAGES,
 	DOCS_REPO,
 	README_PACKAGE,
 	README_PACKAGES,
@@ -21,9 +23,9 @@ import {
 export const DOCS_PRESETS: ReadonlyArray<DocsPreset> = [
 	{
 		name: "npm-package",
-		description: "A single package published to npm: one README surface.",
+		description: "A single package published to npm: a README surface that links to a docs/ folder surface.",
 		additive: false,
-		surfaces: [README_PACKAGE],
+		surfaces: [README_PACKAGE, DOCS_PACKAGE],
 	},
 	{
 		name: "monorepo-router",
@@ -33,9 +35,10 @@ export const DOCS_PRESETS: ReadonlyArray<DocsPreset> = [
 	},
 	{
 		name: "monorepo-shared-docs",
-		description: "A monorepo with routing READMEs plus a shared docs folder read on the forge.",
+		description:
+			"A monorepo with routing READMEs plus a shared root docs/ folder and per-package docs/ folders read on the forge.",
 		additive: false,
-		surfaces: [README_ROOT, README_PACKAGES, DOCS_REPO],
+		surfaces: [README_ROOT, README_PACKAGES, DOCS_REPO, DOCS_PACKAGES],
 	},
 	{
 		name: "site",
