@@ -12,6 +12,8 @@
 * Added Repository README
 * Added Sub-package READMEs
 * Updated okfit config file schema
+* Updated LSP
+* Updated VS Code Extension
 
 ## 2026-10-02
 

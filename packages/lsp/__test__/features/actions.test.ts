@@ -48,6 +48,8 @@ ${GENERATED}
 # Draft Concept
 `;
 
+const DEPRECATED_SOURCE = DRAFT_SOURCE.replace("status: draft", "status: deprecated").replaceAll("Draft", "Deprecated");
+
 const ALREADY_VERIFIED_SOURCE = `---
 type: Module
 title: Verified Concept
@@ -170,6 +172,15 @@ describe("registerCodeActions", () => {
 			const uri = yield* openConcept(h, "okf/modules/draft.md", DRAFT_SOURCE);
 			const actions = yield* requestCodeAction(h.client, uri);
 			assert.deepStrictEqual(actions.map(titleOf), ["Set status: stable", "Set status: deprecated"]);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a deprecated concept offers `draft`/`stable`, never `Mark verified`", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const uri = yield* openConcept(h, "okf/modules/deprecated.md", DEPRECATED_SOURCE);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.deepStrictEqual(actions.map(titleOf), ["Set status: draft", "Set status: stable"]);
 		}).pipe(Effect.scoped),
 	);
 

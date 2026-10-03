@@ -86,8 +86,11 @@ export const main = async (options: MainOptions = {}): Promise<void> => {
 		// spec's own contract: the server terminates itself on `exit`, the
 		// client is not required to close the pipe). `unref` it now that
 		// `listen` has resolved; the teardown below still exits explicitly,
-		// since stdin is not the only handle that can hold the loop open.
-		process.stdin.unref();
+		// since stdin is not the only handle that can hold the loop open. Only a
+		// pipe or socket stdin (a `net.Socket`) has `unref`; a file or
+		// `/dev/null` is an `fs.ReadStream` that reaches EOF by itself and does
+		// not hold the loop open, so skipping the call there is safe.
+		if (typeof process.stdin.unref === "function") process.stdin.unref();
 		return outcome;
 	}).pipe(
 		Effect.scoped,

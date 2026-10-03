@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T15:35:44Z
-  body_sha256: 69aa79d235d1b1563dbf732c946e9e82a7852556da48e71ddbc642643b5b686c
+  at: 2026-10-03T01:25:43Z
+  body_sha256: 0512a524b2f600437dcc81f10794a476189f943d18541deed7be57c5af59fb64
 ---
 
 # LSP
@@ -66,7 +66,7 @@ also offers one `Set status: <status>` action (kind `okfit.status`) per
 status the raw frontmatter `status` is not already -- all three when there
 is no explicit status -- and one `Mark verified by <actor>` action (kind
 `okfit.verify`) when a human actor resolves and the concept is neither a
-draft nor already verified by that actor; the actor is cached per session
+draft, deprecated, nor already verified by that actor; the actor is cached per session
 handle. `registerCommands` (`src/features/commands.ts`) answers
 `workspace/executeCommand` for the three `OKFIT_COMMANDS`:
 `okfit.lsp.setStatus [uri, status]` and `okfit.lsp.markVerified [uri]`
