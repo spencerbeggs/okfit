@@ -54,7 +54,11 @@ and the five `okf-*` skills are preloaded, in full, by the `okf-docs` agent belo
 
 ## Agent
 
-The plugin ships two agents, split by write direction. `agents/okf-publisher.md` renders published pages outside `okf/` from Surface and Publication concepts and preloads the five `docs-*` skills. `agents/okf-docs.md` is the bundle writer. It keeps a repository's
+The plugin ships two agents, split by write direction.
+
+`agents/okf-publisher.md` renders published pages outside `okf/` from Surface and Publication concepts. It preloads the five `docs-*` skills.
+
+`agents/okf-docs.md` is the bundle writer. It keeps a repository's
 `okf/` bundle and its CLAUDE.md pointer files current under the resolved
 config's own type and tag vocabulary — never inventing one of its own. It
 preloads the five `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their

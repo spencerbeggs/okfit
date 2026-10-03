@@ -82,10 +82,10 @@ heading slugs (issue #69).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [A body digest inside generated detects real
 drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
-The three docs-surface lints are named in core but run in `@okfit/profiles` (`publication_*`) and `@okfit/engine` (`surface_unmatched`).
 `generated_missing` (issue #73) fires only when `actors.agent` is set: a
 concept with no `generated` block would otherwise only surface as a skip in
 `okfit sync`'s post-commit report, after the commit already landed.
+The three docs-surface lints are named in core but run in `@okfit/profiles` (`publication_*`) and `@okfit/engine` (`surface_unmatched`).
 
 ## Unknown keys go to extensions
 

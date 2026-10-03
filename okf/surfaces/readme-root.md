@@ -50,7 +50,7 @@ Add an Ecosystem section only when the repository spans related but separate pac
 
 ## okfit specifics
 
-The root README is the first thing a contributor sees. It lists the `@okfit/*` packages, names the Claude Code plugin in `plugins/claude-code`, and points contributors to the guides in `docs/`. Keep the status line honest about what is published.
+The root README is the first thing a contributor sees. It lists the `@okfit/*` packages, names the Claude Code plugin in `plugins/claude-code`, and points contributors to the guides in `docs/`.
 
 ## Other surfaces
 
