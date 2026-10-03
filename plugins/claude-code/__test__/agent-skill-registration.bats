@@ -163,7 +163,7 @@ _field_value() {
 	[ "$count" -gt 0 ]
 }
 
-@test "okf-publisher.md has no write path into okf/ other than sync" {
+@test "okf-publisher.md names the sync --publication restamp and a boundaries section" {
 	grep -q 'okfit sync --publication' "$AGENTS/okf-publisher.md"
 	grep -q 'What this agent does NOT do' "$AGENTS/okf-publisher.md"
 }

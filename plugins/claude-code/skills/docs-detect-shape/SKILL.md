@@ -37,6 +37,8 @@ Before writing, ask the user where each surface's `resource` points, offering th
 
 ## 4. Write the Surfaces
 
+When this skill runs inside `okf-publisher`, stop after step 3 and report the recommendation; that agent never writes under `okf/`.
+
 Gotchas:
 
 - **Never overwrite an existing Surface.** List `okf/surfaces/` first (or `list_concepts`); skip any file that exists and say so.
