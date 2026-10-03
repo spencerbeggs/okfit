@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-02T23:48:25Z
-  body_sha256: 5e8f2d5c0178cdb77f22f8043d8ee7be287d07a76f5f9b86dd886bf793bfb0f7
+  at: 2026-10-03T01:53:59Z
+  body_sha256: 843904e65f423820c4b59f4efd4114478248df3714a73b7cdd9522b242576c21
 ---
 
 # Engine
@@ -164,10 +164,15 @@ the concept a fallback range belongs to. `validate/resources.ts`'s
 `sources[i].resource` value itself, through
 [Core](core.md)'s `DiagnosticRange.forFrontmatterPath`, rather than the
 frontmatter block. `validate/run.ts#run` also appends
-`Publications.lint` (`publication-drift`, `publication-orphan`) and
+`Publications.lint` (`publication-drift`, `publication-orphan`), only under
+the `software-project` profile, and
 `validate/surfaces.ts#lintSurfaces` (`surface-unmatched`: a Surface's glob
 `resource` matching nothing, warned and ranged at the `resource` value; a
-literal `resource` stays `source-resource-missing`'s). `external/ExternalReferences.ts`
+literal `resource` stays `source-resource-missing`'s). The `lintSurfaces`
+walk is breadth-first and depth-bounded to what the glob can match
+(unbounded only under `**`); it skips `node_modules` and dot-directories
+unless the pattern names them (including through braces, classes and
+extglobs) and never descends into symlinked directories. `external/ExternalReferences.ts`
 ships only `layerNoop` until the HTTP layer lands.
 
 ## Frontmatter edits
