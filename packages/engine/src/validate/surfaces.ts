@@ -6,12 +6,13 @@ import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path, Result } from "effect";
 
 /** Glob metacharacters that mark a Surface `resource` as a pattern rather than a literal path. */
-const GLOB_RE = /[*?[{]/;
+const GLOB_RE = /[*?[{]|[@+!]\(/;
 
 /**
  * Lists `root` breadth-first, only as deep as `segments` (the glob's remaining
  * segments) can match, or without a bound when the pattern contains `**`.
- * `node_modules` and dot-entries are skipped unless a segment names them. Entry
+ * `node_modules` and dot-entries are skipped unless a segment names them, and
+ * symlinked directories are listed but never descended into. Entry
  * paths are `/`-joined and relative to `root`. An unreadable directory
  * contributes nothing.
  */
@@ -23,7 +24,9 @@ const walk = (
 ): Effect.Effect<ReadonlyArray<string>> =>
 	Effect.gen(function* () {
 		const maxDepth = segments.some((segment) => segment.includes("**")) ? Number.POSITIVE_INFINITY : segments.length;
-		const namesHidden = segments.some((segment) => segment.startsWith("."));
+		// A dot names a hidden entry when it starts a segment or follows a brace,
+		// comma, extglob or class opener (`{.github,docs}`, `[.]x`, `@(.a|b)`).
+		const namesHidden = segments.some((segment) => /(^|[{,(|[])\./.test(segment));
 		const namesModules = segments.some((segment) => segment.includes("node_modules"));
 		const skipped = (name: string): boolean =>
 			(name === "node_modules" && !namesModules) || (name.startsWith(".") && !namesHidden);
@@ -40,11 +43,19 @@ const walk = (
 					const relative = dir === "" ? name : `${dir}/${name}`;
 					out.push(relative);
 					if (depth < maxDepth) {
-						const isDirectory = yield* fs.stat(path.join(root, relative)).pipe(
+						const full = path.join(root, relative);
+						const isDirectory = yield* fs.stat(full).pipe(
 							Effect.map((info) => info.type === "Directory"),
 							Effect.orElseSucceed(() => false),
 						);
-						if (isDirectory) next.push(relative);
+						// Never descend into a symlink: a cycle under `**` would not end.
+						const isSymlink = isDirectory
+							? yield* fs.readLink(full).pipe(
+									Effect.as(true),
+									Effect.orElseSucceed(() => false),
+								)
+							: false;
+						if (isDirectory && !isSymlink) next.push(relative);
 					}
 				}
 			}

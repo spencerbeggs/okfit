@@ -8,4 +8,4 @@
 
 ## Performance
 
-- The `surface-unmatched` check walks only as deep as the resource glob can match, skips `node_modules` and dot-directories the pattern does not name, and splits the glob on the path as written rather than the resolved absolute path.
+- The `surface-unmatched` check walks only as deep as the resource glob can match, skips `node_modules` and dot-directories the pattern does not name (including through braces, classes and extglobs), never follows symlinked directories, and splits the glob on the path as written rather than the resolved absolute path.

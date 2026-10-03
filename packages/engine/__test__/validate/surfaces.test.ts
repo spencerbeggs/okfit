@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
@@ -180,6 +180,45 @@ describe("validate/surfaces lintSurfaces", () => {
 						calls.map((call) => call.slice(call.indexOf("packages"))),
 						["packages", join("packages", "a")],
 					);
+				}),
+		),
+	);
+
+	for (const [name, resource] of [
+		["a brace", "../../{.github,docs}/*.md"],
+		["a character class", "../../[.]github/*.md"],
+		["an extglob", "../../@(.github|docs)/*.md"],
+	] as const) {
+		it.effect(`walks a dot-directory named through ${name}`, () =>
+			withRepo(
+				(repo) =>
+					mkdir(join(repo, ".github"), { recursive: true }).then(() => writeFile(join(repo, ".github", "a.md"), "x")),
+				(root) =>
+					Effect.gen(function* () {
+						const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", resource));
+						assert.deepStrictEqual(
+							yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)),
+							[],
+						);
+					}),
+			),
+		);
+	}
+
+	it.effect("does not descend into symlinked directories, so a cycle under ** terminates", () =>
+		withRepo(
+			async (repo) => {
+				await mkdir(join(repo, "packages", "a"), { recursive: true });
+				await writeFile(join(repo, "packages", "a", "x.txt"), "x");
+				await symlink("..", join(repo, "packages", "a", "l1"));
+				await symlink("..", join(repo, "packages", "a", "l2"));
+			},
+			(root) =>
+				Effect.gen(function* () {
+					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/**/*.md"));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					assert.strictEqual(diagnostics.length, 1);
+					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
 				}),
 		),
 	);
