@@ -1,4 +1,4 @@
-import type { SkipReason, SyncResult } from "@okfit/engine";
+import type { PublicationEnvelope, SkipReason, SyncResult } from "@okfit/engine";
 
 /** Contract §9.2's fixed reason-sentence table, closed over `SkipReason`. */
 const REASON_SENTENCE: Record<SkipReason, string> = {
@@ -54,14 +54,7 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
  *
  * @public
  */
-export const humanPublication = (
-	result: {
-		readonly id: string;
-		readonly written: boolean;
-		readonly digests: ReadonlyArray<{ readonly path: string; readonly body_sha256: string }>;
-	},
-	dryRun: boolean,
-): ReadonlyArray<string> => [
+export const humanPublication = (result: PublicationEnvelope, dryRun: boolean): ReadonlyArray<string> => [
 	`publication ${result.id}:`,
 	...result.digests.map((d) => `  ${d.path} ${d.body_sha256}`),
 	result.written

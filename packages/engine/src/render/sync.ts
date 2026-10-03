@@ -16,6 +16,20 @@ export const SyncModeEnvelope = Schema.Struct({
 export type SyncModeEnvelope = typeof SyncModeEnvelope.Type;
 
 /**
+ * One `okfit sync --publication` result: the Publication id, whether its
+ * file changed, and the digest stamped for each rendered source.
+ *
+ * @public
+ */
+export const PublicationEnvelope = Schema.Struct({
+	id: Schema.String,
+	written: Schema.Boolean,
+	digests: Schema.Array(Schema.Struct({ path: Schema.String, body_sha256: Schema.String })),
+});
+/** @public */
+export type PublicationEnvelope = typeof PublicationEnvelope.Type;
+
+/**
  * Contract §14 note 5: `schema: 1` is INFERRED, not in the design's own
  * §2 JSON example — every other envelope in this codebase
  * (`JsonEnvelope`, `VerifyEnvelope`, `ContextEnvelope`) opens with it, so
@@ -38,13 +52,7 @@ export const SyncEnvelope = Schema.Struct({
 	index: SyncModeEnvelope,
 	log: SyncModeEnvelope,
 	/** Present only for `okfit sync --publication`; then the three modes are all `selected: false`. */
-	publication: Schema.optionalKey(
-		Schema.Struct({
-			id: Schema.String,
-			written: Schema.Boolean,
-			digests: Schema.Array(Schema.Struct({ path: Schema.String, body_sha256: Schema.String })),
-		}),
-	),
+	publication: Schema.optionalKey(PublicationEnvelope),
 });
 /** @public */
 export type SyncEnvelope = typeof SyncEnvelope.Type;
@@ -70,11 +78,7 @@ export const syncEnvelope = (input: {
 	readonly root: string;
 	readonly dryRun: boolean;
 	readonly result?: SyncResult;
-	readonly publication?: {
-		readonly id: string;
-		readonly written: boolean;
-		readonly digests: ReadonlyArray<{ readonly path: string; readonly body_sha256: string }>;
-	};
+	readonly publication?: PublicationEnvelope;
 	readonly distribution?: Distribution;
 }): SyncEnvelope => ({
 	schema: 1,
@@ -87,13 +91,5 @@ export const syncEnvelope = (input: {
 	generated: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.generated),
 	index: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.index),
 	log: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.log),
-	...(input.publication === undefined
-		? {}
-		: {
-				publication: {
-					id: input.publication.id,
-					written: input.publication.written,
-					digests: input.publication.digests.map((d) => ({ path: d.path, body_sha256: d.body_sha256 })),
-				},
-			}),
+	...(input.publication === undefined ? {} : { publication: input.publication }),
 });

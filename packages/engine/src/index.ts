@@ -75,7 +75,7 @@ export {
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
-export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
+export { PublicationEnvelope, SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
 export type {
 	BundleSessionOptions,

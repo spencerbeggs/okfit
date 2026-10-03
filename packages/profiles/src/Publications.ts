@@ -1,7 +1,7 @@
 import type { LoadedBundle, LoadedConcept } from "@okfit/core";
-import { Diagnostic, DiagnosticRange, OkfitConfig } from "@okfit/core";
+import { ConceptId, Diagnostic, DiagnosticRange, OkfitConfig } from "@okfit/core";
 import type { Crypto, PlatformError } from "effect";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { Derivation } from "./Derivation.js";
 
 /**
@@ -76,6 +76,7 @@ export class Publications {
 	/** The `renders` entries of a Publication, or `undefined` when malformed. */
 	static readonly rendersOf: (concept: LoadedConcept) => ReadonlyArray<RendersEntry> | undefined = rendersOf;
 
+	/** Lints every Publication in `bundle`; diagnostics are sorted by file then code. */
 	static readonly lint: (
 		bundle: LoadedBundle,
 		config: OkfitConfig,
@@ -86,7 +87,7 @@ export class Publications {
 		const orphanSeverity = OkfitConfig.severityFor(config, "publication-orphan");
 		if (driftSeverity === "off" && orphanSeverity === "off") return [];
 		const diagnostics: Array<Diagnostic> = [];
-		const exists = (id: string): boolean => id !== "" && [...bundle.concepts.keys()].some((key) => key === id);
+		const exists = (id: string): boolean => Option.exists(ConceptId.normalize(id), (key) => bundle.concepts.has(key));
 		const push = (
 			concept: LoadedConcept,
 			code: "publication-drift" | "publication-orphan",
@@ -130,7 +131,10 @@ export class Publications {
 			const stale: Array<string> = [];
 			for (const entry of renders) {
 				const sourceId = resolveRef(concept.path, entry.path);
-				const source = sourceId === "" ? undefined : bundle.concepts.get(sourceId as typeof id);
+				const source = Option.match(ConceptId.normalize(sourceId), {
+					onNone: () => undefined,
+					onSome: (key) => bundle.concepts.get(key),
+				});
 				if (source === undefined) {
 					if (orphanSeverity !== "off") {
 						push(

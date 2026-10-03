@@ -93,7 +93,9 @@ const publicationFlag = Flag.String("publication").pipe(
 
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
- * [--format human|json] [--since <YYYY-MM-DD>] [--staged]`.
+ * [--format human|json] [--since <YYYY-MM-DD>] [--staged]
+ * [--publication <id>]`. `--publication` runs only `stampPublication` and
+ * rejects `--only`, `--staged` and `--since`.
  *
  * Handler order fixed by contract §4.3. Steps 1–3 are `context`'s/
  * `validate`'s handler in substance — stat `--config` (K-1) via

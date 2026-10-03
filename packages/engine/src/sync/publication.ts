@@ -6,6 +6,7 @@ import { Derivation, PUBLICATION_TYPE, Publications } from "@okfit/profiles";
 import type { Crypto, FileSystem, PlatformError } from "effect";
 import { Effect, Option, Path, Runtime, Schema } from "effect";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "../edits/FrontmatterEdits.js";
+import type { PublicationEnvelope } from "../render/sync.js";
 import { writeAtomic } from "./write.js";
 
 /**
@@ -55,11 +56,7 @@ export const stampPublication = (options: {
 	readonly id: string;
 	readonly dryRun: boolean;
 }): Effect.Effect<
-	{
-		readonly id: string;
-		readonly written: boolean;
-		readonly digests: ReadonlyArray<{ readonly path: string; readonly body_sha256: string }>;
-	},
+	PublicationEnvelope,
 	| PublicationNotFoundError
 	| NotAPublicationError
 	| BundleLoadError
@@ -81,10 +78,13 @@ export const stampPublication = (options: {
 		if (renders === undefined) {
 			return yield* new UnsupportedFrontmatterError({ key: "renders", shape: "malformed" });
 		}
-		const digests: Array<{ readonly path: string; readonly body_sha256: string }> = [];
+		const digests: Array<PublicationEnvelope["digests"][number]> = [];
 		for (const entry of renders) {
 			const sourceId = Publications.resolveRef(concept.path, entry.path);
-			const source = sourceId === "" ? undefined : bundle.concepts.get(sourceId as ConceptId);
+			const source = Option.match(ConceptId.normalize(sourceId), {
+				onNone: () => undefined,
+				onSome: (key) => bundle.concepts.get(key),
+			});
 			if (source === undefined) {
 				return yield* new PublicationNotFoundError({ id: sourceId === "" ? entry.path : sourceId, publication: id });
 			}
