@@ -44,6 +44,9 @@ export const LintCode = Schema.Literals([
 	"status-missing",
 	"source-resource-missing",
 	"generated-missing",
+	"publication-drift",
+	"publication-orphan",
+	"surface-unmatched",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

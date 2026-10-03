@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/engine",
-	"version": "0.11.0",
+	"version": "0.11.1",
 	"private": true,
 	"description": "The okfit engine: platform layer, config discovery, and the validate, verify, sync, init and context programs shared by the okfit CLI and MCP server.",
 	"keywords": ["okf", "open-knowledge-format", "effect"],
@@ -54,7 +54,7 @@
 		"@effect/vitest": "catalog:effect",
 		"@effected/memfs": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@savvy-web/bundler": "^2.4.18",
+		"@savvy-web/bundler": "^2.4.20",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"

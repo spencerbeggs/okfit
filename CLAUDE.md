@@ -28,6 +28,9 @@ This repository dogfoods its own OKF bundle at `okf/`. Start at
   `okf/roadmaps/documentation-site.md`.
 - **Durable architectural choices** (why something is built the way it
   is, not just what it does) -- `okf/decisions/*.md`.
+- **Documentation surfaces and published pages** (where each kind of docs
+  lives, how it is written, and which pages are rendered from the bundle) --
+  `okf/surfaces/*.md`, `okf/publications/*.md`.
 - **Rules contributors and agents must follow** -- `okf/conventions/*.md`.
   The bullets below are the ones a session needs immediately; full
   rationale and citations live in the bundle.

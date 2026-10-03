@@ -16,6 +16,20 @@ export const SyncModeEnvelope = Schema.Struct({
 export type SyncModeEnvelope = typeof SyncModeEnvelope.Type;
 
 /**
+ * One `okfit sync --publication` result: the Publication id, whether its
+ * file changed, and the digest stamped for each rendered source.
+ *
+ * @public
+ */
+export const PublicationEnvelope = Schema.Struct({
+	id: Schema.String,
+	written: Schema.Boolean,
+	digests: Schema.Array(Schema.Struct({ path: Schema.String, body_sha256: Schema.String })),
+});
+/** @public */
+export type PublicationEnvelope = typeof PublicationEnvelope.Type;
+
+/**
  * Contract §14 note 5: `schema: 1` is INFERRED, not in the design's own
  * §2 JSON example — every other envelope in this codebase
  * (`JsonEnvelope`, `VerifyEnvelope`, `ContextEnvelope`) opens with it, so
@@ -37,9 +51,13 @@ export const SyncEnvelope = Schema.Struct({
 	generated: SyncModeEnvelope,
 	index: SyncModeEnvelope,
 	log: SyncModeEnvelope,
+	/** Present only for `okfit sync --publication`; then the three modes are all `selected: false`. */
+	publication: Schema.optionalKey(PublicationEnvelope),
 });
 /** @public */
 export type SyncEnvelope = typeof SyncEnvelope.Type;
+
+const NOT_SELECTED: SyncModeEnvelope = { selected: false, written: [], unchanged: [], skipped: [] };
 
 const toModeEnvelope = (mode: SyncResult["generated"]): SyncModeEnvelope => ({
 	selected: mode.selected,
@@ -59,7 +77,8 @@ export const syncEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly root: string;
 	readonly dryRun: boolean;
-	readonly result: SyncResult;
+	readonly result?: SyncResult;
+	readonly publication?: PublicationEnvelope;
 	readonly distribution?: Distribution;
 }): SyncEnvelope => ({
 	schema: 1,
@@ -69,7 +88,8 @@ export const syncEnvelope = (input: {
 	root: input.root,
 	dry_run: input.dryRun,
 	exit_code: 0,
-	generated: toModeEnvelope(input.result.generated),
-	index: toModeEnvelope(input.result.index),
-	log: toModeEnvelope(input.result.log),
+	generated: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.generated),
+	index: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.index),
+	log: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.log),
+	...(input.publication === undefined ? {} : { publication: input.publication }),
 });

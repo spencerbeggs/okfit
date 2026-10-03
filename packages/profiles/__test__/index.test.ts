@@ -20,6 +20,9 @@ const VALUES = [
 	"ProfileDiagnosticCode",
 	"Profiles",
 	"Provenance",
+	"PUBLICATION_TYPE",
+	"Publications",
+	"SURFACE_TYPE",
 ] as const;
 
 describe("@okfit/profiles", () => {

@@ -21,6 +21,7 @@ export {
 	QueryConceptNotFoundError,
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
+	SyncPublicationConflictError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
@@ -74,7 +75,7 @@ export {
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
-export { SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
+export { PublicationEnvelope, SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
 export type {
 	BundleSessionOptions,
@@ -91,6 +92,7 @@ export { conceptFor } from "./session/concept.js";
 export { withFallbackRange } from "./session/range.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
+export { NotAPublicationError, PublicationNotFoundError, stampPublication } from "./sync/publication.js";
 export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/run.js";
 export { SkipReason, runSync } from "./sync/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";

@@ -1,6 +1,7 @@
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js"; // (checked) contract section 2 lists Layout, Profile, ProfileDiagnostic; ProfileDiagnosticCode is added type-only for the local `diagnostic` helper and changes no exported surface
+import { DOCS_PRESETS } from "./presets/index.js";
 
 /**
  * Hand-authored, typed `OkfitConfig` (P-25). Sets ONLY `concepts`, `types`,
@@ -225,6 +226,55 @@ const config: OkfitConfig = {
 				},
 			},
 		},
+		Surface: {
+			description:
+				"A documentation surface: where one kind of published docs lives, who reads it, and how it is written.",
+			guidance:
+				"Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point links_to at the Surface this one routes readers to.",
+			required: ["kind", "audience", "resource"],
+			fields: {
+				kind: {
+					description: "How the surface is published.",
+					values: {
+						site: "A built website workspace, such as an RSPress site, published at a URL.",
+						repo: "Markdown read in place on the forge, such as a docs/ directory on GitHub.",
+						readme: "README files: the repository root's, each package's, or both.",
+					},
+				},
+				audience: {
+					description: "Who the surface is written for.",
+					values: {
+						users: "People installing or calling what this repository ships.",
+						contributors: "People changing this repository: setup, workflow, and internals.",
+						agents: "Coding agents working in this repository.",
+					},
+				},
+				resource: {
+					description:
+						"A path relative to this concept file to the surface root, or a glob pattern when the surface spans many directories, such as every package directory.",
+					kind: "path",
+				},
+				url: { description: "Where a site surface is published, as an absolute URL." },
+				links_to: {
+					description: "The Surface this one routes readers to, such as a one-page README pointing at the site.",
+					kind: "path",
+				},
+			},
+		},
+		Publication: {
+			description: "A published page that restates facts this bundle owns, and the concepts it was rendered from.",
+			guidance:
+				"Create one only for a page whose content comes from bundle concepts; the bundle is the source of truth and the page is re-rendered when a source changes. Use the body for rendering notes: what is audience-specific, what is deliberately left out, and what a re-render must keep.",
+			required: ["resource", "surface", "renders"],
+			fields: {
+				resource: { description: "A path relative to this concept file to the published page.", kind: "path" },
+				surface: { description: "The Surface concept this page is published on.", kind: "path" },
+				renders: {
+					description:
+						"The source concepts as a list of entries that each hold a path and a body digest; okfit sync --publication stamps each digest.",
+				},
+			},
+		},
 	},
 	tags: {
 		architecture: { description: "Concerns the shape of the system rather than one module." },
@@ -278,6 +328,8 @@ const layout: Layout = {
 		{ directory: "measurements", type: "Measurement" },
 		{ directory: "invariants", type: "Invariant" },
 		{ directory: "incidents", type: "Incident" },
+		{ directory: "surfaces", type: "Surface" },
+		{ directory: "publications", type: "Publication" },
 	],
 };
 
@@ -364,4 +416,4 @@ const check = (bundle: LoadedBundle): ReadonlyArray<ProfileDiagnostic> => {
  *
  * @public
  */
-export const softwareProject: Profile = { name: "software-project", config, layout, check };
+export const softwareProject: Profile = { name: "software-project", config, layout, docsPresets: DOCS_PRESETS, check };

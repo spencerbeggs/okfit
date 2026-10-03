@@ -14,7 +14,7 @@ const TOML_FENCE = /```toml\r?\n([\s\S]*?)```/;
 
 /** Sentence count: terminator followed by whitespace or end of text. */
 const sentences = (text: string): number => text.split(/(?<=[.!?])\s+/).length;
-const MARKDOWN = /[*_`[#]/;
+const MARKDOWN = /[*`[#]|(?:^|\s)_|_(?:\s|$)/; // snake_case field names are plain text; only emphasis underscores count
 
 const guidanceStrings = (): { descriptions: ReadonlyArray<string>; guidances: ReadonlyArray<string> } => {
 	const descriptions: Array<string> = [];
@@ -79,9 +79,11 @@ describe("softwareProject.config", () => {
 				"Measurement",
 				"Module",
 				"Project",
+				"Publication",
 				"Reference",
 				"Roadmap",
 				"Runbook",
+				"Surface",
 			]);
 			assert.isFalse("required" in (types.Project ?? {}));
 			assert.deepStrictEqual(types.Module?.required, ["resource", "kind"]);
@@ -156,7 +158,7 @@ describe("softwareProject.config", () => {
 		Effect.sync(() => {
 			const { descriptions, guidances } = guidanceStrings();
 			assert.isAbove(descriptions.length, 20);
-			assert.strictEqual(guidances.length, 16);
+			assert.strictEqual(guidances.length, 18);
 			for (const text of [...descriptions, ...guidances]) {
 				assert.strictEqual(text, text.trim(), `trailing whitespace in ${JSON.stringify(text)}`);
 				assert.isFalse(text.includes("\n"), `newline in ${JSON.stringify(text)}`);
@@ -190,6 +192,8 @@ describe("softwareProject.layout", () => {
 				{ directory: "measurements", type: "Measurement" },
 				{ directory: "invariants", type: "Invariant" },
 				{ directory: "incidents", type: "Incident" },
+				{ directory: "surfaces", type: "Surface" },
+				{ directory: "publications", type: "Publication" },
 			]);
 			const layoutTypes = layout.directories.map((d) => d.type).sort();
 			const configTypes = Object.keys(config.types ?? {})
@@ -207,7 +211,7 @@ describe("OkfitConfig.merge(DEFAULTS, softwareProject.config)", () => {
 			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, config);
 			assert.deepStrictEqual(merged.bundle, { path: "okf", profile: "software-project" });
 			assert.deepStrictEqual(merged.concepts, { required: ["title", "description"], tags: { required: [] } });
-			assert.strictEqual(Object.keys(merged.types ?? {}).length, 16); // (checked) strictEqual for a number
+			assert.strictEqual(Object.keys(merged.types ?? {}).length, 18); // (checked) strictEqual for a number
 			assert.strictEqual(OkfitConfig.severityFor(merged, "unknown-type"), "error");
 			assert.strictEqual(OkfitConfig.severityFor(merged, "required-key-missing"), "error");
 			assert.strictEqual(OkfitConfig.severityFor(merged, "status-missing"), "warning");

@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/cli",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"private": true,
 	"description": "The okfit command line: validate, lint, index, and inspect Open Knowledge Format (OKF) bundles.",
 	"keywords": ["okf", "open-knowledge-format", "cli", "effect"],
@@ -59,7 +59,7 @@
 		"@effect/vitest": "catalog:effect",
 		"@effected/commands": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@savvy-web/bundler": "^2.4.18",
+		"@savvy-web/bundler": "^2.4.20",
 		"@types/node": "catalog:build",
 		"@types/react": "^19.2.0",
 		"typescript": "catalog:build",

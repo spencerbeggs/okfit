@@ -76,6 +76,43 @@ export const ProfileDiagnostic = Schema.Struct({
 export type ProfileDiagnostic = typeof ProfileDiagnostic.Type;
 
 /**
+ * One Surface concept a docs preset writes: a bundle-relative `file` and the
+ * frontmatter and body to write there. `resource` is relative to the file.
+ * The `site` preset's `url` is an `https://example.invalid` placeholder the
+ * docs skill replaces.
+ *
+ * @public
+ */
+export interface SurfaceTemplate {
+	readonly file: string;
+	readonly frontmatter: {
+		readonly type: "Surface";
+		readonly status: "draft";
+		readonly title: string;
+		readonly description: string;
+		readonly kind: "site" | "repo" | "readme";
+		readonly audience: "users" | "contributors" | "agents";
+		readonly resource: string;
+		readonly links_to?: string;
+		readonly url?: string;
+	};
+	readonly body: string;
+}
+
+/**
+ * A named set of Surface templates for one repository shape. `additive` is
+ * true only for `site`, which layers on another preset instead of replacing it.
+ *
+ * @public
+ */
+export interface DocsPreset {
+	readonly name: "npm-package" | "monorepo-router" | "monorepo-shared-docs" | "site";
+	readonly description: string;
+	readonly additive: boolean;
+	readonly surfaces: ReadonlyArray<SurfaceTemplate>;
+}
+
+/**
  * A named profile (P-38): a partial `OkfitConfig` the CLI merges as
  * `DEFAULTS < profile < file`, a scaffolding `Layout`, and a pure `check`
  * over a loaded bundle run after `Validate.all`.
@@ -86,5 +123,6 @@ export interface Profile {
 	readonly name: ProfileName;
 	readonly config: OkfitConfig;
 	readonly layout: Layout;
+	readonly docsPresets: ReadonlyArray<DocsPreset>;
 	readonly check: (bundle: LoadedBundle) => ReadonlyArray<ProfileDiagnostic>;
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/core",
-	"version": "0.8.4",
+	"version": "0.8.5",
 	"private": true,
 	"description": "Spec-level Open Knowledge Format (OKF) v0.2 schemas, bundle loading, graph, derivation, and validation for Effect.",
 	"keywords": ["okf", "open-knowledge-format", "knowledge", "markdown", "frontmatter", "effect"],
@@ -45,7 +45,7 @@
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
-		"@savvy-web/bundler": "^2.4.18",
+		"@savvy-web/bundler": "^2.4.20",
 		"@types/node": "catalog:build",
 		"effect": "catalog:effect",
 		"typescript": "catalog:build",

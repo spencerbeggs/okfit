@@ -1,5 +1,6 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, FileSystem } from "effect";
 import type { DescribeVocabularySuccess } from "../src/index.js";
 import { copyFixtureProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
@@ -80,6 +81,49 @@ describe("describe_vocabulary", () => {
 				),
 			);
 			assert.ok(text.includes("Try describe_vocabulary."));
+		}).pipe(Effect.scoped),
+	);
+});
+
+describe("describe_vocabulary docs_presets", () => {
+	it.effect("returns the four docs presets with snake_case keys under the software-project profile", () =>
+		Effect.gen(function* () {
+			const root = yield* copyFixtureProject("project");
+			const fs = yield* FileSystem.FileSystem;
+			const configPath = `${root}/.config/okfit.toml`;
+			const text = yield* fs.readFileString(configPath);
+			yield* fs.writeFileString(configPath, text.replace('profile = "none"', 'profile = "software-project"'));
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			const result = yield* harness.callTool("describe_vocabulary", {});
+			const data = result.structuredContent as DescribeVocabularySuccess;
+			assert.strictEqual(data.profile, "software-project");
+			assert.deepStrictEqual(data.docs_presets.map((p) => p.name).sort(), [
+				"monorepo-router",
+				"monorepo-shared-docs",
+				"npm-package",
+				"site",
+			]);
+			assert.deepStrictEqual(
+				data.docs_presets.filter((p) => p.additive).map((p) => p.name),
+				["site"],
+			);
+			for (const preset of data.docs_presets) {
+				assert.isAbove(preset.surfaces.length, 0);
+				for (const s of preset.surfaces) {
+					assert.strictEqual(s.frontmatter.type, "Surface");
+					assert.strictEqual(s.frontmatter.status, "draft");
+				}
+			}
+		}).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
+	);
+
+	it.effect("returns no docs_presets when the profile is none", () =>
+		Effect.gen(function* () {
+			const { result } = yield* call("project");
+			const data = result.structuredContent as DescribeVocabularySuccess;
+			assert.strictEqual(data.profile, null);
+			assert.deepStrictEqual(data.docs_presets, []);
 		}).pipe(Effect.scoped),
 	);
 });

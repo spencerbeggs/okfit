@@ -1,4 +1,4 @@
-import type { SkipReason, SyncResult } from "@okfit/engine";
+import type { PublicationEnvelope, SkipReason, SyncResult } from "@okfit/engine";
 
 /** Contract §9.2's fixed reason-sentence table, closed over `SkipReason`. */
 const REASON_SENTENCE: Record<SkipReason, string> = {
@@ -47,3 +47,19 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 	);
 	return lines;
 };
+
+/**
+ * Human output for `okfit sync --publication`: one line per rendered source's
+ * digest, then whether the Publication file changed.
+ *
+ * @public
+ */
+export const humanPublication = (result: PublicationEnvelope, dryRun: boolean): ReadonlyArray<string> => [
+	`publication ${result.id}:`,
+	...result.digests.map((d) => `  ${d.path} ${d.body_sha256}`),
+	result.written
+		? dryRun
+			? `would restamp ${result.id} (dry run, nothing written)`
+			: `restamped ${result.id}`
+		: `unchanged ${result.id}`,
+];

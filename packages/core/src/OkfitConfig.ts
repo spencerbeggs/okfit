@@ -336,6 +336,30 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	publication_drift: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "publication-drift",
+			description:
+				'A Publication\'s renders[].body_sha256 is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".',
+			default: "warn",
+		}),
+	),
+	publication_orphan: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "publication-orphan",
+			description:
+				'A Publication\'s surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body_sha256 } entries. Default "error".',
+			default: "error",
+		}),
+	),
+	surface_unmatched: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "surface-unmatched",
+			description:
+				'A Surface\'s resource glob matches no file or directory; legitimate in a brand-new monorepo, so it only warns. Default "warn".',
+			default: "warn",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -624,6 +648,9 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"generated-at-drift": "generated_at_drift",
 	"status-missing": "status_missing",
 	"source-resource-missing": "source_resource_missing",
+	"publication-drift": "publication_drift",
+	"publication-orphan": "publication_orphan",
+	"surface-unmatched": "surface_unmatched",
 	"generated-missing": "generated_missing",
 };
 
@@ -648,6 +675,9 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	generated_at_drift: "warn",
 	status_missing: "off",
 	source_resource_missing: "warn",
+	publication_drift: "warn",
+	publication_orphan: "error",
+	surface_unmatched: "warn",
 	generated_missing: "warn",
 };
 

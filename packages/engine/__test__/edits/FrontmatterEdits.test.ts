@@ -97,3 +97,80 @@ describe("FrontmatterEdits.verified", () => {
 		),
 	);
 });
+
+const D1 = "a".repeat(64);
+const D2 = "b".repeat(64);
+const pub = (renders: string, nl = "\n"): string =>
+	[
+		"---",
+		"type: Publication",
+		"resource: page.md",
+		"surface: s",
+		"renders:",
+		...renders.split("\n"),
+		"---",
+		"",
+		"Body.",
+		"",
+	].join(nl);
+const stampRenders = (source: string, digests: ReadonlyArray<string>) =>
+	Effect.map(FrontmatterEdits.rendersDigests(source, digests), (edits) => MarkdownEdit.applyAll(source, edits));
+
+describe("FrontmatterEdits.rendersDigests", () => {
+	it.effect("replaces an existing digest in place", () => {
+		const source = pub(`  - path: a.md\n    body_sha256: ${"0".repeat(64)}`);
+		return Effect.map(stampRenders(source, [D1]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+		);
+	});
+
+	it.effect("inserts a missing key under the path at the key's column", () =>
+		Effect.map(stampRenders(pub("  - path: a.md"), [D1]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+		),
+	);
+
+	it.effect("handles one stamped and one unstamped entry", () => {
+		const source = pub(`  - path: a.md\n    body_sha256: ${"0".repeat(64)}\n  - path: b.md`);
+		return Effect.map(stampRenders(source, [D1, D2]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}\n  - path: b.md\n    body_sha256: ${D2}`)),
+		);
+	});
+
+	it.effect("keeps CRLF", () =>
+		Effect.map(stampRenders(pub("  - path: a.md", "\r\n"), [D1]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`, "\r\n")),
+		),
+	);
+
+	it.effect("shifts offsets past a BOM", () => {
+		const source = `﻿${pub("  - path: a.md")}`;
+		return Effect.map(stampRenders(source, [D1]), (out) =>
+			assert.strictEqual(out, `﻿${pub(`  - path: a.md\n    body_sha256: ${D1}`)}`),
+		);
+	});
+
+	it.effect("fails typed on flow-style renders", () =>
+		Effect.map(
+			Effect.flip(FrontmatterEdits.rendersDigests("---\ntype: Publication\nrenders: [{path: a.md}]\n---\n", [D1])),
+			(error) => {
+				assert.ok(error instanceof UnsupportedFrontmatterError);
+				assert.strictEqual(error.key, "renders");
+			},
+		),
+	);
+
+	it.effect("replaces a quoted digest value, quotes included", () => {
+		const source = pub(`  - path: a.md\n    body_sha256: "${"0".repeat(64)}"`);
+		return Effect.map(stampRenders(source, [D1]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+		);
+	});
+
+	it.effect("fails typed on a document with no frontmatter", () =>
+		Effect.map(Effect.flip(FrontmatterEdits.rendersDigests("no frontmatter\n", [D1])), (error) => {
+			assert.ok(error instanceof UnsupportedFrontmatterError);
+			assert.strictEqual(error.key, "renders");
+		}),
+	);
+});

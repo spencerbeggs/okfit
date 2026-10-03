@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -851,6 +851,153 @@ describe("okfit sync (e2e)", () => {
 			assert.strictEqual(badJson.exitCode, 64);
 			const errorEnvelope = JSON.parse(badJson.stdout) as { readonly exit_code: number };
 			assert.strictEqual(errorEnvelope.exit_code, 64);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+});
+
+const SURFACE = [
+	"---",
+	"type: Surface",
+	"title: Docs",
+	"description: The docs site.",
+	"kind: site",
+	"audience: users",
+	"resource: ../README.md",
+	"---",
+	"",
+	"# Docs",
+	"",
+].join("\n");
+const SOURCE = ["---", "type: Module", "title: X", "description: Module X.", "---", "", "# X", "", "Body.", ""].join(
+	"\n",
+);
+const PUBLICATION = [
+	"---",
+	"type: Publication",
+	"title: PR",
+	"description: The page.",
+	"resource: ../README.md",
+	"surface: ../surfaces/docs.md",
+	"renders:",
+	"  - path: ../modules/x.md",
+	"---",
+	"",
+	"Notes.",
+	"",
+].join("\n");
+
+const seededPublication = async () => {
+	const ctx = await seeded();
+	const okf = join(ctx.cwd, "okf");
+	await mkdir(join(okf, "surfaces"), { recursive: true });
+	await mkdir(join(okf, "publications"), { recursive: true });
+	await mkdir(join(okf, "modules"), { recursive: true });
+	await writeFile(join(ctx.cwd, "README.md"), "# page\n", "utf8");
+	await writeFile(join(okf, "surfaces", "docs.md"), SURFACE, "utf8");
+	await writeFile(join(okf, "modules", "x.md"), SOURCE, "utf8");
+	await writeFile(join(okf, "publications", "pr.md"), PUBLICATION, "utf8");
+	return { ...ctx, pubPath: join(okf, "publications", "pr.md") };
+};
+
+const driftCount = async (cwd: string, env: Record<string, string>): Promise<number> => {
+	const run = await withServices(runOkfit(["validate", "--format", "json"], { cwd, env }));
+	const envelope = JSON.parse(run.stdout) as { readonly diagnostics: ReadonlyArray<{ readonly code: string }> };
+	return envelope.diagnostics.filter((d) => d.code === "publication-drift").length;
+};
+
+describe("okfit sync --publication", () => {
+	it("restamps one Publication, after which validate reports no drift", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			assert.strictEqual(await driftCount(cwd, env), 1);
+			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.match(await readFile(pubPath, "utf8"), /body_sha256: [0-9a-f]{64}/);
+			assert.strictEqual(await driftCount(cwd, env), 0);
+			const json = await withServices(
+				runOkfit(["sync", "--publication", "publications/pr", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(json.exitCode, 0);
+			const parsed = JSON.parse(json.stdout) as {
+				readonly publication: { readonly id: string; readonly written: boolean };
+			};
+			assert.strictEqual(parsed.publication.id, "publications/pr");
+			assert.strictEqual(parsed.publication.written, false);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--dry-run writes nothing", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr", "--dry-run"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.strictEqual(await readFile(pubPath, "utf8"), PUBLICATION);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("exits 64 for a non-Publication, an unknown id, and flag conflicts, writing nothing", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const notPub = await withServices(runOkfit(["sync", "--publication", "modules/x"], { cwd, env }));
+			assert.strictEqual(notPub.exitCode, 64);
+			assert.match(notPub.stderr, /okfit query --type Publication/);
+			const missing = await withServices(runOkfit(["sync", "--publication", "publications/missing"], { cwd, env }));
+			assert.strictEqual(missing.exitCode, 64);
+			assert.match(missing.stderr, /okfit query --type Publication/);
+			for (const extra of [["--only", "index"], ["--staged"], ["--since", "2026-09-01"]]) {
+				const run = await withServices(runOkfit(["sync", "--publication", "publications/pr", ...extra], { cwd, env }));
+				assert.strictEqual(run.exitCode, 64, `${extra.join(" ")}: ${run.stderr}`);
+			}
+			assert.strictEqual(await readFile(pubPath, "utf8"), PUBLICATION);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("plain sync never restamps a stale Publication", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const run = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.strictEqual(await readFile(pubPath, "utf8"), PUBLICATION);
+			assert.strictEqual(await driftCount(cwd, env), 1);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("plain sync leaves a committed Publication's renders digests byte-identical while drift persists", async () => {
+		const { sandbox, cwd, env, pubPath } = await seededPublication();
+		try {
+			const configPath = join(cwd, ".config", "okfit.toml");
+			const config = await readFile(configPath, "utf8");
+			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
+			await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
+			await commit(cwd, { message: "add publication", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+			const rendersOf = (text: string) =>
+				text.split("\n").filter((l) => /^renders:|^ {2}- path:|^ {4}body_sha256:/.test(l));
+			const stamped = rendersOf(await readFile(pubPath, "utf8"));
+			assert.isTrue(stamped.some((l) => l.includes("body_sha256")));
+
+			// A source change (drift) and a Publication body edit, both committed.
+			await writeFile(join(cwd, "okf", "modules", "x.md"), SOURCE.replace("Body.", "Changed body."), "utf8");
+			const before = await readFile(pubPath, "utf8");
+			await writeFile(pubPath, before.replace("Notes.", "Edited notes."), "utf8");
+			await commit(cwd, { message: "change source", authoredAt: "2026-09-03T00:00:00+00:00" }, env);
+			assert.strictEqual(await driftCount(cwd, env), 1);
+
+			const run = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			const after = await readFile(pubPath, "utf8");
+			assert.deepStrictEqual(rendersOf(after), stamped);
+			assert.include(after, "Edited notes.");
+			assert.strictEqual(await driftCount(cwd, env), 1);
 		} finally {
 			await removeSandbox(sandbox);
 		}
