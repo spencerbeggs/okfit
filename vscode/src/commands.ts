@@ -1,7 +1,7 @@
 import { useCommand } from "reactive-vscode";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
-import { saveAfterApply } from "./save-after-apply.js";
+import { finishEditCommand } from "./save-after-apply.js";
 import { conceptUriFrom, statusPicks } from "./status-picks.js";
 import type { Status } from "./tree/model.js";
 import type { ConceptsProvider } from "./tree/provider.js";
@@ -39,18 +39,11 @@ const runEditCommand = async (
 ): Promise<void> => {
 	try {
 		const result = await executeOnServer<ApplyWorkspaceEditResult>(client, command, args);
-		if (!result.applied) {
-			void vscode.window.showErrorMessage(result.failureReason ?? fallbackMessage);
-			return;
-		}
-		const uri = args[0];
-		if (typeof uri === "string") {
-			const outcome = await saveAfterApply(result, uri, (target) =>
-				vscode.workspace.openTextDocument(vscode.Uri.parse(target)),
-			);
-			if (outcome === "failed")
-				void vscode.window.showWarningMessage("okfit applied the edit but could not save the file.");
-		}
+		await finishEditCommand(result, args, fallbackMessage, {
+			open: (target) => vscode.workspace.openTextDocument(vscode.Uri.parse(target)),
+			showError: (message) => void vscode.window.showErrorMessage(message),
+			showWarning: (message) => void vscode.window.showWarningMessage(message),
+		});
 	} catch (error) {
 		void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
 	}

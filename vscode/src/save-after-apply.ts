@@ -38,3 +38,31 @@ export const saveAfterApply = async (
 		return "failed";
 	}
 };
+
+/**
+ * The post-apply step of `runEditCommand`, free of `vscode` so it is tested
+ * with fakes: `applied: false` reports the failure reason (or
+ * `fallbackMessage`) as an error and saves nothing; otherwise, when
+ * `args[0]` is a string URI, it is saved through {@link saveAfterApply} and a
+ * failed save is reported as one warning.
+ */
+export const finishEditCommand = async (
+	result: { readonly applied: boolean; readonly failureReason?: string },
+	args: ReadonlyArray<unknown>,
+	fallbackMessage: string,
+	deps: {
+		readonly open: (uri: string) => PromiseLike<SaveableDocument>;
+		readonly showError: (message: string) => void;
+		readonly showWarning: (message: string) => void;
+	},
+): Promise<void> => {
+	if (!result.applied) {
+		deps.showError(result.failureReason ?? fallbackMessage);
+		return;
+	}
+	const uri = args[0];
+	if (typeof uri !== "string") return;
+	if ((await saveAfterApply(result, uri, deps.open)) === "failed") {
+		deps.showWarning("okfit applied the edit but could not save the file.");
+	}
+};

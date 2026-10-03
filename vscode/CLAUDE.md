@@ -53,7 +53,9 @@ src/
                             commands share
   save-after-apply.ts     -- saveAfterApply: the pure decision to save a
                             document after the tree/palette edit commands
-                            applied (#182), over an injected `open`
+                            applied (#182), over an injected `open`;
+                            finishEditCommand: runEditCommand's post-apply
+                            step over injected open/showError/showWarning
   commands.ts             -- registerCommands: okfit.validateBundle,
                             okfit.openConcept, okfit.setStatus,
                             okfit.markVerified
