@@ -1,10 +1,11 @@
 import { Buffer } from "node:buffer";
+import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { pathToUri } from "../../src/convert/uri.js";
-import { assertOnlyFrames, frameOf, spawnLsp, takeFrames } from "./utils/lspProcess.js";
+import { LSP_BIN, assertOnlyFrames, frameOf, spawnLsp, takeFrames } from "./utils/lspProcess.js";
 import { makeSandbox } from "./utils/sandbox.js";
 
 /** A JSON-RPC response or notification frame, loosely typed for the assertions each case needs. */
@@ -174,6 +175,28 @@ describe("okfit-lsp over real stdio", () => {
 				Effect.timeoutOrElse({ duration: "2 seconds", orElse: () => Effect.fail("did not exit" as const) }),
 			);
 			assert.strictEqual(code, 0);
+		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+	);
+
+	it.live("launched with stdin from /dev/null, exits 0 and writes nothing to stderr (#198)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* makeSandbox();
+			// A shell redirect gives the child an fs.ReadStream for stdin, which has no `unref`.
+			const result = yield* Effect.promise(
+				() =>
+					new Promise<{ readonly code: number | null; readonly stdout: string; readonly stderr: string }>((resolve) => {
+						execFile(
+							"sh",
+							["-c", 'exec "$0" "$1" --stdio </dev/null', process.execPath, LSP_BIN],
+							{ env: sandbox.env, cwd: sandbox.cwd, timeout: 10_000 },
+							(error, stdout, stderr) =>
+								resolve({ code: error === null ? 0 : ((error as { code?: number }).code ?? 1), stdout, stderr }),
+						);
+					}),
+			);
+			assert.strictEqual(result.stdout, "");
+			assert.strictEqual(result.stderr, "");
+			assert.strictEqual(result.code, 0);
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 });

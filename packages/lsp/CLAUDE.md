@@ -633,7 +633,8 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
   or the input stream simply closing -- exits `0`. `shutdownReceived` is
   the authority on a clean shutdown; `"closed"` means the input ended with
   no `exit` among the messages it delivered.
-- **`main.ts`'s program calls `process.stdin.unref()` once `listen` has
+- **`main.ts`'s program calls `process.stdin.unref()` (guarded: only a pipe or
+  socket stdin has it, not `/dev/null`) once `listen` has
   resolved; the success branch of its `teardown` then hands the mapped
   exit code to the `onExit` callback `NodeRuntime.runMain`'s runner
   provides and calls `process.exit(code)` itself.** That callback
