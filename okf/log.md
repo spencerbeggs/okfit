@@ -7,6 +7,9 @@
 * Updated MCP
 * Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
 * Updated okfit-mcp — MCP tool and resource contract
+* Updated Plugin
+* Added The carrier keeps its front ends' bin names, proven under allowSharedBins
+* Updated Workspace
 
 ## 2026-10-03
 
