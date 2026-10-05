@@ -1,5 +1,21 @@
 # @okfit/core
 
+## 0.9.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/schemastore | peerDependency | updated | ^0.20.0 | ^0.21.0 |
+
+[#251][#251]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#251]: https://github.com/spencerbeggs/okfit/pull/251
+
 ## 0.9.0
 
 ### Features
