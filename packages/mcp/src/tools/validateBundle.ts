@@ -1,5 +1,5 @@
 import { Git } from "@effected/git";
-import { ToolFailure } from "@effected/mcp";
+import { ToolRefusal } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import type { Distribution } from "@okfit/engine";
@@ -7,7 +7,7 @@ import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provide
 import { GitHistory } from "@okfit/profiles";
 import { Crypto, Effect, FileSystem, Option, Path } from "effect";
 import { Tool } from "effect/ai";
-import { BundleNotFound, InvalidArgument, McpToolError } from "../errors.js";
+import { McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";
 import type { ValidateBundleParams } from "../schema/tools.js";
@@ -84,20 +84,12 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 					const remediation = {
 						hint: "Give each document path relative to the bundle root, in posix form, naming a .md file once (for example metrics/churn.md).",
 					};
-					return new InvalidArgument({
-						argument: "documents",
-						message: ToolFailure.message(cause.message, remediation),
-						remediation,
-					});
+					return ToolRefusal.refuse(cause.message, remediation);
 				}
 				const remediation = {
 					hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
 				};
-				return new BundleNotFound({
-					root: resolved.bundleRoot,
-					message: ToolFailure.message(cause.message, remediation),
-					remediation,
-				});
+				return ToolRefusal.refuse(cause.message, remediation);
 			}),
 		);
 		const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);

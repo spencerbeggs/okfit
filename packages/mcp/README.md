@@ -60,16 +60,10 @@ or `.config/okfit.toml`.
 
 A failing tool call reaches the client as `isError: true`, with the
 remediation text folded directly into the message — there is no separate
-structured error field on the wire. The five `McpToolError` members:
-
-- `ConfigError` — config discovery, parsing, or validation failed.
-- `BundleNotFound` — the configured bundle root does not exist or could
-  not be read.
-- `ConceptNotFound` — no concept in the bundle has the requested id.
-- `UnknownVocabulary` — a requested type or tag name is not declared in
-  the resolved config.
-- `InvalidArgument` — a tool argument was structurally acceptable but
-  semantically invalid.
+structured error field on the wire. `McpToolError` is `@effected/mcp`'s
+`ToolRefusal`: config failures, an unreadable bundle root, an unknown
+concept id, an undeclared type or tag, and an invalid argument all refuse
+with a message that names the problem and what to do next.
 
 ## License
 

@@ -58,7 +58,7 @@ negotiates down to `2025-11-25` — a currency gap, not an outage, since
 every constraint above holds regardless of era. Two Effect limitations
 shaped the surface directly: a declared tool failure reaches the wire as
 `isError: true` with only its message text, `structuredContent` never
-populated for it, so every `McpToolError` member's message carries its
+populated for it, so a `McpToolError` refusal's message carries its
 remediation hint inline rather than as a separate field; and a resource
 URI template's parametric segment cannot span a `/`, so a nested concept
 id (e.g. `metrics/revenue`) never matches a templated `okf://concept/{id}`

@@ -50,6 +50,8 @@ export interface HarnessOptions extends ServerOptions {
 export interface OkfitMcpHarness {
 	readonly protocolVersion: ProtocolVersion;
 	readonly initialize: Effect.Effect<JsonRpcMessage, McpTestFailure>;
+	readonly initializeWith: (protocolVersion: string) => Effect.Effect<JsonRpcMessage, McpTestFailure>;
+	readonly sentSoFar: Effect.Effect<ReadonlyArray<unknown>>;
 	readonly discover: Effect.Effect<JsonRpcMessage, McpTestFailure>;
 	readonly sendRequest: (method: string, params?: unknown) => Effect.Effect<JsonRpcMessage, McpTestFailure>;
 	readonly listTools: Effect.Effect<ReadonlyArray<ServedTool>, McpTestFailure>;
@@ -133,6 +135,8 @@ export const makeHarness = (
 		return {
 			protocolVersion,
 			initialize: harness.initialize,
+			initializeWith: harness.initializeWith,
+			sentSoFar: harness.sentSoFar,
 			discover: harness.discover,
 			sendRequest: (method, params) => harness.request(method, params),
 			listTools: harness.listTools,

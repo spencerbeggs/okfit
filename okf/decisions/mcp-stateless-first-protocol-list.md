@@ -111,10 +111,10 @@ Invalid params surface per revision: a JSON-RPC `-32602` error on
 That split is the runtime's own and is a per-revision expectation, not a
 bug.
 
-A declared tool failure (any `McpToolError` member, under
+A declared tool failure (a `McpToolError` refusal, under
 `failureMode: "error"`) reaches the wire as `isError: true` with only its
 message text in `content[0].text` and `structuredContent` never
-populated, so every member's message still carries its remediation hint
+populated, so the refusal's message still carries its remediation hint
 inline. New in rc.116, `registerToolkit` renders that declared branch
 without any log line; only an internal, unexpected failure goes through
 `Effect.logError` and the `ErrorReporter`.[^mcp-server-ts] This package

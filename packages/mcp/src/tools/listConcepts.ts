@@ -1,9 +1,9 @@
-import { ToolFailure } from "@effected/mcp";
+import { ToolFailure, ToolRefusal } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { ConceptQuery } from "@okfit/engine";
 import { Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/ai";
-import { McpToolError, UnknownVocabulary } from "../errors.js";
+import { McpToolError } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import type { ListConceptsParams } from "../schema/tools.js";
@@ -49,13 +49,7 @@ const unknown = (kind: "type" | "tag", requested: string, valid: ReadonlyArray<s
 		suggestedTool: "describe_vocabulary",
 	};
 	const rawMessage = `"${ToolFailure.truncate(requested)}" is not a ${kind} declared by this project's okfit config. Valid ${kind}s: ${valid.join(", ")}.`;
-	return new UnknownVocabulary({
-		kind,
-		requested,
-		valid,
-		message: ToolFailure.message(rawMessage, remediation),
-		remediation,
-	});
+	return ToolRefusal.refuse(rawMessage, remediation);
 };
 
 /** @public */

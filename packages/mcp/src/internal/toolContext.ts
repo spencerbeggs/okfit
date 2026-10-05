@@ -1,4 +1,4 @@
-import { ToolFailure } from "@effected/mcp";
+import { ToolRefusal } from "@effected/mcp";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
@@ -6,7 +6,6 @@ import type { ResolvedProjectConfig } from "@okfit/engine";
 import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import type { FileSystem, Path } from "effect";
 import { Effect, Option } from "effect";
-import { BundleNotFound, ConfigError } from "../errors.js";
 
 /**
  * The error's `message` when it has one as a string, else `String(error)`.
@@ -25,7 +24,7 @@ const CONFIG_HINT =
 	"Check the project's .okfit.toml, okfit.toml, or .config/okfit.toml for a syntax or schema error; remove it to fall back to defaults.";
 
 /**
- * Config resolution alone, with every failure collapsed to `ConfigError`.
+ * Config resolution alone, with every failure collapsed to a `ToolRefusal`.
  * `describe_vocabulary` and `validate_bundle` use this; every other tool
  * goes through {@link loadToolContext}.
  *
@@ -39,7 +38,7 @@ const CONFIG_HINT =
  */
 export const resolveConfigOnly = (
 	projectRoot: string,
-): Effect.Effect<ResolvedProjectConfig, ConfigError, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
+): Effect.Effect<ResolvedProjectConfig, ToolRefusal, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
 	resolveProjectConfig({
 		pathArg: Option.none(),
 		explicitConfigPath: Option.none(),
@@ -48,10 +47,7 @@ export const resolveConfigOnly = (
 		provideConfig({ explicitConfigPath: Option.none(), discoveryCwd: projectRoot }),
 		Effect.mapError((cause) => {
 			const remediation = { hint: CONFIG_HINT, suggestedTool: "describe_vocabulary" };
-			return new ConfigError({
-				message: ToolFailure.message(messageOf(cause), remediation),
-				remediation,
-			});
+			return ToolRefusal.refuse(messageOf(cause), remediation);
 		}),
 	);
 
@@ -73,7 +69,7 @@ export interface ToolContext {
  */
 export const loadToolContext = (
 	projectRoot: string,
-): Effect.Effect<ToolContext, ConfigError | BundleNotFound, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
+): Effect.Effect<ToolContext, ToolRefusal, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
 	Effect.gen(function* () {
 		const resolved = yield* resolveConfigOnly(projectRoot);
 		const bundle = yield* Bundle.load({ root: resolved.bundleRoot }).pipe(
@@ -81,11 +77,7 @@ export const loadToolContext = (
 				const remediation = {
 					hint: `The bundle root "${resolved.bundleRoot}" does not exist or could not be read; check the config's [bundle].path, or run \`okfit init\`.`,
 				};
-				return new BundleNotFound({
-					root: resolved.bundleRoot,
-					message: ToolFailure.message(cause.message, remediation),
-					remediation,
-				});
+				return ToolRefusal.refuse(cause.message, remediation);
 			}),
 		);
 		return {

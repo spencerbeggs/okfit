@@ -22,11 +22,11 @@ verified:
 
 | Tool | Returns | Key argument/filter | Primary failure mode |
 | --- | --- | --- | --- |
-| `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`. | none (`Tool.EmptyParams`) | `ConfigError` |
-| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `limit`/`offset` | `UnknownVocabulary` for an undeclared type or tag |
-| `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | `ConceptNotFound`, `InvalidArgument` for an empty id |
-| `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | `ConceptNotFound`, `InvalidArgument` |
-| `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | `ConfigError` |
+| `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`. | none (`Tool.EmptyParams`) | a refusal when config resolution fails |
+| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `limit`/`offset` | a refusal for an undeclared type or tag |
+| `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
+| `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | a refusal for an unknown or empty id |
+| `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | a refusal for an unparseable `now` |
 | `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged: `engine_version` and `okf_version` match the CLI's over one bundle, while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now`; optional `documents: [{ path, text }]` (bundle-relative posix `.md` paths) validated in place of disk, a not-yet-written file under an existing directory included, nothing written | `BundleNotFound`; `InvalidArgument` for a document path that is absolute, escapes the bundle, is not `.md`, repeats, or sits under a directory that does not exist |
 
 `docs_presets` lists the resolved profile's docs-surface presets, each with `name`, `description`, `additive` and `surfaces` (`file`, `frontmatter`, `body`); the docs skills write those surfaces as Surface concepts. It is `[]` when the profile is `none` or unresolved.
@@ -45,17 +45,13 @@ Both resource kinds declare mime type `text/markdown`.
 
 ## Errors
 
-`McpToolError` is a union of five tagged members, every tool's declared
-failure schema:
-
-- `ConfigError` — config discovery, parsing, or validation failed.
-- `BundleNotFound` — the configured bundle root does not exist or could
-  not be read.
-- `ConceptNotFound` — no concept in the bundle has the requested id.
-- `UnknownVocabulary` — a requested type or tag name is not declared in
-  the resolved config.
-- `InvalidArgument` — a tool argument was structurally acceptable but
-  semantically invalid.
+`McpToolError` is `@effected/mcp`'s `ToolRefusal`, every tool's declared
+failure schema. A refusal covers config discovery, parsing or validation
+failing, an unreadable bundle root, an unknown concept id, a type or tag
+the config does not declare (the message lists the valid names), and a
+tool argument that is structurally fine but semantically invalid (an
+empty id, a `now` without an offset, a document path outside the bundle).
+There is no per-failure tag: a caller reads the message.
 
 A failing call reaches the client as `isError: true`, with the
 remediation hint folded directly into `content[0].text` — there is no
