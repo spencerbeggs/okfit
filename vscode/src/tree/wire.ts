@@ -50,4 +50,9 @@ export const BUNDLE_CHANGED_NOTIFICATION = "okfit/bundleChanged";
  * (`okfit.setStatus`, `okfit.markVerified`) would throw "command already
  * exists" while the client initializes (`__test__/manifest.test.ts` guards it).
  */
-export const OKFIT_COMMANDS = ["okfit.lsp.setStatus", "okfit.lsp.markVerified", "okfit.lsp.revalidate"] as const;
+export const OKFIT_COMMANDS = [
+	"okfit.lsp.setStatus",
+	"okfit.lsp.markVerified",
+	"okfit.lsp.verifyAndMarkStable",
+	"okfit.lsp.revalidate",
+] as const;

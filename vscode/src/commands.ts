@@ -9,7 +9,7 @@ import type { ConceptsProvider } from "./tree/provider.js";
 /**
  * `ApplyWorkspaceEditResult`'s shape, copied rather than imported from
  * `vscode-languageserver` (only `vscode-languageclient` is a dependency of
- * this extension) -- the server's `okfit.lsp.setStatus` and `okfit.lsp.markVerified` answer with
+ * this extension) -- the server's `okfit.lsp.setStatus`, `okfit.lsp.markVerified` and `okfit.lsp.verifyAndMarkStable` answer with
  * this verbatim (`packages/lsp/src/features/commands.ts`).
  */
 interface ApplyWorkspaceEditResult {
@@ -27,7 +27,7 @@ const executeOnServer = <R>(client: LanguageClient, command: string, args: Reado
 	client.sendRequest<R>("workspace/executeCommand", { command, arguments: [...args] });
 
 /**
- * Runs a server-applied edit command and surfaces a failure -- `applied: false` or a transport error -- as one error dialog. Shared by `okfit.setStatus` and `okfit.markVerified`, the extension's only two commands with this shape.
+ * Runs a server-applied edit command and surfaces a failure -- `applied: false` or a transport error -- as one error dialog. Shared by `okfit.setStatus`, `okfit.markVerified` and `okfit.verifyAndMarkStable`, the extension's commands with this shape.
  *
  * These commands are the tree and palette entry points, so an applied edit is saved straight away (#182): there is no open editor to show the dirty state, and the server never writes files. A lightbulb code action does not pass through here and stays dirty.
  */
@@ -60,8 +60,8 @@ const statusOf = (provider: ConceptsProvider | undefined, uri: string): Status |
 };
 
 /**
- * Registers `okfit.validateBundle`, `okfit.openConcept`, `okfit.setStatus`
- * and `okfit.markVerified`, which call the server's `okfit.lsp.*` commands
+ * Registers `okfit.validateBundle`, `okfit.openConcept`, `okfit.setStatus`,
+ * `okfit.markVerified` and `okfit.verifyAndMarkStable`, which call the server's `okfit.lsp.*` commands
  * (`tree/wire.ts`'s `OKFIT_COMMANDS`) -- never the same ids. `getClient` and `getProvider` are read fresh on
  * every invocation rather than captured once -- both are rebuilt on every
  * language-client restart (`extension.ts`).
@@ -140,5 +140,17 @@ export const registerCommands = (
 		const uri = conceptUriFrom(arg, activeDocumentUri());
 		if (uri === undefined) return;
 		await runEditCommand(client, "okfit.lsp.markVerified", [uri], "okfit.markVerified failed.");
+	});
+
+	/** `workspace/executeCommand` `okfit.lsp.verifyAndMarkStable [uri]`; promotes a draft to stable and attests it in one write, as `okfit verify --stable` does. */
+	useCommand("okfit.verifyAndMarkStable", async (arg?: unknown) => {
+		const client = getClient();
+		if (client === undefined) {
+			log("okfit language server is not running -- Mark Verified and Stable is unavailable.");
+			return;
+		}
+		const uri = conceptUriFrom(arg, activeDocumentUri());
+		if (uri === undefined) return;
+		await runEditCommand(client, "okfit.lsp.verifyAndMarkStable", [uri], "okfit.verifyAndMarkStable failed.");
 	});
 };

@@ -104,3 +104,35 @@ describe("extension manifest", () => {
 		for (const id of OKFIT_COMMANDS) expect(contributed).not.toContain(id);
 	});
 });
+
+describe("okfit.verifyAndMarkStable manifest entries", () => {
+	const contributes = manifest.contributes as {
+		commands: Array<{ command: string; title?: string; category?: string; icon?: string }>;
+		menus: Record<string, Array<{ command: string; when?: string; group?: string }>>;
+	};
+
+	it("is contributed as `Mark Verified and Stable` under category OKF", () => {
+		const entry = contributes.commands.find((c) => c.command === "okfit.verifyAndMarkStable");
+		expect(entry?.title).toBe("Mark Verified and Stable");
+		expect(entry?.category).toBe("OKF");
+		expect(entry?.icon).toBe("$(verified-filled)");
+	});
+
+	it("is gated in the command palette on okfit.isConcept && okfit.hasActions", () => {
+		const entry = (contributes.menus.commandPalette ?? []).find((p) => p.command === "okfit.verifyAndMarkStable");
+		expect(entry?.when).toBe("okfit.isConcept && okfit.hasActions");
+	});
+
+	it("sits in the view/item/context okfit@1 group only, never inline", () => {
+		const entries = (contributes.menus["view/item/context"] ?? []).filter(
+			(e) => e.command === "okfit.verifyAndMarkStable",
+		);
+		expect(entries.map((e) => e.group)).toEqual(["okfit@1"]);
+		expect(entries[0]?.when).toBe("viewItem == okfit.concept && okfit.hasActions");
+	});
+
+	it("is mirrored by the server command it calls in OKFIT_COMMANDS", () => {
+		expect(OKFIT_COMMANDS).toContain("okfit.lsp.verifyAndMarkStable");
+		expect(OKFIT_COMMANDS.indexOf("okfit.lsp.verifyAndMarkStable")).toBe(2);
+	});
+});
