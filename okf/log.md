@@ -2,9 +2,18 @@
 
 ## 2026-10-05
 
+* Updated CLI
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated MCP
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated Plugin
+* Added The carrier keeps its front ends' bin names, proven under allowSharedBins
+* Updated Workspace
+* Updated LSP
+* Added The language and MCP servers survive a stray crash once serving, and exit on one before
 * Updated An @okfit/lsp language server and a VS Code extension over the shared engine
 * Updated Engine
-* Updated LSP
 * Updated VS Code Extension
 * Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 

@@ -6,15 +6,7 @@
  * @packageDocumentation
  */
 
-export {
-	BundleNotFound,
-	ConceptNotFound,
-	ConfigError,
-	InvalidArgument,
-	McpToolError,
-	Remediation,
-	UnknownVocabulary,
-} from "./errors.js";
+export { McpToolError, Remediation } from "./errors.js";
 export { ConceptResources } from "./resources/conceptResource.js";
 export { IndexResource } from "./resources/indexResource.js";
 export { ConceptSummary, toConceptSummary } from "./schema/ConceptSummary.js";

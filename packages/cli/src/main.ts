@@ -12,7 +12,7 @@ import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
-import { versionFormatterLayer } from "./internal/versionFormatter.js";
+import { versionFormatter } from "./internal/versionFormatter.js";
 import { CLI_VERSION } from "./version.js";
 
 /**
@@ -62,14 +62,8 @@ export const main = (options: MainOptions = {}): void => {
 		const now = yield* nowEffect;
 		return yield* CliAudience.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
 	}).pipe(
-		// Only `formatVersion` differs from `CliColor`'s own default
-		// formatter; help/error rendering stay whatever `CliColor` decides
-		// (`internal/versionFormatter.ts`).
-		Effect.provide(versionFormatterLayer),
-		// Outermost so `versionFormatterLayer`'s own read of `CurrentDistribution`
-		// (built via `Effect.provide` above, which builds its layer against the
-		// ambient context supplied from here) sees the distribution this run was
-		// given, not the reference's own `Option.none()` default.
+		// For anything in the command tree that reads the carrier; `--version`'s
+		// own formatter takes the distribution directly (`env.formatter`).
 		Effect.provideService(CurrentDistribution, distribution),
 	);
 
@@ -81,18 +75,35 @@ export const main = (options: MainOptions = {}): void => {
 			// `NodeRuntime.runMain`'s own fatal-error path -- a stack trace on
 			// stdout and exit `1`.
 			platform: OkfitPlatform,
-			// K-30. `renderFailure` returns `[]` for a `ShowHelp`, because
-			// `CliRuntime.main` never renders one itself (`Command.runWith`
-			// already rendered the help document). The `exitCode: 3` fallback is
-			// the infrastructure tier for any typed error that carries no code of
-			// its own.
+			// K-30. `CliRuntime.main` never renders a `ShowHelp` itself
+			// (`Command.runWith` already rendered the help document). The
+			// `exitCode: 3` fallback is the infrastructure tier for any typed error
+			// that carries no code of its own.
 			exitCode: 3,
 			render: renderFailure,
+			// A usage error's help goes to stderr beside the parse errors, so
+			// stdout stays clean for the plugin hooks that parse it as JSON. An
+			// explicit `--help` and a bare group invocation stay on stdout.
+			helpOnUsageError: "stderr",
 			// #217: builds `@effected/env`'s runtime and terminal services, the
 			// audience (flag > `OKFIT_AUDIENCE` > detection), `CliTheme` and
 			// `CliInteractive`, and gates the terminal and `--wizard` when the run
 			// is not interactive -- inside failure reporting, like `platform`.
-			env: { audienceEnvVar: "OKFIT_AUDIENCE" },
+			//
+			// `stderrIsTerminal` is stderr's own check (the kit otherwise mirrors
+			// stdout's), so `okfit ... 2>err.log` never paints a redirected stderr.
+			// The kit has no default for it, by design: core exposes no stderr
+			// terminal check (Effect-TS/effect#8639) and a library never reads
+			// `process`, so the bin, the one place that reads its host, passes it.
+			// This is the kit's documented shape; it drops out when core ships one.
+			// `formatter` keeps okfit's `--version` line; it must come through
+			// `env` (not a layer inside the program) for `helpOnUsageError` to
+			// see the formatter. Help and error rendering stay the kit's default.
+			env: {
+				audienceEnvVar: "OKFIT_AUDIENCE",
+				stderrIsTerminal: Effect.sync(() => process.stderr.isTTY === true),
+				formatter: versionFormatter(distribution),
+			},
 		}),
 	);
 };

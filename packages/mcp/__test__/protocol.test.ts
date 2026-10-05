@@ -55,21 +55,19 @@ describe("protocol 2026-07-28 (stateless)", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.effect("initialize routed to the stateless adapter is METHOD_NOT_FOUND", () =>
+	it.effect("initialize on the stateless adapter is METHOD_NOT_FOUND, and no initialized notification follows", () =>
 		Effect.gen(function* () {
 			const harness = yield* open("2026-07-28");
-			// The `_meta` routes this frame to the stateless adapter, which does
-			// not implement `initialize` (SEP-2575). A bare `initialize` with no
-			// `_meta` matches stateful adapters only -- the stateless adapter at
-			// `protocols[0]` never captures it -- which the stateful suite below
-			// proves by opening with `initialize` against the same server.
-			const response = yield* harness.sendRequest("initialize", {
-				protocolVersion: "2026-07-28",
-				capabilities: {},
-				clientInfo: { name: "okfit-test", version: "0.0.0" },
-			});
+			// The stateless adapter does not implement `initialize` (SEP-2575);
+			// `initializeWith` sends one anyway and skips `notifications/initialized`
+			// after an error response.
+			const response = yield* harness.initializeWith("2026-07-28");
 			assert.isUndefined(response.result);
 			assert.strictEqual((response.error as { readonly code: number }).code, -32601);
+			const sent = yield* harness.sentSoFar;
+			assert.isFalse(
+				sent.some((frame) => (frame as { readonly method?: string }).method === "notifications/initialized"),
+			);
 		}).pipe(Effect.scoped),
 	);
 
@@ -107,6 +105,26 @@ describe("stateful adapters", () => {
 // can distinguish on the wire; the one per-revision difference is how
 // invalid params surface, and that is the runtime's own split by protocol
 // version, encoded here rather than papered over.
+describe("version negotiation on a stateful revision", () => {
+	it.effect("initializeWith an older stateful revision negotiates exactly that revision", () =>
+		Effect.gen(function* () {
+			const harness = yield* open("2025-11-25");
+			const response = yield* harness.initializeWith("2025-06-18");
+			assert.isUndefined(response.error);
+			assert.strictEqual((response.result as InitializeResult).protocolVersion, "2025-06-18");
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("an unknown revision is counter-offered the latest stateful revision, never refused", () =>
+		Effect.gen(function* () {
+			const harness = yield* open("2025-11-25");
+			const response = yield* harness.initializeWith("1999-01-01");
+			assert.isUndefined(response.error);
+			assert.strictEqual((response.result as InitializeResult).protocolVersion, "2025-11-25");
+		}).pipe(Effect.scoped),
+	);
+});
+
 describe("revision x outcome matrix", () => {
 	for (const version of ALL_VERSIONS) {
 		describe(version, () => {

@@ -1,4 +1,5 @@
-import { Cancelled, ConfigIssueRenderer, NotInteractive } from "@effected/cli";
+import type { FailureDetails } from "@effected/cli";
+import { ConfigIssueRenderer } from "@effected/cli";
 import type { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,
@@ -22,6 +23,9 @@ import { DocumentStdinIsTerminalError } from "./internal/stdin.js";
 const hasTag = (error: unknown, tag: string): boolean =>
 	typeof error === "object" && error !== null && "_tag" in error && (error as { readonly _tag: unknown })._tag === tag;
 
+/** Where a defect's report sends the reader. */
+const ISSUE_URL = "https://github.com/spencerbeggs/okfit/issues";
+
 /** `path` relative to `cwd` when it is under it, else the absolute path unchanged (K-51). */
 const relativeToCwd = (path: string, cwd: string): string => {
 	if (path === cwd) return ".";
@@ -36,14 +40,10 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *
  * Rules, in order:
  *
- * 1. A `ShowHelp` (any `_tag === "ShowHelp"`) renders as `[]` — the empty
- *    array. `Command.runWith` has already rendered the help document and any
- *    parse errors before re-failing, so a second rendering here would print
- *    "Help requested" after the help text. In practice this branch is
- *    defensive only: `@effected/cli`'s `CliRuntime.main`/`reportFailures`
- *    already handles a `ShowHelp` before `render` is ever called
- *    (`main.ts`'s own doc comment), so `renderFailure` never actually sees
- *    one on the path this package uses.
+ * 1. A cancelled or non-interactive run (`details.isCancelled`,
+ *    `details.isNotInteractive`: a cancelled fallback prompt is a defect in the
+ *    cause, but not a bug) renders as the kit's own `defaultLines`, unprefixed.
+ *    `ShowHelp` never reaches `render`: `CliRuntime.main` handles it first.
  * 2. `ConfigPathNotFoundError` renders as its own `error: <message>` line;
  *    `InitOverwriteError` renders as the K-51 header, one two-space-indented
  *    relativised path per conflict, and the literal `Nothing was written.`.
@@ -74,20 +74,25 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 5d. `QueryUnknownVocabularyError`, `QueryConceptNotFoundError` and
  *    `QuerySelectionError` (`okfit query`) each render as one
  *    `error: <message>` line.
- * 6. Everything else — core's `BundleRootNotFoundError`/`BundleReadError`/
+ * 6. A defect (`details.isDefect`: a `die`, a thrown exception, a bug) that no
+ *    rule above claimed renders as `error: ` plus the kit's report for the
+ *    run without its status marker, then `Please report at <issues URL>`.
+ * 7. Every other typed failure — core's `BundleRootNotFoundError`/`BundleReadError`/
  *    `BundleDepthExceededError`, config-file's other errors, `XdgEnvError`
  *    (the K-13 `HOME`-unset case) — renders as the single line
  *    `error: ${String(error)}`. Each of those
  *    classes' own `message` already names the offending path, which is all
  *    K-46 asserts.
  *
+ * `details` is the kit's `FailureDetails`: `isDefect` tells a typed failure
+ * from a defect exactly, so no rule here guesses from an error's shape.
+ *
  * @public
  */
-export const renderFailure = (error: unknown): ReadonlyArray<string> => {
-	if (hasTag(error, "ShowHelp")) return [];
-	// #217: the kit's own fixed line is each error's `message`. Neither gets
-	// an `error:` prefix: a person backing out is not an error (exit 130).
-	if (error instanceof Cancelled || error instanceof NotInteractive) return [error.message];
+export const renderFailure = (error: unknown, details: FailureDetails): ReadonlyArray<string> => {
+	// #217: the kit's own fixed line. Neither gets an `error:` prefix: a person
+	// backing out is not an error (exit 130). The flags hold on either channel.
+	if (details.isCancelled || details.isNotInteractive) return details.defaultLines;
 	if (error instanceof ConfigPathNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof ConfigMalformedError) return [`error: ${error.message}`];
 	if (error instanceof InitOverwriteError) {
@@ -124,6 +129,14 @@ export const renderFailure = (error: unknown): ReadonlyArray<string> => {
 			`error: ${String(validationError)}`,
 			...ConfigIssueRenderer.render(validationError).map((line) => `  ${line}`),
 		];
+	}
+	// A defect is a bug in okfit, not a condition the caller caused: the kit's
+	// report for this run (message plus the program's own stack frames, in the
+	// run's colour and `displayPath`), its status marker replaced by our
+	// prefix, then where to report it. A typed failure is the one line.
+	if (details.isDefect) {
+		const [first = String(error), ...rest] = details.lines({ status: false });
+		return [`error: ${first}`, ...rest, `Please report at ${ISSUE_URL}`];
 	}
 	return [`error: ${String(error)}`];
 };

@@ -31,7 +31,12 @@ describe("@okfit/engine boundaries", () => {
 			Effect.gen(function* () {
 				const fixtureFailures = SourceBoundary.verifyFixtures();
 				assert.deepStrictEqual(fixtureFailures, []);
-				const scan = yield* SourceBoundary.scan({ root: SRC_ROOT, rules: ["process", "node:process"] });
+				const scan = yield* SourceBoundary.scan({
+					root: SRC_ROOT,
+					rules: ["process", "node:process", { forbidTokens: ["process.env.__PACKAGE_VERSION__"] }],
+					// The bundler-substituted version token is confined to version.ts.
+					allowRules: { forbidTokens: ["version.ts"] },
+				});
 				// Non-vacuity: an empty `root` glob or a typo'd path would
 				// otherwise report a spotless boundary because nothing was
 				// scanned at all.

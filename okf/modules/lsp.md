@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:00:16Z
-  body_sha256: 0cf295412931422424d66a8449d1d3ff93a66bcab2bf7102f16dbf43a9040436
+  at: 2026-10-05T23:10:36Z
+  body_sha256: 0f4a2f9172699a36da96a49b21f55502be87f7fcc4dff3d76373b32d06f9555f
 ---
 
 # LSP
@@ -224,6 +224,22 @@ seam](../decisions/lsp-reference-transport-behind-a-seam.md).
   `didOpen`; `shutdown` drains that queue up to its own arrival, then
   waits for every scheduler to settle, so everything sent before it is
   published before the response.
+
+## Crash policy
+
+`main.ts` runs under `ProcessGuard.run` from `@effected/engine/guard` with the
+`exitBeforeConnect` policy, the same as the MCP server: a stray error before
+the transport is up exits `1`; once serving it is logged to stderr and the
+server keeps answering, since every answer is derived from the bundle on disk
+and Claude Code does not reliably respawn a language server that exits. Every
+launch failure, a missing `HOME` included, is reported on stderr by
+`LspStdio.launch` (`@effected/lsp`): stdout is the JSON-RPC wire and carries
+nothing but frames. `LspStdio.teardown(process)` maps the session end to the
+exit code (`1` only for `exit` without `shutdown`) and always ends the
+process, since a clean `shutdown` + `exit` otherwise waits on a stdin the
+client never closes first. The e2e suite drives the bin through the kit's
+`LspProcess`.
+Rationale and the accepted stale-state caveat: [the crash-policy Decision](../decisions/servers-survive-stray-crashes-once-serving.md).
 
 ## Boundaries
 

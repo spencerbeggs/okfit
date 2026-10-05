@@ -24,8 +24,15 @@ describe("src boundaries (K-9, K-39)", () => {
 			assert.deepStrictEqual(fixtureFailures, []);
 			const scan = yield* SourceBoundary.scan({
 				root: SRC_ROOT,
-				rules: ["process", "node:process", { forbidImports: ["@effected/app"] }],
+				rules: [
+					"process",
+					"node:process",
+					{ forbidImports: ["@effected/app"] },
+					// The bundler-substituted version token is confined to version.ts.
+					{ forbidTokens: ["process.env.__PACKAGE_VERSION__"] },
+				],
 				allow: ["bin.ts", "main.ts", "commands/**"],
+				allowRules: { forbidTokens: ["version.ts"] },
 			});
 			// Non-vacuity: an empty `root` glob or a typo'd path would
 			// otherwise report a spotless boundary because nothing was

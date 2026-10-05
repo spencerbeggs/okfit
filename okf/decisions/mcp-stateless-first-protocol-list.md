@@ -6,9 +6,9 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-28T19:49:01Z
-  body_sha256: 98259c9016992a47767e715bdf7bb70deb19e2241587feab3d899916fb56e250
-status: draft
+  at: 2026-10-05T16:45:05Z
+  body_sha256: 6db2be3f457d1894a11159479d238a9c40ae303228bfcfa1a5c482def362acc5
+status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
   - id: server-ts
@@ -21,6 +21,9 @@ sources:
     resource: stdin capture of Claude Code 2.1.278 launching okfit-mcp
     author: human:spencer
     last_modified: 2026-09-19T00:00:00Z
+verified:
+  - by: human:spencer
+    at: 2026-10-05T22:56:15Z
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
@@ -111,10 +114,10 @@ Invalid params surface per revision: a JSON-RPC `-32602` error on
 That split is the runtime's own and is a per-revision expectation, not a
 bug.
 
-A declared tool failure (any `McpToolError` member, under
+A declared tool failure (a `McpToolError` refusal, under
 `failureMode: "error"`) reaches the wire as `isError: true` with only its
 message text in `content[0].text` and `structuredContent` never
-populated, so every member's message still carries its remediation hint
+populated, so the refusal's message still carries its remediation hint
 inline. New in rc.116, `registerToolkit` renders that declared branch
 without any log line; only an internal, unexpected failure goes through
 `Effect.logError` and the `ErrorReporter`.[^mcp-server-ts] This package

@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
+import { SourceBoundary } from "@effected/workspaces/testing";
 import { Effect, Layer } from "effect";
 import { runContext } from "../../src/context/run.js";
 
@@ -45,9 +45,19 @@ describe("runContext", () => {
 		}).pipe(Effect.provide(platform)),
 	);
 
-	it("never imports Bundle or Validate from @okfit/core (contract §9.5's structural check)", () => {
-		const source = readFileSync(resolve(import.meta.dirname, "..", "..", "src", "context", "run.ts"), "utf8");
-		assert.isFalse(/\bBundle\b/.test(source));
-		assert.isFalse(/\bValidate\b/.test(source));
-	});
+	it.effect("never references Bundle or Validate from @okfit/core (contract §9.5's structural check)", () =>
+		Effect.gen(function* () {
+			// `src/context/` holds only run.ts, so this root scopes the scan to it.
+			const scan = yield* SourceBoundary.scan({
+				root: resolve(import.meta.dirname, "..", "..", "src", "context"),
+				rules: [{ forbidTokens: ["Bundle", "Validate"] }],
+			});
+			// Non-vacuity: a typo'd root must not report a spotless boundary.
+			assert.deepStrictEqual(
+				scan.files.map((file) => file.replaceAll("\\", "/").split("/").pop()),
+				["run.ts"],
+			);
+			assert.deepStrictEqual(scan.violations, []);
+		}).pipe(Effect.provide(platform)),
+	);
 });

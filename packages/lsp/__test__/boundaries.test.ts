@@ -61,8 +61,10 @@ describe("@okfit/lsp boundaries", () => {
 					"stdout-write",
 					"console-stdout",
 					{ forbidImports: ["vscode-languageserver"] },
+					{ forbidTokens: ["process.env.__PACKAGE_VERSION__"] },
 				],
 				allowRules: {
+					forbidTokens: ["version.ts"],
 					process: ["bin.ts", "main.ts"],
 					"node:process": ["bin.ts", "main.ts"],
 					forbidImports: ["protocol/reference.ts", "main.ts", "protocol/types.ts"],
@@ -90,6 +92,9 @@ describe("@okfit/lsp boundaries", () => {
 				...(["protocol/reference.ts", "main.ts", "protocol/types.ts"] as const).flatMap((file) =>
 					SourceBoundary.check(file, readSrc(file), [{ forbidImports: ["vscode-languageserver"] }]),
 				),
+				...SourceBoundary.check("version.ts", readSrc("version.ts"), [
+					{ forbidTokens: ["process.env.__PACKAGE_VERSION__"] },
+				]),
 			].map((offence) => offence.label);
 			assert.isAbove(expectedWaived.length, 0);
 			assert.deepStrictEqual(scan.waived.map((offence) => offence.label).toSorted(), expectedWaived.toSorted());

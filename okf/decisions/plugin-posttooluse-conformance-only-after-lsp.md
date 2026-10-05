@@ -10,7 +10,10 @@ generated:
   by: okfit/claude-code
   at: 2026-09-23T08:32:55Z
   body_sha256: ed8d8dfccaa08e0742894b5850daab0049f22238f2b959e5f40806b9cbdb31ad
-status: draft
+status: stable
+verified:
+  - by: human:spencer
+    at: 2026-10-05T22:56:15Z
 ---
 
 # The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings

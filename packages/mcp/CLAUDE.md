@@ -16,8 +16,14 @@ for what moved from a hand-rolled equivalent to the kit.
 ```text
 src/
   bin.ts                       -- the shebang entry point: imports and awaits main()
-  main.ts                      -- crash guards, OkfitPlatform (@okfit/engine),
-                                   McpStdio.launch/.teardown (@effected/mcp)
+  main.ts                      -- McpGuard.run crash guards (@effected/mcp/guard, policy
+                                   exitBeforeConnect), OkfitPlatform (@okfit/engine),
+                                   McpStdio.launch/.teardown run by the guard.
+                                   onRejection is exitBeforeConnect, not the skill's
+                                   canonical "log": a rejection before the server is
+                                   serving means a broken boot, and logging it would
+                                   leave a server that never answers; once serving,
+                                   both policies log and keep going
   index.ts                     -- programmatic barrel (ServerLayer, schemas, errors)
   version.ts                   -- MCP_VERSION, read from process.env.__PACKAGE_VERSION__, a
                                    build-time constant the bundler injects -- never a
@@ -29,8 +35,8 @@ src/
   server.ts                    -- ServerLayer: McpToolkit.layer + resource layers over
                                    McpStdio.layer (both @effected/mcp)
   toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); handler wiring
-  errors.ts                    -- McpToolError union, five members, built on @effected/mcp's
-                                   ToolFailure and @effected/engine's Remediation
+  errors.ts                    -- McpToolError = @effected/mcp's ToolRefusal, plus
+                                   @effected/engine's Remediation
   schema/
     ConceptSummary.ts          -- the one shared concept summary schema
     tools.ts                   -- per-tool Parameters/Success structs
@@ -80,19 +86,27 @@ fixed list needs none.
 
 ## Errors reach the wire as `isError`
 
-Every tool declares the whole `McpToolError` union as its failure schema.
-Under `McpServer`'s `failureMode: "error"` (the only mode this server
-uses), a declared failure collapses to
-`{ isError: true, content: [{ type: "text", text: error.message }] }` —
+Every tool declares `McpToolError` (`@effected/mcp`'s `ToolRefusal`) as its
+failure schema. Under `McpServer`'s `failureMode: "error"` (the only mode
+this server uses), a declared failure collapses to
+`{ isError: true, content: [{ type: "text", text: error.message }] }` --
 `structuredContent` is never populated for a failure, and (since
-effect@4.0.0-rc.116) no log line is emitted for it either — only an
-internal failure is logged. Each error class spreads `@effected/mcp`'s
-`ToolFailure.fields` (`{ message, remediation }`) instead of declaring
-those two fields by hand; the tool file constructing an error builds
-`message` with `ToolFailure.message(raw, remediation)` and truncates any
-caller-supplied value first with `ToolFailure.truncate(value)`, so the
-remediation hint reaches the client inside that one text field rather
-than as a separate structured field.
+effect@4.0.0-rc.116) no log line is emitted for it either; only an
+internal failure is logged. A call site builds one with
+`ToolRefusal.refuse(reason, remediation)`, which folds the remediation
+into `message`; truncate any caller-supplied value in `reason` first with
+`ToolFailure.truncate(value)`. There is no per-failure tag: the reason text
+names the id, root or valid names the caller needs.
+
+## Crash guards
+
+`main.ts` runs under `McpGuard.run` with `exitBeforeConnect` for both
+`uncaughtException` and `unhandledRejection`: exit `1` until the server is
+serving, then log to stderr and keep serving (every tool is read-only and
+reloads from disk per call, so there is nothing to corrupt, and a dead
+server deregisters all six tools). `OKFIT_MCP_TEST_INJECT_CRASH=<load|connected>:<kind>`
+feeds the guard's `injectCrash`; only `__test__/e2e/crash-guards.e2e.test.ts`
+sets it.
 
 ## Strict input, every unknown key named at once
 

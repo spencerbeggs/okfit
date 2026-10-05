@@ -1,9 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Cancelled } from "@effected/cli";
 import { CliUiTest } from "@effected/cli/ui/testing";
-import { Effect, Exit, Fiber } from "effect";
+import { Cause, Effect, Exit, Fiber, Option } from "effect";
 import { renderFailure } from "../src/errors.js";
 import { InitBundleDirError, checkBundleDir } from "../src/internal/initWizard.js";
+import { detailsOf, renderTyped } from "./utils/failureDetails.js";
 import { exists, makeInitProject, readText, removeInitProject, runInit } from "./utils/initHarness.js";
 
 /** Fork the handler on a session terminal; the test drives the screens. */
@@ -20,29 +21,31 @@ const withProject = <A, E, R>(use: (project: Awaited<ReturnType<typeof makeInitP
 	);
 
 describe("init wizard (CliUiTest.session driving the real handler)", () => {
-	it.live("asks profile, bundle directory, config location in order, with the defaults as initial values", () =>
-		withProject((project) =>
-			Effect.scoped(
-				Effect.gen(function* () {
-					const { session, fiber } = yield* start(project);
-					const one = yield* session.next({ contains: "Profile to scaffold with" });
-					assert.include(yield* one.plainFrame, "software-project");
-					yield* one.press("enter");
-					const two = yield* session.next({ contains: "Bundle directory" });
-					assert.include(yield* two.plainFrame, "okf");
-					yield* two.press("enter");
-					const three = yield* session.next({ contains: "Config file location" });
-					assert.include(yield* three.plainFrame, ".config/okfit.toml");
-					yield* three.press("enter");
-					const exit = yield* Fiber.await(fiber);
-					assert.isTrue(Exit.isSuccess(exit));
-					assert.strictEqual(yield* session.mounts, 3);
-					const config = yield* Effect.promise(() => readText(`${project.cwd}/.config/okfit.toml`));
-					assert.include(config, 'path = "okf"');
-					assert.isTrue(yield* Effect.promise(() => exists(`${project.cwd}/okf/project.md`)));
-				}),
+	it.live(
+		"asks bundle directory then config location, with the defaults as initial values; one profile is not asked",
+		() =>
+			withProject((project) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(project);
+						// `PROFILE_NAMES` holds one profile, so no Profile screen mounts: the
+						// first screen is the bundle directory.
+						const two = yield* session.next({ contains: "Bundle directory" });
+						assert.notInclude(yield* two.plainFrame, "Profile to scaffold with");
+						assert.include(yield* two.plainFrame, "okf");
+						yield* two.press("enter");
+						const three = yield* session.next({ contains: "Config file location" });
+						assert.include(yield* three.plainFrame, ".config/okfit.toml");
+						yield* three.press("enter");
+						const exit = yield* Fiber.await(fiber);
+						assert.isTrue(Exit.isSuccess(exit));
+						assert.strictEqual(yield* session.mounts, 2);
+						const config = yield* Effect.promise(() => readText(`${project.cwd}/.config/okfit.toml`));
+						assert.include(config, 'path = "okf"');
+						assert.isTrue(yield* Effect.promise(() => exists(`${project.cwd}/okf/project.md`)));
+					}),
+				),
 			),
-		),
 	);
 
 	it.live("answers flow into the written config and the scaffold location", () =>
@@ -50,7 +53,6 @@ describe("init wizard (CliUiTest.session driving the real handler)", () => {
 			Effect.scoped(
 				Effect.gen(function* () {
 					const { session, fiber } = yield* start(project);
-					yield* (yield* session.next({ contains: "Profile" })).press("enter");
 					const two = yield* session.next({ contains: "Bundle directory" });
 					yield* two.press("backspace", "backspace", "backspace");
 					yield* two.type("docs/kb");
@@ -85,21 +87,23 @@ describe("init wizard (CliUiTest.session driving the real handler)", () => {
 		),
 	);
 
-	it.live("Esc on the second screen cancels: the third never mounts and nothing is written", () =>
+	it.live("Esc on the first screen cancels: the second never mounts and nothing is written", () =>
 		withProject((project) =>
 			Effect.scoped(
 				Effect.gen(function* () {
 					const { session, fiber } = yield* start(project);
-					yield* (yield* session.next({ contains: "Profile" })).press("enter");
 					yield* (yield* session.next({ contains: "Bundle directory" })).press("escape");
 					const exit = yield* Fiber.await(fiber);
 					assert.isTrue(Exit.isFailure(exit));
+					assert.deepStrictEqual(CliUiTest.cancelReason(exit), Option.some("escape"));
 					if (Exit.isFailure(exit)) {
-						const failure = exit.cause.reasons.flatMap((reason) => (reason._tag === "Fail" ? [reason.error] : []))[0];
-						assert.isTrue(failure instanceof Cancelled);
-						assert.deepStrictEqual(renderFailure(failure), ["cancelled; nothing written"]);
+						const failure = Cause.squash(exit.cause);
+						assert.instanceOf(failure, Cancelled);
+						assert.deepStrictEqual(renderFailure(failure, detailsOf(failure, exit.cause, true)), [
+							"cancelled; nothing written",
+						]);
 					}
-					assert.strictEqual(yield* session.mounts, 2);
+					assert.strictEqual(yield* session.mounts, 1);
 					assert.isFalse(yield* Effect.promise(() => exists(`${project.cwd}/okf`)));
 					assert.isFalse(yield* Effect.promise(() => exists(`${project.cwd}/.config`)));
 				}),
@@ -175,7 +179,7 @@ describe("checkBundleDir / InitBundleDirError", () => {
 			(error as unknown as Record<symbol, number>)[Symbol.for("effect/Runtime/errorExitCode")] ?? 64,
 			64,
 		);
-		assert.deepStrictEqual(renderFailure(error), [
+		assert.deepStrictEqual(renderTyped(error), [
 			'error: invalid bundle directory "../x": must not escape the project root',
 		]);
 	});

@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:10:20Z
-  body_sha256: 47a68a89dc097e4f1b34ee749ab7eb4379f002ea6cd72e20f85d28b16b704f4e
+  at: 2026-10-05T16:45:05Z
+  body_sha256: 20a738e4eb44c1b8253b47a59a4a6a896fce904705c1353d1ede82fe4766bd80
 ---
 
 # MCP
@@ -54,7 +54,7 @@ six read-only tools and static concept resources; see
 wire contract is unchanged.
 
 Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
-(crash guards, `OkfitPlatform`, `McpStdio.launch`/`.teardown`), `index.ts`
+(`McpGuard.run` crash guards with an `exitBeforeConnect` policy, `OkfitPlatform`, `McpStdio.launch`/`.teardown`), `index.ts`
 (programmatic barrel), `version.ts`
 (`MCP_VERSION`, what `initialize` reports; the `validate_bundle` envelope
 names the engine separately — see [The engine version, not the producer
@@ -65,8 +65,8 @@ over `McpStdio.layer`, its three-adapter `protocols` list and the exported
 `SERVER_INSTRUCTIONS` string -- see [The MCP server is Effect-native and
 lists the stateless 2026-07-28 adapter
 first](../decisions/mcp-stateless-first-protocol-list.md)), `toolkit.ts` (`OkfitToolkit`, the six tools plus
-handler wiring), `errors.ts` (`McpToolError` union, built on
-`@effected/mcp`'s `ToolFailure` and `@effected/engine`'s `Remediation`),
+handler wiring), `errors.ts` (`McpToolError`, an alias of
+`@effected/mcp`'s `ToolRefusal`, plus `@effected/engine`'s `Remediation`),
 `schema/` (per-tool parameter and success
 schemas), `tools/` (one file per tool), `resources/` (the index and
 concept resources), `internal/` (project root resolution over

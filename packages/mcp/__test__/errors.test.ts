@@ -1,6 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ToolFailure } from "@effected/mcp";
-import { ConfigError } from "../src/index.js";
+import { ToolFailure, ToolRefusal } from "@effected/mcp";
 
 describe("ToolFailure.message (@effected/mcp)", () => {
 	it("appends the hint alone when no suggestedTool is given", () => {
@@ -17,12 +16,9 @@ describe("ToolFailure.message (@effected/mcp)", () => {
 		);
 	});
 
-	it("is what a constructed McpToolError member carries as its own message", () => {
+	it("is what ToolRefusal.refuse carries as its own message", () => {
 		const remediation = { hint: "check the syntax", suggestedTool: "describe_vocabulary" };
-		const error = new ConfigError({
-			message: ToolFailure.message("toml parse failed", remediation),
-			remediation,
-		});
+		const error = ToolRefusal.refuse("toml parse failed", remediation);
 		assert.strictEqual(error.message, "toml parse failed check the syntax Try describe_vocabulary.");
 		assert.deepStrictEqual(error.remediation, remediation);
 	});

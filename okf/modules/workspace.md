@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-29T22:18:38Z
-  body_sha256: 10eb89eaa3f318ead432d0079999b0389b754855c97b782cfd8b4ca397bf6549
+  at: 2026-10-05T17:12:42Z
+  body_sha256: c7fb34bc90b90b398f63353d4f42d3f8c3e0cb2b3ae28fc9cdbbdb32fab2670c
 ---
 
 # Workspace
@@ -64,7 +64,13 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 - `pnpm typecheck` -- `tsc --noEmit` per package via Turbo.
 - `pnpm lint` -- Biome.
 - `pnpm lint:md` -- markdownlint.
-- `pnpm test` -- Vitest across the monorepo; builds `dist/dev` first.
+- `pnpm test` -- Vitest across the monorepo; builds `dist/dev` first. The
+  packed-install e2e suites (`packages/{plugin,cli,mcp}/__test__/e2e/packed-install.e2e.test.ts`)
+  also need `pnpm turbo run build:prod`: they skip without it locally and fail
+  under `CI`, and `ci:test` runs `turbo run build:prod` before vitest. In `CI`
+  they require npm, pnpm and bun (`devEngines.runtime` names bun so
+  `silk-runtime-action` installs it); locally they run whichever of npm, pnpm,
+  bun and Yarn are installed.
 - `pnpm test:bats` -- BATS for the plugin's shell scripts.
 - `pnpm claude` -- Claude Code with the local plugin loaded.
 - `pnpm dev` and `pnpm preview` -- the documentation site's dev server and
