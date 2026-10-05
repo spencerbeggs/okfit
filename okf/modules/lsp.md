@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T01:25:43Z
-  body_sha256: 0512a524b2f600437dcc81f10794a476189f943d18541deed7be57c5af59fb64
+  at: 2026-10-05T18:28:45Z
+  body_sha256: 25dd1a70ee5c065759dac7c7d812cca744cdc68eb39152bc75bb39849840cf17
 ---
 
 # LSP
@@ -216,6 +216,16 @@ seam](../decisions/lsp-reference-transport-behind-a-seam.md).
   `didOpen`; `shutdown` drains that queue up to its own arrival, then
   waits for every scheduler to settle, so everything sent before it is
   published before the response.
+
+## Crash policy
+
+`main.ts` runs under `ProcessGuard.run` from `@effected/engine/guard` with the
+`exitBeforeConnect` policy, the same as the MCP server: a stray error before
+the transport is up exits `1`; once serving it is logged to stderr and the
+server keeps answering, since every answer is derived from the bundle on disk
+and Claude Code does not reliably respawn a language server that exits. Every
+launch failure, a missing `HOME` included, is reported on stderr: stdout is the
+JSON-RPC wire and carries nothing but frames.
 
 ## Boundaries
 

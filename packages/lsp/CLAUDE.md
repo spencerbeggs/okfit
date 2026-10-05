@@ -9,7 +9,7 @@ included; the server writes nothing, ever, to the bundle.
 ```text
 src/
   bin.ts         -- the shebang entry point: imports and awaits main()
-  main.ts        -- crash guards, OkfitPlatform + Git.layer + GitHistory.layer,
+  main.ts        -- ProcessGuard.run crash guards, OkfitPlatform + Git.layer + GitHistory.layer,
                      runMain; the process boundary -- owns process.stdin/stdout
                      and the exit code
   version.ts     -- LSP_VERSION, read from process.env.__PACKAGE_VERSION__, a
@@ -612,10 +612,20 @@ A future Effect-native transport is done when
 ## The process boundary: `bin.ts` and `main.ts`
 
 `bin.ts` is the shebang entry point, nothing else: imports and awaits
-`main()`. `main.ts` mirrors `packages/mcp/src/main.ts`'s crash-guard
-prologue (`uncaughtException`/`unhandledRejection` installed before any
-dynamic import, so a throw during module evaluation still reaches stderr)
-and owns everything the package boundary test allows it to: it is the one
+`main()`. `main.ts` runs under `ProcessGuard.run` (`@effected/engine/guard`,
+itself free of static runtime imports), so `uncaughtException` and
+`unhandledRejection` are installed before any dynamic import and a throw
+during module evaluation still reaches stderr. Its policy is `exitBeforeConnect`
+for both events, the same as `packages/mcp/src/main.ts`: a stray error before
+the transport is up exits `1`; once `guard.markConnected()` has run (right
+after `makeReferenceTransport`) it is logged to stderr and the server keeps
+serving, because every answer is derived from the bundle on disk and the open
+documents and Claude Code does not reliably respawn a server that exits. A
+`load()` that rejects is `startup failed`, exit `1`. The reports carry the kit's
+fixed wording (`okfit-lsp: uncaughtException (<origin>): ...`).
+`OKFIT_LSP_TEST_INJECT_CRASH=<load|connected>:<kind>` feeds the guard's
+`injectCrash`; only `__test__/e2e/crash-guards.e2e.test.ts` sets it. `main.ts`
+owns everything the package boundary test allows it to: it is the one
 file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
 `process`.
 
@@ -664,6 +674,14 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
   does -- without the second, every log line (`serve`'s `Effect.logInfo` on
   `initialized`, `Effect.logWarning` on a failed revalidate) lands on
   stdout, the JSON-RPC wire, instead of stderr.
+- **A launch failure is reported inside those provisions.** `NodeRuntime.runMain`
+  logs a failed main fiber on the default logger, outside anything the program
+  provides, so a layer that cannot build (a missing `HOME`: `XdgEnvError`)
+  would write its report to stdout, the wire. `main.ts` therefore logs the
+  cause itself with `Effect.tapCause`, between the platform layer and the
+  logger provisions, and passes `disableErrorReporting: true` to `runMain`;
+  `__test__/e2e/crash-guards.e2e.test.ts` launches the bin without `HOME` and
+  asserts exit `1`, the report on stderr and an empty stdout.
 
 ## Three test tiers
 
