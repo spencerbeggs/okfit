@@ -220,3 +220,22 @@ export const mergeSameOffset = (edits: ReadonlyArray<MarkdownEdit>): ReadonlyArr
 	}
 	return out;
 };
+
+/**
+ * Fold a concept's `verified` edit and optional `status` edit into the ordered,
+ * merged edit list both `okfit verify --stable` and `FrontmatterEdits` apply:
+ * status first on equal offsets, so the merged insert emits `status:` before
+ * `verified:`. The tie-break is by object identity -- the two edits are
+ * otherwise indistinguishable.
+ *
+ * @internal
+ */
+export const orderVerifyEdits = (
+	verifiedEdit: MarkdownEdit,
+	statusEdit: MarkdownEdit | undefined,
+): ReadonlyArray<MarkdownEdit> =>
+	mergeSameOffset(
+		[verifiedEdit, ...(statusEdit === undefined ? [] : [statusEdit])].toSorted(
+			(a, b) => a.offset - b.offset || (a === statusEdit ? -1 : b === statusEdit ? 1 : 0),
+		),
+	);

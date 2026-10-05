@@ -8,7 +8,7 @@ import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from ".
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "./locate.js";
 import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "./select.js";
-import { mergeSameOffset, splice, spliceTopLevelScalar } from "./splice.js";
+import { orderVerifyEdits, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
  * The only four diagnostic codes that can co-occur with a MISSING
@@ -141,13 +141,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		}
 		statusEdit = spliceTopLevelScalar(target, "status", status, newline);
 	}
-	// Tie-break by object identity (`a === statusEdit`): the two edits are otherwise indistinguishable.
-	// Status first on equal offsets, so `mergeSameOffset` emits `status:` before `verified:`.
-	const edits = mergeSameOffset(
-		[verifiedEdit, ...(statusEdit === undefined ? [] : [statusEdit])].toSorted(
-			(a, b) => a.offset - b.offset || (a === statusEdit ? -1 : b === statusEdit ? 1 : 0),
-		),
-	);
+	const edits = orderVerifyEdits(verifiedEdit, statusEdit);
 	return {
 		absolutePath,
 		finalText: bom + MarkdownEdit.applyAll(text, edits),
