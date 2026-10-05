@@ -34,3 +34,12 @@ compares; this package's version is packaging
 `okf/decisions/engine-front-end-split-effected-kit.md` for why a peer arrangement can
 never produce a runnable bin here, and do not revert this to a peer
 declaration.
+
+## Shared bins
+
+`okfit`, `okfit-mcp` and `okfit-lsp` are declared here AND by the three front
+ends, on purpose (`okf/decisions/plugin-keeps-shared-bins-under-allow-shared-bins.md`).
+Do not remove either side's declaration. Under npm and bun the front end can
+own the `.bin` slot; Yarn keeps this carrier; pnpm writes shims.
+`__test__/e2e/packed-install.e2e.test.ts` passes `allowSharedBins: true` and
+proves this package's own shims with `runCarrierBin`.

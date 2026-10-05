@@ -75,3 +75,10 @@ __test__/
   plus `NO_COLOR=1`, and, like every other e2e suite here, never invokes
   `okfit init` against the live bundle — only the read-only `validate`
   subcommand and `@okfit/core`'s read-only `Bundle.load`.
+- **One packed smoke, everything else on the dev dist.** The many fast cases
+  here stay on `dist/dev` through `runOkfit`; only
+  `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/cli` tarballs
+  under every available package manager (`PackedInstall`, needs the prod
+  build, skips without it) and proves the published artifact. `runOkfit`
+  defaults `FORCE_COLOR=0` under the caller's env (it beats `NO_COLOR` since
+  `@effected/cli` 0.11); the packed suite pins it the same way.
