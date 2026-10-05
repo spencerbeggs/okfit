@@ -50,12 +50,17 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 - **OKF: Mark Verified** (`okfit.markVerified`) -- asks the language
   server to add a `verified` entry for the resolved human actor. Same
   availability as Set Status.
+- **OKF: Mark Verified and Stable** (`okfit.verifyAndMarkStable`) -- for a
+  draft concept, asks the language server to set `status: stable` and add a
+  `verified` entry in one write, as `okfit verify --stable` does. Available
+  from the Command Palette and the item context menu (not inline).
 
 `okfit.validateBundle` and `okfit.openConcept` appear in the Command
 Palette only while a bundle is live, and as toolbar actions on the OKF
-Concepts view's title bar. `okfit.setStatus` and `okfit.markVerified`
-appear only while the language server advertises them (an older
-`@okfit/lsp` may not).
+Concepts view's title bar. `okfit.setStatus`, `okfit.markVerified` and
+`okfit.verifyAndMarkStable` appear only while the language server advertises them (an older
+`@okfit/lsp` may not). `okfit.verifyAndMarkStable` is gated separately, so a
+server that predates it still enables the other two.
 
 ## Requirements
 

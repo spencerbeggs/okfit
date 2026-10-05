@@ -10,7 +10,7 @@ import { ConceptDecorations } from "./tree/decorations.js";
 import type { TreeNode } from "./tree/model.js";
 import { ConceptsProvider } from "./tree/provider.js";
 import type { ConceptsResult } from "./tree/wire.js";
-import { OKFIT_COMMANDS } from "./tree/wire.js";
+import { OKFIT_COMMANDS, VERIFY_AND_MARK_STABLE_COMMAND } from "./tree/wire.js";
 import { MIN_SERVER_VERSION } from "./versions.js";
 
 // `createLanguageStatusItem`'s `selector` is never empty: VS Code hides an
@@ -181,6 +181,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	// stop-then-start window, not just once it is over.
 	const stopServer = async () => {
 		await vscode.commands.executeCommand("setContext", "okfit.hasActions", false);
+		await vscode.commands.executeCommand("setContext", "okfit.hasVerifyAndMarkStable", false);
 		disposeTree();
 		await stopQuietly(client, watchers);
 		client = undefined;
@@ -211,17 +212,28 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 					});
 			}
 		}
-		// `okfit.hasActions`: true only when the server advertises all three
-		// `OKFIT_COMMANDS` ids in `executeCommandProvider.commands` (Task 6
-		// decision 2) -- read once, right after start, independent of
-		// `okfit/concepts` support below (a server can advertise commands
-		// without the concept explorer, or vice versa).
+		// `okfit.hasActions`: true only when the server advertises every
+		// `OKFIT_COMMANDS` id except `okfit.lsp.verifyAndMarkStable` in
+		// `executeCommandProvider.commands` (Task 6 decision 2) -- read once,
+		// right after start, independent of `okfit/concepts` support below (a
+		// server can advertise commands without the concept explorer, or vice
+		// versa). `okfit.lsp.verifyAndMarkStable` (#215) is newer than the other
+		// three, so it gets its own `okfit.hasVerifyAndMarkStable` key: a server
+		// that predates it keeps Set Status and Mark Verified enabled.
 		const advertised = started.client.initializeResult?.capabilities.executeCommandProvider?.commands;
-		const hasActions = OKFIT_COMMANDS.every((command) => advertised?.includes(command) ?? false);
+		const isAdvertised = (command: string): boolean => advertised?.includes(command) ?? false;
+		const baseCommands = OKFIT_COMMANDS.filter((command) => command !== VERIFY_AND_MARK_STABLE_COMMAND);
+		const hasActions = baseCommands.every(isAdvertised);
+		const hasVerifyAndMarkStable = hasActions && isAdvertised(VERIFY_AND_MARK_STABLE_COMMAND);
 		await vscode.commands.executeCommand("setContext", "okfit.hasActions", hasActions);
+		await vscode.commands.executeCommand("setContext", "okfit.hasVerifyAndMarkStable", hasVerifyAndMarkStable);
 		if (!hasActions) {
 			logger.info(
-				`okfit language server (${started.launch.source}: ${started.launch.kind === "command" ? started.launch.command : started.launch.module}) does not advertise ${OKFIT_COMMANDS.join(", ")} -- Set Status and Mark Verified stay disabled.`,
+				`okfit language server (${started.launch.source}: ${started.launch.kind === "command" ? started.launch.command : started.launch.module}) does not advertise ${baseCommands.join(", ")} -- Set Status and Mark Verified stay disabled.`,
+			);
+		} else if (!hasVerifyAndMarkStable) {
+			logger.info(
+				`okfit language server (${started.launch.source}: ${started.launch.kind === "command" ? started.launch.command : started.launch.module}) does not advertise ${VERIFY_AND_MARK_STABLE_COMMAND} -- Mark Verified and Stable stays disabled.`,
 			);
 		}
 		// Feature-detect `okfit/concepts` instead of assuming it: any project

@@ -4,7 +4,7 @@ import type { Status } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import { Effect, Result, Runtime, Schema } from "effect";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
-import { splice, spliceTopLevelScalar } from "../verify/splice.js";
+import { orderVerifyEdits, splice, spliceTopLevelScalar } from "../verify/splice.js";
 
 /**
  * A top-level frontmatter key `FrontmatterEdits` was asked to edit turned
@@ -28,6 +28,10 @@ export class UnsupportedFrontmatterError extends Schema.TaggedError<UnsupportedF
 /** `edit` shifted forward by `by` bytes, or `edit` itself when `by` is zero. */
 const shift = (edit: MarkdownEdit, by: number): MarkdownEdit =>
 	by === 0 ? edit : MarkdownEdit.make({ offset: edit.offset + by, length: edit.length, content: edit.content });
+
+/** The value of a located scalar's raw source text, quotes removed. */
+const unquote = (raw: string, quote: "plain" | "single-quoted" | "double-quoted"): string =>
+	quote === "plain" ? raw.trim() : raw.slice(1, -1);
 
 /**
  * A public facade over the `verify/locate.ts` and `verify/splice.ts`
@@ -78,6 +82,37 @@ export class FrontmatterEdits {
 			}
 			const edit = splice(target, entry, documentNewline(text));
 			return [shift(edit, bom.length)];
+		});
+
+	/**
+	 * Edits that append one verified entry AND set top-level `status`, the combined write
+	 * `okfit verify --stable` performs. A `status` scalar already equal to `status` makes no
+	 * status edit, and equal-offset inserts are merged with `status:` first. Unlike the CLI,
+	 * which reads the parsed status, this always locates `status`, so an unsupported shape
+	 * on it fails even when its value already matches.
+	 */
+	static readonly verifiedWithStatus = (
+		source: string,
+		entry: { readonly by: string; readonly at: string },
+		status: Status,
+	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
+		Effect.gen(function* () {
+			const { text, bom } = stripBom(source);
+			const located = yield* locate(text);
+			if (located._tag === "unsupported") {
+				return yield* new UnsupportedFrontmatterError({ key: "verified", shape: located.shape });
+			}
+			const newline = documentNewline(text);
+			const verifiedEdit = splice(located, entry, newline);
+			let statusEdit: MarkdownEdit | undefined;
+			const target = yield* locateTopLevelScalar(text, "status");
+			if (target._tag === "unsupported") {
+				return yield* new UnsupportedFrontmatterError({ key: "status", shape: target.shape });
+			}
+			if (target._tag !== "replaceScalar" || unquote(text.slice(target.start, target.end), target.quote) !== status) {
+				statusEdit = spliceTopLevelScalar(target, "status", status, newline);
+			}
+			return orderVerifyEdits(verifiedEdit, statusEdit).map((edit) => shift(edit, bom.length));
 		});
 
 	/**

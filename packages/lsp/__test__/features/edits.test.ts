@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { assert, describe, it } from "@effect/vitest";
 import { Cause, DateTime, Effect, Exit, Option } from "effect";
-import { editTarget, resolveActor, statusTextEdits } from "../../src/features/edits.js";
+import {
+	editTarget,
+	resolveActor,
+	statusTextEdits,
+	verifiedStableTextEdits,
+	verifiedTextEdits,
+} from "../../src/features/edits.js";
 import { makeDocumentMemory } from "../../src/session/documents.js";
 import type { SessionRegistryShape } from "../../src/session/registry.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
@@ -103,6 +109,50 @@ describe("editTarget", () => {
 			const { registry, documents, path, disk } = yield* setup();
 			yield* documents.record(path, disk.replace(/^---\n/, "---\n[unclosed\n"), 3);
 			assert.isTrue(Option.isNone(yield* editTarget(registry, documents, path)));
+		}).pipe(Effect.provide(testPlatform())),
+	);
+});
+
+describe("verifiedStableTextEdits", () => {
+	const draftBuffer = (disk: string, extra = ""): string => disk.replace(/^---\n/, `---\nstatus: draft\n${extra}`);
+
+	it.effect("on a draft: one set of edits, status stable and the verified entry", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			yield* documents.record(path, draftBuffer(disk), 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const now = yield* DateTime.now;
+			const edits = yield* verifiedStableTextEdits(target, "human:fixture-author", now);
+			assert.isAbove(edits.length, 0);
+			assert.isTrue(edits.some((edit) => edit.newText.includes("status: stable") || edit.newText === "stable"));
+			assert.isTrue(edits.some((edit) => edit.newText.includes("verified:")));
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("fails NotADraft on a concept that is not a draft", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path } = yield* setup();
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const now = yield* DateTime.now;
+			const failure = yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", now));
+			assert.deepStrictEqual(failure, { _tag: "NotADraft" });
+			const plain = yield* Effect.flip(verifiedTextEdits({ ...target, status: "draft" }, "human:fixture-author", now));
+			assert.deepStrictEqual(plain, { _tag: "DraftCannotBeVerified" });
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("fails AlreadyVerified when the actor already carries a verified entry", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			yield* documents.record(
+				path,
+				draftBuffer(disk, 'verified:\n  - by: "human:fixture-author"\n    at: "2026-01-01T00:00:00Z"\n'),
+				2,
+			);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const now = yield* DateTime.now;
+			const failure = yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", now));
+			assert.deepStrictEqual(failure, { _tag: "AlreadyVerified", by: "human:fixture-author" });
 		}).pipe(Effect.provide(testPlatform())),
 	);
 });

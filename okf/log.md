@@ -1,5 +1,13 @@
 # Log
 
+## 2026-10-05
+
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Engine
+* Updated LSP
+* Updated VS Code Extension
+* Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
+
 ## 2026-10-03
 
 * Updated MCP

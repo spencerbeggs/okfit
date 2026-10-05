@@ -98,6 +98,12 @@
 				"title": "Mark Verified",
 				"category": "OKF",
 				"icon": "$(verified)"
+			},
+			{
+				"command": "okfit.verifyAndMarkStable",
+				"title": "Mark Verified and Stable",
+				"category": "OKF",
+				"icon": "$(verified-filled)"
 			}
 		],
 		"menus": {
@@ -117,6 +123,10 @@
 				{
 					"command": "okfit.markVerified",
 					"when": "okfit.isConcept && okfit.hasActions"
+				},
+				{
+					"command": "okfit.verifyAndMarkStable",
+					"when": "okfit.isConcept && okfit.hasVerifyAndMarkStable"
 				}
 			],
 			"view/title": [
@@ -150,6 +160,11 @@
 				{
 					"command": "okfit.markVerified",
 					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"group": "okfit@1"
+				},
+				{
+					"command": "okfit.verifyAndMarkStable",
+					"when": "viewItem == okfit.concept && okfit.hasVerifyAndMarkStable",
 					"group": "okfit@1"
 				}
 			]
