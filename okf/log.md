@@ -1,5 +1,12 @@
 # Log
 
+## 2026-10-05
+
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Engine
+* Updated LSP
+* Updated VS Code Extension
+
 ## 2026-10-03
 
 * Updated MCP
