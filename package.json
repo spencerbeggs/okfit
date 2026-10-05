@@ -22,7 +22,7 @@
 		"build": "turbo run build:dev build:prod --log-order=grouped --log-prefix=none",
 		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-order=grouped --output-logs=full --log-prefix=none",
 		"ci:test": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=errors-only --log-prefix=none && CI=\"true\" vitest run --passWithNoTests",
-		"claude": "claude --plugin-dir plugins/claude-code",
+		"claude": "claude --plugin-dir plugins/claude-code --plugin-dir=../pluginfinity/plugins/pluginfinity/builds/claude",
 		"dev": "turbo run dev --filter=docs",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
