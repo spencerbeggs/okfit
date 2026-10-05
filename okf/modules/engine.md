@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T01:53:59Z
-  body_sha256: 843904e65f423820c4b59f4efd4114478248df3714a73b7cdd9522b242576c21
+  at: 2026-10-05T16:00:16Z
+  body_sha256: cefc38f603d25249168068847233744029b351996440efa060e7f541d21414d6
 ---
 
 # Engine
@@ -179,14 +179,21 @@ ships only `layerNoop` until the HTTP layer lands.
 
 `edits/FrontmatterEdits.ts`'s `FrontmatterEdits` is a `Context`-free public
 facade over `verify/locate.ts` and `verify/splice.ts`: `.status(source,
-status)` and `.verified(source, entry)` each return `MarkdownEdit`s at
+status)`, `.verified(source, entry)` and `.verifiedWithStatus(source, entry,
+status)` each return `MarkdownEdit`s at
 whole-file offsets into `source` as passed, BOM included, so a caller can
 apply them with `MarkdownEdit.applyAll` or map them to editor ranges
 without adjustment. `.verified` reuses the exact `locate`/`splice`/
 `documentNewline` calls `okfit verify`'s `prepareVerify` makes, so its
 output matches `okfit verify`'s splice byte for byte; `.status` applies the
 same newline rule over `locateTopLevelScalar`/`spliceTopLevelScalar`
-instead. A shape neither locator recognises fails closed with
+instead. `.verifiedWithStatus` is the combined write behind `okfit verify
+--stable`: it appends the entry and sets `status`, making no status edit
+when the scalar already equals it, and shares `verify/splice.ts`'s internal
+`orderVerifyEdits` (status first on an equal-offset merge) with
+`prepareVerify`. It always locates `status`, so an unsupported `status`
+shape fails even when the value already matches, unlike the CLI, which reads
+the parsed status. A shape neither locator recognises fails closed with
 `UnsupportedFrontmatterError`, never a partial write. `@okfit/lsp`'s code
 actions and commands are the first caller besides `okfit verify` itself --
 see [Frontmatter splices are a shared engine surface for the CLI's verify
