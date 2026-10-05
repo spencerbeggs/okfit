@@ -97,11 +97,9 @@ replacing the hand-rolled equivalent each one used before, at the versions
 - **`@okfit/mcp`** runs on `McpStdio.launch`/`.teardown`/`.layer` and
   `McpToolkit.layer` in place of hand-wiring
   `effect/unstable/ai/McpServer.layerStdio`/`.toolkit` directly.[^mcp-server-ts]
-  `errors.ts` aliases `ToolRefusal` (`@effected/mcp`) and re-exports `Remediation`
-  (`@effected/engine`) instead of this package's own five tagged errors and
-  `composeRemediatedMessage`/`truncateEchoed`; `main.ts` installs its crash
-  guards through `McpGuard.run` (`@effected/mcp/guard`) instead of hand-rolled
-  `process.on` handlers.[^mcp-errors-ts] The project
+  `errors.ts` is built on `ToolFailure` (`@effected/mcp`) and `Remediation`
+  (`@effected/engine`) instead of this package's own
+  `composeRemediatedMessage`/`truncateEchoed`.[^mcp-errors-ts] The project
   root resolves through `@effected/engine`'s `LaunchContext.projectDir`,
   which additionally guards against a launch context that still carries a
   literal, unexpanded `${CLAUDE_PROJECT_DIR}` placeholder -- protection the
