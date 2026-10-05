@@ -56,3 +56,10 @@ export const OKFIT_COMMANDS = [
 	"okfit.lsp.verifyAndMarkStable",
 	"okfit.lsp.revalidate",
 ] as const;
+
+/**
+ * The one `OKFIT_COMMANDS` id gated on its own `okfit.hasVerifyAndMarkStable`
+ * context key rather than `okfit.hasActions` (#215): it is newer than the
+ * other three, so a server that predates it must not disable them.
+ */
+export const VERIFY_AND_MARK_STABLE_COMMAND = "okfit.lsp.verifyAndMarkStable";

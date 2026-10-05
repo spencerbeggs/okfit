@@ -59,7 +59,8 @@ Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/S
 Palette only while a bundle is live, and as toolbar actions on the OKF
 Concepts view's title bar. `okfit.setStatus`, `okfit.markVerified` and
 `okfit.verifyAndMarkStable` appear only while the language server advertises them (an older
-`@okfit/lsp` may not).
+`@okfit/lsp` may not). `okfit.verifyAndMarkStable` is gated separately, so a
+server that predates it still enables the other two.
 
 ## Requirements
 

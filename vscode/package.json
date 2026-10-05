@@ -126,7 +126,7 @@
 				},
 				{
 					"command": "okfit.verifyAndMarkStable",
-					"when": "okfit.isConcept && okfit.hasActions"
+					"when": "okfit.isConcept && okfit.hasVerifyAndMarkStable"
 				}
 			],
 			"view/title": [
@@ -164,7 +164,7 @@
 				},
 				{
 					"command": "okfit.verifyAndMarkStable",
-					"when": "viewItem == okfit.concept && okfit.hasActions",
+					"when": "viewItem == okfit.concept && okfit.hasVerifyAndMarkStable",
 					"group": "okfit@1"
 				}
 			]

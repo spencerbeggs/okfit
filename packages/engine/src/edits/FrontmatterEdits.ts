@@ -86,9 +86,10 @@ export class FrontmatterEdits {
 
 	/**
 	 * Edits that append one verified entry AND set top-level `status`, the combined write
-	 * `okfit verify --stable` performs. A `status` already equal to `status` makes no status
-	 * edit (so an unsupported shape on it is never located), and equal-offset inserts are
-	 * merged with `status:` first.
+	 * `okfit verify --stable` performs. A `status` scalar already equal to `status` makes no
+	 * status edit, and equal-offset inserts are merged with `status:` first. Unlike the CLI,
+	 * which reads the parsed status, this always locates `status`, so an unsupported shape
+	 * on it fails even when its value already matches.
 	 */
 	static readonly verifiedWithStatus = (
 		source: string,

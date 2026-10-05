@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONFIG_GLOB } from "../src/config-glob.js";
-import { OKFIT_COMMANDS } from "../src/tree/wire.js";
+import { OKFIT_COMMANDS, VERIFY_AND_MARK_STABLE_COMMAND } from "../src/tree/wire.js";
 
 const root = join(import.meta.dirname, "..");
 const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as Record<string, unknown>;
@@ -73,7 +73,8 @@ describe("extension manifest", () => {
 		const groups = new Set((contextMenu ?? []).map((e) => e.group));
 		expect(groups.has("inline")).toBe(true);
 		expect(groups.has("okfit@1")).toBe(true);
-		for (const entry of contextMenu ?? []) {
+		// okfit.verifyAndMarkStable carries its own key; its own describe block covers it.
+		for (const entry of (contextMenu ?? []).filter((e) => e.command !== "okfit.verifyAndMarkStable")) {
 			expect(entry.when).toBe("viewItem == okfit.concept && okfit.hasActions");
 		}
 	});
@@ -118,9 +119,9 @@ describe("okfit.verifyAndMarkStable manifest entries", () => {
 		expect(entry?.icon).toBe("$(verified-filled)");
 	});
 
-	it("is gated in the command palette on okfit.isConcept && okfit.hasActions", () => {
+	it("is gated in the command palette on its own okfit.hasVerifyAndMarkStable key", () => {
 		const entry = (contributes.menus.commandPalette ?? []).find((p) => p.command === "okfit.verifyAndMarkStable");
-		expect(entry?.when).toBe("okfit.isConcept && okfit.hasActions");
+		expect(entry?.when).toBe("okfit.isConcept && okfit.hasVerifyAndMarkStable");
 	});
 
 	it("sits in the view/item/context okfit@1 group only, never inline", () => {
@@ -128,11 +129,12 @@ describe("okfit.verifyAndMarkStable manifest entries", () => {
 			(e) => e.command === "okfit.verifyAndMarkStable",
 		);
 		expect(entries.map((e) => e.group)).toEqual(["okfit@1"]);
-		expect(entries[0]?.when).toBe("viewItem == okfit.concept && okfit.hasActions");
+		expect(entries[0]?.when).toBe("viewItem == okfit.concept && okfit.hasVerifyAndMarkStable");
 	});
 
 	it("is mirrored by the server command it calls in OKFIT_COMMANDS", () => {
 		expect(OKFIT_COMMANDS).toContain("okfit.lsp.verifyAndMarkStable");
 		expect(OKFIT_COMMANDS.indexOf("okfit.lsp.verifyAndMarkStable")).toBe(2);
+		expect(VERIFY_AND_MARK_STABLE_COMMAND).toBe("okfit.lsp.verifyAndMarkStable");
 	});
 });
