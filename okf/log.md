@@ -10,6 +10,7 @@
 * Updated Plugin
 * Added The carrier keeps its front ends' bin names, proven under allowSharedBins
 * Updated Workspace
+* Updated LSP
 
 ## 2026-10-03
 
