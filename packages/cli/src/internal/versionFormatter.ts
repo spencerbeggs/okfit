@@ -13,16 +13,11 @@ import type { CliOutput } from "effect/cli";
  * those two arguments alone are exactly `okfit <CLI_VERSION>`; this appends the
  * distribution, engine and okf parts.
  *
- * Passed to `CliRuntime.main` as `env.formatter`, the kit's one way to keep a
- * formatter method of our own: `main` installs its coloured default formatter
- * inside the platform, and `helpOnUsageError: "stderr"` only reroutes help
- * written through a formatter `main` installed. Every method left out keeps the
- * kit's coloured default, so help and error rendering stay consistent with the
- * run's colour decision.
- *
- * `distribution` is the value `main` was given (and provides as
- * `CurrentDistribution`); it is known before the program runs, so it is read
- * directly rather than from the context.
+ * Passed to `CliRuntime.main` as `env.formatter`: `helpOnUsageError: "stderr"`
+ * only reroutes help written through a formatter `main` installed, so a layer
+ * inside the program would not do. Every method left out keeps the kit's
+ * coloured default. `distribution` is the value `main` was given, known before
+ * the program runs, so it is read directly rather than from the context.
  *
  * @internal
  */

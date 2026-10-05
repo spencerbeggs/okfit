@@ -47,25 +47,18 @@ const parseInjectCrash = (value: string | undefined): InjectCrash | undefined =>
  * Run the okfit MCP server over stdio. Owns the process.
  *
  * `McpGuard.run` (`@effected/mcp/guard`, itself free of static runtime
- * imports) installs the `uncaughtException` and `unhandledRejection`
- * guards before `load` evaluates `NodeRuntime`, `@effected/mcp`, the engine
- * platform and `ServerLayer`, so a throw during module evaluation is still
- * reported on stderr. This module therefore carries no other static runtime
- * import: `Distribution` is a type-only import, erased at build time. The
- * guard then launches the server with `McpStdio.launch`/`McpStdio.teardown`
- * (stdin EOF exits `0`, not `130`). `ServerLayer`'s stdio server is built on
- * `McpStdio.layer`, which already routes logs to stderr.
+ * imports) installs the crash guards before `load` evaluates the server
+ * graph, so a throw during module evaluation is still reported on stderr.
+ * This module therefore carries no other static runtime import (`Distribution`
+ * is type-only). The guard launches the server with `McpStdio.launch` and
+ * `McpStdio.teardown` (stdin EOF exits `0`, not `130`).
  *
- * The crash policy is `exitBeforeConnect` for both events. Every okfit tool
- * is read-only and reloads the bundle from disk on each call, so a stray
- * error after the server is serving has no state to corrupt and no in-flight
- * caller (core scrubs a throw inside a tool call into an `isError` result);
- * dying mid-session would only deregister all six tools from the client, so
- * the guard logs and keeps serving. Before the server is serving the same
- * error means a broken boot, where exiting `1` is the honest outcome.
- * Rejections follow the same rule rather than `"log"`, so a rejection while
- * loading is never silently carried into a half-built server. A `load()`
- * that rejects is `startup failed`, exit `1`, whatever the policy.
+ * Policy is `exitBeforeConnect` for both events. Every tool is read-only and
+ * reloads the bundle per call, so a stray error while serving has no state to
+ * corrupt, and dying mid-session would only deregister the tools from the
+ * client: the guard logs and keeps serving. Before serving the same error means
+ * a broken boot, so it exits `1`. A `load()` that rejects is `startup failed`,
+ * exit `1`, whatever the policy.
  *
  * @public
  */

@@ -12,13 +12,11 @@ export { Remediation };
  * `@effected/mcp`.
  *
  * @remarks
- * Replaces five bespoke tagged errors (`ConfigError`, `BundleNotFound`,
- * `ConceptNotFound`, `UnknownVocabulary`, `InvalidArgument`). Under
- * `failureMode: "error"` a declared failure reaches the agent as
- * `error.message` alone, so the structured fields those classes carried
- * (`root`, `id`, `valid`, `argument`) were never on the wire; the reason
- * text now names them and `ToolRefusal.refuse` folds the remediation in.
- * Callers discriminate on the message, never on a tag.
+ * Replaces five bespoke tagged errors. Under `failureMode: "error"` a declared
+ * failure reaches the agent as `error.message` alone, so the structured fields
+ * they carried were never on the wire; the reason text names them and
+ * `ToolRefusal.refuse` folds the remediation in. Callers discriminate on the
+ * message, never on a tag.
  *
  * @public
  */
