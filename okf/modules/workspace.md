@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-29T22:18:38Z
-  body_sha256: 10eb89eaa3f318ead432d0079999b0389b754855c97b782cfd8b4ca397bf6549
+  at: 2026-10-05T16:53:52Z
+  body_sha256: 838fab33ac4041d027b618df2725adf00a4e315ec80672773251f54ebb401192
 ---
 
 # Workspace
@@ -64,7 +64,10 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 - `pnpm typecheck` -- `tsc --noEmit` per package via Turbo.
 - `pnpm lint` -- Biome.
 - `pnpm lint:md` -- markdownlint.
-- `pnpm test` -- Vitest across the monorepo; builds `dist/dev` first.
+- `pnpm test` -- Vitest across the monorepo; builds `dist/dev` first. The
+  packed-install e2e suites (`packages/{plugin,cli,mcp}/__test__/e2e/packed-install.e2e.test.ts`)
+  also need `pnpm turbo run build:prod` and skip without it; CI's `ci:build`
+  builds both.
 - `pnpm test:bats` -- BATS for the plugin's shell scripts.
 - `pnpm claude` -- Claude Code with the local plugin loaded.
 - `pnpm dev` and `pnpm preview` -- the documentation site's dev server and

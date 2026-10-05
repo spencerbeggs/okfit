@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:04:08Z
-  body_sha256: 9a78f78b4fb0f122aa5fcb31077ee541183277cbaf43b8f425c7831b8d9881c9
+  at: 2026-10-05T16:53:52Z
+  body_sha256: 1a5131f44b4f003c2e48c9d885c4ec98c835d16542f49a2620004b1b47aa7711
 ---
 
 # Plugin
@@ -42,3 +42,13 @@ the peer arrangement the spec calls for could never produce a runnable
 bin -- this is settled, not provisional. See [A shared @okfit/engine
 package replaces cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md)
 for the full reasoning and the alternatives rejected.
+
+## Shared bins, proven packed
+
+The three front ends declare the same bin names, deliberately; see [The carrier
+keeps its front ends' bin names, proven under
+allowSharedBins](../decisions/plugin-keeps-shared-bins-under-allow-shared-bins.md).
+`packages/plugin/__test__/e2e/packed-install.e2e.test.ts` installs the packed
+tarballs under npm, pnpm, Yarn and bun and runs this package's own bins with
+`runCarrierBin`, so it proves the published artifact rather than `dist/dev`. It
+needs the prod build and skips without it.
