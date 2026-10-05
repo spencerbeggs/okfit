@@ -453,7 +453,7 @@ itself needs none.
 ## Commands
 
 `registerCommands` (`src/features/commands.ts`) wires `workspace/
-executeCommand` onto the transport for the three ids `features/names.ts`'s
+executeCommand` onto the transport for the four ids `features/names.ts`'s
 `OKFIT_COMMANDS` advertises. The ids live under `okfit.lsp.` on purpose:
 `vscode-languageclient` registers every advertised id as a VS Code command,
 so an id a client extension also contributes (the okfit extension's own
@@ -484,6 +484,13 @@ naming it (`-32601`).
   `DateTime.now`. The draft, deprecated and already-verified checks read the same
   current text, so a second quick Mark verified sees the first's entry once
   the client has applied it.
+- **`okfit.lsp.verifyAndMarkStable`** -- args `[uri]`. A draft's combined
+  verify-and-promote: `verifiedStableTextEdits(target, actor, now)` (wrapping
+  `FrontmatterEdits.verifiedWithStatus`) sent as one versioned `applyEdit`,
+  labeled "Mark verified and stable". Fails `NotADraft` for any other status
+  and `AlreadyVerified` when the actor has already attested. The matching code
+  action (`Mark verified by <actor> and set status: stable`, kind
+  `okfit.verify`) is offered only on a draft.
 - **`okfit.lsp.revalidate`** -- args `[rootUri?]`, an optional single-string
   tuple (`Schema.Tuple([Schema.optionalKey(Schema.String)])`) so the client
   may send `[]` or omit `arguments` entirely. `rootUri` present: schedules a

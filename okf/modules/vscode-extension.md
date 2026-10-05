@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T01:30:00Z
-  body_sha256: c59d438649e7becf0c00f0781aaddc1f95c4687fae6d52dd80c7d50fbd4a7630
+  at: 2026-10-05T16:00:16Z
+  body_sha256: 3e1b7780a9d8e6fdb9cfee9262b6e13539079d02d53b08c7fcca718030d38921
 ---
 
 # VS Code Extension
@@ -284,9 +284,18 @@ free it.
 - **OKF: Mark Verified** (`okfit.markVerified`) -- same URI resolution and
   `workspace/applyEdit` round trip, over `okfit.lsp.markVerified [uri]`;
   the server resolves the human actor and computes the edit.
+- **OKF: Mark Verified and Stable** (`okfit.verifyAndMarkStable`, #215) --
+  the editor half of `okfit verify --stable`: the same round trip over
+  `okfit.lsp.verifyAndMarkStable [uri]`, one edit that appends the
+  verification and sets `status: stable`, saved after apply like the others.
+  It appears in the palette and the tree item context menu (`okfit@1`
+  group, not inline), gated on its own context key
+  `okfit.hasVerifyAndMarkStable`, set from the server's advertised command
+  list, so an older server that lacks the command leaves Set Status and
+  Mark Verified enabled.
 
 The extension's own command ids (`okfit.setStatus`, `okfit.markVerified`,
-`okfit.validateBundle`) and the server's (`okfit.lsp.*`) must never
+`okfit.verifyAndMarkStable`, `okfit.validateBundle`) and the server's (`okfit.lsp.*`) must never
 coincide: `vscode-languageclient` registers every id in the server's
 `executeCommandProvider.commands` as a VS Code command, and a duplicate
 throws "command already exists" during client initialization, so the
@@ -294,9 +303,10 @@ language server never starts. `vscode/__test__/manifest.test.ts` asserts
 no id in `vscode/src/tree/wire.ts`'s `OKFIT_COMMANDS` copy appears in
 `package.json`'s `contributes.commands`.
 
-All four commands appear in the Command Palette only while a bundle is
+The commands above appear in the Command Palette only while a bundle is
 live (`okfit.hasBundle`, or `okfit.isConcept && okfit.hasActions` for the
-latter two), and as toolbar actions on the OKF Concepts view's title bar
+Set Status and Mark Verified commands; Mark Verified and Stable needs
+`okfit.isConcept && okfit.hasVerifyAndMarkStable`), and as toolbar actions on the OKF Concepts view's title bar
 (`view/title`) or inline actions on a concept tree item (`view/item/
 context`, both the `inline` group and the `okfit@1` submenu group) for Set
 Status and Mark Verified. `okfit.isConcept` and `okfit.hasActions` are

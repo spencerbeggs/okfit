@@ -58,7 +58,7 @@ src/
                             step over injected open/showError/showWarning
   commands.ts             -- registerCommands: okfit.validateBundle,
                             okfit.openConcept, okfit.setStatus,
-                            okfit.markVerified
+                            okfit.markVerified, okfit.verifyAndMarkStable
   serial-queue.ts         -- createSerialQueue: serializes client restarts
   tree/
     model.ts              -- tree node shapes for the OKF Concepts view
@@ -120,11 +120,14 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - `src/tree/wire.ts` copies two things verbatim from `@okfit/lsp`, rather
   than importing the package: the `okfit/concepts`/`okfit/bundleChanged`
   wire types and method names, and `OKFIT_COMMANDS`
-  (`packages/lsp/src/features/names.ts`) -- the three `workspace/
+  (`packages/lsp/src/features/names.ts`) -- the four `workspace/
   executeCommand` ids (`okfit.lsp.setStatus`, `okfit.lsp.markVerified`,
-  `okfit.lsp.revalidate`) the extension checks the server advertises before
-  enabling `okfit.setStatus`/`okfit.markVerified`/a real
-  `okfit.validateBundle`. The server's ids must never equal a command this
+  `okfit.lsp.verifyAndMarkStable`, `okfit.lsp.revalidate`) the extension
+  checks the server advertises before enabling `okfit.setStatus`/
+  `okfit.markVerified`/a real `okfit.validateBundle` (`okfit.hasActions`).
+  `okfit.lsp.verifyAndMarkStable` is newer than the rest and gates
+  `okfit.verifyAndMarkStable` on its own `okfit.hasVerifyAndMarkStable`
+  key, so a server that predates it leaves the other actions enabled. The server's ids must never equal a command this
   extension contributes: `vscode-languageclient` registers every advertised
   id itself, and a duplicate throws "command already exists" during client
   initialization. `__test__/manifest.test.ts` guards it.

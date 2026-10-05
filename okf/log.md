@@ -12,6 +12,10 @@
 * Updated Workspace
 * Updated LSP
 * Added The language and MCP servers survive a stray crash once serving, and exit on one before
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Engine
+* Updated VS Code Extension
+* Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 
 ## 2026-10-03
 

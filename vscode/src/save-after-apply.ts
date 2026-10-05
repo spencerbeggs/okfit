@@ -12,8 +12,8 @@ export interface SaveableDocument {
 export type SaveOutcome = "saved" | "skipped" | "failed";
 
 /**
- * After the server's `workspace/applyEdit` for `okfit.setStatus` or
- * `okfit.markVerified` came back, save the edited document (#182). Only the
+ * After the server's `workspace/applyEdit` for `okfit.setStatus`,
+ * `okfit.markVerified` or `okfit.verifyAndMarkStable` came back, save the edited document (#182). Only the
  * tree and palette commands call this: the user has no open editor there to
  * notice a dirty buffer, and a concept that was not open never becomes
  * visible to git otherwise. A lightbulb code action in an open editor is

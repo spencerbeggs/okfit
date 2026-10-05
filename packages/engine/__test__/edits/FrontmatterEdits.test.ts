@@ -187,3 +187,93 @@ describe("FrontmatterEdits.rendersDigests", () => {
 		}),
 	);
 });
+
+describe("FrontmatterEdits.verifiedWithStatus", () => {
+	const entry = { by: "human:spencer", at: "2026-09-23T12:00:00Z" };
+	const doc = (frontmatter: ReadonlyArray<string>, nl = "\n", bom = ""): string =>
+		`${bom}${["---", ...frontmatter, "---", "", "# Body", ""].join(nl)}`;
+	const run = (source: string) =>
+		Effect.map(FrontmatterEdits.verifiedWithStatus(source, entry, "stable"), (edits) =>
+			MarkdownEdit.applyAll(source, edits),
+		);
+
+	it.effect("merges the same-offset case: status before verified when both are absent and title is last", () => {
+		const source = doc(["type: Module", "title: Alpha"]);
+		return Effect.map(run(source), (out) =>
+			assert.strictEqual(
+				out,
+				doc([
+					"type: Module",
+					"title: Alpha",
+					"status: stable",
+					"verified:",
+					"  - by: human:spencer",
+					"    at: 2026-09-23T12:00:00Z",
+				]),
+			),
+		);
+	});
+
+	it.effect("replaces an existing draft status and appends verified", () => {
+		const source = doc(["type: Module", "status: draft", "title: Alpha"]);
+		return Effect.map(run(source), (out) => {
+			assert.ok(out.includes("status: stable\n"));
+			assert.ok(!out.includes("draft"));
+			assert.ok(out.includes("verified:\n  - by: human:spencer\n    at: 2026-09-23T12:00:00Z\n"));
+		});
+	});
+
+	it.effect("makes only the verified edit when status already equals the target", () => {
+		const source = doc(["type: Module", "status: stable", "title: Alpha"]);
+		return Effect.map(FrontmatterEdits.verifiedWithStatus(source, entry, "stable"), (edits) => {
+			assert.strictEqual(edits.length, 1);
+			assert.strictEqual(edits[0]?.length, 0);
+			assert.ok(MarkdownEdit.applyAll(source, edits).includes("status: stable\n"));
+		});
+	});
+
+	it.effect("treats a quoted matching status as already at the target", () => {
+		const source = doc(["type: Module", 'status: "stable"', "title: Alpha"]);
+		return Effect.map(FrontmatterEdits.verifiedWithStatus(source, entry, "stable"), (edits) =>
+			assert.strictEqual(edits.length, 1),
+		);
+	});
+
+	it.effect("uses CRLF newlines throughout", () => {
+		const source = doc(["type: Module", "title: Alpha"], "\r\n");
+		return Effect.map(run(source), (out) => {
+			assert.ok(out.includes("status: stable\r\nverified:\r\n"));
+			assert.ok(!/[^\r]\n/u.test(out));
+		});
+	});
+
+	it.effect("shifts offsets by the BOM length", () => {
+		const source = doc(["type: Module", "status: draft", "title: Alpha"], "\n", "﻿");
+		return Effect.map(run(source), (out) => {
+			assert.ok(out.startsWith("﻿---\n"));
+			assert.ok(out.includes("status: stable\n"));
+			assert.ok(out.includes("verified:"));
+		});
+	});
+
+	it.effect("fails keyed verified when verified is an unsupported shape", () =>
+		Effect.map(
+			Effect.flip(FrontmatterEdits.verifiedWithStatus(doc(["type: Module", "verified: nope"]), entry, "stable")),
+			(error) => {
+				assert.ok(error instanceof UnsupportedFrontmatterError);
+				assert.strictEqual(error.key, "verified");
+			},
+		),
+	);
+
+	it.effect("fails keyed status when status is an unsupported shape", () =>
+		Effect.map(
+			Effect.flip(FrontmatterEdits.verifiedWithStatus(read("status-block-scalar.md"), entry, "stable")),
+			(error) => {
+				assert.ok(error instanceof UnsupportedFrontmatterError);
+				assert.strictEqual(error.key, "status");
+				assert.strictEqual(error.shape, "status-block-scalar");
+			},
+		),
+	);
+});

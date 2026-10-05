@@ -6,7 +6,7 @@ import type { ApplyWorkspaceEditParams, ApplyWorkspaceEditResult } from "../../s
 import type { ServeHarness } from "../utils/harness.js";
 import { makeServeHarness, request } from "../utils/harness.js";
 import { testPlatform, testPlatformWithIdentity } from "../utils/platform.js";
-import { applyTextEdit, singleDocumentEdit } from "../utils/textEdits.js";
+import { applyDocumentEdits, applyTextEdit, documentVersion, singleDocumentEdit } from "../utils/textEdits.js";
 
 /**
  * `registerCommands`, task 4 of the LSP-actions plan. Against a full
@@ -168,6 +168,75 @@ describe("registerCommands", () => {
 				assert.strictEqual(change.version, 1);
 				assert.include(applyTextEdit(STABLE_SOURCE, change.edit), "human:");
 			}).pipe(Effect.scoped),
+	);
+
+	it.live("okfit.lsp.verifyAndMarkStable on a draft sends one applyEdit setting status: stable and the actor", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "draft.md"), DRAFT_SOURCE, "utf8"));
+			yield* h.initialize;
+			yield* h.open("okf/modules/draft.md");
+			yield* h.nextPublish();
+
+			const uri = h.uriOf("okf/modules/draft.md");
+			const result = yield* executeCommand<ApplyWorkspaceEditResult>(h.client, "okfit.lsp.verifyAndMarkStable", [uri]);
+
+			assert.deepStrictEqual(result, { applied: true });
+			assert.strictEqual(h.serverRequests.length, 1);
+			const params = h.serverRequests[0]?.params as ApplyWorkspaceEditParams;
+			assert.strictEqual(params.label, "Mark verified and stable");
+			const version = documentVersion(params.edit);
+			assert.strictEqual(version, 1);
+			const out = applyDocumentEdits(DRAFT_SOURCE, params.edit, uri);
+			assert.include(out, "status: stable\n");
+			assert.notInclude(out, "status: draft");
+			assert.include(out, `verified:\n  - by: ${FIXTURE_ACTOR}\n`);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("okfit.lsp.verifyAndMarkStable on a non-draft concept fails NotADraft and sends nothing", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "stable.md"), STABLE_SOURCE, "utf8"));
+			yield* h.initialize;
+			yield* h.open("okf/modules/stable.md");
+			yield* h.nextPublish();
+
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.verifyAndMarkStable", [
+				h.uriOf("okf/modules/stable.md"),
+			]);
+			assert.include(failure.message, "use Mark verified");
+			assert.strictEqual(h.serverRequests.length, 0);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("okfit.lsp.verifyAndMarkStable on a draft already verified by the actor fails AlreadyVerified", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const source = DRAFT_SOURCE.replace(
+				"status: draft\n",
+				`status: draft\nverified:\n  - by: "${FIXTURE_ACTOR}"\n    at: "2026-01-01T00:00:00Z"\n`,
+			);
+			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "draft.md"), source, "utf8"));
+			yield* h.initialize;
+			yield* h.open("okf/modules/draft.md");
+			yield* h.nextPublish();
+
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.verifyAndMarkStable", [
+				h.uriOf("okf/modules/draft.md"),
+			]);
+			assert.strictEqual(failure.message, `already verified by ${FIXTURE_ACTOR}`);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("okfit.lsp.verifyAndMarkStable with bad arguments fails with the argument message", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* h.initialize;
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.verifyAndMarkStable", []);
+			assert.strictEqual(failure.code, -32602);
+			assert.include(failure.message, "okfit.lsp.verifyAndMarkStable expects [uri]");
+		}).pipe(Effect.scoped),
 	);
 
 	it.live(

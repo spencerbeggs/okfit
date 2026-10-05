@@ -7,8 +7,8 @@ tags:
 supersedes: cli-verify-splices-frontmatter.md
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T21:50:18Z
-  body_sha256: 6c0a6f220b99e8dfa67a35abb97e2234f23b8de0410d99964c67b2a62e79416e
+  at: 2026-10-05T16:06:14Z
+  body_sha256: 85e8f8dbebffe3a7144d5609a5484090f35ce4356953590ea2ab4f54f9456d5c
 status: draft
 verified:
   - by: human:spencer
@@ -34,19 +34,24 @@ verify`'s splice the first time either changed.
 
 Move the splice machinery's public surface into `@okfit/engine` as
 `edits/FrontmatterEdits.ts`
-(`packages/engine/src/edits/FrontmatterEdits.ts:49-81`): a `Context`-free
-facade with `FrontmatterEdits.status(source, status)` and
-`FrontmatterEdits.verified(source, entry)`, each returning
+(`packages/engine/src/edits/FrontmatterEdits.ts`): a `Context`-free
+facade with `FrontmatterEdits.status(source, status)`,
+`FrontmatterEdits.verified(source, entry)` and, since #215,
+`FrontmatterEdits.verifiedWithStatus(source, entry, status)` -- the
+combined write `okfit verify --stable` performs -- each returning
 `MarkdownEdit`s at whole-file offsets into `source` as passed, BOM
-included. Both methods reuse `verify/locate.ts`'s `locate`/
+included. All three reuse `verify/locate.ts`'s `locate`/
 `locateTopLevelScalar` and `verify/splice.ts`'s `splice`/
 `spliceTopLevelScalar` unchanged, so `FrontmatterEdits.verified`'s output
 matches `okfit verify`'s own splice byte for byte -- same locate, same
-splice, same `documentNewline` newline choice. A shape the splice does not
+splice, same `documentNewline` newline choice. `verifiedWithStatus` shares
+`verify/splice.ts`'s `orderVerifyEdits` with `okfit verify`'s
+`prepareVerify`, so both order and merge an equal-offset `status`/`verified`
+insert the same way. A shape the splice does not
 recognise fails closed with `UnsupportedFrontmatterError`, never a partial
 write, mirroring the original decision's fail-closed posture.
 `@okfit/lsp`'s `features/edits.ts` wraps this facade
-(`statusTextEdits`/`verifiedTextEdits`) to convert each edit's offset to
+(`statusTextEdits`/`verifiedTextEdits`/`verifiedStableTextEdits`) to convert each edit's offset to
 an LSP range and applies it through `workspace/applyEdit`, never writing
 to the bundle itself -- the same promise MCP and the language server's
 diagnostics already make.
@@ -69,8 +74,8 @@ file-system side effect.
 `UnsupportedFrontmatterError`; the splice modules are no longer
 CLI-private, though `okfit verify`'s own call sites are unchanged.
 `@okfit/lsp`'s code actions, commands and the VS Code extension's `Set
-Status…` and `Mark Verified` commands all compute edits through this one
-facade, so a fix to the splice logic benefits every caller at once. The
+Status…`, `Mark Verified` and `Mark Verified and Stable` commands all
+compute edits through this one facade, so a fix to the splice logic benefits every caller at once. The
 byte-for-byte fixture corpus the original decision describes still
 exercises the same `locate`/`splice` functions this facade calls, so its
 guarantees carry forward unchanged.

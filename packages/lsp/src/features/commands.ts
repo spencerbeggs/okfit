@@ -1,9 +1,11 @@
 /**
- * `registerCommands`: `workspace/executeCommand` for the three okfit commands
+ * `registerCommands`: `workspace/executeCommand` for the four okfit commands
  * `features/names.ts`'s `OKFIT_COMMANDS` advertises -- `okfit.lsp.setStatus`,
- * `okfit.lsp.markVerified`, `okfit.lsp.revalidate`.
+ * `okfit.lsp.markVerified`, `okfit.lsp.verifyAndMarkStable`,
+ * `okfit.lsp.revalidate`.
  *
- * `okfit.lsp.setStatus` and `okfit.lsp.markVerified` compute a `TextEdit` with
+ * `okfit.lsp.setStatus`, `okfit.lsp.markVerified` and `okfit.lsp.verifyAndMarkStable`
+ * (a draft's verify-and-promote, one edit) compute a `TextEdit` with
  * `features/edits.ts` against the concept's current text (the open buffer,
  * else the file as last loaded) and send it, versioned with that buffer's
  * version (`versionedEdit`), to the client with
@@ -44,6 +46,7 @@ import {
 	editTarget,
 	resolveActor,
 	statusTextEdits,
+	verifiedStableTextEdits,
 	verifiedTextEdits,
 	versionedEdit,
 } from "./edits.js";
@@ -52,6 +55,8 @@ import {
 const SetStatusArgs = Schema.Tuple([Schema.String, Status]);
 /** `[uri]` for `okfit.lsp.markVerified`. */
 const MarkVerifiedArgs = Schema.Tuple([Schema.String]);
+/** `[uri]` for `okfit.lsp.verifyAndMarkStable`. */
+const VerifyAndMarkStableArgs = Schema.Tuple([Schema.String]);
 /** `[rootUri?]` for `okfit.lsp.revalidate`: the array may be empty. */
 const RevalidateArgs = Schema.Tuple([Schema.optionalKey(Schema.String)]);
 
@@ -136,6 +141,22 @@ const handleMarkVerified = (
 		return yield* applyConceptEdit(transport, uri, target, "Mark verified", edits);
 	});
 
+const handleVerifyAndMarkStable = (
+	registry: SessionRegistryShape,
+	documents: OpenDocuments,
+	transport: LspTransportShape,
+	args: ReadonlyArray<unknown> | undefined,
+): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
+	Effect.gen(function* () {
+		const [uri] = yield* decodeArgs(VerifyAndMarkStableArgs, args, "okfit.lsp.verifyAndMarkStable expects [uri]");
+		const target = yield* targetFor(registry, documents, uri);
+		if (target.status !== "draft") return yield* Effect.fail(toLspError({ _tag: "NotADraft" }));
+		const actor = yield* resolveActor(target.handle).pipe(Effect.mapError(toLspError));
+		const now = yield* DateTime.now;
+		const edits = yield* verifiedStableTextEdits(target, actor, now).pipe(Effect.mapError(toLspError));
+		return yield* applyConceptEdit(transport, uri, target, "Mark verified and stable", edits);
+	});
+
 /** Result of `okfit.lsp.revalidate`. @public */
 export interface RevalidateResult {
 	/** The root URIs of every session `okfit.lsp.revalidate` scheduled a `full` revalidate for. */
@@ -175,6 +196,8 @@ const dispatch = (
 			return handleSetStatus(registry, documents, transport, params.arguments);
 		case "okfit.lsp.markVerified":
 			return handleMarkVerified(registry, documents, transport, params.arguments);
+		case "okfit.lsp.verifyAndMarkStable":
+			return handleVerifyAndMarkStable(registry, documents, transport, params.arguments);
 		case "okfit.lsp.revalidate":
 			return handleRevalidate(registry, params.arguments);
 		default:
@@ -183,7 +206,7 @@ const dispatch = (
 };
 
 /**
- * Wires `workspace/executeCommand` onto `transport` for the three okfit
+ * Wires `workspace/executeCommand` onto `transport` for the four okfit
  * commands, computing edits against `documents`' open buffers. See the file
  * header for each command's argument shape, result and failure mapping.
  *

@@ -87,7 +87,7 @@ prefixes to implementations.
 ## Commands
 
 `workspace/executeCommand` (the server advertises `executeCommandProvider.commands`
-in `initialize`'s result) answers three okfit command ids. Arguments are
+in `initialize`'s result) answers four okfit command ids. Arguments are
 `ExecuteCommandParams.arguments`, an array positional by index; a wrong shape
 fails naming what was expected. The ids sit under `okfit.lsp.` so they never
 collide with a client extension's own command ids: `vscode-languageclient`
@@ -103,6 +103,11 @@ client from starting.
   to the concept at `uri`, sends it the same way, and answers the client's
   result. Fails when the concept is a draft, already verified by that actor,
   or no actor resolves.
+- **`okfit.lsp.verifyAndMarkStable`** -- args `[uri]`. For a draft concept,
+  computes the edits that set `status: stable` and append a `verified` entry in
+  one write (what `okfit verify --stable` does), and sends them the same way.
+  Fails for a concept that is not a draft, one already verified by that actor,
+  or when no actor resolves.
 - **`okfit.lsp.revalidate`** -- args `[rootUri?]`, or no arguments at all.
   Schedules a full revalidate (republishing diagnostics and sending
   `okfit/bundleChanged`) on the named bundle root, or on every live session

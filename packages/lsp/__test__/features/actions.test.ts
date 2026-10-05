@@ -6,7 +6,7 @@ import type { CodeAction, CodeActionParams, LspDiagnostic, Range } from "../../s
 import type { ServeHarness } from "../utils/harness.js";
 import { makeServeHarness, request } from "../utils/harness.js";
 import { testPlatform, testPlatformCountingIdentity, testPlatformWithIdentity } from "../utils/platform.js";
-import { applyTextEdit, singleDocumentEdit } from "../utils/textEdits.js";
+import { applyDocumentEdits, applyTextEdit, documentVersion, singleDocumentEdit } from "../utils/textEdits.js";
 
 /**
  * `registerCodeActions`, task 3 of the LSP-actions plan. Against a full
@@ -171,7 +171,58 @@ describe("registerCodeActions", () => {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
 			const uri = yield* openConcept(h, "okf/modules/draft.md", DRAFT_SOURCE);
 			const actions = yield* requestCodeAction(h.client, uri);
-			assert.deepStrictEqual(actions.map(titleOf), ["Set status: stable", "Set status: deprecated"]);
+			assert.deepStrictEqual(actions.map(titleOf), [
+				"Set status: stable",
+				"Set status: deprecated",
+				"Mark verified by human:fixture-author and set status: stable",
+			]);
+			assert.isFalse(actions.some((action) => action.title === "Mark verified by human:fixture-author"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a draft concept's combined action sets `status: stable` before `verified:` in one versioned edit", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const uri = yield* openConcept(h, "okf/modules/draft.md", DRAFT_SOURCE);
+			const actions = yield* requestCodeAction(h.client, uri);
+			const combined = actions.find((action) => action.title.endsWith("and set status: stable")) as CodeAction;
+			assert.strictEqual(combined.kind, "okfit.verify");
+			const version = documentVersion(combined.edit);
+			assert.strictEqual(version, 1);
+			const out = applyDocumentEdits(DRAFT_SOURCE, combined.edit, uri);
+			assert.include(out, "status: stable\n");
+			assert.notInclude(out, "status: draft");
+			assert.include(out, `verified:\n  - by: ${FIXTURE_ACTOR}\n`);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("the combined action is not offered on stable, deprecated, no-status or already-verified concepts", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			for (const [name, source] of [
+				["stable.md", STABLE_SOURCE],
+				["deprecated.md", DEPRECATED_SOURCE],
+				["verified.md", ALREADY_VERIFIED_SOURCE],
+			] as const) {
+				yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", name), source, "utf8"));
+			}
+			yield* h.initialize;
+			for (const name of ["stable.md", "deprecated.md", "verified.md"]) {
+				yield* h.open(`okf/modules/${name}`);
+				yield* h.nextPublish();
+				const actions = yield* requestCodeAction(h.client, h.uriOf(`okf/modules/${name}`));
+				assert.isFalse(actions.some((action) => action.title.includes("and set status: stable")));
+			}
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a draft already verified by the actor is not offered the combined action", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const source = ALREADY_VERIFIED_SOURCE.replace("status: stable", "status: draft");
+			const uri = yield* openConcept(h, "okf/modules/verified.md", source);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.isFalse(actions.some((action) => action.title.includes("and set status: stable")));
 		}).pipe(Effect.scoped),
 	);
 

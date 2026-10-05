@@ -33,8 +33,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T22:30:37Z
-  body_sha256: a2e2eb906e28fea4f7b00eaa3bd50a7e69853390d6095027d007867894d50b08
+  at: 2026-10-05T16:00:16Z
+  body_sha256: a5383397ab8e2f842a3f7d2d1df8642589682be488773cb6e2e8c83a48d24c8e
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -209,7 +209,9 @@ repository's own bundle.
    158, 161 and 171 as each feature landed); the extension's Set Status
    and Mark Verified commands (phase 6, below) shipped on top of this
    phase the same day. Remaining: nothing; the owner's own VS Code UI
-   pass (below) is still owed.
+   pass (below) is still owed. A combined `okfit.lsp.verifyAndMarkStable`
+   command and code action (#215, the editor half of `okfit verify
+   --stable`) followed on feat/lsp-verify-and-mark-stable.
 6. **VS Code extension.** The `vscode/` workspace member (tracking
    package `@okfit/vscode-extension`, Marketplace id `okfit`, publisher
    `okfit`), a `reactive-vscode` language client with per-folder server

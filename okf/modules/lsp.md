@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T22:58:46Z
-  body_sha256: 16e89d2eed8e4164945586af5750686b86d444875318496518364bd274dcb05e
+  at: 2026-10-05T23:10:36Z
+  body_sha256: 0f4a2f9172699a36da96a49b21f55502be87f7fcc4dff3d76373b32d06f9555f
 ---
 
 # LSP
@@ -46,7 +46,8 @@ actions](../decisions/engine-frontmatter-edits-shared-surface.md).
 `executeCommandProvider: { commands: OKFIT_COMMANDS }`, and
 `inlayHintProvider: true`, alongside the diagnostics push the server has
 offered since phase 3. `features/names.ts`'s `OKFIT_COMMANDS`
-(`okfit.lsp.setStatus`, `okfit.lsp.markVerified`, `okfit.lsp.revalidate`)
+(`okfit.lsp.setStatus`, `okfit.lsp.markVerified`,
+`okfit.lsp.verifyAndMarkStable`, `okfit.lsp.revalidate`)
 and `OKFIT_CODE_ACTION_KINDS` (`quickfix`, `okfit.status`, `okfit.verify`)
 are the exact strings both `server.ts` and the VS Code extension agree on,
 without either importing the other. The command ids sit under `okfit.lsp.`
@@ -66,18 +67,25 @@ also offers one `Set status: <status>` action (kind `okfit.status`) per
 status the raw frontmatter `status` is not already -- all three when there
 is no explicit status -- and one `Mark verified by <actor>` action (kind
 `okfit.verify`) when a human actor resolves and the concept is neither a
-draft, deprecated, nor already verified by that actor; the actor is cached per session
+draft, deprecated, nor already verified by that actor. On a draft the
+same kind instead offers `Mark verified by <actor> and set status: stable`
+(#215), one edit equal to what `okfit verify --stable` writes, when that
+actor has not yet verified it; the actor is cached per session
 handle. `registerCommands` (`src/features/commands.ts`) answers
-`workspace/executeCommand` for the three `OKFIT_COMMANDS`:
-`okfit.lsp.setStatus [uri, status]` and `okfit.lsp.markVerified [uri]`
-compute a `TextEdit` and send it to the client with `workspace/applyEdit`,
-answering the client's own result verbatim; `okfit.lsp.revalidate
+`workspace/executeCommand` for the four `OKFIT_COMMANDS`:
+`okfit.lsp.setStatus [uri, status]`, `okfit.lsp.markVerified [uri]` and
+`okfit.lsp.verifyAndMarkStable [uri]` compute a `TextEdit` and send it to
+the client with `workspace/applyEdit`, answering the client's own result
+verbatim (`verifyAndMarkStable` fails `NotADraft` on a concept whose raw
+status is not `draft`, plus `AlreadyVerified`, `ActorUnresolved` and
+`Unsupported` like Mark verified); `okfit.lsp.revalidate
 [rootUri?]` schedules a `full` revalidate on one named bundle root or every
 live session and answers the root URIs revalidated. Both features share
 `features/edits.ts`: `editTarget` reads the document's current text and
 version from the diagnostics feature's open-document memory (else the file
-as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits` wrap
-[Engine](engine.md)'s `FrontmatterEdits.status`/`.verified` over that text,
+as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits`/`verifiedStableTextEdits` wrap
+[Engine](engine.md)'s `FrontmatterEdits.status`/`.verified`/
+`.verifiedWithStatus` over that text,
 and `versionedEdit` sends the result as `documentChanges` carrying the
 version. A command's edit goes over `workspace/applyEdit`, so a client
 whose buffer has moved on refuses a stale one; a code action's edit carries
