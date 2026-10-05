@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:46:33Z
-  body_sha256: 21caca6b82ad1f6c7a2b88148191b899ecccbcb4108904169a6ac3fdfb1cd099
+  at: 2026-10-05T18:28:58Z
+  body_sha256: 4ce8186151cdb6c3b18d203d915f005557ed744e6dce40671b34985ff66977b1
 ---
 
 # CLI
@@ -59,8 +59,9 @@ with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
 (`internal/initWizard.ts`) for whichever of profile, `--bundle <dir>` and
 `--config-location` was not given as a flag. Cancelling (Esc, `q`, Ctrl-C,
 answering no) is the kit's `Cancelled`, exit `130`, nothing written;
-`renderFailure` prints the kit's `Cancelled` and `NotInteractive` messages
-as they are, with no `error:` prefix; it reads the kit's `details.isDefect`
+`renderFailure` prints the kit's own `defaultLines` for a cancelled or
+non-interactive run (`details.isCancelled`, `details.isNotInteractive`), with
+no `error:` prefix; it reads the kit's `details.isDefect`
 to give a defect the `error:` report plus a `Please report at` issue link and
 a typed failure one line. The wizard skips the profile screen while only one
 profile is registered. `ink` and `react` are `@okfit/cli`

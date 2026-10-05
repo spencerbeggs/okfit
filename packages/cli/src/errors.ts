@@ -1,5 +1,5 @@
 import type { FailureDetails } from "@effected/cli";
-import { Cancelled, ConfigIssueRenderer, NotInteractive } from "@effected/cli";
+import { ConfigIssueRenderer } from "@effected/cli";
 import type { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,
@@ -40,8 +40,9 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *
  * Rules, in order:
  *
- * 1. `Cancelled` and `NotInteractive` (a cancelled prompt is a defect in the
- *    cause, but not a bug) render as the kit's own fixed line, unprefixed.
+ * 1. A cancelled or non-interactive run (`details.isCancelled`,
+ *    `details.isNotInteractive`: a cancelled fallback prompt is a defect in the
+ *    cause, but not a bug) renders as the kit's own `defaultLines`, unprefixed.
  *    `ShowHelp` never reaches `render`: `CliRuntime.main` handles it first.
  * 2. `ConfigPathNotFoundError` renders as its own `error: <message>` line;
  *    `InitOverwriteError` renders as the K-51 header, one two-space-indented
@@ -89,9 +90,9 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * @public
  */
 export const renderFailure = (error: unknown, details: FailureDetails): ReadonlyArray<string> => {
-	// #217: the kit's own fixed line is each error's `message`. Neither gets
-	// an `error:` prefix: a person backing out is not an error (exit 130).
-	if (error instanceof Cancelled || error instanceof NotInteractive) return [error.message];
+	// #217: the kit's own fixed line. Neither gets an `error:` prefix: a person
+	// backing out is not an error (exit 130). The flags hold on either channel.
+	if (details.isCancelled || details.isNotInteractive) return details.defaultLines;
 	if (error instanceof ConfigPathNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof ConfigMalformedError) return [`error: ${error.message}`];
 	if (error instanceof InitOverwriteError) {

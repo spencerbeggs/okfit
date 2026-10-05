@@ -92,6 +92,10 @@ export const main = (options: MainOptions = {}): void => {
 			//
 			// `stderrIsTerminal` is stderr's own check (the kit otherwise mirrors
 			// stdout's), so `okfit ... 2>err.log` never paints a redirected stderr.
+			// The kit has no default for it, by design: core exposes no stderr
+			// terminal check (Effect-TS/effect#8639) and a library never reads
+			// `process`, so the bin, the one place that reads its host, passes it.
+			// This is the kit's documented shape; it drops out when core ships one.
 			// `formatter` keeps okfit's `--version` line; it must come through
 			// `env` (not a layer inside the program) for `helpOnUsageError` to
 			// see the formatter. Help and error rendering stay the kit's default.
