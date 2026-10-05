@@ -13,8 +13,8 @@ sources:
     resource: https://github.com/spencerbeggs/okfit/issues/191
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:53:52Z
-  body_sha256: d5c7d979faaea49d991efa840ebd09b807f00994e616cc53e0b4cfee11cf7d3e
+  at: 2026-10-05T17:12:42Z
+  body_sha256: 3054ab0ed7066bdc0069a1eace9c1a18d57880e6a96dacf9bda814dda7d27d12
 ---
 
 # The carrier keeps its front ends' bin names, proven under allowSharedBins
@@ -36,7 +36,9 @@ gets with `runBin`, proves the carrier's own shim with `runCarrierBin` and
 `carrierCommand` (the `via @okfit/plugin` suffix, the `distribution` stamp, an
 MCP and an LSP handshake), and pins who owns each slot with `binProvenance`:
 npm and bun link the front end, Yarn keeps the carrier, pnpm writes shell
-shims.
+shims. CI requires npm, pnpm and bun (root `devEngines.runtime` names bun so
+the runner installs it); Yarn is checked only where installed, and its row only
+on Yarn 2+.
 
 ## Alternatives rejected
 

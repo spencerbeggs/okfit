@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:58:23Z
-  body_sha256: 910c6045232ec78d185259bd405050750aa0f2753da2e7982ec4b8e1052b97bb
+  at: 2026-10-05T17:12:42Z
+  body_sha256: 00de057ceefaafdc031a6d8c5a479359851982a2769d9b9f5b89dc48b823f094
 ---
 
 # Plugin
@@ -49,6 +49,8 @@ The three front ends declare the same bin names, deliberately; see [The carrier
 keeps its front ends' bin names, proven under
 allowSharedBins](../decisions/plugin-keeps-shared-bins-under-allow-shared-bins.md).
 `packages/plugin/__test__/e2e/packed-install.e2e.test.ts` installs the packed
-tarballs under npm, pnpm, Yarn and bun and runs this package's own bins with
+tarballs under npm, pnpm and bun (all required in `CI`; Yarn is
+exercised only where it is installed, and its slot row is asserted only on
+Yarn 2+) and runs this package's own bins with
 `runCarrierBin`, so it proves the published artifact rather than `dist/dev`. It
 needs the prod build: it skips without it locally and fails under `CI`.

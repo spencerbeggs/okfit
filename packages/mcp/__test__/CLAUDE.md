@@ -39,6 +39,7 @@ __test__/
 - **One packed smoke, everything else on the dev dist.** The lifecycle and
   crash-guard suites stay on `dist/dev` (fast, many cases, dev-only injection
   knobs). `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/mcp`
-  tarballs under every available package manager and runs `McpProbe.initialize`
+  tarballs under every available package manager (npm, pnpm, bun required in
+  `CI`, Yarn local-only) and runs `McpProbe.initialize`
   against `consumer.command` (`PackedInstall`; needs the prod build; skips
   without it locally, fails under `CI`).

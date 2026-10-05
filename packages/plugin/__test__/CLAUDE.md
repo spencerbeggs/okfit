@@ -44,9 +44,10 @@ __test__/
   installing the published artifact and running the bins proves the fix, so
   `e2e/packed-install.e2e.test.ts` uses `@effected/workspaces/testing`'s
   `PackedInstall`: it packs `dist/prod/npm/pkg` for the carrier and its
-  closure, installs under npm, pnpm, Yarn and bun (a manager that is not
-  installed is skipped locally via `require: "any"`, and fails in CI via
-  `require: "all"`), and per consumer runs `okfit --version`, the
+  closure, installs under npm, pnpm, Yarn and bun locally (`require: "any"`
+  skips a manager that is not installed) and under npm, pnpm and bun in CI
+  (`require: "all"`; root `devEngines.runtime` names bun so the runner has it,
+  Yarn stays local-only and its slot row is asserted only on Yarn 2+), and per consumer runs `okfit --version`, the
   `distribution` stamp, an `okfit-mcp` `McpProbe.initialize` and an
   `okfit-lsp` handshake through `runCarrierBin`/`carrierCommand`, plus the
   per-manager `binProvenance` table. `allowSharedBins: true` because the front

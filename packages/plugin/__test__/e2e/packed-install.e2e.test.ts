@@ -28,13 +28,14 @@ const Live = Workspaces.layer({ cwd: ROOT }).pipe(Layer.provideMerge(NodeService
 const RUN: PackedInstallOptions = {
 	carrier: "@okfit/plugin",
 	closure: "auto",
-	managers: ["npm", "pnpm", "yarn", "bun"],
+	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
+	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
 	bins: ["okfit", "okfit-mcp", "okfit-lsp"],
 	allowSharedBins: true,
 	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli 0.11; a CI
 	// runner exporting it would colour the output asserted below (okfit #232).
 	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
-	// CI provisions every manager, so a missing one fails there; locally it is skipped.
+	// A missing manager fails in CI; locally any one that is installed is enough.
 	require: process.env.CI ? "all" : "any",
 	installTimeout: "3 minutes",
 	packTimeout: "30 seconds",
@@ -142,7 +143,9 @@ describe.skipIf(!RUNNABLE)("packed install (@okfit/plugin)", () => {
 						assert.include(lsp.stderr, "via @okfit/plugin", label);
 
 						// Who owns each .bin slot under shared bins.
-						for (const bin of RUN.bins) {
+						// The yarn row was observed on Yarn 4; Yarn Classic (1.x) links differently, so it is not asserted.
+						const classicYarn = consumer.manager === "yarn" && Number(consumer.managerVersion.split(".")[0]) < 2;
+						for (const bin of classicYarn ? [] : RUN.bins) {
 							const provenance = yield* consumer.binProvenance(bin);
 							assert.strictEqual(provenance?.package, SLOT_OWNER[consumer.manager][bin], `${label} .bin/${bin}`);
 						}

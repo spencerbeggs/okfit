@@ -18,7 +18,12 @@ src/
   bin.ts                       -- the shebang entry point: imports and awaits main()
   main.ts                      -- McpGuard.run crash guards (@effected/mcp/guard, policy
                                    exitBeforeConnect), OkfitPlatform (@okfit/engine),
-                                   McpStdio.launch/.teardown run by the guard
+                                   McpStdio.launch/.teardown run by the guard.
+                                   onRejection is exitBeforeConnect, not the skill's
+                                   canonical "log": a rejection before the server is
+                                   serving means a broken boot, and logging it would
+                                   leave a server that never answers; once serving,
+                                   both policies log and keep going
   index.ts                     -- programmatic barrel (ServerLayer, schemas, errors)
   version.ts                   -- MCP_VERSION, read from process.env.__PACKAGE_VERSION__, a
                                    build-time constant the bundler injects -- never a

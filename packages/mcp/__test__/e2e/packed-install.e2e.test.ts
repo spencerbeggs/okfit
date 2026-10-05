@@ -26,10 +26,11 @@ const Live = Workspaces.layer({ cwd: ROOT }).pipe(Layer.provideMerge(NodeService
 const RUN: PackedInstallOptions = {
 	carrier: "@okfit/mcp",
 	closure: "auto",
-	managers: ["npm", "pnpm", "yarn", "bun"],
+	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
+	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
 	bins: ["okfit-mcp"],
 	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
-	// CI provisions every manager, so a missing one fails there; locally it is skipped.
+	// A missing manager fails in CI; locally any one that is installed is enough.
 	require: process.env.CI ? "all" : "any",
 	installTimeout: "3 minutes",
 	packTimeout: "30 seconds",

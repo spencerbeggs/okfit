@@ -38,7 +38,7 @@ const INITIALIZE = {
 // crash once serving is logged and the server keeps answering.
 describe("crash guards", () => {
 	for (const kind of ["uncaughtException", "unhandledRejection"] as const) {
-		it.effect(`a ${kind} before the server is serving exits 1 with a report on stderr`, () =>
+		it.live(`a ${kind} before the server is serving exits 1 with a report on stderr`, () =>
 			Effect.gen(function* () {
 				const server = yield* spawnWithCrash(`load:${kind}`);
 				const code = yield* server.exitCode.pipe(
