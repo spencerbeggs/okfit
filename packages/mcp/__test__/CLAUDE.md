@@ -40,5 +40,5 @@ __test__/
   crash-guard suites stay on `dist/dev` (fast, many cases, dev-only injection
   knobs). `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/mcp`
   tarballs under every available package manager and runs `McpProbe.initialize`
-  against `consumer.command` (`PackedInstall`; needs the prod build, skips
-  without it).
+  against `consumer.command` (`PackedInstall`; needs the prod build; skips
+  without it locally, fails under `CI`).

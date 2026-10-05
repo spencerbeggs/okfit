@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
-import { assert, describe, layer } from "@effect/vitest";
+import { assert, describe, it, layer } from "@effect/vitest";
 import { McpProbe } from "@effected/mcp/testing";
 import { Workspaces } from "@effected/workspaces";
 import type { PackedInstallOptions } from "@effected/workspaces/testing";
@@ -10,7 +10,7 @@ import { Duration, Effect, Layer } from "effect";
 
 const ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
 // PackedInstall packs `dist/prod/npm/pkg` (the release artifact); without the
-// prod build there is nothing to pack and the suite skips. POSIX-only.
+// prod build there is nothing to pack: the suite skips locally and FAILS under CI. POSIX-only.
 const BUILT = existsSync(join(ROOT, "packages", "mcp", "dist", "prod", "npm", "pkg", "package.json"));
 const RUNNABLE = BUILT && process.platform !== "win32";
 
@@ -44,6 +44,13 @@ const BUDGET = PackedInstall.timeoutBudget({
 	packTimeout: RUN.packTimeout,
 	packages: PACKED,
 	perConsumer: "2 minutes",
+});
+
+// A missing artifact in CI must be loud: a silent skip would stop proving the published tarballs.
+describe.runIf(Boolean(process.env.CI) && !BUILT)("packed install (@okfit/mcp) prod build", () => {
+	it("dist/prod exists (run `pnpm turbo run build:prod` before the tests)", () => {
+		assert.fail("packages/mcp/dist/prod/npm/pkg/package.json is missing under CI; build:prod must run before ci:test");
+	});
 });
 
 describe.skipIf(!RUNNABLE)("packed install (@okfit/mcp)", () => {

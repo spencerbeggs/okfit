@@ -79,6 +79,6 @@ __test__/
   here stay on `dist/dev` through `runOkfit`; only
   `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/cli` tarballs
   under every available package manager (`PackedInstall`, needs the prod
-  build, skips without it) and proves the published artifact. `runOkfit`
+  build; skips without it locally, fails under `CI`) and proves the published artifact. `runOkfit`
   defaults `FORCE_COLOR=0` under the caller's env (it beats `NO_COLOR` since
   `@effected/cli` 0.11); the packed suite pins it the same way.

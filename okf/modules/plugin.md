@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:53:52Z
-  body_sha256: 1a5131f44b4f003c2e48c9d885c4ec98c835d16542f49a2620004b1b47aa7711
+  at: 2026-10-05T16:58:23Z
+  body_sha256: 910c6045232ec78d185259bd405050750aa0f2753da2e7982ec4b8e1052b97bb
 ---
 
 # Plugin
@@ -51,4 +51,4 @@ allowSharedBins](../decisions/plugin-keeps-shared-bins-under-allow-shared-bins.m
 `packages/plugin/__test__/e2e/packed-install.e2e.test.ts` installs the packed
 tarballs under npm, pnpm, Yarn and bun and runs this package's own bins with
 `runCarrierBin`, so it proves the published artifact rather than `dist/dev`. It
-needs the prod build and skips without it.
+needs the prod build: it skips without it locally and fails under `CI`.

@@ -53,7 +53,9 @@ __test__/
   ends share the bin names (see the shared-bins Decision).
 - **The packed suite needs the PROD build.** `PackedInstall` packs
   `dist/prod/npm/pkg`; `vitest.setup.ts` builds only `dist/dev`, so the suite
-  `describe.skipIf`s when the prod build is absent. CI builds both
-  (`ci:build`). Run `pnpm turbo run build:prod` before expecting it to run.
+  `describe.skipIf`s when the prod build is absent locally but FAILS under
+  `CI` (a guard test asserts the artifact exists), so a missing build is loud.
+  Root `ci:test` runs `turbo run build:prod` before vitest. Run
+  `pnpm turbo run build:prod` locally before expecting it to run.
   Its timeout comes from `PackedInstall.closure` + `timeoutBudget`, planned
   with a top-level `await` at module evaluation; the env pins `FORCE_COLOR=0`.
