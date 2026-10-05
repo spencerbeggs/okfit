@@ -8,7 +8,7 @@ generated:
   by: okfit/claude-code
   at: 2026-10-05T16:45:05Z
   body_sha256: 6db2be3f457d1894a11159479d238a9c40ae303228bfcfa1a5c482def362acc5
-status: draft
+status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
   - id: server-ts
@@ -21,6 +21,9 @@ sources:
     resource: stdin capture of Claude Code 2.1.278 launching okfit-mcp
     author: human:spencer
     last_modified: 2026-09-19T00:00:00Z
+verified:
+  - by: human:spencer
+    at: 2026-10-05T22:56:15Z
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first

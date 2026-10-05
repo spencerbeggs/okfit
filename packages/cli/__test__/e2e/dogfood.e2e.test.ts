@@ -79,11 +79,13 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (`okf/decisions/interactive-prompts-gated-by-audience-and-terminal.md`).
  *
  * The docs-surfaces work adds four `Surface` concepts and one `Publication`.
+ * The effected kit adoption (#191) adds a `draft` Decision for shared bins and
+ * the crash-policy Decision (`okf/decisions/servers-survive-stray-crashes-once-serving.md`).
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 37,
+	Decision: 38,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,

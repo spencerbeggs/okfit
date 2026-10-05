@@ -2,7 +2,7 @@
 type: Decision
 title: The carrier keeps its front ends' bin names, proven under allowSharedBins
 description: "@okfit/plugin declares okfit, okfit-mcp and okfit-lsp although @okfit/cli, @okfit/mcp and @okfit/lsp declare the same names, and the packed-install e2e passes allowSharedBins and proves the carrier's own shims instead of moving to carrier-only bins."
-status: draft
+status: stable
 tags:
   - architecture
   - testing
@@ -15,6 +15,9 @@ generated:
   by: okfit/claude-code
   at: 2026-10-05T17:12:42Z
   body_sha256: 3054ab0ed7066bdc0069a1eace9c1a18d57880e6a96dacf9bda814dda7d27d12
+verified:
+  - by: human:spencer
+    at: 2026-10-05T22:56:15Z
 ---
 
 # The carrier keeps its front ends' bin names, proven under allowSharedBins

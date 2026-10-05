@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T19:16:54Z
-  body_sha256: 5fd4b8335807694d46ed17d429efd87b13ef870dc3384976e44dd3eecb7c696a
+  at: 2026-10-05T22:58:46Z
+  body_sha256: 16e89d2eed8e4164945586af5750686b86d444875318496518364bd274dcb05e
 ---
 
 # LSP
@@ -231,6 +231,7 @@ exit code (`1` only for `exit` without `shutdown`) and always ends the
 process, since a clean `shutdown` + `exit` otherwise waits on a stdin the
 client never closes first. The e2e suite drives the bin through the kit's
 `LspProcess`.
+Rationale and the accepted stale-state caveat: [the crash-policy Decision](../decisions/servers-survive-stray-crashes-once-serving.md).
 
 ## Boundaries
 

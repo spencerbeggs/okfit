@@ -2,13 +2,16 @@
 type: Decision
 title: The language server runs the reference vscode-languageserver library behind an Effect transport seam
 description: '@okfit/lsp wraps the reference vscode-languageserver library behind an eight-member LspTransportShape rather than writing an Effect-native LSP transport or adopting an MCP-TypeScript-SDK-style route, so a later transport can replace it without touching a feature.'
-status: draft
+status: stable
 tags:
   - architecture
 generated:
   by: okfit/claude-code
   at: 2026-09-28T19:49:01Z
   body_sha256: e0bacc18c97b35c769c3dbea10e6cae75380e40e9d422156ad5f2243e87d9925
+verified:
+  - by: human:spencer
+    at: 2026-10-05T22:56:15Z
 ---
 
 # The language server runs the reference vscode-languageserver library behind an Effect transport seam
