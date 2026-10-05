@@ -7,8 +7,8 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T00:10:20Z
-  body_sha256: 47a68a89dc097e4f1b34ee749ab7eb4379f002ea6cd72e20f85d28b16b704f4e
+  at: 2026-10-05T16:45:05Z
+  body_sha256: 20a738e4eb44c1b8253b47a59a4a6a896fce904705c1353d1ede82fe4766bd80
 ---
 
 # MCP

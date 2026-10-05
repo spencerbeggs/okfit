@@ -4,6 +4,9 @@
 
 * Updated CLI
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated MCP
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated okfit-mcp — MCP tool and resource contract
 
 ## 2026-10-03
 

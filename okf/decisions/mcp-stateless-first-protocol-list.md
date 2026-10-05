@@ -6,8 +6,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-28T19:49:01Z
-  body_sha256: 98259c9016992a47767e715bdf7bb70deb19e2241587feab3d899916fb56e250
+  at: 2026-10-05T16:45:05Z
+  body_sha256: 6db2be3f457d1894a11159479d238a9c40ae303228bfcfa1a5c482def362acc5
 status: draft
 supersedes: mcp-effect-native-legacy-era.md
 sources:
