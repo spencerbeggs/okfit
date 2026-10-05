@@ -212,6 +212,14 @@ describe("okfit init", () => {
 		assert.include(config, 'profile = "none"');
 	});
 
+	it("--config with bundle.profile = none scaffolds the none profile with no flag and no terminal", async () => {
+		const { cwd, env } = await makeSandbox();
+		await writeFile(`${cwd}/ext.toml`, '[bundle]\nprofile = "none"\n');
+		const result = await withServices(runOkfit(["init", "--config", "ext.toml"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 0);
+		assert.strictEqual(result.stdout, "Initialized okf with the none profile\n");
+	});
+
 	it("an unknown --profile name warns on stderr and still scaffolds and validates clean (K-4, decision 2, decision 3)", async () => {
 		const { cwd, env } = await makeSandbox();
 		const result = await withServices(runOkfit(["init", "--profile", "bogus"], { cwd, env: baseEnv(env) }));

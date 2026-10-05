@@ -95,13 +95,13 @@ export const initWizard = (
 		}
 
 		// One registered profile is not a question: a one-choice screen asks for
-		// nothing, so it is skipped and the lone profile is used (#232).
+		// nothing, so the prompt is skipped and the default (the config's profile,
+		// else the lone one) is used (#232).
 		const profileNames: ReadonlyArray<string> = PROFILE_NAMES;
-		const [onlyProfile] = profileNames;
 		const profile = Option.isSome(given.profile)
 			? given.profile.value
-			: profileNames.length === 1 && onlyProfile !== undefined
-				? onlyProfile
+			: profileNames.length === 1
+				? defaults.profile
 				: yield* CliUi.prompt(
 						Select.screen({
 							message: "Profile to scaffold with",

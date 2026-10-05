@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Cancelled } from "@effected/cli";
 import { CliUiTest } from "@effected/cli/ui/testing";
-import { Effect, Exit, Fiber, Option } from "effect";
+import { Cause, Effect, Exit, Fiber, Option } from "effect";
 import { renderFailure } from "../src/errors.js";
 import { InitBundleDirError, checkBundleDir } from "../src/internal/initWizard.js";
 import { detailsOf, renderTyped } from "./utils/failureDetails.js";
@@ -97,7 +97,8 @@ describe("init wizard (CliUiTest.session driving the real handler)", () => {
 					assert.isTrue(Exit.isFailure(exit));
 					assert.deepStrictEqual(CliUiTest.cancelReason(exit), Option.some("escape"));
 					if (Exit.isFailure(exit)) {
-						const failure = new Cancelled({ reason: "escape" });
+						const failure = Cause.squash(exit.cause);
+						assert.instanceOf(failure, Cancelled);
 						assert.deepStrictEqual(renderFailure(failure, detailsOf(failure, exit.cause, true)), [
 							"cancelled; nothing written",
 						]);
