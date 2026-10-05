@@ -52,3 +52,22 @@ export const singleDocumentEdit = (
 	if (only === undefined || rest.length > 0) throw new Error("expected exactly one TextEdit");
 	return { version: change.textDocument.version, edit: only as TextEdit };
 };
+
+/** The versioned document change `edit` carries for `uri` with all its `TextEdit`s, applied together to `text`. */
+export const applyDocumentEdits = (text: string, edit: WorkspaceEdit | undefined, uri: string): string => {
+	const change = edit?.documentChanges?.[0];
+	if (change === undefined || !("textDocument" in change) || change.textDocument.uri !== uri) {
+		throw new Error(`expected a document change for ${uri}`);
+	}
+	const edits = (change.edits as ReadonlyArray<TextEdit>)
+		.map((entry) => ({ entry, start: offsetOf(text, entry.range.start), end: offsetOf(text, entry.range.end) }))
+		.toSorted((a, b) => b.start - a.start);
+	return edits.reduce((acc, { entry, start, end }) => acc.slice(0, start) + entry.newText + acc.slice(end), text);
+};
+
+/** The target version of the first document change `edit` carries (`null` for a document that is not open). */
+export const documentVersion = (edit: WorkspaceEdit | undefined): number | null => {
+	const change = edit?.documentChanges?.[0];
+	if (change === undefined || !("textDocument" in change)) throw new Error("expected a TextDocumentEdit");
+	return change.textDocument.version;
+};

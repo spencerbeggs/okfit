@@ -17,9 +17,12 @@
  *   status the raw frontmatter `status` is not already (all three when it has
  *   no explicit status), in `Status`'s literal order, minus any a quick fix
  *   already offers.
- * - **Verify action** (kind `okfit.verify`). `Mark verified by <actor>` when
- *   a human actor resolves and the concept is neither a draft nor already
- *   verified by that actor.
+ * - **Verify actions** (kind `okfit.verify`). `Mark verified by <actor>` when
+ *   a human actor resolves and the concept is neither a draft, deprecated nor
+ *   already verified by that actor; on a draft instead,
+ *   `Mark verified by <actor> and set status: stable` (one edit, the same
+ *   write `okfit verify --stable` performs) when that actor has not yet
+ *   verified it.
  *
  * The status and verify actions are offered only when the request range
  * intersects the frontmatter block, or `context.only` names their kind; the
@@ -45,6 +48,7 @@ import {
 	editTarget,
 	resolveActor,
 	statusTextEdits,
+	verifiedStableTextEdits,
 	verifiedTextEdits,
 	versionedEdit,
 } from "./edits.js";
@@ -161,6 +165,21 @@ export const registerCodeActions = (
 						if (status === target.status || quickFixes.includes(status)) continue;
 						const action = yield* statusAction(uri, target, status);
 						if (Option.isSome(action)) actions.push(action.value);
+					}
+				}
+
+				if (offer("okfit.verify") && target.status === "draft") {
+					const actor = yield* actorFor(target.handle);
+					if (Option.isSome(actor)) {
+						const now = yield* DateTime.now;
+						const edits = yield* Effect.option(verifiedStableTextEdits(target, actor.value, now));
+						if (Option.isSome(edits)) {
+							actions.push({
+								title: `Mark verified by ${actor.value} and set status: stable`,
+								kind: "okfit.verify",
+								edit: versionedEdit(uri, target, edits.value),
+							});
+						}
 					}
 				}
 

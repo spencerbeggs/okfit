@@ -49,7 +49,8 @@ export type EditFailure =
 	| { readonly _tag: "ActorUnresolved"; readonly message: string }
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
 	| { readonly _tag: "DraftCannotBeVerified" }
-	| { readonly _tag: "DeprecatedCannotBeVerified" };
+	| { readonly _tag: "DeprecatedCannotBeVerified" }
+	| { readonly _tag: "NotADraft" };
 
 /** The owning session's last-loaded concept, config and project root for `path`; `None` when there is no session, no loaded bundle, or `path` is not a concept. */
 interface ConceptSnapshot {
@@ -209,6 +210,32 @@ export const verifiedTextEdits = (
 	});
 
 /**
+ * `TextEdit`s over `target.text` that append one `verified` entry (`by`
+ * `actor`, `at` the encoded `now`) AND set `status: stable` in one write --
+ * `okfit verify --stable`'s combined edit. Fails `NotADraft` unless the
+ * concept's raw `status` is `draft` (a non-draft takes the plain Mark
+ * verified), `AlreadyVerified` when `actor` already carries a `verified`
+ * entry, or when a shape `FrontmatterEdits.verifiedWithStatus` cannot splice.
+ *
+ * @public
+ */
+export const verifiedStableTextEdits = (
+	target: EditTarget,
+	actor: string,
+	now: DateTime.Utc,
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure> =>
+	Effect.gen(function* () {
+		if (target.status !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
+		if (target.verifiedBy.includes(actor))
+			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
+		const at = Schema.encodeSync(Timestamp)(now);
+		const edits = yield* FrontmatterEdits.verifiedWithStatus(target.text, { by: actor, at }, "stable").pipe(
+			Effect.mapError((error): EditFailure => toEditFailure(error, "verified")),
+		);
+		return edits.map((edit) => toTextEdit(target.text, edit));
+	});
+
+/**
  * The human actor a `verified` edit in `handle`'s session resolves to
  * (`Derivation.generatedBy` in the session's workspace folder), or
  * `ActorUnresolved` when git has no `user.name`/`user.email` to derive one
@@ -254,5 +281,7 @@ export const describeFailure = (failure: EditFailure): string => {
 			return "the editor's Mark verified skips a draft concept, as okfit verify --batch does";
 		case "DeprecatedCannotBeVerified":
 			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
+		case "NotADraft":
+			return "Mark verified and stable promotes a draft concept; use Mark verified for a concept that is not a draft";
 	}
 };
