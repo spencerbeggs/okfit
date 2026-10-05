@@ -2,7 +2,7 @@
 type: Decision
 title: The language and MCP servers survive a stray crash once serving, and exit on one before
 description: "okfit-lsp and okfit-mcp run under the kit's crash guards with the exitBeforeConnect policy for both uncaught exceptions and unhandled rejections: a stray error before the server is serving exits 1, and once serving it is logged on stderr and the server keeps answering."
-status: draft
+status: stable
 tags:
   - architecture
   - observability
@@ -17,6 +17,9 @@ generated:
   by: okfit/claude-code
   at: 2026-10-05T22:58:46Z
   body_sha256: ef0014c6c62a639d693923030795673556f29ef00e8761fad9c7589c06e0b61a
+verified:
+  - by: human:spencer
+    at: 2026-10-05T23:03:56Z
 ---
 
 # The language and MCP servers survive a stray crash once serving, and exit on one before
