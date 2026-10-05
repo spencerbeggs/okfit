@@ -1,21 +1,14 @@
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it, layer } from "@effect/vitest";
-import { Run } from "@effected/commands";
+import { LspProbe } from "@effected/lsp/testing";
 import { McpProbe } from "@effected/mcp/testing";
 import { Workspaces } from "@effected/workspaces";
 import type { PackedInstallOptions } from "@effected/workspaces/testing";
 import { PackedInstall } from "@effected/workspaces/testing";
-import { Duration, Effect, FileSystem, Layer, Stream } from "effect";
-import { ChildProcess } from "effect/process";
+import { Duration, Effect, FileSystem, Layer } from "effect";
 
 const ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
-// PackedInstall packs `dist/prod/npm/pkg` (the release artifact), so the suite
-// needs the prod build; without it there is nothing to pack: it skips locally and FAILS under CI.
-const BUILT = existsSync(join(ROOT, "packages", "plugin", "dist", "prod", "npm", "pkg", "package.json"));
-// PackedInstall is POSIX-only.
-const RUNNABLE = BUILT && process.platform !== "win32";
 
 const Live = Workspaces.layer({ cwd: ROOT }).pipe(Layer.provideMerge(NodeServices.layer));
 
@@ -28,6 +21,9 @@ const Live = Workspaces.layer({ cwd: ROOT }).pipe(Layer.provideMerge(NodeService
 const RUN: PackedInstallOptions = {
 	carrier: "@okfit/plugin",
 	closure: "auto",
+	// While a dogfood loop links an unreleased sibling build (`file:` overrides in pnpm-workspace.yaml), the
+	// consumers get that build too; with no such override this reads nothing.
+	workspaceOverrides: true,
 	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
 	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
 	bins: ["okfit", "okfit-mcp", "okfit-lsp"],
@@ -41,6 +37,15 @@ const RUN: PackedInstallOptions = {
 	packTimeout: "30 seconds",
 };
 
+// Module evaluation, before `describe` runs. PackedInstall packs `dist/prod/npm/pkg` (the release
+// artifact): with it absent the suite skips locally and FAILS under CI (a silent skip would stop
+// proving the published tarballs). The gate reads `CI` through `Config`.
+const GATE = await Effect.runPromise(
+	PackedInstall.preflight(RUN).pipe(Effect.flatMap(PackedInstall.gate), Effect.provide(Live)),
+);
+// PackedInstall is POSIX-only.
+const RUNNABLE = GATE.action === "run" && process.platform !== "win32";
+
 // Module evaluation, before `describe` runs: the names the run will pack.
 const PACKED = RUNNABLE
 	? await Effect.runPromise(PackedInstall.closure(RUN.carrier, RUN).pipe(Effect.provide(Live)))
@@ -53,18 +58,6 @@ const BUDGET = PackedInstall.timeoutBudget({
 	// Per consumer: a --version run per bin, a validate run, an MCP and an LSP handshake.
 	perConsumer: "3 minutes",
 });
-
-const frame = (message: unknown) => {
-	const body = JSON.stringify(message);
-	return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
-};
-
-const LSP_STDIN = [
-	frame({ jsonrpc: "2.0", id: 1, method: "initialize", params: { processId: null, rootUri: null, capabilities: {} } }),
-	frame({ jsonrpc: "2.0", method: "initialized", params: {} }),
-	frame({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null }),
-	frame({ jsonrpc: "2.0", method: "exit", params: null }),
-].join("");
 
 /**
  * Which package owns each `.bin` slot under shared bins, observed on npm 11,
@@ -84,12 +77,9 @@ const SLOT_OWNER: Record<"npm" | "pnpm" | "yarn" | "bun", Record<string, string 
 const VERSION =
 	/^okfit \d+\.\d+\.\d+ via @okfit\/plugin \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.2, config-schema 1\.0\)$/;
 
-// A missing artifact in CI must be loud: a silent skip would stop proving the published tarballs.
-describe.runIf(Boolean(process.env.CI) && !BUILT)("packed install (@okfit/plugin) prod build", () => {
+describe.runIf(GATE.action === "fail")("packed install (@okfit/plugin) prod build", () => {
 	it("dist/prod exists (run `pnpm turbo run build:prod` before the tests)", () => {
-		assert.fail(
-			"packages/plugin/dist/prod/npm/pkg/package.json is missing under CI; build:prod must run before ci:test",
-		);
+		assert.fail(GATE.message);
 	});
 });
 
@@ -130,16 +120,12 @@ describe.skipIf(!RUNNABLE)("packed install (@okfit/plugin)", () => {
 						assert.isUndefined(probe.response.error, label);
 						assert.strictEqual(probe.exitCode, 0, `${label}: ${probe.stderr}`);
 
-						// LSP: initialize, shutdown, exit over framed stdio.
-						const lspBase = yield* consumer.carrierCommand("okfit-lsp", ["--stdio"], { env });
-						const lsp = yield* Run.collect(
-							ChildProcess.make(lspBase.command, lspBase.args, {
-								...lspBase.options,
-								stdin: Stream.make(new TextEncoder().encode(LSP_STDIN)),
-							}),
-						);
+						// LSP: initialize, shutdown, exit over framed stdio; the report goes to stderr, never the wire.
+						const lspCommand = yield* consumer.carrierCommand("okfit-lsp", ["--stdio"], { env });
+						const lsp = yield* LspProbe.initialize(lspCommand);
+						assert.isUndefined(lsp.response.error, label);
+						assert.deepStrictEqual(lsp.shutdown.result, null, label);
 						assert.strictEqual(lsp.exitCode, 0, `${label}: ${lsp.stderr}`);
-						assert.include(lsp.stdout, '"name":"okfit-lsp"', label);
 						assert.include(lsp.stderr, "via @okfit/plugin", label);
 
 						// Who owns each .bin slot under shared bins.

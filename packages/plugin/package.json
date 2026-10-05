@@ -43,7 +43,7 @@
 	"devDependencies": {
 		"@effect/platform-node": "catalog:effect",
 		"@effect/vitest": "catalog:effect",
-		"@effected/commands": "catalog:effected",
+		"@effected/lsp": "^0.1.0",
 		"@effected/mcp": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
 		"@savvy-web/bundler": "^2.4.21",

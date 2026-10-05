@@ -80,6 +80,6 @@ __test__/
   `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/cli` tarballs
   under every available package manager (npm, pnpm, bun required in `CI`, Yarn
   local-only; `PackedInstall`, needs the prod
-  build; skips without it locally, fails under `CI`) and proves the published artifact. `runOkfit`
+  build; the `preflight` + `gate` pair skips without it locally and fails under `CI`) and proves the published artifact. `runOkfit`
   defaults `FORCE_COLOR=0` under the caller's env (it beats `NO_COLOR` since
   `@effected/cli` 0.11); the packed suite pins it the same way.

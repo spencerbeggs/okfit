@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { McpProcess } from "@effected/mcp/testing";
-import { Effect, Schedule } from "effect";
+import { Effect } from "effect";
 import { ChildProcess } from "effect/process";
 
 /** The built dev bin, resolved from this file's own location, never from cwd. */
@@ -61,15 +61,9 @@ describe("crash guards", () => {
 				const { response } = yield* server.readUntilResponse(2);
 				const tools = (response as { readonly result: { readonly tools: ReadonlyArray<unknown> } }).result.tools;
 				assert.strictEqual(tools.length, 6);
-				// The crash is raised on a timer after connect, so poll (real clock)
-				// until the report lands rather than reading stderr once.
-				const stderr = yield* server.stderrSoFar.pipe(
-					Effect.repeat({
-						schedule: Schedule.spaced("50 millis"),
-						until: (text) => text.includes("[injected]"),
-						times: 100,
-					}),
-				);
+				// The report is raised one tick after the first connect, so it can land
+				// after the responses above: wait on stderr (real clock) rather than read it once.
+				const stderr = yield* server.stderrUntil((text) => text.includes("[injected]"), { timeout: "5 seconds" });
 				assert.include(stderr, "[injected]");
 				yield* server.closeStdin;
 				const code = yield* server.exitCode.pipe(

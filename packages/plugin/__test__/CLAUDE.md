@@ -49,13 +49,16 @@ __test__/
   (`require: "all"`; root `devEngines.runtime` names bun so the runner has it,
   Yarn stays local-only and its slot row is asserted only on Yarn 2+), and per consumer runs `okfit --version`, the
   `distribution` stamp, an `okfit-mcp` `McpProbe.initialize` and an
-  `okfit-lsp` handshake through `runCarrierBin`/`carrierCommand`, plus the
+  `okfit-lsp` `LspProbe.initialize` (`@effected/lsp/testing`) through `runCarrierBin`/`carrierCommand`, plus the
   per-manager `binProvenance` table. `allowSharedBins: true` because the front
   ends share the bin names (see the shared-bins Decision).
 - **The packed suite needs the PROD build.** `PackedInstall` packs
   `dist/prod/npm/pkg`; `vitest.setup.ts` builds only `dist/dev`, so the suite
-  `describe.skipIf`s when the prod build is absent locally but FAILS under
-  `CI` (a guard test asserts the artifact exists), so a missing build is loud.
+  skips when `PackedInstall.preflight` + `PackedInstall.gate` find the prod
+  build absent locally but FAILS under `CI` (a `describe.runIf` guard asserts
+  with the gate's message), so a missing build is loud. `workspaceOverrides:
+  true` hands the scratch consumers any `file:` sibling build linked in
+  `pnpm-workspace.yaml` (a no-op when none is).
   Root `ci:test` runs `turbo run build:prod` before vitest. Run
   `pnpm turbo run build:prod` locally before expecting it to run.
   Its timeout comes from `PackedInstall.closure` + `timeoutBudget`, planned
