@@ -2,7 +2,7 @@ import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { pathToUri } from "../../src/convert/uri.js";
-import { spawnLsp } from "./utils/lspProcess.js";
+import { spawnLsp } from "./utils/lspBin.js";
 import { makeSandbox } from "./utils/sandbox.js";
 
 const initializeParams = (cwd: string) => ({
@@ -25,10 +25,10 @@ describe("crash guards", () => {
 					Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.fail("did not exit" as const) }),
 				);
 				assert.strictEqual(code, 1);
-				const stderr = yield* server.stderrSoFar;
+				const stderr = yield* server.stderrFinal;
 				assert.include(stderr, "okfit-lsp");
 				assert.include(stderr, "[injected]");
-				assert.strictEqual(yield* server.rawStdoutSoFar, "");
+				assert.strictEqual((yield* server.stdoutFinal).length, 0);
 			}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 		);
 
@@ -37,16 +37,17 @@ describe("crash guards", () => {
 				const sandbox = yield* makeSandbox();
 				const server = yield* spawnLsp({ ...sandbox.env, OKFIT_LSP_TEST_INJECT_CRASH: `connected:${kind}` });
 				yield* server.send({ jsonrpc: "2.0", id: 1, method: "initialize", params: initializeParams(sandbox.cwd) });
-				const init = (yield* server.nextMessage) as { readonly id: number };
-				assert.strictEqual(init.id, 1);
+				const init = yield* server.readUntilResponse(1);
+				assert.strictEqual(init.response.id, 1);
 				yield* server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
 				// The crash is raised on a timer after connect, so it can land after the
 				// first response: ask again once it has, and the server must still answer.
 				yield* Effect.sleep("500 millis");
 				yield* server.send({ jsonrpc: "2.0", id: 2, method: "shutdown", params: null });
-				const shutdown = (yield* server.nextMessage) as { readonly id: number };
-				assert.strictEqual(shutdown.id, 2);
-				const stderr = yield* server.stderrSoFar;
+				const shutdown = yield* server.readUntilResponse(2);
+				assert.strictEqual(shutdown.response.id, 2);
+				// Wait for the report rather than assume it has landed.
+				const stderr = yield* server.stderrUntil((text) => text.includes("[injected]"), { timeout: "5 seconds" });
 				assert.include(stderr, "[injected]");
 				yield* server.send({ jsonrpc: "2.0", method: "exit", params: null });
 				const code = yield* server.exitCode.pipe(
@@ -69,8 +70,8 @@ describe("launch failure", () => {
 				Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.fail("did not exit" as const) }),
 			);
 			assert.strictEqual(code, 1);
-			assert.include(yield* server.stderrSoFar, "HOME environment variable is not set");
-			assert.strictEqual(yield* server.rawStdoutSoFar, "");
+			assert.include(yield* server.stderrFinal, "HOME environment variable is not set");
+			assert.strictEqual((yield* server.stdoutFinal).length, 0);
 		}).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 	);
 });

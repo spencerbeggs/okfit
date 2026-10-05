@@ -10,7 +10,7 @@ included; the server writes nothing, ever, to the bundle.
 src/
   bin.ts         -- the shebang entry point: imports and awaits main()
   main.ts        -- ProcessGuard.run crash guards, OkfitPlatform + Git.layer + GitHistory.layer,
-                     runMain; the process boundary -- owns process.stdin/stdout
+                     LspStdio.launch/teardown under runMain; the process boundary -- owns process.stdin/stdout
                      and the exit code
   version.ts     -- LSP_VERSION, read from process.env.__PACKAGE_VERSION__, a
                      build-time constant the bundler injects -- never a
@@ -623,8 +623,8 @@ serving, because every answer is derived from the bundle on disk and the open
 documents and Claude Code does not reliably respawn a server that exits. A
 `load()` that rejects is `startup failed`, exit `1`. The reports carry the kit's
 fixed wording (`okfit-lsp: uncaughtException (<origin>): ...`).
-`OKFIT_LSP_TEST_INJECT_CRASH=<load|connected>:<kind>` feeds the guard's
-`injectCrash`; only `__test__/e2e/crash-guards.e2e.test.ts` sets it. `main.ts`
+`OKFIT_LSP_TEST_INJECT_CRASH=<load|connected>:<kind>` is parsed by
+`ProcessGuard.parseInjectCrash` into the guard's `injectCrash`; only `__test__/e2e/crash-guards.e2e.test.ts` sets it. `main.ts`
 owns everything the package boundary test allows it to: it is the one
 file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
 `process`.
@@ -643,25 +643,20 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
   or the input stream simply closing -- exits `0`. `shutdownReceived` is
   the authority on a clean shutdown; `"closed"` means the input ended with
   no `exit` among the messages it delivered.
-- **`main.ts`'s program calls `process.stdin.unref()` (guarded: only a pipe or
-  socket stdin has it, not `/dev/null`) once `listen` has
-  resolved; the success branch of its `teardown` then hands the mapped
-  exit code to the `onExit` callback `NodeRuntime.runMain`'s runner
-  provides and calls `process.exit(code)` itself.** That callback
-  (`@effect/platform-node-shared`'s `NodeRuntime.js`) only calls
-  `process.exit` when the code is non-zero or a signal was received; for a
-  code-`0` success it relies on Node's event loop draining. Two handles
-  prevent that: `process.stdin`, once read, stays open after a clean
-  `shutdown` + `exit` (the LSP contract: the server terminates itself on
-  `exit`, the client never has to close the pipe first), and, when the
-  client passes `--clientProcessId`, the library's node entry installs a
-  never-unref'd liveness interval at module load that nothing in this
-  package can clear. The explicit exit covers both; covered by the
-  `--clientProcessId` case in `__test__/e2e/server.e2e.test.ts`. Unlike
-  the MCP server, this one still distinguishes a clean disconnect (`0`)
-  from `exit` without `shutdown` (`1`): `onExit` gets the program's own
-  mapped code, never a hardcoded `0`. The interrupts-only branch calls
-  `onExit(0)` directly, same as MCP.
+- **`LspStdio.launch` and `LspStdio.teardown` (`@effected/lsp`) own the exit.**
+  `main.ts`'s program returns `serve`'s `ListenOutcome`, which already has
+  the kit's `LspSessionEnd` shape; `NodeRuntime.runMain(LspStdio.launch(program),
+  { teardown: LspStdio.teardown(process) })` maps it with `LspStdio.exitCode`
+  and ends the process with the code. `teardown` always calls `process.exit`:
+  `runMain` itself exits only for a non-zero code or a signal, and a code-`0`
+  exit waits on handles that never drain -- `process.stdin`, which the client
+  never closes first (the LSP contract: the server terminates itself on
+  `exit`), and, when the client passes `--clientProcessId`, the library's
+  node entry installs a never-unref'd liveness interval at module load that
+  nothing in this package can clear. Covered by the `--clientProcessId`
+  case in `__test__/e2e/server.e2e.test.ts`. An interrupt-only exit
+  (SIGINT, SIGTERM) maps to `0`. There is no `stdin.unref` and no explicit
+  `process.exit` in `main.ts` any more.
 - **`process.exit` does not flush.** Writes to `process.stdout` and
   `process.stderr` are asynchronous when they are pipes on macOS, and
   `process.exit` discards any still pending. Anything the client must
@@ -669,19 +664,19 @@ file, besides `bin.ts` and `version.ts`'s build-time constant, that reads
   drain waits for the transport's outstanding writes (bounded by
   `WRITE_SETTLE_TIMEOUT`), but `exit` resolves at once, so a response or
   log line still in flight at `exit` can be lost.
-- `Logger.layer([Logger.consolePretty()])` and `Layer.succeed(Logger.LogToStderr,
-  true)` are both provided in `main.ts`, exactly as `packages/mcp/src/main.ts`
-  does -- without the second, every log line (`serve`'s `Effect.logInfo` on
-  `initialized`, `Effect.logWarning` on a failed revalidate) lands on
-  stdout, the JSON-RPC wire, instead of stderr.
-- **A launch failure is reported inside those provisions.** `NodeRuntime.runMain`
+- **Logging stays off stdout.** `LspStdio.launch` provides
+  `Logger.LogToStderr` around the whole program, and `main.ts` provides
+  `Logger.layer([Logger.consolePretty()])`, which honours it. Never swap in
+  `consoleJson`, `consoleLogFmt` or `consoleStructured`: they write to stdout
+  whatever `LogToStderr` says (wrap one in `Logger.withConsoleError`).
+- **A launch failure is reported by the launcher.** `NodeRuntime.runMain`
   logs a failed main fiber on the default logger, outside anything the program
   provides, so a layer that cannot build (a missing `HOME`: `XdgEnvError`)
-  would write its report to stdout, the wire. `main.ts` therefore logs the
-  cause itself with `Effect.tapCause`, between the platform layer and the
-  logger provisions, and passes `disableErrorReporting: true` to `runMain`;
-  `__test__/e2e/crash-guards.e2e.test.ts` launches the bin without `HOME` and
-  asserts exit `1`, the report on stderr and an empty stdout.
+  would write its report to stdout, the wire. `LspStdio.launch` catches the
+  cause inside its own `LogToStderr` provision, logs it on stderr and re-raises
+  it marked already reported; `__test__/e2e/crash-guards.e2e.test.ts` launches
+  the bin without `HOME` and asserts exit `1`, the report on stderr and an
+  empty stdout. Dropping `launch` turns that test red.
 
 ## Three test tiers
 
@@ -691,7 +686,8 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
   over in-memory streams (`__test__/utils/harness.ts`), no child process.
 - `.e2e.test.ts` (`__test__/e2e/`) -- spawns the real built bin,
   `dist/dev/pkg/bin/okfit-lsp.js`, with `--stdio`, framed on
-  `Content-Length` (`__test__/e2e/utils/lspProcess.ts`), against a
+  `Content-Length` through the kit's `LspProcess` (`@effected/lsp/testing`,
+  spawned by `__test__/e2e/utils/lspBin.ts`), against a
   hermetic sandbox with the fixture project copied into `cwd`
   (`__test__/e2e/utils/sandbox.ts`). Uses `it.live`, not `it.effect`: the
   exit-code assertions time out against real elapsed time, not the virtual

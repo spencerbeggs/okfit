@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T18:28:45Z
-  body_sha256: 25dd1a70ee5c065759dac7c7d812cca744cdc68eb39152bc75bb39849840cf17
+  at: 2026-10-05T19:16:54Z
+  body_sha256: 5fd4b8335807694d46ed17d429efd87b13ef870dc3384976e44dd3eecb7c696a
 ---
 
 # LSP
@@ -224,8 +224,13 @@ seam](../decisions/lsp-reference-transport-behind-a-seam.md).
 the transport is up exits `1`; once serving it is logged to stderr and the
 server keeps answering, since every answer is derived from the bundle on disk
 and Claude Code does not reliably respawn a language server that exits. Every
-launch failure, a missing `HOME` included, is reported on stderr: stdout is the
-JSON-RPC wire and carries nothing but frames.
+launch failure, a missing `HOME` included, is reported on stderr by
+`LspStdio.launch` (`@effected/lsp`): stdout is the JSON-RPC wire and carries
+nothing but frames. `LspStdio.teardown(process)` maps the session end to the
+exit code (`1` only for `exit` without `shutdown`) and always ends the
+process, since a clean `shutdown` + `exit` otherwise waits on a stdin the
+client never closes first. The e2e suite drives the bin through the kit's
+`LspProcess`.
 
 ## Boundaries
 
