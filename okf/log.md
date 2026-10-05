@@ -6,6 +6,7 @@
 * Updated Engine
 * Updated LSP
 * Updated VS Code Extension
+* Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 
 ## 2026-10-03
 
