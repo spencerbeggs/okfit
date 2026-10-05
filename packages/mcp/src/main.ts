@@ -4,6 +4,7 @@
  * @packageDocumentation
  */
 
+import { ProcessGuard } from "@effected/engine/guard";
 import { McpGuard } from "@effected/mcp/guard";
 import type { Distribution } from "@okfit/engine";
 
@@ -18,30 +19,6 @@ import type { Distribution } from "@okfit/engine";
 export interface MainOptions {
 	readonly distribution?: Distribution;
 }
-
-/** What {@link parseInjectCrash} yields: the guard's `injectCrash` option. */
-interface InjectCrash {
-	readonly at: "load" | "connected";
-	readonly kind: "uncaughtException" | "unhandledRejection";
-}
-
-const INJECT_AT: ReadonlyArray<InjectCrash["at"]> = ["load", "connected"];
-const INJECT_KIND: ReadonlyArray<InjectCrash["kind"]> = ["uncaughtException", "unhandledRejection"];
-
-/**
- * Parse the test-only `OKFIT_MCP_TEST_INJECT_CRASH` value into the guard's
- * `injectCrash`: `<at>:<kind>`, where `at` is `load` or `connected` and
- * `kind` is `uncaughtException` or `unhandledRejection`. Anything else, or
- * no value, is `undefined` (no injection). Only the e2e suite sets it.
- */
-const parseInjectCrash = (value: string | undefined): InjectCrash | undefined => {
-	if (value === undefined) return undefined;
-	const [at, kind, ...rest] = value.split(":");
-	if (rest.length > 0) return undefined;
-	const validAt = INJECT_AT.find((candidate) => candidate === at);
-	const validKind = INJECT_KIND.find((candidate) => candidate === kind);
-	return validAt === undefined || validKind === undefined ? undefined : { at: validAt, kind: validKind };
-};
 
 /**
  * Run the okfit MCP server over stdio. Owns the process.
@@ -69,7 +46,7 @@ export const main = (options: MainOptions = {}): Promise<void> =>
 		policy: { onUncaught: "exitBeforeConnect", onRejection: "exitBeforeConnect" },
 		// Test-only: the e2e suite sets it to raise one stray crash before
 		// `load()` or once serving. Never set in a normal install.
-		injectCrash: parseInjectCrash(process.env.OKFIT_MCP_TEST_INJECT_CRASH),
+		injectCrash: ProcessGuard.parseInjectCrash(process.env.OKFIT_MCP_TEST_INJECT_CRASH),
 		load: async () => {
 			// No static imports of the server graph above this line.
 			const NodeRuntime = await import("@effect/platform-node/NodeRuntime");
