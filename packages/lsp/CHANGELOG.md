@@ -1,5 +1,51 @@
 # @okfit/lsp
 
+## 0.4.0
+
+### Features
+
+- Add a "Mark verified by <actor> and set status: stable" code action on draft concepts. It records your verification and promotes the concept to stable in a single edit.
+- Add the `okfit.lsp.verifyAndMarkStable` command, which takes the concept `uri` as its one argument. The new command id is included in `OKFIT_COMMANDS`.
+- Add a `NotADraft` tag to `EditFailure`, returned when the combined action targets a concept whose status is not draft. [#250][#250]
+
+### Bug Fixes
+
+- Report a launch failure on stderr. Launched without `HOME`, `okfit-lsp` wrote its `XdgEnvError` report to stdout, the JSON-RPC wire, where a client read it as a corrupt frame; it now exits `1` with the report on stderr and stdout empty, through `LspStdio.launch`.
+- Install the crash guards through `ProcessGuard.run` from `@effected/engine/guard` with an `exitBeforeConnect` policy, as `okfit-mcp` does: a stray exception before the server is serving exits `1`, and one after it is logged to stderr while the server keeps answering. Reports now read `okfit-lsp: uncaughtException (<origin>): ...` and `okfit-lsp: unhandledRejection: ...`.
+- Launch through `LspStdio.launch` and `LspStdio.teardown` from `@effected/lsp` (new runtime dependency) instead of hand-written `runMain` options: the exit code mapping and the explicit exit on `exit` are the kit's, and behaviour is unchanged.
+
+### Tests
+
+- The suite pins both halves of the crash policy and the stderr-only launch failure against the built bin, driven through `LspProcess` from `@effected/lsp/testing`. [#251][#251]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.0 | ^4.0.1 |
+| @effected/config-file | dependency | updated | ^0.14.0 | ^0.14.2 |
+| @effected/jsonc | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/markdown | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/schemastore | dependency | updated | ^0.20.0 | ^0.21.1 |
+| @effected/toml | dependency | updated | ^0.11.0 | ^0.11.1 |
+| @effected/yaml | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @okfit/core | dependency | updated | 0.9.0 | 0.9.1 |
+| @okfit/engine | dependency | updated | 0.12.0 | 0.13.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.9.0 |
+| effect | dependency | updated | ^4.0.0 | ^4.0.1 |
+| @effected/engine | dependency | added | — | ^0.4.0 |
+| @effected/lsp | dependency | added | — | ^0.1.0 |
+
+[#251][#251]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#250]: https://github.com/spencerbeggs/okfit/pull/250
+
+[#251]: https://github.com/spencerbeggs/okfit/pull/251
+
 ## 0.3.8
 
 ### Features

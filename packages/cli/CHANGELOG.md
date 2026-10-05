@@ -1,5 +1,47 @@
 # @okfit/cli
 
+## 0.10.0
+
+### Breaking Changes
+
+- `renderFailure` now takes the kit's `FailureDetails` as a required second argument, `renderFailure(error, details)`. [#251][#251]
+
+### Features
+
+- Send a usage error's help to stderr beside the parse errors, so stdout stays empty for the plugin hooks that parse it as JSON. An explicit `--help` and a bare command group still print help on stdout.
+- Skip the `okfit init` profile screen when only one profile is registered; the wizard uses it without asking.
+
+### Bug Fixes
+
+- Stop colouring a redirected stderr: `okfit ... 2>err.log` no longer writes colour escapes into the file when stdout is a terminal.
+- Render a defect (a bug, not a failure the caller caused) as the error plus a `Please report at` issue link, and a typed failure as one line.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.0 | ^4.0.1 |
+| @effected/cli | dependency | updated | ^0.11.0 | ^0.13.0 |
+| @effected/config-file | dependency | updated | ^0.14.0 | ^0.14.2 |
+| @effected/engine | dependency | updated | ^0.3.0 | ^0.4.0 |
+| @effected/jsonc | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/markdown | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/schemastore | dependency | updated | ^0.20.0 | ^0.21.1 |
+| @effected/toml | dependency | updated | ^0.11.0 | ^0.11.1 |
+| @effected/yaml | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @okfit/core | dependency | updated | 0.9.0 | 0.9.1 |
+| @okfit/engine | dependency | updated | 0.12.0 | 0.13.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.9.0 |
+| effect | dependency | updated | ^4.0.0 | ^4.0.1 |
+
+[#251][#251]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#251]: https://github.com/spencerbeggs/okfit/pull/251
+
 ## 0.9.0
 
 ### Features

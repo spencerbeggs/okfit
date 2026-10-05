@@ -1,5 +1,45 @@
 # @okfit/mcp
 
+## 0.8.0
+
+### Breaking Changes
+
+- `McpToolError` is now `@effected/mcp`'s `ToolRefusal`. The `ConfigError`, `BundleNotFound`, `ConceptNotFound`, `UnknownVocabulary` and `InvalidArgument` exports are removed; a failed call still reaches the client as `isError: true` with the same message text, but there is no per-failure tag to match on.
+
+### Features
+
+- The `okfit-mcp` bin installs its crash guards through `McpGuard.run` with an `exitBeforeConnect` policy: a stray exception before the server is serving exits `1`, and one after it is logged to stderr while the server keeps answering.
+
+### Tests
+
+- The suite pins both halves of the crash policy against the built bin, and negotiates protocol versions through `McpHarness.initializeWith`. [#251][#251]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.0 | ^4.0.1 |
+| @effected/config-file | dependency | updated | ^0.14.0 | ^0.14.2 |
+| @effected/engine | dependency | updated | ^0.3.0 | ^0.4.0 |
+| @effected/jsonc | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/markdown | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @effected/mcp | dependency | updated | ^0.4.0 | ^0.5.0 |
+| @effected/schemastore | dependency | updated | ^0.20.0 | ^0.21.1 |
+| @effected/toml | dependency | updated | ^0.11.0 | ^0.11.1 |
+| @effected/yaml | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @okfit/core | dependency | updated | 0.9.0 | 0.9.1 |
+| @okfit/engine | dependency | updated | 0.12.0 | 0.13.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.9.0 |
+| effect | dependency | updated | ^4.0.0 | ^4.0.1 |
+
+[#251][#251]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#251]: https://github.com/spencerbeggs/okfit/pull/251
+
 ## 0.7.0
 
 ### Features
