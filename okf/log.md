@@ -11,6 +11,7 @@
 * Added The carrier keeps its front ends' bin names, proven under allowSharedBins
 * Updated Workspace
 * Updated LSP
+* Added The language and MCP servers survive a stray crash once serving, and exit on one before
 
 ## 2026-10-03
 
