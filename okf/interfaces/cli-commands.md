@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-02T23:58:13Z
-  body_sha256: c69180aa3965e3abb4f749a45914d6c01b62585dfdc51d9f3ea0148e76ee4aee
+  at: 2026-10-05T16:46:33Z
+  body_sha256: e389978dbfe54d9a2b555e35439f2a536317279bbfbff8f905ef2393267a6f32
 tags:
   - architecture
 verified:
