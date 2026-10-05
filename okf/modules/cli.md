@@ -60,7 +60,10 @@ with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
 `--config-location` was not given as a flag. Cancelling (Esc, `q`, Ctrl-C,
 answering no) is the kit's `Cancelled`, exit `130`, nothing written;
 `renderFailure` prints the kit's `Cancelled` and `NotInteractive` messages
-as they are, with no `error:` prefix. `ink` and `react` are `@okfit/cli`
+as they are, with no `error:` prefix; it reads the kit's `details.isDefect`
+to give a defect the `error:` report plus a `Please report at` issue link and
+a typed failure one line. The wizard skips the profile screen while only one
+profile is registered. `ink` and `react` are `@okfit/cli`
 dependencies loaded lazily, so a non-interactive run never imports them.
 Contract details: [CLI commands](../interfaces/cli-commands.md).
 

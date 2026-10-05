@@ -75,7 +75,8 @@ resolved `bundle.path`, `okf`) and `--config-location
 written (default `.config/okfit.toml`); a `--bundle` that is empty, absolute,
 the project root itself, or escapes it is a usage error (exit `64`). When
 interactive, `init` prompts for whichever of profile, bundle directory and
-config location was not given as a flag, in that order; Esc or Ctrl-C exits
+config location was not given as a flag, in that order (the profile is not
+asked while only one profile is registered); Esc or Ctrl-C exits
 `130` with nothing written, and a non-interactive run takes the defaults
 unchanged.
 
@@ -269,6 +270,10 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 | `2` | One or more conformance errors |
 | `1` | One or more lint or profile errors |
 | `0` | Otherwise |
+
+A usage error (`64`) prints its help and parse errors on stderr and leaves
+stdout empty, so a hook that parses stdout as JSON never sees help text; an
+explicit `--help` and a bare command group print help on stdout and exit `0`.
 
 Higher wins when several apply; warnings and info never change the exit
 code (`packages/cli/README.md:171-186`). `okfit lint` uses this same

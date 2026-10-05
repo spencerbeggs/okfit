@@ -68,7 +68,8 @@ export interface InitGiven {
 /**
  * The `okfit init` wizard: profile, bundle directory, config location, in
  * that order. A setting is prompted for only when its flag was not given and
- * the run is interactive; otherwise its flag value or default is used
+ * the run is interactive (the profile also needs more than one registered: a
+ * lone profile is used without a screen); otherwise its flag value or default is used
  * (`CliUi.prompt`'s `otherwise`, so a non-interactive run never loads Ink).
  *
  * A bad `--bundle` flag fails with {@link InitBundleDirError} before any
@@ -93,16 +94,22 @@ export const initWizard = (
 			flagBundle = checked.dir;
 		}
 
+		// One registered profile is not a question: a one-choice screen asks for
+		// nothing, so it is skipped and the lone profile is used (#232).
+		const profileNames: ReadonlyArray<string> = PROFILE_NAMES;
+		const [onlyProfile] = profileNames;
 		const profile = Option.isSome(given.profile)
 			? given.profile.value
-			: yield* CliUi.prompt(
-					Select.screen({
-						message: "Profile to scaffold with",
-						choices: PROFILE_NAMES.map((name) => ({ label: name, value: name as string })),
-						initial: Math.max(0, (PROFILE_NAMES as ReadonlyArray<string>).indexOf(defaults.profile)),
-					}),
-					{ otherwise: defaults.profile },
-				);
+			: profileNames.length === 1 && onlyProfile !== undefined
+				? onlyProfile
+				: yield* CliUi.prompt(
+						Select.screen({
+							message: "Profile to scaffold with",
+							choices: profileNames.map((name) => ({ label: name, value: name })),
+							initial: Math.max(0, profileNames.indexOf(defaults.profile)),
+						}),
+						{ otherwise: defaults.profile },
+					);
 
 		const bundle =
 			flagBundle ??

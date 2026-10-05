@@ -1,9 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Cancelled } from "@effected/cli";
 import { CliUiTest } from "@effected/cli/ui/testing";
 import type { Actor } from "@okfit/core";
 import { runVerifyIds } from "@okfit/engine";
-import { Effect, Exit, Fiber } from "effect";
+import { Effect, Exit, Fiber, Option } from "effect";
 import { pickConcepts, pickerLabel } from "../../src/commands/verify-picker.js";
 import { AT, FILES, config, platform, read, withBundle } from "../utils/picker.js";
 
@@ -127,14 +126,10 @@ describe("pickConcepts", () => {
 					const list = yield* session.next({ contains: "Attest which concepts?" });
 					yield* list.press("space", "enter");
 					const confirm = yield* session.next({ contains: "Attest 1 concept(s)" });
-					yield* confirm.type("n");
-					yield* confirm.press("enter");
+					yield* confirm.press({ char: "n" }, "enter");
 					const exit = yield* Fiber.await(fiber);
 					assert.isTrue(Exit.isFailure(exit));
-					assert.deepStrictEqual(
-						Exit.isFailure(exit) ? exit.cause.reasons.map((r) => (r as { error?: unknown }).error) : [],
-						[new Cancelled({ reason: "escape" })],
-					);
+					assert.deepStrictEqual(CliUiTest.cancelReason(exit), Option.some("escape"));
 				}),
 			),
 		),
@@ -150,6 +145,7 @@ describe("pickConcepts", () => {
 					yield* list.press("space", "escape");
 					const exit = yield* Fiber.await(fiber);
 					assert.isTrue(Exit.isFailure(exit));
+					assert.deepStrictEqual(CliUiTest.cancelReason(exit), Option.some("escape"));
 					assert.deepStrictEqual(yield* Effect.forEach(FILES, ([name]) => read(root, name)), before);
 				}),
 			),

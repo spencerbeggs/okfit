@@ -49,7 +49,7 @@ and `human` take `{ paint }` (the kit's `SeverityPaint`), not `{ color }`.
 src/
   bin.ts               -- the shebang entry point: imports and calls main(), nothing else
   main.ts               -- the assembled program: resolves Now, provides OkfitPlatform and
-                            the CliColor-based version formatter, runs on @effected/cli's
+                            the version formatter (env.formatter), runs on @effected/cli's
                             CliRuntime.main (env wiring, audienceEnvVar OKFIT_AUDIENCE) via CliAudience.run
   index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
                              Counts, human, line, summary, VerifyLines, humanVerify, CLI_VERSION
@@ -88,7 +88,7 @@ src/
   internal/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)
-    versionFormatter.ts            -- versionFormatterLayer: @effected/cli's CliColor.formatterLayer,
+    versionFormatter.ts            -- versionFormatter: the env.formatter override passed to CliRuntime.main,
                                        only formatVersion overridden; colour itself is @effected/cli's
                                        own decision, read from the ambient ConfigProvider, never a
                                        process read this package performs
