@@ -41,7 +41,7 @@
 		"@effected/git": "catalog:effected",
 		"@effected/glob": "catalog:effected",
 		"@effected/jsonc": "catalog:effected",
-		"@effected/lsp": "^0.1.0",
+		"@effected/lsp": "catalog:effected",
 		"@effected/markdown": "catalog:effected",
 		"@effected/schemastore": "catalog:effected",
 		"@effected/toml": "catalog:effected",

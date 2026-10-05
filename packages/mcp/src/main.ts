@@ -4,7 +4,6 @@
  * @packageDocumentation
  */
 
-import { ProcessGuard } from "@effected/engine/guard";
 import { McpGuard } from "@effected/mcp/guard";
 import type { Distribution } from "@okfit/engine";
 
@@ -46,7 +45,7 @@ export const main = (options: MainOptions = {}): Promise<void> =>
 		policy: { onUncaught: "exitBeforeConnect", onRejection: "exitBeforeConnect" },
 		// Test-only: the e2e suite sets it to raise one stray crash before
 		// `load()` or once serving. Never set in a normal install.
-		injectCrash: ProcessGuard.parseInjectCrash(process.env.OKFIT_MCP_TEST_INJECT_CRASH),
+		injectCrash: McpGuard.parseInjectCrash(process.env.OKFIT_MCP_TEST_INJECT_CRASH),
 		load: async () => {
 			// No static imports of the server graph above this line.
 			const NodeRuntime = await import("@effect/platform-node/NodeRuntime");
