@@ -1,6 +1,6 @@
 {
 	"name": "@okfit/ai-plugins",
-	"version": "0.9.0",
+	"version": "0.10.0",
 	"private": true,
 	"description": "This package does not publish to npm. It exists to provide changeset versioning for the okfit Claude Code and GitHub Copilot plugins built from this pluginfinity source."
 }
