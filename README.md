@@ -2,7 +2,7 @@
 
 Node.js tooling for the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md), built on [Effect](https://effect.website).
 
-OKF is a directory of markdown files with YAML frontmatter that captures what a project is and should be, with provenance, trust, and lifecycle as first-class fields. okfit gives humans and agents a CLI, an MCP server, and a Claude Code plugin for authoring, validating, and querying those bundles.
+OKF is a directory of markdown files with YAML frontmatter that captures what a project is and should be, with provenance, trust, and lifecycle as first-class fields. okfit gives humans and agents a CLI, an MCP server, and an agent plugin for Claude Code and GitHub Copilot for authoring, validating, and querying those bundles.
 
 ## Packages
 
