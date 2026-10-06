@@ -1,0 +1,210 @@
+# @okfit/ai-plugins
+
+## 0.9.0
+
+### Breaking Changes
+
+- Remove the `npm-readme` skill. Its README template content now lives in `docs-templates` and its badge guidance in `docs-badges`; invoke those instead. [#237][#237]
+
+### Features
+
+- Add a `contributor-guides` Surface template to the `monorepo-shared-docs` docs preset (audience `contributors`, resource the root `docs/` folder), with a skeleton for task-shaped guides: who it is for, prerequisites, numbered steps, what success looks like, and the rules it restates.
+- Add a contributor-guide reference to the `docs-templates` skill with the same skeleton. [#247][#247]
+
+* Add five docs skills: `docs-detect-shape`, `docs-templates`, `docs-badges`, `docs-humanize` and `docs-render`, covering shape detection, README and docs-TOC templates, badge blocks, de-AI-ifying prose, and rendering pages from the OKF bundle.
+* Add the `okf-publisher` agent, which publishes docs pages rendered from the OKF bundle and restamps them with `okfit sync --publication`.
+* Narrow the `okf-docs` agent to writing inside `okf/` only; publishing pages outside the bundle now belongs to `okf-publisher`.
+
+### Bug Fixes
+
+- Correct the `docs-render` skill and `okf-publisher` agent: `okfit sync --publication` exits 64 for a bad id or an unresolvable `renders` source and 3 for a malformed `renders` list, the orphan check now runs before rendering, and both document the no-fact source edit and the uncommitted Publication edit.
+- Make `docs-badges` and `docs-templates` self-contained: `docs-badges` reads its own `package.json` fields and `docs-templates` carries the single-package, monorepo-root and sub-package shape rule instead of depending on `docs-detect-shape` having run. [#247][#247]
+
+### Documentation
+
+- Update the `okf-config` skill's lint table with the `publication-drift`, `publication-orphan`, and `surface-unmatched` codes. [#237][#237]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#237]: https://github.com/spencerbeggs/okfit/pull/237
+
+[#247]: https://github.com/spencerbeggs/okfit/pull/247
+
+## 0.8.1
+
+### Documentation
+
+#### Settle a draft with okfit verify --stable
+
+- The `okf-authoring` and `okf-finalize` skills now describe `okfit verify <id> --stable`, which attests and promotes a reviewed draft in one write. It stays a human-run command: the skills still tell agents never to run it or edit `verified`. [#213][#213]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#213]: https://github.com/spencerbeggs/okfit/pull/213
+
+## 0.8.0
+
+### Breaking Changes
+
+#### The PostToolUse validate hook no longer surfaces lint or profile findings
+
+- The hook that runs after every Write or Edit under a bundle now only checks two things: it blocks on a `core.conformance` hit on the file just written or edited, and it blocks (on `Write`) or warns (on `Edit`) when a concept is missing its `generated.by` stamp. It no longer reports `core.lint` or profile diagnostics through `additionalContext` — those are now delivered directly in the editor, with a precise range, by the `@okfit/lsp` language server registered alongside this plugin. If you were relying on the hook's chat output to see lint or profile warnings, register the language server (or run `okfit validate`) to keep seeing them. [#179][#179]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#179]: https://github.com/spencerbeggs/okfit/pull/179
+
+## 0.7.0
+
+### Features
+
+#### LSP server registration
+
+- `.claude-plugin/plugin.json` now registers `lspServers.okfit`, wired to
+  the `.md` extension with `diagnostics: true`. A new loader,
+  `bin/start-lsp.sh`, resolves the project's own
+  `node_modules/.bin/okfit-lsp` and falls back to `npx --yes @okfit/lsp`
+  when it is not installed — the same shape as the existing MCP loader.
+
+- The server starts lazily, on the first `Edit` or `Write` of a `.md` file
+  in the session, and publishes diagnostics for every bundle file whose
+  diagnostic set changed. Diagnostics from this server are advisory only:
+  unlike the plugin's `PostToolUse` hook, nothing here blocks a tool call.
+  Claude Code runs at most one language server per file extension per
+  session, so another markdown LSP plugin loaded earlier may shadow this
+  one entirely. [#176][#176]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#176]: https://github.com/spencerbeggs/okfit/pull/176
+
+## 0.6.1
+
+### Documentation
+
+- The `okf-docs` agent and the `okf-finalize` skill now tell an agent how to read the versions on a validation report: compare `engine_version` and `okf_version` between the `validate_bundle` tool and `okfit validate --format json`, and never read a differing `okfit_version` as drift — that field is each front end's own version, and the CLI and MCP server version independently. [#139][#139]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#139]: https://github.com/spencerbeggs/okfit/pull/139
+
+## 0.6.0
+
+### Maintenance
+
+- Changes generation and URL of schema to `@okfot/engine` package.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+## 0.5.1
+
+### Documentation
+
+- `okf-config` lists the new `Invariant` and `Incident` types, the `worker` Module kind, and the `github` and `docs` tags, with near-neighbour guidance for Invariant vs Convention, Incident vs Gotcha plus Decision, and a known bug between Gotcha and Roadmap; a new paragraph says framework tags such as `effect` stay repo-local and how to declare one
+- `okf-authoring` rule 6 now says a footnote needs both the inline `[^id]` and the `[^id]:` definition line, and that an orphan definition is what markdownlint MD053 rejects; rule 18 covers the markdownlint autofix traps (code-span paths in footnote definitions, never starting a line with `#N`, hard tabs in lifted fences, linting scoped to your own files); rule 19 says a "was X, now Y" historical delta survives only inside the Decision it justifies
+- `okf-context` names the eight real `okfit` subcommands and the MCP tools as the only things a CLAUDE.md router may cite for browsing the bundle — there is no `okfit list` or `okfit show` [#114][#114]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#114]: https://github.com/spencerbeggs/okfit/pull/114
+
+## 0.5.0
+
+### Features
+
+- The `PostToolUse` validate hook now reads the written file and, when the config sets `actors.agent`, blocks a `Write` of a concept whose frontmatter has no `generated.by` (and warns on an `Edit`), naming the exact `by:` value to add. `index.md` and `log.md` are exempt; a repo with `actors.agent` unset is never checked.
+- The `okf-docs` agent is told to stamp `generated.by` before writing rather than after the block. [#91][#91]
+
+### Documentation
+
+- `okf-config` lists the new `Consumer`, `Roadmap`, and `Measurement` types and the `bundle`, `observability`, and `deps` tags, with guidance on choosing between near neighbours
+- `okf-config` no longer recommends a one-line nested `okf/.markdownlint-cli2.jsonc`: a nested `config` replaces the root's wholesale, re-enabling every rule the root disabled
+- `okf-authoring` rule 6 states that a footnote label must equal its `sources[].id` verbatim; rule 17 covers descriptions with embedded double quotes [#90][#90]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#90]: https://github.com/spencerbeggs/okfit/pull/90
+
+[#91]: https://github.com/spencerbeggs/okfit/pull/91
+
+## 0.4.0
+
+### Features
+
+- The session-start orientation hook now renders each type's constraints (required keys, whether `verified` is required, declared fields with their enum values or `path` kind) alongside its description and guidance, matching the CLI's `okfit context` output.
+
+### Bug Fixes
+
+- `okf-context`'s CLAUDE.md-to-`index.md` pointer check now recognizes Claude Code's `@` import form and relative `./okf/...` links, not just backtick-quoted paths — a router written with `@` pointers was previously undercounted (3 of 41 found).
+- The `okf-docs` agent is granted `SendMessage`, restoring its ability to report back to the dispatching agent.
+- `okf-authoring` gains a rule on quoting YAML scalars that contain a colon followed by a space (`node:`, `workspace:`, `catalog:`, and similar protocol-style values previously broke frontmatter parsing) and clarifies that a concept's `stale_after` is always an absolute timestamp, never the config's `90d` duration shorthand. [#64][#64]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#64]: https://github.com/spencerbeggs/okfit/pull/64
+
+## 0.3.0
+
+### Features
+
+- Updates context to understand how the body digests work.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+## 0.2.0
+
+### Features
+
+- First usable release of the okfit Claude Code plugin: teaches Claude Code the Open Knowledge Format (OKF) v0.2 and keeps a repository's `okf/` bundle current.
+
+#### Six skills
+
+- `okf-spec` (an OKF v0.2 condensed reference), `okf-authoring` (sixteen imperative rules for writing and editing concept files), `okf-config` (the okfit config file, table by table), `okf-context` (CLAUDE.md-as-router checklist), `okf-finalize` (branch-end sweep: reconcile touched concepts, run `okfit validate`, regenerate derived files), and `npm-readme` (package README shape and section order). Every skill is both user- and model-invocable.
+
+#### The `okf-docs` agent
+
+- `agents/okf-docs.md` keeps a repository's `okf/` bundle and its CLAUDE.md pointer files current under the resolved config's own type and tag vocabulary, preloading all six skills above. It never touches `verified`, never edits anything outside the bundle, CLAUDE.md files, and package READMEs, and never commits, pushes, or writes a changeset.
+
+#### Two hooks
+
+- `SessionStart` (`hooks/session-start/orientation.sh`) runs `okfit context --format json` once per session and injects the bundle root, profile, and vocabulary into `additionalContext`. `PostToolUse` (`hooks/post-tool-use/validate.sh`) runs after a `Write` or `Edit` under the bundle root, validates the edited file, and blocks on a conformance error while surfacing a lint diagnostic as a non-blocking warning. Both hooks can be disabled with `OKFIT_HOOKS=off`, or individually with `OKFIT_SESSION_HOOK=off` / `OKFIT_VALIDATE_HOOK=off`.
+
+#### MCP loader
+
+- `.claude-plugin/plugin.json` registers `mcpServers.mcp`, running `bin/start-mcp.sh`, which resolves the project's own installed `okfit-mcp` and falls back to `npx --yes @okfit/mcp` when it is not installed — giving the plugin's agent and any other MCP client access to the six read-only tools and bundle resources `@okfit/mcp` exposes. [#16][#16]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#16]: https://github.com/spencerbeggs/okfit/pull/16
+
+## 0.1.0
+
+### Features
+
+- Bootstrap the okfit monorepo with package skeletons for core, profiles, cli, mcp, plugin, and the Claude Code plugin.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!

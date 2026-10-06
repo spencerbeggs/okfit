@@ -1,0 +1,176 @@
+# okfit agent plugin
+
+Built with [pluginfinity](https://github.com/spencerbeggs/pluginfinity) from one source into a Claude Code plugin (`builds/claude/`) and a GitHub Copilot plugin (`builds/copilot/`). Teaches Claude Code the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 and keeps a repository's `okf/` bundle current.
+
+## Local development
+
+From the repository root:
+
+```bash
+pnpm claude
+```
+
+This starts Claude Code with `--plugin-dir plugin/builds/claude`. After
+any source change, rebuild with `pnpm plugin:build`; `pnpm plugin:check`
+fails when `builds/` is stale. Never edit a file under `builds/`.
+
+### Running the BATS suite locally
+
+```bash
+pnpm test:bats
+```
+
+This runs `bats --recursive plugin/__test__`, covering every `.bats`
+file under `plugin/__test__/`. The hook and launcher suites run the built
+scripts under `builds/<target>/` once per host, through pluginfinity's
+`run_hook` helper, so run `pnpm plugin:build` first. `bats` is a root `devDependency`, so no
+separate install is needed. `jq` must be on `PATH` for the tests that
+exercise the real `jq` code path — the tests that simulate a missing `jq`
+shim their own `PATH` for that one test, not the ambient one. One test, in
+`__test__/post-tool-use-validate.bats` — the sole production-resolution
+smoke test resolving the real `node_modules/.bin/okfit` binary against the
+clean bundle fixture — `skip`s rather than fails when `OKFIT_BIN` is unset,
+so running this suite never requires a build first.
+
+To run a single suite:
+
+```bash
+pnpm exec bats plugin/__test__/launchers.bats
+```
+
+## Skills
+
+| Skill | Purpose |
+| --- | --- |
+| `okf-spec` | OKF v0.2 condensed reference: the conformance floor, the frontmatter field table by family, reserved files, the actor convention, and the v0.1-to-v0.2 changes. |
+| `okf-authoring` | Nineteen imperative rules for writing and editing OKF concept files under a config: what is required, what to never touch, and the actor/timestamp conventions. |
+| `okf-config` | The okfit config file: discovery order, the TOML schema table by table, lint severities, and what the `software-project` profile contributes. |
+| `okf-context` | CLAUDE.md as a thin router into the bundle, checked against `index.md` — a pointer-coverage checklist. |
+| `okf-finalize` | Branch-end sweep: reconcile touched concepts, run `okfit validate`, regenerate derived files, check CLAUDE.md pointer coverage, and report. |
+| `docs-detect-shape` | Detects the repo's shape, recommends a docs preset from `describe_vocabulary`, and writes draft Surface concepts after asking where each surface lives. |
+| `docs-templates` | Section order and skeletons for a package README, a monorepo router README and a `docs/` folder with its TOC. The Surface body overrides a template default. |
+| `docs-badges` | Builds or normalizes the standard shields.io badge block, preserving custom badges. |
+| `docs-humanize` | Rewrites a docs file to remove AI tells without changing facts, code or links. |
+| `docs-render` | Re-renders a Publication's page from its sources, humanizes it, runs `okfit sync --publication`, and checks the drift is gone. |
+
+Every skill is both user- and model-invocable (no `disable-model-invocation`)
+and the five `okf-*` skills are preloaded, in full, by the `okf-docs` agent below.
+
+## Agent
+
+The plugin ships two agents, split by write direction.
+
+`agents/okf-publisher.md` renders published pages outside `okf/` from Surface and Publication concepts. It preloads the five `docs-*` skills.
+
+`agents/okf-docs.md` is the bundle writer. It keeps a repository's
+`okf/` bundle and its CLAUDE.md pointer files current under the resolved
+config's own type and tag vocabulary — never inventing one of its own. It
+preloads the five `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their
+full content is injected rather than merely discoverable). See its own
+`## What this agent does NOT do` section for the boundary rather than a
+restatement here: in short, it never touches `verified`, never edits
+anything outside the bundle and CLAUDE.md files (published pages go to `okf-publisher`), and never
+commits, pushes, or writes a changeset.
+
+## Hooks
+
+**`SessionStart` — `hooks/session-start/orientation.sh`.** Runs on every
+session source (`startup`, `resume`, `clear`, `compact` — no matcher, so all
+four re-orient). It calls `okfit context --format json` once — never
+`okfit validate`, which would load the whole bundle just to learn where it
+is — and turns the result into `additionalContext`: the bundle root and
+profile, the full type and tag vocabulary, the bundle's `index.md` contents
+when one exists (truncated at 12,000 bytes), and a nudge to set
+`actors.agent` when it is unset. With no project config at all it still
+shows the `software-project` profile's default vocabulary, plus a note that
+running `okfit init` would scaffold a config.
+
+**`PostToolUse` — `hooks/post-tool-use/validate.sh`.** Runs after a `Write`
+or `Edit` whose path falls under the bundle root, and keeps exactly two jobs
+now that the registered language server (see LSP server, below) delivers
+`core.lint` and profile findings with precise ranges directly in the editor
+(LSP phase 4, decision 8). **The write has already landed by the time this
+hook runs** — Claude Code only reports a completed tool call to
+`PostToolUse` — so this hook is a stop-and-fix signal, not a prevention: it
+runs `okfit validate --format json --skip-provenance` scoped to the whole
+bundle, filters the diagnostics down to the edited file, and turns any
+`core.conformance` diagnostic for that file into
+`{"decision": "block", "reason": "..."}`, which tells Claude to fix the file
+immediately before continuing. Every other diagnostic `okfit validate`
+reports for the file — `core.lint`, `profile` — is silent here, since the
+LSP already surfaced it with a range; the hook never emits
+`additionalContext` for either. The second job reads the written file:
+when the config sets `actors.agent`, a concept file with no `generated.by`
+in its frontmatter blocks on `Write` and warns on `Edit`, naming the exact
+`by:` value to add — `index.md` and `log.md` are exempt, and a repo that
+leaves `actors.agent` unset is never checked. A path outside the bundle
+root is never even passed to `okfit validate`. `--skip-provenance` skips
+the `generated-at-drift` lint's git tier for this edit-time call — without
+it, every single `Write`/`Edit` would pay for a `repoRoot` + `show HEAD` +
+`log --follow` + N `show` subprocess burst per concept; CI and the MCP
+`validate_bundle` tool omit the flag and still run that lint.
+
+**Kill switches.** `OKFIT_HOOKS=off` disables both hooks; `OKFIT_SESSION_HOOK=off`
+and `OKFIT_VALIDATE_HOOK=off` disable one each. `OKFIT_CLI_CMD` overrides
+which `okfit` command a hook invokes — the BATS test suite's stubbing seam,
+never needed in normal use. Absent that override, a hook resolves the CLI as
+`<project>/node_modules/.bin/okfit`, then `okfit` on `PATH`; if neither
+resolves, the session hook prints a one-line nudge to install
+`@okfit/plugin` and the validate hook allows the write silently, writing one
+line to stderr. Neither hook ever runs `npx`. Both source the pluginfinity hook library,
+which writes each host's response shape and makes any non-zero exit fail
+open (logged to `$XDG_STATE_HOME/pluginfinity/okfit/hook-error.log`); a
+missing `jq` makes a hook a silent no-op. Both run through `bash`, as the
+build writes them into each host's hooks file from `pluginfinity.config.ts`.
+On Copilot, which honours no `PostToolUse` block, the validate hook's
+stop-and-fix reason arrives as `additionalContext` instead.
+
+## MCP loader
+
+`pluginfinity.config.ts` registers `mcpServers.mcp`, running
+`bin/start-mcp.sh` (`__test__/launchers.bats`) on the pluginfinity server
+library, which resolves the project's
+own `node_modules/.bin/okfit-mcp` and falls back to
+`npx --yes @okfit/mcp` when it is not installed. The server it starts
+exposes six read-only tools and the bundle index plus one resource per
+concept over stdio; see
+`agents/okf-docs.md`'s `tools:` block for the six tools' fully scoped
+names.
+
+`MCP_PROTOCOL_NEGOTIATION` is an environment variable a Claude Code MCP
+client reads to pin which MCP protocol version it offers during
+`initialize`, for a server that only understands an older wire format.
+okfit does not need it: the server declares both legacy protocol adapters
+it supports, `2025-11-25` and `2025-06-18`, newest first, so a client
+negotiates the newest one both sides understand on its own. It is never
+set in the manifest.
+
+## LSP server
+
+`pluginfinity.config.ts` registers `lspServers.okfit`, running
+`bin/start-lsp.sh --stdio` (`__test__/launchers.bats`) through `sh`, for
+the `.md` extension (`extensionToLanguage`) with `diagnostics: true`. The
+loader resolves the project's own `node_modules/.bin/okfit-lsp` first and
+falls back to `npx --yes @okfit/lsp` when it is not installed — the same
+shape as the MCP loader above. `stdout` is the LSP server's protocol wire,
+so every shim message the loader itself prints goes to stderr.
+
+The server starts lazily, on the first `Edit` or `Write` of a `.md` file
+in the session — a `Bash` append to a `.md` file never starts it and never
+triggers a notification, since Claude Code only wires a language server to
+its own `Edit`/`Write` tools. Once running, it publishes engine
+diagnostics for every file of the bundle whose diagnostic set changed.
+Claude Code batches them: diagnostics for several files arrive together in
+one attachment in the model's context on the next `Edit` or `Write`. Diagnostics from this server
+are advisory only: unlike the `PostToolUse` hook above, nothing here blocks
+a tool call.
+
+Claude Code runs at most one language server per file extension per
+session, and the first one registered wins. Another markdown LSP plugin
+loaded earlier in the same session may therefore shadow this one entirely,
+with no fix available while OKF bundle files remain plain `.md`.
+
+## Status
+
+Skills, the `okf-docs` agent, both hooks, and the MCP and LSP server
+registrations are implemented and tested.

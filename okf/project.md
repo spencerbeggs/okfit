@@ -7,8 +7,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-07T19:54:35Z
-  body_sha256: e2ca703aae2fe8901dc232976a77a39b1acda996f3ce5840fe4ccef9a52b32c1
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 92b88bc1800f05e03aa61045bcc9fbf1aada0522c7789eaed425c8ccf169d200
 ---
 
 # okfit
@@ -38,9 +38,10 @@ single owned concern (`README.md:9-15`, `CLAUDE.md:18-27`):
 - `@okfit/cli` -- the `okfit` command line.
 - `@okfit/mcp` -- the `okfit-mcp` Model Context Protocol server.
 - `@okfit/plugin` -- the one meta-package a consuming repository installs.
-- `plugins/claude-code` -- the okfit Claude Code plugin: a private,
-  release-only workspace package, tagged but never published to npm
-  (`plugins/claude-code/CLAUDE.md:3-6`).
+- `plugin` -- the okfit agent plugin: a pluginfinity source built into a
+  Claude Code plugin and a GitHub Copilot plugin; a private, release-only
+  workspace package (`@okfit/ai-plugins`), tagged but never published to npm
+  (`plugin/CLAUDE.md:3-10`).
 
 The D/P/K/M/F ruling ids cited throughout this bundle (for example D-6, K-7,
 M-20) refer to design records kept outside this repository, local and
@@ -52,7 +53,7 @@ resolving one of those ids to read.
 Phase 1 deliberately excludes:
 
 - Listing the Claude Code plugin in the `spencerbeggs/bot` marketplace
-  (`plugins/claude-code/CLAUDE.md:6`) -- deferred until phase 1 is dogfooded,
+  (`plugin/CLAUDE.md:3-10`) -- deferred until phase 1 is dogfooded,
   which is what this bundle is for.
 - A GitHub Action -- later.
 - A VS Code extension -- later.

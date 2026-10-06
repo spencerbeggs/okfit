@@ -17,9 +17,12 @@ The design spec lives locally (gitignored) at
 This repository dogfoods its own OKF bundle at `okf/`. Start at
 `okf/index.md` for the full map; by area:
 
-- **The workspace root, every package, and the Claude Code plugin** --
+- **The workspace root and every package** --
   `okf/modules/*.md` (`workspace`, `core`, `profiles`, `engine`, `cli`,
-  `mcp`, `lsp`, `plugin`, `claude-code-plugin`, `vscode-extension`).
+  `mcp`, `lsp`, `plugin`, `ai-plugins`, `vscode-extension`).
+- **The agent plugin** (one pluginfinity source built into Claude Code and
+  GitHub Copilot plugins; changesets package `@okfit/ai-plugins`) --
+  `plugin/CLAUDE.md`, `okf/modules/ai-plugins.md`. Never edit `plugin/builds/`; run `pnpm plugin:build`.
 - **The VS Code extension** -- `vscode/CLAUDE.md`,
   `okf/modules/vscode-extension.md`,
   `okf/runbooks/publish-vscode-extension.md`.
@@ -77,5 +80,5 @@ Run one package's tests with `pnpm vitest run packages/core`. The
 
 Never set `"private": false` in a source `package.json`; no changesets until
 Spencer calls the initial release. Mechanics (the dual build, versioning,
-`plugins/claude-code`'s tag-only publish): the workspace module, under
+`@okfit/ai-plugins`' tag-only publish): the workspace module, under
 `okf/modules/*.md`.

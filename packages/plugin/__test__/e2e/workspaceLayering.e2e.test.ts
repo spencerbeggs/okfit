@@ -18,7 +18,7 @@ const Live = Workspaces.layer({ cwd: import.meta.dirname }).pipe(Layer.provideMe
  * depends on every package as a probe venue), `@okfit/vscode-extension`
  * (a separate consumer that only build-time devDepends on `@okfit/lsp`)
  * and `docs` (the okfit.dev site, private and unpublished) are
- * `unconstrained`; `@okfit/claude-code-plugin` (no code, changeset
+ * `unconstrained`; `@okfit/ai-plugins` (no code, changeset
  * versioning only) is `tooling`.
  */
 describe("workspace layering", () => {

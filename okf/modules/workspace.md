@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T17:12:42Z
-  body_sha256: c7fb34bc90b90b398f63353d4f42d3f8c3e0cb2b3ae28fc9cdbbdb32fab2670c
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 9acbfa84e13864016a4cd70b757784e5c261911856a65b250129d45eccbb41c7
 ---
 
 # Workspace
@@ -18,7 +18,7 @@ generated:
 ## Purpose
 
 okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
-`profiles`, `engine`, `cli`, `mcp`, `lsp`, `plugin`) plus `plugins/claude-code`,
+`profiles`, `engine`, `cli`, `mcp`, `lsp`, `plugin`) plus `plugin`,
 `vscode`, `website`, and
 `.repos/effect`: read-only vendored Effect v4 source that is never written to
 (`CLAUDE.md:16-27`). Each package has its own `CLAUDE.md` and
@@ -28,8 +28,10 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 
 - `packages/*` -- one directory per `@okfit` library (`core`, `profiles`,
   `engine`, `cli`, `mcp`, `lsp`, `plugin`).
-- `plugins/claude-code` -- the Claude Code plugin, tagged but never
-  published to npm.
+- `plugin` -- the pluginfinity source of the okfit agent plugin (private
+  workspace package `@okfit/ai-plugins`), built into Claude Code and GitHub
+  Copilot plugins, tagged but never published to npm; see [AI
+  Plugins](ai-plugins.md).
 - `vscode` -- the `okfit` VS Code extension (`@okfit/vscode-extension`),
   tagged but never published to npm; see [VS Code
   Extension](vscode-extension.md).
@@ -84,6 +86,6 @@ Scope a single package's tests with `pnpm vitest run packages/core`
 `@savvy-web/bundler` produces `dist/dev` and `dist/prod` per package and
 flips `private` on publish; a source `package.json` never sets
 `"private": false"` directly. Changesets, with `@savvy-web/changelog`,
-version everything. `plugins/claude-code` is tagged but never published to
-npm, and its `plugin.json` version is mirrored from its own `package.json`
+version everything. `plugin/` (`@okfit/ai-plugins`) is tagged but never published to
+npm, and both built `plugin.json` versions are mirrored from its own `package.json`
 (`CLAUDE.md:59-63`).

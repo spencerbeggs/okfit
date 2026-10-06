@@ -1,8 +1,8 @@
 # @okfit/plugin
 
 Meta-package. Ships no behavior of its own; it exists so a consuming repo
-installs one package and gets all three bins. The Claude Code plugin's
-loaders (`plugins/claude-code`) run `okfit-mcp` and `okfit-lsp` from the
+installs one package and gets all three bins. The agent plugin's
+launchers (`plugin/bin/start-{mcp,lsp}.sh`) run `okfit-mcp` and `okfit-lsp` from the
 consuming repo's install of this package.
 
 ## Layout

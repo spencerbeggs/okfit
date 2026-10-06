@@ -1,0 +1,26 @@
+{
+	"version": 1,
+	"hooks": {
+		"SessionStart": [
+			{
+				"type": "command",
+				"bash": "bash \"${PLUGIN_ROOT}/hooks/session-start/orientation.sh\"",
+				"timeoutSec": 10,
+				"env": {
+					"PLUGINFINITY_EVENT": "SessionStart"
+				}
+			}
+		],
+		"PostToolUse": [
+			{
+				"type": "command",
+				"bash": "bash \"${PLUGIN_ROOT}/hooks/post-tool-use/validate.sh\"",
+				"matcher": "Write|Edit",
+				"timeoutSec": 30,
+				"env": {
+					"PLUGINFINITY_EVENT": "PostToolUse"
+				}
+			}
+		]
+	}
+}

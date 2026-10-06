@@ -7,8 +7,8 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T17:12:42Z
-  body_sha256: 00de057ceefaafdc031a6d8c5a479359851982a2769d9b9f5b89dc48b823f094
+  at: 2026-10-06T04:20:11Z
+  body_sha256: a97b23b2e202db5cec12a581e8fd2cad2b10afc2df1662c5dafbf00af5ccb2a2
 ---
 
 # Plugin
@@ -17,7 +17,7 @@ generated:
 
 `@okfit/plugin` is the meta-package. It ships no behavior of its own; it
 exists so a consuming repo installs one package and gets all three bins.
-The Claude Code plugin's loaders (`plugins/claude-code`) run `okfit-mcp`
+The agent plugin's loaders (`plugin/`) run `okfit-mcp`
 and `okfit-lsp` from the consuming repo's install of this package
 (`packages/plugin/CLAUDE.md:1-6`): `pnpm add -D @okfit/plugin`
 (`packages/plugin/README.md:3-7`). The plugin registers those bins as

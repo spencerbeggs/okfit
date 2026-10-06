@@ -22,7 +22,7 @@ Bare package specifiers such as `effect` are not affected. These rules apply to 
 
 ## Put tests in `__test__/`
 
-Every package keeps its tests under `__test__/`. Nothing under `src/` is a test file. This includes the Claude Code plugin, whose BATS suite lives in `plugins/claude-code/__test__/`. Reviewers enforce this rule; no tool checks it yet.
+Every package keeps its tests under `__test__/`. Nothing under `src/` is a test file. This includes the okfit agent plugin, whose BATS suite lives in `plugin/__test__/`. Reviewers enforce this rule; no tool checks it yet.
 
 ## Write the commit
 

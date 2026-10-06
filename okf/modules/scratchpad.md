@@ -13,8 +13,8 @@ sources:
     resource: ../../scratchpad/CLAUDE.md
 generated:
   by: "okfit/claude-code"
-  at: 2026-09-22T23:49:20Z
-  body_sha256: f641683b91a676c6605fa9cbc67bedd906bf1b7b4d217e2c0eb1180e5d8b4074
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 0f263039b7fd00ddc135150b91558ae765b6d2d35d2a4c5f05779a3899221ae4
 ---
 
 # scratchpad
@@ -31,7 +31,7 @@ compile time instead.
 ## Architecture: the ghost workspace
 
 `scratchpad/` is a real pnpm workspace member -- listed alongside
-`packages/*` and `plugins/*` in `pnpm-workspace.yaml` -- so `workspace:*`
+`packages/*`, `plugin` and the other roots in `pnpm-workspace.yaml` -- so `workspace:*`
 dependencies resolve and turbo, vitest-agent and pnpm treat it like any
 other member. But it is a fixture, not a package: `"private": true`, no
 `publishConfig`, no `savvy.build.ts`, no build scripts. Its only scripts

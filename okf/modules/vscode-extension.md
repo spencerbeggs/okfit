@@ -10,8 +10,8 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:00:16Z
-  body_sha256: 3e1b7780a9d8e6fdb9cfee9262b6e13539079d02d53b08c7fcca718030d38921
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 36105db5404f04dedfe49a3cb5b72963abd904c28a356df2bd78c2cc1cc0140f
 ---
 
 # VS Code Extension
@@ -21,9 +21,9 @@ generated:
 `@okfit/vscode-extension` (Marketplace id `okfit`, publisher `okfit`) is an
 editor extension, not an agent plugin: it runs inside VS Code's extension
 host and talks to a human through views, a status item and commands, where
-[Claude Code Plugin](claude-code-plugin.md) runs inside an agent host and
+[AI Plugins](ai-plugins.md) runs inside an agent host and
 talks to a model through hooks and MCP tools. It lives at the workspace
-root under `vscode/`, sibling to `packages/*` and `plugins/claude-code`
+root under `vscode/`, sibling to `packages/*` and `plugin`
 rather than inside either — see [The VS Code extension lives at vscode/,
 not under plugins/ or
 packages/](../decisions/vscode-extension-at-repo-root.md). It wraps
@@ -325,7 +325,7 @@ path a human runs instead of the Marketplace for a same-machine check.
 
 ## Distribution
 
-Tag-only, like `plugins/claude-code`: a merged changeset for
+Tag-only, like `plugin/` (`@okfit/ai-plugins`): a merged changeset for
 `@okfit/vscode-extension` tags a GitHub release, which the `VS Code
 Marketplace` workflow packages and publishes to the Visual Studio
 Marketplace and Open VSX, checking for a `VSCE_PAT` secret first and

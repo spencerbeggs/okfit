@@ -5,8 +5,8 @@ description: Every package's tests sit under __test__/; nothing under src/ is a 
 status: stable
 generated:
   by: human:spencer
-  at: 2026-09-06T10:47:04Z
-  body_sha256: 5595e88be7b5ddae4215c7e91ec12dadd580b49883671ca044bd062d768db161
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 19e5d5684f9c3e0e0c58aaf9c59910b8ccf51ff9e21ff55e97703c4319ff395f
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"
@@ -18,7 +18,7 @@ stale_after: "2026-12-05T00:00:00Z"
 
 Every package's tests sit under `__test__/`, never under `src/` (root
 `CLAUDE.md:39`). This applies uniformly across the workspace, including the
-Claude Code plugin's own BATS suite (`plugins/claude-code/__test__/*.bats`).
+okfit agent plugin's own BATS suite (`plugin/__test__/*.bats`).
 
 ## Why
 

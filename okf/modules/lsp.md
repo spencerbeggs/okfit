@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T23:10:36Z
-  body_sha256: 0f4a2f9172699a36da96a49b21f55502be87f7fcc4dff3d76373b32d06f9555f
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 30381623671cc6f28de40f146d78a3820af1864bd209eefe6a02064a278a93f1
 ---
 
 # LSP
@@ -262,7 +262,7 @@ hand-rolled equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
   revalidate this package schedules and calls.
 - [Plugin](plugin.md) — the meta-package whose third bin shim launches
   this server.
-- [Claude Code Plugin](claude-code-plugin.md) — registers
+- [AI Plugins](ai-plugins.md) — registers
   `lspServers.okfit` and loads this server lazily.
 - [VS Code Extension](vscode-extension.md) — the language client and
   concept explorer built on this server, including `okfit/concepts` and

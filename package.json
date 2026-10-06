@@ -22,13 +22,15 @@
 		"build": "turbo run build:dev build:prod --log-order=grouped --log-prefix=none",
 		"ci:build": "CI=\"true\" turbo run build:dev build:prod --log-order=grouped --output-logs=full --log-prefix=none",
 		"ci:test": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=errors-only --log-prefix=none && CI=\"true\" vitest run --passWithNoTests",
-		"claude": "claude --plugin-dir plugins/claude-code --plugin-dir=../pluginfinity/plugins/pluginfinity/builds/claude",
+		"claude": "claude --plugin-dir plugin/builds/claude",
 		"dev": "turbo run dev --filter=docs",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
 		"lint:md": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc'",
 		"lint:md:fix": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
+		"plugin:build": "pluginfinity build plugin",
+		"plugin:check": "pluginfinity build --check plugin",
 		"prepare": "husky",
 		"preview": "turbo run preview --filter=docs",
 		"schema:build": "turbo run schema:build --filter=@okfit/core --output-logs=full",
@@ -37,7 +39,7 @@
 		"scratchpad:probe": "pnpm --filter scratchpad probe",
 		"scratchpad:reset": "pnpm --filter scratchpad reset",
 		"test": "vitest run --passWithNoTests",
-		"test:bats": "bats --recursive plugins",
+		"test:bats": "bats --recursive plugin/__test__",
 		"test:coverage": "vitest run --coverage",
 		"test:watch": "vitest --watch",
 		"typecheck": "turbo run types:check --log-prefix=none --log-order=grouped",
@@ -49,7 +51,8 @@
 		"@okfit/cli": "workspace:*",
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^4.3.3",
-		"@vitest-agent/plugin": "^5.3.0"
+		"@vitest-agent/plugin": "^5.3.0",
+		"pluginfinity": "^0.2.0"
 	},
 	"engines": {
 		"node": ">=24.11.0"

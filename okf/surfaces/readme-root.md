@@ -8,8 +8,8 @@ audience: contributors
 resource: ../../README.md
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T01:30:23Z
-  body_sha256: dd09f8ef62245167425b60a81a9291d96c4f719c4a0a2fcdf90ac9211b93c8c3
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 36ecd1744128122b237088b8c267610f74ba26adc8c07cb071c59707a5112c23
 tags:
   - docs
 ---
@@ -50,7 +50,7 @@ Add an Ecosystem section only when the repository spans related but separate pac
 
 ## okfit specifics
 
-The root README is the first thing a contributor sees. It lists the `@okfit/*` packages, names the Claude Code plugin in `plugins/claude-code`, and points contributors to the guides in `docs/`.
+The root README is the first thing a contributor sees. It lists the `@okfit/*` packages, names the agent plugin in `plugin/`, and points contributors to the guides in `docs/`.
 
 ## Other surfaces
 

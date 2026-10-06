@@ -10,8 +10,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-29T22:18:38Z
-  body_sha256: 8e2092c70a4d92f42bf4b56f97054b07d02e151f9221b38ee3ef2cdc74c7087a
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 47622a932f839e49f58be5b08264403f9442831ec1fb3347380d0e7eff41d94a
 ---
 
 # Website
@@ -25,7 +25,7 @@ author is the repository owner. It is unpublished and unhosted for now: the
 bootstrap branch lands the workspace, navigation and page stubs, and the
 hosting and content work is queued in [Documentation
 site](../roadmaps/documentation-site.md). It is neither an npm package nor
-an agent or editor plugin; the [Claude Code Plugin](claude-code-plugin.md)
+an agent or editor plugin; the [AI Plugins](ai-plugins.md)
 and [VS Code Extension](vscode-extension.md) appear on the site as pages
 under `/docs`, not as sites of their own.
 
@@ -104,7 +104,7 @@ site. Authored pages under `content/` are not ignored.
 - [Core](core.md), [Profiles](profiles.md), [Engine](engine.md),
   [CLI](cli.md), [MCP](mcp.md), [LSP](lsp.md) and [Plugin](plugin.md) --
   the packages whose builds feed `lib/models/`.
-- [Claude Code Plugin](claude-code-plugin.md) and [VS Code
+- [AI Plugins](ai-plugins.md) and [VS Code
   Extension](vscode-extension.md) -- documented under `/docs`, not at the
   root.
 - [User docs live under /docs; package hierarchies live at the site root

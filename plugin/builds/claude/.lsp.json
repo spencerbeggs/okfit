@@ -1,0 +1,18 @@
+{
+	"okfit": {
+		"command": "sh",
+		"args": [
+			"${CLAUDE_PLUGIN_ROOT}/bin/start-lsp.sh",
+			"--stdio"
+		],
+		"extensionToLanguage": {
+			".md": "markdown"
+		},
+		"diagnostics": true,
+		"env": {
+			"PLUGINFINITY_HOST": "claude",
+			"PLUGINFINITY_PLUGIN": "okfit",
+			"PLUGINFINITY_LIB": "${CLAUDE_PLUGIN_ROOT}/lib/pluginfinity"
+		}
+	}
+}
