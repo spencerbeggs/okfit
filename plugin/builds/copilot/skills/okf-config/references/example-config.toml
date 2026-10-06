@@ -1,0 +1,42 @@
+# A worked example, not a template to copy verbatim into every repo --
+# trim the lint overrides and types below that do not apply to your
+# repository.
+
+[bundle]
+path = "okf"               # matches DEFAULTS; stated here for clarity, not an override
+profile = "software-project" # matches DEFAULTS; stated here for clarity, not an override
+
+[lint]
+# Softens D-34's default `error`: this repository is not yet ready to
+# enforce `runtime` on every Attested Computation.
+computation_runtime_missing = "warn"
+# Raises D-34's default `info`: this repository wants staleness surfaced
+# more loudly than the default.
+stale = "warn"
+
+[actors]
+# M-29: actors.agent is the key okf-docs needs set to stamp generated.by.
+agent = "okfit/claude-code"
+humans = ["human:spencer"]
+
+[types.Module]
+description = "A unit of code with an owner and a boundary."
+guidance = "One per package; link to the Decisions and Conventions that shaped it."
+required = ["resource", "kind"]
+
+[types.Module.fields.kind]
+description = "What sort of unit this is; drives which conventions apply."
+values.workspace = "The monorepo root: tooling, CI, release, shared config."
+values.package = "A publishable npm package under packages/."
+values.website = "A docs or marketing site, usually RSPress."
+values.plugin = "A Claude Code or editor plugin distributed outside npm."
+values.action = "A GitHub Action."
+
+[types.Module.fields.resource]
+# kind = "path" is optional and orthogonal to a sibling field's `values` enum.
+description = "The repo-relative path this Module documents, normally the package root."
+kind = "path"
+
+[tags.architecture]
+# A tag has no `guidance` key -- unlike a type, description is all there is.
+description = "Concerns the shape of the system rather than one module."

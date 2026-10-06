@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  - plugins/*
+  - plugin
   - scratchpad
   - vscode
   - website

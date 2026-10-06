@@ -1,5 +1,23 @@
 # Log
 
+## 2026-10-06
+
+* Added AI Plugins
+* Updated Agent plugin hooks contract
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated LSP
+* Updated Never flip private in a source package.json
+* Updated Plugin
+* Updated Repository README
+* Updated Tests live in __test__/, never in src/
+* Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
+* Updated The VS Code extension lives at vscode/, not under plugins/ or packages/
+* Updated VS Code Extension
+* Updated Website
+* Updated Workspace
+* Updated okfit
+* Updated scratchpad
+
 ## 2026-10-05
 
 * Updated CLI

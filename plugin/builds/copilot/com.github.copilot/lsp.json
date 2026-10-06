@@ -1,0 +1,19 @@
+{
+	"lspServers": {
+		"okfit": {
+			"command": "sh",
+			"args": [
+				"${PLUGIN_ROOT}/bin/start-lsp.sh",
+				"--stdio"
+			],
+			"fileExtensions": {
+				".md": "markdown"
+			},
+			"env": {
+				"PLUGINFINITY_HOST": "copilot",
+				"PLUGINFINITY_PLUGIN": "okfit",
+				"PLUGINFINITY_LIB": "${PLUGIN_ROOT}/lib/pluginfinity"
+			}
+		}
+	}
+}

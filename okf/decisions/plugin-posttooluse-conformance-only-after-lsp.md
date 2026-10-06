@@ -8,8 +8,8 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-23T08:32:55Z
-  body_sha256: ed8d8dfccaa08e0742894b5850daab0049f22238f2b959e5f40806b9cbdb31ad
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 431442e73f7d953322939b735b5b5f4672280f0b04e369219d8c77188b3753ad
 status: stable
 verified:
   - by: human:spencer
@@ -78,7 +78,7 @@ An agent editing `okf/**` under Claude Code now sees lint and profile
 findings only through the language server's diagnostics push, never
 through hook `additionalContext`; a `core.conformance` violation and a
 missing `generated.by` still surface through the hook exactly as before.
-`plugins/claude-code/__test__/post-tool-use-validate.bats` covers the
+`plugin/__test__/post-tool-use-validate.bats` covers the
 new silence directly (the tests tagged "LSP phase 4, decision 8" in that
 file). A client that does not register `@okfit/lsp` — or a session where
 another markdown language server shadowed it — sees no lint or profile

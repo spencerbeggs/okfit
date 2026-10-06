@@ -33,8 +33,8 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:00:16Z
-  body_sha256: a5383397ab8e2f842a3f7d2d1df8642589682be488773cb6e2e8c83a48d24c8e
+  at: 2026-10-06T04:20:11Z
+  body_sha256: 63adc3533bf434d4989fe577f587ee9a95d354f008f43672fda65cf7658a1a61
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
@@ -58,7 +58,7 @@ design lives in the local, gitignored spec
 Two new workspace packages join [Engine](../modules/engine.md),
 [CLI](../modules/cli.md), [MCP](../modules/mcp.md),
 [Plugin](../modules/plugin.md) and the
-[Claude Code Plugin](../modules/claude-code-plugin.md):
+[AI Plugins](../modules/ai-plugins.md):
 
 - `packages/lsp` publishes `@okfit/lsp`, the `okfit-lsp` bin, a Language
   Server Protocol server over stdio built on the reference
@@ -113,7 +113,7 @@ reactive API[^reactive-vscode]. Phase 6 was sequenced before phase 5 on
 first release shipped without Set Status, Mark Verified or inlay hints,
 picking them up once phase 5 landed the same day; the
 extension's tracking package lives at `vscode/`, sibling to `packages/*`
-and `plugins/claude-code`, not under either -- see [The VS Code extension
+and `plugin/` (then `plugins/claude-code`), not under either -- see [The VS Code extension
 lives at vscode/, not under plugins/ or
 packages/](../decisions/vscode-extension-at-repo-root.md).
 
@@ -148,7 +148,7 @@ repository's own bundle.
    loader; the meta-package gains its third bin. A notes concept on the
    Effect-native transport starts here. Done 2026-09-23: shipped
    diagnostics-only, and dogfooded on this repository under Claude Code
-   2.1.280 with `--plugin-dir plugins/claude-code`: the debug log shows
+   2.1.280 with `--plugin-dir plugins/claude-code` (the plugin has since moved to `plugin/`, loaded with `--plugin-dir plugin/builds/claude`): the debug log shows
    `Loaded 1 LSP server(s) from plugin: okfit` and `LSP server instance
    started: plugin:okfit:okfit`, and an Edit appending a broken link to
    `okf/modules/lsp.md` produced a diagnostics attachment naming

@@ -6,7 +6,7 @@
 		["@okfit/profiles"],
 		["@okfit/core"]
 	],
-	"tooling": ["@okfit/claude-code-plugin"],
+	"tooling": ["@okfit/ai-plugins"],
 	"unconstrained": ["okfit", "scratchpad", "@okfit/vscode-extension", "docs"],
 	"requiredEdges": [
 		"@okfit/plugin -> @okfit/cli",

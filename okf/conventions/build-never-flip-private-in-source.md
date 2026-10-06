@@ -5,8 +5,8 @@ description: '@savvy-web/bundler flips "private" on publish; a source package.js
 status: stable
 generated:
   by: human:spencer
-  at: 2026-09-06T10:47:04Z
-  body_sha256: 10011c6242c22cef40b5ad804ecca874bb6570f5b384e48fd87a128718cc83d9
+  at: 2026-10-06T04:20:11Z
+  body_sha256: fe6a4926e2e877ff4124874c07850a543e97eaaa626ecbba713d69272792e151
 tags:
   - release
 stale_after: "2026-12-05T00:00:00Z"
@@ -39,11 +39,12 @@ release.
 
 ## The plugin's exception
 
-`plugins/claude-code` is tagged but never published to npm; its
-`plugin.json` version mirrors its own `package.json` version rather than
-being set independently (root `CLAUDE.md:62-63`,
-`plugins/claude-code/CLAUDE.md:3-6`).
+`plugin/` (`@okfit/ai-plugins`) is tagged but never published to npm; its
+built `plugin.json` files (Claude Code and Copilot) mirror its own
+`package.json` version rather than being set independently, via
+`.changeset/config.json` (root `CLAUDE.md:62-63`,
+`plugin/CLAUDE.md:3-10`).
 
 ## Where stated
 
-Root `CLAUDE.md:57-63`; `plugins/claude-code/CLAUDE.md:3-6,15`.
+Root `CLAUDE.md:57-63`; `plugin/CLAUDE.md:3-10,12-18`.
