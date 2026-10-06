@@ -26,13 +26,14 @@ setup() {
 	[ "$(jq -r '.private' "$PKG")" = "true" ]
 }
 
-@test "Claude registers the okfit LSP server through the sh shim with --stdio" {
-	local lsp="$BUILDS/claude/.lsp.json"
-	[ "$(jq -r '.okfit.command' "$lsp")" = "sh" ]
-	[ "$(jq -r '.okfit.args[0]' "$lsp")" = '${CLAUDE_PLUGIN_ROOT}/bin/start-lsp.sh' ]
-	[ "$(jq -r '.okfit.args[1]' "$lsp")" = "--stdio" ]
-	[ "$(jq -r '.okfit.extensionToLanguage[".md"]' "$lsp")" = "markdown" ]
-	[ "$(jq -r '.okfit.diagnostics' "$lsp")" = "true" ]
+@test "Claude registers the okfit LSP server inline in plugin.json through the sh shim with --stdio" {
+	local lsp="$BUILDS/claude/.claude-plugin/plugin.json"
+	[ "$(jq -r '.lspServers.okfit.command' "$lsp")" = "sh" ]
+	[ "$(jq -r '.lspServers.okfit.args[0]' "$lsp")" = '${CLAUDE_PLUGIN_ROOT}/bin/start-lsp.sh' ]
+	[ "$(jq -r '.lspServers.okfit.args[1]' "$lsp")" = "--stdio" ]
+	[ "$(jq -r '.lspServers.okfit.extensionToLanguage[".md"]' "$lsp")" = "markdown" ]
+	[ "$(jq -r '.lspServers.okfit.diagnostics' "$lsp")" = "true" ]
+	[ ! -e "$BUILDS/claude/.lsp.json" ]
 }
 
 @test "Copilot registers the okfit LSP server for .md" {
@@ -42,7 +43,8 @@ setup() {
 }
 
 @test "the MCP server is named mcp on both hosts, so its tools stay mcp__plugin_okfit_mcp__* on Claude" {
-	[ "$(jq -r '.mcpServers.mcp.args[0]' "$BUILDS/claude/.mcp.json")" = '${CLAUDE_PLUGIN_ROOT}/bin/start-mcp.sh' ]
+	[ "$(jq -r '.mcpServers.mcp.args[0]' "$BUILDS/claude/.claude-plugin/plugin.json")" = '${CLAUDE_PLUGIN_ROOT}/bin/start-mcp.sh' ]
+	[ ! -e "$BUILDS/claude/.mcp.json" ]
 	[ "$(jq -r '.mcpServers.mcp.args[0]' "$BUILDS/copilot/mcp.json")" = '${PLUGIN_ROOT}/bin/start-mcp.sh' ]
 }
 

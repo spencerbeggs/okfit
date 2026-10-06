@@ -7,8 +7,8 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
-  body_sha256: cb9ef5d0f608a1e294449403f0c033b243d1cc107e56d1d9cf4bb392a6a758df
+  at: 2026-10-06T05:20:17Z
+  body_sha256: 42c168d5eb9419b9167a27fe1d6e63760e7213e4c07e25c7ffd0bcb76df1bf07
 tags:
   - architecture
 verified:
@@ -83,7 +83,8 @@ fails open and is logged under `$XDG_STATE_HOME/pluginfinity/okfit/`.
 
 `pluginfinity.config.ts` registers `mcpServers.mcp`, running
 `{"command": "sh", "args": ["${PLUGIN_ROOT}/bin/start-mcp.sh"]}` (the
-build writes it into a generated `.mcp.json`);
+build writes it inline into the Claude `plugin.json` and into the Copilot
+`mcp.json`);
 the loader exports `OKFIT_PROJECT_DIR` before resolving the project's own
 `node_modules/.bin/okfit-mcp`, falling back to `npx --yes @okfit/mcp`. The
 `okf-docs` agent's `tools:` block allowlists the six served tool names

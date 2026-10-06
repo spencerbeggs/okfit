@@ -12,7 +12,9 @@ from the repository root's `node_modules`.
 Never edit a file under `builds/`: edit the source, run `pnpm plugin:build`
 from the repo root, and commit `builds/` with it. `pnpm plugin:check`
 fails when `builds/` differs from a fresh build. Never write a
-`hooks.json`, a manifest, `.mcp.json` or `.lsp.json` by hand, and never
+`hooks.json`, a manifest, or a server file by hand (Claude servers are
+written inline into `plugin.json`; never ship a root `.mcp.json` or
+`.lsp.json`, which the build rejects), and never
 create `hooks/lib/pluginfinity/` — the build writes all of them. Biome and
 markdownlint ignore `plugin/builds/**` so commit-time formatting never
 drifts the build.

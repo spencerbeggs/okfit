@@ -10,7 +10,7 @@ The okfit agent plugin is now available for GitHub Copilot as well as Claude Cod
 
 ### Pluginfinity source
 
-The plugin is now authored once as a host-neutral pluginfinity source and built into a Claude Code plugin and a Copilot plugin. Hooks run on the pluginfinity hook library, and the MCP server is declared in `.mcp.json`.
+The plugin is now authored once as a host-neutral pluginfinity source and built into a Claude Code plugin and a Copilot plugin. Hooks run on the pluginfinity hook library, and the Claude Code build declares its MCP and LSP servers inline in `plugin.json`.
 
 ## Maintenance
 

@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
-  body_sha256: 1df93efd11eca0ad589f45f5811487e68af9228900ed5c455f6ddc62379ff6da
+  at: 2026-10-06T05:20:17Z
+  body_sha256: 5c2943faadeb2f9c44530d00b1236eafea1cb38826047d913ffcb890a646274d
 ---
 
 # AI Plugins
@@ -103,8 +103,9 @@ disable one each; comparison is exact-string `off` only
 Tagged but never published to npm (`plugin/CLAUDE.md:3-10`). The config
 registers `mcpServers.mcp`, running `bin/start-mcp.sh`, which resolves the
 consuming repo's own `node_modules/.bin/okfit-mcp` and falls back to `npx
---yes @okfit/mcp`; the build writes it into a generated `.mcp.json` (Claude
-Code) rather than inline in `plugin.json`. The six tools it exposes are named
+--yes @okfit/mcp`; the build writes it inline into the Claude Code `plugin.json` (a root
+`.mcp.json` is commonly gitignored, so it would never be committed) and
+into `mcp.json` for Copilot. The six tools it exposes are named
 explicitly in `agents/okf-docs.md`'s `tools:` block and reach an agent as
 `mcp__plugin_okfit_mcp__<tool>` on Claude Code and `mcp/<tool>` on Copilot
 (`plugin/CLAUDE.md:88-97`; see `okf/interfaces/okfit-mcp.md`). Copilot gives
@@ -115,7 +116,7 @@ straight to `npx`.
 
 The config also registers `lspServers.okfit`, running `bin/start-lsp.sh
 --stdio` through `sh`, for the `.md` extension (`extensionToLanguage`) with
-`diagnostics: true`, written into a generated `.lsp.json`; the loader
+`diagnostics: true`, written inline into the Claude Code `plugin.json`; the loader
 resolves `node_modules/.bin/okfit-lsp` first and falls back to
 `npx --yes @okfit/lsp`, the same shape as `bin/start-mcp.sh` -- see
 [LSP](lsp.md). The server starts lazily, on the first `Edit` or `Write` of

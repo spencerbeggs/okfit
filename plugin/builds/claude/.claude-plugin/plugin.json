@@ -8,5 +8,36 @@
 	},
 	"homepage": "https://github.com/spencerbeggs/okfit",
 	"repository": "https://github.com/spencerbeggs/okfit.git",
-	"license": "MIT"
+	"license": "MIT",
+	"mcpServers": {
+		"mcp": {
+			"command": "sh",
+			"args": [
+				"${CLAUDE_PLUGIN_ROOT}/bin/start-mcp.sh"
+			],
+			"env": {
+				"PLUGINFINITY_HOST": "claude",
+				"PLUGINFINITY_PLUGIN": "okfit",
+				"PLUGINFINITY_LIB": "${CLAUDE_PLUGIN_ROOT}/lib/pluginfinity"
+			}
+		}
+	},
+	"lspServers": {
+		"okfit": {
+			"command": "sh",
+			"args": [
+				"${CLAUDE_PLUGIN_ROOT}/bin/start-lsp.sh",
+				"--stdio"
+			],
+			"extensionToLanguage": {
+				".md": "markdown"
+			},
+			"diagnostics": true,
+			"env": {
+				"PLUGINFINITY_HOST": "claude",
+				"PLUGINFINITY_PLUGIN": "okfit",
+				"PLUGINFINITY_LIB": "${CLAUDE_PLUGIN_ROOT}/lib/pluginfinity"
+			}
+		}
+	}
 }
