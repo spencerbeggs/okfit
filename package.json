@@ -52,7 +52,7 @@
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^4.3.5",
 		"@vitest-agent/plugin": "^5.3.0",
-		"pluginfinity": "^0.2.1"
+		"pluginfinity": "^0.3.0"
 	},
 	"engines": {
 		"node": ">=24.11.0"
