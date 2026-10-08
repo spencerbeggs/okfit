@@ -17,6 +17,6 @@
 		"@types/react-dom": "catalog:docs",
 		"react": "catalog:docs",
 		"react-dom": "catalog:docs",
-		"rspress-plugin-api-extractor": "^0.18.11"
+		"rspress-plugin-api-extractor": "^0.18.12"
 	}
 }

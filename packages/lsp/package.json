@@ -52,16 +52,16 @@
 		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effect",
-		"vscode-languageserver": "^10.1.1"
+		"vscode-languageserver": "^10.1.2"
 	},
 	"devDependencies": {
 		"@effect/vitest": "catalog:effect",
 		"@effected/workspaces": "catalog:effected",
-		"@savvy-web/bundler": "^2.4.22",
+		"@savvy-web/bundler": "^2.4.23",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test",
-		"vscode-jsonrpc": "^9.0.2"
+		"vscode-jsonrpc": "^9.0.3"
 	},
 	"engines": {
 		"node": ">=24.11.0"
