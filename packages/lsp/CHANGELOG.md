@@ -1,5 +1,25 @@
 # @okfit/lsp
 
+## 0.4.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.1 | ^4.0.2 |
+| @effected/schemastore | dependency | updated | ^0.21.1 | ^0.21.2 |
+| @okfit/engine | dependency | updated | 0.13.0 | 0.13.1 |
+| effect | dependency | updated | ^4.0.1 | ^4.0.2 |
+| vscode-languageserver | dependency | updated | ^10.1.1 | ^10.1.2 |
+
+[#261][#261]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#261]: https://github.com/spencerbeggs/okfit/pull/261
+
 ## 0.4.0
 
 ### Features
