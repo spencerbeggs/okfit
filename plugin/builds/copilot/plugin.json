@@ -1,7 +1,7 @@
 {
 	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
 	"name": "okfit",
-	"version": "0.10.0",
+	"version": "0.10.1",
 	"description": "Teaches AI coding agents the Open Knowledge Format (OKF) v0.2 and keeps a repository's okf/ knowledge bundle current through skills, two docs agents, and the okfit CLI, MCP server and language server.",
 	"author": {
 		"name": "C. Spencer Beggs",

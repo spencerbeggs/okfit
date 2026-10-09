@@ -1,5 +1,27 @@
 # @okfit/engine
 
+## 0.14.0
+
+### Features
+
+- Adds `selectStaleCandidates` and `loadStaleCandidates` for finding the concepts whose `stale_after` has passed, and a `VerifyIdsOptions.refreshStaleAfter` option that rolls `stale_after` forward and overwrites the actor's own `verified[].at` entry when re-attesting.
+- Adds `planSync` and `applySyncPlan`, which split sync into a reviewable plan and its application. `runSync` behaves the same from the outside.
+- `VerifySelectionError` gains a `dry-run-needs-verify` reason.
+- `applySyncPlan` re-reads every target before writing and fails with the new exported `SyncPlanStaleError` if any target changed since `planSync`. The error names the changed files and nothing is written. `PendingWrite` gains an optional `before` field holding the plan-time contents. [#267][#267]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.9.1 | 0.9.2 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#267]: https://github.com/spencerbeggs/okfit/pull/267
+
 ## 0.13.2
 
 ### Dependencies
