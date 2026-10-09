@@ -7,7 +7,7 @@ import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from ".
 import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
 import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./select.js";
-import { orderVerifyEdits, splice, spliceTopLevelScalar } from "./splice.js";
+import { orderVerifyEdits, quoteLike, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
  * The only four diagnostic codes that can co-occur with a MISSING
@@ -140,12 +140,10 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	if (staleAfter !== undefined && priorAt.length > 0) {
 		const existing = yield* locateVerifiedAt(text, actor);
 		if (existing._tag === "replaceScalar") {
-			const quoted =
-				existing.quote === "single-quoted" ? `'${at}'` : existing.quote === "double-quoted" ? `"${at}"` : at;
 			verifiedEdit = MarkdownEdit.make({
 				offset: existing.start,
 				length: existing.end - existing.start,
-				content: quoted,
+				content: quoteLike(existing.quote, at),
 			});
 			verifiedPreview = `- by: ${actor}${newline}  at: ${at}`;
 		}
@@ -165,13 +163,10 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	// without is never given a clock it did not have.
 	if (staleAfter !== undefined && concept.frontmatter.stale_after !== undefined) {
 		const target = yield* locateTopLevelScalar(text, "stale_after");
-		if (target._tag !== "replaceScalar") {
-			return yield* new VerifyUnsupportedFrontmatterError({
-				id: concept.id,
-				shape: target._tag === "unsupported" ? target.shape : "stale_after-absent",
-				key: "stale_after",
-			});
+		if (target._tag === "unsupported") {
+			return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: target.shape, key: "stale_after" });
 		}
+		// The key is known present (frontmatter.stale_after is set), so this is always a replaceScalar.
 		staleEdit = spliceTopLevelScalar(target, "stale_after", staleAfter, newline);
 	}
 	const ordered = orderVerifyEdits(verifiedEdit, statusEdit);

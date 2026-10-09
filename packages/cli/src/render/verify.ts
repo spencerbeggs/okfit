@@ -22,11 +22,10 @@ export interface VerifyLines {
  * `would write:` header, dropping the single trailing empty line a
  * newline-terminated fragment produces on split (I3).
  */
-const fragmentLines = (fragment: string): ReadonlyArray<string> => {
+const indentFragment = (fragment: string): ReadonlyArray<string> => {
 	const lines = fragment.split(/\r\n|\n/);
-	return lines[lines.length - 1] === "" ? lines.slice(0, -1) : lines;
+	return (lines[lines.length - 1] === "" ? lines.slice(0, -1) : lines).map((line) => `  ${line}`);
 };
-const indentFragment = (fragment: string): ReadonlyArray<string> => fragmentLines(fragment).map((line) => `  ${line}`);
 
 const statusSuffixOf = (status: VerifyLines["status"]): string =>
 	status === null
