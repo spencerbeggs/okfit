@@ -5,8 +5,8 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { Actor } from "@okfit/core";
-import { OkfitConfig } from "@okfit/core";
-import { DateTime, Effect, Layer, Option } from "effect";
+import { Bundle, Derive, OkfitConfig } from "@okfit/core";
+import { DateTime, Effect, Exit, Layer, Option } from "effect";
 import { runVerifyIds } from "../../src/verify/run.js";
 
 describe("runVerifyIds (issue #214)", () => {
@@ -171,6 +171,116 @@ describe("runVerifyIds (issue #214)", () => {
 			Effect.gen(function* () {
 				yield* runVerifyIds(options(root, ["decisions/a"])).pipe(Effect.provide(platform));
 				assert.ok((yield* read(root, "decisions/a.md")).includes("status: draft"));
+			}),
+		),
+	);
+});
+
+describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
+	const AT = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
+	const concept = (extra: string): string => `---\ntype: Decision\ntitle: A\n${extra}---\n\n# A\n`;
+	const staleLine = 'stale_after: "2026-01-01T00:00:00Z"\n';
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: { require_verified: true } },
+		actors: { humans: ["human:ada" as Actor] },
+		extensions: {},
+	});
+	const gitFake = Layer.succeed(Git, {
+		configGet: (_cwd: string, key: string) =>
+			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+	} as unknown as Git["Service"]);
+	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+
+	const withRoot = <A, E, R>(
+		files: ReadonlyArray<readonly [string, string]>,
+		body: (root: string) => Effect.Effect<A, E, R>,
+	) =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-refresh-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const [name, text] of files) {
+					yield* Effect.promise(() => writeFile(join(root, name), text));
+				}
+				return yield* body(root);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		});
+
+	const run = (root: string, ids: ReadonlyArray<string>, refreshStaleAfter?: boolean) =>
+		runVerifyIds({
+			bundleRoot: root,
+			projectRoot: root,
+			config,
+			at: AT,
+			dryRun: false,
+			ids,
+			...(refreshStaleAfter === undefined ? {} : { refreshStaleAfter }),
+		}).pipe(Effect.provide(platform));
+	const read = (root: string, file: string) => Effect.promise(() => readFile(join(root, file), "utf8"));
+
+	it.effect("rolls stale_after to at + 90d, keeps the quotes, and clears the stale report", () =>
+		withRoot([["decisions/a.md", concept(staleLine)]], (root) =>
+			Effect.gen(function* () {
+				yield* run(root, ["decisions/a"], true);
+				const text = yield* read(root, "decisions/a.md");
+				assert.ok(text.includes('stale_after: "2027-01-07T00:00:00Z"\n'), text);
+				assert.ok(text.includes("by: human:ada"));
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
+				assert.deepStrictEqual(Derive.staleReport(bundle, AT), []);
+			}),
+		),
+	);
+
+	it.effect("updates the actor's existing entry instead of appending a duplicate", () =>
+		withRoot(
+			[
+				[
+					"decisions/a.md",
+					concept(
+						`${staleLine}verified:\n  - by: human:ada\n    at: 2026-01-01T00:00:00Z\n  - by: human:bob\n    at: 2026-01-02T00:00:00Z\n`,
+					),
+				],
+			],
+			(root) =>
+				Effect.gen(function* () {
+					yield* run(root, ["decisions/a"], true);
+					const text = yield* read(root, "decisions/a.md");
+					assert.strictEqual(text.split("by: human:ada").length - 1, 1, text);
+					assert.ok(text.includes("by: human:ada\n    at: 2026-10-09T00:00:00Z\n"), text);
+					assert.ok(text.includes("by: human:bob\n    at: 2026-01-02T00:00:00Z\n"), text);
+				}),
+		),
+	);
+
+	it.effect("adds no stale_after to a concept that has none", () =>
+		withRoot([["decisions/a.md", concept("")]], (root) =>
+			Effect.gen(function* () {
+				yield* run(root, ["decisions/a"], true);
+				const text = yield* read(root, "decisions/a.md");
+				assert.ok(!text.includes("stale_after"), text);
+				assert.ok(text.includes("by: human:ada"));
+			}),
+		),
+	);
+
+	it.effect("leaves stale_after untouched without the option", () =>
+		withRoot([["decisions/a.md", concept(staleLine)]], (root) =>
+			Effect.gen(function* () {
+				yield* run(root, ["decisions/a"]);
+				const text = yield* read(root, "decisions/a.md");
+				assert.ok(text.includes(staleLine), text);
+			}),
+		),
+	);
+
+	it.effect("writes nothing when one id in the batch is bad", () =>
+		withRoot([["decisions/a.md", concept(staleLine)]], (root) =>
+			Effect.gen(function* () {
+				const exit = yield* Effect.exit(run(root, ["decisions/a", "decisions/missing"], true));
+				assert.ok(Exit.isFailure(exit));
+				assert.strictEqual(yield* read(root, "decisions/a.md"), concept(staleLine));
 			}),
 		),
 	);

@@ -1,4 +1,4 @@
-import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
+import type { LoadedBundle, LoadedConcept, OkfitConfig, StaleConcept } from "@okfit/core";
 import { Effect } from "effect";
 import { VerifySelectionError } from "../errors.js";
 
@@ -98,6 +98,38 @@ export const selectPickerCandidates = (
 			title: title ?? null,
 			description: description ?? null,
 			otherAttestations: verified.length,
+		});
+	}
+	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+};
+
+/**
+ * Issue #228: the picker rows for `okfit stale --verify`: one per stale item,
+ * any type, deprecated concepts excluded. Unlike {@link selectPickerCandidates}
+ * the actor's own attestation does not exclude a row, because re-attesting is
+ * the point; `otherAttestations` still counts only other actors. Sorted by
+ * type, then id.
+ *
+ * @public
+ */
+export const selectStaleCandidates = (
+	bundle: LoadedBundle,
+	items: ReadonlyArray<StaleConcept>,
+	actor: string,
+): ReadonlyArray<PickerCandidate> => {
+	const rows: Array<PickerCandidate> = [];
+	for (const item of items) {
+		const concept = bundle.concepts.get(item.id);
+		if (concept === undefined) continue;
+		const { type, status, title, description } = concept.frontmatter;
+		if (status === "deprecated") continue;
+		rows.push({
+			id: item.id,
+			type,
+			status: status === "draft" ? "draft" : "stable",
+			title: title ?? null,
+			description: description ?? null,
+			otherAttestations: (concept.frontmatter.verified ?? []).filter((entry) => entry.by !== actor).length,
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

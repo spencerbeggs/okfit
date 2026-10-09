@@ -77,7 +77,7 @@ export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<Verify
 	{
 		id: Schema.String,
 		shape: Schema.String,
-		key: Schema.optionalKey(Schema.Literals(["verified", "status"])),
+		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after"])),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;

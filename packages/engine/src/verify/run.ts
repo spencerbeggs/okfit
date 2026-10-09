@@ -1,13 +1,12 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
-import { Bundle, ConceptId, Timestamp } from "@okfit/core";
+import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
-import type { DateTime } from "effect";
-import { Effect, FileSystem, Option, Path, Schema } from "effect";
+import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
-import { documentNewline, locate, locateTopLevelScalar, stripBom } from "./locate.js";
+import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
 import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
-import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "./select.js";
+import { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./select.js";
 import { orderVerifyEdits, splice, spliceTopLevelScalar } from "./splice.js";
 
 /**
@@ -114,6 +113,10 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	actor: Actor,
 	at: string,
 	status: "stable" | "draft" | undefined,
+	// Issue #228: the encoded new `stale_after`; set only by `runVerifyIds`'
+	// `refreshStaleAfter`. Also switches a re-attestation to overwrite the
+	// actor's existing entry's `at` rather than append a second entry.
+	staleAfter: string | undefined = undefined,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
@@ -130,7 +133,19 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		.filter((entry) => entry.by === actor)
 		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
 	const newline = documentNewline(text);
-	const verifiedEdit = splice(located, { by: actor, at }, newline);
+	let verifiedEdit = splice(located, { by: actor, at }, newline);
+	if (staleAfter !== undefined && priorAt.length > 0) {
+		const existing = yield* locateVerifiedAt(text, actor);
+		if (existing._tag === "replaceScalar") {
+			const quoted =
+				existing.quote === "single-quoted" ? `'${at}'` : existing.quote === "double-quoted" ? `"${at}"` : at;
+			verifiedEdit = MarkdownEdit.make({
+				offset: existing.start,
+				length: existing.end - existing.start,
+				content: quoted,
+			});
+		}
+	}
 	let statusEdit: MarkdownEdit | undefined;
 	// A concept already at the target makes no edit, so an unsupported `status`
 	// shape on it is deliberately never located: there is nothing to fail on.
@@ -141,7 +156,22 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		}
 		statusEdit = spliceTopLevelScalar(target, "status", status, newline);
 	}
-	const edits = orderVerifyEdits(verifiedEdit, statusEdit);
+	let staleEdit: MarkdownEdit | undefined;
+	// Only a concept that already carries `stale_after` is rolled forward; one
+	// without is never given a clock it did not have.
+	if (staleAfter !== undefined && concept.frontmatter.stale_after !== undefined) {
+		const target = yield* locateTopLevelScalar(text, "stale_after");
+		if (target._tag !== "replaceScalar") {
+			return yield* new VerifyUnsupportedFrontmatterError({
+				id: concept.id,
+				shape: target._tag === "unsupported" ? target.shape : "stale_after-absent",
+				key: "stale_after",
+			});
+		}
+		staleEdit = spliceTopLevelScalar(target, "stale_after", staleAfter, newline);
+	}
+	const ordered = orderVerifyEdits(verifiedEdit, statusEdit);
+	const edits = staleEdit === undefined ? ordered : [...ordered, staleEdit].toSorted((a, b) => a.offset - b.offset);
 	return {
 		absolutePath,
 		finalText: bom + MarkdownEdit.applyAll(text, edits),
@@ -310,6 +340,14 @@ export interface VerifyIdsOptions {
 	readonly ids: ReadonlyArray<string>;
 	/** Also set `status: stable` on every selected concept whose status is `draft`. Default `false`. */
 	readonly promote?: boolean;
+	/**
+	 * Issue #228: also roll each selected concept's existing `stale_after`
+	 * forward to `Derivation.staleAfter(at, config)` in the same write, and
+	 * overwrite the actor's existing `verified` entry's `at` instead of
+	 * appending a duplicate. A concept without `stale_after` gets none added.
+	 * Default `false`: plain verify never touches `stale_after`.
+	 */
+	readonly refreshStaleAfter?: boolean;
 }
 
 /**
@@ -329,6 +367,16 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);
 
+	// Whole-second ISO with `Z`, matching how this repo writes `stale_after`.
+	const staleAfter =
+		options.refreshStaleAfter === true
+			? Schema.encodeSync(Timestamp)(
+					DateTime.makeUnsafe(
+						Math.floor(DateTime.toEpochMillis(Derivation.staleAfter(options.at, options.config)) / 1000) * 1000,
+					),
+				)
+			: undefined;
+
 	const concepts = new Map<string, LoadedConcept>();
 	for (const rawId of options.ids) {
 		const { id, concept } = yield* resolveConcept(bundle, rawId);
@@ -338,7 +386,11 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	for (const [id, concept] of concepts) {
 		const status = options.promote === true && concept.frontmatter.status === "draft" ? "stable" : undefined;
-		prepared.push({ id, conceptPath: concept.path, ...(yield* prepareVerify(bundle, concept, actor, at, status)) });
+		prepared.push({
+			id,
+			conceptPath: concept.path,
+			...(yield* prepareVerify(bundle, concept, actor, at, status, staleAfter)),
+		});
 	}
 
 	if (!options.dryRun) {
@@ -379,6 +431,24 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	return { by, candidates: selectPickerCandidates(bundle, options.config, by) } satisfies {
+		readonly by: string;
+		readonly candidates: ReadonlyArray<PickerCandidate>;
+	};
+});
+
+/**
+ * Issue #228: as {@link loadPickerCandidates}, but the rows are the concepts
+ * stale at `now` (any type, the actor's own attestations included), for
+ * `okfit stale --verify` to re-attest and roll forward. Reads only.
+ *
+ * @public
+ */
+export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")(function* (
+	options: PickerCandidatesOptions & { readonly now: DateTime.Utc },
+) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
+	return { by, candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by) } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};

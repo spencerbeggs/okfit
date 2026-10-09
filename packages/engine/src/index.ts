@@ -106,7 +106,7 @@ export type {
 	VerifyOptions,
 	VerifyResult,
 } from "./verify/run.js";
-export { loadPickerCandidates, runVerify, runVerifyBatch, runVerifyIds } from "./verify/run.js";
+export { loadPickerCandidates, loadStaleCandidates, runVerify, runVerifyBatch, runVerifyIds } from "./verify/run.js";
 export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
-export { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "./verify/select.js";
+export { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";
