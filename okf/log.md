@@ -1,5 +1,12 @@
 # Log
 
+## 2026-10-09
+
+* Updated CLI
+* Updated Engine
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Added stale --verify rolls stale_after forward, and plain verify never does
+
 ## 2026-10-06
 
 * Added AI Plugins
