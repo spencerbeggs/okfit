@@ -106,6 +106,32 @@ describe("no ink or react on the non-interactive path (#231)", () => {
 		},
 		TIMEOUT,
 	);
+
+	it(
+		"positive control: an interactive picker run DOES resolve ink (so the --help proof is not vacuous)",
+		async () => {
+			if (!ptyAvailable) return;
+			const { sandbox, env } = await verifyFixture();
+			const trace = join(sandbox.cwd, "..", "trace.txt");
+			try {
+				const run = await runPty(["verify", "--human", "--dry-run"], {
+					cwd: sandbox.cwd,
+					env: { ...env, OKFIT_TRACE_FILE: trace },
+					nodeArgs: ["--import", TRACER],
+					steps: [{ waitFor: "Attest which concepts?", send: KEYS.esc }],
+				});
+				assert.strictEqual(run.exitCode, 130, run.output);
+				const specifiers = (await readFile(trace, "utf8")).split("\n");
+				assert.ok(
+					specifiers.some((s) => s === "ink" || s.startsWith("ink/")),
+					"an interactive run never resolved ink",
+				);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
 });
 
 describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
@@ -214,11 +240,12 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 				await copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd);
 				const concept = join(sandbox.cwd, "okf", "modules", "core.md");
 				const original = await readFile(concept, "utf8");
-				await writeFile(
-					concept,
-					original.replace("tags: [architecture]\n---", "tags: [architecture]\nstale_after: 2025-01-01T00:00:00Z\n---"),
-					"utf8",
+				const stamped = original.replace(
+					"tags: [architecture]\n---",
+					"tags: [architecture]\nstale_after: 2025-01-01T00:00:00Z\n---",
 				);
+				assert.notStrictEqual(stamped, original);
+				await writeFile(concept, stamped, "utf8");
 				const run = await runPty(["stale", "--verify", "--human", "--dry-run"], {
 					cwd: sandbox.cwd,
 					env: ptyEnv(sandbox),
@@ -227,10 +254,7 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 				assert.strictEqual(run.exitCode, 130, run.output);
 				assert.match(run.output, /modules\/core/);
 				assert.match(run.output, /cancelled; nothing written/);
-				assert.strictEqual(
-					await readFile(concept, "utf8"),
-					original.replace("tags: [architecture]\n---", "tags: [architecture]\nstale_after: 2025-01-01T00:00:00Z\n---"),
-				);
+				assert.strictEqual(await readFile(concept, "utf8"), stamped);
 			} finally {
 				await removeSandbox(sandbox);
 			}

@@ -13,6 +13,8 @@ export interface PtyOptions {
 	readonly cols?: number;
 	readonly rows?: number;
 	readonly steps?: ReadonlyArray<PtyStep>;
+	/** Extra `node` arguments placed before the bin (e.g. `--import <tracer>`). */
+	readonly nodeArgs?: ReadonlyArray<string>;
 	/** Per-wait and overall timeout in ms. Default 20000. */
 	readonly timeoutMs?: number;
 }
@@ -51,8 +53,8 @@ const SENTINEL = "__PTY_EXIT__:";
 export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promise<PtyResult> => {
 	const cols = options.cols ?? 100;
 	const rows = options.rows ?? 30;
-	const timeoutMs = options.timeoutMs ?? 20_000;
-	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, BIN, ...args].map(quote).join(" ")}; echo ${SENTINEL}$?`;
+	const timeoutMs = options.timeoutMs ?? 10_000;
+	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, ...(options.nodeArgs ?? []), BIN, ...args].map(quote).join(" ")}; echo ${SENTINEL}$?`;
 	const scriptCommand =
 		process.platform === "darwin"
 			? `script -q /dev/null sh -c ${quote(inner)}`
@@ -64,47 +66,74 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 	const env = { ...rest, TERM: "xterm-256color", FORCE_COLOR: "0" };
 
 	return new Promise((resolve, reject) => {
-		const child = spawn("sh", ["-c", pipeline], { cwd: options.cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+		// detached: own process group, so a kill reaches cat, script and node, not just the outer sh.
+		const child = spawn("sh", ["-c", pipeline], {
+			cwd: options.cwd,
+			env,
+			stdio: ["pipe", "pipe", "pipe"],
+			detached: true,
+		});
 		let raw = "";
-		let offset = 0;
+		let rawOffset = 0;
 		let next = 0;
+		let done = false;
 		const steps = options.steps ?? [];
 		let pendingUntil = 0;
-		let stepDeadline = Date.now() + timeoutMs;
+		// One deadline: each wait gets timeoutMs, and so does the exit after the last send.
+		let deadline = Date.now() + timeoutMs;
+		const sends = new Set<NodeJS.Timeout>();
 
-		const settle = (fn: () => void): void => {
+		const killGroup = (): void => {
+			try {
+				if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+			} catch {
+				// already gone
+			}
+		};
+		const finish = (fn: () => void): void => {
+			if (done) return;
+			done = true;
 			clearInterval(timer);
-			clearTimeout(overall);
+			for (const t of sends) clearTimeout(t);
+			killGroup();
+			child.stdin.destroy();
 			fn();
 		};
-		const failWith = (message: string): void => {
-			child.kill("SIGKILL");
-			settle(() => reject(new Error(`${message}\n--- output so far ---\n${stripAnsi(raw)}`)));
-		};
+		const failWith = (message: string): void =>
+			finish(() => reject(new Error(`${message}\n--- output so far ---\n${stripAnsi(raw)}`)));
 		const advance = (): void => {
-			while (next < steps.length) {
-				if (Date.now() < pendingUntil) return;
-				const step = steps[next];
-				if (step === undefined) return;
-				const fresh = stripAnsi(raw).slice(offset);
-				const hit = typeof step.waitFor === "string" ? fresh.includes(step.waitFor) : step.waitFor.test(fresh);
-				if (!hit) {
-					if (Date.now() > stepDeadline) failWith(`timed out waiting for ${String(step.waitFor)}`);
-					return;
-				}
-				offset = stripAnsi(raw).length;
-				next += 1;
-				stepDeadline = Date.now() + timeoutMs;
-				// Ink paints a screen before it attaches its key handler; a key sent in that gap is lost.
-				pendingUntil = Date.now() + SETTLE_MS;
-				const send = step.send;
-				setTimeout(() => child.stdin.writable && child.stdin.write(send), SETTLE_MS);
+			if (done) return;
+			if (next >= steps.length) {
+				if (Date.now() > deadline) failWith("timed out waiting for the process to exit");
 				return;
 			}
+			if (Date.now() < pendingUntil) return;
+			const step = steps[next];
+			if (step === undefined) return;
+			// Strip only the unseen tail; a stripped prefix length is unstable on a partial buffer.
+			const fresh = stripAnsi(raw.slice(rawOffset));
+			const hit = typeof step.waitFor === "string" ? fresh.includes(step.waitFor) : step.waitFor.test(fresh);
+			if (!hit) {
+				if (Date.now() > deadline) failWith(`timed out waiting for ${String(step.waitFor)}`);
+				return;
+			}
+			rawOffset = raw.length;
+			next += 1;
+			deadline = Date.now() + timeoutMs;
+			// Ink paints a screen before it attaches its key handler; a key sent in that gap is lost.
+			pendingUntil = Date.now() + SETTLE_MS;
+			const send = step.send;
+			const t = setTimeout(() => {
+				sends.delete(t);
+				if (!done && child.stdin.writable) child.stdin.write(send);
+			}, SETTLE_MS);
+			sends.add(t);
 		};
 
 		const timer = setInterval(advance, 25);
-		const overall = setTimeout(() => failWith("pty run exceeded its overall timeout"), timeoutMs * (steps.length + 2));
+		child.stdin.on("error", () => {
+			// EPIPE after the pipeline exited or was killed is expected.
+		});
 		child.stdout.on("data", (chunk: Buffer) => {
 			raw += chunk.toString("utf8");
 			if (raw.includes(SENTINEL)) child.stdin.end();
@@ -113,9 +142,9 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 		child.stderr.on("data", (chunk: Buffer) => {
 			raw += chunk.toString("utf8");
 		});
-		child.on("error", (error) => settle(() => reject(error)));
+		child.on("error", (error) => finish(() => reject(error)));
 		child.on("close", () => {
-			settle(() => {
+			finish(() => {
 				const text = stripAnsi(raw);
 				const match = new RegExp(`${SENTINEL}(\\d+)`).exec(text);
 				if (match === null) {
