@@ -49,7 +49,7 @@ const verifyFixture = async (): Promise<{ sandbox: Sandbox; env: Record<string, 
 	const sandbox = await makeSandbox("okfit-pty-");
 	await writeIdentity(sandbox);
 	const env = ptyEnv(sandbox);
-	await runPty(["init", "--human"], {
+	const scaffold = await runPty(["init", "--human"], {
 		cwd: sandbox.cwd,
 		env,
 		steps: [
@@ -57,6 +57,7 @@ const verifyFixture = async (): Promise<{ sandbox: Sandbox; env: Record<string, 
 			{ waitFor: "Config file location", send: KEYS.enter },
 		],
 	});
+	assert.strictEqual(scaffold.exitCode, 0, scaffold.output);
 	const files = [join(sandbox.cwd, "okf", "decisions", "a.md"), join(sandbox.cwd, "okf", "decisions", "b.md")];
 	await writeFile(files[0] as string, decision("Alpha"), "utf8");
 	await writeFile(files[1] as string, decision("Beta"), "utf8");
@@ -308,6 +309,30 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 				assert.strictEqual(ok.exitCode, 0, ok.output);
 				assert.notStrictEqual(await readFile(decisionFile, "utf8"), beforeDecision);
 				assert.notStrictEqual(await readFile(indexFile, "utf8"), beforeIndex);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+});
+
+describe("human report lines stay unwrapped on a narrow terminal", () => {
+	it(
+		"lint --human prints a long diagnostic on one physical line at 70 columns",
+		async () => {
+			const { sandbox, env, files } = await verifyFixture();
+			try {
+				await writeFile(
+					files[0] as string,
+					`---\ntype: Decision\ntitle: Alpha\n---\n\n[x](./does-not-exist-${"very-long-name-".repeat(6)}.md)\n`,
+					"utf8",
+				);
+				const run = await runPty(["lint", "--human"], { cwd: sandbox.cwd, env, cols: 70 });
+				const diagnostics = run.output.split("\n").filter((l) => /\b(error|warning|info) [a-z-]+ /.test(l));
+				assert.ok(diagnostics.length > 0, run.output);
+				const long = diagnostics.find((l) => l.length > 70);
+				assert.ok(long !== undefined, `expected a diagnostic wider than 70 columns:\n${run.output}`);
 			} finally {
 				await removeSandbox(sandbox);
 			}
