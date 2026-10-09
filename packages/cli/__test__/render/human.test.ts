@@ -1,9 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
-import { CliTheme } from "@effected/cli";
+import { CliTheme, Render } from "@effected/cli";
 import { DiagnosticRange } from "@okfit/core";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { Effect, Path } from "effect";
-import { displayRoot, human, line, summary } from "../../src/render/human.js";
+import { displayRoot, human, humanDoc, line, summary } from "../../src/render/human.js";
 
 const ESC = String.fromCharCode(27);
 
@@ -137,5 +137,52 @@ describe("displayRoot", () => {
 		Effect.sync(() => {
 			assert.strictEqual(displayRoot("/repo", "/elsewhere/okf", path), "/elsewhere/okf");
 		}),
+	);
+});
+
+const ranged: RenderedDiagnostic = {
+	...base,
+	file: "modules/web.md",
+	code: "broken-links",
+	severity: "warning",
+	message: "link target missing",
+	range: DiagnosticRange.make({ offset: 0, length: 1, line: 2, character: 4 }),
+};
+const bundleLevel: RenderedDiagnostic = { ...base, file: "", severity: "info", code: "config-unknown-key" };
+const fixture: ReadonlyArray<RenderedDiagnostic> = [ranged, base, bundleLevel];
+
+describe("humanDoc", () => {
+	it.effect("plain render is byte-identical to the human lines", () =>
+		Effect.sync(() => {
+			const out = Render.plain(humanDoc(fixture), Render.contextOf({ audience: "agent" }));
+			assert.strictEqual(out, human(fixture).join("\n"));
+		}),
+	);
+
+	it.effect("githubLog adds one annotation per diagnostic, info as notice", () =>
+		Effect.sync(() => {
+			const out = Render.githubLog(humanDoc(fixture), Render.contextOf({ audience: "ci" }));
+			assert.include(out, "::warning file=modules/web.md,line=3,col=5::broken-links link target missing");
+			assert.include(out, "::error file=modules/router.md::required-key-missing");
+			assert.include(out, "::notice::config-unknown-key");
+		}),
+	);
+
+	it.effect("a workflow command in a message is neutralized onto one line", () =>
+		Effect.sync(() => {
+			const evil: RenderedDiagnostic = { ...base, message: "x\n::set-output name=a::b" };
+			const out = Render.githubLog(humanDoc([evil]), Render.contextOf({ audience: "ci" }));
+			assert.notInclude(out.split("\n").join("|"), "|::set-output");
+			for (const l of out.split("\n")) assert.isFalse(l.startsWith("::set-output"));
+		}),
+	);
+
+	it.effect("ansi colours only the severity word, exactly as the theme paints it today", () =>
+		Effect.gen(function* () {
+			const theme = yield* CliTheme;
+			const out = Render.ansi(humanDoc([base]), Render.contextOf({ audience: "human", color: "basic" }));
+			assert.strictEqual(out, line(base, { paint: theme.paint }));
+			assert.isTrue(out.includes(ESC));
+		}).pipe(Effect.provide(CliTheme.layerTest({ color: "basic" }))),
 	);
 });

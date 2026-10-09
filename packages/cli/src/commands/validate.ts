@@ -1,4 +1,4 @@
-import { CliExit, CliTheme } from "@effected/cli";
+import { CliExit, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
@@ -19,7 +19,7 @@ import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { readDocumentText } from "../internal/stdin.js";
 import type { Counts } from "../render/human.js";
-import { displayRoot, human, summary } from "../render/human.js";
+import { displayRoot, humanDoc, summary } from "../render/human.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
@@ -116,17 +116,15 @@ export const validateCommand = Command.make(
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(JsonEnvelope)(envelope)));
 				} else {
-					const theme = yield* CliTheme;
-					for (const diagnosticLine of human(diagnostics, { paint: theme.paint })) {
-						yield* Console.log(diagnosticLine);
-					}
+					const shownRoot = displayRoot(cwd, bundleRoot, path);
+					yield* Doc.print(humanDoc(diagnostics, { root: bundleRoot, annotationDir: shownRoot }));
 					const counts: Counts = {
 						errors: diagnostics.filter((d) => d.severity === "error").length,
 						warnings: diagnostics.filter((d) => d.severity === "warning").length,
 						info: diagnostics.filter((d) => d.severity === "info").length,
 						concepts: result.bundle.concepts.size,
 					};
-					yield* Console.error(summary(counts, displayRoot(cwd, bundleRoot, path)));
+					yield* Console.error(summary(counts, shownRoot));
 				}
 
 				yield* CliExit.set(code);

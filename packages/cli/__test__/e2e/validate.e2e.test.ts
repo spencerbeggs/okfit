@@ -97,6 +97,29 @@ describe("okfit validate: profile-tier error", () => {
 	);
 });
 
+describe("okfit validate: GitHub Actions annotations", () => {
+	it.effect("--ci under GITHUB_ACTIONS adds a ::error annotation beside the unchanged line", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(PROFILE_BAD_FIXTURE, join(sandbox.cwd, "okf")));
+
+			const result = yield* runOkfit(["validate", "--ci"], {
+				cwd: sandbox.cwd,
+				env: { ...sandbox.env, GITHUB_ACTIONS: "true" },
+			});
+
+			assert.strictEqual(result.exitCode, 1);
+			const line =
+				"(bundle) error project-missing No Project concept in the bundle; software-project expects exactly one at the bundle root (project.md)";
+			assert.strictEqual(
+				result.stdout,
+				`${line}\n::error::project-missing No Project concept in the bundle; software-project expects exactly one at the bundle root (project.md)\n`,
+			);
+			assert.strictEqual(result.stderr, "1 errors, 0 warnings, 0 info in 1 concepts (okf)\n");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
 describe("okfit validate: conformance beats a co-occurring profile error", () => {
 	it.effect("a frontmatter-missing concept: exit 2, sorted stdout, both diagnostics counted", () =>
 		Effect.gen(function* () {

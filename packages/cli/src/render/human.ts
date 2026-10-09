@@ -1,3 +1,5 @@
+import type { Document } from "@effected/cli";
+import { Doc } from "@effected/cli";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { sort } from "@okfit/engine";
 import type { Path } from "effect";
@@ -49,6 +51,52 @@ export const human = (
 	diagnostics: ReadonlyArray<RenderedDiagnostic>,
 	options?: { readonly paint?: SeverityPaint },
 ): ReadonlyArray<string> => sort(diagnostics).map((d) => line(d, options));
+
+/** Where a diagnostic's file lives, so `humanDoc` can link and annotate it. @public */
+export interface HumanDocOptions {
+	/** Absolute bundle root: file links (OSC 8, `vscode://`) resolve against it. Omit for no file links. */
+	readonly root?: string;
+	/** Bundle root as the CI runner sees it (repo-relative, e.g. `okf`): prefixes the annotation `file`. `.` or omitted = none. */
+	readonly annotationDir?: string;
+}
+
+const LEVEL = { error: "error", warning: "warning", info: "notice" } as const;
+
+/**
+ * The `Doc` form of {@link human}: per sorted diagnostic one paragraph with
+ * the K-16 line shape (the severity word alone carries its token, K-19; the
+ * `file:line:col` prefix is a link when `root` is given), then a GitHub
+ * annotation block that only `Render.githubLog` writes. Plain output is
+ * byte-identical to `human(...).join("\n")`.
+ *
+ * @public
+ */
+export const humanDoc = (diagnostics: ReadonlyArray<RenderedDiagnostic>, options?: HumanDocOptions): Document =>
+	sort(diagnostics).flatMap((d) => {
+		const label = d.file === "" ? "(bundle)" : d.file;
+		const position = d.range === undefined ? undefined : { line: d.range.line + 1, col: d.range.character + 1 };
+		const location = position === undefined ? label : `${label}:${position.line}:${position.col}`;
+		const target =
+			d.file === "" || options?.root === undefined ? undefined : { file: `${options.root}/${d.file}`, ...position };
+		const dir = options?.annotationDir;
+		const annotationFile = d.file === "" ? undefined : dir === undefined || dir === "." ? d.file : `${dir}/${d.file}`;
+		return [
+			Doc.paragraph(
+				Doc.link(target, location, { suffix: false }),
+				" ",
+				Doc.text(d.severity, d.severity),
+				` ${d.code} ${d.message}`,
+			),
+			Doc.annotation(
+				{
+					level: LEVEL[d.severity],
+					...(annotationFile === undefined ? {} : { file: annotationFile }),
+					...(position === undefined ? {} : position),
+				},
+				`${d.code} ${d.message}`,
+			),
+		];
+	});
 
 /**
  * K-20, verbatim and unpluralised —
