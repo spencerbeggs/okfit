@@ -1,8 +1,9 @@
+import { Doc } from "@effected/cli";
 import type { OkfitConfig } from "@okfit/core";
 import { loadStaleCandidates, runVerifyIds } from "@okfit/engine";
 import type { DateTime } from "effect";
-import { Console, Effect } from "effect";
-import { humanVerifyBatch } from "../render/verify.js";
+import { Effect } from "effect";
+import { humanVerifyBatchDoc } from "../render/verify.js";
 import { pickConcepts } from "./verify-picker.js";
 
 /**
@@ -43,13 +44,13 @@ export const reverifyStale = (options: {
 			promote: picked.promote,
 			refreshStaleAfter: true,
 		});
-		for (const line of humanVerifyBatch({
-			by: result.by,
-			at: result.at,
-			dryRun: result.dryRun,
-			verified: result.verified,
-			skipped: result.skipped,
-		})) {
-			yield* Console.log(line);
-		}
+		yield* Doc.print(
+			humanVerifyBatchDoc({
+				by: result.by,
+				at: result.at,
+				dryRun: result.dryRun,
+				verified: result.verified,
+				skipped: result.skipped,
+			}),
+		);
 	});

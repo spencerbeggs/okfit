@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
+import { CliEnv, CliLinks } from "@effected/cli";
 import { CliUiTest } from "@effected/cli/ui/testing";
-import { DateTime, Effect, Exit, Fiber, Option } from "effect";
+import { DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
 import { reverifyStale } from "../../src/commands/stale-verify.js";
 import { config, platform, read, withBundle } from "../utils/picker.js";
 
@@ -21,6 +22,7 @@ const start = (root: string, dryRun = false) =>
 			reverifyStale({ bundleRoot: root, projectRoot: root, config, now: NOW, at: NOW, dryRun }).pipe(
 				Effect.provide(session.layer),
 				Effect.provide(platform),
+				Effect.provide(Layer.mergeAll(CliEnv.layerTest({ audience: "agent" }), CliLinks.layerTest("off"))),
 			),
 		);
 		return { session, fiber };
