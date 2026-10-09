@@ -1,5 +1,17 @@
 # @okfit/core
 
+## 0.9.2
+
+### Bug Fixes
+
+- Broken-link anchor diagnostics now name the candidate headings: the message offers `did you mean "#slug"?` when a close match exists, lists the target's headings otherwise, and says the target has no headings when it has none. [#267][#267]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#267]: https://github.com/spencerbeggs/okfit/pull/267
+
 ## 0.9.1
 
 ### Dependencies

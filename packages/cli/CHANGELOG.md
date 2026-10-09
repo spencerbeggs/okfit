@@ -1,5 +1,29 @@
 # @okfit/cli
 
+## 0.11.0
+
+### Features
+
+- `okfit stale --verify` re-attests stale concepts and rolls their `stale_after` forward; add `--dry-run` to preview.
+- Interactive `okfit sync` now shows the plan and asks for confirmation before writing. Pass `--yes` to skip the prompt.
+- Human-readable reports render through the `@effected/cli` Doc IR, with OSC 8 links to files. `validate` and `lint` also emit GitHub Actions annotations, with paths relative to `GITHUB_WORKSPACE`.
+- Adds new render exports for the human reports.
+- An interactive `okfit sync` refuses to write if a planned file changed while the confirm was open. It exits `3` and writes nothing; re-run sync. [#267][#267]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.9.1 | 0.9.2 |
+| @okfit/engine | dependency | updated | 0.13.2 | 0.14.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.9.0 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#267]: https://github.com/spencerbeggs/okfit/pull/267
+
 ## 0.10.2
 
 ### Dependencies

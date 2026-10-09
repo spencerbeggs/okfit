@@ -1,5 +1,17 @@
 # @okfit/ai-plugins
 
+## 0.10.1
+
+### Documentation
+
+- The `okf-authoring` and `okf-finalize` skills and the `okf-docs` agent now describe `okfit stale --verify` and the confirmed `okfit sync`. The rebuilt plugin also picks up the pluginfinity 0.3.1 runtime. [#267][#267]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#267]: https://github.com/spencerbeggs/okfit/pull/267
+
 ## 0.10.0
 
 ### Features
