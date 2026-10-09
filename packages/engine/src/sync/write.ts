@@ -52,3 +52,14 @@ export const writeAtomic = Effect.fn("okfit/sync/writeAtomic")(function* (target
 		Effect.onError(() => fs.remove(tempPath, { force: true }).pipe(Effect.ignore)),
 	);
 });
+
+/**
+ * A write a sync mode would perform: the plan half of plan/apply. `target` is
+ * the absolute path handed to {@link writeAtomic}; `contents` the full text.
+ *
+ * @public
+ */
+export interface PendingWrite {
+	readonly target: string;
+	readonly contents: string;
+}

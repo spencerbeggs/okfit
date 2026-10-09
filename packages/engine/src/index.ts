@@ -93,8 +93,9 @@ export { withFallbackRange } from "./session/range.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
 export { NotAPublicationError, PublicationNotFoundError, stampPublication } from "./sync/publication.js";
-export type { SyncMode, SyncModeResult, SyncOptions, SyncResult } from "./sync/run.js";
-export { SkipReason, runSync } from "./sync/run.js";
+export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult } from "./sync/run.js";
+export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
+export type { PendingWrite } from "./sync/write.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type {
