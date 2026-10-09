@@ -127,6 +127,14 @@ describe("query errors", () => {
 	});
 });
 
+describe("VerifySelectionError dry-run-needs-verify (#228)", () => {
+	it("exits 64 and says --dry-run needs --verify", () => {
+		const error = new VerifySelectionError({ reason: "dry-run-needs-verify" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.include(error.message, "--dry-run needs --verify");
+	});
+});
+
 describe("VerifySelectionError no-selection", () => {
 	it("exits 64 and hints at the interactive picker", () => {
 		const error = new VerifySelectionError({ reason: "no-selection" });

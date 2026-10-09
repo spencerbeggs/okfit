@@ -254,6 +254,28 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 		),
 	);
 
+	it.effect("a dry run previews the whole resulting entry and the rolled stale_after, not a bare timestamp", () =>
+		withRoot(
+			[["decisions/a.md", concept(`${staleLine}verified:\n  - by: human:ada\n    at: 2026-01-01T00:00:00Z\n`)]],
+			(root) =>
+				Effect.gen(function* () {
+					const result = yield* runVerifyIds({
+						bundleRoot: root,
+						projectRoot: root,
+						config,
+						at: AT,
+						dryRun: true,
+						ids: ["decisions/a"],
+						refreshStaleAfter: true,
+					}).pipe(Effect.provide(platform));
+					assert.strictEqual(
+						result.verified[0]?.fragment,
+						"- by: human:ada\n  at: 2026-10-09T00:00:00Z\nstale_after: 2027-01-07T00:00:00Z",
+					);
+				}),
+		),
+	);
+
 	it.effect("adds no stale_after to a concept that has none", () =>
 		withRoot([["decisions/a.md", concept("")]], (root) =>
 			Effect.gen(function* () {

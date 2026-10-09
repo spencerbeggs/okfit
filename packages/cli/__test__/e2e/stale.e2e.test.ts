@@ -114,3 +114,43 @@ describe("okfit stale --format json", () => {
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
+
+describe("okfit stale --verify (issue #228)", () => {
+	it.effect("exits 64 with empty stdout when the run cannot mount a screen", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* seedStaleBundle(sandbox);
+			const env = { ...sandbox.env, OKFIT_NOW: "2026-01-01T00:00:00Z" };
+
+			for (const args of [
+				["stale", "--verify", "--agent"],
+				["stale", "--verify"],
+			]) {
+				const result = yield* runOkfit(args, { ...sandbox, env });
+				assert.strictEqual(result.exitCode, 64, args.join(" "));
+				assert.strictEqual(result.stdout, "", args.join(" "));
+			}
+
+			// Under json the K-22 error envelope is the only stdout; the report never prints.
+			const json = yield* runOkfit(["stale", "--verify", "--format", "json"], { ...sandbox, env });
+			assert.strictEqual(json.exitCode, 64);
+			const envelope = JSON.parse(json.stdout) as {
+				readonly exit_code: number;
+				readonly error: { readonly tag: string };
+			};
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "VerifySelectionError");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("--dry-run without --verify exits 64", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* seedStaleBundle(sandbox);
+			const result = yield* runOkfit(["stale", "--dry-run"], sandbox);
+			assert.strictEqual(result.exitCode, 64);
+			assert.strictEqual(result.stdout, "");
+			assert.include(result.stderr, "--dry-run needs --verify");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});

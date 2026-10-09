@@ -134,6 +134,9 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
 	const newline = documentNewline(text);
 	let verifiedEdit = splice(located, { by: actor, at }, newline);
+	// What a dry run shows for the `verified` edit. The overwrite below edits
+	// only the bare timestamp, so it previews the whole resulting entry instead.
+	let verifiedPreview = verifiedEdit.content;
 	if (staleAfter !== undefined && priorAt.length > 0) {
 		const existing = yield* locateVerifiedAt(text, actor);
 		if (existing._tag === "replaceScalar") {
@@ -144,6 +147,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 				length: existing.end - existing.start,
 				content: quoted,
 			});
+			verifiedPreview = `- by: ${actor}${newline}  at: ${at}`;
 		}
 	}
 	let statusEdit: MarkdownEdit | undefined;
@@ -175,7 +179,11 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	return {
 		absolutePath,
 		finalText: bom + MarkdownEdit.applyAll(text, edits),
-		fragment: verifiedEdit.content,
+		// A rolled-forward `stale_after` is previewed under the entry it accompanies.
+		fragment:
+			staleEdit === undefined || staleAfter === undefined
+				? verifiedPreview
+				: `${verifiedPreview.replace(/(?:\r\n|\n)$/, "")}${newline}stale_after: ${staleAfter}`,
 		statusFragment: statusEdit?.content ?? null,
 		priorAt,
 	} satisfies PreparedVerify;

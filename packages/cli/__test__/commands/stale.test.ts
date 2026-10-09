@@ -19,7 +19,7 @@ describe("staleCommand", () => {
 		assert.isTrue((staleCommand.description ?? "").includes("stale_after"));
 	});
 
-	it("declares exactly the path argument and the config/format flags, by name", () => {
+	it("declares exactly the path argument and the config/format/verify/dry-run flags, by name", () => {
 		const config = configOf(staleCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -27,7 +27,7 @@ describe("staleCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format"],
+			["config", "format", "verify", "dry-run"],
 		);
 	});
 

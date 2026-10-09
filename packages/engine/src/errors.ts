@@ -152,7 +152,14 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
  * @public
  */
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
-	reason: Schema.Literals(["no-selection", "id-and-batch", "unknown-type", "status-conflict", "status-and-batch"]),
+	reason: Schema.Literals([
+		"no-selection",
+		"id-and-batch",
+		"unknown-type",
+		"status-conflict",
+		"status-and-batch",
+		"dry-run-needs-verify",
+	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
 	override readonly [Runtime.errorExitCode] = 64;
@@ -161,6 +168,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 			return "verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)";
 		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
+		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {
 			return "--stable and --draft need a concept id; batch mode never changes status";
 		}
