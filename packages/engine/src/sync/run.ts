@@ -84,9 +84,6 @@ export interface SyncPlan {
 	readonly restage?: { readonly repoRoot: string; readonly files: ReadonlyArray<string> };
 }
 
-/** Everything the sync programs need from the environment. */
-type SyncServices = Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto;
-
 /**
  * Contract §5's six-step algorithm, computed without writing: one
  * `Bundle.load`, then a lazy `Derivation.generatedAt` walk shared by the
@@ -103,9 +100,11 @@ type SyncServices = Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypt
  */
 export const planSync: (
 	options: SyncOptions,
-) => Effect.Effect<SyncPlan, BundleLoadError | GeneratedAtError | SyncStagedLogError, SyncServices> = Effect.fn(
-	"okfit/sync/planSync",
-)(function* (options: SyncOptions) {
+) => Effect.Effect<
+	SyncPlan,
+	BundleLoadError | GeneratedAtError | SyncStagedLogError,
+	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+> = Effect.fn("okfit/sync/planSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 
 	if (options.staged !== undefined && options.modes.has("log")) {
@@ -233,9 +232,11 @@ export const applySyncPlan = Effect.fn("okfit/sync/applySyncPlan")(function* (pl
  */
 export const runSync: (
 	options: SyncOptions,
-) => Effect.Effect<SyncResult, BundleLoadError | GeneratedAtError | SyncStagedLogError, SyncServices> = Effect.fn(
-	"okfit/sync/runSync",
-)(function* (options: SyncOptions) {
+) => Effect.Effect<
+	SyncResult,
+	BundleLoadError | GeneratedAtError | SyncStagedLogError,
+	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+> = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const plan = yield* planSync(options);
 	if (options.dryRun) return { ...plan.result, dryRun: true } satisfies SyncResult;
 	return yield* applySyncPlan(plan);

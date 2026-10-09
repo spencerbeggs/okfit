@@ -55,7 +55,7 @@ export const writeAtomic = Effect.fn("okfit/sync/writeAtomic")(function* (target
 
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is
- * the absolute path handed to {@link writeAtomic}; `contents` the full text.
+ * the absolute path handed to `writeAtomic`; `contents` the full text.
  *
  * @public
  */
