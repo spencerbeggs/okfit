@@ -1,4 +1,4 @@
-import { CliInteractive } from "@effected/cli";
+import { CliInteractive, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
@@ -19,7 +19,7 @@ import {
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
-import { humanVerify, humanVerifyBatch } from "../render/verify.js";
+import { humanVerifyBatchDoc, humanVerifyDoc } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
 import { pickConcepts } from "./verify-picker.js";
 
@@ -200,15 +200,15 @@ export const verifyCommand = Command.make(
 						promote: picked.promote,
 					});
 					// --format json never reaches here: it makes the run non-interactive.
-					for (const line of humanVerifyBatch({
-						by: result.by,
-						at: result.at,
-						dryRun: result.dryRun,
-						verified: result.verified,
-						skipped: result.skipped,
-					})) {
-						yield* Console.log(line);
-					}
+					yield* Doc.print(
+						humanVerifyBatchDoc({
+							by: result.by,
+							at: result.at,
+							dryRun: result.dryRun,
+							verified: result.verified,
+							skipped: result.skipped,
+						}),
+					);
 					return;
 				}
 
@@ -235,15 +235,15 @@ export const verifyCommand = Command.make(
 						});
 						yield* Console.log(JSON.stringify(Schema.encodeSync(VerifyBatchEnvelope)(envelope)));
 					} else {
-						for (const line of humanVerifyBatch({
-							by: result.by,
-							at: result.at,
-							dryRun: result.dryRun,
-							verified: result.verified,
-							skipped: result.skipped,
-						})) {
-							yield* Console.log(line);
-						}
+						yield* Doc.print(
+							humanVerifyBatchDoc({
+								by: result.by,
+								at: result.at,
+								dryRun: result.dryRun,
+								verified: result.verified,
+								skipped: result.skipped,
+							}),
+						);
 					}
 					return;
 				}
@@ -279,18 +279,18 @@ export const verifyCommand = Command.make(
 					});
 					yield* Console.log(JSON.stringify(Schema.encodeSync(VerifyEnvelope)(envelope)));
 				} else {
-					for (const line of humanVerify({
-						id: result.id,
-						by: result.by,
-						at: result.at,
-						priorAt: result.priorAt,
-						dryRun: result.dryRun,
-						fragment: result.fragment,
-						status: result.status,
-						statusFragment: result.statusFragment,
-					})) {
-						yield* Console.log(line);
-					}
+					yield* Doc.print(
+						humanVerifyDoc({
+							id: result.id,
+							by: result.by,
+							at: result.at,
+							priorAt: result.priorAt,
+							dryRun: result.dryRun,
+							fragment: result.fragment,
+							status: result.status,
+							statusFragment: result.statusFragment,
+						}),
+					);
 				}
 			}).pipe(
 				// Contract §12 note 8: `Derivation.generatedBy` requires `Git`, and

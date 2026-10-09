@@ -1,3 +1,5 @@
+import type { Document } from "@effected/cli";
+import { Doc } from "@effected/cli";
 import type { VerifyBatchSkipReason } from "@okfit/engine";
 /** @public */
 export interface VerifyLines {
@@ -20,11 +22,21 @@ export interface VerifyLines {
  * `would write:` header, dropping the single trailing empty line a
  * newline-terminated fragment produces on split (I3).
  */
-const indentFragment = (fragment: string): ReadonlyArray<string> => {
+const fragmentLines = (fragment: string): ReadonlyArray<string> => {
 	const lines = fragment.split(/\r\n|\n/);
-	const trimmed = lines[lines.length - 1] === "" ? lines.slice(0, -1) : lines;
-	return trimmed.map((line) => `  ${line}`);
+	return lines[lines.length - 1] === "" ? lines.slice(0, -1) : lines;
 };
+const indentFragment = (fragment: string): ReadonlyArray<string> => fragmentLines(fragment).map((line) => `  ${line}`);
+
+const statusSuffixOf = (status: VerifyLines["status"]): string =>
+	status === null
+		? ""
+		: status.from === status.to
+			? `; status already ${status.to}`
+			: `; status ${status.from ?? "(absent)"} -> ${status.to}`;
+
+/** A fragment as a `Doc.verbatim` block: indented two spaces, never wrapped, trailing newline dropped (I3). */
+const fragmentBlock = (fragment: string) => Doc.verbatim(indentFragment(fragment).join("\n"));
 
 /**
  * V-11's human output: one line per fact. One `already verified` line per
@@ -38,12 +50,7 @@ const indentFragment = (fragment: string): ReadonlyArray<string> => {
  * @public
  */
 export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => {
-	const statusSuffix =
-		input.status === null
-			? ""
-			: input.status.from === input.status.to
-				? `; status already ${input.status.to}`
-				: `; status ${input.status.from ?? "(absent)"} -> ${input.status.to}`;
+	const statusSuffix = statusSuffixOf(input.status);
 	return [
 		...input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`),
 		input.dryRun
@@ -85,4 +92,57 @@ export const humanVerifyBatch = (input: VerifyBatchLines): ReadonlyArray<string>
 	input.dryRun
 		? `would verify ${input.verified.length}, skipped ${input.skipped.length} (dry run, nothing written)`
 		: `verified ${input.verified.length}, skipped ${input.skipped.length}`,
+];
+
+const paragraphs = (lines: ReadonlyArray<string>): Document => lines.map((text) => Doc.paragraph(text));
+
+/**
+ * The `Doc` form of {@link humanVerify}: each fact line a paragraph, each
+ * `--dry-run` fragment a `Doc.verbatim` block (indented, never wrapped, so a
+ * YAML block keeps its shape). Plain output is byte-identical to
+ * `humanVerify(input).join("\n")`.
+ *
+ * @public
+ */
+export const humanVerifyDoc = (input: VerifyLines): Document => [
+	...input.priorAt.map((at) => Doc.paragraph(`already verified by ${input.by} at ${at}; appending`)),
+	Doc.paragraph(
+		input.dryRun
+			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffixOf(input.status)} (dry run, nothing written)`
+			: `verified ${input.id} by ${input.by} at ${input.at}${statusSuffixOf(input.status)}`,
+	),
+	...(input.dryRun ? [Doc.paragraph("would write:"), fragmentBlock(input.fragment)] : []),
+	...(input.dryRun && input.statusFragment !== null
+		? [Doc.paragraph("would set status:"), fragmentBlock(input.statusFragment)]
+		: []),
+];
+
+/**
+ * The `Doc` form of {@link humanVerifyBatch}; plain output is byte-identical
+ * to `humanVerifyBatch(input).join("\n")`.
+ *
+ * @public
+ */
+export const humanVerifyBatchDoc = (input: VerifyBatchLines): Document => [
+	...paragraphs(
+		input.skipped.map((entry) =>
+			entry.reason === "already-verified"
+				? `skipped ${entry.id}: already verified by ${input.by}`
+				: `skipped ${entry.id}: ${entry.reason}`,
+		),
+	),
+	...input.verified.flatMap((entry) =>
+		input.dryRun
+			? [
+					Doc.paragraph(`would verify ${entry.id} by ${input.by} at ${input.at}`),
+					Doc.paragraph("would write:"),
+					fragmentBlock(entry.fragment),
+				]
+			: [Doc.paragraph(`verified ${entry.id} by ${input.by} at ${input.at}`)],
+	),
+	Doc.paragraph(
+		input.dryRun
+			? `would verify ${input.verified.length}, skipped ${input.skipped.length} (dry run, nothing written)`
+			: `verified ${input.verified.length}, skipped ${input.skipped.length}`,
+	),
 ];

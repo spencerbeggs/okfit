@@ -52,7 +52,8 @@ src/
                             the version formatter (env.formatter), runs on @effected/cli's
                             CliRuntime.main (env wiring, audienceEnvVar OKFIT_AUDIENCE) via CliAudience.run
   index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
-                             Counts, human, line, summary, VerifyLines, humanVerify, CLI_VERSION
+                             Counts, human, humanDoc, annotationDir, line, summary, VerifyLines, humanVerify*,
+                             humanStale*, CLI_VERSION
   version.ts              -- CLI_VERSION, read from process.env.__PACKAGE_VERSION__ (K-32), a
                               build-time constant the bundler injects -- never a package.json
                               import, which would report engine's version for anything that
@@ -84,8 +85,9 @@ src/
                                     GitHub annotations), annotationDir, summary
     sync.ts                       -- humanSync (human half of @okfit/engine's SyncEnvelope)
     query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
-    verify.ts                      -- VerifyLines, humanVerify (human half of @okfit/engine's
-                                      VerifyEnvelope)
+    verify.ts                      -- VerifyLines, humanVerify / humanVerifyDoc / humanVerifyBatchDoc (human half
+                                      of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print)
+    stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), staleSummary
   internal/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)

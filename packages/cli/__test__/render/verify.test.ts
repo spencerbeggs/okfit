@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { humanVerify, humanVerifyBatch } from "../../src/render/verify.js";
+import { Render } from "@effected/cli";
+import { humanVerify, humanVerifyBatch, humanVerifyBatchDoc, humanVerifyDoc } from "../../src/render/verify.js";
 
 describe("humanVerify", () => {
 	it("renders the success line, with a would-write preview under --dry-run", () => {
@@ -115,4 +116,52 @@ describe("humanVerifyBatch", () => {
 		});
 		assert.deepStrictEqual(lines, ["skipped decisions/c: deprecated", "verified 0, skipped 1"]);
 	});
+});
+
+const plain = Render.contextOf({ audience: "agent" });
+// The engine never emits a blank fragment line (a `- by:/at:` block); verbatim would trim one to empty where the line array pads it.
+const multiLineFragment = "verified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n";
+const single = {
+	id: "decisions/x",
+	by: "human:ada",
+	at: "2026-09-16T12:00:00Z",
+	priorAt: ["2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z"],
+	fragment: multiLineFragment,
+	status: { from: "draft", to: "stable" },
+	statusFragment: "stable\n",
+} as const;
+
+describe("humanVerifyDoc", () => {
+	for (const dryRun of [false, true]) {
+		it(`plain render equals the line array joined (dryRun=${dryRun}, multi-line fragment, prior entries, status)`, () => {
+			const input = { ...single, dryRun };
+			assert.strictEqual(Render.plain(humanVerifyDoc(input), plain), humanVerify(input).join("\n"));
+		});
+	}
+
+	it("a CRLF fragment and a null status render like the lines", () => {
+		const input = { ...single, dryRun: true, status: null, statusFragment: null, fragment: "a:\r\n  b\r\n" };
+		assert.strictEqual(Render.plain(humanVerifyDoc(input), plain), humanVerify(input).join("\n"));
+	});
+});
+
+describe("humanVerifyBatchDoc", () => {
+	for (const dryRun of [false, true]) {
+		it(`plain render equals the line array joined (dryRun=${dryRun})`, () => {
+			const input = {
+				by: "human:ada",
+				at: "2026-09-16T12:00:00Z",
+				dryRun,
+				verified: [
+					{ id: "decisions/a", fragment: multiLineFragment },
+					{ id: "decisions/b", fragment: "verified:\n  - by: human:ada\n" },
+				],
+				skipped: [
+					{ id: "decisions/c", reason: "draft" },
+					{ id: "decisions/d", reason: "already-verified" },
+				],
+			} as const;
+			assert.strictEqual(Render.plain(humanVerifyBatchDoc(input), plain), humanVerifyBatch(input).join("\n"));
+		});
+	}
 });

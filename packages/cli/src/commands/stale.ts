@@ -1,4 +1,4 @@
-import { CliInteractive } from "@effected/cli";
+import { CliInteractive, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
@@ -15,7 +15,7 @@ import {
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
-import { humanStale, staleSummary } from "../render/stale.js";
+import { humanStaleDoc, staleSummary } from "../render/stale.js";
 import { CLI_VERSION } from "../version.js";
 import { reverifyStale } from "./stale-verify.js";
 
@@ -104,9 +104,7 @@ export const staleCommand = Command.make(
 				if (input.format === "json") {
 					yield* Console.log(JSON.stringify(Schema.encodeSync(StaleEnvelope)(envelope)));
 				} else {
-					for (const line of humanStale(envelope.items)) {
-						yield* Console.log(line);
-					}
+					yield* Doc.print(humanStaleDoc(envelope.items, { root: bundleRoot }));
 					yield* Console.error(
 						staleSummary(envelope.summary.stale, envelope.summary.concepts, displayRoot(cwd, bundleRoot, path)),
 					);
