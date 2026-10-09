@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-09T16:35:36Z
-  body_sha256: 6d29e613b93416d1a7aff8456b8c03ba1c5b2af332b9a0f60d093e3a8729417e
+  at: 2026-10-09T16:44:16Z
+  body_sha256: cf0e80a51fc55d3547b1dfe9c4bb6fd19c9ab1b924091c68067b8f4fbffa741f
 tags:
   - architecture
 verified:
@@ -141,7 +141,7 @@ batch forms, dry-run fragments included) renders through the Doc IR with the
 same plain bytes as before, with one edge: a dry-run fragment is printed as
 verbatim lines and the Doc IR trims a whitespace-only line to empty, so a
 hand-written `verified:` block containing a blank interior line prints it
-without its trailing spaces. The engine's own fragments never contain one.
+without its trailing spaces. (The engine does reindent such a hand-written block into the fragment, so this edge is reachable.)
 
 ## okfit query
 
