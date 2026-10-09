@@ -21,6 +21,7 @@ export {
 	QueryConceptNotFoundError,
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
+	SyncPlanStaleError,
 	SyncPublicationConflictError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,

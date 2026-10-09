@@ -90,4 +90,23 @@ describe("planSync / applySyncPlan", () => {
 			}
 		}),
 	);
+
+	it.effect("applySyncPlan refuses a plan whose target changed, writing nothing", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-plan-")));
+			try {
+				yield* Effect.promise(() => seed(root));
+				const plan = yield* planSync(options(root, false)).pipe(Effect.provide(fakes(root)));
+				yield* Effect.promise(() => writeFile(join(root, "index.md"), "# edited after the plan\n"));
+				const before = yield* Effect.promise(() => snapshot(root));
+				const error = yield* applySyncPlan(plan).pipe(Effect.provide(fakes(root)), Effect.flip);
+				if (error._tag !== "SyncPlanStaleError") return assert.fail(`unexpected ${error._tag}`);
+				assert.deepStrictEqual(error.paths, [join(root, "index.md")]);
+				assert.include(error.message, "re-run sync");
+				assert.deepStrictEqual(yield* Effect.promise(() => snapshot(root)), before);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
 });

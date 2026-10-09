@@ -5,7 +5,7 @@ import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profil
 import { Derivation } from "@okfit/profiles";
 import type { Crypto } from "effect";
 import { DateTime, Effect, FileSystem, Path, Schema } from "effect";
-import { SyncStagedLogError } from "../errors.js";
+import { SyncPlanStaleError, SyncStagedLogError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
@@ -204,9 +204,19 @@ export const planSync: (
 		if (files.length > 0) restage = { repoRoot, files };
 	}
 
+	// Record each target's plan-time bytes so applySyncPlan can tell it was edited since.
+	const fsForSnapshot = yield* FileSystem.FileSystem;
+	const snapshotted: Array<PendingWrite> = [];
+	for (const write of pending) {
+		const before = yield* fsForSnapshot
+			.readFileString(write.target)
+			.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)));
+		snapshotted.push({ ...write, before });
+	}
+
 	return {
 		result: { bundleRoot: options.bundleRoot, dryRun: true, generated, index, log },
-		pending,
+		pending: snapshotted,
 		...(restage === undefined ? {} : { restage }),
 	} satisfies SyncPlan;
 });
@@ -215,11 +225,23 @@ export const planSync: (
  * Performs exactly the writes a {@link SyncPlan} recorded (atomically, in plan
  * order), then the `--staged` re-add, and returns the non-dry-run
  * {@link SyncResult}. The bundle is not reloaded: the plan is applied as
- * computed, so a file changed since {@link planSync} is overwritten.
+ * computed. Before writing anything it re-reads every target and fails
+ * {@link SyncPlanStaleError} (writing nothing) if one differs from what
+ * {@link planSync} saw, so the run writes exactly the plan it showed.
  *
  * @public
  */
 export const applySyncPlan = Effect.fn("okfit/sync/applySyncPlan")(function* (plan: SyncPlan) {
+	const fs = yield* FileSystem.FileSystem;
+	const changed: Array<string> = [];
+	for (const write of plan.pending) {
+		if (write.before === undefined) continue;
+		const now = yield* fs
+			.readFileString(write.target)
+			.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)));
+		if (now !== write.before) changed.push(write.target);
+	}
+	if (changed.length > 0) return yield* new SyncPlanStaleError({ paths: changed });
 	for (const write of plan.pending) yield* writeAtomic(write.target, write.contents);
 	if (plan.restage !== undefined) yield* (yield* Git).add(plan.restage.repoRoot, [...plan.restage.files]);
 	return { ...plan.result, dryRun: false } satisfies SyncResult;
@@ -234,7 +256,7 @@ export const runSync: (
 	options: SyncOptions,
 ) => Effect.Effect<
 	SyncResult,
-	BundleLoadError | GeneratedAtError | SyncStagedLogError,
+	BundleLoadError | GeneratedAtError | SyncStagedLogError | SyncPlanStaleError,
 	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
 > = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const plan = yield* planSync(options);

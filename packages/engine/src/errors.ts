@@ -131,6 +131,22 @@ export class SyncStagedLogError extends Schema.TaggedError<SyncStagedLogError>()
 }
 
 /**
+ * `applySyncPlan` found a file its plan would write changed since `planSync`
+ * read it, so applying the plan would overwrite an edit the plan never showed.
+ * Nothing was written. `paths` are the changed targets (absolute); re-run sync.
+ *
+ * @public
+ */
+export class SyncPlanStaleError extends Schema.TaggedError<SyncPlanStaleError>()("SyncPlanStaleError", {
+	paths: Schema.Array(Schema.String),
+}) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		return `changed since the sync plan was made: ${this.paths.join(", ")}; nothing was written, re-run sync`;
+	}
+}
+
+/**
  * `okfit sync --publication` runs nothing else, so combining it with a mode
  * or selection flag (`--only`, `--staged`, `--since`) is a usage error. Exit 64.
  *
