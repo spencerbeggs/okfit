@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:00:16Z
-  body_sha256: cefc38f603d25249168068847233744029b351996440efa060e7f541d21414d6
+  at: 2026-10-09T17:01:02Z
+  body_sha256: dae22879d83ab008ff102a58270ba57064d5538c9405a8d86f9af3ad40d96664
 ---
 
 # Engine
@@ -105,6 +105,16 @@ not attested, drafts included and deprecated excluded. A bare `verify` with
 no selection is still a `VerifySelectionError` (exit `64`); its message now
 ends `(run in a terminal to pick interactively)`.
 
+`verify/select.ts#selectStaleCandidates` and
+`verify/run.ts#loadStaleCandidates` list the concepts `okfit stale --verify`
+offers (the stale ones; deprecated excluded). `runVerifyIds` takes a
+`refreshStaleAfter` option: each attested concept's `stale_after` is rolled
+forward to the attestation instant plus `lifecycle.default_stale_after` in the
+same all-or-nothing write, through the shared `verify/locate.ts` and splice
+helpers, and a re-attest by the same actor overwrites that actor's own
+`verified[].at` rather than appending. See [stale --verify rolls stale_after
+forward](../decisions/stale-verify-rolls-stale-after-forward.md).
+
 ## Concept queries
 
 `query/ConceptQuery.ts`'s `ConceptQuery` is the one read-only query layer
@@ -116,7 +126,17 @@ all call it, so selection and filtering rules live once -- see [One engine
 query layer serves the MCP tools, the CLI and the verify
 picker](../decisions/engine-concept-query-layer.md).
 
-`sync/run.ts#runSync` walks git lazily now: a concept whose recorded
+`sync/run.ts#runSync` is now `planSync` plus `applySyncPlan`: `planSync`
+computes every mode's result and collects the `PendingWrite`s (target path and
+rendered contents) instead of writing, and `applySyncPlan` writes exactly that
+plan, so the CLI's interactive confirm can show a plan and then apply the same
+one. Each `PendingWrite` also carries `before`, the target's bytes when
+`planSync` read it (`null` = absent); `applySyncPlan` re-reads every target
+first and fails `SyncPlanStaleError` (exit `3`, nothing written) if one
+changed, so a file edited between plan and confirm is never overwritten.
+`runSync` composes the two and behaves as before.
+
+`sync/run.ts#planSync` walks git lazily now: a concept whose recorded
 `generated.body_sha256` still matches its current body, and that log mode
 does not need for its date window, is never read through git at all --
 only unstamped concepts, or stamped ones the log window still wants,

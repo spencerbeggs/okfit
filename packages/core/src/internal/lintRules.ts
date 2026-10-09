@@ -243,9 +243,9 @@ export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, 
 });
 
 /** GitHub-style heading slug: lowercase, punctuation dropped, spaces to hyphens, duplicates suffixed `-1`, `-2`, ... */
-const headingSlugs = (concept: LoadedConcept): ReadonlySet<string> => {
+const headingSlugs = (concept: LoadedConcept): ReadonlyArray<string> => {
 	const seen = new Map<string, number>();
-	const slugs = new Set<string>();
+	const slugs: Array<string> = [];
 	for (const heading of concept.document.headings) {
 		const base = heading.text
 			.toLowerCase()
@@ -254,9 +254,45 @@ const headingSlugs = (concept: LoadedConcept): ReadonlySet<string> => {
 			.replace(/\s+/g, "-");
 		const count = seen.get(base) ?? 0;
 		seen.set(base, count + 1);
-		slugs.add(count === 0 ? base : `${base}-${count}`);
+		slugs.push(count === 0 ? base : `${base}-${count}`);
 	}
 	return slugs;
+};
+
+/** Levenshtein distance (two-row DP). */
+const editDistance = (a: string, b: string): number => {
+	let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+	for (let i = 1; i <= a.length; i++) {
+		const current = [i];
+		for (let j = 1; j <= b.length; j++) {
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			current[j] = Math.min((previous[j] ?? 0) + 1, (current[j - 1] ?? 0) + 1, (previous[j - 1] ?? 0) + cost);
+		}
+		previous = current;
+	}
+	return previous[b.length] ?? 0;
+};
+
+/** The closest slug within max(2, ⌊|fragment| / 3⌋) edits, ties to the earliest heading; else undefined. */
+const nearestSlug = (fragment: string, slugs: ReadonlyArray<string>): string | undefined => {
+	const limit = Math.max(2, Math.floor(fragment.length / 3));
+	let best: { slug: string; distance: number } | undefined;
+	for (const slug of slugs) {
+		const distance = editDistance(fragment, slug);
+		if (distance <= limit && (best === undefined || distance < best.distance)) best = { slug, distance };
+	}
+	return best?.slug;
+};
+
+const candidateHint = (fragment: string, slugs: ReadonlyArray<string>): string => {
+	if (slugs.length === 0) return "it has no headings";
+	const near = nearestSlug(fragment, slugs);
+	if (near !== undefined) return `did you mean "#${near}"?`;
+	const shown = slugs
+		.slice(0, 5)
+		.map((slug) => `#${slug}`)
+		.join(", ");
+	return slugs.length > 5 ? `its headings: ${shown} (+${slugs.length - 5} more)` : `its headings: ${shown}`;
 };
 
 const fragmentOf = (raw: string): string | undefined => {
@@ -278,9 +314,9 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 		return diagnostic(fileOf(link.from), "broken-links", severity, message, link.data.position);
 	});
 	// Issue #69: a target file that exists but no longer carries the linked heading.
-	const slugCache = new Map<string, ReadonlySet<string>>();
+	const slugCache = new Map<string, ReadonlyArray<string>>();
 	const anchors: Array<Diagnostic> = [];
-	const slugsOf = (id: string, target: LoadedConcept): ReadonlySet<string> => {
+	const slugsOf = (id: string, target: LoadedConcept): ReadonlyArray<string> => {
 		const cached = slugCache.get(id);
 		if (cached !== undefined) return cached;
 		const slugs = headingSlugs(target);
@@ -295,8 +331,10 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 		position: DiagnosticRange | undefined,
 	): void => {
 		const fragment = fragmentOf(raw);
-		if (fragment === undefined || fragment === "" || slugsOf(targetId, target).has(fragment)) return;
-		const message = `Link target "${raw}" exists but has no heading "#${fragment}"`;
+		if (fragment === undefined || fragment === "") return;
+		const slugs = slugsOf(targetId, target);
+		if (slugs.includes(fragment)) return;
+		const message = `Link target "${raw}" exists but has no heading "#${fragment}"; ${candidateHint(fragment, slugs)}`;
 		anchors.push(diagnostic(file, "broken-links", severity, message, position));
 	};
 	for (const link of context.graph.edges) {

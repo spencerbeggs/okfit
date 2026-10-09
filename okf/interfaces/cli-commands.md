@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:46:33Z
-  body_sha256: e389978dbfe54d9a2b555e35439f2a536317279bbfbff8f905ef2393267a6f32
+  at: 2026-10-09T17:01:02Z
+  body_sha256: 9722e6caea185c06a4398579c8b74ba59067f62e917a3b7807f3c3f954f3f127
 tags:
   - architecture
 verified:
@@ -41,7 +41,19 @@ when the diagnostic carries a range, `<file> <severity> <code> <message>`
 otherwise, and `(bundle)` in place of `<file>` for a bundle-level
 diagnostic. Diagnostics sort by file (`(bundle)` first), then range-less
 before ranged, then by offset, then by code. The summary line prints to
-stderr (the `okfit validate` section of `packages/cli/README.md`).
+stderr (the `okfit validate` section of `packages/cli/README.md`). The human
+report renders through the `@effected/cli` Doc IR and is byte-identical to the
+plain lines above when colour and links are off; for a human on a terminal the
+`<file>:<line>:<col>` prefix is an OSC 8 hyperlink to the file. Under GitHub
+Actions (the CI audience), `validate` and `lint` also print one `::error`,
+`::warning` or `::notice` workflow command per diagnostic on stdout,
+interleaved: each follows its own diagnostic line. The
+annotation's `file` is relative to `GITHUB_WORKSPACE` (the working directory
+when unset) and is omitted when the bundle lies outside it; `--format json`
+is unchanged. A `broken-links` anchor diagnostic ends with a hint naming the
+fix: `; did you mean "#<slug>"?` when one heading is close, otherwise `; its
+headings: #a, #b, … (+N more)` (up to five), or `; it has no headings` when
+the target has none.
 `--skip-provenance` skips only the fallback, git-derived tier of
 `generated-at-drift` — the comparison used for a concept with no recorded
 `generated.body_sha256` — for that invocation, without changing the
@@ -125,7 +137,12 @@ dry run included), `3` on any failure — an unknown or reserved id, a concept
 whose `verified` shape cannot be edited safely, a `status` shape that cannot be
 edited safely under `--stable`/`--draft` (for example a block scalar), or an unresolved git
 identity; there is no `1`/`2` content tier. This is a human-run command: no
-agent, hook, or MCP tool ever invokes it.
+agent, hook, or MCP tool ever invokes it. The human report (the single and
+batch forms, dry-run fragments included) renders through the Doc IR with the
+same plain bytes as before, with one edge: a dry-run fragment is printed as
+verbatim lines and the Doc IR trims a whitespace-only line to empty, so a
+hand-written `verified:` block containing a blank interior line prints it
+without its trailing spaces. (The engine does reindent such a hand-written block into the fragment, so this edge is reachable.)
 
 ## okfit query
 
@@ -142,7 +159,7 @@ there is no `okfit status` command. `stale` and `graph` stay top-level.
 ## okfit sync
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
-[--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>]` is the one command that regenerates every
+[--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--yes]` is the one command that regenerates every
 derived-content family: `generated.at` and `generated.body_sha256` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
@@ -166,6 +183,17 @@ discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
 malformed `--since`; there is no `1`/`2` content tier, since `sync` never
 runs conformance or lint checks.
+
+Interactive `okfit sync` (a human audience with a terminal on stdin and
+stdout, not `--format json`) computes the plan, prints it, then asks `Write N
+file(s)?`. Yes applies exactly that plan, with no recomputation; no or Esc
+exits `130` with nothing written. There is no prompt for an empty plan, nor
+under `--yes`, `--staged`, `--dry-run` or `--publication`, nor for `--format
+json` and non-interactive runs, which behave as before. `--yes` skips the
+prompt and writes. The engine splits `runSync` into `planSync` (compute and
+collect the pending writes) and `applySyncPlan` (write them); `runSync` is
+the two composed. `applySyncPlan` fails `SyncPlanStaleError` (exit `3`,
+nothing written, re-run sync) when a target changed since the plan was made.
 
 `--staged` is the pre-commit shape: only concepts in the git index are
 considered, stamped with `now` and re-added; default modes become
@@ -231,7 +259,7 @@ key unless the edge came from a named frontmatter path field, `raw`).
 
 ## okfit stale
 
-`okfit stale [path] [--config <file>] [--format human|json]` loads the
+`okfit stale [path] [--config <file>] [--format human|json] [--verify [--dry-run]]` loads the
 bundle and lists every concept whose `stale_after` instant has already
 passed as of now, sorted by id, each with how many whole days past it.
 `OKFIT_NOW` (K-47) substitutes for the wall clock the same way it does for
@@ -241,6 +269,24 @@ validate`/`okfit lint`, is where staleness can fail a run (at whatever
 severity `[lint].stale` is configured). The human format prints one line
 per stale concept, `<id>  <stale_after ISO>  (<N> days past)`, to stdout,
 then a one-line summary, `<N> stale concepts of <M> in <root>`, to stderr.
+Each id links to its concept file for a human on a terminal.
+
+`okfit stale --verify [--dry-run]` turns the report into a re-verification.
+Interactive only (a human audience with a terminal on stdin and stdout, not
+`--format json`): it prints the report, then opens the picker `Re-verify which
+stale concepts?` over the stale concepts, then the confirm step with the
+promote toggle. The picked ids are written in one all-or-nothing
+`runVerifyIds` with `refreshStaleAfter`: each is attested and its
+`stale_after` rolled forward to the attestation instant plus
+`lifecycle.default_stale_after`, so it stops being stale. A re-attest by the
+same actor overwrites that actor's own `verified[].at` instead of appending a
+second entry. `--dry-run` prints what would be written and writes nothing. A
+non-interactive `stale --verify` is exit `64`, as is `--dry-run` without
+`--verify`; Esc, `q`, Ctrl-C or answering no exits `130` with nothing
+written. Bare `okfit stale` is unchanged, a report that always exits `0`. See
+[stale --verify rolls stale_after
+forward](../decisions/stale-verify-rolls-stale-after-forward.md); like
+`verify`, this is a human-run command.
 
 `okfit stale --format json` prints a `StaleEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `producer`, `distribution`,

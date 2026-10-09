@@ -12,6 +12,19 @@ export interface PickedConcepts {
 	readonly promote: boolean;
 }
 
+/**
+ * Where {@link pickConcepts} gets its rows, and what it says about them.
+ *
+ * @public
+ */
+export interface PickerSource {
+	readonly load: ReturnType<typeof loadPickerCandidates>;
+	/** The line printed when `load` yields no rows. */
+	readonly empty: (by: string) => string;
+	/** The list screen's title. */
+	readonly message: string;
+}
+
 /** One compact row: id, status and how many other actors already attested it. */
 export const pickerLabel = (candidate: PickerCandidate): string =>
 	candidate.otherAttestations === 0
@@ -52,19 +65,28 @@ export const pickerSections = (candidates: ReadonlyArray<PickerCandidate>) => {
  * is nothing to do; fails `Cancelled` on Esc, `q`, Ctrl-C or a "no" answer, and
  * `NotInteractive` when no screen can mount. Writes nothing itself.
  */
-export const pickConcepts = (options: {
-	readonly bundleRoot: string;
-	readonly projectRoot: string;
-	readonly config: OkfitConfig;
-}) =>
+export const pickConcepts = (
+	options: {
+		readonly bundleRoot: string;
+		readonly projectRoot: string;
+		readonly config: OkfitConfig;
+	},
+	// Issue #228: `okfit stale --verify` swaps in the stale set, its own empty
+	// line and its own title; bare `verify` passes nothing and is unchanged.
+	source: PickerSource = {
+		load: loadPickerCandidates(options),
+		empty: (by) => `nothing to verify: every require_verified concept is already attested by ${by}`,
+		message: "Attest which concepts?",
+	},
+) =>
 	Effect.gen(function* () {
-		const { by, candidates } = yield* loadPickerCandidates(options);
+		const { by, candidates } = yield* source.load;
 		if (candidates.length === 0) {
-			yield* Console.log(`nothing to verify: every require_verified concept is already attested by ${by}`);
+			yield* Console.log(source.empty(by));
 			return undefined;
 		}
 		const ids = yield* CliUi.prompt(
-			MultiSelect.screen({ message: "Attest which concepts?", sections: pickerSections(candidates) }),
+			MultiSelect.screen({ message: source.message, sections: pickerSections(candidates) }),
 		);
 		if (ids.length === 0) {
 			yield* Console.log("nothing selected; nothing written");

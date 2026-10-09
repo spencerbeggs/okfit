@@ -16,6 +16,10 @@ export interface VerifyEntry {
 	readonly at: string;
 }
 
+/** `value` wrapped in the quote style the scalar it replaces already uses. @internal */
+export const quoteLike = (quote: "plain" | "single-quoted" | "double-quoted", value: string): string =>
+	quote === "single-quoted" ? `'${value}'` : quote === "double-quoted" ? `"${value}"` : value;
+
 /** Prefix two spaces to every line but the first, joining with `newline` (V-13). */
 const reindent = (original: string, newline: "\n" | "\r\n"): string =>
 	original
@@ -104,9 +108,11 @@ export const spliceGenerated = (
 				content: `${target.indent}${field}: ${value}${newline}`,
 			});
 		case "replaceScalar": {
-			const quoted =
-				target.quote === "single-quoted" ? `'${value}'` : target.quote === "double-quoted" ? `"${value}"` : value;
-			return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: quoted });
+			return MarkdownEdit.make({
+				offset: target.start,
+				length: target.end - target.start,
+				content: quoteLike(target.quote, value),
+			});
 		}
 	}
 };
@@ -167,9 +173,11 @@ export const spliceTopLevelScalar = (
 		case "insertAfterKey":
 			return MarkdownEdit.make({ offset: target.insertAt, length: 0, content: `${key}: ${value}${newline}` });
 		case "replaceScalar": {
-			const quoted =
-				target.quote === "single-quoted" ? `'${value}'` : target.quote === "double-quoted" ? `"${value}"` : value;
-			return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: quoted });
+			return MarkdownEdit.make({
+				offset: target.start,
+				length: target.end - target.start,
+				content: quoteLike(target.quote, value),
+			});
 		}
 	}
 };

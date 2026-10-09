@@ -1,6 +1,7 @@
 import type { LoadedBundle } from "@okfit/core";
 import { Derive, OKF_SPEC_VERSION } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
+import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
 /** @internal */
@@ -39,6 +40,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	dryRun: boolean,
 	written: Array<string>,
 	unchanged: Array<string>,
+	pending?: Array<PendingWrite>,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const onDisk = yield* fs.readFileString(targetPath).pipe(
@@ -50,6 +52,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 		return;
 	}
 	if (dryRun) {
+		pending?.push({ target: targetPath, contents: rendered });
 		written.push(relativeId);
 		return;
 	}
@@ -68,7 +71,11 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
  *
  * @internal
  */
-export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (bundle: LoadedBundle, dryRun: boolean) {
+export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
+	bundle: LoadedBundle,
+	dryRun: boolean,
+	pending?: Array<PendingWrite>,
+) {
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
@@ -79,7 +86,15 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (bundle: Lo
 		okfVersion: OKF_SPEC_VERSION,
 		subdirectories: childDirectoriesOf(bundle, ""),
 	});
-	yield* writeOrCompare(path.join(bundle.root, "index.md"), "index.md", rootRendered, dryRun, written, unchanged);
+	yield* writeOrCompare(
+		path.join(bundle.root, "index.md"),
+		"index.md",
+		rootRendered,
+		dryRun,
+		written,
+		unchanged,
+		pending,
+	);
 
 	// Step 2: every other directory.
 	for (const dir of bundle.directories) {
@@ -92,6 +107,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (bundle: Lo
 			dryRun,
 			written,
 			unchanged,
+			pending,
 		);
 	}
 

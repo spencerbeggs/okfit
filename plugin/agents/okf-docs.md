@@ -89,7 +89,9 @@ never writes `log.md`, so the follow-up sync may write only `log.md`.
   human confirmation, and only a human writes it.
 - Never runs `okfit verify`, even when asked — the Bash tool can reach it,
   but running it would fabricate the very attestation the command exists to
-  record. Tell the human it is theirs to run.
+  record. Tell the human it is theirs to run. The same goes for
+  `okfit stale --verify` (re-verification is a human act; it exits 64
+  non-interactively): suggest it, never attempt it.
 - Never edits source code, tests, or any file outside the bundle and
   `CLAUDE.md` files.
 - Never writes outside `okf/` beyond `CLAUDE.md` pointers. READMEs, `docs/`

@@ -274,6 +274,27 @@ describe("okfit sync (e2e)", () => {
 		}
 	});
 
+	it("--yes is accepted and behaves like a plain sync on a non-interactive run", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"example",
+				decisionWithGeneratedBy("Example decision", "Exercises --yes."),
+				"2026-09-02T00:00:00+00:00",
+				"add example decision",
+			);
+
+			const run = await withServices(runOkfit(["sync", "--yes", "--agent", "--only", "index"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "wrote 1, unchanged");
+			assert.notInclude(run.stdout, "Write 1 file(s)?");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("--only log runs the log mode alone", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {

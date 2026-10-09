@@ -52,3 +52,18 @@ export const writeAtomic = Effect.fn("okfit/sync/writeAtomic")(function* (target
 		Effect.onError(() => fs.remove(tempPath, { force: true }).pipe(Effect.ignore)),
 	);
 });
+
+/**
+ * A write a sync mode would perform: the plan half of plan/apply. `target` is
+ * the absolute path handed to `writeAtomic`; `contents` the full text. `before`
+ * is what `planSync` read from `target` while planning (`null` = the file was
+ * absent); `applySyncPlan` refuses to run when a target no longer matches it.
+ * A write without `before` is applied unchecked.
+ *
+ * @public
+ */
+export interface PendingWrite {
+	readonly target: string;
+	readonly contents: string;
+	readonly before?: string | null;
+}

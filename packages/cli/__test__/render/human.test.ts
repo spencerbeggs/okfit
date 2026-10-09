@@ -1,9 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
-import { CliTheme } from "@effected/cli";
+import { CliTheme, Render } from "@effected/cli";
 import { DiagnosticRange } from "@okfit/core";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { Effect, Path } from "effect";
-import { displayRoot, human, line, summary } from "../../src/render/human.js";
+import { annotationDir, displayRoot, human, humanDoc, line, summary } from "../../src/render/human.js";
 
 const ESC = String.fromCharCode(27);
 
@@ -138,4 +138,98 @@ describe("displayRoot", () => {
 			assert.strictEqual(displayRoot("/repo", "/elsewhere/okf", path), "/elsewhere/okf");
 		}),
 	);
+});
+
+const ranged: RenderedDiagnostic = {
+	...base,
+	file: "modules/web.md",
+	code: "broken-links",
+	severity: "warning",
+	message: "link target missing",
+	range: DiagnosticRange.make({ offset: 0, length: 1, line: 2, character: 4 }),
+};
+const bundleLevel: RenderedDiagnostic = { ...base, file: "", severity: "info", code: "config-unknown-key" };
+const fixture: ReadonlyArray<RenderedDiagnostic> = [ranged, base, bundleLevel];
+
+describe("humanDoc", () => {
+	it.effect("plain render is byte-identical to the human lines", () =>
+		Effect.sync(() => {
+			const out = Render.plain(humanDoc(fixture), Render.contextOf({ audience: "agent" }));
+			assert.strictEqual(out, human(fixture).join("\n"));
+		}),
+	);
+
+	it.effect("githubLog adds one annotation per diagnostic, info as notice", () =>
+		Effect.sync(() => {
+			const out = Render.githubLog(humanDoc(fixture), Render.contextOf({ audience: "ci" }));
+			assert.include(out, "::warning file=modules/web.md,line=3,col=5::broken-links link target missing");
+			assert.include(out, "::error file=modules/router.md::required-key-missing");
+			assert.include(out, "::notice::config-unknown-key");
+		}),
+	);
+
+	it.effect("a workflow command in a message is neutralized onto one line", () =>
+		Effect.sync(() => {
+			const evil: RenderedDiagnostic = { ...base, message: "x\n::set-output name=a::b" };
+			const out = Render.githubLog(humanDoc([evil]), Render.contextOf({ audience: "ci" }));
+			assert.notInclude(out.split("\n").join("|"), "|::set-output");
+			for (const l of out.split("\n")) assert.isFalse(l.startsWith("::set-output"));
+		}),
+	);
+
+	it.effect("ansi colours only the severity word, exactly as the theme paints it today", () =>
+		Effect.gen(function* () {
+			const theme = yield* CliTheme;
+			const out = Render.ansi(humanDoc([base]), Render.contextOf({ audience: "human", color: "basic" }));
+			assert.strictEqual(out, line(base, { paint: theme.paint }));
+			assert.isTrue(out.includes(ESC));
+		}).pipe(Effect.provide(CliTheme.layerTest({ color: "basic" }))),
+	);
+});
+
+describe("annotationDir", () => {
+	it.effect("GITHUB_WORKSPACE set: the bundle root relative to it, even when cwd is a subdirectory", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/ws/pkg", "/ws/okf", "/ws", path), "okf");
+			assert.strictEqual(annotationDir("/ws/pkg", "/ws", "/ws", path), ".");
+		}),
+	);
+
+	it.effect("GITHUB_WORKSPACE set: a bundle outside it has no annotation dir", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/ws", "/elsewhere/okf", "/ws", path), null);
+			assert.strictEqual(annotationDir("/ws", "/ws-other/okf", "/ws", path), null);
+		}),
+	);
+
+	it.effect("unset: relative to cwd when under it", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/repo", "/repo/okf", undefined, path), "okf");
+			assert.strictEqual(annotationDir("/repo", "/repo", undefined, path), ".");
+		}),
+	);
+
+	it.effect("unset: absolute (outside cwd) has no annotation dir", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/repo/sub", "/repo/other", undefined, path), null);
+		}),
+	);
+});
+
+describe("humanDoc annotationDir null", () => {
+	it.effect("omits the annotation file but keeps line and col", () =>
+		Effect.sync(() => {
+			const out = Render.githubLog(humanDoc([ranged], { annotationDir: null }), Render.contextOf({ audience: "ci" }));
+			assert.include(out, "::warning line=3,col=5::broken-links link target missing");
+			assert.notInclude(out, "file=");
+		}),
+	);
+});
+
+describe("humanDoc at a finite width", () => {
+	it("keeps each diagnostic on one physical line", () => {
+		const long: RenderedDiagnostic = { ...base, message: "a very long message ".repeat(8).trim() };
+		const out = Render.ansi(humanDoc([long]), Render.contextOf({ audience: "human", width: 40 }));
+		assert.strictEqual(out.split("\n").length, 1);
+	});
 });

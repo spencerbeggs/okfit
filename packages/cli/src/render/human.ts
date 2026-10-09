@@ -1,3 +1,5 @@
+import type { Document } from "@effected/cli";
+import { Doc } from "@effected/cli";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { sort } from "@okfit/engine";
 import type { Path } from "effect";
@@ -49,6 +51,79 @@ export const human = (
 	diagnostics: ReadonlyArray<RenderedDiagnostic>,
 	options?: { readonly paint?: SeverityPaint },
 ): ReadonlyArray<string> => sort(diagnostics).map((d) => line(d, options));
+
+/** Where a diagnostic's file lives, so `humanDoc` can link and annotate it. @public */
+export interface HumanDocOptions {
+	/** Absolute bundle root: file links (OSC 8, `vscode://`) resolve against it. Omit for no file links. */
+	readonly root?: string;
+	/**
+	 * Bundle root as the CI runner sees it (workspace-relative, e.g. `okf`; see {@link annotationDir}): prefixes the
+	 * annotation `file`. `.` or omitted = no prefix; `null` = the bundle is not addressable from the runner, so the
+	 * annotation carries no `file`.
+	 */
+	readonly annotationDir?: string | null;
+}
+
+/**
+ * The bundle root as GitHub resolves an annotation `file`: relative to
+ * `GITHUB_WORKSPACE` when it is set, else to `cwd`. `.` is the base itself;
+ * `null` is a bundle outside the base (its path would be absolute or leave
+ * it through `..`), where an annotation can name no file.
+ *
+ * @public
+ */
+export const annotationDir = (
+	cwd: string,
+	bundleRoot: string,
+	workspace: string | undefined,
+	path: Path.Path,
+): string | null => {
+	const rel = path.relative(workspace ?? cwd, bundleRoot);
+	if (rel === "") return ".";
+	return rel === ".." || rel.startsWith("../") || path.isAbsolute(rel) ? null : rel;
+};
+
+const LEVEL = { error: "error", warning: "warning", info: "notice" } as const;
+
+/**
+ * The `Doc` form of {@link human}: per sorted diagnostic one paragraph with
+ * the K-16 line shape (the severity word alone carries its token, K-19; the
+ * `file:line:col` prefix is a link when `root` is given), then a GitHub
+ * annotation block that only `Render.githubLog` writes. Plain output is
+ * byte-identical to `human(...).join("\n")`.
+ *
+ * @public
+ */
+export const humanDoc = (diagnostics: ReadonlyArray<RenderedDiagnostic>, options?: HumanDocOptions): Document =>
+	sort(diagnostics).flatMap((d) => {
+		const label = d.file === "" ? "(bundle)" : d.file;
+		const position = d.range === undefined ? undefined : { line: d.range.line + 1, col: d.range.character + 1 };
+		const location = position === undefined ? label : `${label}:${position.line}:${position.col}`;
+		const target =
+			d.file === "" || options?.root === undefined ? undefined : { file: `${options.root}/${d.file}`, ...position };
+		const dir = options?.annotationDir;
+		const annotationFile =
+			d.file === "" || dir === null ? undefined : dir === undefined || dir === "." ? d.file : `${dir}/${d.file}`;
+		return [
+			Doc.line(
+				[
+					Doc.link(target, location, { suffix: false }),
+					" ",
+					Doc.text(d.severity, d.severity),
+					` ${d.code} ${d.message}`,
+				],
+				{ wrap: false },
+			),
+			Doc.annotation(
+				{
+					level: LEVEL[d.severity],
+					...(annotationFile === undefined ? {} : { file: annotationFile }),
+					...(position === undefined ? {} : position),
+				},
+				`${d.code} ${d.message}`,
+			),
+		];
+	});
 
 /**
  * K-20, verbatim and unpluralised —

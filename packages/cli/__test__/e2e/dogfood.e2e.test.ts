@@ -81,11 +81,12 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * The docs-surfaces work adds four `Surface` concepts and one `Publication`.
  * The effected kit adoption (#191) adds a `draft` Decision for shared bins and
  * the crash-policy Decision (`okf/decisions/servers-survive-stray-crashes-once-serving.md`).
+ * The CLI close-out adds `okf/decisions/stale-verify-rolls-stale-after-forward.md`.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 38,
+	Decision: 39,
 	Convention: 7,
 	Interface: 4,
 	Reference: 1,

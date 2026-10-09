@@ -13,6 +13,7 @@ import {
 	stripBom,
 } from "../verify/locate.js";
 import { spliceGeneratedBlock, spliceGeneratedFields } from "../verify/splice.js";
+import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
 /**
@@ -65,6 +66,8 @@ export type GeneratedProvenance =
 export interface SyncGeneratedOptions {
 	readonly provenance: ReadonlyMap<ConceptId, GeneratedProvenance>;
 	readonly dryRun: boolean;
+	/** When set (with `dryRun`), each write that would happen is recorded here, in order, so a caller can apply it later. */
+	readonly pending?: Array<PendingWrite>;
 	/** #73: when set, a concept with no generated block gets one created from this actor. */
 	readonly agent?: Actor;
 	/** #140: when set, only these concepts are considered; every other id is absent from all three lists. */
@@ -107,7 +110,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
-	const { provenance, dryRun, agent, scope } = options;
+	const { provenance, dryRun, agent, scope, pending } = options;
 
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
@@ -176,6 +179,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 
 		const finalText = bom + MarkdownEdit.applyAll(text, edits);
 		if (dryRun) {
+			pending?.push({ target: absolutePath, contents: finalText });
 			written.push(id);
 			continue;
 		}

@@ -2,6 +2,7 @@ import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path } from "effect";
+import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
 /**
@@ -181,6 +182,7 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	provenance: ReadonlyMap<ConceptId, BodyProvenance>,
 	dryRun: boolean,
 	since?: string,
+	pending?: Array<PendingWrite>,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
@@ -234,6 +236,7 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		return { selected: true, written: [], unchanged: ["log.md"], skipped: [] } satisfies SyncLogResult;
 	}
 	if (dryRun) {
+		pending?.push({ target: logPath, contents: merged });
 		return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 	}
 

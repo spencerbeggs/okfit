@@ -5,11 +5,13 @@ import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profil
 import { Derivation } from "@okfit/profiles";
 import type { Crypto } from "effect";
 import { DateTime, Effect, FileSystem, Path, Schema } from "effect";
-import { SyncStagedLogError } from "../errors.js";
+import { SyncPlanStaleError, SyncStagedLogError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
+import type { PendingWrite } from "./write.js";
+import { writeAtomic } from "./write.js";
 
 /** The three families `okfit sync` regenerates (contract §5). @public */
 export type SyncMode = "generated" | "index" | "log";
@@ -69,23 +71,40 @@ export interface SyncResult {
 const UNSELECTED: SyncModeResult = { selected: false, written: [], unchanged: [], skipped: [] };
 
 /**
- * Contract §5's six-step algorithm: one `Bundle.load`, then a lazy
- * `Derivation.generatedAt` walk shared by the generated and log modes
- * (issue #21) — computed only for a concept that still needs one, not for
- * every concept — then the three modes in a FIXED order — generated,
- * index, log — regardless of `--only`'s own occurrence order, so a
- * generated write never invalidates an index or log rendered in the same
- * run (design §2).
+ * What {@link planSync} computed and {@link applySyncPlan} will perform.
+ * `result` is the exact dry-run report (`dryRun: true`); `pending` holds the
+ * file writes behind it, in the fixed generated, index, log order; `restage`
+ * (a `--staged` run only) is the `git add` that follows them.
  *
  * @public
  */
-export const runSync: (
+export interface SyncPlan {
+	readonly result: SyncResult;
+	readonly pending: ReadonlyArray<PendingWrite>;
+	readonly restage?: { readonly repoRoot: string; readonly files: ReadonlyArray<string> };
+}
+
+/**
+ * Contract §5's six-step algorithm, computed without writing: one
+ * `Bundle.load`, then a lazy `Derivation.generatedAt` walk shared by the
+ * generated and log modes (issue #21) -- computed only for a concept that
+ * still needs one, not for every concept -- then the three modes in a FIXED
+ * order -- generated, index, log -- regardless of `--only`'s own occurrence
+ * order. Every mode runs as a dry run and records its writes in
+ * {@link SyncPlan.pending}; no mode reads a file another mode writes (generated
+ * reads concept files, index reads `index.md`s, log reads `log.md`), which is
+ * what makes the dry-run report exact and the deferred apply safe (design §2).
+ * `options.dryRun` is ignored here: a plan never writes.
+ *
+ * @public
+ */
+export const planSync: (
 	options: SyncOptions,
 ) => Effect.Effect<
-	SyncResult,
+	SyncPlan,
 	BundleLoadError | GeneratedAtError | SyncStagedLogError,
 	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
-> = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
+> = Effect.fn("okfit/sync/planSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 
 	if (options.staged !== undefined && options.modes.has("log")) {
@@ -149,26 +168,29 @@ export const runSync: (
 		}
 	}
 
+	const pending: Array<PendingWrite> = [];
 	const generated: SyncModeResult = options.modes.has("generated")
 		? {
 				selected: true,
 				...(yield* syncGenerated(bundle, {
 					provenance: staged ?? walked,
-					dryRun: options.dryRun,
+					dryRun: true,
+					pending,
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
 					...(scope === undefined ? {} : { scope }),
 				})),
 			}
 		: UNSELECTED;
-	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, options.dryRun) : UNSELECTED;
+	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, true, pending) : UNSELECTED;
 	const log: SyncModeResult = options.modes.has("log")
-		? yield* syncLog(bundle, walked, options.dryRun, options.logSince)
+		? yield* syncLog(bundle, walked, true, options.logSince, pending)
 		: UNSELECTED;
 
-	if (options.staged !== undefined && !options.dryRun && repoRoot !== undefined) {
+	let restage: SyncPlan["restage"];
+	if (options.staged !== undefined && repoRoot !== undefined) {
 		const path = yield* Path.Path;
 		// F5: the realpath map built in the staged-set loop above, filtered to
-		// the ids `syncGenerated` actually wrote -- no cast back to `ConceptId`
+		// the ids `syncGenerated` would write -- no cast back to `ConceptId`
 		// needed, since these keys were never anything else.
 		const writtenIds = new Set(generated.written);
 		const files = [
@@ -179,8 +201,65 @@ export const runSync: (
 						.map(([, real]) => real)),
 			...index.written.map((relative) => path.join(bundle.root, relative)),
 		];
-		if (files.length > 0) yield* (yield* Git).add(repoRoot, files);
+		if (files.length > 0) restage = { repoRoot, files };
 	}
 
-	return { bundleRoot: options.bundleRoot, dryRun: options.dryRun, generated, index, log } satisfies SyncResult;
+	// Record each target's plan-time bytes so applySyncPlan can tell it was edited since.
+	const fsForSnapshot = yield* FileSystem.FileSystem;
+	const snapshotted: Array<PendingWrite> = [];
+	for (const write of pending) {
+		const before = yield* fsForSnapshot
+			.readFileString(write.target)
+			.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)));
+		snapshotted.push({ ...write, before });
+	}
+
+	return {
+		result: { bundleRoot: options.bundleRoot, dryRun: true, generated, index, log },
+		pending: snapshotted,
+		...(restage === undefined ? {} : { restage }),
+	} satisfies SyncPlan;
+});
+
+/**
+ * Performs exactly the writes a {@link SyncPlan} recorded (atomically, in plan
+ * order), then the `--staged` re-add, and returns the non-dry-run
+ * {@link SyncResult}. The bundle is not reloaded: the plan is applied as
+ * computed. Before writing anything it re-reads every target and fails
+ * {@link SyncPlanStaleError} (writing nothing) if one differs from what
+ * {@link planSync} saw, so the run writes exactly the plan it showed.
+ *
+ * @public
+ */
+export const applySyncPlan = Effect.fn("okfit/sync/applySyncPlan")(function* (plan: SyncPlan) {
+	const fs = yield* FileSystem.FileSystem;
+	const changed: Array<string> = [];
+	for (const write of plan.pending) {
+		if (write.before === undefined) continue;
+		const now = yield* fs
+			.readFileString(write.target)
+			.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)));
+		if (now !== write.before) changed.push(write.target);
+	}
+	if (changed.length > 0) return yield* new SyncPlanStaleError({ paths: changed });
+	for (const write of plan.pending) yield* writeAtomic(write.target, write.contents);
+	if (plan.restage !== undefined) yield* (yield* Git).add(plan.restage.repoRoot, [...plan.restage.files]);
+	return { ...plan.result, dryRun: false } satisfies SyncResult;
+});
+
+/**
+ * `planSync`, then `applySyncPlan` unless `dryRun`.
+ *
+ * @public
+ */
+export const runSync: (
+	options: SyncOptions,
+) => Effect.Effect<
+	SyncResult,
+	BundleLoadError | GeneratedAtError | SyncStagedLogError | SyncPlanStaleError,
+	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+> = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
+	const plan = yield* planSync(options);
+	if (options.dryRun) return { ...plan.result, dryRun: true } satisfies SyncResult;
+	return yield* applySyncPlan(plan);
 });

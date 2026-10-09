@@ -456,3 +456,60 @@ export const locateGeneratedBlock = Effect.fn("okfit/verify/locateGeneratedBlock
 	}
 	return { _tag: "absent", insertAt: valueStart + value.length } as const;
 });
+
+/**
+ * Where `actor`'s existing `verified` entry keeps its `at` scalar, so a
+ * re-attestation can overwrite the instant instead of appending a duplicate
+ * entry (issue #228). `replaceScalar` carries whole-file offsets and the
+ * scalar's quote style for the LAST entry whose `by` is `actor`; `none`
+ * covers every other shape (no `verified` key, a non-sequence value, no
+ * entry by the actor, an entry whose `at` is not a plain or quoted scalar),
+ * where the caller falls back to appending.
+ *
+ * @internal
+ */
+export type VerifiedAtLocated =
+	| {
+			readonly _tag: "replaceScalar";
+			readonly start: number;
+			readonly end: number;
+			readonly quote: "plain" | "single-quoted" | "double-quoted";
+	  }
+	| { readonly _tag: "none" };
+
+/** @internal */
+export const locateVerifiedAt = Effect.fn("okfit/verify/locateVerifiedAt")(function* (
+	source: string,
+	actor: string,
+): Generator<
+	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
+	VerifiedAtLocated
+> {
+	const none = { _tag: "none" } as const;
+	const parsed = yield* parseTopLevelMapping(source);
+	if ("_tag" in parsed) return none;
+	const { valueStart, contents } = parsed;
+	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === "verified");
+	const seq = pair?.value;
+	if (!(seq instanceof YamlSeq)) return none;
+	const entries = seq.items.filter(
+		(item): item is YamlMap =>
+			item instanceof YamlMap &&
+			item.items.some(
+				(entry) =>
+					entry.key instanceof YamlScalar &&
+					entry.key.value === "by" &&
+					entry.value instanceof YamlScalar &&
+					entry.value.value === actor,
+			),
+	);
+	const entry = entries[entries.length - 1];
+	const at = entry?.items.find((item) => item.key instanceof YamlScalar && item.key.value === "at")?.value;
+	if (!(at instanceof YamlScalar) || at.style === "block-literal" || at.style === "block-folded") return none;
+	return {
+		_tag: "replaceScalar",
+		start: valueStart + at.offset,
+		end: valueStart + at.offset + at.length,
+		quote: at.style,
+	} as const;
+});

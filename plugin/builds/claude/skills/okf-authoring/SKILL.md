@@ -26,7 +26,10 @@ already carries today.
 runs it directly, from their own shell. Never run it yourself, even when
 asked, and never treat its existence as a loophole in this rule. When a
 human has reviewed a draft and wants it settled, `okfit verify <id> --stable`
-attests and promotes it in one write; that too is theirs to run.
+attests and promotes it in one write; that too is theirs to run. The same
+holds for `okfit stale --verify`, which re-attests stale concepts and rolls
+their `stale_after` forward: it exits 64 for an agent, so suggest the human
+run it instead of attempting it.
 
 ## The nineteen rules
 
@@ -69,7 +72,9 @@ attests and promotes it in one write; that too is theirs to run.
    `last_modified` set to the date it was said. A concept with no
    `sources` block is indistinguishable from one nobody bothered to cite.
 8. Prefer bundle-relative links; a broken link is tolerated, never "fixed"
-   by inventing a target.
+   by inventing a target. A `broken-links` anchor diagnostic ends with a
+   hint (`did you mean "#slug"?`, or the target's headings), so repair a
+   bad anchor from that hint rather than guessing.
 9. Only `index.md` and `log.md` are reserved, at any depth.
 10. `index.md` carries no frontmatter except an optional root-only
     `okf_version`.
