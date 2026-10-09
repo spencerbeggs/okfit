@@ -7,8 +7,8 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-09T16:44:16Z
-  body_sha256: cf0e80a51fc55d3547b1dfe9c4bb6fd19c9ab1b924091c68067b8f4fbffa741f
+  at: 2026-10-09T17:01:02Z
+  body_sha256: 9722e6caea185c06a4398579c8b74ba59067f62e917a3b7807f3c3f954f3f127
 tags:
   - architecture
 verified:
@@ -45,8 +45,9 @@ stderr (the `okfit validate` section of `packages/cli/README.md`). The human
 report renders through the `@effected/cli` Doc IR and is byte-identical to the
 plain lines above when colour and links are off; for a human on a terminal the
 `<file>:<line>:<col>` prefix is an OSC 8 hyperlink to the file. Under GitHub
-Actions, `validate` and `lint` also print one `::error`, `::warning` or
-`::notice` workflow command per diagnostic on stdout, after the lines. The
+Actions (the CI audience), `validate` and `lint` also print one `::error`,
+`::warning` or `::notice` workflow command per diagnostic on stdout,
+interleaved: each follows its own diagnostic line. The
 annotation's `file` is relative to `GITHUB_WORKSPACE` (the working directory
 when unset) and is omitted when the bundle lies outside it; `--format json`
 is unchanged. A `broken-links` anchor diagnostic ends with a hint naming the
@@ -191,7 +192,8 @@ under `--yes`, `--staged`, `--dry-run` or `--publication`, nor for `--format
 json` and non-interactive runs, which behave as before. `--yes` skips the
 prompt and writes. The engine splits `runSync` into `planSync` (compute and
 collect the pending writes) and `applySyncPlan` (write them); `runSync` is
-the two composed.
+the two composed. `applySyncPlan` fails `SyncPlanStaleError` (exit `3`,
+nothing written, re-run sync) when a target changed since the plan was made.
 
 `--staged` is the pre-commit shape: only concepts in the git index are
 considered, stamped with `now` and re-added; default modes become
