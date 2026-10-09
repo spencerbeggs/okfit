@@ -9,8 +9,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T18:28:58Z
-  body_sha256: 4ce8186151cdb6c3b18d203d915f005557ed744e6dce40671b34985ff66977b1
+  at: 2026-10-09T16:35:36Z
+  body_sha256: 8e6acc22d3d88b30e5a6cbd10448eee461fc50edf3e03d98917912083cc41e44
 ---
 
 # CLI
@@ -18,7 +18,8 @@ generated:
 ## Purpose
 
 `@okfit/cli` is the `okfit` bin: `okfit validate`, `okfit init`,
-`okfit context`, `okfit verify`, `okfit query`, and `okfit sync`; built on
+`okfit context`, `okfit verify`, `okfit query`, `okfit sync`, `okfit lint`,
+`okfit graph` and `okfit stale`; built on
 `effect/cli` for the command tree, flags, and help, and
 `@effected/cli`'s `CliRuntime.main`/`CliTheme`/`CliExit` for assembly,
 failure rendering, colour, and exit codes. It
@@ -52,12 +53,16 @@ and decides whether prompting is allowed; it never refuses a command.
 Interactivity is the audience being human with a terminal on stdin and
 stdout, and not `--format json`.
 
-Two commands prompt, only when interactive: bare `okfit verify` opens a
+Four commands prompt, only when interactive: bare `okfit verify` opens a
 picker (`commands/verify-picker.ts`: a MultiSelect by type, then a Confirm
 with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
-[Engine](engine.md)), and `okfit init` runs a wizard
-(`internal/initWizard.ts`) for whichever of profile, `--bundle <dir>` and
-`--config-location` was not given as a flag. Cancelling (Esc, `q`, Ctrl-C,
+[Engine](engine.md)); `okfit stale --verify` reuses that picker
+(`commands/stale-verify.ts`) over the stale concepts and writes through
+`runVerifyIds` with `refreshStaleAfter`; `okfit sync` prints its plan and
+confirms `Write N file(s)?` (`commands/sync-confirm.ts`), then applies that
+exact plan; and `okfit init` runs a wizard (`internal/initWizard.ts`) for
+whichever of profile, `--bundle <dir>` and `--config-location` was not given
+as a flag. Cancelling (Esc, `q`, Ctrl-C,
 answering no) is the kit's `Cancelled`, exit `130`, nothing written;
 `renderFailure` prints the kit's own `defaultLines` for a cancelled or
 non-interactive run (`details.isCancelled`, `details.isNotInteractive`), with
@@ -67,6 +72,22 @@ a typed failure one line. The wizard skips the profile screen while only one
 profile is registered. `ink` and `react` are `@okfit/cli`
 dependencies loaded lazily, so a non-interactive run never imports them.
 Contract details: [CLI commands](../interfaces/cli-commands.md).
+
+## Report rendering
+
+The human reports of `validate`, `lint`, `verify` and `stale` render
+through the `@effected/cli` Doc IR (`render/human.ts#humanDoc`,
+`render/verify.ts#humanVerifyDoc`/`humanVerifyBatchDoc`,
+`render/stale.ts#humanStaleDoc`), printed with `Doc.print`. Plain output is
+byte-identical to the string renderers they replaced, which stay exported.
+For a human, the `file:line:col` prefix (and a stale id) is an OSC 8 link to
+the file. Under GitHub Actions, `validate` and `lint` add one workflow
+annotation per diagnostic; `annotationDir` resolves the bundle root against
+`GITHUB_WORKSPACE` so the annotation's `file` is workspace-relative, or
+omitted for a bundle outside it. The interactive screens are covered end to
+end by a pty suite (`__test__/e2e/pty.e2e.test.ts`, helper
+`__test__/e2e/utils/pty.ts`) that drives the built bin through the system
+`script` and skips where `script` is absent.
 
 ## Config discovery and exit codes
 
