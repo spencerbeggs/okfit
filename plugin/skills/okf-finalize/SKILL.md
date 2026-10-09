@@ -39,7 +39,9 @@ for the simplicity of one agent running one skill straight through.
    derived (`okf-spec`'s reserved-files section plus the
    `profiles-generated-at-is-author-date` Decision) -- never hand-edit any
    of them. Report what `sync` wrote, left unchanged, or skipped (and why)
-   to whoever reads the sweep's output. A concept with uncommitted edits is
+   to whoever reads the sweep's output. Agents run non-interactively, so `sync`
+   never prompts for them (the human-only `Write N file(s)?` confirm and
+   `--yes` do not apply). A concept with uncommitted edits is
    reported skipped (dirty) until it is committed, so tell the human the
    order to follow once they commit: after the commit, run
    `okfit sync --dry-run`, and make a stamp commit only if it reports
@@ -55,7 +57,9 @@ for the simplicity of one agent running one skill straight through.
    `okfit validate` reported as `require-verified-unmet` as "awaiting human
    verification" and stop there — this skill never runs `okfit verify`. Tell
    the human that once they have reviewed a draft, `okfit verify <id>
-   --stable` settles it in one write: the attestation and the promotion.
+   --stable` settles it in one write: the attestation and the promotion. If
+   `validate` reports stale concepts, suggest the human run `okfit stale
+   --verify` too (it exits 64 for an agent).
 
 ## Ends by reporting, never committing
 
