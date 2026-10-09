@@ -1,3 +1,4 @@
+import { CliInteractive } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import type { SyncMode } from "@okfit/engine";
@@ -8,7 +9,6 @@ import {
 	jsonError,
 	provideConfig,
 	resolveProjectConfig,
-	runSync,
 	stampPublication,
 	syncEnvelope,
 } from "@okfit/engine";
@@ -18,6 +18,7 @@ import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
 import { humanPublication, humanSync } from "../render/sync.js";
 import { CLI_VERSION } from "../version.js";
+import { syncWithConfirm } from "./sync-confirm.js";
 
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context/verify's. */
 const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
@@ -61,6 +62,11 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
 	Flag.withDescription("compute every result and write nothing"),
 );
 
+const yesFlag = Flag.Boolean("yes").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("skip the interactive confirm and write the plan"),
+);
+
 const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDefault("human"),
 	Flag.withDescription("output format: human (default) or json"),
@@ -94,7 +100,8 @@ const publicationFlag = Flag.String("publication").pipe(
 /**
  * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
  * [--format human|json] [--since <YYYY-MM-DD>] [--staged]
- * [--publication <id>]`. `--publication` runs only `stampPublication` and
+ * [--publication <id>] [--yes]`. On an interactive run `sync` shows its plan and
+ * confirms before writing (issue #229); `--yes` skips the confirm. `--publication` runs only `stampPublication` and
  * rejects `--only`, `--staged` and `--since`.
  *
  * Handler order fixed by contract §4.3. Steps 1–3 are `context`'s/
@@ -127,6 +134,7 @@ export const syncCommand = Command.make(
 		since: sinceFlag,
 		staged: stagedFlag,
 		publication: publicationFlag,
+		yes: yesFlag,
 	},
 	(input) =>
 		Effect.gen(function* () {
@@ -181,15 +189,18 @@ export const syncCommand = Command.make(
 
 				const staged = input.staged ? { at: DateTime.startOf(yield* Now, "second") } : undefined;
 
-				const result = yield* runSync({
-					bundleRoot: resolved.bundleRoot,
-					config: resolved.config,
-					modes,
-					dryRun: input.dryRun,
-					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
-					...(Option.isSome(input.since) ? { logSince: input.since.value } : {}),
-					...(staged === undefined ? {} : { staged }),
-				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
+				const result = yield* syncWithConfirm(
+					{
+						bundleRoot: resolved.bundleRoot,
+						config: resolved.config,
+						modes,
+						dryRun: input.dryRun,
+						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+						...(Option.isSome(input.since) ? { logSince: input.since.value } : {}),
+						...(staged === undefined ? {} : { staged }),
+					},
+					input.yes,
+				).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 
 				const displayPath = displayRoot(cwd, result.bundleRoot, path);
 
@@ -208,7 +219,11 @@ export const syncCommand = Command.make(
 						yield* Console.log(line);
 					}
 				}
-			}).pipe(provideConfig({ explicitConfigPath: input.config, discoveryCwd }));
+			}).pipe(
+				provideConfig({ explicitConfigPath: input.config, discoveryCwd }),
+				// #217: machine output never prompts; narrows only (see verify.ts).
+				CliInteractive.unless(input.format === "json"),
+			);
 
 			// K-22: under --format json an infrastructure failure ALSO gets a
 			// stdout envelope, reusing @okfit/engine's render/json.ts#jsonError unchanged — the
