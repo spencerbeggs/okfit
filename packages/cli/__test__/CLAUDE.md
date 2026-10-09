@@ -60,6 +60,21 @@ __test__/
   the root `vitest.setup.ts`'s `globalSetup` before any test file runs
   (`pnpm turbo run build:dev`). `e2e/utils/okfit.ts`'s `BIN` resolves that
   path from `import.meta.dirname`; no e2e test hand-builds the path itself.
+- **The pty suite drives the interactive screens (#231).**
+  `e2e/pty.e2e.test.ts` runs the built bin under a real pseudo-terminal through
+  the system `script` (no dependency): `e2e/utils/pty.ts`'s
+  `runPty(args, { cwd, env, cols, rows, steps })` waits for each step's
+  `waitFor` text in the ANSI-stripped output, then sends its keys (`KEYS`).
+  Always pass `--human` (an agent shell would otherwise detect as an agent).
+  The suite is `describe.skipIf(!ptyAvailable)`, so a host without `script`
+  skips it. Gotchas: BSD `script` (macOS) rejects Node's socket stdin, so the
+  helper pipes keystrokes through `cat`; Ink paints before it attaches its key
+  handler, so each send waits 200 ms; the exit code is read from an
+  `__PTY_EXIT__:$?` sentinel rather than from `script`. Linux uses
+  `script -qfec` (written for CI, not run on macOS). `init` has two screens
+  while one profile is registered. The same file proves, with
+  `e2e/utils/resolve-tracer.mjs` (`module.registerHooks` writing specifiers to
+  `OKFIT_TRACE_FILE`), that `--help` never resolves `ink` or `react`.
 - **E2E is hermetic.** Every e2e test that touches config discovery or XDG
   paths uses `e2e/utils/fixtures.ts`'s `makeSandbox()` for a fresh `HOME`,
   `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, and
