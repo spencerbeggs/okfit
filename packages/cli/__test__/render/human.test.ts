@@ -225,3 +225,11 @@ describe("humanDoc annotationDir null", () => {
 		}),
 	);
 });
+
+describe("humanDoc at a finite width", () => {
+	it("keeps each diagnostic on one physical line", () => {
+		const long: RenderedDiagnostic = { ...base, message: "a very long message ".repeat(8).trim() };
+		const out = Render.ansi(humanDoc([long]), Render.contextOf({ audience: "human", width: 40 }));
+		assert.strictEqual(out.split("\n").length, 1);
+	});
+});

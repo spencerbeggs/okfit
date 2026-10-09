@@ -21,11 +21,14 @@ export const humanStale = (items: ReadonlyArray<StaleItem>): ReadonlyArray<strin
  */
 export const humanStaleDoc = (items: ReadonlyArray<StaleItem>, options?: { readonly root?: string }): Document =>
 	items.map((item) =>
-		Doc.paragraph(
-			Doc.link(options?.root === undefined ? undefined : { file: `${options.root}/${item.id}.md` }, item.id, {
-				suffix: false,
-			}),
-			`  ${item.stale_after}  (${item.days_past} days past)`,
+		Doc.line(
+			[
+				Doc.link(options?.root === undefined ? undefined : { file: `${options.root}/${item.id}.md` }, item.id, {
+					suffix: false,
+				}),
+				`  ${item.stale_after}  (${item.days_past} days past)`,
+			],
+			{ wrap: false },
 		),
 	);
 

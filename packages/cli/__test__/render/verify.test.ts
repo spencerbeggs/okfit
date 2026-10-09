@@ -181,3 +181,36 @@ describe("humanVerifyBatchDoc", () => {
 		});
 	}
 });
+
+describe("verify docs at a finite width", () => {
+	const ctx = Render.contextOf({ audience: "human", width: 20 });
+	it("keeps every fact line whole", () => {
+		const out = Render.ansi(
+			humanVerifyBatchDoc({
+				by: "human:ada",
+				at: "2026-09-16T12:00:00Z",
+				dryRun: false,
+				verified: [{ id: "decisions/long-id", fragment: "" }],
+				skipped: [{ id: "decisions/other", reason: "already-verified" }],
+			}),
+			ctx,
+		);
+		assert.strictEqual(out.split("\n").length, 3);
+	});
+	it("keeps the single-verify lines whole", () => {
+		const out = Render.ansi(
+			humanVerifyDoc({
+				id: "decisions/x",
+				by: "human:ada",
+				at: "2026-09-16T12:00:00Z",
+				priorAt: ["2026-01-01T00:00:00Z"],
+				dryRun: false,
+				fragment: "",
+				status: null,
+				statusFragment: null,
+			}),
+			ctx,
+		);
+		assert.strictEqual(out.split("\n").length, 2);
+	});
+});

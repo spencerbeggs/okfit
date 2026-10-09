@@ -33,3 +33,10 @@ describe("humanStaleDoc", () => {
 		assert.include(out, "file:///repo/okf/project.md");
 	});
 });
+
+describe("humanStaleDoc at a finite width", () => {
+	it("keeps each stale item on one physical line", () => {
+		const out = Render.ansi(humanStaleDoc(items), Render.contextOf({ audience: "human", width: 20 }));
+		assert.strictEqual(out.split("\n").length, items.length);
+	});
+});

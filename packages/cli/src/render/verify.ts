@@ -93,7 +93,10 @@ export const humanVerifyBatch = (input: VerifyBatchLines): ReadonlyArray<string>
 		: `verified ${input.verified.length}, skipped ${input.skipped.length}`,
 ];
 
-const paragraphs = (lines: ReadonlyArray<string>): Document => lines.map((text) => Doc.paragraph(text));
+/** One fact line: kept whole at any width, so a reader (or grep) sees it as one line. */
+const fact = (text: string) => Doc.line(text, { wrap: false });
+
+const paragraphs = (lines: ReadonlyArray<string>): Document => lines.map(fact);
 
 /**
  * The `Doc` form of {@link humanVerify}: each fact line a paragraph, each
@@ -104,15 +107,15 @@ const paragraphs = (lines: ReadonlyArray<string>): Document => lines.map((text) 
  * @public
  */
 export const humanVerifyDoc = (input: VerifyLines): Document => [
-	...input.priorAt.map((at) => Doc.paragraph(`already verified by ${input.by} at ${at}; appending`)),
-	Doc.paragraph(
+	...input.priorAt.map((at) => fact(`already verified by ${input.by} at ${at}; appending`)),
+	fact(
 		input.dryRun
 			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffixOf(input.status)} (dry run, nothing written)`
 			: `verified ${input.id} by ${input.by} at ${input.at}${statusSuffixOf(input.status)}`,
 	),
-	...(input.dryRun ? [Doc.paragraph("would write:"), fragmentBlock(input.fragment)] : []),
+	...(input.dryRun ? [fact("would write:"), fragmentBlock(input.fragment)] : []),
 	...(input.dryRun && input.statusFragment !== null
-		? [Doc.paragraph("would set status:"), fragmentBlock(input.statusFragment)]
+		? [fact("would set status:"), fragmentBlock(input.statusFragment)]
 		: []),
 ];
 
@@ -133,13 +136,13 @@ export const humanVerifyBatchDoc = (input: VerifyBatchLines): Document => [
 	...input.verified.flatMap((entry) =>
 		input.dryRun
 			? [
-					Doc.paragraph(`would verify ${entry.id} by ${input.by} at ${input.at}`),
-					Doc.paragraph("would write:"),
+					fact(`would verify ${entry.id} by ${input.by} at ${input.at}`),
+					fact("would write:"),
 					fragmentBlock(entry.fragment),
 				]
-			: [Doc.paragraph(`verified ${entry.id} by ${input.by} at ${input.at}`)],
+			: [fact(`verified ${entry.id} by ${input.by} at ${input.at}`)],
 	),
-	Doc.paragraph(
+	fact(
 		input.dryRun
 			? `would verify ${input.verified.length}, skipped ${input.skipped.length} (dry run, nothing written)`
 			: `verified ${input.verified.length}, skipped ${input.skipped.length}`,

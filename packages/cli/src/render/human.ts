@@ -105,11 +105,14 @@ export const humanDoc = (diagnostics: ReadonlyArray<RenderedDiagnostic>, options
 		const annotationFile =
 			d.file === "" || dir === null ? undefined : dir === undefined || dir === "." ? d.file : `${dir}/${d.file}`;
 		return [
-			Doc.paragraph(
-				Doc.link(target, location, { suffix: false }),
-				" ",
-				Doc.text(d.severity, d.severity),
-				` ${d.code} ${d.message}`,
+			Doc.line(
+				[
+					Doc.link(target, location, { suffix: false }),
+					" ",
+					Doc.text(d.severity, d.severity),
+					` ${d.code} ${d.message}`,
+				],
+				{ wrap: false },
 			),
 			Doc.annotation(
 				{
