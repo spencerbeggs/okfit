@@ -14,10 +14,10 @@ import {
 	run,
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import { Console, Effect, Layer, Option, Path, Schema } from "effect";
+import { Config, Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import type { Counts } from "../render/human.js";
-import { displayRoot, humanDoc, summary } from "../render/human.js";
+import { annotationDir, displayRoot, humanDoc, summary } from "../render/human.js";
 import { CLI_VERSION } from "../version.js";
 
 /** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
@@ -105,7 +105,14 @@ export const lintCommand = Command.make(
 					yield* Console.log(JSON.stringify(Schema.encodeSync(JsonEnvelope)(envelope)));
 				} else {
 					const shownRoot = displayRoot(cwd, bundleRoot, path);
-					yield* Doc.print(humanDoc(diagnostics, { root: bundleRoot, annotationDir: shownRoot }));
+					// GitHub resolves an annotation `file` against GITHUB_WORKSPACE; read through Config, never process.env.
+					const workspace = yield* Config.String("GITHUB_WORKSPACE").pipe(Config.option);
+					yield* Doc.print(
+						humanDoc(diagnostics, {
+							root: bundleRoot,
+							annotationDir: annotationDir(cwd, bundleRoot, Option.getOrUndefined(workspace), path),
+						}),
+					);
 					const counts: Counts = {
 						errors: diagnostics.filter((d) => d.severity === "error").length,
 						warnings: diagnostics.filter((d) => d.severity === "warning").length,

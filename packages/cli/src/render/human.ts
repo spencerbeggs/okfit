@@ -56,9 +56,32 @@ export const human = (
 export interface HumanDocOptions {
 	/** Absolute bundle root: file links (OSC 8, `vscode://`) resolve against it. Omit for no file links. */
 	readonly root?: string;
-	/** Bundle root as the CI runner sees it (repo-relative, e.g. `okf`): prefixes the annotation `file`. `.` or omitted = none. */
-	readonly annotationDir?: string;
+	/**
+	 * Bundle root as the CI runner sees it (workspace-relative, e.g. `okf`; see {@link annotationDir}): prefixes the
+	 * annotation `file`. `.` or omitted = no prefix; `null` = the bundle is not addressable from the runner, so the
+	 * annotation carries no `file`.
+	 */
+	readonly annotationDir?: string | null;
 }
+
+/**
+ * The bundle root as GitHub resolves an annotation `file`: relative to
+ * `GITHUB_WORKSPACE` when it is set, else to `cwd`. `.` is the base itself;
+ * `null` is a bundle outside the base (its path would be absolute or leave
+ * it through `..`), where an annotation can name no file.
+ *
+ * @public
+ */
+export const annotationDir = (
+	cwd: string,
+	bundleRoot: string,
+	workspace: string | undefined,
+	path: Path.Path,
+): string | null => {
+	const rel = path.relative(workspace ?? cwd, bundleRoot);
+	if (rel === "") return ".";
+	return rel === ".." || rel.startsWith("../") || path.isAbsolute(rel) ? null : rel;
+};
 
 const LEVEL = { error: "error", warning: "warning", info: "notice" } as const;
 
@@ -79,7 +102,8 @@ export const humanDoc = (diagnostics: ReadonlyArray<RenderedDiagnostic>, options
 		const target =
 			d.file === "" || options?.root === undefined ? undefined : { file: `${options.root}/${d.file}`, ...position };
 		const dir = options?.annotationDir;
-		const annotationFile = d.file === "" ? undefined : dir === undefined || dir === "." ? d.file : `${dir}/${d.file}`;
+		const annotationFile =
+			d.file === "" || dir === null ? undefined : dir === undefined || dir === "." ? d.file : `${dir}/${d.file}`;
 		return [
 			Doc.paragraph(
 				Doc.link(target, location, { suffix: false }),

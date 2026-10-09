@@ -80,7 +80,8 @@ src/
   render/
     context.ts                  -- humanContext (human half; the envelope half is
                                     @okfit/engine's ContextEnvelope/contextEnvelope)
-    human.ts                     -- Counts, line, human, summary (validate's human renderer)
+    human.ts                     -- Counts, line, human, humanDoc (the Doc form, with
+                                    GitHub annotations), annotationDir, summary
     sync.ts                       -- humanSync (human half of @okfit/engine's SyncEnvelope)
     query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
     verify.ts                      -- VerifyLines, humanVerify (human half of @okfit/engine's

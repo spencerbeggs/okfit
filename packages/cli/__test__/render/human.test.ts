@@ -3,7 +3,7 @@ import { CliTheme, Render } from "@effected/cli";
 import { DiagnosticRange } from "@okfit/core";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { Effect, Path } from "effect";
-import { displayRoot, human, humanDoc, line, summary } from "../../src/render/human.js";
+import { annotationDir, displayRoot, human, humanDoc, line, summary } from "../../src/render/human.js";
 
 const ESC = String.fromCharCode(27);
 
@@ -184,5 +184,44 @@ describe("humanDoc", () => {
 			assert.strictEqual(out, line(base, { paint: theme.paint }));
 			assert.isTrue(out.includes(ESC));
 		}).pipe(Effect.provide(CliTheme.layerTest({ color: "basic" }))),
+	);
+});
+
+describe("annotationDir", () => {
+	it.effect("GITHUB_WORKSPACE set: the bundle root relative to it, even when cwd is a subdirectory", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/ws/pkg", "/ws/okf", "/ws", path), "okf");
+			assert.strictEqual(annotationDir("/ws/pkg", "/ws", "/ws", path), ".");
+		}),
+	);
+
+	it.effect("GITHUB_WORKSPACE set: a bundle outside it has no annotation dir", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/ws", "/elsewhere/okf", "/ws", path), null);
+			assert.strictEqual(annotationDir("/ws", "/ws-other/okf", "/ws", path), null);
+		}),
+	);
+
+	it.effect("unset: relative to cwd when under it", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/repo", "/repo/okf", undefined, path), "okf");
+			assert.strictEqual(annotationDir("/repo", "/repo", undefined, path), ".");
+		}),
+	);
+
+	it.effect("unset: absolute (outside cwd) has no annotation dir", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("/repo/sub", "/repo/other", undefined, path), null);
+		}),
+	);
+});
+
+describe("humanDoc annotationDir null", () => {
+	it.effect("omits the annotation file but keeps line and col", () =>
+		Effect.sync(() => {
+			const out = Render.githubLog(humanDoc([ranged], { annotationDir: null }), Render.contextOf({ audience: "ci" }));
+			assert.include(out, "::warning line=3,col=5::broken-links link target missing");
+			assert.notInclude(out, "file=");
+		}),
 	);
 });

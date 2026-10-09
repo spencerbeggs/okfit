@@ -52,6 +52,41 @@ describe("okfit lint: a lint error", () => {
 	);
 });
 
+describe("okfit lint: GitHub Actions annotations", () => {
+	it.effect("--ci under GITHUB_ACTIONS adds a ::error annotation whose file is relative to GITHUB_WORKSPACE", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(LINT_BAD_FIXTURE, join(sandbox.cwd, "okf")));
+
+			const result = yield* runOkfit(["lint", "--ci"], {
+				cwd: sandbox.cwd,
+				env: { ...sandbox.env, GITHUB_ACTIONS: "true", GITHUB_WORKSPACE: sandbox.cwd },
+			});
+
+			assert.strictEqual(result.exitCode, 1);
+			assert.strictEqual(
+				result.stdout,
+				'modules/core.md:1:1 error required-key-missing Required key "kind" is missing\n::error file=okf/modules/core.md,line=1,col=1::required-key-missing Required key "kind" is missing\n',
+			);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("a bundle outside GITHUB_WORKSPACE annotates without a file", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(LINT_BAD_FIXTURE, join(sandbox.cwd, "okf")));
+
+			const result = yield* runOkfit(["lint", "--ci"], {
+				cwd: sandbox.cwd,
+				env: { ...sandbox.env, GITHUB_ACTIONS: "true", GITHUB_WORKSPACE: join(sandbox.cwd, "okf", "modules") },
+			});
+
+			assert.include(result.stdout, '::error line=1,col=1::required-key-missing Required key "kind" is missing');
+			assert.notInclude(result.stdout, "file=");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
 describe("okfit lint: conformance errors never surface", () => {
 	it.effect("a conformance-bad bundle still exits on its lint/profile tier alone, never exit 2", () =>
 		Effect.gen(function* () {
