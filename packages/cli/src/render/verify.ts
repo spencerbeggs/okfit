@@ -117,7 +117,7 @@ export const humanVerifyDoc = (input: VerifyLines): Document => [
 ];
 
 /**
- * The `Doc` form of {@link humanVerifyBatch}; plain output is byte-identical
+ * The `Doc` form of `humanVerifyBatch`; plain output is byte-identical
  * to `humanVerifyBatch(input).join("\n")`.
  *
  * @public
