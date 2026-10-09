@@ -5,7 +5,7 @@
 import { execFile } from "node:child_process";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { assert, describe, it } from "@effect/vitest";
 import type { Sandbox } from "./utils/fixtures.js";
@@ -107,12 +107,12 @@ describe("no ink or react on the non-interactive path (#231)", () => {
 		TIMEOUT,
 	);
 
-	it(
+	it.skipIf(!ptyAvailable)(
 		"positive control: an interactive picker run DOES resolve ink (so the --help proof is not vacuous)",
 		async () => {
-			if (!ptyAvailable) return;
 			const { sandbox, env } = await verifyFixture();
-			const trace = join(sandbox.cwd, "..", "trace.txt");
+			// Inside the sandbox root, so removeSandbox cleans it up.
+			const trace = join(dirname(sandbox.cwd), "trace.txt");
 			try {
 				const run = await runPty(["verify", "--human", "--dry-run"], {
 					cwd: sandbox.cwd,
@@ -146,7 +146,7 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 					env,
 					steps: [
 						{ waitFor: "Attest which concepts?", send: KEYS.space },
-						{ waitFor: "Attest which concepts?", send: KEYS.enter },
+						{ waitFor: /◉ decisions\/a/, send: KEYS.enter },
 						{ waitFor: /Attest 1 concept\(s\) as human:ada\?/, send: KEYS.enter },
 					],
 				});

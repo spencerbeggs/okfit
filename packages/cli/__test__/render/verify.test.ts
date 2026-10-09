@@ -119,7 +119,6 @@ describe("humanVerifyBatch", () => {
 });
 
 const plain = Render.contextOf({ audience: "agent" });
-// The engine never emits a blank fragment line (a `- by:/at:` block); verbatim would trim one to empty where the line array pads it.
 const multiLineFragment = "verified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n";
 const single = {
 	id: "decisions/x",
@@ -138,6 +137,23 @@ describe("humanVerifyDoc", () => {
 			assert.strictEqual(Render.plain(humanVerifyDoc(input), plain), humanVerify(input).join("\n"));
 		});
 	}
+
+	// Accepted difference: `Doc.verbatim` trims a whitespace-only line to empty, where the line array pads it to two
+	// spaces. A hand-written `verified:` block with a blank line reaches here (splice.ts reindents it), but trailing
+	// whitespace on a blank line carries nothing, so the Doc form's empty line is the cleaner preview.
+	it("a fragment with a blank line renders it empty, where the line array pads it", () => {
+		const input = {
+			...single,
+			dryRun: true,
+			fragment: "verified:\n  - by: human:ada\n\n    at: 2026-09-16T12:00:00Z\n",
+		};
+		assert.strictEqual(
+			Render.plain(humanVerifyDoc(input), plain),
+			humanVerify(input)
+				.map((line) => (line.trim() === "" ? "" : line))
+				.join("\n"),
+		);
+	});
 
 	it("a CRLF fragment and a null status render like the lines", () => {
 		const input = { ...single, dryRun: true, status: null, statusFragment: null, fragment: "a:\r\n  b\r\n" };

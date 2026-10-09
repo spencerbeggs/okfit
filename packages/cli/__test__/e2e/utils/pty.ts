@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import { BIN } from "./okfit.js";
 
 /** One scripted keystroke: wait for `waitFor` to appear in new output, then write `send`. */
@@ -134,13 +135,16 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 		child.stdin.on("error", () => {
 			// EPIPE after the pipeline exited or was killed is expected.
 		});
+		// One decoder per stream: a multibyte glyph (◉, →) split across two chunks must not become U+FFFD.
+		const stdoutDecoder = new StringDecoder("utf8");
+		const stderrDecoder = new StringDecoder("utf8");
 		child.stdout.on("data", (chunk: Buffer) => {
-			raw += chunk.toString("utf8");
+			raw += stdoutDecoder.write(chunk);
 			if (raw.includes(SENTINEL)) child.stdin.end();
 			advance();
 		});
 		child.stderr.on("data", (chunk: Buffer) => {
-			raw += chunk.toString("utf8");
+			raw += stderrDecoder.write(chunk);
 		});
 		child.on("error", (error) => finish(() => reject(error)));
 		child.on("close", () => {

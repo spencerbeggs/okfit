@@ -350,6 +350,23 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect("broken-links truncates a long heading list to five with a (+N more) count (issue #148)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"modules/a.md": "---\ntype: Module\n---\n\n# A\n\n[x](d.md#zzzzzzzz)\n",
+				"modules/d.md":
+					"---\ntype: Module\n---\n\n# D\n\n## One\n\n## Two\n\n## Three\n\n## Four\n\n## Five\n\n## Six\n",
+			});
+			const messages = Validate.lint(bundle, OkfitConfig.DEFAULTS)
+				.filter((d) => d.code === "broken-links")
+				.map((d) => d.message);
+			assert.include(
+				messages,
+				'Link target "d.md#zzzzzzzz" exists but has no heading "#zzzzzzzz"; its headings: #d, #one, #two, #three, #four (+2 more)',
+			);
+		}),
+	);
+
 	it.effect("off silences every rule", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadBundle;

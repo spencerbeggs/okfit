@@ -114,6 +114,7 @@ export const staleCommand = Command.make(
 							projectRoot: resolved.projectRoot,
 							config: resolved.config,
 							now,
+							// Whole seconds: the attestation `at` is written without fractional digits, like every other `at`.
 							at: DateTime.startOf(now, "second"),
 							dryRun: input.dryRun,
 						}).pipe(
