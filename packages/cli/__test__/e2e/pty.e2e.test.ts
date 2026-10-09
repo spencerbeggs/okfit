@@ -317,7 +317,7 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 });
 
-describe("human report lines stay unwrapped on a narrow terminal", () => {
+describe.skipIf(!ptyAvailable)("human report lines stay unwrapped on a narrow terminal", () => {
 	it(
 		"lint --human prints a long diagnostic on one physical line at 70 columns",
 		async () => {
