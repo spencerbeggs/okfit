@@ -37,7 +37,8 @@ export interface RunOptions {
 	readonly now: DateTime.Utc;
 	/**
 	 * S-31: skip `Provenance.lint`'s git TIER (tier 2, the git-derived date
-	 * comparison for concepts with no recorded `generated.body_sha256`)
+	 * comparison for concepts with no recorded body digest: neither
+	 * `integrity.generated.body` nor a legacy `generated.body_sha256`)
 	 * for this one invocation, without touching the project's `[lint]`
 	 * table. `commands/validate.ts` threads `--skip-provenance` here; the
 	 * PostToolUse hook passes the flag so an edit-time `validate` stays
@@ -66,7 +67,7 @@ export interface RunResult {
  * HERE, in `run`: a bundle configured `off` never calls `Provenance.lint`
  * at all. `options.skipProvenance` is no longer that gate — it is threaded
  * through as `Provenance.lint`'s `skipGitTier` option instead, so tier 1
- * (the pure, in-memory `generated.body_sha256` comparison) still runs and
+ * (the pure, in-memory recorded-body-digest comparison) still runs and
  * still reports drift even when `skipProvenance` is `true`; only tier 2
  * (the git-derived date comparison, for concepts with no recorded digest)
  * is skipped, and with it the only git spawn `Provenance.lint` can make

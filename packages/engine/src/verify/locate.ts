@@ -251,7 +251,7 @@ export type GeneratedLocated =
  */
 const locateGeneratedField = Effect.fn("okfit/verify/locateGeneratedField")(function* (
 	source: string,
-	field: "at" | "body_sha256",
+	field: "at",
 ): Generator<
 	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
 	GeneratedLocated
@@ -280,14 +280,7 @@ const locateGeneratedField = Effect.fn("okfit/verify/locateGeneratedField")(func
 		if (last === undefined) return { _tag: "unsupported", shape: "empty" } as const;
 		// S-2 / contract §14 note 1: seek the next newline after the last
 		// item's own end and insert right after it -- a fully-terminated new
-		// line, never the blockSeq `afterNewline` leading-newline style. Issue
-		// #19: the SAME anchor (the mapping's last existing key) is reused for
-		// `body_sha256` when absent -- in every fixture and every concept in
-		// this repo `at` is itself the last key of `generated:` (`stale_after`
-		// is a top-level sibling of `generated:`, never nested inside it), so
-		// "after the last key" already means "after `at`" for the realistic
-		// shape; `sync/generated.ts` additionally merges the two edits into one
-		// when they land at the identical offset (both fields freshly stamped).
+		// line, never the blockSeq `afterNewline` leading-newline style.
 		const lastEnd = last.value !== null ? last.value.offset + last.value.length : last.key.offset + last.key.length;
 		const nl = value.indexOf("\n", lastEnd);
 		const insertAt = nl === -1 ? value.length : nl + 1;

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T04:24:45Z
 integrity:
   generated:
-    body: 3e7992dddd4f7a16
+    body: e36ad1d26afe534d
 ---
 
 # Engine
@@ -160,7 +160,8 @@ changed, so a file edited between plan and confirm is never overwritten.
 `runSync` composes the two and behaves as before.
 
 `sync/run.ts#planSync` walks git lazily now: a concept whose recorded
-`generated.body_sha256` still matches its current body, and that log mode
+body digest (`integrity.generated.body`, or a legacy `generated.body_sha256`)
+still matches its current body, and that log mode
 does not need for its date window, is never read through git at all --
 only unstamped concepts, or stamped ones the log window still wants,
 pay the git cost. On this bundle `okfit sync --dry-run` dropped from
@@ -174,7 +175,7 @@ spellings](../decisions/cli-sync-log-appends-into-the-day.md), which
 supersedes the strictly-after rule. `--since <YYYY-MM-DD>` widens that
 floor on request. A `staged` mode (`sync/run.ts`) selects only the git
 index, stamps `generated.at` with `now` (truncated to seconds) and
-`generated.body_sha256` with the body's digest, writes, and re-adds what
+`integrity.generated.body` with the body's digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is

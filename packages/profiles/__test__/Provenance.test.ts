@@ -194,6 +194,9 @@ describe("Provenance.lint", () => {
 				assert.strictEqual(result.length, 1);
 				assert.strictEqual(result[0]?.code, "generated-at-drift");
 				assert.include(result[0]?.message ?? "", "the body has changed since generated.at was last stamped");
+				// The recorded value came from the legacy field, so the message names that field.
+				assert.include(result[0]?.message ?? "", `generated.body_sha256 is ${staleDigest}`);
+				assert.notInclude(result[0]?.message ?? "", "integrity.generated.body");
 				assert.include(result[0]?.message ?? "", staleDigest);
 				assert.include(result[0]?.message ?? "", currentDigest);
 			}).pipe(Effect.provide(noGit)),
