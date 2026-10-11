@@ -308,7 +308,7 @@ _trust_json='{"concepts":9,"drifted":2,"stale":1,"unverified":4,"drifted_ids":["
 	for target in $TARGETS; do
 		_run "$target"
 		assert_hook_exit 0
-		[[ "$(context_text)" == *"trust: 2 drifted, 1 stale, 4 unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted)."* ]]
+		[[ "$(context_text)" == *"trust: 2 drifted (a, b), 1 stale, 4 unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted)."* ]]
 	done
 }
 
@@ -366,5 +366,34 @@ STUB
 	for target in $TARGETS; do
 		_run "$target"
 		[[ "$(context_text)" == *"trust: 0 drifted, 2 stale, 3 unverified"* ]]
+		[[ "$(context_text)" != *"drifted concepts changed"* ]]
+		[[ "$(context_text)" != *"okfit query list --drifted"* ]]
+	done
+}
+
+@test "the trust line names only the first three drifted ids" {
+	local many='{"concepts":9,"drifted":5,"stale":0,"unverified":4,"drifted_ids":["a","b","c","d","e"],"stale_ids":[]}'
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$many"
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" == *"trust: 5 drifted (a, b, c), 0 stale, 4 unverified"* ]]
+		[[ "$(context_text)" != *"(a, b, c, d"* ]]
+	done
+}
+
+@test "a project with no bundle costs one subprocess: trust null needs no retry" {
+	cat >"$STUB_DIR/okfit" <<STUB
+#!/bin/bash
+echo x >>"${STUB_DIR}/calls"
+printf '%s\n' '{"schema":1,"project_root":"$PROJECT_DIR","bundle_root":"$PROJECT_DIR/okf","config_path":null,"profile":"software-project","profile_requested":"software-project","index_path":"$PROJECT_DIR/okf/index.md","index_exists":false,"actors":{"agent":null},"types":[],"tags":[],"trust":null}'
+STUB
+	chmod +x "$STUB_DIR/okfit"
+	OKFIT_CLI_CMD="$STUB_DIR/okfit"
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/calls"
+		_run "$target"
+		assert_hook_exit 0
+		[ "$(wc -l <"$STUB_DIR/calls" | tr -d ' ')" = "1" ]
+		[[ "$(context_text)" != *"trust:"* ]]
 	done
 }
