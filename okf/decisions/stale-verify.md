@@ -8,10 +8,10 @@ tags:
 status: draft
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 21318a632e0ec8c9
+    body: 8f57f88dd1c91f3c
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does
@@ -48,7 +48,7 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   `--dry-run` without `--verify` is exit `64`, and cancelling exits `130`
   with nothing written, as for every prompt under [Interactive prompts are
   gated by audience and
-  terminal](interactive-prompts-gated-by-audience-and-terminal.md).
+  terminal](interactive-prompt-gates.md).
 
 ## Alternatives rejected
 

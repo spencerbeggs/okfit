@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 58e22933ab6e9cec
+    body: 2619dd6576cc86d9
 ---
 
 # MCP
@@ -46,13 +46,13 @@ wraps, and the `render`/`json` envelope pieces its tools re-export
 unchanged -- and no longer depends on `@okfit/cli` at all, so
 `pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
 command tree. See [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md).
+cli-as-copy-contract](../decisions/engine-front-end-split.md).
 
 It also depends directly on `@effected/mcp` and `@effected/engine`: the
 server assembly, its error shape, and project-root resolution build on
 that kit rather than on hand-rolled equivalents -- see [okfit's front ends
 build on @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
+equivalents](../decisions/effected-kit-adoption.md).
 
 ## Status
 
@@ -69,12 +69,12 @@ Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
 (`MCP_VERSION`, what `initialize` reports; the `validate_bundle` envelope
 names the engine separately — see [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)),
+on](../decisions/comparable-version.md)),
 `server.ts` (`ServerLayer`: `McpToolkit.layer` and resource layers
 over `McpStdio.layer`, its three-adapter `protocols` list and the exported
 `SERVER_INSTRUCTIONS` string -- see [The MCP server is Effect-native and
 lists the stateless 2026-07-28 adapter
-first](../decisions/mcp-stateless-first-protocol-list.md)), `toolkit.ts` (`OkfitToolkit`, the six tools plus
+first](../decisions/mcp-protocol-versions.md)), `toolkit.ts` (`OkfitToolkit`, the six tools plus
 handler wiring), `errors.ts` (`McpToolError`, an alias of
 `@effected/mcp`'s `ToolRefusal`, plus `@effected/engine`'s `Remediation`),
 `schema/` (per-tool parameter and success

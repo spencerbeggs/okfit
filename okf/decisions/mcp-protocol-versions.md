@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:45:05Z
+  at: 2026-10-11T20:51:30Z
 status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
@@ -27,7 +27,7 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 6db2be3f457d1894
+    body: 591a11532a177b09
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
@@ -133,7 +133,7 @@ has no port of that code path -- it runs core's `registerToolkit`
 unchanged, now reached through `@effected/mcp`'s `McpToolkit.layer`
 rather than core's own `McpServer.toolkit` called directly (see [okfit's
 front ends build on @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](front-ends-adopt-the-effected-kit.md)) -- so nothing of the
+equivalents](effected-kit-adoption.md)) -- so nothing of the
 declared-failure rendering was rebased, but a test that wants to prove
 stderr log routing can no longer trigger it through a declared failure;
 the e2e that did so now targets the boot-time `could not load the

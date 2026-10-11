@@ -7,10 +7,10 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: a97b23b2e202db5c
+    body: f11d7c313971016a
 ---
 
 # Plugin
@@ -38,18 +38,18 @@ so a report or `okfit --version` produced through this package names it
 (`via @okfit/plugin <version>`) while a direct install of a front end
 reports `distribution: null` — see [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md). A package manager links
+on](../decisions/comparable-version.md). A package manager links
 `node_modules/.bin` entries only for an importer's DIRECT dependencies, so
 the peer arrangement the spec calls for could never produce a runnable
 bin -- this is settled, not provisional. See [A shared @okfit/engine
-package replaces cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md)
+package replaces cli-as-copy-contract](../decisions/engine-front-end-split.md)
 for the full reasoning and the alternatives rejected.
 
 ## Shared bins, proven packed
 
 The three front ends declare the same bin names, deliberately; see [The carrier
 keeps its front ends' bin names, proven under
-allowSharedBins](../decisions/plugin-keeps-shared-bins-under-allow-shared-bins.md).
+allowSharedBins](../decisions/plugin-shared-bins.md).
 `packages/plugin/__test__/e2e/packed-install.e2e.test.ts` installs the packed
 tarballs under npm, pnpm and bun (all required in `CI`; Yarn is
 exercised only where it is installed, and its slot row is asserted only on

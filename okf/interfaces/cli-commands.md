@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:18:01Z
+  at: 2026-10-11T20:51:30Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: 47ac732d3dd336e0
+    body: aa637f437f8a502c
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
@@ -219,7 +219,7 @@ log, in that fixed order, unless one or more `--only` flags narrow it to a
 subset. `--dry-run` computes every result and writes nothing. Log mode
 considers every committed concept dated on or after the newest logged
 date, appending into that day's group unless it already names the concept
-(see [the log decision](../decisions/cli-sync-log-appends-into-the-day.md));
+(see [the log decision](../decisions/sync-log-days.md));
 `--since` replaces that floor. A malformed `--since` is a usage error,
 exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
@@ -252,7 +252,7 @@ nothing written, re-run sync) when a target changed since the plan was made.
 `--staged` is the pre-commit shape: only concepts in the git index are
 considered, stamped with `now` and re-added; default modes become
 `generated` and `index`, and `--only log` with `--staged` is a usage
-error, exit `64` ([decision](../decisions/cli-sync-staged-stamps-now.md)).
+error, exit `64` ([decision](../decisions/sync-staged-stamps.md)).
 Index mode under `--staged` still renders `index.md` from the working
 tree, not the index, so an unstaged or untracked concept already on disk
 is listed in the committed index before the concept itself is committed;
@@ -339,7 +339,7 @@ non-interactive `stale --verify` is exit `64`, as is `--dry-run` without
 `--verify`; Esc, `q`, Ctrl-C or answering no exits `130` with nothing
 written. Bare `okfit stale` is unchanged, a report that always exits `0`. See
 [stale --verify rolls stale_after
-forward](../decisions/stale-verify-rolls-stale-after-forward.md); like
+forward](../decisions/stale-verify.md); like
 `verify`, this is a human-run command.
 
 `okfit stale --format json` prints a `StaleEnvelope` (schema 1): `schema`,
@@ -425,7 +425,7 @@ is `{ "name", "version" }` for the meta-package the bin was installed
 through (`@okfit/plugin`) and `null` for a direct install of `@okfit/cli`
 or `@okfit/mcp`. The rule, from [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md): compare
+on](../decisions/comparable-version.md): compare
 `engine_version` and `okf_version`; everything else is packaging.
 `okfit --version` prints the same numbers in one line, plus the config
 schema version — `okfit <cli> (engine <engine>, okf <okf>, config-schema

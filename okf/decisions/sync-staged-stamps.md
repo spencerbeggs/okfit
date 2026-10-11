@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T20:51:30Z
 status: stable
 verified:
   - by: human:spencer
@@ -16,7 +16,7 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 0be3b6aa560a98aa
+    body: 203a26b4456a046a
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
@@ -32,7 +32,7 @@ new or body-edited concept could only be stamped after it was committed,
 and the stamp then needed a second commit (okfit #20). Derivation's rule
 that an uncommitted body never gets `now` substituted for its provenance
 ([Uncommitted provenance is the caller's to
-interpret](profiles-uncommitted-is-callers-to-interpret.md)) is correct
+interpret](uncommitted-provenance.md)) is correct
 for an ordinary run: a file staged today may be committed next week.
 
 ## Decision

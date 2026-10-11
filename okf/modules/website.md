@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 47622a932f839e49
+    body: f92efe256287f148
 ---
 
 # Website
@@ -81,7 +81,7 @@ prod.
 
 The split is recorded in [User docs live under /docs; package hierarchies
 live at the site root beside their generated
-API](../decisions/website-package-pages-at-root.md). The effected
+API](../decisions/website-package-pages.md). The effected
 repository's site uses the same pattern.
 
 ## Commands
@@ -110,5 +110,5 @@ site. Authored pages under `content/` are not ignored.
   Extension](vscode-extension.md) -- documented under `/docs`, not at the
   root.
 - [User docs live under /docs; package hierarchies live at the site root
-  beside their generated API](../decisions/website-package-pages-at-root.md)
+  beside their generated API](../decisions/website-package-pages.md)
 - [Documentation site](../roadmaps/documentation-site.md)

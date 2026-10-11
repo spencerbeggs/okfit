@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: f90255358ffee780
+    body: d959c84ab8b30505
 ---
 
 # AI Plugins
@@ -77,7 +77,7 @@ PreToolUse](../decisions/plugin-posttooluse-not-pretooluse.md),
 deprecated and superseded by [The PostToolUse hook keeps only
 conformance blocking and the generated.by check, once the language
 server delivers lint and profile
-findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)).
+findings](../decisions/posttooluse-hook-scope.md)).
 As of LSP phase 4 the hook keeps exactly two jobs: it blocks on a `core.conformance`
 diagnostic for the edited file, and it reads the written file to block a
 `Write` (warn an `Edit`) of a concept with no `generated.by` when the

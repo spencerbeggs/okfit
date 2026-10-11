@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:44:29Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 7e114350b5ccdfae
+    body: 44eb363b9735001d
 ---
 
 # LSP
@@ -37,7 +37,7 @@ code actions, commands, and inlay hints -- every edit they offer is
 computed over the byte-range splice machinery, never a re-serialisation --
 see [Frontmatter splices are a shared engine surface for the CLI's verify
 and the language server's
-actions](../decisions/engine-frontmatter-edits-shared-surface.md).
+actions](../decisions/frontmatter-edits.md).
 
 ## Capabilities
 
@@ -184,7 +184,7 @@ behaviour never fires; a future transport is done when
 `__test__/protocol/reference.test.ts` passes unchanged against it — see
 [The language server runs the reference vscode-languageserver library
 behind an Effect transport
-seam](../decisions/lsp-reference-transport-behind-a-seam.md).
+seam](../decisions/lsp-reference-transport.md).
 
 ## Publishing rules
 
@@ -247,7 +247,7 @@ exit code (`1` only for `exit` without `shutdown`) and always ends the
 process, since a clean `shutdown` + `exit` otherwise waits on a stdin the
 client never closes first. The e2e suite drives the bin through the kit's
 `LspProcess`.
-Rationale and the accepted stale-state caveat: [the crash-policy Decision](../decisions/servers-survive-stray-crashes-once-serving.md).
+Rationale and the accepted stale-state caveat: [the crash-policy Decision](../decisions/server-crash-survival.md).
 
 ## Boundaries
 
@@ -262,7 +262,7 @@ using `allowRules` to waive one named rule per file (so `main.ts` is
 exempt from the `process` rule but still checked for a stray stdout
 write) rather than exempting a file from every rule at once -- see
 [okfit's front ends build on @effected/{engine,cli,mcp} rather than
-hand-rolled equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
+hand-rolled equivalents](../decisions/effected-kit-adoption.md).
 
 ## Links
 
@@ -277,7 +277,7 @@ hand-rolled equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
   `okfit/bundleChanged`.
 - [The language server runs the reference vscode-languageserver library
   behind an Effect transport
-  seam](../decisions/lsp-reference-transport-behind-a-seam.md)
+  seam](../decisions/lsp-reference-transport.md)
 - [Two narrow interrupt windows in the LSP session registry are
   documented, not
   closed](../limitations/lsp-registry-interrupt-windows.md) — the
