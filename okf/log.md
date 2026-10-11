@@ -40,6 +40,11 @@
 * Updated Website
 * Updated Workspace
 * Updated process reads confined to the CLI's boundary files
+* Updated A shared @okfit/engine package replaces cli-as-copy-contract
+* Updated A walk past maxDepth fails typed, never silently truncates
+* Updated Tests live in __test__/, never in src/
+* Updated The engine version, not the producer version, is what a report is compared on
+* Updated okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
 
 ## 2026-10-09
 
