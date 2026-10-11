@@ -7,7 +7,7 @@
 // packages/profiles/__test__/fixtures/software-project (a repo-shaped fixture whose bundle is okf/), the same constant
 // validate.e2e.test.ts names CLEAN_FIXTURE.
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -107,6 +107,7 @@ describe("okfit context --format json", () => {
 					actors: { agent: null },
 					types: SOFTWARE_PROJECT_TYPES,
 					tags: SOFTWARE_PROJECT_TAGS,
+					trust: null,
 				});
 			}).pipe(Effect.provide(NodeServices.layer)),
 	);
@@ -235,6 +236,74 @@ describe("okfit context: unknown profile", () => {
 			assert.strictEqual(envelope.profile_requested, "not-a-real-profile");
 			// Falls to OkfitConfig.DEFAULTS alone: no profile's vocabulary is merged in.
 			assert.deepStrictEqual(envelope.types, []);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit context --trust", () => {
+	const NOW = "2026-10-09T12:00:00Z";
+	const concept = (name: string, extra = ""): string =>
+		`---\ntype: Glossary\ndescription: ${name}.\nstatus: stable\n${extra}---\n\n# ${name}\n\nOriginal body.\n`;
+
+	/** A bundle with one drifted, one stale and one plain unverified concept. */
+	const driftedSandbox = async () => {
+		const sandbox = await makeSandbox("okfit-context-trust-");
+		const home = sandbox.env.HOME ?? "";
+		const env = {
+			...sandbox.env,
+			PATH: process.env.PATH ?? "",
+			NO_COLOR: "1",
+			GIT_CONFIG_GLOBAL: join(home, ".gitconfig"),
+			GIT_CONFIG_NOSYSTEM: "1",
+			OKFIT_NOW: NOW,
+		};
+		await writeFile(join(home, ".gitconfig"), "[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n", "utf8");
+		await writeFileDeep(join(sandbox.cwd, "okfit.toml"), `[bundle]\npath = "okf"\n`);
+		const put = (rel: string, body: string) => writeFileDeep(join(sandbox.cwd, "okf", rel), body);
+		await put("index.md", "# Index\n");
+		await put("trust/drifted.md", concept("Drifted"));
+		await put("trust/stale.md", concept("Stale", "stale_after: 2020-01-01T00:00:00Z\n"));
+		await put("trust/plain.md", concept("Plain"));
+		const verify = await Effect.runPromise(
+			runOkfit(["verify", "trust/drifted", "--format", "json"], { cwd: sandbox.cwd, env }).pipe(
+				Effect.provide(NodeServices.layer),
+			),
+		);
+		assert.strictEqual(verify.exitCode, 0, verify.stderr);
+		const file = join(sandbox.cwd, "okf", "trust", "drifted.md");
+		await writeFile(file, (await readFile(file, "utf8")).replace("Original body.", "Edited body."), "utf8");
+		return { sandbox, env };
+	};
+
+	it.effect("--trust --format json carries counts and ids; the same run without the flag has trust null", () =>
+		Effect.gen(function* () {
+			const { sandbox, env } = yield* Effect.promise(driftedSandbox);
+			const withTrust = yield* runOkfit(["context", "--format", "json", "--trust"], { cwd: sandbox.cwd, env });
+			assert.strictEqual(withTrust.exitCode, 0, withTrust.stderr);
+			assert.deepStrictEqual((JSON.parse(withTrust.stdout) as { trust: unknown }).trust, {
+				concepts: 3,
+				drifted: 1,
+				stale: 1,
+				unverified: 2,
+				drifted_ids: ["trust/drifted"],
+				stale_ids: ["trust/stale"],
+			});
+			const without = yield* runOkfit(["context", "--format", "json"], { cwd: sandbox.cwd, env });
+			assert.strictEqual(without.exitCode, 0);
+			assert.isNull((JSON.parse(without.stdout) as { trust: unknown }).trust);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("human output adds the trust, drifted and stale lines only with the flag", () =>
+		Effect.gen(function* () {
+			const { sandbox, env } = yield* Effect.promise(driftedSandbox);
+			const withTrust = yield* runOkfit(["context", "--trust"], { cwd: sandbox.cwd, env });
+			const lines = withTrust.stdout.split("\n");
+			assert.include(lines, "trust: 1 drifted, 1 stale, 2 unverified (of 3)");
+			assert.include(lines, "drifted: trust/drifted");
+			assert.include(lines, "stale: trust/stale");
+			const without = yield* runOkfit(["context"], { cwd: sandbox.cwd, env });
+			assert.notInclude(without.stdout, "trust:");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

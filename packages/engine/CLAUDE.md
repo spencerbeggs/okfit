@@ -24,6 +24,9 @@ src/
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   context/
     run.ts                 -- runContext: index.md stat only, never Bundle.load
+  trust/
+    run.ts                 -- runContextTrust: the opt-in `context --trust` summary (loads the bundle; kept
+                               out of context/ so run.ts stays bundle-free)
   edits/
     FrontmatterEdits.ts     -- FrontmatterEdits (Context-free facade), UnsupportedFrontmatterError:
                                MarkdownEdits for a concept's top-level `status` scalar and its

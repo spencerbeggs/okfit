@@ -3,7 +3,8 @@
 # section 6.1). Registered with no matcher (pluginfinity.config.ts,
 # contract section 4), so it fires on every source: startup, resume, clear, compact.
 #
-# Runs exactly one subprocess, `okfit context --format json`, and turns the
+# Runs one subprocess, `okfit context --format json --trust` (retried once
+# without --trust only when an older CLI rejects the flag), and turns the
 # merged config's vocabulary, the bundle's index.md, and two nudges into one
 # additionalContext block. Never runs `okfit validate` — a whole-bundle
 # conformance and lint pass just to learn the bundle root is the wasted work
@@ -55,8 +56,14 @@ fi
 # command (M-17), and this is the one call site that must word-split it.
 set +e
 # shellcheck disable=SC2086
-context_json=$($cli_cmd context --format json 2>/dev/null)
+context_json=$($cli_cmd context --format json --trust 2>/dev/null)
 context_rc=$?
+if [ "$context_rc" -ne 0 ]; then
+	# An older CLI rejects the unknown --trust flag; retry once without it.
+	# shellcheck disable=SC2086
+	context_json=$($cli_cmd context --format json 2>/dev/null)
+	context_rc=$?
+fi
 set -e
 
 # Branch 4 (interpretation B-1 in the judge notes): a non-zero exit or
@@ -197,6 +204,18 @@ if [ -z "$actors_agent" ]; then
 	CONTEXT="${CONTEXT}
 
 Note: actors.agent is not set in this project's config. Set actors.agent = \"okfit/claude-code\" so this plugin's agent can stamp generated.by."
+fi
+
+# The --trust summary: only when something has drifted or gone stale. Absent
+# on an older CLI (the retry above) and null without the flag.
+trust_line=$(printf '%s' "$context_json" | jq -r '
+	(.trust // empty) | select((.drifted + .stale) > 0)
+	| "trust: \(.drifted) drifted, \(.stale) stale, \(.unverified) unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query --drifted)."
+' 2>/dev/null || true)
+if [ -n "$trust_line" ]; then
+	CONTEXT="${CONTEXT}
+
+${trust_line}"
 fi
 
 hook_context "$CONTEXT"

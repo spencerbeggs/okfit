@@ -19,6 +19,16 @@ const constraintLines = (type: ContextType): ReadonlyArray<string> => [
 	...(type.fields.length > 0 ? [`    fields: ${type.fields.map(renderField).join(", ")}`] : []),
 ];
 
+/** The `--trust` block: a summary line, then the first drifted and stale ids when there are any. */
+const trustLines = (envelope: ContextEnvelope): ReadonlyArray<string> =>
+	envelope.trust === null
+		? []
+		: [
+				`trust: ${envelope.trust.drifted} drifted, ${envelope.trust.stale} stale, ${envelope.trust.unverified} unverified (of ${envelope.trust.concepts})`,
+				...(envelope.trust.drifted_ids.length > 0 ? [`drifted: ${envelope.trust.drifted_ids.join(", ")}`] : []),
+				...(envelope.trust.stale_ids.length > 0 ? [`stale: ${envelope.trust.stale_ids.join(", ")}`] : []),
+			];
+
 /**
  * The `human` format: a short header block, then one line per type (plus
  * its constraint lines, when it has any) and one per tag. Pure; the caller
@@ -40,6 +50,7 @@ export const humanContext = (envelope: ContextEnvelope): ReadonlyArray<string> =
 		: `profile: ${envelope.profile ?? "(none)"}`,
 	`index.md: ${envelope.index_path} (${envelope.index_exists ? "exists" : "missing"})`,
 	`agent: ${envelope.actors.agent ?? "(unset)"}`,
+	...trustLines(envelope),
 	"",
 	"types:",
 	...envelope.types.flatMap((t) => [`  ${t.name}  ${t.description ?? ""}`, ...constraintLines(t)]),

@@ -91,7 +91,26 @@ describe("contextEnvelope", () => {
 					{ name: "architecture", description: "Concerns the shape of the system rather than one module." },
 					{ name: "testing", description: "Concerns how the system is verified." },
 				],
+				trust: null,
 			});
+		}),
+	);
+
+	it.effect("trust is null without the option and carries the summary with it, round-tripping the schema", () =>
+		Effect.sync(() => {
+			assert.isNull(contextEnvelope({ ...baseInput, config: fullConfig }).trust);
+			const trust = {
+				concepts: 9,
+				drifted: 2,
+				stale: 1,
+				unverified: 4,
+				drifted_ids: ["a", "b"],
+				stale_ids: ["c"],
+			};
+			const built = contextEnvelope({ ...baseInput, config: fullConfig, trust });
+			assert.deepStrictEqual(built.trust, trust);
+			const encoded = Schema.encodeSync(ContextEnvelope)(built);
+			assert.deepStrictEqual(Schema.decodeUnknownSync(ContextEnvelope)(encoded), built);
 		}),
 	);
 

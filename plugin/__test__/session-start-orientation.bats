@@ -31,11 +31,12 @@ STUB
 }
 
 # _stub_context bundle_root index_path index_exists config_path profile
-#   actors_agent types_json tags_json [profile_requested]
+#   actors_agent types_json tags_json [profile_requested] [trust_json]
 _stub_context() {
 	local bundle_root="$1" index_path="$2" index_exists="$3" config_path="$4"
 	local profile="$5" actors_agent="$6" types_json="${7:-[]}" tags_json="${8:-[]}"
 	local profile_requested="${9:-$profile}"
+	local trust_json="${10:-null}"
 	local config_field="null"
 	[ -n "$config_path" ] && config_field="\"$config_path\""
 	local profile_field="null"
@@ -44,7 +45,7 @@ _stub_context() {
 	[ -n "$profile_requested" ] && profile_requested_field="\"$profile_requested\""
 	local agent_field="null"
 	[ -n "$actors_agent" ] && agent_field="\"$actors_agent\""
-	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json}"
+	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json,\"trust\":$trust_json}"
 }
 
 # _fixture — a SessionStart input whose cwd is the fake project.
@@ -297,5 +298,51 @@ _default_context() {
 	for target in $TARGETS; do
 		HOOK_PROJECT_DIR="$spaced" run_hook "$target" "$SCRIPT" "$(hook_fixture SessionStart "{\"cwd\":\"$spaced\"}")" OKFIT_CLI_CMD="$OKFIT_CLI_CMD"
 		[[ "$(context_text)" == *"hi from a spaced path"* ]]
+	done
+}
+
+_trust_json='{"concepts":9,"drifted":2,"stale":1,"unverified":4,"drifted_ids":["a","b"],"stale_ids":["c"]}'
+
+@test "appends the trust line when concepts have drifted or gone stale" {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$_trust_json"
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"trust: 2 drifted, 1 stale, 4 unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query --drifted)."* ]]
+	done
+}
+
+@test "renders no trust line when trust is null or nothing drifted" {
+	_default_context
+	local zero='{"concepts":3,"drifted":0,"stale":0,"unverified":3,"drifted_ids":[],"stale_ids":[]}'
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" != *"trust:"* ]]
+	done
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$zero"
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" != *"trust:"* ]]
+	done
+}
+
+@test "an old CLI that rejects --trust is retried without it and renders no trust line" {
+	cat >"$STUB_DIR/okfit" <<STUB
+#!/bin/bash
+for arg in "\$@"; do
+	if [ "\$arg" = "--trust" ]; then
+		echo "unknown flag --trust" >&2
+		exit 1
+	fi
+done
+printf '%s\n' '{"schema":1,"project_root":"$PROJECT_DIR","bundle_root":"$PROJECT_DIR/okf","config_path":null,"profile":"software-project","profile_requested":"software-project","index_path":"$PROJECT_DIR/okf/index.md","index_exists":false,"actors":{"agent":null},"types":[],"tags":[]}'
+STUB
+	chmod +x "$STUB_DIR/okfit"
+	OKFIT_CLI_CMD="$STUB_DIR/okfit"
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"okfit bundle: $PROJECT_DIR/okf (profile: software-project)"* ]]
+		[[ "$(context_text)" != *"trust:"* ]]
 	done
 }

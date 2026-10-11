@@ -47,6 +47,7 @@ export {
 	ContextField,
 	ContextFieldValue,
 	ContextTag,
+	ContextTrust,
 	ContextType,
 	contextEnvelope,
 } from "./render/context.js";
@@ -108,6 +109,8 @@ export { NotAPublicationError, PublicationNotFoundError, stampPublication } from
 export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult } from "./sync/run.js";
 export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
 export type { PendingWrite } from "./sync/write.js";
+export type { ContextTrustOptions } from "./trust/run.js";
+export { runContextTrust } from "./trust/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type { ChangeSince } from "./verify/diff.js";

@@ -24,7 +24,7 @@ describe("contextCommand", () => {
 		assert.deepStrictEqual(contextCommand.subcommands, []);
 	});
 
-	it("declares exactly the path argument and the config/format flags, by name; no --profile (M-15)", () => {
+	it("declares exactly the path argument and the config/format/trust flags, by name; no --profile (M-15)", () => {
 		const config = configOf(contextCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
@@ -32,7 +32,7 @@ describe("contextCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format"],
+			["config", "format", "trust"],
 		);
 	});
 
