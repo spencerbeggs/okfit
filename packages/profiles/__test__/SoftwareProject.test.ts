@@ -154,7 +154,7 @@ describe("softwareProject.config", () => {
 		}),
 	);
 
-	it.effect("every description is one sentence and every guidance at most three, plain text (P-42)", () =>
+	it.effect("every description is one sentence and every guidance at most two, plain text (P-42)", () =>
 		Effect.sync(() => {
 			const { descriptions, guidances } = guidanceStrings();
 			assert.isAbove(descriptions.length, 20);
@@ -167,7 +167,7 @@ describe("softwareProject.config", () => {
 				assert.match(text, /[.!?]$/, `no terminator in ${JSON.stringify(text)}`);
 			}
 			for (const text of descriptions) assert.strictEqual(sentences(text), 1, JSON.stringify(text));
-			for (const text of guidances) assert.isAtMost(sentences(text), 3, JSON.stringify(text));
+			for (const text of guidances) assert.isAtMost(sentences(text), 2, JSON.stringify(text));
 		}),
 	);
 });
