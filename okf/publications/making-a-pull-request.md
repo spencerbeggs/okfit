@@ -9,7 +9,7 @@ renders:
   - path: ../conventions/commit-rules.md
     body: 20e6953f2dd97ce0
   - path: ../conventions/test-location.md
-    body: 19e5d5684f9c3e0e
+    body: 1d7e24bb71b625ab
   - path: ../conventions/relative-imports-js-extension.md
     body: c58164991f73965f
 generated:
