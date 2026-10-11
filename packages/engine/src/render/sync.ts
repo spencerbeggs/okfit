@@ -10,6 +10,7 @@ export const SyncModeEnvelope = Schema.Struct({
 	selected: Schema.Boolean,
 	written: Schema.Array(Schema.String),
 	unchanged: Schema.Array(Schema.String),
+	migrated: Schema.Array(Schema.String),
 	skipped: Schema.Array(Schema.Struct({ id: Schema.String, reason: SkipReason })),
 });
 /** @public */
@@ -24,7 +25,7 @@ export type SyncModeEnvelope = typeof SyncModeEnvelope.Type;
 export const PublicationEnvelope = Schema.Struct({
 	id: Schema.String,
 	written: Schema.Boolean,
-	digests: Schema.Array(Schema.Struct({ path: Schema.String, body_sha256: Schema.String })),
+	digests: Schema.Array(Schema.Struct({ path: Schema.String, body: Schema.String })),
 });
 /** @public */
 export type PublicationEnvelope = typeof PublicationEnvelope.Type;
@@ -57,12 +58,13 @@ export const SyncEnvelope = Schema.Struct({
 /** @public */
 export type SyncEnvelope = typeof SyncEnvelope.Type;
 
-const NOT_SELECTED: SyncModeEnvelope = { selected: false, written: [], unchanged: [], skipped: [] };
+const NOT_SELECTED: SyncModeEnvelope = { selected: false, written: [], unchanged: [], migrated: [], skipped: [] };
 
 const toModeEnvelope = (mode: SyncResult["generated"]): SyncModeEnvelope => ({
 	selected: mode.selected,
 	written: [...mode.written],
 	unchanged: [...mode.unchanged],
+	migrated: [...mode.migrated],
 	skipped: mode.skipped.map((entry) => ({ id: entry.id, reason: entry.reason })),
 });
 

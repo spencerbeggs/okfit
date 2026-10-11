@@ -43,7 +43,7 @@ export class NotAPublicationError extends Schema.TaggedError<NotAPublicationErro
 }
 
 /**
- * Restamps one Publication's `renders[].body_sha256` digests from the current
+ * Restamps one Publication's `renders[].body` digests from the current
  * body of each rendered source concept, writing the Publication file
  * atomically unless `dryRun`. `written` is whether the text changed (so a
  * `dryRun` that would change the file reports `true` without writing).
@@ -88,12 +88,12 @@ export const stampPublication = (options: {
 			if (source === undefined) {
 				return yield* new PublicationNotFoundError({ id: sourceId === "" ? entry.path : sourceId, publication: id });
 			}
-			digests.push({ path: entry.path, body_sha256: yield* Derivation.bodyDigest(source.document.source) });
+			digests.push({ path: entry.path, body: yield* Derivation.bodyDigest(source.document.source) });
 		}
 		const original = concept.document.source;
 		const edits = yield* FrontmatterEdits.rendersDigests(
 			original,
-			digests.map((d) => d.body_sha256),
+			digests.map((d) => d.body),
 		);
 		const next = MarkdownEdit.applyAll(original, edits);
 		if (next === original) return { id, written: false, digests };

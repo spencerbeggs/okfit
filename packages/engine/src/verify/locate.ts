@@ -313,17 +313,6 @@ export const locateGenerated = (source: string): Effect.Effect<GeneratedLocated,
 	locateGeneratedField(source, "at");
 
 /**
- * As {@link locateGenerated}, but for the top-level `generated.body_sha256`
- * key (issue #19). Shares every branch with `locateGenerated` -- the two
- * fields are siblings of the same `generated:` block mapping -- parametrized
- * only by which key name is sought.
- *
- * @internal
- */
-export const locateGeneratedBodySha256 = (source: string): Effect.Effect<GeneratedLocated, YamlParseError> =>
-	locateGeneratedField(source, "body_sha256");
-
-/**
  * The classification of a concept's top-level scalar key (e.g. `status`),
  * offsets whole-file (same contract as {@link Located}). `replaceScalar`
  * covers a present plain/quoted scalar; `insertAfterKey` covers an absent

@@ -29,6 +29,7 @@ export const SkipReason = Schema.Literals([
 	"unborn",
 	"generated-missing",
 	"generated-unsupported",
+	"integrity-unsupported",
 	"log-unparseable",
 ]);
 /** @public */
@@ -55,6 +56,8 @@ export interface SyncModeResult {
 	/** Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
+	/** `generated` mode only: ids whose legacy body digest moved to `integrity.generated.body`; may also be in `written`. */
+	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: SkipReason }>;
 }
 
@@ -68,7 +71,7 @@ export interface SyncResult {
 }
 
 /** A selected-`false` placeholder for a mode `--only` excluded from (contract §5). */
-const UNSELECTED: SyncModeResult = { selected: false, written: [], unchanged: [], skipped: [] };
+const UNSELECTED: SyncModeResult = { selected: false, written: [], unchanged: [], migrated: [], skipped: [] };
 
 /**
  * What {@link planSync} computed and {@link applySyncPlan} will perform.
@@ -180,9 +183,11 @@ export const planSync: (
 				})),
 			}
 		: UNSELECTED;
-	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, true, pending) : UNSELECTED;
+	const index: SyncModeResult = options.modes.has("index")
+		? { ...(yield* syncIndex(bundle, true, pending)), migrated: [] }
+		: UNSELECTED;
 	const log: SyncModeResult = options.modes.has("log")
-		? yield* syncLog(bundle, walked, true, options.logSince, pending)
+		? { ...(yield* syncLog(bundle, walked, true, options.logSince, pending)), migrated: [] }
 		: UNSELECTED;
 
 	let restage: SyncPlan["restage"];

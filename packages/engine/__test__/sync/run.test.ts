@@ -53,7 +53,7 @@ const stamped = async (root: string, name: string, title: string): Promise<void>
 	);
 	await writeFile(
 		join(root, name),
-		`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n  at: ${AT}\n  body_sha256: ${digest}\n---${body}`,
+		`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n  at: ${AT}\nintegrity:\n  generated:\n    body: ${digest}\n---${body}`,
 	);
 };
 
@@ -169,7 +169,7 @@ describe("runSync --staged (issue #140)", () => {
 				}).pipe(Effect.provide(live));
 				assert.deepStrictEqual(result.generated.written, ["new"]);
 				const text = yield* Effect.promise(() => readFile(file, "utf8"));
-				assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{16}\n/);
+				assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\nintegrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/);
 				// The stamped bytes are what the index holds now, not the pre-stamp bytes.
 				assert.strictEqual(git(root, ["show", ":okf/new.md"]), text);
 				// The index rewrite is staged too.
@@ -204,7 +204,13 @@ describe("runSync --staged (issue #140)", () => {
 					dryRun: true,
 					staged: { at: STAMP },
 				}).pipe(Effect.provide(live));
-				assert.deepStrictEqual(result.generated, { selected: true, written: ["a"], unchanged: [], skipped: [] });
+				assert.deepStrictEqual(result.generated, {
+					selected: true,
+					written: ["a"],
+					unchanged: [],
+					migrated: [],
+					skipped: [],
+				});
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}

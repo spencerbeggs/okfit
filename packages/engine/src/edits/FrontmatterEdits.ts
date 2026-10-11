@@ -3,6 +3,7 @@ import type { YamlParseError } from "@effected/yaml";
 import type { Status } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import { Effect, Result, Runtime, Schema } from "effect";
+import { formatDigest } from "../verify/integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { orderVerifyEdits, splice, spliceTopLevelScalar } from "../verify/splice.js";
 
@@ -116,9 +117,11 @@ export class FrontmatterEdits {
 		});
 
 	/**
-	 * Edits that stamp `renders[i].body_sha256` with `digests[i]`: an existing value is replaced in
-	 * place, a missing key is inserted on the line after `renders[i].path` at that key's column.
-	 * Block-style `renders` only; flow style fails with `UnsupportedFrontmatterError`.
+	 * Edits that stamp `renders[i].body` with `digests[i]` (16 hex, quoted when numeric-looking): an
+	 * existing value is replaced in place, a missing key is inserted on the line after
+	 * `renders[i].path` at that key's column. A legacy `renders[i].body_sha256` line in the same
+	 * entry is removed, so an entry never ends up with both keys. Block-style `renders` only; flow
+	 * style fails with `UnsupportedFrontmatterError`.
 	 */
 	static readonly rendersDigests = (
 		source: string,
@@ -139,9 +142,23 @@ export class FrontmatterEdits {
 			const newline = documentNewline(text);
 			const edits: Array<MarkdownEdit> = [];
 			for (const [index, digest] of digests.entries()) {
-				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
+				const formatted = formatDigest(digest);
+				const legacySpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
+				if (legacySpan !== undefined && legacySpan.offset !== block.offset) {
+					const start = text.lastIndexOf("\n", legacySpan.offset - 1) + 1;
+					const nl = text.indexOf("\n", legacySpan.offset + legacySpan.length);
+					const end = nl === -1 ? text.length : nl + 1;
+					const prefix = text.slice(start, legacySpan.offset);
+					if (!/^[ ]*(?:-[ ]+)*(?:"body_sha256"|'body_sha256'|body_sha256)[ ]*:[ ]*$/u.test(prefix)) {
+						return yield* unsupported("flow-mapping");
+					}
+					// A dash-prefixed key line cannot be removed whole; only a dedicated line is.
+					if (prefix.includes("-")) return yield* unsupported("flow-mapping");
+					edits.push(shift(MarkdownEdit.make({ offset: start, length: end - start, content: "" }), bom.length));
+				}
+				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body"]);
 				if (digestSpan !== undefined && digestSpan.offset !== block.offset) {
-					const content = digestSpan.length === 0 ? ` ${digest}` : digest;
+					const content = digestSpan.length === 0 ? ` ${formatted}` : formatted;
 					edits.push(
 						shift(MarkdownEdit.make({ offset: digestSpan.offset, length: digestSpan.length, content }), bom.length),
 					);
@@ -165,12 +182,12 @@ export class FrontmatterEdits {
 						MarkdownEdit.make({
 							offset: lineEnd,
 							length: 0,
-							content: `${newline}${" ".repeat(column)}body_sha256: ${digest}`,
+							content: `${newline}${" ".repeat(column)}body: ${formatted}`,
 						}),
 						bom.length,
 					),
 				);
 			}
-			return edits;
+			return edits.toSorted((a, b) => a.offset - b.offset);
 		});
 }

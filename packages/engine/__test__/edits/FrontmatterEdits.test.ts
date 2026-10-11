@@ -98,8 +98,8 @@ describe("FrontmatterEdits.verified", () => {
 	);
 });
 
-const D1 = "a".repeat(64);
-const D2 = "b".repeat(64);
+const D1 = "a".repeat(16);
+const D2 = "b".repeat(16);
 const pub = (renders: string, nl = "\n"): string =>
 	[
 		"---",
@@ -118,37 +118,60 @@ const stampRenders = (source: string, digests: ReadonlyArray<string>) =>
 
 describe("FrontmatterEdits.rendersDigests", () => {
 	it.effect("replaces an existing digest in place", () => {
-		const source = pub(`  - path: a.md\n    body_sha256: ${"0".repeat(64)}`);
+		const source = pub(`  - path: a.md\n    body: ${"0".repeat(16)}`);
 		return Effect.map(stampRenders(source, [D1]), (out) =>
-			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}`)),
 		);
 	});
 
 	it.effect("inserts a missing key under the path at the key's column", () =>
 		Effect.map(stampRenders(pub("  - path: a.md"), [D1]), (out) =>
-			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}`)),
 		),
 	);
 
 	it.effect("handles one stamped and one unstamped entry", () => {
-		const source = pub(`  - path: a.md\n    body_sha256: ${"0".repeat(64)}\n  - path: b.md`);
+		const source = pub(`  - path: a.md\n    body: ${"0".repeat(16)}\n  - path: b.md`);
 		return Effect.map(stampRenders(source, [D1, D2]), (out) =>
-			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}\n  - path: b.md\n    body_sha256: ${D2}`)),
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}\n  - path: b.md\n    body: ${D2}`)),
 		);
 	});
 
 	it.effect("keeps CRLF", () =>
 		Effect.map(stampRenders(pub("  - path: a.md", "\r\n"), [D1]), (out) =>
-			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`, "\r\n")),
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}`, "\r\n")),
 		),
 	);
 
 	it.effect("shifts offsets past a BOM", () => {
 		const source = `﻿${pub("  - path: a.md")}`;
 		return Effect.map(stampRenders(source, [D1]), (out) =>
-			assert.strictEqual(out, `﻿${pub(`  - path: a.md\n    body_sha256: ${D1}`)}`),
+			assert.strictEqual(out, `﻿${pub(`  - path: a.md\n    body: ${D1}`)}`),
 		);
 	});
+
+	it.effect("replaces a legacy body_sha256 line with body, never leaving both keys", () => {
+		const source = pub(`  - path: a.md\n    body_sha256: ${"f".repeat(64)}`);
+		return Effect.map(stampRenders(source, [D1]), (out) => {
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}`));
+			assert.notInclude(out, "body_sha256");
+		});
+	});
+
+	it.effect("replaces body and drops a legacy body_sha256 sitting beside it", () => {
+		const source = pub(
+			`  - path: a.md\n    body: ${"0".repeat(16)}\n    body_sha256: ${"f".repeat(64)}\n  - path: b.md`,
+		);
+		return Effect.map(stampRenders(source, [D1, D2]), (out) =>
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}\n  - path: b.md\n    body: ${D2}`)),
+		);
+	});
+
+	it.effect("single-quotes a numeric-looking digest", () =>
+		Effect.map(stampRenders(pub("  - path: a.md"), ["1234567890123456"]), (out) =>
+			assert.strictEqual(out, pub("  - path: a.md\n    body: '1234567890123456'")),
+		),
+	);
 
 	it.effect("fails typed on flow-style renders", () =>
 		Effect.map(
@@ -161,9 +184,9 @@ describe("FrontmatterEdits.rendersDigests", () => {
 	);
 
 	it.effect("replaces a quoted digest value, quotes included", () => {
-		const source = pub(`  - path: a.md\n    body_sha256: "${"0".repeat(64)}"`);
+		const source = pub(`  - path: a.md\n    body: "${"0".repeat(16)}"`);
 		return Effect.map(stampRenders(source, [D1]), (out) =>
-			assert.strictEqual(out, pub(`  - path: a.md\n    body_sha256: ${D1}`)),
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}`)),
 		);
 	});
 

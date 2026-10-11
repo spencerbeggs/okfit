@@ -42,15 +42,36 @@ describe("stampPublication", () => {
 				const first = yield* stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false });
 				assert.strictEqual(first.written, true);
 				assert.deepStrictEqual(first.digests, [
-					{ path: "../modules/a.md", body_sha256: da },
-					{ path: "../modules/b.md", body_sha256: db },
+					{ path: "../modules/a.md", body: da },
+					{ path: "../modules/b.md", body: db },
 				]);
 				const after = yield* Effect.promise(() => readFile(join(root, "publications/p.md"), "utf8"));
-				assert.ok(after.includes(`body_sha256: ${da}`) && after.includes(`body_sha256: ${db}`));
+				assert.ok(after.includes(`body: ${da}`) && after.includes(`body: ${db}`));
 				const second = yield* stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false });
 				assert.strictEqual(second.written, false);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "publications/p.md"), "utf8")), after);
 			}),
+		),
+	);
+
+	it.effect("turns a legacy renders[].body_sha256 into a 16-hex renders[].body", () =>
+		withBundle(
+			{
+				...files,
+				"publications/p.md": pubFile(
+					`  - path: ../modules/a.md\n    body_sha256: ${"f".repeat(64)}\n  - path: ../modules/b.md`,
+				),
+			},
+			(root) =>
+				Effect.gen(function* () {
+					const da = yield* Derivation.bodyDigest(MOD_A);
+					const result = yield* stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false });
+					assert.strictEqual(result.written, true);
+					const after = yield* Effect.promise(() => readFile(join(root, "publications/p.md"), "utf8"));
+					assert.notInclude(after, "body_sha256");
+					assert.match(da, /^[0-9a-f]{16}$/u);
+					assert.include(after, `    body: ${da}\n`);
+				}),
 		),
 	);
 

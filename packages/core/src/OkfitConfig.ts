@@ -348,7 +348,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "publication-drift",
 			description:
-				'A Publication\'s renders[].body_sha256 is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".',
+				'A Publication\'s renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -356,7 +356,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "publication-orphan",
 			description:
-				'A Publication\'s surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body_sha256 } entries. Default "error".',
+				'A Publication\'s surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body } entries. Default "error".',
 			default: "error",
 		}),
 	),
