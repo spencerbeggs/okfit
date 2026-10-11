@@ -75,7 +75,7 @@ the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s nineteen rules, run `okfit validate` and fix what it
 reports, run `okfit sync` to regenerate `generated.at`,
-`generated.body_sha256`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
+`integrity.generated.body`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
 changed — sequentially, in this one context. In the report, tell the human
 how to stamp after they commit: run `okfit sync --dry-run` and commit only
@@ -85,8 +85,11 @@ never writes `log.md`, so the follow-up sync may write only `log.md`.
 
 ## What this agent does NOT do
 
-- Never adds or edits `verified` — that field records third-party or
-  human confirmation, and only a human writes it.
+- Never adds or edits `verified` or any `integrity` key — they record
+  third-party or human confirmation and the digests that bind it, and only
+  a human (through `okfit verify`) and `okfit sync` write them. Editing a
+  verified or stable concept is fine: the edit shows as `verified-drift`,
+  and the finalize report lists it as awaiting re-verification.
 - Never runs `okfit verify`, even when asked — the Bash tool can reach it,
   but running it would fabricate the very attestation the command exists to
   record. Tell the human it is theirs to run. The same goes for

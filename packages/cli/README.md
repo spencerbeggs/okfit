@@ -11,7 +11,7 @@ okfit [--help] [--version]
 okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
 okfit init [path] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
 okfit context [path] [--config <file>] [--format human|json] [--help]
-okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
+okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft] [--revoke] [--no-diff] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
 okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--config <file>] [--format human|json]
 okfit query get <id> [path] [--config <file>] [--format human|json]
 okfit query neighbors <id> [path] [--config <file>] [--format human|json]
@@ -64,7 +64,7 @@ ranged, then by offset, then by code.
 `--skip-provenance` skips the `generated-at-drift` lint's git tier for
 this one invocation, without touching the project's `[lint]` table. That
 is `Provenance.lint`'s tier 2 only — the git-derived date comparison used
-for a concept stamped before `generated.body_sha256` existed. The digest
+for a concept stamped before `integrity.generated.body` existed. The digest
 tier still runs: it compares the recorded digest against the body already
 in memory, so it spawns nothing and still reports a body edited without a
 re-stamp. The Claude Code plugin's PostToolUse hook passes the flag on
@@ -224,7 +224,11 @@ warnings all behave exactly as `## Config discovery` describes below.
 ### `okfit verify`
 
 Appends one attestation, `{ by: human:<id>, at: <now> }`, to a concept's
-`verified` list and writes the file back. `<id>` is a concept id with or
+`verified` list and writes the file back. It also binds the attestation in
+`integrity.verified` (`{ by, at, content }`), where `content` is a 16-hex
+digest of the body plus the authored frontmatter. A later edit to the concept
+reports as the `verified-drift` lint (default `warn`): a signal that a human
+should look again, not a gate. `<id>` is a concept id with or
 without a leading slash or trailing `.md`. The actor is always your own git
 identity, resolved from `user.name`/`user.email` and `[actors].humans`;
 there is no `--by`. Existing entries are never touched or replaced — every
@@ -246,6 +250,17 @@ decision. A concept already at the requested status gets no status edit. The
 human line ends `; status <from> -> <to>`, `; status already <to>` or
 `; status (absent) -> <to>`, and a dry run adds a `would set status:` line
 with the exact fragment.
+
+Verifying a concept that has drifted since its last verification first
+prints the git diff since that verification, then asks to confirm; answering
+no writes nothing. `--no-diff` skips the diff. Without a terminal the confirm
+cannot be asked, so the verification proceeds as it always did.
+
+`okfit verify --revoke <id>` removes the current actor's own `verified`
+entries and clears the `integrity.verified` binding when that actor held it.
+It never touches another person's entries. Exit `3` when the actor has
+nothing to revoke on that concept; passing `--revoke` with `--all`, `--type`,
+`--stable` or `--draft` is a usage error (exit `64`).
 
 `--all` and `--type <Type>` (repeatable) attest in batch: every concept whose
 type sets `require_verified` (or of the named types) that you have not
@@ -410,10 +425,13 @@ envelope to stdout and exits `3`:
 
 `okfit verify --format json` prints `VerifyEnvelope` (`schema`, `okfit_version`,
 `engine_version`, `distribution`, `id`, `path`, `verified`, `status`,
-`dry_run`, `exit_code`), where `status` is `{ "from": ..., "to": ... }` when
+`dry_run`, `exit_code`, and `prior_integrity` when the concept was drifted and the diff was shown), where `status` is `{ "from": ..., "to": ... }` when
 `--stable` or `--draft` was given and `null` otherwise. With `--all` or
 `--type` it prints `VerifyBatchEnvelope`, whose `skipped[].reason` is one of
 `draft`, `deprecated` or `already-verified`.
+With `--revoke` it prints a revoke envelope carrying `removed` (how many of the
+actor's entries were removed), `binding_cleared` (whether `integrity.verified`
+was cleared) and `revoked_by` (the actor).
 
 `okfit query list --format json` prints `QueryListEnvelope` (`total`, `items`);
 `query get` prints `QueryGetEnvelope` (`concept`: the summary fields plus

@@ -23,7 +23,7 @@ for the simplicity of one agent running one skill straight through.
    different `okfit_version` between the tool and the CLI is each front
    end's own version, not a different engine.
 4. Run `okfit sync` (or `okfit sync --dry-run` first to inspect) to
-   regenerate `generated.at`, `generated.body_sha256`, `index.md`, and
+   regenerate `generated.at`, `integrity.generated.body`, `index.md`, and
    `log.md`. A concept whose recorded digest still matches its body is
    reported `unchanged` and keeps its existing `at`, so a squash-merged
    branch needs no restamp pass. All three are
@@ -38,7 +38,7 @@ for the simplicity of one agent running one skill straight through.
    `okfit sync --dry-run`, and make a stamp commit only if it reports
    writes. A pre-commit hook with the SAVVY-OKF section runs
    `okfit sync --staged`, which may already have stamped `generated.at` and
-   `generated.body_sha256` into the commit, leaving nothing to stamp. That
+   `integrity.generated.body` into the commit, leaving nothing to stamp. That
    hook path never writes `log.md`, so the follow-up sync may write only
    `log.md`; commit that alone as the second commit. Never create an empty
    stamp commit.
@@ -48,7 +48,11 @@ for the simplicity of one agent running one skill straight through.
    `okfit validate` reported as `require-verified-unmet` as "awaiting human
    verification" and stop there — this skill never runs `okfit verify`. Tell
    the human that once they have reviewed a draft, `okfit verify <id>
-   --stable` settles it in one write: the attestation and the promotion. If
+   --stable` settles it in one write: the attestation and the promotion.
+   Also list any concept `validate` reported as `verified-drift` under
+   "awaiting re-verification": the branch edited a verified concept, which
+   is fine, and only a human re-verifies it (`okfit verify <id>`, which shows
+   the diff since the last verification first). Never re-verify it yourself. If
    `validate` reports stale concepts, suggest the human run `okfit stale
    --verify` too (it exits 64 for an agent).
 

@@ -13,33 +13,44 @@ allowed-tools: Read, Grep
 
 # OKF Authoring
 
-## Never touch verified
+## Never write verified or integrity
 
 Stated first, because it is the single highest-consequence rule: `verified`
-records third-party or human confirmation, never authorship (spec §5.2). An
-authoring agent that adds or edits `verified` is asserting a confirmation it
-did not perform. This is the boundary `okfit:okf-docs` restates in its own "What
-this agent does NOT do" section, and the one this plugin's own `CLAUDE.md`
-already carries today.
+records third-party or human confirmation, never authorship (spec §5.2), and
+`integrity.verified` binds that confirmation to a digest of the concept as
+the human saw it. An authoring agent that writes either is asserting a
+confirmation it did not perform. This is the boundary `okfit:okf-docs`
+restates in its own "What this agent does NOT do" section, and the one this
+plugin's own `CLAUDE.md` already carries.
 
-`okfit verify` is the one legitimate way this field is ever written: a human
-runs it directly, from their own shell. Never run it yourself, even when
-asked, and never treat its existence as a loophole in this rule. When a
+Editing a verified or stable concept is fine and expected: keep the facts
+true. The edit shows up as the `verified-drift` lint (a signal at `warn`,
+not a gate), and only a human re-verifies. Do not avoid editing, and do not
+try to repair the drift yourself. The whole `integrity` family is okfit's:
+never hand-edit any key of it, because `okfit sync` writes
+`integrity.generated` and `okfit verify` writes `integrity.verified`.
+
+`okfit verify` is the one legitimate way these fields are ever written: a
+human runs it directly, from their own shell. Never run it yourself, even
+when asked, and never treat its existence as a loophole in this rule. When a
 human has reviewed a draft and wants it settled, `okfit verify <id> --stable`
-attests and promotes it in one write; that too is theirs to run. The same
-holds for `okfit stale --verify`, which re-attests stale concepts and rolls
-their `stale_after` forward: it exits 64 for an agent, so suggest the human
-run it instead of attempting it.
+attests and promotes it in one write; that too is theirs to run. On a
+drifted concept it shows the git diff since the last verification before it
+asks to confirm, and `okfit verify --revoke <id>` removes the human's own
+entries; both are theirs. The same holds for `okfit stale --verify`, which
+re-attests stale concepts and rolls their `stale_after` forward: it exits 64
+for an agent, so suggest the human run it instead of attempting it.
 
 ## The nineteen rules
 
 1. Only `type` is required; never invent required fields beyond what the
    active profile and config declare (`concepts.required` --
    `PROFILES/SoftwareProject.ts:16` sets `["title", "description"]`).
-2. Never add or edit `verified`.
+2. Never add or edit `verified` or any `integrity` key; editing a verified
+   concept is fine, and the edit surfaces as `verified-drift` for a human.
 3. Stamp `generated.by` on meaningful changes; never the legacy
    `timestamp`. `okfit sync` writes `generated.at` and
-   `generated.body_sha256`; never type either by hand.
+   `integrity.generated.body`; never type either by hand.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
@@ -85,11 +96,13 @@ run it instead of attempting it.
     absence (D-20); do not lean on that leniency.
 14. Always write `status` explicitly, never leave it absent: `draft` when the
     concept is unreviewed, `stable` when it is settled. A Decision follows its
-    verified rule instead: write it `draft` and leave settling it to the
-    human, who runs `okfit verify <id> --stable`; never write `stable` on a
-    Decision yourself.
-15. When authoring new `verified` (rare -- rule 2 says don't), always emit
-    list form.
+    verified rule instead: write a new one `draft` and leave settling it to
+    the human, who runs `okfit verify <id> --stable`; never write `stable` on
+    a Decision yourself. Editing an already-stable Decision is allowed (the
+    edit voids its verification as `verified-drift`) and leaves its `status`
+    as it is.
+15. Never author `verified` or `integrity` at all (rule 2). If you must
+    read or quote an existing `verified`, it is a list of `{by, at}`.
 16. Never delete an unrecognised frontmatter key -- extensions are legal
     (`CORE/OkfitConfig.ts:186-213` partitions unknown top-level *config*
     keys into `extensions`; the same tolerance posture applies to concept
@@ -123,25 +136,29 @@ run it instead of attempting it.
     justifies, in one sentence; drop the rest rather than inventing a
     type for it.
 
-## generated.at and generated.body_sha256
+## generated.at and integrity
 
 Core treats `generated.at` as optional (`CORE/Generated.ts:29`); this
 skill instructs writers to leave it unset until `okfit sync` supplies the
 value rather than typing a guess (rule 3). `generated.by` stays required
 (`CORE/Generated.ts:28`) and is always hand-stamped.
 
-`generated.body_sha256` (`CORE/Generated.ts:30`) is okfit's own extension
-key, not an OKF v0.2 field: a sha256 of the concept's normalized body,
-written by `okfit sync` beside `at`. It is what lets the
-`generated-at-drift` lint survive a squash or rebase merge -- drift now
-means the body changed after the stamp, never that a merge minted a new
-author date. Never hand-write or hand-edit it: a digest that does not
-match the body reports as drift, and an edited-but-uncommitted body
-reports immediately rather than waiting for a commit. `okfit sync` is the
-command that writes `generated.at`, deriving it from git history -- never
+`integrity` is okfit's own top-level extension family, not an OKF v0.2
+field, and it holds every digest. `integrity.generated.body` is the first 16
+hex characters of a sha256 of the concept's normalized body, written by
+`okfit sync` beside `generated.at`. It is what lets the `generated-at-drift`
+lint survive a squash or rebase merge -- drift means the body changed after
+the stamp, never that a merge minted a new author date. It replaces the
+legacy `generated.body_sha256`, which `okfit sync` migrates away.
+`integrity.verified` (`{ by, at, content }`) is written by `okfit verify`:
+`content` digests the body plus the authored frontmatter, so a later edit
+yields `verified-drift`. Never hand-write or hand-edit any `integrity` key:
+a digest that does not match reports as drift, and an edited-but-uncommitted
+body reports immediately rather than waiting for a commit. `okfit sync` is
+the command that writes `generated.at`, deriving it from git history -- never
 type it by hand, and never invent `generated.by` on its behalf (sync
 never writes that key: design §3 step 5). `okfit verify` is a different
-command entirely -- it stamps only `verified`, a separate,
+command -- it stamps `verified` and `integrity.verified`, a separate,
 spec-independent family (spec §5.2).
 
 ## Actor prefixes

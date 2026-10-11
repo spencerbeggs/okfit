@@ -25,7 +25,7 @@ src/
   internal/body.ts    -- the normalised-body helper shared by Derivation and Canonical (breaks the import cycle)
   Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config, options?), the generated-at-drift lint (S-8); not a Profile member;
                          ranges at generated.at's own value (phase 4 decision 2), range-less only when the concept's document has no frontmatter
-                         Two tiers: generated.body_sha256 when recorded (pure, no git, catches a dirty body), the git date walk otherwise
+                         Two tiers: integrity.generated.body when recorded (pure, no git, catches a dirty body), the git date walk otherwise
 ```
 
 Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.

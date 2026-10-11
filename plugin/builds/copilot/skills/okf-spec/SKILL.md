@@ -60,6 +60,8 @@ unknown `type`, unknown extra keys, broken links, or a missing `index.md`.
 | `generated.by` | trust | **required within `generated`** | An actor (§7). `CORE/Generated.ts:10` -- not `optionalKey` | §5.2 |
 | `generated.at` | trust | spec prose gives no explicit marker (ambiguous); **core treats it as optional** -- `CORE/Generated.ts:11` is `Schema.optionalKey(Timestamp)` | Content's last meaningful change | §5.2 |
 | `verified` | trust | optional | A **list** of `{by, at}`; a bare mapping is legal input and MUST be read as a one-element list | §5.2 |
+| `integrity.generated.body` | okfit extension | optional | **Not in OKF v0.2.** 16-hex sha256 prefix of the normalised body; `okfit sync` writes it, never an author. Replaces `generated.body_sha256` | okfit |
+| `integrity.verified` | okfit extension | optional | **Not in OKF v0.2.** `{by, at, content}`: `okfit verify` binds the latest human verification to a digest of body plus authored frontmatter. An edit afterwards is the `verified-drift` lint. Never hand-written | okfit |
 | `status` | lifecycle | optional | `draft \| stable \| deprecated`; absent means `stable` | §5.4 |
 | `stale_after` | lifecycle | optional | Absolute ISO 8601 instant; stale when `now >= stale_after` | §5.5 |
 | `runtime` | computation | spec prose says REQUIRED for an Attested Computation; **core demotes an absent value to lint `computation-runtime-missing`**, whose default severity is `error` (`CORE/OkfitConfig.ts:277`) but which is a lint, not a rejection (D-20) | e.g. `bigquery`, `postgres`, `dbt`, `python`, `Looker` | §10.2 |

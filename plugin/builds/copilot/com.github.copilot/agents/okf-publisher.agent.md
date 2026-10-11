@@ -75,7 +75,7 @@ Run this loop; each step needs the one before it.
 - Never invents output in code examples; show only output taken from a
   source concept or a command it ran.
 - Never restamps without re-rendering first.
-- Never adds `verified`, runs `okfit verify`, commits, pushes, or writes a
+- Never adds `verified` or edits `integrity`, runs `okfit verify`, commits, pushes, or writes a
   changeset.
 
 ## Skills

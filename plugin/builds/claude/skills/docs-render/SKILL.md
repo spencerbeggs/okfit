@@ -10,15 +10,15 @@ Input: a Publication concept id (for example `publications/readme-cli`). If none
 
 ## Procedure
 
-1. `get_concept` the Publication. Note `resource` (the page), `surface` and `renders` (each `{ path, body_sha256 }`). The Publication body holds rendering notes: what is audience-specific, what is left out, what a re-render must keep.
+1. `get_concept` the Publication. Note `resource` (the page), `surface` and `renders` (each `{ path, body }`). The Publication body holds rendering notes: what is audience-specific, what is left out, what a re-render must keep.
 2. `get_concept` the Surface it names. Its body is the style guide for the page; it overrides any template default (see `docs-templates`).
 3. `get_concept` each `renders` source. These are the only fact source.
 4. Check for orphans before writing anything. If `validate_bundle` (or `okfit validate`) reports `publication-orphan` for this Publication (a `renders` path or the surface does not resolve), stop and tell the user. Never guess a replacement source.
 5. Rewrite the page at `resource` to the Surface's rules and the Publication's notes, using only facts from those sources. Anything else the page says is dropped or flagged to the user, never invented. Keep `docs-badges` blocks via that skill, and reach for `docs-templates` for section order.
 6. Run the `docs-humanize` skill on the page.
-7. Run `okfit sync --publication <concept id>` (or the same command through `pnpm exec okfit`, `npx okfit` or `node_modules/.bin/okfit`, whichever the repo installs). It restamps the `body_sha256` digests. Exit codes:
+7. Run `okfit sync --publication <concept id>` (or the same command through `pnpm exec okfit`, `npx okfit` or `node_modules/.bin/okfit`, whichever the repo installs). It restamps the `body` digests. Exit codes:
    - `64`: the id is unknown, the concept is not a Publication, or a `renders` entry points at no concept (the message names the missing source). Fix the id or the entry; never retry unchanged.
-   - `3`: `renders` is not a block-style list of `{ path, body_sha256 }` entries. Fix the frontmatter shape by hand.
+   - `3`: `renders` is not a block-style list of `{ path, body }` entries. Fix the frontmatter shape by hand.
 8. Run `okfit validate` and confirm `publication-drift` no longer fires for this Publication. Fix anything else it reports. `publication-drift` is a warning and does not fail `okfit validate`; only error severities change the exit code, so a clean exit can still carry warnings to fix.
 
 ## Gotcha
