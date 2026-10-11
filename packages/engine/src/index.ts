@@ -137,6 +137,6 @@ export {
 	runVerifyBatch,
 	runVerifyIds,
 } from "./verify/run.js";
-export type { AttestableSelection, LocateConcept, PickerCandidate } from "./verify/select.js";
+export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
 export { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

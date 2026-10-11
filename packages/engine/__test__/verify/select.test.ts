@@ -155,13 +155,11 @@ describe("selectPickerCandidates (picker)", () => {
 					yield* bindFixtures(root, ["decisions/d.md", "decisions/e.md"]).pipe(Effect.provide(NodeServices.layer));
 					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
 					const signals = yield* Trust.signals(bundle, NOW).pipe(Effect.provide(NodeServices.layer));
-					const rows = selectPickerCandidates(bundle, config, "human:ada", signals, (concept) =>
-						join(root, concept.path),
-					);
+					const rows = selectPickerCandidates(bundle, config, "human:ada", signals);
 					assert.deepStrictEqual(rows, [
 						{
 							id: "decisions/a",
-							path: join(root, "decisions/a.md"),
+							path: "decisions/a.md",
 							boundAt: null,
 							type: "Decision",
 							status: "stable",
@@ -173,7 +171,7 @@ describe("selectPickerCandidates (picker)", () => {
 						},
 						{
 							id: "decisions/b",
-							path: join(root, "decisions/b.md"),
+							path: "decisions/b.md",
 							boundAt: null,
 							type: "Decision",
 							status: "draft",
@@ -185,7 +183,7 @@ describe("selectPickerCandidates (picker)", () => {
 						},
 						{
 							id: "decisions/d",
-							path: join(root, "decisions/d.md"),
+							path: "decisions/d.md",
 							boundAt: "2026-09-01T00:00:00.000Z",
 							type: "Decision",
 							status: "stable",
@@ -197,7 +195,7 @@ describe("selectPickerCandidates (picker)", () => {
 						},
 						{
 							id: "gotchas/z",
-							path: join(root, "gotchas/z.md"),
+							path: "gotchas/z.md",
 							boundAt: null,
 							type: "Gotcha",
 							status: "stable",

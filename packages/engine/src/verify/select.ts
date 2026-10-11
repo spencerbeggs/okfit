@@ -85,7 +85,7 @@ export interface PickerCandidate {
 	readonly integrity: IntegrityState;
 	/** Whether the concept is past its `stale_after` (or otherwise stale) at the time the rows were selected. */
 	readonly stale: boolean;
-	/** Absolute path of the concept file. */
+	/** The concept file's bundle-relative path (`concept.path`); the loaders in `run.ts` make it absolute. */
 	readonly path: string;
 	/**
 	 * When `integrity.verified` was bound (ISO 8601), the time a drifted row's
@@ -93,14 +93,6 @@ export interface PickerCandidate {
 	 */
 	readonly boundAt: string | null;
 }
-
-/**
- * Where a concept's file is on disk: its absolute path. The selections are
- * pure, so the caller (which holds `Path`) supplies the join.
- *
- * @public
- */
-export type LocateConcept = (concept: LoadedConcept) => string;
 
 const boundAtOf = (concept: LoadedConcept): string | null => {
 	const at = concept.frontmatter.integrity?.verified?.at;
@@ -119,7 +111,6 @@ export const selectPickerCandidates = (
 	config: OkfitConfig,
 	actor: string,
 	signals: ReadonlyMap<string, ConceptSignal>,
-	locate: LocateConcept,
 ): ReadonlyArray<PickerCandidate> => {
 	const types = requireVerifiedTypes(config);
 	const rows: Array<PickerCandidate> = [];
@@ -137,7 +128,7 @@ export const selectPickerCandidates = (
 			otherAttestations: verified.filter((entry) => entry.by !== actor).length,
 			integrity: signals.get(id)?.integrity ?? "none",
 			stale: signals.get(id)?.stale ?? false,
-			path: locate(concept),
+			path: concept.path,
 			boundAt: boundAtOf(concept),
 		});
 	}
@@ -158,7 +149,6 @@ export const selectStaleCandidates = (
 	items: ReadonlyArray<StaleConcept>,
 	actor: string,
 	signals: ReadonlyMap<string, ConceptSignal>,
-	locate: LocateConcept,
 ): ReadonlyArray<PickerCandidate> => {
 	const rows: Array<PickerCandidate> = [];
 	for (const item of items) {
@@ -175,7 +165,7 @@ export const selectStaleCandidates = (
 			otherAttestations: (concept.frontmatter.verified ?? []).filter((entry) => entry.by !== actor).length,
 			integrity: signals.get(item.id)?.integrity ?? "none",
 			stale: signals.get(item.id)?.stale ?? false,
-			path: locate(concept),
+			path: concept.path,
 			boundAt: boundAtOf(concept),
 		});
 	}

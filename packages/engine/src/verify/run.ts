@@ -582,6 +582,13 @@ export interface PickerCandidatesOptions {
 	readonly config: OkfitConfig;
 }
 
+/** The rows with `path` joined onto the bundle root, so the picker's callers get absolute file paths. */
+const absolutePaths = (
+	rows: ReadonlyArray<PickerCandidate>,
+	path: Path.Path,
+	root: string,
+): ReadonlyArray<PickerCandidate> => rows.map((row) => ({ ...row, path: path.join(root, row.path) }));
+
 /**
  * The interactive verify picker's starting point: loads the bundle, resolves
  * the human actor from git exactly as {@link runVerify} does, and selects the
@@ -596,8 +603,8 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const signals = yield* Trust.signals(bundle, yield* DateTime.now);
 	const path = yield* Path.Path;
-	const locate = (concept: LoadedConcept) => path.join(bundle.root, concept.path);
-	return { by, candidates: selectPickerCandidates(bundle, options.config, by, signals, locate) } satisfies {
+	const candidates = absolutePaths(selectPickerCandidates(bundle, options.config, by, signals), path, bundle.root);
+	return { by, candidates } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};
@@ -617,11 +624,12 @@ export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const signals = yield* Trust.signals(bundle, options.now);
 	const path = yield* Path.Path;
-	const locate = (concept: LoadedConcept) => path.join(bundle.root, concept.path);
-	return {
-		by,
-		candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals, locate),
-	} satisfies {
+	const candidates = absolutePaths(
+		selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),
+		path,
+		bundle.root,
+	);
+	return { by, candidates } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};
