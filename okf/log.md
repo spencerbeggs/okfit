@@ -29,6 +29,8 @@
 * Updated okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
 * Added A non-empty actors list is an allow-list and okfit never stores emails
 * Updated Human actor ids resolve through a five-step fallback order
+* Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
+* Updated The validate hook fires PostToolUse, not PreToolUse
 
 ## 2026-10-09
 
