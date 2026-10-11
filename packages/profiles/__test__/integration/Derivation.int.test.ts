@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { afterAll, assert, beforeAll, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
-import { Actor, OkfitConfig, Timestamp } from "@okfit/core";
+import { ActorPattern, OkfitConfig, Timestamp } from "@okfit/core";
 import { DateTime, Effect, Layer, Schema } from "effect";
 import { Derivation } from "../../src/Derivation.js";
 import { GitHistory } from "../../src/GitHistory.js";
@@ -32,7 +32,7 @@ const build = <A>(effect: Effect.Effect<A, never, NodeServices.NodeServices>): P
 	Effect.runPromise(run(effect)); // EF/Effect.ts:8944
 
 const decodeTimestamp = Schema.decodeUnknownSync(Timestamp);
-const actor = Schema.decodeUnknownSync(Actor);
+const pattern = Schema.decodeUnknownSync(ActorPattern);
 
 /** The author (`%aI`) or committer (`%cI`) date of `sha` as git reports it, through core's Timestamp codec (P-4). */
 const dateOf = (dir: string, sha: string, format: "%aI" | "%cI") =>
@@ -81,7 +81,7 @@ describe("Derivation over the replayed F4 history at HEAD = c6 (P-33)", () => {
 				const by = yield* Derivation.generatedBy({ writer: "human", cwd: repo.dir, config: OkfitConfig.DEFAULTS });
 				assert.strictEqual(by, "human:okfit-test");
 				const pinned: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
-					actors: { humans: [actor("human:Okfit-Test")] },
+					actors: { humans: [pattern("human:Okfit-Test")] },
 					extensions: {},
 				});
 				assert.strictEqual(

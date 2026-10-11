@@ -27,6 +27,8 @@
 * Updated An @okfit/lsp language server and a VS Code extension over the shared engine
 * Updated Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain
 * Updated okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
+* Added A non-empty actors list is an allow-list and okfit never stores emails
+* Updated Human actor ids resolve through a five-step fallback order
 
 ## 2026-10-09
 

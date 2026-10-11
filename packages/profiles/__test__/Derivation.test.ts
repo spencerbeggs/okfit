@@ -1,10 +1,16 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
-import { Actor, OkfitConfig } from "@okfit/core";
+import { Actor, ActorPattern, OkfitConfig } from "@okfit/core";
 import type { Crypto } from "effect";
 import { Cause, DateTime, Duration, Effect, Exit, FileSystem, Layer, Option, Path, Schema } from "effect";
-import { AgentActorUnconfiguredError, Derivation, HumanActorUnresolvedError } from "../src/Derivation.js";
+import {
+	ActorConfigInvalidError,
+	AgentActorUnconfiguredError,
+	Derivation,
+	HumanActorNotAllowedError,
+	HumanActorUnresolvedError,
+} from "../src/Derivation.js";
 import { GitHistory } from "../src/GitHistory.js";
 import type { F4CommitName } from "./fixtures/history.js";
 import {
@@ -19,6 +25,7 @@ import {
 import { FILE, REL, ROOT, blobsOf, entriesOf, identityGit, windowsPath, world } from "./utils/derivation.js";
 
 const actor = Schema.decodeUnknownSync(Actor);
+const pattern = Schema.decodeUnknownSync(ActorPattern);
 const utc = (iso: string): number => DateTime.toEpochMillis(DateTime.makeUnsafe(iso));
 const from = DateTime.makeUnsafe("2026-03-01T08:00:00Z");
 /** The fixture commit by name; `F4_ENTRIES` carries every F4 commit (group A). */
@@ -376,6 +383,11 @@ describe("Derivation.humanActorId (P-13, P-14)", () => {
 		]);
 		assert.deepStrictEqual(result, Option.some("human:spencer"));
 	});
+	it("skips glob entries, even one whose text equals a candidate", () => {
+		// Without the skip the config spelling "human:Spen*" would win; skipped, the derived "human:spen*" is returned.
+		const result = Derivation.humanActorId({ email: "spen*@beggs.codes" }, ["human:Spen*"]);
+		assert.deepStrictEqual(result, Option.some("human:spen*"));
+	});
 	it("falls back to the email local part when no config entry matches", () => {
 		const result = Derivation.humanActorId({ name: "C. Spencer Beggs", email: "spencer@beggs.codes" }, [
 			actor("human:cspencer"),
@@ -456,15 +468,67 @@ describe("Derivation.generatedBy (P-16, P-17)", () => {
 			assert.strictEqual(by, "human:okfit-test");
 			assert.deepStrictEqual(
 				calls.map((call) => call.key),
-				["user.name", "user.email"],
+				["okfit.actor", "user.name", "user.email"],
 			);
 			assert.isTrue(calls.every((call) => call.options === undefined));
+		}),
+	);
+	it.effect("human: git config okfit.actor wins and is read first", () =>
+		Effect.gen(function* () {
+			const calls: Array<{ readonly key: string; readonly options: unknown }> = [];
+			const git = identityGit(
+				{ "okfit.actor": "human:ada", "user.name": "Grace Hopper", "user.email": "grace@example.com" },
+				calls,
+			);
+			const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config: OkfitConfig.DEFAULTS }).pipe(
+				Effect.provide(git),
+			);
+			assert.strictEqual(by, "human:ada");
+			assert.deepStrictEqual(
+				calls.map((call) => call.key),
+				["okfit.actor"],
+			);
+		}),
+	);
+	it.effect(
+		"human: okfit.actor takes the spelling of an exact [actors].humans entry that equals it case-insensitively",
+		() =>
+			Effect.gen(function* () {
+				const config: OkfitConfig = { actors: { humans: [pattern("human:ada")] }, extensions: {} };
+				const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config }).pipe(
+					Effect.provide(identityGit({ "okfit.actor": "human:Ada" })),
+				);
+				assert.strictEqual(by, "human:ada");
+			}),
+	);
+	it.effect("human: okfit.actor must be a human: actor with no @ and no glob", () =>
+		Effect.gen(function* () {
+			for (const value of ["human:ada@example.com", "process:ci", "ada", "human:ad*"]) {
+				const error = yield* Effect.flip(
+					Derivation.generatedBy({ writer: "human", cwd: "/repo", config: OkfitConfig.DEFAULTS }).pipe(
+						Effect.provide(identityGit({ "okfit.actor": value })),
+					),
+				);
+				assert.instanceOf(error, ActorConfigInvalidError);
+				assert.strictEqual(error.value, value);
+				assert.match(error.message, /okfit\.actor/);
+				assert.match(error.message, /human:<id>/);
+			}
+		}),
+	);
+	it.effect("human: a glob entry in actors.humans is never returned as the id", () =>
+		Effect.gen(function* () {
+			const config: OkfitConfig = { actors: { humans: [pattern("human:spen*")] }, extensions: {} };
+			const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config }).pipe(
+				Effect.provide(identityGit({ "user.email": "spencer@example.com" })),
+			);
+			assert.strictEqual(by, "human:spencer");
 		}),
 	);
 	it.effect("human: config.actors.humans wins with its own spelling", () =>
 		Effect.gen(function* () {
 			const git = identityGit({ "user.email": "okfit-test@example.com" });
-			const config: OkfitConfig = { actors: { humans: [actor("human:Okfit-Test")] }, extensions: {} };
+			const config: OkfitConfig = { actors: { humans: [pattern("human:Okfit-Test")] }, extensions: {} };
 			const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config }).pipe(Effect.provide(git));
 			assert.strictEqual(by, "human:Okfit-Test");
 		}),
@@ -494,6 +558,50 @@ describe("Derivation.generatedBy (P-16, P-17)", () => {
 			assert.isTrue(Object.hasOwn(unusable, "userName"));
 			assert.strictEqual(unusable.userName, "!!!");
 			assert.isFalse(Object.hasOwn(unusable, "userEmail"));
+		}),
+	);
+});
+
+describe("Derivation.verifier (allow-list)", () => {
+	const listed = (...humans: ReadonlyArray<string>): OkfitConfig => ({
+		actors: { humans: humans.map((human) => pattern(human)) },
+		extensions: {},
+	});
+	it.effect("an empty or absent list allows any resolved human", () =>
+		Effect.gen(function* () {
+			const git = identityGit({ "user.email": "grace@example.com" });
+			assert.strictEqual(
+				yield* Derivation.verifier({ cwd: "/repo", config: OkfitConfig.DEFAULTS }).pipe(Effect.provide(git)),
+				"human:grace",
+			);
+			assert.strictEqual(
+				yield* Derivation.verifier({ cwd: "/repo", config: { extensions: {} } }).pipe(Effect.provide(git)),
+				"human:grace",
+			);
+		}),
+	);
+	it.effect("a listed id, a glob match and a case difference are allowed", () =>
+		Effect.gen(function* () {
+			const ok = (values: Record<string, string>, config: OkfitConfig) =>
+				Derivation.verifier({ cwd: "/repo", config }).pipe(Effect.provide(identityGit(values)));
+			assert.strictEqual(yield* ok({ "user.email": "spencer@example.com" }, listed("human:spencer")), "human:spencer");
+			assert.strictEqual(yield* ok({ "user.email": "spencer@example.com" }, listed("human:spen*")), "human:spencer");
+			assert.strictEqual(yield* ok({ "okfit.actor": "human:Ada" }, listed("human:ada")), "human:ada");
+		}),
+	);
+	it.effect("an unlisted human fails HumanActorNotAllowedError naming both fixes", () =>
+		Effect.gen(function* () {
+			const error = yield* Effect.flip(
+				Derivation.verifier({ cwd: "/repo", config: listed("human:spencer") }).pipe(
+					Effect.provide(identityGit({ "user.email": "grace@example.com" })),
+				),
+			);
+			assert.instanceOf(error, HumanActorNotAllowedError);
+			assert.strictEqual(error.actor, "human:grace");
+			assert.include(error.message, "human:grace");
+			assert.include(error.message, "git config --global okfit.actor human:<id>");
+			assert.include(error.message, "[actors].humans");
+			assert.notInclude(error.message, "@");
 		}),
 	);
 });

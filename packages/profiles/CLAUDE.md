@@ -19,7 +19,7 @@ src/
                          No `internal/` spawn modules remain: `Git.log` owns the spawn, the argv, the record
                          parsing, and the stderr classification.
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
-  Derivation.ts       -- Writer, GitIdentity, the two actor errors, Derivation facade: body, digest, bodyDigest, contentDigest, generatedAt, humanActorId, generatedBy, staleAfter
+  Derivation.ts       -- Writer, GitIdentity, the four actor errors (HumanActorUnresolvedError, AgentActorUnconfiguredError, ActorConfigInvalidError, HumanActorNotAllowedError), Derivation facade: body, digest, bodyDigest, contentDigest, generatedAt, humanActorId, generatedBy, verifier, staleAfter
                          bodyDigest/contentDigest are 16-hex SHA-256 prefixes via effect's Crypto service (issue #19); core holds the field, never computes it
   Canonical.ts        -- Canonical facade: json, contentInput, EXCLUDED_KEYS (the exact string a content digest hashes)
   internal/body.ts    -- the normalised-body helper shared by Derivation and Canonical (breaks the import cycle)

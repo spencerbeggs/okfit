@@ -1,5 +1,6 @@
 import { GraphNodeKind, Status } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
+import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
 import { ConceptSummary } from "./ConceptSummary.js";
 
@@ -132,7 +133,7 @@ export const StaleReportSuccess = Schema.Struct({
 	drifted: Schema.Array(
 		Schema.Struct({
 			summary: ConceptSummary,
-			reason: Schema.Literals(["content-changed", "unbound", "entry-superseded"]),
+			reason: DriftReason,
 			edited_by: Schema.NullOr(Schema.String),
 			edited_at: Schema.NullOr(Schema.String),
 		}),

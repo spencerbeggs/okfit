@@ -68,7 +68,7 @@ const resolve = (
 export const ConceptQuery = {
 	/**
 	 * Validates types then tags against config (first unknown fails), then filters
-	 * and sorts by id. `signals` is `Trust.signals(bundle, now)`; a concept with
+	 * and sorts by id. `signals` is `Trust.signals(bundle, config, now)`; a concept with
 	 * no signal is a caller defect.
 	 */
 	list: (

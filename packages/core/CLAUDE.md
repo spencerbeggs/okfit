@@ -19,7 +19,7 @@ rendering), and validation. Every other `@okfit/*` package depends on it.
 ```text
 src/
   index.ts          -- public barrel; never exports from internal/
-  Actor.ts Timestamp.ts Source.ts Generated.ts Verification.ts Status.ts AttestedComputation.ts
+  Actor.ts (Actor, ActorPattern, Actor.matches/allowed/isPattern) Timestamp.ts Source.ts Generated.ts Verification.ts Status.ts AttestedComputation.ts
   Concept.ts ConceptId.ts Diagnostic.ts IndexDocument.ts LogDocument.ts Bundle.ts Graph.ts Derive.ts Validate.ts
   OkfitConfig.ts    -- spec 4.2 struct, DEFAULTS, merge, severityFor, read, OkfitConfigFile tag
   internal/         -- engine: posixPath, position, yamlPathSpan (YAML path to file span, shared by frontmatter.ts and Diagnostic.ts), frontmatter, reserved, links, lintRules, templates;

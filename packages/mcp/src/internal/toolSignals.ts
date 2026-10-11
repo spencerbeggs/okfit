@@ -1,5 +1,5 @@
 import { ToolRefusal } from "@effected/mcp";
-import type { LoadedBundle } from "@okfit/core";
+import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";
 import type { Crypto, DateTime } from "effect";
@@ -14,9 +14,10 @@ import { messageOf } from "./toolContext.js";
  */
 export const toolSignals = (
 	bundle: LoadedBundle,
+	config: OkfitConfig,
 	now: DateTime.Utc,
 ): Effect.Effect<Map<string, ConceptSignal>, ToolRefusal, Crypto.Crypto> =>
-	Trust.signals(bundle, now).pipe(
+	Trust.signals(bundle, config, now).pipe(
 		Effect.mapError((cause) =>
 			ToolRefusal.refuse(messageOf(cause), {
 				hint: "A concept file could not be read to check its verification; retry once the bundle is readable.",

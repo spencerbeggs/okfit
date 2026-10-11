@@ -105,6 +105,9 @@ reading: `CORE/Actor.ts:5` accepts any string matching
 driving lint `actor-prefix-unknown` at severity `info`
 (`CORE/OkfitConfig.ts:280`) -- never a rejection.
 
+An actor containing `@` triggers the `actor-email` lint, and a person can pin
+their id with `git config --global okfit.actor human:<id>`.
+
 ## Links
 
 A bundle-relative link (`/tables/customers.md`) is recommended: it stays

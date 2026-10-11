@@ -1,4 +1,5 @@
 import { Status } from "@okfit/core";
+import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
 import type { VerifyBatchSkipReason } from "../verify/select.js";
 import { ENGINE_VERSION } from "../version.js";
@@ -25,7 +26,7 @@ export const VerifyEnvelope = Schema.Struct({
 	/** Issue #185: the status change `--stable`/`--draft` made; `null` when neither flag was given. */
 	status: Schema.NullOr(Schema.Struct({ from: Schema.NullOr(Status), to: Schema.Literals(["stable", "draft"]) })),
 	/** Why the prior human verification no longer bound the concept; absent when it did not drift. */
-	prior_integrity: Schema.optionalKey(Schema.Literals(["content-changed", "unbound", "entry-superseded"])),
+	prior_integrity: Schema.optionalKey(DriftReason),
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),
 });
@@ -49,7 +50,7 @@ export const verifyEnvelope = (input: {
 	readonly dryRun: boolean;
 	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
 	/** The drift reason the prior verification had, when it had drifted. */
-	readonly priorIntegrity?: "content-changed" | "unbound" | "entry-superseded" | null;
+	readonly priorIntegrity?: DriftReason | null;
 	readonly distribution?: Distribution;
 }): VerifyEnvelope => ({
 	schema: 1,

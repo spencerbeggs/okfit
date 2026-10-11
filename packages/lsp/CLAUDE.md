@@ -415,9 +415,10 @@ below) also shares:
   `actor` already holds the CURRENT binding (`Trust.evaluate`; a drifted or
   superseded entry does not count, so a drifted concept can be re-verified) -- `okfit verify --batch`'s
   skip rules, not the single-concept `okfit verify <id>`'s.
-- `resolveActor(handle)` wraps `Derivation.generatedBy({ writer: "human",
-  cwd: handle.folder, config })` (`handle.folder`, never `bundleRoot`: V-7's
-  cwd) and fails `ActorUnresolved` on its typed failure only; a defect (a
+- `resolveActor(handle)` wraps `Derivation.verifier({ cwd: handle.folder,
+  config })` (`handle.folder`, never `bundleRoot`: V-7's cwd) and fails
+  `ActorUnresolved` on its typed failure only (no human resolves, `okfit.actor`
+  is invalid, or the human is not on a non-empty `[actors].humans`); a defect (a
   git subprocess crash) or an interrupt still propagates.
 - `describeFailure(failure)` renders any `EditFailure` as a short message,
   what `commands.ts` surfaces as an `LspError`'s message; a code action

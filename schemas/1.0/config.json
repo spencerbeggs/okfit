@@ -108,22 +108,25 @@
 				"humans": {
 					"type": "array",
 					"title": "Human actors",
-					"description": "Actor ids for the humans working in this bundle, \"human:<id>\" form.",
+					"description": "The humans allowed to verify concepts in this bundle: \"human:<id>\" ids or id globs (\"human:spencer*\"). Empty or absent lets any resolved identity verify; non-empty makes it an allow-list for okfit verify and the trust signal. Never an email address.",
 					"default": [],
 					"examples": [
 						[
 							"human:spencer"
+						],
+						[
+							"human:spencer",
+							"human:team-*"
 						]
 					],
 					"items": {
 						"type": "string",
 						"pattern": "^(?:[^\\s/:]+\\/[^\\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\\s]+)$",
-						"title": "Actor",
-						"description": "An OKF actor: \"<producer>/<version>\" (e.g. \"okfit/claude-code\"), or \"<prefix>:<id>\" (e.g. \"human:spencer\", \"process:ci\").",
+						"title": "Actor or actor glob",
+						"description": "An actor id (\"human:spencer\") or an id glob (\"human:spencer*\"; * matches any run of characters, ? one), matched case-insensitively.",
 						"examples": [
-							"okfit/claude-code",
 							"human:spencer",
-							"process:ci"
+							"human:spencer*"
 						]
 					}
 				}
@@ -399,6 +402,50 @@
 						}
 					}
 				},
+				"actor_email": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "actor-email",
+					"description": "An actor in generated.by, verified[].by, integrity.verified.by or [actors].humans contains \"@\", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"verified_actor_unknown": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "verified-actor-unknown",
+					"description": "A human verified[].by or integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"legacy_timestamp": {
 					"type": "string",
 					"enum": [
@@ -518,7 +565,7 @@
 						"error"
 					],
 					"title": "verified-drift",
-					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, or a later human entry is unbound. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default \"warn\".",
+					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

@@ -166,6 +166,9 @@ Core's generalised-but-linted rule is the operative one (D-18): any
 `generated.by`/`verified[].by` is lint `actor-prefix-unknown` at `info`
 (`CORE/OkfitConfig.ts:280`), never a rejection.
 
+An actor containing `@` triggers the `actor-email` lint, and a person can pin
+their id with `git config --global okfit.actor human:<id>`.
+
 ## Tags and types vocabulary
 
 The two vocabulary shapes are asymmetric: a `types.<Name>` declaration

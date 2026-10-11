@@ -4,10 +4,11 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor } from "@okfit/core";
+import type { ActorPattern } from "@okfit/core";
 import { Bundle, Derive, OkfitConfig } from "@okfit/core";
-import { DateTime, Effect, Exit, Layer, Option } from "effect";
+import { DateTime, Effect, Exit, Layer } from "effect";
 import { runVerifyIds } from "../../src/verify/run.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 describe("runVerifyIds (issue #214)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
@@ -15,12 +16,11 @@ describe("runVerifyIds (issue #214)", () => {
 		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: { require_verified: true }, Module: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 	const verifiedByAda = "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
@@ -183,12 +183,11 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 	const staleLine = 'stale_after: "2026-01-01T00:00:00Z"\n';
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: { require_verified: true } },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 

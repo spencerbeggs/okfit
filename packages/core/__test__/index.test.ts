@@ -3,6 +3,7 @@ import * as Core from "../src/index.js";
 
 const VALUES = [
 	"Actor",
+	"ActorPattern",
 	"Timestamp",
 	"Source",
 	"UsageWindow",

@@ -4,13 +4,14 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor, ConceptId } from "@okfit/core";
+import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Derivation, GitHistory, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
 import { runSync } from "../../src/sync/run.js";
 import { runRevoke, runVerify } from "../../src/verify/run.js";
 import { countLines } from "../utils/frontmatter.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 /**
  * The cross-task round trip (final review item 4): one legacy concept through every
@@ -25,7 +26,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 	const BODY = "\n# T\n\nBody.\n";
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 
@@ -39,8 +40,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						const fs = yield* FileSystem.FileSystem;
 						return Option.some(yield* fs.readFileString(join(root, path)));
 					}).pipe(Effect.provide(NodeServices.layer)),
-				configGet: (_cwd: string, key: string) =>
-					Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+				configGet: identityConfigGet,
 			} as unknown as Git["Service"]),
 			Layer.succeed(GitHistory, {
 				pathLog: (_root: string, path: string) =>
@@ -79,7 +79,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						const bundle = yield* Bundle.load({ root });
 						const concept = bundle.concepts.get("decisions/a" as ConceptId);
 						if (concept === undefined) return yield* Effect.die(new Error("decisions/a did not load"));
-						return yield* Trust.signal(concept, NOW);
+						return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, NOW);
 					}).pipe(Effect.provide(NodeServices.layer));
 				const oneIntegrity = (text: string) => {
 					assert.strictEqual(countLines(text, /^integrity:/u), 1);

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:04:45Z
+  at: 2026-10-11T16:51:30Z
 tags:
   - architecture
 verified:
@@ -17,13 +17,15 @@ verified:
     at: 2026-09-30T18:17:45Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: ddfc871e1fcc7098
+    body: c36d6862913e9322
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: 9de09240600c9c9b
+    at: 2026-10-11T17:15:26Z
+    content: 0478407e0fdf2892
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
@@ -127,8 +129,8 @@ anything drifted.
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
 file back, binding it in the same write with `integrity.verified { by, at,
 content }` (see [integrity frontmatter](integrity-frontmatter.md)). `<id>` is a concept id with or without a leading slash or
-trailing `.md`. The actor is always your own git identity; there is no
-`--by`. Existing entries by others are never touched or replaced; a repeat by the
+trailing `.md`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
+`--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant; `--dry-run` prints what would be written and writes nothing.

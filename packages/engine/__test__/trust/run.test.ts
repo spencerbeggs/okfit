@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { OkfitConfig } from "@okfit/core";
 import { DateTime, Effect } from "effect";
 import { runContextTrust } from "../../src/trust/run.js";
 
@@ -24,7 +25,7 @@ describe("runContextTrust", () => {
 					);
 				});
 			}
-			const summary = yield* runContextTrust({ bundleRoot: root, now });
+			const summary = yield* runContextTrust({ bundleRoot: root, config: OkfitConfig.DEFAULTS, now });
 			yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			assert.strictEqual(summary.concepts, 7);
 			assert.strictEqual(summary.stale, 7);

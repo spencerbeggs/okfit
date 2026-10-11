@@ -56,6 +56,36 @@ export class AgentActorUnconfiguredError extends Schema.TaggedError<AgentActorUn
 }
 
 /**
+ * `git config okfit.actor` is set but is not a `human:<id>` actor without `@`
+ * or glob characters. The value stays on the person's machine; okfit never
+ * writes it anywhere.
+ *
+ * @public
+ */
+export class ActorConfigInvalidError extends Schema.TaggedError<ActorConfigInvalidError>()("ActorConfigInvalidError", {
+	value: Schema.String,
+}) {
+	override get message(): string {
+		return `git config okfit.actor is "${this.value}"; it must be a human:<id> actor with no "@" and no * or ? (for example human:ada)`;
+	}
+}
+
+/**
+ * The resolved human is not on a non-empty `[actors].humans` allow-list, so it
+ * may not verify or revoke (spec section 8).
+ *
+ * @public
+ */
+export class HumanActorNotAllowedError extends Schema.TaggedError<HumanActorNotAllowedError>()(
+	"HumanActorNotAllowedError",
+	{ actor: Schema.String },
+) {
+	override get message(): string {
+		return `${this.actor} is not in [actors].humans, so it cannot verify or revoke; set your id with git config --global okfit.actor human:<id> to a listed id, or add ${this.actor} to [actors].humans`;
+	}
+}
+
+/**
  * Options for {@link Derivation.generatedAt} (P-39).
  *
  * @public
@@ -100,11 +130,19 @@ export interface GeneratedByOptions {
  * @public
  */
 export type GeneratedByError =
+	| ActorConfigInvalidError
 	| AgentActorUnconfiguredError
 	| HumanActorUnresolvedError
 	| GitCommandError
 	| NotARepositoryError
 	| UnknownRefError;
+
+/**
+ * Everything {@link Derivation.verifier} can fail with.
+ *
+ * @public
+ */
+export type VerifierError = GeneratedByError | HumanActorNotAllowedError;
 
 /**
  * Trimmed `user.name` / `user.email` as `Git.configGet` answers them; a key is absent when git has no value.
@@ -176,7 +214,7 @@ const slugOf = (name: string | undefined): string | undefined => {
 	return slug.length > 0 ? slug : undefined;
 };
 
-const humanActorId = (identity: GitIdentity, humans: ReadonlyArray<Actor>): Option.Option<Actor> => {
+const humanActorId = (identity: GitIdentity, humans: ReadonlyArray<string>): Option.Option<Actor> => {
 	const local = localPartOf(identity.email);
 	const slug = slugOf(identity.name);
 	const candidates = [local, slug]
@@ -184,8 +222,8 @@ const humanActorId = (identity: GitIdentity, humans: ReadonlyArray<Actor>): Opti
 		.map((candidate) => candidate.toLowerCase());
 	// (1) a configured human whose id matches a candidate case-insensitively; config spelling wins (P-14).
 	for (const entry of humans) {
-		if (!entry.startsWith(HUMAN_PREFIX)) continue;
-		if (candidates.includes(entry.slice(HUMAN_PREFIX.length).toLowerCase())) return Option.some(entry);
+		if (!entry.startsWith(HUMAN_PREFIX) || Actor.isPattern(entry)) continue;
+		if (candidates.includes(entry.slice(HUMAN_PREFIX.length).toLowerCase())) return Option.some(decodeActor(entry));
 	}
 	// (2) the email local part, (3) the name slug, (4) none. Both are whitespace-free and non-empty by construction.
 	if (local !== undefined) return Option.some(decodeActor(`${HUMAN_PREFIX}${local}`));
@@ -334,16 +372,17 @@ export class Derivation {
 
 	/**
 	 * P-13 / P-14, pure. Candidates: the email local part (returned as written, lower-cased only for matching)
-	 * and the `user.name` slug. Order, first hit wins: (1) a `human:` entry of `humans` whose id equals a
-	 * candidate case-insensitively, returned verbatim; (2) `human:<local>`; (3) `human:<slug>`; (4) none.
+	 * and the `user.name` slug. Order, first hit wins: (1) a literal `human:` entry of `humans` (glob entries,
+	 * those with `*` or `?`, are skipped) whose id equals a candidate case-insensitively, returned verbatim; (2) `human:<local>`; (3) `human:<slug>`; (4) none.
 	 * The result is branded through core's `Actor` codec and always passes it.
 	 */
-	static readonly humanActorId: (identity: GitIdentity, humans: ReadonlyArray<Actor>) => Option.Option<Actor> =
+	static readonly humanActorId: (identity: GitIdentity, humans: ReadonlyArray<string>) => Option.Option<Actor> =
 		humanActorId;
 
 	/**
 	 * Spec 5.4 rule 1 (P-16, P-45). `"agent"`: `config.actors.agent`, else {@link AgentActorUnconfiguredError}
-	 * (P-17). `"human"`: `Git.configGet(cwd, "user.name")` and `Git.configGet(cwd, "user.email")` in merged
+	 * (P-17). `"human"`: first `Git.configGet(cwd, "okfit.actor")`, which wins when set and must be a
+	 * `human:<id>` with no `@` or glob ({@link ActorConfigInvalidError} otherwise), returned in the spelling of an exact `[actors].humans` entry that equals it case-insensitively (P-14); else `Git.configGet(cwd, "user.name")` and `Git.configGet(cwd, "user.email")` in merged
 	 * scope (P-15) through {@link Derivation.humanActorId}; none is {@link HumanActorUnresolvedError}.
 	 * Answers only "who is writing now" (P-40).
 	 */
@@ -356,6 +395,18 @@ export class Derivation {
 			return agent;
 		}
 		const git = yield* Git;
+		const chosen = Option.getOrUndefined(yield* git.configGet(options.cwd, "okfit.actor"));
+		if (chosen !== undefined) {
+			const valid =
+				Schema.is(Actor)(chosen) && Actor.isHuman(chosen) && !chosen.includes("@") && !Actor.isPattern(chosen);
+			if (!valid) return yield* new ActorConfigInvalidError({ value: chosen });
+			// P-14: an exact `[actors].humans` entry equal case-insensitively wins, so exact comparisons downstream line up.
+			const lower = chosen.toLowerCase();
+			const spelled = (options.config.actors?.humans ?? []).find(
+				(entry) => !Actor.isPattern(entry) && entry.toLowerCase() === lower,
+			);
+			return spelled === undefined ? chosen : decodeActor(spelled);
+		}
 		const name = Option.getOrUndefined(yield* git.configGet(options.cwd, "user.name"));
 		const email = Option.getOrUndefined(yield* git.configGet(options.cwd, "user.email"));
 		const identity: GitIdentity = {
@@ -369,6 +420,26 @@ export class Derivation {
 				...(identity.email === undefined ? {} : { userEmail: identity.email }),
 			});
 		return resolved.value;
+	});
+
+	/**
+	 * The human allowed to verify now: {@link Derivation.generatedBy} for a human
+	 * writer, then the `[actors].humans` allow-list (`Actor.allowed`): empty or
+	 * absent allows anyone, otherwise the actor must match an entry or this fails
+	 * {@link HumanActorNotAllowedError}. `okfit verify`, `--revoke` and the LSP
+	 * verify actions all resolve through this.
+	 */
+	static readonly verifier: (options: {
+		readonly cwd: string;
+		readonly config: OkfitConfig;
+	}) => Effect.Effect<Actor, VerifierError, Git> = Effect.fn("Derivation.verifier")(function* (options: {
+		readonly cwd: string;
+		readonly config: OkfitConfig;
+	}) {
+		const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.cwd, config: options.config });
+		if (!Actor.allowed(actor, options.config.actors?.humans ?? []))
+			return yield* new HumanActorNotAllowedError({ actor });
+		return actor;
 	});
 
 	/**

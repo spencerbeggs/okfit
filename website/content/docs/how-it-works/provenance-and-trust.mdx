@@ -4,3 +4,21 @@ description: "How okfit records who wrote a concept and when, detects body drift
 ---
 
 # Provenance and Trust
+
+## Who may verify
+
+By default any resolved human identity may run `okfit verify`. Listing ids
+under `[actors].humans` in the config turns that list into an allow-list:
+entries are exact `human:<id>` ids or globs (`*` and `?`, matched
+case-insensitively, for example `human:team-*`). An identity outside a
+non-empty list cannot verify or revoke (`okfit verify` exits `3`), and a
+concept whose latest verifier is not on the list reports `verified-drift`.
+
+okfit resolves your id from `git config okfit.actor` first (a `human:<id>`
+with no `@` and no wildcard), then from a listed exact entry, then from your
+email's local part, then from a slug of `user.name`. It never stores an email
+address in the bundle, so the `actor-email` lint warns about any actor that
+contains `@`, and `verified-actor-unknown` warns about a verifier that
+matches no entry of a non-empty list. Git commit history is outside okfit's
+reach; use a GitHub `noreply` author address if you do not want your email
+in it.

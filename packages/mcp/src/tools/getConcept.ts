@@ -49,7 +49,7 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
 		);
 
-		const signals = yield* toolSignals(ctx.bundle, yield* DateTime.now);
+		const signals = yield* toolSignals(ctx.bundle, ctx.config, yield* DateTime.now);
 		const signal = signalFor(signals, concept.id);
 
 		return {

@@ -220,6 +220,8 @@ const trustInput = (target: EditTarget): EvaluateInput => ({
 			? undefined
 			: { by: target.binding.by as Actor, at: target.binding.at, content: target.binding.content },
 	generated: undefined,
+	// The actor here comes from Derivation.verifier, so it already passes the allow-list; an empty list keeps the check about content only.
+	humans: [],
 });
 
 /**
@@ -293,15 +295,15 @@ export const verifiedStableTextEdits = (
 
 /**
  * The human actor a `verified` edit in `handle`'s session resolves to
- * (`Derivation.generatedBy` in the session's workspace folder), or
- * `ActorUnresolved` when git has no `user.name`/`user.email` to derive one
- * from. Only that typed failure is mapped; a defect (a git subprocess crash)
+ * (`Derivation.verifier` in the session's workspace folder), or
+ * `ActorUnresolved` when no human resolves, `okfit.actor` is invalid, or the
+ * human is not on a non-empty `[actors].humans` (the message says which). Only that typed failure is mapped; a defect (a git subprocess crash)
  * or an interrupt still propagates.
  *
  * @public
  */
 export const resolveActor = (handle: SessionHandle): Effect.Effect<string, EditFailure, Git> =>
-	Derivation.generatedBy({ writer: "human", cwd: handle.folder, config: handle.session.config() }).pipe(
+	Derivation.verifier({ cwd: handle.folder, config: handle.session.config() }).pipe(
 		Effect.mapError((error): EditFailure => ({ _tag: "ActorUnresolved", message: messageOf(error) })),
 	);
 

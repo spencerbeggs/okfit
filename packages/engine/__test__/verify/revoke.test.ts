@@ -4,14 +4,15 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor, ConceptId } from "@okfit/core";
+import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import { DateTime, Effect, Layer, Option } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { locateIntegrity, removeIntegrityVerified } from "../../src/verify/integrity.js";
 import { locateVerifiedEntries } from "../../src/verify/revoke.js";
 import { runRevoke } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 const head = "---\ntype: Decision\ntitle: T\n";
 const ada = "  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
@@ -170,12 +171,11 @@ describe("runRevoke", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 
@@ -203,7 +203,7 @@ describe("runRevoke", () => {
 			const bundle = yield* Bundle.load({ root });
 			const concept = bundle.concepts.get("decisions/a" as ConceptId);
 			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
-			return yield* Trust.signal(concept, AT);
+			return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, AT);
 		}).pipe(Effect.provide(NodeServices.layer));
 
 	const binding = (by: string, at: string) =>
@@ -307,6 +307,28 @@ describe("runRevoke", () => {
 				const error = yield* revoke(root).pipe(Effect.flip);
 				assert.strictEqual(error._tag, "VerifyUnsupportedFrontmatterError");
 				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), source);
+			}),
+		);
+	});
+
+	it.effect("an unlisted human's revoke fails HumanActorNotAllowedError before touching the file", () => {
+		const source = `${head}verified:\n${ada}${binding("human:ada", "2026-09-01T00:00:00Z")}${tail}`;
+		const restricted = OkfitConfig.merge(config, {
+			actors: { humans: ["human:grace" as ActorPattern] },
+			extensions: {},
+		});
+		return withConcept(source, (root, file) =>
+			Effect.gen(function* () {
+				const before = yield* Effect.promise(() => readFile(file, "utf8"));
+				const error = yield* runRevoke({
+					id: "decisions/a",
+					bundleRoot: root,
+					projectRoot: root,
+					config: restricted,
+					dryRun: false,
+				}).pipe(Effect.provide(platform), Effect.flip);
+				assert.strictEqual(error._tag, "HumanActorNotAllowedError");
+				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), before);
 			}),
 		);
 	});

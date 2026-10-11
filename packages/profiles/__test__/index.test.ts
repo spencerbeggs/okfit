@@ -10,8 +10,10 @@ const VALUES = [
 	"BodyProvenance",
 	"BodyUncommitted",
 	"Canonical",
+	"ActorConfigInvalidError",
 	"AgentActorUnconfiguredError",
 	"Derivation",
+	"HumanActorNotAllowedError",
 	"HumanActorUnresolvedError",
 	"GitHistory",
 	"GitHistoryError",
@@ -24,6 +26,7 @@ const VALUES = [
 	"PUBLICATION_TYPE",
 	"Publications",
 	"SURFACE_TYPE",
+	"DriftReason",
 	"Trust",
 ] as const;
 

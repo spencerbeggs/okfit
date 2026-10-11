@@ -238,8 +238,11 @@ digest of the body plus the authored frontmatter. A later edit to the concept
 reports as the `verified-drift` lint (default `warn`): a signal that a human
 should look again, not a gate. `<id>` is a concept id with or
 without a leading slash or trailing `.md`. The actor is always your own git
-identity, resolved from `user.name`/`user.email` and `[actors].humans`;
-there is no `--by`. Existing entries are never touched or replaced — every
+identity, resolved from `git config okfit.actor` first, then `[actors].humans`,
+`user.email` and `user.name`; there is no `--by`. When `[actors].humans` is non-empty it is
+an allow-list (exact ids or `*`/`?` globs, case-insensitive): an unlisted
+identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
+`--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
 different instant; `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the

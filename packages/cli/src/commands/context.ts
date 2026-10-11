@@ -97,7 +97,7 @@ export const contextCommand = Command.make(
 					input.trust && indexExists
 						? yield* Effect.gen(function* () {
 								const now = yield* Now;
-								return yield* runContextTrust({ bundleRoot, now });
+								return yield* runContextTrust({ bundleRoot, config: merged, now });
 							})
 						: undefined;
 

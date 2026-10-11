@@ -159,6 +159,57 @@ export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (
 	return out;
 });
 
+/** Every actor-valued frontmatter field of a concept, with the path that names it. */
+const actorsOf = (
+	concept: LoadedConcept,
+): ReadonlyArray<{ readonly by: Actor; readonly path: ReadonlyArray<string | number> }> => {
+	const verifiedPath = (index: number): ReadonlyArray<string | number> =>
+		Array.isArray(concept.frontmatter.raw.verified) ? ["verified", index, "by"] : ["verified", "by"];
+	const binding = concept.frontmatter.integrity?.verified;
+	return [
+		...(concept.frontmatter.generated === undefined
+			? []
+			: [{ by: concept.frontmatter.generated.by, path: ["generated", "by"] }]),
+		...(concept.frontmatter.verified ?? []).map((entry, index) => ({ by: entry.by, path: verifiedPath(index) })),
+		...(binding === undefined ? [] : [{ by: binding.by, path: ["integrity", "verified", "by"] }]),
+	];
+};
+
+const EMAIL_HINT = "okfit never stores email addresses; use a human:<id> without the domain";
+
+export const actorEmail: LintRule = rule("actor-email", (context, severity) => [
+	...(context.config.actors?.humans ?? [])
+		.filter((entry) => entry.includes("@"))
+		.map((entry) =>
+			diagnostic("", "actor-email", severity, `actors.humans entry "${entry}" contains "@"; ${EMAIL_HINT}`, undefined),
+		),
+	...[...context.bundle.concepts.values()].flatMap((concept) =>
+		actorsOf(concept)
+			.filter((candidate) => candidate.by.includes("@"))
+			.map((candidate) =>
+				diagnostic(
+					concept.path,
+					"actor-email",
+					severity,
+					`Actor "${candidate.by}" contains "@"; ${EMAIL_HINT}`,
+					frontmatterPathRange(concept.document, candidate.path),
+				),
+			),
+	),
+]);
+
+export const verifiedActorUnknown: LintRule = perConcept("verified-actor-unknown", (concept, context) => {
+	const humans = context.config.actors?.humans ?? [];
+	if (humans.length === 0) return [];
+	return actorsOf(concept)
+		.filter((candidate) => candidate.path[0] !== "generated")
+		.filter((candidate) => Actor.isHuman(candidate.by) && !Actor.allowed(candidate.by, humans))
+		.map((candidate) => ({
+			message: `Verifier "${candidate.by}" matches no entry of actors.humans; add it there, or have a listed human re-verify`,
+			path: candidate.path,
+		}));
+});
+
 export const stale: LintRule = perConcept("stale", (concept, context) =>
 	context.now !== undefined &&
 	concept.frontmatter.stale_after !== undefined &&
@@ -374,6 +425,8 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	statusMissing,
 	generatedMissing,
 	actorPrefixUnknown,
+	actorEmail,
+	verifiedActorUnknown,
 	footnoteSourceUnknown,
 	footnoteUndefined,
 	brokenLinks,
