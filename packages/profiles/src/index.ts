@@ -15,9 +15,16 @@ export type {
 	GeneratedByError,
 	GeneratedByOptions,
 	GitIdentity,
+	VerifierError,
 	Writer,
 } from "./Derivation.js";
-export { AgentActorUnconfiguredError, Derivation, HumanActorUnresolvedError } from "./Derivation.js";
+export {
+	ActorConfigInvalidError,
+	AgentActorUnconfiguredError,
+	Derivation,
+	HumanActorNotAllowedError,
+	HumanActorUnresolvedError,
+} from "./Derivation.js";
 export type { GitHistoryShape, PathLogOptions } from "./GitHistory.js";
 export { GitHistory, GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 export type { DocsPreset, Layout, LayoutDirectory, Profile, ProfileName, SurfaceTemplate } from "./Profile.js";
