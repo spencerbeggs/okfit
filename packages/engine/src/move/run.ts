@@ -94,6 +94,13 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 	const underCwd = path.isAbsolute(spelled) ? spelled : path.resolve(cwd, spelled);
 	const cwdReal = yield* realish(underCwd);
 	const cwdPath = inside(cwdReal);
+	// A cwd reading that is lexically inside the bundle but really leads out (a symlinked directory)
+	// is refused outright; the id-reading fallback is only for spellings that are not bundle paths.
+	const lexicalInside = (base: string) => {
+		const relative = path.relative(base, underCwd);
+		return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+	};
+	if (cwdPath === undefined && (lexicalInside(root) || lexicalInside(bundle.root))) return undefined;
 	// The id reading: posix-normalised so `..` cannot slip through, a leading `/` tolerated. For an
 	// absolute destination it applies only when the path is not a real location (its top directory
 	// does not exist), so `/tmp/x/outside` stays outside the bundle.
@@ -240,13 +247,14 @@ export const runMove = Effect.fn("okfit/move/run")(function* (
 	const path = yield* Path.Path;
 	const plan = yield* planMove(options);
 	if (!options.dryRun) {
+		// Create the destination directory first: if it cannot be made, nothing has been written yet.
+		yield* fs.makeDirectory(path.dirname(plan.toPath), { recursive: true });
 		for (const edit of plan.edits) {
 			if (edit.path === plan.to) continue;
 			yield* writeAtomic(path.join(options.bundleRoot, edit.path), edit.text);
 		}
 		const moved = plan.edits.find((edit) => edit.path === plan.to);
 		if (moved !== undefined) yield* writeAtomic(plan.fromPath, moved.text);
-		yield* fs.makeDirectory(path.dirname(plan.toPath), { recursive: true });
 		yield* fs.rename(plan.fromPath, plan.toPath);
 	}
 	return { plan, bundleRoot: options.bundleRoot, dryRun: options.dryRun };

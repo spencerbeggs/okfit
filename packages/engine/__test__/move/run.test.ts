@@ -299,6 +299,7 @@ describe("runMove", () => {
 				for (const [cwd, to] of [
 					[okf, "linkdir/x"],
 					[project, "linkdir/x"],
+					[project, "okf/linkdir/x"],
 					[okf, "linkdir"],
 					[okf, "linkdir/new/deep"],
 				] as const) {
@@ -306,6 +307,27 @@ describe("runMove", () => {
 					assert.isTrue(error instanceof MoveError, `${cwd} ${to}`);
 					if (error instanceof MoveError) assert.strictEqual(error.reason, "outside-bundle", `${cwd} ${to}`);
 				}
+				assert.deepStrictEqual(yield* Effect.promise(() => snapshot(project)), before);
+			}),
+		),
+	);
+
+	it.effect("a bare id from the project root still falls back to the id reading", () =>
+		withBundle((project, okf) =>
+			Effect.gen(function* () {
+				const plan = yield* planMove(base(okf, project, "decisions/b", "conventions/y"));
+				assert.strictEqual(plan.to, "conventions/y.md");
+			}),
+		),
+	);
+
+	it.effect("a dangling symlinked directory fails the move before any referrer is written", () =>
+		withBundle((project, okf) =>
+			Effect.gen(function* () {
+				yield* Effect.promise(() => symlink(join(project, "nonexistent"), join(okf, "linkdir")));
+				const before = yield* Effect.promise(() => snapshot(project));
+				const exit = yield* Effect.exit(runMove({ ...base(okf, okf, "decisions/b", "linkdir/x"), dryRun: false }));
+				assert.isTrue(Exit.isFailure(exit));
 				assert.deepStrictEqual(yield* Effect.promise(() => snapshot(project)), before);
 			}),
 		),
