@@ -1,7 +1,7 @@
 ---
 name: okf-authoring
 description: >-
-  Nineteen imperative rules for writing and editing OKF concept files under a
+  Twenty imperative rules for writing and editing OKF concept files under a
   config: what is required, what to never touch, the actor and timestamp
   conventions, and where core's leniency differs from the spec's prose. Use
   when creating, editing, or reviewing a concept file's frontmatter or body
@@ -44,7 +44,7 @@ entries; both are theirs. The same holds for `okfit stale --verify`, which
 re-attests stale concepts and rolls their `stale_after` forward: it exits 64
 for an agent, so suggest the human run it instead of attempting it.
 
-## The nineteen rules
+## The twenty rules
 
 1. Only `type` is required; never invent required fields beyond what the
    active profile and config declare (`concepts.required` --
@@ -138,6 +138,12 @@ for an agent, so suggest the human run it instead of attempting it.
     the present. Keep a delta only inside the Context of the Decision it
     justifies, in one sentence; drop the rest rather than inventing a
     type for it.
+20. Name a concept file for its stable topic in two to four words
+    (`interactive-prompt-gates.md`), never for its current conclusion
+    (`interactive-prompts-gated-by-audience-and-terminal.md`). The claim
+    goes in `title` and `description`, which are what agents read. To
+    rename, run `okfit mv <from> <to>` then `okfit sync`; never rename by
+    hand, because `mv` rewrites every reference.
 
 ## generated.at and integrity
 

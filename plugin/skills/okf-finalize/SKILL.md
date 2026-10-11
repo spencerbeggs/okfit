@@ -25,7 +25,7 @@ for the simplicity of one agent running one skill straight through.
 
 1. List the concepts the branch's diff touches: `git diff` against the base
    branch, restricted to bundle paths.
-2. Reconcile each touched concept against `okf-authoring`'s nineteen rules.
+2. Reconcile each touched concept against `okf-authoring`'s twenty rules.
 3. Run `validate_bundle` — or `okfit validate --format json` when the MCP
    tools are unavailable — and fix what it reports. When the report is
    worth quoting, cite its `engine_version` and `okf_version`; a
@@ -51,6 +51,9 @@ for the simplicity of one agent running one skill straight through.
    hook path never writes `log.md`, so the follow-up sync may write only
    `log.md`; commit that alone as the second commit. Never create an empty
    stamp commit.
+   To rename a concept file, run `okfit mv <from> <to>` and then `okfit sync`;
+   `mv` rewrites every reference, and a sync regenerates `index.md` and the
+   stamps. Never rename by hand.
 5. Check CLAUDE.md pointer coverage with `okf-context`'s checklist, in both
    directions.
 6. Tell the user what changed. Separately, list any concept step 3's

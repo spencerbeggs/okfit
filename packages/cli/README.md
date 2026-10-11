@@ -1,6 +1,6 @@
 # @okfit/cli
 
-The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
+The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, `okfit mv`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
 
 > **Part of the okfit kit.** Most users want **[@okfit/plugin](https://www.npmjs.com/package/@okfit/plugin)**, which pulls this package in automatically.
 
@@ -15,6 +15,7 @@ okfit verify [<id>] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
 okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
 okfit query get <id> [--root <dir>] [--config <file>] [--format human|json]
 okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
+okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```
 
 `okfit --version` prints `okfit <cli> (engine <engine>, okf <okf>,
@@ -317,6 +318,17 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
 
 Exit `0` on success, `3` for an unknown id, `64` for an undeclared type or
 tag or for `--verified` together with `--unverified`.
+
+### `okfit mv`
+
+`okfit mv <from> <to>` moves a concept to a new path inside the bundle and
+rewrites every reference to it (body links, path fields, `supersedes`,
+Publication `renders`), keeping each reference's spelling. `<to>` is an id or a
+path; `.md` is added when missing. `--dry-run` prints the plan and writes
+nothing. Every file whose text changes drifts and needs a human to re-verify
+it; run `okfit sync` afterwards. Refusals (destination exists, outside the
+bundle, a reserved file, an unlocatable link) are exit `64` with nothing
+written.
 
 ## Config discovery
 

@@ -14,6 +14,7 @@ const VALUES = [
 	"human",
 	"humanContext",
 	"humanDoc",
+	"humanMoveDoc",
 	"humanRevoke",
 	"humanRevokeDoc",
 	"humanStale",

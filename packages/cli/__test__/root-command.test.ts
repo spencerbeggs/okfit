@@ -6,8 +6,8 @@ describe("rootCommand", () => {
 		assert.strictEqual(rootCommand.name, "okfit");
 	});
 
-	it("registers query last", () => {
+	it("registers mv last", () => {
 		const names = rootCommand.subcommands.flatMap((group) => group.commands.map((command) => command.name));
-		assert.strictEqual(names.at(-1), "query");
+		assert.strictEqual(names.at(-1), "mv");
 	});
 });

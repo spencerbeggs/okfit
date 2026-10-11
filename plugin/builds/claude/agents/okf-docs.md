@@ -64,7 +64,10 @@ tool call replaces a shell round trip, not the checking itself. The two
 reports are the same engine's output: compare their `engine_version` and
 `okf_version`, and never read a differing `okfit_version` as drift — that
 field is each front end's own version and the two version independently.
-Writes
+Names each new concept file for its stable topic in two to four words, never its
+conclusion (the claim goes in `title`), and renames with `okfit mv` then
+`okfit sync`; `okfit mv` is allowed for agents because it never writes
+`verified` or `integrity` (`okf-authoring` rule 20). Writes
 `status` explicitly on every concept (`draft` when unreviewed, `stable` when
 settled, always `draft` for a Decision; see `okf-authoring` rule 14). Stamps
 `generated.by` with the configured agent actor on every concept it writes
@@ -73,7 +76,7 @@ warns on an `Edit`, and a stamp added after the block is a wasted round
 trip. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
-`okf-authoring`'s nineteen rules, run `okfit validate` and fix what it
+`okf-authoring`'s twenty rules, run `okfit validate` and fix what it
 reports, run `okfit sync` to regenerate `generated.at`,
 `integrity.generated.body`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what

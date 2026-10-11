@@ -84,12 +84,12 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * The verification-integrity family adds three `draft` Decisions (exempt from
  * `require_verified`) and one Interface, taking the bundle to 79 concepts. Deleting the seven deprecated
  * concepts no live concept cites (six Decisions, one Limitation) takes it to 72. The actors allow-list adds
- * `okf/decisions/actors-allow-list-without-emails.md`, taking it to 73.
+ * `okf/decisions/actors-allow-list-without-emails.md`, taking it to 73. The topical-naming Decision (`okf/decisions/topical-concept-names.md`, `status: draft`) takes it to 74.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 37,
+	Decision: 38,
 	Convention: 7,
 	Interface: 5,
 	Reference: 1,

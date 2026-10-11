@@ -49,7 +49,7 @@ kind = "path"
 
 [types.Decision]
 description = "A choice made, the alternatives rejected, and why."
-guidance = "Edit a Decision when the choice still stands and its text has drifted or is incomplete; the edit voids its verification until a human verifies it again. Deprecate it and write a successor that names it in supersedes only when the choice itself changes and its history matters."
+guidance = "Edit a Decision when the choice still stands and its text has drifted or is incomplete; the edit voids its verification until a human verifies it again. Deprecate it and write a successor that names it in supersedes only when the choice itself changes and its history matters. Name the file for the topic in two to four words, not the conclusion; the conclusion goes in the title."
 require_verified = true
 
 [types.Decision.fields.supersedes]

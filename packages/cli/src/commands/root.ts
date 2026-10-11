@@ -4,6 +4,7 @@ import { contextCommand } from "./context.js";
 import { graphCommand } from "./graph.js";
 import { initCommand } from "./init.js";
 import { lintCommand } from "./lint.js";
+import { mvCommand } from "./mv.js";
 import { queryCommand } from "./query.js";
 import { staleCommand } from "./stale.js";
 import { syncCommand } from "./sync.js";
@@ -19,7 +20,7 @@ import { verifyCommand } from "./verify.js";
  * package at all.
  *
  * `validate`, `init`, `context`, `verify`, `sync`, `lint`, `graph`,
- * `stale`, and `query` (with its `list`/`get`/`neighbors`) are the whole
+ * `stale`, `mv`, and `query` (with its `list`/`get`/`neighbors`) are the whole
  * command tree; nothing else is registered here.
  * Each is appended in introduction order, never reordered in, so
  * `--help`'s subcommand list reads that way too (contract §4.2). The
@@ -45,5 +46,6 @@ export const rootCommand = Command.make("okfit", {}).pipe(
 		graphCommand,
 		staleCommand,
 		queryCommand,
+		mvCommand,
 	]),
 );

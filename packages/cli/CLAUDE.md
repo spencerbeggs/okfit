@@ -82,6 +82,7 @@ src/
                                     through CliUi.lazy so React/Ink load only when it mounts; the only .tsx
                                     module (tsconfig sets jsx react-jsx)
     sync.ts                     -- syncCommand: flags/argument, the full handler
+    mv.ts                        -- mvCommand: moves a concept and rewrites every reference (engine's runMove)
     query.ts                     -- queryCommand (list/get/neighbors subcommands over @okfit/engine's ConceptQuery)
   render/
     context.ts                  -- humanContext (human half; the envelope half is
@@ -92,6 +93,7 @@ src/
     query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
     verify.ts                      -- VerifyLines, humanVerify / humanVerifyDoc / humanVerifyBatchDoc (human half
                                       of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print)
+    move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
     stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), staleSummary
   internal/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from

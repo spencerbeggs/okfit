@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T19:53:30Z
+  at: 2026-10-11T20:18:01Z
 tags:
   - architecture
 verified:
@@ -21,19 +21,19 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: 9ea50779a437e63b
+    body: 47ac732d3dd336e0
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
     content: 0478407e0fdf2892
 ---
 
-# okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+# okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
 
 ## Subcommands and --root
 
-`okfit` has nine subcommands: `validate`, `init`, `context`, `verify`,
-`query`, `sync`, `lint`, `graph`, `stale`. `--root <dir>` (every command): the
+`okfit` has ten subcommands: `validate`, `init`, `context`, `verify`,
+`query`, `sync`, `lint`, `graph`, `stale`, `mv`. `--root <dir>` (every command): the
 project root config discovery starts from. It replaced the `[path]` positional
 in phase 4 so positionals are concept targets everywhere. The **project
 root** is never the bundle root (`<project root>/<bundle.path>`, `okf` by
@@ -346,6 +346,28 @@ forward](../decisions/stale-verify-rolls-stale-after-forward.md); like
 `okfit_version`, `engine_version`, `producer`, `distribution`,
 `okf_version`, `root`, `profile`, `as_of` (an ISO-8601 instant), `summary` (`concepts`, `stale`), `items` (`id`,
 `stale_after`, `days_past`).
+
+## okfit mv
+
+`okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]`
+moves one concept and rewrites every reference to it across the bundle. `<from>`
+resolves like any concept target; `<to>` is an absolute path, a cwd-relative path
+inside the bundle or a bundle-relative id (`.md` is added when missing). Rewritten
+kinds: body links and reference definitions, path-kind frontmatter fields,
+`supersedes` and Publication `renders[].path`; each keeps its spelling (rooted,
+bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's own
+outbound relative links are recomputed.
+
+Every file whose text changes drifts by the ordinary rule: `mv` never writes
+`verified` or `integrity`, and the plan lists the concepts whose current human
+verification it voids. `--dry-run` prints the plan and writes nothing. `mv` never
+edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
+generated stamps. A destination that exists, lies outside the bundle, is a
+reserved file or equals the source, and any body link whose URL cannot be located
+for rewriting, are exit `64` with nothing written. `--format json` prints a
+`MoveEnvelope` (schema 1): `from`, `to`, `path`, `dry_run`, `edits` (`path`,
+`count`), `drifts`. Why files are named for topics:
+[concept files are named for their topic](../decisions/topical-concept-names.md).
 
 ## Config discovery
 

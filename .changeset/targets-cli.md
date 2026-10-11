@@ -19,3 +19,7 @@
 
 * `okfit verify` and `okfit verify --revoke` take any number of concept targets, mixing ids and paths. Nothing is written unless every target resolves.
 * `okfit query get` takes several targets and returns a JSON array for more than one; `okfit validate` and `okfit lint` take optional targets that scope the reported diagnostics.
+
+### okfit mv
+
+* `okfit mv <from> <to>` moves a concept and rewrites every reference to it across the bundle. `--dry-run` prints the plan, including every file that will need re-verifying.
