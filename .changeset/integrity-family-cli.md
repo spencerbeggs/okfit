@@ -4,7 +4,13 @@
 
 ## Breaking Changes
 
-The `okfit sync` and `okfit verify` JSON envelopes changed: sync output gains `migrated`, and verify output reflects the integrity binding. Digests are 16 hex characters and legacy `body_sha256` fields are migrated by `okfit sync`.
+The JSON output of three commands changed:
+
+* `okfit sync --format json` mode results gain a `migrated` id list.
+* `okfit sync --publication --format json` renames `digests[].body_sha256` to `digests[].body`, a 16-hex digest. Scripts reading the old key must read `body`.
+* `okfit verify --format json` gains an optional `prior_integrity` field when the concept's prior human verification had drifted.
+
+Digests are 16 hex characters, and `okfit sync` migrates legacy `body_sha256` fields to the `integrity` family.
 
 ## Features
 
@@ -14,8 +20,8 @@ The `okfit sync` and `okfit verify` JSON envelopes changed: sync output gains `m
 
 ### Revoke
 
-`okfit verify --revoke <id>` removes your verification from a concept.
+`okfit verify --revoke <id>` removes your verification from a concept. With `--format json` it prints a new envelope: `id`, `path`, `revoked_by`, `removed` (the timestamps removed), `binding_cleared` and `dry_run`.
 
 ### Review drift before re-verifying
 
-`okfit verify <id>` on a drifted concept shows the git diff since it was verified and asks you to confirm. Pass `--no-diff` to skip the diff.
+On an interactive terminal, `okfit verify <id>` on a drifted concept shows the git diff since its last verification and asks you to confirm. Pass `--no-diff` to skip the diff and the prompt. When you had verified the concept before, the output opens with `re-verifying (was drifted: <reason>)`.
