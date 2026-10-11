@@ -62,8 +62,9 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 
 /**
  * Contract §7. Directories: the bundle root plus every directory in
- * `bundle.directories` that holds at least one concept -- the same set
- * `Derive.synthesizeIndex` already walks (S-20). A directory with an
+ * `Derive.indexDirectories` -- each directory holding a concept and its
+ * ancestors, which a parent index links to (S-20, amended: an ancestor with
+ * no concept of its own still gets its index). A directory with an
  * `index.md` but no concepts is left untouched (design §4: "nothing to
  * derive") because such a directory is never a member of
  * `bundle.directories` in the first place (`Bundle.load` only records a
@@ -97,7 +98,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	);
 
 	// Step 2: every other directory.
-	for (const dir of bundle.directories) {
+	for (const dir of Derive.indexDirectories(bundle)) {
 		if (dir === "") continue;
 		const rendered = Derive.synthesizeIndex(bundle, dir);
 		yield* writeOrCompare(

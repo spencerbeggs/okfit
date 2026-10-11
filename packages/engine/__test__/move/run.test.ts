@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -41,7 +41,8 @@ const snapshot = async (dir: string, base = dir): Promise<Record<string, string>
 	const out: Record<string, string> = {};
 	for (const entry of await readdir(dir, { withFileTypes: true })) {
 		const full = join(dir, entry.name);
-		if (entry.isDirectory()) Object.assign(out, await snapshot(full, base));
+		if (entry.isSymbolicLink()) out[full.slice(base.length + 1)] = "->";
+		else if (entry.isDirectory()) Object.assign(out, await snapshot(full, base));
 		else out[full.slice(base.length + 1)] = await readFile(full, "utf8");
 	}
 	return out;
@@ -258,6 +259,48 @@ describe("runMove", () => {
 					[project, "../x"],
 					[project, "../../escape"],
 					[project, "decisions/../../x"],
+				] as const) {
+					const error = yield* refusal(runMove({ ...base(okf, cwd, "decisions/b", to), dryRun: false }));
+					assert.isTrue(error instanceof MoveError, `${cwd} ${to}`);
+					if (error instanceof MoveError) assert.strictEqual(error.reason, "outside-bundle", `${cwd} ${to}`);
+				}
+				assert.deepStrictEqual(yield* Effect.promise(() => snapshot(project)), before);
+			}),
+		),
+	);
+
+	it.effect("refuses to move the bundle's project file, in a plan and a run, writing nothing", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					const before = yield* Effect.promise(() => snapshot(okf));
+					for (const dryRun of [true, false]) {
+						const error = yield* refusal(runMove({ ...base(okf, okf, "project", "decisions/project"), dryRun }));
+						assert.isTrue(error instanceof MoveError);
+						if (error instanceof MoveError) {
+							assert.strictEqual(error.reason, "project-file");
+							assert.include(error.message, "project.md");
+						}
+					}
+					assert.deepStrictEqual(yield* Effect.promise(() => snapshot(okf)), before);
+				}),
+			{ "project.md": "---\ntype: Project\ntitle: P\n---\n\n# P\n" },
+		),
+	);
+
+	it.effect("refuses a destination that goes through a symlinked directory pointing outside the bundle", () =>
+		withBundle((project, okf) =>
+			Effect.gen(function* () {
+				yield* Effect.promise(async () => {
+					await mkdir(join(project, "elsewhere"));
+					await symlink(join(project, "elsewhere"), join(okf, "linkdir"));
+				});
+				const before = yield* Effect.promise(() => snapshot(project));
+				for (const [cwd, to] of [
+					[okf, "linkdir/x"],
+					[project, "linkdir/x"],
+					[okf, "linkdir"],
+					[okf, "linkdir/new/deep"],
 				] as const) {
 					const error = yield* refusal(runMove({ ...base(okf, cwd, "decisions/b", to), dryRun: false }));
 					assert.isTrue(error instanceof MoveError, `${cwd} ${to}`);

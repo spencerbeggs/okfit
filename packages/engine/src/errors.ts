@@ -346,7 +346,8 @@ export class TargetResolutionError extends Schema.TaggedError<TargetResolutionEr
  * `okfit mv` refused before writing anything. `outside-bundle`, `destination-exists`, `reserved`,
  * `same-path` and `invalid-name` (whitespace in a destination path segment) name a bad destination
  * (`detail` is the destination); `unrewritable` lists every link that needs rewriting for this move
- * (`file: url`, one per line) whose URL text could not be located.
+ * (`file: url`, one per line) whose URL text could not be located; `project-file` refuses to move the
+ * bundle's root project file (`detail` is its path), which must stay at the bundle root.
  *
  * @public
  */
@@ -358,6 +359,7 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		"same-path",
 		"invalid-name",
 		"unrewritable",
+		"project-file",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -369,6 +371,8 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		if (this.reason === "reserved") return `${detail} is a reserved file name`;
 		if (this.reason === "same-path") return "source and destination are the same file";
 		if (this.reason === "invalid-name") return `destination ${detail} contains whitespace; name it without spaces`;
+		if (this.reason === "project-file")
+			return `${detail} is the bundle's project file and must stay at the bundle root; edit it in place`;
 		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
 	}
 }

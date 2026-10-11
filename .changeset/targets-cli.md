@@ -24,3 +24,8 @@
 ### okfit mv
 
 * `okfit mv <from> <to>` moves a concept and rewrites every reference to it across the bundle. `--dry-run` prints the plan, including every file that will need re-verifying.
+* `okfit mv` refuses to move the bundle's root `project.md` and a destination that reaches outside the bundle through a symlink (exit `64`, nothing written).
+
+## Bug Fixes
+
+* `okfit sync` creates the `index.md` of a directory that holds only a nested directory, and `okfit validate` warns (`missing-index`) when one is missing.

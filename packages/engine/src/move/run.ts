@@ -101,13 +101,13 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 		? cwdPath === undefined &&
 			!(yield* exists(path.join(path.parse(spelled).root, spelled.split("/").find((s) => s !== "") ?? "")))
 		: true;
-	const idPath = (() => {
+	const idPath = yield* Effect.gen(function* () {
 		if (!idReadable) return undefined;
 		const id = Option.getOrUndefined(ConceptId.normalize(spelled));
 		if (id === undefined) return undefined;
-		const normal = posix.normalize(id);
-		return inside(path.join(root, normal));
-	})();
+		// Resolve through the deepest existing ancestor so a symlinked directory cannot lead out.
+		return inside(yield* realish(path.join(root, posix.normalize(id))));
+	});
 	// Into a directory: it exists in the bundle under either reading, or the destination ends in `/`.
 	const dirs = [cwdPath, idPath].filter((candidate): candidate is string => candidate !== undefined);
 	const existingDir = yield* Effect.findFirst(dirs, (candidate) => isDirectory(path.join(root, candidate)));
@@ -148,6 +148,8 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const [source] = yield* Targets.resolve([options.from], bundle, options.cwd);
 	if (source === undefined) return yield* new MoveError({ reason: "same-path" });
+	// The root Project concept (the profile layout's project file) must stay at the bundle root.
+	if (source.path === "project.md") return yield* new MoveError({ reason: "project-file", detail: source.path });
 	if (/\s/.test(options.to)) return yield* new MoveError({ reason: "invalid-name", detail: options.to });
 	const destination = yield* resolveDestination(options.to, options.cwd, bundle, source.path);
 	if (destination === undefined) return yield* new MoveError({ reason: "outside-bundle", detail: options.to });

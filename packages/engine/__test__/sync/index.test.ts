@@ -101,6 +101,32 @@ describe("syncIndex", () => {
 			}).pipe(Effect.provide(platform)),
 	);
 
+	it.effect("writes an index.md for an ancestor directory that holds no concept itself, only a nested directory", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-index-nested-")));
+			try {
+				const concept = conceptAt("topics/deep/thing.md", "Thing");
+				const bundle = LoadedBundle.make({
+					root,
+					files: [concept.path],
+					directories: ["topics/deep"],
+					concepts: new Map([[concept.id, concept]]),
+					indexes: new Map(),
+					logs: new Map(),
+					diagnostics: [],
+				});
+				yield* Effect.promise(() => mkdir(join(root, "topics", "deep"), { recursive: true }));
+				const result = yield* syncIndex(bundle, false);
+				assert.deepStrictEqual([...result.written].sort(), ["index.md", "topics/deep/index.md", "topics/index.md"]);
+				const topics = yield* Effect.promise(() => readFile(join(root, "topics", "index.md"), "utf8"));
+				assert.ok(topics.includes("deep/index.md"));
+				assert.strictEqual(topics, Derive.synthesizeIndex(bundle, "topics"));
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(platform)),
+	);
+
 	it.effect("--dry-run computes the written/unchanged split without touching disk", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-index-dry-")));
