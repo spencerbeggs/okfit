@@ -1,2 +1,4 @@
 crlf.md -text
 bom.md -text
+integrity/absent-crlf-bom.md -text
+integrity/expected/absent-crlf-bom.md -text
