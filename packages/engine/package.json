@@ -55,7 +55,7 @@
 		"@effect/vitest": "catalog:effect",
 		"@effected/memfs": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@savvy-web/bundler": "^2.5.1",
+		"@savvy-web/bundler": "^2.5.2",
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"
