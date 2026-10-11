@@ -199,7 +199,8 @@ export class Trust {
 	static readonly inputOf: (concept: LoadedConcept) => EvaluateInput = inputOf;
 	/**
 	 * `verified-drift` diagnostics for drifted concepts; `[]` (no hashing) when the severity is `off`.
-	 * Given `signals` (from {@link Trust.signals}) it reuses them and hashes nothing.
+	 * Given `signals` (from {@link Trust.signals}) it reuses each concept's entry and hashes nothing for it;
+	 * a concept absent from `signals` falls back to computing its own signal (hashing if it needs a digest).
 	 */
 	static readonly lint: (
 		bundle: LoadedBundle,
