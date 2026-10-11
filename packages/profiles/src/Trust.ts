@@ -1,5 +1,6 @@
 import type { Actor, LoadedBundle, LoadedConcept, TrustTier, Verification } from "@okfit/core";
 import { Actor as ActorNS, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
+import type { Crypto, PlatformError } from "effect";
 import { DateTime, Effect, Schema } from "effect";
 import { Derivation } from "./Derivation.js";
 
@@ -128,9 +129,19 @@ const lint = Effect.fn("Trust.lint")(function* (bundle: LoadedBundle, config: Ok
 export class Trust {
 	private constructor() {}
 	/** The signal for one concept; hashes only when a human entry is bound. */
-	static readonly signal: typeof signal = signal;
+	static readonly signal: (
+		concept: LoadedConcept,
+		now: DateTime.Utc,
+	) => Effect.Effect<ConceptSignal, PlatformError.PlatformError, Crypto.Crypto> = signal;
 	/** The signal for every concept in a bundle, keyed by concept id. */
-	static readonly signals: typeof signals = signals;
+	static readonly signals: (
+		bundle: LoadedBundle,
+		now: DateTime.Utc,
+	) => Effect.Effect<Map<string, ConceptSignal>, PlatformError.PlatformError, Crypto.Crypto> = signals;
 	/** `verified-drift` diagnostics for drifted concepts; `[]` (no hashing) when the severity is `off`. */
-	static readonly lint: typeof lint = lint;
+	static readonly lint: (
+		bundle: LoadedBundle,
+		config: OkfitConfig,
+		now: DateTime.Utc,
+	) => Effect.Effect<Array<Diagnostic>, PlatformError.PlatformError, Crypto.Crypto> = lint;
 }
