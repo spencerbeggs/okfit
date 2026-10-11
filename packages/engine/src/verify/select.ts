@@ -1,6 +1,6 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig, StaleConcept } from "@okfit/core";
 import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { VerifySelectionError } from "../errors.js";
 
 /**
@@ -85,7 +85,19 @@ export interface PickerCandidate {
 	readonly integrity: IntegrityState;
 	/** Whether the concept is past its `stale_after` (or otherwise stale) at the time the rows were selected. */
 	readonly stale: boolean;
+	/** The concept file's bundle-relative path (`concept.path`); the loaders in `run.ts` make it absolute. */
+	readonly path: string;
+	/**
+	 * When `integrity.verified` was bound (ISO 8601), the time a drifted row's
+	 * preview diff is measured from; `null` when nothing is bound.
+	 */
+	readonly boundAt: string | null;
 }
+
+const boundAtOf = (concept: LoadedConcept): string | null => {
+	const at = concept.frontmatter.integrity?.verified?.at;
+	return at === undefined ? null : DateTime.formatIso(at);
+};
 
 /**
  * Every concept whose type sets `require_verified` that `actor` has not
@@ -116,6 +128,8 @@ export const selectPickerCandidates = (
 			otherAttestations: verified.filter((entry) => entry.by !== actor).length,
 			integrity: signals.get(id)?.integrity ?? "none",
 			stale: signals.get(id)?.stale ?? false,
+			path: concept.path,
+			boundAt: boundAtOf(concept),
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -151,6 +165,8 @@ export const selectStaleCandidates = (
 			otherAttestations: (concept.frontmatter.verified ?? []).filter((entry) => entry.by !== actor).length,
 			integrity: signals.get(item.id)?.integrity ?? "none",
 			stale: signals.get(item.id)?.stale ?? false,
+			path: concept.path,
+			boundAt: boundAtOf(concept),
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

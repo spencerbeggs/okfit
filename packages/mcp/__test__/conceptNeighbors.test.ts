@@ -40,6 +40,17 @@ describe("concept_neighbors", () => {
 			assert.ok(conceptNeighbor?.summary !== null);
 			assert.strictEqual(conceptNeighbor?.summary?.id, conceptNeighbor?.id);
 			assert.ok((conceptNeighbor?.summary?.title.length ?? 0) > 0);
+			assert.isString(conceptNeighbor?.summary?.tier);
+			assert.isString(conceptNeighbor?.summary?.integrity);
+			assert.isBoolean(conceptNeighbor?.summary?.stale);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("a human-verified neighbour reads drifted (unbound fixture verification)", () =>
+		Effect.gen(function* () {
+			const data = (yield* neighbors("metrics/revenue")).structuredContent as NeighborsResult;
+			const policy = data.outgoing.find((n) => n.id === "policies/revenue-recognition");
+			assert.strictEqual(policy?.summary?.integrity, "drifted");
 		}).pipe(Effect.scoped),
 	);
 

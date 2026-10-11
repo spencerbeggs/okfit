@@ -70,6 +70,9 @@ export const SERVER_INSTRUCTIONS: string = [
 	"Every successful tools/call result carries the typed payload in structuredContent and a JSON rendering in",
 	"content[0].text. A failed call is isError: true with the human message and a remediation hint in",
 	"content[0].text and no structuredContent; read that text before retrying.",
+	"Each concept carries an okfit trust signal next to its OKF trust tier: integrity is current when a human verified exactly the current content,",
+	"drifted when it changed since (the reason says why), and none when no human verified it; stale means past stale_after.",
+	"Drifted concepts are safe to edit and read, but weigh them below current ones; only a human re-verifies.",
 	"Resources: okf://index is the bundle's root index.md, and okf://concept/<id> is one static resource per concept.",
 ].join(" ");
 

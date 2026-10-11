@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T13:38:51Z
 integrity:
   generated:
-    body: 6e7d0f3326e32cf1
+    body: 0e361813452d17a0
 ---
 
 # Profiles
@@ -91,7 +91,9 @@ The `Trust` module derives a `ConceptSignal`: the spec trust tier
 from `generated` when it is later than the bound `at`) and staleness. Its
 lint, `verified-drift`, fires on a drifted concept at the configured
 severity (default `warn`) and does no hashing when the level is `off`.
-Machine entries neither bind nor break a binding. Profiles holds this,
+`Trust.evaluate` and `Trust.needsDigest` are pure and shared: the lint,
+the engine's summaries and the language server's already-verified check all
+call them. Machine entries neither bind nor break a binding. Profiles holds this,
 not core, because binding content to a verification is an okfit opinion
 the spec does not make. See [A verification is bound to the content it
 covered](../decisions/verification-binds-content.md) and [Verification

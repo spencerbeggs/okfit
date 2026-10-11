@@ -10,9 +10,16 @@ interface StaleItem {
 	readonly stale_after: string;
 	readonly days_past: number;
 }
+interface DriftedItem {
+	readonly summary: ConceptSummary;
+	readonly reason: string;
+	readonly edited_by: string | null;
+	readonly edited_at: string | null;
+}
 interface StaleResult {
 	readonly as_of: string;
 	readonly items: ReadonlyArray<StaleItem>;
+	readonly drifted: ReadonlyArray<DriftedItem>;
 }
 
 const report = (args: Record<string, unknown>) =>
@@ -50,6 +57,26 @@ describe("stale_report", () => {
 			// encoder drops a zero component, but this handler formats directly),
 			// verified live against this fixture (task brief Step 1).
 			assert.strictEqual(churn?.stale_after, "2020-01-01T00:00:00.000Z");
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("every stale item's summary is marked stale", () =>
+		Effect.gen(function* () {
+			const data = (yield* report({ now: "2020-01-11T00:00:00Z" })).structuredContent as StaleResult;
+			assert.isAbove(data.items.length, 0);
+			assert.ok(data.items.every((item) => item.summary.stale === true));
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("lists drifted concepts with the reason and who last edited", () =>
+		Effect.gen(function* () {
+			const data = (yield* report({ now: "2020-01-11T00:00:00Z" })).structuredContent as StaleResult;
+			const revenue = data.drifted.find((item) => item.summary.id === "metrics/revenue");
+			assert.ok(revenue !== undefined);
+			assert.strictEqual(revenue?.reason, "unbound");
+			assert.strictEqual(revenue?.summary.integrity, "drifted");
+			assert.ok(data.drifted.every((item) => item.summary.integrity === "drifted"));
+			assert.notOk(data.drifted.some((item) => item.summary.id === "metrics/churn"));
 		}).pipe(Effect.scoped),
 	);
 

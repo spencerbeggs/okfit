@@ -9,6 +9,8 @@ import {
 	VerifyNothingToRevokeError,
 	VerifyUnsupportedFrontmatterError,
 } from "../errors.js";
+import type { ChangeSince } from "./diff.js";
+import { changeSince } from "./diff.js";
 import { locateIntegrity, removeIntegrityVerified, spliceIntegrityVerified } from "./integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
 import { locateVerifiedEntries } from "./revoke.js";
@@ -580,6 +582,13 @@ export interface PickerCandidatesOptions {
 	readonly config: OkfitConfig;
 }
 
+/** The rows with `path` joined onto the bundle root, so the picker's callers get absolute file paths. */
+const absolutePaths = (
+	rows: ReadonlyArray<PickerCandidate>,
+	path: Path.Path,
+	root: string,
+): ReadonlyArray<PickerCandidate> => rows.map((row) => ({ ...row, path: path.join(root, row.path) }));
+
 /**
  * The interactive verify picker's starting point: loads the bundle, resolves
  * the human actor from git exactly as {@link runVerify} does, and selects the
@@ -593,7 +602,9 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const signals = yield* Trust.signals(bundle, yield* DateTime.now);
-	return { by, candidates: selectPickerCandidates(bundle, options.config, by, signals) } satisfies {
+	const path = yield* Path.Path;
+	const candidates = absolutePaths(selectPickerCandidates(bundle, options.config, by, signals), path, bundle.root);
+	return { by, candidates } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};
@@ -612,11 +623,44 @@ export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const signals = yield* Trust.signals(bundle, options.now);
-	return {
-		by,
-		candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),
-	} satisfies {
+	const path = yield* Path.Path;
+	const candidates = absolutePaths(
+		selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),
+		path,
+		bundle.root,
+	);
+	return { by, candidates } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};
+});
+
+/**
+ * The verify picker's diff previews: for each drifted candidate, in candidate
+ * order and one at a time, what changed in its file since its verification was
+ * bound ({@link changeSince}). A candidate with no binding is `no-baseline`
+ * `unbound` without touching git, and a git failure reading the history is
+ * `no-baseline` `not-a-repository`, so a preview never fails the picker. Rows
+ * that are not drifted get no entry. Reads only.
+ *
+ * @public
+ */
+export const loadPreviews = Effect.fn("okfit/verify/loadPreviews")(function* (
+	candidates: ReadonlyArray<PickerCandidate>,
+) {
+	const previews = new Map<string, ChangeSince>();
+	for (const candidate of candidates) {
+		if (candidate.integrity !== "drifted") continue;
+		const at = candidate.boundAt === null ? undefined : DateTime.make(candidate.boundAt);
+		const preview: ChangeSince =
+			at === undefined || Option.isNone(at)
+				? { _tag: "no-baseline", reason: "unbound" }
+				: yield* changeSince({ file: candidate.path, at: DateTime.toUtc(at.value) }).pipe(
+						Effect.catchTag("GitCommandError", () =>
+							Effect.succeed({ _tag: "no-baseline", reason: "not-a-repository" } satisfies ChangeSince),
+						),
+					);
+		previews.set(candidate.id, preview);
+	}
+	return previews as ReadonlyMap<string, ChangeSince>;
 });

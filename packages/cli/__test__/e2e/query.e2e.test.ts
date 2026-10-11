@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -173,5 +173,84 @@ describe("okfit query (e2e)", () => {
 		} finally {
 			await removeSandbox(sandbox);
 		}
+	});
+
+	describe("trust signal filters", () => {
+		const NOW = "2026-10-09T12:00:00Z";
+		const concept = (name: string, extra = ""): string =>
+			`---\ntype: Glossary\ndescription: ${name}.\nstatus: stable\n${extra}---\n\n# ${name}\n\nOriginal body.\n`;
+
+		/** current (bound, untouched), drifted (bound, then body edited), unverified, stale (past stale_after). */
+		const trustSandbox = async () => {
+			const { sandbox, cwd, env: baseline } = await seeded();
+			const env = {
+				...baseline,
+				GIT_CONFIG_GLOBAL: join(sandbox.env.HOME ?? "", ".gitconfig"),
+				GIT_CONFIG_NOSYSTEM: "1",
+				OKFIT_NOW: NOW,
+			};
+			await writeFile(
+				join(sandbox.env.HOME ?? "", ".gitconfig"),
+				"[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n",
+				"utf8",
+			);
+			await write(cwd, "trust/current.md", concept("Current"));
+			await write(cwd, "trust/drifted.md", concept("Drifted"));
+			await write(cwd, "trust/unverified.md", concept("Unverified"));
+			await write(cwd, "trust/stale.md", concept("Stale", "stale_after: 2020-01-01T00:00:00Z\n"));
+			for (const id of ["trust/current", "trust/drifted"]) {
+				const verify = await run(["verify", id, "--format", "json"], cwd, env);
+				assert.strictEqual(verify.exitCode, 0, verify.stderr);
+			}
+			const file = join(cwd, "okf", "trust", "drifted.md");
+			await writeFile(file, (await readFile(file, "utf8")).replace("Original body.", "Edited body."), "utf8");
+			return { sandbox, cwd, env };
+		};
+
+		const idsOf = async (args: ReadonlyArray<string>, cwd: string, env: Record<string, string>) => {
+			const r = await run(["query", "list", ...args, "--format", "json"], cwd, env);
+			assert.strictEqual(r.exitCode, 0, r.stderr);
+			const body = JSON.parse(r.stdout) as { items: Array<{ id: string }> };
+			return body.items.map((i) => i.id).filter((id) => id.startsWith("trust/"));
+		};
+
+		it("selects each flag's result set", async () => {
+			const { sandbox, cwd, env } = await trustSandbox();
+			try {
+				assert.deepStrictEqual(await idsOf(["--verified"], cwd, env), ["trust/current"]);
+				assert.deepStrictEqual(await idsOf(["--drifted"], cwd, env), ["trust/drifted"]);
+				assert.deepStrictEqual(await idsOf(["--unverified"], cwd, env), ["trust/stale", "trust/unverified"]);
+				assert.deepStrictEqual(await idsOf(["--stale"], cwd, env), ["trust/stale"]);
+				assert.deepStrictEqual(await idsOf(["--drifted", "--status", "stable"], cwd, env), ["trust/drifted"]);
+				assert.deepStrictEqual(await idsOf(["--drifted", "--status", "draft"], cwd, env), []);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("list shows the trust column; get shows tier, integrity and stale", async () => {
+			const { sandbox, cwd, env } = await trustSandbox();
+			try {
+				const list = await run(["query", "list"], cwd, env);
+				const lines = list.stdout.split("\n");
+				assert.include(lines, "trust/current  stable  human-reviewed  Glossary  current", list.stdout);
+				assert.include(lines, "trust/drifted  stable  drifted  Glossary  drifted");
+				assert.include(lines, "trust/stale  stable  unverified,stale  Glossary  stale");
+				const get = await run(["query", "get", "trust/drifted"], cwd, env);
+				assert.include(get.stdout, "tier: human-reviewed\n");
+				assert.match(get.stdout, /integrity: drifted \(content-changed/);
+				assert.include(get.stdout, "stale: no\n");
+				const json = await run(["query", "get", "trust/drifted", "--format", "json"], cwd, env);
+				const body = JSON.parse(json.stdout) as { concept: { integrity: string; drift: { reason: string } | null } };
+				assert.strictEqual(body.concept.integrity, "drifted");
+				assert.strictEqual(body.concept.drift?.reason, "content-changed");
+				const ok = JSON.parse((await run(["query", "get", "trust/current", "--format", "json"], cwd, env)).stdout) as {
+					concept: { drift: unknown };
+				};
+				assert.strictEqual(ok.concept.drift, null);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
 	});
 });

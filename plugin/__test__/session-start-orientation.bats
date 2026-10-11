@@ -31,11 +31,12 @@ STUB
 }
 
 # _stub_context bundle_root index_path index_exists config_path profile
-#   actors_agent types_json tags_json [profile_requested]
+#   actors_agent types_json tags_json [profile_requested] [trust_json]
 _stub_context() {
 	local bundle_root="$1" index_path="$2" index_exists="$3" config_path="$4"
 	local profile="$5" actors_agent="$6" types_json="${7:-[]}" tags_json="${8:-[]}"
 	local profile_requested="${9:-$profile}"
+	local trust_json="${10:-null}"
 	local config_field="null"
 	[ -n "$config_path" ] && config_field="\"$config_path\""
 	local profile_field="null"
@@ -44,7 +45,7 @@ _stub_context() {
 	[ -n "$profile_requested" ] && profile_requested_field="\"$profile_requested\""
 	local agent_field="null"
 	[ -n "$actors_agent" ] && agent_field="\"$actors_agent\""
-	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json}"
+	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json,\"trust\":$trust_json}"
 }
 
 # _fixture — a SessionStart input whose cwd is the fake project.
@@ -297,5 +298,102 @@ _default_context() {
 	for target in $TARGETS; do
 		HOOK_PROJECT_DIR="$spaced" run_hook "$target" "$SCRIPT" "$(hook_fixture SessionStart "{\"cwd\":\"$spaced\"}")" OKFIT_CLI_CMD="$OKFIT_CLI_CMD"
 		[[ "$(context_text)" == *"hi from a spaced path"* ]]
+	done
+}
+
+_trust_json='{"concepts":9,"drifted":2,"stale":1,"unverified":4,"drifted_ids":["a","b"],"stale_ids":["c"]}'
+
+@test "appends the trust line when concepts have drifted or gone stale" {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$_trust_json"
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"trust: 2 drifted (a, b), 1 stale, 4 unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted)."* ]]
+	done
+}
+
+@test "renders no trust line when trust is null or nothing drifted" {
+	_default_context
+	local zero='{"concepts":3,"drifted":0,"stale":0,"unverified":3,"drifted_ids":[],"stale_ids":[]}'
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" != *"trust:"* ]]
+	done
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$zero"
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" != *"trust:"* ]]
+	done
+}
+
+@test "an old CLI that rejects --trust is retried without it and renders no trust line" {
+	cat >"$STUB_DIR/okfit" <<STUB
+#!/bin/bash
+for arg in "\$@"; do
+	if [ "\$arg" = "--trust" ]; then
+		echo "unknown flag --trust" >&2
+		exit 1
+	fi
+done
+printf '%s\n' '{"schema":1,"project_root":"$PROJECT_DIR","bundle_root":"$PROJECT_DIR/okf","config_path":null,"profile":"software-project","profile_requested":"software-project","index_path":"$PROJECT_DIR/okf/index.md","index_exists":false,"actors":{"agent":null},"types":[],"tags":[]}'
+STUB
+	chmod +x "$STUB_DIR/okfit"
+	OKFIT_CLI_CMD="$STUB_DIR/okfit"
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"okfit bundle: $PROJECT_DIR/okf (profile: software-project)"* ]]
+		[[ "$(context_text)" != *"trust:"* ]]
+	done
+}
+
+@test "the trust line sits right after the config line, before the vocabulary and index.md" {
+	printf '# Index body\n' >"$PROJECT_DIR/okf/index.md"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" true "" software-project "" '[]' '[]' software-project "$_trust_json"
+	for target in $TARGETS; do
+		_run "$target"
+		local ctx before_trust
+		ctx="$(context_text)"
+		[[ "$ctx" == *"config: (none)"$'\n'"trust: 2 drifted"* ]]
+		before_trust="${ctx%%trust: 2 drifted*}"
+		[[ "$before_trust" != *"Types:"* && "$before_trust" != *"Index body"* ]]
+	done
+}
+
+@test "a stale-only trust summary still renders the line" {
+	local stale_only='{"concepts":3,"drifted":0,"stale":2,"unverified":3,"drifted_ids":[],"stale_ids":["a","b"]}'
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$stale_only"
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" == *"trust: 0 drifted, 2 stale, 3 unverified"* ]]
+		[[ "$(context_text)" != *"drifted concepts changed"* ]]
+		[[ "$(context_text)" != *"okfit query list --drifted"* ]]
+	done
+}
+
+@test "the trust line names only the first three drifted ids" {
+	local many='{"concepts":9,"drifted":5,"stale":0,"unverified":4,"drifted_ids":["a","b","c","d","e"],"stale_ids":[]}'
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$many"
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" == *"trust: 5 drifted (a, b, c), 0 stale, 4 unverified"* ]]
+		[[ "$(context_text)" != *"(a, b, c, d"* ]]
+	done
+}
+
+@test "a project with no bundle costs one subprocess: trust null needs no retry" {
+	cat >"$STUB_DIR/okfit" <<STUB
+#!/bin/bash
+echo x >>"${STUB_DIR}/calls"
+printf '%s\n' '{"schema":1,"project_root":"$PROJECT_DIR","bundle_root":"$PROJECT_DIR/okf","config_path":null,"profile":"software-project","profile_requested":"software-project","index_path":"$PROJECT_DIR/okf/index.md","index_exists":false,"actors":{"agent":null},"types":[],"tags":[],"trust":null}'
+STUB
+	chmod +x "$STUB_DIR/okfit"
+	OKFIT_CLI_CMD="$STUB_DIR/okfit"
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/calls"
+		_run "$target"
+		assert_hook_exit 0
+		[ "$(wc -l <"$STUB_DIR/calls" | tr -d ' ')" = "1" ]
+		[[ "$(context_text)" != *"trust:"* ]]
 	done
 }

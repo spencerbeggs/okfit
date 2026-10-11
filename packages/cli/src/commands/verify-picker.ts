@@ -1,8 +1,8 @@
-import { Cancelled } from "@effected/cli";
+import { Cancelled, CliInteractive } from "@effected/cli";
 import { CliUi, Confirm, MultiSelect } from "@effected/cli/ui";
 import type { OkfitConfig } from "@okfit/core";
 import type { PickerCandidate } from "@okfit/engine";
-import { loadPickerCandidates } from "@okfit/engine";
+import { loadPickerCandidates, loadPreviews } from "@okfit/engine";
 import { Console, Effect } from "effect";
 
 /** What the picker decided: attest exactly these ids, and settle drafts when `promote`. */
@@ -64,8 +64,32 @@ export const pickerSections = (candidates: ReadonlyArray<PickerCandidate>) => {
 };
 
 /**
+ * The picker with a diff preview pane, for a list holding a drifted row. The
+ * previews are read before the screen mounts (git runs no process while a frame
+ * is drawn), and only when the run is interactive, since otherwise the prompt
+ * fails `NotInteractive` without mounting. The screen's module, and with it
+ * React and Ink, loads only when it mounts.
+ */
+const previewPrompt = (
+	message: string,
+	sections: ReturnType<typeof pickerSections>,
+	candidates: ReadonlyArray<PickerCandidate>,
+) =>
+	Effect.gen(function* () {
+		const previews = (yield* CliInteractive) ? yield* loadPreviews(candidates) : new Map();
+		return yield* CliUi.prompt(
+			CliUi.lazy(() =>
+				import("./verify-preview.js").then((module) => ({
+					default: module.previewScreen({ message, sections, candidates, previews }),
+				})),
+			),
+		);
+	});
+
+/**
  * Bare `okfit verify` on a terminal: list what `by` has not attested, let the
- * person pick, confirm. Resolves to `undefined` (after printing why) when there
+ * person pick, confirm. When a row is drifted the list gains a preview pane
+ * showing the highlighted row's diff since its verification was bound. Resolves to `undefined` (after printing why) when there
  * is nothing to do; fails `Cancelled` on Esc, `q`, Ctrl-C or a "no" answer, and
  * `NotInteractive` when no screen can mount. Writes nothing itself.
  */
@@ -89,9 +113,11 @@ export const pickConcepts = (
 			yield* Console.log(source.empty(by));
 			return undefined;
 		}
-		const ids = yield* CliUi.prompt(
-			MultiSelect.screen({ message: source.message, sections: pickerSections(candidates) }),
-		);
+		const sections = pickerSections(candidates);
+		// A drifted row gets the diff preview screen; with none, the stock list, unchanged.
+		const ids = candidates.some((candidate) => candidate.integrity === "drifted")
+			? yield* previewPrompt(source.message, sections, candidates)
+			: yield* CliUi.prompt(MultiSelect.screen({ message: source.message, sections }));
 		if (ids.length === 0) {
 			yield* Console.log("nothing selected; nothing written");
 			return undefined;

@@ -11,9 +11,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:07Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 637523dfcd54dbea
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 3745e1ba38c24318
 ---
 
 # Bundle, Graph, Derive, and Validate are static facades, not services

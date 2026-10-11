@@ -17,9 +17,15 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 3054ab0ed7066bdc
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: a649fdfb5e97c89e
 ---
 
 # The carrier keeps its front ends' bin names, proven under allowSharedBins

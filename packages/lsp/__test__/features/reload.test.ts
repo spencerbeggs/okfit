@@ -14,7 +14,7 @@ import { testPlatform } from "../utils/platform.js";
 
 /**
  * Config-reload and dropped-session cleanup, task 4 of the phase 4 plan
- * (`okf/limitations/no-config-reload-in-phase-3.md`). These tests wire
+ * (phase 4 added config reload). These tests wire
  * `makeSessionRegistry` + `makeRevalidatePublisher` + `makeDiagnosticsFeature`
  * directly, the same three constructors `server.ts` composes, against a fake
  * transport that only records `sendNotification` calls -- no JSON-RPC round

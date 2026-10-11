@@ -1078,10 +1078,10 @@ describe("okfit sync --publication", () => {
 		try {
 			const notPub = await withServices(runOkfit(["sync", "--publication", "modules/x"], { cwd, env }));
 			assert.strictEqual(notPub.exitCode, 64);
-			assert.match(notPub.stderr, /okfit query --type Publication/);
+			assert.match(notPub.stderr, /okfit query list --type Publication/);
 			const missing = await withServices(runOkfit(["sync", "--publication", "publications/missing"], { cwd, env }));
 			assert.strictEqual(missing.exitCode, 64);
-			assert.match(missing.stderr, /okfit query --type Publication/);
+			assert.match(missing.stderr, /okfit query list --type Publication/);
 			for (const extra of [["--only", "index"], ["--staged"], ["--since", "2026-09-01"]]) {
 				const run = await withServices(runOkfit(["sync", "--publication", "publications/pr", ...extra], { cwd, env }));
 				assert.strictEqual(run.exitCode, 64, `${extra.join(" ")}: ${run.stderr}`);

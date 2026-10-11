@@ -36,6 +36,13 @@ describe("selectStaleCandidates (issue #228)", () => {
 						["mod", "Module", 0, "none"],
 					],
 				);
+				assert.deepStrictEqual(
+					rows.map((row) => [row.path, row.boundAt]),
+					[
+						["decisions/a.md", null],
+						["mod.md", null],
+					],
+				);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}

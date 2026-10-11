@@ -22,9 +22,10 @@ export class ConceptDecorations implements vscode.FileDecorationProvider, vscode
 		const node = this.byUri.get(uri.toString());
 		const dec = node && decorationFor(node);
 		if (!dec) return undefined;
-		const color = node.stale
-			? new vscode.ThemeColor("list.warningForeground")
-			: new vscode.ThemeColor("descriptionForeground");
+		const color =
+			node.stale || node.drifted
+				? new vscode.ThemeColor("list.warningForeground")
+				: new vscode.ThemeColor("descriptionForeground");
 		return new vscode.FileDecoration(dec.badge, dec.tooltip, color);
 	}
 

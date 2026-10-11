@@ -26,7 +26,10 @@ plugin's own `CLAUDE.md` already carries.
 Editing a verified or stable concept is fine and expected: keep the facts
 true. The edit shows up as the `verified-drift` lint (a signal at `warn`,
 not a gate), and only a human re-verifies. Do not avoid editing, and do not
-try to repair the drift yourself. The whole `integrity` family is okfit's:
+try to repair the drift yourself. `okfit query list --drifted` lists the drifted
+concepts, and the MCP `get_concept` reports each one's `integrity`
+(`current`, `drifted` or `none`) and, when drifted, why. Drift never changes
+the concept's trust tier; it is a signal beside it. The whole `integrity` family is okfit's:
 never hand-edit any key of it, because `okfit sync` writes
 `integrity.generated` and `okfit verify` writes `integrity.verified`.
 

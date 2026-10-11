@@ -21,7 +21,7 @@ describe("queryCommand", () => {
 		);
 	});
 
-	it("list takes [path] and the config/type/tag/status/verified/unverified/format flags", () => {
+	it("list takes [path] and the config/type/tag/status/verified/unverified/drifted/stale/format flags", () => {
 		const config = configOf(queryListCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((a) => nameOf(a)),
@@ -29,7 +29,7 @@ describe("queryCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((f) => nameOf(f)),
-			["config", "type", "tag", "status", "verified", "unverified", "format"],
+			["config", "type", "tag", "status", "verified", "unverified", "drifted", "stale", "format"],
 		);
 	});
 

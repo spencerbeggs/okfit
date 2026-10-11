@@ -229,6 +229,41 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 
 	it(
+		"verify picker with a drifted concept previews its diff (a @@ hunk) before Enter; the pick still attests",
+		async () => {
+			const { sandbox, env, files } = await verifyFixture();
+			try {
+				const file = files[0] as string;
+				await initRepo(sandbox.cwd, env);
+				await commit(sandbox.cwd, { message: "scaffold", authoredAt: "2026-10-01T00:00:00+00:00" }, env);
+				const first = await runPty(["verify", "decisions/a", "--human"], { cwd: sandbox.cwd, env, steps: [] });
+				assert.strictEqual(first.exitCode, 0, first.output);
+				await writeFile(file, `${await readFile(file, "utf8")}\nAn edit after the verification.\n`, "utf8");
+				const drifted = await readFile(file, "utf8");
+
+				// decisions/a sorts first, so it is highlighted and its preview is drawn before any key.
+				const run = await runPty(["verify", "--human", "--dry-run"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [
+						{ waitFor: /@@ -\d+(,\d+)? \+\d+(,\d+)? @@/, send: KEYS.space },
+						{ waitFor: /◉ decisions\/a/, send: KEYS.enter },
+						{ waitFor: /Attest 1 concept\(s\) as human:ada\?/, send: KEYS.enter },
+					],
+				});
+				assert.strictEqual(run.exitCode, 0, run.output);
+				assert.match(run.output, /decisions\/a {2}stable {2}drifted/);
+				assert.match(run.output, /\+An edit after the verification\./);
+				assert.match(run.output, /would verify decisions\/a by human:ada/);
+				assert.strictEqual(await readFile(file, "utf8"), drifted);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
 		"init wizard: Enter through both screens writes the default config; Esc on screen 2 writes none",
 		async () => {
 			// One registered profile means no profile screen: the wizard asks for the bundle directory and the config location.

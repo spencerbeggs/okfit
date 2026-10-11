@@ -11,9 +11,15 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: e0bacc18c97b35c7
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 63904cca123b65e8
 ---
 
 # The language server runs the reference vscode-languageserver library behind an Effect transport seam

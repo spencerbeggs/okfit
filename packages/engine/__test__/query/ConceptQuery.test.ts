@@ -5,7 +5,8 @@ import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import type { LoadedBundle } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
-import { Effect, Layer } from "effect";
+import type { ConceptSignal } from "@okfit/profiles";
+import { Cause, Effect, Exit, Layer } from "effect";
 import { ConceptQuery } from "../../src/query/ConceptQuery.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
@@ -38,27 +39,51 @@ const withBundle = <A, E>(body: (bundle: LoadedBundle) => Effect.Effect<A, E>) =
 		}
 	}).pipe(Effect.provide(platform));
 
+// Hand-built signals: no hashing, no clock. a is stale, b is current, m is drifted.
+const signals: ReadonlyMap<string, ConceptSignal> = new Map<string, ConceptSignal>([
+	["decisions/a", { tier: "unverified", integrity: "none", stale: true }],
+	["decisions/b", { tier: "human-reviewed", integrity: "current", stale: false }],
+	["m", { tier: "machine-confirmed", integrity: "drifted", stale: false, drift: { reason: "content-changed" } }],
+]);
+
 const ids = (concepts: ReadonlyArray<{ readonly id: string }>) => concepts.map((c) => c.id);
 
 describe("ConceptQuery.list", () => {
 	it.effect("returns every concept sorted by id for an empty filter", () =>
 		withBundle((bundle) =>
 			Effect.gen(function* () {
-				assert.deepStrictEqual(ids(yield* ConceptQuery.list(bundle, config, {})), ["decisions/a", "decisions/b", "m"]);
+				assert.deepStrictEqual(ids(yield* ConceptQuery.list(bundle, config, {}, signals)), [
+					"decisions/a",
+					"decisions/b",
+					"m",
+				]);
 			}),
 		),
 	);
 
-	it.effect("filters by type, tags (AND), status and verified", () =>
+	it.effect("filters by type, tags (AND), status and the trust signal", () =>
 		withBundle((bundle) =>
 			Effect.gen(function* () {
 				const run = (filter: Parameters<typeof ConceptQuery.list>[2]) =>
-					ConceptQuery.list(bundle, config, filter).pipe(Effect.map(ids));
+					ConceptQuery.list(bundle, config, filter, signals).pipe(Effect.map(ids));
 				assert.deepStrictEqual(yield* run({ types: ["Decision"] }), ["decisions/a", "decisions/b"]);
 				assert.deepStrictEqual(yield* run({ tags: ["architecture", "dx"] }), ["decisions/b"]);
 				assert.deepStrictEqual(yield* run({ statuses: ["stable"] }), ["decisions/b", "m"]);
-				assert.deepStrictEqual(yield* run({ verified: true }), ["decisions/b"]);
-				assert.deepStrictEqual(yield* run({ verified: false }), ["decisions/a", "m"]);
+				assert.deepStrictEqual(yield* run({ verified: "current" }), ["decisions/b"]);
+				assert.deepStrictEqual(yield* run({ verified: "unverified" }), ["decisions/a"]);
+				assert.deepStrictEqual(yield* run({ drifted: true }), ["m"]);
+				assert.deepStrictEqual(yield* run({ stale: true }), ["decisions/a"]);
+				assert.deepStrictEqual(yield* run({ drifted: true, statuses: ["draft"] }), []);
+				assert.deepStrictEqual(yield* run({ drifted: true, statuses: ["stable"] }), ["m"]);
+			}),
+		),
+	);
+
+	it.effect("dies when a signal-filtered query is missing a concept's signal", () =>
+		withBundle((bundle) =>
+			Effect.gen(function* () {
+				const exit = yield* Effect.exit(ConceptQuery.list(bundle, config, { drifted: true }, new Map()));
+				assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
 			}),
 		),
 	);
@@ -66,7 +91,7 @@ describe("ConceptQuery.list", () => {
 	it.effect("fails on an undeclared type with a sorted valid list", () =>
 		withBundle((bundle) =>
 			Effect.gen(function* () {
-				const error = yield* ConceptQuery.list(bundle, config, { types: ["Nope"] }).pipe(Effect.flip);
+				const error = yield* ConceptQuery.list(bundle, config, { types: ["Nope"] }, signals).pipe(Effect.flip);
 				assert.strictEqual(error._tag, "QueryUnknownVocabularyError");
 				assert.strictEqual(error.kind, "type");
 				assert.strictEqual(error.requested, "Nope");
@@ -78,7 +103,7 @@ describe("ConceptQuery.list", () => {
 	it.effect("fails on an undeclared tag", () =>
 		withBundle((bundle) =>
 			Effect.gen(function* () {
-				const error = yield* ConceptQuery.list(bundle, config, { tags: ["nope"] }).pipe(Effect.flip);
+				const error = yield* ConceptQuery.list(bundle, config, { tags: ["nope"] }, signals).pipe(Effect.flip);
 				assert.strictEqual(error.kind, "tag");
 				assert.deepStrictEqual(error.valid, ["architecture", "dx"]);
 			}),

@@ -14,6 +14,10 @@ export interface ConceptSummary {
 	readonly type: string;
 	readonly status: "draft" | "stable" | "deprecated" | undefined;
 	readonly stale: boolean;
+	/** The trust tier as of the last revalidate. */
+	readonly tier: "unverified" | "machine-confirmed" | "human-reviewed";
+	/** Whether a human verification still binds the content, as of the last revalidate. */
+	readonly integrity: "current" | "drifted" | "none";
 }
 
 /** One bundle root's concepts. */

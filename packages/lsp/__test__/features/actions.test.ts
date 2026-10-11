@@ -432,4 +432,81 @@ describe("registerCodeActions", () => {
 				assert.deepStrictEqual(actions, []);
 			}).pipe(Effect.scoped),
 	);
+
+	it.live(
+		"a `verified-drift` diagnostic: a preferred `Re-verify as <actor>` quick fix, and applying it clears the drift",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness({ platform: identityPlatform });
+				const drifted = ALREADY_VERIFIED_SOURCE.replace(
+					"Verified Concept\ndescription",
+					"Altered Concept\ndescription",
+				);
+				assert.notStrictEqual(drifted, ALREADY_VERIFIED_SOURCE);
+				yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "verified.md"), drifted, "utf8"));
+				yield* h.initialize;
+				yield* h.open("okf/modules/verified.md");
+				const uri = h.uriOf("okf/modules/verified.md");
+				const published = yield* h.drainUntil((entry) => entry.uri === uri);
+				const drift = published.diagnostics.find((entry) => entry.code === "verified-drift");
+				assert.isDefined(drift);
+				const diagnostics = [drift as unknown as LspDiagnostic];
+
+				const actions = yield* requestCodeAction(h.client, uri, { diagnostics });
+				const reverify = actions.find((action) => action.title === `Re-verify as ${FIXTURE_ACTOR}`);
+				assert.isDefined(reverify);
+				assert.strictEqual((reverify as CodeAction).kind, "quickfix");
+				assert.isTrue((reverify as CodeAction).isPreferred);
+
+				// Control: without the diagnostic there is no Re-verify action.
+				const without = yield* requestCodeAction(h.client, uri);
+				assert.isFalse(without.some((action) => action.title.startsWith("Re-verify")));
+
+				const fixed = applyDocumentEdits(drifted, (reverify as CodeAction).edit, uri);
+				yield* h.change("okf/modules/verified.md", fixed, 2);
+				const after = yield* h.drainUntil(
+					(entry) => entry.uri === uri && !entry.diagnostics.some((d) => d.code === "verified-drift"),
+				);
+				assert.isFalse(after.diagnostics.some((d) => d.code === "verified-drift"));
+			}).pipe(Effect.scoped),
+	);
+
+	it.live("a drifted concept offers Re-verify as the quick fix and no duplicate Mark verified action", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const drifted = ALREADY_VERIFIED_SOURCE.replace("Verified Concept\ndescription", "Altered Concept\ndescription");
+			const uri = yield* openConcept(h, "okf/modules/verified.md", drifted);
+			const fake = {
+				range: FRONTMATTER,
+				message: "drift",
+				code: "verified-drift",
+				data: { source: "core.lint" },
+			} as unknown as LspDiagnostic;
+			const withDiagnostic = yield* requestCodeAction(h.client, uri, { diagnostics: [fake] });
+			assert.isTrue(withDiagnostic.some((action) => action.title.startsWith("Re-verify")));
+			assert.isFalse(withDiagnostic.some((action) => action.title.startsWith("Mark verified by")));
+			// Control: with the lint off (no diagnostic) Mark verified is still offered.
+			const without = yield* requestCodeAction(h.client, uri);
+			assert.isTrue(without.some((action) => action.title.startsWith("Mark verified by")));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a draft concept with a `verified-drift` diagnostic gets no Re-verify action", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const source = ALREADY_VERIFIED_SOURCE.replace("status: stable", "status: draft").replace(
+				"Verified Concept\ndescription",
+				"Altered Concept\ndescription",
+			);
+			const uri = yield* openConcept(h, "okf/modules/verified.md", source);
+			const fake = {
+				range: FRONTMATTER,
+				message: "drift",
+				code: "verified-drift",
+				data: { source: "core.lint" },
+			} as unknown as LspDiagnostic;
+			const actions = yield* requestCodeAction(h.client, uri, { diagnostics: [fake] });
+			assert.isFalse(actions.some((action) => action.title.startsWith("Re-verify")));
+		}).pipe(Effect.scoped),
+	);
 });

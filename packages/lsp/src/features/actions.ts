@@ -13,6 +13,10 @@
  *   `Set status: draft` (`isPreferred`) and `Set status: stable`, kind
  *   `quickfix`, each carrying that diagnostic. Offered wherever the request
  *   range sits, since the client only sends the diagnostic when it overlaps.
+ *   When it carries a `verified-drift` diagnostic (same shape check):
+ *   `Re-verify as <actor>` (`isPreferred`), the same edit as Mark verified; a
+ *   draft or deprecated concept, or an unresolvable actor, gets none. When it
+ *   is offered, the identical `Mark verified by` action is skipped.
  * - **Status actions** (kind `okfit.status`). `Set status: <status>` for each
  *   status the raw frontmatter `status` is not already (all three when it has
  *   no explicit status), in `Status`'s literal order, minus any a quick fix
@@ -60,13 +64,14 @@ const STATUSES: ReadonlyArray<Status> = Status.literals;
 /** The statuses a `status-missing` quick fix offers, the first preferred. */
 const QUICK_FIX_STATUSES: ReadonlyArray<Status> = ["draft", "stable"];
 
-/** `diagnostics`' own `status-missing` entry, `convert/diagnostic.ts`'s exact shape (`code`, `data.source`). */
-const statusMissingOf = (
+/** `diagnostics`' own entry for `code`, `convert/diagnostic.ts`'s exact shape (`code`, `data.source`). */
+const diagnosticWith = (
 	diagnostics: CodeActionParams["context"]["diagnostics"],
+	code: string,
 ): CodeActionParams["context"]["diagnostics"][number] | undefined =>
 	diagnostics.find(
 		(diagnostic) =>
-			diagnostic.code === "status-missing" &&
+			diagnostic.code === code &&
 			(diagnostic.data === undefined || (diagnostic.data as { readonly source?: unknown }).source === "core.lint"),
 	);
 
@@ -145,7 +150,7 @@ export const registerCodeActions = (
 				const offer = (kind: string): boolean => (only === undefined ? inFrontmatter : named(only, kind));
 
 				const actions: Array<CodeAction> = [];
-				const statusMissing = statusMissingOf(params.context.diagnostics);
+				const statusMissing = diagnosticWith(params.context.diagnostics, "status-missing");
 				const quickFixes =
 					statusMissing !== undefined && (only === undefined || named(only, CODE_ACTION_KIND_QUICKFIX))
 						? QUICK_FIX_STATUSES
@@ -159,6 +164,27 @@ export const registerCodeActions = (
 						diagnostics: [statusMissing as NonNullable<typeof statusMissing>],
 						isPreferred: status === "draft",
 					});
+				}
+
+				let reverifyOffered = false;
+				const verifiedDrift = diagnosticWith(params.context.diagnostics, "verified-drift");
+				if (verifiedDrift !== undefined && (only === undefined || named(only, CODE_ACTION_KIND_QUICKFIX))) {
+					const actor = yield* actorFor(target.handle);
+					if (Option.isSome(actor)) {
+						const now = yield* DateTime.now;
+						// Draft and deprecated concepts fail here and so get no action.
+						const edits = yield* Effect.option(verifiedTextEdits(target, actor.value, now));
+						if (Option.isSome(edits)) {
+							reverifyOffered = true;
+							actions.push({
+								title: `Re-verify as ${actor.value}`,
+								kind: CODE_ACTION_KIND_QUICKFIX,
+								diagnostics: [verifiedDrift],
+								isPreferred: true,
+								edit: versionedEdit(uri, target, edits.value),
+							});
+						}
+					}
 				}
 
 				if (offer("okfit.status")) {
@@ -184,7 +210,8 @@ export const registerCodeActions = (
 					}
 				}
 
-				if (offer("okfit.verify") && target.status !== "draft" && target.status !== "deprecated") {
+				// The Re-verify quick fix carries the identical edit, so it replaces Mark verified.
+				if (offer("okfit.verify") && !reverifyOffered && target.status !== "draft" && target.status !== "deprecated") {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;

@@ -1,15 +1,16 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
-import { ConceptQuery } from "@okfit/engine";
-import { Effect, FileSystem, Path, Schema } from "effect";
+import { ConceptQuery, signalFor, toTrustDrift } from "@okfit/engine";
+import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { toConceptLookupFailure } from "../internal/conceptNotFound.js";
 import { loadToolContext } from "../internal/toolContext.js";
+import { toolSignals } from "../internal/toolSignals.js";
 import { GetConceptSuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Returns one concept by id: its whole decoded frontmatter, the file's raw markdown text, its bundle-relative path, and every outgoing link with where the link was written and whether the target is another concept, an existing file, or missing. Accepts a tolerant id, with or without a leading slash or a trailing .md.";
+	"Returns one concept by id: its decoded frontmatter, raw markdown, bundle-relative path, every outgoing link (with where it was written and whether the target is a concept, a file, or missing), and its okfit trust signal: tier, integrity, stale and drift. Accepts a tolerant id, with or without a leading slash or trailing .md.";
 
 /**
  * `dependencies` mirrors `list_concepts`' and `describe_vocabulary`'s
@@ -25,7 +26,7 @@ export const getConcept = Tool.make("get_concept", {
 	parameters: Schema.Struct({ id: Schema.String }),
 	success: GetConceptSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg],
+	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Get one OKF concept")
 	.annotate(Tool.Readonly, true)
@@ -48,6 +49,9 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
 		);
 
+		const signals = yield* toolSignals(ctx.bundle, yield* DateTime.now);
+		const signal = signalFor(signals, concept.id);
+
 		return {
 			id: concept.id,
 			type: concept.frontmatter.type,
@@ -59,5 +63,9 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			frontmatter: concept.frontmatter.raw,
 			raw: concept.document.source,
 			links,
+			tier: signal.tier,
+			integrity: signal.integrity,
+			stale: signal.stale,
+			drift: toTrustDrift(signal),
 		};
 	});

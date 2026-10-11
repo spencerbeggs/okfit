@@ -3,7 +3,8 @@
 # section 6.1). Registered with no matcher (pluginfinity.config.ts,
 # contract section 4), so it fires on every source: startup, resume, clear, compact.
 #
-# Runs exactly one subprocess, `okfit context --format json`, and turns the
+# Runs one subprocess, `okfit context --format json --trust` (retried once
+# without --trust only when an older CLI rejects the flag), and turns the
 # merged config's vocabulary, the bundle's index.md, and two nudges into one
 # additionalContext block. Never runs `okfit validate` — a whole-bundle
 # conformance and lint pass just to learn the bundle root is the wasted work
@@ -55,8 +56,14 @@ fi
 # command (M-17), and this is the one call site that must word-split it.
 set +e
 # shellcheck disable=SC2086
-context_json=$($cli_cmd context --format json 2>/dev/null)
+context_json=$($cli_cmd context --format json --trust 2>/dev/null)
 context_rc=$?
+if [ "$context_rc" -ne 0 ]; then
+	# An older CLI rejects the unknown --trust flag; retry once without it.
+	# shellcheck disable=SC2086
+	context_json=$($cli_cmd context --format json 2>/dev/null)
+	context_rc=$?
+fi
 set -e
 
 # Branch 4 (interpretation B-1 in the judge notes): a non-zero exit or
@@ -152,9 +159,27 @@ else
 	index_section="No index.md yet at ${index_path}. Run \`okfit init\` or write one."
 fi
 
+# The --trust summary: only when something has drifted or gone stale. Absent
+# on an older CLI (the retry above) and null without the flag. It sits right
+# after the config line so the platform's additionalContext cap cannot
+# truncate it away behind index.md.
+trust_line=$(printf '%s' "$context_json" | jq -r '
+	(.trust // empty) | select((.drifted + .stale) > 0)
+	| (.drifted_ids // [])[:3] as $ids
+	| "trust: \(.drifted) drifted"
+		+ (if .drifted > 0 and ($ids | length) > 0 then " (" + ($ids | join(", ")) + ")" else "" end)
+		+ ", \(.stale) stale, \(.unverified) unverified"
+		+ (if .drifted > 0 then " — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted)." else "" end)
+' 2>/dev/null || true)
+trust_block=""
+if [ -n "$trust_line" ]; then
+	trust_block="${trust_line}
+"
+fi
+
 CONTEXT="okfit bundle: ${bundle_root} (profile: ${profile_display})
 config: ${config_display}
-
+${trust_block}
 ${vocab_text}
 
 ${index_section}"

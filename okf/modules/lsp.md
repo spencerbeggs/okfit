@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T14:44:29Z
 integrity:
   generated:
-    body: c0316bedbda33d09
+    body: 7e114350b5ccdfae
 ---
 
 # LSP
@@ -73,7 +73,10 @@ draft, deprecated, nor already verified by that actor. On a draft the
 same kind instead offers `Mark verified by <actor> and set status: stable`
 (#215), one edit equal to what `okfit verify --stable` writes, when that
 actor has not yet verified it; the actor is cached per session
-handle. `registerCommands` (`src/features/commands.ts`) answers
+handle. On a `verified-drift` diagnostic it offers a preferred `Re-verify as
+<actor>` quick fix. The already-verified check uses the profiles package's
+`Trust.evaluate`, and the Re-verify quick fix needs the `verified-drift` diagnostic, so with that lint off only `Mark verified` is offered. The buffer's `verified` is decoded through core's
+`Verification.List`, which accepts a bare mapping. `registerCommands` (`src/features/commands.ts`) answers
 `workspace/executeCommand` for the four `OKFIT_COMMANDS`:
 `okfit.lsp.setStatus [uri, status]`, `okfit.lsp.markVerified [uri]` and
 `okfit.lsp.verifyAndMarkStable [uri]` compute a `TextEdit` and send it to
@@ -98,7 +101,7 @@ buffer at request time. `registerInlayHints` (`src/features/inlayHints.ts`)
 answers `textDocument/inlayHint` with up to two hints per concept, computed
 by the pure `hintsFor(concept, now)`: a trust/staleness hint (`unverified`,
 `machine-confirmed`, or `human-reviewed by <by>`, `· stale` appended when
-stale) anchored after the `status:` value when present, else after
+stale, `· drifted` when drifted) anchored after the `status:` value when present, else after
 `type:`; and, only when `generated.at` is set, an age hint (`today`, `1 day
 ago`, `N days ago`) after its value. All three features answer `[]`/fail
 closed the same way navigation does: a missing session, an unloaded
@@ -126,7 +129,8 @@ revalidate completes they answer `null`/`[]` rather than hang.
 - `textDocument/hover` returns `null` off any recognised position, and
   otherwise a markdown `MarkupContent`: on a link or path-field edge, the
   target's title, type, status, trust tier and staleness (tier and
-  staleness computed from `Derive`, given `now`); on the `type:` value,
+  staleness computed from `Derive`, given `now`), and an integrity line
+  (current, drifted with its reason, or none); on the `type:` value,
   that type's description and guidance from the config vocabulary; on a
   top-level frontmatter field key, that field's description.
 - `workspace/symbol` returns one `SymbolInformation` per concept across
@@ -155,7 +159,8 @@ wires `registerConcepts`'s `forgetWarmup` into the session registry's
 `onDispose` callback, which fires on a config-change rebuild and when a
 root's last workspace folder goes away, so a fixed config or a re-added
 folder is retried on its next warm-up. It then answers from every live
-session's last-loaded bundle; `okfit/bundleChanged` is sent from the
+session's last-loaded bundle, each concept carrying its `tier`, `integrity`
+and `stale` alongside the status; `okfit/bundleChanged` is sent from the
 registry's own revalidate and dispose callbacks, after diagnostics for the
 same change have already published, so a client that re-fetches
 `okfit/concepts` on this notification never races the diagnostics it would
@@ -273,9 +278,6 @@ hand-rolled equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 - [The language server runs the reference vscode-languageserver library
   behind an Effect transport
   seam](../decisions/lsp-reference-transport-behind-a-seam.md)
-- [The phase 3 language server does not reload a changed config or clear
-  a dropped session's diagnostics](../limitations/no-config-reload-in-phase-3.md)
-  — discharged in phase 4 by the config reload rule above.
 - [Two narrow interrupt windows in the LSP session registry are
   documented, not
   closed](../limitations/lsp-registry-interrupt-windows.md) — the

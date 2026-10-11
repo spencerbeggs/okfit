@@ -7,7 +7,6 @@ tags:
   - release
   - dx
 status: stable
-supersedes: engine-version-is-the-comparable-version.md
 sources:
   - id: okfit-137
     resource: https://github.com/spencerbeggs/okfit/issues/137
@@ -26,9 +25,17 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
     body: 874fd08c90f16313
+  verified:
+    by: human:spencer
+    at: 2026-10-11T15:55:11Z
+    content: b9146c4af70e066c
 ---
 
 # The engine version, not the producer version, is what a report is compared on

@@ -4,7 +4,7 @@ import type { Debouncer } from "../debounce.js";
 import { createDebouncer } from "../debounce.js";
 import type { ConceptDecorations } from "./decorations.js";
 import type { TreeNode } from "./model.js";
-import { buildTree, iconFor, shouldApplyRefresh, staleCount } from "./model.js";
+import { attentionCount, buildTree, iconFor, shouldApplyRefresh } from "./model.js";
 import type { ConceptsResult } from "./wire.js";
 import { BUNDLE_CHANGED_NOTIFICATION, CONCEPTS_REQUEST } from "./wire.js";
 
@@ -81,10 +81,13 @@ export class ConceptsProvider implements vscode.TreeDataProvider<TreeNode>, vsco
 		this.result = result;
 		this.roots = buildTree(this.result);
 		this.decorations.update(this.roots);
-		const stale = staleCount(this.result);
+		const { stale, drifted } = attentionCount(this.result);
 		if (this.view !== undefined) {
+			const total = stale + drifted;
 			this.view.badge =
-				stale > 0 ? { value: stale, tooltip: `${stale} stale concept${stale === 1 ? "" : "s"}` } : undefined;
+				total > 0
+					? { value: total, tooltip: `${stale} stale, ${drifted} drifted concept${total === 1 ? "" : "s"}` }
+					: undefined;
 		}
 		await vscode.commands.executeCommand("setContext", "okfit.hasBundle", this.result.bundles.length > 0);
 		this.changed.fire(undefined);

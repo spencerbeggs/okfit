@@ -37,10 +37,10 @@ or `.config/okfit.toml`.
 | Tool | Returns |
 | --- | --- |
 | `describe_vocabulary` | The resolved project and bundle roots, active profile, agent actor, and the config's declared type and tag vocabulary. Call first, before filtering or writing anything. |
-| `list_concepts` | Concept summaries, optionally filtered by an exact type, by tags that must all be present, and by status; pages with `limit`/`offset` and reports the total match count. |
-| `get_concept` | One concept by id: its whole decoded frontmatter, the file's raw markdown text, its bundle-relative path, and every outgoing link. |
+| `list_concepts` | Concept summaries (each with `tier`, `integrity` and `stale`), optionally filtered by an exact type, by tags that must all be present, by status, by `verified` (`true`: a human's verification is current; `false`: never verified), `drifted` and `stale` (with an optional `now` instant); pages with `limit`/`offset` and reports the total match count. |
+| `get_concept` | One concept by id: its whole decoded frontmatter, the file's raw markdown text, its bundle-relative path, every outgoing link, and the trust signal: `tier`, `integrity`, `stale` and `drift` (reason and who edited it, or null). |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with its node kind and, for a concept target, its full summary. |
-| `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and how many whole days past it, as of now or an explicit instant. |
+| `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and how many whole days past it, as of now or an explicit instant, plus a `drifted` array of concepts edited since a human verified them. |
 | `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged. Its `engine_version` and `okf_version` match the CLI's over one bundle; `okfit_version` is this package's own version and `producer` is `@okfit/mcp`. Optional `documents: [{ path, text }]` validates unsaved text (bundle-relative paths, a new file only under an existing directory) without writing it. |
 
 ## Resources

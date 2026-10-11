@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTree, decorationFor, iconFor, shouldApplyRefresh, staleCount } from "../src/tree/model.js";
+import { attentionCount, buildTree, decorationFor, iconFor, shouldApplyRefresh } from "../src/tree/model.js";
 import type { ConceptsResult } from "../src/tree/wire.js";
 
 const c = (over: Partial<ConceptsResult["bundles"][number]["concepts"][number]>) => ({
@@ -9,6 +9,8 @@ const c = (over: Partial<ConceptsResult["bundles"][number]["concepts"][number]>)
 	type: "Module",
 	status: undefined,
 	stale: false,
+	tier: "unverified" as const,
+	integrity: "none" as const,
 	...over,
 });
 
@@ -59,11 +61,17 @@ describe("buildTree", () => {
 	});
 });
 
-describe("staleCount", () => {
-	it("counts stale concepts across bundles", () => {
-		expect(staleCount(one)).toBe(1);
-		expect(staleCount({ bundles: [one.bundles[0]!, one.bundles[0]!] })).toBe(2);
-		expect(staleCount({ bundles: [] })).toBe(0);
+describe("attentionCount", () => {
+	it("counts stale and drifted concepts across bundles", () => {
+		expect(attentionCount(one)).toEqual({ stale: 1, drifted: 0 });
+		expect(attentionCount({ bundles: [one.bundles[0]!, one.bundles[0]!] })).toEqual({ stale: 2, drifted: 0 });
+		expect(attentionCount({ bundles: [] })).toEqual({ stale: 0, drifted: 0 });
+		const d: ConceptsResult = {
+			bundles: [
+				{ ...one.bundles[0]!, concepts: [c({ integrity: "drifted" }), c({ stale: true, integrity: "drifted" })] },
+			],
+		};
+		expect(attentionCount(d)).toEqual({ stale: 1, drifted: 2 });
 	});
 });
 
@@ -93,6 +101,26 @@ describe("decorationFor", () => {
 		const node = buildTree(deprecated)[0]!;
 		const concept = node.kind === "type" ? node.children[0] : undefined;
 		expect(concept?.kind === "concept" && decorationFor(concept)).toEqual({ badge: "X", tooltip: "Deprecated" });
+	});
+});
+
+describe("drift", () => {
+	const node = (over: Parameters<typeof c>[0]) => {
+		const t = buildTree({ bundles: [{ ...one.bundles[0]!, concepts: [c(over)] }] })[0]!;
+		const n = t.kind === "type" ? t.children[0]! : undefined;
+		if (n?.kind !== "concept") throw new Error("no concept");
+		return n;
+	};
+
+	it("drifted beats stale, draft and deprecated", () => {
+		const dec = { badge: "!", tooltip: "Drifted: changed since a human verified it" };
+		expect(decorationFor(node({ integrity: "drifted", stale: true, status: "draft" }))).toEqual(dec);
+		expect(decorationFor(node({ integrity: "drifted", status: "deprecated" }))).toEqual(dec);
+	});
+
+	it("describes a drifted concept as status plus drifted", () => {
+		expect(node({ integrity: "drifted", status: "draft" }).description).toBe("draft \u00b7 drifted");
+		expect(node({ integrity: "current" }).description).toBe("stable");
 	});
 });
 

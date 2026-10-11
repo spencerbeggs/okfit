@@ -5,7 +5,6 @@ description: The platform layer, config discovery, and the validate/verify/sync/
 tags:
   - architecture
 status: stable
-supersedes: engine-front-end-split.md
 sources:
   - id: boundaries-test
     resource: ../../packages/cli/__test__/boundaries.test.ts
@@ -15,9 +14,17 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
     body: dabd73dc1de7f4e6
+  verified:
+    by: human:spencer
+    at: 2026-10-11T15:55:11Z
+    content: d484eb3ce63a656d
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract

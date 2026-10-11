@@ -217,8 +217,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   session's bundle root is re-opened onto it from `session/documents.ts`'s
   registry-wide memory, and a full revalidate is scheduled on it. A config
   that still fails to load after the rebuild is retried later exactly like
-  any other failed build (`okf/limitations/no-config-reload-in-phase-3.md`,
-  discharged by the phase 4 rebuild path above).
+  any other failed build (the phase 3 server had no config reload;
+  the phase 4 rebuild path above fixed it).
 - **Dropped session.** Whenever a bundle root's session is disposed -- a
   config-change rebuild, or `removeFolders`/`setFolders` dropping the last
   workspace folder that resolves to it (dropping one of several folders
@@ -295,7 +295,8 @@ every bundle root all answer `null`/`[]` -- never a hang.
   position (`edgeAt`, body link or frontmatter path field) renders the
   target concept's title, type, status, trust tier (`Derive.trustTier`) and
   staleness (`Derive.staleness`, against a `now` read once per request with
-  `DateTime.now`); the `type:` value (located with
+  `DateTime.now`) and an integrity line (current, none, or drifted with the
+  reason) from `Trust.signals`; the `type:` value (located with
   `DiagnosticRange.forFrontmatterPath(document, ["type"])`) renders that
   type's `description`/`guidance` from `session.config().types`; a top-level
   frontmatter key on its own line (`^key:`, no leading whitespace, inside the
@@ -364,7 +365,8 @@ implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
   location (`definitionOf`, `features/locate.ts` -- same exclusion as
   `workspace/symbol`). A concept's `status` is its raw frontmatter value,
   `undefined` when absent (not `Derive.status`'s `"stable"` default); `stale`
-  is `Derive.isStale` against `now` read once per request. Concepts are
+  is `Derive.isStale` against `now` read once per request; `tier` and
+  `integrity` come from the session's trust signals. Concepts are
   sorted by type, then title, then id; bundles by root.
 - **`okfit/bundleChanged`** is sent from the registry's own `onRevalidate` and
   `onDispose` callbacks (`server.ts`), after `publisher.publish`/`.clear`
@@ -410,7 +412,8 @@ below) also shares:
   `__test__/features/actions.test.ts`'s BOM case proves. `verifiedTextEdits`
   fails `DraftCannotBeVerified` for a draft, `DeprecatedCannotBeVerified` for a
   deprecated concept and `AlreadyVerified` when
-  `actor` already carries a `verified` entry -- `okfit verify --batch`'s
+  `actor` already holds the CURRENT binding (`Trust.evaluate`; a drifted or
+  superseded entry does not count, so a drifted concept can be re-verified) -- `okfit verify --batch`'s
   skip rules, not the single-concept `okfit verify <id>`'s.
 - `resolveActor(handle)` wraps `Derivation.generatedBy({ writer: "human",
   cwd: handle.folder, config })` (`handle.folder`, never `bundleRoot`: V-7's
@@ -429,6 +432,10 @@ The action set, in order:
   that diagnostic. Offered wherever the request range sits (the client only
   sends an overlapping diagnostic), unless `context.only` excludes
   `quickfix`.
+- **Verified-drift quick fix.** On a `verified-drift` diagnostic (same shape
+  check): a preferred `Re-verify as <actor>` quickfix, the same edit as Mark
+  verified. When it is offered the identical `Mark verified by <actor>` action
+  is skipped; with the lint off (no diagnostic) only `Mark verified` appears.
 - **Status actions** (kind `okfit.status`): `Set status: <status>` for each
   status the raw frontmatter `status` is not already -- all three when there
   is no explicit status, so an implicit `stable` can be made explicit -- in
@@ -527,7 +534,8 @@ either is positioned against a document:
   starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
   three-way split, with the human-reviewed case's actor resolved here since
   the derivation itself only reports the tier. `· stale` is appended when
-  `Derive.isStale(concept.frontmatter, now)`. Anchored on the `status`
+  `Derive.isStale(concept.frontmatter, now)`. `· drifted` is appended when the
+  concept's integrity is `drifted` (a human verified it and the content changed since). Anchored on the `status`
   field's own value when the frontmatter carries an explicit `status` key,
   else on `type`'s (every concept has one, and `Derive.status`'s `"stable"`
   default when `status` is absent leaves nothing else to anchor on).

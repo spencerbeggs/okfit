@@ -1,5 +1,6 @@
 import type { GraphNodeKind, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { ConceptId, Derive, Graph } from "@okfit/core";
+import type { ConceptSignal } from "@okfit/profiles";
 import { Effect, Option } from "effect";
 import { QueryConceptNotFoundError, QueryUnknownVocabularyError } from "../errors.js";
 
@@ -16,8 +17,12 @@ export interface ConceptFilter {
 	readonly tags?: ReadonlyArray<string>;
 	/** OR, compared against `Derive.status` (an absent status reads as stable). */
 	readonly statuses?: ReadonlyArray<Status>;
-	/** `true`: at least one verified entry; `false`: none. */
-	readonly verified?: boolean;
+	/** `"current"`: integrity current; `"unverified"`: tier unverified. */
+	readonly verified?: "current" | "unverified";
+	/** `true`: integrity drifted. */
+	readonly drifted?: boolean;
+	/** `true`: `stale_after` has passed. */
+	readonly stale?: boolean;
 }
 
 /** One outgoing link of a concept. @public */
@@ -61,11 +66,16 @@ const resolve = (
  * @public
  */
 export const ConceptQuery = {
-	/** Validates types then tags against config (first unknown fails), then filters and sorts by id. */
+	/**
+	 * Validates types then tags against config (first unknown fails), then filters
+	 * and sorts by id. `signals` is `Trust.signals(bundle, now)`; a concept with
+	 * no signal is a caller defect.
+	 */
 	list: (
 		bundle: LoadedBundle,
 		config: OkfitConfig,
 		filter: ConceptFilter,
+		signals: ReadonlyMap<string, ConceptSignal>,
 	): Effect.Effect<ReadonlyArray<LoadedConcept>, QueryUnknownVocabularyError> =>
 		Effect.gen(function* () {
 			const declaredTypes = Object.keys(config.types ?? {}).toSorted();
@@ -87,6 +97,14 @@ export const ConceptQuery = {
 				}
 			}
 			const statuses = filter.statuses ?? [];
+			const needsSignal = filter.verified !== undefined || filter.drifted !== undefined || filter.stale !== undefined;
+			if (needsSignal) {
+				for (const concept of bundle.concepts.values()) {
+					if (!signals.has(concept.id)) {
+						return yield* Effect.die(new Error(`ConceptQuery.list: no trust signal for concept "${concept.id}"`));
+					}
+				}
+			}
 			return (
 				[...bundle.concepts.values()]
 					.filter((concept) => {
@@ -94,9 +112,12 @@ export const ConceptQuery = {
 						const tags = concept.frontmatter.tags ?? [];
 						if (!requestedTags.every((tag) => tags.includes(tag))) return false;
 						if (statuses.length > 0 && !statuses.includes(Derive.status(concept.frontmatter))) return false;
-						if (filter.verified !== undefined) {
-							const hasVerified = (concept.frontmatter.verified ?? []).length > 0;
-							if (hasVerified !== filter.verified) return false;
+						const signal = signals.get(concept.id);
+						if (signal !== undefined) {
+							if (filter.verified === "current" && signal.integrity !== "current") return false;
+							if (filter.verified === "unverified" && signal.tier !== "unverified") return false;
+							if (filter.drifted !== undefined && (signal.integrity === "drifted") !== filter.drifted) return false;
+							if (filter.stale !== undefined && signal.stale !== filter.stale) return false;
 						}
 						return true;
 					})

@@ -316,7 +316,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "verified-drift",
 			description:
-				'A concept\'s latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, or a later human entry is unbound. A signal to re-verify, not a gate. Default "warn".',
+				'A concept\'s latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, or a later human entry is unbound. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default "warn".',
 			default: "warn",
 		}),
 	),

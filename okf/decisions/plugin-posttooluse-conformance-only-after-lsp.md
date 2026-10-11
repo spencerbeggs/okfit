@@ -13,9 +13,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 431442e73f7d9533
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 261de8448783fd95
 ---
 
 # The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings

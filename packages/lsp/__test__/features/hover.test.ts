@@ -156,6 +156,39 @@ describe("registerHover", () => {
 		}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 
+	it.effect("a body link to a human-verified, unbound target renders `integrity: drifted (unbound)`", () =>
+		Effect.gen(function* () {
+			const { registry, call, sourcePath, targetPath } = yield* setup();
+			yield* openAndRevalidate(registry, targetPath, TARGET);
+			yield* openAndRevalidate(registry, sourcePath, SOURCE);
+
+			const position = positionOf(SOURCE, "[Target]");
+			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+				textDocument: { uri: pathToUri(sourcePath) },
+				position: { line: position.line, character: position.character + 1 },
+			});
+
+			const { value } = contentsOf(hover);
+			assert.include(value, "- integrity: `drifted (unbound)`");
+		}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect("a target with no human verification renders `integrity: none`", () =>
+		Effect.gen(function* () {
+			const { registry, call, sourcePath, targetPath } = yield* setup();
+			yield* openAndRevalidate(registry, targetPath, TARGET.replace(/verified:\n {2}- by[^\n]*\n {4}at[^\n]*\n/, ""));
+			yield* openAndRevalidate(registry, sourcePath, SOURCE);
+
+			const position = positionOf(SOURCE, "[Target]");
+			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+				textDocument: { uri: pathToUri(sourcePath) },
+				position: { line: position.line, character: position.character + 1 },
+			});
+
+			assert.include(contentsOf(hover).value, "- integrity: `none`");
+		}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
 	it.effect("a frontmatter resource edge renders the same target facts", () =>
 		Effect.gen(function* () {
 			const { registry, call, sourcePath, targetPath } = yield* setup();

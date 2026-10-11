@@ -24,6 +24,9 @@ src/
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   context/
     run.ts                 -- runContext: index.md stat only, never Bundle.load
+  trust/
+    run.ts                 -- runContextTrust: the opt-in `context --trust` summary (loads the bundle; kept
+                               out of context/ so run.ts stays bundle-free)
   edits/
     FrontmatterEdits.ts     -- FrontmatterEdits (Context-free facade), UnsupportedFrontmatterError:
                                MarkdownEdits for a concept's top-level `status` scalar and its
@@ -58,7 +61,8 @@ src/
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically; also
                                   runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
-                                  optional promote) and loadPickerCandidates
+                                  optional promote), loadPickerCandidates, loadStaleCandidates
+                                  and loadPreviews (the picker's per-drifted-row changeSince)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
     index.ts                   -- syncIndex

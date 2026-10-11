@@ -33,13 +33,19 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T14:44:29Z
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
-    body: 63adc3533bf434d4
+    body: e2a708086fa9c1cd
+  verified:
+    by: human:spencer
+    at: 2026-10-11T15:55:11Z
+    content: b70f76a1f7cd620f
 ---
 
 # An @okfit/lsp language server and a VS Code extension over the shared engine
@@ -164,8 +170,7 @@ repository's own bundle.
    config change, rebuild the affected bundle root's session and
    schedule a full revalidate; publish `[]` for every URI a dropped
    session last published non-empty; carry open overlays into the
-   rebuilt session
-   ([the phase 3 limitation](../limitations/no-config-reload-in-phase-3.md)).
+   rebuilt session (the phase 3 server had no such reload; phase 4 fixed it).
    This is a prerequisite for phase 6, since VS Code sends the
    watched-file and workspace-folder notifications. Then every lint rule that knows its
    field or link attaches a range through the mapper core already owns

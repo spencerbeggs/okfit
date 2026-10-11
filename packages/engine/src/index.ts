@@ -47,6 +47,7 @@ export {
 	ContextField,
 	ContextFieldValue,
 	ContextTag,
+	ContextTrust,
 	ContextType,
 	contextEnvelope,
 } from "./render/context.js";
@@ -69,10 +70,13 @@ export {
 	QueryListEnvelope,
 	QueryNeighbor,
 	QueryNeighborsEnvelope,
+	TrustDrift,
 	queryGetEnvelope,
 	queryListEnvelope,
 	queryNeighborsEnvelope,
+	signalFor,
 	toConceptSummary,
+	toTrustDrift,
 } from "./render/query.js";
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
@@ -105,6 +109,8 @@ export { NotAPublicationError, PublicationNotFoundError, stampPublication } from
 export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult } from "./sync/run.js";
 export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
 export type { PendingWrite } from "./sync/write.js";
+export type { ContextTrustOptions } from "./trust/run.js";
+export { runContextTrust } from "./trust/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type { ChangeSince } from "./verify/diff.js";
@@ -124,6 +130,7 @@ export type {
 export {
 	inspectDrift,
 	loadPickerCandidates,
+	loadPreviews,
 	loadStaleCandidates,
 	runRevoke,
 	runVerify,

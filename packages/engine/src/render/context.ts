@@ -55,6 +55,24 @@ export const ContextTag = Schema.Struct({
 export type ContextTag = typeof ContextTag.Type;
 
 /**
+ * The `--trust` summary: how many concepts have drifted, are stale, or are
+ * unverified, with the first five drifted and stale ids (sorted). Counts
+ * overlap (a concept can be both drifted and stale).
+ *
+ * @public
+ */
+export const ContextTrust = Schema.Struct({
+	concepts: Schema.Int,
+	drifted: Schema.Int,
+	stale: Schema.Int,
+	unverified: Schema.Int,
+	drifted_ids: Schema.Array(Schema.String),
+	stale_ids: Schema.Array(Schema.String),
+});
+/** @public */
+export type ContextTrust = typeof ContextTrust.Type;
+
+/**
  * M-15's envelope: schema 1, snake_case, orientation data only. Distinct
  * from `JsonEnvelope` (`render/json.ts`) — `context` never runs conformance
  * or lint checks, so there is no `diagnostics` array and no `exit_code`
@@ -96,6 +114,7 @@ export const ContextEnvelope = Schema.Struct({
 	actors: Schema.Struct({ agent: Schema.NullOr(Schema.String) }),
 	types: Schema.Array(ContextType),
 	tags: Schema.Array(ContextTag),
+	trust: Schema.NullOr(ContextTrust),
 });
 /** @public */
 export type ContextEnvelope = typeof ContextEnvelope.Type;
@@ -117,6 +136,8 @@ export const contextEnvelope = (input: {
 	readonly indexPath: string;
 	readonly indexExists: boolean;
 	readonly config: OkfitConfig;
+	/** Present only under `--trust`; absent becomes `null` on the wire. */
+	readonly trust?: ContextTrust;
 }): ContextEnvelope => ({
 	schema: 1,
 	config_schema_version: CONFIG_SCHEMA_VERSION,
@@ -151,4 +172,5 @@ export const contextEnvelope = (input: {
 	tags: Object.entries(input.config.tags ?? {})
 		.map(([name, decl]) => ({ name, description: decl.description ?? null }))
 		.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
+	trust: input.trust ?? null,
 });

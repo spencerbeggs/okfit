@@ -1,5 +1,5 @@
 import { GraphNodeKind, Status } from "@okfit/core";
-import { ContextTag, ContextType } from "@okfit/engine";
+import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
 import { Schema } from "effect";
 import { ConceptSummary } from "./ConceptSummary.js";
 
@@ -52,6 +52,10 @@ export const ListConceptsParams = Schema.Struct({
 	type: Schema.optionalKey(Schema.String),
 	tags: Schema.optionalKey(Schema.Array(Schema.String)),
 	status: Schema.optionalKey(Status),
+	verified: Schema.optionalKey(Schema.Boolean),
+	drifted: Schema.optionalKey(Schema.Boolean),
+	stale: Schema.optionalKey(Schema.Boolean),
+	now: Schema.optionalKey(Schema.String),
 	limit: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1000 }))),
 	offset: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
 });
@@ -85,6 +89,10 @@ export const GetConceptSuccess = Schema.Struct({
 			field: Schema.optionalKey(Schema.String),
 		}),
 	),
+	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),
+	integrity: Schema.Literals(["current", "drifted", "none"]),
+	stale: Schema.Boolean,
+	drift: Schema.NullOr(TrustDrift),
 });
 /** @public */
 export type GetConceptSuccess = typeof GetConceptSuccess.Type;
@@ -119,6 +127,14 @@ export const StaleReportSuccess = Schema.Struct({
 			summary: ConceptSummary,
 			stale_after: Schema.String,
 			days_past: Schema.Int,
+		}),
+	),
+	drifted: Schema.Array(
+		Schema.Struct({
+			summary: ConceptSummary,
+			reason: Schema.Literals(["content-changed", "unbound", "entry-superseded"]),
+			edited_by: Schema.NullOr(Schema.String),
+			edited_at: Schema.NullOr(Schema.String),
 		}),
 	),
 });

@@ -14,15 +14,17 @@ Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/S
 - **Diagnostics.** Every OKF lint the `@okfit/engine` reports, published
   with a precise range and re-published as you edit or save.
 - **Hover.** A link, a `type:` value, or a frontmatter key renders the
-  target concept's title, type, status and staleness, or that field's own
+  target concept's title, type, status, integrity and staleness, or that field's own
   description.
 - **Go to definition** and **find references** for links between
   concepts.
 - **Workspace symbols.** Every concept across every open bundle, searched
   by id or title.
 - **OKF Concepts explorer.** A tree view (Explorer sidebar) grouping
-  every live bundle's concepts by type, with a stale-count badge and
-  status decorations.
+  every live bundle's concepts by type, with status decorations, a `!` drift badge that
+  outranks the stale badge, and an activity-bar count of stale plus drifted
+  concepts. A `verified-drift` diagnostic offers a `Re-verify as <actor>`
+  quick fix.
 - **Language Status item.** Shows the active document's bundle and
   profile, or the worst diagnostic severity among that bundle's own
   files, in the editor's status area.

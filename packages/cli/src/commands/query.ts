@@ -4,6 +4,7 @@ import { Bundle } from "@okfit/core";
 import type { ConceptFilter, Distribution } from "@okfit/engine";
 import {
 	ConceptQuery,
+	Now,
 	QueryGetEnvelope,
 	QueryListEnvelope,
 	QueryNeighborsEnvelope,
@@ -14,8 +15,12 @@ import {
 	queryListEnvelope,
 	queryNeighborsEnvelope,
 	resolveProjectConfig,
+	signalFor,
 	toConceptSummary,
+	toTrustDrift,
 } from "@okfit/engine";
+import type { ConceptSignal } from "@okfit/profiles";
+import { Trust } from "@okfit/profiles";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
@@ -62,12 +67,22 @@ const statusFlag = Flag.Literals("status", ["draft", "stable", "deprecated"] as 
 
 const verifiedFlag = Flag.Boolean("verified").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("only concepts with at least one verified entry"),
+	Flag.withDescription("only concepts whose latest human verification is current"),
 );
 
 const unverifiedFlag = Flag.Boolean("unverified").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("only concepts with no verified entry"),
+	Flag.withDescription("only concepts with no verification (tier unverified)"),
+);
+
+const driftedFlag = Flag.Boolean("drifted").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("only concepts whose human verification no longer matches their content"),
+);
+
+const staleFlag = Flag.Boolean("stale").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("only concepts whose stale_after has passed"),
 );
 
 /**
@@ -86,6 +101,7 @@ const run = <A, E, R>(
 		readonly config: OkfitConfig;
 		readonly root: string;
 		readonly distribution: Option.Option<Distribution>;
+		readonly signals: ReadonlyMap<string, ConceptSignal>;
 	}) => Effect.Effect<A, E, R>,
 	precheck?: Effect.Effect<void, QuerySelectionError>,
 ) =>
@@ -103,7 +119,10 @@ const run = <A, E, R>(
 				cwd,
 			});
 			const bundle = yield* Bundle.load({ root: resolved.bundleRoot });
+			const now = yield* Now;
+			const signals = yield* Trust.signals(bundle, now);
 			yield* use({
+				signals,
 				bundle,
 				config: resolved.config,
 				root: displayRoot(cwd, resolved.bundleRoot, path),
@@ -127,7 +146,7 @@ const distributionOf = (distribution: Option.Option<Distribution>) =>
 
 /**
  * `okfit query list [path] [--type <T>]... [--tag <t>]... [--status <s>]...
- * [--verified|--unverified] [--config <file>] [--format human|json]`.
+ * [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]`.
  *
  * @public
  */
@@ -141,6 +160,8 @@ export const queryListCommand = Command.make(
 		status: statusFlag,
 		verified: verifiedFlag,
 		unverified: unverifiedFlag,
+		drifted: driftedFlag,
+		stale: staleFlag,
 		format: formatFlag,
 	},
 	(input) => {
@@ -148,15 +169,17 @@ export const queryListCommand = Command.make(
 			...(input.type.length > 0 ? { types: input.type } : {}),
 			...(input.tag.length > 0 ? { tags: input.tag } : {}),
 			...(input.status.length > 0 ? { statuses: input.status } : {}),
-			...(input.verified ? { verified: true } : {}),
-			...(input.unverified ? { verified: false } : {}),
+			...(input.verified ? { verified: "current" as const } : {}),
+			...(input.unverified ? { verified: "unverified" as const } : {}),
+			...(input.drifted ? { drifted: true } : {}),
+			...(input.stale ? { stale: true } : {}),
 		};
 		return run(
 			input,
-			({ bundle, config, root, distribution }) =>
+			({ bundle, config, root, distribution, signals }) =>
 				Effect.gen(function* () {
-					const concepts = yield* ConceptQuery.list(bundle, config, filter);
-					const items = concepts.map(toConceptSummary);
+					const concepts = yield* ConceptQuery.list(bundle, config, filter, signals);
+					const items = concepts.map((c) => toConceptSummary(c, signalFor(signals, c.id)));
 					if (input.format === "json") {
 						const envelope = queryListEnvelope({
 							okfitVersion: CLI_VERSION,
@@ -176,7 +199,7 @@ export const queryListCommand = Command.make(
 		);
 	},
 ).pipe(
-	Command.withDescription("List concepts, sorted by id, optionally filtered by type, tag, status, or verified state."),
+	Command.withDescription("List concepts, sorted by id, optionally filtered by type, tag, status, or trust signal."),
 );
 
 /**
@@ -188,14 +211,16 @@ export const queryGetCommand = Command.make(
 	"get",
 	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
 	(input) =>
-		run(input, ({ bundle, distribution }) =>
+		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
 				const { concept, links } = yield* ConceptQuery.get(bundle, input.id);
-				const summary = toConceptSummary(concept);
+				const signal = signalFor(signals, concept.id);
+				const summary = toConceptSummary(concept, signal);
 				if (input.format === "json") {
 					const envelope = queryGetEnvelope({
 						okfitVersion: CLI_VERSION,
 						concept: summary,
+						drift: toTrustDrift(signal),
 						frontmatter: concept.frontmatter.raw,
 						links,
 						...distributionOf(distribution),
@@ -204,6 +229,7 @@ export const queryGetCommand = Command.make(
 				} else {
 					for (const line of humanQueryGet({
 						summary,
+						drift: toTrustDrift(signal),
 						verified: concept.frontmatter.verified ?? [],
 						links,
 					})) {
@@ -223,13 +249,13 @@ export const queryNeighborsCommand = Command.make(
 	"neighbors",
 	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
 	(input) =>
-		run(input, ({ bundle, distribution }) =>
+		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
 				const result = yield* ConceptQuery.neighbors(bundle, input.id);
 				const project = (n: (typeof result.outgoing)[number]) => ({
 					id: n.id,
 					kind: n.kind,
-					summary: n.concept === null ? null : toConceptSummary(n.concept),
+					summary: n.concept === null ? null : toConceptSummary(n.concept, signalFor(signals, n.concept.id)),
 				});
 				const outgoing = result.outgoing.map(project);
 				const incoming = result.incoming.map(project);

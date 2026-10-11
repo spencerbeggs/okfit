@@ -12,9 +12,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: afe947a83c77cd02
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 8d03c96e19a40a2c
 ---
 
 # The software-project vocabulary grows a third time from the silk action migrations

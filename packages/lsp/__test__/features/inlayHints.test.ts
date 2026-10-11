@@ -4,11 +4,13 @@ import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
 import { Actor, Concept, DiagnosticRange, Verification } from "@okfit/core";
 import { DateTime, Effect, Option, Result, Schema } from "effect";
+import { TestClock } from "effect/testing";
 import { toLspRange } from "../../src/convert/range.js";
 import { pathToUri } from "../../src/convert/uri.js";
 import { hintsFor, registerInlayHints } from "../../src/features/inlayHints.js";
 import type { InlayHint, InlayHintParams } from "../../src/protocol/types.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
+import { withBinding } from "../utils/digest.js";
 import { makeCapturingTransport } from "../utils/fakeTransport.js";
 import { copyFixtureProject } from "../utils/fixture.js";
 import { testPlatform } from "../utils/platform.js";
@@ -70,6 +72,25 @@ describe("hintsFor", () => {
 				NOW,
 			);
 			assert.deepStrictEqual(hints, [{ path: ["status"], label: "unverified · stale" }]);
+		}),
+	);
+
+	it.effect("drifted integrity appends ` · drifted`, after ` · stale` when both hold", () =>
+		Effect.sync(() => {
+			assert.deepStrictEqual(hintsFor(concept({ status: "stable" }), NOW, "drifted"), [
+				{ path: ["status"], label: "unverified · drifted" },
+			]);
+			assert.deepStrictEqual(
+				hintsFor(
+					concept({ status: "stable", stale_after: DateTime.makeUnsafe("2026-01-01T00:00:00Z") }),
+					NOW,
+					"drifted",
+				),
+				[{ path: ["status"], label: "unverified · stale · drifted" }],
+			);
+			assert.deepStrictEqual(hintsFor(concept({ status: "stable" }), NOW, "current"), [
+				{ path: ["status"], label: "unverified" },
+			]);
 		}),
 	);
 
@@ -333,5 +354,47 @@ describe("registerInlayHints", () => {
 				assert.strictEqual(hints[0]?.position.line, expectedPosition.line);
 				assert.strictEqual(hints[0]?.position.character, expectedPosition.character);
 			}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
+	it.effect("a bound concept whose buffer body changes after revalidate shows ` · drifted`", () =>
+		Effect.gen(function* () {
+			const { root } = yield* copyFixtureProject();
+			const conceptPath = join(root, "okf", "modules", "status.md");
+			const verified = STATUS_SOURCE.replace(
+				"status: stable\n",
+				'status: stable\nverified:\n  - by: "human:fixture-author"\n    at: "2026-01-01T00:00:00Z"\n',
+			);
+			const bound = yield* withBinding(verified, "human:fixture-author", "2026-01-01T00:00:00Z");
+			yield* Effect.promise(() => writeFile(conceptPath, bound, "utf8"));
+
+			const { transport, call } = makeCapturingTransport();
+			const registry = yield* makeSessionRegistry({
+				delay: "10 millis",
+				maxWait: "10 seconds",
+				onRevalidate: () => Effect.void,
+				onDispose: () => Effect.void,
+			});
+			yield* registerInlayHints(transport, registry);
+			yield* registry.setFolders([root]);
+			const handle = Option.getOrThrow(yield* registry.sessionFor(conceptPath));
+			const params: InlayHintParams = {
+				textDocument: { uri: pathToUri(conceptPath) },
+				range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+			};
+			const labels = (hints: ReadonlyArray<InlayHint>) => hints.map((hint) => String(hint.label));
+
+			yield* handle.session.open(conceptPath, bound, 1);
+			yield* TestClock.setTime(Date.now());
+			const now = yield* DateTime.now;
+			yield* handle.session.revalidate({ now, tier: "full" });
+			const before = labels(yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", params));
+			assert.isTrue(before.some((label) => label.startsWith("human-reviewed by")));
+			assert.isFalse(before.some((label) => label.endsWith(" · drifted")));
+
+			yield* handle.session.change(conceptPath, bound.replace("Nothing here", "Something else here"), 2);
+			yield* handle.session.revalidate({ now, tier: "full" });
+			const after = labels(yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", params));
+			assert.isTrue(after.some((label) => label.endsWith(" · drifted")));
+		}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 });

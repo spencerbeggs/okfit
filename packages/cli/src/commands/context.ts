@@ -1,11 +1,13 @@
 import { CurrentDistribution } from "@effected/engine";
 import {
 	ContextEnvelope,
+	Now,
 	contextEnvelope,
 	jsonError,
 	provideConfig,
 	resolveProjectConfig,
 	runContext,
+	runContextTrust,
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
@@ -32,8 +34,13 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDescription("output format: human (default) or json"),
 );
 
+const trustFlag = Flag.Boolean("trust").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription("also load the bundle and summarize drifted, stale and unverified concepts"),
+);
+
 /**
- * `okfit context [path] [--config <file>] [--format human|json]`.
+ * `okfit context [path] [--config <file>] [--format human|json] [--trust]`.
  *
  * Handler order fixed by the contract (§8.3): steps 1–7 are
  * `validateCommand`'s handler in substance (both now share
@@ -50,7 +57,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
  */
 export const contextCommand = Command.make(
 	"context",
-	{ path: pathArg, config: configFlag, format: formatFlag },
+	{ path: pathArg, config: configFlag, format: formatFlag, trust: trustFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -83,6 +90,17 @@ export const contextCommand = Command.make(
 				// rule, regardless of whether that name resolved to a known profile.
 				const profileRequested = configPath === null ? null : profileName;
 
+				// Opt-in: only `--trust` loads the bundle; the default path stays a single stat.
+				// A project with no bundle yet (index.md missing) has nothing to summarize:
+				// trust stays null, as plain `context` succeeds with index_exists: false.
+				const trust =
+					input.trust && indexExists
+						? yield* Effect.gen(function* () {
+								const now = yield* Now;
+								return yield* runContextTrust({ bundleRoot, now });
+							})
+						: undefined;
+
 				const envelope = contextEnvelope({
 					projectRoot,
 					bundleRoot,
@@ -92,6 +110,7 @@ export const contextCommand = Command.make(
 					indexPath,
 					indexExists,
 					config: merged,
+					...(trust === undefined ? {} : { trust }),
 				});
 
 				if (input.format === "json") {
@@ -117,6 +136,6 @@ export const contextCommand = Command.make(
 		}),
 ).pipe(
 	Command.withDescription(
-		"Print the resolved project root, bundle root, config path, profile, and type/tag vocabulary without loading the bundle.",
+		"Print the resolved project root, bundle root, config path, profile, and type/tag vocabulary without loading the bundle (unless --trust is passed).",
 	),
 );

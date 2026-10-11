@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -85,3 +86,39 @@ export const bindFixtures = (root: string, names: ReadonlyArray<string>) =>
 			yield* Effect.promise(() => writeFile(join(root, name), text.replaceAll(DIGEST, digest)));
 		}
 	}).pipe(Effect.provide(NodeServices.layer));
+
+/** The real `Git` (history and identity read from the temp repository) over Node's services. */
+export const repoPlatform = Layer.mergeAll(Git.layer, NodeServices.layer).pipe(Layer.provideMerge(NodeServices.layer));
+
+const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", LC_ALL: "C" };
+
+const git = (cwd: string, args: ReadonlyArray<string>, date?: string): void => {
+	execFileSync("git", [...args], {
+		cwd,
+		env: date === undefined ? GIT_ENV : { ...GIT_ENV, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+		stdio: "pipe",
+	});
+};
+
+/** The line appended to `decisions/c.md` after its commit, so its verification drifts (content-changed). */
+export const DRIFT_EDIT = "An edit after the verification.";
+
+/**
+ * {@link FILES} in a git repository whose identity is Ada: committed before
+ * `decisions/c.md`'s binding (2026-09-01), then `decisions/c.md` edited, so the
+ * picker offers it again as drifted, with a diff to preview.
+ */
+export const withDriftedRepoBundle = <A, E, R>(body: (root: string) => Effect.Effect<A, E, R>) =>
+	withBundle(FILES, (root) =>
+		Effect.gen(function* () {
+			git(root, ["-c", "init.defaultBranch=main", "init", "-q"]);
+			git(root, ["config", "user.name", "Ada"]);
+			git(root, ["config", "user.email", "ada@example.com"]);
+			git(root, ["config", "commit.gpgsign", "false"]);
+			git(root, ["add", "-A"]);
+			git(root, ["commit", "-q", "-m", "bundle"], "2026-08-31T00:00:00Z");
+			const file = join(root, "decisions/c.md");
+			yield* Effect.promise(async () => writeFile(file, `${await readFile(file, "utf8")}\n${DRIFT_EDIT}\n`));
+			return yield* body(root);
+		}),
+	);

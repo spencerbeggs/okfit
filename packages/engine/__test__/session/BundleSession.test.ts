@@ -14,6 +14,17 @@ const codesOf = (changed: ReadonlyMap<string, ReadonlyArray<{ readonly code: str
 	changed.get(file)?.map((d) => d.code);
 
 describe("BundleSession", () => {
+	it.effect("signals() is None before a revalidate and holds every concept after", () =>
+		Effect.gen(function* () {
+			const session = yield* make();
+			assert.isTrue(Option.isNone(yield* session.signals()));
+			const { bundle } = yield* session.revalidate(edit);
+			const signals = Option.getOrThrow(yield* session.signals());
+			assert.deepStrictEqual([...signals.keys()].sort(), [...bundle.concepts.keys()].sort());
+			assert.strictEqual(signals.size, 2);
+		}).pipe(Effect.provide(sessionPlatform(SEED))),
+	);
+
 	it.effect("the first revalidate of a clean bundle reports nothing; bundle() and graph() fill in", () =>
 		Effect.gen(function* () {
 			const session = yield* make();

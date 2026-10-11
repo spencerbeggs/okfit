@@ -1,10 +1,22 @@
+import { writeFile } from "node:fs/promises";
 import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli/ui/testing";
 import type { Actor } from "@okfit/core";
-import { runVerifyIds } from "@okfit/engine";
+import { loadStaleCandidates, runVerifyIds } from "@okfit/engine";
 import { Effect, Exit, Fiber, Option } from "effect";
+import type { PickerSource } from "../../src/commands/verify-picker.js";
 import { pickConcepts, pickerLabel } from "../../src/commands/verify-picker.js";
-import { AT, FILES, config, platform, read, withBundle } from "../utils/picker.js";
+import {
+	AT,
+	DRIFT_EDIT,
+	FILES,
+	config,
+	platform,
+	read,
+	repoPlatform,
+	withBundle,
+	withDriftedRepoBundle,
+} from "../utils/picker.js";
 
 const options = (root: string) => ({ bundleRoot: root, projectRoot: root, config });
 
@@ -14,6 +26,16 @@ const start = (root: string, interactive = true) =>
 		const session = yield* CliUiTest.session({ interactive });
 		const fiber = yield* Effect.forkScoped(
 			pickConcepts(options(root)).pipe(Effect.provide(session.layer), Effect.provide(platform)),
+		);
+		return { session, fiber };
+	});
+
+/** As {@link start}, over a git repository (real history, so drifted rows preview a diff). */
+const startInRepo = (root: string, size: { readonly columns: number; readonly rows: number }, source?: PickerSource) =>
+	Effect.gen(function* () {
+		const session = yield* CliUiTest.session(size);
+		const fiber = yield* Effect.forkScoped(
+			pickConcepts(options(root), source).pipe(Effect.provide(session.layer), Effect.provide(repoPlatform)),
 		);
 		return { session, fiber };
 	});
@@ -30,6 +52,8 @@ describe("pickConcepts", () => {
 				otherAttestations: 0,
 				integrity: "none",
 				stale: false,
+				path: "/b/a.md",
+				boundAt: null,
 			}),
 			"a  draft",
 		);
@@ -43,6 +67,8 @@ describe("pickConcepts", () => {
 				otherAttestations: 2,
 				integrity: "none",
 				stale: false,
+				path: "/b/a.md",
+				boundAt: null,
 			}),
 			"a  stable  2 other attestation(s)",
 		);
@@ -56,6 +82,8 @@ describe("pickConcepts", () => {
 				otherAttestations: 0,
 				integrity: "drifted",
 				stale: false,
+				path: "/b/a.md",
+				boundAt: null,
 			}),
 			"a  stable  drifted",
 		);
@@ -69,6 +97,8 @@ describe("pickConcepts", () => {
 				otherAttestations: 0,
 				integrity: "drifted",
 				stale: true,
+				path: "/b/a.md",
+				boundAt: null,
 			}),
 			"a  stable  drifted  stale",
 		);
@@ -82,6 +112,8 @@ describe("pickConcepts", () => {
 				otherAttestations: 0,
 				integrity: "none",
 				stale: true,
+				path: "/b/a.md",
+				boundAt: null,
 			}),
 			"a  stable  stale",
 		);
@@ -253,4 +285,152 @@ describe("pickConcepts", () => {
 			}),
 		),
 	);
+
+	it.effect("with no drifted row the list is the stock MultiSelect: no preview pane", () =>
+		withBundle(
+			FILES.filter(([name]) => name !== "modules/m.md"),
+			(root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(root);
+						const list = yield* session.next({ contains: "Attest which concepts?" });
+						const frame = yield* list.plainFrame;
+						assert.include(frame, "decisions/a  draft");
+						assert.notInclude(frame, "drifted");
+						// The preview pane would say `not drifted` for this highlighted row.
+						assert.notInclude(frame, "not drifted");
+						// The stock view draws the highlighted row's detail under the list; the preview pane would not.
+						assert.include(frame, "Alpha — first choice");
+						yield* list.press("escape");
+						yield* Fiber.join(fiber).pipe(Effect.exit);
+					}),
+				),
+		),
+	);
+
+	it.effect("an unbound drifted row previews why there is no baseline, without reading git history", () =>
+		withBundle(FILES, (root) =>
+			Effect.scoped(
+				Effect.gen(function* () {
+					// `platform`'s Git fakes identity only: a history read would die, so this proves none happens.
+					const { session, fiber } = yield* start(root);
+					const list = yield* session.next({ contains: "Attest which concepts?" });
+					assert.include(yield* list.plainFrame, "not drifted");
+					yield* list.press("down", "down");
+					const frame = yield* list.plainFrame;
+					assert.include(frame, "modules/m  stable  1 other attestation(s)  drifted");
+					assert.include(frame, "no baseline to compare: no integrity binding records what was verified");
+					yield* list.press("escape");
+					yield* Fiber.join(fiber).pipe(Effect.exit);
+				}),
+			),
+		),
+	);
+
+	describe("with a drifted concept: the diff preview screen", () => {
+		it.effect("moving the highlight changes the preview; submit resolves as the stock picker does", () =>
+			withDriftedRepoBundle((root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* startInRepo(root, { columns: 140, rows: 30 });
+						const screen = yield* session.next({ contains: "Attest which concepts?" });
+						const first = yield* screen.plainFrame;
+						// decisions/a is highlighted first: never verified, so nothing to diff.
+						assert.include(first, "decisions/a  draft");
+						assert.include(first, "decisions/c  stable  drifted");
+						assert.include(first, "not drifted");
+						assert.notInclude(first, "@@");
+						yield* screen.press("down", "down");
+						const drifted = yield* screen.plainFrame;
+						assert.include(drifted, "changed since");
+						assert.include(drifted, "@@");
+						assert.include(drifted, `+${DRIFT_EDIT}`);
+						assert.notInclude(drifted, "not drifted");
+						// Back up one row: the preview follows the highlight.
+						yield* screen.press("up");
+						assert.notInclude(yield* screen.plainFrame, "@@");
+						yield* screen.press("down", "space", "enter");
+						const confirm = yield* session.next({ contains: "Attest 1 concept(s) as human:ada?" });
+						assert.notInclude(yield* confirm.plainFrame, "promote");
+						yield* confirm.press("enter");
+						assert.deepStrictEqual(yield* Fiber.join(fiber), {
+							by: "human:ada" as Actor,
+							ids: ["decisions/c"],
+							promote: false,
+						});
+					}),
+				),
+			),
+		);
+
+		it.effect("a narrow terminal stacks the preview below the list; a section toggle and a draft still promote", () =>
+			withDriftedRepoBundle((root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* startInRepo(root, { columns: 60, rows: 30 });
+						const screen = yield* session.next({ contains: "Attest which concepts?" });
+						yield* screen.press("down", "down");
+						const lines = (yield* screen.plainFrame).split("\n");
+						const row = lines.findIndex((line) => line.includes("decisions/c  stable  drifted"));
+						const hunk = lines.findIndex((line) => line.includes("@@"));
+						assert.isAbove(row, -1);
+						assert.isAbove(hunk, row);
+						// The preview is below the list, not beside the row.
+						assert.notInclude(lines[row], "@@");
+						yield* screen.press({ char: "a" }, "enter");
+						const confirm = yield* session.next({ contains: "Attest 3 concept(s) as human:ada?" });
+						assert.include(yield* confirm.plainFrame, "promote 1 draft(s) to stable");
+						yield* confirm.press("enter");
+						assert.deepStrictEqual(yield* Fiber.join(fiber), {
+							by: "human:ada" as Actor,
+							ids: ["decisions/a", "decisions/b", "decisions/c"],
+							promote: true,
+						});
+					}),
+				),
+			),
+		);
+
+		it.effect("q cancels the preview screen with escape", () =>
+			withDriftedRepoBundle((root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* startInRepo(root, { columns: 140, rows: 30 });
+						const screen = yield* session.next({ contains: "Attest which concepts?" });
+						yield* screen.press({ char: "q" });
+						const exit = yield* Fiber.await(fiber);
+						assert.isTrue(Exit.isFailure(exit));
+						assert.deepStrictEqual(CliUiTest.cancelReason(exit), Option.some("escape"));
+					}),
+				),
+			),
+		);
+
+		it.effect("serves a custom source too (stale --verify): its title over the same preview", () =>
+			withDriftedRepoBundle((root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const source: PickerSource = {
+							load: loadStaleCandidates({ ...options(root), now: AT }),
+							empty: () => "nothing stale",
+							message: "Re-verify which stale concepts?",
+						};
+						// The stale set is empty here, so add a stale_after to the drifted concept.
+						const file = `${root}/decisions/c.md`;
+						const text = yield* read(root, "decisions/c.md");
+						yield* Effect.promise(() =>
+							writeFile(file, text.replace("title: Gamma\n", "title: Gamma\nstale_after: 2026-01-01T00:00:00Z\n")),
+						);
+						const { session, fiber } = yield* startInRepo(root, { columns: 140, rows: 30 }, source);
+						const screen = yield* session.next({ contains: "Re-verify which stale concepts?" });
+						const frame = yield* screen.plainFrame;
+						assert.include(frame, "decisions/c  stable  drifted  stale");
+						assert.include(frame, "@@");
+						yield* screen.press("escape");
+						yield* Fiber.join(fiber).pipe(Effect.exit);
+					}),
+				),
+			),
+		);
+	});
 });

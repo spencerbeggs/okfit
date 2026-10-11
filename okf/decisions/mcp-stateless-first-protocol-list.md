@@ -23,9 +23,15 @@ sources:
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 6db2be3f457d1894
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: fbaab8bc4219b84a
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first

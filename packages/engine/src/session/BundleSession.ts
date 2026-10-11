@@ -1,7 +1,7 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LinkGraph, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Graph } from "@okfit/core";
-import type { GitHistory, GitHistoryError, Profile } from "@okfit/profiles";
+import type { ConceptSignal, GitHistory, GitHistoryError, Profile } from "@okfit/profiles";
 import type { Crypto, DateTime, PlatformError } from "effect";
 import { Context, Effect, FileSystem, Option, Path, Ref, Semaphore } from "effect";
 import { PROJECT_CONFIG_NAMES } from "../init/scaffold.js";
@@ -90,12 +90,15 @@ export interface BundleSessionShape {
 	readonly revalidate: (options: RevalidateOptions) => Effect.Effect<RevalidateResult, RevalidateError>;
 	readonly bundle: () => Effect.Effect<Option.Option<LoadedBundle>>;
 	readonly graph: () => Effect.Effect<Option.Option<LinkGraph>>;
+	/** Every concept's trust signal from the last revalidate, keyed by concept id. */
+	readonly signals: () => Effect.Effect<Option.Option<ReadonlyMap<string, ConceptSignal>>>;
 	readonly config: () => OkfitConfig;
 }
 
 interface Loaded {
 	readonly bundle: LoadedBundle;
 	readonly graph: LinkGraph;
+	readonly signals: ReadonlyMap<string, ConceptSignal>;
 }
 
 const CONFIG_BASENAMES: ReadonlySet<string> = new Set(
@@ -143,7 +146,10 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 				// One atomic read-diff-write: exactly-once reporting holds by construction.
 				// The semaphore (below) is what keeps an older, slower run from landing last.
 				const changed = yield* Ref.modify(published, (previous) => [diffDiagnostics(previous, next), next] as const);
-				yield* Ref.set(loaded, Option.some({ bundle: result.bundle, graph: Graph.fromBundle(result.bundle) }));
+				yield* Ref.set(
+					loaded,
+					Option.some({ bundle: result.bundle, graph: Graph.fromBundle(result.bundle), signals: result.signals }),
+				);
 				return { changed, bundle: result.bundle };
 			});
 
@@ -164,6 +170,11 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					Effect.map(
 						Ref.get(loaded),
 						Option.map((state) => state.graph),
+					),
+				signals: () =>
+					Effect.map(
+						Ref.get(loaded),
+						Option.map((state) => state.signals),
 					),
 				config: () => options.config,
 			});

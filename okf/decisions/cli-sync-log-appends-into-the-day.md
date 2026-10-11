@@ -6,26 +6,36 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T18:38:30Z
+  at: 2026-10-11T14:44:29Z
 status: stable
-supersedes: cli-sync-log-appends-never-rewrites.md
 verified:
   - by: human:spencer
     at: 2026-09-24T00:20:55.156Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
-    body: 936d22b0c4ca14ea
+    body: 4612515e53ba8761
+  verified:
+    by: human:spencer
+    at: 2026-10-11T15:55:11Z
+    content: 3b405fdc7c7ae8f1
 ---
 
 # okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
 
 ## Context
 
-The superseded rule only added items for dates strictly after the newest
+An earlier rule only added items for dates strictly after the newest
 `## YYYY-MM-DD` group, so a concept committed on a day that already had a
 group -- the common case, since `okfit init` writes the day's group and the
 first concepts land the same day -- was never logged at all (issue #18).
-The rule protected hand-written prose, but `mergeLog` already appends new
+That rule existed because `log.md` is reserved and derived yet also
+curated, hand-editable history, so regenerating it wholesale from git
+history would discard hand-written refinements. The protection was
+stronger than that guarantee needed: `mergeLog` already appends new
 items after an existing group's verbatim text without touching a byte of
 it, so the protection was stronger than the guarantee needed.
 
@@ -45,8 +55,9 @@ they had; new items are appended after the last existing item.
 Keeping the strictly-after rule and asking the finalize skill to
 hand-write the missing line was rejected because it made the most common
 migration shape (init and first concepts on one day) silently unlogged.
-Deduplicating against prose by fuzzy match was rejected for the same
-reason the superseded decision gave: there is no reliable answer.
+Deduplicating against prose by fuzzy match was rejected because it
+would require log mode to parse prose it did not write, a comparison
+with no reliable answer.
 
 ## Consequences
 

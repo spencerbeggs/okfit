@@ -31,9 +31,15 @@ verified:
     at: 2026-09-24T15:59:56Z
   - by: human:spencer
     at: 2026-09-24T17:51:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: efc14094c73730ab
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: da9401276f81f08e
 ---
 
 # okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents

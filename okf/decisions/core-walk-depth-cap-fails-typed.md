@@ -11,9 +11,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-08T02:12:58Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 3c2b5ef2c57c4307
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: b89bebbd2c5366d6
 ---
 
 # A walk past maxDepth fails typed, never silently truncates

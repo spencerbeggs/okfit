@@ -11,9 +11,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-08T13:12:40Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: ffdf12c47a71e48e
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 0cf5420706f6bfa0
 ---
 
 # okfit sync is the one command that regenerates every derived-content family

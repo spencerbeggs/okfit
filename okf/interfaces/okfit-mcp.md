@@ -7,15 +7,21 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T13:44:11Z
 tags:
   - architecture
 verified:
   - by: human:spencer
     at: 2026-09-24T00:18:14.360Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
-    body: f84e156133183262
+    body: 39138456c1e02710
+  verified:
+    by: human:spencer
+    at: 2026-10-11T15:55:11Z
+    content: e27cf0a0f90f50a3
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -25,11 +31,13 @@ integrity:
 | Tool | Returns | Key argument/filter | Primary failure mode |
 | --- | --- | --- | --- |
 | `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`. | none (`Tool.EmptyParams`) | a refusal when config resolution fails |
-| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `limit`/`offset` | a refusal for an undeclared type or tag |
-| `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
+| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `verified` (boolean: `true` is current, `false` is never verified), `drifted`, `stale` (with optional `now`), `limit`/`offset` | a refusal for an undeclared type or tag |
+| `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, trust `tier`, `integrity`, `stale`, `drift` (`reason`, `edited_by`, `edited_at`) when drifted, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | a refusal for an unknown or empty id |
-| `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | a refusal for an unparseable `now`, or when the config or bundle fails to load |
+| `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past, plus a `drifted` list of the concepts edited since their verification. | optional `now` (ISO-8601, explicit offset) | a refusal for an unparseable `now`, or when the config or bundle fails to load |
 | `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged (including the `verified-drift` lint at its configured severity): `engine_version` and `okf_version` match the CLI's over one bundle, while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now`; optional `documents: [{ path, text }]` (bundle-relative posix `.md` paths) validated in place of disk, a not-yet-written file under an existing directory included, nothing written | `BundleNotFound`; `InvalidArgument` for a document path that is absolute, escapes the bundle, is not `.md`, repeats, or sits under a directory that does not exist |
+
+Every concept summary carries `tier`, `integrity` and `stale`, computed from the profile's `Trust.evaluate` whether or not the `verified-drift` lint is on.
 
 `docs_presets` lists the resolved profile's docs-surface presets, each with `name`, `description`, `additive` and `surfaces` (`file`, `frontmatter`, `body`); the docs skills write those surfaces as Surface concepts. It is `[]` when the profile is `none` or unresolved.
 
@@ -43,7 +51,9 @@ integrity:
   mid-session appears only after the server restarts, since the list
   itself is fixed at boot.
 
-Both resource kinds declare mime type `text/markdown`.
+Both resource kinds declare mime type `text/markdown`. Their descriptions
+carry no trust state: they are fixed at boot, and a snapshot of drift taken
+then would mislead later in the session.
 
 ## Errors
 
@@ -106,4 +116,5 @@ those three and in that order, not restated here. The server's
 both the `initialize` result and the `server/discover` result, and it
 states the orientation above (read-only tools, `describe_vocabulary` then
 `list_concepts`, id shape, and the `structuredContent`/`isError` result
-shapes).
+shapes) and a paragraph on the trust signals: how to weigh a drifted or
+stale concept and which filters find them.
