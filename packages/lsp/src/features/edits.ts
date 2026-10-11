@@ -97,7 +97,7 @@ export interface EditTarget {
 	readonly version: number | null;
 	/** The raw top-level `status` value when it is a string, else `undefined` (no explicit status). */
 	readonly status: string | undefined;
-	/** Every well-formed `verified[]` entry (`by`, decoded `at`) in the frontmatter, in order; an entry with no string `by` or an unparseable `at` is skipped. */
+	/** The `verified[]` entries (`by`, decoded `at`) in order, decoded by core's `Verification.List`: one malformed entry voids the whole list (`[]`). */
 	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: DateTime.Utc }>;
 	/** The recorded `integrity.verified` binding (`by`, `at`, `content`) when the frontmatter carries a well-formed one. */
 	readonly binding: { readonly by: string; readonly at: DateTime.Utc; readonly content: string } | undefined;
@@ -144,7 +144,7 @@ export const editTarget = (
 		const decodeAt = Schema.decodeUnknownOption(Timestamp);
 		// Core's own decode: a bare mapping is a one-element list, and any malformed entry voids the whole family.
 		const verifiedEntries = Option.getOrElse(Schema.decodeUnknownOption(Verification.List)(verified), () => []).map(
-			(entry) => ({ by: entry.by as string, at: entry.at }),
+			(entry) => ({ by: entry.by, at: entry.at }),
 		);
 		const verifiedBinding = field(field(data, "integrity"), "verified");
 		const bindingBy = field(verifiedBinding, "by");

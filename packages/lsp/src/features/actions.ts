@@ -63,23 +63,14 @@ const STATUSES: ReadonlyArray<Status> = Status.literals;
 /** The statuses a `status-missing` quick fix offers, the first preferred. */
 const QUICK_FIX_STATUSES: ReadonlyArray<Status> = ["draft", "stable"];
 
-/** `diagnostics`' own `status-missing` entry, `convert/diagnostic.ts`'s exact shape (`code`, `data.source`). */
-const statusMissingOf = (
+/** `diagnostics`' own entry for `code`, `convert/diagnostic.ts`'s exact shape (`code`, `data.source`). */
+const diagnosticWith = (
 	diagnostics: CodeActionParams["context"]["diagnostics"],
+	code: string,
 ): CodeActionParams["context"]["diagnostics"][number] | undefined =>
 	diagnostics.find(
 		(diagnostic) =>
-			diagnostic.code === "status-missing" &&
-			(diagnostic.data === undefined || (diagnostic.data as { readonly source?: unknown }).source === "core.lint"),
-	);
-
-/** `diagnostics`' own `verified-drift` entry, same shape check as {@link statusMissingOf}. */
-const verifiedDriftOf = (
-	diagnostics: CodeActionParams["context"]["diagnostics"],
-): CodeActionParams["context"]["diagnostics"][number] | undefined =>
-	diagnostics.find(
-		(diagnostic) =>
-			diagnostic.code === "verified-drift" &&
+			diagnostic.code === code &&
 			(diagnostic.data === undefined || (diagnostic.data as { readonly source?: unknown }).source === "core.lint"),
 	);
 
@@ -158,7 +149,7 @@ export const registerCodeActions = (
 				const offer = (kind: string): boolean => (only === undefined ? inFrontmatter : named(only, kind));
 
 				const actions: Array<CodeAction> = [];
-				const statusMissing = statusMissingOf(params.context.diagnostics);
+				const statusMissing = diagnosticWith(params.context.diagnostics, "status-missing");
 				const quickFixes =
 					statusMissing !== undefined && (only === undefined || named(only, CODE_ACTION_KIND_QUICKFIX))
 						? QUICK_FIX_STATUSES
@@ -174,7 +165,7 @@ export const registerCodeActions = (
 					});
 				}
 
-				const verifiedDrift = verifiedDriftOf(params.context.diagnostics);
+				const verifiedDrift = diagnosticWith(params.context.diagnostics, "verified-drift");
 				if (verifiedDrift !== undefined && (only === undefined || named(only, CODE_ACTION_KIND_QUICKFIX))) {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
