@@ -19,12 +19,17 @@ const constraintLines = (type: ContextType): ReadonlyArray<string> => [
 	...(type.fields.length > 0 ? [`    fields: ${type.fields.map(renderField).join(", ")}`] : []),
 ];
 
-/** The `--trust` block: a summary line, then the first drifted and stale ids when there are any. */
+/** The one-line drift legend; the session-start hook prints the same sentence. */
+const DRIFT_LEGEND =
+	"drift: concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted).";
+
+/** The `--trust` block: a summary line, the drift legend when anything drifted, then the first drifted and stale ids. */
 const trustLines = (envelope: ContextEnvelope): ReadonlyArray<string> =>
 	envelope.trust === null
 		? []
 		: [
 				`trust: ${envelope.trust.drifted} drifted, ${envelope.trust.stale} stale, ${envelope.trust.unverified} unverified (of ${envelope.trust.concepts})`,
+				...(envelope.trust.drifted > 0 ? [DRIFT_LEGEND] : []),
 				...(envelope.trust.drifted_ids.length > 0 ? [`drifted: ${envelope.trust.drifted_ids.join(", ")}`] : []),
 				...(envelope.trust.stale_ids.length > 0 ? [`stale: ${envelope.trust.stale_ids.join(", ")}`] : []),
 			];

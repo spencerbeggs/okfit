@@ -301,9 +301,22 @@ describe("okfit context --trust", () => {
 			const lines = withTrust.stdout.split("\n");
 			assert.include(lines, "trust: 1 drifted, 1 stale, 2 unverified (of 3)");
 			assert.include(lines, "drifted: trust/drifted");
+			assert.isTrue(lines.some((l) => l.startsWith("drift: ") && l.includes("okfit query list --drifted")));
 			assert.include(lines, "stale: trust/stale");
 			const without = yield* runOkfit(["context"], { cwd: sandbox.cwd, env });
 			assert.notInclude(without.stdout, "trust:");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("--trust in a project with no bundle succeeds with trust null, like plain context", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-context-trust-empty-"));
+			const env = { ...sandbox.env, PATH: process.env.PATH ?? "", NO_COLOR: "1", OKFIT_NOW: NOW };
+			const result = yield* runOkfit(["context", "--trust", "--format", "json"], { cwd: sandbox.cwd, env });
+			assert.strictEqual(result.exitCode, 0, result.stderr);
+			const envelope = JSON.parse(result.stdout) as { trust: unknown; index_exists: boolean };
+			assert.isFalse(envelope.index_exists);
+			assert.isNull(envelope.trust);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

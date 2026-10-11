@@ -91,12 +91,15 @@ export const contextCommand = Command.make(
 				const profileRequested = configPath === null ? null : profileName;
 
 				// Opt-in: only `--trust` loads the bundle; the default path stays a single stat.
-				const trust = input.trust
-					? yield* Effect.gen(function* () {
-							const now = yield* Now;
-							return yield* runContextTrust({ bundleRoot, now });
-						})
-					: undefined;
+				// A project with no bundle yet (index.md missing) has nothing to summarize:
+				// trust stays null, as plain `context` succeeds with index_exists: false.
+				const trust =
+					input.trust && indexExists
+						? yield* Effect.gen(function* () {
+								const now = yield* Now;
+								return yield* runContextTrust({ bundleRoot, now });
+							})
+						: undefined;
 
 				const envelope = contextEnvelope({
 					projectRoot,
