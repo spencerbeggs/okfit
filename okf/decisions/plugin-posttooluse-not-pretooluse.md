@@ -11,9 +11,15 @@ status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: d1b14b950933fa4d
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 59d1918e977e68fd
 ---
 
 # The validate hook fires PostToolUse, not PreToolUse

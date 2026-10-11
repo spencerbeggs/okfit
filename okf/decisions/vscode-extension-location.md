@@ -12,9 +12,15 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-09-24T00:30:18Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 9ac3c605960f5ba9
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 651a66485e662b64
 ---
 
 # The VS Code extension lives at vscode/, not under plugins/ or packages/

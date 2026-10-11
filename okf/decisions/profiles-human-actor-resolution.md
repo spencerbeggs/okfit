@@ -15,13 +15,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T17:15:25Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 2a1a3f6fd97b7a8a
   verified:
     by: human:spencer
-    at: 2026-10-11T17:15:25Z
-    content: e7a9cc59b94b7eac
+    at: 2026-10-11T22:01:13Z
+    content: f035b24cd964780f
 ---
 
 # Human actor ids resolve through a five-step fallback order

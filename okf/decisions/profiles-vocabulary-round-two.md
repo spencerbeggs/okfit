@@ -14,13 +14,15 @@ verified:
     at: 2026-10-05T22:56:15Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: fb526dae2d3d6e1a
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 1b3104ebacea3ba8
+    at: 2026-10-11T22:01:13Z
+    content: 8b5682e9eaa2bbaa
 ---
 
 # The software-project vocabulary grows a second time from the effected and tsdoctor migrations

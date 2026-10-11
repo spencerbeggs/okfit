@@ -11,9 +11,15 @@ status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-09T23:08:38Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 6fb998bd907cc31b
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 4d6ec0db46eec91d
 ---
 
 # A body digest inside generated detects real drift, not a rewritten date

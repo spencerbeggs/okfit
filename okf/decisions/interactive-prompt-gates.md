@@ -14,13 +14,15 @@ verified:
     at: 2026-10-01T23:24:55Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 96760593ba5a5056
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 49bdda8b6abbf9fe
+    at: 2026-10-11T22:01:13Z
+    content: 8c8c3ac1561fb333
 ---
 
 # Interactive prompts are gated by audience and terminal, and the audience never refuses a command

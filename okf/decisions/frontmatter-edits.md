@@ -11,9 +11,15 @@ status: draft
 verified:
   - by: human:spencer
     at: 2026-09-24T00:30:18Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 9ede15aac44faab2
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 705fe56e43ed188b
 ---
 
 # Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions

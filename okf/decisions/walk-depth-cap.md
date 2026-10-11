@@ -13,13 +13,15 @@ verified:
     at: 2026-09-08T02:12:58Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: edcc32f620e1fac3
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: b89bebbd2c5366d6
+    at: 2026-10-11T22:01:13Z
+    content: 2d09658d67bdef43
 ---
 
 # A walk past maxDepth fails typed, never silently truncates

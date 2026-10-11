@@ -17,13 +17,15 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T17:15:28Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 46b01efb3652ea9a
   verified:
     by: human:spencer
-    at: 2026-10-11T17:15:28Z
-    content: a9f08fc9649c95d7
+    at: 2026-10-11T22:01:13Z
+    content: c41d4fb3013df3de
 ---
 
 # okfit config file schema
