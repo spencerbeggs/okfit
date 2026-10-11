@@ -15,7 +15,8 @@
  *   range sits, since the client only sends the diagnostic when it overlaps.
  *   When it carries a `verified-drift` diagnostic (same shape check):
  *   `Re-verify as <actor>` (`isPreferred`), the same edit as Mark verified; a
- *   draft or deprecated concept, or an unresolvable actor, gets none.
+ *   draft or deprecated concept, or an unresolvable actor, gets none. When it
+ *   is offered, the identical `Mark verified by` action is skipped.
  * - **Status actions** (kind `okfit.status`). `Set status: <status>` for each
  *   status the raw frontmatter `status` is not already (all three when it has
  *   no explicit status), in `Status`'s literal order, minus any a quick fix
@@ -165,6 +166,7 @@ export const registerCodeActions = (
 					});
 				}
 
+				let reverifyOffered = false;
 				const verifiedDrift = diagnosticWith(params.context.diagnostics, "verified-drift");
 				if (verifiedDrift !== undefined && (only === undefined || named(only, CODE_ACTION_KIND_QUICKFIX))) {
 					const actor = yield* actorFor(target.handle);
@@ -173,6 +175,7 @@ export const registerCodeActions = (
 						// Draft and deprecated concepts fail here and so get no action.
 						const edits = yield* Effect.option(verifiedTextEdits(target, actor.value, now));
 						if (Option.isSome(edits)) {
+							reverifyOffered = true;
 							actions.push({
 								title: `Re-verify as ${actor.value}`,
 								kind: CODE_ACTION_KIND_QUICKFIX,
@@ -207,7 +210,8 @@ export const registerCodeActions = (
 					}
 				}
 
-				if (offer("okfit.verify") && target.status !== "draft" && target.status !== "deprecated") {
+				// The Re-verify quick fix carries the identical edit, so it replaces Mark verified.
+				if (offer("okfit.verify") && !reverifyOffered && target.status !== "draft" && target.status !== "deprecated") {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;

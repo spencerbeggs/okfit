@@ -471,6 +471,26 @@ describe("registerCodeActions", () => {
 			}).pipe(Effect.scoped),
 	);
 
+	it.live("a drifted concept offers Re-verify as the quick fix and no duplicate Mark verified action", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const drifted = ALREADY_VERIFIED_SOURCE.replace("Verified Concept\ndescription", "Altered Concept\ndescription");
+			const uri = yield* openConcept(h, "okf/modules/verified.md", drifted);
+			const fake = {
+				range: FRONTMATTER,
+				message: "drift",
+				code: "verified-drift",
+				data: { source: "core.lint" },
+			} as unknown as LspDiagnostic;
+			const withDiagnostic = yield* requestCodeAction(h.client, uri, { diagnostics: [fake] });
+			assert.isTrue(withDiagnostic.some((action) => action.title.startsWith("Re-verify")));
+			assert.isFalse(withDiagnostic.some((action) => action.title.startsWith("Mark verified by")));
+			// Control: with the lint off (no diagnostic) Mark verified is still offered.
+			const without = yield* requestCodeAction(h.client, uri);
+			assert.isTrue(without.some((action) => action.title.startsWith("Mark verified by")));
+		}).pipe(Effect.scoped),
+	);
+
 	it.live("a draft concept with a `verified-drift` diagnostic gets no Re-verify action", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
