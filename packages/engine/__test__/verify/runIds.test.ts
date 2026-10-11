@@ -6,8 +6,9 @@ import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
 import { Bundle, Derive, OkfitConfig } from "@okfit/core";
-import { DateTime, Effect, Exit, Layer, Option } from "effect";
+import { DateTime, Effect, Exit, Layer } from "effect";
 import { runVerifyIds } from "../../src/verify/run.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 describe("runVerifyIds (issue #214)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
@@ -19,8 +20,7 @@ describe("runVerifyIds (issue #214)", () => {
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 	const verifiedByAda = "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
@@ -187,8 +187,7 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 

@@ -7,9 +7,10 @@ import { Git } from "@effected/git";
 import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
-import { DateTime, Effect, Layer, Option } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { runVerify, runVerifyBatch } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 describe("runVerifyBatch (issue #138)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
@@ -21,8 +22,7 @@ describe("runVerifyBatch (issue #138)", () => {
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 
@@ -190,8 +190,7 @@ describe("runVerify status (issue #185)", () => {
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 
@@ -334,8 +333,7 @@ describe("runVerify binds integrity.verified", () => {
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 

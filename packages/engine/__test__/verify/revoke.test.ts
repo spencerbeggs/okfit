@@ -7,11 +7,12 @@ import { Git } from "@effected/git";
 import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import { DateTime, Effect, Layer, Option } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { locateIntegrity, removeIntegrityVerified } from "../../src/verify/integrity.js";
 import { locateVerifiedEntries } from "../../src/verify/revoke.js";
 import { runRevoke } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 const head = "---\ntype: Decision\ntitle: T\n";
 const ada = "  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
@@ -174,8 +175,7 @@ describe("runRevoke", () => {
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
-		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
 	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
 

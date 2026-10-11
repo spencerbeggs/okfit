@@ -11,6 +11,7 @@ import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
 import { runSync } from "../../src/sync/run.js";
 import { runRevoke, runVerify } from "../../src/verify/run.js";
 import { countLines } from "../utils/frontmatter.js";
+import { identityConfigGet } from "../utils/gitIdentity.js";
 
 /**
  * The cross-task round trip (final review item 4): one legacy concept through every
@@ -39,8 +40,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						const fs = yield* FileSystem.FileSystem;
 						return Option.some(yield* fs.readFileString(join(root, path)));
 					}).pipe(Effect.provide(NodeServices.layer)),
-				configGet: (_cwd: string, key: string) =>
-					Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+				configGet: identityConfigGet,
 			} as unknown as Git["Service"]),
 			Layer.succeed(GitHistory, {
 				pathLog: (_root: string, path: string) =>

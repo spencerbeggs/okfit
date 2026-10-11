@@ -21,7 +21,13 @@ export const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 export const platform = Layer.mergeAll(
 	Layer.succeed(Git, {
 		configGet: (_cwd: string, key: string) =>
-			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+			Effect.succeed(
+				key === "user.name"
+					? Option.some("Ada")
+					: key === "user.email"
+						? Option.some("ada@example.com")
+						: Option.none(),
+			),
 	} as unknown as Git["Service"]),
 	NodeServices.layer,
 );
