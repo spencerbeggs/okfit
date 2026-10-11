@@ -6,6 +6,7 @@ import { Result, Schema, SchemaIssue } from "effect";
 import { AttestedComputation } from "../AttestedComputation.js";
 import { ATTESTED_COMPUTATION_TYPE, Concept } from "../Concept.js";
 import { Generated } from "../Generated.js";
+import { Integrity } from "../Integrity.js";
 import { Source, UsageWindow } from "../Source.js";
 import { Status } from "../Status.js";
 import { Timestamp } from "../Timestamp.js";
@@ -49,6 +50,7 @@ const FAMILY_SCHEMAS = {
 	verified: Verification.List,
 	status: Status,
 	stale_after: Timestamp,
+	integrity: Integrity,
 } as const;
 type FamilyKey = keyof typeof FAMILY_SCHEMAS;
 

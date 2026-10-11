@@ -33,10 +33,11 @@ export {
 	DiagnosticSeverity,
 	LintCode,
 } from "./Diagnostic.js";
-export { BodySha256, Generated } from "./Generated.js";
+export { Generated } from "./Generated.js";
 export type { GraphEdge, GraphLink, GraphNode, PathField } from "./Graph.js";
 export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";
+export { Digest, Integrity, IntegrityGenerated, IntegrityVerified } from "./Integrity.js";
 export { LogDocument, LogGroup, LogItem } from "./LogDocument.js";
 export type { OkfitConfigFields } from "./OkfitConfig.js";
 export {
