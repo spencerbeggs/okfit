@@ -73,6 +73,7 @@ export {
 	queryGetEnvelope,
 	queryListEnvelope,
 	queryNeighborsEnvelope,
+	signalFor,
 	toConceptSummary,
 	toTrustDrift,
 } from "./render/query.js";

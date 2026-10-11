@@ -7,6 +7,7 @@ import {
 	queryGetEnvelope,
 	queryListEnvelope,
 	queryNeighborsEnvelope,
+	signalFor,
 	toTrustDrift,
 } from "../../src/render/query.js";
 
@@ -76,5 +77,15 @@ describe("query envelopes", () => {
 			{ reason: "unbound", edited_by: null, edited_at: null },
 		);
 		assert.strictEqual(toTrustDrift({ tier: "unverified", integrity: "none", stale: false }), null);
+	});
+});
+
+describe("signalFor", () => {
+	const signal = { tier: "unverified" as const, integrity: "none" as const, stale: false };
+	it("returns the signal computed for the id", () => {
+		assert.strictEqual(signalFor(new Map([["a", signal]]), "a"), signal);
+	});
+	it("dies naming the id when the signal is missing", () => {
+		assert.throws(() => signalFor(new Map([["a", signal]]), "b"), /no trust signal computed for concept "b"/);
 	});
 });

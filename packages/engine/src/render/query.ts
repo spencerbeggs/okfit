@@ -51,6 +51,19 @@ export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal):
 	stale: signal.stale,
 });
 
+/**
+ * The signal `Trust.signals` computed for a concept id. Every loaded concept has
+ * one, so a missing entry is a defect (the map and the bundle disagree), and this
+ * dies with a message naming the id rather than casting `undefined` through.
+ *
+ * @public
+ */
+export const signalFor = (signals: ReadonlyMap<string, ConceptSignal>, id: string): ConceptSignal => {
+	const signal = signals.get(id);
+	if (signal === undefined) throw new Error(`no trust signal computed for concept "${id}"`);
+	return signal;
+};
+
 /** The wire drift of a signal, or `null` when its integrity is not drifted. @public */
 export const toTrustDrift = (signal: ConceptSignal): TrustDrift | null =>
 	signal.drift === undefined
