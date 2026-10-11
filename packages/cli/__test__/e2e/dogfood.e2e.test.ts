@@ -83,12 +83,13 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * The CLI close-out adds `okf/decisions/stale-verify-rolls-stale-after-forward.md`.
  * The verification-integrity family adds three `draft` Decisions (exempt from
  * `require_verified`) and one Interface, taking the bundle to 79 concepts. Deleting the seven deprecated
- * concepts no live concept cites (six Decisions, one Limitation) takes it to 72.
+ * concepts no live concept cites (six Decisions, one Limitation) takes it to 72. The actors allow-list adds
+ * `okf/decisions/actors-allow-list-without-emails.md`, taking it to 73.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 36,
+	Decision: 37,
 	Convention: 7,
 	Interface: 5,
 	Reference: 1,
