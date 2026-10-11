@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T19:31:10Z
+  at: 2026-10-11T19:44:19Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: 800c1efb512541b7
+    body: 40369de6a21c8ca0
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
@@ -38,8 +38,8 @@ project root config discovery starts from. It replaced the `[path]` positional
 in phase 4 so positionals are concept targets everywhere. The **project
 root** is never the bundle root (`<project root>/<bundle.path>`, `okf` by
 default) and defaults to the current directory (the Usage
-section of `packages/cli/README.md`). `verify` additionally takes an optional
-`<id>`, required unless `--all` and/or `--type` is given instead. `query` takes
+section of `packages/cli/README.md`). `verify` additionally takes any number of
+concept targets, required unless `--all` and/or `--type` is given instead. `query` takes
 its own subcommand (`list`, `get`, `neighbors`), then `<id>` where it needs
 one.
 
@@ -125,12 +125,11 @@ anything drifted.
 
 ## okfit verify
 
-`okfit verify [<id>] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
+`okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
 [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--revoke] [--format human|json]` appends one attestation, `{
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
 file back, binding it in the same write with `integrity.verified { by, at,
-content }` (see [integrity frontmatter](integrity-frontmatter.md)). `<id>` is a concept id with or without a leading slash or
-trailing `.md`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
+content }` (see [integrity frontmatter](integrity-frontmatter.md)). A `<target>` is a concept id (a leading slash and a trailing `.md` are tolerated) or a path to a concept file, absolute or relative to the working directory; ids and paths mix freely and flags may follow them (`okfit verify decisions/a okf/decisions/b.md --dry-run`). Every target resolves before anything runs: one bad target means every bad one is listed, nothing is written, and the exit is `64`. One target keeps the single-concept behaviour (drift diff and confirm, `--stable`/`--draft`, the `VerifyEnvelope`); two or more are verified as one all-or-nothing batch with no prompt and a `VerifyBatchEnvelope`. To re-verify everything drifted: `okfit verify $(okfit query list --drifted | cut -d' ' -f1)`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
@@ -145,9 +144,9 @@ unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type`, is exit `64`. The human line carries `; status A -> B`,
+`--all`/`--type` or with more than one target, is exit `64`. The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
-set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both `<id>` and `--all`/`--type`, or an undeclared type, is exit `64`.
+set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
 with a terminal on stdin and stdout, and not `--format json`): every concept
 of a `require_verified` type you have not attested, drafts included and
@@ -158,7 +157,7 @@ all-or-nothing write; an empty pick writes nothing and exits `0`, and Esc,
 interactive, giving neither is exit `64` (`… (run in a terminal to pick
 interactively)`). `--format json` prints a `VerifyBatchEnvelope`
 (`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
-dry run included), `3` on any failure — an unknown or reserved id, a concept
+dry run included), `3` on any other failure — a concept
 whose `verified` shape cannot be edited safely, a `status` shape that cannot be
 edited safely under `--stable`/`--draft` (for example a block scalar), or an unresolved git
 identity; there is no `1`/`2` content tier. This is a human-run command: no
@@ -176,13 +175,13 @@ an `unbound` concept has no baseline, so it says so instead. `--no-diff`
 skips the diff and the confirm. Non-interactive and JSON runs carry no diff;
 the single-concept envelope gains an optional `prior_integrity`.
 
-`okfit verify --revoke <id>` removes every `verified` entry by the resolved
+`okfit verify --revoke <target>...` removes every `verified` entry by the resolved
 current actor, so it can never remove someone else's attestation. When the
 bound entry is among them it clears `integrity.verified` too (and
 `integrity` when empty); remaining human entries become `unbound`. The JSON
-envelope carries `removed`, `binding_cleared` and `revoked_by`. Exit `3`
+envelope carries `removed`, `binding_cleared` and `revoked_by`; several targets print an array of those envelopes, and the revoke is all or nothing (one target with nothing to revoke writes none). Exit `3`
 when the actor has no entries to revoke, `64` when combined with `--all`,
-`--type`, `--stable`, `--draft` or `--at`, or when no id is given.
+`--type`, `--stable`, `--draft` or `--at`, or when no target is given. An unknown or reserved target is `64` too.
 `--dry-run` and `--format json` are supported.
 
 ## okfit query

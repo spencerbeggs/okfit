@@ -4,6 +4,7 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { writeTwoDecisions } from "./utils/concepts.js";
 import { conceptDigest } from "./utils/digest.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
@@ -127,27 +128,108 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
-	it("exits 3 on an unknown id and leaves the tree byte-identical", async () => {
+	it("exits 64 on an unknown id and leaves the tree byte-identical", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const before = await readProject(cwd);
 
 			const run = await withServices(runOkfit(["verify", "decisions/no-such-thing"], { cwd, env }));
 
-			assert.strictEqual(run.exitCode, 3);
-			assert.isTrue(run.stderr.includes('error: no concept "decisions/no-such-thing" in this bundle (not-a-concept)'));
+			assert.strictEqual(run.exitCode, 64);
+			assert.include(run.stderr, 'no concept "decisions/no-such-thing"');
 			assert.strictEqual(await readProject(cwd), before);
 		} finally {
 			await removeSandbox(sandbox);
 		}
 	});
 
-	it("exits 3 on a reserved id (verify index)", async () => {
+	it("verifies several targets in one batch, mixing an id and a path, with a trailing flag", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const run = await withServices(
+				runOkfit(["verify", "decisions/a", "okf/decisions/b.md", "--dry-run"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" },
+				}),
+			);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "decisions/a");
+			assert.include(run.stdout, "decisions/b");
+			assert.notInclude(await readFile(join(cwd, "okf/decisions/a.md"), "utf8"), "verified:");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("writes nothing when one target is bad, and names every bad one", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const before = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
+			const run = await withServices(runOkfit(["verify", "decisions/a", "decisions/nope", "elsewhere"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 64);
+			assert.include(run.stderr, 'no concept "decisions/nope"');
+			assert.include(run.stderr, 'no concept "elsewhere"');
+			assert.strictEqual(await readFile(join(cwd, "okf/decisions/a.md"), "utf8"), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("refuses targets together with --all", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const run = await withServices(runOkfit(["verify", "project", "--all"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 64);
+			assert.include(run.stderr, "not both");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("refuses --stable with more than one target", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const run = await withServices(runOkfit(["verify", "decisions/a", "decisions/b", "--stable"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 64);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("revokes several targets, and writes nothing when one has nothing to revoke", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const now = { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" };
+			assert.strictEqual(
+				(await withServices(runOkfit(["verify", "decisions/a", "decisions/b"], { cwd, env: now }))).exitCode,
+				0,
+			);
+			const aVerified = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
+			const refused = await withServices(runOkfit(["verify", "--revoke", "decisions/a", "project"], { cwd, env }));
+			assert.notStrictEqual(refused.exitCode, 0);
+			assert.strictEqual(await readFile(join(cwd, "okf/decisions/a.md"), "utf8"), aVerified);
+			const run = await withServices(
+				runOkfit(["verify", "--revoke", "decisions/a", "decisions/b", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(run.exitCode, 0);
+			const body = JSON.parse(run.stdout);
+			assert.isTrue(Array.isArray(body));
+			assert.strictEqual(body.length, 2);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("exits 64 on a reserved id (verify index)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const run = await withServices(runOkfit(["verify", "index"], { cwd, env }));
-			assert.strictEqual(run.exitCode, 3);
-			assert.isTrue(run.stderr.includes('error: no concept "index" in this bundle (reserved)'));
+			assert.strictEqual(run.exitCode, 64);
+			assert.include(run.stderr, '"index" is a reserved file, not a concept');
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -256,14 +338,14 @@ describe("okfit verify (e2e)", () => {
 			const failed = await withServices(
 				runOkfit(["verify", "decisions/no-such-thing", "--format", "json"], { cwd, env }),
 			);
-			assert.strictEqual(failed.exitCode, 3);
+			assert.strictEqual(failed.exitCode, 64);
 			const envelope = JSON.parse(failed.stdout) as Record<string, unknown>;
 			assert.strictEqual(envelope.schema, 1);
 			assert.match(String(envelope.okfit_version), /^\d+\.\d+\.\d+/);
-			assert.strictEqual(envelope.exit_code, 3);
+			assert.strictEqual(envelope.exit_code, 64);
 			assert.deepStrictEqual(envelope.error, {
-				tag: "VerifyConceptNotFoundError",
-				message: 'no concept "decisions/no-such-thing" in this bundle (not-a-concept)',
+				tag: "TargetResolutionError",
+				message: 'no concept "decisions/no-such-thing"',
 			});
 		} finally {
 			await removeSandbox(sandbox);
@@ -544,7 +626,7 @@ describe("okfit verify (e2e)", () => {
 				const before = await readProject(cwd);
 				const bare = await withServices(runOkfit(["verify", "--stable"], { cwd, env: { ...env, ...NOW } }));
 				assert.strictEqual(bare.exitCode, 64);
-				assert.include(bare.stderr, "--stable and --draft need a concept id");
+				assert.include(bare.stderr, "--stable and --draft need exactly one concept target");
 				assert.strictEqual(await readProject(cwd), before);
 			} finally {
 				await removeSandbox(sandbox);
@@ -619,7 +701,7 @@ describe("okfit verify (e2e)", () => {
 			try {
 				const noId = await withServices(runOkfit(["verify", "--revoke"], { cwd, env }));
 				assert.strictEqual(noId.exitCode, 64);
-				assert.match(noId.stderr, /--revoke needs a concept id/);
+				assert.match(noId.stderr, /--revoke needs at least one concept target/);
 				for (const flag of [
 					["--all"],
 					["--type", "Decision"],

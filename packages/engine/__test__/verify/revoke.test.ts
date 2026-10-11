@@ -10,7 +10,7 @@ import { Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer } from "effect";
 import { locateIntegrity, removeIntegrityVerified } from "../../src/verify/integrity.js";
 import { locateVerifiedEntries } from "../../src/verify/revoke.js";
-import { runRevoke } from "../../src/verify/run.js";
+import { runRevoke, runRevokeIds } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 
@@ -330,6 +330,62 @@ describe("runRevoke", () => {
 				assert.strictEqual(error._tag, "HumanActorNotAllowedError");
 				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), before);
 			}),
+		);
+	});
+
+	describe("runRevokeIds", () => {
+		const withThree = <A, E, R>(use: (root: string, file: (name: string) => string) => Effect.Effect<A, E, R>) =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-revoke-ids-")));
+				try {
+					yield* Effect.promise(() => mkdir(join(root, "decisions")));
+					const file = (name: string) => join(root, "decisions", `${name}.md`);
+					const verified = `${head}verified:\n${ada}${tail}`;
+					yield* Effect.promise(() => writeFile(file("a"), verified));
+					yield* Effect.promise(() => writeFile(file("b"), verified));
+					yield* Effect.promise(() => writeFile(file("c"), `${head}${tail}`));
+					return yield* use(root, file);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			});
+
+		const revokeIds = (root: string, ids: ReadonlyArray<string>) =>
+			runRevokeIds({ ids, bundleRoot: root, projectRoot: root, config, dryRun: false }).pipe(Effect.provide(platform));
+
+		it.effect("revokes every named concept and returns the results in order", () =>
+			withThree((root, file) =>
+				Effect.gen(function* () {
+					const results = yield* revokeIds(root, ["decisions/a", "decisions/b"]);
+					assert.deepStrictEqual(
+						results.map((result) => result.id),
+						["decisions/a", "decisions/b"],
+					);
+					for (const name of ["a", "b"]) {
+						assert.notInclude(yield* Effect.promise(() => readFile(file(name), "utf8")), "verified:");
+					}
+				}),
+			),
+		);
+
+		it.effect("fails VerifyNothingToRevokeError for one bad concept and writes nothing", () =>
+			withThree((root, file) =>
+				Effect.gen(function* () {
+					const before = yield* Effect.promise(() => readFile(file("a"), "utf8"));
+					const error = yield* revokeIds(root, ["decisions/a", "decisions/c"]).pipe(Effect.flip);
+					assert.strictEqual(error._tag, "VerifyNothingToRevokeError");
+					assert.strictEqual(yield* Effect.promise(() => readFile(file("a"), "utf8")), before);
+				}),
+			),
+		);
+
+		it.effect("collapses a duplicate id to one result", () =>
+			withThree((root) =>
+				Effect.gen(function* () {
+					const results = yield* revokeIds(root, ["decisions/a", "/decisions/a.md"]);
+					assert.strictEqual(results.length, 1);
+				}),
+			),
 		);
 	});
 });

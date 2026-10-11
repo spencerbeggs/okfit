@@ -122,6 +122,7 @@ export { changeSince } from "./verify/diff.js";
 export type {
 	DriftInspection,
 	PickerCandidatesOptions,
+	RevokeIdsOptions,
 	RevokeOptions,
 	RevokeResult,
 	VerifyBatchOptions,
@@ -137,6 +138,7 @@ export {
 	loadPreviews,
 	loadStaleCandidates,
 	runRevoke,
+	runRevokeIds,
 	runVerify,
 	runVerifyBatch,
 	runVerifyIds,

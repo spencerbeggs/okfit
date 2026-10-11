@@ -187,7 +187,7 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
 	reason: Schema.Literals([
 		"no-selection",
-		"id-and-batch",
+		"targets-and-batch",
 		"unknown-type",
 		"status-conflict",
 		"status-and-batch",
@@ -201,15 +201,15 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 	override get message(): string {
 		if (this.reason === "no-selection")
 			return "verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)";
-		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
-		if (this.reason === "revoke-needs-id") return "--revoke needs a concept id";
+		if (this.reason === "targets-and-batch") return "verify takes concept targets or --all/--type, not both";
+		if (this.reason === "revoke-needs-id") return "--revoke needs at least one concept target";
 		if (this.reason === "revoke-conflict") {
 			return `--revoke removes your own verification of one concept; it cannot combine with ${this.detail ?? "other selectors"}`;
 		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {
-			return "--stable and --draft need a concept id; batch mode never changes status";
+			return "--stable and --draft need exactly one concept target; batch mode never changes status";
 		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}

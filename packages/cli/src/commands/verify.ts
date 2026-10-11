@@ -1,10 +1,11 @@
 import { CliInteractive, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
-import { Timestamp } from "@okfit/core";
+import { Bundle, Timestamp } from "@okfit/core";
 import {
 	Now,
 	RevokeEnvelope,
+	Targets,
 	VerifyBatchEnvelope,
 	VerifyEnvelope,
 	VerifySelectionError,
@@ -13,6 +14,7 @@ import {
 	resolveProjectConfig,
 	revokeEnvelope,
 	runRevoke,
+	runRevokeIds,
 	runVerify,
 	runVerifyBatch,
 	runVerifyIds,
@@ -28,15 +30,11 @@ import { CLI_VERSION } from "../version.js";
 import { confirmReverify } from "./verify-confirm.js";
 import { pickConcepts } from "./verify-picker.js";
 
-/**
- * V-6: tolerant id, normalised through `ConceptId.normalize`; never
- * `Argument.Path`. Issue #138 makes it optional: `--all`/`--type` select a
- * batch instead of a single concept.
- */
-const idArg = Argument.String("id").pipe(
-	Argument.optional,
+/** Concept targets: ids, cwd-relative paths or absolute paths, mixed (spec section 13). */
+const targetsArg = Argument.String("targets").pipe(
+	Argument.variadic({ min: 0 }),
 	Argument.withDescription(
-		"concept id to verify, with or without a leading slash or trailing .md; omit with --all or --type",
+		"concepts to verify: ids (leading / and trailing .md tolerated), or paths to concept files; omit with --all or --type",
 	),
 );
 
@@ -59,7 +57,7 @@ const typeFlag = Flag.String("type").pipe(
 /** Issue #185: settle the concept in the same write as the attestation. */
 const stableFlag = Flag.Boolean("stable").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("also set status: stable in the same write; needs a concept id"),
+	Flag.withDescription("also set status: stable in the same write; needs one concept target"),
 );
 
 /** Issue #185: record a review without settling. */
@@ -72,7 +70,7 @@ const draftFlag = Flag.Boolean("draft").pipe(
 const revokeFlag = Flag.Boolean("revoke").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription(
-		"remove your own verified entries from the concept (and its integrity binding); needs a concept id, excludes --all, --type, --stable, --draft and --at",
+		"remove your own verified entries from the concept (and its integrity binding); needs concept targets, excludes --all, --type, --stable, --draft and --at",
 	),
 );
 
@@ -108,7 +106,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 );
 
 /**
- * `okfit verify [<id>] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
+ * `okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
  * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--format human|json]`.
  *
  * Handler order fixed by contract §2.3. Steps 1–3 are `context`'s handler
@@ -126,7 +124,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 export const verifyCommand = Command.make(
 	"verify",
 	{
-		id: idArg,
+		targets: targetsArg,
 		root: rootFlag,
 		config: configFlag,
 		all: allFlag,
@@ -160,7 +158,15 @@ export const verifyCommand = Command.make(
 					if (conflicts.length > 0) {
 						return yield* new VerifySelectionError({ reason: "revoke-conflict", detail: conflicts.join(", ") });
 					}
-					if (Option.isNone(input.id)) return yield* new VerifySelectionError({ reason: "revoke-needs-id" });
+					if (input.targets.length === 0) return yield* new VerifySelectionError({ reason: "revoke-needs-id" });
+				}
+				// Issue #138: targets or --all/--type, never both; checked before config is touched.
+				if (input.targets.length > 0 && batch) {
+					return yield* new VerifySelectionError({ reason: "targets-and-batch" });
+				}
+				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });
+				if ((input.stable || input.draft) && input.targets.length !== 1) {
+					return yield* new VerifySelectionError({ reason: "status-and-batch" });
 				}
 				const path = yield* Path.Path;
 				const resolved = yield* resolveProjectConfig({
@@ -169,38 +175,55 @@ export const verifyCommand = Command.make(
 					cwd,
 				});
 
-				if (input.revoke && Option.isSome(input.id)) {
-					const result = yield* runRevoke({
-						id: input.id.value,
+				// Every target resolves before anything runs; any bad one fails them all (exit 64).
+				let ids: ReadonlyArray<string> = [];
+				if (input.targets.length > 0) {
+					const bundle = yield* Bundle.load({ root: resolved.bundleRoot });
+					const targets = yield* Targets.resolve(input.targets, bundle, cwd);
+					ids = targets.map((target) => target.id as string);
+				}
+
+				if (input.revoke) {
+					const revokeOptions = {
 						bundleRoot: resolved.bundleRoot,
 						projectRoot: resolved.projectRoot,
 						config: resolved.config,
 						dryRun: input.dryRun,
-					});
-					const displayPath = `${displayRoot(cwd, result.bundleRoot, path)}/${result.conceptPath}`;
-					if (input.format === "json") {
-						const envelope = revokeEnvelope({
-							okfitVersion: CLI_VERSION,
-							id: result.id,
-							path: displayPath,
-							by: result.by,
-							removed: result.removed,
-							bindingCleared: result.bindingCleared,
-							dryRun: result.dryRun,
-							// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
-							...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
-						});
-						yield* Console.log(JSON.stringify(Schema.encodeSync(RevokeEnvelope)(envelope)));
-					} else {
-						yield* Doc.print(
-							humanRevokeDoc({
+					};
+					const results =
+						ids.length === 1
+							? [yield* runRevoke({ id: ids[0] as string, ...revokeOptions })]
+							: yield* runRevokeIds({ ids, ...revokeOptions });
+					const envelopes = results.map((result) =>
+						Schema.encodeSync(RevokeEnvelope)(
+							revokeEnvelope({
+								okfitVersion: CLI_VERSION,
 								id: result.id,
+								path: `${displayRoot(cwd, result.bundleRoot, path)}/${result.conceptPath}`,
 								by: result.by,
 								removed: result.removed,
 								bindingCleared: result.bindingCleared,
 								dryRun: result.dryRun,
+								// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+								...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 							}),
-						);
+						),
+					);
+					if (input.format === "json") {
+						// R2: one target keeps the bare object; several are an array of the same envelopes.
+						yield* Console.log(JSON.stringify(envelopes.length === 1 ? envelopes[0] : envelopes));
+					} else {
+						for (const result of results) {
+							yield* Doc.print(
+								humanRevokeDoc({
+									id: result.id,
+									by: result.by,
+									removed: result.removed,
+									bindingCleared: result.bindingCleared,
+									dryRun: result.dryRun,
+								}),
+							);
+						}
 					}
 					return;
 				}
@@ -216,22 +239,12 @@ export const verifyCommand = Command.make(
 					? DateTime.startOf(yield* Now, "second")
 					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
 
-				// Issue #138: exactly one of `id` or `--all`/`--type` selects.
-				if (Option.isSome(input.id) && batch) {
-					return yield* new VerifySelectionError({ reason: "id-and-batch" });
-				}
-				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });
 				const status = input.stable ? "stable" : input.draft ? "draft" : undefined;
-				// The picker's promote toggle stands in for --stable; --stable/--draft
-				// still need a concept id, picked or not.
-				if (status !== undefined && (batch || Option.isNone(input.id))) {
-					return yield* new VerifySelectionError({ reason: "status-and-batch" });
-				}
 
 				// Bare `verify`: pick interactively. Without `otherwise`, a run that
 				// cannot mount a screen (agent/ci audience, pipe, --format json)
 				// fails `NotInteractive`, which is the 64 below, not a prompt.
-				if (Option.isNone(input.id) && !batch) {
+				if (ids.length === 0 && !batch) {
 					// Decide before touching the bundle, so a non-interactive run is a
 					// plain 64 whatever state the bundle or git identity is in.
 					if (!(yield* CliInteractive)) return yield* new VerifySelectionError({ reason: "no-selection" });
@@ -265,15 +278,25 @@ export const verifyCommand = Command.make(
 					return;
 				}
 
-				if (batch) {
-					const result = yield* runVerifyBatch({
-						bundleRoot: resolved.bundleRoot,
-						projectRoot: resolved.projectRoot,
-						config: resolved.config,
-						at,
-						dryRun: input.dryRun,
-						types: input.type,
-					});
+				if (batch || ids.length > 1) {
+					const result =
+						ids.length > 1
+							? yield* runVerifyIds({
+									bundleRoot: resolved.bundleRoot,
+									projectRoot: resolved.projectRoot,
+									config: resolved.config,
+									at,
+									dryRun: input.dryRun,
+									ids,
+								})
+							: yield* runVerifyBatch({
+									bundleRoot: resolved.bundleRoot,
+									projectRoot: resolved.projectRoot,
+									config: resolved.config,
+									at,
+									dryRun: input.dryRun,
+									types: input.type,
+								});
 					const root = displayRoot(cwd, result.bundleRoot, path);
 					if (input.format === "json") {
 						const envelope = verifyBatchEnvelope({
@@ -301,15 +324,14 @@ export const verifyCommand = Command.make(
 					return;
 				}
 
-				// The two guard clauses above already rule out `id-and-batch` and
-				// `no-selection`, so `input.id` is Some here; this repeats the
-				// check purely so TypeScript narrows it.
-				if (Option.isNone(input.id)) return yield* new VerifySelectionError({ reason: "no-selection" });
+				// Exactly one target is left here (R1): today's single-concept path.
+				const [singleId] = ids;
+				if (singleId === undefined) return yield* new VerifySelectionError({ reason: "no-selection" });
 
 				// A drifted concept on a terminal: show what changed and ask first.
 				// Declining is exit 0 with nothing written.
 				const proceed = yield* confirmReverify({
-					id: input.id.value,
+					id: singleId,
 					bundleRoot: resolved.bundleRoot,
 					projectRoot: resolved.projectRoot,
 					config: resolved.config,
@@ -318,12 +340,12 @@ export const verifyCommand = Command.make(
 					dryRun: input.dryRun,
 				});
 				if (!proceed) {
-					yield* Console.log(`not re-verified: ${input.id.value}; nothing written`);
+					yield* Console.log(`not re-verified: ${singleId}; nothing written`);
 					return;
 				}
 
 				const result = yield* runVerify({
-					id: input.id.value,
+					id: singleId,
 					bundleRoot: resolved.bundleRoot,
 					projectRoot: resolved.projectRoot,
 					config: resolved.config,
@@ -391,10 +413,10 @@ export const verifyCommand = Command.make(
 	Command.withDescription(
 		"Record a human's attestation that a concept has been reviewed: append one verified entry, " +
 			"{ by: human:<id>, at: <now> }, to its frontmatter. The actor is always your own git identity; " +
-			"there is no --by. Give a concept id, or --all/--type <Type> (repeatable) to attest a batch of " +
+			"there is no --by. Give one or more concept targets (ids or paths), or --all/--type <Type> (repeatable) to attest a batch of " +
 			"unverified concepts at once; exactly one of the two selections is required. " +
-			"With a concept id, --stable or --draft also sets its status in the same write. " +
-			"--revoke <id> takes back your own attestation: it removes your verified entries and the integrity binding. " +
+			"With exactly one target, --stable or --draft also sets its status in the same write. " +
+			"--revoke <target>... takes back your own attestation: it removes your verified entries and the integrity binding. " +
 			"This is a human-run command: no agent, hook, or MCP tool ever invokes it.",
 	),
 );
