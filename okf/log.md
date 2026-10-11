@@ -31,6 +31,7 @@
 * Updated Human actor ids resolve through a five-step fallback order
 * Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 * Updated The validate hook fires PostToolUse, not PreToolUse
+* Added Concept files are named for their topic; ids stay paths
 
 ## 2026-10-09
 
