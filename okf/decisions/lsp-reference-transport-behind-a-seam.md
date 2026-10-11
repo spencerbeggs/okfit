@@ -8,10 +8,12 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-28T19:49:01Z
-  body_sha256: e0bacc18c97b35c769c3dbea10e6cae75380e40e9d422156ad5f2243e87d9925
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+integrity:
+  generated:
+    body: e0bacc18c97b35c7
 ---
 
 # The language server runs the reference vscode-languageserver library behind an Effect transport seam

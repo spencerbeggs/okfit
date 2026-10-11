@@ -2,7 +2,7 @@ import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
 import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
-import { Provenance, Publications } from "@okfit/profiles";
+import { Provenance, Publications, Trust } from "@okfit/profiles";
 import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 import { lintResources } from "./resources.js";
@@ -37,7 +37,8 @@ export interface RunOptions {
 	readonly now: DateTime.Utc;
 	/**
 	 * S-31: skip `Provenance.lint`'s git TIER (tier 2, the git-derived date
-	 * comparison for concepts with no recorded `generated.body_sha256`)
+	 * comparison for concepts with no recorded body digest: neither
+	 * `integrity.generated.body` nor a legacy `generated.body_sha256`)
 	 * for this one invocation, without touching the project's `[lint]`
 	 * table. `commands/validate.ts` threads `--skip-provenance` here; the
 	 * PostToolUse hook passes the flag so an edit-time `validate` stays
@@ -66,7 +67,7 @@ export interface RunResult {
  * HERE, in `run`: a bundle configured `off` never calls `Provenance.lint`
  * at all. `options.skipProvenance` is no longer that gate — it is threaded
  * through as `Provenance.lint`'s `skipGitTier` option instead, so tier 1
- * (the pure, in-memory `generated.body_sha256` comparison) still runs and
+ * (the pure, in-memory recorded-body-digest comparison) still runs and
  * still reports drift even when `skipProvenance` is `true`; only tier 2
  * (the git-derived date comparison, for concepts with no recorded digest)
  * is skipped, and with it the only git spawn `Provenance.lint` can make
@@ -76,7 +77,7 @@ export interface RunResult {
  * the same `report.lint` array every other core lint diagnostic already
  * does.
  *
- * It then appends `lintResources`, `Publications.lint` (`publication-drift`
+ * It then appends `Trust.lint` (`verified-drift`, which gates itself on its own severity), `lintResources`, `Publications.lint` (`publication-drift`
  * and `publication-orphan`, only under the `software-project` profile) and `lintSurfaces` (`surface-unmatched`), each
  * of which gates itself on its own severity.
  *
@@ -108,6 +109,7 @@ export const run = (
 			severity === "off"
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
+		const drift = yield* Trust.lint(bundle, options.config, options.now);
 		const resources = yield* lintResources(bundle, options.config);
 		// Publication lints are software-project's; any other profile (or none)
 		// may declare its own `Publication` type with different semantics.
@@ -117,7 +119,10 @@ export const run = (
 		const surfaces = yield* lintSurfaces(bundle, options.config);
 		return {
 			bundle,
-			report: { ...report, lint: [...report.lint, ...provenance, ...resources, ...publications, ...surfaces] },
+			report: {
+				...report,
+				lint: [...report.lint, ...provenance, ...drift, ...resources, ...publications, ...surfaces],
+			},
 			profileDiagnostics,
 		};
 	});

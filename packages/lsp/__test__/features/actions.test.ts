@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import type { CodeAction, CodeActionParams, LspDiagnostic, Range } from "../../src/protocol/types.js";
+import { withBinding } from "../utils/digest.js";
 import type { ServeHarness } from "../utils/harness.js";
 import { makeServeHarness, request } from "../utils/harness.js";
 import { testPlatform, testPlatformCountingIdentity, testPlatformWithIdentity } from "../utils/platform.js";
@@ -50,6 +51,9 @@ ${GENERATED}
 
 const DEPRECATED_SOURCE = DRAFT_SOURCE.replace("status: draft", "status: deprecated").replaceAll("Draft", "Deprecated");
 
+/** `Derivation.contentDigest` of ALREADY_VERIFIED_SOURCE's authored frontmatter and body (the bookkeeping keys are excluded). */
+const VERIFIED_CONTENT = "e204c9c4ef935430";
+
 const ALREADY_VERIFIED_SOURCE = `---
 type: Module
 title: Verified Concept
@@ -58,6 +62,11 @@ status: stable
 verified:
   - by: "${FIXTURE_ACTOR}"
     at: "2026-01-01T00:00:00Z"
+integrity:
+  verified:
+    by: "${FIXTURE_ACTOR}"
+    at: "2026-01-01T00:00:00Z"
+    content: ${VERIFIED_CONTENT}
 ${GENERATED}
 ---
 
@@ -235,6 +244,20 @@ describe("registerCodeActions", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.live("a drifted verification (no binding) is offered `Mark verified` again", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const unbound = ALREADY_VERIFIED_SOURCE.replace(/integrity:\n {2}verified:\n(?: {4}.*\n){3}/u, "");
+			assert.notInclude(unbound, "integrity:");
+			const uri = yield* openConcept(h, "okf/modules/verified.md", unbound);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.include(actions.map(titleOf), `Mark verified by ${FIXTURE_ACTOR}`);
+			const verify = actions.find((action) => action.title.startsWith("Mark verified"));
+			const out = applyDocumentEdits(unbound, (verify as CodeAction).edit, uri);
+			assert.include(out, `integrity:\n  verified:\n    by: ${FIXTURE_ACTOR}\n`);
+		}).pipe(Effect.scoped),
+	);
+
 	it.live("a concept already verified by the resolved actor offers no `Mark verified` action", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
@@ -340,9 +363,13 @@ describe("registerCodeActions", () => {
 
 				// One new line above `title:` (shifting the status insert down a line) and a `verified` entry
 				// by the resolved actor (which the stale snapshot does not have).
-				const changed = STABLE_SOURCE.replace(
-					"type: Module\n",
-					`type: Module\nresource: stable.md\nverified:\n  - by: "${FIXTURE_ACTOR}"\n    at: "2026-01-01T00:00:00Z"\n`,
+				const changed = yield* withBinding(
+					STABLE_SOURCE.replace(
+						"type: Module\n",
+						`type: Module\nresource: stable.md\nverified:\n  - by: "${FIXTURE_ACTOR}"\n    at: "2026-01-01T00:00:00Z"\n`,
+					),
+					FIXTURE_ACTOR,
+					"2026-01-01T00:00:00Z",
 				);
 				yield* h.change("okf/modules/stable.md", changed, 2);
 				yield* Effect.sleep("50 millis");

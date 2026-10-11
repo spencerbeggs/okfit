@@ -80,15 +80,15 @@ export const splice = (target: SpliceTarget, entry: VerifyEntry, newline: "\n" |
 	}
 };
 
-/** Either `generated` key {@link spliceGenerated} and {@link spliceGeneratedFields} write. @internal */
-export type GeneratedFieldName = "at" | "body_sha256";
+/** The `generated` key {@link spliceGenerated} writes (the body digest lives in `integrity`). @internal */
+export type GeneratedFieldName = "at";
 
 /**
  * Build the one edit for `target` (contract §6.1). Never calls a YAML
  * stringifier: the only syntax emitted is the indent, `<field>: `, the
  * preserved quote character (if any), and `newline`. `value` is already
- * encoded by the caller -- `Schema.encodeSync(Timestamp)`'d for `at`, the raw
- * lowercase hex digest for `body_sha256` (S-1: splice, never `YamlFormat.
+ * encoded by the caller -- `Schema.encodeSync(Timestamp)`'d for `at`, the only
+ * field (S-1: splice, never `YamlFormat.
  * modify` — it drops quote style and re-normalises line endings, V-12/V-15
  * violations `sync/generated.ts` cannot afford).
  *
@@ -115,45 +115,6 @@ export const spliceGenerated = (
 			});
 		}
 	}
-};
-
-/**
- * Build the edit(s) that write BOTH `generated.at` and `generated.
- * body_sha256` together (issue #19: `sync/generated.ts` never writes one
- * without the other). Each field's own `spliceGenerated` edit is used when
- * the two land at different offsets; when both are absent they resolve to
- * the identical `insertAfterLastKey` anchor (the mapping's last existing
- * key), and inserting two zero-length edits at the same offset is exactly
- * the "overlapping edits" case `MarkdownEdit.applyAll` treats as a
- * programmer error -- so that one case is merged into a single edit whose
- * content carries both lines, `at` first.
- *
- * @internal
- */
-export const spliceGeneratedFields = (
-	atTarget: Exclude<GeneratedLocated, { readonly _tag: "unsupported" }>,
-	bodySha256Target: Exclude<GeneratedLocated, { readonly _tag: "unsupported" }>,
-	encodedAt: string,
-	bodySha256: string,
-	newline: "\n" | "\r\n",
-): ReadonlyArray<MarkdownEdit> => {
-	if (
-		atTarget._tag === "insertAfterLastKey" &&
-		bodySha256Target._tag === "insertAfterLastKey" &&
-		atTarget.insertAt === bodySha256Target.insertAt
-	) {
-		return [
-			MarkdownEdit.make({
-				offset: atTarget.insertAt,
-				length: 0,
-				content: `${atTarget.indent}at: ${encodedAt}${newline}${bodySha256Target.indent}body_sha256: ${bodySha256}${newline}`,
-			}),
-		];
-	}
-	return [
-		spliceGenerated(atTarget, encodedAt, newline, "at"),
-		spliceGenerated(bodySha256Target, bodySha256, newline, "body_sha256"),
-	];
 };
 
 /**
@@ -192,13 +153,13 @@ export const spliceTopLevelScalar = (
  */
 export const spliceGeneratedBlock = (
 	target: Exclude<GeneratedBlockLocated, { readonly _tag: "unsupported" }>,
-	fields: { readonly by: string; readonly at: string; readonly bodySha256: string },
+	fields: { readonly by: string; readonly at: string },
 	newline: "\n" | "\r\n",
 ): MarkdownEdit =>
 	MarkdownEdit.make({
 		offset: target._tag === "absent" ? target.insertAt : target.start,
 		length: target._tag === "absent" ? 0 : target.end - target.start,
-		content: `generated:${newline}  by: ${fields.by}${newline}  at: ${fields.at}${newline}  body_sha256: ${fields.bodySha256}${newline}`,
+		content: `generated:${newline}  by: ${fields.by}${newline}  at: ${fields.at}${newline}`,
 	});
 
 /**
@@ -207,7 +168,7 @@ export const spliceGeneratedBlock = (
  * and when `verified` is absent it is appended as the last key, so both land
  * on the same offset when that anchor is the last key. `MarkdownEdit.applyAll`
  * rejects two zero-length inserts at one offset, the same case
- * `spliceGeneratedFields` merges, so this folds them into one edit, input
+ * `mergeSameOffset`'s own merge, so this folds them into one edit, input
  * order preserved.
  *
  * @internal
@@ -216,10 +177,11 @@ export const mergeSameOffset = (edits: ReadonlyArray<MarkdownEdit>): ReadonlyArr
 	const out: Array<MarkdownEdit> = [];
 	for (const edit of edits) {
 		const previous = out.at(-1);
-		if (previous !== undefined && previous.length === 0 && edit.length === 0 && previous.offset === edit.offset) {
+		// A zero-length insert at the offset a later edit starts at (insert or replace) folds into it.
+		if (previous !== undefined && previous.length === 0 && previous.offset === edit.offset) {
 			out[out.length - 1] = MarkdownEdit.make({
 				offset: edit.offset,
-				length: 0,
+				length: edit.length,
 				content: previous.content + edit.content,
 			});
 		} else {
@@ -230,20 +192,25 @@ export const mergeSameOffset = (edits: ReadonlyArray<MarkdownEdit>): ReadonlyArr
 };
 
 /**
- * Fold a concept's `verified` edit and optional `status` edit into the ordered,
- * merged edit list both `okfit verify --stable` and `FrontmatterEdits` apply:
- * status first on equal offsets, so the merged insert emits `status:` before
- * `verified:`. The tie-break is by object identity -- the two edits are
- * otherwise indistinguishable.
+ * Fold a concept's `verified` edit and optional `status` and `integrity` edits
+ * into the ordered, merged edit list both `okfit verify` and `FrontmatterEdits`
+ * apply: on equal offsets `status:` comes first, then `verified:`, then
+ * `integrity:`. The tie-break is by object identity -- the edits are otherwise
+ * indistinguishable.
  *
  * @internal
  */
 export const orderVerifyEdits = (
 	verifiedEdit: MarkdownEdit,
 	statusEdit: MarkdownEdit | undefined,
-): ReadonlyArray<MarkdownEdit> =>
-	mergeSameOffset(
-		[verifiedEdit, ...(statusEdit === undefined ? [] : [statusEdit])].toSorted(
-			(a, b) => a.offset - b.offset || (a === statusEdit ? -1 : b === statusEdit ? 1 : 0),
-		),
+	integrityEdit?: MarkdownEdit,
+): ReadonlyArray<MarkdownEdit> => {
+	const rank = (edit: MarkdownEdit): number => (edit === statusEdit ? 0 : edit === integrityEdit ? 2 : 1);
+	return mergeSameOffset(
+		[
+			verifiedEdit,
+			...(statusEdit === undefined ? [] : [statusEdit]),
+			...(integrityEdit === undefined ? [] : [integrityEdit]),
+		].toSorted((a, b) => a.offset - b.offset || rank(a) - rank(b)),
 	);
+};

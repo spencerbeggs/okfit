@@ -3,6 +3,7 @@ import type { YamlParseError } from "@effected/yaml";
 import type { Status } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import { Effect, Result, Runtime, Schema } from "effect";
+import { formatDigest, locateIntegrity, spliceIntegrityVerified } from "../verify/integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { orderVerifyEdits, splice, spliceTopLevelScalar } from "../verify/splice.js";
 
@@ -69,10 +70,16 @@ export class FrontmatterEdits {
 			return [shift(edit, bom.length)];
 		});
 
-	/** Edits that append one verified entry, the same splice `okfit verify` performs. */
+	/**
+	 * Edits that append one verified entry and bind it with `integrity.verified`
+	 * (`content` is the content digest of the source as passed), the same splice
+	 * `okfit verify` performs. Only the `verified` slot of an existing `integrity`
+	 * block is rewritten.
+	 */
 	static readonly verified = (
 		source: string,
 		entry: { readonly by: string; readonly at: string },
+		content: string,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
@@ -80,21 +87,29 @@ export class FrontmatterEdits {
 			if (target._tag === "unsupported") {
 				return yield* new UnsupportedFrontmatterError({ key: "verified", shape: target.shape });
 			}
-			const edit = splice(target, entry, documentNewline(text));
-			return [shift(edit, bom.length)];
+			const newline = documentNewline(text);
+			const verifiedEdit = splice(target, entry, newline);
+			const integrity = yield* locateIntegrity(text);
+			if (integrity._tag === "unsupported") {
+				return yield* new UnsupportedFrontmatterError({ key: "integrity", shape: integrity.shape });
+			}
+			const integrityEdit = spliceIntegrityVerified(integrity, text, { ...entry, content }, newline);
+			return orderVerifyEdits(verifiedEdit, undefined, integrityEdit).map((edit) => shift(edit, bom.length));
 		});
 
 	/**
-	 * Edits that append one verified entry AND set top-level `status`, the combined write
-	 * `okfit verify --stable` performs. A `status` scalar already equal to `status` makes no
-	 * status edit, and equal-offset inserts are merged with `status:` first. Unlike the CLI,
-	 * which reads the parsed status, this always locates `status`, so an unsupported shape
-	 * on it fails even when its value already matches.
+	 * Edits that append one verified entry, bind it with `integrity.verified` AND set top-level
+	 * `status`, the combined write `okfit verify --stable` performs. A `status` scalar already
+	 * equal to `status` makes no status edit, and equal-offset inserts are merged with `status:`
+	 * first, then `verified:`, then `integrity:`. Unlike the CLI, which reads the parsed status,
+	 * this always locates `status`, so an unsupported shape on it fails even when its value
+	 * already matches.
 	 */
 	static readonly verifiedWithStatus = (
 		source: string,
 		entry: { readonly by: string; readonly at: string },
 		status: Status,
+		content: string,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
@@ -112,17 +127,24 @@ export class FrontmatterEdits {
 			if (target._tag !== "replaceScalar" || unquote(text.slice(target.start, target.end), target.quote) !== status) {
 				statusEdit = spliceTopLevelScalar(target, "status", status, newline);
 			}
-			return orderVerifyEdits(verifiedEdit, statusEdit).map((edit) => shift(edit, bom.length));
+			const integrity = yield* locateIntegrity(text);
+			if (integrity._tag === "unsupported") {
+				return yield* new UnsupportedFrontmatterError({ key: "integrity", shape: integrity.shape });
+			}
+			const integrityEdit = spliceIntegrityVerified(integrity, text, { ...entry, content }, newline);
+			return orderVerifyEdits(verifiedEdit, statusEdit, integrityEdit).map((edit) => shift(edit, bom.length));
 		});
 
 	/**
-	 * Edits that stamp `renders[i].body_sha256` with `digests[i]`: an existing value is replaced in
-	 * place, a missing key is inserted on the line after `renders[i].path` at that key's column.
-	 * Block-style `renders` only; flow style fails with `UnsupportedFrontmatterError`.
+	 * Edits that stamp `renders[i].body` with `digests[i]` (16 hex, quoted when numeric-looking): an
+	 * existing value is replaced in place, a missing key is inserted on the line after
+	 * `renders[i].path` at that key's column. An `undefined` digest skips its entry. A legacy `renders[i].body_sha256` line in the same
+	 * entry is removed, so an entry never ends up with both keys. Block-style `renders` only; flow
+	 * style fails with `UnsupportedFrontmatterError`.
 	 */
 	static readonly rendersDigests = (
 		source: string,
-		digests: ReadonlyArray<string>,
+		digests: ReadonlyArray<string | undefined>,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
@@ -139,9 +161,25 @@ export class FrontmatterEdits {
 			const newline = documentNewline(text);
 			const edits: Array<MarkdownEdit> = [];
 			for (const [index, digest] of digests.entries()) {
-				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
+				// `undefined` leaves that entry untouched (a migration that only converts legacy entries).
+				if (digest === undefined) continue;
+				const formatted = formatDigest(digest);
+				const legacySpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
+				if (legacySpan !== undefined && legacySpan.offset !== block.offset) {
+					const start = text.lastIndexOf("\n", legacySpan.offset - 1) + 1;
+					const nl = text.indexOf("\n", legacySpan.offset + legacySpan.length);
+					const end = nl === -1 ? text.length : nl + 1;
+					const prefix = text.slice(start, legacySpan.offset);
+					if (!/^[ ]*(?:-[ ]+)*(?:"body_sha256"|'body_sha256'|body_sha256)[ ]*:[ ]*$/u.test(prefix)) {
+						return yield* unsupported("flow-mapping");
+					}
+					// A dash-prefixed key line cannot be removed whole; only a dedicated line is.
+					if (prefix.includes("-")) return yield* unsupported("dash-prefixed-key");
+					edits.push(shift(MarkdownEdit.make({ offset: start, length: end - start, content: "" }), bom.length));
+				}
+				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body"]);
 				if (digestSpan !== undefined && digestSpan.offset !== block.offset) {
-					const content = digestSpan.length === 0 ? ` ${digest}` : digest;
+					const content = digestSpan.length === 0 ? ` ${formatted}` : formatted;
 					edits.push(
 						shift(MarkdownEdit.make({ offset: digestSpan.offset, length: digestSpan.length, content }), bom.length),
 					);
@@ -165,12 +203,12 @@ export class FrontmatterEdits {
 						MarkdownEdit.make({
 							offset: lineEnd,
 							length: 0,
-							content: `${newline}${" ".repeat(column)}body_sha256: ${digest}`,
+							content: `${newline}${" ".repeat(column)}body: ${formatted}`,
 						}),
 						bom.length,
 					),
 				);
 			}
-			return edits;
+			return edits.toSorted((a, b) => a.offset - b.offset);
 		});
 }

@@ -67,7 +67,7 @@ const config: OkfitConfig = {
 		Decision: {
 			description: "A choice made, the alternatives rejected, and why.",
 			guidance:
-				"Never edit a stable Decision; deprecate it and write a new one that names it in supersedes. A Decision counts as settled only once a human has verified it.",
+				"Edit a Decision when the choice still stands and its text has drifted or is incomplete; the edit voids its verification until a human verifies it again. Deprecate it and write a successor that names it in supersedes only when the choice itself changes and its history matters.",
 			require_verified: true,
 			fields: {
 				supersedes: { description: "The Decision this one replaces.", kind: "path" },

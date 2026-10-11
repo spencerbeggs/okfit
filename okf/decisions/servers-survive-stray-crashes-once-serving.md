@@ -16,10 +16,12 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-10-05T22:58:46Z
-  body_sha256: ef0014c6c62a639d693923030795673556f29ef00e8761fad9c7589c06e0b61a
 verified:
   - by: human:spencer
     at: 2026-10-05T23:03:56Z
+integrity:
+  generated:
+    body: ef0014c6c62a639d
 ---
 
 # The language and MCP servers survive a stray crash once serving, and exit on one before

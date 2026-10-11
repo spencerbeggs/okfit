@@ -110,4 +110,32 @@ describe("decodeConcept", () => {
 		assert.deepStrictEqual(Object.keys(concept.extensions), ["__proto__"]);
 		assert.isFalse("polluted" in {});
 	});
+
+	it("a malformed integrity block is family-invalid for integrity only", () => {
+		const result = decodeConcept({
+			type: "Decision",
+			generated: { by: "human:spencer", at: "2026-10-10T18:00:00Z" },
+			verified: [{ by: "human:spencer", at: "2026-10-10T18:00:00Z" }],
+			integrity: { verified: { by: "human:spencer", at: "nope", content: "xyz" } },
+		});
+		assert.strictEqual(result._tag, "Decoded");
+		if (result._tag !== "Decoded") return;
+		assert.isDefined(result.concept.generated);
+		assert.isDefined(result.concept.verified);
+		assert.isUndefined(result.concept.integrity);
+		assert.isAbove(result.issues.length, 0);
+		assert.isTrue(result.issues.every((issue) => issue.family === "integrity"));
+		assert.isFalse("integrity" in result.concept.extensions);
+	});
+
+	it("a legacy 64-hex generated.body_sha256 still decodes generated", () => {
+		const result = decodeConcept({
+			type: "Decision",
+			generated: { by: "human:spencer", at: "2026-10-10T18:00:00Z", body_sha256: "a".repeat(64) },
+		});
+		assert.strictEqual(result._tag, "Decoded");
+		if (result._tag !== "Decoded") return;
+		assert.strictEqual(result.concept.generated?.body_sha256, "a".repeat(64));
+		assert.strictEqual(result.issues.length, 0);
+	});
 });

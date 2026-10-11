@@ -4,7 +4,7 @@ title: OKF specification
 description: The Open Knowledge Format 0.2 specification this kit implements.
 sources:
   - id: okf-spec
-    resource: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
+    resource: https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md
 ---
 
 # OKF specification

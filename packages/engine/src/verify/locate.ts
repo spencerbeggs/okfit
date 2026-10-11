@@ -82,8 +82,10 @@ export const indentAt = (value: string, offset: number): string => {
  * carries a `<<` key. That is every level a legal `Verification.List` can
  * reach; anything deeper already fails to decode as a `Verification`
  * (contract §11 item 3).
+ *
+ * @internal
  */
-const hasMergeKey = (node: YamlNode): boolean => {
+export const hasMergeKey = (node: YamlNode): boolean => {
 	if (node instanceof YamlMap) {
 		return node.items.some((pair) => pair.key instanceof YamlScalar && pair.key.value === "<<");
 	}
@@ -94,7 +96,7 @@ const hasMergeKey = (node: YamlNode): boolean => {
 };
 
 /** {@link parseTopLevelMapping}'s result: the parsed mapping, or the `unsupported` shape it failed at. @internal */
-type ParsedTopLevelMapping =
+export type ParsedTopLevelMapping =
 	| { readonly value: string; readonly valueStart: number; readonly contents: YamlMap }
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
@@ -108,7 +110,7 @@ type ParsedTopLevelMapping =
  *
  * @internal
  */
-const parseTopLevelMapping = Effect.fn("okfit/verify/parseTopLevelMapping")(function* (
+export const parseTopLevelMapping = Effect.fn("okfit/verify/parseTopLevelMapping")(function* (
 	source: string,
 ): Generator<Effect.Effect<YamlDocument, YamlParseError>, ParsedTopLevelMapping> {
 	const block = FrontmatterSource.split(source).frontmatter;
@@ -249,7 +251,7 @@ export type GeneratedLocated =
  */
 const locateGeneratedField = Effect.fn("okfit/verify/locateGeneratedField")(function* (
 	source: string,
-	field: "at" | "body_sha256",
+	field: "at",
 ): Generator<
 	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
 	GeneratedLocated
@@ -278,14 +280,7 @@ const locateGeneratedField = Effect.fn("okfit/verify/locateGeneratedField")(func
 		if (last === undefined) return { _tag: "unsupported", shape: "empty" } as const;
 		// S-2 / contract §14 note 1: seek the next newline after the last
 		// item's own end and insert right after it -- a fully-terminated new
-		// line, never the blockSeq `afterNewline` leading-newline style. Issue
-		// #19: the SAME anchor (the mapping's last existing key) is reused for
-		// `body_sha256` when absent -- in every fixture and every concept in
-		// this repo `at` is itself the last key of `generated:` (`stale_after`
-		// is a top-level sibling of `generated:`, never nested inside it), so
-		// "after the last key" already means "after `at`" for the realistic
-		// shape; `sync/generated.ts` additionally merges the two edits into one
-		// when they land at the identical offset (both fields freshly stamped).
+		// line, never the blockSeq `afterNewline` leading-newline style.
 		const lastEnd = last.value !== null ? last.value.offset + last.value.length : last.key.offset + last.key.length;
 		const nl = value.indexOf("\n", lastEnd);
 		const insertAt = nl === -1 ? value.length : nl + 1;
@@ -309,17 +304,6 @@ const locateGeneratedField = Effect.fn("okfit/verify/locateGeneratedField")(func
 
 export const locateGenerated = (source: string): Effect.Effect<GeneratedLocated, YamlParseError> =>
 	locateGeneratedField(source, "at");
-
-/**
- * As {@link locateGenerated}, but for the top-level `generated.body_sha256`
- * key (issue #19). Shares every branch with `locateGenerated` -- the two
- * fields are siblings of the same `generated:` block mapping -- parametrized
- * only by which key name is sought.
- *
- * @internal
- */
-export const locateGeneratedBodySha256 = (source: string): Effect.Effect<GeneratedLocated, YamlParseError> =>
-	locateGeneratedField(source, "body_sha256");
 
 /**
  * The classification of a concept's top-level scalar key (e.g. `status`),

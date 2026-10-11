@@ -8,6 +8,8 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"generated-missing":
 		"has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent",
 	"generated-unsupported": "generated.at is a shape sync cannot edit; edit it by hand",
+	"integrity-unsupported": "integrity is a shape sync cannot edit; edit it by hand",
+	"renders-unsupported": "renders is a shape sync cannot edit (flow style); edit it by hand",
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
 };
 
@@ -15,6 +17,7 @@ const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<s
 	if (!mode.selected) return [`${name}: not selected`];
 	const lines: Array<string> = [`${name}:`];
 	for (const id of mode.written) lines.push(`  wrote ${id}`);
+	for (const id of mode.migrated) lines.push(`  migrated ${id}`);
 	for (const id of mode.unchanged) lines.push(`  unchanged ${id}`);
 	for (const entry of mode.skipped) {
 		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}`);
@@ -37,13 +40,14 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 		...humanMode("log", result.log),
 	];
 	const totalWritten = result.generated.written.length + result.index.written.length + result.log.written.length;
+	const totalMigrated = result.generated.migrated.length + result.index.migrated.length + result.log.migrated.length;
 	const totalUnchanged =
 		result.generated.unchanged.length + result.index.unchanged.length + result.log.unchanged.length;
 	const totalSkipped = result.generated.skipped.length + result.index.skipped.length + result.log.skipped.length;
 	lines.push(
 		result.dryRun
-			? `would write ${totalWritten}, unchanged ${totalUnchanged}, skipped ${totalSkipped} (dry run, nothing written)`
-			: `wrote ${totalWritten}, unchanged ${totalUnchanged}, skipped ${totalSkipped}`,
+			? `would write ${totalWritten}, migrated ${totalMigrated}, unchanged ${totalUnchanged}, skipped ${totalSkipped} (dry run, nothing written)`
+			: `wrote ${totalWritten}, migrated ${totalMigrated}, unchanged ${totalUnchanged}, skipped ${totalSkipped}`,
 	);
 	return lines;
 };
@@ -56,7 +60,7 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
  */
 export const humanPublication = (result: PublicationEnvelope, dryRun: boolean): ReadonlyArray<string> => [
 	`publication ${result.id}:`,
-	...result.digests.map((d) => `  ${d.path} ${d.body_sha256}`),
+	...result.digests.map((d) => `  ${d.path} ${d.body}`),
 	result.written
 		? dryRun
 			? `would restamp ${result.id} (dry run, nothing written)`

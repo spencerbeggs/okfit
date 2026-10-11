@@ -101,6 +101,7 @@ bins; npx still runs the single-bin `@okfit/mcp` / `@okfit/lsp`.
 Run the BATS suite with `pnpm test:bats` from the repo root, or one file
 with `pnpm exec bats plugin/__test__/<file>`.
 
-Never add `verified` entries to a concept from this plugin. `okfit verify`
-exists and is a human-run CLI command; this plugin's agent and hooks never
-invoke it and never write `verified` themselves.
+Never write `verified`, `integrity.verified` or any `integrity` key from
+this plugin. `okfit verify` exists and is a human-run CLI command; this
+plugin's agent and hooks never invoke it. Editing a verified concept is
+fine: the edit surfaces as `verified-drift`, and only a human re-verifies.

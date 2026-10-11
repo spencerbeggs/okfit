@@ -6,10 +6,12 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-01T18:31:01Z
-  body_sha256: 9bbdda6d22ef32fcb0b4f664a4d0abe51e6cfbc3816d987692bbc4ce0ab73ed5
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
+integrity:
+  generated:
+    body: 9bbdda6d22ef32fc
 ---
 
 # process reads confined to the CLI's boundary files

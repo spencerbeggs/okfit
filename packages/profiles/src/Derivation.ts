@@ -1,13 +1,15 @@
 import type { GitCommandError, NotARepositoryError, UnknownRefError } from "@effected/git";
 import { Git } from "@effected/git";
-import { FrontmatterSource } from "@effected/markdown";
+import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { Crypto, DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
 import * as Hex from "effect/encoding/Hex";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
+import { Canonical } from "./Canonical.js";
 import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 import { GitHistory } from "./GitHistory.js";
+import { body } from "./internal/body.js";
 
 /**
  * Who is writing now. Explicit, never read from the environment (P-16).
@@ -118,12 +120,6 @@ const HUMAN_PREFIX = "human:";
 const FALLBACK_STALE_AFTER = Duration.days(90);
 const decodeActor = Schema.decodeSync(Actor);
 
-// P-6: CRLF and lone CR to LF, then trailing whitespace at end of text removed.
-const normalise = (text: string): string => text.replace(/\r\n?/g, "\n").trimEnd();
-
-// MD/index.d.ts:2306; body is source.slice(bodyOffset) (:2248-2254).
-const body = (text: string): string => normalise(FrontmatterSource.split(text).body);
-
 // Issue #19 (body-digest design, supersedes the reverted `BodyProvenance.stamps` approach): a
 // lowercase 64-char hex sha256 of the P-6-normalized body, so `core.autocrlf` worktrees and
 // trailing-newline churn hash identically and a frontmatter-only edit never changes the digest.
@@ -132,12 +128,24 @@ const body = (text: string): string => normalise(FrontmatterSource.split(text).b
 // `GitHistory`/`FileSystem`/`Path` rather than a hidden Node dependency; `NodeServices.layer`
 // (already provided at every call site through `OkfitPlatform`) supplies the live implementation.
 // `Hex.encode` (EF/encoding/Hex.ts:32) renders the digest bytes as lowercase hex.
-const bodyDigest = (text: string): Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =>
+const digestFull = (text: string): Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =>
 	Effect.gen(function* () {
 		const crypto = yield* Crypto.Crypto;
-		const bytes = yield* crypto.digest("SHA-256", new TextEncoder().encode(body(text)));
+		const bytes = yield* crypto.digest("SHA-256", new TextEncoder().encode(text));
 		return Hex.encode(bytes);
 	});
+
+/** 16-hex okfit digest (spec section 3): the first 64 bits of SHA-256. */
+const digest = (text: string): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =>
+	Effect.map(digestFull(text), (hex) => hex.slice(0, 16) as Digest);
+
+const bodyDigest = (source: string): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =>
+	digest(body(source));
+
+const contentDigest = (
+	raw: Readonly<Record<string, unknown>>,
+	source: string,
+): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> => digest(Canonical.contentInput(raw, source));
 
 /** The text before the first `@` (the whole value when there is none), or undefined when empty or containing whitespace. */
 const localPartOf = (email: string | undefined): string | undefined => {
@@ -224,12 +232,42 @@ export class Derivation {
 	static readonly body: (text: string) => string = body;
 
 	/**
-	 * Lowercase 64-char hex sha256 of `Derivation.body(text)`, through `effect`'s platform-agnostic
-	 * `Crypto` service (issue #19). Same normalization as `body`, so a frontmatter-only edit or a
-	 * `core.autocrlf` worktree never changes the digest.
+	 * Full lowercase 64-char hex sha256 of a string. Tests only.
+	 *
+	 * @internal
 	 */
-	static readonly bodyDigest: (text: string) => Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =
+	static readonly digestFull: (text: string) => Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =
+		digestFull;
+
+	/**
+	 * The okfit digest of a string: the first 16 lowercase hex characters of its SHA-256, through
+	 * `effect`'s platform-agnostic `Crypto` service.
+	 */
+	static readonly digest: (text: string) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> = digest;
+
+	/**
+	 * 16-hex digest of `Derivation.body(source)` (issue #19). Same normalization as `body`, so a
+	 * frontmatter-only edit or a `core.autocrlf` worktree never changes the digest.
+	 */
+	static readonly bodyDigest: (source: string) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =
 		bodyDigest;
+
+	/**
+	 * The body digest recorded for a generated concept: `integrity.generated.body`, else the legacy
+	 * `generated.body_sha256` cut to its first 16 hex characters. `undefined` when neither is present.
+	 * Pure; every "is the stamped body still current" comparison reads through this.
+	 */
+	static readonly recordedBody: (concept: LoadedConcept) => string | undefined = (concept) =>
+		concept.frontmatter.integrity?.generated?.body ?? concept.frontmatter.generated?.body_sha256?.slice(0, 16);
+
+	/**
+	 * 16-hex digest of the canonical content input (`Canonical.contentInput`): authored frontmatter
+	 * plus the normalised body, insensitive to style, key order and CRLF.
+	 */
+	static readonly contentDigest: (
+		raw: Readonly<Record<string, unknown>>,
+		source: string,
+	) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> = contentDigest;
 
 	/**
 	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:

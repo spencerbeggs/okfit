@@ -7,13 +7,15 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T01:53:59Z
-  body_sha256: 82e1e2b2ff1813b64a9e3301522087cb8f3cd1feb40c54939f769412e878e801
+  at: 2026-10-11T03:57:51Z
 tags:
   - architecture
 verified:
   - by: human:spencer
     at: 2026-09-24T00:18:12.265Z
+integrity:
+  generated:
+    body: cf3115b24368b498
 ---
 
 # okfit config file schema
@@ -63,10 +65,10 @@ in.
 
 ## Lint severities
 
-The twenty-three default lint codes: `broken_links`, `missing_index`,
+The twenty-four default lint codes: `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
-`publication_drift`, and `surface_unmatched` default `warn`;
+`publication_drift`, `surface_unmatched`, and `verified_drift` default `warn`;
 `unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
 `family_invalid`, `computation_runtime_missing`, and `publication_orphan` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
@@ -80,8 +82,14 @@ that resolves to nothing in the bundle is a descriptor to core (D-24), so
 `broken_links` also checks a `#fragment` against the target concept's
 heading slugs (issue #69).
 `generated_at_drift` moved from `info` to `warn` when it gained a
-content-comparison tier — see [A body digest inside generated detects real
-drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+content-comparison tier — see [Every okfit digest lives in one integrity
+family](../decisions/integrity-family.md).
+`verified_drift` fires when a human `verified` entry no longer covers the
+concept's content: no binding (`unbound`), changed content, or a later
+unbound entry. Raise it to `error` to gate on it, or set `off` to skip the
+hashing. This repository's own `.config/okfit.toml` sets it `off` until a
+human has re-verified the existing entries — see [Verification drift is a
+signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
 `generated_missing` (issue #73) fires only when `actors.agent` is set: a
 concept with no `generated` block would otherwise only surface as a skip in
 `okfit sync`'s post-commit report, after the commit already landed.

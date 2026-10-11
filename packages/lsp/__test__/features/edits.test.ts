@@ -11,6 +11,7 @@ import {
 import { makeDocumentMemory } from "../../src/session/documents.js";
 import type { SessionRegistryShape } from "../../src/session/registry.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
+import { withBinding } from "../utils/digest.js";
 import { copyFixtureProject } from "../utils/fixture.js";
 import { testPlatform, testPlatformWithGitDefect, testPlatformWithIdentity } from "../utils/platform.js";
 
@@ -141,14 +142,28 @@ describe("verifiedStableTextEdits", () => {
 		}).pipe(Effect.provide(testPlatform())),
 	);
 
-	it.effect("fails AlreadyVerified when the actor already carries a verified entry", () =>
+	it.effect(
+		"offers a drifted verification again: an entry with no binding, or a stale one, is not AlreadyVerified",
+		() =>
+			Effect.gen(function* () {
+				const { registry, documents, path, disk } = yield* setup();
+				const entry = 'verified:\n  - by: "human:fixture-author"\n    at: "2026-01-01T00:00:00Z"\n';
+				const now = yield* DateTime.now;
+				const bound = yield* withBinding(draftBuffer(disk, entry), "human:fixture-author", "2026-01-01T00:00:00Z");
+				for (const buffer of [draftBuffer(disk, entry), bound.replace("Alpha", "Altered")]) {
+					yield* documents.record(path, buffer, 2);
+					const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+					const edits = yield* verifiedStableTextEdits(target, "human:fixture-author", now);
+					assert.isTrue(edits.some((edit) => edit.newText.includes("content: ")));
+				}
+			}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("fails AlreadyVerified when the actor's verification still binds the current content", () =>
 		Effect.gen(function* () {
 			const { registry, documents, path, disk } = yield* setup();
-			yield* documents.record(
-				path,
-				draftBuffer(disk, 'verified:\n  - by: "human:fixture-author"\n    at: "2026-01-01T00:00:00Z"\n'),
-				2,
-			);
+			const verified = draftBuffer(disk, 'verified:\n  - by: "human:fixture-author"\n    at: "2026-01-01T00:00:00Z"\n');
+			yield* documents.record(path, yield* withBinding(verified, "human:fixture-author", "2026-01-01T00:00:00Z"), 2);
 			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
 			const now = yield* DateTime.now;
 			const failure = yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", now));

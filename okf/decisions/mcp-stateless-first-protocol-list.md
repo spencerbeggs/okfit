@@ -7,7 +7,6 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-05T16:45:05Z
-  body_sha256: 6db2be3f457d1894a11159479d238a9c40ae303228bfcfa1a5c482def362acc5
 status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
@@ -24,6 +23,9 @@ sources:
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+integrity:
+  generated:
+    body: 6db2be3f457d1894
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first

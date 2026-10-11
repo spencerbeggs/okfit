@@ -4,7 +4,7 @@ import { SyncEnvelope, syncEnvelope } from "../../src/render/sync.js";
 import type { SyncResult } from "../../src/sync/run.js";
 import { ENGINE_VERSION } from "../../src/version.js";
 
-const EMPTY_MODE = { selected: true, written: [], unchanged: [], skipped: [] } as const;
+const EMPTY_MODE = { selected: true, written: [], unchanged: [], migrated: [], skipped: [] } as const;
 
 const baseResult: SyncResult = {
 	bundleRoot: "/repo/okf",
@@ -31,9 +31,9 @@ describe("syncEnvelope", () => {
 				root: "okf",
 				dry_run: false,
 				exit_code: 0,
-				generated: { selected: true, written: ["decisions/x"], unchanged: [], skipped: [] },
-				index: { selected: true, written: [], unchanged: ["modules/index.md"], skipped: [] },
-				log: { selected: true, written: ["log.md"], unchanged: [], skipped: [] },
+				generated: { selected: true, written: ["decisions/x"], unchanged: [], migrated: [], skipped: [] },
+				index: { selected: true, written: [], unchanged: ["modules/index.md"], migrated: [], skipped: [] },
+				log: { selected: true, written: ["log.md"], unchanged: [], migrated: [], skipped: [] },
 			});
 		}),
 	);
@@ -42,13 +42,13 @@ describe("syncEnvelope", () => {
 		const unselected: SyncResult = {
 			bundleRoot: "/repo/okf",
 			dryRun: false,
-			generated: { selected: false, written: [], unchanged: [], skipped: [] },
+			generated: { selected: false, written: [], unchanged: [], migrated: [], skipped: [] },
 			index: { ...EMPTY_MODE, unchanged: ["modules/index.md"] },
-			log: { selected: false, written: [], unchanged: [], skipped: [] },
+			log: { selected: false, written: [], unchanged: [], migrated: [], skipped: [] },
 		};
 		const built = syncEnvelope({ okfitVersion: "0.1.0", root: "okf", dryRun: false, result: unselected });
-		assert.deepStrictEqual(built.generated, { selected: false, written: [], unchanged: [], skipped: [] });
-		assert.deepStrictEqual(built.log, { selected: false, written: [], unchanged: [], skipped: [] });
+		assert.deepStrictEqual(built.generated, { selected: false, written: [], unchanged: [], migrated: [], skipped: [] });
+		assert.deepStrictEqual(built.log, { selected: false, written: [], unchanged: [], migrated: [], skipped: [] });
 		assert.strictEqual(built.index.selected, true);
 	});
 
@@ -56,7 +56,13 @@ describe("syncEnvelope", () => {
 		const withSkip: SyncResult = {
 			bundleRoot: "/repo/okf",
 			dryRun: true,
-			generated: { selected: true, written: [], unchanged: [], skipped: [{ id: "decisions/y", reason: "dirty" }] },
+			generated: {
+				selected: true,
+				written: [],
+				unchanged: [],
+				migrated: [],
+				skipped: [{ id: "decisions/y", reason: "dirty" }],
+			},
 			index: EMPTY_MODE,
 			log: EMPTY_MODE,
 		};
@@ -93,10 +99,10 @@ describe("syncEnvelope", () => {
 		const publication = {
 			id: "publications/pr",
 			written: true,
-			digests: [{ path: "../modules/x.md", body_sha256: "a" }],
+			digests: [{ path: "../modules/x.md", body: "a" }],
 		};
 		const built = syncEnvelope({ okfitVersion: "0.1.0", root: "okf", dryRun: true, publication });
-		const unselected = { selected: false, written: [], unchanged: [], skipped: [] };
+		const unselected = { selected: false, written: [], unchanged: [], migrated: [], skipped: [] };
 		assert.deepStrictEqual(built.generated, unselected);
 		assert.deepStrictEqual(built.index, unselected);
 		assert.deepStrictEqual(built.log, unselected);
@@ -119,7 +125,13 @@ describe("syncEnvelope", () => {
 			result: {
 				bundleRoot: "/repo/okf",
 				dryRun: false,
-				generated: { selected: true, written: [], unchanged: [], skipped: [{ id: "a", reason: "dirty" }] },
+				generated: {
+					selected: true,
+					written: [],
+					unchanged: [],
+					migrated: [],
+					skipped: [{ id: "a", reason: "dirty" }],
+				},
 				index: EMPTY_MODE,
 				log: EMPTY_MODE,
 			},

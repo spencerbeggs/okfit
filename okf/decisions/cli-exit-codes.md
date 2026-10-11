@@ -7,11 +7,13 @@ tags:
 generated:
   by: human:spencer
   at: 2026-09-06T11:25:53Z
-  body_sha256: f6e2824bcccf79039d685dc60a7050f79bc3fd50b75d153a5533ec00b4a20bbb
 status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:06Z
+integrity:
+  generated:
+    body: f6e2824bcccf7903
 ---
 
 # Exit codes are a fixed six-value total order

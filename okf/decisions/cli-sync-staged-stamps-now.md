@@ -7,12 +7,14 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-16T20:22:38Z
-  body_sha256: ac5158daf90fc820062857aabf67d7f86379739e18972c468e456be764809b20
+  at: 2026-10-11T03:57:51Z
 status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+integrity:
+  generated:
+    body: 0be3b6aa560a98aa
 ---
 
 # okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
@@ -32,7 +34,7 @@ for an ordinary run: a file staged today may be committed next week.
 `okfit sync --staged` is a caller policy layered on top of that rule, not
 a change to it. It selects only the concepts in the git index, stamps
 `generated.at` with the current instant (truncated to seconds) and
-`generated.body_sha256` with the body's digest, writes, and re-adds what
+`integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit. It never walks history
 and never runs log mode, whose group dates must come from commits. It is
 meant to be run from a pre-commit hook and nowhere else; outside one it is
@@ -46,6 +48,11 @@ the author date from `GIT_AUTHOR_DATE` was deferred: the hook use case
 does not set it, and `OKFIT_NOW` already provides a deterministic override.
 
 ## Consequences
+
+A concept still carrying the legacy `generated.body_sha256` is migrated to
+`integrity.generated.body` by the same staged run (see [integrity
+frontmatter](../interfaces/integrity-frontmatter.md)); the hook never
+writes `integrity.verified`.
 
 The digest guarantees a `--staged` stamp is never rewritten by a later
 walk. An aborted commit leaves a stamp a few seconds early, harmlessly.

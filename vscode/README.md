@@ -1,7 +1,7 @@
 # okfit
 
 Diagnostics, navigation and a concept explorer for [Open Knowledge
-Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)
 (OKF) bundles, powered by the
 [`@okfit/lsp`](https://www.npmjs.com/package/@okfit/lsp) language server.
 

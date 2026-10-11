@@ -9,8 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-02T23:48:25Z
-  body_sha256: 4330d41145cbd069d85788eb51e3a11303b3da59a45befef2bbd306139ea218d
+  at: 2026-10-11T03:57:51Z
+integrity:
+  generated:
+    body: 7e68362edaff355f
 ---
 
 # Core
@@ -104,11 +106,19 @@ that is not there. Bundle-level rules (`config-unknown-key`,
 `missing-index`) stay range-less. A quoted YAML scalar's range includes
 the surrounding quotes.
 
-## generated.body_sha256
+## The integrity family
 
-`Generated` carries an optional third key, `body_sha256` — a lowercase
-64-character hex sha256 of a concept's body, validated by a new `BodySha256`
-schema. Core only holds the field; it never computes a digest itself, since
-that would need a hashing capability core's no-Node-imports rule keeps out
-of this package. See [A body digest inside generated detects real drift,
-not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+`Integrity.ts` defines `Digest` (a 16-character lowercase hex string),
+`IntegrityGenerated { body }`, `IntegrityVerified { by, at, content }` and
+`Integrity`, and `Concept` carries an optional top-level `integrity`
+decoded as its own family, so a malformed block yields `family-invalid`
+for `integrity` only and never drops `generated` or `verified`. Core only
+holds the shape; it never computes a digest, since that would need a
+hashing capability core's no-Node-imports rule keeps out of this package.
+`Generated.body_sha256` remains a lenient optional legacy string, read only
+as a migration fallback and never written, and the removed `BodySha256`
+schema is gone from the barrel. `verified-drift` is a registered lint code
+(`verified_drift` in the `[lint]` table, default `warn`). See [Every okfit
+digest lives in one integrity family](../decisions/integrity-family.md) and
+the [integrity frontmatter](../interfaces/integrity-frontmatter.md)
+contract.

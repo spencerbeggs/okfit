@@ -57,6 +57,7 @@ validation on the file without any further setup.
   | `required_key_missing` | `error` |
   | `field_value_unknown` | `error` |
   | `require_verified_unmet` | `error` |
+  | `verified_drift` | `warn` |
   | `family_invalid` | `error` |
   | `generated_at_drift` | `warn` |
   | `computation_runtime_missing` | `error` |

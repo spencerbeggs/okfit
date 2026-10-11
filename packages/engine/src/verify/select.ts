@@ -1,11 +1,12 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig, StaleConcept } from "@okfit/core";
+import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
 import { Effect } from "effect";
 import { VerifySelectionError } from "../errors.js";
 
 /**
  * Why a candidate concept was skipped by batch selection: `"draft"` and
- * `"deprecated"` mirror `status`, `"already-verified"` means the actor already
- * carries a `verified` entry.
+ * `"deprecated"` mirror `status`, `"already-verified"` means the actor's
+ * `verified` entry is still bound to the concept's current content.
  *
  * @public
  */
@@ -23,9 +24,18 @@ export interface AttestableSelection {
 }
 
 /**
+ * Whether `concept` is verified by `actor` AND that verification still binds
+ * its content: the signal is `current` and `integrity.verified` names `actor`.
+ * A drifted concept, or one whose current binding is another actor's, is not.
+ */
+const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<string, ConceptSignal>): boolean =>
+	signals.get(concept.id)?.integrity === "current" && concept.frontmatter.integrity?.verified?.by === actor;
+
+/**
  * Issue #138/#143: which concepts of `types` the actor may attest in one
  * batch. A draft is unsettled and a deprecated concept is retired (#143), so
- * both are skipped before the already-verified check.
+ * both are skipped before the already-verified check. A concept whose
+ * verification has drifted, or is bound to another actor, is a candidate.
  *
  * @public
  */
@@ -33,6 +43,7 @@ export const selectAttestable = (
 	bundle: LoadedBundle,
 	types: ReadonlySet<string>,
 	actor: string,
+	signals: ReadonlyMap<string, ConceptSignal>,
 ): AttestableSelection => {
 	const candidates: Array<LoadedConcept> = [];
 	const skipped: Array<{ readonly id: string; readonly reason: VerifyBatchSkipReason }> = [];
@@ -43,7 +54,7 @@ export const selectAttestable = (
 			skipped.push({ id, reason: status });
 			continue;
 		}
-		if ((concept.frontmatter.verified ?? []).some((entry) => entry.by === actor)) {
+		if (attestedBy(concept, actor, signals)) {
 			skipped.push({ id, reason: "already-verified" });
 			continue;
 		}
@@ -70,12 +81,16 @@ export interface PickerCandidate {
 	readonly description: string | null;
 	/** How many `verified` entries by actors other than the current one. */
 	readonly otherAttestations: number;
+	/** Whether the concept's human verification still binds its content (`none` when nobody human verified it). */
+	readonly integrity: IntegrityState;
+	/** Whether the concept is past its `stale_after` (or otherwise stale) at the time the rows were selected. */
+	readonly stale: boolean;
 }
 
 /**
  * Every concept whose type sets `require_verified` that `actor` has not
- * attested: drafts included, deprecated concepts and the actor's own
- * attestations excluded. Sorted by type, then id; grouping is the caller's.
+ * attested: drafts included, deprecated concepts and the actor's own still-bound
+ * attestations excluded (a drifted one is offered again). Sorted by type, then id; grouping is the caller's.
  *
  * @public
  */
@@ -83,6 +98,7 @@ export const selectPickerCandidates = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
 	actor: string,
+	signals: ReadonlyMap<string, ConceptSignal>,
 ): ReadonlyArray<PickerCandidate> => {
 	const types = requireVerifiedTypes(config);
 	const rows: Array<PickerCandidate> = [];
@@ -90,14 +106,16 @@ export const selectPickerCandidates = (
 		const { type, status, title, description } = concept.frontmatter;
 		if (!types.has(type) || status === "deprecated") continue;
 		const verified = concept.frontmatter.verified ?? [];
-		if (verified.some((entry) => entry.by === actor)) continue;
+		if (attestedBy(concept, actor, signals)) continue;
 		rows.push({
 			id,
 			type,
 			status: status === "draft" ? "draft" : "stable",
 			title: title ?? null,
 			description: description ?? null,
-			otherAttestations: verified.length,
+			otherAttestations: verified.filter((entry) => entry.by !== actor).length,
+			integrity: signals.get(id)?.integrity ?? "none",
+			stale: signals.get(id)?.stale ?? false,
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -116,6 +134,7 @@ export const selectStaleCandidates = (
 	bundle: LoadedBundle,
 	items: ReadonlyArray<StaleConcept>,
 	actor: string,
+	signals: ReadonlyMap<string, ConceptSignal>,
 ): ReadonlyArray<PickerCandidate> => {
 	const rows: Array<PickerCandidate> = [];
 	for (const item of items) {
@@ -130,6 +149,8 @@ export const selectStaleCandidates = (
 			title: title ?? null,
 			description: description ?? null,
 			otherAttestations: (concept.frontmatter.verified ?? []).filter((entry) => entry.by !== actor).length,
+			integrity: signals.get(item.id)?.integrity ?? "none",
+			stale: signals.get(item.id)?.stale ?? false,
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

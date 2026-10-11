@@ -331,7 +331,7 @@ describe("Derivation.bodyDigest (issue #19)", () => {
 			assert.strictEqual(lf, crlf);
 			assert.strictEqual(lf, cr);
 			assert.strictEqual(lf, trailing);
-			assert.match(lf, /^[0-9a-f]{64}$/);
+			assert.match(lf, /^[0-9a-f]{16}$/);
 		}).pipe(withCrypto),
 	);
 

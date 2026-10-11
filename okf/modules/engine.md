@@ -9,8 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-09T17:01:02Z
-  body_sha256: dae22879d83ab008ff102a58270ba57064d5538c9405a8d86f9af3ad40d96664
+  at: 2026-10-11T04:24:45Z
+integrity:
+  generated:
+    body: e36ad1d26afe534d
 ---
 
 # Engine
@@ -66,16 +68,37 @@ equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 `validate/run.ts#run` and `sync/run.ts#runSync` both now carry
 `Crypto.Crypto` in their dependencies, satisfied for free wherever
 `OkfitPlatform`/`NodeServices.layer` already runs, since `@okfit/profiles`'
-`Provenance.lint` and `Derivation.bodyDigest` need it for the two-tier
-`generated-at-drift` lint. `verify/locate.ts`'s single-field
-`locateGenerated` generalized into a private `locateGeneratedField(source,
-field)` plus a public `locateGeneratedBodySha256`, and `verify/splice.ts`
-gained `spliceGeneratedFields`, which merges the `at` and `body_sha256`
-edits into one when both anchor at the same insertion offset — two
-zero-length inserts at one offset are the "overlapping edits" case
-`MarkdownEdit.applyAll` treats as a programmer error. See [A body digest
-inside generated detects real drift, not a rewritten
-date](../decisions/profiles-body-sha256-detects-real-drift.md).
+`Provenance.lint`, `Derivation.bodyDigest` and the `verified-drift` lint
+need it. `verify/integrity.ts` locates and splices the top-level
+`integrity` block (`locateIntegrity`, `spliceIntegrityVerified`, plus the
+`integrity.generated.body` splice sync uses), failing closed on aliases,
+merge keys and flow mappings, and its zero-length inserts join
+`orderVerifyEdits`/`mergeSameOffset` so edits at one offset merge into one
+— two zero-length inserts at one offset are the "overlapping edits" case
+`MarkdownEdit.applyAll` treats as a programmer error. Digests that are all
+digits or digits-e-digits are written single-quoted. `validate/run.ts`
+composes `verified-drift` beside `Provenance.lint`. See [Every okfit digest
+lives in one integrity family](../decisions/integrity-family.md).
+
+Every `verified` write (`runVerify`, `runVerifyBatch`, `runVerifyIds`)
+also binds `integrity.verified`; the refresh path rewrites the binding in
+the same edit. Candidate selection counts an actor as already verified only
+when it holds the current binding, so batch, the picker and `stale
+--verify` re-offer drifted concepts. `verify/revoke.ts` implements
+`--revoke`: it removes the current actor's own `verified` entries, clears
+`integrity.verified` when it was bound to one of them (and `integrity`
+when empty), removes the `verified` key when its list empties, and reports
+`removed`, `binding_cleared` and `revoked_by`; it fails with a typed error
+when there is nothing to revoke. `verify/diff.ts` builds the git diff from
+the last commit at or before the bound `at` to the working tree, and the
+verify envelope gains an optional `prior_integrity`.
+
+`runSync` migrates legacy digests: `generated.body_sha256` becomes
+`integrity.generated.body` and a Publication's `renders[].body_sha256`
+becomes `renders[].body`, both cut to 16 hex. The plan and output report
+`migrated`, and the skip reasons gain `integrity-unsupported` and
+`renders-unsupported`. Migration never touches `verified` and never writes
+`integrity.verified`.
 
 `verify/run.ts#runVerifyBatch` attests a whole selection at once --
 `--all`, narrowed or replaced by `--type <T>` -- instead of one id at a
@@ -137,7 +160,8 @@ changed, so a file edited between plan and confirm is never overwritten.
 `runSync` composes the two and behaves as before.
 
 `sync/run.ts#planSync` walks git lazily now: a concept whose recorded
-`generated.body_sha256` still matches its current body, and that log mode
+body digest (`integrity.generated.body`, or a legacy `generated.body_sha256`)
+still matches its current body, and that log mode
 does not need for its date window, is never read through git at all --
 only unstamped concepts, or stamped ones the log window still wants,
 pay the git cost. On this bundle `okfit sync --dry-run` dropped from
@@ -151,7 +175,7 @@ spellings](../decisions/cli-sync-log-appends-into-the-day.md), which
 supersedes the strictly-after rule. `--since <YYYY-MM-DD>` widens that
 floor on request. A `staged` mode (`sync/run.ts`) selects only the git
 index, stamps `generated.at` with `now` (truncated to seconds) and
-`generated.body_sha256` with the body's digest, writes, and re-adds what
+`integrity.generated.body` with the body's digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is

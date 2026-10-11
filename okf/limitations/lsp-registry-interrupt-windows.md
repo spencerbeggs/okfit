@@ -11,8 +11,10 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-09-23T08:34:50Z
-  body_sha256: a6428a6dcc4c02f7d96bc1a61106600a8e7b410780e2a6ea415d1c433aeba96c
 status: draft
+integrity:
+  generated:
+    body: a6428a6dcc4c02f7
 ---
 
 # Two narrow interrupt windows in the LSP session registry are documented, not closed

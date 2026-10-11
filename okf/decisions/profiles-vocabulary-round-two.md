@@ -8,11 +8,13 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-13T16:28:32Z
-  body_sha256: fe9b4a5d59d28b7d2f7edae7bd24f23ac033d834a000145f89c43a043f2219e5
 status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+integrity:
+  generated:
+    body: fe9b4a5d59d28b7d
 ---
 
 # The software-project vocabulary grows a second time from the effected and tsdoctor migrations

@@ -1,18 +1,14 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { Actor, ConceptId, LoadedBundle } from "@okfit/core";
+import type { Actor, ConceptId, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
-import { Derivation } from "@okfit/profiles";
+import { Derivation, PUBLICATION_TYPE } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, FileSystem, Path, Schema } from "effect";
-import {
-	detectNewline,
-	locateGenerated,
-	locateGeneratedBlock,
-	locateGeneratedBodySha256,
-	stripBom,
-} from "../verify/locate.js";
-import { spliceGeneratedBlock, spliceGeneratedFields } from "../verify/splice.js";
+import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
+import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
+import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
+import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -34,6 +30,8 @@ export const GeneratedSkipReason = Schema.Literals([
 	"unborn",
 	"generated-missing",
 	"generated-unsupported",
+	"integrity-unsupported",
+	"renders-unsupported",
 ]);
 /** @internal */
 export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;
@@ -47,10 +45,31 @@ export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;
 export interface GeneratedSyncResult {
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
+	/** Ids whose legacy `generated.body_sha256` was moved to `integrity.generated.body`; may overlap `written`. */
+	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: GeneratedSkipReason }>;
 }
 
 const encodeAt = Schema.encodeSync(Timestamp);
+
+/**
+ * For a Publication whose `renders` still carries a legacy `body_sha256`: the
+ * per-entry `renders[].body` to write (existing `body`, else the legacy 16-hex
+ * prefix), `undefined` for an entry with no legacy key. `undefined` overall when
+ * there is nothing to migrate.
+ */
+const legacyRendersDigests = (concept: LoadedConcept): ReadonlyArray<string | undefined> | undefined => {
+	if (concept.frontmatter.type !== PUBLICATION_TYPE) return undefined;
+	const renders = concept.frontmatter.raw.renders;
+	if (!Array.isArray(renders)) return undefined;
+	const digests = renders.map((entry: unknown) => {
+		if (typeof entry !== "object" || entry === null) return undefined;
+		const { body, body_sha256: legacy } = entry as { body?: unknown; body_sha256?: unknown };
+		if (typeof legacy !== "string" || legacy === "") return undefined;
+		return typeof body === "string" && body !== "" ? body : legacy.slice(0, 16);
+	});
+	return digests.some((d) => d !== undefined) ? digests : undefined;
+};
 
 /**
  * What {@link syncGenerated} needs from provenance: `BodyProvenance` is
@@ -85,11 +104,14 @@ export interface SyncGeneratedOptions {
  * `runVerify`).
  *
  * Ordering (later tasks rely on it): (1) scope filter -> (2) digest match
- * against `generated.body_sha256` => `unchanged`, BEFORE any provenance
- * lookup -> (3) provenance absent => `Effect.die` (caller contract) -> (4)
- * `uncommitted` => skipped with its reason -> (5) no `generated` block:
- * `agent` unset => skipped `generated-missing`, else create -> (6) existing
- * block: splice `at` + `body_sha256` as today.
+ * against the recorded body digest (`integrity.generated.body`, else the
+ * legacy `generated.body_sha256` prefix) => `unchanged` (or a migrate-only
+ * write when a legacy line still exists), BEFORE any provenance lookup -> (3)
+ * provenance absent => `Effect.die` (caller contract) -> (4) `uncommitted` =>
+ * skipped with its reason -> (5) no `generated` block: `agent` unset =>
+ * skipped `generated-missing`, else create -> (6) existing block: splice `at`.
+ * Every write also sets `integrity.generated.body` (keeping `integrity.verified`)
+ * and removes a legacy `body_sha256` line.
  *
  * `locateGenerated`'s `YamlParseError` is folded into a defect here
  * (`Effect.orDie`), not widened into this function's typed error channel:
@@ -114,6 +136,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
+	const migrated: Array<string> = [];
 	const skipped: Array<{ readonly id: string; readonly reason: GeneratedSkipReason }> = [];
 
 	for (const [id, concept] of bundle.concepts) {
@@ -125,28 +148,35 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// walk for an already-stamped concept (#21).
 		const generated = concept.frontmatter.generated;
 		const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
-		if (generated?.body_sha256 !== undefined && generated.body_sha256 === currentDigest) {
+		const matches = Derivation.recordedBody(concept) === currentDigest;
+		const hasLegacy = generated?.body_sha256 !== undefined;
+		const legacyRenders = legacyRendersDigests(concept);
+		if (matches && !hasLegacy && legacyRenders === undefined) {
 			unchanged.push(id);
 			continue;
 		}
 
-		// Step 3: every concept that reaches here needed a provenance entry from
-		// runSync -- an absent one is a defect in that caller contract.
-		const derived = provenance.get(id);
-		if (derived === undefined) {
-			return yield* Effect.die(new Error(`syncGenerated: no provenance computed for concept ${id}`));
-		}
-
-		// Step 4: never substitutes `now`.
-		if (derived._tag === "uncommitted") {
-			skipped.push({ id, reason: derived.reason });
-			continue;
+		// Step 3: every drifted concept needed a provenance entry from runSync --
+		// an absent one is a defect in that caller contract. A migrate-only write
+		// (digest matches) needs none.
+		let encodedAt: string | undefined;
+		if (!matches) {
+			const derived = provenance.get(id);
+			if (derived === undefined) {
+				return yield* Effect.die(new Error(`syncGenerated: no provenance computed for concept ${id}`));
+			}
+			// Step 4: never substitutes `now`.
+			if (derived._tag === "uncommitted") {
+				skipped.push({ id, reason: derived.reason });
+				continue;
+			}
+			encodedAt = encodeAt(derived.at);
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is
 		// nothing to attribute a stamp to, so the file is never even opened.
 		const creating = generated === undefined ? agent : undefined;
-		if (generated === undefined && creating === undefined) {
+		if (!matches && generated === undefined && creating === undefined) {
 			skipped.push({ id, reason: "generated-missing" });
 			continue;
 		}
@@ -155,37 +185,69 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const source = yield* fs.readFileString(absolutePath);
 		const { text, bom } = stripBom(source);
 		const newline = detectNewline(text);
-		const encodedAt = encodeAt(derived.at);
 
-		let edits: ReadonlyArray<MarkdownEdit>;
-		if (creating !== undefined) {
-			// Step 5 continued: an agent IS configured -- create the whole mapping.
-			const located = yield* locateGeneratedBlock(text).pipe(Effect.orDie);
-			if (located._tag === "unsupported") {
-				skipped.push({ id, reason: "generated-unsupported" });
-				continue;
-			}
-			edits = [spliceGeneratedBlock(located, { by: creating, at: encodedAt, bodySha256: currentDigest }, newline)];
-		} else {
-			// Step 6: both fields locate independently -- either being unsupported skips the concept.
-			const atLocated = yield* locateGenerated(text).pipe(Effect.orDie);
-			const bodySha256Located = yield* locateGeneratedBodySha256(text).pipe(Effect.orDie);
-			if (atLocated._tag === "unsupported" || bodySha256Located._tag === "unsupported") {
-				skipped.push({ id, reason: "generated-unsupported" });
-				continue;
-			}
-			edits = spliceGeneratedFields(atLocated, bodySha256Located, encodedAt, currentDigest, newline);
-		}
-
-		const finalText = bom + MarkdownEdit.applyAll(text, edits);
-		if (dryRun) {
-			pending?.push({ target: absolutePath, contents: finalText });
-			written.push(id);
+		const integrityLocated = yield* locateIntegrity(text).pipe(Effect.orDie);
+		if (integrityLocated._tag === "unsupported") {
+			skipped.push({ id, reason: "integrity-unsupported" });
 			continue;
 		}
-		yield* writeAtomic(absolutePath, finalText);
-		written.push(id);
+		const legacy = yield* locateLegacyBodySha256(text).pipe(Effect.orDie);
+		if (hasLegacy && legacy._tag === "none") {
+			// The parsed concept carries a legacy digest we cannot locate as a plain line (flow style).
+			skipped.push({ id, reason: "generated-unsupported" });
+			continue;
+		}
+
+		const edits: Array<MarkdownEdit> = [];
+		if (encodedAt !== undefined) {
+			if (creating !== undefined) {
+				// Step 5 continued: an agent IS configured -- create the whole mapping.
+				const located = yield* locateGeneratedBlock(text).pipe(Effect.orDie);
+				if (located._tag === "unsupported") {
+					skipped.push({ id, reason: "generated-unsupported" });
+					continue;
+				}
+				edits.push(spliceGeneratedBlock(located, { by: creating, at: encodedAt }, newline));
+			} else {
+				// Step 6: an existing block -- stamp `at` alone.
+				const atLocated = yield* locateGenerated(text).pipe(Effect.orDie);
+				if (atLocated._tag === "unsupported") {
+					skipped.push({ id, reason: "generated-unsupported" });
+					continue;
+				}
+				edits.push(spliceGenerated(atLocated, encodedAt, newline, "at"));
+			}
+		}
+		if (legacy._tag === "line") edits.push(removeLine(legacy));
+		if (legacyRenders !== undefined) {
+			const renderEdits = yield* FrontmatterEdits.rendersDigests(text, legacyRenders).pipe(
+				Effect.catchTags({ UnsupportedFrontmatterError: () => Effect.succeed(undefined) }),
+				Effect.orDie,
+			);
+			if (renderEdits === undefined) {
+				skipped.push({ id, reason: "renders-unsupported" });
+				continue;
+			}
+			edits.push(...renderEdits);
+		}
+		edits.push(spliceIntegrityGenerated(integrityLocated, text, currentDigest, newline));
+
+		const finalText = bom + MarkdownEdit.applyAll(text, mergeSameOffset(edits.toSorted((a, b) => a.offset - b.offset)));
+		// A block the parsed concept could not decode (say a malformed `integrity.verified`) never
+		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
+		// not as a write that would recur on every run.
+		if (finalText === source) {
+			unchanged.push(id);
+			continue;
+		}
+		if (legacy._tag === "line" || legacyRenders !== undefined) migrated.push(id);
+		if (!dryRun) {
+			yield* writeAtomic(absolutePath, finalText);
+		} else {
+			pending?.push({ target: absolutePath, contents: finalText });
+		}
+		if (!matches) written.push(id);
 	}
 
-	return { written, unchanged, skipped } satisfies GeneratedSyncResult;
+	return { written, unchanged, migrated, skipped } satisfies GeneratedSyncResult;
 });

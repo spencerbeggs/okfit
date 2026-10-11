@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import type { SyncResult } from "@okfit/engine";
 import { humanSync } from "../../src/render/sync.js";
 
-const EMPTY_MODE = { selected: true, written: [], unchanged: [], skipped: [] } as const;
+const EMPTY_MODE = { selected: true, written: [], unchanged: [], migrated: [], skipped: [] } as const;
 
 const baseResult: SyncResult = {
 	bundleRoot: "/repo/okf",
@@ -21,12 +21,14 @@ describe("humanSync", () => {
 				selected: true,
 				written: [],
 				unchanged: [],
+				migrated: [],
 				skipped: [
 					{ id: "a", reason: "untracked" },
 					{ id: "b", reason: "dirty" },
 					{ id: "c", reason: "unborn" },
 					{ id: "d", reason: "generated-missing" },
 					{ id: "e", reason: "generated-unsupported" },
+					{ id: "f", reason: "integrity-unsupported" },
 				],
 			},
 			index: EMPTY_MODE,
@@ -38,7 +40,18 @@ describe("humanSync", () => {
 		assert.isTrue(lines.includes("the repository has no commits yet"));
 		assert.isTrue(lines.includes("has no generated block"));
 		assert.isTrue(lines.includes("generated.at is a shape sync cannot edit; edit it by hand"));
+		assert.isTrue(lines.includes("integrity is a shape sync cannot edit; edit it by hand"));
 		assert.isTrue(lines.includes("log.md could not be parsed; see okfit validate"));
+	});
+
+	it("summarizes a separate migrated total", () => {
+		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["a", "b"] } });
+		assert.isTrue(lines.some((l) => l.startsWith("wrote 1, migrated 2, unchanged")));
+	});
+
+	it("lists migrated ids", () => {
+		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["decisions/old"] } }).join("\n");
+		assert.isTrue(lines.includes("migrated decisions/old"));
 	});
 
 	it("lists written and unchanged ids per mode", () => {

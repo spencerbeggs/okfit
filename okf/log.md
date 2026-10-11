@@ -1,5 +1,29 @@
 # Log
 
+## 2026-10-11
+
+* Updated A body digest inside generated detects real drift, not a rewritten date
+* Added A verification is bound to the content it covered
+* Updated AI Plugins
+* Updated Agent plugin hooks contract
+* Updated CLI
+* Updated Core
+* Updated Engine
+* Added Every okfit digest lives in one integrity family, outside the spec's families
+* Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
+* Updated Human actor ids resolve through a four-step fallback order
+* Updated LSP
+* Updated MCP
+* Updated Profiles
+* Added Verification drift is a signal to weigh, never a gate
+* Added integrity frontmatter family
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit config file schema
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
+* Updated okfit verify edits frontmatter by textual splice, never by re-serialisation
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated stale --verify rolls stale_after forward, and plain verify never does
+
 ## 2026-10-09
 
 * Updated CLI

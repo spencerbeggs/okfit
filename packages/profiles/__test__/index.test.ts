@@ -9,6 +9,7 @@ const VALUES = [
 	"BodyCommitted",
 	"BodyProvenance",
 	"BodyUncommitted",
+	"Canonical",
 	"AgentActorUnconfiguredError",
 	"Derivation",
 	"HumanActorUnresolvedError",
@@ -23,6 +24,7 @@ const VALUES = [
 	"PUBLICATION_TYPE",
 	"Publications",
 	"SURFACE_TYPE",
+	"Trust",
 ] as const;
 
 describe("@okfit/profiles", () => {

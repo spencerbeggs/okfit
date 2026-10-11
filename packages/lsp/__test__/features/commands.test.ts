@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import type { ApplyWorkspaceEditParams, ApplyWorkspaceEditResult } from "../../src/protocol/types.js";
+import { withBinding } from "../utils/digest.js";
 import type { ServeHarness } from "../utils/harness.js";
 import { makeServeHarness, request } from "../utils/harness.js";
 import { testPlatform, testPlatformWithIdentity } from "../utils/platform.js";
@@ -213,9 +214,13 @@ describe("registerCommands", () => {
 	it.live("okfit.lsp.verifyAndMarkStable on a draft already verified by the actor fails AlreadyVerified", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
-			const source = DRAFT_SOURCE.replace(
-				"status: draft\n",
-				`status: draft\nverified:\n  - by: "${FIXTURE_ACTOR}"\n    at: "2026-01-01T00:00:00Z"\n`,
+			const source = yield* withBinding(
+				DRAFT_SOURCE.replace(
+					"status: draft\n",
+					`status: draft\nverified:\n  - by: "${FIXTURE_ACTOR}"\n    at: "2026-01-01T00:00:00Z"\n`,
+				),
+				FIXTURE_ACTOR,
+				"2026-01-01T00:00:00Z",
 			);
 			yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", "draft.md"), source, "utf8"));
 			yield* h.initialize;
@@ -265,7 +270,7 @@ describe("registerCommands", () => {
 				const afterVerify = applyTextEdit(afterStatus, verifyChange.edit);
 				assert.match(
 					afterVerify,
-					/\nstatus: stable\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\n---\n/,
+					/\nstatus: stable\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\nintegrity:\n {2}verified:\n {4}by: human:fixture-author\n {4}at: \S+\n {4}content: [0-9a-f]{16}\n---\n/,
 				);
 				yield* h.change("okf/modules/stable.md", afterVerify, 3);
 				yield* Effect.sleep("50 millis");

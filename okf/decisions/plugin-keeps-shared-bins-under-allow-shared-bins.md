@@ -14,10 +14,12 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-10-05T17:12:42Z
-  body_sha256: 3054ab0ed7066bdc0069a1eace9c1a18d57880e6a96dacf9bda814dda7d27d12
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+integrity:
+  generated:
+    body: 3054ab0ed7066bdc
 ---
 
 # The carrier keeps its front ends' bin names, proven under allowSharedBins

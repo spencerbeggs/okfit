@@ -11,3 +11,6 @@ humans = ["human:spencer"]
 [lint]
 # A new concept-holding directory with no index.md must fail CI, not warn.
 missing_index = "error"
+# The bundle's existing human verifications predate integrity bindings; re-enable
+# once `okfit verify` has bound them (verification-integrity phase 1).
+verified_drift = "off"

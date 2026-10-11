@@ -7,11 +7,13 @@ tags:
 generated:
   by: human:spencer
   at: 2026-09-06T11:25:53Z
-  body_sha256: e319953cb739cd8ba7303cabae0ab9679a41ed1b952493af2c1515272d017fc2
 status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
+integrity:
+  generated:
+    body: e319953cb739cd8b
 ---
 
 # The validate hook fires PostToolUse, not PreToolUse

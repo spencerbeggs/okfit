@@ -77,12 +77,29 @@ export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<Verify
 	{
 		id: Schema.String,
 		shape: Schema.String,
-		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after"])),
+		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after", "integrity"])),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
 		return `"${this.id}"'s ${this.key ?? "verified"} value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
+	}
+}
+
+/**
+ * `okfit verify --revoke` found no `verified` entry by the resolved actor on
+ * the concept, so there is nothing to remove. Exit 3, like any other verify
+ * outcome that cannot proceed on the concept.
+ *
+ * @public
+ */
+export class VerifyNothingToRevokeError extends Schema.TaggedError<VerifyNothingToRevokeError>()(
+	"VerifyNothingToRevokeError",
+	{ id: Schema.String, actor: Schema.String },
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		return `"${this.id}" has no verified entry by ${this.actor} to revoke`;
 	}
 }
 
@@ -175,6 +192,8 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		"status-conflict",
 		"status-and-batch",
 		"dry-run-needs-verify",
+		"revoke-needs-id",
+		"revoke-conflict",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -183,6 +202,10 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		if (this.reason === "no-selection")
 			return "verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)";
 		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
+		if (this.reason === "revoke-needs-id") return "--revoke needs a concept id";
+		if (this.reason === "revoke-conflict") {
+			return `--revoke removes your own verification of one concept; it cannot combine with ${this.detail ?? "other selectors"}`;
+		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {

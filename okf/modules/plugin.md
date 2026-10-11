@@ -8,7 +8,9 @@ kind: package
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
-  body_sha256: a97b23b2e202db5cec12a581e8fd2cad2b10afc2df1662c5dafbf00af5ccb2a2
+integrity:
+  generated:
+    body: a97b23b2e202db5c
 ---
 
 # Plugin

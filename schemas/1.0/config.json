@@ -452,7 +452,7 @@
 						"error"
 					],
 					"title": "stale",
-					"description": "A concept has gone unedited past lifecycle.default_stale_after. Default \"info\".",
+					"description": "A concept is past its stale_after instant. Default \"info\".",
 					"default": "info",
 					"x-taplo": {
 						"docs": {
@@ -497,6 +497,28 @@
 					],
 					"title": "generated-at-drift",
 					"description": "A committed concept's generated.at is missing or does not match its last body-changing commit, and is not otherwise authoritative (issue #19: a stamp recorded during the unchanged-body run survives a squash/rebase merge). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"verified_drift": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "verified-drift",
+					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, or a later human entry is unbound. A signal to re-verify, not a gate. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -584,7 +606,7 @@
 						"error"
 					],
 					"title": "publication-drift",
-					"description": "A Publication's renders[].body_sha256 is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
+					"description": "A Publication's renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -606,7 +628,7 @@
 						"error"
 					],
 					"title": "publication-orphan",
-					"description": "A Publication's surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body_sha256 } entries. Default \"error\".",
+					"description": "A Publication's surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body } entries. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {

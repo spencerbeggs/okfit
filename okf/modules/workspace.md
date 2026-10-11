@@ -10,7 +10,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
-  body_sha256: 9acbfa84e13864016a4cd70b757784e5c261911856a65b250129d45eccbb41c7
+integrity:
+  generated:
+    body: 9acbfa84e1386401
 ---
 
 # Workspace

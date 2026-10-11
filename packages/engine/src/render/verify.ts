@@ -24,6 +24,8 @@ export const VerifyEnvelope = Schema.Struct({
 	verified: Schema.Struct({ by: Schema.String, at: Schema.String }),
 	/** Issue #185: the status change `--stable`/`--draft` made; `null` when neither flag was given. */
 	status: Schema.NullOr(Schema.Struct({ from: Schema.NullOr(Status), to: Schema.Literals(["stable", "draft"]) })),
+	/** Why the prior human verification no longer bound the concept; absent when it did not drift. */
+	prior_integrity: Schema.optionalKey(Schema.Literals(["content-changed", "unbound", "entry-superseded"])),
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),
 });
@@ -46,6 +48,8 @@ export const verifyEnvelope = (input: {
 	readonly at: string;
 	readonly dryRun: boolean;
 	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
+	/** The drift reason the prior verification had, when it had drifted. */
+	readonly priorIntegrity?: "content-changed" | "unbound" | "entry-superseded" | null;
 	readonly distribution?: Distribution;
 }): VerifyEnvelope => ({
 	schema: 1,
@@ -56,6 +60,9 @@ export const verifyEnvelope = (input: {
 	path: input.path,
 	verified: { by: input.by, at: input.at },
 	status: input.status,
+	...(input.priorIntegrity === undefined || input.priorIntegrity === null
+		? {}
+		: { prior_integrity: input.priorIntegrity }),
 	dry_run: input.dryRun,
 	exit_code: 0,
 });
@@ -108,6 +115,57 @@ export const verifyBatchEnvelope = (input: {
 	verified_at: input.at,
 	concepts: input.concepts,
 	skipped: input.skipped,
+	dry_run: input.dryRun,
+	exit_code: 0,
+});
+
+/**
+ * `okfit verify --revoke`'s success envelope, schema 1, snake_case. `removed`
+ * lists the `at` of every verification entry taken out (in list order);
+ * `binding_cleared` says whether `integrity.verified` went with them.
+ *
+ * @public
+ */
+export const RevokeEnvelope = Schema.Struct({
+	schema: Schema.Literal(1),
+	okfit_version: Schema.String,
+	engine_version: Schema.String,
+	distribution: DistributionField,
+	id: Schema.String,
+	path: Schema.String,
+	revoked_by: Schema.String,
+	removed: Schema.Array(Schema.String),
+	binding_cleared: Schema.Boolean,
+	dry_run: Schema.Boolean,
+	exit_code: Schema.Literal(0),
+});
+/** @public */
+export type RevokeEnvelope = typeof RevokeEnvelope.Type;
+
+/**
+ * `path` is already the display form, as for {@link verifyEnvelope}.
+ *
+ * @public
+ */
+export const revokeEnvelope = (input: {
+	readonly okfitVersion: string;
+	readonly id: string;
+	readonly path: string;
+	readonly by: string;
+	readonly removed: ReadonlyArray<string>;
+	readonly bindingCleared: boolean;
+	readonly dryRun: boolean;
+	readonly distribution?: Distribution;
+}): RevokeEnvelope => ({
+	schema: 1,
+	okfit_version: input.okfitVersion,
+	engine_version: ENGINE_VERSION,
+	distribution: input.distribution ?? null,
+	id: input.id,
+	path: input.path,
+	revoked_by: input.by,
+	removed: input.removed,
+	binding_cleared: input.bindingCleared,
 	dry_run: input.dryRun,
 	exit_code: 0,
 });

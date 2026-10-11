@@ -1,10 +1,17 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
-import { Derivation } from "@okfit/profiles";
+import type { DriftReason } from "@okfit/profiles";
+import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
-import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
+import {
+	VerifyConceptNotFoundError,
+	VerifyNothingToRevokeError,
+	VerifyUnsupportedFrontmatterError,
+} from "../errors.js";
+import { locateIntegrity, removeIntegrityVerified, spliceIntegrityVerified } from "./integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
+import { locateVerifiedEntries } from "./revoke.js";
 import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./select.js";
 import { orderVerifyEdits, quoteLike, splice, spliceTopLevelScalar } from "./splice.js";
@@ -62,6 +69,10 @@ export interface VerifyResult {
 	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
 	/** The exact status bytes spliced, or `null` when no status edit was made. */
 	readonly statusFragment: string | null;
+	/** The content digest `integrity.verified` was bound to; the digest of the file before AND after the edit. */
+	readonly content: string;
+	/** Why the concept's prior human verification no longer bound it, or `null` when it did not drift. */
+	readonly priorDrift: DriftReason | null;
 }
 
 /**
@@ -104,6 +115,7 @@ interface PreparedVerify {
 	readonly fragment: string;
 	readonly statusFragment: string | null;
 	readonly priorAt: ReadonlyArray<string>;
+	readonly content: string;
 }
 
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
@@ -118,6 +130,8 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	// actor's existing entry's `at` rather than append a second entry.
 	staleAfter: string | undefined = undefined,
 ) {
+	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
+	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const absolutePath = path.join(bundle.root, concept.path);
@@ -169,7 +183,12 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		// The key is known present (frontmatter.stale_after is set), so this is always a replaceScalar.
 		staleEdit = spliceTopLevelScalar(target, "stale_after", staleAfter, newline);
 	}
-	const ordered = orderVerifyEdits(verifiedEdit, statusEdit);
+	const integrity = yield* locateIntegrity(text);
+	if (integrity._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: integrity.shape, key: "integrity" });
+	}
+	const integrityEdit = spliceIntegrityVerified(integrity, text, { by: actor, at, content }, newline);
+	const ordered = orderVerifyEdits(verifiedEdit, statusEdit, integrityEdit);
 	const edits = staleEdit === undefined ? ordered : [...ordered, staleEdit].toSorted((a, b) => a.offset - b.offset);
 	return {
 		absolutePath,
@@ -181,6 +200,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 				: `${verifiedPreview.replace(/(?:\r\n|\n)$/, "")}${newline}stale_after: ${staleAfter}`,
 		statusFragment: statusEdit?.content ?? null,
 		priorAt,
+		content,
 	} satisfies PreparedVerify;
 });
 
@@ -266,6 +286,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// classification, and the edit itself is computed unconditionally so a
 	// dry run reports the exact fragment it would write.
 	const prepared = yield* prepareVerify(bundle, concept, actor, at, options.status);
+	const prior = yield* Trust.signal(concept, options.at);
 
 	// Step 15 (I4/V-16): a temp file beside the real target, then a rename
 	// over it, mode preserved -- see `writeVerified`'s own comments.
@@ -282,14 +303,151 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		fragment: prepared.fragment,
 		status: options.status === undefined ? null : { from: concept.frontmatter.status ?? null, to: options.status },
 		statusFragment: prepared.statusFragment,
+		content: prepared.content,
+		priorDrift: prior.drift?.reason ?? null,
 	} satisfies VerifyResult;
+});
+
+/**
+ * What {@link inspectDrift} found out about one concept before a re-verify.
+ *
+ * @internal
+ */
+export interface DriftInspection {
+	readonly id: string;
+	/** Absolute path of the concept file. */
+	readonly absolutePath: string;
+	/** Why its human verification no longer binds, or `null` when it does not drift. */
+	readonly drift: DriftReason | null;
+	/** When `integrity.verified` was bound, the time the shown patch is measured from; absent when unbound. */
+	readonly boundAt?: DateTime.Utc;
+}
+
+/**
+ * Read-only: is the concept's prior human verification drifted, and if so from
+ * when was it bound? The CLI asks this before `runVerify` so it can show what
+ * changed. Writes nothing.
+ *
+ * @internal
+ */
+export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (options: {
+	readonly id: string;
+	readonly bundleRoot: string;
+	readonly now: DateTime.Utc;
+}) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const { id, concept } = yield* resolveConcept(bundle, options.id);
+	const path = yield* Path.Path;
+	const signal = yield* Trust.signal(concept, options.now);
+	const boundAt = concept.frontmatter.integrity?.verified?.at;
+	return {
+		id,
+		absolutePath: path.join(bundle.root, concept.path),
+		drift: signal.drift?.reason ?? null,
+		...(boundAt === undefined ? {} : { boundAt }),
+	} satisfies DriftInspection;
+});
+
+/**
+ * Options for {@link runRevoke}.
+ *
+ * @internal
+ */
+export interface RevokeOptions {
+	readonly id: string;
+	readonly bundleRoot: string;
+	readonly projectRoot: string;
+	readonly config: OkfitConfig;
+	readonly dryRun: boolean;
+}
+
+/**
+ * What {@link runRevoke} removed (or, under a dry run, would remove).
+ *
+ * @internal
+ */
+export interface RevokeResult {
+	readonly id: string;
+	readonly bundleRoot: string;
+	readonly conceptPath: string;
+	/** The resolved actor whose entries were removed. */
+	readonly by: string;
+	/** The encoded `at` of every removed entry, in list order. */
+	readonly removed: ReadonlyArray<string>;
+	/** Whether `integrity.verified` (bound to this actor) was removed too. */
+	readonly bindingCleared: boolean;
+	readonly dryRun: boolean;
+}
+
+/**
+ * `okfit verify --revoke`: removes every `verified` entry by the resolved
+ * human actor (the same git identity `verify` records) and, when
+ * `integrity.verified` is bound to that actor, that slot too, deleting the
+ * whole `integrity` block only when nothing else is left in it. Every cut is a
+ * byte-precise splice; an unsupported `verified` or `integrity` shape fails
+ * closed with the file untouched, and an actor with no entry fails
+ * `VerifyNothingToRevokeError`. Another actor's entries and binding are never
+ * touched, so they then read as `entry-superseded` or unbound by themselves.
+ *
+ * @internal
+ */
+export const runRevoke = Effect.fn("okfit/verify/runRevoke")(function* (options: RevokeOptions) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const { id, concept } = yield* resolveConcept(bundle, options.id);
+	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
+
+	const fs = yield* FileSystem.FileSystem;
+	const path = yield* Path.Path;
+	const absolutePath = path.join(bundle.root, concept.path);
+	const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(yield* fs.readFile(absolutePath));
+	const { text, bom } = stripBom(source);
+
+	const entries = yield* locateVerifiedEntries(text, actor);
+	if (entries._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: entries.shape, key: "verified" });
+	}
+	if (entries._tag === "none") return yield* new VerifyNothingToRevokeError({ id, actor });
+
+	const integrity = yield* locateIntegrity(text);
+	if (integrity._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: integrity.shape, key: "integrity" });
+	}
+	// Read from the parsed tree, so a block that does not decode as a whole still unbinds.
+	const bound = integrity._tag === "replace" && integrity.boundBy === actor;
+	const unbind = bound ? removeIntegrityVerified(integrity, text) : ({ _tag: "none" } as const);
+	if (unbind._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: unbind.shape, key: "integrity" });
+	}
+
+	const edits = [
+		...entries.removals.map((span) =>
+			MarkdownEdit.make({ offset: span.start, length: span.end - span.start, content: "" }),
+		),
+		...(unbind._tag === "edit" ? [unbind.edit] : []),
+	].toSorted((a, b) => a.offset - b.offset);
+	const finalText = bom + MarkdownEdit.applyAll(text, edits);
+	const removed = (concept.frontmatter.verified ?? [])
+		.filter((entry) => entry.by === actor)
+		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
+
+	if (!options.dryRun) yield* writeVerified(absolutePath, finalText);
+
+	return {
+		id,
+		bundleRoot: bundle.root,
+		conceptPath: concept.path,
+		by: actor,
+		removed,
+		bindingCleared: unbind._tag === "edit",
+		dryRun: options.dryRun,
+	} satisfies RevokeResult;
 });
 
 /**
  * Issue #138. Attests every concept selected by `options.types` (or, when
  * empty, every type whose declaration sets `require_verified = true`) that
- * is not a draft, is not deprecated (#143) and does not already carry a `verified` entry by the
- * resolved actor. Every candidate is located FIRST -- an unsupported
+ * is not a draft, is not deprecated (#143) and whose `verified` entry by the
+ * resolved actor does not already bind its current content (`Trust.signals`). Every candidate is located FIRST -- an unsupported
  * `verified` shape on any one of them fails the whole batch with nothing
  * written, mirroring `runVerify`'s own fail-closed rule at batch scale.
  *
@@ -302,7 +460,8 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);
 
-	const selection = selectAttestable(bundle, types, actor);
+	const signals = yield* Trust.signals(bundle, options.at);
+	const selection = selectAttestable(bundle, types, actor, signals);
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	// Every concept is located before any is written: one unsupported
 	// shape fails the whole batch with the tree untouched.
@@ -433,7 +592,8 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
-	return { by, candidates: selectPickerCandidates(bundle, options.config, by) } satisfies {
+	const signals = yield* Trust.signals(bundle, yield* DateTime.now);
+	return { by, candidates: selectPickerCandidates(bundle, options.config, by, signals) } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};
@@ -451,7 +611,11 @@ export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
-	return { by, candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by) } satisfies {
+	const signals = yield* Trust.signals(bundle, options.now);
+	return {
+		by,
+		candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),
+	} satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};

@@ -1,6 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Render } from "@effected/cli";
-import { humanVerify, humanVerifyBatch, humanVerifyBatchDoc, humanVerifyDoc } from "../../src/render/verify.js";
+import {
+	humanRevoke,
+	humanRevokeDoc,
+	humanVerify,
+	humanVerifyBatch,
+	humanVerifyBatchDoc,
+	humanVerifyDoc,
+} from "../../src/render/verify.js";
 
 describe("humanVerify", () => {
 	it("renders the success line, with a would-write preview under --dry-run", () => {
@@ -26,6 +33,33 @@ describe("humanVerify", () => {
 		fragment: "verified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n",
 		statusFragment: null,
 	} as const;
+
+	it("announces a re-verify of drifted content instead of the append line", () => {
+		assert.deepStrictEqual(
+			humanVerify({ ...base, status: null, priorAt: ["2026-09-01T00:00:00Z"], priorDrift: "content-changed" }),
+			["re-verifying (was drifted: content-changed)", "verified decisions/x by human:ada at 2026-09-16T12:00:00Z"],
+		);
+		assert.deepStrictEqual(
+			humanVerify({ ...base, status: null, priorAt: ["2026-09-01T00:00:00Z"], priorDrift: null }),
+			[
+				"already verified by human:ada at 2026-09-01T00:00:00Z; appending",
+				"verified decisions/x by human:ada at 2026-09-16T12:00:00Z",
+			],
+		);
+		assert.strictEqual(
+			Render.plain(
+				humanVerifyDoc({ ...base, status: null, priorAt: ["2026-09-01T00:00:00Z"], priorDrift: "unbound" }),
+				Render.contextOf({ audience: "agent" }),
+			),
+			"re-verifying (was drifted: unbound)\nverified decisions/x by human:ada at 2026-09-16T12:00:00Z",
+		);
+	});
+
+	it("keeps the first-time wording when the actor had no prior entry, even over another actor's drift", () => {
+		assert.deepStrictEqual(humanVerify({ ...base, status: null, priorAt: [], priorDrift: "unbound" }), [
+			"verified decisions/x by human:ada at 2026-09-16T12:00:00Z",
+		]);
+	});
 
 	it("appends the status transition to the success line (#185)", () => {
 		assert.deepStrictEqual(humanVerify({ ...base, status: { from: "draft", to: "stable" } }), [
@@ -212,5 +246,33 @@ describe("verify docs at a finite width", () => {
 			ctx,
 		);
 		assert.strictEqual(out.split("\n").length, 2);
+	});
+});
+
+describe("humanRevoke", () => {
+	const base = { id: "decisions/x", by: "human:ada", removed: ["2026-09-01T00:00:00Z"], bindingCleared: true };
+
+	it("reports what was removed and the cleared binding", () => {
+		assert.deepStrictEqual(humanRevoke({ ...base, dryRun: false }), [
+			"revoked 1 verified entry of decisions/x by human:ada",
+			"  removed entry at 2026-09-01T00:00:00Z",
+			"  cleared the integrity.verified binding",
+		]);
+	});
+
+	it("phrases a dry run as what would happen and omits the binding line when it stays", () => {
+		assert.deepStrictEqual(humanRevoke({ ...base, removed: ["a", "b"], bindingCleared: false, dryRun: true }), [
+			"would revoke 2 verified entries of decisions/x by human:ada (dry run, nothing written)",
+			"  would remove entry at a",
+			"  would remove entry at b",
+		]);
+	});
+
+	it("the Doc form prints the same plain lines", () => {
+		const out = Render.plain(
+			humanRevokeDoc({ ...base, dryRun: false }),
+			Render.contextOf({ audience: "human", width: 80 }),
+		);
+		assert.strictEqual(out, humanRevoke({ ...base, dryRun: false }).join("\n"));
 	});
 });

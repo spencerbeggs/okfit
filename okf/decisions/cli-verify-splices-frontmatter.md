@@ -6,12 +6,14 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-07T20:17:17Z
-  body_sha256: 6cbbcdfb7291cafaa99c2653b3d1d3dee0d49085559bf5f0864919311abf0d47
+  at: 2026-10-11T03:57:51Z
 status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:06Z
+integrity:
+  generated:
+    body: cdfa6db1754090af
 ---
 
 # okfit verify edits frontmatter by textual splice, never by re-serialisation
@@ -44,6 +46,13 @@ it only rewrites scalar leaves and stringifies a structured `{ by, at }`
 value as `"[object Object]"` rather than emitting a mapping.
 
 ## Consequences
+
+[The shared frontmatter-edit surface](engine-frontmatter-edits-shared-surface.md)
+now owns these splices, and each `verified` write also splices the
+`integrity.verified` binding in the same edit set (see [integrity
+frontmatter](../interfaces/integrity-frontmatter.md)). The same machinery
+removes a `verified` entry for `okfit verify --revoke`, deleting the whole
+key when the list empties.
 
 Bytes outside the edited range are byte-for-byte identical to the input. A
 bare-mapping `verified` becomes a list the first time `verify` touches it,

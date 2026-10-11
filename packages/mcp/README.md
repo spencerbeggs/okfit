@@ -10,7 +10,7 @@ Model Context Protocol server for [okfit](https://github.com/spencerbeggs/okfit)
 tool or resource ever writes to the bundle, the config, or anywhere else.
 `validate_bundle` spawns read-only `git log`/`git show` calls for one lint
 (`generated-at-drift`), and only for a concept that records no
-`generated.body_sha256` — a bundle stamped with digests needs no git at
+`integrity.generated.body` — a bundle stamped with digests needs no git at
 all; a read is not a write, and the promise stands. Six
 tools cover orientation, discovery, and validation; the bundle index plus
 one resource per concept expose the bundle's own markdown to a client's

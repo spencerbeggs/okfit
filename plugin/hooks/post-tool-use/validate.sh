@@ -204,7 +204,7 @@ case "$bundle_relative" in
 		fi
 		;;
 esac
-generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and body_sha256 later"
+generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and integrity.generated.body later"
 
 # Branch 9: every core.conformance diagnostic is severity error by
 # construction (D-33/D-34), so this collapses to "block on any

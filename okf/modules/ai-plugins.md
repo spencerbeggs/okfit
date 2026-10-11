@@ -9,8 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T05:20:17Z
-  body_sha256: 5c2943faadeb2f9c44530d00b1236eafea1cb38826047d913ffcb890a646274d
+  at: 2026-10-11T03:57:51Z
+integrity:
+  generated:
+    body: f90255358ffee780
 ---
 
 # AI Plugins
@@ -87,11 +89,14 @@ runs `okfit validate` with `--skip-provenance`: the git-derived fallback
 tier of `generated-at-drift` costs a git walk per concept, measured
 taking validate from about 0.5 s to 1.7 s on this bundle, so the
 edit-time hook skips that tier while CI and the MCP `validate_bundle`
-tool keep it. A migrated concept (one carrying `generated.body_sha256`)
+tool keep it. A migrated concept (one carrying `integrity.generated.body`)
 is unaffected by the flag and is still checked, cheaply, by content
-comparison even at edit time — see [A body digest inside generated
-detects real drift, not a rewritten
-date](../decisions/profiles-body-sha256-detects-real-drift.md).
+comparison even at edit time — see [Every okfit digest lives in one
+integrity family](../decisions/integrity-family.md). The plugin's prose now
+says editing a verified concept is fine and shows as drift to a human to
+re-verify; agents still never write `verified` or `integrity`, and never run
+`okfit verify` (see [Verification drift is a signal to weigh, never a
+gate](../decisions/drift-is-a-signal.md)).
 On Copilot, which honours no `PostToolUse` block, the same reason arrives as
 `additionalContext` instead (`plugin/CLAUDE.md:72-74`). Kill switches: `OKFIT_HOOKS=off`
 disables both; `OKFIT_SESSION_HOOK=off` and `OKFIT_VALIDATE_HOOK=off`

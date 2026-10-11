@@ -2,7 +2,17 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
-import { Actor, Concept, ConceptId, Generated, LoadedBundle, LoadedConcept, OkfitConfig, Timestamp } from "@okfit/core";
+import {
+	Actor,
+	Concept,
+	ConceptId,
+	Generated,
+	Integrity,
+	LoadedBundle,
+	LoadedConcept,
+	OkfitConfig,
+	Timestamp,
+} from "@okfit/core";
 import type { Crypto } from "effect";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result, Schema } from "effect";
 import { Derivation } from "../src/Derivation.js";
@@ -20,7 +30,7 @@ const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
 const FRONTMATTER_OPTIONS = MarkdownParseOptions.make({ frontmatter: true });
 const conceptId = Option.getOrThrow(ConceptId.normalize(REL));
 
-const conceptWith = (generated?: Generated, source?: string): LoadedConcept =>
+const conceptWith = (generated?: Generated, source?: string, integrity?: Integrity): LoadedConcept =>
 	LoadedConcept.make({
 		id: conceptId,
 		path: REL,
@@ -29,6 +39,7 @@ const conceptWith = (generated?: Generated, source?: string): LoadedConcept =>
 			extensions: {},
 			raw: {},
 			...(generated === undefined ? {} : { generated }),
+			...(integrity === undefined ? {} : { integrity }),
 		}),
 		document: source === undefined ? emptyDocument : Result.getOrThrow(MarkdownDocument.parseResult(source)),
 		computationBody: Option.none(),
@@ -137,6 +148,43 @@ describe("Provenance.lint", () => {
 				}).pipe(Effect.provide(noGit)), // dies on any Git/GitHistory/FileSystem call, proving tier 1 never touches them
 		);
 
+		it.effect("reads integrity.generated.body: silent when current, no legacy digest needed", () =>
+			Effect.gen(function* () {
+				const digest = yield* digestOf(SOURCE);
+				const generated = Generated.make({ by: actor("human:okfit-test") });
+				const integrity = Integrity.make({ generated: { body: digest } });
+				const result = yield* Provenance.lint(
+					bundleOf(conceptWith(generated, SOURCE, integrity)),
+					OkfitConfig.DEFAULTS,
+				);
+				assert.deepStrictEqual(result, []);
+			}).pipe(Effect.provide(noGit)),
+		);
+
+		it.effect("reads a legacy 64-hex generated.body_sha256 by its 16-char prefix", () =>
+			Effect.gen(function* () {
+				const full = yield* Effect.provide(Derivation.digestFull(Derivation.body(SOURCE)), NodeCrypto.layer);
+				assert.lengthOf(full, 64);
+				const generated = Generated.make({ by: actor("human:okfit-test"), body_sha256: full });
+				const result = yield* Provenance.lint(bundleOf(conceptWith(generated, SOURCE)), OkfitConfig.DEFAULTS);
+				assert.deepStrictEqual(result, []);
+			}).pipe(Effect.provide(noGit)),
+		);
+
+		it.effect("a mismatched integrity.generated.body reports one drift naming integrity.generated.body", () =>
+			Effect.gen(function* () {
+				const staleDigest = yield* digestOf(SOURCE);
+				const generated = Generated.make({ by: actor("human:okfit-test") });
+				const integrity = Integrity.make({ generated: { body: staleDigest } });
+				const result = yield* Provenance.lint(
+					bundleOf(conceptWith(generated, OTHER_SOURCE, integrity)),
+					OkfitConfig.DEFAULTS,
+				);
+				assert.strictEqual(result.length, 1);
+				assert.include(result[0]?.message ?? "", `integrity.generated.body is ${staleDigest}`);
+			}).pipe(Effect.provide(noGit)),
+		);
+
 		it.effect("reports when the digest no longer matches the current body", () =>
 			Effect.gen(function* () {
 				const staleDigest = yield* digestOf(SOURCE);
@@ -146,6 +194,9 @@ describe("Provenance.lint", () => {
 				assert.strictEqual(result.length, 1);
 				assert.strictEqual(result[0]?.code, "generated-at-drift");
 				assert.include(result[0]?.message ?? "", "the body has changed since generated.at was last stamped");
+				// The recorded value came from the legacy field, so the message names that field.
+				assert.include(result[0]?.message ?? "", `generated.body_sha256 is ${staleDigest}`);
+				assert.notInclude(result[0]?.message ?? "", "integrity.generated.body");
 				assert.include(result[0]?.message ?? "", staleDigest);
 				assert.include(result[0]?.message ?? "", currentDigest);
 			}).pipe(Effect.provide(noGit)),

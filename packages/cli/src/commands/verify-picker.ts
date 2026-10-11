@@ -25,11 +25,15 @@ export interface PickerSource {
 	readonly message: string;
 }
 
-/** One compact row: id, status and how many other actors already attested it. */
-export const pickerLabel = (candidate: PickerCandidate): string =>
-	candidate.otherAttestations === 0
-		? `${candidate.id}  ${candidate.status}`
-		: `${candidate.id}  ${candidate.status}  ${candidate.otherAttestations} other attestation(s)`;
+/** One compact row: id, status, how many other actors already attested it, then `drifted` (its verification no longer binds) and `stale` markers. */
+export const pickerLabel = (candidate: PickerCandidate): string => {
+	const base =
+		candidate.otherAttestations === 0
+			? `${candidate.id}  ${candidate.status}`
+			: `${candidate.id}  ${candidate.status}  ${candidate.otherAttestations} other attestation(s)`;
+	const markers = [...(candidate.integrity === "drifted" ? ["drifted"] : []), ...(candidate.stale ? ["stale"] : [])];
+	return markers.length === 0 ? base : `${base}  ${markers.join("  ")}`;
+};
 
 const detailOf = (candidate: PickerCandidate): string | undefined => {
 	const { title, description } = candidate;

@@ -16,17 +16,20 @@ const encodeAt = Schema.encodeSync(Timestamp);
  * like every other lint (S-7). `Profile.check` and `ProfileDiagnosticCode`
  * are unchanged.
  *
- * Two tiers per concept (issue #19, body-digest design): when
- * `generated.body_sha256` is present, drift is decided ENTIRELY by comparing it to
+ * Two tiers per concept (issue #19, body-digest design): when a body digest
+ * is recorded (`integrity.generated.body`, else the 16-hex prefix of a legacy
+ * `generated.body_sha256`, via `Derivation.recordedBody`), drift is decided
+ * ENTIRELY by comparing it to
  * `Derivation.bodyDigest` of the concept's current source -- no git call at
  * all, so this works for a dirty worktree too (that is the point: an edited
  * body is caught immediately, before it is even committed) and survives a
  * squash/rebase merge that only rewrites commit dates, since the body
- * itself, and therefore its digest, never changed. When `body_sha256` is
- * absent (an un-migrated concept), this falls back to the original
+ * itself, and therefore its digest, never changed. When no digest is recorded
+ * at all (a concept `okfit sync` has never stamped), this falls back to the original
  * git-derived date comparison against `Derivation.generatedAt`, preserving
  * `--skip-provenance`'s meaning for bundles that have not run `okfit sync`
- * since this field was introduced.
+ * since the digest was introduced. The drift message names the field the
+ * recorded value came from, so a legacy concept reads `generated.body_sha256`.
  *
  * The tier-2 fallback returns `[]` the moment a `NotARepositoryError`
  * surfaces: a bundle outside git has nothing to derive for any concept still
@@ -44,8 +47,8 @@ const encodeAt = Schema.encodeSync(Timestamp);
  * calling at all; the two agree by construction (both skip the walk).
  *
  * A third, optional options argument carries `skipGitTier`: when `true`, a
- * concept that falls through to tier 2 (no `generated.body_sha256`
- * recorded) is skipped entirely -- no `Derivation.generatedAt` call, no
+ * concept that falls through to tier 2 (no body digest recorded) is
+ * skipped entirely -- no `Derivation.generatedAt` call, no
  * git spawn at all -- while tier 1 still runs, unaffected, for every
  * concept that DOES carry a digest. This is a runtime skip, not a
  * type-level narrowing: the R channel still lists `Git | GitHistory` even
@@ -93,16 +96,22 @@ export class Provenance {
 		};
 		for (const [, concept] of bundle.concepts) {
 			if (concept.frontmatter.generated === undefined) continue;
-			const recordedDigest = concept.frontmatter.generated.body_sha256;
+			const recordedDigest = Derivation.recordedBody(concept);
 
 			// Tier 1: a digest was stamped -- compare it to the CURRENT body, never git. No
 			// `derived.at`/date reasoning enters this branch at all.
 			if (recordedDigest !== undefined) {
 				const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
 				if (currentDigest === recordedDigest) continue;
+				// Name the field the recorded value came from: a legacy concept reads its own spelling.
+				const legacy = concept.frontmatter.generated.body_sha256;
+				const recordedAs =
+					concept.frontmatter.integrity?.generated?.body === undefined && legacy !== undefined
+						? `generated.body_sha256 is ${legacy}`
+						: `integrity.generated.body is ${recordedDigest}`;
 				pushDrift(
 					concept.path,
-					`the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,
+					`the body has changed since generated.at was last stamped: ${recordedAs}, the current body hashes to ${currentDigest}`,
 					DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]),
 				);
 				continue;

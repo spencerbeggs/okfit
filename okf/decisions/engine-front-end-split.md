@@ -7,11 +7,13 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-09T05:07:51Z
-  body_sha256: 3513ba15ce5fd7a876222abe2cb25ff8d177d41b7e040ae60300115bc8edf6bf
 status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-09T04:18:14Z
+integrity:
+  generated:
+    body: 3513ba15ce5fd7a8
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract

@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 import { AttestedComputation } from "./AttestedComputation.js";
 import { Generated } from "./Generated.js";
+import { Integrity } from "./Integrity.js";
 import { Source, UsageWindow } from "./Source.js";
 import { Status } from "./Status.js";
 import { Timestamp } from "./Timestamp.js";
@@ -35,6 +36,7 @@ export class Concept extends Schema.Class<Concept>("Concept")({
 	verified: Schema.optionalKey(Verification.List),
 	status: Schema.optionalKey(Status),
 	stale_after: Schema.optionalKey(Timestamp),
+	integrity: Schema.optionalKey(Integrity),
 	attested: Schema.optionalKey(AttestedComputation),
 	extensions: Schema.Record(Schema.String, Schema.Unknown),
 	raw: Schema.Record(Schema.String, Schema.Unknown),

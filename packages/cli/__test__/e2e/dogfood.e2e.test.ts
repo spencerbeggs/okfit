@@ -82,13 +82,15 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * The effected kit adoption (#191) adds a `draft` Decision for shared bins and
  * the crash-policy Decision (`okf/decisions/servers-survive-stray-crashes-once-serving.md`).
  * The CLI close-out adds `okf/decisions/stale-verify-rolls-stale-after-forward.md`.
+ * The verification-integrity family adds three `draft` Decisions (exempt from
+ * `require_verified`) and one Interface, taking the bundle to 79 concepts.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 39,
+	Decision: 42,
 	Convention: 7,
-	Interface: 4,
+	Interface: 5,
 	Reference: 1,
 	Roadmap: 2,
 	Glossary: 1,
@@ -108,51 +110,53 @@ const TOTAL_CONCEPTS = Object.values(EXPECTED_CONCEPT_COUNTS).reduce((sum, n) =>
 const dirnameOf = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
 describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
-	it.effect("exits 0 with no errors or warnings: every Decision concept is human-verified", () =>
-		Effect.gen(function* () {
-			const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
-				cwd: REPO_ROOT,
-				env: {
-					PATH: process.env.PATH ?? "",
-					HOME: process.env.HOME ?? "",
-					NO_COLOR: "1",
-				},
-			});
+	it.effect(
+		"exits 0 with no errors or warnings: every stable Decision concept is human-verified (drafts are exempt)",
+		() =>
+			Effect.gen(function* () {
+				const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
+					cwd: REPO_ROOT,
+					env: {
+						PATH: process.env.PATH ?? "",
+						HOME: process.env.HOME ?? "",
+						NO_COLOR: "1",
+					},
+				});
 
-			assert.strictEqual(result.exitCode, 0);
-			assert.strictEqual(result.stderr, "");
+				assert.strictEqual(result.exitCode, 0);
+				assert.strictEqual(result.stderr, "");
 
-			const envelope = JSON.parse(result.stdout) as {
-				readonly summary: {
-					readonly conformance_errors: number;
-					readonly lint_errors: number;
-					readonly lint_warnings: number;
-					readonly lint_info: number;
-					readonly profile_errors: number;
-					readonly concepts: number;
+				const envelope = JSON.parse(result.stdout) as {
+					readonly summary: {
+						readonly conformance_errors: number;
+						readonly lint_errors: number;
+						readonly lint_warnings: number;
+						readonly lint_info: number;
+						readonly profile_errors: number;
+						readonly concepts: number;
+					};
+					readonly diagnostics: ReadonlyArray<{
+						readonly source: string;
+						readonly code: string;
+						readonly severity: string;
+					}>;
 				};
-				readonly diagnostics: ReadonlyArray<{
-					readonly source: string;
-					readonly code: string;
-					readonly severity: string;
-				}>;
-			};
 
-			assert.strictEqual(envelope.summary.conformance_errors, 0);
-			assert.strictEqual(envelope.summary.lint_errors, 0);
-			assert.strictEqual(envelope.summary.profile_errors, 0);
-			assert.strictEqual(envelope.summary.concepts, TOTAL_CONCEPTS);
-			// F-5 discharged 2026-09-07: every Decision is verified and the repo
-			// config no longer overrides require_verified_unmet, so a clean
-			// bundle reports no errors and no warnings.
-			assert.strictEqual(envelope.summary.lint_warnings, 0);
-			// generated-at-drift no longer fires across a squash or rebase merge
-			// (okfit #19 option 2): a recorded generated.at authoritative for the
-			// unchanged-body run -- equal to the derived instant, or itself
-			// stamped somewhere in that run -- survives the merge's rewritten
-			// author dates, so a clean bundle now reports no diagnostics at all.
-			assert.deepStrictEqual(envelope.diagnostics, []);
-		}).pipe(Effect.provide(NodeServices.layer)),
+				assert.strictEqual(envelope.summary.conformance_errors, 0);
+				assert.strictEqual(envelope.summary.lint_errors, 0);
+				assert.strictEqual(envelope.summary.profile_errors, 0);
+				assert.strictEqual(envelope.summary.concepts, TOTAL_CONCEPTS);
+				// F-5 discharged 2026-09-07: every Decision is verified and the repo
+				// config no longer overrides require_verified_unmet, so a clean
+				// bundle reports no errors and no warnings.
+				assert.strictEqual(envelope.summary.lint_warnings, 0);
+				// generated-at-drift no longer fires across a squash or rebase merge
+				// (okfit #19 option 2): a recorded generated.at authoritative for the
+				// unchanged-body run -- equal to the derived instant, or itself
+				// stamped somewhere in that run -- survives the merge's rewritten
+				// author dates, so a clean bundle now reports no diagnostics at all.
+				assert.deepStrictEqual(envelope.diagnostics, []);
+			}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
 

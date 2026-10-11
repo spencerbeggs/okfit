@@ -131,6 +131,7 @@ interface SyncModeEnvelope {
 	readonly selected: boolean;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
+	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: string }>;
 }
 
@@ -232,8 +233,14 @@ describe("okfit sync (e2e)", () => {
 
 			assert.strictEqual(envelope.generated.selected, true);
 			assert.deepStrictEqual(envelope.generated.written, ["decisions/example"]);
-			assert.deepStrictEqual(envelope.index, { selected: false, written: [], unchanged: [], skipped: [] });
-			assert.deepStrictEqual(envelope.log, { selected: false, written: [], unchanged: [], skipped: [] });
+			assert.deepStrictEqual(envelope.index, {
+				selected: false,
+				written: [],
+				unchanged: [],
+				migrated: [],
+				skipped: [],
+			});
+			assert.deepStrictEqual(envelope.log, { selected: false, written: [], unchanged: [], migrated: [], skipped: [] });
 
 			assert.strictEqual(await readIndex(cwd, "decisions/index.md"), before.index);
 			assert.strictEqual(await readLog(cwd), before.log);
@@ -258,10 +265,16 @@ describe("okfit sync (e2e)", () => {
 			assert.strictEqual(run.exitCode, 0);
 			const envelope = parseEnvelope(run.stdout);
 
-			assert.deepStrictEqual(envelope.generated, { selected: false, written: [], unchanged: [], skipped: [] });
+			assert.deepStrictEqual(envelope.generated, {
+				selected: false,
+				written: [],
+				unchanged: [],
+				migrated: [],
+				skipped: [],
+			});
 			assert.strictEqual(envelope.index.selected, true);
 			assert.deepStrictEqual(envelope.index.written, ["decisions/index.md"]);
-			assert.deepStrictEqual(envelope.log, { selected: false, written: [], unchanged: [], skipped: [] });
+			assert.deepStrictEqual(envelope.log, { selected: false, written: [], unchanged: [], migrated: [], skipped: [] });
 
 			// generated.at is left exactly as committed: still `by` only.
 			assert.isTrue((await readDecision(cwd, "example")).includes("generated:\n  by: human:ada\nstatus: draft\n"));
@@ -288,7 +301,7 @@ describe("okfit sync (e2e)", () => {
 
 			const run = await withServices(runOkfit(["sync", "--yes", "--agent", "--only", "index"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
-			assert.include(run.stdout, "wrote 1, unchanged");
+			assert.include(run.stdout, "wrote 1, migrated 0, unchanged");
 			assert.notInclude(run.stdout, "Write 1 file(s)?");
 		} finally {
 			await removeSandbox(sandbox);
@@ -311,8 +324,20 @@ describe("okfit sync (e2e)", () => {
 			assert.strictEqual(run.exitCode, 0);
 			const envelope = parseEnvelope(run.stdout);
 
-			assert.deepStrictEqual(envelope.generated, { selected: false, written: [], unchanged: [], skipped: [] });
-			assert.deepStrictEqual(envelope.index, { selected: false, written: [], unchanged: [], skipped: [] });
+			assert.deepStrictEqual(envelope.generated, {
+				selected: false,
+				written: [],
+				unchanged: [],
+				migrated: [],
+				skipped: [],
+			});
+			assert.deepStrictEqual(envelope.index, {
+				selected: false,
+				written: [],
+				unchanged: [],
+				migrated: [],
+				skipped: [],
+			});
 			assert.strictEqual(envelope.log.selected, true);
 			assert.deepStrictEqual(envelope.log.written, ["log.md"]);
 
@@ -349,7 +374,7 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(envelope.generated.written, ["decisions/example"]);
 			assert.strictEqual(envelope.index.selected, true);
 			assert.deepStrictEqual(envelope.index.written, ["decisions/index.md"]);
-			assert.deepStrictEqual(envelope.log, { selected: false, written: [], unchanged: [], skipped: [] });
+			assert.deepStrictEqual(envelope.log, { selected: false, written: [], unchanged: [], migrated: [], skipped: [] });
 
 			assert.strictEqual(
 				await readLog(cwd),
@@ -473,9 +498,10 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(project);
 			assert.match(
 				project,
-				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\n {2}body_sha256: [\da-f]{64}\n---\n/,
+				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\nintegrity:\n {2}generated:\n {4}body: [\da-f]{16}\n---\n/,
 			);
-			assert.ok(project.includes(`body_sha256: ${digest}`));
+			assert.ok(project.includes(`    body: ${digest}\n`));
+			assert.notInclude(project, "body_sha256");
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -517,9 +543,12 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(contents);
 			assert.strictEqual(
 				await readDecision(cwd, "insert"),
-				contents.replace(
-					"generated:\n  by: human:ada\n",
-					`generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n  body_sha256: ${digest}\n`,
+				stampIntegrity(
+					contents.replace(
+						"generated:\n  by: human:ada\n",
+						"generated:\n  by: human:ada\n  at: 2026-09-02T00:00:00Z\n",
+					),
+					digest,
 				),
 			);
 		} finally {
@@ -543,13 +572,40 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(contents);
 			assert.strictEqual(
 				await readDecision(cwd, "plain"),
-				contents.replace("  at: 2020-01-01T00:00:00Z\n", `  at: 2026-09-03T00:00:00Z\n  body_sha256: ${digest}\n`),
+				stampIntegrity(contents.replace("  at: 2020-01-01T00:00:00Z\n", "  at: 2026-09-03T00:00:00Z\n"), digest),
 			);
 
 			const second = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
 			assert.strictEqual(second.exitCode, 0);
 			assert.deepStrictEqual(parseEnvelope(second.stdout).generated.written, []);
 			assert.deepStrictEqual(parseEnvelope(second.stdout).generated.unchanged, ["decisions/plain"]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("migrates a legacy body_sha256 without touching generated.at, then reports unchanged", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const contents = decisionWithPlainAt("Legacy decision", "Carries a legacy digest.", "2026-09-05T00:00:00Z");
+			const digest = await digestOf(contents);
+			const legacy = contents.replace(
+				"  at: 2026-09-05T00:00:00Z\n",
+				`  at: 2026-09-05T00:00:00Z\n  body_sha256: ${digest}${"0".repeat(48)}\n`,
+			);
+			await writeAndCommitDecision(cwd, env, "legacy", legacy, "2026-09-05T00:00:00+00:00", "add legacy decision");
+
+			const first = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
+			assert.strictEqual(first.exitCode, 0);
+			const firstEnvelope = parseEnvelope(first.stdout);
+			assert.deepStrictEqual(firstEnvelope.generated.migrated, ["decisions/legacy"]);
+			assert.deepStrictEqual(firstEnvelope.generated.written, []);
+			assert.strictEqual(await readDecision(cwd, "legacy"), stampIntegrity(contents, digest));
+
+			const second = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
+			const secondEnvelope = parseEnvelope(second.stdout);
+			assert.deepStrictEqual(secondEnvelope.generated.migrated, []);
+			assert.deepStrictEqual(secondEnvelope.generated.unchanged, ["decisions/legacy"]);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -571,7 +627,7 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(contents);
 			assert.strictEqual(
 				await readDecision(cwd, "quoted"),
-				contents.replace("  at: '2020-01-01T00:00:00Z'\n", `  at: '2026-09-04T00:00:00Z'\n  body_sha256: ${digest}\n`),
+				stampIntegrity(contents.replace("  at: '2020-01-01T00:00:00Z'\n", "  at: '2026-09-04T00:00:00Z'\n"), digest),
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -810,10 +866,11 @@ describe("okfit sync (e2e)", () => {
 					selected: true,
 					written: [],
 					unchanged: [],
+					migrated: [],
 					skipped: [{ id: "project", reason: "generated-missing" }],
 				},
-				index: { selected: true, written: [], unchanged: ["index.md"], skipped: [] },
-				log: { selected: true, written: ["log.md"], unchanged: [], skipped: [] },
+				index: { selected: true, written: [], unchanged: ["index.md"], migrated: [], skipped: [] },
+				log: { selected: true, written: ["log.md"], unchanged: [], migrated: [], skipped: [] },
 			});
 
 			// --dry-run: the file on disk is untouched, still the init scaffold.
@@ -843,7 +900,10 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(envelope.generated.written, ["decisions/staged"]);
 			assert.strictEqual(envelope.log.selected, false);
 			const text = await readDecision(cwd, "staged");
-			assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+			assert.match(
+				text,
+				/\n {2}at: 2026-09-16T10:00:00Z\nstatus: draft\nintegrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/,
+			);
 
 			// Prove `--staged` re-added the stamp itself, BEFORE `commit()` runs
 			// its own unconditional `git add -A` -- otherwise this test would
@@ -928,6 +988,10 @@ const driftCount = async (cwd: string, env: Record<string, string>): Promise<num
 	return envelope.diagnostics.filter((d) => d.code === "publication-drift").length;
 };
 
+/** Append the canonical `integrity.generated.body` block as the last frontmatter key. */
+const stampIntegrity = (text: string, digest: string): string =>
+	text.replace("\n---\n", `\nintegrity:\n  generated:\n    body: ${digest}\n---\n`);
+
 describe("okfit sync --publication", () => {
 	it("restamps one Publication, after which validate reports no drift", async () => {
 		const { sandbox, cwd, env, pubPath } = await seededPublication();
@@ -935,7 +999,7 @@ describe("okfit sync --publication", () => {
 			assert.strictEqual(await driftCount(cwd, env), 1);
 			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0, run.stderr);
-			assert.match(await readFile(pubPath, "utf8"), /body_sha256: [0-9a-f]{64}/);
+			assert.match(await readFile(pubPath, "utf8"), / body: [0-9a-f]{16}/);
 			assert.strictEqual(await driftCount(cwd, env), 0);
 			const json = await withServices(
 				runOkfit(["sync", "--publication", "publications/pr", "--format", "json"], { cwd, env }),
@@ -1048,10 +1112,16 @@ describe("okfit sync --publication", () => {
 			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
 			await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			await commit(cwd, { message: "add publication", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
-			const rendersOf = (text: string) =>
-				text.split("\n").filter((l) => /^renders:|^ {2}- path:|^ {4}body_sha256:/.test(l));
+			// Only the `renders:` block: the Publication's own `integrity.generated.body` is also `    body:`.
+			const rendersOf = (text: string) => {
+				const lines = text.split("\n");
+				const start = lines.indexOf("renders:");
+				const tail = lines.slice(start + 1);
+				const length = tail.findIndex((l) => !l.startsWith(" "));
+				return [lines[start], ...tail.slice(0, length === -1 ? tail.length : length)];
+			};
 			const stamped = rendersOf(await readFile(pubPath, "utf8"));
-			assert.isTrue(stamped.some((l) => l.includes("body_sha256")));
+			assert.isTrue(stamped.some((l) => l.includes("body:")));
 
 			// A source change (drift) and a Publication body edit, both committed.
 			await writeFile(join(cwd, "okf", "modules", "x.md"), SOURCE.replace("Body.", "Changed body."), "utf8");

@@ -135,7 +135,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `@effected/toml`, `@effected/walker`, `@effected/yaml`), `@okfit/profiles`'s
   peers (`@effected/git`, `@effected/markdown`, `@okfit/core`), and the
   CLI's own wiring (`@effect/platform-node` for `NodeRuntime`,
-  `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
+  `@effect/platform-node-shared` pinned to 4.0.2 until effect 4.0.3 publishes
+  (effected#996), `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
   there is nothing of engine's to satisfy here. Several
   of these are never imported directly by a file under `src/` — they satisfy
   a peer of a dependency this package DOES import directly. Do not "clean up"

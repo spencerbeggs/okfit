@@ -9,7 +9,6 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-28T20:26:24Z
-  body_sha256: efc14094c73730ab2a4499378de5e51ebade22a0615970ebed952c25a52f7bf7
 sources:
   - id: main-ts
     resource: ../../packages/cli/src/main.ts
@@ -32,6 +31,9 @@ verified:
     at: 2026-09-24T15:59:56Z
   - by: human:spencer
     at: 2026-09-24T17:51:15Z
+integrity:
+  generated:
+    body: efc14094c73730ab
 ---
 
 # okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents

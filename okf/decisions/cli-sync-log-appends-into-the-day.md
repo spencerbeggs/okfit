@@ -7,12 +7,14 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-16T18:38:30Z
-  body_sha256: 936d22b0c4ca14ea2a9840f3da2275676df9c1d24f2903e5d4d29356bbf96f13
 status: stable
 supersedes: cli-sync-log-appends-never-rewrites.md
 verified:
   - by: human:spencer
     at: 2026-09-24T00:20:55.156Z
+integrity:
+  generated:
+    body: 936d22b0c4ca14ea
 ---
 
 # okfit sync's log mode appends into the newest logged day and dedupes on its own spellings

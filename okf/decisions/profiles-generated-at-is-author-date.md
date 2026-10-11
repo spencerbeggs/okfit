@@ -7,11 +7,13 @@ tags:
 generated:
   by: human:spencer
   at: 2026-09-06T11:25:53Z
-  body_sha256: 89afe0f9745443622099cd8b31a178197ada49258103c861812636f2842f3ff9
 status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
+integrity:
+  generated:
+    body: 89afe0f974544362
 ---
 
 # Generated.at is the author date of the last commit that changed the body

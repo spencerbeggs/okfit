@@ -16,7 +16,9 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-09-23T08:32:55Z
-  body_sha256: 4481b51e85dc50d78227bf77530ff9cb7d9d048eb0333630aa1f22a333c639ba
+integrity:
+  generated:
+    body: 4481b51e85dc50d7
 ---
 
 # The phase 3 language server does not reload a changed config or clear a dropped session's diagnostics

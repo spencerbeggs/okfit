@@ -8,8 +8,10 @@ tags:
 status: draft
 generated:
   by: okfit/claude-code
-  at: 2026-10-09T16:35:36Z
-  body_sha256: ecfb38b3faceebc7c493b2fd7a5302177745b345158a2c7a7c6fcaa6e60971f9
+  at: 2026-10-11T03:57:51Z
+integrity:
+  generated:
+    body: 21318a632e0ec8c9
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does
@@ -35,7 +37,11 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   safely fails the whole batch with nothing written.
 - A re-attest by the same actor overwrites that actor's own `verified[].at`
   instead of appending a second entry, so repeated stale cycles do not grow
-  the list.
+  the list. The same edit rewrites `integrity.verified` so its `at` and
+  content digest agree with the refreshed entry (see [integrity
+  frontmatter](../interfaces/integrity-frontmatter.md)).
+- Candidates include a drifted concept even when this actor already has an
+  entry, because "already verified" now means holding the current binding.
 - Plain `okfit verify` keeps its contract: it appends, and never touches
   `stale_after`.
 - The command is interactive-only. A non-interactive run is exit `64`,

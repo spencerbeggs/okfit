@@ -11,7 +11,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
-  body_sha256: 36105db5404f04dedfe49a3cb5b72963abd904c28a356df2bd78c2cc1cc0140f
+integrity:
+  generated:
+    body: 36105db5404f04de
 ---
 
 # VS Code Extension

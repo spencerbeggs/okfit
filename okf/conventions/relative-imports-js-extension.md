@@ -6,8 +6,10 @@ status: stable
 generated:
   by: human:spencer
   at: 2026-09-06T10:47:04Z
-  body_sha256: c58164991f73965f06c20aa885ce548494d03da650cf85506f00abe23ee614c6
 stale_after: "2026-12-05T00:00:00Z"
+integrity:
+  generated:
+    body: c58164991f73965f
 ---
 
 # Relative imports use .js extensions

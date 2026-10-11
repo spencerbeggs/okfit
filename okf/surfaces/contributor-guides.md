@@ -10,9 +10,11 @@ links_to: readme-root.md
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:23:03Z
-  body_sha256: 097d873032e7ab2cf15ccbfc66ebe1a0396800fe7b14729efbbfae0fb812c10e
 tags:
   - docs
+integrity:
+  generated:
+    body: 097d873032e7ab2c
 ---
 
 # Contributor guides

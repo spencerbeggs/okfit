@@ -10,8 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
-  body_sha256: 30381623671cc6f28de40f146d78a3820af1864bd209eefe6a02064a278a93f1
+  at: 2026-10-11T03:57:51Z
+integrity:
+  generated:
+    body: c0316bedbda33d09
 ---
 
 # LSP
@@ -85,7 +87,8 @@ live session and answers the root URIs revalidated. Both features share
 version from the diagnostics feature's open-document memory (else the file
 as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits`/`verifiedStableTextEdits` wrap
 [Engine](engine.md)'s `FrontmatterEdits.status`/`.verified`/
-`.verifiedWithStatus` over that text,
+`.verifiedWithStatus` over that text (each `verified` edit also binds
+`integrity.verified`, with the content digest computed through `Crypto`),
 and `versionedEdit` sends the result as `documentChanges` carrying the
 version. A command's edit goes over `workspace/applyEdit`, so a client
 whose buffer has moved on refuses a stale one; a code action's edit carries

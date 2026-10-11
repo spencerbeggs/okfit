@@ -19,15 +19,15 @@
  */
 import type { Git } from "@effected/git";
 import type { MarkdownEdit } from "@effected/markdown";
-import { FrontmatterSource } from "@effected/markdown";
+import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import type { LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { DiagnosticRange, Timestamp } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import { Derivation } from "@okfit/profiles";
-import type { DateTime } from "effect";
-import { Effect, Option, Schema } from "effect";
+import type { Crypto, DateTime } from "effect";
+import { Effect, Option, Result, Schema } from "effect";
 import { toLspRange } from "../convert/range.js";
 import { messageOf } from "../internal/messageOf.js";
 import type { Range, TextEdit, WorkspaceEdit } from "../protocol/types.js";
@@ -98,6 +98,8 @@ export interface EditTarget {
 	readonly status: string | undefined;
 	/** Every `verified[].by` string in the frontmatter, in order. */
 	readonly verifiedBy: ReadonlyArray<string>;
+	/** The recorded `integrity.verified` binding (`by`, `content`) when the frontmatter carries a well-formed one. */
+	readonly binding: { readonly by: string; readonly content: string } | undefined;
 	/** The frontmatter block, opening fence through closing fence, as an LSP range over `text`. */
 	readonly frontmatter: Range;
 }
@@ -144,8 +146,15 @@ export const editTarget = (
 					return typeof by === "string" ? [by] : [];
 				})
 			: [];
+		const verifiedBinding = field(field(data, "integrity"), "verified");
+		const bindingBy = field(verifiedBinding, "by");
+		const bindingContent = field(verifiedBinding, "content");
 		return Option.some({
 			handle: owner.value,
+			binding:
+				typeof bindingBy === "string" && typeof bindingContent === "string"
+					? { by: bindingBy, content: bindingContent }
+					: undefined,
 			text,
 			version,
 			status: typeof status === "string" ? status : undefined,
@@ -183,12 +192,37 @@ export const statusTextEdits = (
 	);
 
 /**
+ * The content digest of `text` as the editor holds it: the parsed frontmatter
+ * and body hashed exactly as `Bundle.load` + `Derivation.contentDigest` do for
+ * a file. `Unsupported` (`yaml-parse-error`) when the frontmatter does not parse.
+ */
+const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Crypto.Crypto> =>
+	Effect.gen(function* () {
+		const unparseable = (): EditFailure => ({ _tag: "Unsupported", key: "verified", shape: "yaml-parse-error" });
+		const parsed = MarkdownDocument.parseResult(text, MarkdownParseOptions.make({ frontmatter: true }));
+		if (Result.isFailure(parsed) || parsed.success.frontmatter === undefined) return yield* Effect.fail(unparseable());
+		const decoded = yield* Effect.result(YamlFrontmatter.decode(parsed.success.frontmatter));
+		if (Result.isFailure(decoded)) return yield* Effect.fail(unparseable());
+		const raw = decoded.success;
+		if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return yield* Effect.fail(unparseable());
+		return yield* Derivation.contentDigest(raw as Record<string, unknown>, text).pipe(Effect.orDie);
+	});
+
+/**
+ * Whether `actor` already holds a still-bound verification of `target`: its
+ * `integrity.verified` names `actor` and records the digest of the current text.
+ */
+const alreadyBound = (target: EditTarget, actor: string, content: string): boolean =>
+	target.verifiedBy.includes(actor) && target.binding?.by === actor && target.binding.content === content;
+
+/**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
- * `actor`, `at` the encoded `now`), or `EditFailure` when the concept is a
- * draft, is deprecated, or already carries a `verified` entry by `actor` (the
- * editor action follows `okfit verify --batch`'s skip rules, not the
- * single-concept `okfit verify <id>`), or the `verified` shape is one
- * `FrontmatterEdits.verified` cannot splice.
+ * `actor`, `at` the encoded `now`) and bind it with `integrity.verified`, or
+ * `EditFailure` when the concept is a draft, is deprecated, or `actor`'s
+ * verification still binds its current content (a drifted one is verified
+ * again; the editor action otherwise follows `okfit verify --batch`'s skip
+ * rules, not the single-concept `okfit verify <id>`), or the `verified` or
+ * `integrity` shape is one `FrontmatterEdits.verified` cannot splice.
  *
  * @public
  */
@@ -196,14 +230,15 @@ export const verifiedTextEdits = (
 	target: EditTarget,
 	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Crypto.Crypto> =>
 	Effect.gen(function* () {
 		if (target.status === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
 		if (target.status === "deprecated") return yield* Effect.fail<EditFailure>({ _tag: "DeprecatedCannotBeVerified" });
-		if (target.verifiedBy.includes(actor))
+		const content = yield* contentDigestOf(target.text);
+		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
 		const at = Schema.encodeSync(Timestamp)(now);
-		const edits = yield* FrontmatterEdits.verified(target.text, { by: actor, at }).pipe(
+		const edits = yield* FrontmatterEdits.verified(target.text, { by: actor, at }, content).pipe(
 			Effect.mapError((error): EditFailure => toEditFailure(error, "verified")),
 		);
 		return edits.map((edit) => toTextEdit(target.text, edit));
@@ -214,8 +249,8 @@ export const verifiedTextEdits = (
  * `actor`, `at` the encoded `now`) AND set `status: stable` in one write --
  * `okfit verify --stable`'s combined edit. Fails `NotADraft` unless the
  * concept's raw `status` is `draft` (a non-draft takes the plain Mark
- * verified), `AlreadyVerified` when `actor` already carries a `verified`
- * entry, or when a shape `FrontmatterEdits.verifiedWithStatus` cannot splice.
+ * verified), `AlreadyVerified` when `actor`'s verification still binds the
+ * current content, or when a shape `FrontmatterEdits.verifiedWithStatus` cannot splice.
  *
  * @public
  */
@@ -223,13 +258,14 @@ export const verifiedStableTextEdits = (
 	target: EditTarget,
 	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Crypto.Crypto> =>
 	Effect.gen(function* () {
 		if (target.status !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
-		if (target.verifiedBy.includes(actor))
+		const content = yield* contentDigestOf(target.text);
+		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
 		const at = Schema.encodeSync(Timestamp)(now);
-		const edits = yield* FrontmatterEdits.verifiedWithStatus(target.text, { by: actor, at }, "stable").pipe(
+		const edits = yield* FrontmatterEdits.verifiedWithStatus(target.text, { by: actor, at }, "stable", content).pipe(
 			Effect.mapError((error): EditFailure => toEditFailure(error, "verified")),
 		);
 		return edits.map((edit) => toTextEdit(target.text, edit));

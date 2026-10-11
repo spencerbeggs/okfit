@@ -29,6 +29,8 @@ export const SkipReason = Schema.Literals([
 	"unborn",
 	"generated-missing",
 	"generated-unsupported",
+	"integrity-unsupported",
+	"renders-unsupported",
 	"log-unparseable",
 ]);
 /** @public */
@@ -55,6 +57,8 @@ export interface SyncModeResult {
 	/** Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
+	/** `generated` mode only: ids whose legacy body digest moved to `integrity.generated.body`; may also be in `written`. */
+	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: SkipReason }>;
 }
 
@@ -68,7 +72,7 @@ export interface SyncResult {
 }
 
 /** A selected-`false` placeholder for a mode `--only` excluded from (contract §5). */
-const UNSELECTED: SyncModeResult = { selected: false, written: [], unchanged: [], skipped: [] };
+const UNSELECTED: SyncModeResult = { selected: false, written: [], unchanged: [], migrated: [], skipped: [] };
 
 /**
  * What {@link planSync} computed and {@link applySyncPlan} will perform.
@@ -157,8 +161,7 @@ export const planSync: (
 		for (const [id, concept] of bundle.concepts) {
 			const generated = concept.frontmatter.generated;
 			const digest = yield* Derivation.bodyDigest(concept.document.source);
-			const stampedAt =
-				generated?.body_sha256 !== undefined && generated.body_sha256 === digest ? generated.at : undefined;
+			const stampedAt = Derivation.recordedBody(concept) === digest ? generated?.at : undefined;
 			const wanted =
 				stampedAt === undefined ||
 				(options.modes.has("log") && wantsLogEntry(window, DateTime.formatIsoDate(stampedAt), Derive.title(concept)));
@@ -181,18 +184,20 @@ export const planSync: (
 				})),
 			}
 		: UNSELECTED;
-	const index: SyncModeResult = options.modes.has("index") ? yield* syncIndex(bundle, true, pending) : UNSELECTED;
+	const index: SyncModeResult = options.modes.has("index")
+		? { ...(yield* syncIndex(bundle, true, pending)), migrated: [] }
+		: UNSELECTED;
 	const log: SyncModeResult = options.modes.has("log")
-		? yield* syncLog(bundle, walked, true, options.logSince, pending)
+		? { ...(yield* syncLog(bundle, walked, true, options.logSince, pending)), migrated: [] }
 		: UNSELECTED;
 
 	let restage: SyncPlan["restage"];
 	if (options.staged !== undefined && repoRoot !== undefined) {
 		const path = yield* Path.Path;
 		// F5: the realpath map built in the staged-set loop above, filtered to
-		// the ids `syncGenerated` would write -- no cast back to `ConceptId`
+		// the ids `syncGenerated` would write or migrate -- no cast back to `ConceptId`
 		// needed, since these keys were never anything else.
-		const writtenIds = new Set(generated.written);
+		const writtenIds = new Set([...generated.written, ...generated.migrated]);
 		const files = [
 			...(realPaths === undefined
 				? []

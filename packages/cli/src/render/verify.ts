@@ -15,7 +15,19 @@ export interface VerifyLines {
 	readonly status: { readonly from: string | null; readonly to: string } | null;
 	/** The exact status bytes a real run would splice in; printed only when `dryRun`. */
 	readonly statusFragment: string | null;
+	/** Why the concept's prior human verification had drifted (this run re-verifies it), else `null`/absent. */
+	readonly priorDrift?: string | null;
 }
+
+/**
+ * The lines announcing prior attestations: a re-verify of drifted content when this actor
+ * had verified it before, else one per prior entry (V-2). An actor with no prior entry gets
+ * the first-time wording even when another actor's entry had drifted: it is not re-verifying.
+ */
+const priorLines = (input: VerifyLines): ReadonlyArray<string> =>
+	input.priorDrift === undefined || input.priorDrift === null || input.priorAt.length === 0
+		? input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`)
+		: [`re-verifying (was drifted: ${input.priorDrift})`];
 
 /**
  * Indent every line of `fragment` two spaces for display under a
@@ -51,7 +63,7 @@ const fragmentBlock = (fragment: string) => Doc.verbatim(indentFragment(fragment
 export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => {
 	const statusSuffix = statusSuffixOf(input.status);
 	return [
-		...input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`),
+		...priorLines(input),
 		input.dryRun
 			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffix} (dry run, nothing written)`
 			: `verified ${input.id} by ${input.by} at ${input.at}${statusSuffix}`,
@@ -107,7 +119,7 @@ const paragraphs = (lines: ReadonlyArray<string>): Document => lines.map(fact);
  * @public
  */
 export const humanVerifyDoc = (input: VerifyLines): Document => [
-	...input.priorAt.map((at) => fact(`already verified by ${input.by} at ${at}; appending`)),
+	...priorLines(input).map(fact),
 	fact(
 		input.dryRun
 			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffixOf(input.status)} (dry run, nothing written)`
@@ -148,3 +160,39 @@ export const humanVerifyBatchDoc = (input: VerifyBatchLines): Document => [
 			: `verified ${input.verified.length}, skipped ${input.skipped.length}`,
 	),
 ];
+
+/** `humanRevoke`'s input shape. @public */
+export interface RevokeLines {
+	readonly id: string;
+	readonly by: string;
+	/** The `at` of every removed entry, in list order. */
+	readonly removed: ReadonlyArray<string>;
+	readonly bindingCleared: boolean;
+	readonly dryRun: boolean;
+}
+
+/**
+ * `okfit verify --revoke`'s human output: one headline, then one line per
+ * removed entry and one for the integrity binding. Under `--dry-run` every line
+ * is phrased as what would happen and the headline says nothing was written.
+ *
+ * @public
+ */
+export const humanRevoke = (input: RevokeLines): ReadonlyArray<string> => {
+	const count = `${input.removed.length} verified ${input.removed.length === 1 ? "entry" : "entries"}`;
+	return [
+		input.dryRun
+			? `would revoke ${count} of ${input.id} by ${input.by} (dry run, nothing written)`
+			: `revoked ${count} of ${input.id} by ${input.by}`,
+		...input.removed.map((at) => `  ${input.dryRun ? "would remove" : "removed"} entry at ${at}`),
+		...(input.bindingCleared ? [`  ${input.dryRun ? "would clear" : "cleared"} the integrity.verified binding`] : []),
+	];
+};
+
+/**
+ * The `Doc` form of {@link humanRevoke}; plain output is byte-identical to
+ * `humanRevoke(input).join("\n")`.
+ *
+ * @public
+ */
+export const humanRevokeDoc = (input: RevokeLines): Document => humanRevoke(input).map(fact);
