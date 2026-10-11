@@ -508,6 +508,43 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			}),
 	);
 
+	it.effect("a malformed integrity block whose rewrite changes no byte reports unchanged and writes nothing", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-generated-")));
+			try {
+				const digest = yield* digestOf(SOURCE);
+				// The parsed concept carries no integrity (the block does not decode: `verified: nope`),
+				// yet the file already holds the stamp and digest sync would write.
+				const text = SOURCE.replace(
+					"title: Digested",
+					`title: Digested\ngenerated:\n  by: human:okfit-test\n  at: ${ENCODED_DERIVED_AT}\nintegrity:\n  generated:\n    body: ${digest}\n  verified: nope`,
+				);
+				const file = join(dir, "module.md");
+				yield* Effect.promise(() => writeFile(file, text));
+				const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
+				const pending: Array<{ readonly target: string; readonly contents: string }> = [];
+				const dry = yield* syncGenerated(bundleWith(concept, dir), {
+					provenance: new Map([[concept.id, committed]]),
+					dryRun: true,
+					pending,
+				}).pipe(Effect.provide(NodeServices.layer));
+				assert.deepStrictEqual(dry.written, []);
+				assert.deepStrictEqual(dry.unchanged, [concept.id]);
+				assert.deepStrictEqual(pending, []);
+				const result = yield* syncGenerated(bundleWith(concept, dir), {
+					provenance: new Map([[concept.id, committed]]),
+					dryRun: false,
+				}).pipe(Effect.provide(NodeServices.layer));
+				assert.deepStrictEqual(result.written, []);
+				assert.deepStrictEqual(result.migrated, []);
+				assert.deepStrictEqual(result.unchanged, [concept.id]);
+				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), text);
+			} finally {
+				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+			}
+		}),
+	);
+
 	it.effect("stamps at and integrity, preserving quote style and newline style, when no digest is recorded", () =>
 		Effect.gen(function* () {
 			const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-generated-")));

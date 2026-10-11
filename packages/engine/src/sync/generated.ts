@@ -233,6 +233,13 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		edits.push(spliceIntegrityGenerated(integrityLocated, text, currentDigest, newline));
 
 		const finalText = bom + MarkdownEdit.applyAll(text, mergeSameOffset(edits.toSorted((a, b) => a.offset - b.offset)));
+		// A block the parsed concept could not decode (say a malformed `integrity.verified`) never
+		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
+		// not as a write that would recur on every run.
+		if (finalText === source) {
+			unchanged.push(id);
+			continue;
+		}
 		if (legacy._tag === "line" || legacyRenders !== undefined) migrated.push(id);
 		if (!dryRun) {
 			yield* writeAtomic(absolutePath, finalText);
