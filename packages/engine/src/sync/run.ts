@@ -157,10 +157,7 @@ export const planSync: (
 		for (const [id, concept] of bundle.concepts) {
 			const generated = concept.frontmatter.generated;
 			const digest = yield* Derivation.bodyDigest(concept.document.source);
-			const stampedAt =
-				generated?.body_sha256 !== undefined && generated.body_sha256.slice(0, 16) === digest
-					? generated.at
-					: undefined;
+			const stampedAt = Derivation.recordedBody(concept) === digest ? generated?.at : undefined;
 			const wanted =
 				stampedAt === undefined ||
 				(options.modes.has("log") && wantsLogEntry(window, DateTime.formatIsoDate(stampedAt), Derive.title(concept)));

@@ -26,7 +26,7 @@ export const PUBLICATION_TYPE = "Publication" as const;
 export interface RendersEntry {
 	readonly index: number;
 	readonly path: string;
-	readonly body_sha256?: string;
+	readonly body?: string;
 }
 
 const resolveRef = (from: string, raw: string): string => {
@@ -49,8 +49,11 @@ const rendersOf = (concept: LoadedConcept): ReadonlyArray<RendersEntry> | undefi
 	const out: Array<RendersEntry> = [];
 	for (const [index, entry] of value.entries()) {
 		if (typeof entry !== "object" || entry === null || typeof entry.path !== "string") return undefined;
-		const digest = typeof entry.body_sha256 === "string" && entry.body_sha256 !== "" ? entry.body_sha256 : undefined;
-		out.push(digest === undefined ? { index, path: entry.path } : { index, path: entry.path, body_sha256: digest });
+		const current = typeof entry.body === "string" && entry.body !== "" ? entry.body : undefined;
+		const legacy =
+			typeof entry.body_sha256 === "string" && entry.body_sha256 !== "" ? entry.body_sha256.slice(0, 16) : undefined;
+		const digest = current ?? legacy;
+		out.push(digest === undefined ? { index, path: entry.path } : { index, path: entry.path, body: digest });
 	}
 	return out;
 };
@@ -62,7 +65,7 @@ const compare = (a: Diagnostic, b: Diagnostic): number =>
  * A profiles-owned lint over Publication concepts: `publication-orphan` when a
  * `surface` or `renders[].path` does not resolve to a bundle concept (or
  * `renders` is malformed), and `publication-drift` when a rendered source's
- * body digest no longer matches the stamped `body_sha256`. Total over
+ * body digest no longer matches the stamped `renders[].body`. Total over
  * severity: returns `[]` before any digest work when both codes are `"off"`.
  *
  * @public
@@ -135,13 +138,9 @@ export class Publications {
 			const renders = rendersOf(concept);
 			if (renders === undefined) {
 				if (orphanSeverity !== "off") {
-					push(
-						concept,
-						"publication-orphan",
-						orphanSeverity,
-						"renders must be a list of { path, body_sha256 } entries",
-						["renders"],
-					);
+					push(concept, "publication-orphan", orphanSeverity, "renders must be a list of { path, body } entries", [
+						"renders",
+					]);
 				}
 				continue;
 			}
@@ -171,12 +170,12 @@ export class Publications {
 					continue;
 				}
 				if (driftSeverity === "off") continue;
-				if (entry.body_sha256 === undefined) {
+				if (entry.body === undefined) {
 					stale.push(`${sourceId} (never stamped)`);
 					continue;
 				}
 				const current = yield* Derivation.bodyDigest(source.document.source);
-				if (current !== entry.body_sha256.slice(0, 16)) stale.push(`${sourceId} (changed)`);
+				if (current !== entry.body) stale.push(`${sourceId} (changed)`);
 			}
 			if (stale.length > 0 && driftSeverity !== "off") {
 				push(

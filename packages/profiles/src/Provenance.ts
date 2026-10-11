@@ -93,16 +93,16 @@ export class Provenance {
 		};
 		for (const [, concept] of bundle.concepts) {
 			if (concept.frontmatter.generated === undefined) continue;
-			const recordedDigest = concept.frontmatter.generated.body_sha256;
+			const recordedDigest = Derivation.recordedBody(concept);
 
 			// Tier 1: a digest was stamped -- compare it to the CURRENT body, never git. No
 			// `derived.at`/date reasoning enters this branch at all.
 			if (recordedDigest !== undefined) {
 				const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
-				if (currentDigest === recordedDigest.slice(0, 16)) continue;
+				if (currentDigest === recordedDigest) continue;
 				pushDrift(
 					concept.path,
-					`the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,
+					`the body has changed since generated.at was last stamped: integrity.generated.body is ${recordedDigest}, the current body hashes to ${currentDigest}`,
 					DiagnosticRange.forFrontmatterPath(concept.document, ["generated", "at"]),
 				);
 				continue;

@@ -1,6 +1,6 @@
 import type { GitCommandError, NotARepositoryError, UnknownRefError } from "@effected/git";
 import { Git } from "@effected/git";
-import type { Digest } from "@okfit/core";
+import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { Crypto, DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
@@ -251,6 +251,14 @@ export class Derivation {
 	 */
 	static readonly bodyDigest: (source: string) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =
 		bodyDigest;
+
+	/**
+	 * The body digest recorded for a generated concept: `integrity.generated.body`, else the legacy
+	 * `generated.body_sha256` cut to its first 16 hex characters. `undefined` when neither is present.
+	 * Pure; every "is the stamped body still current" comparison reads through this.
+	 */
+	static readonly recordedBody: (concept: LoadedConcept) => string | undefined = (concept) =>
+		concept.frontmatter.integrity?.generated?.body ?? concept.frontmatter.generated?.body_sha256?.slice(0, 16);
 
 	/**
 	 * 16-hex digest of the canonical content input (`Canonical.contentInput`): authored frontmatter

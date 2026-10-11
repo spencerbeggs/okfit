@@ -85,6 +85,34 @@ describe("Publications.lint", () => {
 		}),
 	);
 
+	it.effect("reads renders[].body (16 hex) and a legacy 64-hex body_sha256 by prefix; drift says renders[i].body", () =>
+		Effect.gen(function* () {
+			const a = yield* digestOf(sourceA);
+			const full = yield* Derivation.digestFull(Derivation.body(sourceA.document.source)).pipe(
+				Effect.provide(NodeCrypto.layer),
+			);
+			const fresh = publication(
+				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body: a }] },
+				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body: ${a}\n`,
+			);
+			assert.deepStrictEqual(yield* run(bundleOf(sourceA, surface, fresh)), []);
+			const legacy = publication(
+				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body_sha256: full }] },
+				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${full}\n`,
+			);
+			assert.deepStrictEqual(yield* run(bundleOf(sourceA, surface, legacy)), []);
+			const entries = Publications.rendersOf(fresh);
+			assert.strictEqual(entries?.[0]?.body, a);
+			const stale = publication(
+				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body: "0".repeat(16) }] },
+				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body: ${"0".repeat(16)}\n`,
+			);
+			const result = yield* run(bundleOf(sourceA, surface, stale));
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0]?.code, "publication-drift");
+		}),
+	);
+
 	it.effect("one publication-drift naming every changed source", () =>
 		Effect.gen(function* () {
 			const pub = publication(
