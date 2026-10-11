@@ -6,12 +6,14 @@ status: stable
 generated:
   by: human:spencer
   at: 2026-09-06T11:25:53Z
-  body_sha256: 47fef58df84c6eb2f8b4cc367872e4517c76343bc9a26648353acd849b85a7f1
 sources:
-  - resource: "https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"
+  - resource: "https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md"
     title: "Open Knowledge Format (OKF) v0.2 specification"
   - resource: "../../packages/core/__test__/fixtures/okf"
     title: "Vendored upstream sample bundles (acme_retail, crypto_bitcoin, ga4, stackoverflow), Apache 2.0"
+integrity:
+  generated:
+    body: 47fef58df84c6eb2
 ---
 
 # Open Knowledge Format v0.2 specification

@@ -1,6 +1,6 @@
 # okfit agent plugin
 
-Built with [pluginfinity](https://github.com/spencerbeggs/pluginfinity) from one source into a Claude Code plugin (`builds/claude/`) and a GitHub Copilot plugin (`builds/copilot/`). Teaches Claude Code the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 and keeps a repository's `okf/` bundle current.
+Built with [pluginfinity](https://github.com/spencerbeggs/pluginfinity) from one source into a Claude Code plugin (`builds/claude/`) and a GitHub Copilot plugin (`builds/copilot/`). Teaches Claude Code the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 and keeps a repository's `okf/` bundle current.
 
 ## Local development
 

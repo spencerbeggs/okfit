@@ -1,6 +1,6 @@
 # @okfit/cli
 
-The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
+The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
 
 > **Part of the okfit kit.** Most users want **[@okfit/plugin](https://www.npmjs.com/package/@okfit/plugin)**, which pulls this package in automatically.
 

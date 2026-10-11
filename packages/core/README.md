@@ -1,6 +1,6 @@
 # @okfit/core
 
-Spec-level [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 support for [Effect](https://effect.website): frontmatter schemas, bundle loading, the concept link graph, trust and staleness derivation, and conformance validation.
+Spec-level [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 support for [Effect](https://effect.website): frontmatter schemas, bundle loading, the concept link graph, trust and staleness derivation, and conformance validation.
 
 > **Pre-release.** Part of the `@okfit/*` kit, in early development against a single pinned Effect v4 prerelease.
 
