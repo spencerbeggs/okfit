@@ -99,7 +99,7 @@ export class Provenance {
 			// `derived.at`/date reasoning enters this branch at all.
 			if (recordedDigest !== undefined) {
 				const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
-				if (currentDigest === recordedDigest) continue;
+				if (currentDigest === recordedDigest.slice(0, 16)) continue;
 				pushDrift(
 					concept.path,
 					`the body has changed since generated.at was last stamped: generated.body_sha256 is ${recordedDigest}, the current body hashes to ${currentDigest}`,

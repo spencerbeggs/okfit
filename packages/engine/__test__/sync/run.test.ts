@@ -169,7 +169,7 @@ describe("runSync --staged (issue #140)", () => {
 				}).pipe(Effect.provide(live));
 				assert.deepStrictEqual(result.generated.written, ["new"]);
 				const text = yield* Effect.promise(() => readFile(file, "utf8"));
-				assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+				assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{16}\n/);
 				// The stamped bytes are what the index holds now, not the pre-stamp bytes.
 				assert.strictEqual(git(root, ["show", ":okf/new.md"]), text);
 				// The index rewrite is staged too.

@@ -9,6 +9,7 @@ const VALUES = [
 	"BodyCommitted",
 	"BodyProvenance",
 	"BodyUncommitted",
+	"Canonical",
 	"AgentActorUnconfiguredError",
 	"Derivation",
 	"HumanActorUnresolvedError",

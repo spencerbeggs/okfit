@@ -125,7 +125,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// walk for an already-stamped concept (#21).
 		const generated = concept.frontmatter.generated;
 		const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
-		if (generated?.body_sha256 !== undefined && generated.body_sha256 === currentDigest) {
+		if (generated?.body_sha256 !== undefined && generated.body_sha256.slice(0, 16) === currentDigest) {
 			unchanged.push(id);
 			continue;
 		}

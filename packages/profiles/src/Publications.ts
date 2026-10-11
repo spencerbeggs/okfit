@@ -176,7 +176,7 @@ export class Publications {
 					continue;
 				}
 				const current = yield* Derivation.bodyDigest(source.document.source);
-				if (current !== entry.body_sha256) stale.push(`${sourceId} (changed)`);
+				if (current !== entry.body_sha256.slice(0, 16)) stale.push(`${sourceId} (changed)`);
 			}
 			if (stale.length > 0 && driftSeverity !== "off") {
 				push(

@@ -8,6 +8,7 @@
 
 export type { UncommittedReason } from "./BodyProvenance.js";
 export { BodyCommitted, BodyProvenance, BodyUncommitted } from "./BodyProvenance.js";
+export { Canonical } from "./Canonical.js";
 export type {
 	GeneratedAtError,
 	GeneratedAtOptions,

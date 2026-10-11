@@ -473,7 +473,7 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(project);
 			assert.match(
 				project,
-				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\n {2}body_sha256: [\da-f]{64}\n---\n/,
+				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\n {2}body_sha256: [\da-f]{16}\n---\n/,
 			);
 			assert.ok(project.includes(`body_sha256: ${digest}`));
 		} finally {
@@ -843,7 +843,7 @@ describe("okfit sync (e2e)", () => {
 			assert.deepStrictEqual(envelope.generated.written, ["decisions/staged"]);
 			assert.strictEqual(envelope.log.selected, false);
 			const text = await readDecision(cwd, "staged");
-			assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{64}\n/);
+			assert.match(text, /\n {2}at: 2026-09-16T10:00:00Z\n {2}body_sha256: [0-9a-f]{16}\n/);
 
 			// Prove `--staged` re-added the stamp itself, BEFORE `commit()` runs
 			// its own unconditional `git add -A` -- otherwise this test would
@@ -935,7 +935,7 @@ describe("okfit sync --publication", () => {
 			assert.strictEqual(await driftCount(cwd, env), 1);
 			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0, run.stderr);
-			assert.match(await readFile(pubPath, "utf8"), /body_sha256: [0-9a-f]{64}/);
+			assert.match(await readFile(pubPath, "utf8"), /body_sha256: [0-9a-f]{16}/);
 			assert.strictEqual(await driftCount(cwd, env), 0);
 			const json = await withServices(
 				runOkfit(["sync", "--publication", "publications/pr", "--format", "json"], { cwd, env }),
