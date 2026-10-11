@@ -117,6 +117,8 @@ export const referencesOf = (
 	for (const link of concept.document.links) {
 		const type = link.node.type;
 		if (link.url === undefined || (type !== "link" && type !== "image" && type !== "definition")) continue;
+		// A URL can never name a bundle path: nothing to rewrite, nothing to locate.
+		if (isUrl(link.url.trim())) continue;
 		const { start, end } = link.node.position;
 		const slice = source.slice(start.offset, end.offset);
 		const at = locateDestination(slice, link.url, type);
@@ -133,7 +135,7 @@ export const referencesOf = (
 		});
 	}
 	for (const { path, value, field } of fieldPaths(concept, config)) {
-		if (value.trim() === "") continue;
+		if (value.trim() === "" || isUrl(value.trim())) continue;
 		const range = DiagnosticRange.forFrontmatterPath(concept.document, path);
 		const text = range === undefined ? "" : source.slice(range.offset, range.offset + range.length);
 		const first = text[0];

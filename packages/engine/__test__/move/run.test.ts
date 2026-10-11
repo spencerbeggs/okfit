@@ -185,6 +185,23 @@ describe("runMove", () => {
 		),
 	);
 
+	it.effect("plans a move across a bundle that contains URL autolinks, footnote autolinks and URL resources", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					const plan = yield* planMove(base(okf, okf, "decisions/b", "decisions/beta"));
+					assert.strictEqual(plan.to, "decisions/beta.md");
+				}),
+			{
+				"decisions/u.md": decision(
+					"U",
+					"resource: https://x/y\n",
+					"<https://x.example/a> [t](https://x/b.md)\n\nN[^1].\n\n[^1]: See <https://x.example/n>.",
+				),
+			},
+		),
+	);
+
 	it.effect("fails with unrewritable, listing the link, when a body URL cannot be located", () =>
 		withBundle(
 			(_project, okf) =>

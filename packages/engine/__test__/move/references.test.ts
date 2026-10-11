@@ -39,6 +39,12 @@ const seed = {
 	),
 	[`${ROOT}/topics/blocky.md`]: doc("Decision", "Blocky", "resource: >\n  ../decisions/b.md\n", "x"),
 	[`${ROOT}/topics/escaped.md`]: doc("Decision", "Escaped", 'supersedes: "b\\x2Emd"\n', "x"),
+	[`${ROOT}/topics/urls.md`]: doc(
+		"Decision",
+		"Urls",
+		"resource: https://x/y\n",
+		"Auto <https://x.example/a> and [t](https://x/b.md) and mail <mailto:a@x.example>.\n\nNote[^1].\n\n[^1]: See <https://x.example/n>.\n",
+	),
 	[`${ROOT}/topics/list.md`]: doc(
 		"Decision",
 		"List",
@@ -120,6 +126,15 @@ describe("rewriteReference", () => {
 });
 
 describe("referencesOf", () => {
+	it.effect("skips URL references entirely: none located, none unlocatable", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load;
+			const { references, unlocatable } = referencesOf(conceptAt(bundle, "topics/urls.md"), config);
+			assert.deepStrictEqual(unlocatable, []);
+			assert.deepStrictEqual(references, []);
+		}),
+	);
+
 	it.effect("locates every body and frontmatter reference at its exact text", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load;
