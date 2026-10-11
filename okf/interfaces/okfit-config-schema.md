@@ -13,9 +13,15 @@ tags:
 verified:
   - by: human:spencer
     at: 2026-09-24T00:18:12.265Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
     body: eb32fc15d68286b1
+  verified:
+    by: human:spencer
+    at: 2026-10-11T15:55:11Z
+    content: 2db1d2d0c5d147db
 ---
 
 # okfit config file schema

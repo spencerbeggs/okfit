@@ -13,13 +13,15 @@ verified:
     at: 2026-09-08T02:12:59Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T15:55:11Z
 integrity:
   generated:
     body: 31be4989b93de26a
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 359e4d7a648cefde
+    at: 2026-10-11T15:55:11Z
+    content: f8b70ab501886181
 ---
 
 # Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain
