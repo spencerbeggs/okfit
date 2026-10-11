@@ -837,6 +837,38 @@ describe("syncGenerated: integrity and legacy migration", () => {
 		),
 	);
 
+	it.effect(
+		"leaves the verified slot and unknown integrity keys byte-identical (offset, quoting) on a drift re-stamp",
+		() => {
+			const slot =
+				"  note: keep me\n  verified:\n    by: human:ada\n    at: 2026-10-10T20:00:00+02:00\n    content: 'bbbbbbbbbbbbbbbb'\n";
+			return withFile(
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity:\n  generated:\n    body: 0000000000000000\n${slot}`,
+				BODY,
+				(root) =>
+					Effect.gen(function* () {
+						const result = yield* run(root);
+						assert.deepStrictEqual(result.written, ["page"]);
+						const out = yield* readPage(root);
+						assert.include(out, slot);
+						const digest = yield* digestOfBody("");
+						assert.include(out, `integrity:\n  generated:\n    body: ${digest}\n${slot}`);
+					}),
+			);
+		},
+	);
+
+	it.effect("adds the generated slot ahead of an existing verified-only integrity block", () =>
+		withFile(`generated:\n  by: human:ada\n  at: ${OLD_AT}\n${VERIFIED}`, BODY, (root) =>
+			Effect.gen(function* () {
+				yield* run(root);
+				const digest = yield* digestOfBody("");
+				const out = yield* readPage(root);
+				assert.include(out, `integrity:\n  generated:\n    body: ${digest}\n  verified:\n    by: human:ada\n`);
+			}),
+		),
+	);
+
 	it.effect("skips a flow-style integrity with integrity-unsupported and leaves the file untouched", () =>
 		withFile(
 			`generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity: { generated: { body: 0000000000000000 } }\n`,

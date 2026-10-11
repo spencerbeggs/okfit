@@ -301,7 +301,7 @@ describe("okfit sync (e2e)", () => {
 
 			const run = await withServices(runOkfit(["sync", "--yes", "--agent", "--only", "index"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 0);
-			assert.include(run.stdout, "wrote 1, unchanged");
+			assert.include(run.stdout, "wrote 1, migrated 0, unchanged");
 			assert.notInclude(run.stdout, "Write 1 file(s)?");
 		} finally {
 			await removeSandbox(sandbox);

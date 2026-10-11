@@ -173,6 +173,16 @@ describe("FrontmatterEdits.rendersDigests", () => {
 		),
 	);
 
+	it.effect("fails typed with dash-prefixed-key when a legacy body_sha256 leads its entry", () =>
+		Effect.map(
+			Effect.flip(FrontmatterEdits.rendersDigests(pub(`  - body_sha256: ${"f".repeat(64)}\n    path: a.md`), [D1])),
+			(error) => {
+				assert.ok(error instanceof UnsupportedFrontmatterError);
+				assert.strictEqual(error.shape, "dash-prefixed-key");
+			},
+		),
+	);
+
 	it.effect("fails typed on flow-style renders", () =>
 		Effect.map(
 			Effect.flip(FrontmatterEdits.rendersDigests("---\ntype: Publication\nrenders: [{path: a.md}]\n---\n", [D1])),

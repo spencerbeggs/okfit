@@ -153,7 +153,7 @@ export class FrontmatterEdits {
 						return yield* unsupported("flow-mapping");
 					}
 					// A dash-prefixed key line cannot be removed whole; only a dedicated line is.
-					if (prefix.includes("-")) return yield* unsupported("flow-mapping");
+					if (prefix.includes("-")) return yield* unsupported("dash-prefixed-key");
 					edits.push(shift(MarkdownEdit.make({ offset: start, length: end - start, content: "" }), bom.length));
 				}
 				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body"]);

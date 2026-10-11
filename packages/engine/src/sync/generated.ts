@@ -5,7 +5,7 @@ import type { UncommittedReason } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, FileSystem, Path, Schema } from "effect";
-import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrity } from "../verify/integrity.js";
+import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
 import type { PendingWrite } from "./write.js";
@@ -197,25 +197,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			}
 		}
 		if (legacy._tag === "line") edits.push(removeLine(legacy));
-		const verified = integrityLocated._tag === "replace" ? integrityLocated.current?.verified : undefined;
-		edits.push(
-			spliceIntegrity(
-				integrityLocated,
-				{
-					generated: { body: currentDigest },
-					...(verified === undefined
-						? {}
-						: {
-								verified: {
-									by: verified.by,
-									at: encodeAt(verified.at),
-									content: verified.content,
-								},
-							}),
-				},
-				newline,
-			),
-		);
+		edits.push(spliceIntegrityGenerated(integrityLocated, text, currentDigest, newline));
 
 		const finalText = bom + MarkdownEdit.applyAll(text, mergeSameOffset(edits.toSorted((a, b) => a.offset - b.offset)));
 		if (legacy._tag === "line") migrated.push(id);

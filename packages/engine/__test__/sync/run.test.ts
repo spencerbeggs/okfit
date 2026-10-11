@@ -180,6 +180,34 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
+	it.effect("restages a migrate-only concept: its legacy digest moves to integrity and the file is re-added", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const file = join(root, "okf", "old.md");
+				const plain = "---\ntype: Module\ntitle: Old\n---\n\n# Old\n";
+				const digest = yield* Derivation.bodyDigest(plain);
+				const legacy = `---\ntype: Module\ntitle: Old\ngenerated:\n  by: human:ada\n  at: 2026-09-01T00:00:00Z\n  body_sha256: ${digest}\n---\n\n# Old\n`;
+				yield* Effect.promise(() => writeFile(file, legacy));
+				git(root, ["add", "okf/old.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.migrated, ["old"]);
+				assert.deepStrictEqual(result.generated.written, []);
+				const text = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.notInclude(text, "body_sha256");
+				assert.strictEqual(git(root, ["show", ":okf/old.md"]), text);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
 	it.effect("ignores an unstaged dirty concept entirely: not written, not skipped, not listed", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

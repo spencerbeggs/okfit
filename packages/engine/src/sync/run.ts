@@ -194,9 +194,9 @@ export const planSync: (
 	if (options.staged !== undefined && repoRoot !== undefined) {
 		const path = yield* Path.Path;
 		// F5: the realpath map built in the staged-set loop above, filtered to
-		// the ids `syncGenerated` would write -- no cast back to `ConceptId`
+		// the ids `syncGenerated` would write or migrate -- no cast back to `ConceptId`
 		// needed, since these keys were never anything else.
-		const writtenIds = new Set(generated.written);
+		const writtenIds = new Set([...generated.written, ...generated.migrated]);
 		const files = [
 			...(realPaths === undefined
 				? []

@@ -8,7 +8,7 @@ import { OkfitConfig } from "@okfit/core";
 import type { SyncOptions } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
-import { syncWithConfirm } from "../../src/commands/sync-confirm.js";
+import { syncWithConfirm, writeCount } from "../../src/commands/sync-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
 
 /** Index-only needs no git history; `add`/`stagedChanges` serve the --staged case. */
@@ -47,6 +47,21 @@ const start = (root: string, extra: Partial<SyncOptions> = {}, yes = false) =>
 		);
 		return { session, fiber };
 	});
+
+describe("writeCount", () => {
+	const mode = { selected: true, written: [], unchanged: [], migrated: [], skipped: [] };
+	it("counts a migrated generated concept once, even when it is also written", () => {
+		const result = {
+			bundleRoot: "/r",
+			dryRun: true,
+			generated: { ...mode, written: ["a"], migrated: ["a", "b"] },
+			index: { ...mode, written: ["i.md"] },
+			log: mode,
+		};
+		assert.strictEqual(writeCount(result), 3);
+		assert.strictEqual(writeCount({ ...result, generated: { ...mode, migrated: ["b"] }, index: mode }), 1);
+	});
+});
 
 describe("syncWithConfirm", () => {
 	it.effect("shows the plan, asks Write N file(s)?, and enter writes", () =>

@@ -39,13 +39,14 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 		...humanMode("log", result.log),
 	];
 	const totalWritten = result.generated.written.length + result.index.written.length + result.log.written.length;
+	const totalMigrated = result.generated.migrated.length + result.index.migrated.length + result.log.migrated.length;
 	const totalUnchanged =
 		result.generated.unchanged.length + result.index.unchanged.length + result.log.unchanged.length;
 	const totalSkipped = result.generated.skipped.length + result.index.skipped.length + result.log.skipped.length;
 	lines.push(
 		result.dryRun
-			? `would write ${totalWritten}, unchanged ${totalUnchanged}, skipped ${totalSkipped} (dry run, nothing written)`
-			: `wrote ${totalWritten}, unchanged ${totalUnchanged}, skipped ${totalSkipped}`,
+			? `would write ${totalWritten}, migrated ${totalMigrated}, unchanged ${totalUnchanged}, skipped ${totalSkipped} (dry run, nothing written)`
+			: `wrote ${totalWritten}, migrated ${totalMigrated}, unchanged ${totalUnchanged}, skipped ${totalSkipped}`,
 	);
 	return lines;
 };

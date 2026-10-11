@@ -44,6 +44,11 @@ describe("humanSync", () => {
 		assert.isTrue(lines.includes("log.md could not be parsed; see okfit validate"));
 	});
 
+	it("summarizes a separate migrated total", () => {
+		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["a", "b"] } });
+		assert.isTrue(lines.some((l) => l.startsWith("wrote 1, migrated 2, unchanged")));
+	});
+
 	it("lists migrated ids", () => {
 		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["decisions/old"] } }).join("\n");
 		assert.isTrue(lines.includes("migrated decisions/old"));

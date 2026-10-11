@@ -182,6 +182,46 @@ export const spliceIntegrity = (
 		content: renderIntegrity(fields, newline),
 	});
 
+/**
+ * The one edit that sets `integrity.generated.body` and leaves every other byte
+ * of the block (the `verified` slot, unknown keys, comments, quoting) as it was.
+ * Inserts the whole block when absent or null; otherwise rewrites only the
+ * `generated` slot's lines, or adds that slot first when missing. `text` is the
+ * same BOM-stripped source the target was located in.
+ *
+ * @internal
+ */
+export const spliceIntegrityGenerated = (
+	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
+	text: string,
+	body: string,
+	newline: "\n" | "\r\n",
+): MarkdownEdit => {
+	const whole = () => spliceIntegrity(target, { generated: { body } }, newline);
+	if (target._tag === "absent") return whole();
+	const lines = text.slice(target.start, target.end).match(/[^\n]*\n|[^\n]+$/gu) ?? [];
+	const bare = (line: string) => line.replace(/\r?\n$/u, "");
+	if (lines.length < 2 || !/^integrity:[ \t]*$/u.test(bare(lines[0] ?? ""))) return whole();
+	const first = lines.slice(1).find((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
+	const indent = /^[ \t]*/u.exec(first ?? "")?.[0] ?? "";
+	if (indent === "") return whole();
+	const slot = `${indent}generated:${newline}${indent}  body: ${formatDigest(body)}${newline}`;
+	const at = lines.findIndex((line, i) => i > 0 && new RegExp(`^${indent}generated[ \\t]*:`, "u").test(bare(line)));
+	let out: Array<string>;
+	if (at === -1) {
+		out = [lines[0] as string, slot, ...lines.slice(1)];
+	} else {
+		let end = at + 1;
+		while (end < lines.length) {
+			const line = bare(lines[end] as string);
+			if (line.trim() !== "" && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) break;
+			end++;
+		}
+		out = [...lines.slice(0, at), slot, ...lines.slice(end)];
+	}
+	return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: out.join("") });
+};
+
 /** A legacy `generated.body_sha256` line, or none. @internal */
 export type LegacyBodyLocated =
 	| { readonly _tag: "line"; readonly start: number; readonly end: number; readonly value: string }
