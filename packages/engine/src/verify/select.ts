@@ -83,6 +83,8 @@ export interface PickerCandidate {
 	readonly otherAttestations: number;
 	/** Whether the concept's human verification still binds its content (`none` when nobody human verified it). */
 	readonly integrity: IntegrityState;
+	/** Whether the concept is past its `stale_after` (or otherwise stale) at the time the rows were selected. */
+	readonly stale: boolean;
 }
 
 /**
@@ -113,6 +115,7 @@ export const selectPickerCandidates = (
 			description: description ?? null,
 			otherAttestations: verified.filter((entry) => entry.by !== actor).length,
 			integrity: signals.get(id)?.integrity ?? "none",
+			stale: signals.get(id)?.stale ?? false,
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -147,6 +150,7 @@ export const selectStaleCandidates = (
 			description: description ?? null,
 			otherAttestations: (concept.frontmatter.verified ?? []).filter((entry) => entry.by !== actor).length,
 			integrity: signals.get(item.id)?.integrity ?? "none",
+			stale: signals.get(item.id)?.stale ?? false,
 		});
 	}
 	return rows.toSorted((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

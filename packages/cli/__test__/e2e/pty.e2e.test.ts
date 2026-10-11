@@ -172,6 +172,63 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 
 	it(
+		"verify <id> on a drifted concept shows the patch; n declines with 0 and writes nothing; y re-verifies; --no-diff and --format json never prompt",
+		async () => {
+			const { sandbox, env, files } = await verifyFixture();
+			try {
+				const file = files[0] as string;
+				await initRepo(sandbox.cwd, env);
+				await commit(sandbox.cwd, { message: "scaffold", authoredAt: "2026-10-01T00:00:00+00:00" }, env);
+				// A first verification is not drift, so nothing is shown or asked.
+				const first = await runPty(["verify", "decisions/a", "--human"], { cwd: sandbox.cwd, env, steps: [] });
+				assert.strictEqual(first.exitCode, 0, first.output);
+				assert.notMatch(first.output, /Re-verify/);
+				await writeFile(file, `${await readFile(file, "utf8")}\nAn edit after the verification.\n`, "utf8");
+				const drifted = await readFile(file, "utf8");
+
+				const json = await execFileAsync(
+					process.execPath,
+					[BIN, "verify", "decisions/a", "--format", "json", "--dry-run"],
+					{
+						cwd: sandbox.cwd,
+						env,
+					},
+				);
+				assert.strictEqual(JSON.parse(json.stdout).prior_integrity, "content-changed");
+
+				const declined = await runPty(["verify", "decisions/a", "--human"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: /Re-verify decisions\/a\?/, send: `n${KEYS.enter}` }],
+				});
+				assert.strictEqual(declined.exitCode, 0, declined.output);
+				assert.match(declined.output, /\+An edit after the verification\./);
+				assert.match(declined.output, /nothing written/);
+				assert.strictEqual(await readFile(file, "utf8"), drifted);
+
+				const skipped = await runPty(["verify", "decisions/a", "--human", "--no-diff", "--dry-run"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [],
+				});
+				assert.strictEqual(skipped.exitCode, 0, skipped.output);
+				assert.notMatch(skipped.output, /Re-verify/);
+
+				const accepted = await runPty(["verify", "decisions/a", "--human"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: /Re-verify decisions\/a\?/, send: `y${KEYS.enter}` }],
+				});
+				assert.strictEqual(accepted.exitCode, 0, accepted.output);
+				assert.notStrictEqual(await readFile(file, "utf8"), drifted);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
 		"init wizard: Enter through both screens writes the default config; Esc on screen 2 writes none",
 		async () => {
 			// One registered profile means no profile screen: the wizard asks for the bundle directory and the config location.

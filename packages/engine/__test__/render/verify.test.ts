@@ -30,6 +30,28 @@ describe("verifyEnvelope", () => {
 		}),
 	);
 
+	it.effect("carries the prior drift reason as prior_integrity, and omits the key otherwise", () =>
+		Effect.sync(() => {
+			const base = {
+				okfitVersion: "0.1.0",
+				id: "decisions/x",
+				path: "okf/decisions/x.md",
+				by: "human:spencer",
+				at: "2026-09-16T00:00:00Z",
+				dryRun: false,
+				status: null,
+			} as const;
+			const drifted = verifyEnvelope({ ...base, priorIntegrity: "content-changed" });
+			assert.strictEqual(drifted.prior_integrity, "content-changed");
+			assert.deepStrictEqual(
+				Schema.decodeUnknownSync(VerifyEnvelope)(Schema.encodeSync(VerifyEnvelope)(drifted)),
+				drifted,
+			);
+			assert.isFalse("prior_integrity" in verifyEnvelope({ ...base, priorIntegrity: null }));
+			assert.isFalse("prior_integrity" in verifyEnvelope(base));
+		}),
+	);
+
 	it.effect("echoes a given distribution unchanged", () =>
 		Effect.sync(() => {
 			const built = verifyEnvelope({

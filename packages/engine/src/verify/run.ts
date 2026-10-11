@@ -309,6 +309,46 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 });
 
 /**
+ * What {@link inspectDrift} found out about one concept before a re-verify.
+ *
+ * @internal
+ */
+export interface DriftInspection {
+	readonly id: string;
+	/** Absolute path of the concept file. */
+	readonly absolutePath: string;
+	/** Why its human verification no longer binds, or `null` when it does not drift. */
+	readonly drift: DriftReason | null;
+	/** When `integrity.verified` was bound, the time the shown patch is measured from; absent when unbound. */
+	readonly boundAt?: DateTime.Utc;
+}
+
+/**
+ * Read-only: is the concept's prior human verification drifted, and if so from
+ * when was it bound? The CLI asks this before `runVerify` so it can show what
+ * changed. Writes nothing.
+ *
+ * @internal
+ */
+export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (options: {
+	readonly id: string;
+	readonly bundleRoot: string;
+	readonly now: DateTime.Utc;
+}) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const { id, concept } = yield* resolveConcept(bundle, options.id);
+	const path = yield* Path.Path;
+	const signal = yield* Trust.signal(concept, options.now);
+	const boundAt = concept.frontmatter.integrity?.verified?.at;
+	return {
+		id,
+		absolutePath: path.join(bundle.root, concept.path),
+		drift: signal.drift?.reason ?? null,
+		...(boundAt === undefined ? {} : { boundAt }),
+	} satisfies DriftInspection;
+});
+
+/**
  * Options for {@link runRevoke}.
  *
  * @internal

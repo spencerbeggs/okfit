@@ -107,7 +107,10 @@ export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
 export type { PendingWrite } from "./sync/write.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
+export type { ChangeSince } from "./verify/diff.js";
+export { changeSince } from "./verify/diff.js";
 export type {
+	DriftInspection,
 	PickerCandidatesOptions,
 	RevokeOptions,
 	RevokeResult,
@@ -119,6 +122,7 @@ export type {
 	VerifyResult,
 } from "./verify/run.js";
 export {
+	inspectDrift,
 	loadPickerCandidates,
 	loadStaleCandidates,
 	runRevoke,

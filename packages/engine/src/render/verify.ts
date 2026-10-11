@@ -24,6 +24,8 @@ export const VerifyEnvelope = Schema.Struct({
 	verified: Schema.Struct({ by: Schema.String, at: Schema.String }),
 	/** Issue #185: the status change `--stable`/`--draft` made; `null` when neither flag was given. */
 	status: Schema.NullOr(Schema.Struct({ from: Schema.NullOr(Status), to: Schema.Literals(["stable", "draft"]) })),
+	/** Why the prior human verification no longer bound the concept; absent when it did not drift. */
+	prior_integrity: Schema.optionalKey(Schema.Literals(["content-changed", "unbound", "entry-superseded"])),
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),
 });
@@ -46,6 +48,8 @@ export const verifyEnvelope = (input: {
 	readonly at: string;
 	readonly dryRun: boolean;
 	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
+	/** The drift reason the prior verification had, when it had drifted. */
+	readonly priorIntegrity?: "content-changed" | "unbound" | "entry-superseded" | null;
 	readonly distribution?: Distribution;
 }): VerifyEnvelope => ({
 	schema: 1,
@@ -56,6 +60,9 @@ export const verifyEnvelope = (input: {
 	path: input.path,
 	verified: { by: input.by, at: input.at },
 	status: input.status,
+	...(input.priorIntegrity === undefined || input.priorIntegrity === null
+		? {}
+		: { prior_integrity: input.priorIntegrity }),
 	dry_run: input.dryRun,
 	exit_code: 0,
 });

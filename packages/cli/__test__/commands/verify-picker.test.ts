@@ -29,6 +29,7 @@ describe("pickConcepts", () => {
 				description: null,
 				otherAttestations: 0,
 				integrity: "none",
+				stale: false,
 			}),
 			"a  draft",
 		);
@@ -41,6 +42,7 @@ describe("pickConcepts", () => {
 				description: null,
 				otherAttestations: 2,
 				integrity: "none",
+				stale: false,
 			}),
 			"a  stable  2 other attestation(s)",
 		);
@@ -53,8 +55,35 @@ describe("pickConcepts", () => {
 				description: null,
 				otherAttestations: 0,
 				integrity: "drifted",
+				stale: false,
 			}),
 			"a  stable  drifted",
+		);
+		assert.strictEqual(
+			pickerLabel({
+				id: "a",
+				type: "T",
+				status: "stable",
+				title: null,
+				description: null,
+				otherAttestations: 0,
+				integrity: "drifted",
+				stale: true,
+			}),
+			"a  stable  drifted  stale",
+		);
+		assert.strictEqual(
+			pickerLabel({
+				id: "a",
+				type: "T",
+				status: "stable",
+				title: null,
+				description: null,
+				otherAttestations: 0,
+				integrity: "none",
+				stale: true,
+			}),
+			"a  stable  stale",
 		);
 	});
 

@@ -123,7 +123,10 @@ describe("selectPickerCandidates (picker)", () => {
 					yield* Effect.promise(() => mkdir(join(root, "gotchas")));
 					const files: ReadonlyArray<readonly [string, string]> = [
 						["gotchas/z.md", concept("Gotcha", "Z")],
-						["decisions/b.md", concept("Decision", "B", "description: bee\nstatus: draft\n")],
+						[
+							"decisions/b.md",
+							concept("Decision", "B", "description: bee\nstatus: draft\nstale_after: 2020-01-01T00:00:00Z\n"),
+						],
 						["decisions/a.md", concept("Decision", "A", `verified:\n${by("human:bob")}${by("agent:x")}`)],
 						["decisions/c.md", concept("Decision", "C", "status: deprecated\n")],
 						[
@@ -158,6 +161,7 @@ describe("selectPickerCandidates (picker)", () => {
 							description: null,
 							otherAttestations: 2,
 							integrity: "drifted",
+							stale: false,
 						},
 						{
 							id: "decisions/b",
@@ -167,6 +171,7 @@ describe("selectPickerCandidates (picker)", () => {
 							description: "bee",
 							otherAttestations: 0,
 							integrity: "none",
+							stale: true,
 						},
 						{
 							id: "decisions/d",
@@ -176,6 +181,7 @@ describe("selectPickerCandidates (picker)", () => {
 							description: null,
 							otherAttestations: 1,
 							integrity: "current",
+							stale: false,
 						},
 						{
 							id: "gotchas/z",
@@ -185,6 +191,7 @@ describe("selectPickerCandidates (picker)", () => {
 							description: null,
 							otherAttestations: 0,
 							integrity: "none",
+							stale: false,
 						},
 					]);
 				} finally {

@@ -24,6 +24,7 @@ import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
 import { humanRevokeDoc, humanVerifyBatchDoc, humanVerifyDoc } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
+import { confirmReverify } from "./verify-confirm.js";
 import { pickConcepts } from "./verify-picker.js";
 
 /**
@@ -100,6 +101,14 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
 	Flag.withDescription("print the exact fragment a real run would splice in; write nothing"),
 );
 
+/** Skip the interactive "what changed" patch and re-verify prompt for a drifted concept. */
+const noDiffFlag = Flag.Boolean("no-diff").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription(
+		"do not show what changed or ask before re-verifying a drifted concept; the interactive prompt is the only thing this turns off",
+	),
+);
+
 const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDefault("human"),
 	Flag.withDescription("output format: human (default) or json"),
@@ -107,7 +116,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 
 /**
  * `okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
- * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--format human|json]`.
+ * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--format human|json]`.
  *
  * Handler order fixed by contract §2.3. Steps 1–3 are `context`'s handler
  * in substance — stat `--config` (K-1) via `provideConfig`, discover,
@@ -134,6 +143,7 @@ export const verifyCommand = Command.make(
 		revoke: revokeFlag,
 		at: atFlag,
 		dryRun: dryRunFlag,
+		noDiff: noDiffFlag,
 		format: formatFlag,
 	},
 	(input) =>
@@ -315,6 +325,20 @@ export const verifyCommand = Command.make(
 				// check purely so TypeScript narrows it.
 				if (Option.isNone(input.id)) return yield* new VerifySelectionError({ reason: "no-selection" });
 
+				// A drifted concept on a terminal: show what changed and ask first.
+				// Declining is exit 0 with nothing written.
+				const proceed = yield* confirmReverify({
+					id: input.id.value,
+					bundleRoot: resolved.bundleRoot,
+					now: at,
+					noDiff: input.noDiff,
+					dryRun: input.dryRun,
+				});
+				if (!proceed) {
+					yield* Console.log(`not re-verified: ${input.id.value}; nothing written`);
+					return;
+				}
+
 				const result = yield* runVerify({
 					id: input.id.value,
 					bundleRoot: resolved.bundleRoot,
@@ -336,6 +360,7 @@ export const verifyCommand = Command.make(
 						at: result.at,
 						dryRun: result.dryRun,
 						status: result.status,
+						priorIntegrity: result.priorDrift,
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
