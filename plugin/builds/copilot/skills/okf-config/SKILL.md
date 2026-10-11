@@ -44,8 +44,13 @@ validation on the file without any further setup.
   frontmatter is an absolute ISO 8601 instant with an explicit offset, and
   `stale_after: 90d` on a concept fails `family-invalid`.
 - `[actors]` -- `agent` (a branded `Actor`) and `humans` (an array of
-  `Actor`). `DEFAULTS` sets only `humans: []`, so `actors.agent` is absent
-  unless a config or profile sets it.
+  `ActorPattern`: `human:<id>` ids or globs using `*` and `?`, matched
+  case-insensitively, with no emails). `DEFAULTS` sets only `humans: []`, so
+  `actors.agent` is absent unless a config or profile sets it. An empty
+  `humans` lets any resolved identity verify; a non-empty one is an
+  allow-list that gates `okfit verify` and `--revoke`
+  (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
+  `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
   snake_case keys. The D-34 default table, reproduced verbatim:
 
@@ -58,6 +63,8 @@ validation on the file without any further setup.
   | `field_value_unknown` | `error` |
   | `require_verified_unmet` | `error` |
   | `verified_drift` | `warn` |
+  | `actor_email` | `warn` |
+  | `verified_actor_unknown` | `warn` |
   | `family_invalid` | `error` |
   | `generated_at_drift` | `warn` |
   | `computation_runtime_missing` | `error` |

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T16:51:30Z
 integrity:
   generated:
-    body: 0e361813452d17a0
+    body: 79b55bb7bc38dc1a
 ---
 
 # Profiles
@@ -33,8 +33,8 @@ layout, and check -- never re-exported, reachable only via
 `Profiles.softwareProject`. `Profiles.ts` is the facade: `get(name)`,
 `softwareProject`. `GitHistory.ts` and `BodyProvenance.ts` are the
 git-log-walking primitives. `Derivation.ts` is the
-`body`/`generatedAt`/`humanActorId`/`generatedBy`/`staleAfter` facade
-(`packages/profiles/CLAUDE.md:8-22`).
+`body`/`generatedAt`/`humanActorId`/`generatedBy`/`verifier`/`staleAfter` facade
+(`packages/profiles/CLAUDE.md:8-22`). `verifier` resolves the human and gates them on the `[actors].humans` allow-list (`HumanActorNotAllowedError`), and `Trust` reports `actor-not-allowed` as a `DriftReason`; see [A non-empty actors list is an allow-list and okfit never stores emails](../decisions/actors-allow-list-without-emails.md).
 
 `presets/` holds the docs-surface presets (`DocsPreset`, `SurfaceTemplate`):
 `npm-package`, `monorepo-router`, `monorepo-shared-docs` and the additive

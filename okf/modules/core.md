@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T16:51:30Z
 integrity:
   generated:
-    body: 7e68362edaff355f
+    body: dc03160db206f760
 ---
 
 # Core
@@ -37,7 +37,7 @@ staleness, index and log rendering), and conformance validation.
 ## Layout
 
 `src/index.ts` is the public barrel and never exports from `internal/`. The
-per-family schema files -- `Actor.ts`, `Timestamp.ts`, `Source.ts`,
+per-family schema files -- `Actor.ts` (with `ActorPattern` and the `Actor.matches`/`allowed`/`isPattern` allow-list helpers), `Timestamp.ts`, `Source.ts`,
 `Generated.ts`, `Verification.ts`, `Status.ts`, `AttestedComputation.ts` --
 sit alongside `Concept.ts`, `Bundle.ts`, `Graph.ts`, `Derive.ts`, and
 `Validate.ts`. `OkfitConfig.ts` holds the spec 4.2 struct, `DEFAULTS`,

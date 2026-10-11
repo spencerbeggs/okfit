@@ -17,6 +17,8 @@ stale = "warn"
 [actors]
 # M-29: actors.agent is the key okf-docs needs set to stamp generated.by.
 agent = "okfit/claude-code"
+# humans is an allow-list of ids or globs ("human:team-*"), never emails;
+# empty lets any resolved identity verify.
 humans = ["human:spencer"]
 
 [types.Module]

@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:48:09Z
+  at: 2026-10-11T16:51:30Z
 tags:
   - architecture
 verified:
@@ -17,7 +17,7 @@ verified:
     at: 2026-10-11T15:55:11Z
 integrity:
   generated:
-    body: eb32fc15d68286b1
+    body: 64ada50c37b577f3
   verified:
     by: human:spencer
     at: 2026-10-11T15:55:11Z
@@ -65,19 +65,20 @@ loosen it (`packages/core/CLAUDE.md:32`).
 The `DEFAULTS` literal: `okf_version: "0.2"`; `bundle: { path: "okf",
 profile: "software-project" }`; `concepts: { required: [], tags: {
 required: [] } }`; `lifecycle: { default_stale_after: Duration.days(90) }`
-(written `"90d"` in TOML); `actors: { humans: [] }`; `types`, `tags`, and
+(written `"90d"` in TOML); `actors: { humans: [] }` (`humans` is an array of `ActorPattern`: ids or `*`/`?` globs, never emails; a non-empty list is an allow-list for `okfit verify`); `types`, `tags`, and
 `extensions` all start empty, before a profile merges its own vocabulary
 in.
 
 ## Lint severities
 
-The twenty-four default lint codes: `broken_links`, `missing_index`,
+The twenty-six default lint codes: `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
 `publication_drift`, `surface_unmatched`, and `verified_drift` default `warn`;
 `unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
 `family_invalid`, `computation_runtime_missing`, and `publication_orphan` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
+`actor_email` (an actor contains `@`) and `verified_actor_unknown` (a verifier matches no entry of a non-empty `[actors].humans`) default `warn`, as does `verified_drift` when the bound verifier has left the list;
 `status_missing` defaults `off`, because the spec reads an absent `status`
 as `stable` and core keeps no opinion about it -- the software-project
 profile is the layer that raises it to `warn` (issue #110), the one lint

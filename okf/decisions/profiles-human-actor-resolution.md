@@ -1,12 +1,12 @@
 ---
 type: Decision
-title: Human actor ids resolve through a four-step fallback order
-description: A human actor id resolves through a four-step, first-hit-wins fallback order that prefers a configured spelling over an auto-derived one.
+title: Human actor ids resolve through a five-step fallback order
+description: A human actor id resolves through a five-step, first-hit-wins fallback order that prefers an explicit git config id, then a configured spelling, over an auto-derived one.
 tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T16:51:30Z
 status: stable
 verified:
   - by: human:spencer
@@ -15,14 +15,14 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 4373b00d98377cff
+    body: c9ec9de5e47ebcf8
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
     content: 3835cbc4a2b41d99
 ---
 
-# Human actor ids resolve through a four-step fallback order
+# Human actor ids resolve through a five-step fallback order
 
 ## Context
 
@@ -33,11 +33,14 @@ whatever git derives.
 
 ## Decision
 
-Resolution follows a four-step, first-hit-wins order: (1) a `human:<id>`
-entry in `config.actors.humans` matching case-insensitively, config spelling
-returned; (2) `human:<email local part>`; (3) `human:<slug of user.name>`;
-(4) `HumanActorUnresolvedError`
-(ruling P-13). The
+Resolution follows a five-step, first-hit-wins order: (1) `git config
+okfit.actor`, which must be a `human:<id>` with no `@` and no glob
+(`ActorConfigInvalidError` otherwise); (2) a literal `human:<id>` entry in
+`config.actors.humans` matching case-insensitively, config spelling returned
+(glob entries are skipped); (3) `human:<email local part>`; (4) `human:<slug
+of user.name>`; (5) `HumanActorUnresolvedError` (ruling P-13). Who may
+verify is a separate gate; see [A non-empty actors list is an allow-list and
+okfit never stores emails](actors-allow-list-without-emails.md). The
 result always satisfies core's `Actor` regex.
 
 ## Alternatives rejected
