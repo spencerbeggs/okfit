@@ -19,9 +19,13 @@ export interface VerifyLines {
 	readonly priorDrift?: string | null;
 }
 
-/** The lines announcing prior attestations: a re-verify of drifted content, else one per prior entry (V-2). */
+/**
+ * The lines announcing prior attestations: a re-verify of drifted content when this actor
+ * had verified it before, else one per prior entry (V-2). An actor with no prior entry gets
+ * the first-time wording even when another actor's entry had drifted: it is not re-verifying.
+ */
 const priorLines = (input: VerifyLines): ReadonlyArray<string> =>
-	input.priorDrift === undefined || input.priorDrift === null
+	input.priorDrift === undefined || input.priorDrift === null || input.priorAt.length === 0
 		? input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`)
 		: [`re-verifying (was drifted: ${input.priorDrift})`];
 

@@ -48,11 +48,17 @@ describe("humanVerify", () => {
 		);
 		assert.strictEqual(
 			Render.plain(
-				humanVerifyDoc({ ...base, status: null, priorAt: [], priorDrift: "unbound" }),
+				humanVerifyDoc({ ...base, status: null, priorAt: ["2026-09-01T00:00:00Z"], priorDrift: "unbound" }),
 				Render.contextOf({ audience: "agent" }),
 			),
 			"re-verifying (was drifted: unbound)\nverified decisions/x by human:ada at 2026-09-16T12:00:00Z",
 		);
+	});
+
+	it("keeps the first-time wording when the actor had no prior entry, even over another actor's drift", () => {
+		assert.deepStrictEqual(humanVerify({ ...base, status: null, priorAt: [], priorDrift: "unbound" }), [
+			"verified decisions/x by human:ada at 2026-09-16T12:00:00Z",
+		]);
 	});
 
 	it("appends the status transition to the success line (#185)", () => {

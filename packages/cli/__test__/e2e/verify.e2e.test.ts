@@ -316,11 +316,8 @@ describe("okfit verify (e2e)", () => {
 			);
 
 			assert.strictEqual(run.exitCode, 0);
-			// jsmith's human entry carries no binding, so the concept had drifted (unbound) before this run
-			assert.strictEqual(
-				run.stdout,
-				"re-verifying (was drifted: unbound)\nverified decisions/bare by human:ada at 2026-09-07T00:00:00Z\n",
-			);
+			// jsmith's unbound entry had drifted, but ada never verified it: first-time wording, no re-verify line
+			assert.strictEqual(run.stdout, "verified decisions/bare by human:ada at 2026-09-07T00:00:00Z\n");
 			assert.strictEqual(
 				await readFile(join(cwd, "okf", "decisions", "bare.md"), "utf8"),
 				bare.replace(
