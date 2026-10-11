@@ -24,6 +24,9 @@
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated stale --verify rolls stale_after forward, and plain verify never does
 * Updated VS Code Extension
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain
+* Updated okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
 
 ## 2026-10-09
 
