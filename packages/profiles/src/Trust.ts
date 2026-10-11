@@ -83,15 +83,15 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 	const latest = latestHuman(concept);
 	const by = latest?.by ?? "a human";
 	const at = latest === undefined ? "an unknown time" : encodeAt(latest.at);
-	return drift.reason === "unbound"
-		? `verified by ${by} at ${at}, but no integrity.verified binding records what was verified; re-run okfit verify`
-		: drift.reason === "entry-superseded"
-			? `the latest human verification (${by} at ${at}) is not the one integrity.verified binds; re-run okfit verify`
-			: `content changed since ${concept.frontmatter.integrity?.verified?.by ?? by} verified it at ${
-					concept.frontmatter.integrity?.verified === undefined
-						? at
-						: encodeAt(concept.frontmatter.integrity.verified.at)
-				}${drift.editedBy === undefined ? "" : ` (edited by ${drift.editedBy} at ${drift.editedAt})`}; re-run okfit verify`;
+	if (drift.reason === "unbound") {
+		return `verified by ${by} at ${at}, but no integrity.verified binding records what was verified; re-run okfit verify`;
+	}
+	if (drift.reason === "entry-superseded") {
+		return `the latest human verification (${by} at ${at}) is not the one integrity.verified binds; re-run okfit verify`;
+	}
+	const binding = concept.frontmatter.integrity?.verified;
+	const edited = drift.editedBy === undefined ? "" : ` (edited by ${drift.editedBy} at ${drift.editedAt})`;
+	return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}${edited}; re-run okfit verify`;
 };
 
 const lint = Effect.fn("Trust.lint")(function* (bundle: LoadedBundle, config: OkfitConfig, now: DateTime.Utc) {
