@@ -8,6 +8,7 @@ import { BundleRootNotFoundError, OkfitConfig } from "@okfit/core";
 import { GitHistory, PathHistoryEntry, Profiles } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option } from "effect";
 import { Now, run } from "../../src/validate/run.js";
+import { DIGEST, bindFixtures } from "../utils/binding.js";
 
 // K-44: no CLI-owned fixtures. Profiles' clean bundle is read IN PLACE, by
 // absolute path; this suite only loads and validates, it never writes.
@@ -413,6 +414,29 @@ describe("run — verified-drift lint (integrity)", () => {
 				assert.deepStrictEqual([...result.signals.keys()].sort(), ["plain", "project"]);
 				assert.strictEqual(result.signals.get("project")?.integrity, "drifted");
 				assert.strictEqual(result.signals.get("plain")?.integrity, "none");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(nodePlatform)),
+	);
+
+	it.effect("a binding by an actor outside a non-empty [actors].humans reads drifted with actor-not-allowed", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-actors-")));
+			try {
+				const text = `---\ntype: Module\nverified:\n  - by: human:spencer\n    at: 2026-01-05T12:00:00Z\nintegrity:\n  verified:\n    by: human:spencer\n    at: 2026-01-05T12:00:00Z\n    content: ${DIGEST}\n---\n\n# Thing\n\nBody text.\n`;
+				yield* Effect.promise(() => writeFile(join(root, REL), text));
+				yield* bindFixtures(root, [REL]);
+				const config: OkfitConfig = { ...verifiedConfig, actors: { humans: ["human:ada"] } };
+				const result = yield* run({ root, config, profile: Option.none(), now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+				);
+				const signal = result.signals.get("project");
+				assert.strictEqual(signal?.integrity, "drifted");
+				assert.strictEqual(signal?.drift?.reason, "actor-not-allowed");
+				const drift = result.report.lint.filter((d) => d.code === "verified-drift");
+				assert.strictEqual(drift.length, 1);
+				assert.strictEqual(drift[0]?.file, REL);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
