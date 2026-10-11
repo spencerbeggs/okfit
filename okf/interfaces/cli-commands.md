@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:44:11Z
+  at: 2026-10-11T14:04:45Z
 tags:
   - architecture
 verified:
@@ -17,7 +17,7 @@ verified:
     at: 2026-09-30T18:17:45Z
 integrity:
   generated:
-    body: deb9aad192ead2e1
+    body: ddfc871e1fcc7098
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
@@ -109,7 +109,10 @@ is `null`; that keeps it cheap enough for a hook that runs on every write.
 `okfit context --trust` loads the bundle and fills `trust` with the
 counts of `concepts`, `drifted`, `stale` and `unverified`, plus
 `drifted_ids` and `stale_ids` (the first five of each, sorted). The
-session-start hook is the caller that passes it.
+session-start hook is the caller that passes it. In a project with no
+bundle (`index_exists: false`) `--trust` still exits `0` with `trust: null`,
+as plain `context` does. The human output adds a one-line drift legend when
+anything drifted.
 
 ## okfit verify
 

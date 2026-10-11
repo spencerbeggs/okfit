@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T14:04:45Z
 integrity:
   generated:
-    body: a4572850df818885
+    body: 726985067ba6eaa5
 ---
 
 # LSP
@@ -75,7 +75,7 @@ same kind instead offers `Mark verified by <actor> and set status: stable`
 actor has not yet verified it; the actor is cached per session
 handle. On a `verified-drift` diagnostic it offers a preferred `Re-verify as
 <actor>` quick fix. The already-verified check uses the profiles package's
-`Trust.evaluate`, and the buffer's `verified` is decoded through core's
+`Trust.evaluate`, and the Re-verify quick fix needs the `verified-drift` diagnostic, so with that lint off only `Mark verified` is offered. The buffer's `verified` is decoded through core's
 `Verification.List`, which accepts a bare mapping. `registerCommands` (`src/features/commands.ts`) answers
 `workspace/executeCommand` for the four `OKFIT_COMMANDS`:
 `okfit.lsp.setStatus [uri, status]`, `okfit.lsp.markVerified [uri]` and

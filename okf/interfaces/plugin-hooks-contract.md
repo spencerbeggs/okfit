@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T14:04:45Z
 tags:
   - architecture
 verified:
@@ -15,7 +15,7 @@ verified:
     at: 2026-09-24T00:18:08.679Z
 integrity:
   generated:
-    body: ce5dfd4e7f6d9ef3
+    body: 068e0a7b6caacabb
 ---
 
 # Agent plugin hooks contract
@@ -36,7 +36,8 @@ timeout 30) -- the contract is unchanged from the old hand-written
 Calls `okfit context --trust --format json` once, never `okfit validate`;
 `--trust` adds one bundle load for the trust counts, where plain `context`
 never loads the bundle. When drifted plus stale concepts total more than
-zero, the hook prints a trust line right after the config line. On any
+zero, the hook prints a trust line right after the config line, naming the
+first three drifted ids and, only when something drifted, the drift legend. On any
 failure of the `--trust` call (an older CLI that rejects the flag) it
 retries plain `okfit context --format json` and prints no trust line. Turns the
 result into `additionalContext`: bundle root and profile, the full

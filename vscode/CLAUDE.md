@@ -68,7 +68,7 @@ src/
                             settling multi-root window's burst of
                             notifications coalesces into one request; the
                             first refresh from attach() stays immediate
-    decorations.ts          -- ConceptDecorations: status and stale badges
+    decorations.ts          -- ConceptDecorations: status, stale and drift badges, and the attention count (stale plus drifted)
     wire.ts                 -- the okfit/concepts wire types, mirroring
                             @okfit/lsp's ConceptsResult without importing it
 server/

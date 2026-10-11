@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T14:04:45Z
 integrity:
   generated:
-    body: 9cbe9f5ecc70592c
+    body: 7b0c439c1163a083
 ---
 
 # Engine
@@ -134,8 +134,9 @@ verify` picker offers: concepts of a `require_verified` type the caller has
 not attested, drafts included and deprecated excluded; each row carries
 its absolute `path` and `boundAt`, and `verify/run.ts#loadPreviews` runs
 `changeSince` for the drifted rows (a git failure reads as `no-baseline`).
-`selectPickerCandidates` and `selectStaleCandidates` take a `locate`
-argument. A bare `verify` with no selection is still a `VerifySelectionError` (exit `64`); its message now
+`PickerCandidate.path` is bundle-relative from `selectPickerCandidates`
+and `selectStaleCandidates`, and absolute from `loadPickerCandidates` and
+`loadStaleCandidates`. A bare `verify` with no selection is still a `VerifySelectionError` (exit `64`); its message now
 ends `(run in a terminal to pick interactively)`.
 
 `verify/select.ts#selectStaleCandidates` and

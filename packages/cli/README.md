@@ -297,7 +297,7 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools use). Bare `okfit query` prints help.
 
 - `okfit query list [path]` lists concepts as summaries (id, type, title,
-  description, status, tags, path). Filters: `--type <Type>` and
+  description, status, tags, path, tier, integrity, stale). Filters: `--type <Type>` and
   `--tag <tag>` (repeatable, each must be declared in the config),
   `--status draft|stable|deprecated` (repeatable), `--verified` (a human's
   verification is current), `--unverified` (never verified), `--drifted`
