@@ -1,7 +1,7 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
-import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
+import type { ConceptSignal, GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
 import { Provenance, Publications, Trust } from "@okfit/profiles";
 import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
@@ -58,6 +58,8 @@ export interface RunResult {
 	readonly report: ValidationReport;
 	/** `[]` when `profile` is `None`. */
 	readonly profileDiagnostics: ReadonlyArray<ProfileDiagnostic>;
+	/** The trust signal of every concept, keyed by concept id; computed once and shared with `Trust.lint`. */
+	readonly signals: ReadonlyMap<string, ConceptSignal>;
 }
 
 /**
@@ -109,7 +111,8 @@ export const run = (
 			severity === "off"
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
-		const drift = yield* Trust.lint(bundle, options.config, options.now);
+		const signals = yield* Trust.signals(bundle, options.now);
+		const drift = yield* Trust.lint(bundle, options.config, options.now, signals);
 		const resources = yield* lintResources(bundle, options.config);
 		// Publication lints are software-project's; any other profile (or none)
 		// may declare its own `Publication` type with different semantics.
@@ -124,5 +127,6 @@ export const run = (
 				lint: [...report.lint, ...provenance, ...drift, ...resources, ...publications, ...surfaces],
 			},
 			profileDiagnostics,
+			signals,
 		};
 	});

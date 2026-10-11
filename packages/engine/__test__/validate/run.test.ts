@@ -398,4 +398,24 @@ describe("run — verified-drift lint (integrity)", () => {
 			}
 		}).pipe(Effect.provide(nodePlatform)),
 	);
+
+	it.effect("returns every concept's signal keyed by id, computed once", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-signals-")));
+			try {
+				const text =
+					"---\ntype: Module\nverified:\n  - by: human:okfit-test\n    at: 2026-01-05T12:00:00Z\n---\n\n# Thing\n\nBody text.\n";
+				yield* Effect.promise(() => writeFile(join(root, REL), text));
+				yield* Effect.promise(() => writeFile(join(root, "plain.md"), "---\ntype: Module\n---\n\n# Plain\n"));
+				const result = yield* run({ root, config: verifiedConfig, profile: Option.none(), now }).pipe(
+					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+				);
+				assert.deepStrictEqual([...result.signals.keys()].sort(), ["plain", "project"]);
+				assert.strictEqual(result.signals.get("project")?.integrity, "drifted");
+				assert.strictEqual(result.signals.get("plain")?.integrity, "none");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(nodePlatform)),
+	);
 });
