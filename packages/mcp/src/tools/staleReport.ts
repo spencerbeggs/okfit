@@ -1,10 +1,12 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
-import { DateTime, Effect, FileSystem, Path } from "effect";
+import type { ConceptSignal } from "@okfit/profiles";
+import { Crypto, DateTime, Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
 import { loadToolContext } from "../internal/toolContext.js";
+import { toolSignals } from "../internal/toolSignals.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import type { StaleReportParams } from "../schema/tools.js";
 import { StaleReportParams as Params, StaleReportSuccess } from "../schema/tools.js";
@@ -26,7 +28,7 @@ export const staleReport = Tool.make("stale_report", {
 	parameters: Params,
 	success: StaleReportSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg],
+	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Stale concepts")
 	.annotate(Tool.Readonly, true)
@@ -38,13 +40,14 @@ export const handleStaleReport = (projectRoot: string, params: StaleReportParams
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
 		const now = yield* resolveNow(params.now);
+		const signals = yield* toolSignals(ctx.bundle, now);
 		const items = Derive.staleReport(ctx.bundle, now).flatMap((entry) => {
 			const concept = ctx.bundle.concepts.get(entry.id);
 			return concept === undefined
 				? []
 				: [
 						{
-							summary: toConceptSummary(concept),
+							summary: toConceptSummary(concept, signals.get(concept.id) as ConceptSignal),
 							stale_after: DateTime.formatIso(entry.staleAfter),
 							days_past: entry.daysPast,
 						},

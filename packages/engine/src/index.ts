@@ -69,10 +69,12 @@ export {
 	QueryListEnvelope,
 	QueryNeighbor,
 	QueryNeighborsEnvelope,
+	TrustDrift,
 	queryGetEnvelope,
 	queryListEnvelope,
 	queryNeighborsEnvelope,
 	toConceptSummary,
+	toTrustDrift,
 } from "./render/query.js";
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";

@@ -4,6 +4,7 @@ import { Bundle } from "@okfit/core";
 import type { ConceptFilter, Distribution } from "@okfit/engine";
 import {
 	ConceptQuery,
+	Now,
 	QueryGetEnvelope,
 	QueryListEnvelope,
 	QueryNeighborsEnvelope,
@@ -15,7 +16,10 @@ import {
 	queryNeighborsEnvelope,
 	resolveProjectConfig,
 	toConceptSummary,
+	toTrustDrift,
 } from "@okfit/engine";
+import type { ConceptSignal } from "@okfit/profiles";
+import { Trust } from "@okfit/profiles";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
@@ -86,6 +90,7 @@ const run = <A, E, R>(
 		readonly config: OkfitConfig;
 		readonly root: string;
 		readonly distribution: Option.Option<Distribution>;
+		readonly signals: ReadonlyMap<string, ConceptSignal>;
 	}) => Effect.Effect<A, E, R>,
 	precheck?: Effect.Effect<void, QuerySelectionError>,
 ) =>
@@ -103,7 +108,10 @@ const run = <A, E, R>(
 				cwd,
 			});
 			const bundle = yield* Bundle.load({ root: resolved.bundleRoot });
+			const now = yield* Now;
+			const signals = yield* Trust.signals(bundle, now);
 			yield* use({
+				signals,
 				bundle,
 				config: resolved.config,
 				root: displayRoot(cwd, resolved.bundleRoot, path),
@@ -148,15 +156,15 @@ export const queryListCommand = Command.make(
 			...(input.type.length > 0 ? { types: input.type } : {}),
 			...(input.tag.length > 0 ? { tags: input.tag } : {}),
 			...(input.status.length > 0 ? { statuses: input.status } : {}),
-			...(input.verified ? { verified: true } : {}),
-			...(input.unverified ? { verified: false } : {}),
+			...(input.verified ? { verified: "current" as const } : {}),
+			...(input.unverified ? { verified: "unverified" as const } : {}),
 		};
 		return run(
 			input,
-			({ bundle, config, root, distribution }) =>
+			({ bundle, config, root, distribution, signals }) =>
 				Effect.gen(function* () {
-					const concepts = yield* ConceptQuery.list(bundle, config, filter);
-					const items = concepts.map(toConceptSummary);
+					const concepts = yield* ConceptQuery.list(bundle, config, filter, signals);
+					const items = concepts.map((c) => toConceptSummary(c, signals.get(c.id) as ConceptSignal));
 					if (input.format === "json") {
 						const envelope = queryListEnvelope({
 							okfitVersion: CLI_VERSION,
@@ -188,14 +196,16 @@ export const queryGetCommand = Command.make(
 	"get",
 	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
 	(input) =>
-		run(input, ({ bundle, distribution }) =>
+		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
 				const { concept, links } = yield* ConceptQuery.get(bundle, input.id);
-				const summary = toConceptSummary(concept);
+				const signal = signals.get(concept.id) as ConceptSignal;
+				const summary = toConceptSummary(concept, signal);
 				if (input.format === "json") {
 					const envelope = queryGetEnvelope({
 						okfitVersion: CLI_VERSION,
 						concept: summary,
+						drift: toTrustDrift(signal),
 						frontmatter: concept.frontmatter.raw,
 						links,
 						...distributionOf(distribution),
@@ -223,13 +233,13 @@ export const queryNeighborsCommand = Command.make(
 	"neighbors",
 	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
 	(input) =>
-		run(input, ({ bundle, distribution }) =>
+		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
 				const result = yield* ConceptQuery.neighbors(bundle, input.id);
 				const project = (n: (typeof result.outgoing)[number]) => ({
 					id: n.id,
 					kind: n.kind,
-					summary: n.concept === null ? null : toConceptSummary(n.concept),
+					summary: n.concept === null ? null : toConceptSummary(n.concept, signals.get(n.concept.id) as ConceptSignal),
 				});
 				const outgoing = result.outgoing.map(project);
 				const incoming = result.incoming.map(project);

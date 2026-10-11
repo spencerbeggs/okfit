@@ -12,6 +12,9 @@ const summary = (id: string, over: Partial<ConceptSummary> = {}): ConceptSummary
 	status: "draft",
 	tags: [],
 	path: `${id}.md`,
+	tier: "unverified",
+	integrity: "none",
+	stale: false,
 	...over,
 });
 

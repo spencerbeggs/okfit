@@ -1,11 +1,13 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { ConceptNeighbor } from "@okfit/engine";
 import { ConceptQuery } from "@okfit/engine";
-import { Effect, FileSystem, Path, Schema } from "effect";
+import type { ConceptSignal } from "@okfit/profiles";
+import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { toConceptLookupFailure } from "../internal/conceptNotFound.js";
 import { loadToolContext } from "../internal/toolContext.js";
+import { toolSignals } from "../internal/toolSignals.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import { ConceptNeighborsSuccess } from "../schema/tools.js";
 
@@ -24,7 +26,7 @@ export const conceptNeighbors = Tool.make("concept_neighbors", {
 	parameters: Schema.Struct({ id: Schema.String }),
 	success: ConceptNeighborsSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg],
+	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Concept graph neighbors")
 	.annotate(Tool.Readonly, true)
@@ -47,10 +49,15 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
 		);
 
+		const signals = yield* toolSignals(ctx.bundle, yield* DateTime.now);
+
 		const project = (neighbor: ConceptNeighbor) => ({
 			id: neighbor.id,
 			kind: neighbor.kind,
-			summary: neighbor.concept === null ? null : toConceptSummary(neighbor.concept),
+			summary:
+				neighbor.concept === null
+					? null
+					: toConceptSummary(neighbor.concept, signals.get(neighbor.concept.id) as ConceptSignal),
 		});
 
 		return {

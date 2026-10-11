@@ -1,10 +1,12 @@
 import { ToolFailure, ToolRefusal } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { ConceptQuery } from "@okfit/engine";
-import { Effect, FileSystem, Path } from "effect";
+import type { ConceptSignal } from "@okfit/profiles";
+import { Crypto, DateTime, Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { loadToolContext } from "../internal/toolContext.js";
+import { toolSignals } from "../internal/toolSignals.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
 import type { ListConceptsParams } from "../schema/tools.js";
 import { ListConceptsSuccess, ListConceptsParams as Params } from "../schema/tools.js";
@@ -27,7 +29,7 @@ export const listConcepts = Tool.make("list_concepts", {
 	parameters: Params,
 	success: ListConceptsSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg],
+	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "List OKF concepts")
 	.annotate(Tool.Readonly, true)
@@ -56,16 +58,23 @@ const unknown = (kind: "type" | "tag", requested: string, valid: ReadonlyArray<s
 export const handleListConcepts = (projectRoot: string, params: ListConceptsParams) =>
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
-		const filtered = yield* ConceptQuery.list(ctx.bundle, ctx.config, {
-			...(params.type === undefined ? {} : { types: [params.type] }),
-			...(params.tags === undefined ? {} : { tags: params.tags }),
-			...(params.status === undefined ? {} : { statuses: [params.status] }),
-		}).pipe(Effect.catchTag("QueryUnknownVocabularyError", (e) => Effect.fail(unknown(e.kind, e.requested, e.valid))));
+		const now = yield* DateTime.now;
+		const signals = yield* toolSignals(ctx.bundle, now);
+		const filtered = yield* ConceptQuery.list(
+			ctx.bundle,
+			ctx.config,
+			{
+				...(params.type === undefined ? {} : { types: [params.type] }),
+				...(params.tags === undefined ? {} : { tags: params.tags }),
+				...(params.status === undefined ? {} : { statuses: [params.status] }),
+			},
+			signals,
+		).pipe(Effect.catchTag("QueryUnknownVocabularyError", (e) => Effect.fail(unknown(e.kind, e.requested, e.valid))));
 
 		const limit = params.limit ?? 200;
 		const offset = params.offset ?? 0;
 		return {
-			items: filtered.slice(offset, offset + limit).map(toConceptSummary),
+			items: filtered.slice(offset, offset + limit).map((c) => toConceptSummary(c, signals.get(c.id) as ConceptSignal)),
 			total: filtered.length,
 		};
 	});

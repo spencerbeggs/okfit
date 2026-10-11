@@ -1,11 +1,27 @@
 import type { LoadedConcept } from "@okfit/core";
 import { Derive, GraphNodeKind, Status } from "@okfit/core";
+import type { ConceptSignal } from "@okfit/profiles";
 import { Schema } from "effect";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
 import { DistributionField } from "./distribution.js";
 
-/** The seven-field shape every list-like query result carries (N-16). @public */
+/**
+ * Why a human verification no longer binds, as the wire reports it. `edited_by`
+ * and `edited_at` are the latest human entry's actor and instant, `null` when
+ * the drift has no such entry to name.
+ *
+ * @public
+ */
+export const TrustDrift = Schema.Struct({
+	reason: Schema.Literals(["content-changed", "unbound", "entry-superseded"]),
+	edited_by: Schema.NullOr(Schema.String),
+	edited_at: Schema.NullOr(Schema.String),
+});
+/** @public */
+export type TrustDrift = typeof TrustDrift.Type;
+
+/** The ten-field shape every list-like query result carries: identity plus the trust signal (N-16). @public */
 export const ConceptSummary = Schema.Struct({
 	id: Schema.String,
 	type: Schema.String,
@@ -14,12 +30,15 @@ export const ConceptSummary = Schema.Struct({
 	status: Status,
 	tags: Schema.Array(Schema.String),
 	path: Schema.String,
+	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),
+	integrity: Schema.Literals(["current", "drifted", "none"]),
+	stale: Schema.Boolean,
 });
 /** @public */
 export type ConceptSummary = typeof ConceptSummary.Type;
 
-/** Project one loaded concept into its summary. @public */
-export const toConceptSummary = (concept: LoadedConcept): ConceptSummary => ({
+/** Project one loaded concept and its trust signal into its summary. @public */
+export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal): ConceptSummary => ({
 	id: concept.id,
 	type: concept.frontmatter.type,
 	title: Derive.title(concept),
@@ -27,7 +46,20 @@ export const toConceptSummary = (concept: LoadedConcept): ConceptSummary => ({
 	status: Derive.status(concept.frontmatter),
 	tags: [...(concept.frontmatter.tags ?? [])],
 	path: concept.path,
+	tier: signal.tier,
+	integrity: signal.integrity,
+	stale: signal.stale,
 });
+
+/** The wire drift of a signal, or `null` when its integrity is not drifted. @public */
+export const toTrustDrift = (signal: ConceptSignal): TrustDrift | null =>
+	signal.drift === undefined
+		? null
+		: {
+				reason: signal.drift.reason,
+				edited_by: signal.drift.editedBy ?? null,
+				edited_at: signal.drift.editedAt ?? null,
+			};
 
 /** `okfit query list --format json`'s envelope, schema 1, snake_case. @public */
 export const QueryListEnvelope = Schema.Struct({
@@ -59,6 +91,7 @@ export const QueryGetEnvelope = Schema.Struct({
 	distribution: DistributionField,
 	concept: Schema.Struct({
 		...ConceptSummary.fields,
+		drift: Schema.NullOr(TrustDrift),
 		frontmatter: Schema.Record(Schema.String, Schema.Unknown),
 		links: Schema.Array(QueryLink),
 	}),
@@ -107,6 +140,7 @@ export const queryListEnvelope = (input: {
 export const queryGetEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly concept: ConceptSummary;
+	readonly drift: TrustDrift | null;
 	readonly frontmatter: Readonly<Record<string, unknown>>;
 	readonly links: ReadonlyArray<QueryLink>;
 	readonly distribution?: Distribution;
@@ -115,7 +149,7 @@ export const queryGetEnvelope = (input: {
 	okfit_version: input.okfitVersion,
 	engine_version: ENGINE_VERSION,
 	distribution: input.distribution ?? null,
-	concept: { ...input.concept, frontmatter: input.frontmatter, links: input.links },
+	concept: { ...input.concept, drift: input.drift, frontmatter: input.frontmatter, links: input.links },
 });
 
 /** Build the neighbors envelope. @public */
