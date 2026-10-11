@@ -19,9 +19,15 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-10-05T23:03:56Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: ef0014c6c62a639d
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 7bef555232e0acec
 ---
 
 # The language and MCP servers survive a stray crash once serving, and exit on one before

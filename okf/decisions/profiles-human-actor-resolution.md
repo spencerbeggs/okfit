@@ -11,9 +11,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 4373b00d98377cff
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 3835cbc4a2b41d99
 ---
 
 # Human actor ids resolve through a four-step fallback order

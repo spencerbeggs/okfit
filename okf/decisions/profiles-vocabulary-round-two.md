@@ -12,9 +12,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: fe9b4a5d59d28b7d
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 1b3104ebacea3ba8
 ---
 
 # The software-project vocabulary grows a second time from the effected and tsdoctor migrations

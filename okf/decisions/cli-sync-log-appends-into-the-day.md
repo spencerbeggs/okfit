@@ -12,9 +12,15 @@ supersedes: cli-sync-log-appends-never-rewrites.md
 verified:
   - by: human:spencer
     at: 2026-09-24T00:20:55.156Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 936d22b0c4ca14ea
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: c9a14332b14e5fd6
 ---
 
 # okfit sync's log mode appends into the newest logged day and dedupes on its own spellings

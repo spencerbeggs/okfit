@@ -12,9 +12,15 @@ supersedes: cli-config-discovery-config-dir.md
 verified:
   - by: human:spencer
     at: 2026-09-08T02:12:59Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 122799928b2be6e4
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 359e4d7a648cefde
 ---
 
 # Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain

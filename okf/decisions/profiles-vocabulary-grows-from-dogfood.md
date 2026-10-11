@@ -12,9 +12,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-13T04:13:10Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 661f1ae0554cd71c
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: dcf2b496a607267f
 ---
 
 # The software-project vocabulary grows from what migrations could not express

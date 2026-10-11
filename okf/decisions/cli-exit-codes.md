@@ -11,9 +11,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:06Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: f6e2824bcccf7903
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 0282d8a853a5a58a
 ---
 
 # Exit codes are a fixed six-value total order

@@ -15,9 +15,15 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: dabd73dc1de7f4e6
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: 0acb2b550de1f14b
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract

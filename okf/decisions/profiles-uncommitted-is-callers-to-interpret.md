@@ -11,9 +11,15 @@ status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:09Z
+  - by: human:spencer
+    at: 2026-10-11T14:21:44Z
 integrity:
   generated:
     body: 406a4aeede7c92ec
+  verified:
+    by: human:spencer
+    at: 2026-10-11T14:21:44Z
+    content: c05155f05cec83a8
 ---
 
 # Uncommitted provenance is the caller's to interpret
