@@ -27,6 +27,7 @@ export type TreeNode =
 			readonly description: string;
 			readonly type: string;
 			readonly stale: boolean;
+			readonly drifted: boolean;
 			readonly status: Status;
 	  };
 
@@ -58,9 +59,10 @@ const conceptNode = (c: ConceptSummary): Extract<TreeNode, { kind: "concept" }> 
 		id: c.id,
 		uri: c.uri,
 		label: c.title,
-		description: status,
+		description: c.integrity === "drifted" ? `${status} \u00b7 drifted` : status,
 		type: c.type,
 		stale: c.stale,
+		drifted: c.integrity === "drifted",
 		status,
 	};
 };
@@ -93,12 +95,23 @@ export const buildTree = (result: ConceptsResult): ReadonlyArray<TreeNode> => {
 	}));
 };
 
-export const staleCount = (result: ConceptsResult): number =>
-	result.bundles.reduce((n, b) => n + b.concepts.filter((c) => c.stale).length, 0);
+/** How many concepts across all bundles need attention: past stale_after, or drifted from a human verification. */
+export const attentionCount = (result: ConceptsResult): { stale: number; drifted: number } => {
+	let stale = 0;
+	let drifted = 0;
+	for (const b of result.bundles) {
+		for (const c of b.concepts) {
+			if (c.stale) stale += 1;
+			if (c.integrity === "drifted") drifted += 1;
+		}
+	}
+	return { stale, drifted };
+};
 
 export const decorationFor = (
 	node: Extract<TreeNode, { kind: "concept" }>,
 ): { badge: string; tooltip: string } | undefined => {
+	if (node.drifted) return { badge: "!", tooltip: "Drifted: changed since a human verified it" };
 	if (node.stale) return { badge: "S", tooltip: "Stale" };
 	if (node.status === "draft") return { badge: "D", tooltip: "Draft" };
 	if (node.status === "deprecated") return { badge: "X", tooltip: "Deprecated" };
