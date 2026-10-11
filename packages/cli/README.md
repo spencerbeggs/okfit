@@ -8,12 +8,13 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 
 ```text
 okfit [--help] [--version]
-okfit validate [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
+okfit validate [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
+okfit lint [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--help]
 okfit init [--root <dir>] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
 okfit context [--root <dir>] [--trust] [--config <file>] [--format human|json] [--help]
-okfit verify [<id>] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft] [--revoke] [--no-diff] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
+okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft] [--revoke] [--no-diff] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
 okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
-okfit query get <id> [--root <dir>] [--config <file>] [--format human|json]
+okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]
 okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
 okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```

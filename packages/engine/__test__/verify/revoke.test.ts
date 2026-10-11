@@ -368,6 +368,29 @@ describe("runRevoke", () => {
 			),
 		);
 
+		it.effect("a dry run reports every concept as dryRun and leaves the bytes unchanged", () =>
+			withThree((root, file) =>
+				Effect.gen(function* () {
+					const before = yield* Effect.promise(() =>
+						Promise.all(["a", "b"].map((name) => readFile(file(name), "utf8"))),
+					);
+					const results = yield* runRevokeIds({
+						ids: ["decisions/a", "decisions/b"],
+						bundleRoot: root,
+						projectRoot: root,
+						config,
+						dryRun: true,
+					}).pipe(Effect.provide(platform));
+					assert.strictEqual(results.length, 2);
+					assert.isTrue(results.every((result) => result.dryRun));
+					const after = yield* Effect.promise(() =>
+						Promise.all(["a", "b"].map((name) => readFile(file(name), "utf8"))),
+					);
+					assert.deepStrictEqual(after, before);
+				}),
+			),
+		);
+
 		it.effect("fails VerifyNothingToRevokeError for one bad concept and writes nothing", () =>
 			withThree((root, file) =>
 				Effect.gen(function* () {

@@ -39,7 +39,7 @@ export interface ResolvedProjectConfig {
 
 /**
  * Input to {@link resolveProjectConfig}: the same three values every command
- * handler already has in hand (its own `[path]` argument, its own
+ * handler already has in hand (its own `--root` flag, its own
  * `--config` flag, and `process.cwd()`) — nothing this function needs is
  * read from `process` itself.
  *

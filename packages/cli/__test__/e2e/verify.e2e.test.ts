@@ -224,6 +224,31 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
+	it("a multi-target verify --revoke --dry-run reports each and writes nothing", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const now = { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" };
+			await withServices(runOkfit(["verify", "decisions/a", "decisions/b"], { cwd, env: now }));
+			const before = await Promise.all(
+				["a", "b"].map((name) => readFile(join(cwd, `okf/decisions/${name}.md`), "utf8")),
+			);
+			const run = await withServices(
+				runOkfit(["verify", "--revoke", "decisions/a", "decisions/b", "--dry-run", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(run.exitCode, 0);
+			const body = JSON.parse(run.stdout);
+			assert.strictEqual(body.length, 2);
+			assert.isTrue(body.every((entry: { dry_run: boolean }) => entry.dry_run === true));
+			const after = await Promise.all(
+				["a", "b"].map((name) => readFile(join(cwd, `okf/decisions/${name}.md`), "utf8")),
+			);
+			assert.deepStrictEqual(after, before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("exits 64 on a reserved id (verify index)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {

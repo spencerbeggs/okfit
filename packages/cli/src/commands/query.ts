@@ -250,7 +250,7 @@ export const queryGetCommand = Command.make(
 				}
 			}),
 		),
-).pipe(Command.withDescription("Show one concept: its fields, verified entries, and outgoing links."));
+).pipe(Command.withDescription("Show one or more concepts: their fields, verified entries, and outgoing links."));
 
 /**
  * `okfit query neighbors <target> [--root <dir>] [--config <file>] [--format human|json]`.

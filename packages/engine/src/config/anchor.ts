@@ -82,7 +82,7 @@ export const resolveProjectRoot = (input: {
  * `<project root>/<bundle.path>`, absolute (K-2). `config` is the MERGED
  * config, so `bundle.path` is `OkfitConfig.DEFAULTS.bundle.path` (`"okf"`)
  * unless a file or profile overrode it. The bundle root is never what
- * `[path]` names.
+ * `--root` names.
  *
  * @public
  */
