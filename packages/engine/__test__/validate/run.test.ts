@@ -368,3 +368,34 @@ describe("run — publication-drift lint", () => {
 		}).pipe(Effect.provide(nodePlatform)),
 	);
 });
+
+describe("run — verified-drift lint (integrity)", () => {
+	const ONLY_VERIFIED_DRIFT: OkfitConfig["lint"] = {
+		...ONLY_DRIFT_LINT,
+		generated_at_drift: "off",
+		verified_drift: "warn",
+	};
+	const verifiedConfig: OkfitConfig = { ...OkfitConfig.DEFAULTS, types: { Module: {} }, lint: ONLY_VERIFIED_DRIFT };
+
+	it.effect("a human verified entry with no integrity binding yields one verified-drift warning", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-verified-drift-")));
+			try {
+				const text =
+					"---\ntype: Module\nverified:\n  - by: human:okfit-test\n    at: 2026-01-05T12:00:00Z\n---\n\n# Thing\n\nBody text.\n";
+				yield* Effect.promise(() => writeFile(join(root, REL), text));
+				const result = yield* run({ root, config: verifiedConfig, profile: Option.none(), now }).pipe(
+					// generated_at_drift is off, so neither double is ever called.
+					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
+				);
+				assert.strictEqual(result.report.lint.length, 1);
+				assert.strictEqual(result.report.lint[0]?.code, "verified-drift");
+				assert.strictEqual(result.report.lint[0]?.severity, "warning");
+				assert.strictEqual(result.report.lint[0]?.file, REL);
+				assert.include(result.report.lint[0]?.message ?? "", "no integrity.verified binding");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(nodePlatform)),
+	);
+});

@@ -24,6 +24,7 @@ const VALUES = [
 	"PUBLICATION_TYPE",
 	"Publications",
 	"SURFACE_TYPE",
+	"Trust",
 ] as const;
 
 describe("@okfit/profiles", () => {

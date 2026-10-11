@@ -2,7 +2,7 @@ import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
 import type { GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
-import { Provenance, Publications } from "@okfit/profiles";
+import { Provenance, Publications, Trust } from "@okfit/profiles";
 import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 import { lintResources } from "./resources.js";
@@ -76,7 +76,7 @@ export interface RunResult {
  * the same `report.lint` array every other core lint diagnostic already
  * does.
  *
- * It then appends `lintResources`, `Publications.lint` (`publication-drift`
+ * It then appends `Trust.lint` (`verified-drift`, which gates itself on its own severity), `lintResources`, `Publications.lint` (`publication-drift`
  * and `publication-orphan`, only under the `software-project` profile) and `lintSurfaces` (`surface-unmatched`), each
  * of which gates itself on its own severity.
  *
@@ -108,6 +108,7 @@ export const run = (
 			severity === "off"
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
+		const drift = yield* Trust.lint(bundle, options.config, options.now);
 		const resources = yield* lintResources(bundle, options.config);
 		// Publication lints are software-project's; any other profile (or none)
 		// may declare its own `Publication` type with different semantics.
@@ -117,7 +118,10 @@ export const run = (
 		const surfaces = yield* lintSurfaces(bundle, options.config);
 		return {
 			bundle,
-			report: { ...report, lint: [...report.lint, ...provenance, ...resources, ...publications, ...surfaces] },
+			report: {
+				...report,
+				lint: [...report.lint, ...provenance, ...drift, ...resources, ...publications, ...surfaces],
+			},
 			profileDiagnostics,
 		};
 	});
