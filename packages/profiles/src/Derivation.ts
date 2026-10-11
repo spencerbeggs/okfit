@@ -81,7 +81,7 @@ export class HumanActorNotAllowedError extends Schema.TaggedError<HumanActorNotA
 	{ actor: Schema.String },
 ) {
 	override get message(): string {
-		return `${this.actor} is not in [actors].humans, so it cannot verify; set your id with git config --global okfit.actor human:<id> to a listed id, or add ${this.actor} to [actors].humans`;
+		return `${this.actor} is not in [actors].humans, so it cannot verify or revoke; set your id with git config --global okfit.actor human:<id> to a listed id, or add ${this.actor} to [actors].humans`;
 	}
 }
 
@@ -382,7 +382,7 @@ export class Derivation {
 	/**
 	 * Spec 5.4 rule 1 (P-16, P-45). `"agent"`: `config.actors.agent`, else {@link AgentActorUnconfiguredError}
 	 * (P-17). `"human"`: first `Git.configGet(cwd, "okfit.actor")`, which wins when set and must be a
-	 * `human:<id>` with no `@` or glob ({@link ActorConfigInvalidError} otherwise); else `Git.configGet(cwd, "user.name")` and `Git.configGet(cwd, "user.email")` in merged
+	 * `human:<id>` with no `@` or glob ({@link ActorConfigInvalidError} otherwise), returned in the spelling of an exact `[actors].humans` entry that equals it case-insensitively (P-14); else `Git.configGet(cwd, "user.name")` and `Git.configGet(cwd, "user.email")` in merged
 	 * scope (P-15) through {@link Derivation.humanActorId}; none is {@link HumanActorUnresolvedError}.
 	 * Answers only "who is writing now" (P-40).
 	 */
@@ -400,7 +400,12 @@ export class Derivation {
 			const valid =
 				Schema.is(Actor)(chosen) && Actor.isHuman(chosen) && !chosen.includes("@") && !Actor.isPattern(chosen);
 			if (!valid) return yield* new ActorConfigInvalidError({ value: chosen });
-			return chosen;
+			// P-14: an exact `[actors].humans` entry equal case-insensitively wins, so exact comparisons downstream line up.
+			const lower = chosen.toLowerCase();
+			const spelled = (options.config.actors?.humans ?? []).find(
+				(entry) => !Actor.isPattern(entry) && entry.toLowerCase() === lower,
+			);
+			return spelled === undefined ? chosen : decodeActor(spelled);
 		}
 		const name = Option.getOrUndefined(yield* git.configGet(options.cwd, "user.name"));
 		const email = Option.getOrUndefined(yield* git.configGet(options.cwd, "user.email"));

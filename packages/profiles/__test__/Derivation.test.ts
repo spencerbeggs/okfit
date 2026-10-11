@@ -490,6 +490,17 @@ describe("Derivation.generatedBy (P-16, P-17)", () => {
 			);
 		}),
 	);
+	it.effect(
+		"human: okfit.actor takes the spelling of an exact [actors].humans entry that equals it case-insensitively",
+		() =>
+			Effect.gen(function* () {
+				const config: OkfitConfig = { actors: { humans: ["human:ada"] }, extensions: {} };
+				const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config }).pipe(
+					Effect.provide(identityGit({ "okfit.actor": "human:Ada" })),
+				);
+				assert.strictEqual(by, "human:ada");
+			}),
+	);
 	it.effect("human: okfit.actor must be a human: actor with no @ and no glob", () =>
 		Effect.gen(function* () {
 			for (const value of ["human:ada@example.com", "process:ci", "ada", "human:ad*"]) {
@@ -575,7 +586,7 @@ describe("Derivation.verifier (allow-list)", () => {
 				Derivation.verifier({ cwd: "/repo", config }).pipe(Effect.provide(identityGit(values)));
 			assert.strictEqual(yield* ok({ "user.email": "spencer@example.com" }, listed("human:spencer")), "human:spencer");
 			assert.strictEqual(yield* ok({ "user.email": "spencer@example.com" }, listed("human:spen*")), "human:spencer");
-			assert.strictEqual(yield* ok({ "okfit.actor": "human:Ada" }, listed("human:ada")), "human:Ada");
+			assert.strictEqual(yield* ok({ "okfit.actor": "human:Ada" }, listed("human:ada")), "human:ada");
 		}),
 	);
 	it.effect("an unlisted human fails HumanActorNotAllowedError naming both fixes", () =>
