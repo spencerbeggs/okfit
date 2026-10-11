@@ -23,6 +23,7 @@
 * Updated okfit verify edits frontmatter by textual splice, never by re-serialisation
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated stale --verify rolls stale_after forward, and plain verify never does
+* Updated VS Code Extension
 
 ## 2026-10-09
 
