@@ -100,7 +100,10 @@ describe("VerifySelectionError status reasons (#185)", () => {
 	it("status-and-batch exits 64 and explains batch mode never changes status", () => {
 		const error = new VerifySelectionError({ reason: "status-and-batch" });
 		assert.strictEqual(error[Runtime.errorExitCode], 64);
-		assert.strictEqual(error.message, "--stable and --draft need a concept id; batch mode never changes status");
+		assert.strictEqual(
+			error.message,
+			"--stable and --draft need exactly one concept target; batch mode never changes status",
+		);
 	});
 });
 

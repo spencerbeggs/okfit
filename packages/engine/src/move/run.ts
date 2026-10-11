@@ -45,7 +45,8 @@ export interface RunMoveOptions extends PlanMoveOptions {
 	readonly dryRun: boolean;
 }
 
-type PlanError = MoveError | TargetResolutionError | BundleLoadError | PlatformError.PlatformError;
+/** Every failure {@link planMove} and {@link runMove} can raise. @public */
+export type PlanError = MoveError | TargetResolutionError | BundleLoadError | PlatformError.PlatformError;
 
 const withMd = (value: string): string => (value.endsWith(".md") ? value : `${value}.md`);
 
