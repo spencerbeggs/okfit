@@ -1,18 +1,37 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { YamlDocument, YamlNode, YamlParseError } from "@effected/yaml";
 import { YamlAlias, YamlMap, YamlScalar, YamlSeq } from "@effected/yaml";
-import { Integrity, Timestamp } from "@okfit/core";
-import { Effect, Schema } from "effect";
+import { Integrity } from "@okfit/core";
+import { Effect, Option, Schema } from "effect";
 import type { ParsedTopLevelMapping } from "./locate.js";
 import { hasMergeKey, parseTopLevelMapping } from "./locate.js";
+
+/**
+ * One item of a block-style `integrity` mapping: its key as parsed (so `'verified'`
+ * and `verified` are the same slot) and the whole-file span of its lines, from the
+ * start of the key's line through the terminator of the value's last line.
+ *
+ * @internal
+ */
+export interface IntegritySlot {
+	readonly key: string;
+	readonly start: number;
+	readonly end: number;
+}
 
 /**
  * Where okfit's own top-level `integrity` block lives (whole-file offsets into
  * the BOM-stripped source). `absent` is the end of the frontmatter value;
  * `replace` spans the key's line through the terminator of its last nested
  * line, and `current` is the block decoded through the `Integrity` schema
- * (`undefined` when malformed or null). A malformed block is still
- * replaceable, because okfit owns it.
+ * (`undefined` when malformed or null). `slots` are the parsed items with their
+ * spans and `indent` their key column, so a slot edit never re-derives the
+ * layout from line text; `boundBy` is `verified.by` read from the parsed tree,
+ * present even when the block does not decode as a whole. `bareKey` marks a
+ * key line with no value text (`integrity:`, optionally with a comment), which
+ * a slot can be added under without rewriting the line. A block mapping whose
+ * items cannot all be mapped to line spans (a complex key, an explicit `?`
+ * key, a key sharing a line) is `unsupported` (`integrity-layout`).
  *
  * @internal
  */
@@ -23,6 +42,10 @@ export type IntegrityLocated =
 			readonly start: number;
 			readonly end: number;
 			readonly current: Integrity | undefined;
+			readonly slots: ReadonlyArray<IntegritySlot>;
+			readonly indent: string;
+			readonly boundBy: string | undefined;
+			readonly bareKey: boolean;
 	  }
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
@@ -120,11 +143,41 @@ export const locateIntegrity = Effect.fn("okfit/verify/locateIntegrity")(functio
 	const span = lineSpan(value, pair.key.offset, tail);
 	if (span === undefined) return { _tag: "unsupported", shape: "not-a-mapping" } as const;
 
-	const current =
-		node instanceof YamlMap
-			? decodeIntegrity(rawValue(node, value)).pipe((o) => (o._tag === "Some" ? o.value : undefined))
-			: undefined;
-	return { _tag: "replace", start: valueStart + span.start, end: valueStart + span.end, current } as const;
+	const slots: Array<IntegritySlot> = [];
+	let indent = "  ";
+	if (node instanceof YamlMap) {
+		for (const [index, item] of node.items.entries()) {
+			if (!(item.key instanceof YamlScalar)) return { _tag: "unsupported", shape: "integrity-layout" } as const;
+			let itemTail = item.value !== null ? item.value.offset + item.value.length : item.key.offset + item.key.length;
+			// A nested block map's span runs on into the next line's indentation; stop at its terminator.
+			while (itemTail > item.key.offset && (value[itemTail - 1] === " " || value[itemTail - 1] === "\t")) itemTail--;
+			const itemSpan = lineSpan(value, item.key.offset, itemTail);
+			const previous = slots.at(-1);
+			if (itemSpan === undefined || (previous !== undefined && valueStart + itemSpan.start < previous.end)) {
+				return { _tag: "unsupported", shape: "integrity-layout" } as const;
+			}
+			const column = value.slice(itemSpan.start, item.key.offset);
+			if (index === 0) indent = column;
+			else if (column !== indent) return { _tag: "unsupported", shape: "integrity-layout" } as const;
+			slots.push({ key: String(item.key.value), start: valueStart + itemSpan.start, end: valueStart + itemSpan.end });
+		}
+	}
+	const raw = node instanceof YamlMap ? rawValue(node, value) : undefined;
+	const current = raw === undefined ? undefined : Option.getOrUndefined(decodeIntegrity(raw));
+	const verifiedRaw = (raw as { readonly verified?: unknown } | undefined)?.verified;
+	const boundByRaw =
+		verifiedRaw !== null && typeof verifiedRaw === "object" ? (verifiedRaw as { readonly by?: unknown }).by : undefined;
+	const bareKey = node === null || (node instanceof YamlScalar && node.length === 0);
+	return {
+		_tag: "replace",
+		start: valueStart + span.start,
+		end: valueStart + span.end,
+		current,
+		slots,
+		indent,
+		boundBy: typeof boundByRaw === "string" ? boundByRaw : undefined,
+		bareKey,
+	} as const;
 });
 
 /** What YAML 1.2 Core resolves to a number: all digits, or digits `e` digits. */
@@ -182,27 +235,16 @@ export const spliceIntegrity = (
 		content: renderIntegrity(fields, newline),
 	});
 
-const encodeAt = Schema.encodeSync(Timestamp);
-
-/** The already-valid `slot` of a located block as render fields, for the whole-block fallback. */
-const carried = (
-	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
-	slot: "generated" | "verified",
-): IntegrityFields => {
-	const current = target._tag === "replace" ? target.current : undefined;
-	if (slot === "generated")
-		return current?.generated === undefined ? {} : { generated: { body: current.generated.body } };
-	return current?.verified === undefined
-		? {}
-		: { verified: { by: current.verified.by, at: encodeAt(current.verified.at), content: current.verified.content } };
-};
-
 /**
- * Rewrite only one slot of the located `integrity` block, copying every other
- * line byte-identically. A missing slot is added first (`generated`) or last
- * (`verified`), matching {@link renderIntegrity}'s order. An absent block, or a
- * layout this cannot match, falls back to writing the whole block with the
- * other slot carried over from `target.current`.
+ * Rewrite only one slot of the located `integrity` block, driven by the parsed
+ * item spans: every other byte (the key line and its comment, the other slot,
+ * unknown keys, comments between items, quoting) is copied as it was. A
+ * present slot (however its key is quoted) is replaced in place; a missing one
+ * is added first (`generated`) or last (`verified`), matching
+ * {@link renderIntegrity}'s order. Only an absent block, or one with no items
+ * and value text (`integrity: ~`), is written whole -- there is nothing in it
+ * to lose. No edit here is a zero-length insert at the end of the block, so it
+ * cannot collide with a key appended at the end of the frontmatter.
  */
 const spliceSlot = (
 	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
@@ -212,32 +254,33 @@ const spliceSlot = (
 	whole: IntegrityFields,
 	newline: "\n" | "\r\n",
 ): MarkdownEdit => {
-	const fallback = () => spliceIntegrity(target, whole, newline);
-	if (target._tag === "absent") return fallback();
-	const lines = text.slice(target.start, target.end).match(/[^\n]*\n|[^\n]+$/gu) ?? [];
-	const bare = (line: string) => line.replace(/\r?\n$/u, "");
-	if (lines.length < 2 || !/^integrity:[ \t]*$/u.test(bare(lines[0] ?? ""))) return fallback();
-	const first = lines.slice(1).find((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
-	const indent = /^[ \t]*/u.exec(first ?? "")?.[0] ?? "";
-	if (indent === "") return fallback();
-	const text_ = slotLines(indent, newline);
-	const at = lines.findIndex((line, i) => i > 0 && new RegExp(`^${indent}${slot}[ \\t]*:`, "u").test(bare(line)));
-	let out: Array<string>;
-	if (at === -1) {
-		out =
-			slot === "generated"
-				? [lines[0] as string, text_, ...lines.slice(1)]
-				: [...lines, ...(/\n$/u.test(lines.at(-1) ?? "") ? [] : [newline]), text_];
-	} else {
-		let end = at + 1;
-		while (end < lines.length) {
-			const line = bare(lines[end] as string);
-			if (line.trim() !== "" && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) break;
-			end++;
-		}
-		out = [...lines.slice(0, at), text_, ...lines.slice(end)];
+	if (target._tag === "absent") return spliceIntegrity(target, whole, newline);
+	const terminated = (start: number, end: number) => {
+		const lines = text.slice(start, end);
+		return lines.endsWith("\n") ? lines : `${lines}${newline}`;
+	};
+	if (target.slots.length === 0) {
+		if (!target.bareKey) return spliceIntegrity(target, whole, newline);
+		return MarkdownEdit.make({
+			offset: target.start,
+			length: target.end - target.start,
+			content: terminated(target.start, target.end) + slotLines(target.indent, newline),
+		});
 	}
-	return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: out.join("") });
+	const lines = slotLines(target.indent, newline);
+	const found = target.slots.find((entry) => entry.key === slot);
+	if (found !== undefined)
+		return MarkdownEdit.make({ offset: found.start, length: found.end - found.start, content: lines });
+	if (slot === "generated") {
+		const first = target.slots[0] as IntegritySlot;
+		return MarkdownEdit.make({ offset: first.start, length: 0, content: lines });
+	}
+	const last = target.slots.at(-1) as IntegritySlot;
+	return MarkdownEdit.make({
+		offset: last.start,
+		length: last.end - last.start,
+		content: terminated(last.start, last.end) + lines,
+	});
 };
 
 /**
@@ -260,7 +303,7 @@ export const spliceIntegrityGenerated = (
 		text,
 		"generated",
 		(indent, nl) => `${indent}generated:${nl}${indent}  body: ${formatDigest(body)}${nl}`,
-		{ ...carried(target, "verified"), generated: { body } },
+		{ generated: { body } },
 		newline,
 	);
 
@@ -286,7 +329,7 @@ export const spliceIntegrityVerified = (
 		"verified",
 		(indent, nl) =>
 			`${indent}verified:${nl}${indent}  by: ${binding.by}${nl}${indent}  at: ${binding.at}${nl}${indent}  content: ${formatDigest(binding.content)}${nl}`,
-		{ ...carried(target, "generated"), verified: binding },
+		{ verified: binding },
 		newline,
 	);
 
@@ -298,47 +341,25 @@ export type IntegrityVerifiedRemoval =
 
 /**
  * The one edit that removes the `integrity.verified` slot and nothing else:
- * only that slot's lines go, every other byte of the block (the `generated`
- * slot, unknown keys, comments, quoting) stays. When nothing but blank and
- * comment lines would remain under `integrity:`, the whole block goes instead.
- * `none` when the block is absent; fails closed (`unsupported`) on a layout
- * the slot editor cannot match, never falling back to a whole-block rewrite.
- * `text` is the same BOM-stripped source the target was located in.
+ * only that parsed item's lines go (however its key is quoted); every other
+ * byte of the block (the `generated` slot, unknown keys, comments, quoting)
+ * stays. When it is the block's only item, the whole block goes instead.
+ * `none` when the block is absent; fails closed (`unsupported`) when the
+ * parsed block has no `verified` item, never falling back to a whole-block
+ * rewrite. `text` is unused (the spans come from {@link locateIntegrity}) and
+ * kept for call-site symmetry with the splice functions.
  *
  * @internal
  */
 export const removeIntegrityVerified = (
 	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
-	text: string,
+	_text: string,
 ): IntegrityVerifiedRemoval => {
 	if (target._tag === "absent") return { _tag: "none" };
-	const lines = text.slice(target.start, target.end).match(/[^\n]*\n|[^\n]+$/gu) ?? [];
-	const bare = (line: string) => line.replace(/\r?\n$/u, "");
-	if (lines.length < 2 || !/^integrity:[ \t]*$/u.test(bare(lines[0] ?? ""))) {
-		return { _tag: "unsupported", shape: "integrity-layout" };
-	}
-	const first = lines.slice(1).find((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
-	const indent = /^[ \t]*/u.exec(first ?? "")?.[0] ?? "";
-	if (indent === "") return { _tag: "unsupported", shape: "integrity-layout" };
-	const at = lines.findIndex((line, i) => i > 0 && new RegExp(`^${indent}verified[ \\t]*:`, "u").test(bare(line)));
-	if (at === -1) return { _tag: "unsupported", shape: "integrity-layout" };
-	let end = at + 1;
-	while (end < lines.length) {
-		const line = bare(lines[end] as string);
-		if (line.trim() !== "" && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) break;
-		end++;
-	}
-	const remaining = [...lines.slice(1, at), ...lines.slice(end)];
-	const hasContent = remaining.some((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
-	if (!hasContent) {
-		return {
-			_tag: "edit",
-			edit: MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: "" }),
-		};
-	}
-	const before = lines.slice(0, at).join("").length;
-	const length = lines.slice(at, end).join("").length;
-	return { _tag: "edit", edit: MarkdownEdit.make({ offset: target.start + before, length, content: "" }) };
+	const found = target.slots.find((entry) => entry.key === "verified");
+	if (found === undefined) return { _tag: "unsupported", shape: "integrity-layout" };
+	const [offset, end] = target.slots.length === 1 ? [target.start, target.end] : [found.start, found.end];
+	return { _tag: "edit", edit: MarkdownEdit.make({ offset, length: end - offset, content: "" }) };
 };
 
 /** A legacy `generated.body_sha256` line, or none. @internal */

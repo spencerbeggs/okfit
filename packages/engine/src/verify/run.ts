@@ -412,7 +412,8 @@ export const runRevoke = Effect.fn("okfit/verify/runRevoke")(function* (options:
 	if (integrity._tag === "unsupported") {
 		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: integrity.shape, key: "integrity" });
 	}
-	const bound = integrity._tag === "replace" && integrity.current?.verified?.by === actor;
+	// Read from the parsed tree, so a block that does not decode as a whole still unbinds.
+	const bound = integrity._tag === "replace" && integrity.boundBy === actor;
 	const unbind = bound ? removeIntegrityVerified(integrity, text) : ({ _tag: "none" } as const);
 	if (unbind._tag === "unsupported") {
 		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: unbind.shape, key: "integrity" });

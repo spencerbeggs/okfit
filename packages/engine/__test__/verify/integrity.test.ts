@@ -13,8 +13,11 @@ import {
 	removeLine,
 	renderIntegrity,
 	spliceIntegrity,
+	spliceIntegrityGenerated,
+	spliceIntegrityVerified,
 } from "../../src/verify/integrity.js";
 import { documentNewline, stripBom } from "../../src/verify/locate.js";
+import { countLines, decodeFrontmatter } from "../utils/frontmatter.js";
 
 const DIR = join(import.meta.dirname, "..", "fixtures", "verify", "integrity");
 const read = (name: string): string => readFileSync(join(DIR, name), "utf8");
@@ -152,6 +155,83 @@ describe("digest quoting", () => {
 			const raw = doc.contents?.toValue() as Record<string, unknown>;
 			const concept = yield* Schema.decodeUnknownEffect(Concept)({ ...raw, extensions: {}, raw });
 			assert.isDefined(concept.integrity);
+		}),
+	);
+});
+
+describe("slot splices follow the parsed block", () => {
+	const HEAD = "---\ntype: Decision\ntitle: T\n";
+	const TAIL = "owner: x\n---\n\n# T\n";
+	const slot = (source: string, which: "generated" | "verified"): Effect.Effect<string, unknown> =>
+		Effect.gen(function* () {
+			const located = yield* locateIntegrity(source);
+			if (located._tag === "unsupported") return `unsupported ${located.shape}`;
+			const edit =
+				which === "generated"
+					? spliceIntegrityGenerated(located, source, GENERATED.body, "\n")
+					: spliceIntegrityVerified(located, source, VERIFIED, "\n");
+			return MarkdownEdit.applyAll(source, [edit]);
+		});
+
+	it.effect("a quoted verified key is replaced in place, never duplicated", () =>
+		Effect.gen(function* () {
+			const source = `${HEAD}integrity:\n  generated:\n    body: 0123456789abcdef\n  'verified':\n    by: human:old\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n${TAIL}`;
+			const out = yield* slot(source, "verified");
+			assert.strictEqual(countLines(out, /verified['"]?:/u), 1);
+			const concept = yield* decodeFrontmatter(out);
+			assert.strictEqual(concept.integrity?.verified?.by, "human:spencer");
+			assert.strictEqual(concept.integrity?.generated?.body, "0123456789abcdef");
+		}),
+	);
+
+	it.effect("a double-quoted generated key is replaced in place, never duplicated", () =>
+		Effect.gen(function* () {
+			const source = `${HEAD}integrity:\n  "generated":\n    body: 0123456789abcdef\n${TAIL}`;
+			const out = yield* slot(source, "generated");
+			assert.strictEqual(countLines(out, /generated['"]?:/u), 1);
+			assert.strictEqual((yield* decodeFrontmatter(out)).integrity?.generated?.body, GENERATED.body);
+		}),
+	);
+
+	it.effect("a comment on the integrity key line survives a slot rewrite, as does the other slot", () =>
+		Effect.gen(function* () {
+			const verified = "  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n";
+			const source = `${HEAD}integrity:  # okfit owns this\n  generated:\n    body: 0123456789abcdef\n${verified}${TAIL}`;
+			const out = yield* slot(source, "generated");
+			assert.strictEqual(
+				out,
+				`${HEAD}integrity:  # okfit owns this\n  generated:\n    body: ${GENERATED.body}\n${verified}${TAIL}`,
+			);
+		}),
+	);
+
+	it.effect("a block that does not decode as a whole keeps its valid slot when the other is rewritten", () =>
+		Effect.gen(function* () {
+			const verified = "  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n";
+			const source = `${HEAD}integrity:  # note\n  generated: nope\n${verified}${TAIL}`;
+			const out = yield* slot(source, "generated");
+			assert.strictEqual(
+				out,
+				`${HEAD}integrity:  # note\n  generated:\n    body: ${GENERATED.body}\n${verified}${TAIL}`,
+			);
+		}),
+	);
+
+	it.effect("a block with content the editor cannot map is unsupported, never silently rewritten", () =>
+		Effect.gen(function* () {
+			const source = `${HEAD}integrity:\n  ? [complex]\n  : 1\n  verified:\n    by: human:ada\n${TAIL}`;
+			const located = yield* locateIntegrity(source);
+			assert.deepStrictEqual(located, { _tag: "unsupported", shape: "integrity-layout" });
+		}),
+	);
+
+	it.effect("exposes the bound actor even when the block does not decode", () =>
+		Effect.gen(function* () {
+			const source = `${HEAD}integrity:\n  generated: nope\n  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n${TAIL}`;
+			const located = yield* locateIntegrity(source);
+			if (located._tag !== "replace") return assert.fail("expected replace");
+			assert.isUndefined(located.current);
+			assert.strictEqual(located.boundBy, "human:ada");
 		}),
 	);
 });

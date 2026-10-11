@@ -148,6 +148,16 @@ describe("removeIntegrityVerified", () => {
 		}),
 	);
 
+	it.effect("removes a quoted verified key", () =>
+		Effect.gen(function* () {
+			const generated = "  generated:\n    body: abcdef0123456789\n";
+			const source = `${head}integrity:\n${generated}  'verified':\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
+			const out = yield* removal(source);
+			if (out._tag !== "edit") return assert.fail(`expected edit, got ${out._tag}`);
+			assert.strictEqual(apply(source, out.edit), `${head}integrity:\n${generated}${tail}`);
+		}),
+	);
+
 	it.effect("fails closed when there is no verified line to cut", () =>
 		Effect.gen(function* () {
 			const source = `${head}integrity:\n  generated:\n    body: abcdef0123456789\n${tail}`;
@@ -249,6 +259,20 @@ describe("runRevoke", () => {
 					yield* revoke(root);
 					assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), `${head}${generated}${tail}`);
 				}),
+		);
+	});
+
+	it.effect("clears the actor's binding even when the integrity block does not decode as a whole", () => {
+		const source = `${head}verified:\n${ada}integrity:\n  generated: nope\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n${tail}`;
+		return withConcept(source, (root, file) =>
+			Effect.gen(function* () {
+				const result = yield* revoke(root);
+				assert.isTrue(result.bindingCleared);
+				assert.strictEqual(
+					yield* Effect.promise(() => readFile(file, "utf8")),
+					`${head}integrity:\n  generated: nope\n${tail}`,
+				);
+			}),
 		);
 	});
 
