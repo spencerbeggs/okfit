@@ -10,10 +10,10 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T13:38:51Z
 integrity:
   generated:
-    body: 36105db5404f04de
+    body: 1a3f30efd7aa79e7
 ---
 
 # VS Code Extension
@@ -98,7 +98,7 @@ methods).
   `provider.ts` (`ConceptsProvider`, a `TreeDataProvider` fed by
   `okfit/concepts` and refreshed on `okfit/bundleChanged`),
   `decorations.ts` (`ConceptDecorations`, a `FileDecorationProvider` for
-  status and stale badges), `wire.ts` (the `okfit/concepts` wire types,
+  status, stale and drift badges), `wire.ts` (the `okfit/concepts` wire types,
   mirroring `packages/lsp/src/features/concepts.ts`'s `ConceptsResult`
   without importing `@okfit/lsp` itself, since the client only ever
   receives this shape over JSON-RPC).
@@ -215,8 +215,8 @@ free it.
 
 - **OKF Concepts** (`okfit.concepts`, Explorer sidebar, `$(book)` icon,
   starts collapsed) -- `ConceptsProvider` (`src/tree/provider.ts`) groups
-  every live bundle's concepts by type, with a numeric stale-count badge
-  per bundle and status decorations (`ConceptDecorations`,
+  every live bundle's concepts by type, with a numeric attention badge
+  (stale plus drifted concepts) per bundle and status decorations (`ConceptDecorations`, where the drift badge `!` outranks stale;
   `src/tree/decorations.ts`) fed by `okfit/concepts` and refreshed on
   `okfit/bundleChanged`, debounced through `src/debounce.ts`'s
   `createDebouncer` (a trailing 250ms window, no `vscode` import, unit

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:32:28Z
+  at: 2026-10-11T13:38:51Z
 integrity:
   generated:
-    body: fd8f1837928e93d9
+    body: 2d77faae1cc49705
 ---
 
 # CLI
@@ -33,10 +33,11 @@ itself is re-exported from `@effected/engine` too -- see [okfit's front
 ends build on @effected/{engine,cli,mcp} rather than hand-rolled
 equivalents](../decisions/front-ends-adopt-the-effected-kit.md). `okfit context` prints the same
 orientation data (project root, bundle root, config path, profile,
-vocabulary) without loading the bundle -- cheap enough for a Claude Code
+vocabulary) without loading the bundle (`--trust` is the one opt-in load, adding drift,
+stale and unverified counts) -- cheap enough for a Claude Code
 hook to call on every session and every in-bundle write. `verify` also
 takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
-at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, and `sync` also takes `--since
+at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, filtered by `--verified`, `--unverified`, `--drifted` and `--stale`, and `sync` also takes `--since
 <YYYY-MM-DD>` (widens the log floor) and `--staged` (the pre-commit
 shape: stamps only the git index with `now` and re-adds what it writes)
 -- see [Engine](engine.md) for what each does; this package only threads
@@ -50,8 +51,7 @@ asks to confirm (`commands/verify-confirm.ts`); `--no-diff` skips it, and
 JSON carries only an optional `prior_integrity`. `okfit verify --revoke
 <id>` removes the current actor's own entries, exits `3` when there is
 nothing to revoke and `64` on a usage conflict (with `--all`, `--type`,
-`--stable`, `--draft`, `--at`, or no id). The picker's multi-line diff
-preview is deferred. This repository's `.config/okfit.toml` temporarily
+`--stable`, `--draft`, `--at`, or no id). This repository's `.config/okfit.toml` temporarily
 sets `verified_drift = "off"`: its existing human verifications predate
 bindings, and the lint is re-enabled once a human has re-verified them. See
 [A verification is bound to the content it
@@ -74,7 +74,7 @@ Four commands prompt, only when interactive: bare `okfit verify` opens a
 picker (`commands/verify-picker.ts`: a MultiSelect by type, then a Confirm
 with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
 [Engine](engine.md); when any row is drifted the list is
-`commands/verify-preview.tsx` instead, the same selection keys beside a
+`commands/verify-preview.tsx`: the same selection keys beside a two-pane
 preview of the highlighted row's diff since its verification was bound);
 `okfit stale --verify` reuses that picker
 (`commands/stale-verify.ts`) over the stale concepts and writes through

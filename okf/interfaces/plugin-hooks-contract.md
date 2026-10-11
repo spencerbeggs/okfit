@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T13:38:51Z
 tags:
   - architecture
 verified:
@@ -15,7 +15,7 @@ verified:
     at: 2026-09-24T00:18:08.679Z
 integrity:
   generated:
-    body: d9982fa8e02d3bce
+    body: ce5dfd4e7f6d9ef3
 ---
 
 # Agent plugin hooks contract
@@ -33,8 +33,12 @@ timeout 30) -- the contract is unchanged from the old hand-written
 
 ## SessionStart contract
 
-Calls `okfit context --format json` once, never `okfit validate` — loading
-the whole bundle just to learn where it is would be wasteful. Turns the
+Calls `okfit context --trust --format json` once, never `okfit validate`;
+`--trust` adds one bundle load for the trust counts, where plain `context`
+never loads the bundle. When drifted plus stale concepts total more than
+zero, the hook prints a trust line right after the config line. On any
+failure of the `--trust` call (an older CLI that rejects the flag) it
+retries plain `okfit context --format json` and prints no trust line. Turns the
 result into `additionalContext`: bundle root and profile, the full
 vocabulary, the bundle's `index.md` contents (truncated at 12,000 bytes),
 and a nudge when `actors.agent` is unset. With no config at all it still

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T13:38:51Z
 tags:
   - architecture
 verified:
@@ -17,7 +17,7 @@ verified:
     at: 2026-09-30T18:17:45Z
 integrity:
   generated:
-    body: 0628d74f5349ce70
+    body: a0aee97428b20fea
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
@@ -104,6 +104,13 @@ one belongs to `init` alone. `context` never produces exit `1` or `2`: it
 never runs conformance or lint checks (the `okfit context` section of
 `packages/cli/README.md`).
 
+Without `--trust`, `context` never loads the bundle and its `trust` field
+is `null`; that keeps it cheap enough for a hook that runs on every write.
+`okfit context --trust` loads the bundle and fills `trust` with the
+counts of `concepts`, `drifted`, `stale` and `unverified`, plus
+`drifted_ids` and `stale_ids` (the first five of each, sorted). The
+session-start hook is the caller that passes it.
+
 ## okfit verify
 
 `okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
@@ -169,13 +176,20 @@ when the actor has no entries to revoke, `64` when combined with `--all`,
 ## okfit query
 
 `okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status
-draft|stable|deprecated]... [--verified|--unverified] [--config <file>]
-[--format human|json]`, `okfit query get <id> [path]` and `okfit query
+draft|stable|deprecated]... [--verified|--unverified] [--drifted]
+[--stale] [--config <file>] [--format human|json]`, `okfit query get <id> [path]` and `okfit query
 neighbors <id> [path]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
 `3` for an unknown id; `64` for an undeclared type or tag or for
-`--verified` with `--unverified`. A concept with no `status` reads as `stable`, so `query list --status stable` includes it. The status list is `query list --status`;
+`--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`
+keeps those never verified, `--drifted` keeps those edited since their
+verification was bound, and `--stale` keeps those past `stale_after`; the
+filters combine with AND. A list line reads `id  status  trust  type
+title`, and `query get` adds tier, integrity and stale lines (and a `drift`
+object with `reason`, `edited_by` and `edited_at` in JSON). A concept with
+no `status` reads as `stable`, so `query list --status stable` includes it.
+The status list is `query list --status`;
 there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 ## okfit sync
@@ -386,7 +400,9 @@ version when there is one.
 `ContextEnvelope` (schema 1) where every field is present even when
 `null` — `config_path`, `profile`, `profile_requested`, and `actors.agent`
 never an omitted key (`packages/cli/README.md:188-277`) — and which
-carries `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
+carries a `trust` field (`null` unless `--trust` was given: `concepts`,
+`drifted`, `stale`, `unverified`, `drifted_ids`, `stale_ids`) and
+`config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
 `major.minor` label of the schema the loaded config was checked against
 (`okf/interfaces/okfit-config-schema.md`). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
@@ -399,7 +415,7 @@ carries `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
 `okfit query list --format json` prints `QueryListEnvelope` (`schema`,
 `okfit_version`, `engine_version`, `distribution`, `total`, `items`);
 `query get` prints `QueryGetEnvelope` (same header, `concept`: the summary
-fields plus `frontmatter` and `links`); `query neighbors` prints
+fields plus `frontmatter`, `links` and `drift`); `query neighbors` prints
 `QueryNeighborsEnvelope` (same header, `id`, `outgoing`, `incoming`).
 `okfit lint --format json` reuses `JsonEnvelope` unchanged — same shape as
 `okfit validate`'s — with `summary.conformance_errors` always `0` and no

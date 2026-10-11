@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T13:38:51Z
 integrity:
   generated:
-    body: 6101bb496bdf0f88
+    body: 58e22933ab6e9cec
 ---
 
 # MCP
@@ -32,7 +32,13 @@ through `Crypto.Crypto`, also part of `validate_bundle`'s dependencies,
 with no git call at all — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate_bundle` also reports
 the `verified-drift` lint, since it runs the same engine validation; the
-tools stay read-only and never write `integrity`.
+tools stay read-only and never write `integrity`. `list_concepts` filters by
+`verified`, `drifted` and `stale`, `get_concept` reports tier, integrity,
+stale and drift, and `stale_report` lists the drifted concepts too; the
+trust signals come from [Profiles](profiles.md)' `Trust.evaluate` and are
+computed even when the `verified-drift` lint is off. The server
+instructions carry a trust paragraph, while the resource descriptions stay
+unchanged because they are fixed at boot.
 
 This package depends on [Engine](engine.md) directly -- for the platform
 layer (`OkfitPlatform`), the config/bundle loading `validate_bundle`

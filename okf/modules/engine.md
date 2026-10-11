@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:32:28Z
+  at: 2026-10-11T13:38:51Z
 integrity:
   generated:
-    body: c72d42e3309381b4
+    body: 9cbe9f5ecc70592c
 ---
 
 # Engine
@@ -77,7 +77,14 @@ merge keys and flow mappings, and its zero-length inserts join
 — two zero-length inserts at one offset are the "overlapping edits" case
 `MarkdownEdit.applyAll` treats as a programmer error. Digests that are all
 digits or digits-e-digits are written single-quoted. `validate/run.ts`
-composes `verified-drift` beside `Provenance.lint`. See [Every okfit digest
+composes `verified-drift` beside `Provenance.lint` and returns the
+per-concept `signals` from `run()`; `BundleSession` caches them on each
+revalidate, computing them even when the lint is `off` because the editor
+and agent surfaces need them. `ConceptSummary` carries `tier`, `integrity`
+and `stale`, `TrustDrift` holds `reason`, `edited_by` and `edited_at`, and
+`ConceptFilter` takes `verified` (`current` or `unverified`), `drifted` and
+`stale`, with `signalFor` looking up one concept's signal.
+`trust/run.ts#runContextTrust` backs `okfit context --trust`. See [Every okfit digest
 lives in one integrity family](../decisions/integrity-family.md).
 
 Every `verified` write (`runVerify`, `runVerifyBatch`, `runVerifyIds`)
@@ -127,8 +134,8 @@ verify` picker offers: concepts of a `require_verified` type the caller has
 not attested, drafts included and deprecated excluded; each row carries
 its absolute `path` and `boundAt`, and `verify/run.ts#loadPreviews` runs
 `changeSince` for the drifted rows (a git failure reads as `no-baseline`).
-A bare `verify` with
-no selection is still a `VerifySelectionError` (exit `64`); its message now
+`selectPickerCandidates` and `selectStaleCandidates` take a `locate`
+argument. A bare `verify` with no selection is still a `VerifySelectionError` (exit `64`); its message now
 ends `(run in a terminal to pick interactively)`.
 
 `verify/select.ts#selectStaleCandidates` and

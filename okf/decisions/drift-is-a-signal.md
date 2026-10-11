@@ -7,14 +7,14 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:59:59Z
+  at: 2026-10-11T13:38:51Z
 status: draft
 sources:
   - id: trust-ts
     resource: ../../packages/profiles/src/Trust.ts
 integrity:
   generated:
-    body: 0c57f97e443b429c
+    body: fd2bbd6bd1352cf8
 ---
 
 # Verification drift is a signal to weigh, never a gate
@@ -32,8 +32,12 @@ covered](verification-binds-content.md) makes the check possible.
 Editing a verified concept is allowed for anyone, of any type. The edit
 turns the verification drifted; `okfit validate` reports the `verified-drift`
 lint at `warn`, carried by `okfit validate` and the MCP `validate_bundle`
-tool, beside the unchanged trust tier. Drift fields on MCP, LSP and VS Code
-surfaces and `query` filters are planned for a later phase. A human re-runs `okfit verify` to re-bind.
+tool, beside the unchanged trust tier. The same signal reaches every front end:
+`okfit query` filters (`--drifted`, `--stale`, `--verified`,
+`--unverified`), `okfit context --trust` counts, the MCP `list_concepts`
+filters and `get_concept` fields, the language server's hover, inlay hint
+and `Re-verify as <actor>` quick fix, the VS Code drift badge, and a diff
+preview in the verify picker. A human re-runs `okfit verify` to re-bind.
 Deprecate and supersede a Decision only when the choice itself changes.
 Staleness (`stale_after`) stays a separate, parallel signal.
 
