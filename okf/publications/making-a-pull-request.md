@@ -7,11 +7,11 @@ resource: ../../docs/01-making-a-pull-request.md
 surface: ../surfaces/contributor-guides.md
 renders:
   - path: ../conventions/commits-conventional-dco-no-main.md
-    body_sha256: 20e6953f2dd97ce0b778e2680bb1c03906d60cf54ab0966c70384e02ad397b65
+    body: 20e6953f2dd97ce0
   - path: ../conventions/tests-live-in-test-dir.md
-    body_sha256: 19e5d5684f9c3e0e0c58aaf9c59910b8ccf51ff9e21ff55e97703c4319ff395f
+    body: 19e5d5684f9c3e0e
   - path: ../conventions/relative-imports-js-extension.md
-    body_sha256: c58164991f73965f06c20aa885ce548494d03da650cf85506f00abe23ee614c6
+    body: c58164991f73965f
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:23:40Z
