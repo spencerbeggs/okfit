@@ -26,7 +26,10 @@ export type LinkResolution =
 	| { readonly _tag: "self" }
 	| { readonly _tag: "external" }
 	| { readonly _tag: "descriptor" }
-	| { readonly _tag: "node"; readonly id: string; readonly kind: ResolvedKind };
+	| { readonly _tag: "node"; readonly id: string; readonly kind: ResolvedKind; readonly via: LinkVia };
+
+/** Which D-23 branch produced a node: `rooted` (leading `/`), `file` (B) or `root` (C). @internal */
+export type LinkVia = "rooted" | "file" | "root";
 
 /** A span in file text, zero-based UTF-16 offsets. @internal */
 export interface TextSpan {
@@ -63,24 +66,29 @@ const escapes = (path: string): boolean => path === ".." || path.startsWith("../
 
 const withIndex = (candidate: string): string => (candidate.endsWith("/") ? `${candidate}index.md` : candidate);
 
-const existing = (path: string, index: BundleIndex): LinkResolution | undefined => {
+const existing = (path: string, index: BundleIndex, via: LinkVia): LinkResolution | undefined => {
 	if (!index.files.has(path)) return undefined;
 	if (path.endsWith(".md") && !isReserved(path)) {
 		const id = path.slice(0, -3);
-		if (index.concepts.has(id)) return { _tag: "node", id, kind: "concept" };
+		if (index.concepts.has(id)) return { _tag: "node", id, kind: "concept", via };
 	}
-	return { _tag: "node", id: path, kind: "file" };
+	return { _tag: "node", id: path, kind: "file", via };
 };
 
-const lookup = (candidate: string, index: BundleIndex): LinkResolution | undefined => {
+const lookup = (candidate: string, index: BundleIndex, via: LinkVia): LinkResolution | undefined => {
 	const path = withIndex(candidate);
 	if (path === "." || path === "") return undefined;
-	const direct = existing(path, index);
+	const direct = existing(path, index, via);
 	if (direct !== undefined) return direct;
-	return basename(path).includes(".") ? undefined : existing(`${path}.md`, index);
+	return basename(path).includes(".") ? undefined : existing(`${path}.md`, index, via);
 };
 
-const missing = (candidate: string): LinkResolution => ({ _tag: "node", id: withIndex(candidate), kind: "missing" });
+const missing = (candidate: string, via: LinkVia): LinkResolution => ({
+	_tag: "node",
+	id: withIndex(candidate),
+	kind: "missing",
+	via,
+});
 
 /** Resolve a body link or path field from `from` (the linking file's bundle-relative path), order A-D (D-23). @internal */
 export const resolveTarget = (from: string, raw: string, index: BundleIndex): LinkResolution => {
@@ -92,21 +100,21 @@ export const resolveTarget = (from: string, raw: string, index: BundleIndex): Li
 		const rooted = target.slice(1);
 		const candidate = rooted === "" ? "index.md" : normalize(rooted);
 		if (escapes(candidate)) return { _tag: "external" };
-		return lookup(candidate, index) ?? missing(candidate);
+		return lookup(candidate, index, "rooted") ?? missing(candidate, "rooted");
 	}
 	const relative = target.startsWith("./") || target.startsWith("../");
 	const fileRelative = join(dirname(from), target);
 	if (escapes(fileRelative)) return { _tag: "external" };
-	const hitB = lookup(fileRelative, index);
+	const hitB = lookup(fileRelative, index, "file");
 	if (hitB !== undefined) return hitB;
 	if (!relative) {
 		const rootRelative = normalize(target);
 		if (escapes(rootRelative)) return { _tag: "external" };
-		const hitC = lookup(rootRelative, index);
+		const hitC = lookup(rootRelative, index, "root");
 		if (hitC !== undefined) return hitC;
-		if (target.includes("/")) return missing(rootRelative);
+		if (target.includes("/")) return missing(rootRelative, "root");
 	}
-	return missing(fileRelative);
+	return missing(fileRelative, "file");
 };
 
 /** Field-aware resolution (D-24): a `sources.resource` with whitespace, or that resolves to nothing, is a descriptor. @internal */

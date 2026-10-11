@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Graph as EffectGraph, Option } from "effect";
+import { MemoryFileSystem } from "@effected/memfs";
+import { Effect, Graph as EffectGraph, Layer, Option, Path } from "effect";
 import { Bundle } from "../src/Bundle.js";
 import type { GraphLink } from "../src/Graph.js";
 import { Graph } from "../src/Graph.js";
@@ -99,5 +100,69 @@ describe("Graph.fromBundle", () => {
 			assert.deepStrictEqual(ids(graph.successors("modules/z")), ["modules/x"]);
 			assert.strictEqual(graph.edges.length, 2);
 		}).pipe(Effect.provide(EscapePlatform)),
+	);
+});
+
+describe("Graph.resolve", () => {
+	const RESOLVE_ROOT = "/repo/resolve";
+	const doc = (title: string) => `---\ntype: Note\ntitle: ${title}\n---\n\n# ${title}\n`;
+	const seed = {
+		[`${RESOLVE_ROOT}/decisions/a.md`]: doc("A"),
+		[`${RESOLVE_ROOT}/decisions/b.md`]: doc("B"),
+		[`${RESOLVE_ROOT}/conventions/c.md`]: doc("C"),
+	};
+	const platform = Layer.mergeAll(MemoryFileSystem.layerWith(seed), Path.layer);
+	const loaded = Bundle.load({ root: RESOLVE_ROOT });
+
+	it.effect("reports which D-23 rule produced a node", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loaded;
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "b.md"), {
+				_tag: "node",
+				id: "decisions/b",
+				kind: "concept",
+				via: "file",
+			});
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "/conventions/c.md"), {
+				_tag: "node",
+				id: "conventions/c",
+				kind: "concept",
+				via: "rooted",
+			});
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "conventions/c"), {
+				_tag: "node",
+				id: "conventions/c",
+				kind: "concept",
+				via: "root",
+			});
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "../../src/x.ts"), { _tag: "external" });
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "the git history", "sources.resource"), {
+				_tag: "descriptor",
+			});
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("a missing node reports the via of the candidate it fell back to", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loaded;
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "nope.md"), {
+				_tag: "node",
+				id: "decisions/nope.md",
+				kind: "missing",
+				via: "file",
+			});
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "x/nope.md"), {
+				_tag: "node",
+				id: "x/nope.md",
+				kind: "missing",
+				via: "root",
+			});
+			assert.deepStrictEqual(Graph.resolve(bundle, "decisions/a.md", "/x/nope.md"), {
+				_tag: "node",
+				id: "x/nope.md",
+				kind: "missing",
+				via: "rooted",
+			});
+		}).pipe(Effect.provide(platform)),
 	);
 });
