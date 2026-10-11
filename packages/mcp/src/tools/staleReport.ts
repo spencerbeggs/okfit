@@ -12,7 +12,7 @@ import type { StaleReportParams } from "../schema/tools.js";
 import { StaleReportParams as Params, StaleReportSuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Lists every stale or drifted concept. items: concepts whose stale_after instant has passed, each with its summary, the date, and whole days past it. drifted: concepts a human verified whose content changed since (or was never bound), with the reason and who last edited. Pass now as an ISO-8601 instant with an explicit offset to report as of a different moment.";
+	"Lists every stale or drifted concept. items: stale_after passed, each with its summary, the date and whole days past. drifted: human-verified concepts whose content changed since (or was never bound), with the reason and last editor. Uses the current time unless now is given (ISO-8601 with an explicit offset).";
 
 /**
  * `dependencies` mirrors the other tools' (Task B1's Deviation 1):

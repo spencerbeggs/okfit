@@ -12,7 +12,7 @@ import type { ListConceptsParams } from "../schema/tools.js";
 import { ListConceptsSuccess, ListConceptsParams as Params } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Lists concept summaries from the okf bundle, filtered by exact type, tags that must all be present (AND), and status. Filter by verified (true: a current human verification; false: never verified), drifted, or stale; every summary carries tier, integrity and stale. Pages with limit (default 200, max 1000) and offset, and reports the total. An unknown type or tag fails with the valid names.";
+	"Lists concept summaries, filtered by exact type, tags that must all be present (AND), status, verified (true: current human verification; false: never verified), drifted or stale. Each summary carries tier, integrity and stale. now (ISO-8601 with offset) sets the staleness time. Pages by limit (default 200, max 1000) and offset, with total. An unknown type or tag fails with the valid names.";
 
 /**
  * `dependencies` mirrors `describe_vocabulary`'s (Deviation 1 in Task B1's
