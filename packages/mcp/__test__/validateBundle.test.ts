@@ -65,10 +65,11 @@ describe("validate_bundle", () => {
 			// log-frontmatter -- 2, not the brief's predicted 1. The fixture's
 			// .config/okfit.toml sets actors.agent and metrics/churn.md has no
 			// generated block, so generated-missing (issue #73) adds a third.
-			// Plus eight verified-drift warnings: the fixture's human-verified
-			// concepts carry no integrity.verified binding (integrity phase 1).
-			assert.strictEqual(data.summary.lint_warnings, 11);
-			assert.strictEqual(data.diagnostics.filter((diagnostic) => diagnostic.code === "verified-drift").length, 8);
+			// Plus seven verified-drift warnings: the fixture's human-verified
+			// concepts carry no integrity.verified binding (integrity phase 1);
+			// the deprecated metrics/gross-margin-legacy is exempt from the lint.
+			assert.strictEqual(data.summary.lint_warnings, 10);
+			assert.strictEqual(data.diagnostics.filter((diagnostic) => diagnostic.code === "verified-drift").length, 7);
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "log-frontmatter"));
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "broken-links"));
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "generated-missing"));
