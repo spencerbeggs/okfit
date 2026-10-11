@@ -4,12 +4,15 @@ import { Git } from "@effected/git";
 import { Timestamp } from "@okfit/core";
 import {
 	Now,
+	RevokeEnvelope,
 	VerifyBatchEnvelope,
 	VerifyEnvelope,
 	VerifySelectionError,
 	jsonError,
 	provideConfig,
 	resolveProjectConfig,
+	revokeEnvelope,
+	runRevoke,
 	runVerify,
 	runVerifyBatch,
 	runVerifyIds,
@@ -19,7 +22,7 @@ import {
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { displayRoot } from "../render/human.js";
-import { humanVerifyBatchDoc, humanVerifyDoc } from "../render/verify.js";
+import { humanRevokeDoc, humanVerifyBatchDoc, humanVerifyDoc } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
 import { pickConcepts } from "./verify-picker.js";
 
@@ -63,6 +66,14 @@ const draftFlag = Flag.Boolean("draft").pipe(
 	Flag.withDescription("also set (or keep) status: draft in the same write; needs a concept id"),
 );
 
+/** Take back your own verification of one concept. */
+const revokeFlag = Flag.Boolean("revoke").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription(
+		"remove your own verified entries from the concept (and its integrity binding); needs a concept id, excludes --all, --type, --stable, --draft and --at",
+	),
+);
+
 /** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context's. */
 const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
 	Argument.optional,
@@ -96,7 +107,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 
 /**
  * `okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
- * [--config <file>] [--at <iso>] [--dry-run] [--format human|json]`.
+ * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--format human|json]`.
  *
  * Handler order fixed by contract §2.3. Steps 1–3 are `context`'s handler
  * in substance — stat `--config` (K-1) via `provideConfig`, discover,
@@ -120,6 +131,7 @@ export const verifyCommand = Command.make(
 		type: typeFlag,
 		stable: stableFlag,
 		draft: draftFlag,
+		revoke: revokeFlag,
 		at: atFlag,
 		dryRun: dryRunFlag,
 		format: formatFlag,
@@ -142,12 +154,62 @@ export const verifyCommand = Command.make(
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
+				// --revoke is its own mode: validate its usage before touching config, git or the clock.
+				if (input.revoke) {
+					const conflicts = [
+						...(input.all ? ["--all"] : []),
+						...(input.type.length > 0 ? ["--type"] : []),
+						...(input.stable ? ["--stable"] : []),
+						...(input.draft ? ["--draft"] : []),
+						...(Option.isSome(input.at) ? ["--at"] : []),
+					];
+					if (conflicts.length > 0) {
+						return yield* new VerifySelectionError({ reason: "revoke-conflict", detail: conflicts.join(", ") });
+					}
+					if (Option.isNone(input.id)) return yield* new VerifySelectionError({ reason: "revoke-needs-id" });
+				}
 				const path = yield* Path.Path;
 				const resolved = yield* resolveProjectConfig({
 					pathArg: effectivePath,
 					explicitConfigPath: input.config,
 					cwd,
 				});
+
+				if (input.revoke && Option.isSome(input.id)) {
+					const result = yield* runRevoke({
+						id: input.id.value,
+						bundleRoot: resolved.bundleRoot,
+						projectRoot: resolved.projectRoot,
+						config: resolved.config,
+						dryRun: input.dryRun,
+					});
+					const displayPath = `${displayRoot(cwd, result.bundleRoot, path)}/${result.conceptPath}`;
+					if (input.format === "json") {
+						const envelope = revokeEnvelope({
+							okfitVersion: CLI_VERSION,
+							id: result.id,
+							path: displayPath,
+							by: result.by,
+							removed: result.removed,
+							bindingCleared: result.bindingCleared,
+							dryRun: result.dryRun,
+							// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
+							...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
+						});
+						yield* Console.log(JSON.stringify(Schema.encodeSync(RevokeEnvelope)(envelope)));
+					} else {
+						yield* Doc.print(
+							humanRevokeDoc({
+								id: result.id,
+								by: result.by,
+								removed: result.removed,
+								bindingCleared: result.bindingCleared,
+								dryRun: result.dryRun,
+							}),
+						);
+					}
+					return;
+				}
 
 				// Contract §12 note 7: decodeUnknownSync THROWS, and a throw inside
 				// Effect.gen is a defect, not an exit-3 failure. The
@@ -324,6 +386,7 @@ export const verifyCommand = Command.make(
 			"there is no --by. Give a concept id, or --all/--type <Type> (repeatable) to attest a batch of " +
 			"unverified concepts at once; exactly one of the two selections is required. " +
 			"With a concept id, --stable or --draft also sets its status in the same write. " +
+			"--revoke <id> takes back your own attestation: it removes your verified entries and the integrity binding. " +
 			"This is a human-run command: no agent, hook, or MCP tool ever invokes it.",
 	),
 );

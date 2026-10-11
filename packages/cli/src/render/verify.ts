@@ -156,3 +156,39 @@ export const humanVerifyBatchDoc = (input: VerifyBatchLines): Document => [
 			: `verified ${input.verified.length}, skipped ${input.skipped.length}`,
 	),
 ];
+
+/** `humanRevoke`'s input shape. @public */
+export interface RevokeLines {
+	readonly id: string;
+	readonly by: string;
+	/** The `at` of every removed entry, in list order. */
+	readonly removed: ReadonlyArray<string>;
+	readonly bindingCleared: boolean;
+	readonly dryRun: boolean;
+}
+
+/**
+ * `okfit verify --revoke`'s human output: one headline, then one line per
+ * removed entry and one for the integrity binding. Under `--dry-run` every line
+ * is phrased as what would happen and the headline says nothing was written.
+ *
+ * @public
+ */
+export const humanRevoke = (input: RevokeLines): ReadonlyArray<string> => {
+	const count = `${input.removed.length} verified ${input.removed.length === 1 ? "entry" : "entries"}`;
+	return [
+		input.dryRun
+			? `would revoke ${count} of ${input.id} by ${input.by} (dry run, nothing written)`
+			: `revoked ${count} of ${input.id} by ${input.by}`,
+		...input.removed.map((at) => `  ${input.dryRun ? "would remove" : "removed"} entry at ${at}`),
+		...(input.bindingCleared ? [`  ${input.dryRun ? "would clear" : "cleared"} the integrity.verified binding`] : []),
+	];
+};
+
+/**
+ * The `Doc` form of {@link humanRevoke}; plain output is byte-identical to
+ * `humanRevoke(input).join("\n")`.
+ *
+ * @public
+ */
+export const humanRevokeDoc = (input: RevokeLines): Document => humanRevoke(input).map(fact);

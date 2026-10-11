@@ -4,9 +4,14 @@ import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
-import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
-import { locateIntegrity, spliceIntegrityVerified } from "./integrity.js";
+import {
+	VerifyConceptNotFoundError,
+	VerifyNothingToRevokeError,
+	VerifyUnsupportedFrontmatterError,
+} from "../errors.js";
+import { locateIntegrity, removeIntegrityVerified, spliceIntegrityVerified } from "./integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
+import { locateVerifiedEntries } from "./revoke.js";
 import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./select.js";
 import { orderVerifyEdits, quoteLike, splice, spliceTopLevelScalar } from "./splice.js";
@@ -301,6 +306,100 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		content: prepared.content,
 		priorDrift: prior.drift?.reason ?? null,
 	} satisfies VerifyResult;
+});
+
+/**
+ * Options for {@link runRevoke}.
+ *
+ * @internal
+ */
+export interface RevokeOptions {
+	readonly id: string;
+	readonly bundleRoot: string;
+	readonly projectRoot: string;
+	readonly config: OkfitConfig;
+	readonly dryRun: boolean;
+}
+
+/**
+ * What {@link runRevoke} removed (or, under a dry run, would remove).
+ *
+ * @internal
+ */
+export interface RevokeResult {
+	readonly id: string;
+	readonly bundleRoot: string;
+	readonly conceptPath: string;
+	/** The resolved actor whose entries were removed. */
+	readonly by: string;
+	/** The encoded `at` of every removed entry, in list order. */
+	readonly removed: ReadonlyArray<string>;
+	/** Whether `integrity.verified` (bound to this actor) was removed too. */
+	readonly bindingCleared: boolean;
+	readonly dryRun: boolean;
+}
+
+/**
+ * `okfit verify --revoke`: removes every `verified` entry by the resolved
+ * human actor (the same git identity `verify` records) and, when
+ * `integrity.verified` is bound to that actor, that slot too, deleting the
+ * whole `integrity` block only when nothing else is left in it. Every cut is a
+ * byte-precise splice; an unsupported `verified` or `integrity` shape fails
+ * closed with the file untouched, and an actor with no entry fails
+ * `VerifyNothingToRevokeError`. Another actor's entries and binding are never
+ * touched, so they then read as `entry-superseded` or unbound by themselves.
+ *
+ * @internal
+ */
+export const runRevoke = Effect.fn("okfit/verify/runRevoke")(function* (options: RevokeOptions) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const { id, concept } = yield* resolveConcept(bundle, options.id);
+	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
+
+	const fs = yield* FileSystem.FileSystem;
+	const path = yield* Path.Path;
+	const absolutePath = path.join(bundle.root, concept.path);
+	const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(yield* fs.readFile(absolutePath));
+	const { text, bom } = stripBom(source);
+
+	const entries = yield* locateVerifiedEntries(text, actor);
+	if (entries._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: entries.shape, key: "verified" });
+	}
+	if (entries._tag === "none") return yield* new VerifyNothingToRevokeError({ id, actor });
+
+	const integrity = yield* locateIntegrity(text);
+	if (integrity._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: integrity.shape, key: "integrity" });
+	}
+	const bound = integrity._tag === "replace" && integrity.current?.verified?.by === actor;
+	const unbind = bound ? removeIntegrityVerified(integrity, text) : ({ _tag: "none" } as const);
+	if (unbind._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: unbind.shape, key: "integrity" });
+	}
+
+	const edits = [
+		...entries.removals.map((span) =>
+			MarkdownEdit.make({ offset: span.start, length: span.end - span.start, content: "" }),
+		),
+		...(unbind._tag === "edit" ? [unbind.edit] : []),
+	].toSorted((a, b) => a.offset - b.offset);
+	const finalText = bom + MarkdownEdit.applyAll(text, edits);
+	const removed = (concept.frontmatter.verified ?? [])
+		.filter((entry) => entry.by === actor)
+		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
+
+	if (!options.dryRun) yield* writeVerified(absolutePath, finalText);
+
+	return {
+		id,
+		bundleRoot: bundle.root,
+		conceptPath: concept.path,
+		by: actor,
+		removed,
+		bindingCleared: unbind._tag === "edit",
+		dryRun: options.dryRun,
+	} satisfies RevokeResult;
 });
 
 /**

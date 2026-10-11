@@ -290,6 +290,57 @@ export const spliceIntegrityVerified = (
 		newline,
 	);
 
+/** What {@link removeIntegrityVerified} decided. @internal */
+export type IntegrityVerifiedRemoval =
+	| { readonly _tag: "none" }
+	| { readonly _tag: "edit"; readonly edit: MarkdownEdit }
+	| { readonly _tag: "unsupported"; readonly shape: string };
+
+/**
+ * The one edit that removes the `integrity.verified` slot and nothing else:
+ * only that slot's lines go, every other byte of the block (the `generated`
+ * slot, unknown keys, comments, quoting) stays. When nothing but blank and
+ * comment lines would remain under `integrity:`, the whole block goes instead.
+ * `none` when the block is absent; fails closed (`unsupported`) on a layout
+ * the slot editor cannot match, never falling back to a whole-block rewrite.
+ * `text` is the same BOM-stripped source the target was located in.
+ *
+ * @internal
+ */
+export const removeIntegrityVerified = (
+	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
+	text: string,
+): IntegrityVerifiedRemoval => {
+	if (target._tag === "absent") return { _tag: "none" };
+	const lines = text.slice(target.start, target.end).match(/[^\n]*\n|[^\n]+$/gu) ?? [];
+	const bare = (line: string) => line.replace(/\r?\n$/u, "");
+	if (lines.length < 2 || !/^integrity:[ \t]*$/u.test(bare(lines[0] ?? ""))) {
+		return { _tag: "unsupported", shape: "integrity-layout" };
+	}
+	const first = lines.slice(1).find((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
+	const indent = /^[ \t]*/u.exec(first ?? "")?.[0] ?? "";
+	if (indent === "") return { _tag: "unsupported", shape: "integrity-layout" };
+	const at = lines.findIndex((line, i) => i > 0 && new RegExp(`^${indent}verified[ \\t]*:`, "u").test(bare(line)));
+	if (at === -1) return { _tag: "unsupported", shape: "integrity-layout" };
+	let end = at + 1;
+	while (end < lines.length) {
+		const line = bare(lines[end] as string);
+		if (line.trim() !== "" && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) break;
+		end++;
+	}
+	const remaining = [...lines.slice(1, at), ...lines.slice(end)];
+	const hasContent = remaining.some((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
+	if (!hasContent) {
+		return {
+			_tag: "edit",
+			edit: MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: "" }),
+		};
+	}
+	const before = lines.slice(0, at).join("").length;
+	const length = lines.slice(at, end).join("").length;
+	return { _tag: "edit", edit: MarkdownEdit.make({ offset: target.start + before, length, content: "" }) };
+};
+
 /** A legacy `generated.body_sha256` line, or none. @internal */
 export type LegacyBodyLocated =
 	| { readonly _tag: "line"; readonly start: number; readonly end: number; readonly value: string }

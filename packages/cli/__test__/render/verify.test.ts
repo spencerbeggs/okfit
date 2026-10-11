@@ -1,6 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Render } from "@effected/cli";
-import { humanVerify, humanVerifyBatch, humanVerifyBatchDoc, humanVerifyDoc } from "../../src/render/verify.js";
+import {
+	humanRevoke,
+	humanRevokeDoc,
+	humanVerify,
+	humanVerifyBatch,
+	humanVerifyBatchDoc,
+	humanVerifyDoc,
+} from "../../src/render/verify.js";
 
 describe("humanVerify", () => {
 	it("renders the success line, with a would-write preview under --dry-run", () => {
@@ -233,5 +240,33 @@ describe("verify docs at a finite width", () => {
 			ctx,
 		);
 		assert.strictEqual(out.split("\n").length, 2);
+	});
+});
+
+describe("humanRevoke", () => {
+	const base = { id: "decisions/x", by: "human:ada", removed: ["2026-09-01T00:00:00Z"], bindingCleared: true };
+
+	it("reports what was removed and the cleared binding", () => {
+		assert.deepStrictEqual(humanRevoke({ ...base, dryRun: false }), [
+			"revoked 1 verified entry of decisions/x by human:ada",
+			"  removed entry at 2026-09-01T00:00:00Z",
+			"  cleared the integrity.verified binding",
+		]);
+	});
+
+	it("phrases a dry run as what would happen and omits the binding line when it stays", () => {
+		assert.deepStrictEqual(humanRevoke({ ...base, removed: ["a", "b"], bindingCleared: false, dryRun: true }), [
+			"would revoke 2 verified entries of decisions/x by human:ada (dry run, nothing written)",
+			"  would remove entry at a",
+			"  would remove entry at b",
+		]);
+	});
+
+	it("the Doc form prints the same plain lines", () => {
+		const out = Render.plain(
+			humanRevokeDoc({ ...base, dryRun: false }),
+			Render.contextOf({ audience: "human", width: 80 }),
+		);
+		assert.strictEqual(out, humanRevoke({ ...base, dryRun: false }).join("\n"));
 	});
 });

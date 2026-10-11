@@ -25,6 +25,7 @@ export {
 	SyncPublicationConflictError,
 	SyncStagedLogError,
 	VerifyConceptNotFoundError,
+	VerifyNothingToRevokeError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
@@ -77,7 +78,14 @@ export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
 export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { PublicationEnvelope, SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
-export { VerifyBatchEnvelope, VerifyEnvelope, verifyBatchEnvelope, verifyEnvelope } from "./render/verify.js";
+export {
+	RevokeEnvelope,
+	VerifyBatchEnvelope,
+	VerifyEnvelope,
+	revokeEnvelope,
+	verifyBatchEnvelope,
+	verifyEnvelope,
+} from "./render/verify.js";
 export type {
 	BundleSessionOptions,
 	BundleSessionServices,
@@ -101,6 +109,8 @@ export type { RunOptions, RunResult } from "./validate/run.js";
 export { Now, run } from "./validate/run.js";
 export type {
 	PickerCandidatesOptions,
+	RevokeOptions,
+	RevokeResult,
 	VerifyBatchOptions,
 	VerifyBatchResult,
 	VerifyBatchSkipReason,
@@ -108,7 +118,14 @@ export type {
 	VerifyOptions,
 	VerifyResult,
 } from "./verify/run.js";
-export { loadPickerCandidates, loadStaleCandidates, runVerify, runVerifyBatch, runVerifyIds } from "./verify/run.js";
+export {
+	loadPickerCandidates,
+	loadStaleCandidates,
+	runRevoke,
+	runVerify,
+	runVerifyBatch,
+	runVerifyIds,
+} from "./verify/run.js";
 export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
 export { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

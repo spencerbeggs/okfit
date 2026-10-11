@@ -589,4 +589,56 @@ describe("okfit verify (e2e)", () => {
 			}
 		});
 	});
+	describe("--revoke", () => {
+		const NOW = { OKFIT_NOW: "2026-09-07T00:00:00.000Z" };
+
+		it("removes your entry and the binding, restoring the pre-verify bytes", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const before = await readProject(cwd);
+				await withServices(runOkfit(["verify", "project"], { cwd, env: { ...env, ...NOW } }));
+
+				const dry = await withServices(runOkfit(["verify", "project", "--revoke", "--dry-run"], { cwd, env }));
+				assert.strictEqual(dry.exitCode, 0);
+				assert.match(dry.stdout, /would revoke 1 verified entry of project by human:ada \(dry run, nothing written\)/);
+				assert.notStrictEqual(await readProject(cwd), before);
+
+				const run = await withServices(runOkfit(["verify", "project", "--revoke", "--format", "json"], { cwd, env }));
+				assert.strictEqual(run.exitCode, 0);
+				const envelope = JSON.parse(run.stdout) as Record<string, unknown>;
+				assert.deepStrictEqual(envelope.removed, ["2026-09-07T00:00:00Z"]);
+				assert.strictEqual(envelope.binding_cleared, true);
+				assert.strictEqual(envelope.revoked_by, "human:ada");
+				assert.strictEqual(await readProject(cwd), before);
+
+				const again = await withServices(runOkfit(["verify", "project", "--revoke"], { cwd, env }));
+				assert.strictEqual(again.exitCode, 3);
+				assert.match(again.stderr, /has no verified entry by human:ada to revoke/);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("is a usage error (64) without an id or beside --all, --type, --stable, --draft or --at", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const noId = await withServices(runOkfit(["verify", "--revoke"], { cwd, env }));
+				assert.strictEqual(noId.exitCode, 64);
+				assert.match(noId.stderr, /--revoke needs a concept id/);
+				for (const flag of [
+					["--all"],
+					["--type", "Decision"],
+					["--stable"],
+					["--draft"],
+					["--at", "2026-09-07T00:00:00Z"],
+				]) {
+					const run = await withServices(runOkfit(["verify", "project", "--revoke", ...flag], { cwd, env }));
+					assert.strictEqual(run.exitCode, 64, flag.join(" "));
+					assert.match(run.stderr, new RegExp(`cannot combine with ${flag[0]}`));
+				}
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+	});
 });
