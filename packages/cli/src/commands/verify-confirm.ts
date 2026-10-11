@@ -4,6 +4,7 @@ import type { OkfitConfig } from "@okfit/core";
 import type { ChangeSince } from "@okfit/engine";
 import { changeSince, inspectDrift } from "@okfit/engine";
 import type { DriftReason } from "@okfit/profiles";
+import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Console, Effect } from "effect";
 
@@ -28,12 +29,16 @@ const REASON_TEXT = {
  * before it gets here). A drifted concept in those runs still reports its
  * reason through `VerifyResult.priorDrift` (JSON `prior_integrity`).
  *
+ * An unlisted human (`[actors].humans`) fails with `HumanActorNotAllowedError` before any
+ * patch or prompt is shown.
+ *
  * A git failure reading the history degrades to a note and still asks: the
  * person can re-verify without the patch.
  */
 export const confirmReverify = (options: {
 	readonly id: string;
 	readonly bundleRoot: string;
+	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
 	readonly noDiff: boolean;
@@ -41,6 +46,8 @@ export const confirmReverify = (options: {
 }) =>
 	Effect.gen(function* () {
 		if (options.noDiff || options.dryRun || !(yield* CliInteractive)) return true;
+		// A human the allow-list refuses fails here, before any patch or prompt is shown.
+		yield* Derivation.verifier({ cwd: options.projectRoot, config: options.config });
 		const inspection = yield* inspectDrift({
 			id: options.id,
 			bundleRoot: options.bundleRoot,
