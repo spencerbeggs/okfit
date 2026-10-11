@@ -14,10 +14,12 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-09-29T22:18:38Z
-  body_sha256: 96fc4a302944f3c77662cea0b99cf7277948e861651ef611c433f77e390c05e0
 verified:
   - by: human:spencer
     at: 2026-09-29T22:19:48Z
+integrity:
+  generated:
+    body: 96fc4a302944f3c7
 ---
 
 # User docs live under /docs; package hierarchies live at the site root beside their generated API

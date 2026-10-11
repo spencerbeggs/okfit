@@ -9,9 +9,11 @@ resource: ../../README.md
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
-  body_sha256: 36ecd1744128122b237088b8c267610f74ba26adc8c07cb071c59707a5112c23
 tags:
   - docs
+integrity:
+  generated:
+    body: 36ecd1744128122b
 ---
 
 # Repository README

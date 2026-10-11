@@ -8,7 +8,6 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-09T17:01:02Z
-  body_sha256: 9722e6caea185c06a4398579c8b74ba59067f62e917a3b7807f3c3f954f3f127
 tags:
   - architecture
 verified:
@@ -16,6 +15,9 @@ verified:
     at: 2026-09-24T00:18:10.948Z
   - by: human:spencer
     at: 2026-09-30T18:17:45Z
+integrity:
+  generated:
+    body: 9722e6caea185c06
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale

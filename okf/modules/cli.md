@@ -10,7 +10,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-09T16:35:36Z
-  body_sha256: 8e6acc22d3d88b30e5a6cbd10448eee461fc50edf3e03d98917912083cc41e44
+integrity:
+  generated:
+    body: 8e6acc22d3d88b30
 ---
 
 # CLI

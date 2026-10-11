@@ -10,7 +10,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-06T05:20:17Z
-  body_sha256: 5c2943faadeb2f9c44530d00b1236eafea1cb38826047d913ffcb890a646274d
+integrity:
+  generated:
+    body: 5c2943faadeb2f9c
 ---
 
 # AI Plugins

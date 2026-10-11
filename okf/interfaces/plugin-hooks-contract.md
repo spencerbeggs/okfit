@@ -8,12 +8,14 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-06T05:20:17Z
-  body_sha256: 42c168d5eb9419b9167a27fe1d6e63760e7213e4c07e25c7ffd0bcb76df1bf07
 tags:
   - architecture
 verified:
   - by: human:spencer
     at: 2026-09-24T00:18:08.679Z
+integrity:
+  generated:
+    body: 42c168d5eb9419b9
 ---
 
 # Agent plugin hooks contract

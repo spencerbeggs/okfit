@@ -10,9 +10,11 @@ links_to: site.md
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:23:03Z
-  body_sha256: 0f10afd7304dea576ffdb8bc798f03e47a6a00424dcaba8743b8acb03212a056
 tags:
   - docs
+integrity:
+  generated:
+    body: 0f10afd7304dea57
 ---
 
 # Sub-package READMEs

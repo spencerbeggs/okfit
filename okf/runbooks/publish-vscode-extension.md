@@ -10,7 +10,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-23T18:05:30Z
-  body_sha256: 5b7b7c07074e6c7987affe0817b33e0f02925c6959f371d78d1fd95911ebba63
+integrity:
+  generated:
+    body: 5b7b7c07074e6c79
 ---
 
 # Publish the VS Code extension

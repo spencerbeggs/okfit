@@ -10,7 +10,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-03T01:27:01Z
-  body_sha256: eb2c638499a51f04edc5e4e9ab6cd956e19dc7a8169d0b93b6d30e57a1b86351
+integrity:
+  generated:
+    body: eb2c638499a51f04
 ---
 
 # Profiles

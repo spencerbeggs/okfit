@@ -6,10 +6,12 @@ status: stable
 generated:
   by: human:spencer
   at: 2026-09-28T19:49:01Z
-  body_sha256: 3df975ebfce43bc0b24182733c5428bbc289ada9781a6c1d9896e8d3c8d3ea74
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
+integrity:
+  generated:
+    body: 3df975ebfce43bc0
 ---
 
 # Effect v4 pinned to catalog:effect

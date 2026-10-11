@@ -7,11 +7,13 @@ tags:
 generated:
   by: human:spencer
   at: 2026-09-06T11:25:53Z
-  body_sha256: 6df985a7273866f53eed8ecfcb1d8c841538e1e6be459c9d258e07f698062e4c
 status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
+integrity:
+  generated:
+    body: 6df985a7273866f5
 ---
 
 # Exactly one Project concept, at the bundle root

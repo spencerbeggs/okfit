@@ -8,11 +8,13 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-14T01:21:03Z
-  body_sha256: afe947a83c77cd02604a0ec3ac6e5c71680545692e678780578ff843c5bc886a
 status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
+integrity:
+  generated:
+    body: afe947a83c77cd02
 ---
 
 # The software-project vocabulary grows a third time from the silk action migrations

@@ -12,10 +12,12 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-09-24T16:07:02Z
-  body_sha256: dabd73dc1de7f4e603db86193dbbb7603fedc9e13296822ce0f332db5e64dea3
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
+integrity:
+  generated:
+    body: dabd73dc1de7f4e6
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract

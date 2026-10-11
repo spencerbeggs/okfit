@@ -7,12 +7,14 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-08T01:34:27Z
-  body_sha256: 122799928b2be6e4352d82e63809ba7ea2101bd878adfcf5fc8d78d525b734bc
 status: stable
 supersedes: cli-config-discovery-config-dir.md
 verified:
   - by: human:spencer
     at: 2026-09-08T02:12:59Z
+integrity:
+  generated:
+    body: 122799928b2be6e4
 ---
 
 # Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain

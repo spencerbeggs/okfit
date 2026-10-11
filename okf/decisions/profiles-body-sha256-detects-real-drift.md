@@ -7,11 +7,13 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-09T22:33:03Z
-  body_sha256: c6b04ffef9a182ebed655f904085adca74f1eb3627a1bff82b5686113dc96909
 status: stable
 verified:
   - by: human:spencer
     at: 2026-09-09T23:08:38Z
+integrity:
+  generated:
+    body: c6b04ffef9a182eb
 ---
 
 # A body digest inside generated detects real drift, not a rewritten date

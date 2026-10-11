@@ -15,9 +15,11 @@ renders:
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:23:40Z
-  body_sha256: dbd60423fcd79163ad37e75c8caae1039e311b313238c0fce9d9d3f0b05fec17
 tags:
   - docs
+integrity:
+  generated:
+    body: dbd60423fcd79163
 ---
 
 # Contributor guide -- making a pull request

@@ -34,10 +34,12 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
-  body_sha256: 63adc3533bf434d4989fe577f587ee9a95d354f008f43672fda65cf7658a1a61
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
+integrity:
+  generated:
+    body: 63adc3533bf434d4
 ---
 
 # An @okfit/lsp language server and a VS Code extension over the shared engine

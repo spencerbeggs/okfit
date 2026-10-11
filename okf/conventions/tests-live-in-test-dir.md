@@ -6,10 +6,12 @@ status: stable
 generated:
   by: human:spencer
   at: 2026-10-06T04:20:11Z
-  body_sha256: 19e5d5684f9c3e0e0c58aaf9c59910b8ccf51ff9e21ff55e97703c4319ff395f
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"
+integrity:
+  generated:
+    body: 19e5d5684f9c3e0e
 ---
 
 # Tests live in __test__/, never in src/

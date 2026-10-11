@@ -6,10 +6,12 @@ status: stable
 generated:
   by: human:spencer
   at: 2026-10-06T04:20:11Z
-  body_sha256: fe6a4926e2e877ff4124874c07850a543e97eaaa626ecbba713d69272792e151
 tags:
   - release
 stale_after: "2026-12-05T00:00:00Z"
+integrity:
+  generated:
+    body: fe6a4926e2e877ff
 ---
 
 # Never flip private in a source package.json

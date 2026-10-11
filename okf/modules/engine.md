@@ -10,7 +10,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-09T17:01:02Z
-  body_sha256: dae22879d83ab008ff102a58270ba57064d5538c9405a8d86f9af3ad40d96664
+integrity:
+  generated:
+    body: dae22879d83ab008
 ---
 
 # Engine

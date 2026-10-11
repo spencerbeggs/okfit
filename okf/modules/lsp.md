@@ -11,7 +11,9 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
-  body_sha256: 30381623671cc6f28de40f146d78a3820af1864bd209eefe6a02064a278a93f1
+integrity:
+  generated:
+    body: 30381623671cc6f2
 ---
 
 # LSP

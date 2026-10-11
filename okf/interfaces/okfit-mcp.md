@@ -8,12 +8,14 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-05T17:12:42Z
-  body_sha256: 3cfaeb63c4643c4df3a693ef70d39ee92335954bfa29a31ec0b1503f504719d1
 tags:
   - architecture
 verified:
   - by: human:spencer
     at: 2026-09-24T00:18:14.360Z
+integrity:
+  generated:
+    body: 3cfaeb63c4643c4d
 ---
 
 # okfit-mcp — MCP tool and resource contract

@@ -8,12 +8,14 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-03T01:53:59Z
-  body_sha256: 82e1e2b2ff1813b64a9e3301522087cb8f3cd1feb40c54939f769412e878e801
 tags:
   - architecture
 verified:
   - by: human:spencer
     at: 2026-09-24T00:18:12.265Z
+integrity:
+  generated:
+    body: 82e1e2b2ff1813b6
 ---
 
 # okfit config file schema

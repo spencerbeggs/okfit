@@ -10,9 +10,11 @@ url: "https://okfit.dev"
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:39:07Z
-  body_sha256: e6bc7f653954bcea576cbe5325014b2f615d37e8f8621f7c1b0162ba138caa98
 tags:
   - docs
+integrity:
+  generated:
+    body: e6bc7f653954bcea
 ---
 
 # Documentation site

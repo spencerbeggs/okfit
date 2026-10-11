@@ -8,7 +8,9 @@ kind: package
 generated:
   by: okfit/claude-code
   at: 2026-10-05T16:45:05Z
-  body_sha256: 20a738e4eb44c1b8253b47a59a4a6a896fce904705c1353d1ede82fe4766bd80
+integrity:
+  generated:
+    body: 20a738e4eb44c1b8
 ---
 
 # MCP

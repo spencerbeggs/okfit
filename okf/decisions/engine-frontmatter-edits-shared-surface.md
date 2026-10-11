@@ -8,11 +8,13 @@ supersedes: cli-verify-splices-frontmatter.md
 generated:
   by: okfit/claude-code
   at: 2026-10-05T16:06:14Z
-  body_sha256: 85e8f8dbebffe3a7144d5609a5484090f35ce4356953590ea2ab4f54f9456d5c
 status: draft
 verified:
   - by: human:spencer
     at: 2026-09-24T00:30:18Z
+integrity:
+  generated:
+    body: 85e8f8dbebffe3a7
 ---
 
 # Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions

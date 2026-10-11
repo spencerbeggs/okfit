@@ -9,7 +9,9 @@ status: draft
 generated:
   by: okfit/claude-code
   at: 2026-10-09T16:35:36Z
-  body_sha256: ecfb38b3faceebc7c493b2fd7a5302177745b345158a2c7a7c6fcaa6e60971f9
+integrity:
+  generated:
+    body: ecfb38b3faceebc7
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does

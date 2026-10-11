@@ -9,7 +9,6 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-09-16T16:38:37Z
-  body_sha256: 10d7392824743c631d1cbad382271dcb84717323d4fe06d32b302bb910cca7b2
 status: deprecated
 sources:
   - id: okfit-137
@@ -24,6 +23,9 @@ sources:
 verified:
   - by: human:spencer
     at: 2026-09-16T16:42:10Z
+integrity:
+  generated:
+    body: 10d7392824743c63
 ---
 
 # The engine version, not the producer version, is what a report is compared on
