@@ -81,6 +81,66 @@ describe("list_concepts", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.effect("every summary carries tier, integrity and stale; human-verified fixture concepts are drifted", () =>
+		Effect.gen(function* () {
+			const data = ok(yield* list({}));
+			for (const item of data.items) {
+				assert.include(["unverified", "machine-confirmed", "human-reviewed"], item.tier);
+				assert.include(["current", "drifted", "none"], item.integrity);
+				assert.isBoolean(item.stale);
+			}
+			const revenue = data.items.find((item) => item.id === "metrics/revenue");
+			assert.strictEqual(revenue?.integrity, "drifted");
+			assert.strictEqual(revenue?.tier, "human-reviewed");
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("verified: true yields nothing (no concept is verified over its current content)", () =>
+		Effect.gen(function* () {
+			const data = ok(yield* list({ verified: true }));
+			assert.strictEqual(data.total, 0);
+			assert.deepStrictEqual(data.items, []);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("verified: false yields only unverified-tier concepts", () =>
+		Effect.gen(function* () {
+			const data = ok(yield* list({ verified: false }));
+			assert.isAbove(data.total, 0);
+			assert.ok(data.items.every((item) => item.tier === "unverified"));
+			assert.notOk(data.items.some((item) => item.id === "metrics/revenue"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("drifted: true yields every human-verified concept, all drifted", () =>
+		Effect.gen(function* () {
+			const data = ok(yield* list({ drifted: true }));
+			assert.isAbove(data.total, 0);
+			assert.ok(data.items.every((item) => item.integrity === "drifted"));
+			assert.ok(data.items.some((item) => item.id === "metrics/revenue"));
+			assert.notOk(data.items.some((item) => item.id === "metrics/churn"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("stale: true with an explicit now yields only the stale concept", () =>
+		Effect.gen(function* () {
+			const data = ok(yield* list({ stale: true, now: "2020-01-11T00:00:00Z" }));
+			assert.deepStrictEqual(
+				data.items.map((item) => item.id),
+				["metrics/churn"],
+			);
+			assert.isTrue(data.items[0]?.stale);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("fails with a hint for a malformed now", () =>
+		Effect.gen(function* () {
+			const result = yield* list({ stale: true, now: "2026-09-06T00:00:00" });
+			assert.ok(result.isError);
+			assert.ok((result.content[0]?.text ?? "").includes("explicit offset"));
+		}).pipe(Effect.scoped),
+	);
+
 	it.effect("defaults limit to 200 and offset to 0", () =>
 		Effect.gen(function* () {
 			const bare = ok(yield* list({}));

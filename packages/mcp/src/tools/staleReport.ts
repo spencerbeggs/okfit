@@ -1,6 +1,6 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
-import type { ConceptSignal } from "@okfit/profiles";
+import { signalFor, toTrustDrift } from "@okfit/engine";
 import { Crypto, DateTime, Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
@@ -12,7 +12,7 @@ import type { StaleReportParams } from "../schema/tools.js";
 import { StaleReportParams as Params, StaleReportSuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Lists every concept whose stale_after instant has passed, each with its summary, the date, and how many whole days past it. Uses the current time by default; pass now as an ISO-8601 instant with an explicit offset to report staleness as of a different moment.";
+	"Lists every stale or drifted concept. items: concepts whose stale_after instant has passed, each with its summary, the date, and whole days past it. drifted: concepts a human verified whose content changed since (or was never bound), with the reason and who last edited. Pass now as an ISO-8601 instant with an explicit offset to report as of a different moment.";
 
 /**
  * `dependencies` mirrors the other tools' (Task B1's Deviation 1):
@@ -47,11 +47,25 @@ export const handleStaleReport = (projectRoot: string, params: StaleReportParams
 				? []
 				: [
 						{
-							summary: toConceptSummary(concept, signals.get(concept.id) as ConceptSignal),
+							summary: toConceptSummary(concept, signalFor(signals, concept.id)),
 							stale_after: DateTime.formatIso(entry.staleAfter),
 							days_past: entry.daysPast,
 						},
 					];
 		});
-		return { as_of: DateTime.formatIso(now), items };
+		const drifted = [...ctx.bundle.concepts.values()].flatMap((concept) => {
+			const signal = signalFor(signals, concept.id);
+			const drift = toTrustDrift(signal);
+			return drift === null
+				? []
+				: [
+						{
+							summary: toConceptSummary(concept, signal),
+							reason: drift.reason,
+							edited_by: drift.edited_by,
+							edited_at: drift.edited_at,
+						},
+					];
+		});
+		return { as_of: DateTime.formatIso(now), items, drifted };
 	});

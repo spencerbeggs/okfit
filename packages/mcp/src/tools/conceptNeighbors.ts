@@ -1,7 +1,6 @@
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { ConceptNeighbor } from "@okfit/engine";
-import { ConceptQuery } from "@okfit/engine";
-import type { ConceptSignal } from "@okfit/profiles";
+import { ConceptQuery, signalFor } from "@okfit/engine";
 import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
@@ -55,9 +54,7 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 			id: neighbor.id,
 			kind: neighbor.kind,
 			summary:
-				neighbor.concept === null
-					? null
-					: toConceptSummary(neighbor.concept, signals.get(neighbor.concept.id) as ConceptSignal),
+				neighbor.concept === null ? null : toConceptSummary(neighbor.concept, signalFor(signals, neighbor.concept.id)),
 		});
 
 		return {

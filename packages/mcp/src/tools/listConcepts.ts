@@ -1,10 +1,10 @@
 import { ToolFailure, ToolRefusal } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
-import { ConceptQuery } from "@okfit/engine";
-import type { ConceptSignal } from "@okfit/profiles";
-import { Crypto, DateTime, Effect, FileSystem, Path } from "effect";
+import { ConceptQuery, signalFor } from "@okfit/engine";
+import { Crypto, Effect, FileSystem, Path } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
+import { resolveNow } from "../internal/resolveNow.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toolSignals } from "../internal/toolSignals.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
@@ -12,7 +12,7 @@ import type { ListConceptsParams } from "../schema/tools.js";
 import { ListConceptsSuccess, ListConceptsParams as Params } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Lists concept summaries from the okf bundle, optionally filtered by an exact type, by tags that must all be present (AND, not OR), and by status. Pages with limit (default 200, max 1000) and offset, and reports the total matching count. Use it to discover what exists before reading one concept with get_concept; an unknown type or tag name fails with the list of valid names.";
+	"Lists concept summaries from the okf bundle, filtered by exact type, tags that must all be present (AND), and status. Filter by verified (true: a current human verification; false: never verified), drifted, or stale; every summary carries tier, integrity and stale. Pages with limit (default 200, max 1000) and offset, and reports the total. An unknown type or tag fails with the valid names.";
 
 /**
  * `dependencies` mirrors `describe_vocabulary`'s (Deviation 1 in Task B1's
@@ -58,7 +58,7 @@ const unknown = (kind: "type" | "tag", requested: string, valid: ReadonlyArray<s
 export const handleListConcepts = (projectRoot: string, params: ListConceptsParams) =>
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
-		const now = yield* DateTime.now;
+		const now = yield* resolveNow(params.now);
 		const signals = yield* toolSignals(ctx.bundle, now);
 		const filtered = yield* ConceptQuery.list(
 			ctx.bundle,
@@ -67,6 +67,11 @@ export const handleListConcepts = (projectRoot: string, params: ListConceptsPara
 				...(params.type === undefined ? {} : { types: [params.type] }),
 				...(params.tags === undefined ? {} : { tags: params.tags }),
 				...(params.status === undefined ? {} : { statuses: [params.status] }),
+				...(params.verified === undefined
+					? {}
+					: { verified: params.verified ? ("current" as const) : ("unverified" as const) }),
+				...(params.drifted === undefined ? {} : { drifted: params.drifted }),
+				...(params.stale === undefined ? {} : { stale: params.stale }),
 			},
 			signals,
 		).pipe(Effect.catchTag("QueryUnknownVocabularyError", (e) => Effect.fail(unknown(e.kind, e.requested, e.valid))));
@@ -74,7 +79,7 @@ export const handleListConcepts = (projectRoot: string, params: ListConceptsPara
 		const limit = params.limit ?? 200;
 		const offset = params.offset ?? 0;
 		return {
-			items: filtered.slice(offset, offset + limit).map((c) => toConceptSummary(c, signals.get(c.id) as ConceptSignal)),
+			items: filtered.slice(offset, offset + limit).map((c) => toConceptSummary(c, signalFor(signals, c.id))),
 			total: filtered.length,
 		};
 	});

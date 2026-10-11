@@ -17,6 +17,14 @@ interface ConceptResult {
 	readonly frontmatter: Record<string, unknown>;
 	readonly raw: string;
 	readonly links: ReadonlyArray<Link>;
+	readonly tier: string;
+	readonly integrity: string;
+	readonly stale: boolean;
+	readonly drift: {
+		readonly reason: string;
+		readonly edited_by: string | null;
+		readonly edited_at: string | null;
+	} | null;
 }
 
 const get = (id: string) =>
@@ -40,6 +48,25 @@ describe("get_concept", () => {
 			assert.strictEqual(data.frontmatter.type, "Metric");
 			assert.ok(data.raw.length > 0);
 			assert.ok(data.links.length > 0);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("reports the trust signal: a human-verified concept with no integrity is drifted/unbound", () =>
+		Effect.gen(function* () {
+			const data = (yield* get("metrics/revenue")).structuredContent as ConceptResult;
+			assert.strictEqual(data.tier, "human-reviewed");
+			assert.strictEqual(data.integrity, "drifted");
+			assert.isBoolean(data.stale);
+			assert.strictEqual(data.drift?.reason, "unbound");
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("reports drift: null and integrity none for a concept nobody human-verified", () =>
+		Effect.gen(function* () {
+			const data = (yield* get("metrics/churn")).structuredContent as ConceptResult;
+			assert.strictEqual(data.tier, "unverified");
+			assert.strictEqual(data.integrity, "none");
+			assert.strictEqual(data.drift, null);
 		}).pipe(Effect.scoped),
 	);
 
