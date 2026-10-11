@@ -3,12 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { Git, GitCommandError } from "@effected/git";
 import type { Actor } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import { DateTime, Effect, Exit } from "effect";
+import { DateTime, Effect, Exit, Layer } from "effect";
+import { loadPreviews } from "../../src/verify/run.js";
+import type { PickerCandidate } from "../../src/verify/select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "../../src/verify/select.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { commit, initRepo, withDir } from "../utils/git.js";
 
 const NOW = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
 
@@ -151,10 +155,14 @@ describe("selectPickerCandidates (picker)", () => {
 					yield* bindFixtures(root, ["decisions/d.md", "decisions/e.md"]).pipe(Effect.provide(NodeServices.layer));
 					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
 					const signals = yield* Trust.signals(bundle, NOW).pipe(Effect.provide(NodeServices.layer));
-					const rows = selectPickerCandidates(bundle, config, "human:ada", signals);
+					const rows = selectPickerCandidates(bundle, config, "human:ada", signals, (concept) =>
+						join(root, concept.path),
+					);
 					assert.deepStrictEqual(rows, [
 						{
 							id: "decisions/a",
+							path: join(root, "decisions/a.md"),
+							boundAt: null,
 							type: "Decision",
 							status: "stable",
 							title: "A",
@@ -165,6 +173,8 @@ describe("selectPickerCandidates (picker)", () => {
 						},
 						{
 							id: "decisions/b",
+							path: join(root, "decisions/b.md"),
+							boundAt: null,
 							type: "Decision",
 							status: "draft",
 							title: "B",
@@ -175,6 +185,8 @@ describe("selectPickerCandidates (picker)", () => {
 						},
 						{
 							id: "decisions/d",
+							path: join(root, "decisions/d.md"),
+							boundAt: "2026-09-01T00:00:00.000Z",
 							type: "Decision",
 							status: "stable",
 							title: "D",
@@ -185,6 +197,8 @@ describe("selectPickerCandidates (picker)", () => {
 						},
 						{
 							id: "gotchas/z",
+							path: join(root, "gotchas/z.md"),
+							boundAt: null,
 							type: "Gotcha",
 							status: "stable",
 							title: "Z",
@@ -198,5 +212,75 @@ describe("selectPickerCandidates (picker)", () => {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}
 			}),
+	);
+});
+
+describe("loadPreviews (verify picker diff preview)", () => {
+	const platform = Layer.mergeAll(Git.layer, NodeServices.layer).pipe(Layer.provide(NodeServices.layer));
+	const layer = Layer.mergeAll(platform, NodeServices.layer);
+	const candidate = (id: string, path: string, integrity: PickerCandidate["integrity"], boundAt: string | null) =>
+		({
+			id,
+			type: "Decision",
+			status: "stable",
+			title: null,
+			description: null,
+			otherAttestations: 0,
+			integrity,
+			stale: false,
+			path,
+			boundAt,
+		}) satisfies PickerCandidate;
+
+	it.effect("diffs a drifted candidate inside a repository and skips every row that is not drifted", () =>
+		withDir("okfit-preview-", (dir) =>
+			Effect.gen(function* () {
+				initRepo(dir);
+				const drifted = join(dir, "a.md");
+				const current = join(dir, "b.md");
+				yield* Effect.promise(() => writeFile(drifted, "one\n"));
+				yield* Effect.promise(() => writeFile(current, "same\n"));
+				commit(dir, "first", "2026-09-01T00:00:00Z");
+				yield* Effect.promise(() => writeFile(drifted, "one\ntwo\n"));
+				const previews = yield* loadPreviews([
+					candidate("a", drifted, "drifted", "2026-09-05T00:00:00.000Z"),
+					candidate("b", current, "current", "2026-09-05T00:00:00.000Z"),
+					candidate("c", join(dir, "c.md"), "none", null),
+					candidate("u", join(dir, "u.md"), "drifted", null),
+				]);
+				assert.deepStrictEqual([...previews.keys()], ["a", "u"]);
+				const a = previews.get("a");
+				assert.strictEqual(a?._tag, "diff");
+				if (a?._tag !== "diff") return;
+				assert.match(a.baseline, /^[0-9a-f]{7}$/);
+				assert.include(a.patch, "@@");
+				assert.include(a.patch, "+two");
+				assert.deepStrictEqual(previews.get("u"), { _tag: "no-baseline", reason: "unbound" });
+			}).pipe(Effect.provide(layer)),
+		),
+	);
+
+	it.effect("a drifted candidate outside a repository is no-baseline not-a-repository", () =>
+		withDir("okfit-preview-", (dir) =>
+			Effect.gen(function* () {
+				const file = join(dir, "a.md");
+				yield* Effect.promise(() => writeFile(file, "one\n"));
+				const previews = yield* loadPreviews([candidate("a", file, "drifted", "2026-09-05T00:00:00.000Z")]);
+				assert.deepStrictEqual(previews.get("a"), { _tag: "no-baseline", reason: "not-a-repository" });
+			}).pipe(Effect.provide(layer)),
+		),
+	);
+
+	it.effect("a git command failure maps to no-baseline not-a-repository", () =>
+		Effect.gen(function* () {
+			const failing = Layer.succeed(Git, {
+				log: (cwd: string) =>
+					Effect.fail(new GitCommandError({ kind: "failed", args: ["log"], cwd, stderr: "boom", detail: "boom" })),
+			} as unknown as Git["Service"]);
+			const previews = yield* loadPreviews([
+				candidate("a", "/nowhere/a.md", "drifted", "2026-09-05T00:00:00.000Z"),
+			]).pipe(Effect.provide(Layer.mergeAll(failing, NodeServices.layer)));
+			assert.deepStrictEqual(previews.get("a"), { _tag: "no-baseline", reason: "not-a-repository" });
+		}),
 	);
 });

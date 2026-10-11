@@ -75,7 +75,12 @@ src/
     context.ts                -- contextCommand: flags/argument, the full handler
     verify.ts                  -- verifyCommand: flags/argument, the full handler
     verify-picker.ts            -- the interactive picker bare `okfit verify` opens (MultiSelect by type, Confirm
-                                    with a promote-drafts toggle, then engine's runVerifyIds)
+                                    with a promote-drafts toggle, then engine's runVerifyIds); with a drifted row
+                                    it mounts verify-preview.tsx instead of the stock MultiSelect screen
+    verify-preview.tsx          -- PickerPreviewScreen/previewScreen: the picker list (MultiSelect's reducer and
+                                    keys over Viewport) beside the highlighted row's diff preview (DocView), loaded
+                                    through CliUi.lazy so React/Ink load only when it mounts; the only .tsx
+                                    module (tsconfig sets jsx react-jsx)
     sync.ts                     -- syncCommand: flags/argument, the full handler
     query.ts                     -- queryCommand (list/get/neighbors subcommands over @okfit/engine's ConceptQuery)
   render/

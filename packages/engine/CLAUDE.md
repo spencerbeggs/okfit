@@ -61,7 +61,8 @@ src/
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically; also
                                   runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
-                                  optional promote) and loadPickerCandidates
+                                  optional promote), loadPickerCandidates, loadStaleCandidates
+                                  and loadPreviews (the picker's per-drifted-row changeSince)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
     index.ts                   -- syncIndex

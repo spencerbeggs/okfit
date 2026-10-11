@@ -28,12 +28,21 @@ describe("selectStaleCandidates (issue #228)", () => {
 				for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
 				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
 				const signals = yield* Trust.signals(bundle, NOW).pipe(Effect.provide(NodeServices.layer));
-				const rows = selectStaleCandidates(bundle, Derive.staleReport(bundle, NOW), "human:ada", signals);
+				const rows = selectStaleCandidates(bundle, Derive.staleReport(bundle, NOW), "human:ada", signals, (concept) =>
+					join(root, concept.path),
+				);
 				assert.deepStrictEqual(
 					rows.map((row) => [row.id, row.type, row.otherAttestations, row.integrity]),
 					[
 						["decisions/a", "Decision", 0, "drifted"],
 						["mod", "Module", 0, "none"],
+					],
+				);
+				assert.deepStrictEqual(
+					rows.map((row) => [row.path, row.boundAt]),
+					[
+						[join(root, "decisions/a.md"), null],
+						[join(root, "mod.md"), null],
 					],
 				);
 			} finally {

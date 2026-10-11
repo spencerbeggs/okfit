@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T13:32:28Z
 integrity:
   generated:
-    body: 6ee1ae34917e2c52
+    body: fd8f1837928e93d9
 ---
 
 # CLI
@@ -73,7 +73,10 @@ stdout, and not `--format json`.
 Four commands prompt, only when interactive: bare `okfit verify` opens a
 picker (`commands/verify-picker.ts`: a MultiSelect by type, then a Confirm
 with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
-[Engine](engine.md)); `okfit stale --verify` reuses that picker
+[Engine](engine.md); when any row is drifted the list is
+`commands/verify-preview.tsx` instead, the same selection keys beside a
+preview of the highlighted row's diff since its verification was bound);
+`okfit stale --verify` reuses that picker
 (`commands/stale-verify.ts`) over the stale concepts and writes through
 `runVerifyIds` with `refreshStaleAfter`; `okfit sync` prints its plan and
 confirms `Write N file(s)?` (`commands/sync-confirm.ts`), then applies that

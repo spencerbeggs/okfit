@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T04:24:45Z
+  at: 2026-10-11T13:32:28Z
 integrity:
   generated:
-    body: e36ad1d26afe534d
+    body: c72d42e3309381b4
 ---
 
 # Engine
@@ -124,7 +124,10 @@ all-or-nothing, with an optional promote-drafts step that sets `status:
 stable` in the same write. `verify/select.ts#selectPickerCandidates` and
 `verify/run.ts#loadPickerCandidates` list what the interactive `okfit
 verify` picker offers: concepts of a `require_verified` type the caller has
-not attested, drafts included and deprecated excluded. A bare `verify` with
+not attested, drafts included and deprecated excluded; each row carries
+its absolute `path` and `boundAt`, and `verify/run.ts#loadPreviews` runs
+`changeSince` for the drifted rows (a git failure reads as `no-baseline`).
+A bare `verify` with
 no selection is still a `VerifySelectionError` (exit `64`); its message now
 ends `(run in a terminal to pick interactively)`.
 
