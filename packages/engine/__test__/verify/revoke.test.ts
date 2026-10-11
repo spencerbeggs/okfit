@@ -310,4 +310,26 @@ describe("runRevoke", () => {
 			}),
 		);
 	});
+
+	it.effect("an unlisted human's revoke fails HumanActorNotAllowedError before touching the file", () => {
+		const source = `${head}verified:\n${ada}${binding("human:ada", "2026-09-01T00:00:00Z")}${tail}`;
+		const restricted = OkfitConfig.merge(config, {
+			actors: { humans: ["human:grace" as ActorPattern] },
+			extensions: {},
+		});
+		return withConcept(source, (root, file) =>
+			Effect.gen(function* () {
+				const before = yield* Effect.promise(() => readFile(file, "utf8"));
+				const error = yield* runRevoke({
+					id: "decisions/a",
+					bundleRoot: root,
+					projectRoot: root,
+					config: restricted,
+					dryRun: false,
+				}).pipe(Effect.provide(platform), Effect.flip);
+				assert.strictEqual(error._tag, "HumanActorNotAllowedError");
+				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), before);
+			}),
+		);
+	});
 });

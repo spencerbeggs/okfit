@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { appendFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
@@ -232,6 +232,30 @@ describe("registerCodeActions", () => {
 			const uri = yield* openConcept(h, "okf/modules/verified.md", source);
 			const actions = yield* requestCodeAction(h.client, uri);
 			assert.isFalse(actions.some((action) => action.title.includes("and set status: stable")));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a human outside a non-empty [actors].humans is offered no `Mark verified` or `Re-verify as`", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* Effect.promise(() =>
+				appendFile(join(h.root, ".okfit.toml"), '\n[actors]\nhumans = ["human:grace"]\n', "utf8"),
+			);
+			for (const [name, source] of [
+				["stable.md", STABLE_SOURCE],
+				["draft.md", DRAFT_SOURCE],
+				["verified.md", ALREADY_VERIFIED_SOURCE],
+			] as const) {
+				yield* Effect.promise(() => writeFile(join(h.root, "okf", "modules", name), source, "utf8"));
+			}
+			yield* h.initialize;
+			for (const name of ["stable.md", "draft.md", "verified.md"]) {
+				yield* h.open(`okf/modules/${name}`);
+				yield* h.nextPublish();
+				const actions = yield* requestCodeAction(h.client, h.uriOf(`okf/modules/${name}`));
+				assert.isFalse(actions.some((action) => action.title.startsWith("Mark verified")));
+				assert.isFalse(actions.some((action) => action.title.startsWith("Re-verify as")));
+			}
 		}).pipe(Effect.scoped),
 	);
 

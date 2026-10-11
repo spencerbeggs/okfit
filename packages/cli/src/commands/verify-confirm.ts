@@ -3,6 +3,7 @@ import { CliUi, Confirm } from "@effected/cli/ui";
 import type { OkfitConfig } from "@okfit/core";
 import type { ChangeSince } from "@okfit/engine";
 import { changeSince, inspectDrift } from "@okfit/engine";
+import type { DriftReason } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Console, Effect } from "effect";
 
@@ -11,7 +12,7 @@ const REASON_TEXT = {
 	unbound: "no integrity binding records what was verified",
 	"entry-superseded": "a later verification is not the one its integrity binding covers",
 	"actor-not-allowed": "its verifier is not in [actors].humans",
-} as const;
+} as const satisfies Record<DriftReason, string>;
 
 /**
  * An interactive single-id `okfit verify <id>` on a drifted concept shows what

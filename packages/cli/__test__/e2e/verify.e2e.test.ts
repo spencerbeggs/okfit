@@ -1,5 +1,5 @@
 import { symlinkSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -637,5 +637,56 @@ describe("okfit verify (e2e)", () => {
 				await removeSandbox(sandbox);
 			}
 		});
+	});
+
+	const allowOnly = (cwd: string, humans: string): Promise<void> =>
+		appendFile(join(cwd, ".config", "okfit.toml"), `\n[actors]\nhumans = ${humans}\n`, "utf8");
+
+	it("refuses an unlisted human with exit 3 and writes nothing (allow-list)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await allowOnly(cwd, '["human:grace"]');
+			const before = await readProject(cwd);
+			const run = await withServices(runOkfit(["verify", "project"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 3);
+			assert.include(run.stderr, "HumanActorNotAllowedError");
+			assert.include(run.stderr, "human:ada is not in [actors].humans");
+			assert.include(run.stderr, "git config --global okfit.actor human:<id>");
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("refuses an unlisted human's --revoke before touching the file", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const first = await withServices(runOkfit(["verify", "project"], { cwd, env }));
+			assert.strictEqual(first.exitCode, 0);
+			await allowOnly(cwd, '["human:grace"]');
+			const before = await readProject(cwd);
+			const run = await withServices(runOkfit(["verify", "--revoke", "project"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 3);
+			assert.include(run.stderr, "HumanActorNotAllowedError");
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("verifies as git config okfit.actor when it matches a glob entry", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const home = sandbox.env.HOME ?? "";
+			await appendFile(join(home, ".gitconfig"), "[okfit]\n\tactor = human:grace-h\n", "utf8");
+			await allowOnly(cwd, '["human:grace*"]');
+			const run = await withServices(runOkfit(["verify", "project"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0);
+			const after = await readProject(cwd);
+			assert.include(after, "by: human:grace-h");
+			assert.notInclude(after, "@");
+		} finally {
+			await removeSandbox(sandbox);
+		}
 	});
 });
