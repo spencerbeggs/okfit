@@ -2,6 +2,10 @@
 "@okfit/engine": patch
 ---
 
+## Breaking Changes
+
+`runVerify`, `runRevoke`, `runVerifyBatch`, `runVerifyIds`, `loadPickerCandidates` and `loadStaleCandidates` can now fail with `HumanActorNotAllowedError` and `ActorConfigInvalidError`.
+
 ## Features
 
 * Trust signals honour the [actors].humans allow-list
