@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-11T21:11:56Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: aa637f437f8a502c
+    body: 3f749db7f4074a02
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
@@ -352,7 +352,11 @@ forward](../decisions/stale-verify.md); like
 `okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]`
 moves one concept and rewrites every reference to it across the bundle. `<from>`
 resolves like any concept target; `<to>` is an absolute path, a cwd-relative path
-inside the bundle or a bundle-relative id (`.md` is added when missing). Rewritten
+inside the bundle or a bundle-relative id (`.md` is added when missing; a leading
+`/` is the id spelling when the absolute reading falls outside the bundle). A `<to>`
+naming an existing bundle directory, or ending in `/`, moves the concept into that
+directory keeping its file name, as shell `mv` does. A `<to>` containing whitespace
+is refused. Rewritten
 kinds: body links and reference definitions, path-kind frontmatter fields,
 `supersedes` and Publication `renders[].path`; each keeps its spelling (rooted,
 bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's own
@@ -362,9 +366,12 @@ Every file whose text changes drifts by the ordinary rule: `mv` never writes
 `verified` or `integrity`, and the plan lists the concepts whose current human
 verification it voids. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
-generated stamps. A destination that exists, lies outside the bundle, is a
-reserved file or equals the source, and any body link whose URL cannot be located
-for rewriting, are exit `64` with nothing written. `--format json` prints a
+generated stamps; the order for this repository is bundle edit, commit,
+`pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside
+the bundle (a `..` that climbs out included), is a reserved file, contains
+whitespace or equals the source is exit `64` with nothing written, as is a link that
+would need rewriting for this move and whose URL cannot be located (an unrelated
+link the locator cannot read does not block it). `--format json` prints a
 `MoveEnvelope` (schema 1): `from`, `to`, `path`, `dry_run`, `edits` (`path`,
 `count`), `drifts`. Why files are named for topics:
 [concept files are named for their topic](../decisions/topical-concept-names.md).
