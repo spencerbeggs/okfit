@@ -23,7 +23,7 @@ import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmat
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import type { Actor, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
-import { DiagnosticRange, Timestamp } from "@okfit/core";
+import { DiagnosticRange, Timestamp, Verification } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -142,13 +142,10 @@ export const editTarget = (
 		const status = field(data, "status");
 		const verified = field(data, "verified");
 		const decodeAt = Schema.decodeUnknownOption(Timestamp);
-		const verifiedEntries = Array.isArray(verified)
-			? verified.flatMap((entry) => {
-					const by = field(entry, "by");
-					const at = decodeAt(field(entry, "at"));
-					return typeof by === "string" && Option.isSome(at) ? [{ by, at: at.value }] : [];
-				})
-			: [];
+		// Core's own decode: a bare mapping is a one-element list, and any malformed entry voids the whole family.
+		const verifiedEntries = Option.getOrElse(Schema.decodeUnknownOption(Verification.List)(verified), () => []).map(
+			(entry) => ({ by: entry.by as string, at: entry.at }),
+		);
 		const verifiedBinding = field(field(data, "integrity"), "verified");
 		const bindingBy = field(verifiedBinding, "by");
 		const bindingContent = field(verifiedBinding, "content");

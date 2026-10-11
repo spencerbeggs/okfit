@@ -204,4 +204,30 @@ describe("verifiedTextEdits: already-verified agrees with Trust", () => {
 			assert.isTrue(edits.some((edit) => edit.newText.includes("content: ")));
 		}).pipe(Effect.provide(testPlatform())),
 	);
+
+	it.effect("a bare-mapping `verified` with a current binding by the actor is AlreadyVerified (OKF 5.2)", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const bare = disk.replace(/^---\n/, '---\nverified:\n  by: "human:ada"\n  at: "2026-01-01T00:00:00Z"\n');
+			yield* documents.record(path, yield* withBinding(bare, "human:ada", "2026-01-01T00:00:00Z"), 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			assert.lengthOf(target.verified, 1);
+			const now = yield* DateTime.now;
+			const failure = yield* Effect.flip(verifiedTextEdits(target, "human:ada", now));
+			assert.deepStrictEqual(failure, { _tag: "AlreadyVerified", by: "human:ada" });
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("a list with one malformed entry is treated as no entries, as core does", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const bad = disk.replace(
+				/^---\n/,
+				'---\nverified:\n  - by: "human:ada"\n    at: "2026-01-01T00:00:00Z"\n  - by: "human:bob"\n    at: "not-a-time"\n',
+			);
+			yield* documents.record(path, bad, 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			assert.deepStrictEqual(target.verified, []);
+		}).pipe(Effect.provide(testPlatform())),
+	);
 });
