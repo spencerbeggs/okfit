@@ -17,13 +17,15 @@ verified:
     at: 2026-09-30T18:17:45Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T17:15:26Z
 integrity:
   generated:
     body: c36d6862913e9322
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: 9de09240600c9c9b
+    at: 2026-10-11T17:15:26Z
+    content: 0478407e0fdf2892
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
