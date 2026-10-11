@@ -159,9 +159,23 @@ else
 	index_section="No index.md yet at ${index_path}. Run \`okfit init\` or write one."
 fi
 
+# The --trust summary: only when something has drifted or gone stale. Absent
+# on an older CLI (the retry above) and null without the flag. It sits right
+# after the config line so the platform's additionalContext cap cannot
+# truncate it away behind index.md.
+trust_line=$(printf '%s' "$context_json" | jq -r '
+	(.trust // empty) | select((.drifted + .stale) > 0)
+	| "trust: \(.drifted) drifted, \(.stale) stale, \(.unverified) unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query --drifted)."
+' 2>/dev/null || true)
+trust_block=""
+if [ -n "$trust_line" ]; then
+	trust_block="${trust_line}
+"
+fi
+
 CONTEXT="okfit bundle: ${bundle_root} (profile: ${profile_display})
 config: ${config_display}
-
+${trust_block}
 ${vocab_text}
 
 ${index_section}"
@@ -204,18 +218,6 @@ if [ -z "$actors_agent" ]; then
 	CONTEXT="${CONTEXT}
 
 Note: actors.agent is not set in this project's config. Set actors.agent = \"okfit/claude-code\" so this plugin's agent can stamp generated.by."
-fi
-
-# The --trust summary: only when something has drifted or gone stale. Absent
-# on an older CLI (the retry above) and null without the flag.
-trust_line=$(printf '%s' "$context_json" | jq -r '
-	(.trust // empty) | select((.drifted + .stale) > 0)
-	| "trust: \(.drifted) drifted, \(.stale) stale, \(.unverified) unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query --drifted)."
-' 2>/dev/null || true)
-if [ -n "$trust_line" ]; then
-	CONTEXT="${CONTEXT}
-
-${trust_line}"
 fi
 
 hook_context "$CONTEXT"

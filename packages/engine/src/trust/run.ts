@@ -15,7 +15,7 @@ export interface ContextTrustOptions {
 const FIRST = 5;
 
 /**
- * The opt-in half of `context`: load the bundle and fold {@link Trust.signals}
+ * The opt-in half of `context`: load the bundle and fold `Trust.signals`
  * into counts plus the first five drifted and stale ids. Kept apart from
  * {@link runContext} so the default path never loads the bundle; only
  * `--trust` pays for it. Hashing happens inside `Trust.signals`, and only

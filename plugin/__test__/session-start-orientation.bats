@@ -346,3 +346,25 @@ STUB
 		[[ "$(context_text)" != *"trust:"* ]]
 	done
 }
+
+@test "the trust line sits right after the config line, before the vocabulary and index.md" {
+	printf '# Index body\n' >"$PROJECT_DIR/okf/index.md"
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" true "" software-project "" '[]' '[]' software-project "$_trust_json"
+	for target in $TARGETS; do
+		_run "$target"
+		local ctx before_trust
+		ctx="$(context_text)"
+		[[ "$ctx" == *"config: (none)"$'\n'"trust: 2 drifted"* ]]
+		before_trust="${ctx%%trust: 2 drifted*}"
+		[[ "$before_trust" != *"Types:"* && "$before_trust" != *"Index body"* ]]
+	done
+}
+
+@test "a stale-only trust summary still renders the line" {
+	local stale_only='{"concepts":3,"drifted":0,"stale":2,"unverified":3,"drifted_ids":[],"stale_ids":["a","b"]}'
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' software-project "$stale_only"
+	for target in $TARGETS; do
+		_run "$target"
+		[[ "$(context_text)" == *"trust: 0 drifted, 2 stale, 3 unverified"* ]]
+	done
+}
