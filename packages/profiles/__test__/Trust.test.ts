@@ -1,7 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
-import { Concept, ConceptId, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
+import { Concept, ConceptId, DiagnosticRange, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Crypto, DateTime, Effect, Layer, Option, Result, Schema } from "effect";
 import { Derivation } from "../src/Derivation.js";
 import { Trust } from "../src/Trust.js";
@@ -242,6 +242,24 @@ describe("Trust.lint", () => {
 			const diagnostics = yield* Trust.lint(bundleOf(current, changed), OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(diagnostics.length, 1);
 			assert.include(diagnostics[0]?.message ?? "", "content changed since");
+		}).pipe(Effect.provide(NodeCrypto.layer)),
+	);
+
+	it.effect("an unbound drift ranges at the latest human verified entry, not the whole key", () =>
+		Effect.gen(function* () {
+			const c = concept({
+				type: "Decision",
+				verified: [
+					{ by: "human:ada", at: AT },
+					{ by: "human:spencer", at: LATER },
+					{ by: "process:nightly", at: LATER },
+				],
+			});
+			const [diagnostic] = yield* Trust.lint(bundleOf(c), OkfitConfig.DEFAULTS, NOW);
+			const entry = DiagnosticRange.forFrontmatterPath(c.document, ["verified", 1]);
+			assert.isDefined(entry);
+			assert.deepStrictEqual(diagnostic?.range, entry);
+			assert.notDeepEqual(diagnostic?.range, DiagnosticRange.forFrontmatterPath(c.document, ["verified"]));
 		}).pipe(Effect.provide(NodeCrypto.layer)),
 	);
 

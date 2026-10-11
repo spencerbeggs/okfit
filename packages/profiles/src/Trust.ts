@@ -94,6 +94,18 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 	return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}${edited}; re-run okfit verify`;
 };
 
+/**
+ * Where a `verified-drift` finding points (spec section 6): the binding when one exists,
+ * else the latest human `verified` entry -- by its list index when `verified` is a
+ * sequence, the key itself when it is a single bare mapping.
+ */
+const rangePath = (concept: LoadedConcept): ReadonlyArray<string | number> => {
+	if (concept.frontmatter.integrity?.verified !== undefined) return ["integrity", "verified"];
+	const latest = latestHuman(concept);
+	const index = latest === undefined ? -1 : (concept.frontmatter.verified ?? []).indexOf(latest);
+	return Array.isArray(concept.frontmatter.raw.verified) && index >= 0 ? ["verified", index] : ["verified"];
+};
+
 const lint = Effect.fn("Trust.lint")(function* (bundle: LoadedBundle, config: OkfitConfig, now: DateTime.Utc) {
 	const severity = OkfitConfig.severityFor(config, "verified-drift");
 	if (severity === "off") return [];
@@ -101,10 +113,7 @@ const lint = Effect.fn("Trust.lint")(function* (bundle: LoadedBundle, config: Ok
 	for (const [, concept] of bundle.concepts) {
 		const result = yield* signal(concept, now);
 		if (result.drift === undefined) continue;
-		const range = DiagnosticRange.forFrontmatterPath(
-			concept.document,
-			concept.frontmatter.integrity?.verified === undefined ? ["verified"] : ["integrity", "verified"],
-		);
+		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept));
 		diagnostics.push(
 			Diagnostic.make({
 				file: concept.path,
