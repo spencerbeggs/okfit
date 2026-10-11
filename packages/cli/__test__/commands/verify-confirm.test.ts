@@ -5,6 +5,7 @@ import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli/ui/testing";
 import { Git } from "@effected/git";
+import { OkfitConfig } from "@okfit/core";
 import { DateTime, Effect, Fiber, Layer } from "effect";
 import { confirmReverify } from "../../src/commands/verify-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
@@ -43,6 +44,7 @@ const start = (root: string, interactive: boolean, extra: { noDiff?: boolean; dr
 			confirmReverify({
 				id: extra.id ?? "decisions/c",
 				bundleRoot: root,
+				config: OkfitConfig.DEFAULTS,
 				now: NOW,
 				noDiff: extra.noDiff ?? false,
 				dryRun: extra.dryRun ?? false,

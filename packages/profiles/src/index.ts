@@ -33,5 +33,5 @@ export { Profiles } from "./Profiles.js";
 export { Provenance } from "./Provenance.js";
 export type { RendersEntry } from "./Publications.js";
 export { PUBLICATION_TYPE, Publications, SURFACE_TYPE } from "./Publications.js";
-export type { ConceptSignal, DriftReason, EvaluateInput, IntegrityState } from "./Trust.js";
-export { Trust } from "./Trust.js";
+export type { ConceptSignal, EvaluateInput, IntegrityState } from "./Trust.js";
+export { DriftReason, Trust } from "./Trust.js";

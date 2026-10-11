@@ -1,5 +1,6 @@
 import { CliInteractive } from "@effected/cli";
 import { CliUi, Confirm } from "@effected/cli/ui";
+import type { OkfitConfig } from "@okfit/core";
 import type { ChangeSince } from "@okfit/engine";
 import { changeSince, inspectDrift } from "@okfit/engine";
 import type { DateTime } from "effect";
@@ -9,6 +10,7 @@ const REASON_TEXT = {
 	"content-changed": "its content has changed since it was verified",
 	unbound: "no integrity binding records what was verified",
 	"entry-superseded": "a later verification is not the one its integrity binding covers",
+	"actor-not-allowed": "its verifier is not in [actors].humans",
 } as const;
 
 /**
@@ -31,13 +33,19 @@ const REASON_TEXT = {
 export const confirmReverify = (options: {
 	readonly id: string;
 	readonly bundleRoot: string;
+	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
 	readonly noDiff: boolean;
 	readonly dryRun: boolean;
 }) =>
 	Effect.gen(function* () {
 		if (options.noDiff || options.dryRun || !(yield* CliInteractive)) return true;
-		const inspection = yield* inspectDrift({ id: options.id, bundleRoot: options.bundleRoot, now: options.now });
+		const inspection = yield* inspectDrift({
+			id: options.id,
+			bundleRoot: options.bundleRoot,
+			config: options.config,
+			now: options.now,
+		});
 		if (inspection.drift === null) return true;
 		const change: ChangeSince | undefined =
 			inspection.drift === "unbound" || inspection.boundAt === undefined

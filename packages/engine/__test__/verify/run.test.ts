@@ -368,7 +368,7 @@ describe("runVerify binds integrity.verified", () => {
 			const bundle = yield* Bundle.load({ root });
 			const concept = bundle.concepts.get("decisions/a" as ConceptId);
 			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
-			return yield* Trust.signal(concept, now);
+			return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, now);
 		}).pipe(Effect.provide(NodeServices.layer));
 
 	const SRC = "---\ntype: Decision\ntitle: T\n---\n\n# T\n\nBody.\n";

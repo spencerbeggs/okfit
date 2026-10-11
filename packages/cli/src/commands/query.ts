@@ -120,7 +120,7 @@ const run = <A, E, R>(
 			});
 			const bundle = yield* Bundle.load({ root: resolved.bundleRoot });
 			const now = yield* Now;
-			const signals = yield* Trust.signals(bundle, now);
+			const signals = yield* Trust.signals(bundle, resolved.config, now);
 			yield* use({
 				signals,
 				bundle,

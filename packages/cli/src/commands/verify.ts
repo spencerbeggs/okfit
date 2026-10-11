@@ -330,6 +330,7 @@ export const verifyCommand = Command.make(
 				const proceed = yield* confirmReverify({
 					id: input.id.value,
 					bundleRoot: resolved.bundleRoot,
+					config: resolved.config,
 					now: at,
 					noDiff: input.noDiff,
 					dryRun: input.dryRun,

@@ -220,6 +220,8 @@ const trustInput = (target: EditTarget): EvaluateInput => ({
 			? undefined
 			: { by: target.binding.by as Actor, at: target.binding.at, content: target.binding.content },
 	generated: undefined,
+	// The actor here comes from Derivation.verifier, so it already passes the allow-list; an empty list keeps the check about content only.
+	humans: [],
 });
 
 /**

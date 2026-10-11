@@ -111,7 +111,7 @@ export const run = (
 			severity === "off"
 				? []
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
-		const signals = yield* Trust.signals(bundle, options.now);
+		const signals = yield* Trust.signals(bundle, options.config, options.now);
 		const drift = yield* Trust.lint(bundle, options.config, options.now, signals);
 		const resources = yield* lintResources(bundle, options.config);
 		// Publication lints are software-project's; any other profile (or none)

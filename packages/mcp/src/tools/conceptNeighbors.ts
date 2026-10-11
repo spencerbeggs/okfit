@@ -48,7 +48,7 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
 		);
 
-		const signals = yield* toolSignals(ctx.bundle, yield* DateTime.now);
+		const signals = yield* toolSignals(ctx.bundle, ctx.config, yield* DateTime.now);
 
 		const project = (neighbor: ConceptNeighbor) => ({
 			id: neighbor.id,

@@ -1,6 +1,7 @@
 import type { LoadedConcept } from "@okfit/core";
 import { Derive, GraphNodeKind, Status } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
+import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
@@ -14,7 +15,7 @@ import { DistributionField } from "./distribution.js";
  * @public
  */
 export const TrustDrift = Schema.Struct({
-	reason: Schema.Literals(["content-changed", "unbound", "entry-superseded"]),
+	reason: DriftReason,
 	edited_by: Schema.NullOr(Schema.String),
 	edited_at: Schema.NullOr(Schema.String),
 });

@@ -40,7 +40,7 @@ export const handleStaleReport = (projectRoot: string, params: StaleReportParams
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
 		const now = yield* resolveNow(params.now);
-		const signals = yield* toolSignals(ctx.bundle, now);
+		const signals = yield* toolSignals(ctx.bundle, ctx.config, now);
 		const items = Derive.staleReport(ctx.bundle, now).flatMap((entry) => {
 			const concept = ctx.bundle.concepts.get(entry.id);
 			return concept === undefined

@@ -288,7 +288,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// classification, and the edit itself is computed unconditionally so a
 	// dry run reports the exact fragment it would write.
 	const prepared = yield* prepareVerify(bundle, concept, actor, at, options.status);
-	const prior = yield* Trust.signal(concept, options.at);
+	const prior = yield* Trust.signal(concept, options.config, options.at);
 
 	// Step 15 (I4/V-16): a temp file beside the real target, then a rename
 	// over it, mode preserved -- see `writeVerified`'s own comments.
@@ -335,12 +335,13 @@ export interface DriftInspection {
 export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (options: {
 	readonly id: string;
 	readonly bundleRoot: string;
+	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
 }) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const { id, concept } = yield* resolveConcept(bundle, options.id);
 	const path = yield* Path.Path;
-	const signal = yield* Trust.signal(concept, options.now);
+	const signal = yield* Trust.signal(concept, options.config, options.now);
 	const boundAt = concept.frontmatter.integrity?.verified?.at;
 	return {
 		id,
@@ -462,7 +463,7 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);
 
-	const signals = yield* Trust.signals(bundle, options.at);
+	const signals = yield* Trust.signals(bundle, options.config, options.at);
 	const selection = selectAttestable(bundle, types, actor, signals);
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	// Every concept is located before any is written: one unsupported
@@ -601,7 +602,7 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
-	const signals = yield* Trust.signals(bundle, yield* DateTime.now);
+	const signals = yield* Trust.signals(bundle, options.config, yield* DateTime.now);
 	const path = yield* Path.Path;
 	const candidates = absolutePaths(selectPickerCandidates(bundle, options.config, by, signals), path, bundle.root);
 	return { by, candidates } satisfies {
@@ -622,7 +623,7 @@ export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
-	const signals = yield* Trust.signals(bundle, options.now);
+	const signals = yield* Trust.signals(bundle, options.config, options.now);
 	const path = yield* Path.Path;
 	const candidates = absolutePaths(
 		selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),

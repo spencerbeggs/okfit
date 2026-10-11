@@ -26,6 +26,7 @@ const VALUES = [
 	"PUBLICATION_TYPE",
 	"Publications",
 	"SURFACE_TYPE",
+	"DriftReason",
 	"Trust",
 ] as const;
 

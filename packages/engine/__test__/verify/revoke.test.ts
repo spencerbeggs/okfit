@@ -203,7 +203,7 @@ describe("runRevoke", () => {
 			const bundle = yield* Bundle.load({ root });
 			const concept = bundle.concepts.get("decisions/a" as ConceptId);
 			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
-			return yield* Trust.signal(concept, AT);
+			return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, AT);
 		}).pipe(Effect.provide(NodeServices.layer));
 
 	const binding = (by: string, at: string) =>

@@ -50,7 +50,9 @@ describe("selectAttestable (issues #138, #143)", () => {
 					Effect.provide(NodeServices.layer),
 				);
 				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-				const signals = yield* Trust.signals(bundle, NOW).pipe(Effect.provide(NodeServices.layer));
+				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
+					Effect.provide(NodeServices.layer),
+				);
 				assert.strictEqual(signals.get("decisions/d")?.integrity, "current");
 				assert.strictEqual(signals.get("decisions/f")?.drift?.reason, "unbound");
 				assert.strictEqual(signals.get("decisions/g")?.drift?.reason, "content-changed");
@@ -154,7 +156,9 @@ describe("selectPickerCandidates (picker)", () => {
 					for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
 					yield* bindFixtures(root, ["decisions/d.md", "decisions/e.md"]).pipe(Effect.provide(NodeServices.layer));
 					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-					const signals = yield* Trust.signals(bundle, NOW).pipe(Effect.provide(NodeServices.layer));
+					const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
+						Effect.provide(NodeServices.layer),
+					);
 					const rows = selectPickerCandidates(bundle, config, "human:ada", signals);
 					assert.deepStrictEqual(rows, [
 						{

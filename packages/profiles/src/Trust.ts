@@ -17,11 +17,17 @@ export type IntegrityState = "current" | "drifted" | "none";
 
 /**
  * Why a human verification no longer binds: the content changed, the entry has
- * no `integrity.verified` binding, or a later human entry is not the bound one.
+ * no `integrity.verified` binding, a later human entry is not the bound one, or
+ * the bound actor fails a non-empty `[actors].humans` allow-list.
  *
  * @public
  */
-export type DriftReason = "content-changed" | "unbound" | "entry-superseded";
+export const DriftReason = Schema.Literals(["content-changed", "unbound", "entry-superseded", "actor-not-allowed"]);
+/**
+ * The type of {@link (DriftReason:variable)}.
+ * @public
+ */
+export type DriftReason = typeof DriftReason.Type;
 
 /**
  * The trust signal for one concept: its tier, whether its human verification
@@ -62,12 +68,15 @@ export interface EvaluateInput {
 	readonly verified: ReadonlyArray<{ readonly by: Actor; readonly at: DateTime.Utc }>;
 	readonly binding: { readonly by: Actor; readonly at: DateTime.Utc; readonly content: string } | undefined;
 	readonly generated: { readonly by: Actor; readonly at?: DateTime.Utc } | undefined;
+	/** The `[actors].humans` allow-list; empty allows anyone. */
+	readonly humans: ReadonlyArray<string>;
 }
 
-const inputOf = (concept: LoadedConcept): EvaluateInput => ({
+const inputOf = (concept: LoadedConcept, config: OkfitConfig): EvaluateInput => ({
 	verified: concept.frontmatter.verified ?? [],
 	binding: concept.frontmatter.integrity?.verified,
 	generated: concept.frontmatter.generated,
+	humans: config.actors?.humans ?? [],
 });
 
 /** The binding when it names the latest human entry; `undefined` when none, unbound or superseded. */
@@ -78,7 +87,10 @@ const boundEntry = (input: EvaluateInput): NonNullable<EvaluateInput["binding"]>
 	return binding.by === latest.by && DateTime.Equivalence(binding.at, latest.at) ? binding : undefined;
 };
 
-const needsDigest = (input: EvaluateInput): boolean => boundEntry(input) !== undefined;
+const needsDigest = (input: EvaluateInput): boolean => {
+	const bound = boundEntry(input);
+	return bound !== undefined && ActorNS.allowed(bound.by, input.humans);
+};
 
 const evaluate = (
 	input: EvaluateInput,
@@ -89,6 +101,8 @@ const evaluate = (
 	const binding = input.binding;
 	if (binding === undefined) return { integrity: "drifted", drift: { reason: "unbound" } };
 	if (boundEntry(input) === undefined) return { integrity: "drifted", drift: { reason: "entry-superseded" } };
+	if (!ActorNS.allowed(binding.by, input.humans))
+		return { integrity: "drifted", drift: { reason: "actor-not-allowed" } };
 	if (content === undefined) throw new Error("Trust.evaluate: a bound verification needs a content digest");
 	if (content === binding.content) return { integrity: "current" };
 	const generated = input.generated;
@@ -99,19 +113,19 @@ const evaluate = (
 	return { integrity: "drifted", drift: { reason: "content-changed", ...edited } };
 };
 
-const signal = Effect.fn("Trust.signal")(function* (concept: LoadedConcept, now: DateTime.Utc) {
+const signal = Effect.fn("Trust.signal")(function* (concept: LoadedConcept, config: OkfitConfig, now: DateTime.Utc) {
 	const tier = Derive.trustTier(concept.frontmatter);
 	const stale = Derive.isStale(concept.frontmatter, now);
-	const input = inputOf(concept);
+	const input = inputOf(concept, config);
 	const content = needsDigest(input)
 		? yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source)
 		: undefined;
 	return { tier, stale, ...evaluate(input, content) } satisfies ConceptSignal;
 });
 
-const signals = Effect.fn("Trust.signals")(function* (bundle: LoadedBundle, now: DateTime.Utc) {
+const signals = Effect.fn("Trust.signals")(function* (bundle: LoadedBundle, config: OkfitConfig, now: DateTime.Utc) {
 	const out = new Map<string, ConceptSignal>();
-	for (const [id, concept] of bundle.concepts) out.set(id, yield* signal(concept, now));
+	for (const [id, concept] of bundle.concepts) out.set(id, yield* signal(concept, config, now));
 	return out;
 });
 
@@ -126,6 +140,9 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 		return `the latest human verification (${by} at ${at}) is not the one integrity.verified binds; re-run okfit verify`;
 	}
 	const binding = concept.frontmatter.integrity?.verified;
+	if (drift.reason === "actor-not-allowed") {
+		return `verified by ${binding?.by ?? by}, who is not in [actors].humans; a listed human re-runs okfit verify`;
+	}
 	const edited = drift.editedBy === undefined ? "" : ` (edited by ${drift.editedBy} at ${drift.editedAt})`;
 	return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}${edited}; re-run okfit verify`;
 };
@@ -155,7 +172,7 @@ const lint = Effect.fn("Trust.lint")(function* (
 		// `okfit verify` refuses drafts and deprecated concepts, so a warning on one could never be cleared.
 		const status = Derive.status(concept.frontmatter);
 		if (status === "draft" || status === "deprecated") continue;
-		const result = given?.get(id) ?? (yield* signal(concept, now));
+		const result = given?.get(id) ?? (yield* signal(concept, config, now));
 		if (result.drift === undefined) continue;
 		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept));
 		diagnostics.push(
@@ -181,14 +198,16 @@ const lint = Effect.fn("Trust.lint")(function* (
  */
 export class Trust {
 	private constructor() {}
-	/** The signal for one concept; hashes only when a human entry is bound. */
+	/** The signal for one concept under `config`; hashes only when a human entry is bound by an allowed actor. */
 	static readonly signal: (
 		concept: LoadedConcept,
+		config: OkfitConfig,
 		now: DateTime.Utc,
 	) => Effect.Effect<ConceptSignal, PlatformError.PlatformError, Crypto.Crypto> = signal;
 	/** The signal for every concept in a bundle, keyed by concept id. */
 	static readonly signals: (
 		bundle: LoadedBundle,
+		config: OkfitConfig,
 		now: DateTime.Utc,
 	) => Effect.Effect<Map<string, ConceptSignal>, PlatformError.PlatformError, Crypto.Crypto> = signals;
 	/** Pure integrity decision; no hashing. `content` may be `undefined` only when {@link Trust.needsDigest} is false. */
@@ -196,10 +215,10 @@ export class Trust {
 		input: EvaluateInput,
 		content: string | undefined,
 	) => { readonly integrity: IntegrityState; readonly drift?: NonNullable<ConceptSignal["drift"]> } = evaluate;
-	/** True iff the latest human entry is bound by `integrity.verified`, i.e. a digest is needed. */
+	/** True iff the latest human entry is bound by `integrity.verified` and its actor passes the allow-list, i.e. a digest is needed. */
 	static readonly needsDigest: (input: EvaluateInput) => boolean = needsDigest;
 	/** The {@link EvaluateInput} of a loaded concept. */
-	static readonly inputOf: (concept: LoadedConcept) => EvaluateInput = inputOf;
+	static readonly inputOf: (concept: LoadedConcept, config: OkfitConfig) => EvaluateInput = inputOf;
 	/**
 	 * `verified-drift` diagnostics for drifted concepts (drafts and deprecated concepts are exempt: `okfit verify` refuses them); `[]` (no hashing) when the severity is `off`.
 	 * Given `signals` (from {@link Trust.signals}) it reuses each concept's entry and hashes nothing for it;

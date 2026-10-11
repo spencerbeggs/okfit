@@ -79,7 +79,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						const bundle = yield* Bundle.load({ root });
 						const concept = bundle.concepts.get("decisions/a" as ConceptId);
 						if (concept === undefined) return yield* Effect.die(new Error("decisions/a did not load"));
-						return yield* Trust.signal(concept, NOW);
+						return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, NOW);
 					}).pipe(Effect.provide(NodeServices.layer));
 				const oneIntegrity = (text: string) => {
 					assert.strictEqual(countLines(text, /^integrity:/u), 1);

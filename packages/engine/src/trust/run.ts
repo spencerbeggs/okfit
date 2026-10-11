@@ -1,4 +1,4 @@
-import type { BundleLoadError } from "@okfit/core";
+import type { BundleLoadError, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
@@ -8,6 +8,8 @@ import type { ContextTrust } from "../render/context.js";
 /** @public */
 export interface ContextTrustOptions {
 	readonly bundleRoot: string;
+	/** The merged config the bundle was loaded under; its `[actors].humans` gates the drift signal. */
+	readonly config: OkfitConfig;
 	/** `OKFIT_NOW` or `DateTime.now`, from the caller's own `Now` service. */
 	readonly now: DateTime.Utc;
 }
@@ -32,7 +34,7 @@ export const runContextTrust = (
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.bundleRoot });
-		const signals = yield* Trust.signals(bundle, options.now);
+		const signals = yield* Trust.signals(bundle, options.config, options.now);
 		const entries = [...signals.entries()].toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 		const driftedIds = entries.filter(([, s]) => s.integrity === "drifted").map(([id]) => id);
 		const staleIds = entries.filter(([, s]) => s.stale).map(([id]) => id);
