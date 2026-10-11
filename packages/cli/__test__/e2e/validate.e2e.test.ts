@@ -17,6 +17,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
+import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 import { amendDate, commit, initRepo } from "./utils/repo.js";
@@ -788,6 +789,74 @@ describe("okfit --root", () => {
 			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-root-positional-"));
 			const run = yield* runOkfit(["context", sandbox.cwd], sandbox);
 			assert.strictEqual(run.exitCode, 64);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit validate: targets scope the reported diagnostics", () => {
+	const seed = async (): Promise<Sandbox> => {
+		const sandbox = await makeSandbox("okfit-validate-targets-");
+		const init = await Effect.runPromise(runOkfit(["init"], sandbox).pipe(Effect.provide(NodeServices.layer)));
+		assert.strictEqual(init.exitCode, 0);
+		await writeFileDeep(
+			join(sandbox.cwd, "okf", "glossary", "good.md"),
+			"---\ntype: Glossary\ntitle: Good\ndescription: Good.\nstatus: stable\n---\n\n# Good\n",
+		);
+		await writeFileDeep(
+			join(sandbox.cwd, "okf", "glossary", "bad.md"),
+			"---\ntype: Glossary\ntitle: Bad\ndescription: Bad.\nstatus: stable\n---\n\n# Bad\n\nSee [gone](../nowhere/gone.md).\n",
+		);
+		return sandbox;
+	};
+	interface Diag {
+		readonly file: string;
+	}
+
+	it.effect("reports only the named file's diagnostics while the whole bundle loads", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(seed);
+			const all = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			const everything = JSON.parse(all.stdout) as { diagnostics: Diag[]; concepts: number };
+			assert.isTrue(
+				everything.diagnostics.some((d) => d.file === "glossary/bad.md"),
+				all.stdout,
+			);
+			const scoped = yield* runOkfit(["validate", "okf/glossary/good.md", "--format", "json"], sandbox);
+			const scopedBody = JSON.parse(scoped.stdout) as { diagnostics: Diag[]; concepts: number };
+			assert.deepStrictEqual(scopedBody.diagnostics, []);
+			assert.strictEqual(scopedBody.concepts, everything.concepts);
+			const other = yield* runOkfit(["validate", "glossary/bad", "--format", "json"], sandbox);
+			const otherBody = JSON.parse(other.stdout) as { diagnostics: Diag[] };
+			assert.isAbove(otherBody.diagnostics.length, 0);
+			assert.isTrue(otherBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
+			// flags after the variadic targets still parse as flags
+			const after = yield* runOkfit(["validate", "glossary/bad", "glossary/good", "--format", "json"], sandbox);
+			assert.isTrue(Array.isArray((JSON.parse(after.stdout) as { diagnostics: unknown }).diagnostics));
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("an unknown target exits 64", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(seed);
+			const run = yield* runOkfit(["validate", "glossary/zzz"], sandbox);
+			assert.strictEqual(run.exitCode, 64);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit validate: a file that does not decode", () => {
+	it.effect("is still checked when named as a target", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => copyFixtureInto(CONFORMANCE_BAD_FIXTURE, join(sandbox.cwd, "okf")));
+			const run = yield* runOkfit(["validate", join(sandbox.cwd, "okf", "no-front.md"), "--format", "json"], sandbox);
+			assert.strictEqual(run.exitCode, 2);
+			const body = JSON.parse(run.stdout) as { diagnostics: Array<{ file: string; code: string }> };
+			assert.deepStrictEqual(
+				body.diagnostics.map((d) => d.file),
+				["no-front.md"],
+			);
+			assert.strictEqual(body.diagnostics[0]?.code, "frontmatter-missing");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

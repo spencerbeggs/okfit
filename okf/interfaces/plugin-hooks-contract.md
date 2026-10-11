@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T19:34:18Z
+  at: 2026-10-11T19:53:30Z
 tags:
   - architecture
 verified:
@@ -17,7 +17,7 @@ verified:
     at: 2026-10-11T15:55:11Z
 integrity:
   generated:
-    body: 99850809091f8779
+    body: 7d8c7c3780f48151
   verified:
     by: human:spencer
     at: 2026-10-11T15:55:11Z
@@ -62,8 +62,9 @@ findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)
 the hook keeps exactly two jobs, now that the registered language server
 delivers `core.lint` and profile findings with precise ranges directly in
 the editor. For a path under the bundle root, it runs
-`okfit validate --root <project_root> --format json --skip-provenance` on the
-whole bundle, filters the diagnostics to the edited file, and turns a
+`okfit validate --root <project_root> <file> --format json --skip-provenance`
+(the bundle loads whole; the edited file as a target scopes the reported
+diagnostics to it), and turns a
 `core.conformance` hit into `{"decision": "block", ...}`; every other
 diagnostic for that file — `core.lint`, profile findings — is silent
 here and no longer emitted as `additionalContext`. One check reads the

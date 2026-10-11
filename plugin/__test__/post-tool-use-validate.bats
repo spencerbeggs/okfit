@@ -153,6 +153,12 @@ CLEAN='{"schema":1,"exit_code":0,"diagnostics":[]}'
 	done
 }
 
+@test "passes the edited file to okfit validate as a target (scoped validation)" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" "$CLEAN"
+	_run claude "$(render posttooluse.write-clean.json)"
+	[ "$(paste -sd' ' "$STUB_DIR/validate-argv")" = "validate --root $REPO_ROOT $REPO_ROOT/okf/modules/example.md --format json --skip-provenance" ]
+}
+
 @test "blocks on a core.conformance diagnostic for the edited file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"type is required"}]}' 2

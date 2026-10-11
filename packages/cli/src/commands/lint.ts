@@ -15,9 +15,10 @@ import {
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
-import { Command, Flag } from "effect/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { printDiagnostics } from "../internal/print-diagnostics.js";
 import { rootFlag } from "../internal/root.js";
+import { scopeTo } from "../internal/scope.js";
 import { CLI_VERSION } from "../version.js";
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
@@ -31,6 +32,14 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDescription("output format: human (default) or json"),
 );
 
+/** Scope: report only these files' diagnostics; the bundle still loads whole so link lints stay right. */
+const targetsArg = Argument.String("targets").pipe(
+	Argument.variadic({ min: 0 }),
+	Argument.withDescription(
+		"only report diagnostics for these files: concept ids or paths; the whole bundle still loads",
+	),
+);
+
 /** S-31: skips `Provenance.lint`'s git tier for this invocation, without touching `[lint]`. */
 const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
 	Flag.withDefault(false),
@@ -38,7 +47,7 @@ const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
 );
 
 /**
- * `okfit lint [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance]`.
+ * `okfit lint [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance]`.
  *
  * Same handler skeleton as `commands/validate.ts` — stat `--config` (K-1)
  * via `provideConfig`, discover, resolve the profile and roots through
@@ -54,7 +63,7 @@ const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
  */
 export const lintCommand = Command.make(
 	"lint",
-	{ root: rootFlag, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag },
+	{ targets: targetsArg, root: rootFlag, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
@@ -78,7 +87,8 @@ export const lintCommand = Command.make(
 					now,
 					skipProvenance: input.skipProvenance,
 				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
-				const diagnostics = collect([], result.report.lint, result.profileDiagnostics);
+				const all = collect([], result.report.lint, result.profileDiagnostics);
+				const diagnostics = yield* scopeTo(all, input.targets, result.bundle, cwd);
 				const code = forDiagnostics(diagnostics);
 
 				if (input.format === "json") {

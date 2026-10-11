@@ -19,11 +19,11 @@ describe("lintCommand", () => {
 		assert.isTrue((lintCommand.description ?? "").includes("diagnostics"));
 	});
 
-	it("declares no positionals and the root/ the config/format/skip-provenance flags, by name", () => {
+	it("declares an optional targets argument and the root/ the config/format/skip-provenance flags, by name", () => {
 		const config = configOf(lintCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
-			[],
+			["targets"],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),

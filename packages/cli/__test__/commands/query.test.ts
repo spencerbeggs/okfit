@@ -34,13 +34,13 @@ describe("queryCommand", () => {
 	});
 
 	it.each([
-		["get", queryGetCommand],
-		["neighbors", queryNeighborsCommand],
-	])("%s takes id and the root/config/format flags", (_name, command) => {
+		["get", queryGetCommand, "targets"],
+		["neighbors", queryNeighborsCommand, "target"],
+	])("%s takes the %s argument and the root/config/format flags", (_name, command, argument) => {
 		const config = configOf(command);
 		assert.deepStrictEqual(
 			config.arguments.map((a) => nameOf(a)),
-			["id"],
+			[argument],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((f) => nameOf(f)),

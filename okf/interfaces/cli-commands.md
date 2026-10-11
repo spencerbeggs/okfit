@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T19:44:19Z
+  at: 2026-10-11T19:53:30Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: 40369de6a21c8ca0
+    body: 9ea50779a437e63b
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
@@ -44,6 +44,8 @@ its own subcommand (`list`, `get`, `neighbors`), then `<id>` where it needs
 one.
 
 ## okfit validate
+
+`okfit validate [targets...]` takes optional targets (concept ids or file paths, any bundle file) that scope the reported diagnostics; the bundle still loads whole, and the JSON `concepts` count stays the bundle size. An unknown target is exit `64`.
 
 Loads the config, loads the bundle, runs conformance and lint checks against
 it, then runs the resolved profile's own checks, and renders every
@@ -188,11 +190,12 @@ when the actor has no entries to revoke, `64` when combined with `--all`,
 
 `okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status
 draft|stable|deprecated]... [--verified|--unverified] [--drifted]
-[--stale] [--config <file>] [--format human|json]`, `okfit query get <id> [--root <dir>]` and `okfit query
-neighbors <id> [--root <dir>]` are read-only lookups over the bundle, backed by the
+[--stale] [--config <file>] [--format human|json]`, `okfit query get <targets...> [--root <dir>]` and `okfit query
+neighbors <target> [--root <dir>]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
-`3` for an unknown id; `64` for an undeclared type or tag or for
+`get` takes one or more concepts (ids or paths) and prints a JSON array for
+more than one, a bare object for one; `64` for an unknown target, an undeclared type or tag or for
 `--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`
 keeps those never verified, `--drifted` keeps those edited since their
 verification was bound, and `--stale` keeps those past `stale_after`; the
@@ -275,8 +278,8 @@ restamps Publications. In the JSON envelope the three modes are all
 
 ## okfit lint
 
-`okfit lint [--root <dir>] [--config <file>] [--format human|json]
-[--skip-provenance]` shares `validate`'s whole handler — the same config
+`okfit lint [targets...] [--root <dir>] [--config <file>] [--format human|json]
+[--skip-provenance]` shares `validate`'s whole handler (including its optional targets, which scope the reported diagnostics only, so link lints stay right) — the same config
 resolution, the same engine `run` call (both tiers `Validate.all` produces
 still run internally, and `--skip-provenance` still means exactly what it
 means for `validate`), the same human and JSON renderers — except the

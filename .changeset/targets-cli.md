@@ -11,9 +11,11 @@
 ### An unknown concept is a usage error
 
 * An unknown concept id is now a usage error (exit 64) on `okfit verify`, listing every bad target with a suggestion, instead of exit 3.
+* An unknown concept on `okfit query get` is exit 64, not 3.
 
 ## Features
 
 ### Several concepts at once
 
 * `okfit verify` and `okfit verify --revoke` take any number of concept targets, mixing ids and paths. Nothing is written unless every target resolves.
+* `okfit query get` takes several targets and returns a JSON array for more than one; `okfit validate` and `okfit lint` take optional targets that scope the reported diagnostics.

@@ -6,10 +6,12 @@
 // K-44: no CLI-owned fixtures. Reuses the same profiles/core fixtures
 // validate.e2e.test.ts already names.
 
-import { join, resolve } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
@@ -19,6 +21,11 @@ const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profil
 const CLEAN_FIXTURE = join(PROFILES_FIXTURES, "software-project");
 const LINT_BAD_FIXTURE = join(PROFILES_FIXTURES, "bad", "module-no-kind");
 const CONFORMANCE_BAD_FIXTURE = join(CORE_FIXTURES, "bad", "c-frontmatter-missing");
+
+const writeFileDeep = async (path: string, contents: string): Promise<void> => {
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, contents, "utf8");
+};
 
 describe("okfit lint: clean bundle", () => {
 	it.effect("exits 0, prints only the summary to stderr", () =>
@@ -174,6 +181,57 @@ describe("okfit lint --format json", () => {
 			assert.strictEqual(envelope.schema, 1);
 			assert.strictEqual(envelope.exit_code, 3);
 			assert.strictEqual(envelope.error.tag, "ConfigPathNotFoundError");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit lint: targets scope the reported diagnostics", () => {
+	const seed = async (): Promise<Sandbox> => {
+		const sandbox = await makeSandbox("okfit-lint-targets-");
+		const init = await Effect.runPromise(runOkfit(["init"], sandbox).pipe(Effect.provide(NodeServices.layer)));
+		assert.strictEqual(init.exitCode, 0);
+		await writeFileDeep(
+			join(sandbox.cwd, "okf", "glossary", "good.md"),
+			"---\ntype: Glossary\ntitle: Good\ndescription: Good.\nstatus: stable\n---\n\n# Good\n",
+		);
+		await writeFileDeep(
+			join(sandbox.cwd, "okf", "glossary", "bad.md"),
+			"---\ntype: Glossary\ntitle: Bad\ndescription: Bad.\nstatus: stable\n---\n\n# Bad\n\nSee [gone](../nowhere/gone.md).\n",
+		);
+		return sandbox;
+	};
+	interface Diag {
+		readonly file: string;
+	}
+
+	it.effect("reports only the named file's diagnostics while the whole bundle loads", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(seed);
+			const all = yield* runOkfit(["lint", "--format", "json"], sandbox);
+			const everything = JSON.parse(all.stdout) as { diagnostics: Diag[]; concepts: number };
+			assert.isTrue(
+				everything.diagnostics.some((d) => d.file === "glossary/bad.md"),
+				all.stdout,
+			);
+			const scoped = yield* runOkfit(["lint", "okf/glossary/good.md", "--format", "json"], sandbox);
+			const scopedBody = JSON.parse(scoped.stdout) as { diagnostics: Diag[]; concepts: number };
+			assert.deepStrictEqual(scopedBody.diagnostics, []);
+			assert.strictEqual(scopedBody.concepts, everything.concepts);
+			const other = yield* runOkfit(["lint", "glossary/bad", "--format", "json"], sandbox);
+			const otherBody = JSON.parse(other.stdout) as { diagnostics: Diag[] };
+			assert.isAbove(otherBody.diagnostics.length, 0);
+			assert.isTrue(otherBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
+			// flags after the variadic targets still parse as flags
+			const after = yield* runOkfit(["lint", "glossary/bad", "glossary/good", "--format", "json"], sandbox);
+			assert.isTrue(Array.isArray((JSON.parse(after.stdout) as { diagnostics: unknown }).diagnostics));
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("an unknown target exits 64", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(seed);
+			const run = yield* runOkfit(["lint", "glossary/zzz"], sandbox);
+			assert.strictEqual(run.exitCode, 64);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

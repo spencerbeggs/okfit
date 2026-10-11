@@ -10,7 +10,7 @@ allowed-tools:
 
 ## Discovery order and the three file locations
 
-With no `--config` flag, `okfit` walks upward from `[path]` (default: the
+With no `--config` flag, `okfit` walks upward from `--root` (default: the
 current directory), checking each directory for `<dir>/.okfit.toml`, then
 `<dir>/okfit.toml`, then `<dir>/.config/okfit.toml` before moving up one
 level -- so a child directory's `okfit.toml` always beats a parent's

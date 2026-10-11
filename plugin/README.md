@@ -92,8 +92,9 @@ now that the registered language server (see LSP server, below) delivers
 (LSP phase 4, decision 8). **The write has already landed by the time this
 hook runs** — Claude Code only reports a completed tool call to
 `PostToolUse` — so this hook is a stop-and-fix signal, not a prevention: it
-runs `okfit validate --format json --skip-provenance` scoped to the whole
-bundle, filters the diagnostics down to the edited file, and turns any
+runs `okfit validate --root <project> <file> --format json --skip-provenance`
+(the bundle loads whole; the edited file as a target scopes the diagnostics to
+it), and turns any
 `core.conformance` diagnostic for that file into
 `{"decision": "block", "reason": "..."}`, which tells Claude to fix the file
 immediately before continuing. Every other diagnostic `okfit validate`
