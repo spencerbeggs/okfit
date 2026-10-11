@@ -13,6 +13,9 @@
  *   `Set status: draft` (`isPreferred`) and `Set status: stable`, kind
  *   `quickfix`, each carrying that diagnostic. Offered wherever the request
  *   range sits, since the client only sends the diagnostic when it overlaps.
+ *   When it carries a `verified-drift` diagnostic (same shape check):
+ *   `Re-verify as <actor>` (`isPreferred`), the same edit as Mark verified; a
+ *   draft or deprecated concept, or an unresolvable actor, gets none.
  * - **Status actions** (kind `okfit.status`). `Set status: <status>` for each
  *   status the raw frontmatter `status` is not already (all three when it has
  *   no explicit status), in `Status`'s literal order, minus any a quick fix
@@ -67,6 +70,16 @@ const statusMissingOf = (
 	diagnostics.find(
 		(diagnostic) =>
 			diagnostic.code === "status-missing" &&
+			(diagnostic.data === undefined || (diagnostic.data as { readonly source?: unknown }).source === "core.lint"),
+	);
+
+/** `diagnostics`' own `verified-drift` entry, same shape check as {@link statusMissingOf}. */
+const verifiedDriftOf = (
+	diagnostics: CodeActionParams["context"]["diagnostics"],
+): CodeActionParams["context"]["diagnostics"][number] | undefined =>
+	diagnostics.find(
+		(diagnostic) =>
+			diagnostic.code === "verified-drift" &&
 			(diagnostic.data === undefined || (diagnostic.data as { readonly source?: unknown }).source === "core.lint"),
 	);
 
@@ -159,6 +172,25 @@ export const registerCodeActions = (
 						diagnostics: [statusMissing as NonNullable<typeof statusMissing>],
 						isPreferred: status === "draft",
 					});
+				}
+
+				const verifiedDrift = verifiedDriftOf(params.context.diagnostics);
+				if (verifiedDrift !== undefined && (only === undefined || named(only, CODE_ACTION_KIND_QUICKFIX))) {
+					const actor = yield* actorFor(target.handle);
+					if (Option.isSome(actor)) {
+						const now = yield* DateTime.now;
+						// Draft and deprecated concepts fail here and so get no action.
+						const edits = yield* Effect.option(verifiedTextEdits(target, actor.value, now));
+						if (Option.isSome(edits)) {
+							actions.push({
+								title: `Re-verify as ${actor.value}`,
+								kind: CODE_ACTION_KIND_QUICKFIX,
+								diagnostics: [verifiedDrift],
+								isPreferred: true,
+								edit: versionedEdit(uri, target, edits.value),
+							});
+						}
+					}
 				}
 
 				if (offer("okfit.status")) {

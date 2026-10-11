@@ -95,7 +95,10 @@ describe("editTarget", () => {
 				assert.strictEqual(target.text, edited);
 				assert.strictEqual(target.version, 7);
 				assert.strictEqual(target.status, "deprecated");
-				assert.deepStrictEqual(target.verifiedBy, ["human:someone"]);
+				assert.deepStrictEqual(
+					target.verified.map((entry) => entry.by),
+					["human:someone"],
+				);
 				// The splice is computed against the buffer, so it replaces the buffer's own `status:` value.
 				const [edit] = yield* statusTextEdits(target, "draft");
 				assert.deepStrictEqual(edit?.range, {
@@ -168,6 +171,37 @@ describe("verifiedStableTextEdits", () => {
 			const now = yield* DateTime.now;
 			const failure = yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", now));
 			assert.deepStrictEqual(failure, { _tag: "AlreadyVerified", by: "human:fixture-author" });
+		}).pipe(Effect.provide(testPlatform())),
+	);
+});
+
+describe("verifiedTextEdits: already-verified agrees with Trust", () => {
+	const entry = (by: string, at: string): string => `verified:\n  - by: "${by}"\n    at: "${at}"\n`;
+
+	it.effect("an unchanged current binding by the actor is AlreadyVerified", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const verified = disk.replace(/^---\n/, `---\n${entry("human:fixture-author", "2026-01-01T00:00:00Z")}`);
+			yield* documents.record(path, yield* withBinding(verified, "human:fixture-author", "2026-01-01T00:00:00Z"), 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const now = yield* DateTime.now;
+			const failure = yield* Effect.flip(verifiedTextEdits(target, "human:fixture-author", now));
+			assert.deepStrictEqual(failure, { _tag: "AlreadyVerified", by: "human:fixture-author" });
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("a later unbound human entry supersedes ada's binding, so ada is offered a re-verify", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const both = disk.replace(
+				/^---\n/,
+				`---\nverified:\n  - by: "human:ada"\n    at: "2026-01-01T00:00:00Z"\n  - by: "human:bob"\n    at: "2026-02-01T00:00:00Z"\n`,
+			);
+			yield* documents.record(path, yield* withBinding(both, "human:ada", "2026-01-01T00:00:00Z"), 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const now = yield* DateTime.now;
+			const edits = yield* verifiedTextEdits(target, "human:ada", now);
+			assert.isTrue(edits.some((edit) => edit.newText.includes("content: ")));
 		}).pipe(Effect.provide(testPlatform())),
 	);
 });

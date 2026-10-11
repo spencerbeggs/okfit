@@ -22,10 +22,11 @@ import type { MarkdownEdit } from "@effected/markdown";
 import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
-import type { LoadedConcept, OkfitConfig, Status } from "@okfit/core";
+import type { Actor, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { DiagnosticRange, Timestamp } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
-import { Derivation } from "@okfit/profiles";
+import type { EvaluateInput } from "@okfit/profiles";
+import { Derivation, Trust } from "@okfit/profiles";
 import type { Crypto, DateTime } from "effect";
 import { Effect, Option, Result, Schema } from "effect";
 import { toLspRange } from "../convert/range.js";
@@ -96,10 +97,10 @@ export interface EditTarget {
 	readonly version: number | null;
 	/** The raw top-level `status` value when it is a string, else `undefined` (no explicit status). */
 	readonly status: string | undefined;
-	/** Every `verified[].by` string in the frontmatter, in order. */
-	readonly verifiedBy: ReadonlyArray<string>;
-	/** The recorded `integrity.verified` binding (`by`, `content`) when the frontmatter carries a well-formed one. */
-	readonly binding: { readonly by: string; readonly content: string } | undefined;
+	/** Every well-formed `verified[]` entry (`by`, decoded `at`) in the frontmatter, in order; an entry with no string `by` or an unparseable `at` is skipped. */
+	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: DateTime.Utc }>;
+	/** The recorded `integrity.verified` binding (`by`, `at`, `content`) when the frontmatter carries a well-formed one. */
+	readonly binding: { readonly by: string; readonly at: DateTime.Utc; readonly content: string } | undefined;
 	/** The frontmatter block, opening fence through closing fence, as an LSP range over `text`. */
 	readonly frontmatter: Range;
 }
@@ -140,25 +141,28 @@ export const editTarget = (
 		const data = parsed.value.toValue();
 		const status = field(data, "status");
 		const verified = field(data, "verified");
-		const verifiedBy = Array.isArray(verified)
+		const decodeAt = Schema.decodeUnknownOption(Timestamp);
+		const verifiedEntries = Array.isArray(verified)
 			? verified.flatMap((entry) => {
 					const by = field(entry, "by");
-					return typeof by === "string" ? [by] : [];
+					const at = decodeAt(field(entry, "at"));
+					return typeof by === "string" && Option.isSome(at) ? [{ by, at: at.value }] : [];
 				})
 			: [];
 		const verifiedBinding = field(field(data, "integrity"), "verified");
 		const bindingBy = field(verifiedBinding, "by");
 		const bindingContent = field(verifiedBinding, "content");
+		const bindingAt = decodeAt(field(verifiedBinding, "at"));
 		return Option.some({
 			handle: owner.value,
 			binding:
-				typeof bindingBy === "string" && typeof bindingContent === "string"
-					? { by: bindingBy, content: bindingContent }
+				typeof bindingBy === "string" && typeof bindingContent === "string" && Option.isSome(bindingAt)
+					? { by: bindingBy, at: bindingAt.value, content: bindingContent }
 					: undefined,
 			text,
 			version,
 			status: typeof status === "string" ? status : undefined,
-			verifiedBy,
+			verified: verifiedEntries,
 			frontmatter: toLspRange(text, DiagnosticRange.fromOffset(text, 0, split.bodyOffset)),
 		});
 	});
@@ -209,11 +213,30 @@ const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Crypt
 	});
 
 /**
- * Whether `actor` already holds a still-bound verification of `target`: its
- * `integrity.verified` names `actor` and records the digest of the current text.
+ * The {@link Trust.EvaluateInput} of `target`'s frontmatter (no `generated`: only
+ * the integrity state is read, never the drift detail).
  */
-const alreadyBound = (target: EditTarget, actor: string, content: string): boolean =>
-	target.verifiedBy.includes(actor) && target.binding?.by === actor && target.binding.content === content;
+const trustInput = (target: EditTarget): EvaluateInput => ({
+	verified: target.verified.map((entry) => ({ by: entry.by as Actor, at: entry.at })),
+	binding:
+		target.binding === undefined
+			? undefined
+			: { by: target.binding.by as Actor, at: target.binding.at, content: target.binding.content },
+	generated: undefined,
+});
+
+/**
+ * Whether `actor` already holds a still-current verification of `target`, by
+ * the same decision `okfit validate` makes (`Trust.evaluate`): the latest human
+ * entry is bound by `integrity.verified`, the binding names `actor`, and its
+ * digest matches `content`. A later unbound human entry supersedes the binding.
+ */
+const alreadyBound = (target: EditTarget, actor: string, content: string): boolean => {
+	const input = trustInput(target);
+	return (
+		Trust.needsDigest(input) && Trust.evaluate(input, content).integrity === "current" && target.binding?.by === actor
+	);
+};
 
 /**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
