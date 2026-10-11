@@ -17,7 +17,7 @@ src/
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError,
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
-                             QuerySelectionError, TargetResolutionError
+                             QuerySelectionError, TargetResolutionError, MoveError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
@@ -54,6 +54,11 @@ src/
   targets/
     resolve.ts               -- Targets.resolve/suggest, ResolvedTarget: the shared concept-target resolver
                                 (absolute, cwd-relative, id; all or nothing)
+  move/
+    references.ts           -- Reference, referencesOf, rewriteReference: find every reference in a concept
+                                (body links, images, definitions; path-valued frontmatter; renders[].path) and
+                                rewrite one keeping its spelling (pure)
+    run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
@@ -82,6 +87,7 @@ src/
     sort.ts                          -- RenderedDiagnostic, DiagnosticSource, collect, sort (pure)
     json.ts                           -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary, json, jsonError (pure)
     exit.ts                           -- Tally, tally, forDiagnostics (pure)
+    move.ts                            -- MoveEnvelope, moveEnvelope (envelope half)
     sync.ts                            -- SyncEnvelope, SyncModeEnvelope, syncEnvelope (envelope half)
   index.ts                            -- public barrel; this is what @okfit/cli and @okfit/mcp import
 ```

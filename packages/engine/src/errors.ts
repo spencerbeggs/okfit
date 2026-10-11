@@ -341,3 +341,25 @@ export class TargetResolutionError extends Schema.TaggedError<TargetResolutionEr
 		return this.failures.map(targetLine).join("\n");
 	}
 }
+
+/**
+ * `okfit mv` refused before writing anything. `outside-bundle`, `destination-exists`, `reserved`
+ * and `same-path` name a bad destination (`detail` is the destination); `unrewritable` lists every
+ * body link (`file: url`, one per line) whose URL text could not be located for rewriting.
+ *
+ * @public
+ */
+export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
+	reason: Schema.Literals(["outside-bundle", "destination-exists", "reserved", "same-path", "unrewritable"]),
+	detail: Schema.optionalKey(Schema.String),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		const detail = this.detail ?? "";
+		if (this.reason === "outside-bundle") return `destination ${detail} is outside the bundle`;
+		if (this.reason === "destination-exists") return `destination ${detail} already exists`;
+		if (this.reason === "reserved") return `${detail} is a reserved file name`;
+		if (this.reason === "same-path") return "source and destination are the same file";
+		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
+	}
+}
