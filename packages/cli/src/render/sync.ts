@@ -9,6 +9,7 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 		"has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent",
 	"generated-unsupported": "generated.at is a shape sync cannot edit; edit it by hand",
 	"integrity-unsupported": "integrity is a shape sync cannot edit; edit it by hand",
+	"renders-unsupported": "renders is a shape sync cannot edit (flow style); edit it by hand",
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
 };
 

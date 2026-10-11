@@ -138,13 +138,13 @@ export class FrontmatterEdits {
 	/**
 	 * Edits that stamp `renders[i].body` with `digests[i]` (16 hex, quoted when numeric-looking): an
 	 * existing value is replaced in place, a missing key is inserted on the line after
-	 * `renders[i].path` at that key's column. A legacy `renders[i].body_sha256` line in the same
+	 * `renders[i].path` at that key's column. An `undefined` digest skips its entry. A legacy `renders[i].body_sha256` line in the same
 	 * entry is removed, so an entry never ends up with both keys. Block-style `renders` only; flow
 	 * style fails with `UnsupportedFrontmatterError`.
 	 */
 	static readonly rendersDigests = (
 		source: string,
-		digests: ReadonlyArray<string>,
+		digests: ReadonlyArray<string | undefined>,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
@@ -161,6 +161,8 @@ export class FrontmatterEdits {
 			const newline = documentNewline(text);
 			const edits: Array<MarkdownEdit> = [];
 			for (const [index, digest] of digests.entries()) {
+				// `undefined` leaves that entry untouched (a migration that only converts legacy entries).
+				if (digest === undefined) continue;
 				const formatted = formatDigest(digest);
 				const legacySpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
 				if (legacySpan !== undefined && legacySpan.offset !== block.offset) {

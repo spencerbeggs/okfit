@@ -869,6 +869,38 @@ describe("syncGenerated: integrity and legacy migration", () => {
 		),
 	);
 
+	it.effect(
+		"migrates legacy renders[].body_sha256 of a Publication whose body is unchanged, then is idempotent",
+		() => {
+			const LEGACY = "abcdef0123456789".repeat(4);
+			const renders = (entries: string) => `type: Publication\nresource: page.md\nsurface: s\nrenders:\n${entries}`;
+			const legacyRenders = `  - path: a.md\n    body_sha256: ${LEGACY}\n  - path: b.md\n    body: 1111111111111f11\n    body_sha256: ${LEGACY}\n`;
+			return Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-renders-")));
+				try {
+					const plain = `---\n${renders(legacyRenders)}---${BODY}`;
+					const digest = yield* Derivation.bodyDigest(plain);
+					const text = `---\n${renders(legacyRenders)}generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity:\n  generated:\n    body: ${digest}\n---${BODY}`;
+					yield* Effect.promise(() => writeFile(join(root, "page.md"), text));
+					const first = yield* run(root);
+					assert.deepStrictEqual(first.migrated, ["page"]);
+					assert.deepStrictEqual(first.written, []);
+					const out = yield* readPage(root);
+					assert.notInclude(out, "body_sha256");
+					assert.include(out, "  - path: a.md\n    body: abcdef0123456789\n");
+					assert.include(out, "  - path: b.md\n    body: 1111111111111f11\n");
+					assert.include(out, `  at: ${OLD_AT}\n`);
+					const second = yield* run(root);
+					assert.deepStrictEqual(second.migrated, []);
+					assert.deepStrictEqual(second.unchanged, ["page"]);
+					assert.strictEqual(yield* readPage(root), out);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}).pipe(Effect.provide(NodeServices.layer));
+		},
+	);
+
 	it.effect("skips a flow-style integrity with integrity-unsupported and leaves the file untouched", () =>
 		withFile(
 			`generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity: { generated: { body: 0000000000000000 } }\n`,

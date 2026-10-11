@@ -30,6 +30,7 @@ export const SkipReason = Schema.Literals([
 	"generated-missing",
 	"generated-unsupported",
 	"integrity-unsupported",
+	"renders-unsupported",
 	"log-unparseable",
 ]);
 /** @public */

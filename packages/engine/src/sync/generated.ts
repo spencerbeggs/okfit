@@ -1,10 +1,11 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { Actor, ConceptId, LoadedBundle } from "@okfit/core";
+import type { Actor, ConceptId, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
-import { Derivation } from "@okfit/profiles";
+import { Derivation, PUBLICATION_TYPE } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { Effect, FileSystem, Path, Schema } from "effect";
+import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
@@ -30,6 +31,7 @@ export const GeneratedSkipReason = Schema.Literals([
 	"generated-missing",
 	"generated-unsupported",
 	"integrity-unsupported",
+	"renders-unsupported",
 ]);
 /** @internal */
 export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;
@@ -49,6 +51,25 @@ export interface GeneratedSyncResult {
 }
 
 const encodeAt = Schema.encodeSync(Timestamp);
+
+/**
+ * For a Publication whose `renders` still carries a legacy `body_sha256`: the
+ * per-entry `renders[].body` to write (existing `body`, else the legacy 16-hex
+ * prefix), `undefined` for an entry with no legacy key. `undefined` overall when
+ * there is nothing to migrate.
+ */
+const legacyRendersDigests = (concept: LoadedConcept): ReadonlyArray<string | undefined> | undefined => {
+	if (concept.frontmatter.type !== PUBLICATION_TYPE) return undefined;
+	const renders = concept.frontmatter.raw.renders;
+	if (!Array.isArray(renders)) return undefined;
+	const digests = renders.map((entry: unknown) => {
+		if (typeof entry !== "object" || entry === null) return undefined;
+		const { body, body_sha256: legacy } = entry as { body?: unknown; body_sha256?: unknown };
+		if (typeof legacy !== "string" || legacy === "") return undefined;
+		return typeof body === "string" && body !== "" ? body : legacy.slice(0, 16);
+	});
+	return digests.some((d) => d !== undefined) ? digests : undefined;
+};
 
 /**
  * What {@link syncGenerated} needs from provenance: `BodyProvenance` is
@@ -129,7 +150,8 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
 		const matches = Derivation.recordedBody(concept) === currentDigest;
 		const hasLegacy = generated?.body_sha256 !== undefined;
-		if (matches && !hasLegacy) {
+		const legacyRenders = legacyRendersDigests(concept);
+		if (matches && !hasLegacy && legacyRenders === undefined) {
 			unchanged.push(id);
 			continue;
 		}
@@ -197,10 +219,21 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			}
 		}
 		if (legacy._tag === "line") edits.push(removeLine(legacy));
+		if (legacyRenders !== undefined) {
+			const renderEdits = yield* FrontmatterEdits.rendersDigests(text, legacyRenders).pipe(
+				Effect.catchTags({ UnsupportedFrontmatterError: () => Effect.succeed(undefined) }),
+				Effect.orDie,
+			);
+			if (renderEdits === undefined) {
+				skipped.push({ id, reason: "renders-unsupported" });
+				continue;
+			}
+			edits.push(...renderEdits);
+		}
 		edits.push(spliceIntegrityGenerated(integrityLocated, text, currentDigest, newline));
 
 		const finalText = bom + MarkdownEdit.applyAll(text, mergeSameOffset(edits.toSorted((a, b) => a.offset - b.offset)));
-		if (legacy._tag === "line") migrated.push(id);
+		if (legacy._tag === "line" || legacyRenders !== undefined) migrated.push(id);
 		if (!dryRun) {
 			yield* writeAtomic(absolutePath, finalText);
 		} else {
