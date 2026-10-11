@@ -82,8 +82,10 @@ export const indentAt = (value: string, offset: number): string => {
  * carries a `<<` key. That is every level a legal `Verification.List` can
  * reach; anything deeper already fails to decode as a `Verification`
  * (contract §11 item 3).
+ *
+ * @internal
  */
-const hasMergeKey = (node: YamlNode): boolean => {
+export const hasMergeKey = (node: YamlNode): boolean => {
 	if (node instanceof YamlMap) {
 		return node.items.some((pair) => pair.key instanceof YamlScalar && pair.key.value === "<<");
 	}
@@ -94,7 +96,7 @@ const hasMergeKey = (node: YamlNode): boolean => {
 };
 
 /** {@link parseTopLevelMapping}'s result: the parsed mapping, or the `unsupported` shape it failed at. @internal */
-type ParsedTopLevelMapping =
+export type ParsedTopLevelMapping =
 	| { readonly value: string; readonly valueStart: number; readonly contents: YamlMap }
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
@@ -108,7 +110,7 @@ type ParsedTopLevelMapping =
  *
  * @internal
  */
-const parseTopLevelMapping = Effect.fn("okfit/verify/parseTopLevelMapping")(function* (
+export const parseTopLevelMapping = Effect.fn("okfit/verify/parseTopLevelMapping")(function* (
 	source: string,
 ): Generator<Effect.Effect<YamlDocument, YamlParseError>, ParsedTopLevelMapping> {
 	const block = FrontmatterSource.split(source).frontmatter;
