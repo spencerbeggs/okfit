@@ -10,8 +10,8 @@ generated:
   at: 2026-10-11T03:59:59Z
 status: draft
 sources:
-  - id: design-spec
-    resource: ../../docs/superpowers/specs/2026-10-10-okfit-verification-integrity-design.md
+  - id: trust-ts
+    resource: ../../packages/profiles/src/Trust.ts
 integrity:
   generated:
     body: 0c57f97e443b429c

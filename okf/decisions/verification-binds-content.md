@@ -12,8 +12,6 @@ status: draft
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
-  - id: design-spec
-    resource: ../../docs/superpowers/specs/2026-10-10-okfit-verification-integrity-design.md
 integrity:
   generated:
     body: 81d1f9bf84614fbf
