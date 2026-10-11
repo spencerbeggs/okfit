@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T21:11:56Z
+  at: 2026-10-11T21:24:02Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: 3f749db7f4074a02
+    body: b852ba04ff837836
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
@@ -368,8 +368,10 @@ verification it voids. `--dry-run` prints the plan and writes nothing. `mv` neve
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,
 `pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside
-the bundle (a `..` that climbs out included), is a reserved file, contains
-whitespace or equals the source is exit `64` with nothing written, as is a link that
+the bundle (a `..` that climbs out or a symlinked directory that leads out included),
+is a reserved file, contains whitespace or equals the source is exit `64` with nothing
+written, as is moving the bundle's project file (`project.md`), which must stay at the
+bundle root, and a link that
 would need rewriting for this move and whose URL cannot be located (an unrelated
 link the locator cannot read does not block it). `--format json` prints a
 `MoveEnvelope` (schema 1): `from`, `to`, `path`, `dry_run`, `edits` (`path`,
