@@ -33,7 +33,6 @@
 	},
 	"devDependencies": {
 		"@effect/platform-node": "catalog:effect",
-		"@effect/platform-node-shared": "catalog:effect",
 		"@effect/vitest": "catalog:effect",
 		"@effected/commands": "catalog:effected",
 		"@effected/config-file": "catalog:effected",

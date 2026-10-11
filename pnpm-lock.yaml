@@ -209,9 +209,6 @@ catalogs:
     '@effect/platform-node':
       specifier: ^4.0.3
       version: 4.0.3
-    '@effect/platform-node-shared':
-      specifier: ^4.0.3
-      version: 4.0.3
     '@effect/vitest':
       specifier: ^4.0.3
       version: 4.0.3
@@ -358,9 +355,6 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@effect/platform-node-shared':
-        specifier: catalog:effect
-        version: 4.0.3(effect@4.0.3)
       '@effected/cli':
         specifier: catalog:effected
         version: 0.17.0(@effected/config-file@0.15.0(@effected/glob@0.11.0(effect@4.0.3))(@effected/jsonc@0.16.0(effect@4.0.3))(@effected/toml@0.12.0(effect@4.0.3))(@effected/walker@0.16.0(@effected/glob@0.11.0(effect@4.0.3))(effect@4.0.3))(@effected/yaml@0.20.0(effect@4.0.3))(effect@4.0.3))(@effected/env@0.2.0(effect@4.0.3))(@effected/glob@0.11.0(effect@4.0.3))(@effected/walker@0.16.0(@effected/glob@0.11.0(effect@4.0.3))(effect@4.0.3))(@types/react@19.3.0)(effect@4.0.3)(ink@8.0.0(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -499,9 +493,6 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@effect/platform-node-shared':
-        specifier: catalog:effect
-        version: 4.0.3(effect@4.0.3)
       '@effected/app':
         specifier: catalog:effected
         version: 0.22.0(916fab88add6fb56905898b13a3231bc)
@@ -579,9 +570,6 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@effect/platform-node-shared':
-        specifier: catalog:effect
-        version: 4.0.3(effect@4.0.3)
       '@effected/config-file':
         specifier: catalog:effected
         version: 0.15.0(@effected/glob@0.11.0(effect@4.0.3))(@effected/jsonc@0.16.0(effect@4.0.3))(@effected/toml@0.12.0(effect@4.0.3))(@effected/walker@0.16.0(@effected/glob@0.11.0(effect@4.0.3))(effect@4.0.3))(@effected/yaml@0.20.0(effect@4.0.3))(effect@4.0.3)
@@ -662,9 +650,6 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@effect/platform-node-shared':
-        specifier: catalog:effect
-        version: 4.0.3(effect@4.0.3)
       '@effected/config-file':
         specifier: catalog:effected
         version: 0.15.0(@effected/glob@0.11.0(effect@4.0.3))(@effected/jsonc@0.16.0(effect@4.0.3))(@effected/toml@0.12.0(effect@4.0.3))(@effected/walker@0.16.0(@effected/glob@0.11.0(effect@4.0.3))(effect@4.0.3))(@effected/yaml@0.20.0(effect@4.0.3))(effect@4.0.3)
@@ -749,9 +734,6 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@effect/platform-node-shared':
-        specifier: catalog:effect
-        version: 4.0.3(effect@4.0.3)
       '@effect/vitest':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(vitest@5.0.3)
@@ -786,9 +768,6 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@effect/platform-node-shared':
-        specifier: catalog:effect
-        version: 4.0.3(effect@4.0.3)
       '@effect/vitest':
         specifier: catalog:effect
         version: 4.0.3(effect@4.0.3)(vitest@5.0.3)
