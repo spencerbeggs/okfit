@@ -35,9 +35,9 @@ describe("okfit --help", () => {
 });
 
 describe("okfit validate --help", () => {
-	it.effect("mentions path, --config, --format, human, and json (contract §3.2)", () =>
+	it.effect("mentions --root, --config, --format, human, and json (contract §3.2)", () =>
 		withSandbox(["validate", "--help"], (stdout) => {
-			assert.isTrue(stdout.includes("path"));
+			assert.isTrue(stdout.includes("--root"));
 			assert.isTrue(stdout.includes("--config"));
 			assert.isTrue(stdout.includes("--format"));
 			assert.isTrue(stdout.includes("human"));
@@ -47,9 +47,9 @@ describe("okfit validate --help", () => {
 });
 
 describe("okfit init --help", () => {
-	it.effect("mentions path, --config, and --profile (contract §3.2)", () =>
+	it.effect("mentions --root, --config, and --profile (contract §3.2)", () =>
 		withSandbox(["init", "--help"], (stdout) => {
-			assert.isTrue(stdout.includes("path"));
+			assert.isTrue(stdout.includes("--root"));
 			assert.isTrue(stdout.includes("--config"));
 			assert.isTrue(stdout.includes("--profile"));
 		}),
@@ -57,9 +57,9 @@ describe("okfit init --help", () => {
 });
 
 describe("okfit context --help", () => {
-	it.effect("mentions path, --config, --format, human, and json; never --profile (contract §9.5)", () =>
+	it.effect("mentions --root, --config, --format, human, and json; never --profile (contract §9.5)", () =>
 		withSandbox(["context", "--help"], (stdout) => {
-			assert.isTrue(stdout.includes("path"));
+			assert.isTrue(stdout.includes("--root"));
 			assert.isTrue(stdout.includes("--config"));
 			assert.isTrue(stdout.includes("--format"));
 			assert.isTrue(stdout.includes("human"));
@@ -70,9 +70,9 @@ describe("okfit context --help", () => {
 });
 
 describe("okfit sync --help", () => {
-	it.effect("mentions path, --config, --only, --dry-run, --format, human, and json (contract §4.1)", () =>
+	it.effect("mentions --root, --config, --only, --dry-run, --format, human, and json (contract §4.1)", () =>
 		withSandbox(["sync", "--help"], (stdout) => {
-			assert.isTrue(stdout.includes("path"));
+			assert.isTrue(stdout.includes("--root"));
 			assert.isTrue(stdout.includes("--config"));
 			assert.isTrue(stdout.includes("--only"));
 			assert.isTrue(stdout.includes("--dry-run"));

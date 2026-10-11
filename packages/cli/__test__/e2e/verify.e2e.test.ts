@@ -440,11 +440,8 @@ describe("okfit verify (e2e)", () => {
 			const errorEnvelope = JSON.parse(noneJson.stdout) as { readonly exit_code: number };
 			assert.strictEqual(errorEnvelope.exit_code, 64);
 
-			// Final-review F2: with only ONE positional given under batch mode,
-			// the token is unambiguous -- it is read as the project root, not
-			// `id-and-batch`, since an id is meaningless in batch mode.
-			// `id-and-batch` only fires when BOTH positionals are present.
-			const both = await withServices(runOkfit(["verify", "project", cwd, "--all"], { cwd, env }));
+			// `id-and-batch`: an id is meaningless in batch mode.
+			const both = await withServices(runOkfit(["verify", "project", "--all"], { cwd, env }));
 			assert.strictEqual(both.exitCode, 64);
 
 			// `okfit init` always scaffolds `project.md` as `status: draft`
@@ -470,13 +467,14 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
-	it("--all takes its project root from a lone positional even from a different cwd (final-review F2)", async () => {
+	it("--all takes its project root from --root even from a different cwd", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		const elsewhere = await makeSandbox("okfit-verify-elsewhere-");
 		try {
-			// Run from a cwd unrelated to the bundle; the ONLY positional is the
-			// bundle's own root, which would otherwise land in the `id` slot.
-			const run = await withServices(runOkfit(["verify", "--all", "--dry-run", cwd], { cwd: elsewhere.cwd, env }));
+			// Run from a cwd unrelated to the bundle; --root names the project.
+			const run = await withServices(
+				runOkfit(["verify", "--all", "--dry-run", "--root", cwd], { cwd: elsewhere.cwd, env }),
+			);
 			assert.strictEqual(run.exitCode, 0);
 		} finally {
 			await removeSandbox(sandbox);

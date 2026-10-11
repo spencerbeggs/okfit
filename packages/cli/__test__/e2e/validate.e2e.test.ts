@@ -767,3 +767,27 @@ describe("okfit validate --document", () => {
 			}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
+
+describe("okfit --root", () => {
+	it.effect("takes the project root as --root, from any cwd", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-root-"));
+			yield* Effect.promise(() => copyFixtureInto(CLEAN_FIXTURE, sandbox.cwd));
+			const elsewhere = dirname(sandbox.cwd);
+			const run = yield* runOkfit(["validate", "--root", sandbox.cwd, "--format", "json"], {
+				...sandbox,
+				cwd: elsewhere,
+			});
+			assert.strictEqual(run.exitCode, 0);
+			assert.strictEqual(JSON.parse(run.stdout).root, join(sandbox.cwd, "okf"));
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("no longer accepts the project root as a positional", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-root-positional-"));
+			const run = yield* runOkfit(["context", sandbox.cwd], sandbox);
+			assert.strictEqual(run.exitCode, 64);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});

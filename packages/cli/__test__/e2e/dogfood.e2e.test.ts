@@ -115,7 +115,7 @@ describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
 		"exits 0 with no errors or warnings: every stable Decision concept is human-verified (drafts are exempt)",
 		() =>
 			Effect.gen(function* () {
-				const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
+				const result = yield* runOkfit(["validate", "--root", REPO_ROOT, "--format", "json"], {
 					cwd: REPO_ROOT,
 					env: {
 						PATH: process.env.PATH ?? "",
@@ -231,7 +231,7 @@ describe("okfit's own okf/ bundle: index completeness (F-13 case b)", () => {
 describe("okfit's own okf/ bundle: okfit sync --dry-run (F-13 case c)", () => {
 	it.effect("reports nothing to write once the bundle is stamped", () =>
 		Effect.gen(function* () {
-			const result = yield* runOkfit(["sync", REPO_ROOT, "--dry-run", "--format", "json"], {
+			const result = yield* runOkfit(["sync", "--root", REPO_ROOT, "--dry-run", "--format", "json"], {
 				cwd: REPO_ROOT,
 				env: {
 					PATH: process.env.PATH ?? "",

@@ -14,17 +14,12 @@ import {
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanPublication, humanSync } from "../render/sync.js";
 import { CLI_VERSION } from "../version.js";
 import { syncWithConfirm } from "./sync-confirm.js";
-
-/** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context/verify's. */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription("project root to start config discovery from (default: current directory)"),
-);
 
 /** K-1: no `mustExist` — the handler stats it via `provideConfig`. */
 const configFlag = Flag.File("config").pipe(
@@ -98,7 +93,7 @@ const publicationFlag = Flag.String("publication").pipe(
 );
 
 /**
- * `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
+ * `okfit sync [--root <dir>] [--config <file>] [--only <mode>]... [--dry-run]
  * [--format human|json] [--since <YYYY-MM-DD>] [--staged]
  * [--publication <id>] [--yes]`. On an interactive run `sync` shows its plan and
  * confirms before writing (issue #229); `--yes` skips the confirm. `--publication` runs only `stampPublication` and
@@ -126,7 +121,7 @@ const publicationFlag = Flag.String("publication").pipe(
 export const syncCommand = Command.make(
 	"sync",
 	{
-		path: pathArg,
+		root: rootFlag,
 		config: configFlag,
 		only: onlyFlag,
 		dryRun: dryRunFlag,
@@ -139,13 +134,13 @@ export const syncCommand = Command.make(
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
-			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const path = yield* Path.Path;
 				const resolved = yield* resolveProjectConfig({
-					pathArg: input.path,
+					pathArg: input.root,
 					explicitConfigPath: input.config,
 					cwd,
 				});

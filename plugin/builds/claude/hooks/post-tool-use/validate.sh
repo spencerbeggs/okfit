@@ -9,7 +9,7 @@
 # the editor (LSP phase 4, decision 8): it runs one cheap
 # `okfit context --format json` call to learn bundle_root and project_root,
 # then — only when the edited file is under bundle_root — one whole-bundle
-# `okfit validate <project_root> --format json` call, filtering
+# `okfit validate --root <project_root> --format json` call, filtering
 # diagnostics[] down to this one file by its bundle-relative posix path
 # (D-32, CLI/render/sort.ts:8-10). A core.conformance hit on that file
 # blocks (decision: "block", top-level per DOCS/hooks.md:416); everything
@@ -119,7 +119,7 @@ esac
 # string — no further normalisation.
 bundle_relative="${file_path#"$bundle_root"/}"
 
-# Expensive call #2: the whole-bundle validate pass. The argument is the
+# Expensive call #2: the whole-bundle validate pass. `--root` is the
 # PROJECT root, never the bundle root (K-2) — okfit_cli's caller never
 # reimplements resolveBundleRoot; it asks the CLI once and reuses the
 # answer, which is what project_root (from the envelope, C-7) already is.
@@ -130,7 +130,7 @@ bundle_relative="${file_path#"$bundle_root"/}"
 # project's own `[lint]` table, which CI and `validate_bundle` still honor.
 set +e
 # shellcheck disable=SC2086
-validate_json=$($cli_cmd validate "$project_root" --format json --skip-provenance 2>/dev/null)
+validate_json=$($cli_cmd validate --root "$project_root" --format json --skip-provenance 2>/dev/null)
 validate_rc=$?
 set -e
 

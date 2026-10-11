@@ -10,17 +10,10 @@ import {
 	runContextTrust,
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
-
-/** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
 const configFlag = Flag.File("config").pipe(
@@ -40,7 +33,7 @@ const trustFlag = Flag.Boolean("trust").pipe(
 );
 
 /**
- * `okfit context [path] [--config <file>] [--format human|json] [--trust]`.
+ * `okfit context [--root <dir>] [--config <file>] [--format human|json] [--trust]`.
  *
  * Handler order fixed by the contract (§8.3): steps 1–7 are
  * `validateCommand`'s handler in substance (both now share
@@ -57,16 +50,16 @@ const trustFlag = Flag.Boolean("trust").pipe(
  */
 export const contextCommand = Command.make(
 	"context",
-	{ path: pathArg, config: configFlag, format: formatFlag, trust: trustFlag },
+	{ root: rootFlag, config: configFlag, format: formatFlag, trust: trustFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
-			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const resolved = yield* resolveProjectConfig({
-					pathArg: input.path,
+					pathArg: input.root,
 					explicitConfigPath: input.config,
 					cwd,
 				});

@@ -19,15 +19,15 @@ describe("lintCommand", () => {
 		assert.isTrue((lintCommand.description ?? "").includes("diagnostics"));
 	});
 
-	it("declares exactly the path argument and the config/format/skip-provenance flags, by name", () => {
+	it("declares no positionals and the root/ the config/format/skip-provenance flags, by name", () => {
 		const config = configOf(lintCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
-			["path"],
+			[],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format", "skip-provenance"],
+			["root", "config", "format", "skip-provenance"],
 		);
 	});
 

@@ -21,6 +21,7 @@ import {
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanRevokeDoc, humanVerifyBatchDoc, humanVerifyDoc } from "../render/verify.js";
 import { CLI_VERSION } from "../version.js";
@@ -75,14 +76,6 @@ const revokeFlag = Flag.Boolean("revoke").pipe(
 	),
 );
 
-/** K-2: `[path]` is the PROJECT root, byte-identical to validate/init/context's. */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
-
 /** K-1: no `mustExist`; the handler stats it via `provideConfig`. */
 const configFlag = Flag.File("config").pipe(
 	Flag.optional,
@@ -115,7 +108,7 @@ const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 );
 
 /**
- * `okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
+ * `okfit verify [<id>] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
  * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--format human|json]`.
  *
  * Handler order fixed by contract §2.3. Steps 1–3 are `context`'s handler
@@ -134,7 +127,7 @@ export const verifyCommand = Command.make(
 	"verify",
 	{
 		id: idArg,
-		path: pathArg,
+		root: rootFlag,
 		config: configFlag,
 		all: allFlag,
 		type: typeFlag,
@@ -150,17 +143,8 @@ export const verifyCommand = Command.make(
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 
-			// Issue #138/final-review F2: `id` and `path` are both optional
-			// positionals bound in declaration order, so `okfit verify --all
-			// /abs/project` lands the path in `id`. An id is meaningless in
-			// batch mode, so when only one positional is given under
-			// --all/--type, treat that token as the project root; only fail
-			// `id-and-batch` below when BOTH positionals are present.
 			const batch = input.all || input.type.length > 0;
-			const idIsPath = batch && Option.isSome(input.id) && Option.isNone(input.path);
-			const effectivePath = idIsPath ? input.id : input.path;
-
-			const discoveryCwd = Option.getOrElse(effectivePath, () => cwd);
+			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
@@ -180,7 +164,7 @@ export const verifyCommand = Command.make(
 				}
 				const path = yield* Path.Path;
 				const resolved = yield* resolveProjectConfig({
-					pathArg: effectivePath,
+					pathArg: input.root,
 					explicitConfigPath: input.config,
 					cwd,
 				});
@@ -232,11 +216,8 @@ export const verifyCommand = Command.make(
 					? DateTime.startOf(yield* Now, "second")
 					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
 
-				// Issue #138: exactly one of `id` or `--all`/`--type` selects. A
-				// lone `id` token under batch mode was already reinterpreted as
-				// `effectivePath` above (F2), so `id-and-batch` only fires when
-				// BOTH positionals are present alongside a batch selector.
-				if (Option.isSome(input.id) && Option.isSome(input.path) && batch) {
+				// Issue #138: exactly one of `id` or `--all`/`--type` selects.
+				if (Option.isSome(input.id) && batch) {
 					return yield* new VerifySelectionError({ reason: "id-and-batch" });
 				}
 				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });

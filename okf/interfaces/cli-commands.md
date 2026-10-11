@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T16:51:30Z
+  at: 2026-10-11T19:31:10Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T17:15:26Z
 integrity:
   generated:
-    body: c36d6862913e9322
+    body: 800c1efb512541b7
   verified:
     by: human:spencer
     at: 2026-10-11T17:15:26Z
@@ -30,17 +30,18 @@ integrity:
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 
-## Subcommands and [path]
+## Subcommands and --root
 
 `okfit` has nine subcommands: `validate`, `init`, `context`, `verify`,
-`query`, `sync`, `lint`, `graph`, `stale`. Each
-takes an optional `[path]` as its first positional argument — the **project
-root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
-default) — defaulting to the current directory (the Subcommands and
-[path] section of `packages/cli/README.md`). `verify` additionally takes an
-optional `<id>` before `[path]`, required unless `--all` and/or `--type` is
-given instead. `query` takes its own subcommand (`list`, `get`, `neighbors`),
-then `<id>` where it needs one, then `[path]`.
+`query`, `sync`, `lint`, `graph`, `stale`. `--root <dir>` (every command): the
+project root config discovery starts from. It replaced the `[path]` positional
+in phase 4 so positionals are concept targets everywhere. The **project
+root** is never the bundle root (`<project root>/<bundle.path>`, `okf` by
+default) and defaults to the current directory (the Usage
+section of `packages/cli/README.md`). `verify` additionally takes an optional
+`<id>`, required unless `--all` and/or `--type` is given instead. `query` takes
+its own subcommand (`list`, `get`, `neighbors`), then `<id>` where it needs
+one.
 
 ## okfit validate
 
@@ -124,7 +125,7 @@ anything drifted.
 
 ## okfit verify
 
-`okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
+`okfit verify [<id>] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
 [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--revoke] [--format human|json]` appends one attestation, `{
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
 file back, binding it in the same write with `integrity.verified { by, at,
@@ -186,10 +187,10 @@ when the actor has no entries to revoke, `64` when combined with `--all`,
 
 ## okfit query
 
-`okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status
+`okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status
 draft|stable|deprecated]... [--verified|--unverified] [--drifted]
-[--stale] [--config <file>] [--format human|json]`, `okfit query get <id> [path]` and `okfit query
-neighbors <id> [path]` are read-only lookups over the bundle, backed by the
+[--stale] [--config <file>] [--format human|json]`, `okfit query get <id> [--root <dir>]` and `okfit query
+neighbors <id> [--root <dir>]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
 `3` for an unknown id; `64` for an undeclared type or tag or for
@@ -205,7 +206,7 @@ there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 ## okfit sync
 
-`okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
+`okfit sync [--root <dir>] [--config <file>] [--only <mode>]... [--dry-run]
 [--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--yes]` is the one command that regenerates every
 derived-content family: `generated.at` and `integrity.generated.body` (per
 concept, the digest always accompanying the date), `index.md` (every
@@ -275,7 +276,7 @@ restamps Publications. In the JSON envelope the three modes are all
 
 ## okfit lint
 
-`okfit lint [path] [--config <file>] [--format human|json]
+`okfit lint [--root <dir>] [--config <file>] [--format human|json]
 [--skip-provenance]` shares `validate`'s whole handler — the same config
 resolution, the same engine `run` call (both tiers `Validate.all` produces
 still run internally, and `--skip-provenance` still means exactly what it
@@ -290,7 +291,7 @@ validate` would exit `2` against it.
 
 ## okfit graph
 
-`okfit graph [path] [--config <file>] [--format mermaid|dot|json]` loads
+`okfit graph [--root <dir>] [--config <file>] [--format mermaid|dot|json]` loads
 the bundle and renders its link graph — frontmatter path fields and body
 links, both concept-to-concept and concept-to-file, including dangling
 links to a target that does not exist (D-25). `--format` defaults to
@@ -310,7 +311,7 @@ key unless the edge came from a named frontmatter path field, `raw`).
 
 ## okfit stale
 
-`okfit stale [path] [--config <file>] [--format human|json] [--verify [--dry-run]]` loads the
+`okfit stale [--root <dir>] [--config <file>] [--format human|json] [--verify [--dry-run]]` loads the
 bundle and lists every concept whose `stale_after` instant has already
 passed as of now, sorted by id, each with how many whole days past it.
 `OKFIT_NOW` (K-47) substitutes for the wall clock the same way it does for
@@ -347,7 +348,7 @@ forward](../decisions/stale-verify-rolls-stale-after-forward.md); like
 ## Config discovery
 
 With no `--config` flag, `okfit` resolves config tier by tier: the project
-tier checks each directory from `[path]` up to the filesystem root for
+tier checks each directory from `--root` up to the filesystem root for
 `.okfit.toml`, then `okfit.toml`, then `.config/okfit.toml`, and the first
 file found anywhere wins; then the XDG tier
 (`$XDG_CONFIG_HOME/okfit/config.toml`, `$XDG_CONFIG_DIRS`); then the native

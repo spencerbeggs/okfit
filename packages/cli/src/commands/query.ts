@@ -23,17 +23,10 @@ import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanQueryGet, humanQueryList, humanQueryNeighbors, queryListSummary } from "../render/query.js";
 import { CLI_VERSION } from "../version.js";
-
-/** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
 
 const idArg = Argument.String("id").pipe(
 	Argument.withDescription("concept id, with or without a leading slash or trailing .md"),
@@ -92,7 +85,7 @@ const staleFlag = Flag.Boolean("stale").pipe(
  */
 const run = <A, E, R>(
 	input: {
-		readonly path: Option.Option<string>;
+		readonly root: Option.Option<string>;
 		readonly config: Option.Option<string>;
 		readonly format: "human" | "json";
 	},
@@ -107,14 +100,14 @@ const run = <A, E, R>(
 ) =>
 	Effect.gen(function* () {
 		const cwd = process.cwd();
-		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+		const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 		const path = yield* Path.Path;
 		const distribution = yield* CurrentDistribution;
 
 		const body = Effect.gen(function* () {
 			if (precheck !== undefined) yield* precheck;
 			const resolved = yield* resolveProjectConfig({
-				pathArg: input.path,
+				pathArg: input.root,
 				explicitConfigPath: input.config,
 				cwd,
 			});
@@ -145,7 +138,7 @@ const distributionOf = (distribution: Option.Option<Distribution>) =>
 	Option.isSome(distribution) ? { distribution: distribution.value } : {};
 
 /**
- * `okfit query list [path] [--type <T>]... [--tag <t>]... [--status <s>]...
+ * `okfit query list [--root <dir>] [--type <T>]... [--tag <t>]... [--status <s>]...
  * [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]`.
  *
  * @public
@@ -153,7 +146,7 @@ const distributionOf = (distribution: Option.Option<Distribution>) =>
 export const queryListCommand = Command.make(
 	"list",
 	{
-		path: pathArg,
+		root: rootFlag,
 		config: configFlag,
 		type: typeFlag,
 		tag: tagFlag,
@@ -203,13 +196,13 @@ export const queryListCommand = Command.make(
 );
 
 /**
- * `okfit query get <id> [path] [--config <file>] [--format human|json]`.
+ * `okfit query get <id> [--root <dir>] [--config <file>] [--format human|json]`.
  *
  * @public
  */
 export const queryGetCommand = Command.make(
 	"get",
-	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
+	{ id: idArg, root: rootFlag, config: configFlag, format: formatFlag },
 	(input) =>
 		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
@@ -241,13 +234,13 @@ export const queryGetCommand = Command.make(
 ).pipe(Command.withDescription("Show one concept: its fields, verified entries, and outgoing links."));
 
 /**
- * `okfit query neighbors <id> [path] [--config <file>] [--format human|json]`.
+ * `okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]`.
  *
  * @public
  */
 export const queryNeighborsCommand = Command.make(
 	"neighbors",
-	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
+	{ id: idArg, root: rootFlag, config: configFlag, format: formatFlag },
 	(input) =>
 		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {

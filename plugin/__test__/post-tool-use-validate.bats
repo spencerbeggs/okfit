@@ -17,7 +17,7 @@ setup() {
 
 # _stub_cli context_json validate_json [validate_exit] — branches on $1
 # (context vs validate). Writes a sentinel on the validate branch, records
-# the validate argument (the PROJECT root, K-2) and the full argv.
+# the --root value (the PROJECT root, K-2) and the full argv.
 _stub_cli() {
 	local ctx_json="$1" val_json="$2" val_rc="${3:-0}"
 	cat >"$STUB_DIR/okfit" <<STUB
@@ -30,7 +30,7 @@ case "\$1" in
 		;;
 	validate)
 		touch "${STUB_DIR}/validate-invoked"
-		printf '%s\n' "\$2" >"${STUB_DIR}/validate-arg"
+		[ "\$2" = "--root" ] && printf '%s\n' "\$3" >"${STUB_DIR}/validate-arg"
 		printf '%s\n' "\$@" >"${STUB_DIR}/validate-argv"
 		printf '%s\n' '${val_json}'
 		exit ${val_rc}
@@ -222,7 +222,7 @@ CLEAN='{"schema":1,"exit_code":0,"diagnostics":[]}'
 	done
 }
 
-@test "passes the PROJECT root, never the bundle root, to okfit validate (Important 3)" {
+@test "passes the PROJECT root, never the bundle root, to okfit validate --root (Important 3)" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" "$CLEAN"
 	_run claude "$(render posttooluse.write-clean.json)"
 	[ "$(cat "$STUB_DIR/validate-arg")" = "$REPO_ROOT" ]

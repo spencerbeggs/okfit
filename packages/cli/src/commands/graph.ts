@@ -2,16 +2,9 @@ import { CurrentDistribution } from "@effected/engine";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { CLI_VERSION } from "../version.js";
-
-/** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
 const configFlag = Flag.File("config").pipe(
@@ -26,7 +19,7 @@ const formatFlag = Flag.Literals("format", ["mermaid", "dot", "json"] as const).
 );
 
 /**
- * `okfit graph [path] [--config <file>] [--format mermaid|dot|json]`.
+ * `okfit graph [--root <dir>] [--config <file>] [--format mermaid|dot|json]`.
  *
  * Same handler skeleton as `commands/validate.ts`/`commands/context.ts` —
  * stat `--config` (K-1) via `provideConfig`, resolve the project and
@@ -41,15 +34,15 @@ const formatFlag = Flag.Literals("format", ["mermaid", "dot", "json"] as const).
  *
  * @public
  */
-export const graphCommand = Command.make("graph", { path: pathArg, config: configFlag, format: formatFlag }, (input) =>
+export const graphCommand = Command.make("graph", { root: rootFlag, config: configFlag, format: formatFlag }, (input) =>
 	Effect.gen(function* () {
 		const cwd = process.cwd();
-		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+		const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 		const distribution = yield* CurrentDistribution;
 
 		const body = Effect.gen(function* () {
 			const resolved = yield* resolveProjectConfig({
-				pathArg: input.path,
+				pathArg: input.root,
 				explicitConfigPath: input.config,
 				cwd,
 			});

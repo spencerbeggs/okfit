@@ -150,13 +150,13 @@ describe("okfit query (e2e)", () => {
 		}
 	});
 
-	it("positionals: list <abs project> and get project <abs project> work from another cwd", async () => {
+	it("--root: list and get work from another cwd", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const elsewhere = dirname(cwd);
-			const list = await run(["query", "list", cwd], elsewhere, env);
+			const list = await run(["query", "list", "--root", cwd], elsewhere, env);
 			assert.strictEqual(list.exitCode, 0);
-			const get = await run(["query", "get", "project", cwd], elsewhere, env);
+			const get = await run(["query", "get", "project", "--root", cwd], elsewhere, env);
 			assert.strictEqual(get.exitCode, 0);
 			assert.isTrue(get.stdout.startsWith("project\n"));
 		} finally {

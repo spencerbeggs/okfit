@@ -24,15 +24,15 @@ describe("contextCommand", () => {
 		assert.deepStrictEqual(contextCommand.subcommands, []);
 	});
 
-	it("declares exactly the path argument and the config/format/trust flags, by name; no --profile (M-15)", () => {
+	it("declares no positionals and the root/ the config/format/trust flags, by name; no --profile (M-15)", () => {
 		const config = configOf(contextCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
-			["path"],
+			[],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format", "trust"],
+			["root", "config", "format", "trust"],
 		);
 	});
 

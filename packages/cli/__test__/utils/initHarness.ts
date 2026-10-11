@@ -42,7 +42,7 @@ export const runInit = (
 	};
 	return initProgram(
 		{
-			path: Option.none(),
+			root: Option.none(),
 			config: Option.none(),
 			profile: Option.fromUndefinedOr(input.profile),
 			bundle: Option.fromUndefinedOr(input.bundle),

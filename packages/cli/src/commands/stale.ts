@@ -13,19 +13,12 @@ import {
 	staleEnvelope,
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanStaleDoc, staleSummary } from "../render/stale.js";
 import { CLI_VERSION } from "../version.js";
 import { reverifyStale } from "./stale-verify.js";
-
-/** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
 const configFlag = Flag.File("config").pipe(
@@ -49,7 +42,7 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
 );
 
 /**
- * `okfit stale [path] [--config <file>] [--format human|json]`.
+ * `okfit stale [--root <dir>] [--config <file>] [--format human|json]`.
  *
  * Same handler skeleton as `commands/validate.ts`/`commands/context.ts` —
  * stat `--config` (K-1) via `provideConfig`, resolve the project and
@@ -63,11 +56,11 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
  */
 export const staleCommand = Command.make(
 	"stale",
-	{ path: pathArg, config: configFlag, format: formatFlag, verify: verifyFlag, dryRun: dryRunFlag },
+	{ root: rootFlag, config: configFlag, format: formatFlag, verify: verifyFlag, dryRun: dryRunFlag },
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
-			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 			const now = yield* Now;
 			const path = yield* Path.Path;
 			const distribution = yield* CurrentDistribution;
@@ -81,7 +74,7 @@ export const staleCommand = Command.make(
 					return yield* new VerifySelectionError({ reason: "no-selection" });
 				}
 				const resolved = yield* resolveProjectConfig({
-					pathArg: input.path,
+					pathArg: input.root,
 					explicitConfigPath: input.config,
 					cwd,
 				});
