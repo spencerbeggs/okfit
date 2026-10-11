@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T13:44:11Z
 tags:
   - architecture
 verified:
@@ -15,7 +15,7 @@ verified:
     at: 2026-09-24T00:18:14.360Z
 integrity:
   generated:
-    body: 638bc5c535c32425
+    body: 39138456c1e02710
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -25,7 +25,7 @@ integrity:
 | Tool | Returns | Key argument/filter | Primary failure mode |
 | --- | --- | --- | --- |
 | `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`. | none (`Tool.EmptyParams`) | a refusal when config resolution fails |
-| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `verified` (`current` or `unverified`), `drifted`, `stale` (with optional `now`), `limit`/`offset` | a refusal for an undeclared type or tag |
+| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status`, `verified` (boolean: `true` is current, `false` is never verified), `drifted`, `stale` (with optional `now`), `limit`/`offset` | a refusal for an undeclared type or tag |
 | `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, trust `tier`, `integrity`, `stale`, `drift` (`reason`, `edited_by`, `edited_at`) when drifted, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | a refusal for an unknown or empty id |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past, plus a `drifted` list of the concepts edited since their verification. | optional `now` (ISO-8601, explicit offset) | a refusal for an unparseable `now`, or when the config or bundle fails to load |

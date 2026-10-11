@@ -165,7 +165,7 @@ fi
 # truncate it away behind index.md.
 trust_line=$(printf '%s' "$context_json" | jq -r '
 	(.trust // empty) | select((.drifted + .stale) > 0)
-	| "trust: \(.drifted) drifted, \(.stale) stale, \(.unverified) unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query --drifted)."
+	| "trust: \(.drifted) drifted, \(.stale) stale, \(.unverified) unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted)."
 ' 2>/dev/null || true)
 trust_block=""
 if [ -n "$trust_line" ]; then

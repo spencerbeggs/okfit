@@ -5,7 +5,7 @@
 ## Features
 
 * The session-start hook prints a trust line through `okfit context --trust`, and falls back to the previous output with older CLIs
-* `okf-finalize` lists drifted concepts with `okfit query --drifted`
+* `okf-finalize` lists drifted concepts with `okfit query list --drifted`
 
 ## Documentation
 

@@ -308,7 +308,7 @@ _trust_json='{"concepts":9,"drifted":2,"stale":1,"unverified":4,"drifted_ids":["
 	for target in $TARGETS; do
 		_run "$target"
 		assert_hook_exit 0
-		[[ "$(context_text)" == *"trust: 2 drifted, 1 stale, 4 unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query --drifted)."* ]]
+		[[ "$(context_text)" == *"trust: 2 drifted, 1 stale, 4 unverified — drifted concepts changed since a human verified them; editing is fine, a human re-verifies (okfit query list --drifted)."* ]]
 	done
 }
 

@@ -113,11 +113,11 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	// renders entry that points nowhere is a fix-the-entry error and needs none.
 	if (error instanceof PublicationNotFoundError) {
 		return error.publication === undefined
-			? [`error: ${error.message}`, "hint: run okfit query --type Publication to list publication ids"]
+			? [`error: ${error.message}`, "hint: run okfit query list --type Publication to list publication ids"]
 			: [`error: ${error.message}`];
 	}
 	if (error instanceof NotAPublicationError) {
-		return [`error: ${error.message}`, "hint: run okfit query --type Publication to list publication ids"];
+		return [`error: ${error.message}`, "hint: run okfit query list --type Publication to list publication ids"];
 	}
 	if (error instanceof VerifySelectionError) return [`error: ${error.message}`];
 	if (error instanceof QueryUnknownVocabularyError) return [`error: ${error.message}`];
