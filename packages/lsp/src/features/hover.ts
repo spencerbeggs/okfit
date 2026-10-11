@@ -25,6 +25,7 @@
  */
 import type { ConceptId, LinkGraph, LoadedBundle, LoadedConcept, OkfitConfig, TypeDeclaration } from "@okfit/core";
 import { Derive, DiagnosticRange } from "@okfit/core";
+import type { ConceptSignal } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { DateTime as DateTimeService, Effect, Option } from "effect";
 import { uriToPath } from "../convert/uri.js";
@@ -38,8 +39,12 @@ const TOP_LEVEL_KEY_RE = /^([A-Za-z_][\w.-]*):/;
 
 const markdown = (value: string): MarkupContent => ({ kind: "markdown", value });
 
+/** `current`, `none`, or `drifted (<reason>)`. */
+const integrityLabel = (signal: ConceptSignal): string =>
+	signal.integrity === "drifted" && signal.drift !== undefined ? `drifted (${signal.drift.reason})` : signal.integrity;
+
 /** The target concept's title, type, status, trust tier and staleness, as a markdown bullet list. */
-const renderTargetHover = (concept: LoadedConcept, now: DateTime.Utc): string => {
+const renderTargetHover = (concept: LoadedConcept, now: DateTime.Utc, signal: ConceptSignal | undefined): string => {
 	const title = Derive.title(concept);
 	const type = concept.frontmatter.type;
 	const status = Derive.status(concept.frontmatter);
@@ -51,6 +56,7 @@ const renderTargetHover = (concept: LoadedConcept, now: DateTime.Utc): string =>
 		`- type: \`${type}\``,
 		`- status: \`${status}\``,
 		`- trust tier: \`${tier}\``,
+		...(signal === undefined ? [] : [`- integrity: \`${integrityLabel(signal)}\``]),
 		`- staleness: \`${staleness}\``,
 	].join("\n");
 };
@@ -74,11 +80,16 @@ const renderFieldHover = (key: string, description: string): string => `**${key}
  * @internal
  */
 export const renderHover = (input: {
-	readonly target?: { readonly concept: LoadedConcept; readonly now: DateTime.Utc };
+	readonly target?: {
+		readonly concept: LoadedConcept;
+		readonly now: DateTime.Utc;
+		/** The cached trust signal; the integrity line is omitted when absent. */
+		readonly signal?: ConceptSignal;
+	};
 	readonly type?: { readonly name: string; readonly declaration: typeof TypeDeclaration.Type };
 	readonly field?: { readonly key: string; readonly description: string };
 }): string | undefined => {
-	if (input.target !== undefined) return renderTargetHover(input.target.concept, input.target.now);
+	if (input.target !== undefined) return renderTargetHover(input.target.concept, input.target.now, input.target.signal);
 	if (input.type !== undefined) return renderTypeHover(input.type.name, input.type.declaration);
 	if (input.field !== undefined) return renderFieldHover(input.field.key, input.field.description);
 	return undefined;
@@ -88,6 +99,7 @@ interface Snapshot {
 	readonly bundle: LoadedBundle;
 	readonly graph: LinkGraph;
 	readonly config: OkfitConfig;
+	readonly signals: ReadonlyMap<string, ConceptSignal> | undefined;
 }
 
 /** The frontmatter key at `position` on its own top-level line, when `position` sits over the key name inside the frontmatter block. */
@@ -121,7 +133,13 @@ const snapshotFor = (registry: SessionRegistryShape, path: string): Effect.Effec
 		const bundle = yield* owner.value.session.bundle();
 		const graph = yield* owner.value.session.graph();
 		if (Option.isNone(bundle) || Option.isNone(graph)) return Option.none();
-		return Option.some({ bundle: bundle.value, graph: graph.value, config: owner.value.session.config() });
+		const signals = yield* owner.value.session.signals();
+		return Option.some({
+			bundle: bundle.value,
+			graph: graph.value,
+			config: owner.value.session.config(),
+			signals: Option.getOrUndefined(signals),
+		});
 	});
 
 /** `renderHover`'s markdown as a `Hover` response, or `null` when it renders nothing. */
@@ -143,7 +161,7 @@ export const registerHover = (transport: LspTransportShape, registry: SessionReg
 			if (Option.isNone(path)) return null;
 			const snapshot = yield* snapshotFor(registry, path.value);
 			if (Option.isNone(snapshot)) return null;
-			const { bundle, graph, config } = snapshot.value;
+			const { bundle, graph, config, signals } = snapshot.value;
 			const concept = conceptAtPath(bundle, path.value);
 			if (Option.isNone(concept)) return null;
 
@@ -157,7 +175,10 @@ export const registerHover = (transport: LspTransportShape, registry: SessionReg
 				const targetConcept = bundle.concepts.get(targetNode.value.id as ConceptId);
 				if (targetConcept === undefined) return null;
 				const now = yield* DateTimeService.now;
-				return toHover(renderHover({ target: { concept: targetConcept, now } }));
+				const signal = signals?.get(targetConcept.id);
+				return toHover(
+					renderHover({ target: { concept: targetConcept, now, ...(signal === undefined ? {} : { signal }) } }),
+				);
 			}
 
 			if (onTypeValue(concept.value, params.position)) {

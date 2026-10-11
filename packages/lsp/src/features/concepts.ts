@@ -18,8 +18,9 @@
  *
  * @packageDocumentation
  */
-import type { LoadedBundle, Status } from "@okfit/core";
+import type { LoadedBundle, Status, TrustTier } from "@okfit/core";
 import { Derive } from "@okfit/core";
+import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
 import { DateTime, Effect, Option, Ref } from "effect";
 import { pathToUri } from "../convert/uri.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
@@ -34,6 +35,10 @@ export interface ConceptSummary {
 	readonly type: string;
 	readonly status: Status | undefined;
 	readonly stale: boolean;
+	/** The trust tier as of the last revalidate. */
+	readonly tier: TrustTier;
+	/** Whether a human verification still binds the content, as of the last revalidate. */
+	readonly integrity: IntegrityState;
 }
 
 /** One bundle root's concepts. @public */
@@ -62,7 +67,11 @@ export const BUNDLE_CHANGED_NOTIFICATION = "okfit/bundleChanged";
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-const summarise = (bundle: LoadedBundle, now: DateTime.Utc): ReadonlyArray<ConceptSummary> => {
+const summarise = (
+	bundle: LoadedBundle,
+	now: DateTime.Utc,
+	signals: ReadonlyMap<string, ConceptSignal> | undefined,
+): ReadonlyArray<ConceptSummary> => {
 	const out: Array<ConceptSummary> = [];
 	for (const [id, concept] of bundle.concepts) {
 		const location = definitionOf(bundle, id);
@@ -74,6 +83,8 @@ const summarise = (bundle: LoadedBundle, now: DateTime.Utc): ReadonlyArray<Conce
 			type: concept.frontmatter.type,
 			status: concept.frontmatter.status,
 			stale: Derive.isStale(concept.frontmatter, now),
+			tier: signals?.get(id)?.tier ?? Derive.trustTier(concept.frontmatter),
+			integrity: signals?.get(id)?.integrity ?? "none",
 		});
 	}
 	return out.sort((a, b) => compare(a.type, b.type) || compare(a.title, b.title) || compare(a.id, b.id));
@@ -86,14 +97,16 @@ const profileOf = (handle: SessionHandle): string | undefined => {
 };
 
 const bundleSummary = (handle: SessionHandle, now: DateTime.Utc): Effect.Effect<Option.Option<BundleSummary>> =>
-	Effect.map(handle.session.bundle(), (bundle) =>
-		Option.map(bundle, (loaded) => ({
+	Effect.gen(function* () {
+		const bundle = yield* handle.session.bundle();
+		const signals = Option.getOrUndefined(yield* handle.session.signals());
+		return Option.map(bundle, (loaded) => ({
 			root: handle.bundleRoot,
 			rootUri: pathToUri(handle.bundleRoot),
 			profile: profileOf(handle),
-			concepts: summarise(loaded, now),
-		})),
-	);
+			concepts: summarise(loaded, now, signals),
+		}));
+	});
 
 /**
  * The `okfit/concepts` feature: the request handler, plus `forgetWarmup` --

@@ -22,6 +22,7 @@
  */
 import type { Concept } from "@okfit/core";
 import { Actor, Derive, DiagnosticRange } from "@okfit/core";
+import type { IntegrityState } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { DateTime as DateTimeService, Effect, Option } from "effect";
 import { toLspRange } from "../convert/range.js";
@@ -58,8 +59,8 @@ const newestHumanBy = (concept: Concept): string => {
 	return newest.by;
 };
 
-/** `unverified` | `machine-confirmed` | `human-reviewed by <by>` (the newest human entry), plus ` · stale` when `Derive.isStale`. */
-const trustLabel = (concept: Concept, now: DateTime.Utc): string => {
+/** `unverified` | `machine-confirmed` | `human-reviewed by <by>` (the newest human entry), plus ` · stale` when `Derive.isStale` and ` · drifted` when the cached integrity is drifted. */
+const trustLabel = (concept: Concept, now: DateTime.Utc, integrity: IntegrityState | undefined): string => {
 	const tier = Derive.trustTier(concept);
 	const base =
 		tier === "unverified"
@@ -67,7 +68,8 @@ const trustLabel = (concept: Concept, now: DateTime.Utc): string => {
 			: tier === "machine-confirmed"
 				? "machine-confirmed"
 				: `human-reviewed by ${newestHumanBy(concept)}`;
-	return Derive.isStale(concept, now) ? `${base} · stale` : base;
+	const stale = Derive.isStale(concept, now) ? `${base} · stale` : base;
+	return integrity === "drifted" ? `${stale} · drifted` : stale;
 };
 
 /** `generated.at`'s age against `now`: `today` under one whole day, `1 day ago`, else `N days ago` -- whole days, floored. */
@@ -88,9 +90,13 @@ const ageLabel = (at: DateTime.Utc, now: DateTime.Utc): string => {
  *
  * @public
  */
-export const hintsFor = (concept: Concept, now: DateTime.Utc): ReadonlyArray<InlayHintSpec> => {
+export const hintsFor = (
+	concept: Concept,
+	now: DateTime.Utc,
+	integrity?: IntegrityState,
+): ReadonlyArray<InlayHintSpec> => {
 	const hints: Array<InlayHintSpec> = [
-		{ path: concept.status === undefined ? TYPE_PATH : STATUS_PATH, label: trustLabel(concept, now) },
+		{ path: concept.status === undefined ? TYPE_PATH : STATUS_PATH, label: trustLabel(concept, now, integrity) },
 	];
 	if (concept.generated?.at !== undefined) {
 		hints.push({ path: GENERATED_AT_PATH, label: ageLabel(concept.generated.at, now) });
@@ -120,12 +126,15 @@ export const registerInlayHints = (transport: LspTransportShape, registry: Sessi
 			const snapshot = yield* conceptSnapshot(registry, path.value);
 			if (Option.isNone(snapshot)) return [];
 			const { concept } = snapshot.value;
+			const owner = yield* registry.sessionFor(path.value);
+			const signals = Option.isSome(owner) ? Option.getOrUndefined(yield* owner.value.session.signals()) : undefined;
+			const integrity = signals?.get(concept.id)?.integrity;
 			const now = yield* DateTimeService.now;
 			const source = concept.document.source;
 			const whole = DiagnosticRange.forFrontmatterPath(concept.document, []);
 
 			const hints: Array<InlayHint> = [];
-			for (const spec of hintsFor(concept.frontmatter, now)) {
+			for (const spec of hintsFor(concept.frontmatter, now, integrity)) {
 				const range = DiagnosticRange.forFrontmatterPath(concept.document, spec.path);
 				if (range === undefined || isFallback(range, whole)) continue;
 				hints.push({

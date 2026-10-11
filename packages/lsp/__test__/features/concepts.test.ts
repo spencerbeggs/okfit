@@ -65,6 +65,23 @@ describe("registerConcepts", () => {
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 
+	it.effect("each concept carries the cached trust tier and integrity", () =>
+		Effect.gen(function* () {
+			const { call } = yield* setup({
+				"a.md": concept("Alpha", 'verified:\n  - by: "human:fixture-author"\n    at: "2026-01-01T00:00:00Z"\n'),
+				"b.md": concept("Bravo"),
+			});
+			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+			assert.deepStrictEqual(
+				result.bundles[0]!.concepts.map((c) => [c.title, c.tier, c.integrity]),
+				[
+					["Alpha", "human-reviewed", "drifted"],
+					["Bravo", "unverified", "none"],
+				],
+			);
+		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
 	it.effect("a concept with stale_after in the future is not stale", () =>
 		Effect.gen(function* () {
 			const { call } = yield* setup({ "a.md": concept("Alpha", "stale_after: 2999-01-01T00:00:00Z\n") });
