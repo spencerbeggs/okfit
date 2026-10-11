@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-09T17:01:02Z
+  at: 2026-10-11T03:57:51Z
 tags:
   - architecture
 verified:
@@ -17,7 +17,7 @@ verified:
     at: 2026-09-30T18:17:45Z
 integrity:
   generated:
-    body: 9722e6caea185c06
+    body: 0628d74f5349ce70
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
@@ -58,13 +58,15 @@ headings: #a, #b, … (+N more)` (up to five), or `; it has no headings` when
 the target has none.
 `--skip-provenance` skips only the fallback, git-derived tier of
 `generated-at-drift` — the comparison used for a concept with no recorded
-`generated.body_sha256` — for that invocation, without changing the
+`integrity.generated.body` (or a legacy `generated.body_sha256`) — for that invocation, without changing the
 project's `[lint]` table; a concept carrying a digest is still checked by
 pure content comparison, since that tier makes no git call. The
 PostToolUse hook passes it so an edit-time validate stays git-free for any
 un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
-git tier too (ruling S-31). See [A body digest inside generated detects
-real drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+git tier too (ruling S-31). See [Every okfit digest lives in one integrity
+family](../decisions/integrity-family.md). `validate` also reports the
+`verified-drift` lint (default `warn`) for a concept whose verification no
+longer matches its content.
 
 `--document <bundle-path>` validates one unsaved document: its text is
 read from stdin and stands in for that file (bundle-relative, posix, a
@@ -105,18 +107,20 @@ never runs conformance or lint checks (the `okfit context` section of
 ## okfit verify
 
 `okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
-[--config <file>] [--at <iso>] [--dry-run] [--format human|json]` appends one attestation, `{
+[--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--revoke] [--format human|json]` appends one attestation, `{
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
-file back. `<id>` is a concept id with or without a leading slash or
+file back, binding it in the same write with `integrity.verified { by, at,
+content }` (see [integrity frontmatter](integrity-frontmatter.md)). `<id>` is a concept id with or without a leading slash or
 trailing `.md`. The actor is always your own git identity; there is no
-`--by`. Existing entries are never touched or replaced — every run appends,
-including a repeat by the same person. `--at <iso>` records a different
+`--by`. Existing entries by others are never touched or replaced; a repeat by the
+same person appends, except that the refresh path overwrites that actor's
+own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant; `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified` and that
-carries no entry by you; `--type <Type>` (repeatable) narrows or replaces
+does not hold the current binding by you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or replaces
 that selection; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
-is `draft`, `deprecated` or `already-verified`). The dry run prints one fragment per concept in write
+is `draft`, `deprecated` or `already-verified`; the last now means you hold the current binding). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
@@ -146,6 +150,22 @@ verbatim lines and the Doc IR trims a whitespace-only line to empty, so a
 hand-written `verified:` block containing a blank interior line prints it
 without its trailing spaces. (The engine does reindent such a hand-written block into the fragment, so this edge is reachable.)
 
+On a drifted concept, for a human audience on an interactive terminal,
+`okfit verify <id>` prints the git diff of the concept file from the last
+commit at or before the bound `at` to the working tree and asks to confirm;
+an `unbound` concept has no baseline, so it says so instead. `--no-diff`
+skips the diff and the confirm. Non-interactive and JSON runs carry no diff;
+the single-concept envelope gains an optional `prior_integrity`.
+
+`okfit verify --revoke <id>` removes every `verified` entry by the resolved
+current actor, so it can never remove someone else's attestation. When the
+bound entry is among them it clears `integrity.verified` too (and
+`integrity` when empty); remaining human entries become `unbound`. The JSON
+envelope carries `removed`, `binding_cleared` and `revoked_by`. Exit `3`
+when the actor has no entries to revoke, `64` when combined with `--all`,
+`--type`, `--stable`, `--draft` or `--at`, or when no id is given.
+`--dry-run` and `--format json` are supported.
+
 ## okfit query
 
 `okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status
@@ -162,7 +182,7 @@ there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 `okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
 [--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--yes]` is the one command that regenerates every
-derived-content family: `generated.at` and `generated.body_sha256` (per
+derived-content family: `generated.at` and `integrity.generated.body` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
 it -- a custom type's directory is indexed the same way), and `log.md` (the root log, curated prose
@@ -175,12 +195,16 @@ date, appending into that day's group unless it already names the concept
 `--since` replaces that floor. A malformed `--since` is a usage error,
 exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
-concept's recorded `body_sha256` still matches its current body, the
+concept's recorded `integrity.generated.body` still matches its current body, the
 concept is reported `unchanged` and neither key is touched, even though a
-fresh git walk would compute a different `at` — see [A body digest inside
-generated detects real drift, not a rewritten
-date](../decisions/profiles-body-sha256-detects-real-drift.md). It never
-touches `verified` and takes no clock — the same `now`-as-argument
+fresh git walk would compute a different `at` — see [Every okfit digest
+lives in one integrity family](../decisions/integrity-family.md). A
+one-time migration moves a legacy `generated.body_sha256` to
+`integrity.generated.body` and a Publication's `renders[].body_sha256` to
+`renders[].body` (16 hex); the plan and the JSON/human output report them
+as `migrated`, and a concept that cannot be spliced safely is skipped as
+`integrity-unsupported` or `renders-unsupported`. It never
+touches `verified` and never writes `integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
 malformed `--since`; there is no `1`/`2` content tier, since `sync` never

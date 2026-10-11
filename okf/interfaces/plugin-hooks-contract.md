@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T05:20:17Z
+  at: 2026-10-11T03:57:51Z
 tags:
   - architecture
 verified:
@@ -15,7 +15,7 @@ verified:
     at: 2026-09-24T00:18:08.679Z
 integrity:
   generated:
-    body: 42c168d5eb9419b9
+    body: d9982fa8e02d3bce
 ---
 
 # Agent plugin hooks contract
@@ -68,7 +68,10 @@ honours no `PostToolUse` block, the same reason is sent as
 `additionalContext` (`plugin/CLAUDE.md:72-74`). The drift lint costs a git walk
 per concept; measured on this bundle it took validate from about 0.5 s to
 1.7 s, so the edit-time hook skips it — the lint still runs in CI and
-through the MCP `validate_bundle` tool.
+through the MCP `validate_bundle` tool. The hook never blocks on
+`verified-drift`: an agent may edit a verified concept, the edit shows as
+drift, and re-verifying stays a human act (see [Verification drift is a
+signal to weigh, never a gate](../decisions/drift-is-a-signal.md)).
 
 ## Kill switches and CLI resolution
 

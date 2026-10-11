@@ -6,14 +6,14 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-09-07T20:50:38Z
+  at: 2026-10-11T03:57:51Z
 status: stable
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
 integrity:
   generated:
-    body: 8dd5ef71c081dcda
+    body: 4373b00d98377cff
 ---
 
 # Human actor ids resolve through a four-step fallback order
@@ -46,7 +46,8 @@ before authoring a single concept.
 
 This repo's config need not declare `actors.humans` at all for
 `human:spencer` to resolve correctly, since the git email local part
-(`spencer@beggs.codes` → `spencer`) already matches; every concept in this
+already matches; derivation uses only the local part and never writes an
+email address or domain into the bundle. Every concept in this
 plan still hardcodes `generated: { by: human:spencer }` by hand rather than
 invoking derivation. The first command to wire
 `Derivation.generatedBy` into a write path is `okfit verify` (phase 2),

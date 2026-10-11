@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-03T01:27:01Z
+  at: 2026-10-11T03:57:51Z
 integrity:
   generated:
-    body: eb2c638499a51f04
+    body: 6e7d0f3326e32cf1
 ---
 
 # Profiles
@@ -67,18 +67,38 @@ imports `@effect/platform-node` or `node:child_process` directly. No
 
 `Provenance.lint(bundle, config)` runs the `generated-at-drift` lint,
 requiring `Git | GitHistory | FileSystem | Path | Crypto.Crypto`. The lint
-is two-tier: a concept carrying `generated.body_sha256` is checked by pure
-content comparison against `Derivation.bodyDigest` of its current source,
-no git call at all; a concept without one falls back to comparing its
-stamped `generated.at` against what the same git walk
-`Derivation.generatedAt` would compute today. See [A body digest inside
-generated detects real drift, not a rewritten
-date](../decisions/profiles-body-sha256-detects-real-drift.md).
+is two-tier: a concept carrying `integrity.generated.body` (or, as a
+migration fallback, the 16-hex prefix of a legacy `generated.body_sha256`)
+is checked by pure content comparison against `Derivation.bodyDigest` of
+its current source, no git call at all; a concept without one falls back to
+comparing its stamped `generated.at` against what the same git walk
+`Derivation.generatedAt` would compute today. See [Every okfit digest lives
+in one integrity family](../decisions/integrity-family.md).
 
-`Derivation.bodyDigest(text)` computes that digest — a lowercase hex
-sha256 of the P-6-normalized body — through effect's own `Crypto` service,
-never `node:crypto` directly, so it carries `Crypto.Crypto` in its R
-channel the same way `Derivation.generatedAt` carries `Git | GitHistory`.
+`Derivation.bodyDigest(text)` computes the 16-hex digest of the
+P-6-normalized body through effect's own `Crypto` service, never
+`node:crypto` directly, so it carries `Crypto.Crypto` in its R channel the
+same way `Derivation.generatedAt` carries `Git | GitHistory`.
+`Derivation.contentDigest(concept)` digests the body plus authored
+frontmatter, encoded by the new `Canonical` module (canonical JSON, keys
+sorted by code point, bookkeeping keys excluded).
+
+## Trust and drift
+
+The `Trust` module derives a `ConceptSignal`: the spec trust tier
+(unchanged), `integrity` of `current`, `drifted` or `none`, a drift reason
+(`content-changed`, `unbound` or `entry-superseded`, with the editor named
+from `generated` when it is later than the bound `at`) and staleness. Its
+lint, `verified-drift`, fires on a drifted concept at the configured
+severity (default `warn`) and does no hashing when the level is `off`.
+Machine entries neither bind nor break a binding. Profiles holds this,
+not core, because binding content to a verification is an okfit opinion
+the spec does not make. See [A verification is bound to the content it
+covered](../decisions/verification-binds-content.md) and [Verification
+drift is a signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
+The software-project Decision guidance now tells authors to edit a Decision
+whose choice still stands and to deprecate and supersede it only when the
+choice changes.
 
 The `generated-at-drift` lint anchors its diagnostic at the `generated.at`
 value itself (`Provenance.ts`), through
@@ -92,7 +112,7 @@ anchors the same way, at the misplaced Project concept's `type` value;
 `Publications.lint(bundle, config)` runs the `publication-drift` and
 `publication-orphan` lints over concepts of type `Publication`, requiring
 `Crypto.Crypto`. A Publication whose `renders` entry carries a
-`body_sha256` that no longer matches `Derivation.bodyDigest` of the rendered
+`body` digest (16-hex) that no longer matches `Derivation.bodyDigest` of the rendered
 source concept reports drift. An orphan is reported for a `surface` that
 resolves to no bundle concept or to a concept whose type is not `Surface`
 (the message names the actual type), a `renders[].path` that resolves to

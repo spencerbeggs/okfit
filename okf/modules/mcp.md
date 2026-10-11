@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:45:05Z
+  at: 2026-10-11T03:57:51Z
 integrity:
   generated:
-    body: 20a738e4eb44c1b8
+    body: 6101bb496bdf0f88
 ---
 
 # MCP
@@ -24,13 +24,15 @@ integrity:
 structured access to an OKF bundle (`packages/mcp/README.md:3`). `describe_vocabulary` also returns the
 resolved profile's `docs_presets`. For the
 `generated-at-drift` lint's fallback tier (a concept with no recorded
-`generated.body_sha256`), `validate_bundle` still spawns read-only `git
+`integrity.generated.body` or a legacy `generated.body_sha256`), `validate_bundle` still spawns read-only `git
 log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
 "writes nothing, ever" promise stands, since a read is not a write. For a
 migrated concept the same lint now runs as pure content comparison
 through `Crypto.Crypto`, also part of `validate_bundle`'s dependencies,
-with no git call at all — see [A body digest inside generated detects
-real drift, not a rewritten date](../decisions/profiles-body-sha256-detects-real-drift.md).
+with no git call at all — see [Every okfit digest lives in one integrity
+family](../decisions/integrity-family.md). `validate_bundle` also reports
+the `verified-drift` lint, since it runs the same engine validation; the
+tools stay read-only and never write `integrity`.
 
 This package depends on [Engine](engine.md) directly -- for the platform
 layer (`OkfitPlatform`), the config/bundle loading `validate_bundle`

@@ -7,14 +7,14 @@ tags:
 supersedes: cli-verify-splices-frontmatter.md
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T16:06:14Z
+  at: 2026-10-11T03:57:51Z
 status: draft
 verified:
   - by: human:spencer
     at: 2026-09-24T00:30:18Z
 integrity:
   generated:
-    body: 85e8f8dbebffe3a7
+    body: 73d033d63b734b97
 ---
 
 # Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
@@ -57,6 +57,18 @@ write, mirroring the original decision's fail-closed posture.
 an LSP range and applies it through `workspace/applyEdit`, never writing
 to the bundle itself -- the same promise MCP and the language server's
 diagnostics already make.
+
+Every `verified` edit also binds the entry: `FrontmatterEdits.verified`
+and `verifiedWithStatus` take the content digest of the source as passed and
+splice `integrity.verified { by, at, content }` in the same ordered edit
+set, through `verify/integrity.ts`'s `locateIntegrity` and
+`spliceIntegrityVerified`. A binding replaces any prior one, and only the
+`verified` slot of an existing `integrity` block is touched, so the
+`generated` digest beside it survives. The binding is described by
+[integrity frontmatter](../interfaces/integrity-frontmatter.md) and the
+reason for it by [A verification is bound to the content it
+covered](verification-binds-content.md). The language server's `Re-verify`
+quick fix on `verified-drift` is built on this same edit.
 
 ## Alternatives rejected
 

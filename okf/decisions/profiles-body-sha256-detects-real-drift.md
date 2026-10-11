@@ -6,14 +6,14 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-09T22:33:03Z
-status: stable
+  at: 2026-10-11T03:57:51Z
+status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-09T23:08:38Z
 integrity:
   generated:
-    body: c6b04ffef9a182eb
+    body: 7318f6f6eea84ae3
 ---
 
 # A body digest inside generated detects real drift, not a rewritten date
@@ -106,7 +106,7 @@ closing the gap: some future merge strategy would eventually rewrite dates
 in a shape nobody anticipated, and the lint would be wrong again. Content
 comparison sidesteps the whole class of problem instead of chasing it.
 
-A namespaced frontmatter root (`okfit: { body_sha256: ... }`, sibling to
+A namespaced frontmatter root (an `okfit` mapping holding the digest, sibling to
 `generated`) was rejected because it splits one concern — "is this stamp
 still trustworthy" — across two locations in the file, requiring two
 splice sites instead of one and giving a reader no reason to associate the

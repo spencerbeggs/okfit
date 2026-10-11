@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T17:12:42Z
+  at: 2026-10-11T03:57:51Z
 tags:
   - architecture
 verified:
@@ -15,7 +15,7 @@ verified:
     at: 2026-09-24T00:18:14.360Z
 integrity:
   generated:
-    body: 3cfaeb63c4643c4d
+    body: f84e156133183262
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -29,7 +29,7 @@ integrity:
 | `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, and every outgoing link. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | a refusal for an unknown or empty id |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past. | optional `now` (ISO-8601, explicit offset) | a refusal for an unparseable `now`, or when the config or bundle fails to load |
-| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged: `engine_version` and `okf_version` match the CLI's over one bundle, while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now`; optional `documents: [{ path, text }]` (bundle-relative posix `.md` paths) validated in place of disk, a not-yet-written file under an existing directory included, nothing written | `BundleNotFound`; `InvalidArgument` for a document path that is absolute, escapes the bundle, is not `.md`, repeats, or sits under a directory that does not exist |
+| `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged (including the `verified-drift` lint at its configured severity): `engine_version` and `okf_version` match the CLI's over one bundle, while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now`; optional `documents: [{ path, text }]` (bundle-relative posix `.md` paths) validated in place of disk, a not-yet-written file under an existing directory included, nothing written | `BundleNotFound`; `InvalidArgument` for a document path that is absolute, escapes the bundle, is not `.md`, repeats, or sits under a directory that does not exist |
 
 `docs_presets` lists the resolved profile's docs-surface presets, each with `name`, `description`, `additive` and `surfaces` (`file`, `frontmatter`, `body`); the docs skills write those surfaces as Surface concepts. It is `[]` when the profile is `none` or unresolved.
 

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-09T16:35:36Z
+  at: 2026-10-11T03:57:51Z
 integrity:
   generated:
-    body: 8e6acc22d3d88b30
+    body: 6ee1ae34917e2c52
 ---
 
 # CLI
@@ -41,6 +41,21 @@ at once instead of one id at a time (and `--stable`/`--draft` to set `status` in
 shape: stamps only the git index with `now` and re-adds what it writes)
 -- see [Engine](engine.md) for what each does; this package only threads
 the flags through.
+
+## Verify, revoke and drift
+
+`okfit verify <id>` on a drifted concept, for a human audience on an
+interactive terminal, prints the git diff since the bound verification and
+asks to confirm (`commands/verify-confirm.ts`); `--no-diff` skips it, and
+JSON carries only an optional `prior_integrity`. `okfit verify --revoke
+<id>` removes the current actor's own entries, exits `3` when there is
+nothing to revoke and `64` on a usage conflict (with `--all`, `--type`,
+`--stable`, `--draft`, `--at`, or no id). The picker's multi-line diff
+preview is deferred. This repository's `.config/okfit.toml` temporarily
+sets `verified_drift = "off"`: its existing human verifications predate
+bindings, and the lint is re-enabled once a human has re-verified them. See
+[A verification is bound to the content it
+covered](../decisions/verification-binds-content.md).
 
 ## Audience and interactive prompts
 
