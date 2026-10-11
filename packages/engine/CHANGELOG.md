@@ -1,5 +1,106 @@
 # @okfit/engine
 
+## 0.15.0
+
+### Breaking Changes
+
+#### JSON envelopes
+
+- `SyncEnvelope` mode results gain a `migrated` id list.
+- `PublicationEnvelope.digests[].body_sha256` is renamed to `digests[].body` and now holds a 16-hex digest. A consumer of `okfit sync --publication --format json` must read `body`.
+- `VerifyEnvelope` gains an optional `prior_integrity` (`content-changed`, `unbound` or `entry-superseded`), present only when the concept's prior human verification had drifted. The envelope does not report the new binding itself.
+- `SkipReason` gains `integrity-unsupported` and `renders-unsupported`; an exhaustive switch over it must handle both.
+
+#### Signatures
+
+- `FrontmatterEdits.verified` and `FrontmatterEdits.verifiedWithStatus` take a required `content` argument, the content digest the new `integrity.verified` binding records.
+
+- `selectAttestable`, `selectPickerCandidates` and `selectStaleCandidates` take a required `signals` map (`Trust.signals` from `@okfit/profiles`), so drifted concepts are offered again.
+
+- Migration: compute the signals once per bundle with `Trust.signals(bundle, now)` and pass them through; compute `content` with `Derivation.contentDigest(concept.frontmatter.raw, source)`.
+
+#### Concept summaries and filters
+
+- `ConceptSummary` gains required `tier`, `integrity` and `stale` fields.
+- `toConceptSummary(concept, signal)` now requires the concept's trust signal.
+- `ConceptFilter.verified` changes from a boolean to `"current" | "unverified"`: `"current"` matches concepts whose verification still binds the content, `"unverified"` matches concepts never verified. `ConceptFilter` also gains `drifted` and `stale`.
+- `ConceptQuery.list` takes a `signals` map.
+- `queryGetEnvelope` input requires `drift`, and `QueryGetEnvelope.concept.drift` and `ContextEnvelope.trust` are required keys.
+- `BundleSessionShape` gains a required `signals`, and `RunResult.signals` is required.
+
+#### Trust signal on every result
+
+- `RunResult.signals` and `BundleSessionShape.signals()` expose the per-concept trust signals computed for a run
+- New `ContextTrust` export for the context trust summary
+- New `TrustDrift` type with `toTrustDrift` and `signalFor` to turn a signal into a consumer-facing drift description
+- `QueryGetEnvelope.concept.drift` reports why a verified concept drifted
+- `ContextEnvelope.trust` carries a trust summary, built by the new `runContextTrust`
+- New `loadPreviews` loads the diff previews the verify picker shows for drifted concepts [#280][#280]
+
+* Trust signals honour the \[actors\].humans allow-list
+* okfit verify, --revoke and the picker refuse a human that a non-empty \[actors\].humans does not list (HumanActorNotAllowedError, exit 3), and honour git config okfit.actor
+* The prior_integrity and drift reason enums include actor-not-allowed [#281][#281]
+
+#### Verify picker
+
+- `PickerCandidate` gains `path` and `boundAt`. `path` is bundle-relative from `selectPickerCandidates` and `selectStaleCandidates`, and absolute from `loadPickerCandidates` and `loadStaleCandidates`.
+
+- Migration: compute signals once per bundle (`RunResult.signals` or `BundleSessionShape.signals()`) and pass them to `toConceptSummary` and `ConceptQuery.list`. Replace `verified: true` with `verified: "current"` and `verified: false` with `verified: "unverified"`.
+
+* `runVerify`, `runRevoke`, `runVerifyBatch`, `runVerifyIds`, `loadPickerCandidates` and `loadStaleCandidates` can now fail with `HumanActorNotAllowedError` and `ActorConfigInvalidError`.
+
+### Features
+
+- `okfit sync` stamps `integrity.generated.body` and migrates legacy `generated.body_sha256` and Publication `renders[].body_sha256` digests to the new family, counting migrated concepts
+- Verify binds `integrity.verified { by, at, content }` to a digest of the body plus authored frontmatter
+- Batch verify and the picker re-offer concepts that drifted since verification
+- New exports: `runRevoke` (with `RevokeOptions`, `RevokeResult`), `RevokeEnvelope` and `revokeEnvelope`, `VerifyNothingToRevokeError`, `inspectDrift` (with `DriftInspection`), and `changeSince` (with `ChangeSince`) for the git diff since a concept was last verified [#278][#278]
+
+* Trust signals honour the \[actors\].humans allow-list
+* okfit verify, --revoke and the picker refuse a human that a non-empty \[actors\].humans does not list (HumanActorNotAllowedError, exit 3), and honour git config okfit.actor
+* The prior_integrity and drift reason enums include actor-not-allowed [#281][#281]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.2 | 4.0.2 |
+| @effect/platform-node-shared | dependency | updated | 4.0.2 | ^4.0.3 |
+| @effected/app | dependency | updated | ^0.21.3 | ^0.21.3 |
+| @effected/config-file | dependency | updated | ^0.14.3 | ^0.14.3 |
+| @effected/engine | dependency | updated | ^0.4.1 | ^0.4.1 |
+| @effected/git | dependency | updated | ^0.20.1 | ^0.20.1 |
+| @effected/glob | dependency | updated | ^0.10.1 | ^0.10.1 |
+| @effected/jsonc | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/markdown | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/schemastore | dependency | updated | ^0.21.5 | ^0.21.5 |
+| @effected/store | dependency | updated | ^0.13.2 | ^0.13.2 |
+| @effected/toml | dependency | updated | ^0.11.2 | ^0.11.2 |
+| @effected/walker | dependency | updated | ^0.15.1 | ^0.15.1 |
+| @effected/xdg | dependency | updated | ^0.9.1 | ^0.9.1 |
+| @effected/yaml | dependency | updated | ^0.19.2 | ^0.19.2 |
+| @okfit/core | dependency | updated | 0.9.2 | 0.10.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.10.0 |
+| effect | dependency | updated | 4.0.2 | 4.0.2 |
+
+[#282][#282]
+
+[#277][#277]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#277]: https://github.com/spencerbeggs/okfit/pull/277
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#280]: https://github.com/spencerbeggs/okfit/pull/280
+
+[#281]: https://github.com/spencerbeggs/okfit/pull/281
+
+[#282]: https://github.com/spencerbeggs/okfit/pull/282
+
 ## 0.14.1
 
 ### Dependencies

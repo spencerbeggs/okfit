@@ -1,5 +1,91 @@
 # @okfit/cli
 
+## 0.12.0
+
+### Breaking Changes
+
+- The JSON output of three commands changed:
+
+- `okfit sync --format json` mode results gain a `migrated` id list.
+
+- `okfit sync --publication --format json` renames `digests[].body_sha256` to `digests[].body`, a 16-hex digest. Scripts reading the old key must read `body`.
+
+- `okfit verify --format json` gains an optional `prior_integrity` field when the concept's prior human verification had drifted.
+
+- Digests are 16 hex characters, and `okfit sync` migrates legacy `body_sha256` fields to the `integrity` family.
+
+* `okfit query list --verified` now means verified and still current: concepts whose content drifted since verification no longer match. Use the new `--unverified` for concepts never verified.
+
+* Migration: scripts that relied on `--verified` matching every concept ever verified should also run `okfit query list --drifted` to include drifted ones.
+
+### Features
+
+#### Verification binds content
+
+- `okfit verify` records `integrity.verified { by, at, content }`, a digest of the body plus authored frontmatter. Editing a verified concept afterwards raises the `verified-drift` lint (default `warn`); batch verify and the picker offer drifted concepts again.
+
+#### Revoke
+
+- `okfit verify --revoke <id>` removes your verification from a concept. With `--format json` it prints a new envelope: `id`, `path`, `revoked_by`, `removed` (the timestamps removed), `binding_cleared` and `dry_run`.
+
+#### Review drift before re-verifying
+
+#### Trust signal in query
+
+- `okfit query list --drifted` lists concepts edited after they were verified, and `--stale` lists concepts past their `stale_after`
+- `okfit query list` shows a trust column
+- `okfit query get` prints tier, integrity and stale lines
+- `okfit query get --format json` includes a `drift` object for drifted concepts
+
+#### Trust summary in context
+
+- `okfit context --trust` appends a trust summary of the bundle.
+
+#### Drift preview in the verify picker
+
+- The interactive `okfit verify` picker previews the diff of a drifted concept before you confirm re-verification. [#280][#280]
+
+* On an interactive terminal, `okfit verify <id>` on a drifted concept shows the git diff since its last verification and asks you to confirm. Pass `--no-diff` to skip the diff and the prompt. When you had verified the concept before, the output opens with `re-verifying (was drifted: <reason>)`. [#278][#278]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.2 | 4.0.2 |
+| @effect/platform-node-shared | dependency | updated | 4.0.2 | ^4.0.3 |
+| @effected/cli | dependency | updated | ^0.16.2 | ^0.16.2 |
+| @effected/config-file | dependency | updated | ^0.14.3 | ^0.14.3 |
+| @effected/engine | dependency | updated | ^0.4.1 | ^0.4.1 |
+| @effected/env | dependency | updated | ^0.1.2 | ^0.1.2 |
+| @effected/git | dependency | updated | ^0.20.1 | ^0.20.1 |
+| @effected/glob | dependency | updated | ^0.10.1 | ^0.10.1 |
+| @effected/jsonc | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/markdown | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/schemastore | dependency | updated | ^0.21.5 | ^0.21.5 |
+| @effected/toml | dependency | updated | ^0.11.2 | ^0.11.2 |
+| @effected/walker | dependency | updated | ^0.15.1 | ^0.15.1 |
+| @effected/yaml | dependency | updated | ^0.19.2 | ^0.19.2 |
+| @okfit/core | dependency | updated | 0.9.2 | 0.10.0 |
+| @okfit/engine | dependency | updated | 0.14.1 | 0.15.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.10.0 |
+| effect | dependency | updated | 4.0.2 | 4.0.2 |
+
+[#282][#282]
+
+[#277][#277]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#277]: https://github.com/spencerbeggs/okfit/pull/277
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#280]: https://github.com/spencerbeggs/okfit/pull/280
+
+[#282]: https://github.com/spencerbeggs/okfit/pull/282
+
 ## 0.11.1
 
 ### Dependencies

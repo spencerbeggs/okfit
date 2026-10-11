@@ -1,5 +1,79 @@
 # @okfit/profiles
 
+## 0.10.0
+
+### Breaking Changes
+
+- `Derivation.generatedBy` reads `git config okfit.actor` first, so a Git test double that answers every key with one value must return none for `okfit.actor`
+- `GeneratedByError` gains `ActorConfigInvalidError`
+
+* `RendersEntry.body_sha256` is now `RendersEntry.body`
+* `Derivation.bodyDigest` returns a 16-hex truncated SHA-256 instead of the full digest
+* Generated and Publication digests are read from `integrity.generated.body` and `renders[].body`
+
+### Features
+
+#### Trust
+
+- New `Trust` facade with `signal`, `signals` and `lint`, plus the `ConceptSignal`, `IntegrityState` and `DriftReason` types. The `verified-drift` lint fires when a verified concept's body or authored frontmatter no longer matches `integrity.verified.content`, when a human entry carries no binding, or when a later human entry is not the bound one. It is a signal, not a gate.
+
+#### Canonical
+
+- New `Canonical` facade with `json`, `contentInput` and `EXCLUDED_KEYS`: the exact string a content digest hashes, insensitive to quoting, flow or block style, key order and CRLF. Integers beyond 2^53 are encoded as their decimal literal.
+
+#### Derivation
+
+- `Derivation.digest` and `Derivation.digestFull` hash a string to a 16-hex or full SHA-256
+- `Derivation.contentDigest` hashes the canonical content input of a concept
+- `Derivation.recordedBody` reads a concept's recorded body digest from `integrity.generated.body`, else a legacy `generated.body_sha256`
+
+* New `Trust.evaluate` and `Trust.needsDigest`, with the `EvaluateInput` type, so a caller can evaluate a concept's trust signal from inputs it has already gathered
+* `Trust.lint` accepts precomputed signals, so a surface that already holds them does not recompute digests
+* `Trust.lint` no longer emits `verified-drift` for draft or deprecated concepts, which `okfit verify` refuses to re-bind; their signal still reads drifted [#280][#280]
+
+- `Trust.signal`, `Trust.signals` and `Trust.inputOf` take the config as a second argument, and `EvaluateInput` gains `humans`; pass the merged config the concept was loaded under
+- `Derivation.generatedBy` reads `git config okfit.actor` first, so a person can choose their `human:<id>` explicitly; a value with `@`, a glob, or a non-`human:` prefix fails the new `ActorConfigInvalidError`, and a value equal to an exact `[actors].humans` entry takes that entry's spelling
+- New `Derivation.verifier` resolves the human and enforces a non-empty `[actors].humans` allow-list, failing the new `HumanActorNotAllowedError`
+- Glob entries in `[actors].humans` are matched by the allow-list but never returned as a resolved id
+- New `actor-not-allowed` drift reason: a binding whose actor a non-empty `[actors].humans` does not list is drifted and reported by `verified-drift`
+- `DriftReason` is exported as a schema as well as a type [#281][#281]
+
+### Bug Fixes
+
+- The `stale` lint description is corrected
+- The `generated-at-drift` message names `generated.body_sha256` when the recorded digest came from that legacy field [#278][#278]
+
+### Documentation
+
+- The software-project Decision guidance now allows editing stable Decisions, with drift prompting re-verification
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.9.2 | 0.10.0 |
+| @effected/git | peerDependency | updated | ^0.20.0 | ^0.21.0 |
+| @effected/markdown | peerDependency | updated | ^0.15.0 | ^0.16.0 |
+| effect | peerDependency | updated | 4.0.2 | 4.0.2 |
+
+[#282][#282]
+
+- New `Trust.evaluate` and `Trust.needsDigest`, with the `EvaluateInput` type, so a caller can evaluate a concept's trust signal from inputs it has already gathered
+- `Trust.lint` accepts precomputed signals, so a surface that already holds them does not recompute digests
+- `Trust.lint` no longer emits `verified-drift` for draft or deprecated concepts, which `okfit verify` refuses to re-bind; their signal still reads drifted [#280][#280]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#280]: https://github.com/spencerbeggs/okfit/pull/280
+
+[#281]: https://github.com/spencerbeggs/okfit/pull/281
+
+[#282]: https://github.com/spencerbeggs/okfit/pull/282
+
 ## 0.9.0
 
 ### Breaking Changes
