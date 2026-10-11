@@ -4,9 +4,9 @@ import { join, resolve } from "node:path";
 import { NodeCrypto, NodeFileSystem, NodePath, NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import { BundleRootNotFoundError, OkfitConfig } from "@okfit/core";
+import { ActorPattern, BundleRootNotFoundError, OkfitConfig } from "@okfit/core";
 import { GitHistory, PathHistoryEntry, Profiles } from "@okfit/profiles";
-import { DateTime, Effect, Layer, Option } from "effect";
+import { DateTime, Effect, Layer, Option, Schema } from "effect";
 import { Now, run } from "../../src/validate/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 
@@ -427,7 +427,10 @@ describe("run — verified-drift lint (integrity)", () => {
 				const text = `---\ntype: Module\nverified:\n  - by: human:spencer\n    at: 2026-01-05T12:00:00Z\nintegrity:\n  verified:\n    by: human:spencer\n    at: 2026-01-05T12:00:00Z\n    content: ${DIGEST}\n---\n\n# Thing\n\nBody text.\n`;
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
 				yield* bindFixtures(root, [REL]);
-				const config: OkfitConfig = { ...verifiedConfig, actors: { humans: ["human:ada"] } };
+				const config: OkfitConfig = {
+					...verifiedConfig,
+					actors: { humans: [Schema.decodeUnknownSync(ActorPattern)("human:ada")] },
+				};
 				const result = yield* run({ root, config, profile: Option.none(), now }).pipe(
 					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
 				);

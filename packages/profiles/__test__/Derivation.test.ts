@@ -494,7 +494,7 @@ describe("Derivation.generatedBy (P-16, P-17)", () => {
 		"human: okfit.actor takes the spelling of an exact [actors].humans entry that equals it case-insensitively",
 		() =>
 			Effect.gen(function* () {
-				const config: OkfitConfig = { actors: { humans: ["human:ada"] }, extensions: {} };
+				const config: OkfitConfig = { actors: { humans: [pattern("human:ada")] }, extensions: {} };
 				const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config }).pipe(
 					Effect.provide(identityGit({ "okfit.actor": "human:Ada" })),
 				);

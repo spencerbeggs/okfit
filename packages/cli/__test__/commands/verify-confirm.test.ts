@@ -5,9 +5,9 @@ import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli/ui/testing";
 import { Git } from "@effected/git";
-import { OkfitConfig } from "@okfit/core";
+import { ActorPattern, OkfitConfig } from "@okfit/core";
 import { HumanActorNotAllowedError } from "@okfit/profiles";
-import { DateTime, Effect, Fiber, Layer } from "effect";
+import { DateTime, Effect, Fiber, Layer, Schema } from "effect";
 import { confirmReverify } from "../../src/commands/verify-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
 
@@ -161,7 +161,10 @@ describe("confirmReverify", () => {
 			Effect.scoped(
 				Effect.gen(function* () {
 					yield* driftedRepo(root);
-					const config: OkfitConfig = { ...OkfitConfig.DEFAULTS, actors: { humans: ["human:grace"] } };
+					const config: OkfitConfig = {
+						...OkfitConfig.DEFAULTS,
+						actors: { humans: [Schema.decodeUnknownSync(ActorPattern)("human:grace")] },
+					};
 					const { session, fiber } = yield* start(root, true, { config });
 					const exit = yield* Fiber.await(fiber);
 					assert.isTrue(exit._tag === "Failure");
