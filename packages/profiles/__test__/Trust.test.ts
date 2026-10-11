@@ -221,6 +221,38 @@ describe("Trust.lint", () => {
 		}).pipe(Effect.provide(NodeCrypto.layer)),
 	);
 
+	it.effect("a drifted draft or deprecated concept lints nothing while its signal still says drifted", () =>
+		Effect.gen(function* () {
+			const draft = concept(
+				{ type: "Decision", status: "draft", verified: [{ by: "human:spencer", at: AT }] },
+				BODY,
+				"draft.md",
+			);
+			const deprecated = concept(
+				{ type: "Decision", status: "deprecated", verified: [{ by: "human:spencer", at: AT }] },
+				BODY,
+				"deprecated.md",
+			);
+			for (const c of [draft, deprecated]) {
+				assert.strictEqual((yield* Trust.signal(c, NOW)).integrity, "drifted");
+			}
+			assert.deepStrictEqual(yield* Trust.lint(bundleOf(draft, deprecated), OkfitConfig.DEFAULTS, NOW), []);
+		}).pipe(Effect.provide(NodeCrypto.layer)),
+	);
+
+	it.effect("a drifted stable concept still warns, with explicit and absent status", () =>
+		Effect.gen(function* () {
+			const explicit = concept(
+				{ type: "Decision", status: "stable", verified: [{ by: "human:spencer", at: AT }] },
+				BODY,
+				"explicit.md",
+			);
+			const absent = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] }, BODY, "absent.md");
+			const diagnostics = yield* Trust.lint(bundleOf(explicit, absent), OkfitConfig.DEFAULTS, NOW);
+			assert.deepStrictEqual(diagnostics.map((d) => d.file).sort(), ["absent.md", "explicit.md"]);
+		}).pipe(Effect.provide(NodeCrypto.layer)),
+	);
+
 	it.effect("a bigint frontmatter value (an integer beyond 2^53) lints instead of defecting", () =>
 		Effect.gen(function* () {
 			const fm = { type: "Decision", verified: [{ by: "human:spencer", at: AT }] };

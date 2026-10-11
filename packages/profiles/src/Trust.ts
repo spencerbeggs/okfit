@@ -152,6 +152,9 @@ const lint = Effect.fn("Trust.lint")(function* (
 	if (severity === "off") return [];
 	const diagnostics: Array<Diagnostic> = [];
 	for (const [id, concept] of bundle.concepts) {
+		// `okfit verify` refuses drafts and deprecated concepts, so a warning on one could never be cleared.
+		const status = Derive.status(concept.frontmatter);
+		if (status === "draft" || status === "deprecated") continue;
 		const result = given?.get(id) ?? (yield* signal(concept, now));
 		if (result.drift === undefined) continue;
 		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept));
@@ -198,7 +201,7 @@ export class Trust {
 	/** The {@link EvaluateInput} of a loaded concept. */
 	static readonly inputOf: (concept: LoadedConcept) => EvaluateInput = inputOf;
 	/**
-	 * `verified-drift` diagnostics for drifted concepts; `[]` (no hashing) when the severity is `off`.
+	 * `verified-drift` diagnostics for drifted concepts (drafts and deprecated concepts are exempt: `okfit verify` refuses them); `[]` (no hashing) when the severity is `off`.
 	 * Given `signals` (from {@link Trust.signals}) it reuses each concept's entry and hashes nothing for it;
 	 * a concept absent from `signals` falls back to computing its own signal (hashing if it needs a digest).
 	 */

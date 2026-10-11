@@ -7,14 +7,14 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T14:48:09Z
 status: draft
 sources:
   - id: trust-ts
     resource: ../../packages/profiles/src/Trust.ts
 integrity:
   generated:
-    body: fd2bbd6bd1352cf8
+    body: e9d479678557e857
 ---
 
 # Verification drift is a signal to weigh, never a gate
@@ -40,6 +40,10 @@ and `Re-verify as <actor>` quick fix, the VS Code drift badge, and a diff
 preview in the verify picker. A human re-runs `okfit verify` to re-bind.
 Deprecate and supersede a Decision only when the choice itself changes.
 Staleness (`stale_after`) stays a separate, parallel signal.
+
+Drafts and deprecated concepts are exempt from the lint, because `okfit verify`
+refuses them and the warning could never be cleared; their signal still reads
+drifted on every other surface.
 
 okfit does not gate: no default makes drift fail CI. A user who wants that
 sets `verified_drift = "error"` or writes their own hook.
