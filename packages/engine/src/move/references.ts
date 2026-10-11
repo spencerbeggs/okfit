@@ -246,7 +246,8 @@ export const rewriteReference = (
 				(again.kind === "concept" ? `${again.id}.md` : again.id) === next
 			);
 		};
-		written = lands(bare) ? bare : `/${bare}`;
+		// An unmoved target keeps the author's own text (percent-encoding and all) while it still lands.
+		written = moved ? (lands(bare) ? bare : `/${bare}`) : lands(pathPart) ? pathPart : `/${pathPart}`;
 	} else {
 		const base = directory ? posix.dirname(next) : next;
 		let relative = relativeTo(posix.dirname(options.fromNew), base);

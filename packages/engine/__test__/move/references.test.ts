@@ -28,6 +28,8 @@ const seed = {
 			"",
 		].join("\n"),
 	),
+	[`${ROOT}/docs/my file.md`]: doc("Convention", "Spaced"),
+	[`${ROOT}/topics/docs/my file.md`]: doc("Convention", "Shadow spaced"),
 	[`${ROOT}/topics/conventions/c.md`]: doc("Convention", "Shadow"),
 	[`${ROOT}/topics/titled.md`]: doc(
 		"Decision",
@@ -107,6 +109,10 @@ describe("rewriteReference", () => {
 			assert.strictEqual(own("conventions/c", "topics/beta.md"), "/conventions/c");
 			assert.strictEqual(own("conventions/c.md#x", "topics/beta.md"), "/conventions/c.md#x");
 			assert.strictEqual(own("conventions/c", "other/beta.md"), undefined);
+			// The author's own text is kept, percent-encoding included, never rebuilt from the decoded id.
+			assert.strictEqual(moveB(bundle, "decisions/a.md", "docs/my%20file.md", "topics/beta.md"), undefined);
+			assert.strictEqual(own("docs/my%20file.md", "other/beta.md"), undefined);
+			assert.strictEqual(own("docs/my%20file.md#x", "topics/beta.md"), "/docs/my%20file.md#x");
 			// A bare reference that still lands on its target stays bare when the target moves.
 			assert.strictEqual(moveB(bundle, "decisions/a.md", "decisions/b", "topics/beta.md"), "topics/beta");
 		}),
