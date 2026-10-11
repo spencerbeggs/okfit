@@ -74,7 +74,7 @@ prefixes to implementations.
   workspace folder going away and a new one arriving) -- then answers with
   every live workspace folder's
   loaded bundle as `{ bundles: [{ root, rootUri, profile, concepts: [{ id,
-  uri, title, type, status, stale }] }] }`: `status` is `"draft" | "stable" |
+  uri, title, type, status, tier, integrity, stale }] }] }`: `status` is `"draft" | "stable" |
   "deprecated" | undefined` (absent when the frontmatter has none), `stale`
   is computed against the request time, and a bundle that still failed to
   load (no config, or one that failed) contributes no bundle entry.
@@ -124,6 +124,11 @@ not versioned on the client side -- `vscode-languageclient` and VS Code
 both drop the version when applying a code action -- so it stays safe only
 because it is computed from the current buffer at request time, not because
 a stale one is refused.
+
+Hover on a concept shows its `integrity` (`current`, `drifted` or `none`),
+inlay hints append `· drifted` to a drifted concept's hint, and a
+`verified-drift` diagnostic carries a preferred `Re-verify as <actor>` quick
+fix. `okfit/concepts` entries carry `tier` and `integrity` beside `status`.
 
 ## Status
 

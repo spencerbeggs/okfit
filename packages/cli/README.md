@@ -10,9 +10,9 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 okfit [--help] [--version]
 okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
 okfit init [path] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
-okfit context [path] [--config <file>] [--format human|json] [--help]
+okfit context [path] [--trust] [--config <file>] [--format human|json] [--help]
 okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft] [--revoke] [--no-diff] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
-okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--config <file>] [--format human|json]
+okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
 okfit query get <id> [path] [--config <file>] [--format human|json]
 okfit query neighbors <id> [path] [--config <file>] [--format human|json]
 ```
@@ -211,6 +211,14 @@ tags:
   testing  Concerns how the system is verified: strategy, fixtures, and coverage policy.
 ```
 
+`okfit context --trust` also loads the bundle and adds a trust summary:
+how many concepts are drifted (edited since a human verified them), stale
+(past `stale_after`) or never verified, plus the first five drifted and
+stale ids, sorted. In human output it is a `trust:` line; in JSON it is the
+`trust` object (`concepts`, `drifted`, `stale`, `unverified`, `drifted_ids`,
+`stale_ids`). Without the flag `context` never loads the bundle and `trust`
+is `null`. The Claude Code session-start hook passes `--trust`.
+
 All paths `humanContext` prints are absolute, exactly as the resolved envelope carries them
 (never relativized to the current directory the way `validate`'s summary line is) — the
 example above reflects that, not a shortened path for readability.
@@ -273,7 +281,9 @@ Bare `okfit verify` in a terminal opens a picker: every concept of a
 deprecated excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
-one all-or-nothing write. Esc, `q`, Ctrl-C or answering no exits `130` with
+one all-or-nothing write. When a candidate is drifted, the picker shows a
+two-pane screen that previews its diff since the last verification (or why
+there is no baseline to diff against). Esc, `q`, Ctrl-C or answering no exits `130` with
 nothing written. Without a terminal (a pipe, an agent or CI audience, or
 `--format json`) bare `verify` is a usage error (exit `64`).
 
@@ -289,10 +299,15 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
 - `okfit query list [path]` lists concepts as summaries (id, type, title,
   description, status, tags, path). Filters: `--type <Type>` and
   `--tag <tag>` (repeatable, each must be declared in the config),
-  `--status draft|stable|deprecated` (repeatable), and `--verified` or
-  `--unverified`.
-- `okfit query get <id> [path]` prints one concept: the summary fields and its
-  outgoing links. `--format json` also includes the raw frontmatter.
+  `--status draft|stable|deprecated` (repeatable), `--verified` (a human's
+  verification is current), `--unverified` (never verified), `--drifted`
+  (edited since a human verified it) and `--stale` (`stale_after` passed).
+  Each line reads `id  status  trust  type  title`, where `trust` is
+  `drifted` or the concept's trust tier, followed by `,stale` when stale.
+- `okfit query get <id> [path]` prints one concept: the summary fields, plus
+  `tier:`, `integrity:` (`current`, `none`, or `drifted (<reason>[; edited by
+  X at T])`) and `stale:` lines, and its outgoing links. `--format json` also
+  includes the raw frontmatter.
 - `okfit query neighbors <id> [path]` prints a concept's outgoing and
   incoming links.
 
@@ -435,7 +450,9 @@ was cleared) and `revoked_by` (the actor).
 
 `okfit query list --format json` prints `QueryListEnvelope` (`total`, `items`);
 `query get` prints `QueryGetEnvelope` (`concept`: the summary fields plus
-`frontmatter` and `links`); `query neighbors` prints `QueryNeighborsEnvelope`
+`frontmatter` and `links`, and a `drift` object (`reason`, `edited_by`,
+`edited_at`) or `null`); every summary carries `tier`, `integrity` and
+`stale`; `query neighbors` prints `QueryNeighborsEnvelope`
 (`id`, `outgoing`, `incoming`). Each carries `schema`, `okfit_version`,
 `engine_version` and `distribution`.
 
@@ -459,7 +476,8 @@ one above:
  ],
  "tags": [
   { "name": "architecture", "description": "Concerns the shape of the system rather than one module." }
- ]
+ ],
+ "trust": null
 }
 ```
 

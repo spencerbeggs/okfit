@@ -7,7 +7,7 @@ description: >-
   the okf/ bundle or its context files, before handing off to a human for
   commit and changeset. Trigger phrases -- "finalize the bundle", "wrap up
   the okf changes", "reconcile the docs before merging", "sweep the bundle".
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff:*), Bash(okfit validate:*), Bash(okfit context:*), Bash(pnpm exec okfit validate:*), Bash(pnpm exec okfit context:*), Bash(npx okfit validate:*), Bash(npx okfit context:*), Bash(node_modules/.bin/okfit validate:*), Bash(node_modules/.bin/okfit context:*)
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff:*), Bash(okfit validate:*), Bash(okfit context:*), Bash(okfit query:*), Bash(pnpm exec okfit validate:*), Bash(pnpm exec okfit context:*), Bash(pnpm exec okfit query:*), Bash(npx okfit validate:*), Bash(npx okfit context:*), Bash(npx okfit query:*), Bash(node_modules/.bin/okfit validate:*), Bash(node_modules/.bin/okfit context:*), Bash(node_modules/.bin/okfit query:*)
 targets:
   copilot:
     allowed-tools: Read, Grep, Glob, Edit, Write, Bash
@@ -58,8 +58,10 @@ for the simplicity of one agent running one skill straight through.
    verification" and stop there — this skill never runs `okfit verify`. Tell
    the human that once they have reviewed a draft, `okfit verify <id>
    --stable` settles it in one write: the attestation and the promotion.
-   Also list any concept `validate` reported as `verified-drift` under
-   "awaiting re-verification": the branch edited a verified concept, which
+   Also list under "awaiting re-verification" every concept
+   `okfit query --drifted` returns (the same set `validate` reports as
+   `verified-drift`; add `--format json` for each one's `drift` reason and
+   who edited it): the branch edited a verified concept, which
    is fine, and only a human re-verifies it (`okfit verify <id>`, which shows
    the diff since the last verification first). Never re-verify it yourself. If
    `validate` reports stale concepts, suggest the human run `okfit stale

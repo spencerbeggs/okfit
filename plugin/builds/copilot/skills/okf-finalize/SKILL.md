@@ -54,8 +54,10 @@ for the simplicity of one agent running one skill straight through.
    verification" and stop there — this skill never runs `okfit verify`. Tell
    the human that once they have reviewed a draft, `okfit verify <id>
    --stable` settles it in one write: the attestation and the promotion.
-   Also list any concept `validate` reported as `verified-drift` under
-   "awaiting re-verification": the branch edited a verified concept, which
+   Also list under "awaiting re-verification" every concept
+   `okfit query --drifted` returns (the same set `validate` reports as
+   `verified-drift`; add `--format json` for each one's `drift` reason and
+   who edited it): the branch edited a verified concept, which
    is fine, and only a human re-verifies it (`okfit verify <id>`, which shows
    the diff since the last verification first). Never re-verify it yourself. If
    `validate` reports stale concepts, suggest the human run `okfit stale
