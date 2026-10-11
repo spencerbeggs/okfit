@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T03:59:59Z
 status: draft
 sources:
   - id: canonical-ts
@@ -16,7 +16,7 @@ sources:
     resource: ../../docs/superpowers/specs/2026-10-10-okfit-verification-integrity-design.md
 integrity:
   generated:
-    body: 58ef6210048cb568
+    body: 81d1f9bf84614fbf
 ---
 
 # A verification is bound to the content it covered
@@ -43,11 +43,14 @@ arrays keep their order. The encoder lives in `@okfit/profiles`, not core,
 because binding content to verification is an okfit opinion the spec does
 not hold.
 
-A derived signal answers how much to value a concept: the spec trust tier
-(unchanged) plus `integrity` of `current`, `drifted` or `none`, with a drift
-reason (`content-changed`, `unbound`, `entry-superseded`,
-`actor-not-allowed`) and staleness. Machine entries neither bind nor break
-a binding. Status changes do not void a verification.
+Profiles derives whether a binding is still current from the spec trust
+tier (unchanged), the bound digest and the current content. Phase 1 reports
+drift with the reasons `content-changed`, `unbound` and `entry-superseded`,
+through the `verified-drift` lint and verify's results and envelope. A
+fourth reason, `actor-not-allowed`, is reserved for the later actors
+phase, and a fuller signal object on every surface is planned. Machine
+entries neither bind nor break a binding. Status changes do not void a
+verification.
 
 ## Alternatives rejected
 

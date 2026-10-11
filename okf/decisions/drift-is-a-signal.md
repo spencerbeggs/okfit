@@ -7,14 +7,14 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T03:59:59Z
 status: draft
 sources:
   - id: design-spec
     resource: ../../docs/superpowers/specs/2026-10-10-okfit-verification-integrity-design.md
 integrity:
   generated:
-    body: 8bd7ec51c0004687
+    body: 0c57f97e443b429c
 ---
 
 # Verification drift is a signal to weigh, never a gate
@@ -31,8 +31,9 @@ covered](verification-binds-content.md) makes the check possible.
 
 Editing a verified concept is allowed for anyone, of any type. The edit
 turns the verification drifted; `okfit validate` reports the `verified-drift`
-lint at `warn`, and agent-facing surfaces report `integrity: drifted` next
-to the unchanged trust tier. A human re-runs `okfit verify` to re-bind.
+lint at `warn`, carried by `okfit validate` and the MCP `validate_bundle`
+tool, beside the unchanged trust tier. Drift fields on MCP, LSP and VS Code
+surfaces and `query` filters are planned for a later phase. A human re-runs `okfit verify` to re-bind.
 Deprecate and supersede a Decision only when the choice itself changes.
 Staleness (`stale_after`) stays a separate, parallel signal.
 
