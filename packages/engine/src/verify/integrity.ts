@@ -127,6 +127,18 @@ export const locateIntegrity = Effect.fn("okfit/verify/locateIntegrity")(functio
 	return { _tag: "replace", start: valueStart + span.start, end: valueStart + span.end, current } as const;
 });
 
+/** What YAML 1.2 Core resolves to a number: all digits, or digits `e` digits. */
+const NUMERIC_DIGEST = /^[0-9]+(?:e[0-9]+)?$/u;
+
+/**
+ * A digest as okfit writes it: single-quoted exactly when YAML 1.2 Core would
+ * resolve the plain spelling to a number (all digits, or digits `e` digits),
+ * so a reader always gets the string back; plain otherwise.
+ *
+ * @internal
+ */
+export const formatDigest = (digest: string): string => (NUMERIC_DIGEST.test(digest) ? `'${digest}'` : digest);
+
 /** The slots {@link renderIntegrity} writes; an absent slot is omitted. @internal */
 export interface IntegrityFields {
 	readonly generated?: { readonly body: string };
@@ -141,13 +153,13 @@ export interface IntegrityFields {
  */
 export const renderIntegrity = (fields: IntegrityFields, newline: "\n" | "\r\n"): string => {
 	const lines: Array<string> = [];
-	if (fields.generated !== undefined) lines.push("  generated:", `    body: ${fields.generated.body}`);
+	if (fields.generated !== undefined) lines.push("  generated:", `    body: ${formatDigest(fields.generated.body)}`);
 	if (fields.verified !== undefined) {
 		lines.push(
 			"  verified:",
 			`    by: ${fields.verified.by}`,
 			`    at: ${fields.verified.at}`,
-			`    content: ${fields.verified.content}`,
+			`    content: ${formatDigest(fields.verified.content)}`,
 		);
 	}
 	return lines.length === 0 ? "" : ["integrity:", ...lines].map((line) => `${line}${newline}`).join("");

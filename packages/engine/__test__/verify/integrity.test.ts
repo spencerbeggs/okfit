@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
-import { MarkdownEdit } from "@effected/markdown";
-import { Effect } from "effect";
+import { FrontmatterSource, MarkdownEdit } from "@effected/markdown";
+import { YamlDocument } from "@effected/yaml";
+import { Concept } from "@okfit/core";
+import { Effect, Schema } from "effect";
 import type { IntegrityFields } from "../../src/verify/integrity.js";
 import {
+	formatDigest,
 	locateIntegrity,
 	locateLegacyBodySha256,
 	removeLine,
@@ -120,6 +123,35 @@ describe("legacy body_sha256", () => {
 	it.effect("reports none when body_sha256 is absent", () =>
 		Effect.gen(function* () {
 			assert.deepStrictEqual(yield* locateLegacyBodySha256(read("legacy-none.md")), { _tag: "none" });
+		}),
+	);
+});
+
+describe("digest quoting", () => {
+	it("quotes numeric-looking digests and leaves ordinary ones plain", () => {
+		assert.strictEqual(formatDigest("0000000000000000"), "'0000000000000000'");
+		assert.strictEqual(formatDigest("1234e56789012345"), "'1234e56789012345'");
+		assert.strictEqual(formatDigest("47fef58df84c6eb2"), "47fef58df84c6eb2");
+		assert.strictEqual(formatDigest("e234567890123456"), "e234567890123456");
+	});
+	it.effect("an all-digit digest round-trips through locateIntegrity and the Concept decode", () =>
+		Effect.gen(function* () {
+			const fields = {
+				generated: { body: "1234567890123456" },
+				verified: { ...VERIFIED, content: "1234e56789012345" },
+			};
+			const out = yield* apply("absent.md", fields);
+			assert.include(out, "body: '1234567890123456'");
+			assert.include(out, "content: '1234e56789012345'");
+			const located = yield* locateIntegrity(out);
+			if (located._tag !== "replace") return assert.fail("expected replace");
+			assert.strictEqual(located.current?.generated?.body, "1234567890123456");
+			assert.strictEqual(located.current?.verified?.content, "1234e56789012345");
+			const block = FrontmatterSource.split(out).frontmatter;
+			const doc = yield* YamlDocument.parse(block?.value ?? "");
+			const raw = doc.contents?.toValue() as Record<string, unknown>;
+			const concept = yield* Schema.decodeUnknownEffect(Concept)({ ...raw, extensions: {}, raw });
+			assert.isDefined(concept.integrity);
 		}),
 	);
 });
