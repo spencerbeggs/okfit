@@ -7,6 +7,7 @@ import {
 	QueryConceptNotFoundError,
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
+	TargetResolutionError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
@@ -142,6 +143,19 @@ describe("VerifySelectionError no-selection", () => {
 		assert.strictEqual(
 			error.message,
 			"verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)",
+		);
+	});
+});
+
+describe("TargetResolutionError", () => {
+	it("exits 64 and renders one line per failure", () => {
+		const error = new TargetResolutionError({
+			failures: [{ arg: "foo.md", reason: "ambiguous", candidates: ["decisions/foo.md", "foo.md"] }],
+		});
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(
+			error.message,
+			'"foo.md" is ambiguous: it names both decisions/foo.md and foo.md; pass an id or an absolute path',
 		);
 	});
 });

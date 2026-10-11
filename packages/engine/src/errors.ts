@@ -297,3 +297,47 @@ export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>
 		return "query list takes --verified or --unverified, not both";
 	}
 }
+
+/**
+ * One argument that did not resolve to a concept target.
+ *
+ * @public
+ */
+export const TargetFailure = Schema.Struct({
+	arg: Schema.String,
+	reason: Schema.Literals(["not-found", "ambiguous", "outside-bundle", "reserved", "not-a-concept"]),
+	suggestion: Schema.optionalKey(Schema.String),
+	candidates: Schema.optionalKey(Schema.Tuple([Schema.String, Schema.String])),
+});
+/** @public */
+export type TargetFailure = typeof TargetFailure.Type;
+
+const targetLine = (failure: TargetFailure): string => {
+	switch (failure.reason) {
+		case "ambiguous":
+			return `"${failure.arg}" is ambiguous: it names both ${failure.candidates?.[0]} and ${failure.candidates?.[1]}; pass an id or an absolute path`;
+		case "outside-bundle":
+			return `"${failure.arg}" is outside the bundle`;
+		case "reserved":
+			return `"${failure.arg}" is a reserved file, not a concept`;
+		case "not-a-concept":
+			return `"${failure.arg}" did not load as a concept (run okfit validate)`;
+		default:
+			return `no concept "${failure.arg}"${failure.suggestion === undefined ? "" : ` (did you mean ${failure.suggestion}?)`}`;
+	}
+};
+
+/**
+ * One or more concept targets did not resolve. Every bad argument is listed;
+ * nothing ran. Exit 64: a usage error.
+ *
+ * @public
+ */
+export class TargetResolutionError extends Schema.TaggedError<TargetResolutionError>()("TargetResolutionError", {
+	failures: Schema.Array(TargetFailure),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return this.failures.map(targetLine).join("\n");
+	}
+}

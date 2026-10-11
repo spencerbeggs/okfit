@@ -17,7 +17,7 @@ src/
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError,
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
-                             QuerySelectionError
+                             QuerySelectionError, TargetResolutionError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
@@ -51,6 +51,9 @@ src/
     concept.ts                -- conceptFor: the loaded concept at an absolute path under bundle.root
     diff.ts                  -- groupByFile, diffDiagnostics (pure, engine-internal)
     range.ts                  -- withFallbackRange: range-less finding -> frontmatter block
+  targets/
+    resolve.ts               -- Targets.resolve/suggest, ResolvedTarget: the shared concept-target resolver
+                                (absolute, cwd-relative, id; all or nothing)
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)

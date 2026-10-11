@@ -24,6 +24,8 @@ export {
 	SyncPlanStaleError,
 	SyncPublicationConflictError,
 	SyncStagedLogError,
+	TargetFailure,
+	TargetResolutionError,
 	VerifyConceptNotFoundError,
 	VerifyNothingToRevokeError,
 	VerifySelectionError,
@@ -109,6 +111,8 @@ export { NotAPublicationError, PublicationNotFoundError, stampPublication } from
 export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult } from "./sync/run.js";
 export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
 export type { PendingWrite } from "./sync/write.js";
+export type { ResolvedTarget } from "./targets/resolve.js";
+export { Targets } from "./targets/resolve.js";
 export type { ContextTrustOptions } from "./trust/run.js";
 export { runContextTrust } from "./trust/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
