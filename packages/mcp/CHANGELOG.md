@@ -1,5 +1,67 @@
 # @okfit/mcp
 
+## 0.9.0
+
+### Breaking Changes
+
+- The `verified` parameter of `list_concepts` now selects verified concepts whose content is still current, not any concept ever verified. Pass `drifted` to find concepts edited after verification. [#280][#280]
+
+### Features
+
+- `list_concepts` accepts `verified`, `drifted`, `stale` and `now` parameters to filter by trust signal
+- Concept summaries carry `tier`, `integrity` and `stale`
+- `get_concept` returns `tier`, `integrity` and `stale`, plus `drift` when a verified concept's content changed
+- `stale_report` includes a `drifted` list
+- The server instructions explain the trust signal to agents
+
+* Trust signals honour the \[actors\].humans allow-list
+* The prior_integrity and drift reason enums include actor-not-allowed [#281][#281]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.2 | 4.0.2 |
+| @effect/platform-node-shared | dependency | updated | 4.0.2 | ^4.0.3 |
+| @effected/config-file | dependency | updated | ^0.14.3 | ^0.14.3 |
+| @effected/engine | dependency | updated | ^0.4.1 | ^0.4.1 |
+| @effected/git | dependency | updated | ^0.20.1 | ^0.20.1 |
+| @effected/glob | dependency | updated | ^0.10.1 | ^0.10.1 |
+| @effected/jsonc | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/markdown | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/mcp | dependency | updated | ^0.5.1 | ^0.5.1 |
+| @effected/schemastore | dependency | updated | ^0.21.5 | ^0.21.5 |
+| @effected/toml | dependency | updated | ^0.11.2 | ^0.11.2 |
+| @effected/walker | dependency | updated | ^0.15.1 | ^0.15.1 |
+| @effected/xdg | dependency | updated | ^0.9.1 | ^0.9.1 |
+| @effected/yaml | dependency | updated | ^0.19.2 | ^0.19.2 |
+| @okfit/core | dependency | updated | 0.9.2 | 0.10.0 |
+| @okfit/engine | dependency | updated | 0.14.1 | 0.15.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.10.0 |
+| effect | dependency | updated | 4.0.2 | 4.0.2 |
+
+[#282][#282]
+
+[#277][#277]
+
+### Maintenance
+
+- Validation results now surface the `verified-drift` lint and the integrity frontmatter family [#278][#278]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#277]: https://github.com/spencerbeggs/okfit/pull/277
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#280]: https://github.com/spencerbeggs/okfit/pull/280
+
+[#281]: https://github.com/spencerbeggs/okfit/pull/281
+
+[#282]: https://github.com/spencerbeggs/okfit/pull/282
+
 ## 0.8.4
 
 ### Dependencies

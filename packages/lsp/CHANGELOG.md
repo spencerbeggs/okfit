@@ -1,5 +1,75 @@
 # @okfit/lsp
 
+## 0.5.0
+
+### Breaking Changes
+
+- `registerCodeActions`, `registerCommands` and `verifiedTextEdits` now require `Crypto.Crypto` in their context, to compute the content digest a verification binds. Provide a crypto layer (for example `NodeServices.layer` from `@effect/platform-node`) where these are run.
+- `EditTarget` gains a required `binding` field: the recorded `integrity.verified` `{ by, content }`, or `undefined` when the concept carries none. Code building an `EditTarget` by hand must supply it.
+
+* The public `EditTarget` loses `verifiedBy`; it now carries `verified: { by, at }[]`.
+* `EditTarget.binding` gains a required `at`.
+* The lsp `ConceptSummary` gains required `tier` and `integrity` fields.
+
+### Features
+
+- Hover shows an integrity line when hovering a link to a concept
+- Inlay hints append `  · drifted ` to a verified concept whose content changed
+- The `okfit/concepts` request returns each concept's `tier` and `integrity`
+- A preferred `Re-verify as <actor>` quick fix is offered on drifted concepts
+
+* Mark verified and Re-verify are not offered to a human outside a non-empty \[actors\].humans [#281][#281]
+
+- The verify code action and commands write the `integrity.verified` binding beside the new `verified` entry, and offer a verify action again when a concept's binding has drifted [#278][#278]
+
+### Bug Fixes
+
+- The already-verified check now agrees with the CLI, treating a superseded entry as not verified
+- A `verified` value written as a bare mapping is accepted [#280][#280]
+
+* Mark verified and Re-verify are not offered to a human outside a non-empty \[actors\].humans [#281][#281]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.0.2 | 4.0.2 |
+| @effect/platform-node-shared | dependency | updated | 4.0.2 | ^4.0.3 |
+| @effected/config-file | dependency | updated | ^0.14.3 | ^0.14.3 |
+| @effected/engine | dependency | updated | ^0.4.1 | ^0.4.1 |
+| @effected/git | dependency | updated | ^0.20.1 | ^0.20.1 |
+| @effected/glob | dependency | updated | ^0.10.1 | ^0.10.1 |
+| @effected/jsonc | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/lsp | dependency | updated | ^0.1.2 | ^0.1.2 |
+| @effected/markdown | dependency | updated | ^0.15.2 | ^0.15.2 |
+| @effected/schemastore | dependency | updated | ^0.21.5 | ^0.21.5 |
+| @effected/toml | dependency | updated | ^0.11.2 | ^0.11.2 |
+| @effected/walker | dependency | updated | ^0.15.1 | ^0.15.1 |
+| @effected/xdg | dependency | updated | ^0.9.1 | ^0.9.1 |
+| @effected/yaml | dependency | updated | ^0.19.2 | ^0.19.2 |
+| @okfit/core | dependency | updated | 0.9.2 | 0.10.0 |
+| @okfit/engine | dependency | updated | 0.14.1 | 0.15.0 |
+| @okfit/profiles | dependency | updated | 0.9.0 | 0.10.0 |
+| effect | dependency | updated | 4.0.2 | 4.0.2 |
+
+[#282][#282]
+
+[#277][#277]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#277]: https://github.com/spencerbeggs/okfit/pull/277
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#280]: https://github.com/spencerbeggs/okfit/pull/280
+
+[#281]: https://github.com/spencerbeggs/okfit/pull/281
+
+[#282]: https://github.com/spencerbeggs/okfit/pull/282
+
 ## 0.4.4
 
 ### Dependencies

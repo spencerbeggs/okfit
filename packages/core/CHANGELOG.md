@@ -1,5 +1,55 @@
 # @okfit/core
 
+## 0.10.0
+
+### Breaking Changes
+
+- `[actors].humans` entries decode as the new `ActorPattern` type instead of `Actor`, so they may be id globs such as `human:spencer*`. Code that read `config.actors.humans` as `ReadonlyArray<Actor>` now receives `ReadonlyArray<ActorPattern>`.
+
+* The `BodySha256` export is removed. Digests now live in an okfit-owned top-level `integrity` frontmatter family, modeled by the new `Integrity` and `Digest` exports.
+
+* Migrate imports of `BodySha256` to `Digest` (a 16-hex truncated SHA-256) and read generated digests from `integrity.generated.body` instead of `generated.body_sha256`.
+
+### Features
+
+- New `Integrity` frontmatter family holding `generated.body` and `verified { by, at, content }`
+- New `verified-drift` lint, registered with a default severity of `warn`, for concepts edited after they were verified [#278][#278]
+
+* New `ActorPattern` schema and the `Actor.matches`, `Actor.allowed` and `Actor.isPattern` helpers for `[actors].humans` allow-lists
+* New `actor-email` lint (default `warn`) for an actor carrying an email address in a concept or in `[actors].humans`
+* New `verified-actor-unknown` lint (default `warn`) for a human verifier that a non-empty `[actors].humans` does not list
+* The verified-drift lint also fires when the bound verifier is not in a non-empty \[actors\].humans [#281][#281]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | peerDependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/glob | peerDependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/jsonc | peerDependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/markdown | peerDependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/schemastore | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/toml | peerDependency | updated | ^0.11.0 | ^0.12.0 |
+| @effected/walker | peerDependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/yaml | peerDependency | updated | ^0.19.0 | ^0.20.0 |
+| effect | peerDependency | updated | 4.0.2 | 4.0.2 |
+
+[#282][#282]
+
+[#277][#277]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#277]: https://github.com/spencerbeggs/okfit/pull/277
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#281]: https://github.com/spencerbeggs/okfit/pull/281
+
+[#282]: https://github.com/spencerbeggs/okfit/pull/282
+
 ## 0.9.2
 
 ### Bug Fixes

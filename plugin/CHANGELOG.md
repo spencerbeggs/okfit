@@ -1,5 +1,30 @@
 # @okfit/ai-plugins
 
+## 0.10.2
+
+### Features
+
+- The session-start hook prints a trust line through `okfit context --trust`, and falls back to the previous output with older CLIs
+- `okf-finalize` lists drifted concepts with `okfit query list --drifted`
+
+### Documentation
+
+- The okf-config skill documents `[actors].humans` as an allow-list of ids or globs, `git config okfit.actor`, and the `actor-email` and `verified-actor-unknown` lints [#281][#281]
+
+* Skills, agents and the post-tool-use hook describe the `integrity` family, the `verified-drift` signal, and editing verified concepts followed by re-verification [#278][#278]
+
+- Skills describe the trust signal and the drifted and stale queries [#280][#280]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#278]: https://github.com/spencerbeggs/okfit/pull/278
+
+[#280]: https://github.com/spencerbeggs/okfit/pull/280
+
+[#281]: https://github.com/spencerbeggs/okfit/pull/281
+
 ## 0.10.1
 
 ### Documentation
