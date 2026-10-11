@@ -62,7 +62,7 @@ describe("verified-actor-unknown", () => {
 
 	it.effect("flags unlisted human verifiers and bindings, case-insensitively, ignoring machines", () =>
 		Effect.gen(function* () {
-			const { lint } = yield* lintWith(["human:spencer"]);
+			const { bundle, lint } = yield* lintWith(["human:spencer"]);
 			const found = lint.filter((d) => d.code === "verified-actor-unknown");
 			// listed.md: human:Spencer matches human:spencer; process:ci is a machine -- neither fires.
 			// stranger.md: the entry and its binding both fire. emailed.md: human:spencer@example.com
@@ -74,6 +74,14 @@ describe("verified-actor-unknown", () => {
 				"stranger.md",
 			]);
 			assert.isTrue(found.every((d) => d.range !== undefined));
+			const bare = [...bundle.concepts.values()].find((c) => c.path === "bare.md");
+			const bareFinding = found.find((d) => d.file === "bare.md");
+			assert.strictEqual(
+				bareFinding?.range === undefined || bare === undefined
+					? undefined
+					: bare.document.source.slice(bareFinding.range.offset, bareFinding.range.offset + bareFinding.range.length),
+				"human:eve",
+			);
 			assert.match(found.find((d) => d.file === "stranger.md")?.message ?? "", /human:mallory.*actors\.humans/);
 		}),
 	);
