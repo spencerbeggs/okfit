@@ -161,7 +161,7 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 /**
  * Plan the move, then (unless `dryRun`) write it: every referrer atomically, the moved file's new
  * text over its old path, then a rename to the destination (its directory created first). Nothing is
- * written until the whole plan succeeded.
+ * written until the whole plan succeeded; the writes themselves are not transactional (the rename is last).
  *
  * @public
  */

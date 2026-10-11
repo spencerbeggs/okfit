@@ -32,6 +32,7 @@ const files: Record<string, string> = {
 	"decisions/a.md": decision("A", verified, "See [b](b.md)."),
 	"decisions/b.md": decision("B", verified, "See [c](../conventions/c.md)."),
 	"decisions/d.md": decision("D", "supersedes: b.md\n", "Replaces b."),
+	"decisions/f.md": decision("F", 'supersedes: "b.md"\n', 'See [x][d].\n\n[d]: ../decisions/b.md "b.md here"'),
 	"conventions/c.md": "---\ntype: Convention\ntitle: C\n---\n\n# C\n\nSee [x](../decisions/b.md).\n",
 	"publications/p.md": "---\ntype: Publication\ntitle: P\nrenders:\n  - path: ../decisions/b.md\n---\n\n# P\n",
 };
@@ -106,6 +107,12 @@ describe("runMove", () => {
 					after["publications/p.md"],
 					before["publications/p.md"]?.replace("../decisions/b.md", "../decisions/beta.md"),
 				);
+				assert.strictEqual(
+					after["decisions/f.md"],
+					before["decisions/f.md"]
+						?.replace('supersedes: "b.md"', 'supersedes: "beta.md"')
+						.replace("[d]: ../decisions/b.md", "[d]: beta.md"),
+				);
 				assert.strictEqual(after["decisions/beta.md"], before["decisions/b.md"]);
 				assert.isUndefined(after["decisions/b.md"]);
 				assert.strictEqual(after["index.md"], before["index.md"]);
@@ -118,6 +125,7 @@ describe("runMove", () => {
 						["decisions/a.md", 1],
 						["decisions/beta.md", 0],
 						["decisions/d.md", 1],
+						["decisions/f.md", 2],
 						["publications/p.md", 1],
 					],
 				);

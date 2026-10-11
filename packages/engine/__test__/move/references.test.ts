@@ -28,6 +28,15 @@ const seed = {
 			"",
 		].join("\n"),
 	),
+	[`${ROOT}/topics/conventions/c.md`]: doc("Convention", "Shadow"),
+	[`${ROOT}/topics/titled.md`]: doc(
+		"Decision",
+		"Titled",
+		"",
+		['Link [x](b.md "see b.md here") and angle [y](<b.md> "b.md").', "", '[d]: b.md "b.md here"', ""].join("\n"),
+	),
+	[`${ROOT}/topics/blocky.md`]: doc("Decision", "Blocky", "resource: >\n  ../decisions/b.md\n", "x"),
+	[`${ROOT}/topics/escaped.md`]: doc("Decision", "Escaped", 'supersedes: "b\\x2Emd"\n', "x"),
 	[`${ROOT}/topics/list.md`]: doc(
 		"Decision",
 		"List",
@@ -89,6 +98,19 @@ describe("rewriteReference", () => {
 			assert.strictEqual(own("b.md#top"), "beta.md#top");
 		}),
 	);
+
+	it.effect("respells a bare bundle-root reference rooted when the new location would retarget it", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load;
+			const own = (raw: string, to: string) => moveB(bundle, "decisions/b.md", raw, to, to);
+			// topics/conventions/c.md exists, so a bare `conventions/c` from topics/ would hit it first.
+			assert.strictEqual(own("conventions/c", "topics/beta.md"), "/conventions/c");
+			assert.strictEqual(own("conventions/c.md#x", "topics/beta.md"), "/conventions/c.md#x");
+			assert.strictEqual(own("conventions/c", "other/beta.md"), undefined);
+			// A bare reference that still lands on its target stays bare when the target moves.
+			assert.strictEqual(moveB(bundle, "decisions/a.md", "decisions/b", "topics/beta.md"), "topics/beta");
+		}),
+	);
 });
 
 describe("referencesOf", () => {
@@ -116,6 +138,35 @@ describe("referencesOf", () => {
 			// The self-text link locates its destination (the second `b.md`), not its text.
 			const selfLink = references.find((r) => source.slice(r.offset - 2, r.offset) === "](" && r.raw === "b.md");
 			assert.isDefined(selfLink);
+		}),
+	);
+
+	it.effect("locates the destination, never a title or the link text", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load;
+			const titled = conceptAt(bundle, "topics/titled.md");
+			const { references, unlocatable } = referencesOf(titled, config);
+			assert.deepStrictEqual(unlocatable, []);
+			const source = titled.document.source;
+			const inline = source.indexOf("](b.md") + 2;
+			const angle = source.indexOf("](<b.md>") + 3;
+			const definition = source.indexOf("[d]: ") + 5;
+			assert.deepStrictEqual(
+				references.map((r) => r.offset),
+				[inline, angle, definition],
+			);
+		}),
+	);
+
+	it.effect("reports a non-empty path value it cannot locate as unlocatable", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load;
+			const blocky = referencesOf(conceptAt(bundle, "topics/blocky.md"), config);
+			assert.deepStrictEqual(blocky.references, []);
+			assert.deepStrictEqual(blocky.unlocatable, ["topics/blocky.md: ../decisions/b.md\n"]);
+			const escaped = referencesOf(conceptAt(bundle, "topics/escaped.md"), config);
+			assert.deepStrictEqual(escaped.references, []);
+			assert.deepStrictEqual(escaped.unlocatable, ["topics/escaped.md: b.md"]);
 		}),
 	);
 
