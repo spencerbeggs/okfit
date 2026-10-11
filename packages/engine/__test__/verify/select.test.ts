@@ -4,7 +4,7 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, GitCommandError } from "@effected/git";
-import type { Actor } from "@okfit/core";
+import type { ActorPattern } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import { DateTime, Effect, Exit, Layer } from "effect";
@@ -75,7 +75,7 @@ describe("selectAttestable (issues #138, #143)", () => {
 describe("resolveBatchTypes", () => {
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: { require_verified: true }, Module: {}, Gotcha: { require_verified: false } },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 
@@ -113,7 +113,7 @@ describe("selectPickerCandidates (picker)", () => {
 	const by = (actor: string): string => `  - by: ${actor}\n    at: 2026-09-01T00:00:00Z\n`;
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: { require_verified: true }, Gotcha: { require_verified: true }, Module: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 

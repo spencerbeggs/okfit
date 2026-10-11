@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor, ConceptId } from "@okfit/core";
+import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Derivation, GitHistory, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
@@ -25,7 +25,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 	const BODY = "\n# T\n\nBody.\n";
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 

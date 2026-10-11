@@ -4,7 +4,7 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor, ConceptId } from "@okfit/core";
+import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option } from "effect";
@@ -17,7 +17,7 @@ describe("runVerifyBatch (issue #138)", () => {
 		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: { require_verified: true }, Module: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
@@ -186,7 +186,7 @@ describe("runVerify status (issue #185)", () => {
 		`integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-16T12:00:00Z\n    content: ${content}\n`;
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {
@@ -330,7 +330,7 @@ describe("runVerify binds integrity.verified", () => {
 	const LATER = DateTime.makeUnsafe("2026-09-17T12:00:00Z");
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {

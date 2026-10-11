@@ -48,6 +48,8 @@ export const LintCode = Schema.Literals([
 	"publication-orphan",
 	"surface-unmatched",
 	"verified-drift",
+	"actor-email",
+	"verified-actor-unknown",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

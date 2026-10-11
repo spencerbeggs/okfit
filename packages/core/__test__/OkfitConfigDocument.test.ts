@@ -93,7 +93,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the twenty-four lint keys its own rendered code as the title", () => {
+	it("gives each of the twenty-six lint keys its own rendered code as the title", () => {
 		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value.title]),
@@ -110,6 +110,8 @@ describe("okfitConfigDocumentFields", () => {
 				["footnote_undefined", "footnote-undefined"],
 				["log_frontmatter", "log-frontmatter"],
 				["actor_prefix_unknown", "actor-prefix-unknown"],
+				["actor_email", "actor-email"],
+				["verified_actor_unknown", "verified-actor-unknown"],
 				["legacy_timestamp", "legacy-timestamp"],
 				["config_unknown_key", "config-unknown-key"],
 				["stale", "stale"],
@@ -137,7 +139,7 @@ describe("okfitConfigDocumentFields", () => {
 		assert.deepStrictEqual(agent?.examples, ["okfit/claude-code", "human:spencer", "process:ci"]);
 		assert.isTrue(String(agent?.pattern).includes("A-Za-z0-9_-"));
 		const humans = actors.humans?.items as Record<string, unknown>;
-		assert.strictEqual(humans.title, "Actor");
+		assert.strictEqual(humans.title, "Actor or actor glob");
 	});
 
 	it("is not re-exported as okfitConfigFields, which stays out of the barrel", async () => {

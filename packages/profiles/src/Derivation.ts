@@ -176,7 +176,7 @@ const slugOf = (name: string | undefined): string | undefined => {
 	return slug.length > 0 ? slug : undefined;
 };
 
-const humanActorId = (identity: GitIdentity, humans: ReadonlyArray<Actor>): Option.Option<Actor> => {
+const humanActorId = (identity: GitIdentity, humans: ReadonlyArray<string>): Option.Option<Actor> => {
 	const local = localPartOf(identity.email);
 	const slug = slugOf(identity.name);
 	const candidates = [local, slug]
@@ -185,7 +185,7 @@ const humanActorId = (identity: GitIdentity, humans: ReadonlyArray<Actor>): Opti
 	// (1) a configured human whose id matches a candidate case-insensitively; config spelling wins (P-14).
 	for (const entry of humans) {
 		if (!entry.startsWith(HUMAN_PREFIX)) continue;
-		if (candidates.includes(entry.slice(HUMAN_PREFIX.length).toLowerCase())) return Option.some(entry);
+		if (candidates.includes(entry.slice(HUMAN_PREFIX.length).toLowerCase())) return Option.some(decodeActor(entry));
 	}
 	// (2) the email local part, (3) the name slug, (4) none. Both are whitespace-free and non-empty by construction.
 	if (local !== undefined) return Option.some(decodeActor(`${HUMAN_PREFIX}${local}`));
@@ -338,7 +338,7 @@ export class Derivation {
 	 * candidate case-insensitively, returned verbatim; (2) `human:<local>`; (3) `human:<slug>`; (4) none.
 	 * The result is branded through core's `Actor` codec and always passes it.
 	 */
-	static readonly humanActorId: (identity: GitIdentity, humans: ReadonlyArray<Actor>) => Option.Option<Actor> =
+	static readonly humanActorId: (identity: GitIdentity, humans: ReadonlyArray<string>) => Option.Option<Actor> =
 		humanActorId;
 
 	/**

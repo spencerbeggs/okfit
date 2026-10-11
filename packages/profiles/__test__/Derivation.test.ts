@@ -1,7 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
-import { Actor, OkfitConfig } from "@okfit/core";
+import { Actor, ActorPattern, OkfitConfig } from "@okfit/core";
 import type { Crypto } from "effect";
 import { Cause, DateTime, Duration, Effect, Exit, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { AgentActorUnconfiguredError, Derivation, HumanActorUnresolvedError } from "../src/Derivation.js";
@@ -19,6 +19,7 @@ import {
 import { FILE, REL, ROOT, blobsOf, entriesOf, identityGit, windowsPath, world } from "./utils/derivation.js";
 
 const actor = Schema.decodeUnknownSync(Actor);
+const pattern = Schema.decodeUnknownSync(ActorPattern);
 const utc = (iso: string): number => DateTime.toEpochMillis(DateTime.makeUnsafe(iso));
 const from = DateTime.makeUnsafe("2026-03-01T08:00:00Z");
 /** The fixture commit by name; `F4_ENTRIES` carries every F4 commit (group A). */
@@ -464,7 +465,7 @@ describe("Derivation.generatedBy (P-16, P-17)", () => {
 	it.effect("human: config.actors.humans wins with its own spelling", () =>
 		Effect.gen(function* () {
 			const git = identityGit({ "user.email": "okfit-test@example.com" });
-			const config: OkfitConfig = { actors: { humans: [actor("human:Okfit-Test")] }, extensions: {} };
+			const config: OkfitConfig = { actors: { humans: [pattern("human:Okfit-Test")] }, extensions: {} };
 			const by = yield* Derivation.generatedBy({ writer: "human", cwd: "/repo", config }).pipe(Effect.provide(git));
 			assert.strictEqual(by, "human:Okfit-Test");
 		}),

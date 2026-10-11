@@ -3,7 +3,7 @@ import { ConfigFile, TomlCodec } from "@effected/config-file";
 import { HostedSchema } from "@effected/schemastore";
 import type { FileSystem } from "effect";
 import { Duration, Effect, Option, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
-import { Actor } from "./Actor.js";
+import { Actor, ActorPattern } from "./Actor.js";
 import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
 
 /**
@@ -276,6 +276,22 @@ export const LintTable = Schema.Struct({
 			default: "info",
 		}),
 	),
+	actor_email: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "actor-email",
+			description:
+				'An actor in generated.by, verified[].by, integrity.verified.by or [actors].humans contains "@", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default "warn".',
+			default: "warn",
+		}),
+	),
+	verified_actor_unknown: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "verified-actor-unknown",
+			description:
+				'A human verified[].by or integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default "warn".',
+			default: "warn",
+		}),
+	),
 	legacy_timestamp: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "legacy-timestamp",
@@ -454,11 +470,12 @@ export const okfitConfigFields = Schema.Struct({
 				}),
 			),
 			humans: Schema.optionalKey(
-				Schema.Array(Actor).annotate({
+				Schema.Array(ActorPattern).annotate({
 					title: "Human actors",
-					description: 'Actor ids for the humans working in this bundle, "human:<id>" form.',
+					description:
+						'The humans allowed to verify concepts in this bundle: "human:<id>" ids or id globs ("human:spencer*"). Empty or absent lets any resolved identity verify; non-empty makes it an allow-list for okfit verify and the trust signal. Never an email address.',
 					default: [],
-					examples: [["human:spencer" as Actor]],
+					examples: [["human:spencer" as ActorPattern], ["human:spencer", "human:team-*"] as Array<ActorPattern>],
 				}),
 			),
 		}).annotate({
@@ -649,6 +666,8 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"footnote-undefined": "footnote_undefined",
 	"log-frontmatter": "log_frontmatter",
 	"actor-prefix-unknown": "actor_prefix_unknown",
+	"actor-email": "actor_email",
+	"verified-actor-unknown": "verified_actor_unknown",
 	"legacy-timestamp": "legacy_timestamp",
 	"config-unknown-key": "config_unknown_key",
 	stale: "stale",
@@ -677,6 +696,8 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	footnote_undefined: "warn",
 	log_frontmatter: "warn",
 	actor_prefix_unknown: "info",
+	actor_email: "warn",
+	verified_actor_unknown: "warn",
 	legacy_timestamp: "info",
 	config_unknown_key: "warn",
 	stale: "info",

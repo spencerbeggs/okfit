@@ -5,7 +5,7 @@
  */
 
 export type { ActorForm } from "./Actor.js";
-export { Actor } from "./Actor.js";
+export { Actor, ActorPattern } from "./Actor.js";
 export {
 	AttestedComputation,
 	ComputationAttester,

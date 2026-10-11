@@ -4,7 +4,7 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor, ConceptId } from "@okfit/core";
+import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option } from "effect";
@@ -170,7 +170,7 @@ describe("runRevoke", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
-		actors: { humans: ["human:ada" as Actor] },
+		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
 	const gitFake = Layer.succeed(Git, {

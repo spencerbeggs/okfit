@@ -95,7 +95,7 @@ describe("OkfitConfig", () => {
 		assert.deepStrictEqual([d.actors, d.types, d.tags, d.extensions], [{ humans: [] }, {}, {}, {}]);
 		assert.deepStrictEqual(
 			[d.lint!.broken_links, d.lint!.unknown_type, d.lint!.legacy_timestamp, Object.keys(d.lint!).length],
-			["warn", "error", "info", 24],
+			["warn", "error", "info", 26],
 		);
 	});
 	it("merge: DEFAULTS < profile < file, arrays replace, tables merge, inputs untouched", () => {
@@ -175,5 +175,14 @@ describe("OkfitConfig", () => {
 	it("lets [lint] override publication_drift", () => {
 		const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { lint: { publication_drift: "error" }, extensions: {} });
 		assert.strictEqual(OkfitConfig.severityFor(config, "publication-drift"), "error");
+	});
+
+	it("actor-email and verified-actor-unknown default to warning", () => {
+		assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "actor-email"), "warning");
+		assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "verified-actor-unknown"), "warning");
+	});
+	it("actors.humans accepts globs", () => {
+		const config = Schema.decodeUnknownSync(OkfitConfig)({ actors: { humans: ["human:spencer", "human:team-*"] } });
+		assert.deepStrictEqual<ReadonlyArray<string> | undefined>(config.actors?.humans, ["human:spencer", "human:team-*"]);
 	});
 });

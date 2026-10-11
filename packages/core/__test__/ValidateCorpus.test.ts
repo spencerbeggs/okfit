@@ -16,6 +16,10 @@ const layers = {
 const load = (name: BundleName) => Effect.provide(Bundle.load({ root: `/repo/${name}` }), layers[name]);
 const codes = (diagnostics: ReadonlyArray<Diagnostic>): ReadonlyArray<string> =>
 	diagnostics.map((d) => `${d.code} ${d.file}`);
+// The upstream bundles record email-bearing actors (human:kliu@acme); the actor-email lint
+// rightly flags them, so the per-bundle expectations below are about every other code.
+const withoutActorEmail = (diagnostics: ReadonlyArray<Diagnostic>): ReadonlyArray<Diagnostic> =>
+	diagnostics.filter((d) => d.code !== "actor-email");
 const future = DateTime.makeUnsafe("2100-01-01T00:00:00Z");
 const past = DateTime.makeUnsafe("2000-01-01T00:00:00Z");
 
@@ -39,8 +43,9 @@ describe("Validate over the upstream bundles", () => {
 			const bundle = yield* load("acme_retail");
 			const report = Validate.all(bundle, OkfitConfig.DEFAULTS);
 			assert.deepStrictEqual(report.conformance, []);
-			assert.deepStrictEqual(codes(report.lint), ["log-frontmatter log.md"]);
-			assert.deepStrictEqual(codes(Validate.lint(bundle, OkfitConfig.DEFAULTS, { now: past })), [
+			assert.deepStrictEqual(codes(withoutActorEmail(report.lint)), ["log-frontmatter log.md"]);
+			assert.strictEqual(report.lint.filter((d) => d.code === "actor-email").length, 12);
+			assert.deepStrictEqual(codes(withoutActorEmail(Validate.lint(bundle, OkfitConfig.DEFAULTS, { now: past }))), [
 				"log-frontmatter log.md",
 			]);
 			const stale = Validate.lint(bundle, OkfitConfig.DEFAULTS, { now: future }).filter((d) => d.code === "stale");

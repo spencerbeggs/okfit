@@ -68,7 +68,10 @@ describe("validate_bundle", () => {
 			// Plus seven verified-drift warnings: the fixture's human-verified
 			// concepts carry no integrity.verified binding (integrity phase 1);
 			// the deprecated metrics/gross-margin-legacy is exempt from the lint.
-			assert.strictEqual(data.summary.lint_warnings, 10);
+			// Plus twelve actor-email warnings: the vendored corpus records
+			// email-bearing actors (human:kliu@acme).
+			assert.strictEqual(data.summary.lint_warnings, 22);
+			assert.strictEqual(data.diagnostics.filter((diagnostic) => diagnostic.code === "actor-email").length, 12);
 			assert.strictEqual(data.diagnostics.filter((diagnostic) => diagnostic.code === "verified-drift").length, 7);
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "log-frontmatter"));
 			assert.ok(data.diagnostics.some((diagnostic) => diagnostic.code === "broken-links"));
