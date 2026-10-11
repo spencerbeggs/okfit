@@ -32,6 +32,14 @@
 * Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 * Updated The validate hook fires PostToolUse, not PreToolUse
 * Added Concept files are named for their topic; ids stay paths
+* Updated A documentation site at okfit.dev
+* Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated Plugin
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated The software-project vocabulary grows a second time from the effected and tsdoctor migrations
+* Updated Website
+* Updated Workspace
+* Updated process reads confined to the CLI's boundary files
 
 ## 2026-10-09
 

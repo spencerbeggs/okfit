@@ -10,7 +10,7 @@ sources:
     resource: ../../packages/cli/__test__/boundaries.test.ts
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-11T20:52:46Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -20,7 +20,7 @@ verified:
     at: 2026-10-11T15:55:11Z
 integrity:
   generated:
-    body: 9b177818d846ae0c
+    body: 581e4c4c8c778157
   verified:
     by: human:spencer
     at: 2026-10-11T15:55:11Z
@@ -106,7 +106,7 @@ at all — no file under `engine/src` may read `process`. Colour comes
 from `@effected/cli`'s `CliColor.enabled`, read from the ambient
 `ConfigProvider`, never a `process` read this package performs directly
 — the package's own `internal/tty.ts` no longer exists
-([front-ends-adopt-the-effected-kit](effected-kit-adoption.md)).
+([effected-kit-adoption](effected-kit-adoption.md)).
 Outside the workspace, installing only the packed plugin now yields both
 bins in `node_modules/.bin/`: `okfit --version` exits 0, and `okfit-mcp`
 answers a JSON-RPC `initialize` on stdout with empty stderr.

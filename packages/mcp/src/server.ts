@@ -96,7 +96,7 @@ export const SERVER_INSTRUCTIONS: string = [
  * `protocols` ships three adapters, newest first -- the same list
  * `McpStdio.protocols` defaults to, spelled out here since the decision
  * behind the exact order is this package's own
- * (`okf/decisions/mcp-stateless-first-protocol-list.md`), not the kit's.
+ * (`okf/decisions/mcp-protocol-versions.md`), not the kit's.
  * `McpProtocol.v2026_07_28` is the stateless adapter (SEP-2575): no
  * `initialize`, no session, every request self-identifies through
  * `params._meta`, and the client discovers the server with

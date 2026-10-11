@@ -29,16 +29,16 @@ package: `okfit --version` prints `via @okfit/plugin <version>` and every
 `@okfit/cli` or `@okfit/mcp` reports `distribution: null`. The engine
 version (`engine_version`) and the OKF version are the numbers a reader
 compares; this package's version is packaging
-(`okf/decisions/engine-version-is-the-comparable-version-effected-kit.md`). `@okfit/cli`,
+(`okf/decisions/comparable-version.md`). `@okfit/cli`,
 `@okfit/mcp` and `@okfit/lsp` are regular `dependencies`, not peers -- see
-`okf/decisions/engine-front-end-split-effected-kit.md` for why a peer arrangement can
+`okf/decisions/engine-front-end-split.md` for why a peer arrangement can
 never produce a runnable bin here, and do not revert this to a peer
 declaration.
 
 ## Shared bins
 
 `okfit`, `okfit-mcp` and `okfit-lsp` are declared here AND by the three front
-ends, on purpose (`okf/decisions/plugin-keeps-shared-bins-under-allow-shared-bins.md`).
+ends, on purpose (`okf/decisions/plugin-shared-bins.md`).
 Do not remove either side's declaration. Under npm and bun the front end can
 own the `.bin` slot; Yarn keeps this carrier; pnpm writes shims.
 `__test__/e2e/packed-install.e2e.test.ts` passes `allowSharedBins: true` and

@@ -8,7 +8,7 @@ ever, to the bundle, the config, or anywhere else — `validate_bundle` now
 spawns read-only `git log`/`git show` for one lint, but a read is not a
 write, and that promise stands (S-16). See [okfit's front ends build on
 @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](../../okf/decisions/front-ends-adopt-the-effected-kit.md)
+equivalents](../../okf/decisions/effected-kit-adoption.md)
 for what moved from a hand-rolled equivalent to the kit.
 
 ## Layout
@@ -31,7 +31,7 @@ src/
                                    for anything that moved there. It is what `initialize`
                                    reports; validate_bundle's envelope names the engine as
                                    engine_version and the launching meta-package as
-                                   distribution (okf/decisions/engine-version-is-the-comparable-version-effected-kit.md)
+                                   distribution (okf/decisions/comparable-version.md)
   server.ts                    -- ServerLayer: McpToolkit.layer + resource layers over
                                    McpStdio.layer (both @effected/mcp)
   toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); handler wiring
@@ -123,7 +123,7 @@ the server keeps serving, and JSON that is not a JSON-RPC message (`null`,
 a bare scalar, an object with neither `method` nor `id`) gets `-32600` and
 the server keeps serving too. See [okfit's front ends build on
 @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](../../okf/decisions/front-ends-adopt-the-effected-kit.md).
+equivalents](../../okf/decisions/effected-kit-adoption.md).
 
 ## Three protocol adapters, stateless first
 
@@ -134,7 +134,7 @@ stateless adapter (no `initialize`, `_meta`-routed requests); the stateful
 two stay because `initialize` only matches stateful adapters. Claude Code
 opens with `initialize` by default and with `server/discover` under
 `MCP_PROTOCOL_NEGOTIATION=auto`. See
-`okf/decisions/mcp-stateless-first-protocol-list.md` for the rationale and
+`okf/decisions/mcp-protocol-versions.md` for the rationale and
 `__test__/protocol.test.ts` for the
 revision × outcome matrix (invalid params is a JSON-RPC `-32602` on
 `2025-06-18` and an `isError` result on the other two — the runtime's own

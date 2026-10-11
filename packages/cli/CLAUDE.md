@@ -7,7 +7,7 @@ The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`,
 `@effected/cli` for output and failure rendering. This package is a
 presentation shell over `@okfit/engine`: config discovery and the
 validate/verify/sync/init/context programs live there, not here -- see
-`okf/decisions/engine-front-end-split-effected-kit.md`.
+`okf/decisions/engine-front-end-split.md`.
 
 `okfit context` prints the same orientation data (project root, bundle
 root, config path, profile, vocabulary) without loading the bundle — cheap
@@ -61,7 +61,7 @@ src/
                               (from @okfit/engine) and OKF_SPEC_VERSION, and `via <name>
                               <version>` when main() was given a distribution; the engine and
                               OKF numbers are the ones a reader compares
-                              (okf/decisions/engine-version-is-the-comparable-version-effected-kit.md)
+                              (okf/decisions/comparable-version.md)
   errors.ts                -- renderFailure and its private helpers only; the typed error
                               classes themselves (ConfigPathNotFoundError,
                               InitOverwriteError, ConfigMalformedError,
@@ -127,7 +127,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   decision, read through the ambient `ConfigProvider`, never a `process`
   read this package performs itself -- see [okfit's front ends build on
   @effected/{engine,cli,mcp} rather than hand-rolled
-  equivalents](../../okf/decisions/front-ends-adopt-the-effected-kit.md).
+  equivalents](../../okf/decisions/effected-kit-adoption.md).
   Every file under `render/` is pure or Effect-typed with no `process`
   access and no `@effect/platform-node` import. This package imports
   nothing from `@effected/app` at all -- enforced as a blanket

@@ -33,7 +33,7 @@ for the simplicity of one agent running one skill straight through.
    reported `unchanged` and keeps its existing `at`, so a squash-merged
    branch needs no restamp pass. All three are
    derived (`okf-spec`'s reserved-files section plus the
-   `profiles-generated-at-is-author-date` Decision) -- never hand-edit any
+   `generated-at-source` Decision) -- never hand-edit any
    of them. Report what `sync` wrote, left unchanged, or skipped (and why)
    to whoever reads the sweep's output. Agents run non-interactively, so `sync`
    never prompts for them (the human-only `Write N file(s)?` confirm and
