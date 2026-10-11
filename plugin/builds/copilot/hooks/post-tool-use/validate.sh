@@ -136,6 +136,13 @@ set +e
 # shellcheck disable=SC2086
 validate_json=$($cli_cmd validate --root "$project_root" "$file_path" --format json --skip-provenance 2>/dev/null)
 validate_rc=$?
+# Version skew: a CLI from before `--root` (and file targets) rejects the call above with
+# exit 64. Retry once with the pre-phase-4 form (the project root as the positional path,
+# whole bundle); the bundle_relative filter below still scopes the findings to this file.
+if [ "$validate_rc" -eq 64 ]; then
+	validate_json=$($cli_cmd validate "$project_root" --format json --skip-provenance 2>/dev/null)
+	validate_rc=$?
+fi
 set -e
 
 validate_parses=0
