@@ -5,7 +5,6 @@ description: The platform layer, config discovery, and the validate/verify/sync/
 tags:
   - architecture
 status: stable
-supersedes: engine-front-end-split.md
 sources:
   - id: boundaries-test
     resource: ../../packages/cli/__test__/boundaries.test.ts

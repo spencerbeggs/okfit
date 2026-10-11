@@ -6,9 +6,8 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T01:34:27Z
+  at: 2026-10-11T14:44:29Z
 status: stable
-supersedes: cli-config-discovery-config-dir.md
 verified:
   - by: human:spencer
     at: 2026-09-08T02:12:59Z
@@ -16,7 +15,7 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 122799928b2be6e4
+    body: 31be4989b93de26a
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
@@ -27,14 +26,24 @@ integrity:
 
 ## Context
 
-`cli-config-discovery-config-dir.md` recorded the config-dir precedence
-(`.okfit.toml`, `okfit.toml`, `.config/okfit.toml` per directory, ascending
-to the filesystem root, then XDG, native, and system) and named the
-mechanism as `@okfit/cli` assembling its own resolver list --
+Project config follows the config-dir convention (as git-cliff and Tombi
+do): from the discovery start up to the filesystem root, each directory is
+checked for `.okfit.toml`, then `okfit.toml`, then `.config/okfit.toml`,
+and the first file found anywhere wins -- no `.git` probe, no ceiling --
+then XDG, native, and system. The convention replaced an earlier shape
+that hard-coded two project-local filenames (a `config.toml` under
+`.config/okfit/` and `okfit.config.toml`) and offered no path to a third;
+SchemaStore's `fileMatch` hygiene lint also rejects a generic basename
+such as `config.toml`. A per-resolver approximation (three `upwardWalk`
+resolvers in precedence order) was rejected because `ConfigFile.discover`
+exhausts one resolver before starting the next, so a parent's dotfile
+would beat a child's plain name.
+
+The first implementation assembled the resolver list by hand --
 `projectResolver`, `XdgConfig.resolver`, `XdgConfig.nativeResolver`,
-`ConfigResolver.systemEtc` -- by hand and handing it to `ConfigFile.layer`,
-explicitly rejecting `AppConfig.layer` because "it appends its own XDG pair
-after the caller's resolvers and offers no hook past them." `@effected/app`
+`ConfigResolver.systemEtc` -- and handed it to `ConfigFile.layer`,
+because `AppConfig.layer` then "appends its own XDG pair after the
+caller's resolvers and offers no hook past them." `@effected/app`
 0.15.0's `AppConfig.layer` closed that gap: it now accepts `resolvers`,
 `xdg`, and `systemEtc` as options rather than always appending its own XDG
 pair, so the earlier objection no longer holds.
@@ -56,10 +65,21 @@ chain options vary:
 The `upwardWalk` resolver is named `"project"` so
 `resolveProjectRoot` (`packages/cli/src/config/anchor.ts:63-79`) can read
 the winning source's `match.dir` directly for the anchor, instead of
-re-deriving it from the discovered path's tail. The discovery order and
-precedence table `cli-config-discovery-config-dir.md` recorded are
-UNCHANGED; only the mechanism that assembles the chain and reads the anchor
-is different.
+re-deriving it from the discovered path's tail. The anchor each winning source yields:
+
+| Winning source | Anchor |
+| --- | --- |
+| `<dir>/.okfit.toml` or `<dir>/okfit.toml` | `<dir>` |
+| `<dir>/.config/okfit.toml` | `<dir>` (parent of `.config`) |
+| `--config <p>` where `basename(dirname(p)) === ".config"` (any file name) | `dirname(dirname(p))` |
+| `--config <p>`, any other shape | `dirname(p)` |
+| resolver `"xdg"`, `"native"`, `"system"` | `cwd` |
+| nothing found | `cwd` |
+
+An explicit `--config` short-circuits to exactly one resolver, so an
+unrelated ambient config file can never merge into the one the caller
+named; a single chain that always included the upward walk and XDG would
+contradict what "explicit" means.
 
 ## Alternatives rejected
 
@@ -72,6 +92,6 @@ could have used `ConfigSource.match` and did not.
 
 ## Consequences
 
-`cli-config-discovery-config-dir.md` is deprecated and superseded by this
-Decision for the mechanism; its precedence table and discovery-order prose
-stay correct and are not restated wholesale here.
+This repo's own config lives at `.config/okfit.toml` and is found from any
+subdirectory with no flag; `init` refuses when any of the three
+project-level names already exists.

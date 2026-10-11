@@ -217,8 +217,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   session's bundle root is re-opened onto it from `session/documents.ts`'s
   registry-wide memory, and a full revalidate is scheduled on it. A config
   that still fails to load after the rebuild is retried later exactly like
-  any other failed build (`okf/limitations/no-config-reload-in-phase-3.md`,
-  discharged by the phase 4 rebuild path above).
+  any other failed build (the phase 3 server had no config reload;
+  the phase 4 rebuild path above fixed it).
 - **Dropped session.** Whenever a bundle root's session is disposed -- a
   config-change rebuild, or `removeFolders`/`setFolders` dropping the last
   workspace folder that resolves to it (dropping one of several folders

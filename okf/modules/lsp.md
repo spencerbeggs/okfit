@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:04:45Z
+  at: 2026-10-11T14:44:29Z
 integrity:
   generated:
-    body: 726985067ba6eaa5
+    body: 7e114350b5ccdfae
 ---
 
 # LSP
@@ -278,9 +278,6 @@ hand-rolled equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
 - [The language server runs the reference vscode-languageserver library
   behind an Effect transport
   seam](../decisions/lsp-reference-transport-behind-a-seam.md)
-- [The phase 3 language server does not reload a changed config or clear
-  a dropped session's diagnostics](../limitations/no-config-reload-in-phase-3.md)
-  — discharged in phase 4 by the config reload rule above.
 - [Two narrow interrupt windows in the LSP session registry are
   documented, not
   closed](../limitations/lsp-registry-interrupt-windows.md) — the

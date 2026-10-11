@@ -53,8 +53,7 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * `okf/decisions/lsp-reference-transport-behind-a-seam.md` (Decision +1,
  * `status: draft`, so again exempt from `require-verified-unmet`). Its
  * final review adds this bundle's first Limitation concept
- * (`okf/limitations/no-config-reload-in-phase-3.md`), which carries no
- * `verified` requirement. Phase 4 adds one more `draft` Decision
+ * (since deleted), which carries no `verified` requirement. Phase 4 adds one more `draft` Decision
  * (`okf/decisions/plugin-posttooluse-conformance-only-after-lsp.md`,
  * superseding the deprecated PostToolUse one, exempt while `draft`) and a
  * second Limitation (`okf/limitations/lsp-registry-interrupt-windows.md`).
@@ -83,18 +82,19 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * the crash-policy Decision (`okf/decisions/servers-survive-stray-crashes-once-serving.md`).
  * The CLI close-out adds `okf/decisions/stale-verify-rolls-stale-after-forward.md`.
  * The verification-integrity family adds three `draft` Decisions (exempt from
- * `require_verified`) and one Interface, taking the bundle to 79 concepts.
+ * `require_verified`) and one Interface, taking the bundle to 79 concepts. Deleting the seven deprecated
+ * concepts no live concept cites (six Decisions, one Limitation) takes it to 72.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 42,
+	Decision: 36,
 	Convention: 7,
 	Interface: 5,
 	Reference: 1,
 	Roadmap: 2,
 	Glossary: 1,
-	Limitation: 2,
+	Limitation: 1,
 	Runbook: 1,
 	Surface: 4,
 	Publication: 1,

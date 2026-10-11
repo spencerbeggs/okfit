@@ -4,26 +4,37 @@ title: Frontmatter splices are a shared engine surface for the CLI's verify and 
 description: "@okfit/engine's edits/FrontmatterEdits.ts exposes the verify/locate.ts and verify/splice.ts splice machinery as a public, Context-free facade so @okfit/lsp's code actions and commands can compute the same byte-range edits okfit verify performs, instead of the splice modules staying CLI-private."
 tags:
   - architecture
-supersedes: cli-verify-splices-frontmatter.md
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T14:44:29Z
 status: draft
 verified:
   - by: human:spencer
     at: 2026-09-24T00:30:18Z
 integrity:
   generated:
-    body: 73d033d63b734b97
+    body: 9ede15aac44faab2
 ---
 
 # Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 
 ## Context
 
-[okfit verify edits frontmatter by textual splice, never by
-re-serialisation](cli-verify-splices-frontmatter.md) declared the splice
-modules CLI-private, because at the time only `okfit verify` needed them.
+`okfit verify` edits frontmatter by textual splice, never by
+re-serialisation: it parses with the kit's YAML document model, locates the
+top-level `verified` pair or its absence, and applies one offset-range edit
+to the original bytes, so every byte outside the range is identical to the
+input. Whole-block re-serialisation through the `Concept` codec was
+rejected because that codec is decode-only and would reformat flow
+mappings, lists, and quoting elsewhere in the block, and the kit's
+`YamlFormat.modify` rewrites scalar leaves only and renders a structured
+`{ by, at }` value as `"[object Object]"`. The splice mirrors the last
+entry's style, turns a bare-mapping `verified` into a one-entry list,
+appends a block-style key when `verified` is absent, keeps the document's
+newline convention and any byte-order mark, fails closed on aliases,
+anchors, merge keys, or any shape it does not recognise, and writes by
+temp-and-rename. It began CLI-private, because at the time only `okfit
+verify` needed it.
 LSP roadmap phase 5 added code actions and commands that must offer the
 same edits -- `Set status: <status>` and `Mark verified by <actor>` -- from
 inside the language server, for a client to apply through
@@ -51,7 +62,7 @@ splice, same `documentNewline` newline choice. `verifiedWithStatus` shares
 `prepareVerify`, so both order and merge an equal-offset `status`/`verified`
 insert the same way. A shape the splice does not
 recognise fails closed with `UnsupportedFrontmatterError`, never a partial
-write, mirroring the original decision's fail-closed posture.
+write, mirroring the splice's fail-closed posture.
 `@okfit/lsp`'s `features/edits.ts` wraps this facade
 (`statusTextEdits`/`verifiedTextEdits`/`verifiedStableTextEdits`) to convert each edit's offset to
 an LSP range and applies it through `workspace/applyEdit`, never writing
@@ -90,6 +101,6 @@ CLI-private, though `okfit verify`'s own call sites are unchanged.
 `@okfit/lsp`'s code actions, commands and the VS Code extension's `Set
 Status…`, `Mark Verified` and `Mark Verified and Stable` commands all
 compute edits through this one facade, so a fix to the splice logic benefits every caller at once. The
-byte-for-byte fixture corpus the original decision describes still
-exercises the same `locate`/`splice` functions this facade calls, so its
+byte-for-byte fixture corpus (CRLF, a BOM, comments, a real Decision copy)
+still exercises the same `locate`/`splice` functions this facade calls, so its
 guarantees carry forward unchanged.
