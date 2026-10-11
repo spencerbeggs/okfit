@@ -50,4 +50,49 @@ describe("okfit mv (e2e)", () => {
 			await removeSandbox(sandbox);
 		}
 	});
+
+	it("refuses a destination that climbs out of the bundle, from inside okf/ and from the project root", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const okf = join(cwd, "okf");
+			const runs = [
+				await withServices(runOkfit(["mv", "decisions/b", "../x"], { cwd: okf, env })),
+				await withServices(runOkfit(["mv", "decisions/b", "decisions/../../x"], { cwd: okf, env })),
+				await withServices(runOkfit(["mv", "decisions/b", "../../escape", "--dry-run"], { cwd, env })),
+			];
+			for (const run of runs) {
+				assert.strictEqual(run.exitCode, 64);
+				assert.include(run.stderr + run.stdout, "outside the bundle");
+			}
+			assert.isTrue(existsSync(join(okf, "decisions", "b.md")));
+			assert.isFalse(existsSync(join(cwd, "x.md")));
+			assert.isFalse(existsSync(join(okf, "x.md")));
+			assert.isFalse(existsSync(join(cwd, "..", "escape.md")));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("moves into an existing directory or a trailing-slash destination, accepts a leading slash, refuses whitespace", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const okf = join(cwd, "okf");
+			await mkdir(join(okf, "topics"), { recursive: true });
+			const into = await withServices(runOkfit(["mv", "decisions/b", "topics"], { cwd, env }));
+			assert.strictEqual(into.exitCode, 0);
+			assert.isTrue(existsSync(join(okf, "topics", "b.md")));
+			const slash = await withServices(runOkfit(["mv", "topics/b", "decisions/", "--dry-run"], { cwd, env }));
+			assert.strictEqual(slash.exitCode, 0);
+			assert.isFalse(existsSync(join(okf, "decisions", "b.md")));
+			const rooted = await withServices(runOkfit(["mv", "topics/b", "/decisions/walk2"], { cwd, env }));
+			assert.strictEqual(rooted.exitCode, 0);
+			assert.isTrue(existsSync(join(okf, "decisions", "walk2.md")));
+			const spaced = await withServices(runOkfit(["mv", "decisions/walk2", "decisions/my file"], { cwd, env }));
+			assert.strictEqual(spaced.exitCode, 64);
+			assert.include(spaced.stderr + spaced.stdout, "whitespace");
+			assert.isTrue(existsSync(join(okf, "decisions", "walk2.md")));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
 });

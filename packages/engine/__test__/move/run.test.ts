@@ -179,6 +179,8 @@ describe("runMove", () => {
 				assert.strictEqual(yield* reason(join(project, "outside")), "outside-bundle");
 				assert.strictEqual(yield* reason("decisions/index"), "reserved");
 				assert.strictEqual(yield* reason("decisions/b"), "same-path");
+				assert.strictEqual(yield* reason("decisions/my file"), "invalid-name");
+				assert.strictEqual(yield* reason("decisions/my\tfile"), "invalid-name");
 				assert.strictEqual(yield* reason("decisions/new", "decisions/ghost"), "TargetResolutionError");
 				assert.deepStrictEqual(yield* Effect.promise(() => snapshot(okf)), before);
 			}),
@@ -202,12 +204,26 @@ describe("runMove", () => {
 		),
 	);
 
-	it.effect("fails with unrewritable, listing the link, when a body URL cannot be located", () =>
+	it.effect("an unrelated unlocatable link does not block a move", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					const plan = yield* planMove(base(okf, okf, "decisions/b", "decisions/beta"));
+					assert.strictEqual(plan.to, "decisions/beta.md");
+					assert.isFalse(plan.edits.some((edit) => edit.path === "decisions/e.md"));
+				}),
+			{ "decisions/b_c.md": decision("BC", "", "x"), "decisions/e.md": decision("E", "", "Escaped [x](b\\_c.md).") },
+		),
+	);
+
+	it.effect("fails with unrewritable, listing the link, when an unlocatable link names the moved file", () =>
 		withBundle(
 			(_project, okf) =>
 				Effect.gen(function* () {
 					const before = yield* Effect.promise(() => snapshot(okf));
-					const error = yield* refusal(runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false }));
+					const error = yield* refusal(
+						runMove({ ...base(okf, okf, "decisions/b_c", "decisions/gamma"), dryRun: false }),
+					);
 					assert.isTrue(error instanceof MoveError);
 					if (error instanceof MoveError) {
 						assert.strictEqual(error.reason, "unrewritable");
@@ -227,6 +243,55 @@ describe("runMove", () => {
 				assert.strictEqual(yield* to(join(okf, "decisions"), "beta.md"), "decisions/beta.md");
 				assert.strictEqual(yield* to(project, "okf/topics/beta.md"), "topics/beta.md");
 				assert.strictEqual(yield* to(project, "topics/beta"), "topics/beta.md");
+			}),
+		),
+	);
+
+	it.effect("refuses a destination that climbs out of the bundle, from inside okf/ and from the project root", () =>
+		withBundle((project, okf) =>
+			Effect.gen(function* () {
+				const before = yield* Effect.promise(() => snapshot(project));
+				for (const [cwd, to] of [
+					[okf, "../x"],
+					[okf, "../outside"],
+					[okf, "decisions/../../x"],
+					[project, "../x"],
+					[project, "../../escape"],
+					[project, "decisions/../../x"],
+				] as const) {
+					const error = yield* refusal(runMove({ ...base(okf, cwd, "decisions/b", to), dryRun: false }));
+					assert.isTrue(error instanceof MoveError, `${cwd} ${to}`);
+					if (error instanceof MoveError) assert.strictEqual(error.reason, "outside-bundle", `${cwd} ${to}`);
+				}
+				assert.deepStrictEqual(yield* Effect.promise(() => snapshot(project)), before);
+			}),
+		),
+	);
+
+	it.effect("a destination naming an existing bundle directory, or ending in a slash, moves into it", () =>
+		withBundle((project, okf) =>
+			Effect.gen(function* () {
+				const to = (cwd: string, dest: string) =>
+					planMove(base(okf, cwd, "decisions/b", dest)).pipe(Effect.map((plan) => plan.to));
+				assert.strictEqual(yield* to(okf, "conventions"), "conventions/b.md");
+				assert.strictEqual(yield* to(okf, "conventions/"), "conventions/b.md");
+				assert.strictEqual(yield* to(project, "okf/conventions"), "conventions/b.md");
+				assert.strictEqual(yield* to(okf, "topics/deep/"), "topics/deep/b.md");
+				assert.strictEqual(yield* to(okf, "/conventions"), "conventions/b.md");
+				const error = yield* refusal(planMove(base(okf, okf, "decisions/b", "decisions")));
+				assert.isTrue(error instanceof MoveError);
+				if (error instanceof MoveError) assert.strictEqual(error.reason, "same-path");
+			}),
+		),
+	);
+
+	it.effect("a leading slash is the id spelling when the absolute reading is outside the bundle", () =>
+		withBundle((_project, okf) =>
+			Effect.gen(function* () {
+				const plan = yield* planMove(base(okf, okf, "decisions/b", "/decisions/walk2"));
+				assert.strictEqual(plan.to, "decisions/walk2.md");
+				const nested = yield* planMove(base(okf, okf, "decisions/b", "/topics/walk2.md"));
+				assert.strictEqual(nested.to, "topics/walk2.md");
 			}),
 		),
 	);

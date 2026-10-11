@@ -204,7 +204,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		if (this.reason === "targets-and-batch") return "verify takes concept targets or --all/--type, not both";
 		if (this.reason === "revoke-needs-id") return "--revoke needs at least one concept target";
 		if (this.reason === "revoke-conflict") {
-			return `--revoke removes your own verification of one concept; it cannot combine with ${this.detail ?? "other selectors"}`;
+			return `--revoke removes your own verification of the named concepts; it cannot combine with ${this.detail ?? "other selectors"}`;
 		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
@@ -343,14 +343,22 @@ export class TargetResolutionError extends Schema.TaggedError<TargetResolutionEr
 }
 
 /**
- * `okfit mv` refused before writing anything. `outside-bundle`, `destination-exists`, `reserved`
- * and `same-path` name a bad destination (`detail` is the destination); `unrewritable` lists every
- * body link (`file: url`, one per line) whose URL text could not be located for rewriting.
+ * `okfit mv` refused before writing anything. `outside-bundle`, `destination-exists`, `reserved`,
+ * `same-path` and `invalid-name` (whitespace in a destination path segment) name a bad destination
+ * (`detail` is the destination); `unrewritable` lists every link that needs rewriting for this move
+ * (`file: url`, one per line) whose URL text could not be located.
  *
  * @public
  */
 export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
-	reason: Schema.Literals(["outside-bundle", "destination-exists", "reserved", "same-path", "unrewritable"]),
+	reason: Schema.Literals([
+		"outside-bundle",
+		"destination-exists",
+		"reserved",
+		"same-path",
+		"invalid-name",
+		"unrewritable",
+	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
 	override readonly [Runtime.errorExitCode] = 64;
@@ -360,6 +368,7 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		if (this.reason === "destination-exists") return `destination ${detail} already exists`;
 		if (this.reason === "reserved") return `${detail} is a reserved file name`;
 		if (this.reason === "same-path") return "source and destination are the same file";
+		if (this.reason === "invalid-name") return `destination ${detail} contains whitespace; name it without spaces`;
 		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
 	}
 }

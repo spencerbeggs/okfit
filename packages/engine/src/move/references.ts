@@ -17,6 +17,18 @@ export interface Reference {
 	readonly field?: PathField;
 }
 
+/**
+ * A reference {@link referencesOf} could not locate in its file: the `file: value` line and the
+ * decoded value, so a caller can tell whether it would have needed rewriting.
+ *
+ * @public
+ */
+export interface UnlocatableReference {
+	readonly entry: string;
+	readonly raw: string;
+	readonly field?: PathField;
+}
+
 const SCHEME = /^[a-z][a-z0-9+.-]+:/i;
 const isUrl = (raw: string): boolean => raw.includes("://") || SCHEME.test(raw);
 const splitSuffix = (raw: string): readonly [string, string] => {
@@ -101,8 +113,8 @@ const locateDestination = (slice: string, url: string, type: "link" | "image" | 
 };
 
 /**
- * Every rewritable reference in a concept, plus the body URLs that could not be located in their node
- * (`file: url`). Body links, images and definitions with a URL; the path-valued frontmatter fields;
+ * Every rewritable reference in a concept, plus the references that could not be located in their file
+ * (`unlocatable` as `file: value` lines, `unlocatableRefs` with the decoded value). Body links, images and definitions with a URL; the path-valued frontmatter fields;
  * every field the concept's type declares with `kind = "path"`; and `renders[].path`.
  *
  * @public
@@ -110,10 +122,15 @@ const locateDestination = (slice: string, url: string, type: "link" | "image" | 
 export const referencesOf = (
 	concept: LoadedConcept,
 	config: OkfitConfig,
-): { readonly references: ReadonlyArray<Reference>; readonly unlocatable: ReadonlyArray<string> } => {
+): {
+	readonly references: ReadonlyArray<Reference>;
+	readonly unlocatable: ReadonlyArray<string>;
+	readonly unlocatableRefs: ReadonlyArray<UnlocatableReference>;
+} => {
 	const source = concept.document.source;
 	const references: Array<Reference> = [];
 	const unlocatable: Array<string> = [];
+	const unlocatableRefs: Array<UnlocatableReference> = [];
 	for (const link of concept.document.links) {
 		const type = link.node.type;
 		if (link.url === undefined || (type !== "link" && type !== "image" && type !== "definition")) continue;
@@ -124,6 +141,7 @@ export const referencesOf = (
 		const at = locateDestination(slice, link.url, type);
 		if (at < 0) {
 			unlocatable.push(`${concept.path}: ${link.url}`);
+			unlocatableRefs.push({ entry: `${concept.path}: ${link.url}`, raw: link.url });
 			continue;
 		}
 		references.push({
@@ -143,6 +161,11 @@ export const referencesOf = (
 		const raw = quoted ? text.slice(1, -1) : text;
 		if (range === undefined || raw !== value) {
 			unlocatable.push(`${concept.path}: ${value}`);
+			unlocatableRefs.push({
+				entry: `${concept.path}: ${value}`,
+				raw: value,
+				...(field === undefined ? {} : { field }),
+			});
 			continue;
 		}
 		references.push({
@@ -154,7 +177,7 @@ export const referencesOf = (
 			...(field === undefined ? {} : { field }),
 		});
 	}
-	return { references, unlocatable };
+	return { references, unlocatable, unlocatableRefs };
 };
 
 const stripMd = (path: string, keep: boolean): string => (keep || !path.endsWith(".md") ? path : path.slice(0, -3));

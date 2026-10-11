@@ -50,11 +50,17 @@ export type PlanError = MoveError | TargetResolutionError | BundleLoadError | Pl
 
 const withMd = (value: string): string => (value.endsWith(".md") ? value : `${value}.md`);
 
-/** The destination's bundle-relative path (R5'): the cwd-relative path (inside the bundle) or the id. */
+/**
+ * The destination's bundle-relative path (R5'): the cwd-relative path (inside the bundle) or the id
+ * (a leading `/` tolerated). A destination naming an existing bundle directory, or ending in `/`,
+ * means "into that directory, keeping the source's basename". Every candidate must lie inside the
+ * bundle; `undefined` when none does.
+ */
 const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 	to: string,
 	cwd: string,
 	bundle: LoadedBundle,
+	sourcePath: string,
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
@@ -69,20 +75,58 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 			return path.join(yield* realish(parent), path.basename(absolute));
 		});
 	const root = yield* realOr(bundle.root);
+	/** Bundle-relative posix path of `absolute` (`""` for the root itself); `undefined` outside the bundle. */
 	const inside = (absolute: string): string | undefined => {
 		const relative = path.relative(root, absolute);
-		if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
+		if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return undefined;
 		return relative.split(path.sep).join("/");
 	};
-	const underCwd = path.isAbsolute(to) ? to : path.resolve(cwd, to);
-	const cwdCandidate = inside(yield* realish(withMd(underCwd)));
-	if (path.isAbsolute(to)) return cwdCandidate;
-	const id = Option.getOrUndefined(ConceptId.normalize(to));
-	const idCandidate = id === undefined ? undefined : ConceptId.toPath(id);
+	const exists = (absolute: string) => fs.exists(absolute).pipe(Effect.orElseSucceed(() => false));
+	const isDirectory = (absolute: string) =>
+		fs.stat(absolute).pipe(
+			Effect.map((info) => info.type === "Directory"),
+			Effect.orElseSucceed(() => false),
+		);
+	const trailingSlash = /\/$/.test(to);
+	const spelled = trailingSlash ? to.replace(/\/+$/, "") : to;
+	const base = posix.basename(sourcePath);
+
+	const underCwd = path.isAbsolute(spelled) ? spelled : path.resolve(cwd, spelled);
+	const cwdReal = yield* realish(underCwd);
+	const cwdPath = inside(cwdReal);
+	// The id reading: posix-normalised so `..` cannot slip through, a leading `/` tolerated. For an
+	// absolute destination it applies only when the path is not a real location (its top directory
+	// does not exist), so `/tmp/x/outside` stays outside the bundle.
+	const idReadable = path.isAbsolute(spelled)
+		? cwdPath === undefined &&
+			!(yield* exists(path.join(path.parse(spelled).root, spelled.split("/").find((s) => s !== "") ?? "")))
+		: true;
+	const idPath = (() => {
+		if (!idReadable) return undefined;
+		const id = Option.getOrUndefined(ConceptId.normalize(spelled));
+		if (id === undefined) return undefined;
+		const normal = posix.normalize(id);
+		return inside(path.join(root, normal));
+	})();
+	// Into a directory: it exists in the bundle under either reading, or the destination ends in `/`.
+	const dirs = [cwdPath, idPath].filter((candidate): candidate is string => candidate !== undefined);
+	const existingDir = yield* Effect.findFirst(dirs, (candidate) => isDirectory(path.join(root, candidate)));
+	if (Option.isSome(existingDir)) return posix.join(existingDir.value, base);
 	const parentExists = (candidate: string | undefined) =>
-		candidate === undefined
-			? Effect.succeed(false)
-			: fs.exists(path.join(bundle.root, posix.dirname(candidate))).pipe(Effect.orElseSucceed(() => false));
+		candidate === undefined ? Effect.succeed(false) : exists(path.join(root, posix.dirname(candidate)));
+	if (trailingSlash) {
+		const pick = (yield* parentExists(cwdPath === undefined ? undefined : `${cwdPath}/x`))
+			? cwdPath
+			: (yield* parentExists(idPath === undefined ? undefined : `${idPath}/x`))
+				? idPath
+				: (cwdPath ?? idPath);
+		return pick === undefined ? undefined : posix.join(pick, base);
+	}
+
+	const withExt = (candidate: string | undefined) => (candidate === undefined ? undefined : withMd(candidate));
+	const cwdCandidate = withExt(cwdPath);
+	const idCandidate = withExt(idPath);
+	if (cwdCandidate === "" || idCandidate === "") return undefined;
 	if (yield* parentExists(cwdCandidate)) return cwdCandidate;
 	if (yield* parentExists(idCandidate)) return idCandidate;
 	return cwdCandidate ?? idCandidate;
@@ -104,7 +148,8 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const [source] = yield* Targets.resolve([options.from], bundle, options.cwd);
 	if (source === undefined) return yield* new MoveError({ reason: "same-path" });
-	const destination = yield* resolveDestination(options.to, options.cwd, bundle);
+	if (/\s/.test(options.to)) return yield* new MoveError({ reason: "invalid-name", detail: options.to });
+	const destination = yield* resolveDestination(options.to, options.cwd, bundle, source.path);
 	if (destination === undefined) return yield* new MoveError({ reason: "outside-bundle", detail: options.to });
 	if (ConceptId.isReservedFile(destination)) return yield* new MoveError({ reason: "reserved", detail: destination });
 	if (destination === source.path) return yield* new MoveError({ reason: "same-path" });
@@ -117,7 +162,24 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 		concept,
 		...referencesOf(concept, options.config),
 	}));
-	const unlocatable = found.flatMap((entry) => entry.unlocatable);
+	// Only a reference that would need rewriting (it sits in the moved file, or resolves to it) can
+	// block the move; an unrelated link the locator cannot read is left alone.
+	const unlocatable = found.flatMap(({ concept, unlocatableRefs }) =>
+		unlocatableRefs
+			.filter(
+				(missing) =>
+					concept.path === source.path ||
+					rewriteReference(missing.raw, {
+						bundle,
+						fromOld: concept.path,
+						fromNew: concept.path,
+						movedFrom: source.path,
+						movedTo: destination,
+						...(missing.field === undefined ? {} : { field: missing.field }),
+					}) !== undefined,
+			)
+			.map((missing) => missing.entry),
+	);
 	if (unlocatable.length > 0) return yield* new MoveError({ reason: "unrewritable", detail: unlocatable.join("\n") });
 
 	const signals = yield* Trust.signals(bundle, options.config, options.now);
