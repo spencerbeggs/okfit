@@ -223,7 +223,11 @@ describe("okfit lint: targets scope the reported diagnostics", () => {
 			assert.isTrue(otherBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
 			// flags after the variadic targets still parse as flags
 			const after = yield* runOkfit(["lint", "glossary/bad", "glossary/good", "--format", "json"], sandbox);
-			assert.isTrue(Array.isArray((JSON.parse(after.stdout) as { diagnostics: unknown }).diagnostics));
+			assert.strictEqual(after.exitCode, other.exitCode);
+			assert.notStrictEqual(after.exitCode, 64);
+			const afterBody = JSON.parse(after.stdout) as { diagnostics: Diag[] };
+			assert.isTrue(afterBody.diagnostics.some((d) => d.file === "glossary/bad.md"));
+			assert.isTrue(afterBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 

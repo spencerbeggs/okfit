@@ -831,7 +831,11 @@ describe("okfit validate: targets scope the reported diagnostics", () => {
 			assert.isTrue(otherBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
 			// flags after the variadic targets still parse as flags
 			const after = yield* runOkfit(["validate", "glossary/bad", "glossary/good", "--format", "json"], sandbox);
-			assert.isTrue(Array.isArray((JSON.parse(after.stdout) as { diagnostics: unknown }).diagnostics));
+			assert.strictEqual(after.exitCode, other.exitCode);
+			assert.notStrictEqual(after.exitCode, 64);
+			const afterBody = JSON.parse(after.stdout) as { diagnostics: Diag[] };
+			assert.isTrue(afterBody.diagnostics.some((d) => d.file === "glossary/bad.md"));
+			assert.isTrue(afterBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
@@ -857,6 +861,26 @@ describe("okfit validate: a file that does not decode", () => {
 				["no-front.md"],
 			);
 			assert.strictEqual(body.diagnostics[0]?.code, "frontmatter-missing");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit validate: an unparseable file", () => {
+	it.effect("is still checked when named as a target", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-broken-"));
+			const init = yield* runOkfit(["init"], sandbox);
+			assert.strictEqual(init.exitCode, 0);
+			const broken = join(sandbox.cwd, "okf", "decisions", "broken.md");
+			yield* Effect.promise(() => writeFileDeep(broken, "---\ntitle: [unclosed\n---\n"));
+			const run = yield* runOkfit(["validate", broken, "--format", "json"], sandbox);
+			assert.strictEqual(run.exitCode, 2);
+			const body = JSON.parse(run.stdout) as { diagnostics: Array<{ file: string; code: string }> };
+			assert.isTrue(
+				body.diagnostics.some((d) => d.file === "decisions/broken.md" && d.code === "frontmatter-unparseable"),
+				run.stdout,
+			);
+			assert.isTrue(body.diagnostics.every((d) => d.file === "decisions/broken.md"));
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
