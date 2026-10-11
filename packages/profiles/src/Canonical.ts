@@ -10,20 +10,33 @@ const EXCLUDED_KEYS: ReadonlySet<string> = new Set([
 	"timestamp",
 ]);
 
-const sortValue = (value: unknown): unknown => {
-	if (Array.isArray(value)) return value.map(sortValue);
-	if (value !== null && typeof value === "object") {
-		return Object.fromEntries(
-			Object.keys(value)
-				.toSorted()
-				.map((key) => [key, sortValue((value as Record<string, unknown>)[key])]),
-		);
-	}
-	return value;
-};
+/** `JSON.stringify` omits these in an object and writes `null` for them in an array. */
+const isSkipped = (value: unknown): boolean =>
+	value === undefined || typeof value === "function" || typeof value === "symbol";
 
-/** Canonical JSON: object keys sorted by code point at every depth; arrays keep their order. */
-const json = (value: unknown): string => JSON.stringify(sortValue(value));
+/**
+ * Canonical JSON: object keys sorted (`Array.prototype.toSorted`, UTF-16 code units)
+ * at every depth; arrays keep their order. Byte-for-byte `JSON.stringify` of the
+ * sorted value for every JSON-representable input, plus one extension: a `bigint`
+ * (what the YAML decoder yields for an integer beyond 2^53, e.g. `ticket:
+ * 123456789012345678901`) is written as its bare decimal literal. A literal cannot
+ * collide with a string (strings are quoted) and is deterministic, where
+ * `JSON.stringify` throws `TypeError` and would defect every caller that hashes.
+ */
+const json = (value: unknown): string => {
+	if (typeof value === "bigint") return value.toString();
+	if (Array.isArray(value)) return `[${value.map((item) => (isSkipped(item) ? "null" : json(item))).join(",")}]`;
+	if (value !== null && typeof value === "object") {
+		const record = value as Record<string, unknown>;
+		if (typeof record.toJSON === "function") return json((record.toJSON as () => unknown)());
+		const members = Object.keys(record)
+			.toSorted()
+			.filter((key) => !isSkipped(record[key]))
+			.map((key) => `${JSON.stringify(key)}:${json(record[key])}`);
+		return `{${members.join(",")}}`;
+	}
+	return JSON.stringify(value);
+};
 
 const stripRendersDigests = (renders: unknown): unknown =>
 	Array.isArray(renders)
@@ -58,7 +71,7 @@ export class Canonical {
 	private constructor() {}
 	/** Top-level frontmatter keys excluded from the content digest. */
 	static readonly EXCLUDED_KEYS: ReadonlySet<string> = EXCLUDED_KEYS;
-	/** Canonical JSON: sorted keys at every depth, array order kept. */
+	/** Canonical JSON: sorted keys at every depth, array order kept; a `bigint` is its bare decimal literal. */
 	static readonly json: (value: unknown) => string = json;
 	/** The exact string a content digest hashes. */
 	static readonly contentInput: (raw: Readonly<Record<string, unknown>>, source: string) => string = contentInput;

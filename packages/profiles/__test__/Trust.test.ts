@@ -21,15 +21,21 @@ const noHashing = Layer.effect(
 const decode = Schema.decodeUnknownSync(Concept);
 
 /** Builds a loaded concept; flow YAML (`JSON.stringify` per value) is valid YAML. */
-const concept = (fm: Record<string, unknown>, body = BODY, path = "note.md"): LoadedConcept => {
-	const yaml = Object.entries(fm)
-		.map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-		.join("\n");
+const concept = (
+	fm: Record<string, unknown>,
+	body = BODY,
+	path = "note.md",
+	rawExtra: Record<string, bigint> = {},
+): LoadedConcept => {
+	const yaml = [
+		...Object.entries(fm).map(([key, value]) => `${key}: ${JSON.stringify(value)}`),
+		...Object.entries(rawExtra).map(([key, value]) => `${key}: ${value.toString()}`),
+	].join("\n");
 	const source = `---\n${yaml}\n---${body}`;
 	return LoadedConcept.make({
 		id: Option.getOrThrow(ConceptId.normalize(path)),
 		path,
-		frontmatter: decode({ ...fm, extensions: {}, raw: fm }),
+		frontmatter: decode({ ...fm, extensions: {}, raw: { ...fm, ...rawExtra } }),
 		document: Result.getOrThrow(MarkdownDocument.parseResult(source, FRONTMATTER_OPTIONS)),
 		computationBody: Option.none(),
 	});
@@ -212,6 +218,30 @@ describe("Trust.lint", () => {
 			assert.strictEqual(diagnostics[0]?.severity, "warning");
 			assert.strictEqual(diagnostics[0]?.file, "drifted.md");
 			assert.isDefined(diagnostics[0]?.range);
+		}).pipe(Effect.provide(NodeCrypto.layer)),
+	);
+
+	it.effect("a bigint frontmatter value (an integer beyond 2^53) lints instead of defecting", () =>
+		Effect.gen(function* () {
+			const fm = { type: "Decision", verified: [{ by: "human:spencer", at: AT }] };
+			const rawExtra = { ticket: 123456789012345678901n };
+			const content = yield* digestOf(concept(fm, BODY, "big.md", rawExtra));
+			const current = concept(
+				{ ...fm, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				BODY,
+				"big.md",
+				rawExtra,
+			);
+			assert.strictEqual((yield* Trust.signal(current, NOW)).integrity, "current");
+			const changed = concept(
+				{ ...fm, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				BODY,
+				"big.md",
+				{ ticket: 123456789012345678902n },
+			);
+			const diagnostics = yield* Trust.lint(bundleOf(current, changed), OkfitConfig.DEFAULTS, NOW);
+			assert.strictEqual(diagnostics.length, 1);
+			assert.include(diagnostics[0]?.message ?? "", "content changed since");
 		}).pipe(Effect.provide(NodeCrypto.layer)),
 	);
 

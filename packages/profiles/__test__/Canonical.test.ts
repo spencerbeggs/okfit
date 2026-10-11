@@ -17,6 +17,40 @@ describe("Canonical.json", () => {
 	it("sorts keys recursively and keeps array order", () => {
 		assert.strictEqual(Canonical.json({ b: 1, a: { d: [2, 1], c: null } }), '{"a":{"c":null,"d":[2,1]},"b":1}');
 	});
+
+	it("encodes a bigint as its bare decimal literal, distinct from the same digits as a string", () => {
+		const big = 123456789012345678901n;
+		assert.strictEqual(
+			Canonical.json({ ticket: big, list: [big] }),
+			'{"list":[123456789012345678901],"ticket":123456789012345678901}',
+		);
+		assert.notStrictEqual(Canonical.json({ ticket: big }), Canonical.json({ ticket: "123456789012345678901" }));
+		assert.strictEqual(Canonical.json({ ticket: big }), Canonical.json({ ticket: 123456789012345678901n }));
+	});
+
+	it("matches JSON.stringify for every non-bigint value", () => {
+		const value = {
+			s: 'q"\\u',
+			n: -1.5,
+			nan: Number.NaN,
+			t: true,
+			z: null,
+			u: undefined,
+			a: [undefined, 1, { y: 2, x: 1 }],
+		};
+		assert.strictEqual(
+			Canonical.json(value),
+			JSON.stringify({
+				a: [undefined, 1, { x: 1, y: 2 }],
+				n: -1.5,
+				nan: Number.NaN,
+				s: 'q"\\u',
+				t: true,
+				u: undefined,
+				z: null,
+			}),
+		);
+	});
 });
 
 describe("Canonical.contentInput", () => {
@@ -48,6 +82,22 @@ describe("Canonical.contentInput", () => {
 			assert.isDefined(concept);
 			assert.strictEqual(typeof concept?.frontmatter.raw.stale_after, "string");
 		}),
+	);
+
+	it.effect("an integer beyond 2^53 in a loaded concept hashes instead of defecting", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-canonical-")));
+			yield* Effect.promise(() =>
+				writeFile(join(root, "a.md"), "---\ntype: Note\nticket: 123456789012345678901\n---\n\nBody.\n"),
+			);
+			const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(platform));
+			const concept = [...bundle.concepts.values()][0];
+			assert.isDefined(concept);
+			if (concept === undefined) return;
+			assert.strictEqual(typeof concept.frontmatter.raw.ticket, "bigint");
+			const digest = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
+			assert.match(digest, /^[0-9a-f]{16}$/u);
+		}).pipe(Effect.provide(NodeCrypto.layer)),
 	);
 });
 
