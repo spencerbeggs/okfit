@@ -1,7 +1,7 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { YamlDocument, YamlNode, YamlParseError } from "@effected/yaml";
 import { YamlAlias, YamlMap, YamlScalar, YamlSeq } from "@effected/yaml";
-import { Integrity } from "@okfit/core";
+import { Integrity, Timestamp } from "@okfit/core";
 import { Effect, Schema } from "effect";
 import type { ParsedTopLevelMapping } from "./locate.js";
 import { hasMergeKey, parseTopLevelMapping } from "./locate.js";
@@ -182,6 +182,64 @@ export const spliceIntegrity = (
 		content: renderIntegrity(fields, newline),
 	});
 
+const encodeAt = Schema.encodeSync(Timestamp);
+
+/** The already-valid `slot` of a located block as render fields, for the whole-block fallback. */
+const carried = (
+	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
+	slot: "generated" | "verified",
+): IntegrityFields => {
+	const current = target._tag === "replace" ? target.current : undefined;
+	if (slot === "generated")
+		return current?.generated === undefined ? {} : { generated: { body: current.generated.body } };
+	return current?.verified === undefined
+		? {}
+		: { verified: { by: current.verified.by, at: encodeAt(current.verified.at), content: current.verified.content } };
+};
+
+/**
+ * Rewrite only one slot of the located `integrity` block, copying every other
+ * line byte-identically. A missing slot is added first (`generated`) or last
+ * (`verified`), matching {@link renderIntegrity}'s order. An absent block, or a
+ * layout this cannot match, falls back to writing the whole block with the
+ * other slot carried over from `target.current`.
+ */
+const spliceSlot = (
+	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
+	text: string,
+	slot: "generated" | "verified",
+	slotLines: (indent: string, newline: "\n" | "\r\n") => string,
+	whole: IntegrityFields,
+	newline: "\n" | "\r\n",
+): MarkdownEdit => {
+	const fallback = () => spliceIntegrity(target, whole, newline);
+	if (target._tag === "absent") return fallback();
+	const lines = text.slice(target.start, target.end).match(/[^\n]*\n|[^\n]+$/gu) ?? [];
+	const bare = (line: string) => line.replace(/\r?\n$/u, "");
+	if (lines.length < 2 || !/^integrity:[ \t]*$/u.test(bare(lines[0] ?? ""))) return fallback();
+	const first = lines.slice(1).find((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
+	const indent = /^[ \t]*/u.exec(first ?? "")?.[0] ?? "";
+	if (indent === "") return fallback();
+	const text_ = slotLines(indent, newline);
+	const at = lines.findIndex((line, i) => i > 0 && new RegExp(`^${indent}${slot}[ \\t]*:`, "u").test(bare(line)));
+	let out: Array<string>;
+	if (at === -1) {
+		out =
+			slot === "generated"
+				? [lines[0] as string, text_, ...lines.slice(1)]
+				: [...lines, ...(/\n$/u.test(lines.at(-1) ?? "") ? [] : [newline]), text_];
+	} else {
+		let end = at + 1;
+		while (end < lines.length) {
+			const line = bare(lines[end] as string);
+			if (line.trim() !== "" && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) break;
+			end++;
+		}
+		out = [...lines.slice(0, at), text_, ...lines.slice(end)];
+	}
+	return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: out.join("") });
+};
+
 /**
  * The one edit that sets `integrity.generated.body` and leaves every other byte
  * of the block (the `verified` slot, unknown keys, comments, quoting) as it was.
@@ -196,31 +254,41 @@ export const spliceIntegrityGenerated = (
 	text: string,
 	body: string,
 	newline: "\n" | "\r\n",
-): MarkdownEdit => {
-	const whole = () => spliceIntegrity(target, { generated: { body } }, newline);
-	if (target._tag === "absent") return whole();
-	const lines = text.slice(target.start, target.end).match(/[^\n]*\n|[^\n]+$/gu) ?? [];
-	const bare = (line: string) => line.replace(/\r?\n$/u, "");
-	if (lines.length < 2 || !/^integrity:[ \t]*$/u.test(bare(lines[0] ?? ""))) return whole();
-	const first = lines.slice(1).find((line) => bare(line).trim() !== "" && !/^[ \t]*#/u.test(bare(line)));
-	const indent = /^[ \t]*/u.exec(first ?? "")?.[0] ?? "";
-	if (indent === "") return whole();
-	const slot = `${indent}generated:${newline}${indent}  body: ${formatDigest(body)}${newline}`;
-	const at = lines.findIndex((line, i) => i > 0 && new RegExp(`^${indent}generated[ \\t]*:`, "u").test(bare(line)));
-	let out: Array<string>;
-	if (at === -1) {
-		out = [lines[0] as string, slot, ...lines.slice(1)];
-	} else {
-		let end = at + 1;
-		while (end < lines.length) {
-			const line = bare(lines[end] as string);
-			if (line.trim() !== "" && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) break;
-			end++;
-		}
-		out = [...lines.slice(0, at), slot, ...lines.slice(end)];
-	}
-	return MarkdownEdit.make({ offset: target.start, length: target.end - target.start, content: out.join("") });
-};
+): MarkdownEdit =>
+	spliceSlot(
+		target,
+		text,
+		"generated",
+		(indent, nl) => `${indent}generated:${nl}${indent}  body: ${formatDigest(body)}${nl}`,
+		{ ...carried(target, "verified"), generated: { body } },
+		newline,
+	);
+
+/**
+ * The one edit that sets the `integrity.verified` binding and leaves every other
+ * byte of the block (the `generated` slot, unknown keys, comments, quoting) as it
+ * was; the mirror of {@link spliceIntegrityGenerated}. Inserts the whole block
+ * when absent or null; otherwise rewrites only the `verified` slot's lines, or
+ * appends that slot when missing. `text` is the same BOM-stripped source the
+ * target was located in.
+ *
+ * @internal
+ */
+export const spliceIntegrityVerified = (
+	target: Exclude<IntegrityLocated, { readonly _tag: "unsupported" }>,
+	text: string,
+	binding: { readonly by: string; readonly at: string; readonly content: string },
+	newline: "\n" | "\r\n",
+): MarkdownEdit =>
+	spliceSlot(
+		target,
+		text,
+		"verified",
+		(indent, nl) =>
+			`${indent}verified:${nl}${indent}  by: ${binding.by}${nl}${indent}  at: ${binding.at}${nl}${indent}  content: ${formatDigest(binding.content)}${nl}`,
+		{ ...carried(target, "generated"), verified: binding },
+		newline,
+	);
 
 /** A legacy `generated.body_sha256` line, or none. @internal */
 export type LegacyBodyLocated =

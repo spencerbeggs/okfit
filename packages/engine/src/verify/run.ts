@@ -1,9 +1,11 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
-import { Derivation } from "@okfit/profiles";
+import type { DriftReason } from "@okfit/profiles";
+import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError } from "../errors.js";
+import { locateIntegrity, spliceIntegrityVerified } from "./integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
 import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./select.js";
@@ -62,6 +64,10 @@ export interface VerifyResult {
 	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
 	/** The exact status bytes spliced, or `null` when no status edit was made. */
 	readonly statusFragment: string | null;
+	/** The content digest `integrity.verified` was bound to; the digest of the file before AND after the edit. */
+	readonly content: string;
+	/** Why the concept's prior human verification no longer bound it, or `null` when it did not drift. */
+	readonly priorDrift: DriftReason | null;
 }
 
 /**
@@ -104,6 +110,7 @@ interface PreparedVerify {
 	readonly fragment: string;
 	readonly statusFragment: string | null;
 	readonly priorAt: ReadonlyArray<string>;
+	readonly content: string;
 }
 
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
@@ -118,6 +125,8 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	// actor's existing entry's `at` rather than append a second entry.
 	staleAfter: string | undefined = undefined,
 ) {
+	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
+	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const absolutePath = path.join(bundle.root, concept.path);
@@ -169,7 +178,12 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 		// The key is known present (frontmatter.stale_after is set), so this is always a replaceScalar.
 		staleEdit = spliceTopLevelScalar(target, "stale_after", staleAfter, newline);
 	}
-	const ordered = orderVerifyEdits(verifiedEdit, statusEdit);
+	const integrity = yield* locateIntegrity(text);
+	if (integrity._tag === "unsupported") {
+		return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: integrity.shape, key: "integrity" });
+	}
+	const integrityEdit = spliceIntegrityVerified(integrity, text, { by: actor, at, content }, newline);
+	const ordered = orderVerifyEdits(verifiedEdit, statusEdit, integrityEdit);
 	const edits = staleEdit === undefined ? ordered : [...ordered, staleEdit].toSorted((a, b) => a.offset - b.offset);
 	return {
 		absolutePath,
@@ -181,6 +195,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 				: `${verifiedPreview.replace(/(?:\r\n|\n)$/, "")}${newline}stale_after: ${staleAfter}`,
 		statusFragment: statusEdit?.content ?? null,
 		priorAt,
+		content,
 	} satisfies PreparedVerify;
 });
 
@@ -266,6 +281,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// classification, and the edit itself is computed unconditionally so a
 	// dry run reports the exact fragment it would write.
 	const prepared = yield* prepareVerify(bundle, concept, actor, at, options.status);
+	const prior = yield* Trust.signal(concept, options.at);
 
 	// Step 15 (I4/V-16): a temp file beside the real target, then a rename
 	// over it, mode preserved -- see `writeVerified`'s own comments.
@@ -282,14 +298,16 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		fragment: prepared.fragment,
 		status: options.status === undefined ? null : { from: concept.frontmatter.status ?? null, to: options.status },
 		statusFragment: prepared.statusFragment,
+		content: prepared.content,
+		priorDrift: prior.drift?.reason ?? null,
 	} satisfies VerifyResult;
 });
 
 /**
  * Issue #138. Attests every concept selected by `options.types` (or, when
  * empty, every type whose declaration sets `require_verified = true`) that
- * is not a draft, is not deprecated (#143) and does not already carry a `verified` entry by the
- * resolved actor. Every candidate is located FIRST -- an unsupported
+ * is not a draft, is not deprecated (#143) and whose `verified` entry by the
+ * resolved actor does not already bind its current content (`Trust.signals`). Every candidate is located FIRST -- an unsupported
  * `verified` shape on any one of them fails the whole batch with nothing
  * written, mirroring `runVerify`'s own fail-closed rule at batch scale.
  *
@@ -302,7 +320,8 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	const actor = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);
 
-	const selection = selectAttestable(bundle, types, actor);
+	const signals = yield* Trust.signals(bundle, options.at);
+	const selection = selectAttestable(bundle, types, actor, signals);
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	// Every concept is located before any is written: one unsupported
 	// shape fails the whole batch with the tree untouched.
@@ -433,7 +452,8 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
-	return { by, candidates: selectPickerCandidates(bundle, options.config, by) } satisfies {
+	const signals = yield* Trust.signals(bundle, yield* DateTime.now);
+	return { by, candidates: selectPickerCandidates(bundle, options.config, by, signals) } satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};
@@ -451,7 +471,11 @@ export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.generatedBy({ writer: "human", cwd: options.projectRoot, config: options.config });
-	return { by, candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by) } satisfies {
+	const signals = yield* Trust.signals(bundle, options.now);
+	return {
+		by,
+		candidates: selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),
+	} satisfies {
 		readonly by: string;
 		readonly candidates: ReadonlyArray<PickerCandidate>;
 	};

@@ -4,10 +4,12 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
-import type { Actor } from "@okfit/core";
-import { OkfitConfig } from "@okfit/core";
+import type { Actor, ConceptId } from "@okfit/core";
+import { Bundle, OkfitConfig } from "@okfit/core";
+import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option } from "effect";
 import { runVerify, runVerifyBatch } from "../../src/verify/run.js";
+import { DIGEST, bindFixtures } from "../utils/binding.js";
 
 describe("runVerifyBatch (issue #138)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
@@ -36,9 +38,13 @@ describe("runVerifyBatch (issue #138)", () => {
 					yield* Effect.promise(() =>
 						writeFile(
 							join(root, "decisions", "c.md"),
-							decision("C", "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n"),
+							decision(
+								"C",
+								`verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nintegrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
+							),
 						),
 					);
+					yield* bindFixtures(root, ["decisions/c.md"]).pipe(Effect.provide(NodeServices.layer));
 					yield* Effect.promise(() => writeFile(join(root, "module.md"), "---\ntype: Module\ntitle: M\n---\n\n# M\n"));
 					const result = yield* runVerifyBatch({
 						bundleRoot: root,
@@ -175,6 +181,9 @@ describe("runVerifyBatch (issue #138)", () => {
 describe("runVerify status (issue #185)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
 	const VERIFIED = "verified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\n";
+	/** The `integrity.verified` binding a run of `AT` by ada writes for a content digest. */
+	const binding = (content: string): string =>
+		`integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-16T12:00:00Z\n    content: ${content}\n`;
 	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 		types: { Decision: {} },
 		actors: { humans: ["human:ada" as Actor] },
@@ -230,7 +239,10 @@ describe("runVerify status (issue #185)", () => {
 			Effect.gen(function* () {
 				const result = yield* run(root, undefined);
 				const after = yield* Effect.promise(() => readFile(file, "utf8"));
-				assert.strictEqual(after, `---\ntype: Decision\ntitle: T\nstatus: deprecated\n${VERIFIED}---\n`);
+				assert.strictEqual(
+					after,
+					`---\ntype: Decision\ntitle: T\nstatus: deprecated\n${VERIFIED}${binding(result.content)}---\n`,
+				);
 				assert.isNull(result.statusFragment);
 			}),
 		),
@@ -241,7 +253,10 @@ describe("runVerify status (issue #185)", () => {
 			Effect.gen(function* () {
 				const result = yield* run(root, "stable");
 				const after = yield* Effect.promise(() => readFile(file, "utf8"));
-				assert.strictEqual(after, `---\ntype: Decision\ntitle: T\nstatus: stable\n${VERIFIED}---\n`);
+				assert.strictEqual(
+					after,
+					`---\ntype: Decision\ntitle: T\nstatus: stable\n${VERIFIED}${binding(result.content)}---\n`,
+				);
 				assert.deepStrictEqual(result.status, { from: null, to: "stable" });
 			}),
 		),
@@ -253,7 +268,7 @@ describe("runVerify status (issue #185)", () => {
 			Effect.gen(function* () {
 				const result = yield* run(root, "stable");
 				const after = yield* Effect.promise(() => readFile(file, "utf8"));
-				assert.strictEqual(after, before.replace("\n---\n", `\n${VERIFIED}---\n`));
+				assert.strictEqual(after, before.replace("\n---\n", `\n${VERIFIED}${binding(result.content)}---\n`));
 				assert.strictEqual(result.statusFragment, null);
 				assert.deepStrictEqual(result.status, { from: "stable", to: "stable" });
 			}),
@@ -308,4 +323,139 @@ describe("runVerify status (issue #185)", () => {
 			}),
 		),
 	);
+});
+
+describe("runVerify binds integrity.verified", () => {
+	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
+	const LATER = DateTime.makeUnsafe("2026-09-17T12:00:00Z");
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: {} },
+		actors: { humans: ["human:ada" as Actor] },
+		extensions: {},
+	});
+	const gitFake = Layer.succeed(Git, {
+		configGet: (_cwd: string, key: string) =>
+			Effect.succeed(Option.some(key === "user.name" ? "Ada" : "ada@example.com")),
+	} as unknown as Git["Service"]);
+	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+
+	const withConcept = <A, E, R>(source: string, use: (root: string, file: string) => Effect.Effect<A, E, R>) =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-bind-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const file = join(root, "decisions", "a.md");
+				yield* Effect.promise(() => writeFile(file, source));
+				return yield* use(root, file);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		});
+
+	const verify = (root: string, at: DateTime.Utc, status?: "stable" | "draft") =>
+		runVerify({
+			id: "decisions/a",
+			bundleRoot: root,
+			projectRoot: root,
+			config,
+			at,
+			dryRun: false,
+			...(status === undefined ? {} : { status }),
+		}).pipe(Effect.provide(platform));
+
+	const signalOf = (root: string, now: DateTime.Utc) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root });
+			const concept = bundle.concepts.get("decisions/a" as ConceptId);
+			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
+			return yield* Trust.signal(concept, now);
+		}).pipe(Effect.provide(NodeServices.layer));
+
+	const SRC = "---\ntype: Decision\ntitle: T\n---\n\n# T\n\nBody.\n";
+
+	it.effect("writes both keys, and the written file's own digest equals the bound one", () =>
+		withConcept(SRC, (root, file) =>
+			Effect.gen(function* () {
+				const result = yield* verify(root, AT);
+				const after = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.ok(
+					after.includes(
+						`integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-16T12:00:00Z\n    content: ${result.content}\n`,
+					),
+				);
+				assert.strictEqual(result.priorDrift, null);
+				const signal = yield* signalOf(root, AT);
+				assert.strictEqual(signal.integrity, "current");
+				// the binding digest is the digest of the file AFTER the edit, not just before it
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
+				const written = bundle.concepts.get("decisions/a" as ConceptId);
+				assert.ok(written !== undefined);
+				const recomputed = yield* Derivation.contentDigest(written.frontmatter.raw, written.document.source).pipe(
+					Effect.provide(NodeServices.layer),
+				);
+				assert.strictEqual(recomputed, result.content);
+			}),
+		),
+	);
+
+	it.effect("a body edit drifts it; verifying again binds it once, never a second integrity key", () =>
+		withConcept(SRC, (root, file) =>
+			Effect.gen(function* () {
+				yield* verify(root, AT);
+				yield* Effect.promise(async () =>
+					writeFile(file, (await readFile(file, "utf8")).replace("Body.", "Edited body.")),
+				);
+				const drifted = yield* signalOf(root, LATER);
+				assert.strictEqual(drifted.integrity, "drifted");
+				assert.strictEqual(drifted.drift?.reason, "content-changed");
+				const second = yield* verify(root, LATER);
+				assert.strictEqual(second.priorDrift, "content-changed");
+				const after = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.strictEqual(after.split("integrity:").length - 1, 1);
+				assert.strictEqual(after.split("  verified:").length - 1, 1);
+				assert.strictEqual((yield* signalOf(root, LATER)).integrity, "current");
+			}),
+		),
+	);
+
+	it.effect("--stable with both keys absent merges status, verified, integrity in that order", () =>
+		withConcept("---\ntype: Decision\ntitle: T\n---\n", (root, file) =>
+			Effect.gen(function* () {
+				const result = yield* verify(root, AT, "stable");
+				const after = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.strictEqual(
+					after,
+					`---\ntype: Decision\ntitle: T\nstatus: stable\nverified:\n  - by: human:ada\n    at: 2026-09-16T12:00:00Z\nintegrity:\n  verified:\n    by: human:ada\n    at: 2026-09-16T12:00:00Z\n    content: ${result.content}\n---\n`,
+				);
+				assert.strictEqual((yield* signalOf(root, AT)).integrity, "current");
+			}),
+		),
+	);
+
+	it.effect("replaces a malformed integrity.verified and keeps integrity.generated byte-for-byte", () => {
+		const generated = "  generated:\n    # stamped by sync\n    body: 0123456789abcdef\n";
+		const source = `---\ntype: Decision\ntitle: T\nintegrity:\n${generated}  verified:\n    by: nope\n---\n\nBody.\n`;
+		return withConcept(source, (root, file) =>
+			Effect.gen(function* () {
+				yield* verify(root, AT);
+				const after = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.ok(after.includes(`integrity:\n${generated}  verified:\n    by: human:ada\n`));
+				assert.ok(!after.includes("nope"));
+				assert.strictEqual(after.split("integrity:").length - 1, 1);
+				assert.strictEqual((yield* signalOf(root, AT)).integrity, "current");
+			}),
+		);
+	});
+
+	it.effect("an unsupported integrity shape fails closed keyed integrity, file untouched", () => {
+		const source = "---\ntype: Decision\ntitle: T\nintegrity: nope\n---\n";
+		return withConcept(source, (root, file) =>
+			Effect.gen(function* () {
+				const error = yield* verify(root, AT).pipe(Effect.flip);
+				assert.strictEqual(error._tag, "VerifyUnsupportedFrontmatterError");
+				if (error._tag === "VerifyUnsupportedFrontmatterError") assert.strictEqual(error.key, "integrity");
+				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), source);
+			}),
+		);
+	});
 });

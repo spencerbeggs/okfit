@@ -4,6 +4,7 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { conceptDigest } from "./utils/digest.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
@@ -19,6 +20,14 @@ const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> 
 	// into every case, resolved or not.
 	GIT_CONFIG_SYSTEM: "/dev/null",
 });
+
+/** The `integrity.verified` block a run by ada at `at` writes for the content digest `content`. */
+const binding = (content: string, at = "2026-09-07T00:00:00Z"): string =>
+	`integrity:\n  verified:\n    by: human:ada\n    at: ${at}\n    content: ${content}\n`;
+
+/** The digest of concept `id`, computed here in the test process rather than by the bin under test. */
+const digestOf = (cwd: string, id: string): Promise<string> =>
+	withServices(conceptDigest(join(cwd, "okf"), id).pipe(Effect.orDie));
 
 /** A sandbox seeded with `okfit init` and a resolvable git identity (human:ada). */
 const seeded = async (): Promise<{
@@ -57,6 +66,7 @@ describe("okfit verify (e2e)", () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const before = await readProject(cwd);
+			const content = await digestOf(cwd, "project");
 
 			const run = await withServices(
 				runOkfit(["verify", "project"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" } }),
@@ -70,9 +80,11 @@ describe("okfit verify (e2e)", () => {
 				after,
 				before.replace(
 					"status: draft\n",
-					"status: draft\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n",
+					`status: draft\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n${binding(content)}`,
 				),
 			);
+			// the binding still matches the written file: verifying again changes nothing it would call drift
+			assert.strictEqual(await digestOf(cwd, "project"), content);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -98,14 +110,17 @@ describe("okfit verify (e2e)", () => {
 			);
 
 			const afterSecond = await readProject(cwd);
-			// The first entry's bytes are identical: the second run is a pure
-			// insertion after them.
+			// The first entry's bytes are identical: the second run is an insertion after them
+			// plus the binding moving to the new entry.
 			const firstEntry = "  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n";
 			assert.isTrue(afterFirst.includes(firstEntry));
 			assert.isTrue(afterSecond.includes(firstEntry));
+			const content = await digestOf(cwd, "project");
 			assert.strictEqual(
 				afterSecond,
-				afterFirst.replace(firstEntry, `${firstEntry}  - by: human:ada\n    at: 2026-09-07T12:03:00Z\n`),
+				afterFirst
+					.replace(firstEntry, `${firstEntry}  - by: human:ada\n    at: 2026-09-07T12:03:00Z\n`)
+					.replace(binding(content), binding(content, "2026-09-07T12:03:00Z")),
 			);
 		} finally {
 			await removeSandbox(sandbox);
@@ -294,18 +309,23 @@ describe("okfit verify (e2e)", () => {
 				"",
 			].join("\n");
 			await writeFile(join(cwd, "okf", "decisions", "bare.md"), bare, "utf8");
+			const content = await digestOf(cwd, "decisions/bare");
 
 			const run = await withServices(
 				runOkfit(["verify", "decisions/bare"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" } }),
 			);
 
 			assert.strictEqual(run.exitCode, 0);
-			assert.strictEqual(run.stdout, "verified decisions/bare by human:ada at 2026-09-07T00:00:00Z\n");
+			// jsmith's human entry carries no binding, so the concept had drifted (unbound) before this run
+			assert.strictEqual(
+				run.stdout,
+				"re-verifying (was drifted: unbound)\nverified decisions/bare by human:ada at 2026-09-07T00:00:00Z\n",
+			);
 			assert.strictEqual(
 				await readFile(join(cwd, "okf", "decisions", "bare.md"), "utf8"),
 				bare.replace(
 					"verified:\n  by: human:jsmith\n  at: 2026-01-02T00:00:00Z\n",
-					"verified:\n  - by: human:jsmith\n    at: 2026-01-02T00:00:00Z\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n",
+					`verified:\n  - by: human:jsmith\n    at: 2026-01-02T00:00:00Z\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n${binding(content)}`,
 				),
 			);
 		} finally {
@@ -321,6 +341,7 @@ describe("okfit verify (e2e)", () => {
 			// "File"), so it decodes as the concept id "linked".
 			const targetPath = join(cwd, "linked-target.md");
 			const before = await readProject(cwd);
+			const content = await digestOf(cwd, "project");
 			await writeFile(targetPath, before, "utf8");
 			const linkPath = join(cwd, "okf", "linked.md");
 			symlinkSync(targetPath, linkPath);
@@ -340,7 +361,7 @@ describe("okfit verify (e2e)", () => {
 				target,
 				before.replace(
 					"status: draft\n",
-					"status: draft\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n",
+					`status: draft\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n${binding(content)}`,
 				),
 			);
 		} finally {
@@ -473,6 +494,7 @@ describe("okfit verify (e2e)", () => {
 			const { sandbox, cwd, env } = await seeded();
 			try {
 				const before = await readProject(cwd);
+				const content = await digestOf(cwd, "project");
 				const run = await withServices(runOkfit(["verify", "project", "--stable"], { cwd, env: { ...env, ...NOW } }));
 				assert.strictEqual(run.exitCode, 0);
 				assert.strictEqual(
@@ -483,7 +505,7 @@ describe("okfit verify (e2e)", () => {
 					await readProject(cwd),
 					before.replace(
 						"status: draft\n",
-						"status: stable\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n",
+						`status: stable\nverified:\n  - by: human:ada\n    at: 2026-09-07T00:00:00Z\n${binding(content)}`,
 					),
 				);
 			} finally {

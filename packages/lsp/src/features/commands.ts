@@ -28,6 +28,7 @@
  */
 import type { Git } from "@effected/git";
 import { Status } from "@okfit/core";
+import type { Crypto } from "effect";
 import { DateTime, Effect, Option, Result, Schema } from "effect";
 import { pathToUri, uriToPath } from "../convert/uri.js";
 import { LspError } from "../errors.js";
@@ -129,7 +130,7 @@ const handleMarkVerified = (
 	documents: OpenDocuments,
 	transport: LspTransportShape,
 	args: ReadonlyArray<unknown> | undefined,
-): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
+): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git | Crypto.Crypto> =>
 	Effect.gen(function* () {
 		const [uri] = yield* decodeArgs(MarkVerifiedArgs, args, "okfit.lsp.markVerified expects [uri]");
 		const target = yield* targetFor(registry, documents, uri);
@@ -146,7 +147,7 @@ const handleVerifyAndMarkStable = (
 	documents: OpenDocuments,
 	transport: LspTransportShape,
 	args: ReadonlyArray<unknown> | undefined,
-): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git> =>
+): Effect.Effect<ApplyWorkspaceEditResult, LspError, Git | Crypto.Crypto> =>
 	Effect.gen(function* () {
 		const [uri] = yield* decodeArgs(VerifyAndMarkStableArgs, args, "okfit.lsp.verifyAndMarkStable expects [uri]");
 		const target = yield* targetFor(registry, documents, uri);
@@ -190,7 +191,7 @@ const dispatch = (
 	documents: OpenDocuments,
 	transport: LspTransportShape,
 	params: ExecuteCommandParams,
-): Effect.Effect<unknown, LspError, Git> => {
+): Effect.Effect<unknown, LspError, Git | Crypto.Crypto> => {
 	switch (params.command) {
 		case "okfit.lsp.setStatus":
 			return handleSetStatus(registry, documents, transport, params.arguments);
@@ -216,9 +217,9 @@ export const registerCommands = (
 	transport: LspTransportShape,
 	registry: SessionRegistryShape,
 	documents: OpenDocuments,
-): Effect.Effect<void, never, Git> =>
+): Effect.Effect<void, never, Git | Crypto.Crypto> =>
 	Effect.gen(function* () {
-		const context = yield* Effect.context<Git>();
+		const context = yield* Effect.context<Git | Crypto.Crypto>();
 		yield* transport.onRequest<ExecuteCommandParams, unknown>("workspace/executeCommand", (params) =>
 			dispatch(registry, documents, transport, params).pipe(Effect.provideContext(context)),
 		);

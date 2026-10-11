@@ -15,7 +15,15 @@ export interface VerifyLines {
 	readonly status: { readonly from: string | null; readonly to: string } | null;
 	/** The exact status bytes a real run would splice in; printed only when `dryRun`. */
 	readonly statusFragment: string | null;
+	/** Why the concept's prior human verification had drifted (this run re-verifies it), else `null`/absent. */
+	readonly priorDrift?: string | null;
 }
+
+/** The lines announcing prior attestations: a re-verify of drifted content, else one per prior entry (V-2). */
+const priorLines = (input: VerifyLines): ReadonlyArray<string> =>
+	input.priorDrift === undefined || input.priorDrift === null
+		? input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`)
+		: [`re-verifying (was drifted: ${input.priorDrift})`];
 
 /**
  * Indent every line of `fragment` two spaces for display under a
@@ -51,7 +59,7 @@ const fragmentBlock = (fragment: string) => Doc.verbatim(indentFragment(fragment
 export const humanVerify = (input: VerifyLines): ReadonlyArray<string> => {
 	const statusSuffix = statusSuffixOf(input.status);
 	return [
-		...input.priorAt.map((at) => `already verified by ${input.by} at ${at}; appending`),
+		...priorLines(input),
 		input.dryRun
 			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffix} (dry run, nothing written)`
 			: `verified ${input.id} by ${input.by} at ${input.at}${statusSuffix}`,
@@ -107,7 +115,7 @@ const paragraphs = (lines: ReadonlyArray<string>): Document => lines.map(fact);
  * @public
  */
 export const humanVerifyDoc = (input: VerifyLines): Document => [
-	...input.priorAt.map((at) => fact(`already verified by ${input.by} at ${at}; appending`)),
+	...priorLines(input).map(fact),
 	fact(
 		input.dryRun
 			? `would verify ${input.id} by ${input.by} at ${input.at}${statusSuffixOf(input.status)} (dry run, nothing written)`

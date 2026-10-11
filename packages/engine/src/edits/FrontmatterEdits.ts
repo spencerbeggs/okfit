@@ -3,7 +3,7 @@ import type { YamlParseError } from "@effected/yaml";
 import type { Status } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import { Effect, Result, Runtime, Schema } from "effect";
-import { formatDigest } from "../verify/integrity.js";
+import { formatDigest, locateIntegrity, spliceIntegrityVerified } from "../verify/integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { orderVerifyEdits, splice, spliceTopLevelScalar } from "../verify/splice.js";
 
@@ -70,10 +70,16 @@ export class FrontmatterEdits {
 			return [shift(edit, bom.length)];
 		});
 
-	/** Edits that append one verified entry, the same splice `okfit verify` performs. */
+	/**
+	 * Edits that append one verified entry and bind it with `integrity.verified`
+	 * (`content` is the content digest of the source as passed), the same splice
+	 * `okfit verify` performs. Only the `verified` slot of an existing `integrity`
+	 * block is rewritten.
+	 */
 	static readonly verified = (
 		source: string,
 		entry: { readonly by: string; readonly at: string },
+		content: string,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
@@ -81,21 +87,29 @@ export class FrontmatterEdits {
 			if (target._tag === "unsupported") {
 				return yield* new UnsupportedFrontmatterError({ key: "verified", shape: target.shape });
 			}
-			const edit = splice(target, entry, documentNewline(text));
-			return [shift(edit, bom.length)];
+			const newline = documentNewline(text);
+			const verifiedEdit = splice(target, entry, newline);
+			const integrity = yield* locateIntegrity(text);
+			if (integrity._tag === "unsupported") {
+				return yield* new UnsupportedFrontmatterError({ key: "integrity", shape: integrity.shape });
+			}
+			const integrityEdit = spliceIntegrityVerified(integrity, text, { ...entry, content }, newline);
+			return orderVerifyEdits(verifiedEdit, undefined, integrityEdit).map((edit) => shift(edit, bom.length));
 		});
 
 	/**
-	 * Edits that append one verified entry AND set top-level `status`, the combined write
-	 * `okfit verify --stable` performs. A `status` scalar already equal to `status` makes no
-	 * status edit, and equal-offset inserts are merged with `status:` first. Unlike the CLI,
-	 * which reads the parsed status, this always locates `status`, so an unsupported shape
-	 * on it fails even when its value already matches.
+	 * Edits that append one verified entry, bind it with `integrity.verified` AND set top-level
+	 * `status`, the combined write `okfit verify --stable` performs. A `status` scalar already
+	 * equal to `status` makes no status edit, and equal-offset inserts are merged with `status:`
+	 * first, then `verified:`, then `integrity:`. Unlike the CLI, which reads the parsed status,
+	 * this always locates `status`, so an unsupported shape on it fails even when its value
+	 * already matches.
 	 */
 	static readonly verifiedWithStatus = (
 		source: string,
 		entry: { readonly by: string; readonly at: string },
 		status: Status,
+		content: string,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
@@ -113,7 +127,12 @@ export class FrontmatterEdits {
 			if (target._tag !== "replaceScalar" || unquote(text.slice(target.start, target.end), target.quote) !== status) {
 				statusEdit = spliceTopLevelScalar(target, "status", status, newline);
 			}
-			return orderVerifyEdits(verifiedEdit, statusEdit).map((edit) => shift(edit, bom.length));
+			const integrity = yield* locateIntegrity(text);
+			if (integrity._tag === "unsupported") {
+				return yield* new UnsupportedFrontmatterError({ key: "integrity", shape: integrity.shape });
+			}
+			const integrityEdit = spliceIntegrityVerified(integrity, text, { ...entry, content }, newline);
+			return orderVerifyEdits(verifiedEdit, statusEdit, integrityEdit).map((edit) => shift(edit, bom.length));
 		});
 
 	/**

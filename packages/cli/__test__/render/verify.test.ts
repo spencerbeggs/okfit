@@ -27,6 +27,27 @@ describe("humanVerify", () => {
 		statusFragment: null,
 	} as const;
 
+	it("announces a re-verify of drifted content instead of the append line", () => {
+		assert.deepStrictEqual(
+			humanVerify({ ...base, status: null, priorAt: ["2026-09-01T00:00:00Z"], priorDrift: "content-changed" }),
+			["re-verifying (was drifted: content-changed)", "verified decisions/x by human:ada at 2026-09-16T12:00:00Z"],
+		);
+		assert.deepStrictEqual(
+			humanVerify({ ...base, status: null, priorAt: ["2026-09-01T00:00:00Z"], priorDrift: null }),
+			[
+				"already verified by human:ada at 2026-09-01T00:00:00Z; appending",
+				"verified decisions/x by human:ada at 2026-09-16T12:00:00Z",
+			],
+		);
+		assert.strictEqual(
+			Render.plain(
+				humanVerifyDoc({ ...base, status: null, priorAt: [], priorDrift: "unbound" }),
+				Render.contextOf({ audience: "agent" }),
+			),
+			"re-verifying (was drifted: unbound)\nverified decisions/x by human:ada at 2026-09-16T12:00:00Z",
+		);
+	});
+
 	it("appends the status transition to the success line (#185)", () => {
 		assert.deepStrictEqual(humanVerify({ ...base, status: { from: "draft", to: "stable" } }), [
 			"verified decisions/x by human:ada at 2026-09-16T12:00:00Z; status draft -> stable",

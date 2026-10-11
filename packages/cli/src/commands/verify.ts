@@ -289,6 +289,7 @@ export const verifyCommand = Command.make(
 							fragment: result.fragment,
 							status: result.status,
 							statusFragment: result.statusFragment,
+							priorDrift: result.priorDrift,
 						}),
 					);
 				}

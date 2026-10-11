@@ -21,12 +21,40 @@ const start = (root: string, interactive = true) =>
 describe("pickConcepts", () => {
 	it("labels a row compactly, counting only other attestations", () => {
 		assert.strictEqual(
-			pickerLabel({ id: "a", type: "T", status: "draft", title: null, description: null, otherAttestations: 0 }),
+			pickerLabel({
+				id: "a",
+				type: "T",
+				status: "draft",
+				title: null,
+				description: null,
+				otherAttestations: 0,
+				integrity: "none",
+			}),
 			"a  draft",
 		);
 		assert.strictEqual(
-			pickerLabel({ id: "a", type: "T", status: "stable", title: null, description: null, otherAttestations: 2 }),
+			pickerLabel({
+				id: "a",
+				type: "T",
+				status: "stable",
+				title: null,
+				description: null,
+				otherAttestations: 2,
+				integrity: "none",
+			}),
 			"a  stable  2 other attestation(s)",
+		);
+		assert.strictEqual(
+			pickerLabel({
+				id: "a",
+				type: "T",
+				status: "stable",
+				title: null,
+				description: null,
+				otherAttestations: 0,
+				integrity: "drifted",
+			}),
+			"a  stable  drifted",
 		);
 	});
 
