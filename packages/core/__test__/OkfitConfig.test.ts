@@ -95,7 +95,7 @@ describe("OkfitConfig", () => {
 		assert.deepStrictEqual([d.actors, d.types, d.tags, d.extensions], [{ humans: [] }, {}, {}, {}]);
 		assert.deepStrictEqual(
 			[d.lint!.broken_links, d.lint!.unknown_type, d.lint!.legacy_timestamp, Object.keys(d.lint!).length],
-			["warn", "error", "info", 23],
+			["warn", "error", "info", 24],
 		);
 	});
 	it("merge: DEFAULTS < profile < file, arrays replace, tables merge, inputs untouched", () => {
@@ -166,6 +166,10 @@ describe("OkfitConfig", () => {
 		assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "publication-drift"), "warning");
 		assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "publication-orphan"), "error");
 		assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "surface-unmatched"), "warning");
+	});
+
+	it("verified-drift defaults to warning", () => {
+		assert.strictEqual(OkfitConfig.severityFor(OkfitConfig.DEFAULTS, "verified-drift"), "warning");
 	});
 
 	it("lets [lint] override publication_drift", () => {

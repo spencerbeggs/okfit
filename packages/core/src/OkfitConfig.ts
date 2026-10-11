@@ -293,7 +293,7 @@ export const LintTable = Schema.Struct({
 	stale: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "stale",
-			description: 'A concept has gone unedited past lifecycle.default_stale_after. Default "info".',
+			description: 'A concept is past its stale_after instant. Default "info".',
 			default: "info",
 		}),
 	),
@@ -309,6 +309,14 @@ export const LintTable = Schema.Struct({
 			title: "generated-at-drift",
 			description:
 				'A committed concept\'s generated.at is missing or does not match its last body-changing commit, and is not otherwise authoritative (issue #19: a stamp recorded during the unchanged-body run survives a squash/rebase merge). Default "warn".',
+			default: "warn",
+		}),
+	),
+	verified_drift: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "verified-drift",
+			description:
+				'A concept\'s latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, or a later human entry is unbound. A signal to re-verify, not a gate. Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -646,6 +654,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
 	"generated-at-drift": "generated_at_drift",
+	"verified-drift": "verified_drift",
 	"status-missing": "status_missing",
 	"source-resource-missing": "source_resource_missing",
 	"generated-missing": "generated_missing",
@@ -673,6 +682,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	stale: "info",
 	walk_unreadable: "warn",
 	generated_at_drift: "warn",
+	verified_drift: "warn",
 	status_missing: "off",
 	source_resource_missing: "warn",
 	generated_missing: "warn",
