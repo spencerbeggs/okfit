@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T21:24:02Z
+  at: 2026-10-12T13:31:17Z
 tags:
   - architecture
 verified:
@@ -23,7 +23,7 @@ verified:
     at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: b852ba04ff837836
+    body: 4be309027954468b
   verified:
     by: human:spencer
     at: 2026-10-11T22:01:13Z
@@ -362,7 +362,8 @@ is refused. Rewritten
 kinds: body links and reference definitions, path-kind frontmatter fields,
 `supersedes` and Publication `renders[].path`; each keeps its spelling (rooted,
 bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's own
-outbound relative links are recomputed.
+outbound relative links are recomputed, including angle-bracketed body links whose
+path holds a space.
 
 Every file whose text changes drifts by the ordinary rule: `mv` never writes
 `verified` or `integrity`, and the plan lists the concepts whose current human
@@ -373,7 +374,9 @@ generated stamps; the order for this repository is bundle edit, commit,
 the bundle (a `..` that climbs out or a symlinked directory that leads out included),
 is a reserved file, contains whitespace or equals the source is exit `64` with nothing
 written, as is moving the bundle's project file (`project.md`), which must stay at the
-bundle root, and a link that
+bundle root, and any Markdown file in the bundle that did not load as a concept (it is
+never scanned, so a link to the moved file inside it would go stale; `okfit validate`
+names it, fix it first), and a link that
 would need rewriting for this move and whose URL cannot be located (an unrelated
 link the locator cannot read does not block it). `--format json` prints a
 `MoveEnvelope` (schema 1): `from`, `to`, `path`, `dry_run`, `edits` (`path`,
