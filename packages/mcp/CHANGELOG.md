@@ -1,5 +1,24 @@
 # @okfit/mcp
 
+## 0.9.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node-shared | dependency | removed | 4.0.2 | — |
+| @okfit/core | dependency | updated | 0.10.0 | 0.11.0 |
+| @okfit/engine | dependency | updated | 0.15.0 | 0.16.0 |
+| @okfit/profiles | dependency | updated | 0.10.0 | 0.10.1 |
+
+[#284][#284]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#284]: https://github.com/spencerbeggs/okfit/pull/284
+
 ## 0.9.0
 
 ### Breaking Changes
