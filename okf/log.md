@@ -1,5 +1,9 @@
 # Log
 
+## 2026-10-12
+
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+
 ## 2026-10-11
 
 * Updated A body digest inside generated detects real drift, not a rewritten date
