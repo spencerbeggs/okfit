@@ -19,3 +19,9 @@
 ### Sync and nested directories
 
 - `okfit sync` now writes the missing `index.md` of a directory that holds only a nested directory, such as `topics/` after a concept moves to `topics/deep/`, so the link its parent index already carries no longer dangles.
+
+### Moving a concept
+
+- `planMove` refuses (`MoveError` reason `unloaded-files`) while the bundle holds Markdown that did not load as a concept, since a link to the moved file inside it would be left stale; run `okfit validate` and fix those files first.
+- `okfit mv` rebases an angle-bracketed body link whose path holds a space (`[x](<../docs/my file.md>)`) in a moved concept, and refuses rather than write a spaced path outside angle brackets.
+- `Targets.resolve` accepts a bundle file whose name begins with two dots, such as `..draft.md`.
