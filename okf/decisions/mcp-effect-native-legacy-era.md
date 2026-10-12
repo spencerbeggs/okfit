@@ -11,9 +11,15 @@ status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:07Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 59a9ef0b71ad70df
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 7519e2ee8fe72335
 ---
 
 # The MCP server is Effect-native and speaks the legacy protocol era

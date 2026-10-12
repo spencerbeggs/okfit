@@ -1,6 +1,6 @@
 # @okfit/cli
 
-The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
+The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, `okfit mv`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
 
 > **Part of the okfit kit.** Most users want **[@okfit/plugin](https://www.npmjs.com/package/@okfit/plugin)**, which pulls this package in automatically.
 
@@ -8,13 +8,15 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/Go
 
 ```text
 okfit [--help] [--version]
-okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
-okfit init [path] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
-okfit context [path] [--trust] [--config <file>] [--format human|json] [--help]
-okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft] [--revoke] [--no-diff] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
-okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
-okfit query get <id> [path] [--config <file>] [--format human|json]
-okfit query neighbors <id> [path] [--config <file>] [--format human|json]
+okfit validate [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
+okfit lint [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--help]
+okfit init [--root <dir>] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
+okfit context [--root <dir>] [--trust] [--config <file>] [--format human|json] [--help]
+okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft] [--revoke] [--no-diff] [--config <file>] [--at <iso>] [--dry-run] [--format human|json] [--help]
+okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
+okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]
+okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
+okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```
 
 `okfit --version` prints `okfit <cli> (engine <engine>, okf <okf>,
@@ -24,10 +26,11 @@ okf 0.2, config-schema 1.0)` when installed through the meta-package. The
 engine, OKF, and config-schema versions decide what a report says and what
 a config may contain; the CLI version is packaging.
 
-`[path]` is the **project root** on every subcommand — the directory discovery
+`--root <dir>` is the **project root** on every subcommand — the directory discovery
 starts from, and, for `init`, where `.config/okfit.toml` is written.
 It is never the bundle root; the bundle root is `<project root>/<bundle.path>`
-(`okf` by default). Default `[path]` is the current directory.
+(`okf` by default). Default `--root` is the current directory. It replaced the
+`[path]` positional, so positionals are concept targets everywhere.
 
 ### `okfit validate`
 
@@ -299,7 +302,7 @@ Read-only lookups over the bundle, backed by the engine's `ConceptQuery`
 layer (the same one the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools use). Bare `okfit query` prints help.
 
-- `okfit query list [path]` lists concepts as summaries (id, type, title,
+- `okfit query list [--root <dir>]` lists concepts as summaries (id, type, title,
   description, status, tags, path, tier, integrity, stale). Filters: `--type <Type>` and
   `--tag <tag>` (repeatable, each must be declared in the config),
   `--status draft|stable|deprecated` (repeatable), `--verified` (a human's
@@ -307,19 +310,30 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
   (edited since a human verified it) and `--stale` (`stale_after` passed).
   Each line reads `id  status  trust  type  title`, where `trust` is
   `drifted` or the concept's trust tier, followed by `,stale` when stale.
-- `okfit query get <id> [path]` prints one concept: the summary fields, plus
+- `okfit query get <id> [--root <dir>]` prints one concept: the summary fields, plus
   `tier:`, `integrity:` (`current`, `none`, or `drifted (<reason>[; edited by
   X at T])`) and `stale:` lines, and its outgoing links. `--format json` also
   includes the raw frontmatter.
-- `okfit query neighbors <id> [path]` prints a concept's outgoing and
+- `okfit query neighbors <id> [--root <dir>]` prints a concept's outgoing and
   incoming links.
 
 Exit `0` on success, `3` for an unknown id, `64` for an undeclared type or
 tag or for `--verified` together with `--unverified`.
 
+### `okfit mv`
+
+`okfit mv <from> <to>` moves a concept to a new path inside the bundle and
+rewrites every reference to it (body links, path fields, `supersedes`,
+Publication `renders`), keeping each reference's spelling. `<to>` is an id or a
+path; `.md` is added when missing. `--dry-run` prints the plan and writes
+nothing. Every file whose text changes drifts and needs a human to re-verify
+it; run `okfit sync` afterwards. Refusals (destination exists, outside the
+bundle, a reserved file, an unlocatable link) are exit `64` with nothing
+written.
+
 ## Config discovery
 
-With no `--config` flag, `okfit` walks upward from `[path]` (default:
+With no `--config` flag, `okfit` walks upward from `--root` (default:
 the current directory). In each directory it checks `<dir>/.okfit.toml`,
 then `<dir>/okfit.toml`, then `<dir>/.config/okfit.toml` before moving
 up one level, so a child directory's `okfit.toml` always beats a

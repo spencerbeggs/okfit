@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-10-11T16:51:30Z
+  at: 2026-10-11T20:51:30Z
 status: stable
 verified:
   - by: human:spencer
@@ -15,13 +15,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T17:15:25Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: c9ec9de5e47ebcf8
+    body: 2a1a3f6fd97b7a8a
   verified:
     by: human:spencer
-    at: 2026-10-11T17:15:25Z
-    content: e7a9cc59b94b7eac
+    at: 2026-10-11T22:01:13Z
+    content: f035b24cd964780f
 ---
 
 # Human actor ids resolve through a five-step fallback order
@@ -42,7 +44,7 @@ okfit.actor`, which must be a `human:<id>` with no `@` and no glob
 (glob entries are skipped); (3) `human:<email local part>`; (4) `human:<slug
 of user.name>`; (5) `HumanActorUnresolvedError` (ruling P-13). Who may
 verify is a separate gate; see [A non-empty actors list is an allow-list and
-okfit never stores emails](actors-allow-list-without-emails.md). The
+okfit never stores emails](actor-allow-list.md). The
 result always satisfies core's `Actor` regex.
 
 ## Alternatives rejected

@@ -18,23 +18,12 @@ import {
 } from "@okfit/engine";
 import { GitHistory, Profiles } from "@okfit/profiles";
 import { Console, DateTime, Effect, FileSystem, Layer, Option, Path } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Command, Flag } from "effect/cli";
 import type { InitConfigLocation } from "../internal/initWizard.js";
 import { INIT_CONFIG_LOCATIONS, initWizard } from "../internal/initWizard.js";
+import { rootFlag } from "../internal/root.js";
 import type { Counts } from "../render/human.js";
 import { displayRoot, human, summary } from "../render/human.js";
-
-/**
- * `[path]` is the PROJECT root (K-2), never the bundle root — identical to
- * `validate`'s own argument (`Argument.Path` resolves it absolute at the
- * parse boundary, satisfying K-50).
- */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
 
 /** K-1: no `mustExist` — existence is checked by `provideConfig`, identical to `validate`'s flag. */
 const configFlag = Flag.File("config").pipe(
@@ -97,7 +86,7 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
 });
 
 /**
- * `okfit init [path] [--profile <name>] [--bundle <dir>] [--config-location <name>]
+ * `okfit init [--root <dir>] [--profile <name>] [--bundle <dir>] [--config-location <name>]
  * [--config <file>]` (K-2, K-3; no `--format`, human output only, K-6).
  *
  * Interactive runs prompt (the kit's Ink screens, `initWizard`) for each of
@@ -146,7 +135,7 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
 /** The `init` handler body, parameterised on `cwd` so tests can drive it against a temp project. */
 export const initProgram = (input: InitInput, cwd: string) =>
 	Effect.gen(function* () {
-		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+		const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 
 		yield* provideConfig({ explicitConfigPath: input.config, discoveryCwd })(
 			Effect.gen(function* () {
@@ -192,7 +181,7 @@ export const initProgram = (input: InitInput, cwd: string) =>
 				const fs = yield* FileSystem.FileSystem;
 
 				const projectRoot = resolveProjectRoot({
-					pathArg: input.path,
+					pathArg: input.root,
 					explicitConfigPath: input.config,
 					discovered:
 						winner === undefined ? Option.none() : Option.some({ path: winner.path, resolver: winner.resolver }),
@@ -270,7 +259,7 @@ export const initProgram = (input: InitInput, cwd: string) =>
 
 /** `okfit init`'s parsed flags and argument. */
 interface InitInput {
-	readonly path: Option.Option<string>;
+	readonly root: Option.Option<string>;
 	readonly config: Option.Option<string>;
 	readonly profile: Option.Option<string>;
 	readonly bundle: Option.Option<string>;
@@ -280,7 +269,7 @@ interface InitInput {
 /** @public */
 export const initCommand = Command.make(
 	"init",
-	{ path: pathArg, config: configFlag, profile: profileFlag, bundle: bundleFlag, configLocation: configLocationFlag },
+	{ root: rootFlag, config: configFlag, profile: profileFlag, bundle: bundleFlag, configLocation: configLocationFlag },
 	(input) => initProgram(input, process.cwd()),
 ).pipe(
 	Command.withDescription(

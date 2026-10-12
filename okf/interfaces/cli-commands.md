@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T16:51:30Z
+  at: 2026-10-12T13:31:17Z
 tags:
   - architecture
 verified:
@@ -19,30 +19,37 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T17:15:26Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-10-12T15:07:39Z
 integrity:
   generated:
-    body: c36d6862913e9322
+    body: 4be309027954468b
   verified:
     by: human:spencer
-    at: 2026-10-11T17:15:26Z
-    content: 0478407e0fdf2892
+    at: 2026-10-12T15:07:39Z
+    content: 3f9ef8cf2893c2a8
 ---
 
-# okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+# okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
 
-## Subcommands and [path]
+## Subcommands and --root
 
-`okfit` has nine subcommands: `validate`, `init`, `context`, `verify`,
-`query`, `sync`, `lint`, `graph`, `stale`. Each
-takes an optional `[path]` as its first positional argument — the **project
-root**, never the bundle root (`<project root>/<bundle.path>`, `okf` by
-default) — defaulting to the current directory (the Subcommands and
-[path] section of `packages/cli/README.md`). `verify` additionally takes an
-optional `<id>` before `[path]`, required unless `--all` and/or `--type` is
-given instead. `query` takes its own subcommand (`list`, `get`, `neighbors`),
-then `<id>` where it needs one, then `[path]`.
+`okfit` has ten subcommands: `validate`, `init`, `context`, `verify`,
+`query`, `sync`, `lint`, `graph`, `stale`, `mv`. `--root <dir>` (every command): the
+project root config discovery starts from. It replaced the `[path]` positional
+in phase 4 so positionals are concept targets everywhere. The **project
+root** is never the bundle root (`<project root>/<bundle.path>`, `okf` by
+default) and defaults to the current directory (the Usage
+section of `packages/cli/README.md`). `verify` additionally takes any number of
+concept targets, required unless `--all` and/or `--type` is given instead. `query` takes
+its own subcommand (`list`, `get`, `neighbors`), then `<id>` where it needs
+one.
 
 ## okfit validate
+
+`okfit validate [targets...]` takes optional targets (concept ids or file paths, any bundle file) that scope the reported diagnostics; the bundle still loads whole, and the JSON `concepts` count stays the bundle size. An unknown target is exit `64`.
 
 Loads the config, loads the bundle, runs conformance and lint checks against
 it, then runs the resolved profile's own checks, and renders every
@@ -124,12 +131,11 @@ anything drifted.
 
 ## okfit verify
 
-`okfit verify [<id>] [path] [--all] [--type <Type>]... [--stable|--draft]
+`okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
 [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--revoke] [--format human|json]` appends one attestation, `{
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
 file back, binding it in the same write with `integrity.verified { by, at,
-content }` (see [integrity frontmatter](integrity-frontmatter.md)). `<id>` is a concept id with or without a leading slash or
-trailing `.md`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
+content }` (see [integrity frontmatter](integrity-frontmatter.md)). A `<target>` is a concept id (a leading slash and a trailing `.md` are tolerated) or a path to a concept file, absolute or relative to the working directory; ids and paths mix freely and flags may follow them (`okfit verify decisions/a okf/decisions/b.md --dry-run`). Every target resolves before anything runs: one bad target means every bad one is listed, nothing is written, and the exit is `64`. One target keeps the single-concept behaviour (drift diff and confirm, `--stable`/`--draft`, the `VerifyEnvelope`); two or more are verified as one all-or-nothing batch with no prompt and a `VerifyBatchEnvelope`. To re-verify everything drifted: `okfit verify $(okfit query list --drifted | cut -d' ' -f1)`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
@@ -144,9 +150,9 @@ unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type`, is exit `64`. The human line carries `; status A -> B`,
+`--all`/`--type` or with more than one target, is exit `64`. The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
-set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both `<id>` and `--all`/`--type`, or an undeclared type, is exit `64`.
+set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
 with a terminal on stdin and stdout, and not `--format json`): every concept
 of a `require_verified` type you have not attested, drafts included and
@@ -157,7 +163,7 @@ all-or-nothing write; an empty pick writes nothing and exits `0`, and Esc,
 interactive, giving neither is exit `64` (`… (run in a terminal to pick
 interactively)`). `--format json` prints a `VerifyBatchEnvelope`
 (`verified_by`, `verified_at`, `concepts`, `skipped`). Exit `0` on success (a
-dry run included), `3` on any failure — an unknown or reserved id, a concept
+dry run included), `3` on any other failure — a concept
 whose `verified` shape cannot be edited safely, a `status` shape that cannot be
 edited safely under `--stable`/`--draft` (for example a block scalar), or an unresolved git
 identity; there is no `1`/`2` content tier. This is a human-run command: no
@@ -175,24 +181,25 @@ an `unbound` concept has no baseline, so it says so instead. `--no-diff`
 skips the diff and the confirm. Non-interactive and JSON runs carry no diff;
 the single-concept envelope gains an optional `prior_integrity`.
 
-`okfit verify --revoke <id>` removes every `verified` entry by the resolved
+`okfit verify --revoke <target>...` removes every `verified` entry by the resolved
 current actor, so it can never remove someone else's attestation. When the
 bound entry is among them it clears `integrity.verified` too (and
 `integrity` when empty); remaining human entries become `unbound`. The JSON
-envelope carries `removed`, `binding_cleared` and `revoked_by`. Exit `3`
+envelope carries `removed`, `binding_cleared` and `revoked_by`; several targets print an array of those envelopes, and the revoke is all or nothing (one target with nothing to revoke writes none). Exit `3`
 when the actor has no entries to revoke, `64` when combined with `--all`,
-`--type`, `--stable`, `--draft` or `--at`, or when no id is given.
+`--type`, `--stable`, `--draft` or `--at`, or when no target is given. An unknown or reserved target is `64` too.
 `--dry-run` and `--format json` are supported.
 
 ## okfit query
 
-`okfit query list [path] [--type <Type>]... [--tag <tag>]... [--status
+`okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status
 draft|stable|deprecated]... [--verified|--unverified] [--drifted]
-[--stale] [--config <file>] [--format human|json]`, `okfit query get <id> [path]` and `okfit query
-neighbors <id> [path]` are read-only lookups over the bundle, backed by the
+[--stale] [--config <file>] [--format human|json]`, `okfit query get <targets...> [--root <dir>]` and `okfit query
+neighbors <target> [--root <dir>]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
-`3` for an unknown id; `64` for an undeclared type or tag or for
+`get` takes one or more concepts (ids or paths) and prints a JSON array for
+more than one, a bare object for one; `64` for an unknown target, an undeclared type or tag or for
 `--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`
 keeps those never verified, `--drifted` keeps those edited since their
 verification was bound, and `--stale` keeps those past `stale_after`; the
@@ -205,7 +212,7 @@ there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 ## okfit sync
 
-`okfit sync [path] [--config <file>] [--only <mode>]... [--dry-run]
+`okfit sync [--root <dir>] [--config <file>] [--only <mode>]... [--dry-run]
 [--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--yes]` is the one command that regenerates every
 derived-content family: `generated.at` and `integrity.generated.body` (per
 concept, the digest always accompanying the date), `index.md` (every
@@ -216,7 +223,7 @@ log, in that fixed order, unless one or more `--only` flags narrow it to a
 subset. `--dry-run` computes every result and writes nothing. Log mode
 considers every committed concept dated on or after the newest logged
 date, appending into that day's group unless it already names the concept
-(see [the log decision](../decisions/cli-sync-log-appends-into-the-day.md));
+(see [the log decision](../decisions/sync-log-days.md));
 `--since` replaces that floor. A malformed `--since` is a usage error,
 exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
@@ -249,7 +256,7 @@ nothing written, re-run sync) when a target changed since the plan was made.
 `--staged` is the pre-commit shape: only concepts in the git index are
 considered, stamped with `now` and re-added; default modes become
 `generated` and `index`, and `--only log` with `--staged` is a usage
-error, exit `64` ([decision](../decisions/cli-sync-staged-stamps-now.md)).
+error, exit `64` ([decision](../decisions/sync-staged-stamps.md)).
 Index mode under `--staged` still renders `index.md` from the working
 tree, not the index, so an unstaged or untracked concept already on disk
 is listed in the committed index before the concept itself is committed;
@@ -275,8 +282,8 @@ restamps Publications. In the JSON envelope the three modes are all
 
 ## okfit lint
 
-`okfit lint [path] [--config <file>] [--format human|json]
-[--skip-provenance]` shares `validate`'s whole handler — the same config
+`okfit lint [targets...] [--root <dir>] [--config <file>] [--format human|json]
+[--skip-provenance]` shares `validate`'s whole handler (including its optional targets, which scope the reported diagnostics only, so link lints stay right) — the same config
 resolution, the same engine `run` call (both tiers `Validate.all` produces
 still run internally, and `--skip-provenance` still means exactly what it
 means for `validate`), the same human and JSON renderers — except the
@@ -290,7 +297,7 @@ validate` would exit `2` against it.
 
 ## okfit graph
 
-`okfit graph [path] [--config <file>] [--format mermaid|dot|json]` loads
+`okfit graph [--root <dir>] [--config <file>] [--format mermaid|dot|json]` loads
 the bundle and renders its link graph — frontmatter path fields and body
 links, both concept-to-concept and concept-to-file, including dangling
 links to a target that does not exist (D-25). `--format` defaults to
@@ -310,7 +317,7 @@ key unless the edge came from a named frontmatter path field, `raw`).
 
 ## okfit stale
 
-`okfit stale [path] [--config <file>] [--format human|json] [--verify [--dry-run]]` loads the
+`okfit stale [--root <dir>] [--config <file>] [--format human|json] [--verify [--dry-run]]` loads the
 bundle and lists every concept whose `stale_after` instant has already
 passed as of now, sorted by id, each with how many whole days past it.
 `OKFIT_NOW` (K-47) substitutes for the wall clock the same way it does for
@@ -336,7 +343,7 @@ non-interactive `stale --verify` is exit `64`, as is `--dry-run` without
 `--verify`; Esc, `q`, Ctrl-C or answering no exits `130` with nothing
 written. Bare `okfit stale` is unchanged, a report that always exits `0`. See
 [stale --verify rolls stale_after
-forward](../decisions/stale-verify-rolls-stale-after-forward.md); like
+forward](../decisions/stale-verify.md); like
 `verify`, this is a human-run command.
 
 `okfit stale --format json` prints a `StaleEnvelope` (schema 1): `schema`,
@@ -344,10 +351,44 @@ forward](../decisions/stale-verify-rolls-stale-after-forward.md); like
 `okf_version`, `root`, `profile`, `as_of` (an ISO-8601 instant), `summary` (`concepts`, `stale`), `items` (`id`,
 `stale_after`, `days_past`).
 
+## okfit mv
+
+`okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]`
+moves one concept and rewrites every reference to it across the bundle. `<from>`
+resolves like any concept target; `<to>` is an absolute path, a cwd-relative path
+inside the bundle or a bundle-relative id (`.md` is added when missing; a leading
+`/` is the id spelling when the absolute reading falls outside the bundle). A `<to>`
+naming an existing bundle directory, or ending in `/`, moves the concept into that
+directory keeping its file name, as shell `mv` does. A `<to>` containing whitespace
+is refused. Rewritten
+kinds: body links and reference definitions, path-kind frontmatter fields,
+`supersedes` and Publication `renders[].path`; each keeps its spelling (rooted,
+bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's own
+outbound relative links are recomputed, including angle-bracketed body links whose
+path holds a space.
+
+Every file whose text changes drifts by the ordinary rule: `mv` never writes
+`verified` or `integrity`, and the plan lists the concepts whose current human
+verification it voids. `--dry-run` prints the plan and writes nothing. `mv` never
+edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
+generated stamps; the order for this repository is bundle edit, commit,
+`pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside
+the bundle (a `..` that climbs out or a symlinked directory that leads out included),
+is a reserved file, contains whitespace or equals the source is exit `64` with nothing
+written, as is moving the bundle's project file (`project.md`), which must stay at the
+bundle root, and any Markdown file in the bundle that did not load as a concept (it is
+never scanned, so a link to the moved file inside it would go stale; `okfit validate`
+names it, fix it first), and a link that
+would need rewriting for this move and whose URL cannot be located (an unrelated
+link the locator cannot read does not block it). `--format json` prints a
+`MoveEnvelope` (schema 1): `from`, `to`, `path`, `dry_run`, `edits` (`path`,
+`count`), `drifts`. Why files are named for topics:
+[concept files are named for their topic](../decisions/topical-concept-names.md).
+
 ## Config discovery
 
 With no `--config` flag, `okfit` resolves config tier by tier: the project
-tier checks each directory from `[path]` up to the filesystem root for
+tier checks each directory from `--root` up to the filesystem root for
 `.okfit.toml`, then `okfit.toml`, then `.config/okfit.toml`, and the first
 file found anywhere wins; then the XDG tier
 (`$XDG_CONFIG_HOME/okfit/config.toml`, `$XDG_CONFIG_DIRS`); then the native
@@ -400,7 +441,7 @@ is `{ "name", "version" }` for the meta-package the bin was installed
 through (`@okfit/plugin`) and `null` for a direct install of `@okfit/cli`
 or `@okfit/mcp`. The rule, from [The engine version, not the producer
 version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md): compare
+on](../decisions/comparable-version.md): compare
 `engine_version` and `okf_version`; everything else is packaging.
 `okfit --version` prints the same numbers in one line, plus the config
 schema version — `okfit <cli> (engine <engine>, okf <okf>, config-schema

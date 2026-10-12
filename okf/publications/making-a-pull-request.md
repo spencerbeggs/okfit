@@ -6,10 +6,10 @@ status: draft
 resource: ../../docs/01-making-a-pull-request.md
 surface: ../surfaces/contributor-guides.md
 renders:
-  - path: ../conventions/commits-conventional-dco-no-main.md
+  - path: ../conventions/commit-rules.md
     body: 20e6953f2dd97ce0
-  - path: ../conventions/tests-live-in-test-dir.md
-    body: 19e5d5684f9c3e0e
+  - path: ../conventions/test-location.md
+    body: 1d7e24bb71b625ab
   - path: ../conventions/relative-imports-js-extension.md
     body: c58164991f73965f
 generated:

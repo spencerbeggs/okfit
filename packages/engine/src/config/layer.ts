@@ -38,7 +38,7 @@ import { ConfigMalformedError, ConfigPathNotFoundError } from "../errors.js";
  * `save`/`update` do not fail with `ConfigDefaultPathMissingError`; nothing
  * here sets it explicitly any more.
  *
- * `discoveryCwd` is `[path]` when given, else `process.cwd()` (K-2), passed
+ * `discoveryCwd` is `--root` when given, else `process.cwd()` (K-2), passed
  * straight through as `upwardWalk`'s own `cwd` so nothing in this module
  * reads the process.
  *

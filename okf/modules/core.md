@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T16:51:30Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: dc03160db206f760
+    body: bb93aec98db2ccdf
 ---
 
 # Core
@@ -47,7 +47,7 @@ config JSON Schema contract -- `okfitConfigDocumentFields`,
 which `lib/configs/schemastore.config.ts` publishes to the repo-root
 `schemas/` tree via `pnpm schema:build` / `schema:check` (see [The engine
 version, not the producer version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)).
+on](../decisions/comparable-version.md)).
 `internal/` is the engine: `posixPath`, `position`, `walk`, `frontmatter`,
 `reserved`, `links`, `lintRules`, `templates`
 (`packages/core/CLAUDE.md:17-26`).

@@ -36,7 +36,6 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
-		"@effect/platform-node-shared": "catalog:effect",
 		"@effected/cli": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
 		"@effected/engine": "catalog:effected",

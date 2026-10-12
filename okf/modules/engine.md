@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:04:45Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 7b0c439c1163a083
+    body: 2c58ad0bfe9e575f
 ---
 
 # Engine
@@ -25,7 +25,7 @@ validate/verify/sync/init/context programs shared by `@okfit/cli` and
 (`packages/engine/CLAUDE.md:1-6`). It replaces the arrangement where
 `@okfit/cli`'s own barrel was the copy contract `@okfit/mcp` depended on
 — see [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md) for why.
+cli-as-copy-contract](../decisions/engine-front-end-split.md) for why.
 `@okfit/mcp` depends on this package directly and no longer depends on
 `@okfit/cli` at all.
 
@@ -56,14 +56,14 @@ envelope renderer stamps it as `engine_version` itself rather than taking
 it from the caller; the renderers also take an optional `distribution`
 the front ends thread through from `main()`. See [The engine version, not
 the producer version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md).
+on](../decisions/comparable-version.md).
 
 `render/distribution.ts`'s `Distribution`/`DistributionField` are now
 re-exported from `@effected/engine` rather than declared locally, so
 `@okfit/cli`'s `CurrentDistribution` reference and every envelope in this
 package agree on one shape -- see [okfit's front ends build on
 @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
+equivalents](../decisions/effected-kit-adoption.md).
 
 `validate/run.ts#run` and `sync/run.ts#runSync` both now carry
 `Crypto.Crypto` in their dependencies, satisfied for free wherever
@@ -147,7 +147,7 @@ forward to the attestation instant plus `lifecycle.default_stale_after` in the
 same all-or-nothing write, through the shared `verify/locate.ts` and splice
 helpers, and a re-attest by the same actor overwrites that actor's own
 `verified[].at` rather than appending. See [stale --verify rolls stale_after
-forward](../decisions/stale-verify-rolls-stale-after-forward.md).
+forward](../decisions/stale-verify.md).
 
 ## Concept queries
 
@@ -182,7 +182,7 @@ reported as an unfixable gap, and `sync/log.ts`'s log mode appends into
 the newest logged day (inclusive) instead of only after it, deduping
 against the two mechanical spellings `sync` itself writes -- see [okfit
 sync's log mode appends into the newest logged day and dedupes on its own
-spellings](../decisions/cli-sync-log-appends-into-the-day.md), which
+spellings](../decisions/sync-log-days.md), which
 supersedes the strictly-after rule. `--since <YYYY-MM-DD>` widens that
 floor on request. A `staged` mode (`sync/run.ts`) selects only the git
 index, stamps `generated.at` with `now` (truncated to seconds) and
@@ -190,7 +190,7 @@ index, stamps `generated.at` with `now` (truncated to seconds) and
 it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is
-honest](../decisions/cli-sync-staged-stamps-now.md). Staged mode never
+honest](../decisions/sync-staged-stamps.md). Staged mode never
 walks history and never runs log mode. A malformed `--since` is a
 parse-time usage error from the CLI's own argument parser, never a
 `SyncStagedLogError`; only `--only log` paired with `--staged` raises
@@ -253,7 +253,7 @@ the parsed status. A shape neither locator recognises fails closed with
 actions and commands are the first caller besides `okfit verify` itself --
 see [Frontmatter splices are a shared engine surface for the CLI's verify
 and the language server's
-actions](../decisions/engine-frontmatter-edits-shared-surface.md), which
+actions](../decisions/frontmatter-edits.md), which
 supersedes the CLI-private splice decision.
 
 ## Process boundary

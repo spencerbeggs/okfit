@@ -6,20 +6,22 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-09-08T01:54:14Z
+  at: 2026-10-11T20:52:46Z
 status: stable
 verified:
   - by: human:spencer
     at: 2026-09-08T02:12:58Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 3c2b5ef2c57c4307
+    body: edcc32f620e1fac3
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: b89bebbd2c5366d6
+    at: 2026-10-11T22:01:13Z
+    content: 2d09658d67bdef43
 ---
 
 # A walk past maxDepth fails typed, never silently truncates
@@ -53,7 +55,7 @@ Silent truncation -- returning whatever `descend` had matched up to the
 cap as if it were the whole bundle -- was the behaviour before this round
 and is rejected here: it would silently change a bundle's concept
 membership depending on how deep a contributor happened to nest
-directories, the same failure mode `core-loading-never-fails-on-content.md`
+directories, the same failure mode `content-tolerant-loading.md`
 and this package's own D-9 rule against hidden unreadable subtrees already
 forbid. A configurable "truncate with a warning diagnostic" middle ground
 was also considered and rejected: a depth cap is a structural bound on the

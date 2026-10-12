@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 2d77faae1cc49705
+    body: d2ad5264aed5f95c
 ---
 
 # CLI
@@ -31,7 +31,7 @@ here (`packages/cli/CLAUDE.md:1-8`). The distribution comes from
 `@effected/engine`'s `CurrentDistribution` reference; `Distribution`
 itself is re-exported from `@effected/engine` too -- see [okfit's front
 ends build on @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](../decisions/front-ends-adopt-the-effected-kit.md). `okfit context` prints the same
+equivalents](../decisions/effected-kit-adoption.md). `okfit context` prints the same
 orientation data (project root, bundle root, config path, profile,
 vocabulary) without loading the bundle (`--trust` is the one opt-in load, adding drift,
 stale and unverified counts) -- cheap enough for a Claude Code
@@ -136,7 +136,7 @@ failure, `64` usage error, `130` interrupt (`packages/cli/CLAUDE.md`).
 `ENGINE_VERSION` and `OKF_SPEC_VERSION`; `main(options?)` accepts the
 `distribution` the meta-package's bin shim passes through — see [The
 engine version, not the producer version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)).
+on](../decisions/comparable-version.md)).
 `internal/tty.ts`, this package's former sole reader of `isTTY`/
 `NO_COLOR`, and `internal/exit.ts` (`setExitCode`) are deleted: colour is
 now `@effected/cli`'s `CliTheme` decision, read through the ambient

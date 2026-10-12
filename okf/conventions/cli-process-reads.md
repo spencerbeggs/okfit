@@ -5,13 +5,13 @@ description: Only bin.ts, main.ts, and commands/*.ts read process; every other f
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-01T18:31:01Z
+  at: 2026-10-11T20:51:30Z
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
 integrity:
   generated:
-    body: 9bbdda6d22ef32fc
+    body: 9e2cb49ee7a0067d
 ---
 
 # process reads confined to the CLI's boundary files
@@ -47,7 +47,7 @@ imports `App`, `AppStore`, `AppCache`, or anything else from that module.
 Config discovery, and the `AppConfig.layer` call that needs
 `@effected/app`, moved to `@okfit/engine`'s `config/layer.ts` (see
 [A shared @okfit/engine package replaces
-cli-as-copy-contract](../decisions/engine-front-end-split-effected-kit.md)); this
+cli-as-copy-contract](../decisions/engine-front-end-split.md)); this
 package has had no reason to import the module since.
 
 ## Enforcement
@@ -61,7 +61,7 @@ and `commands/**`) with a blanket
 `{ forbidImports: ["@effected/app"] }` rule, broader than a three-name
 (`App`/`AppStore`/`AppCache`) allowlist would be — see [okfit's front ends
 build on @effected/{engine,cli,mcp} rather than hand-rolled
-equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
+equivalents](../decisions/effected-kit-adoption.md).
 
 ## Where stated
 

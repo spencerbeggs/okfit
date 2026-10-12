@@ -9,6 +9,7 @@ import {
 	QueryListEnvelope,
 	QueryNeighborsEnvelope,
 	QuerySelectionError,
+	Targets,
 	jsonError,
 	provideConfig,
 	queryGetEnvelope,
@@ -23,20 +24,18 @@ import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanQueryGet, humanQueryList, humanQueryNeighbors, queryListSummary } from "../render/query.js";
 import { CLI_VERSION } from "../version.js";
 
-/** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
+const idArg = Argument.String("target").pipe(
+	Argument.withDescription("concept: an id (leading / and trailing .md tolerated) or a path to its file"),
 );
 
-const idArg = Argument.String("id").pipe(
-	Argument.withDescription("concept id, with or without a leading slash or trailing .md"),
+const targetsArg = Argument.String("targets").pipe(
+	Argument.variadic({ min: 1 }),
+	Argument.withDescription("one or more concepts: ids or paths to concept files"),
 );
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
@@ -92,7 +91,7 @@ const staleFlag = Flag.Boolean("stale").pipe(
  */
 const run = <A, E, R>(
 	input: {
-		readonly path: Option.Option<string>;
+		readonly root: Option.Option<string>;
 		readonly config: Option.Option<string>;
 		readonly format: "human" | "json";
 	},
@@ -107,14 +106,14 @@ const run = <A, E, R>(
 ) =>
 	Effect.gen(function* () {
 		const cwd = process.cwd();
-		const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+		const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 		const path = yield* Path.Path;
 		const distribution = yield* CurrentDistribution;
 
 		const body = Effect.gen(function* () {
 			if (precheck !== undefined) yield* precheck;
 			const resolved = yield* resolveProjectConfig({
-				pathArg: input.path,
+				pathArg: input.root,
 				explicitConfigPath: input.config,
 				cwd,
 			});
@@ -145,7 +144,7 @@ const distributionOf = (distribution: Option.Option<Distribution>) =>
 	Option.isSome(distribution) ? { distribution: distribution.value } : {};
 
 /**
- * `okfit query list [path] [--type <T>]... [--tag <t>]... [--status <s>]...
+ * `okfit query list [--root <dir>] [--type <T>]... [--tag <t>]... [--status <s>]...
  * [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]`.
  *
  * @public
@@ -153,7 +152,7 @@ const distributionOf = (distribution: Option.Option<Distribution>) =>
 export const queryListCommand = Command.make(
 	"list",
 	{
-		path: pathArg,
+		root: rootFlag,
 		config: configFlag,
 		type: typeFlag,
 		tag: tagFlag,
@@ -203,55 +202,69 @@ export const queryListCommand = Command.make(
 );
 
 /**
- * `okfit query get <id> [path] [--config <file>] [--format human|json]`.
+ * `okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]`.
  *
  * @public
  */
 export const queryGetCommand = Command.make(
 	"get",
-	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
+	{ targets: targetsArg, root: rootFlag, config: configFlag, format: formatFlag },
 	(input) =>
 		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
-				const { concept, links } = yield* ConceptQuery.get(bundle, input.id);
-				const signal = signalFor(signals, concept.id);
-				const summary = toConceptSummary(concept, signal);
+				const resolved = yield* Targets.resolve(input.targets, bundle, process.cwd());
+				const found = [];
+				for (const target of resolved) found.push(yield* ConceptQuery.get(bundle, target.id as string));
+				const views = found.map(({ concept, links }) => {
+					const signal = signalFor(signals, concept.id);
+					return { concept, links, signal, summary: toConceptSummary(concept, signal) };
+				});
 				if (input.format === "json") {
-					const envelope = queryGetEnvelope({
-						okfitVersion: CLI_VERSION,
-						concept: summary,
-						drift: toTrustDrift(signal),
-						frontmatter: concept.frontmatter.raw,
-						links,
-						...distributionOf(distribution),
-					});
-					yield* Console.log(JSON.stringify(Schema.encodeSync(QueryGetEnvelope)(envelope)));
+					const encoded = views.map(({ concept, links, signal, summary }) =>
+						Schema.encodeSync(QueryGetEnvelope)(
+							queryGetEnvelope({
+								okfitVersion: CLI_VERSION,
+								concept: summary,
+								drift: toTrustDrift(signal),
+								frontmatter: concept.frontmatter.raw,
+								links,
+								...distributionOf(distribution),
+							}),
+						),
+					);
+					yield* Console.log(JSON.stringify(encoded.length === 1 ? encoded[0] : encoded));
 				} else {
-					for (const line of humanQueryGet({
-						summary,
-						drift: toTrustDrift(signal),
-						verified: concept.frontmatter.verified ?? [],
-						links,
-					})) {
-						yield* Console.log(line);
+					let first = true;
+					for (const { concept, links, signal, summary } of views) {
+						if (!first) yield* Console.log("");
+						first = false;
+						for (const line of humanQueryGet({
+							summary,
+							drift: toTrustDrift(signal),
+							verified: concept.frontmatter.verified ?? [],
+							links,
+						})) {
+							yield* Console.log(line);
+						}
 					}
 				}
 			}),
 		),
-).pipe(Command.withDescription("Show one concept: its fields, verified entries, and outgoing links."));
+).pipe(Command.withDescription("Show one or more concepts: their fields, verified entries, and outgoing links."));
 
 /**
- * `okfit query neighbors <id> [path] [--config <file>] [--format human|json]`.
+ * `okfit query neighbors <target> [--root <dir>] [--config <file>] [--format human|json]`.
  *
  * @public
  */
 export const queryNeighborsCommand = Command.make(
 	"neighbors",
-	{ id: idArg, path: pathArg, config: configFlag, format: formatFlag },
+	{ id: idArg, root: rootFlag, config: configFlag, format: formatFlag },
 	(input) =>
 		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
-				const result = yield* ConceptQuery.neighbors(bundle, input.id);
+				const [target] = yield* Targets.resolve([input.id], bundle, process.cwd());
+				const result = yield* ConceptQuery.neighbors(bundle, (target as { id: string }).id);
 				const project = (n: (typeof result.outgoing)[number]) => ({
 					id: n.id,
 					kind: n.kind,

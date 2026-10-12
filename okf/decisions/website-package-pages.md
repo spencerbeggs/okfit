@@ -17,9 +17,15 @@ generated:
 verified:
   - by: human:spencer
     at: 2026-09-29T22:19:48Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
     body: 96fc4a302944f3c7
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 249c9acabb15d0b4
 ---
 
 # User docs live under /docs; package hierarchies live at the site root beside their generated API

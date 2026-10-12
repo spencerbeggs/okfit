@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:04:45Z
+  at: 2026-10-11T20:51:30Z
 tags:
   - architecture
 verified:
@@ -15,13 +15,15 @@ verified:
     at: 2026-09-24T00:18:08.679Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 068e0a7b6caacabb
+    body: 0f79aa5804c08997
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: 719b8008217eb200
+    at: 2026-10-11T22:01:13Z
+    content: f4430d1b3485d740
 ---
 
 # Agent plugin hooks contract
@@ -58,12 +60,13 @@ The write has already landed by the time this hook runs, so it is a
 stop-and-fix signal, never a prevention. As of LSP phase 4, [The
 PostToolUse hook keeps only conformance blocking and the generated.by
 check, once the language server delivers lint and profile
-findings](../decisions/plugin-posttooluse-conformance-only-after-lsp.md)
+findings](../decisions/posttooluse-hook-scope.md)
 the hook keeps exactly two jobs, now that the registered language server
 delivers `core.lint` and profile findings with precise ranges directly in
 the editor. For a path under the bundle root, it runs
-`okfit validate <project_root> --format json --skip-provenance` on the
-whole bundle, filters the diagnostics to the edited file, and turns a
+`okfit validate --root <project_root> <file> --format json --skip-provenance`
+(the bundle loads whole; the edited file as a target scopes the reported
+diagnostics to it), and turns a
 `core.conformance` hit into `{"decision": "block", ...}`; every other
 diagnostic for that file — `core.lint`, profile findings — is silent
 here and no longer emitted as `additionalContext`. One check reads the

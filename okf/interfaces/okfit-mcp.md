@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:44:11Z
+  at: 2026-10-11T20:51:30Z
 tags:
   - architecture
 verified:
@@ -15,13 +15,15 @@ verified:
     at: 2026-09-24T00:18:14.360Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 39138456c1e02710
+    body: cb38ca5d85a6aeb9
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: e27cf0a0f90f50a3
+    at: 2026-10-11T22:01:13Z
+    content: 276a313c93dbad08
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -110,7 +112,7 @@ order: `2026-07-28` (stateless: no `initialize`, opened with
 `server/discover`), then `2025-11-25` and `2025-06-18` (stateful, opened
 with `initialize`); see
 [The MCP server is Effect-native and lists the stateless 2026-07-28
-adapter first](../decisions/mcp-stateless-first-protocol-list.md) for why
+adapter first](../decisions/mcp-protocol-versions.md) for why
 those three and in that order, not restated here. The server's
 `instructions` string is part of the contract: it is returned verbatim in
 both the `initialize` result and the `server/discover` result, and it

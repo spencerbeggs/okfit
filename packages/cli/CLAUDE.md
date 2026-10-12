@@ -7,7 +7,7 @@ The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`,
 `@effected/cli` for output and failure rendering. This package is a
 presentation shell over `@okfit/engine`: config discovery and the
 validate/verify/sync/init/context programs live there, not here -- see
-`okf/decisions/engine-front-end-split-effected-kit.md`.
+`okf/decisions/engine-front-end-split.md`.
 
 `okfit context` prints the same orientation data (project root, bundle
 root, config path, profile, vocabulary) without loading the bundle — cheap
@@ -61,7 +61,7 @@ src/
                               (from @okfit/engine) and OKF_SPEC_VERSION, and `via <name>
                               <version>` when main() was given a distribution; the engine and
                               OKF numbers are the ones a reader compares
-                              (okf/decisions/engine-version-is-the-comparable-version-effected-kit.md)
+                              (okf/decisions/comparable-version.md)
   errors.ts                -- renderFailure and its private helpers only; the typed error
                               classes themselves (ConfigPathNotFoundError,
                               InitOverwriteError, ConfigMalformedError,
@@ -82,6 +82,7 @@ src/
                                     through CliUi.lazy so React/Ink load only when it mounts; the only .tsx
                                     module (tsconfig sets jsx react-jsx)
     sync.ts                     -- syncCommand: flags/argument, the full handler
+    mv.ts                        -- mvCommand: moves a concept and rewrites every reference (engine's runMove)
     query.ts                     -- queryCommand (list/get/neighbors subcommands over @okfit/engine's ConceptQuery)
   render/
     context.ts                  -- humanContext (human half; the envelope half is
@@ -92,6 +93,7 @@ src/
     query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
     verify.ts                      -- VerifyLines, humanVerify / humanVerifyDoc / humanVerifyBatchDoc (human half
                                       of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print)
+    move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
     stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), staleSummary
   internal/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
@@ -125,7 +127,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   decision, read through the ambient `ConfigProvider`, never a `process`
   read this package performs itself -- see [okfit's front ends build on
   @effected/{engine,cli,mcp} rather than hand-rolled
-  equivalents](../../okf/decisions/front-ends-adopt-the-effected-kit.md).
+  equivalents](../../okf/decisions/effected-kit-adoption.md).
   Every file under `render/` is pure or Effect-typed with no `process`
   access and no `@effect/platform-node` import. This package imports
   nothing from `@effected/app` at all -- enforced as a blanket
@@ -140,8 +142,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `@effected/toml`, `@effected/walker`, `@effected/yaml`), `@okfit/profiles`'s
   peers (`@effected/git`, `@effected/markdown`, `@okfit/core`), and the
   CLI's own wiring (`@effect/platform-node` for `NodeRuntime`,
-  `@effect/platform-node-shared` pinned to 4.0.2 until effect 4.0.3 publishes
-  (effected#996), `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
+  `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
   there is nothing of engine's to satisfy here. Several
   of these are never imported directly by a file under `src/` — they satisfy
   a peer of a dependency this package DOES import directly. Do not "clean up"

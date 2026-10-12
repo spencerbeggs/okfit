@@ -187,6 +187,19 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect("missing-index also flags an ancestor directory that holds no concept, only a nested directory", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"topics/deep/a.md": "---\ntype: Note\ntitle: A\n---\n\n# A\n",
+			});
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "missing-index");
+			assert.deepStrictEqual(
+				lint.map((d) => d.file),
+				["topics/index.md", "topics/deep/index.md"],
+			);
+		}),
+	);
+
 	it.effect("require-verified-unmet skips a draft concept and still fires on a stable one (issue #31)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadDraftBundle;

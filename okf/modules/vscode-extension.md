@@ -10,10 +10,10 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T13:38:51Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 1a3f30efd7aa79e7
+    body: 9570e3a7117e42e8
 ---
 
 # VS Code Extension
@@ -28,7 +28,7 @@ talks to a model through hooks and MCP tools. It lives at the workspace
 root under `vscode/`, sibling to `packages/*` and `plugin`
 rather than inside either — see [The VS Code extension lives at vscode/,
 not under plugins/ or
-packages/](../decisions/vscode-extension-at-repo-root.md). It wraps
+packages/](../decisions/vscode-extension-location.md). It wraps
 [LSP](lsp.md)'s `okfit-lsp` server: diagnostics, hover, navigation and
 workspace symbols come from the language client VS Code already knows how
 to render; the concept explorer, Language Status item and commands are
@@ -357,7 +357,7 @@ engine](../roadmaps/lsp-server-and-vscode-extension.md).
   the tree view and status item consume.
 - [Workspace](workspace.md) -- the workspace layout `vscode/` joins.
 - [The VS Code extension lives at vscode/, not under plugins/ or
-  packages/](../decisions/vscode-extension-at-repo-root.md)
+  packages/](../decisions/vscode-extension-location.md)
 - [Publish the VS Code
   extension](../runbooks/publish-vscode-extension.md)
 - [An @okfit/lsp language server and a VS Code extension over the shared

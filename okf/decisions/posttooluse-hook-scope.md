@@ -8,20 +8,22 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T19:34:18Z
 status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 431442e73f7d9533
+    body: 9b07c45f66c51c60
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 261de8448783fd95
+    at: 2026-10-11T22:01:13Z
+    content: 924b6765104adfd0
 ---
 
 # The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
@@ -30,7 +32,7 @@ integrity:
 
 [The validate hook fires PostToolUse, not
 PreToolUse](plugin-posttooluse-not-pretooluse.md) established that the
-hook runs `okfit validate <project_root> --format json` once per write,
+hook runs `okfit validate --root <project_root> --format json` once per write,
 filters the diagnostics to the edited file, blocks
 (`decision: "block"`) on a `core.conformance` hit, and warns
 (`additionalContext`) on a `core.lint`/profile-only hit. That second

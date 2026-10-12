@@ -18,12 +18,15 @@ export {
 	ConfigPathNotFoundError,
 	DocumentPathError,
 	InitOverwriteError,
+	MoveError,
 	QueryConceptNotFoundError,
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
 	SyncPlanStaleError,
 	SyncPublicationConflictError,
 	SyncStagedLogError,
+	TargetFailure,
+	TargetResolutionError,
 	VerifyConceptNotFoundError,
 	VerifyNothingToRevokeError,
 	VerifySelectionError,
@@ -35,6 +38,10 @@ export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
+export type { Reference, UnlocatableReference } from "./move/references.js";
+export { referencesOf, rewriteReference } from "./move/references.js";
+export type { MovePlan, PlanError, PlanMoveOptions, RunMoveOptions } from "./move/run.js";
+export { planMove, runMove } from "./move/run.js";
 export type { DocumentInput } from "./overlay/documents.js";
 export { provideDocuments, resolveDocumentPath } from "./overlay/documents.js";
 export type { OverlayDocument, OverlayDocumentsShape } from "./overlay/layer.js";
@@ -63,6 +70,7 @@ export {
 	graphEnvelope,
 } from "./render/graph.js";
 export { JsonDiagnostic, JsonEnvelope, JsonErrorEnvelope, JsonSummary, json, jsonError } from "./render/json.js";
+export { MoveEnvelope, moveEnvelope } from "./render/move.js";
 export {
 	ConceptSummary,
 	QueryGetEnvelope,
@@ -109,6 +117,8 @@ export { NotAPublicationError, PublicationNotFoundError, stampPublication } from
 export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult } from "./sync/run.js";
 export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
 export type { PendingWrite } from "./sync/write.js";
+export type { ResolvedTarget } from "./targets/resolve.js";
+export { Targets } from "./targets/resolve.js";
 export type { ContextTrustOptions } from "./trust/run.js";
 export { runContextTrust } from "./trust/run.js";
 export type { RunOptions, RunResult } from "./validate/run.js";
@@ -118,6 +128,7 @@ export { changeSince } from "./verify/diff.js";
 export type {
 	DriftInspection,
 	PickerCandidatesOptions,
+	RevokeIdsOptions,
 	RevokeOptions,
 	RevokeResult,
 	VerifyBatchOptions,
@@ -133,6 +144,7 @@ export {
 	loadPreviews,
 	loadStaleCandidates,
 	runRevoke,
+	runRevokeIds,
 	runVerify,
 	runVerifyBatch,
 	runVerifyIds,

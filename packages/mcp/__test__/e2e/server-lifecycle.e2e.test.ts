@@ -204,7 +204,7 @@ describe("server lifecycle", () => {
 			const envelope = response.result.structuredContent;
 			yield* server.closeStdin;
 
-			const cliOutput = execFileSync(process.execPath, [CLI_BIN, "validate", ".", "--format", "json"], {
+			const cliOutput = execFileSync(process.execPath, [CLI_BIN, "validate", "--root", ".", "--format", "json"], {
 				cwd: REPO_ROOT,
 				env: { PATH: ENV.PATH, HOME: ENV.HOME, NO_COLOR: "1" },
 				encoding: "utf8",

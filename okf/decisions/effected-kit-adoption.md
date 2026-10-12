@@ -8,7 +8,7 @@ tags:
   - deps
 generated:
   by: okfit/claude-code
-  at: 2026-09-28T20:26:24Z
+  at: 2026-10-11T20:52:46Z
 sources:
   - id: main-ts
     resource: ../../packages/cli/src/main.ts
@@ -33,13 +33,15 @@ verified:
     at: 2026-09-24T17:51:15Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: efc14094c73730ab
+    body: c1ed88262e1a765d
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: da9401276f81f08e
+    at: 2026-10-11T22:01:13Z
+    content: 2c3a4355005443e2
 ---
 
 # okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
@@ -175,13 +177,13 @@ duplication in place.
   answering); JSON that is not a JSON-RPC message (`null`, a bare number,
   an object with neither `method` nor `id`) gets `-32600` and the server
   keeps serving.
-- The `mcp-stateless-first-protocol-list` Decision's claim that this
+- The `mcp-protocol-versions` Decision's claim that this
   package "uses native `McpServer.toolkit`" no longer holds literally --
   it now goes through `@effected/mcp`'s `McpToolkit.layer`, which runs
   core's own `registerToolkit` unchanged underneath and adds the
   unknown-key pre-check above; the protocol list and its ordering rules
   that Decision states are otherwise unaffected.
-- `okf/conventions/process-reads-confined-in-cli.md`'s allowlist is
+- `okf/conventions/cli-process-reads.md`'s allowlist is
   narrower: `internal/tty.ts` no longer exists, so the CLI's own
   `process`-read surface is `bin.ts`, `main.ts`, `commands/*.ts`, and
   `internal/exit.ts`; colour is now the kit's own ambient-`ConfigProvider`

@@ -407,7 +407,7 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 });
 
 export const missingIndex: LintRule = rule("missing-index", (context, severity) =>
-	context.bundle.directories
+	Derive.indexDirectories(context.bundle)
 		.filter((dir) => !context.bundle.indexes.has(dir))
 		.map((dir) => {
 			const message = `Directory "${dir === "" ? "." : dir}" has no index.md`;

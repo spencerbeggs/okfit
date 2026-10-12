@@ -7,20 +7,22 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T20:51:30Z
 status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 0be3b6aa560a98aa
+    body: 203a26b4456a046a
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: a8ff63b7cd8dc143
+    at: 2026-10-11T22:01:13Z
+    content: dc5c76ead30cedd1
 ---
 
 # okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
@@ -32,7 +34,7 @@ new or body-edited concept could only be stamped after it was committed,
 and the stamp then needed a second commit (okfit #20). Derivation's rule
 that an uncommitted body never gets `now` substituted for its provenance
 ([Uncommitted provenance is the caller's to
-interpret](profiles-uncommitted-is-callers-to-interpret.md)) is correct
+interpret](uncommitted-provenance.md)) is correct
 for an ordinary run: a file staged today may be committed next week.
 
 ## Decision

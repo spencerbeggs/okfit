@@ -118,15 +118,14 @@ describe("okfit query (e2e)", () => {
 		}
 	});
 
-	it("get nope exits 3; --format json prints the K-22 error envelope", async () => {
+	it("get nope exits 64 (a usage error); --format json prints the K-22 error envelope", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const human = await run(["query", "get", "nope"], cwd, env);
-			assert.strictEqual(human.exitCode, 3);
-			assert.include(human.stderr, 'error: no concept "nope" in this bundle');
-			assert.notInclude(human.stderr, "QueryConceptNotFoundError");
+			assert.strictEqual(human.exitCode, 64);
+			assert.include(human.stderr, "nope");
 			const r = await run(["query", "get", "nope", "--format", "json"], cwd, env);
-			assert.strictEqual(r.exitCode, 3);
+			assert.strictEqual(r.exitCode, 64);
 			const body = JSON.parse(r.stdout) as { error?: unknown; schema?: unknown; okfit_version?: unknown };
 			assert.isDefined(body.error);
 			assert.isDefined(body.schema);
@@ -150,13 +149,13 @@ describe("okfit query (e2e)", () => {
 		}
 	});
 
-	it("positionals: list <abs project> and get project <abs project> work from another cwd", async () => {
+	it("--root: list and get work from another cwd", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const elsewhere = dirname(cwd);
-			const list = await run(["query", "list", cwd], elsewhere, env);
+			const list = await run(["query", "list", "--root", cwd], elsewhere, env);
 			assert.strictEqual(list.exitCode, 0);
-			const get = await run(["query", "get", "project", cwd], elsewhere, env);
+			const get = await run(["query", "get", "project", "--root", cwd], elsewhere, env);
 			assert.strictEqual(get.exitCode, 0);
 			assert.isTrue(get.stdout.startsWith("project\n"));
 		} finally {
@@ -248,6 +247,53 @@ describe("okfit query (e2e)", () => {
 					concept: { drift: unknown };
 				};
 				assert.strictEqual(ok.concept.drift, null);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("get: several targets return an array in order, one target stays an object", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const many = await run(
+					["query", "get", "glossary/alpha", "okf/glossary/zeta.md", "--format", "json"],
+					cwd,
+					env,
+				);
+				assert.strictEqual(many.exitCode, 0, many.stderr);
+				const items = JSON.parse(many.stdout) as Array<{ concept: { id: string } }>;
+				assert.isTrue(Array.isArray(items));
+				assert.deepStrictEqual(
+					items.map((item) => item.concept.id),
+					["glossary/alpha", "glossary/zeta"],
+				);
+				const one = await run(["query", "get", "glossary/alpha", "--format", "json"], cwd, env);
+				assert.isFalse(Array.isArray(JSON.parse(one.stdout)));
+				const human = await run(["query", "get", "glossary/alpha", "glossary/zeta"], cwd, env);
+				assert.strictEqual(human.exitCode, 0, human.stderr);
+				assert.include(human.stdout, "\n\nglossary/zeta\n");
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("get: an unknown target among good ones exits 64", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const r = await run(["query", "get", "glossary/alpha", "decisions/zzz"], cwd, env);
+				assert.strictEqual(r.exitCode, 64);
+				assert.strictEqual(r.stdout, "");
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		});
+
+		it("neighbors: accepts a path as well as an id", async () => {
+			const { sandbox, cwd, env } = await seeded();
+			try {
+				const r = await run(["query", "neighbors", "okf/glossary/zeta.md", "--format", "json"], cwd, env);
+				assert.strictEqual(r.exitCode, 0, r.stderr);
+				assert.strictEqual((JSON.parse(r.stdout) as { id: string }).id, "glossary/zeta");
 			} finally {
 				await removeSandbox(sandbox);
 			}

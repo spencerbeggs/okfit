@@ -187,7 +187,7 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
 	reason: Schema.Literals([
 		"no-selection",
-		"id-and-batch",
+		"targets-and-batch",
 		"unknown-type",
 		"status-conflict",
 		"status-and-batch",
@@ -201,15 +201,15 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 	override get message(): string {
 		if (this.reason === "no-selection")
 			return "verify needs a concept id, --all, or --type <Type> (run in a terminal to pick interactively)";
-		if (this.reason === "id-and-batch") return "verify takes either a concept id or --all/--type, not both";
-		if (this.reason === "revoke-needs-id") return "--revoke needs a concept id";
+		if (this.reason === "targets-and-batch") return "verify takes concept targets or --all/--type, not both";
+		if (this.reason === "revoke-needs-id") return "--revoke needs at least one concept target";
 		if (this.reason === "revoke-conflict") {
-			return `--revoke removes your own verification of one concept; it cannot combine with ${this.detail ?? "other selectors"}`;
+			return `--revoke removes your own verification of the named concepts; it cannot combine with ${this.detail ?? "other selectors"}`;
 		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {
-			return "--stable and --draft need a concept id; batch mode never changes status";
+			return "--stable and --draft need exactly one concept target; batch mode never changes status";
 		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}
@@ -295,5 +295,89 @@ export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
 		return "query list takes --verified or --unverified, not both";
+	}
+}
+
+/**
+ * One argument that did not resolve to a concept target.
+ *
+ * @public
+ */
+export const TargetFailure = Schema.Struct({
+	arg: Schema.String,
+	reason: Schema.Literals(["not-found", "ambiguous", "outside-bundle", "reserved", "not-a-concept"]),
+	suggestion: Schema.optionalKey(Schema.String),
+	candidates: Schema.optionalKey(Schema.Tuple([Schema.String, Schema.String])),
+});
+/** @public */
+export type TargetFailure = typeof TargetFailure.Type;
+
+const targetLine = (failure: TargetFailure): string => {
+	switch (failure.reason) {
+		case "ambiguous":
+			return `"${failure.arg}" is ambiguous: it names both ${failure.candidates?.[0]} and ${failure.candidates?.[1]}; pass an id or an absolute path`;
+		case "outside-bundle":
+			return `"${failure.arg}" is outside the bundle`;
+		case "reserved":
+			return `"${failure.arg}" is a reserved file, not a concept`;
+		case "not-a-concept":
+			return `"${failure.arg}" did not load as a concept (run okfit validate)`;
+		default:
+			return `no concept "${failure.arg}"${failure.suggestion === undefined ? "" : ` (did you mean ${failure.suggestion}?)`}`;
+	}
+};
+
+/**
+ * One or more concept targets did not resolve. Every bad argument is listed;
+ * nothing ran. Exit 64: a usage error.
+ *
+ * @public
+ */
+export class TargetResolutionError extends Schema.TaggedError<TargetResolutionError>()("TargetResolutionError", {
+	failures: Schema.Array(TargetFailure),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		return this.failures.map(targetLine).join("\n");
+	}
+}
+
+/**
+ * `okfit mv` refused before writing anything. `outside-bundle`, `destination-exists`, `reserved`,
+ * `same-path` and `invalid-name` (whitespace in a destination path segment) name a bad destination
+ * (`detail` is the destination); `unrewritable` lists every link that needs rewriting for this move
+ * (`file: url`, one per line) whose URL text could not be located; `project-file` refuses to move the
+ * bundle's root project file (`detail` is its path), which must stay at the bundle root;
+ * `unloaded-files` lists (one per line) the bundle's Markdown files that did not load as concepts,
+ * whose links to the moved file could not be rewritten.
+ *
+ * @public
+ */
+export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
+	reason: Schema.Literals([
+		"outside-bundle",
+		"destination-exists",
+		"reserved",
+		"same-path",
+		"invalid-name",
+		"unrewritable",
+		"project-file",
+		"unloaded-files",
+	]),
+	detail: Schema.optionalKey(Schema.String),
+}) {
+	override readonly [Runtime.errorExitCode] = 64;
+	override get message(): string {
+		const detail = this.detail ?? "";
+		if (this.reason === "outside-bundle") return `destination ${detail} is outside the bundle`;
+		if (this.reason === "destination-exists") return `destination ${detail} already exists`;
+		if (this.reason === "reserved") return `${detail} is a reserved file name`;
+		if (this.reason === "same-path") return "source and destination are the same file";
+		if (this.reason === "invalid-name") return `destination ${detail} contains whitespace; name it without spaces`;
+		if (this.reason === "project-file")
+			return `${detail} is the bundle's project file and must stay at the bundle root; edit it in place`;
+		if (this.reason === "unloaded-files")
+			return `these Markdown files are in the bundle but did not load as concepts, so their links to the moved file cannot be rewritten; run \`okfit validate\` and fix them first:\n${detail}`;
+		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
 	}
 }

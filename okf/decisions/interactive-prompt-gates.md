@@ -8,19 +8,21 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-01T18:31:01Z
+  at: 2026-10-11T20:51:30Z
 verified:
   - by: human:spencer
     at: 2026-10-01T23:24:55Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 6897eb8caef48ad3
+    body: 96760593ba5a5056
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 49bdda8b6abbf9fe
+    at: 2026-10-11T22:01:13Z
+    content: 8c8c3ac1561fb333
 ---
 
 # Interactive prompts are gated by audience and terminal, and the audience never refuses a command
@@ -63,4 +65,4 @@ ships an audience model (human, agent, ci), a theme, and a terminal gate.
 Scripts and hooks keep working unchanged. The contract is in
 [CLI commands](../interfaces/cli-commands.md) and the wiring in
 [CLI](../modules/cli.md); the kit adoption is in [okfit's front ends build
-on @effected/{engine,cli,mcp}](front-ends-adopt-the-effected-kit.md).
+on @effected/{engine,cli,mcp}](effected-kit-adoption.md).

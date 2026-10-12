@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: 9acbfa84e1386401
+    body: da021c55a3728318
 ---
 
 # Workspace
@@ -50,7 +50,7 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
   through `@effected/workspaces/testing`'s `WorkspaceLayering`/
   `LayerPolicy` -- see [okfit's front ends build on
   @effected/{engine,cli,mcp} rather than hand-rolled
-  equivalents](../decisions/front-ends-adopt-the-effected-kit.md).
+  equivalents](../decisions/effected-kit-adoption.md).
 
 ## Rules
 

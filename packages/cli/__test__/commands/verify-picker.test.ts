@@ -33,6 +33,7 @@ const start = (root: string, interactive = true) =>
 /** As {@link start}, over a git repository (real history, so drifted rows preview a diff). */
 const startInRepo = (root: string, size: { readonly columns: number; readonly rows: number }, source?: PickerSource) =>
 	Effect.gen(function* () {
+		yield* Effect.promise(() => import("../../src/commands/verify-preview.js"));
 		const session = yield* CliUiTest.session(size);
 		const fiber = yield* Effect.forkScoped(
 			pickConcepts(options(root), source).pipe(Effect.provide(session.layer), Effect.provide(repoPlatform)),

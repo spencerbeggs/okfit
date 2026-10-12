@@ -6,14 +6,20 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-11T20:51:30Z
 status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-09T23:08:38Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 7318f6f6eea84ae3
+    body: 6fb998bd907cc31b
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 4d6ec0db46eec91d
 ---
 
 # A body digest inside generated detects real drift, not a rewritten date
@@ -21,7 +27,7 @@ integrity:
 ## Context
 
 [Generated.at is the author date of the last commit that changed the
-body](profiles-generated-at-is-author-date.md) settled how `generated.at`
+body](generated-at-source.md) settled how `generated.at`
 is computed, but not how a later reader tells whether that stamp is still
 trustworthy. The `generated-at-drift` lint tried to answer that by
 re-running the same git-derived computation and comparing dates — and a
@@ -31,7 +37,7 @@ branch, so every concept a PR touched looks drifted on `main` the moment
 it merges, for a reason no contributor caused. That forced the lint to sit
 at `info` and kept `okfit sync --only generated` out of CI (see [okfit
 sync is the one command that regenerates every derived-content
-family](cli-sync-is-the-derived-content-command.md)'s Consequences
+family](sync-command-scope.md)'s Consequences
 section).
 
 Git alone cannot distinguish the two cases a caller actually cares about:
@@ -127,7 +133,7 @@ measured and documented at [The validate hook fires PostToolUse, not
 PreToolUse](plugin-posttooluse-not-pretooluse.md).
 
 This amends one line of [okfit sync is the one command that regenerates
-every derived-content family](cli-sync-is-the-derived-content-command.md)'s
+every derived-content family](sync-command-scope.md)'s
 Consequences without editing that stable Decision: `generated` mode is no
 longer "deliberately never guarded in CI" — a squash-merge-proof guard
 (`okfit sync --dry-run --only generated --format json | jq -e

@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T16:51:30Z
+  at: 2026-10-11T20:51:30Z
 tags:
   - architecture
 verified:
@@ -17,13 +17,15 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T17:15:28Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 64ada50c37b577f3
+    body: 46b01efb3652ea9a
   verified:
     by: human:spencer
-    at: 2026-10-11T17:15:28Z
-    content: a9f08fc9649c95d7
+    at: 2026-10-11T22:01:13Z
+    content: c41d4fb3013df3de
 ---
 
 # okfit config file schema
@@ -127,7 +129,7 @@ never disagree. The version label itself is `CONFIG_SCHEMA_VERSION` in
 --format json` reports it as `config_schema_version`, and `okfit --version`
 prints it as `config-schema <label>` ([The engine version, not the
 producer version, is what a report is compared
-on](../decisions/engine-version-is-the-comparable-version-effected-kit.md)). Versions
+on](../decisions/comparable-version.md)). Versions
 are `major.minor` — an additive optional key is a minor bump, a removed or
 retyped key a major one: this document is
 `published: false` (not yet catalogued with SchemaStore), so a contract

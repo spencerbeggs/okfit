@@ -6,14 +6,20 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-09-06T11:25:53Z
+  at: 2026-10-11T19:34:18Z
 status: deprecated
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: e319953cb739cd8b
+    body: d1b14b950933fa4d
+  verified:
+    by: human:spencer
+    at: 2026-10-11T22:01:13Z
+    content: 59d1918e977e68fd
 ---
 
 # The validate hook fires PostToolUse, not PreToolUse
@@ -31,7 +37,7 @@ not an oversight.
 content-overlay surface to validate bytes that are not yet written, so
 pre-write validation is not buildable without new core surface; the hook
 instead runs after the write, calls the whole-bundle `okfit validate
-<project_root> --format json` once, filters `diagnostics[]` down to the
+--root <project_root> --format json` once, filters `diagnostics[]` down to the
 edited file's bundle-relative path, and blocks (`decision: "block"`) only on
 a `core.conformance` hit for that file, warning (`additionalContext`) on a
 `core.lint`/`profile`-only hit

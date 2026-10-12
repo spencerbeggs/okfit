@@ -10,7 +10,7 @@ sources:
     resource: ../../packages/cli/__test__/boundaries.test.ts
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:07:02Z
+  at: 2026-10-11T20:52:46Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -18,13 +18,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: dabd73dc1de7f4e6
+    body: 581e4c4c8c778157
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: d484eb3ce63a656d
+    at: 2026-10-11T22:01:13Z
+    content: bc57d94b62a6762b
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract
@@ -106,7 +108,7 @@ at all — no file under `engine/src` may read `process`. Colour comes
 from `@effected/cli`'s `CliColor.enabled`, read from the ambient
 `ConfigProvider`, never a `process` read this package performs directly
 — the package's own `internal/tty.ts` no longer exists
-([front-ends-adopt-the-effected-kit](front-ends-adopt-the-effected-kit.md)).
+([effected-kit-adoption](effected-kit-adoption.md)).
 Outside the workspace, installing only the packed plugin now yields both
 bins in `node_modules/.bin/`: `okfit --version` exits 0, and `okfit-mcp`
 answers a JSON-RPC `initialize` on stdout with empty stderr.

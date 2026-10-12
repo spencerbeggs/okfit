@@ -9,8 +9,9 @@
 # the editor (LSP phase 4, decision 8): it runs one cheap
 # `okfit context --format json` call to learn bundle_root and project_root,
 # then — only when the edited file is under bundle_root — one whole-bundle
-# `okfit validate <project_root> --format json` call, filtering
-# diagnostics[] down to this one file by its bundle-relative posix path
+# `okfit validate --root <project_root> <file> --format json` call: the bundle
+# still loads whole, but the edited file as a target scopes the reported
+# diagnostics to it; the bundle-relative posix path filter below is kept
 # (D-32, CLI/render/sort.ts:8-10). A core.conformance hit on that file
 # blocks (decision: "block", top-level per DOCS/hooks.md:416); everything
 # else `okfit validate` reports for the file is silent here, since the LSP
@@ -119,7 +120,10 @@ esac
 # string — no further normalisation.
 bundle_relative="${file_path#"$bundle_root"/}"
 
-# Expensive call #2: the whole-bundle validate pass. The argument is the
+# Expensive call #2: the scoped validate pass. The bundle still loads whole
+# (so link lints stay right); "$file_path" as a target scopes the reported
+# diagnostics to the edited file. A target error (exit 64, e.g. the file
+# vanished) falls into the "validate could not run" branch below. `--root` is the
 # PROJECT root, never the bundle root (K-2) — okfit_cli's caller never
 # reimplements resolveBundleRoot; it asks the CLI once and reuses the
 # answer, which is what project_root (from the envelope, C-7) already is.
@@ -130,8 +134,15 @@ bundle_relative="${file_path#"$bundle_root"/}"
 # project's own `[lint]` table, which CI and `validate_bundle` still honor.
 set +e
 # shellcheck disable=SC2086
-validate_json=$($cli_cmd validate "$project_root" --format json --skip-provenance 2>/dev/null)
+validate_json=$($cli_cmd validate --root "$project_root" "$file_path" --format json --skip-provenance 2>/dev/null)
 validate_rc=$?
+# Version skew: a CLI from before `--root` (and file targets) rejects the call above with
+# exit 64. Retry once with the pre-phase-4 form (the project root as the positional path,
+# whole bundle); the bundle_relative filter below still scopes the findings to this file.
+if [ "$validate_rc" -eq 64 ]; then
+	validate_json=$($cli_cmd validate "$project_root" --format json --skip-provenance 2>/dev/null)
+	validate_rc=$?
+fi
 set -e
 
 validate_parses=0

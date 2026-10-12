@@ -21,7 +21,7 @@ sources:
     resource: ../../packages/cli/src/internal/versionFormatter.ts
 generated:
   by: okfit/claude-code
-  at: 2026-09-24T16:07:02Z
+  at: 2026-10-11T20:52:46Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -29,13 +29,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 874fd08c90f16313
+    body: 8349d11fc37db8af
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: b9146c4af70e066c
+    at: 2026-10-11T22:01:13Z
+    content: d5eb32af5b24c75b
 ---
 
 # The engine version, not the producer version, is what a report is compared on
@@ -139,7 +141,7 @@ packaging.[^owner-ruling]
   `@effected/engine`'s `CurrentDistribution`[^version-formatter] — the
   mechanism that replaced this package's original hand-rolled
   `CliOutput.Formatter` override
-  ([front-ends-adopt-the-effected-kit](front-ends-adopt-the-effected-kit.md)).
+  ([effected-kit-adoption](effected-kit-adoption.md)).
 - **Leave the schema identity and build in `@okfit/engine`, next to
   `init`.** Rejected: `init` merely writes the directive, and splitting
   shape from identity across two packages is what let the version label

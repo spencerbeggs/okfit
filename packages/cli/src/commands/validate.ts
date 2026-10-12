@@ -18,16 +18,10 @@ import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { printDiagnostics } from "../internal/print-diagnostics.js";
+import { rootFlag } from "../internal/root.js";
+import { scopeTo } from "../internal/scope.js";
 import { readDocumentText } from "../internal/stdin.js";
 import { CLI_VERSION } from "../version.js";
-
-/** `[path]` is the PROJECT root (K-2), never the bundle root. Absolute at parse time (K-50). */
-const pathArg = Argument.Path("path", { pathType: "directory" }).pipe(
-	Argument.optional,
-	Argument.withDescription(
-		"project root to start config discovery from (default: current directory); never the bundle root",
-	),
-);
 
 /** K-1: no `mustExist` — the handler stats the path itself, before building any layer. */
 const configFlag = Flag.File("config").pipe(
@@ -39,6 +33,14 @@ const configFlag = Flag.File("config").pipe(
 const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
 	Flag.withDefault("human"),
 	Flag.withDescription("output format: human (default) or json"),
+);
+
+/** Scope: report only these files' diagnostics; the bundle still loads whole so link lints stay right. */
+const targetsArg = Argument.String("targets").pipe(
+	Argument.variadic({ min: 0 }),
+	Argument.withDescription(
+		"only report diagnostics for these files: concept ids or paths; the whole bundle still loads",
+	),
 );
 
 /** S-31: skips `Provenance.lint`'s git tier for this invocation, without touching `[lint]`. */
@@ -56,7 +58,7 @@ const documentFlag = Flag.String("document").pipe(
 );
 
 /**
- * `okfit validate [path] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>]`.
+ * `okfit validate [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>]`.
  *
  * Handler order fixed by the contract (§2 `src/commands/validate.ts`):
  * stat `--config` (K-1) via `provideConfig`, discover (`OkfitConfigFile.discover`),
@@ -70,18 +72,25 @@ const documentFlag = Flag.String("document").pipe(
  */
 export const validateCommand = Command.make(
 	"validate",
-	{ path: pathArg, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag, document: documentFlag },
+	{
+		targets: targetsArg,
+		root: rootFlag,
+		config: configFlag,
+		format: formatFlag,
+		skipProvenance: skipProvenanceFlag,
+		document: documentFlag,
+	},
 	(input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
-			const discoveryCwd = Option.getOrElse(input.path, () => cwd);
+			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 			const now = yield* Now;
 			const path = yield* Path.Path;
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
 				const resolved = yield* resolveProjectConfig({
-					pathArg: input.path,
+					pathArg: input.root,
 					explicitConfigPath: input.config,
 					cwd,
 				});
@@ -97,7 +106,8 @@ export const validateCommand = Command.make(
 					now,
 					skipProvenance: input.skipProvenance,
 				}).pipe(provideDocuments(bundleRoot, documents), Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
-				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
+				const all = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);
+				const diagnostics = yield* scopeTo(all, input.targets, result.bundle, cwd);
 				const code = forDiagnostics(diagnostics);
 
 				if (input.format === "json") {

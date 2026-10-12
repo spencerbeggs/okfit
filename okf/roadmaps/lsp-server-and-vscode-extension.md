@@ -33,19 +33,21 @@ sources:
     resource: https://github.com/redhat-developer/yaml-language-server
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:44:29Z
+  at: 2026-10-11T20:51:30Z
 verified:
   - by: human:spencer
     at: 2026-09-22T20:19:51Z
   - by: human:spencer
     at: 2026-10-11T15:55:11Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: e2a708086fa9c1cd
+    body: e3a689690d4a03e9
   verified:
     by: human:spencer
-    at: 2026-10-11T15:55:11Z
-    content: b70f76a1f7cd620f
+    at: 2026-10-11T22:01:13Z
+    content: 428d5986a812baed
 ---
 
 # An @okfit/lsp language server and a VS Code extension over the shared engine
@@ -123,7 +125,7 @@ picking them up once phase 5 landed the same day; the
 extension's tracking package lives at `vscode/`, sibling to `packages/*`
 and `plugin/` (then `plugins/claude-code`), not under either -- see [The VS Code extension
 lives at vscode/, not under plugins/ or
-packages/](../decisions/vscode-extension-at-repo-root.md).
+packages/](../decisions/vscode-extension-location.md).
 
 ## Phases
 
@@ -205,7 +207,7 @@ repository's own bundle.
    `verify/locate.ts`/`verify/splice.ts` machinery, superseding the
    CLI-private splice decision -- see [Frontmatter splices are a shared
    engine surface for the CLI's verify and the language server's
-   actions](../decisions/engine-frontmatter-edits-shared-surface.md).
+   actions](../decisions/frontmatter-edits.md).
    `@okfit/lsp` gained `textDocument/codeAction` (Set status, Mark
    verified, `status-missing` quick fixes), `workspace/executeCommand`
    (`okfit.lsp.setStatus`, `okfit.lsp.markVerified`, `okfit.lsp.revalidate`, edits

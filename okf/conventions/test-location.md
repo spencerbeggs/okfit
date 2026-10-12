@@ -5,13 +5,13 @@ description: Every package's tests sit under __test__/; nothing under src/ is a 
 status: stable
 generated:
   by: human:spencer
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-11T20:52:46Z
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"
 integrity:
   generated:
-    body: 19e5d5684f9c3e0e
+    body: 1d7e24bb71b625ab
 ---
 
 # Tests live in __test__/, never in src/
@@ -40,5 +40,5 @@ package-specific `__test__/CLAUDE.md`).
 ## Enforcement
 
 Not mechanically enforced today — unlike the process-boundary convention
-(`process-reads-confined-in-cli.md`), which is backed by a real test, this
+(`cli-process-reads.md`), which is backed by a real test, this
 one is a code-review convention so far.

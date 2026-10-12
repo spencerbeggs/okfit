@@ -15,10 +15,10 @@ sources:
     last_modified: 2026-09-29T00:00:00Z
 generated:
   by: okfit/claude-code
-  at: 2026-09-29T22:18:38Z
+  at: 2026-10-11T20:51:30Z
 integrity:
   generated:
-    body: bb36e2e6dc54d5cc
+    body: 7bf976b1988aa618
 ---
 
 # A documentation site at okfit.dev
@@ -31,7 +31,7 @@ packages, and each package's generated API reference, all built and
 deployed by CI rather than by hand. The site is the [Website](../modules/website.md)
 module; the URL split is recorded in [User docs live under /docs; package
 hierarchies live at the site root beside their generated
-API](../decisions/website-package-pages-at-root.md). The scope was agreed
+API](../decisions/website-package-pages.md). The scope was agreed
 with the repository owner on 2026-09-29[^owner-website-plan].
 
 ## Phases

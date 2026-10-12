@@ -31,7 +31,7 @@ plugin/
   hooks/
     lib/okfit/okfit-cli.sh             -- okfit_cli (the plugin's own helper)
     session-start/orientation.sh       -- one `okfit context` call, builds additionalContext
-    post-tool-use/validate.sh          -- bundle-scoped; context then validate
+    post-tool-use/validate.sh          -- bundle-scoped; context then validate <file>
   bin/
     start-mcp.sh, start-lsp.sh         -- launchers on the pluginfinity server library
   builds/{claude,copilot}/             -- generated, committed, never edited

@@ -19,15 +19,15 @@ describe("graphCommand", () => {
 		assert.isTrue((graphCommand.description ?? "").includes("graph"));
 	});
 
-	it("declares exactly the path argument and the config/format flags, by name", () => {
+	it("declares no positionals and the root/ the config/format flags, by name", () => {
 		const config = configOf(graphCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((argument) => nameOf(argument)),
-			["path"],
+			[],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["config", "format"],
+			["root", "config", "format"],
 		);
 	});
 

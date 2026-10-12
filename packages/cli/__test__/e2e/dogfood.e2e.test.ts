@@ -50,46 +50,46 @@ const BUNDLE_ROOT = join(REPO_ROOT, "okf");
  * (`okf/modules/scratchpad.md`) and this bundle's first Glossary concept
  * (`okf/glossary/ghost-workspace.md`); neither type requires `verified`.
  * Phase 3 of the LSP roadmap adds `okf/modules/lsp.md` (Module +1) and
- * `okf/decisions/lsp-reference-transport-behind-a-seam.md` (Decision +1,
+ * `okf/decisions/lsp-reference-transport.md` (Decision +1,
  * `status: draft`, so again exempt from `require-verified-unmet`). Its
  * final review adds this bundle's first Limitation concept
  * (since deleted), which carries no `verified` requirement. Phase 4 adds one more `draft` Decision
- * (`okf/decisions/plugin-posttooluse-conformance-only-after-lsp.md`,
+ * (`okf/decisions/posttooluse-hook-scope.md`,
  * superseding the deprecated PostToolUse one, exempt while `draft`) and a
  * second Limitation (`okf/limitations/lsp-registry-interrupt-windows.md`).
  * The VS Code extension work (phase 6, ahead of phase 5) adds one more
  * Module (`okf/modules/vscode-extension.md`), one more Decision
- * (`okf/decisions/vscode-extension-at-repo-root.md`, `status: draft`,
+ * (`okf/decisions/vscode-extension-location.md`, `status: draft`,
  * exempt from `require-verified-unmet` while `draft`), and this bundle's
  * first Runbook (`okf/runbooks/publish-vscode-extension.md`, which carries
  * no `verified` requirement). The effected front-end kit adoption adds three
  * Decisions, all stable and human-verified:
- * `okf/decisions/front-ends-adopt-the-effected-kit.md`, and two successors,
- * `engine-version-is-the-comparable-version-effected-kit.md` and
- * `engine-front-end-split-effected-kit.md`, which supersede the originals they
+ * `okf/decisions/effected-kit-adoption.md`, and two successors,
+ * `comparable-version.md` and
+ * `engine-front-end-split.md`, which supersede the originals they
  * are named after (both now `deprecated`). The okfit.dev documentation site
  * adds one more Module (`okf/modules/website.md`), one more Decision
- * (`okf/decisions/website-package-pages-at-root.md`, `status: draft`, exempt
+ * (`okf/decisions/website-package-pages.md`, `status: draft`, exempt
  * from `require-verified-unmet` while `draft`), and a second Roadmap
  * (`okf/roadmaps/documentation-site.md`). The verify-status and query work
  * adds one more `draft` Decision (`okf/decisions/engine-concept-query-layer.md`),
  * unverified by an agent and exempt from `require-verified-unmet` while `draft`.
  * The interactive CLI work (#217) adds another `draft` Decision
- * (`okf/decisions/interactive-prompts-gated-by-audience-and-terminal.md`).
+ * (`okf/decisions/interactive-prompt-gates.md`).
  *
  * The docs-surfaces work adds four `Surface` concepts and one `Publication`.
  * The effected kit adoption (#191) adds a `draft` Decision for shared bins and
- * the crash-policy Decision (`okf/decisions/servers-survive-stray-crashes-once-serving.md`).
- * The CLI close-out adds `okf/decisions/stale-verify-rolls-stale-after-forward.md`.
+ * the crash-policy Decision (`okf/decisions/server-crash-survival.md`).
+ * The CLI close-out adds `okf/decisions/stale-verify.md`.
  * The verification-integrity family adds three `draft` Decisions (exempt from
  * `require_verified`) and one Interface, taking the bundle to 79 concepts. Deleting the seven deprecated
  * concepts no live concept cites (six Decisions, one Limitation) takes it to 72. The actors allow-list adds
- * `okf/decisions/actors-allow-list-without-emails.md`, taking it to 73.
+ * `okf/decisions/actor-allow-list.md`, taking it to 73. The topical-naming Decision (`okf/decisions/topical-concept-names.md`, `status: draft`) takes it to 74.
  */
 const EXPECTED_CONCEPT_COUNTS = {
 	Project: 1,
 	Module: 12,
-	Decision: 37,
+	Decision: 38,
 	Convention: 7,
 	Interface: 5,
 	Reference: 1,
@@ -115,7 +115,7 @@ describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
 		"exits 0 with no errors or warnings: every stable Decision concept is human-verified (drafts are exempt)",
 		() =>
 			Effect.gen(function* () {
-				const result = yield* runOkfit(["validate", REPO_ROOT, "--format", "json"], {
+				const result = yield* runOkfit(["validate", "--root", REPO_ROOT, "--format", "json"], {
 					cwd: REPO_ROOT,
 					env: {
 						PATH: process.env.PATH ?? "",
@@ -231,7 +231,7 @@ describe("okfit's own okf/ bundle: index completeness (F-13 case b)", () => {
 describe("okfit's own okf/ bundle: okfit sync --dry-run (F-13 case c)", () => {
 	it.effect("reports nothing to write once the bundle is stamped", () =>
 		Effect.gen(function* () {
-			const result = yield* runOkfit(["sync", REPO_ROOT, "--dry-run", "--format", "json"], {
+			const result = yield* runOkfit(["sync", "--root", REPO_ROOT, "--dry-run", "--format", "json"], {
 				cwd: REPO_ROOT,
 				env: {
 					PATH: process.env.PATH ?? "",

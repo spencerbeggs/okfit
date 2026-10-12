@@ -17,7 +17,7 @@ setup() {
 
 # _stub_cli context_json validate_json [validate_exit] — branches on $1
 # (context vs validate). Writes a sentinel on the validate branch, records
-# the validate argument (the PROJECT root, K-2) and the full argv.
+# the --root value (the PROJECT root, K-2) and the full argv.
 _stub_cli() {
 	local ctx_json="$1" val_json="$2" val_rc="${3:-0}"
 	cat >"$STUB_DIR/okfit" <<STUB
@@ -30,7 +30,7 @@ case "\$1" in
 		;;
 	validate)
 		touch "${STUB_DIR}/validate-invoked"
-		printf '%s\n' "\$2" >"${STUB_DIR}/validate-arg"
+		[ "\$2" = "--root" ] && printf '%s\n' "\$3" >"${STUB_DIR}/validate-arg"
 		printf '%s\n' "\$@" >"${STUB_DIR}/validate-argv"
 		printf '%s\n' '${val_json}'
 		exit ${val_rc}
@@ -153,6 +153,12 @@ CLEAN='{"schema":1,"exit_code":0,"diagnostics":[]}'
 	done
 }
 
+@test "passes the edited file to okfit validate as a target (scoped validation)" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" "$CLEAN"
+	_run claude "$(render posttooluse.write-clean.json)"
+	[ "$(paste -sd' ' "$STUB_DIR/validate-argv")" = "validate --root $REPO_ROOT $REPO_ROOT/okf/modules/example.md --format json --skip-provenance" ]
+}
+
 @test "blocks on a core.conformance diagnostic for the edited file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
 		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"type is required"}]}' 2
@@ -222,10 +228,60 @@ CLEAN='{"schema":1,"exit_code":0,"diagnostics":[]}'
 	done
 }
 
-@test "passes the PROJECT root, never the bundle root, to okfit validate (Important 3)" {
+@test "passes the PROJECT root, never the bundle root, to okfit validate --root (Important 3)" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" "$CLEAN"
 	_run claude "$(render posttooluse.write-clean.json)"
 	[ "$(cat "$STUB_DIR/validate-arg")" = "$REPO_ROOT" ]
+}
+
+# _stub_old_cli context_json legacy_json [legacy_exit] — a pre-`--root` CLI: the new
+# `validate --root ... <file>` form is a usage error (64), the legacy
+# `validate <project_root>` form works. Appends each validate argv to validate-calls.
+_stub_old_cli() {
+	local ctx_json="$1" val_json="$2" val_rc="${3:-0}"
+	cat >"$STUB_DIR/okfit" <<STUB
+#!/bin/bash
+case "\$1" in
+	context)
+		printf '%s\n' '${ctx_json}'
+		exit 0
+		;;
+	validate)
+		printf '%s\n' "\$*" >>"${STUB_DIR}/validate-calls"
+		if [ "\$2" = "--root" ]; then
+			exit 64
+		fi
+		printf '%s\n' '${val_json}'
+		exit ${val_rc}
+		;;
+esac
+STUB
+	chmod +x "$STUB_DIR/okfit"
+	OKFIT_CLI_CMD="$STUB_DIR/okfit"
+}
+
+@test "retries the pre-phase-4 whole-bundle form when the scoped call exits 64, and still blocks on the edited file" {
+	_stub_old_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"m"},{"source":"core.conformance","file":"modules/other.md","code":"type-missing","severity":"error","message":"o"}]}' 2
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-calls"
+		_run "$target" "$(render posttooluse.write-clean.json)"
+		assert_stop "$target" "modules/example.md:"
+		[ "$(sed -n 1p "$STUB_DIR/validate-calls")" = "validate --root $REPO_ROOT $REPO_ROOT/okf/modules/example.md --format json --skip-provenance" ]
+		[ "$(sed -n 2p "$STUB_DIR/validate-calls")" = "validate $REPO_ROOT --format json --skip-provenance" ]
+		[ "$(wc -l <"$STUB_DIR/validate-calls" | tr -d ' ')" = "2" ]
+	done
+}
+
+@test "retries once, then warns, when both validate forms exit 64" {
+	_stub_old_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" '' 64
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-calls"
+		_run "$target" "$(render posttooluse.write-clean.json)"
+		assert_hook_json '.decision // "none"' none
+		[[ "$(context_text)" == *"okfit validate could not run for modules/example.md"* ]]
+		[ "$(wc -l <"$STUB_DIR/validate-calls" | tr -d ' ')" = "2" ]
+	done
 }
 
 @test "runs the okfit CLI from the project directory on both hosts" {

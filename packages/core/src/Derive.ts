@@ -144,6 +144,20 @@ export class Derive {
 		return `# ${title}\n\n${groups.map(Derive.renderLogEntry).join("\n")}`;
 	};
 
+	/**
+	 * Every directory that owes an `index.md`: each directory holding a concept, plus its ancestors up to
+	 * (not including) the bundle root, which a parent index links to even when it holds no concept itself.
+	 * The root (`""`) is included only when it holds a concept. Sorted.
+	 */
+	static readonly indexDirectories = (bundle: LoadedBundle): ReadonlyArray<string> => {
+		const dirs = new Set<string>();
+		for (const dir of bundle.directories) {
+			dirs.add(dir);
+			for (let ancestor = dirnameOf(dir); ancestor !== ""; ancestor = dirnameOf(ancestor)) dirs.add(ancestor);
+		}
+		return [...dirs].sort();
+	};
+
 	/** Index text for `dir` from the concepts directly in it plus its immediate child directories; no frontmatter. */
 	static readonly synthesizeIndex = (bundle: LoadedBundle, dir: string): string => {
 		const prefix = dir === "" ? "" : `${dir}/`;

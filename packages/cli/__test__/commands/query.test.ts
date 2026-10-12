@@ -21,30 +21,30 @@ describe("queryCommand", () => {
 		);
 	});
 
-	it("list takes [path] and the config/type/tag/status/verified/unverified/drifted/stale/format flags", () => {
+	it("list takes no positionals and the root/config/type/tag/status/verified/unverified/drifted/stale/format flags", () => {
 		const config = configOf(queryListCommand);
 		assert.deepStrictEqual(
 			config.arguments.map((a) => nameOf(a)),
-			["path"],
+			[],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((f) => nameOf(f)),
-			["config", "type", "tag", "status", "verified", "unverified", "drifted", "stale", "format"],
+			["root", "config", "type", "tag", "status", "verified", "unverified", "drifted", "stale", "format"],
 		);
 	});
 
 	it.each([
-		["get", queryGetCommand],
-		["neighbors", queryNeighborsCommand],
-	])("%s takes id and path and the config/format flags", (_name, command) => {
+		["get", queryGetCommand, "targets"],
+		["neighbors", queryNeighborsCommand, "target"],
+	])("%s takes the %s argument and the root/config/format flags", (_name, command, argument) => {
 		const config = configOf(command);
 		assert.deepStrictEqual(
 			config.arguments.map((a) => nameOf(a)),
-			["id", "path"],
+			[argument],
 		);
 		assert.deepStrictEqual(
 			config.flags.map((f) => nameOf(f)),
-			["config", "format"],
+			["root", "config", "format"],
 		);
 	});
 });

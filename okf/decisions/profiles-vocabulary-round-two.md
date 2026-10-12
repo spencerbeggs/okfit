@@ -7,27 +7,29 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T16:28:32Z
+  at: 2026-10-11T20:51:30Z
 status: stable
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: fe9b4a5d59d28b7d
+    body: fb526dae2d3d6e1a
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 1b3104ebacea3ba8
+    at: 2026-10-11T22:01:13Z
+    content: 8b5682e9eaa2bbaa
 ---
 
 # The software-project vocabulary grows a second time from the effected and tsdoctor migrations
 
 ## Context
 
-[The first growth round](profiles-vocabulary-grows-from-dogfood.md)
+[The first growth round](vocabulary-growth.md)
 took the profile from six types to eleven on the evidence of three
 migrations. Two more (spencerbeggs/effected at 268 concepts and
 spencerbeggs/tsdoctor at 28 design docs) then filed

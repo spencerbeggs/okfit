@@ -378,22 +378,12 @@ export interface RevokeResult {
 	readonly dryRun: boolean;
 }
 
-/**
- * `okfit verify --revoke`: removes every `verified` entry by the resolved
- * human actor (the same git identity `verify` records) and, when
- * `integrity.verified` is bound to that actor, that slot too, deleting the
- * whole `integrity` block only when nothing else is left in it. Every cut is a
- * byte-precise splice; an unsupported `verified` or `integrity` shape fails
- * closed with the file untouched, and an actor with no entry fails
- * `VerifyNothingToRevokeError`. Another actor's entries and binding are never
- * touched, so they then read as `entry-superseded` or unbound by themselves.
- *
- * @internal
- */
-export const runRevoke = Effect.fn("okfit/verify/runRevoke")(function* (options: RevokeOptions) {
-	const bundle = yield* Bundle.load({ root: options.bundleRoot });
-	const { id, concept } = yield* resolveConcept(bundle, options.id);
-	const actor = yield* Derivation.verifier({ cwd: options.projectRoot, config: options.config });
+const prepareRevoke = Effect.fn("okfit/verify/prepareRevoke")(function* (
+	bundle: LoadedBundle,
+	rawId: string,
+	actor: string,
+) {
+	const { id, concept } = yield* resolveConcept(bundle, rawId);
 
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
@@ -429,17 +419,74 @@ export const runRevoke = Effect.fn("okfit/verify/runRevoke")(function* (options:
 		.filter((entry) => entry.by === actor)
 		.map((entry) => Schema.encodeSync(Timestamp)(entry.at));
 
-	if (!options.dryRun) yield* writeVerified(absolutePath, finalText);
-
 	return {
-		id,
-		bundleRoot: bundle.root,
-		conceptPath: concept.path,
-		by: actor,
-		removed,
-		bindingCleared: unbind._tag === "edit",
-		dryRun: options.dryRun,
-	} satisfies RevokeResult;
+		absolutePath,
+		finalText,
+		result: {
+			id,
+			bundleRoot: bundle.root,
+			conceptPath: concept.path,
+			by: actor,
+			removed,
+			bindingCleared: unbind._tag === "edit",
+			dryRun: false,
+		},
+	};
+});
+
+/**
+ * `okfit verify --revoke`: removes every `verified` entry by the resolved
+ * human actor (the same git identity `verify` records) and, when
+ * `integrity.verified` is bound to that actor, that slot too, deleting the
+ * whole `integrity` block only when nothing else is left in it. Every cut is a
+ * byte-precise splice; an unsupported `verified` or `integrity` shape fails
+ * closed with the file untouched, and an actor with no entry fails
+ * `VerifyNothingToRevokeError`. Another actor's entries and binding are never
+ * touched, so they then read as `entry-superseded` or unbound by themselves.
+ *
+ * @internal
+ */
+export const runRevoke = Effect.fn("okfit/verify/runRevoke")(function* (options: RevokeOptions) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const actor = yield* Derivation.verifier({ cwd: options.projectRoot, config: options.config });
+	const prepared = yield* prepareRevoke(bundle, options.id, actor);
+	if (!options.dryRun) yield* writeVerified(prepared.absolutePath, prepared.finalText);
+	return { ...prepared.result, dryRun: options.dryRun } satisfies RevokeResult;
+});
+
+/**
+ * Options for {@link runRevokeIds}.
+ *
+ * @internal
+ */
+export interface RevokeIdsOptions {
+	readonly ids: ReadonlyArray<string>;
+	readonly bundleRoot: string;
+	readonly projectRoot: string;
+	readonly config: OkfitConfig;
+	readonly dryRun: boolean;
+}
+
+/**
+ * {@link runRevoke} for several concepts, all or nothing: every revoke is
+ * prepared before the first write, so one concept with nothing to revoke (or an
+ * unsupported shape, or an unknown id) fails the call with the tree untouched.
+ * Duplicate ids collapse to one. Results come back in the order given.
+ *
+ * @internal
+ */
+export const runRevokeIds = Effect.fn("okfit/verify/runRevokeIds")(function* (options: RevokeIdsOptions) {
+	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	const actor = yield* Derivation.verifier({ cwd: options.projectRoot, config: options.config });
+	const prepared = new Map<string, Effect.Success<ReturnType<typeof prepareRevoke>>>();
+	for (const rawId of options.ids) {
+		const entry = yield* prepareRevoke(bundle, rawId, actor);
+		if (!prepared.has(entry.result.id)) prepared.set(entry.result.id, entry);
+	}
+	if (!options.dryRun) {
+		for (const entry of prepared.values()) yield* writeVerified(entry.absolutePath, entry.finalText);
+	}
+	return [...prepared.values()].map((entry) => ({ ...entry.result, dryRun: options.dryRun }) satisfies RevokeResult);
 });
 
 /**

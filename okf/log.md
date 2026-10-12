@@ -1,5 +1,9 @@
 # Log
 
+## 2026-10-12
+
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+
 ## 2026-10-11
 
 * Updated A body digest inside generated detects real drift, not a rewritten date
@@ -29,6 +33,22 @@
 * Updated okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
 * Added A non-empty actors list is an allow-list and okfit never stores emails
 * Updated Human actor ids resolve through a five-step fallback order
+* Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
+* Updated The validate hook fires PostToolUse, not PreToolUse
+* Added Concept files are named for their topic; ids stay paths
+* Updated A documentation site at okfit.dev
+* Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated Plugin
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated The software-project vocabulary grows a second time from the effected and tsdoctor migrations
+* Updated Website
+* Updated Workspace
+* Updated process reads confined to the CLI's boundary files
+* Updated A shared @okfit/engine package replaces cli-as-copy-contract
+* Updated A walk past maxDepth fails typed, never silently truncates
+* Updated Tests live in __test__/, never in src/
+* Updated The engine version, not the producer version, is what a report is compared on
+* Updated okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
 
 ## 2026-10-09
 

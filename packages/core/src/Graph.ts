@@ -1,7 +1,7 @@
 import { Graph as EffectGraph, Option, Schema } from "effect";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import { DiagnosticRange } from "./Diagnostic.js";
-import type { BundleIndex } from "./internal/links.js";
+import type { BundleIndex, LinkResolution as InternalLinkResolution } from "./internal/links.js";
 import { frontmatterFieldSpan, pathFieldsOf, resolvePathField, resolveTarget } from "./internal/links.js";
 
 /**
@@ -17,6 +17,30 @@ export type GraphNodeKind = typeof GraphNodeKind.Type;
 
 /** Frontmatter fields whose value is a bundle path (D-23). @public */
 export type PathField = "resource" | "sources.resource" | "computation" | "executor.resource" | "attester.resource";
+
+/**
+ * How one reference resolved (D-23, D-24); `via` says which D-23 branch produced a node: `rooted` (a leading
+ * `/`), `file` (against the linking file's directory) or `root` (a bare path against the bundle root).
+ *
+ * @public
+ */
+export type LinkResolution =
+	| { readonly _tag: "url" }
+	| { readonly _tag: "self" }
+	| { readonly _tag: "external" }
+	| { readonly _tag: "descriptor" }
+	| {
+			readonly _tag: "node";
+			readonly id: string;
+			readonly kind: GraphNodeKind;
+			readonly via: "rooted" | "file" | "root";
+	  };
+
+// Compile-time check that the public type and the internal implementation type stay identical.
+const _sameResolution = (value: InternalLinkResolution): LinkResolution => value;
+const _sameResolutionBack = (value: LinkResolution): InternalLinkResolution => value;
+void _sameResolution;
+void _sameResolutionBack;
 
 /** A node: a concept id, or a bundle-relative path with extension for `file` and `missing` nodes. @public */
 export interface GraphNode {
@@ -149,6 +173,17 @@ export class LinkGraph {
 	}
 }
 
+const indexes = new WeakMap<LoadedBundle, BundleIndex>();
+
+/** The lookup sets for one loaded bundle, built once: a bundle is immutable after load. */
+const indexOf = (bundle: LoadedBundle): BundleIndex => {
+	const cached = indexes.get(bundle);
+	if (cached !== undefined) return cached;
+	const built: BundleIndex = { files: new Set(bundle.files), concepts: new Set<string>(bundle.concepts.keys()) };
+	indexes.set(bundle, built);
+	return built;
+};
+
 /**
  * Static facade building a {@link LinkGraph} from a loaded bundle (D-6).
  *
@@ -156,6 +191,15 @@ export class LinkGraph {
  */
 export class Graph {
 	private constructor() {}
+
+	/**
+	 * Pure. Resolve `raw`, written in the file at bundle-relative `from`, the way the graph does; `field`
+	 * applies the path-field rules (a `sources.resource` descriptor).
+	 */
+	static readonly resolve = (bundle: LoadedBundle, from: string, raw: string, field?: PathField): LinkResolution => {
+		const lookup = indexOf(bundle);
+		return field === undefined ? resolveTarget(from, raw, lookup) : resolvePathField(from, field, raw, lookup);
+	};
 
 	/**
 	 * Pure. Body links come from `document.links`, path fields from the frontmatter (D-23, D-24).
