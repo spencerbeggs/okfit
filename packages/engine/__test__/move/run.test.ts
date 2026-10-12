@@ -188,6 +188,40 @@ describe("runMove", () => {
 		),
 	);
 
+	it.effect("refuses to move while a bundle Markdown file is not a loaded concept, and writes nothing", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					const before = yield* Effect.promise(() => snapshot(okf));
+					const error = yield* refusal(runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false }));
+					assert.isTrue(error instanceof MoveError);
+					if (error instanceof MoveError) {
+						assert.strictEqual(error.reason, "unloaded-files");
+						assert.include(error.detail ?? "", "notes/untyped.md");
+						assert.include(error.message, "okfit validate");
+					}
+					assert.deepStrictEqual(yield* Effect.promise(() => snapshot(okf)), before);
+				}),
+			{ "notes/untyped.md": "# No frontmatter\n\nSee [b](../decisions/b.md).\n" },
+		),
+	);
+
+	it.effect("rebases an angle-bracketed body link with a space in a moved concept", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					yield* runMove({ ...base(okf, okf, "decisions/s", "deep/er/s"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					assert.include(after["deep/er/s.md"], "[x](<../../docs/my file.md>)");
+					assert.include(after["deep/er/s.md"], "[x](<../../docs/my file.md>)");
+				}),
+			{
+				"docs/my file.md": "---\ntype: Convention\ntitle: Spaced\n---\n\n# Spaced\n",
+				"decisions/s.md": decision("S", "", "See [x](<../docs/my file.md>)."),
+			},
+		),
+	);
+
 	it.effect("plans a move across a bundle that contains URL autolinks, footnote autolinks and URL resources", () =>
 		withBundle(
 			(_project, okf) =>

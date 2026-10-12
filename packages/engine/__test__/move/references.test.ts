@@ -209,3 +209,34 @@ describe("referencesOf", () => {
 		}),
 	);
 });
+
+describe("rewriteReference with whitespace", () => {
+	it.effect("rebases a spaced body path only when it sits inside angle brackets", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load;
+			const options = {
+				bundle,
+				fromOld: "decisions/b.md",
+				fromNew: "deep/er/b.md",
+				movedFrom: "decisions/b.md",
+				movedTo: "deep/er/b.md",
+			};
+			assert.strictEqual(rewriteReference("../docs/my file.md", { ...options, angle: true }), "../../docs/my file.md");
+			assert.isUndefined(rewriteReference("../docs/my file.md", options));
+			assert.isUndefined(
+				rewriteReference("../docs/my file.md", { ...options, angle: true, field: "sources.resource" }),
+			);
+		}),
+	);
+
+	it.effect("flags an angle-bracketed link in referencesOf", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load;
+			const { references } = referencesOf(conceptAt(bundle, "topics/titled.md"), config);
+			assert.deepStrictEqual(
+				references.map((r) => r.angle === true),
+				[false, true, false],
+			);
+		}),
+	);
+});

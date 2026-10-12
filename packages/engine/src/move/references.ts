@@ -15,6 +15,8 @@ export interface Reference {
 	readonly raw: string;
 	readonly quote: "" | "'" | '"';
 	readonly field?: PathField;
+	/** Set for a body link whose destination sits inside angle brackets (`](<...>)`), where whitespace is legal. */
+	readonly angle?: true;
 }
 
 /**
@@ -150,6 +152,7 @@ export const referencesOf = (
 			length: link.url.length,
 			raw: link.url,
 			quote: "",
+			...(at > 0 && slice[at - 1] === "<" ? { angle: true as const } : {}),
 		});
 	}
 	for (const { path, value, field } of fieldPaths(concept, config)) {
@@ -216,7 +219,8 @@ const bundleAfterMove = (bundle: LoadedBundle, movedFrom: string, movedTo: strin
  * or `undefined` when the text stays as written. The reference was written in `fromOld`, which is
  * now at `fromNew` (equal unless the file itself is the one that moved). The spelling is kept: a
  * rooted reference stays rooted, a bare one stays bare, `./`, a dropped `.md`, a `#fragment`/`?query`
- * suffix and a trailing `/` survive.
+ * suffix and a trailing `/` survive. The result may hold whitespace even when `angle` is unset (a
+ * percent-encoded space decodes); the caller must then refuse rather than write it outside angle brackets.
  *
  * @public
  */
@@ -229,10 +233,14 @@ export const rewriteReference = (
 		readonly movedFrom: string;
 		readonly movedTo: string;
 		readonly field?: PathField;
+		/** The reference is a body link inside angle brackets, so its path may hold whitespace. */
+		readonly angle?: boolean;
 	},
 ): string | undefined => {
 	const trimmed = raw.trim();
-	if (trimmed === "" || isUrl(trimmed) || /\s/.test(trimmed)) return undefined;
+	if (trimmed === "" || isUrl(trimmed)) return undefined;
+	// Whitespace is a descriptor (`sources.resource`) or a broken value, except inside a body link's angle brackets.
+	if (/\s/.test(trimmed) && !(options.angle === true && options.field === undefined)) return undefined;
 	const [pathPart, suffix] = splitSuffix(trimmed);
 	if (pathPart === "") return undefined;
 	const resolved = Graph.resolve(options.bundle, options.fromOld, trimmed, options.field);

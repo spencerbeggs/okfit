@@ -5,6 +5,7 @@ import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path } from "effect";
 import type { TargetFailure as TargetFailureType } from "../errors.js";
 import { TargetResolutionError } from "../errors.js";
+import { relativeInside } from "./inside.js";
 
 /**
  * One resolved concept target: the argument as typed, the bundle-relative
@@ -58,9 +59,8 @@ const withSuggestion = (arg: string, bundle: LoadedBundle): TargetFailureType =>
 
 /** Bundle-relative posix path of `absolute`, or `undefined` when it lies outside `root`. */
 const inside = (path: Path.Path, root: string, absolute: string): string | undefined => {
-	const relative = path.relative(root, absolute);
-	if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
-	return relative.split(path.sep).join("/");
+	const relative = relativeInside(path, root, absolute);
+	return relative === "" ? undefined : relative;
 };
 
 const resolve = Effect.fn("okfit/targets/resolve")(function* (

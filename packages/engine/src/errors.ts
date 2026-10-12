@@ -347,7 +347,9 @@ export class TargetResolutionError extends Schema.TaggedError<TargetResolutionEr
  * `same-path` and `invalid-name` (whitespace in a destination path segment) name a bad destination
  * (`detail` is the destination); `unrewritable` lists every link that needs rewriting for this move
  * (`file: url`, one per line) whose URL text could not be located; `project-file` refuses to move the
- * bundle's root project file (`detail` is its path), which must stay at the bundle root.
+ * bundle's root project file (`detail` is its path), which must stay at the bundle root;
+ * `unloaded-files` lists (one per line) the bundle's Markdown files that did not load as concepts,
+ * whose links to the moved file could not be rewritten.
  *
  * @public
  */
@@ -360,6 +362,7 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		"invalid-name",
 		"unrewritable",
 		"project-file",
+		"unloaded-files",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -373,6 +376,8 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		if (this.reason === "invalid-name") return `destination ${detail} contains whitespace; name it without spaces`;
 		if (this.reason === "project-file")
 			return `${detail} is the bundle's project file and must stay at the bundle root; edit it in place`;
+		if (this.reason === "unloaded-files")
+			return `these Markdown files are in the bundle but did not load as concepts, so their links to the moved file cannot be rewritten; run \`okfit validate\` and fix them first:\n${detail}`;
 		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
 	}
 }

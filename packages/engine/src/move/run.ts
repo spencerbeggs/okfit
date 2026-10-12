@@ -8,6 +8,7 @@ import { Effect, FileSystem, Option, Path } from "effect";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
 import { writeAtomic } from "../sync/write.js";
+import { relativeInside } from "../targets/inside.js";
 import { Targets } from "../targets/resolve.js";
 import { referencesOf, rewriteReference } from "./references.js";
 
@@ -76,11 +77,7 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 		});
 	const root = yield* realOr(bundle.root);
 	/** Bundle-relative posix path of `absolute` (`""` for the root itself); `undefined` outside the bundle. */
-	const inside = (absolute: string): string | undefined => {
-		const relative = path.relative(root, absolute);
-		if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return undefined;
-		return relative.split(path.sep).join("/");
-	};
+	const inside = (absolute: string): string | undefined => relativeInside(path, root, absolute);
 	const exists = (absolute: string) => fs.exists(absolute).pipe(Effect.orElseSucceed(() => false));
 	const isDirectory = (absolute: string) =>
 		fs.stat(absolute).pipe(
@@ -167,6 +164,14 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 		bundle.files.includes(destination) || (yield* fs.exists(toAbsolute).pipe(Effect.orElseSucceed(() => false)));
 	if (taken) return yield* new MoveError({ reason: "destination-exists", detail: destination });
 
+	// Markdown the bundle holds but could not load as a concept (undecodable, type missing) is not
+	// scanned for references, so a link to the moved file inside it would be left stale: refuse first.
+	const unloaded = bundle.files.filter(
+		(file) =>
+			file.endsWith(".md") && !ConceptId.isReservedFile(file) && !bundle.concepts.has(file.slice(0, -3) as never),
+	);
+	if (unloaded.length > 0) return yield* new MoveError({ reason: "unloaded-files", detail: unloaded.join("\n") });
+
 	const found = [...bundle.concepts.values()].map((concept) => ({
 		concept,
 		...referencesOf(concept, options.config),
@@ -189,6 +194,22 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 			)
 			.map((missing) => missing.entry),
 	);
+	// A rewritten path that holds whitespace is only valid Markdown inside angle brackets.
+	for (const { concept, references } of found) {
+		for (const reference of references) {
+			const next = rewriteReference(reference.raw, {
+				bundle,
+				fromOld: concept.path,
+				fromNew: concept.path === source.path ? destination : concept.path,
+				movedFrom: source.path,
+				movedTo: destination,
+				...(reference.field === undefined ? {} : { field: reference.field }),
+				...(reference.angle === true ? { angle: true } : {}),
+			});
+			if (next !== undefined && /\s/.test(next) && reference.angle !== true)
+				unlocatable.push(`${concept.path}: ${reference.raw}`);
+		}
+	}
 	if (unlocatable.length > 0) return yield* new MoveError({ reason: "unrewritable", detail: unlocatable.join("\n") });
 
 	const signals = yield* Trust.signals(bundle, options.config, options.now);
@@ -206,6 +227,7 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 				movedFrom: source.path,
 				movedTo: destination,
 				...(reference.field === undefined ? {} : { field: reference.field }),
+				...(reference.angle === true ? { angle: true } : {}),
 			});
 			if (next !== undefined)
 				pending.push(MarkdownEdit.make({ offset: reference.offset, length: reference.length, content: next }));

@@ -58,6 +58,20 @@ describe("Targets.resolve", () => {
 		),
 	);
 
+	it.effect("resolves a bundle file whose name begins with two dots", () =>
+		withBundle((dir, okf) =>
+			Effect.gen(function* () {
+				yield* Effect.promise(() => writeFile(join(okf, "..draft.md"), concept("Draft")));
+				const bundle = yield* Bundle.load({ root: okf, includeHidden: true });
+				const targets = yield* Targets.resolve([join(okf, "..draft.md")], bundle, dir);
+				assert.deepStrictEqual(
+					targets.map((t) => t.path),
+					["..draft.md"],
+				);
+			}),
+		),
+	);
+
 	it.effect("tolerates a leading slash and a trailing .md on an id", () =>
 		withBundle((dir, okf) =>
 			Effect.gen(function* () {
