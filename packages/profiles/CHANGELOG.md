@@ -1,5 +1,26 @@
 # @okfit/profiles
 
+## 0.10.1
+
+### Features
+
+- The software-project profile's Decision guidance asks for topical file names. [#284][#284]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node-shared | dependency | removed | 4.0.2 | — |
+| @okfit/core | dependency | updated | 0.10.0 | 0.11.0 |
+
+[#284][#284]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#284]: https://github.com/spencerbeggs/okfit/pull/284
+
 ## 0.10.0
 
 ### Breaking Changes

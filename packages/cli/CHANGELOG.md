@@ -1,5 +1,56 @@
 # @okfit/cli
 
+## 0.13.0
+
+### Breaking Changes
+
+#### The project root is a flag
+
+- Every command takes the project root as `--root <dir>` instead of a trailing `[path]` positional, so positionals name concept targets everywhere. Replace `okfit validate ./project` with `okfit validate --root ./project`.
+- Update the okfit agent plugin (`@okfit/ai-plugins`) together with the CLI: a plugin from before this release passes the project root as a positional, which this CLI now reads as a concept target and refuses.
+
+#### An unknown concept is a usage error
+
+- An unknown concept id is now a usage error (exit 64) on `okfit verify`, listing every bad target with a suggestion, instead of exit 3.
+- An unknown concept on `okfit query get` is exit 64, not 3.
+
+### Features
+
+#### Several concepts at once
+
+- `okfit verify` and `okfit verify --revoke` take any number of concept targets, mixing ids and paths. Nothing is written unless every target resolves.
+- `okfit query get` takes several targets and returns a JSON array for more than one; `okfit validate` and `okfit lint` take optional targets that scope the reported diagnostics.
+
+#### okfit mv
+
+- `okfit mv <from> <to>` moves a concept and rewrites every reference to it across the bundle. `--dry-run` prints the plan, including every file that will need re-verifying.
+- `okfit mv` refuses to move the bundle's root `project.md` and a destination that reaches outside the bundle through a symlink (exit `64`, nothing written).
+
+### Bug Fixes
+
+- `okfit sync` creates the `index.md` of a directory that holds only a nested directory, and `okfit validate` warns (`missing-index`) when one is missing. [#284][#284]
+
+### Tests
+
+- Preload the diff-preview module before picker tests begin waiting for the screen to mount. [#284][#284]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node-shared | dependency | removed | 4.0.2 | — |
+| @okfit/core | dependency | updated | 0.10.0 | 0.11.0 |
+| @okfit/engine | dependency | updated | 0.15.0 | 0.16.0 |
+| @okfit/profiles | dependency | updated | 0.10.0 | 0.10.1 |
+
+[#284][#284]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#284]: https://github.com/spencerbeggs/okfit/pull/284
+
 ## 0.12.0
 
 ### Breaking Changes

@@ -1,5 +1,25 @@
 # @okfit/core
 
+## 0.11.0
+
+### Features
+
+#### Link resolution
+
+- `Graph.resolve(bundle, from, raw)` resolves one reference the way the link graph does and reports which rule matched (`via`: rooted, file-relative or bundle-root-relative).
+
+### Bug Fixes
+
+#### Missing directory indexes
+
+- `missing-index` now also flags a directory that holds no concept itself but is the ancestor of one, which its parent index links to. `Derive.indexDirectories(bundle)` lists every directory that owes an `index.md`. [#284][#284]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#284]: https://github.com/spencerbeggs/okfit/pull/284
+
 ## 0.10.0
 
 ### Breaking Changes
