@@ -173,6 +173,17 @@ export class LinkGraph {
 	}
 }
 
+const indexes = new WeakMap<LoadedBundle, BundleIndex>();
+
+/** The lookup sets for one loaded bundle, built once: a bundle is immutable after load. */
+const indexOf = (bundle: LoadedBundle): BundleIndex => {
+	const cached = indexes.get(bundle);
+	if (cached !== undefined) return cached;
+	const built: BundleIndex = { files: new Set(bundle.files), concepts: new Set<string>(bundle.concepts.keys()) };
+	indexes.set(bundle, built);
+	return built;
+};
+
 /**
  * Static facade building a {@link LinkGraph} from a loaded bundle (D-6).
  *
@@ -186,7 +197,7 @@ export class Graph {
 	 * applies the path-field rules (a `sources.resource` descriptor).
 	 */
 	static readonly resolve = (bundle: LoadedBundle, from: string, raw: string, field?: PathField): LinkResolution => {
-		const lookup: BundleIndex = { files: new Set(bundle.files), concepts: new Set<string>(bundle.concepts.keys()) };
+		const lookup = indexOf(bundle);
 		return field === undefined ? resolveTarget(from, raw, lookup) : resolvePathField(from, field, raw, lookup);
 	};
 
