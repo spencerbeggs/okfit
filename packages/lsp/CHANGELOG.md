@@ -1,5 +1,37 @@
 # @okfit/lsp
 
+## 0.5.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.3 | ^4.0.4 |
+| @effected/config-file | dependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/engine | dependency | updated | ^0.5.0 | ^0.6.0 |
+| @effected/git | dependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/glob | dependency | updated | ^0.11.0 | ^0.12.0 |
+| @effected/jsonc | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/lsp | dependency | updated | ^0.2.0 | ^0.3.0 |
+| @effected/markdown | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/schemastore | dependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/toml | dependency | updated | ^0.12.0 | ^0.13.0 |
+| @effected/walker | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/xdg | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/yaml | dependency | updated | ^0.20.0 | ^0.21.0 |
+| @okfit/core | dependency | updated | 0.11.0 | 0.11.1 |
+| @okfit/engine | dependency | updated | 0.16.0 | 0.16.1 |
+| @okfit/profiles | dependency | updated | 0.10.1 | 0.10.2 |
+| effect | dependency | updated | ^4.0.3 | ^4.0.4 |
+
+[#292][#292]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#292]: https://github.com/spencerbeggs/okfit/pull/292
+
 ## 0.5.1
 
 ### Dependencies

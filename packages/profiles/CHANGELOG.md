@@ -1,5 +1,23 @@
 # @okfit/profiles
 
+## 0.10.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.11.0 | 0.11.1 |
+| @effected/git | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/markdown | peerDependency | updated | ^0.16.0 | ^0.17.0 |
+
+[#292][#292]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#292]: https://github.com/spencerbeggs/okfit/pull/292
+
 ## 0.10.1
 
 ### Features
