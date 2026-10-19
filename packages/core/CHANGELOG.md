@@ -1,5 +1,28 @@
 # @okfit/core
 
+## 0.11.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | peerDependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/glob | peerDependency | updated | ^0.12.0 | ^0.13.0 |
+| @effected/jsonc | peerDependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/markdown | peerDependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/schemastore | peerDependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/toml | peerDependency | updated | ^0.13.0 | ^0.14.0 |
+| @effected/walker | peerDependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/yaml | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+
+[#300][#300]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#300]: https://github.com/spencerbeggs/okfit/pull/300
+
 ## 0.11.1
 
 ### Dependencies
