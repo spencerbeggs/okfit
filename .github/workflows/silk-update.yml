@@ -54,6 +54,7 @@ jobs:
           dependencies: |
             @savvy-web/*
             @vitest-agent/*
+            @effected/*
             pluginfinity
             rspress-plugin-api-extractor
           run: |
