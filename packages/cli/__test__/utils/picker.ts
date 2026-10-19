@@ -120,6 +120,8 @@ export const withDriftedRepoBundle = <A, E, R>(body: (root: string) => Effect.Ef
 			git(root, ["-c", "init.defaultBranch=main", "init", "-q"]);
 			git(root, ["config", "user.name", "Ada"]);
 			git(root, ["config", "user.email", "ada@example.com"]);
+			// The picker's own Git reads the ambient config: shadow a developer's global okfit.actor.
+			git(root, ["config", "okfit.actor", "human:ada"]);
 			git(root, ["config", "commit.gpgsign", "false"]);
 			git(root, ["add", "-A"]);
 			git(root, ["commit", "-q", "-m", "bundle"], "2026-08-31T00:00:00Z");
