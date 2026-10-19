@@ -1,5 +1,15 @@
 # @okfit/plugin
 
+## 0.5.20
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/cli | dependency | updated | 0.13.1 | 0.13.2 |
+| @okfit/lsp | dependency | updated | 0.5.2 | 0.5.3 |
+| @okfit/mcp | dependency | updated | 0.9.2 | 0.9.3 |
+
 ## 0.5.19
 
 ### Dependencies
