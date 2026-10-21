@@ -1,5 +1,23 @@
 # @okfit/engine
 
+## 0.16.3
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/markdown | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @okfit/core | dependency | updated | 0.11.2 | 0.11.3 |
+| @okfit/profiles | dependency | updated | 0.10.3 | 0.10.4 |
+
+[#303][#303]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contributions!
+
+[#303]: https://github.com/spencerbeggs/okfit/pull/303
+
 ## 0.16.2
 
 ### Bug Fixes
