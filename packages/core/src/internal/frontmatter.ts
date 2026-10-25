@@ -40,7 +40,10 @@ export const frontmatterPathRange = (
 	document: MarkdownDocument,
 	path: ReadonlyArray<string | number>,
 ): DiagnosticRange | undefined =>
-	document.frontmatter === undefined ? undefined : spanToRange(document.source, path, document.frontmatter);
+	Option.match(document.frontmatter, {
+		onNone: () => undefined,
+		onSome: (node) => spanToRange(document.source, path, node),
+	});
 
 const rangeFor = (context: Context, path: ReadonlyArray<string | number>): DiagnosticRange =>
 	spanToRange(context.text, path, context.node);

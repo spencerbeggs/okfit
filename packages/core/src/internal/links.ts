@@ -1,4 +1,5 @@
 import type { MarkdownDocument } from "@effected/markdown";
+import { Option } from "effect";
 import type { Concept } from "../Concept.js";
 import { basename, dirname, join, normalize } from "./posixPath.js";
 
@@ -145,7 +146,7 @@ export const pathFieldsOf = (concept: Concept): ReadonlyArray<PathFieldRef> => {
 
 /** File span of the first occurrence of `raw` in the frontmatter block: `fenceLine.length + terminator.length + indexInValue`. @internal */
 export const frontmatterFieldSpan = (document: MarkdownDocument, raw: string): TextSpan | undefined => {
-	const node = document.frontmatter;
+	const node = Option.getOrUndefined(document.frontmatter);
 	if (node === undefined) return undefined;
 	const at = node.value.indexOf(raw);
 	if (at < 0) return undefined;

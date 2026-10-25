@@ -52,7 +52,7 @@
 		"@okfit/engine": "workspace:*",
 		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effect",
-		"vscode-languageserver": "^10.1.2"
+		"vscode-languageserver": "^11.0.0"
 	},
 	"devDependencies": {
 		"@effect/vitest": "catalog:effect",
@@ -61,7 +61,7 @@
 		"@types/node": "catalog:build",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test",
-		"vscode-jsonrpc": "^9.0.3"
+		"vscode-jsonrpc": "^10.0.0"
 	},
 	"engines": {
 		"node": ">=24.11.0"

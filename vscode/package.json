@@ -183,7 +183,7 @@
 		"tsdown": "^0.23.0",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test",
-		"vscode-languageclient": "^10.1.1"
+		"vscode-languageclient": "^11.0.0"
 	},
 	"engines": {
 		"vscode": "^1.100.0"

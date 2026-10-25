@@ -1,5 +1,5 @@
 import type { MarkdownDocument } from "@effected/markdown";
-import { Schema } from "effect";
+import { Option, Schema } from "effect";
 import { lineCharacter } from "./internal/position.js";
 import { frontmatterPathSpan } from "./internal/yamlPathSpan.js";
 
@@ -92,8 +92,9 @@ export class DiagnosticRange extends Schema.Class<DiagnosticRange>("DiagnosticRa
 		document: MarkdownDocument,
 		path: ReadonlyArray<string | number>,
 	): DiagnosticRange | undefined => {
-		if (document.frontmatter === undefined) return undefined;
-		const span = frontmatterPathSpan(document.source, document.frontmatter, path);
+		const node = Option.getOrUndefined(document.frontmatter);
+		if (node === undefined) return undefined;
+		const span = frontmatterPathSpan(document.source, node, path);
 		return DiagnosticRange.fromOffset(document.source, span.offset, span.length);
 	};
 }
