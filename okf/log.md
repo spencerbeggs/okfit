@@ -1,5 +1,15 @@
 # Log
 
+## 2026-10-25
+
+* Updated AI Plugins
+* Updated Agent plugin hooks contract
+* Updated Engine
+* Updated Profiles
+* Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
+
 ## 2026-10-12
 
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale

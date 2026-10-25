@@ -8,7 +8,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T19:34:18Z
+  at: 2026-10-25T18:13:20Z
 status: stable
 verified:
   - by: human:spencer
@@ -19,7 +19,7 @@ verified:
     at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 9b07c45f66c51c60
+    body: b2c42230dd94769e
   verified:
     by: human:spencer
     at: 2026-10-11T22:01:13Z
@@ -61,7 +61,10 @@ the config sets `actors.agent`, a concept file (never `index.md` or
 warns on `Edit`, with the exact `by:` value to add in the message
 ([#74](https://github.com/spencerbeggs/okfit/issues/74)) — the hook is
 the one place that knows the write came from the agent, which the
-language server has no way to know. Lint and profile findings are now
+language server has no way to know. A `Bash` write to a bundle concept
+(heredoc, `tee`, `cp`, `sed -i`) gets the same `generated.by` check
+([#223](https://github.com/spencerbeggs/okfit/issues/223)), so one bundle
+does not end up with two shapes. Lint and profile findings are now
 delivered exclusively by the registered language server, with ranges the
 hook's whole-file grep-and-filter approach could never produce.
 

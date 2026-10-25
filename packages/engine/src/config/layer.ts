@@ -1,11 +1,6 @@
 import { AppConfig } from "@effected/app";
-import {
-	ConfigCodecError,
-	ConfigResolver,
-	ConfigValidationError,
-	MergeStrategy,
-	TomlCodec,
-} from "@effected/config-file";
+import { ConfigCodecError, ConfigResolver, ConfigValidationError, MergeStrategy } from "@effected/config-file";
+import { TomlCodec } from "@effected/config-file/toml";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import { OkfitConfig, OkfitConfigFile } from "@okfit/core";
 import type { Layer, Path, PlatformError } from "effect";

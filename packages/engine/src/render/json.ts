@@ -64,7 +64,7 @@ export type JsonEnvelope = typeof JsonEnvelope.Type;
 /**
  * K-22's envelope: the ONLY thing stdout carries under `--format json` on an
  * infrastructure failure. `exit_code` is `3` for most errors, or `64` for the
- * usage-tier errors (`SyncStagedLogError`, `VerifySelectionError`) that carry
+ * usage-tier errors (`VerifySelectionError` and the like) that carry
  * their own `[Runtime.errorExitCode]`.
  *
  * @public

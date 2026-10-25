@@ -4,11 +4,12 @@ import { Bundle, Derive } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
 import type { Crypto } from "effect";
-import { DateTime, Effect, FileSystem, Path, Schema } from "effect";
-import { SyncPlanStaleError, SyncStagedLogError } from "../errors.js";
+import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
+import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
+import type { LogProvenance, SyncLogResult } from "./log.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
@@ -47,7 +48,7 @@ export interface SyncOptions {
 	readonly dryRun: boolean;
 	/** Issue #18: log mode's inclusive floor (`YYYY-MM-DD`); default is the newest logged date. */
 	readonly logSince?: string;
-	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history; log mode must not be selected. */
+	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history. Issue #295: log mode dates their entries with the same instant. */
 	readonly staged?: { readonly at: DateTime.Utc };
 }
 
@@ -106,14 +107,10 @@ export const planSync: (
 	options: SyncOptions,
 ) => Effect.Effect<
 	SyncPlan,
-	BundleLoadError | GeneratedAtError | SyncStagedLogError,
+	BundleLoadError | GeneratedAtError,
 	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
 > = Effect.fn("okfit/sync/planSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
-
-	if (options.staged !== undefined && options.modes.has("log")) {
-		return yield* new SyncStagedLogError({});
-	}
 
 	// Step 2 (#21): one Derivation.generatedAt per concept that still needs
 	// one, shared by the generated and log modes. A concept whose recorded
@@ -131,6 +128,10 @@ export const planSync: (
 	// directly instead of rebuilding `${bundle.root}/${concept.path}` --
 	// which, unlike this realpath, does not survive an in-repo symlink.
 	let realPaths: Map<ConceptId, string> | undefined;
+	// #295: the staged concepts' log provenance, read from the index rather
+	// than history: the stamp instant, and Added for a path HEAD lacks.
+	let stagedLog: Map<ConceptId, LogProvenance> | undefined;
+	let logDirty = false;
 
 	if (options.staged !== undefined) {
 		// Issue #140: the pre-commit shape. Inside a hook, `now` is the commit's
@@ -140,20 +141,40 @@ export const planSync: (
 		const git = yield* Git;
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
-		repoRoot = yield* fs.realPath(yield* git.repoRoot(bundle.root));
+		repoRoot = yield* fs.realPath((yield* Derivation.worktreeRoot(bundle.root)) ?? (yield* git.repoRoot(bundle.root)));
 		const stagedPaths = new Set(yield* git.stagedChanges(repoRoot));
 		const selected = new Set<ConceptId>();
 		const provenanceStaged = new Map<ConceptId, GeneratedProvenance>();
 		const resolvedPaths = new Map<ConceptId, string>();
+		const logProvenance = new Map<ConceptId, LogProvenance>();
+		const root = repoRoot;
 		for (const [id, concept] of bundle.concepts) {
 			const real = yield* fs.realPath(path.join(bundle.root, concept.path));
-			const rel = path.relative(repoRoot, real).split(path.sep).join("/");
+			const rel = path.relative(root, real).split(path.sep).join("/");
 			if (!stagedPaths.has(rel)) continue;
 			selected.add(id);
 			provenanceStaged.set(id, { _tag: "committed", at: options.staged.at });
 			resolvedPaths.set(id, real);
+			if (options.modes.has("log")) {
+				// An unborn HEAD has no tree to look in: every staged concept is new.
+				const inHead = yield* git
+					.show(root, "HEAD", rel)
+					.pipe(Effect.catchTag("UnknownRefError", () => Effect.succeed(Option.none<string>())));
+				logProvenance.set(id, { _tag: "committed", at: options.staged.at, creating: Option.isNone(inHead) });
+			}
+		}
+		if (options.modes.has("log")) {
+			// Restaging log.md would sweep a human's unstaged edits into the commit.
+			const logReal = yield* fs
+				.realPath(path.join(bundle.root, "log.md"))
+				.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)));
+			if (logReal !== undefined) {
+				const logRel = path.relative(root, logReal).split(path.sep).join("/");
+				logDirty = (yield* git.unstagedChanges(root)).includes(logRel);
+			}
 		}
 		staged = provenanceStaged;
+		stagedLog = logProvenance;
 		scope = selected;
 		realPaths = resolvedPaths;
 	} else if (options.modes.has("generated") || options.modes.has("log")) {
@@ -187,9 +208,19 @@ export const planSync: (
 	const index: SyncModeResult = options.modes.has("index")
 		? { ...(yield* syncIndex(bundle, true, pending)), migrated: [] }
 		: UNSELECTED;
-	const log: SyncModeResult = options.modes.has("log")
-		? { ...(yield* syncLog(bundle, walked, true, options.logSince, pending)), migrated: [] }
-		: UNSELECTED;
+	const log: SyncModeResult = !options.modes.has("log")
+		? UNSELECTED
+		: logDirty
+			? {
+					...({
+						selected: true,
+						written: [],
+						unchanged: [],
+						skipped: [{ id: "log.md", reason: "dirty" }],
+					} satisfies SyncLogResult),
+					migrated: [],
+				}
+			: { ...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending)), migrated: [] };
 
 	let restage: SyncPlan["restage"];
 	if (options.staged !== undefined && repoRoot !== undefined) {
@@ -205,6 +236,7 @@ export const planSync: (
 						.filter(([id]) => writtenIds.has(id))
 						.map(([, real]) => real)),
 			...index.written.map((relative) => path.join(bundle.root, relative)),
+			...log.written.map((relative) => path.join(bundle.root, relative)),
 		];
 		if (files.length > 0) restage = { repoRoot, files };
 	}
@@ -261,7 +293,7 @@ export const runSync: (
 	options: SyncOptions,
 ) => Effect.Effect<
 	SyncResult,
-	BundleLoadError | GeneratedAtError | SyncStagedLogError | SyncPlanStaleError,
+	BundleLoadError | GeneratedAtError | SyncPlanStaleError,
 	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
 > = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const plan = yield* planSync(options);

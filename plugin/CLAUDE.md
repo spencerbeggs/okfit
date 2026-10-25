@@ -64,7 +64,7 @@ that overflow is the platform's file-and-preview fallback to handle, not
 something these two caps guarantee against on their own.
 
 `pluginfinity.config.ts` declares `SessionStart` orientation (no matcher)
-and `PostToolUse` validate on `Write|Edit` — **not** `PreToolUse`:
+and `PostToolUse` validate on `Write|Edit|Bash` — **not** `PreToolUse`:
 `PreToolUse` fires before the edited file exists on disk, and `okfit
 validate` has nothing to read at that point. The write has already landed by
 the time `PostToolUse` fires, so a block from that hook is a stop-and-fix
@@ -73,7 +73,19 @@ decision 8): it blocks on a `core.conformance` diagnostic for the edited
 file, and it reads the written file to block a `Write` (warn an `Edit`) of a
 concept with no `generated.by` when the config sets `actors.agent`. Copilot
 honours no `PostToolUse` block, so there `okfit_stop` sends the same reason
-as `additionalContext`. It no longer emits `additionalContext` for
+as `additionalContext`. A `Bash` call gets the `generated.by` check only
+([#223](https://github.com/spencerbeggs/okfit/issues/223)): a heuristic scan
+of the command for write targets runs before `okfit context` is spawned, so
+a command with no `.md` write target (`cat README.md`) costs nothing. Targets
+are kept when they are existing, non-reserved files under the bundle root.
+The `Write`/`Edit` split carries over: authoring writes (`>`, `>|`, `tee`,
+the `cp`/`install` destination) block; edit-like writes (`>>`, `tee -a`,
+`sed -i`/`perl -i`, the `mv` destination) only warn, so a human concept
+touched by `sed -i` is never force-attributed. One command with both kinds
+blocks and lists every offender.
+Exotic writes slip through; `okfit sync` backfills `generated` from
+`actors.agent`. Copilot's shell tool is `bash`, which the script accepts
+beside `Bash`. It no longer emits `additionalContext` for
 `core.lint` or profile diagnostics — the registered language server
 delivers those with precise ranges.
 

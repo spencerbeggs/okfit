@@ -24,7 +24,6 @@ export {
 	QueryUnknownVocabularyError,
 	SyncPlanStaleError,
 	SyncPublicationConflictError,
-	SyncStagedLogError,
 	TargetFailure,
 	TargetResolutionError,
 	VerifyConceptNotFoundError,

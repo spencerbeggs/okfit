@@ -83,7 +83,7 @@ const sinceFlag = Flag.String("since").pipe(
 const stagedFlag = Flag.Boolean("staged").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription(
-		"pre-commit mode: stamp only the concepts in the git index, with now as generated.at, and re-add what was written; log mode is excluded (default modes: generated, index)",
+		"pre-commit mode: stamp only the concepts in the git index, with now as generated.at, and re-add what was written; log mode dates the commit's own log.md entry with the same instant",
 	),
 );
 
@@ -103,7 +103,7 @@ const publicationFlag = Flag.String("publication").pipe(
  * `validate`'s handler in substance — stat `--config` (K-1) via
  * `provideConfig`, resolve the project and bundle roots through
  * `resolveProjectConfig` — then it diverges: build the `--only` mode
- * set (default: all three modes, or `generated`+`index` under `--staged`;
+ * set (default: all three modes, `--staged` included (#295);
  * order irrelevant either way — `runSync`'s own fixed order wins, not
  * `--only`'s occurrence order), run `runSync` with BOTH `Git.layer` and
  * `GitHistory.layer` provided (S-16, mirroring `verify.ts:134`'s
@@ -111,9 +111,7 @@ const publicationFlag = Flag.String("publication").pipe(
  * because `GitHistory.layer` does not re-expose `Git` even though it is
  * built on it), render, and always exit `0`. There is no content tier:
  * every typed failure is exit `3` through `bin.ts`'s existing
- * `reportFailures`, EXCEPT `SyncStagedLogError` (`--staged` combined with
- * `--only log`), which carries its own `[Runtime.errorExitCode] = 64`;
- * an unknown `--only` token never reaches this handler at all — it fails
+ * `reportFailures`; an unknown `--only` token never reaches this handler at all — it fails
  * at parse time, exit `64`.
  *
  * @public
@@ -176,11 +174,7 @@ export const syncCommand = Command.make(
 				}
 
 				const modes: ReadonlySet<SyncMode> =
-					input.only.length > 0
-						? new Set(input.only)
-						: input.staged
-							? new Set<SyncMode>(["generated", "index"])
-							: new Set<SyncMode>(["generated", "index", "log"]);
+					input.only.length > 0 ? new Set(input.only) : new Set<SyncMode>(["generated", "index", "log"]);
 
 				const staged = input.staged ? { at: DateTime.startOf(yield* Now, "second") } : undefined;
 

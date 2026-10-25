@@ -1,6 +1,5 @@
 import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
-import type { BodyProvenance } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path } from "effect";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
@@ -158,12 +157,24 @@ export const wantsLogEntry = (window: LogWindow, date: string, title: string): b
 	return items === undefined || !(items.has(`Added ${title}`) || items.has(`Updated ${title}`));
 };
 
+/**
+ * The slice of a concept's provenance log mode reads: a committed concept's
+ * date and whether that commit created it. `Derivation.generatedAt`'s
+ * `BodyProvenance` satisfies it; so does the index-derived provenance
+ * `--staged` builds (#295), which has no commit sha yet.
+ *
+ * @internal
+ */
+export type LogProvenance =
+	| { readonly _tag: "committed"; readonly at: DateTime.Utc; readonly creating: boolean }
+	| { readonly _tag: "uncommitted" };
+
 /** @internal */
 export interface SyncLogResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "log-unparseable" }>;
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "log-unparseable" | "dirty" }>;
 }
 
 /**
@@ -179,7 +190,7 @@ export interface SyncLogResult {
  */
 export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	bundle: LoadedBundle,
-	provenance: ReadonlyMap<ConceptId, BodyProvenance>,
+	provenance: ReadonlyMap<ConceptId, LogProvenance>,
 	dryRun: boolean,
 	since?: string,
 	pending?: Array<PendingWrite>,

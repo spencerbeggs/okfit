@@ -47,10 +47,11 @@ for the simplicity of one agent running one skill straight through.
    `okfit sync --dry-run`, and make a stamp commit only if it reports
    writes. A pre-commit hook with the SAVVY-OKF section runs
    `okfit sync --staged`, which may already have stamped `generated.at` and
-   `integrity.generated.body` into the commit, leaving nothing to stamp. That
-   hook path never writes `log.md`, so the follow-up sync may write only
-   `log.md`; commit that alone as the second commit. Never create an empty
-   stamp commit.
+   `integrity.generated.body` and the commit's own `log.md` entry into the
+   commit, leaving nothing to stamp. When the hook narrowed to
+   `--only generated` (unstaged work under the bundle), the follow-up sync
+   may still write `index.md` or `log.md`; commit those as the second
+   commit. Never create an empty stamp commit.
    To rename a concept file, run `okfit mv <from> <to>` and then `okfit sync`;
    `mv` rewrites every reference, and a sync regenerates `index.md` and the
    stamps. Never rename by hand.
