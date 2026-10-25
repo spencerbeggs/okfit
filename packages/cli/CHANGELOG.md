@@ -1,5 +1,31 @@
 # @okfit/cli
 
+## 0.13.5
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.20.0 | ^0.22.0 |
+| @effected/config-file | dependency | updated | ^0.18.0 | ^0.19.1 |
+| @effected/git | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/jsonc | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/markdown | dependency | updated | ^0.20.0 | ^0.22.0 |
+| @effected/schemastore | dependency | updated | ^0.25.0 | ^0.26.1 |
+| @effected/toml | dependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/yaml | dependency | updated | ^0.23.0 | ^0.25.0 |
+| @okfit/core | dependency | updated | 0.11.4 | 0.11.5 |
+| @okfit/engine | dependency | updated | 0.16.4 | 0.16.5 |
+| @okfit/profiles | dependency | updated | 0.10.5 | 0.10.6 |
+
+[#316][#316]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#316]: https://github.com/spencerbeggs/okfit/pull/316
+
 ## 0.13.4
 
 ### Dependencies
