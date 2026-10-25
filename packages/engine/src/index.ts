@@ -5,6 +5,9 @@
  * @packageDocumentation
  */
 
+// OkfitPlatform's services, re-exported so a front end's inferred command types
+// can name them through this package (TS 7.1 TS2883).
+export type { AppDirs, Xdg, XdgEnvError } from "@effected/xdg";
 export type { DiscoveredConfig } from "./config/anchor.js";
 export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
 export { buildConfigLayer, provideConfig } from "./config/layer.js";
