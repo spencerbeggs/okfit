@@ -1,5 +1,6 @@
 import type { ConfigReadError } from "@effected/config-file";
-import { ConfigFile, TomlCodec } from "@effected/config-file";
+import { ConfigFile } from "@effected/config-file";
+import { TomlCodec } from "@effected/config-file/toml";
 import { HostedSchema } from "@effected/schemastore";
 import type { FileSystem } from "effect";
 import { Duration, Effect, Option, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";

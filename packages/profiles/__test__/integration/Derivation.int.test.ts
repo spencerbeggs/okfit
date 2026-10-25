@@ -150,6 +150,45 @@ describe("Derivation over a body-dirty worktree", () => {
 	);
 });
 
+describe("Derivation from a linked worktree's hook environment (#315)", () => {
+	let repo: FixtureRepo;
+	let tree = "";
+	let gitDir = "";
+
+	beforeAll(async () => {
+		repo = await build(buildRepo(F4_STEPS));
+		tree = `${repo.dir}-wt`;
+		await build(git(repo.dir, ["worktree", "add", "-q", "--detach", tree]));
+		gitDir = await build(git(tree, ["rev-parse", "--absolute-git-dir"]));
+	});
+	afterAll(async () => {
+		await removeDir(tree);
+		await removeDir(repo.dir);
+	});
+
+	it.effect("still finds the topic commit when GIT_DIR is exported without GIT_WORK_TREE", () =>
+		run(
+			Effect.gen(function* () {
+				// A pre-commit hook in a linked worktree exports GIT_DIR, so git takes
+				// each call's cwd as the worktree: asked from okf/modules/, it would
+				// name okf/modules/ as the top level and the concept as untracked.
+				const saved = process.env.GIT_DIR;
+				process.env.GIT_DIR = gitDir;
+				const result = yield* Derivation.generatedAt({ file: join(tree, F4_PATH_RENAMED) }).pipe(
+					Effect.ensuring(
+						Effect.sync(() => {
+							if (saved === undefined) delete process.env.GIT_DIR;
+							else process.env.GIT_DIR = saved;
+						}),
+					),
+				);
+				assert.strictEqual(result._tag, "committed");
+				if (result._tag === "committed") assert.strictEqual(result.sha, repo.shas[F4_EXPECTED_BODY_COMMIT_AT_HEAD]);
+			}),
+		),
+	);
+});
+
 describe("Derivation over a frontmatter-only worktree edit", () => {
 	let repo: FixtureRepo;
 	let file = "";

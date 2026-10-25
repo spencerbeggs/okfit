@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-12T13:31:17Z
+  at: 2026-10-25T18:13:20Z
 tags:
   - architecture
 verified:
@@ -23,13 +23,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-12T15:07:39Z
+  - by: human:spencer
+    at: 2026-10-25T18:30:29Z
 integrity:
   generated:
-    body: 4be309027954468b
+    body: 839f1583a7f867c1
   verified:
     by: human:spencer
-    at: 2026-10-12T15:07:39Z
-    content: 3f9ef8cf2893c2a8
+    at: 2026-10-25T18:30:29Z
+    content: a70ae5064fcae1fb
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -254,9 +256,12 @@ the two composed. `applySyncPlan` fails `SyncPlanStaleError` (exit `3`,
 nothing written, re-run sync) when a target changed since the plan was made.
 
 `--staged` is the pre-commit shape: only concepts in the git index are
-considered, stamped with `now` and re-added; default modes become
-`generated` and `index`, and `--only log` with `--staged` is a usage
-error, exit `64` ([decision](../decisions/sync-staged-stamps.md)).
+considered, stamped with `now` and re-added. The default modes stay all
+three: log mode writes the commit's own `log.md` entry for each staged
+concept, dated with the same `now`, `Added` for a path HEAD lacks and
+`Updated` otherwise, and re-adds `log.md`. A `log.md` with unstaged edits
+is skipped `dirty` rather than staged. `--only` narrows `--staged` like
+any other run ([decision](../decisions/sync-staged-stamps.md)).
 Index mode under `--staged` still renders `index.md` from the working
 tree, not the index, so an unstaged or untracked concept already on disk
 is listed in the committed index before the concept itself is committed;

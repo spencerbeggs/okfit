@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ConfigFile, MergeStrategy, TomlCodec } from "@effected/config-file";
+import { ConfigFile, MergeStrategy } from "@effected/config-file";
+import { TomlCodec } from "@effected/config-file/toml";
 import { Toml } from "@effected/toml";
 import { Duration, Effect, Schema } from "effect";
 import { OkfitConfig, OkfitConfigFile } from "../src/OkfitConfig.js";

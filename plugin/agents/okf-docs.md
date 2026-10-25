@@ -83,8 +83,8 @@ reports, run `okfit sync` to regenerate `generated.at`,
 changed — sequentially, in this one context. In the report, tell the human
 how to stamp after they commit: run `okfit sync --dry-run` and commit only
 what it reports it would write. A pre-commit hook running
-`okfit sync --staged` may already have stamped the concepts, and the hook
-never writes `log.md`, so the follow-up sync may write only `log.md`.
+`okfit sync --staged` may already have stamped the concepts and written
+their `log.md` entries, leaving the follow-up sync nothing to write.
 
 ## What this agent does NOT do
 

@@ -883,7 +883,7 @@ describe("okfit sync (e2e)", () => {
 		}
 	});
 
-	it("--staged stamps a staged new concept with OKFIT_NOW in the same commit, and refuses --only log (#140)", async () => {
+	it("--staged stamps a staged new concept with OKFIT_NOW and carries its own log entry in the same commit (#140, #295)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			await writeFile(decisionPath(cwd, "staged"), decisionWithGeneratedBy("Staged", "Stamped pre-commit."), "utf8");
@@ -898,7 +898,7 @@ describe("okfit sync (e2e)", () => {
 			assert.strictEqual(run.exitCode, 0);
 			const envelope = parseEnvelope(run.stdout);
 			assert.deepStrictEqual(envelope.generated.written, ["decisions/staged"]);
-			assert.strictEqual(envelope.log.selected, false);
+			assert.deepStrictEqual(envelope.log.written, ["log.md"]);
 			const text = await readDecision(cwd, "staged");
 			assert.match(
 				text,
@@ -913,25 +913,23 @@ describe("okfit sync (e2e)", () => {
 			// modified on disk) once the handler rewrote the file.
 			assert.strictEqual(await stagedStatus(cwd, "okf/decisions/staged.md", env), "A ");
 			assert.strictEqual(await stagedContents(cwd, "okf/decisions/staged.md", env), text);
+			const log = await readFile(join(cwd, "okf", "log.md"), "utf8");
+			assert.include(log, "## 2026-09-16\n\n* Added Staged\n");
+			assert.strictEqual(await stagedContents(cwd, "okf/log.md", env), log);
 
 			await commit(cwd, { message: "add staged", authoredAt: "2026-09-16T10:00:05+00:00" }, env);
-			// One commit, and a later plain sync finds nothing to restamp.
-			const after = await withServices(runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd, env }));
-			assert.ok(parseEnvelope(after.stdout).generated.unchanged.includes("decisions/staged"));
+			// One commit, and a later plain sync finds nothing to restamp or log.
+			const after = await withServices(runOkfit(["sync", "--dry-run", "--format", "json"], { cwd, env }));
+			const afterEnvelope = parseEnvelope(after.stdout);
+			assert.ok(afterEnvelope.generated.unchanged.includes("decisions/staged"));
+			assert.deepStrictEqual(afterEnvelope.log.written, []);
 
-			const bad = await withServices(runOkfit(["sync", "--staged", "--only", "log"], { cwd, env }));
-			assert.strictEqual(bad.exitCode, 64);
-			assert.match(bad.stderr, /--staged cannot run log mode/);
-
-			// Final-review F1: the JSON error envelope's own `exit_code` must
-			// match the process's actual exit, not the infrastructure-failure
-			// default of `3` -- `SyncStagedLogError` carries `[Runtime.errorExitCode] = 64`.
-			const badJson = await withServices(
+			// `--only log` narrows `--staged` rather than being a usage error.
+			const narrowed = await withServices(
 				runOkfit(["sync", "--staged", "--only", "log", "--format", "json"], { cwd, env }),
 			);
-			assert.strictEqual(badJson.exitCode, 64);
-			const errorEnvelope = JSON.parse(badJson.stdout) as { readonly exit_code: number };
-			assert.strictEqual(errorEnvelope.exit_code, 64);
+			assert.strictEqual(narrowed.exitCode, 0);
+			assert.strictEqual(parseEnvelope(narrowed.stdout).generated.selected, false);
 		} finally {
 			await removeSandbox(sandbox);
 		}

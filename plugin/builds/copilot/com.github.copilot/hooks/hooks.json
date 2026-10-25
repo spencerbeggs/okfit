@@ -15,7 +15,7 @@
 			{
 				"type": "command",
 				"bash": "bash \"${PLUGIN_ROOT}/hooks/post-tool-use/validate.sh\"",
-				"matcher": "Write|Edit",
+				"matcher": "Write|Edit|Bash",
 				"timeoutSec": 30,
 				"env": {
 					"PLUGINFINITY_EVENT": "PostToolUse"

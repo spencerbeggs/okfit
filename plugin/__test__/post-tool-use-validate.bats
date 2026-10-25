@@ -447,3 +447,159 @@ MD
 	one_object
 	assert_stop claude "modules/broken.md"
 }
+
+# okfit #223: a Bash write to a bundle concept (heredoc, tee, cp, sed -i) gets
+# the same generated.by check as a Write. Heuristic parsing of the command.
+
+# _bash_input command cwd — a PostToolUse input for the Bash tool.
+_bash_input() {
+	hook_fixture PostToolUse "$(jq -nc --arg cmd "$1" --arg c "$2" '{tool_name: "Bash", tool_input: {command: $cmd}, cwd: $c}')"
+}
+
+# _bash_proj — a fake project with a stamped-less concept, an index, and
+# a non-bundle markdown file; echoes the project dir.
+_bash_proj() {
+	local proj="$BATS_TEST_TMPDIR/proj"
+	mkdir -p "$proj/okf/modules" "$proj/docs"
+	printf -- '---\ntype: Module\ntitle: X\n---\n\n# X\n' >"$proj/okf/x.md"
+	printf -- '---\ntype: Module\ntitle: A\n---\n\n# A\n' >"$proj/okf/a.md"
+	printf -- '---\ntype: Module\ntitle: S\ngenerated:\n  by: okfit/claude-code\n---\n\n# S\n' >"$proj/okf/stamped.md"
+	printf -- '---\nokf_version: "0.2"\n---\n' >"$proj/okf/index.md"
+	printf -- '---\ntype: Module\n---\n' >"$proj/docs/readme.md"
+	printf '%s' "$proj"
+}
+
+@test "blocks a Bash heredoc write of a concept with no generated.by (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input $'cat > okf/x.md <<EOF\n---\ntype: Module\n---\nEOF' "$proj")" "$proj"
+		assert_stop "$target" "x.md: generated.by is missing"
+		assert_stop "$target" "okfit/claude-code"
+	done
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "no-ops on a Bash write of a concept that carries generated.by (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "cat > okf/stamped.md <<EOF
+x
+EOF" "$proj")" "$proj"
+		assert_hook_noop
+	done
+}
+
+@test "blocks a Bash tee write, naming every offending file (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "echo hi | tee okf/a.md $proj/okf/x.md" "$proj")" "$proj"
+		assert_stop "$target" "a.md: generated.by is missing"
+		assert_stop "$target" "x.md: generated.by is missing"
+	done
+}
+
+@test "blocks Bash authoring writes: >, >|, tee, cp, install (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for cmd in "cp /tmp/src.md okf/x.md" "install -m 644 /tmp/src.md okf/x.md" "echo hi >|okf/x.md" "echo hi > okf/x.md" "echo hi | tee okf/x.md"; do
+		_run claude "$(_bash_input "$cmd" "$proj")" "$proj"
+		assert_stop claude "generated.by is missing"
+	done
+}
+
+@test "only warns on Bash edit-like writes: >>, tee -a, sed -i, mv (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		for cmd in "mv /tmp/src.md okf/a.md" "sed -i 's/a/b/' okf/x.md" "perl -pi -e 's/a/b/' okf/x.md" "echo hi >>okf/x.md" "echo hi | tee -a okf/x.md" "echo hi | tee --append okf/x.md"; do
+			_run "$target" "$(_bash_input "$cmd" "$proj")" "$proj"
+			assert_hook_json '.decision // "none"' none
+			[[ "$(context_text)" == *"generated.by is missing"*"okfit/claude-code"* ]]
+		done
+	done
+}
+
+@test "a Bash command with both kinds blocks and lists every offender (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "echo a > okf/x.md && sed -i s/a/b/ okf/a.md" "$proj")" "$proj"
+		assert_stop "$target" "x.md: generated.by is missing"
+		assert_stop "$target" "a.md: generated.by is missing"
+	done
+}
+
+@test "Bash reads that mention .md never spawn the CLI (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for cmd in "cat okf/a.md" "git log -- okf/x.md" "grep foo okf/*.md"; do
+		_run claude "$(_bash_input "$cmd" "$proj")" "$proj"
+		assert_hook_noop
+	done
+	[ ! -f "$STUB_DIR/context-cwd" ]
+}
+
+@test "no-ops on a Bash write of index.md or log.md (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	printf '# Log\n' >"$proj/okf/log.md"
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	_run claude "$(_bash_input "cat > okf/index.md <<EOF
+x
+EOF" "$proj")" "$proj"
+	assert_hook_noop
+	_run claude "$(_bash_input "echo x >> okf/log.md" "$proj")" "$proj"
+	assert_hook_noop
+}
+
+@test "no-ops on a Bash write outside the bundle (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	_run claude "$(_bash_input "cat > docs/readme.md <<EOF
+x
+EOF" "$proj")" "$proj"
+	assert_hook_noop
+}
+
+@test "a Bash command that never mentions .md is a no-op and never invokes the CLI (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "ls -la && git status" "$proj")" "$proj"
+		assert_hook_noop
+	done
+	[ ! -f "$STUB_DIR/context-cwd" ]
+}
+
+@test "no-ops on a Bash write when actors.agent is unset (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$CLEAN"
+	_run claude "$(_bash_input "cat > okf/x.md <<EOF
+x
+EOF" "$proj")" "$proj"
+	assert_hook_noop
+}
+
+@test "the kill switches silence the Bash path too (#223)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	_run claude "$(_bash_input "echo x > okf/x.md" "$proj")" "$proj" OKFIT_HOOKS=off
+	assert_hook_noop
+	_run claude "$(_bash_input "echo x > okf/x.md" "$proj")" "$proj" OKFIT_VALIDATE_HOOK=off
+	assert_hook_noop
+	[ ! -f "$STUB_DIR/context-cwd" ]
+}

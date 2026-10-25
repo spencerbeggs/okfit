@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-25T18:13:20Z
 integrity:
   generated:
-    body: d959c84ab8b30505
+    body: 4936673faea44d50
 ---
 
 # AI Plugins
@@ -67,7 +67,7 @@ in `plugin/__test__/` (`pnpm test:bats`) and runs the built scripts under
 `okfit context --format json` once, never `okfit validate` (which would
 load the whole bundle just to learn where it is), turning the result into
 `additionalContext` (`plugin/README.md:77-87`). `PostToolUse`
-fires on `Write|Edit`, **not** `PreToolUse`: `PreToolUse` fires before the
+fires on `Write|Edit|Bash`, **not** `PreToolUse`: `PreToolUse` fires before the
 edited file exists on disk, and `okfit validate` has nothing to read at
 that point, so a block from `PostToolUse` is a stop-and-fix signal, not a
 prevention (`plugin/CLAUDE.md:64-76`; M-20, this is a

@@ -8,13 +8,20 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-11T03:59:59Z
-status: draft
+status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 integrity:
   generated:
     body: 81d1f9bf84614fbf
+  verified:
+    by: human:spencer
+    at: 2026-10-25T18:29:21Z
+    content: ca4e3d76881b58b9
+verified:
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 ---
 
 # A verification is bound to the content it covered

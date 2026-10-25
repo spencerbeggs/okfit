@@ -13,7 +13,6 @@ import {
 	QueryUnknownVocabularyError,
 	SyncPlanStaleError,
 	SyncPublicationConflictError,
-	SyncStagedLogError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
@@ -64,9 +63,6 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    each render as their own `error: <message>` line; both messages
  *    already name the concept id and what to do about it, and neither
  *    carries a filesystem path needing K-51 relativisation.
- * 5a. `SyncStagedLogError` (issue #140) renders the same way, one
- *    `error: <message>` line naming why `--staged` and `--only log` cannot
- *    combine.
  * 5b. `VerifySelectionError` (issue #138) renders the same way, one
  *    `error: <message>` line naming why `okfit verify`'s selection was
  *    contradictory, empty, or named an undeclared type.
@@ -106,7 +102,6 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	if (error instanceof InitBundleDirError) return [`error: ${error.message}`];
 	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
-	if (error instanceof SyncStagedLogError) return [`error: ${error.message}`];
 	if (error instanceof SyncPlanStaleError) return [`error: ${error.message}`];
 	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
 	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-25T18:13:20Z
 integrity:
   generated:
-    body: 2c58ad0bfe9e575f
+    body: 8a1a74ad3b0c23ed
 ---
 
 # Engine
@@ -191,10 +191,13 @@ it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is
 honest](../decisions/sync-staged-stamps.md). Staged mode never
-walks history and never runs log mode. A malformed `--since` is a
-parse-time usage error from the CLI's own argument parser, never a
-`SyncStagedLogError`; only `--only log` paired with `--staged` raises
-that error, exit `64`.
+walks history: its log mode reads the staged concepts' provenance from
+the index (the stamp instant; `Added` when `git show HEAD:<path>` finds
+nothing) and skips a `log.md` with unstaged edits as `dirty`. It takes the
+worktree root from `Derivation.worktreeRoot`, not from
+`git rev-parse --show-toplevel`, which names the bundle root when a
+linked worktree's hook exports `GIT_DIR` (#315). A malformed `--since` is
+a parse-time usage error from the CLI's own argument parser.
 
 ## Editor seams
 

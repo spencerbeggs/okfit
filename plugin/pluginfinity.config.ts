@@ -10,7 +10,7 @@ export default defineConfig({
 	license: "MIT",
 	hooks: {
 		SessionStart: [{ script: "hooks/session-start/orientation.sh", timeout: 10 }],
-		PostToolUse: [{ matcher: "Write|Edit", script: "hooks/post-tool-use/validate.sh", timeout: 30 }],
+		PostToolUse: [{ matcher: "Write|Edit|Bash", script: "hooks/post-tool-use/validate.sh", timeout: 30 }],
 	},
 	mcpServers: {
 		// biome-ignore lint/suspicious/noTemplateCurlyInString: pluginfinity placeholder

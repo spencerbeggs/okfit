@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-25T18:13:20Z
 status: stable
 verified:
   - by: human:spencer
@@ -16,13 +16,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 integrity:
   generated:
-    body: 203a26b4456a046a
+    body: 93eec6da025c2415
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: dc5c76ead30cedd1
+    at: 2026-10-25T18:29:21Z
+    content: c530b370b4374f43
 ---
 
 # okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
@@ -43,8 +45,14 @@ for an ordinary run: a file staged today may be committed next week.
 a change to it. It selects only the concepts in the git index, stamps
 `generated.at` with the current instant (truncated to seconds) and
 `integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
-it wrote so the stamp lands in the same commit. It never walks history
-and never runs log mode, whose group dates must come from commits. It is
+it wrote so the stamp lands in the same commit. It never walks history.
+Its log mode (#295) writes the commit's own `log.md` entry from the same
+facts: the group date is the stamp instant, which is the author date a
+post-commit walk would derive a moment later; the verb is `Added` for a
+path HEAD lacks and `Updated` otherwise; the text is the concept's title.
+A later ordinary sync finds that entry already named and leaves the log
+`unchanged`. A `log.md` with unstaged edits is skipped as `dirty`, since
+re-adding it would commit a human's unstaged work. It is
 meant to be run from a pre-commit hook and nowhere else; outside one it is
 the very fabrication the Derivation rule forbids, which is why it stays
 behind an explicit flag and the default behaviour is untouched.
@@ -63,7 +71,8 @@ frontmatter](../interfaces/integrity-frontmatter.md)); the hook never
 writes `integrity.verified`.
 
 The digest guarantees a `--staged` stamp is never rewritten by a later
-walk. An aborted commit leaves a stamp a few seconds early, harmlessly.
+walk. An aborted commit leaves a stamp, and a log entry, a few seconds early,
+harmlessly; re-running the hook for an amend adds no second entry.
 `--staged` stages the whole file, so a partially staged concept
 (`git add -p`) is fully staged by it. savvy-web/systems#657 carries the
 husky side: skip in CI, skip without `okfit` on PATH, fail the commit on
