@@ -1,5 +1,38 @@
 # @okfit/cli
 
+## 0.14.0
+
+### Features
+
+- `okfit sync --staged` runs all three modes by default, so a pre-commit hook commits each concept's `log.md` entry alongside it instead of leaving it for a follow-up commit
+- `okfit sync --staged --only log` is now a valid narrowing rather than a usage error (exit 64)
+
+### Bug Fixes
+
+- `okfit sync --staged` in a linked git worktree stages regenerated sub-directory indexes at their real paths instead of a phantom repo-root `decisions/index.md` [#320][#320]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.22.0 | ^0.22.1 |
+| @effected/config-file | dependency | updated | ^0.19.1 | ^0.20.0 |
+| @effected/markdown | dependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/schemastore | dependency | updated | ^0.26.1 | ^0.26.2 |
+| @effected/walker | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/yaml | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @okfit/core | dependency | updated | 0.11.5 | 0.11.6 |
+| @okfit/engine | dependency | updated | 0.16.5 | 0.17.0 |
+| @okfit/profiles | dependency | updated | 0.10.6 | 0.11.0 |
+
+[#320][#320]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#320]: https://github.com/spencerbeggs/okfit/pull/320
+
 ## 0.13.5
 
 ### Dependencies
