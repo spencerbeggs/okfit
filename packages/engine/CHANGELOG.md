@@ -1,5 +1,51 @@
 # @okfit/engine
 
+## 0.17.0
+
+### Breaking Changes
+
+- Removed `SyncStagedLogError`: `runSync` with `staged` now runs log mode instead of refusing it. Drop any `catchTag("SyncStagedLogError")` branch; there is nothing left to catch.
+
+### Features
+
+#### Staged log entries
+
+- `runSync({ staged })` with log mode selected writes the commit's own `log.md` entry for each staged concept and re-adds `log.md` to the index, so a pre-commit hook no longer leaves the log one commit behind.
+
+- The group date is the `staged.at` instant; the verb is `Added` for a path `HEAD` lacks and `Updated` otherwise
+
+- Re-running for an amend, or a later ordinary sync, leaves the log `unchanged`
+
+- A `log.md` with unstaged edits is skipped with reason `dirty` instead of being staged
+
+### Bug Fixes
+
+- `runSync({ staged })` from a linked worktree's pre-commit hook no longer stages a sub-directory index at a repo-root path (`decisions/index.md`) or misses the staged concepts; the repository root no longer comes from `git rev-parse --show-toplevel`, which names the bundle root when `GIT_DIR` is exported
+- `runSync({ staged })` re-adds `index.md` and `log.md` at their real paths, like the concepts it re-adds, when the bundle root is reached through a symlink or the file is itself one [#320][#320]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/app | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/config-file | dependency | updated | ^0.19.1 | ^0.20.0 |
+| @effected/markdown | dependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/schemastore | dependency | updated | ^0.26.1 | ^0.26.2 |
+| @effected/store | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/walker | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/xdg | dependency | updated | ^0.14.1 | ^0.15.0 |
+| @effected/yaml | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @okfit/core | dependency | updated | 0.11.5 | 0.11.6 |
+| @okfit/profiles | dependency | updated | 0.10.6 | 0.11.0 |
+
+[#320][#320]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#320]: https://github.com/spencerbeggs/okfit/pull/320
+
 ## 0.16.5
 
 ### Dependencies

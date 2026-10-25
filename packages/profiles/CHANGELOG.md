@@ -1,5 +1,30 @@
 # @okfit/profiles
 
+## 0.11.0
+
+### Features
+
+- `Derivation.worktreeRoot(start)` resolves the repository root by walking up to the nearest `.git` entry, which stays correct inside a linked worktree's git hook where `git rev-parse --show-toplevel` does not
+
+### Bug Fixes
+
+- `Derivation.generatedAt` derives the right commit for a concept in a linked worktree when `GIT_DIR` is exported (as in a pre-commit hook), instead of reporting it `untracked` [#320][#320]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.11.5 | 0.11.6 |
+| @effected/markdown | peerDependency | updated | ^0.22.0 | ^0.23.0 |
+
+[#320][#320]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#320]: https://github.com/spencerbeggs/okfit/pull/320
+
 ## 0.10.6
 
 ### Dependencies
