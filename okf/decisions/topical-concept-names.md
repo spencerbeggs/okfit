@@ -8,10 +8,17 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-11T20:18:01Z
-status: draft
+status: stable
 integrity:
   generated:
     body: d590024d84d9aa41
+  verified:
+    by: human:spencer
+    at: 2026-10-25T18:29:21Z
+    content: 1fc981b9b9e37de1
+verified:
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 ---
 
 # Concept files are named for their topic; ids stay paths

@@ -5,13 +5,20 @@ description: okfit stale --verify re-attests the chosen stale concepts and moves
 tags:
   - architecture
   - dx
-status: draft
+status: stable
 generated:
   by: okfit/claude-code
   at: 2026-10-11T20:51:30Z
 integrity:
   generated:
     body: 8f57f88dd1c91f3c
+  verified:
+    by: human:spencer
+    at: 2026-10-25T18:29:21Z
+    content: 3cfab1575b2a29e6
+verified:
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does

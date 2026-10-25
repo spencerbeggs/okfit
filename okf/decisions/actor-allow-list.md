@@ -7,13 +7,20 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-11T16:51:30Z
-status: draft
+status: stable
 sources:
   - id: derivation-ts
     resource: ../../packages/profiles/src/Derivation.ts
 integrity:
   generated:
     body: 49cf4e05418e7493
+  verified:
+    by: human:spencer
+    at: 2026-10-25T18:29:21Z
+    content: b126299d5404e47c
+verified:
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 ---
 
 # A non-empty actors list is an allow-list and okfit never stores emails

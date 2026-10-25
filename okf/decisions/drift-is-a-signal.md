@@ -8,13 +8,20 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-11T14:48:09Z
-status: draft
+status: stable
 sources:
   - id: trust-ts
     resource: ../../packages/profiles/src/Trust.ts
 integrity:
   generated:
     body: e9d479678557e857
+  verified:
+    by: human:spencer
+    at: 2026-10-25T18:29:21Z
+    content: a90f173dd44ecdc9
+verified:
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 ---
 
 # Verification drift is a signal to weigh, never a gate

@@ -8,7 +8,7 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-10-11T03:57:51Z
-status: draft
+status: stable
 supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
   - id: integrity-ts
@@ -16,6 +16,13 @@ sources:
 integrity:
   generated:
     body: 565cf7625b3b1fb7
+  verified:
+    by: human:spencer
+    at: 2026-10-25T18:29:21Z
+    content: 4d20e30f9a1f1b1f
+verified:
+  - by: human:spencer
+    at: 2026-10-25T18:29:21Z
 ---
 
 # Every okfit digest lives in one integrity family, outside the spec's families

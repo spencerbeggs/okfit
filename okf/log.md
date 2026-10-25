@@ -9,6 +9,12 @@
 * Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 * Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
+* Updated A non-empty actors list is an allow-list and okfit never stores emails
+* Updated A verification is bound to the content it covered
+* Updated Concept files are named for their topic; ids stay paths
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated Verification drift is a signal to weigh, never a gate
+* Updated stale --verify rolls stale_after forward, and plain verify never does
 
 ## 2026-10-12
 
