@@ -1,5 +1,29 @@
 # @okfit/engine
 
+## 0.18.0
+
+### Features
+
+- The engine now re-exports the `AppDirs`, `Xdg` and `XdgEnvError` types from `@effected/xdg`. These are the services and the failure `OkfitPlatform` brings in. A front end whose commands require them can now name them through `@okfit/engine`. Before, TypeScript 7.1 rejected the inferred types of those commands with TS2883 ("cannot be named without a reference to ..."). Nothing changes at runtime. [#322][#322]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/app | dependency | updated | ^0.27.0 | ^0.27.1 |
+| @effected/config-file | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/git | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @effected/walker | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/xdg | dependency | updated | ^0.15.0 | ^0.15.1 |
+
+[#322][#322]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#322]: https://github.com/spencerbeggs/okfit/pull/322
+
 ## 0.17.0
 
 ### Breaking Changes

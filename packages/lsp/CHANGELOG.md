@@ -1,5 +1,25 @@
 # @okfit/lsp
 
+## 0.5.8
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/git | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @effected/walker | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/xdg | dependency | updated | ^0.15.0 | ^0.15.1 |
+| @okfit/engine | dependency | updated | 0.17.0 | 0.18.0 |
+
+[#322][#322]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#322]: https://github.com/spencerbeggs/okfit/pull/322
+
 ## 0.5.7
 
 ### Dependencies
