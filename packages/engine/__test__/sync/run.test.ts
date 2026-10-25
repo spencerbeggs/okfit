@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
@@ -8,7 +8,7 @@ import { Git } from "@effected/git";
 import { OkfitConfig } from "@okfit/core";
 import { Derivation, GitHistory } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
-import { runSync } from "../../src/sync/run.js";
+import { planSync, runSync } from "../../src/sync/run.js";
 
 const AT = "2026-06-01T08:00:00Z";
 
@@ -289,6 +289,39 @@ describe("runSync --staged (issue #140)", () => {
 	const concept = (title: string, extra = ""): string =>
 		`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n---\n\n# ${title}\n${extra}`;
 	const ALL = new Set(["generated", "index", "log"] as const);
+
+	it.effect("restages index and log writes at their real paths when the bundle root is reached through a symlink", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			const link = `${root}-link`;
+			try {
+				yield* Effect.promise(() => symlink(root, link));
+				yield* Effect.promise(() => mkdir(join(root, "okf", "decisions")));
+				yield* Effect.promise(() => writeFile(join(root, "okf", "decisions", "choice.md"), concept("Choice")));
+				git(root, ["add", "okf/decisions/choice.md"]);
+				const plan = yield* planSync({
+					bundleRoot: join(link, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: ALL,
+					dryRun: false,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				const real = yield* Effect.promise(() => realpath(root));
+				assert.deepStrictEqual(
+					[...(plan.restage?.files ?? [])].sort(),
+					[
+						join(real, "okf", "decisions", "choice.md"),
+						join(real, "okf", "decisions", "index.md"),
+						join(real, "okf", "index.md"),
+						join(real, "okf", "log.md"),
+					].sort(),
+				);
+			} finally {
+				yield* Effect.promise(() => rm(link, { force: true }));
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
 
 	it.effect(
 		"writes and restages the commit's own log entry: Added for a new path, Updated for one in HEAD (#295)",

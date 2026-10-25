@@ -19,3 +19,4 @@
 ## Bug Fixes
 
 * `runSync({ staged })` from a linked worktree's pre-commit hook no longer stages a sub-directory index at a repo-root path (`decisions/index.md`) or misses the staged concepts; the repository root no longer comes from `git rev-parse --show-toplevel`, which names the bundle root when `GIT_DIR` is exported
+* `runSync({ staged })` re-adds `index.md` and `log.md` at their real paths, like the concepts it re-adds, when the bundle root is reached through a symlink or the file is itself one

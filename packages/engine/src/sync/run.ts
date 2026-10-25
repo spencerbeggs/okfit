@@ -229,14 +229,26 @@ export const planSync: (
 		// the ids `syncGenerated` would write or migrate -- no cast back to `ConceptId`
 		// needed, since these keys were never anything else.
 		const writtenIds = new Set([...generated.written, ...generated.migrated]);
+		// index.md and log.md get the same realpath treatment, so every staged path
+		// shares repoRoot's physical spelling: through the bundle root's real path
+		// when the file is new, and through the file's own when it exists, which is
+		// where writeAtomic writes a symlinked index.md or log.md.
+		const fs = yield* FileSystem.FileSystem;
+		const realBundle = yield* fs.realPath(bundle.root);
+		const reserved: Array<string> = [];
+		for (const relative of [...index.written, ...log.written]) {
+			const target = path.join(realBundle, relative);
+			reserved.push(
+				yield* fs.realPath(target).pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(target))),
+			);
+		}
 		const files = [
 			...(realPaths === undefined
 				? []
 				: Array.from(realPaths.entries())
 						.filter(([id]) => writtenIds.has(id))
 						.map(([, real]) => real)),
-			...index.written.map((relative) => path.join(bundle.root, relative)),
-			...log.written.map((relative) => path.join(bundle.root, relative)),
+			...reserved,
 		];
 		if (files.length > 0) restage = { repoRoot, files };
 	}
