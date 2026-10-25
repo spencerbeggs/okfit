@@ -201,8 +201,10 @@ const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Crypt
 	Effect.gen(function* () {
 		const unparseable = (): EditFailure => ({ _tag: "Unsupported", key: "verified", shape: "yaml-parse-error" });
 		const parsed = MarkdownDocument.parseResult(text, MarkdownParseOptions.make({ frontmatter: true }));
-		if (Result.isFailure(parsed) || parsed.success.frontmatter === undefined) return yield* Effect.fail(unparseable());
-		const decoded = yield* Effect.result(YamlFrontmatter.decode(parsed.success.frontmatter));
+		if (Result.isFailure(parsed)) return yield* Effect.fail(unparseable());
+		const node = parsed.success.frontmatter;
+		if (Option.isNone(node)) return yield* Effect.fail(unparseable());
+		const decoded = yield* Effect.result(YamlFrontmatter.decode(node.value));
 		if (Result.isFailure(decoded)) return yield* Effect.fail(unparseable());
 		const raw = decoded.success;
 		if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return yield* Effect.fail(unparseable());

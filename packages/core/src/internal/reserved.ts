@@ -93,7 +93,7 @@ export const parseIndex = (
 	const text = document.source;
 	const diagnostics: Array<Diagnostic> = [];
 	let okfVersion: string | undefined;
-	const node = document.frontmatter;
+	const node = Option.getOrUndefined(document.frontmatter);
 	if (node !== undefined && Option.isSome(input.frontmatter)) {
 		const raw = input.frontmatter.value;
 		const record =
@@ -178,14 +178,14 @@ export const parseLog = (input: ReservedFileInput): ReservedParse<LogDocument> =
 	const { file, dir, document } = input;
 	const text = document.source;
 	const diagnostics: Array<Diagnostic> = [];
-	if (document.frontmatter !== undefined) {
+	if (Option.isSome(document.frontmatter)) {
 		diagnostics.push(
 			diagnostic(
 				file,
 				"log-frontmatter",
 				"warning",
 				"log.md carries frontmatter; the spec defines none",
-				rangeOf(text, document.frontmatter.position),
+				rangeOf(text, document.frontmatter.value.position),
 			),
 		);
 	}

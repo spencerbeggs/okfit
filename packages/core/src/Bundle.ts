@@ -219,7 +219,7 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 			const result = parseLog({ file, dir, document });
 			return { diagnostics: result.diagnostics, log: result.document };
 		}
-		const node = document.frontmatter;
+		const node = Option.getOrUndefined(document.frontmatter);
 		const decoded: Decoded =
 			node === undefined ? { raw: Option.none(), diagnostics: [] } : yield* readFrontmatter(file, text, node);
 		if (reserved) {
@@ -237,7 +237,7 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 			path: file,
 			frontmatter: result.concept.value,
 			document,
-			computationBody: computation === undefined ? Option.none() : Option.some(computation.body),
+			computationBody: Option.map(computation, (section) => section.body),
 		});
 		return { diagnostics, concept };
 	});

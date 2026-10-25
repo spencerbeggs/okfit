@@ -1,4 +1,4 @@
-import { DateTime } from "effect";
+import { DateTime, Option } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
 import { Derive } from "../Derive.js";
@@ -231,7 +231,7 @@ export const footnoteSourceUnknown: LintRule = rule("footnote-source-unknown", (
 			continue;
 		}
 		const source = concept.document.source;
-		const start = concept.document.frontmatter?.position.end.offset ?? 0;
+		const start = Option.getOrUndefined(concept.document.frontmatter)?.position.end.offset ?? 0;
 		const code = codeSpansOf(concept);
 		const seen = new Set<string>();
 		for (const match of source.slice(start).matchAll(FOOTNOTE_RE)) {
@@ -263,7 +263,7 @@ export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, 
 	const out: Array<Diagnostic> = [];
 	for (const concept of context.bundle.concepts.values()) {
 		const source = concept.document.source;
-		const start = concept.document.frontmatter?.position.end.offset ?? 0;
+		const start = Option.getOrUndefined(concept.document.frontmatter)?.position.end.offset ?? 0;
 		const body = source.slice(start);
 		const code = codeSpansOf(concept);
 		const defined = new Set(

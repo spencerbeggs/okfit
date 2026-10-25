@@ -19,7 +19,7 @@ const FILE_START = DiagnosticRange.make({ offset: 0, length: 0, line: 0, charact
 export const withFallbackRange = (bundle: LoadedBundle, diagnostic: RenderedDiagnostic): RenderedDiagnostic => {
 	if (diagnostic.range !== undefined || diagnostic.file === "") return diagnostic;
 	const concept = Option.getOrUndefined(conceptFor(bundle, `${bundle.root}/${diagnostic.file}`));
-	const node = concept?.document.frontmatter;
+	const node = concept === undefined ? undefined : Option.getOrUndefined(concept.document.frontmatter);
 	if (concept === undefined || node === undefined) return { ...diagnostic, range: FILE_START };
 	return {
 		...diagnostic,
