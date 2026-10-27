@@ -72,6 +72,40 @@ describe("selectAttestable (issues #138, #143)", () => {
 			}
 		}),
 	);
+
+	it.effect("with drifted: true, also takes a drifted concept outside types, never a current or unverified one", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-select-")));
+			const module = (title: string, extra = ""): string =>
+				`---\ntype: Module\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "modules")));
+				const files: ReadonlyArray<readonly [string, string]> = [
+					["drifted", module("Drifted", entry("human:ada") + binding("human:ada", "0123456789abcdef"))],
+					["current", module("Current", entry("human:bob") + binding("human:bob"))],
+					["never", module("Never")],
+				];
+				for (const [name, text] of files) {
+					yield* Effect.promise(() => writeFile(join(root, "modules", `${name}.md`), text));
+				}
+				yield* bindFixtures(root, ["modules/current.md"]).pipe(Effect.provide(NodeServices.layer));
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
+				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
+					Effect.provide(NodeServices.layer),
+				);
+				const types = new Set(["Decision"]);
+				assert.deepStrictEqual(selectAttestable(bundle, types, "human:ada", signals).candidates, []);
+				const widened = selectAttestable(bundle, types, "human:ada", signals, { drifted: true });
+				assert.deepStrictEqual(
+					widened.candidates.map((concept) => concept.id),
+					["modules/drifted"],
+				);
+				assert.deepStrictEqual(widened.skipped, []);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
 });
 
 describe("resolveBatchTypes", () => {
@@ -210,6 +244,40 @@ describe("selectPickerCandidates (picker)", () => {
 							stale: false,
 						},
 					]);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+	);
+
+	it.effect(
+		"also offers a drifted concept of any type, but not a current or never-verified one outside require_verified",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-picker-")));
+				const bound = (actor: string) =>
+					`verified:\n${by(actor)}integrity:\n  verified:\n    by: ${actor}\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
+				try {
+					yield* Effect.promise(() => mkdir(join(root, "modules")));
+					const files: ReadonlyArray<readonly [string, string]> = [
+						// Bound to a digest that is not its content: drifted.
+						["modules/drifted.md", concept("Module", "Drifted", bound("human:ada"))],
+						// Re-bound to its real content below: current.
+						["modules/current.md", concept("Module", "Current", bound("human:bob"))],
+						["modules/never.md", concept("Module", "Never")],
+						["modules/gone.md", concept("Module", "Gone", `status: deprecated\n${bound("human:ada")}`)],
+					];
+					for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
+					yield* bindFixtures(root, ["modules/current.md"]).pipe(Effect.provide(NodeServices.layer));
+					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
+					const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
+						Effect.provide(NodeServices.layer),
+					);
+					const rows = selectPickerCandidates(bundle, config, "human:ada", signals);
+					assert.deepStrictEqual(
+						rows.map((row) => [row.id, row.integrity]),
+						[["modules/drifted", "drifted"]],
+					);
 				} finally {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}

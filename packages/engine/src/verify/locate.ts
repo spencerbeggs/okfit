@@ -322,6 +322,8 @@ export type TopLevelScalarLocated =
 			readonly start: number;
 			readonly end: number;
 			readonly quote: "plain" | "single-quoted" | "double-quoted";
+			/** The scalar's resolved value (`YamlScalar.value`): quotes, escapes and folding decoded. */
+			readonly value: unknown;
 	  }
 	| { readonly _tag: "insertAfterKey"; readonly insertAt: number; readonly afterKey: "title" | "type" }
 	| { readonly _tag: "unsupported"; readonly shape: string };
@@ -361,6 +363,7 @@ export const locateTopLevelScalar = Effect.fn("okfit/verify/locateTopLevelScalar
 			start: valueStart + node.offset,
 			end: valueStart + node.offset + node.length,
 			quote: node.style,
+			value: node.value,
 		} as const;
 	}
 

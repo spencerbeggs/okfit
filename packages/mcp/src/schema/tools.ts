@@ -1,3 +1,4 @@
+import { ToolOutcome } from "@effected/mcp";
 import { GraphNodeKind, Status } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
 import { DriftReason } from "@okfit/profiles";
@@ -71,8 +72,23 @@ export const ListConceptsSuccess = Schema.Struct({
 /** @public */
 export type ListConceptsSuccess = typeof ListConceptsSuccess.Type;
 
-/** `get_concept`'s result (§5.4). @public */
-export const GetConceptSuccess = Schema.Struct({
+/**
+ * The expected not-found outcome `get_concept` and `concept_neighbors` share,
+ * an `ok: false` envelope member (`ToolOutcome`): the id was empty, or no
+ * concept has it. `_tag` is the engine's error tag.
+ *
+ * @public
+ */
+export const ConceptNotFound = ToolOutcome.error("QueryConceptNotFoundError", {
+	id: Schema.String,
+	reason: Schema.Literals(["empty-id", "not-a-concept"]),
+});
+/** @public */
+export type ConceptNotFound = typeof ConceptNotFound.Type;
+
+/** `get_concept`'s found result (§5.4), the `ok: true` member. @public */
+export const GetConceptFound = Schema.Struct({
+	...ToolOutcome.ok,
 	id: Schema.String,
 	type: Schema.String,
 	title: Schema.String,
@@ -96,6 +112,13 @@ export const GetConceptSuccess = Schema.Struct({
 	drift: Schema.NullOr(TrustDrift),
 });
 /** @public */
+export type GetConceptFound = typeof GetConceptFound.Type;
+
+/** `get_concept`'s result: the concept, or `ConceptNotFound`. @public */
+export const GetConceptSuccess = ToolOutcome.envelope(GetConceptFound, [ConceptNotFound], {
+	identifier: "ConceptNotFound",
+});
+/** @public */
 export type GetConceptSuccess = typeof GetConceptSuccess.Type;
 
 /** One graph neighbour: flat, with a nullable summary (J-4). @public */
@@ -107,10 +130,18 @@ export const Neighbor = Schema.Struct({
 /** @public */
 export type Neighbor = typeof Neighbor.Type;
 
-/** `concept_neighbors`' result (§5.5). @public */
-export const ConceptNeighborsSuccess = Schema.Struct({
+/** `concept_neighbors`' found result (§5.5), the `ok: true` member. @public */
+export const ConceptNeighborsFound = Schema.Struct({
+	...ToolOutcome.ok,
 	outgoing: Schema.Array(Neighbor),
 	incoming: Schema.Array(Neighbor),
+});
+/** @public */
+export type ConceptNeighborsFound = typeof ConceptNeighborsFound.Type;
+
+/** `concept_neighbors`' result: the neighbours, or `ConceptNotFound`. @public */
+export const ConceptNeighborsSuccess = ToolOutcome.envelope(ConceptNeighborsFound, [ConceptNotFound], {
+	identifier: "ConceptNotFound",
 });
 /** @public */
 export type ConceptNeighborsSuccess = typeof ConceptNeighborsSuccess.Type;

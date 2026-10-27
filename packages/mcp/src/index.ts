@@ -11,10 +11,13 @@ export { ConceptResources } from "./resources/conceptResource.js";
 export { IndexResource } from "./resources/indexResource.js";
 export { ConceptSummary, toConceptSummary } from "./schema/ConceptSummary.js";
 export {
+	ConceptNeighborsFound,
 	ConceptNeighborsSuccess,
+	ConceptNotFound,
 	DescribeVocabularySuccess,
 	DocsPreset,
 	DocsPresetSurface,
+	GetConceptFound,
 	GetConceptSuccess,
 	ListConceptsParams,
 	ListConceptsSuccess,

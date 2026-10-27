@@ -98,6 +98,16 @@ into `message`; truncate any caller-supplied value in `reason` first with
 `ToolFailure.truncate(value)`. There is no per-failure tag: the reason text
 names the id, root or valid names the caller needs.
 
+The one exception is an expected outcome, not a wrong call: an id that names
+no concept. `get_concept` and `concept_neighbors` declare their `success` as
+`ToolOutcome.envelope(found, [ConceptNotFound], { identifier:
+"ConceptNotFound" })` (`schema/tools.ts`), spread `ToolOutcome.ok` into the
+found struct, and run the engine lookup through `ToolOutcome.catchAsEnvelope`
+(`internal/conceptNotFound.ts` builds the error fields), so the answer is
+`isError` unset with `structuredContent.ok: false`. Use `ToolRefusal` for
+anything the caller got wrong; use the envelope only for a domain outcome
+the agent branches on.
+
 ## Crash guards
 
 `main.ts` runs under `McpGuard.run` with `exitBeforeConnect` for both

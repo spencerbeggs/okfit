@@ -7,7 +7,6 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import { CliAudience, CliRuntime } from "@effected/cli";
 import type { Distribution } from "@effected/engine";
-import { CurrentDistribution } from "@effected/engine";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
 import { rootCommand } from "./commands/root.js";
@@ -56,16 +55,10 @@ export interface MainOptions {
  * @public
  */
 export const main = (options: MainOptions = {}): void => {
-	const distribution = Option.fromNullishOr(options.distribution);
-
 	const program = Effect.gen(function* () {
 		const now = yield* nowEffect;
 		return yield* CliAudience.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
-	}).pipe(
-		// For anything in the command tree that reads the carrier; `--version`'s
-		// own formatter takes the distribution directly (`env.formatter`).
-		Effect.provideService(CurrentDistribution, distribution),
-	);
+	});
 
 	NodeRuntime.runMain(
 		CliRuntime.main(program, {
@@ -75,6 +68,11 @@ export const main = (options: MainOptions = {}): void => {
 			// `NodeRuntime.runMain`'s own fatal-error path -- a stack trace on
 			// stdout and exit `1`.
 			platform: OkfitPlatform,
+			// The carrier the bin was installed through (null for a direct
+			// install): `main` provides it as `CurrentDistribution` around the
+			// program, for every command and the engine, and appends its
+			// ` via <name> <version>` to the end of `--version`.
+			distribution: options.distribution ?? null,
 			// K-30. `CliRuntime.main` never renders a `ShowHelp` itself
 			// (`Command.runWith` already rendered the help document). The
 			// `exitCode: 3` fallback is the infrastructure tier for any typed error
@@ -102,7 +100,7 @@ export const main = (options: MainOptions = {}): void => {
 			env: {
 				audienceEnvVar: "OKFIT_AUDIENCE",
 				stderrIsTerminal: Effect.sync(() => process.stderr.isTTY === true),
-				formatter: versionFormatter(distribution),
+				formatter: versionFormatter,
 			},
 		}),
 	);

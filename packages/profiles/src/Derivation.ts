@@ -1,10 +1,11 @@
 import type { GitCommandError, NotARepositoryError, UnknownRefError } from "@effected/git";
 import { Git } from "@effected/git";
+import { JsoncFingerprint } from "@effected/jsonc";
+import { Walker } from "@effected/walker";
 import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
-import type { PlatformError } from "effect";
-import { Crypto, DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
-import * as Hex from "effect/encoding/Hex";
+import type { Crypto, PlatformError } from "effect";
+import { DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
 import { Canonical } from "./Canonical.js";
 import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
@@ -161,19 +162,13 @@ const decodeActor = Schema.decodeSync(Actor);
 // Issue #19 (body-digest design, supersedes the reverted `BodyProvenance.stamps` approach): a
 // lowercase 64-char hex sha256 of the P-6-normalized body, so `core.autocrlf` worktrees and
 // trailing-newline churn hash identically and a frontmatter-only edit never changes the digest.
-// `effect`'s own `Crypto` service (EF/Crypto.ts) ships a platform-agnostic `digest` member --
-// preferred over a direct `node:crypto` import so this stays a service requirement like `Git`/
-// `GitHistory`/`FileSystem`/`Path` rather than a hidden Node dependency; `NodeServices.layer`
-// (already provided at every call site through `OkfitPlatform`) supplies the live implementation.
-// `Hex.encode` (EF/encoding/Hex.ts:32) renders the digest bytes as lowercase hex.
+// `JsoncFingerprint.hashText` hashes the text's UTF-8 bytes as given (no EOL or BOM handling by
+// default; `body()` has already normalised) through `effect`'s `Crypto` service, so this stays a
+// service requirement rather than a hidden Node dependency; `NodeServices.layer` (provided at
+// every call site through `OkfitPlatform`) supplies the live implementation.
 const digestFull = (text: string): Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =>
-	Effect.gen(function* () {
-		const crypto = yield* Crypto.Crypto;
-		const bytes = yield* crypto.digest("SHA-256", new TextEncoder().encode(text));
-		return Hex.encode(bytes);
-	});
+	JsoncFingerprint.hashText(text);
 
-/** 16-hex okfit digest (spec section 3): the first 64 bits of SHA-256. */
 const digest = (text: string): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =>
 	Effect.map(digestFull(text), (hex) => hex.slice(0, 16) as Digest);
 
@@ -322,13 +317,9 @@ export class Derivation {
 	)(function* (start: string) {
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
-		let dir = path.resolve(start);
-		for (;;) {
-			if (yield* fs.exists(path.join(dir, ".git")).pipe(Effect.orElseSucceed(() => false))) return dir;
-			const parent = path.dirname(dir);
-			if (parent === dir) return undefined;
-			dir = parent;
-		}
+		const dirs = yield* Walker.ascend(path.resolve(start));
+		const root = yield* Walker.findRoot(dirs, (dir) => fs.exists(path.join(dir, ".git")));
+		return Option.getOrUndefined(root);
 	});
 
 	/**

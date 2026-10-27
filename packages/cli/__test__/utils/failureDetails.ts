@@ -1,22 +1,28 @@
 import type { FailureDetails } from "@effected/cli";
 import { Cancelled, CliRuntime, NotInteractive } from "@effected/cli";
-import { Cause } from "effect";
+import { Cause, Runtime } from "effect";
 import { renderFailure } from "../../src/errors.js";
 
 /**
  * A `FailureDetails` outside a run: `lines` is the kit's run-less equivalent,
  * `CliRuntime.defaultRender` (plain, absolute paths). The two flags test the
  * error's class, as the kit's own do; a cancelled or non-interactive run's
- * `defaultLines` is its fixed line, the error's `message`.
+ * `defaultLines` is its fixed line, the error's `message`. `exitCode` resolves
+ * as `main.ts` wires it: the error's own `Runtime.errorExitCode`, else `3`.
  */
 export const detailsOf = (error: unknown, cause: Cause.Cause<unknown>, isDefect: boolean): FailureDetails => {
 	const isCancelled = error instanceof Cancelled;
 	const isNotInteractive = error instanceof NotInteractive;
+	const ownCode =
+		typeof error === "object" && error !== null && Runtime.errorExitCode in error
+			? (error as { readonly [Runtime.errorExitCode]?: unknown })[Runtime.errorExitCode]
+			: undefined;
 	return {
 		cause,
 		isDefect,
 		isCancelled,
 		isNotInteractive,
+		exitCode: typeof ownCode === "number" ? ownCode : 3,
 		defaultLines:
 			error instanceof Cancelled || error instanceof NotInteractive ? [error.message] : ["[FAIL] the run's own report"],
 		lines: (options) => {

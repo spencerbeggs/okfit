@@ -1,5 +1,14 @@
 # Log
 
+## 2026-10-27
+
+* Updated Engine
+* Updated Profiles
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated The engine version, not the producer version, is what a report is compared on
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit-mcp — MCP tool and resource contract
+
 ## 2026-10-25
 
 * Updated AI Plugins

@@ -331,6 +331,13 @@ describe("FrontmatterEdits.verifiedWithStatus", () => {
 		);
 	});
 
+	it.effect("compares the decoded scalar, so an escaped double-quoted match is already at the target", () => {
+		const source = doc(["type: Module", 'status: "st\\x61ble"', "title: Alpha"]);
+		return Effect.map(FrontmatterEdits.verifiedWithStatus(source, entry, "stable", CONTENT), (edits) =>
+			assert.strictEqual(edits.length, 1),
+		);
+	});
+
 	it.effect("uses CRLF newlines throughout", () => {
 		const source = doc(["type: Module", "title: Alpha"], "\r\n");
 		return Effect.map(run(source), (out) => {

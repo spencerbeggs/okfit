@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
+import { Fmt } from "@effected/cli";
 import { BIN } from "./okfit.js";
 
 /** One scripted keystroke: wait for `waitFor` to appear in new output, then write `send`. */
@@ -34,12 +35,8 @@ export const ptyAvailable: boolean =
 	(process.platform === "darwin" || process.platform === "linux") &&
 	spawnSync("which", ["script"], { stdio: "ignore" }).status === 0;
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching terminal escapes is the point
-const ANSI = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>78]/g;
-
-/** Strips escape sequences and normalises line endings. */
-export const stripAnsi = (text: string): string =>
-	text.replace(ANSI, "").replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+/** Strips escape sequences (the kit's `Fmt.stripAnsi`) and normalises line endings. */
+export const stripAnsi = (text: string): string => Fmt.stripAnsi(text).replaceAll("\r\n", "\n").replaceAll("\r", "\n");
 
 const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
 

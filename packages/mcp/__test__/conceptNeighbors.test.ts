@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import type { ConceptSummary } from "../src/index.js";
 import { copyFixtureProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
+import { assertConceptNotFound } from "./utils/notFound.js";
 
 interface Neighbor {
 	readonly id: string;
@@ -70,13 +71,13 @@ describe("concept_neighbors", () => {
 	// case: `LinkGraph.successors`/`.predecessors` themselves return `[]` for
 	// an unknown id, so a handler that skipped the lookup would return two
 	// empty arrays and silently hide a caller mistake.
-	it.effect("fails ConceptNotFound for an unknown id rather than returning empty arrays", () =>
+	it.effect("answers the ConceptNotFound envelope for an unknown id rather than returning empty arrays", () =>
 		Effect.gen(function* () {
-			const result = yield* neighbors("metrics/nope");
-			assert.ok(result.isError);
-			const text = result.content[0]?.text ?? "";
-			assert.ok(text.includes('"metrics/nope"'));
-			assert.ok(text.includes("Try list_concepts."));
+			assertConceptNotFound(yield* neighbors("metrics/nope"), {
+				id: "metrics/nope",
+				reason: "not-a-concept",
+				messageIncludes: '"metrics/nope"',
+			});
 		}).pipe(Effect.scoped),
 	);
 });

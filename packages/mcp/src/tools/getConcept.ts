@@ -1,10 +1,11 @@
+import { ToolOutcome } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { ConceptQuery, signalFor, toTrustDrift } from "@okfit/engine";
 import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
-import { toConceptLookupFailure } from "../internal/conceptNotFound.js";
+import { conceptNotFound } from "../internal/conceptNotFound.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toolSignals } from "../internal/toolSignals.js";
 import { GetConceptSuccess } from "../schema/tools.js";
@@ -34,25 +35,28 @@ export const getConcept = Tool.make("get_concept", {
 	.annotate(Tool.OpenWorld, false);
 
 /**
- * Deviation from the brief's literal snippet, matching the ruling binding
- * every C task (progress.md): `message` is composed through
- * `ToolFailure.message` (`@effected/mcp`) at construction, since a declared
- * typed failure under `failureMode: "error"` never reaches the wire with
- * `structuredContent` — only `error.message` does.
+ * An unknown or empty id is an expected outcome, not a wrong call: it is
+ * answered on the success channel as `ToolOutcome`'s `{ ok: false, error }`
+ * envelope (`ConceptNotFound`), so the agent reads `_tag`, `reason` and the
+ * remediation from `structuredContent`. Infrastructure failures (no config,
+ * an unreadable bundle) stay declared `McpToolError` refusals.
  *
  * @public
  */
 export const handleGetConcept = (projectRoot: string, params: { readonly id: string }) =>
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
-		const { concept, links } = yield* ConceptQuery.get(ctx.bundle, params.id).pipe(
-			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
+		const found = yield* ConceptQuery.get(ctx.bundle, params.id).pipe(
+			ToolOutcome.catchAsEnvelope({ QueryConceptNotFoundError: (e) => conceptNotFound(params.id, e) }),
 		);
+		if (ToolOutcome.isFailure(found)) return found;
+		const { concept, links } = found;
 
 		const signals = yield* toolSignals(ctx.bundle, ctx.config, yield* DateTime.now);
 		const signal = signalFor(signals, concept.id);
 
 		return {
+			ok: true as const,
 			id: concept.id,
 			type: concept.frontmatter.type,
 			title: Derive.title(concept),

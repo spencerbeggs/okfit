@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-10-27T16:51:56Z
 integrity:
   generated:
-    body: 8a1a74ad3b0c23ed
+    body: a949c804b0f5339d
 ---
 
 # Engine
@@ -109,8 +109,9 @@ becomes `renders[].body`, both cut to 16 hex. The plan and output report
 
 `verify/run.ts#runVerifyBatch` attests a whole selection at once --
 `--all`, narrowed or replaced by `--type <T>` -- instead of one id at a
-time: it collects every concept whose type sets `require_verified` and
-that carries no entry by the caller, skips `status: draft` concepts and
+time: it collects every concept whose type sets `require_verified`, plus
+(with no `--type`) every drifted concept of any type, that the caller does
+not hold the current binding on, skips `status: draft` concepts and
 ones already verified by the caller, and fails closed (nothing written)
 if any selected concept's `verified` shape cannot be spliced safely. An
 empty or undeclared-type selection is a typed `VerifySelectionError`
@@ -131,7 +132,9 @@ all-or-nothing, with an optional promote-drafts step that sets `status:
 stable` in the same write. `verify/select.ts#selectPickerCandidates` and
 `verify/run.ts#loadPickerCandidates` list what the interactive `okfit
 verify` picker offers: concepts of a `require_verified` type the caller has
-not attested, drafts included and deprecated excluded; each row carries
+not attested, plus every drifted concept of any type (the `verified-drift`
+lint's remedy is `okfit verify`, so the picker must offer what it flags),
+drafts included and deprecated excluded; each row carries
 its absolute `path` and `boundAt`, and `verify/run.ts#loadPreviews` runs
 `changeSince` for the drifted rows (a git failure reads as `no-baseline`).
 `PickerCandidate.path` is bundle-relative from `selectPickerCandidates`
@@ -204,7 +207,9 @@ a parse-time usage error from the CLI's own argument parser.
 `overlay/layer.ts` shadows the ambient `FileSystem` with open editor
 buffers (`OverlayDocuments`, absolute path to text and version), falling
 through to disk for everything else and listing overlay-only files in
-their parent directory so an unsaved new concept is walked.
+their parent directory so an unsaved new concept is walked. It answers
+`lstat` as well as `stat` for them: `@effected/walker` `lstat`s every
+entry it descends into, and drops one whose `lstat` is not found.
 `overlay/documents.ts#provideDocuments` is the one entry point the CLI's
 `validate --document` and the MCP `validate_bundle` `documents` input
 share; `DocumentPathError` (exit `64`) owns the path rules.

@@ -53,7 +53,10 @@
 	},
 	"peerDependencies": {
 		"@effected/git": "catalog:effected:peers",
+		"@effected/glob": "catalog:effected:peers",
+		"@effected/jsonc": "catalog:effected:peers",
 		"@effected/markdown": "catalog:effected:peers",
+		"@effected/walker": "catalog:effected:peers",
 		"@okfit/core": "workspace:^",
 		"effect": "catalog:effect:peers"
 	},

@@ -1,10 +1,11 @@
+import { ToolOutcome } from "@effected/mcp";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { ConceptNeighbor } from "@okfit/engine";
 import { ConceptQuery, signalFor } from "@okfit/engine";
 import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
-import { toConceptLookupFailure } from "../internal/conceptNotFound.js";
+import { conceptNotFound } from "../internal/conceptNotFound.js";
 import { loadToolContext } from "../internal/toolContext.js";
 import { toolSignals } from "../internal/toolSignals.js";
 import { toConceptSummary } from "../schema/ConceptSummary.js";
@@ -33,11 +34,11 @@ export const conceptNeighbors = Tool.make("concept_neighbors", {
 	.annotate(Tool.OpenWorld, false);
 
 /**
- * Deviation from the brief's literal snippet, matching the ruling binding
- * every C task (progress.md): `message` is composed through
- * `ToolFailure.message` (`@effected/mcp`) at construction, since a declared
- * typed failure under `failureMode: "error"` never reaches the wire with
- * `structuredContent` — only `error.message` does.
+ * An unknown or empty id is an expected outcome, not a wrong call: it is
+ * answered on the success channel as `ToolOutcome`'s `{ ok: false, error }`
+ * envelope (`ConceptNotFound`), so the agent reads `_tag`, `reason` and the
+ * remediation from `structuredContent`. Infrastructure failures (no config,
+ * an unreadable bundle) stay declared `McpToolError` refusals.
  *
  * @public
  */
@@ -45,8 +46,9 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 	Effect.gen(function* () {
 		const ctx = yield* loadToolContext(projectRoot);
 		const result = yield* ConceptQuery.neighbors(ctx.bundle, params.id).pipe(
-			Effect.catchTag("QueryConceptNotFoundError", (e) => toConceptLookupFailure(params.id, e)),
+			ToolOutcome.catchAsEnvelope({ QueryConceptNotFoundError: (e) => conceptNotFound(params.id, e) }),
 		);
+		if (ToolOutcome.isFailure(result)) return result;
 
 		const signals = yield* toolSignals(ctx.bundle, ctx.config, yield* DateTime.now);
 
@@ -58,6 +60,7 @@ export const handleConceptNeighbors = (projectRoot: string, params: { readonly i
 		});
 
 		return {
+			ok: true as const,
 			outgoing: result.outgoing.map(project),
 			incoming: result.incoming.map(project),
 		};
