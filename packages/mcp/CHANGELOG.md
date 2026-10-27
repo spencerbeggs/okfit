@@ -1,5 +1,47 @@
 # @okfit/mcp
 
+## 0.10.0
+
+### Breaking Changes
+
+- `get_concept` and `concept_neighbors` no longer answer an id that names no concept with an `isError: true` result. It is an expected outcome, so it now comes back on the success channel (`isError` unset) as `@effected/mcp`'s `ToolOutcome` envelope:
+
+```json
+{ "ok": false, "error": { "_tag": "QueryConceptNotFoundError", "id": "metrics/nope", "reason": "not-a-concept", "message": "no concept \"metrics/nope\" in this bundle", "remediation": { "hint": "Call list_concepts to see the ids this bundle contains.", "suggestedTool": "list_concepts" } } }
+```
+
+- `reason` is `empty-id` or `not-a-concept`. A found result now carries `ok: true` beside its existing fields, so a client discriminates on `ok`. Every other failure (config, an unreadable bundle, an invalid argument) is still `isError: true` with the remediation in the message text.
+
+### Features
+
+- Exports `ConceptNotFound`, `GetConceptFound` and `ConceptNeighborsFound`; `GetConceptSuccess` and `ConceptNeighborsSuccess` are now the envelope unions, served with the failure member under `$defs/ConceptNotFound`.
+- The server instructions describe the not-found envelope. [#334][#334]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/engine | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/git | dependency | updated | ^0.25.1 | ^0.26.0 |
+| @effected/glob | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/jsonc | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/mcp | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @effected/schemastore | dependency | updated | ^0.26.2 | ^0.26.3 |
+| @effected/walker | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/xdg | dependency | updated | ^0.15.1 | ^0.16.0 |
+| @okfit/core | dependency | updated | 0.11.6 | 0.11.7 |
+| @okfit/engine | dependency | updated | 0.18.0 | 0.18.1 |
+| @okfit/profiles | dependency | updated | 0.11.0 | 0.12.0 |
+
+[#334][#334]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#334]: https://github.com/spencerbeggs/okfit/pull/334
+
 ## 0.9.8
 
 ### Dependencies
@@ -592,8 +634,7 @@ Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contri
   widens a `@public` schema:
 
 - `composeRemediatedMessage` and `truncateEchoed` are no longer exported.
-  **Upgrade action:** use `@effected/mcp`'s `ToolFailure.message(raw,
-  remediation)` and `ToolFailure.truncate(value, limit?)` in their place.
+  **Upgrade action:** use `@effected/mcp`'s `ToolFailure.message(raw, remediation)` and `ToolFailure.truncate(value, limit?)` in their place.
 
 - `Remediation` (`{ hint, suggestedTool? }`) is replaced by
   `@effected/engine`'s `Remediation`, which additionally accepts an optional

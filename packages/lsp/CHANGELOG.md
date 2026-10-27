@@ -1,5 +1,31 @@
 # @okfit/lsp
 
+## 0.5.9
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/engine | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/git | dependency | updated | ^0.25.1 | ^0.26.0 |
+| @effected/glob | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/jsonc | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/schemastore | dependency | updated | ^0.26.2 | ^0.26.3 |
+| @effected/walker | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/xdg | dependency | updated | ^0.15.1 | ^0.16.0 |
+| @okfit/core | dependency | updated | 0.11.6 | 0.11.7 |
+| @okfit/engine | dependency | updated | 0.18.0 | 0.18.1 |
+| @okfit/profiles | dependency | updated | 0.11.0 | 0.12.0 |
+
+[#334][#334]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#334]: https://github.com/spencerbeggs/okfit/pull/334
+
 ## 0.5.8
 
 ### Dependencies
@@ -631,8 +657,7 @@ Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributio
 #### Initial release
 
 - `@okfit/lsp` is a Language Server Protocol server for okfit: it speaks
-  LSP over stdio and publishes an Open Knowledge Format bundle's `okfit
-  validate` diagnostics into any LSP client, Claude Code included. It
+  LSP over stdio and publishes an Open Knowledge Format bundle's `okfit validate` diagnostics into any LSP client, Claude Code included. It
   discovers a bundle per workspace folder the same way the CLI and MCP
   server do, and writes nothing to the bundle, ever.
 

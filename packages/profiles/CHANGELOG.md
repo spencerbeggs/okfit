@@ -1,5 +1,29 @@
 # @okfit/profiles
 
+## 0.12.0
+
+### Breaking Changes
+
+- `@okfit/profiles` now declares `@effected/walker`, `@effected/jsonc` and `@effected/glob` as peer dependencies. `Derivation.worktreeRoot` walks upward with `@effected/walker`, and the body and content digests hash through `@effected/jsonc`'s `JsoncFingerprint.hashText`. Install the three alongside `@okfit/profiles` if your project does not already have them; anything that also uses `@okfit/core` already does, since core requires all three. Digests are byte-identical to the previous release, so stamped `integrity` values stay valid. [#334][#334]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.11.6 | 0.11.7 |
+| @effected/git | peerDependency | updated | ^0.25.0 | ^0.26.0 |
+| @effected/glob | peerDependency | added | — | ^0.15.0 |
+| @effected/jsonc | peerDependency | added | — | ^0.20.0 |
+| @effected/walker | peerDependency | added | — | ^0.21.0 |
+
+[#334][#334]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#334]: https://github.com/spencerbeggs/okfit/pull/334
+
 ## 0.11.0
 
 ### Features
@@ -530,8 +554,7 @@ Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contri
 ### Breaking Changes
 
 - `Provenance.lint`'s requirements channel now includes `Crypto.Crypto`,
-  alongside the existing `Git | GitHistory | FileSystem.FileSystem |
-  Path.Path`. A caller providing `NodeServices.layer` (or anything built
+  alongside the existing `Git | GitHistory | FileSystem.FileSystem | Path.Path`. A caller providing `NodeServices.layer` (or anything built
   on it, like `@okfit/engine`'s `OkfitPlatform`) needs no change; only a
   caller assembling a narrower custom layer for `Provenance.lint` directly
   must add `Crypto.Crypto` to it. [#49][#49]
