@@ -1,5 +1,39 @@
 # @okfit/engine
 
+## 0.18.1
+
+### Bug Fixes
+
+- The editor overlay (`layerOverlayFileSystem`, used by the language server and by `okfit validate --document`) now answers `lstat` for an open document as well as `stat`. `@effected/walker` 0.21 `lstat`s every entry it walks and skips one that is not found, so a new, unsaved concept was left out of the bundle and got no diagnostics until it was saved. [#334][#334]
+
+* The interactive `okfit verify` picker now offers every drifted concept, whatever its type, alongside the unattested concepts of `require_verified` types. Before, a drifted Interface, Module or other non-required type got a `verified-drift` warning telling you to re-run `okfit verify`, but the picker never listed it. A concept of such a type that nobody has verified is still left out.
+* `okfit verify --all` takes the same drifted concepts of any type. With `--type`, it still takes exactly the named types. [#334][#334]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/app | dependency | updated | ^0.27.1 | ^0.28.0 |
+| @effected/config-file | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/engine | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/git | dependency | updated | ^0.25.1 | ^0.26.0 |
+| @effected/glob | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/jsonc | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/schemastore | dependency | updated | ^0.26.2 | ^0.26.3 |
+| @effected/store | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/walker | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/xdg | dependency | updated | ^0.15.1 | ^0.16.0 |
+| @okfit/core | dependency | updated | 0.11.6 | 0.11.7 |
+| @okfit/profiles | dependency | updated | 0.11.0 | 0.12.0 |
+
+[#334][#334]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#334]: https://github.com/spencerbeggs/okfit/pull/334
+
 ## 0.18.0
 
 ### Features
@@ -1047,8 +1081,7 @@ Thanks to [@spencerbeggs](https://github.com/apps/spencerbeggs) for their contri
 ### Breaking Changes
 
 - `validate/run.ts#run`'s requirements channel now includes
-  `Crypto.Crypto`, alongside the existing `FileSystem.FileSystem |
-  Path.Path | Git | GitHistory`. A caller providing `NodeServices.layer`
+  `Crypto.Crypto`, alongside the existing `FileSystem.FileSystem | Path.Path | Git | GitHistory`. A caller providing `NodeServices.layer`
   or `OkfitPlatform` (as `@okfit/mcp`'s `validateBundle.ts` and the CLI's
   `commands/validate.ts` already do) needs no change; only a caller
   assembling a narrower custom layer for `run` directly must add

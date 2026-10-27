@@ -1,5 +1,47 @@
 # @okfit/cli
 
+## 0.15.0
+
+### Breaking Changes
+
+- `okfit --version` now prints the carrier package at the end of the line when the bin was installed through one, instead of after the CLI version:
+
+```text
+okfit 0.15.0 (engine 0.19.0, okf 0.2, config-schema 1.0) via @okfit/plugin 0.6.0
+```
+
+- A direct install is unchanged (`okfit 0.15.0 (engine 0.19.0, okf 0.2, config-schema 1.0)`). The suffix is now appended by `@effected/cli`'s `CliRuntime.main` `distribution` option, the same carrier the `--format json` envelopes report as `distribution`. A script that parsed the line by position should match `via <name> <version>` at the end, or read `distribution` from any `--format json` report instead. [#334][#334]
+
+### Bug Fixes
+
+- The interactive `okfit verify` picker now offers every drifted concept, whatever its type, alongside the unattested concepts of `require_verified` types. Before, a drifted Interface, Module or other non-required type got a `verified-drift` warning telling you to re-run `okfit verify`, but the picker never listed it. A concept of such a type that nobody has verified is still left out.
+- `okfit verify --all` takes the same drifted concepts of any type. With `--type`, it still takes exactly the named types. [#334][#334]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli | dependency | updated | ^0.22.2 | ^0.23.0 |
+| @effected/config-file | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/engine | dependency | updated | ^0.8.0 | ^0.9.0 |
+| @effected/env | dependency | updated | ^0.5.0 | ^0.6.0 |
+| @effected/git | dependency | updated | ^0.25.1 | ^0.26.0 |
+| @effected/glob | dependency | updated | ^0.14.0 | ^0.15.0 |
+| @effected/jsonc | dependency | updated | ^0.20.0 | ^0.20.1 |
+| @effected/schemastore | dependency | updated | ^0.26.2 | ^0.26.3 |
+| @effected/walker | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @okfit/core | dependency | updated | 0.11.6 | 0.11.7 |
+| @okfit/engine | dependency | updated | 0.18.0 | 0.18.1 |
+| @okfit/profiles | dependency | updated | 0.11.0 | 0.12.0 |
+
+[#334][#334]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#334]: https://github.com/spencerbeggs/okfit/pull/334
+
 ## 0.14.1
 
 ### Dependencies
