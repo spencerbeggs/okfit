@@ -464,8 +464,8 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				provenance: new Map([[concept.id, committed]]),
 				dryRun: false,
 			}).pipe(
-				// Dies on any file read/write: proves the unchanged branch never reaches step 7 at all.
-				Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]),
+				// Fails any file read/write (the noop is last, so it shadows NodeServices' FileSystem): proves the unchanged branch never reaches step 7 at all.
+				Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]),
 			);
 			assert.deepStrictEqual(result.written, []);
 			assert.deepStrictEqual(result.unchanged, [concept.id]);
@@ -728,7 +728,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map([[concept.id, committed]]),
 				dryRun: false,
-			}).pipe(Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]));
+			}).pipe(Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result.skipped, [{ id: concept.id, reason: "generated-missing" }]);
 		}),
 	);
@@ -744,7 +744,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map(),
 				dryRun: false,
-			}).pipe(Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]));
+			}).pipe(Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result.unchanged, [concept.id]);
 		}),
 	);
@@ -756,7 +756,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				provenance: new Map([[concept.id, committed]]),
 				dryRun: true,
 				scope: new Set(),
-			}).pipe(Effect.provide([FileSystem.layerNoop({}), Path.layer, NodeServices.layer]));
+			}).pipe(Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result, { written: [], unchanged: [], migrated: [], skipped: [] });
 		}),
 	);

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-10-27T16:51:56Z
 integrity:
   generated:
-    body: f60c037eb5c166ae
+    body: c40ea4ab3b6968ec
 ---
 
 # Profiles
@@ -61,8 +61,9 @@ matching the old parser's behaviour
 
 ## Rules and boundaries
 
-Effect v4 is pinned to `catalog:effect`; `@okfit/core`, `@effected/git`, and
-`@effected/markdown` are peers (Convention A) -- nothing under `src/`
+Effect v4 is pinned to `catalog:effect`; `@okfit/core`, `@effected/git`,
+`@effected/glob`, `@effected/jsonc`, `@effected/markdown` and
+`@effected/walker` are peers (Convention A) -- nothing under `src/`
 imports `@effect/platform-node` or `node:child_process` directly. No
 `process.cwd()` and no environment reads anywhere in `src/`: `writer` and
 `cwd` are explicit arguments (P-16) (`packages/profiles/CLAUDE.md:28,31`).

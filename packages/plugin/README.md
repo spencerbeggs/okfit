@@ -8,7 +8,7 @@ pnpm add -D @okfit/plugin
 
 ## Versions
 
-`okfit --version` prints four numbers: `okfit 0.5.4 via @okfit/plugin 0.3.7 (engine 0.6.0, okf 0.2, config-schema 1.0)`. The engine, OKF, and config-schema versions are the ones that determine what a report says and what a config may contain; the CLI, MCP server, and this package version independently and are packaging. Every `--format json` report carries `engine_version`, `okf_version`, and `distribution`; `okfit context --format json` adds `config_schema_version`.
+`okfit --version` prints four numbers: `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema 1.0) via @okfit/plugin 0.3.7`. The engine, OKF, and config-schema versions are the ones that determine what a report says and what a config may contain; the CLI, MCP server, and this package version independently and are packaging. Every `--format json` report carries `engine_version`, `okf_version`, and `distribution`; `okfit context --format json` adds `config_schema_version`.
 
 ## Status
 

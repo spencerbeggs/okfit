@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-10-27T16:51:56Z
 tags:
   - architecture
 verified:
@@ -25,13 +25,17 @@ verified:
     at: 2026-10-12T15:07:39Z
   - by: human:spencer
     at: 2026-10-25T18:30:29Z
+  - by: human:spencer
+    at: 2026-10-27T16:43:32Z
+  - by: human:spencer
+    at: 2026-10-27T16:51:31Z
 integrity:
   generated:
-    body: 839f1583a7f867c1
+    body: f494d35cde7a9006
   verified:
     by: human:spencer
-    at: 2026-10-25T18:30:29Z
-    content: a70ae5064fcae1fb
+    at: 2026-10-27T16:51:31Z
+    content: 193369c344ba0e42
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -142,9 +146,10 @@ content }` (see [integrity frontmatter](integrity-frontmatter.md)). A `<target>`
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant; `--dry-run` prints what would be written and writes nothing.
-`--all` attests every concept whose type sets `require_verified` and that
-does not hold the current binding by you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or replaces
-that selection; `status: draft` and `deprecated` concepts and ones you
+`--all` attests every concept whose type sets `require_verified`, plus every
+drifted concept of any other type, that does not hold the current binding by
+you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
+replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
 is `draft`, `deprecated` or `already-verified`; the last now means you hold the current binding). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
@@ -157,8 +162,8 @@ already at the target gets no status edit. Passing both flags, or either with
 set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
 with a terminal on stdin and stdout, and not `--format json`): every concept
-of a `require_verified` type you have not attested, drafts included and
-deprecated excluded, grouped by type, then a confirm step whose "promote K
+of a `require_verified` type you have not attested, plus every drifted
+concept of any type, drafts included and deprecated excluded, grouped by type, then a confirm step whose "promote K
 drafts to stable" toggle is on by default. The picked ids are attested in one
 all-or-nothing write; an empty pick writes nothing and exits `0`, and Esc,
 `q`, Ctrl-C or answering no exits `130` with nothing written. Not
@@ -450,8 +455,9 @@ on](../decisions/comparable-version.md): compare
 `engine_version` and `okf_version`; everything else is packaging.
 `okfit --version` prints the same numbers in one line, plus the config
 schema version — `okfit <cli> (engine <engine>, okf <okf>, config-schema
-<schema>)`, with `via <distribution name> <version>` after the CLI
-version when there is one.
+<schema>)`, with `via <distribution name> <version>` at the end of the
+line when there is one (appended by `@effected/cli`'s `CliRuntime.main`
+`distribution` option).
 
 `okfit context --format json` prints a distinct
 `ContextEnvelope` (schema 1) where every field is present even when

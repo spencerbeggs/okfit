@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-27T16:51:56Z
 tags:
   - architecture
 verified:
@@ -17,13 +17,15 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-10-27T16:43:32Z
 integrity:
   generated:
-    body: cb38ca5d85a6aeb9
+    body: 4ab9a6a5ad35f2d9
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 276a313c93dbad08
+    at: 2026-10-27T16:43:32Z
+    content: 7bf5822166655673
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -59,17 +61,28 @@ then would mislead later in the session.
 
 ## Errors
 
-`McpToolError` is `@effected/mcp`'s `ToolRefusal`, every tool's declared
-failure schema. A refusal covers config discovery, parsing or validation
-failing, an unreadable bundle root, an unknown concept id, a type or tag
-the config does not declare (the message lists the valid names), and a
-tool argument that is structurally fine but semantically invalid (an
-empty id, a `now` without an offset, a document path outside the bundle).
-There is no per-failure tag: a caller reads the message.
+Two channels, split the way `@effected/mcp` splits them.
 
-A failing call reaches the client as `isError: true`, with the
-remediation hint folded directly into `content[0].text` — there is no
-separate structured error field on the wire.
+**An id that names no concept is an expected outcome, not a failed call.**
+`get_concept` and `concept_neighbors` answer it on the success channel
+(`isError` unset) with `@effected/mcp`'s `ToolOutcome` envelope:
+`structuredContent` is `{ ok: false, error: { _tag:
+"QueryConceptNotFoundError", id, reason, message, remediation } }`, where
+`reason` is `"empty-id"` or `"not-a-concept"` and `remediation` names
+`list_concepts`. A found result carries `ok: true` beside its fields, so a
+caller discriminates on `ok`. The served `outputSchema` is the union of
+the two, with the failure member under `$defs/ConceptNotFound`.
+
+**Everything else is a declared refusal.** `McpToolError` is
+`@effected/mcp`'s `ToolRefusal`, every tool's declared failure schema. A
+refusal covers config discovery, parsing or validation failing, an
+unreadable bundle root, a type or tag the config does not declare (the
+message lists the valid names), and a tool argument that is structurally
+fine but semantically invalid (a `now` without an offset, a document path
+outside the bundle). It reaches the client as `isError: true`, with the
+remediation hint folded directly into `content[0].text` and no
+`structuredContent`; there is no per-failure tag, so a caller reads the
+message.
 
 ## Crash policy
 

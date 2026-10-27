@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
+import { LspFrame } from "@effected/lsp";
 import type { Duration, Exit, Fiber, Scope } from "effect";
 import { Cause, Deferred, Effect, FiberSet, Option, Predicate } from "effect";
 import type { Connection, WatchDog } from "vscode-languageserver";
@@ -46,10 +47,8 @@ const INTERNAL_ERROR_MESSAGE = "Internal error";
 const INPUT_ENDED_METHOD = "okfit/$inputEnded";
 
 /** One `Content-Length` frame of `INPUT_ENDED_METHOD` carrying `token`. */
-const inputEndedFrame = (token: string): string => {
-	const body = JSON.stringify({ jsonrpc: "2.0", method: INPUT_ENDED_METHOD, params: { token } });
-	return `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n${body}`;
-};
+const inputEndedFrame = (token: string): Uint8Array =>
+	LspFrame.encode({ jsonrpc: "2.0", method: INPUT_ENDED_METHOD, params: { token } });
 
 /**
  * Default for `options.drain.fallback`: how long after the input ends the

@@ -58,12 +58,18 @@ or `.config/okfit.toml`.
 
 ## Errors
 
-A failing tool call reaches the client as `isError: true`, with the
-remediation text folded directly into the message — there is no separate
-structured error field on the wire. `McpToolError` is `@effected/mcp`'s
-`ToolRefusal`: config failures, an unreadable bundle root, an unknown
-concept id, an undeclared type or tag, and an invalid argument all refuse
-with a message that names the problem and what to do next.
+An id that names no concept is not a failed call. `get_concept` and
+`concept_neighbors` answer it with `structuredContent` `{ ok: false, error:
+{ _tag: "QueryConceptNotFoundError", id, reason, message, remediation } }`
+(`reason` is `empty-id` or `not-a-concept`), and a found result carries
+`ok: true`.
+
+Every other failing tool call reaches the client as `isError: true`, with
+the remediation text folded directly into the message and no structured
+error field. `McpToolError` is `@effected/mcp`'s `ToolRefusal`: config
+failures, an unreadable bundle root, an undeclared type or tag, and an
+invalid argument all refuse with a message that names the problem and
+what to do next.
 
 ## License
 

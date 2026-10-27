@@ -1,5 +1,6 @@
 import { PassThrough } from "node:stream";
 import { assert, describe, it } from "@effect/vitest";
+import { LspFrame } from "@effected/lsp";
 import type { Duration } from "effect";
 import { Deferred, Effect, Fiber, Option, References } from "effect";
 import { ResponseError } from "vscode-jsonrpc/node";
@@ -9,10 +10,7 @@ import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import { makeHarness, notify, request } from "../utils/harness.js";
 
 /** One framed JSON-RPC message, as a client writes it to the server's input. */
-const frame = (message: unknown): string => {
-	const body = JSON.stringify(message);
-	return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
-};
+const frame = (message: unknown): string => Buffer.from(LspFrame.encode(message)).toString("utf8");
 
 const initializeFrame = frame({
 	jsonrpc: "2.0",

@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-27T16:51:56Z
 status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
@@ -27,13 +27,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-10-27T16:38:31Z
 integrity:
   generated:
-    body: 591a11532a177b09
+    body: 52b7407cf0156e41
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: e2d8398b187cb102
+    at: 2026-10-27T16:38:31Z
+    content: b44d665bbdec4aa0
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
@@ -86,8 +88,10 @@ not a substring. It is the agent-facing orientation, distinct from the
 one-line `description`: the tools are read-only; start with
 `describe_vocabulary`, then `list_concepts`; ids are bundle-relative paths
 without `.md`; every successful `tools/call` carries `structuredContent`
-plus a JSON rendering in `content[0].text`; a failure is `isError: true`
-with the message and remediation hint in `content[0].text` and no
+plus a JSON rendering in `content[0].text`; an id that names no concept is
+not a failure but `get_concept`'s and `concept_neighbors`' `ok: false`
+envelope in `structuredContent`; a failure is `isError: true` with the
+message and remediation hint in `content[0].text` and no
 `structuredContent`.
 
 ## Alternatives rejected

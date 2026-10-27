@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { copyFixtureProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
+import { assertConceptNotFound } from "./utils/notFound.js";
 
 interface Link {
 	readonly to: string;
@@ -114,24 +115,19 @@ describe("get_concept", () => {
 	// reaches `tools/call`'s `content[0].text`. So this case (and the next)
 	// assert on the composed wire text rather than on `structuredContent` — the
 	// brief's literal snippet predates that discovery.
-	it.effect("fails ConceptNotFound for an id with no matching concept, suggesting list_concepts", () =>
+	it.effect("answers the ConceptNotFound envelope for an id with no matching concept, suggesting list_concepts", () =>
 		Effect.gen(function* () {
-			const result = yield* get("metrics/nope");
-			assert.ok(result.isError);
-			assert.strictEqual(result.content.length, 1);
-			const text = result.content[0]?.text ?? "";
-			assert.ok(text.includes('"metrics/nope"'));
-			assert.ok(text.includes("Try list_concepts."));
+			assertConceptNotFound(yield* get("metrics/nope"), {
+				id: "metrics/nope",
+				reason: "not-a-concept",
+				messageIncludes: '"metrics/nope"',
+			});
 		}).pipe(Effect.scoped),
 	);
 
-	it.effect("fails InvalidArgument for an empty id", () =>
+	it.effect("answers the ConceptNotFound envelope with reason empty-id for an empty id", () =>
 		Effect.gen(function* () {
-			const result = yield* get("");
-			assert.ok(result.isError);
-			const text = result.content[0]?.text ?? "";
-			assert.ok(text.includes("id must not be empty"));
-			assert.ok(text.includes("Try list_concepts."));
+			assertConceptNotFound(yield* get(""), { id: "", reason: "empty-id", messageIncludes: "id must not be empty" });
 		}).pipe(Effect.scoped),
 	);
 });

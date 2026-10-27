@@ -144,12 +144,29 @@ describe("revision x outcome matrix", () => {
 				Effect.gen(function* () {
 					const harness = yield* open(version);
 					yield* harness.initialize;
-					const result = yield* harness.callTool("get_concept", { id: "nope" });
+					const result = yield* harness.callTool("stale_report", { now: "2026-09-06T00:00:00" });
 					assert.strictEqual(result.isError, true);
 					assert.isUndefined(result.structuredContent);
 					assert.strictEqual(result.content.length, 1);
-					assert.ok(result.content[0]?.text?.includes("nope"));
-					assert.ok(result.content[0]?.text?.includes("Try list_concepts."));
+					assert.ok(result.content[0]?.text?.includes("explicit offset"));
+				}).pipe(Effect.scoped),
+			);
+
+			it.effect("an expected not-found is not isError: structuredContent carries the ok: false envelope", () =>
+				Effect.gen(function* () {
+					const harness = yield* open(version);
+					yield* harness.initialize;
+					const result = yield* harness.callTool("get_concept", { id: "nope" });
+					assert.notStrictEqual(result.isError, true);
+					const data = result.structuredContent as {
+						readonly ok: boolean;
+						readonly error: { readonly _tag: string; readonly id: string; readonly reason: string };
+					};
+					assert.strictEqual(data.ok, false);
+					assert.deepStrictEqual(
+						{ _tag: data.error._tag, id: data.error.id, reason: data.error.reason },
+						{ _tag: "QueryConceptNotFoundError", id: "nope", reason: "not-a-concept" },
+					);
 				}).pipe(Effect.scoped),
 			);
 

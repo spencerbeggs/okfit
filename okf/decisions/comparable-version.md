@@ -21,7 +21,7 @@ sources:
     resource: ../../packages/cli/src/internal/versionFormatter.ts
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:52:46Z
+  at: 2026-10-27T16:51:56Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -31,13 +31,15 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-10-27T16:38:31Z
 integrity:
   generated:
-    body: 8349d11fc37db8af
+    body: e0c8a44061cdccec
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: d5eb32af5b24c75b
+    at: 2026-10-27T16:38:31Z
+    content: fe9e3dfbbaacdb21
 ---
 
 # The engine version, not the producer version, is what a report is compared on
@@ -115,8 +117,8 @@ packaging.[^owner-ruling]
   change is additive.
 - `okfit --version` prints all four, and the distribution when there is
   one: `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema 1.0)` from a
-  direct install, `okfit 0.5.4 via @okfit/plugin 0.3.7 (engine 0.6.0,
-  okf 0.2, config-schema 1.0)` from the meta-package. The label is
+  direct install, `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema
+  1.0) via @okfit/plugin 0.3.7` from the meta-package. The label is
   `config-schema`, not `config-file`, because the TOML directive, the
   `schemas/1.0/` tree and the JSON field all say "schema", and
   `config-file 1.0` reads as the version of the reader's own file. The MCP server's `initialize` response keeps

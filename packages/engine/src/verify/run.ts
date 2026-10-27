@@ -491,7 +491,8 @@ export const runRevokeIds = Effect.fn("okfit/verify/runRevokeIds")(function* (op
 
 /**
  * Issue #138. Attests every concept selected by `options.types` (or, when
- * empty, every type whose declaration sets `require_verified = true`) that
+ * empty, every type whose declaration sets `require_verified = true`, plus
+ * every drifted concept of any type) that
  * is not a draft, is not deprecated (#143) and whose `verified` entry by the
  * resolved actor does not already bind its current content (`Trust.signals`). Every candidate is located FIRST -- an unsupported
  * `verified` shape on any one of them fails the whole batch with nothing
@@ -507,7 +508,9 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	const at = Schema.encodeSync(Timestamp)(options.at);
 
 	const signals = yield* Trust.signals(bundle, options.config, options.at);
-	const selection = selectAttestable(bundle, types, actor, signals);
+	// No explicit `--type`: also every drifted concept, whatever its type. An
+	// explicit type list stays exactly that list.
+	const selection = selectAttestable(bundle, types, actor, signals, { drifted: options.types.length === 0 });
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	// Every concept is located before any is written: one unsupported
 	// shape fails the whole batch with the tree untouched.

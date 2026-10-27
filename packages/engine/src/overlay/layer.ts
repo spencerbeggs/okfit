@@ -1,3 +1,4 @@
+import type { PlatformError } from "effect";
 import { ByteSize, Context, Effect, FileSystem, Layer, Option } from "effect";
 
 /**
@@ -91,7 +92,35 @@ const overlayInfo = (text: string): FileSystem.File.Info => ({
 });
 
 /**
- * Wrap `underlying` so `readFile`, `readFileString`, `exists` and `stat` answer
+ * `read`'s `File.Info` for `path`, with an open document's size, or a plain
+ * file's info for a document that exists only in the overlay.
+ */
+const shadowInfo = (
+	documents: OverlayDocumentsShape,
+	path: string,
+	read: FileSystem.FileSystem["stat"],
+): Effect.Effect<FileSystem.File.Info, PlatformError.PlatformError> =>
+	Effect.flatMap(
+		documents.get(path),
+		Option.match({
+			onNone: () => read(path),
+			onSome: (document) =>
+				read(path).pipe(
+					Effect.map(
+						(info): FileSystem.File.Info => ({
+							...info,
+							size: ByteSize.bytes(encoder.encode(document.text).byteLength),
+						}),
+					),
+					Effect.catchTag("PlatformError", (error) =>
+						error.reason._tag === "NotFound" ? Effect.succeed(overlayInfo(document.text)) : Effect.fail(error),
+					),
+				),
+		}),
+	);
+
+/**
+ * Wrap `underlying` so `readFile`, `readFileString`, `exists`, `stat` and `lstat` answer
  * from `documents` for open paths, and a non-recursive `readDirectory` also lists
  * open documents whose parent is the directory read (so a brand-new unsaved file
  * is walked). Every other member, and every path not open, is `underlying`'s.
@@ -125,25 +154,10 @@ export const makeOverlayFileSystem = (
 				documents.get(path),
 				Option.match({ onNone: () => underlying.exists(path), onSome: () => Effect.succeed(true) }),
 			),
-		stat: (path) =>
-			Effect.flatMap(
-				documents.get(path),
-				Option.match({
-					onNone: () => underlying.stat(path),
-					onSome: (document) =>
-						underlying.stat(path).pipe(
-							Effect.map(
-								(info): FileSystem.File.Info => ({
-									...info,
-									size: ByteSize.bytes(encoder.encode(document.text).byteLength),
-								}),
-							),
-							Effect.catchTag("PlatformError", (error) =>
-								error.reason._tag === "NotFound" ? Effect.succeed(overlayInfo(document.text)) : Effect.fail(error),
-							),
-						),
-				}),
-			),
+		stat: (path) => shadowInfo(documents, path, underlying.stat),
+		// The walker `lstat`s every entry (it never enters a symlink unasked), so
+		// an overlay-only file must answer here too or the walk drops it.
+		lstat: (path) => shadowInfo(documents, path, underlying.lstat),
 		readDirectory: (path, options) =>
 			options?.recursive === true
 				? underlying.readDirectory(path, options)

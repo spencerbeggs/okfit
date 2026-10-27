@@ -50,7 +50,8 @@ src/
   bin.ts               -- the shebang entry point: imports and calls main(), nothing else
   main.ts               -- the assembled program: resolves Now, provides OkfitPlatform and
                             the version formatter (env.formatter), runs on @effected/cli's
-                            CliRuntime.main (env wiring, audienceEnvVar OKFIT_AUDIENCE) via CliAudience.run
+                            CliRuntime.main (env wiring, audienceEnvVar OKFIT_AUDIENCE, and
+                            `distribution`, which provides CurrentDistribution) via CliAudience.run
   index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
                              Counts, human, humanDoc, annotationDir, line, summary, VerifyLines, humanVerify*,
                              humanStale*, CLI_VERSION
@@ -58,8 +59,9 @@ src/
                               build-time constant the bundler injects -- never a package.json
                               import, which would report engine's version for anything that
                               moved there. `okfit --version` prints it beside ENGINE_VERSION
-                              (from @okfit/engine) and OKF_SPEC_VERSION, and `via <name>
-                              <version>` when main() was given a distribution; the engine and
+                              (from @okfit/engine) and OKF_SPEC_VERSION, then `via <name>
+                              <version>` at the end when main() was given a distribution
+                              (CliRuntime.main's `distribution` option appends it); the engine and
                               OKF numbers are the ones a reader compares
                               (okf/decisions/comparable-version.md)
   errors.ts                -- renderFailure and its private helpers only; the typed error
@@ -140,7 +142,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   peers, need: `@okfit/core`'s peers (`effect`, `@effected/config-file`,
   `@effected/glob`, `@effected/jsonc`, `@effected/markdown`,
   `@effected/toml`, `@effected/walker`, `@effected/yaml`), `@okfit/profiles`'s
-  peers (`@effected/git`, `@effected/markdown`, `@okfit/core`), and the
+  peers (`@effected/git`, `@effected/glob`, `@effected/jsonc`, `@effected/markdown`,
+  `@effected/walker`, `@okfit/core`), and the
   CLI's own wiring (`@effect/platform-node` for `NodeRuntime`,
   `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
   there is nothing of engine's to satisfy here. Several

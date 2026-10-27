@@ -21,8 +21,8 @@ okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format huma
 
 `okfit --version` prints `okfit <cli> (engine <engine>, okf <okf>,
 config-schema <schema>)` — for example `okfit 0.5.4 (engine 0.6.0, okf 0.2,
-config-schema 1.0)`, or `okfit 0.5.4 via @okfit/plugin 0.3.7 (engine 0.6.0,
-okf 0.2, config-schema 1.0)` when installed through the meta-package. The
+config-schema 1.0)`, or `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema
+1.0) via @okfit/plugin 0.3.7` when installed through the meta-package. The
 engine, OKF, and config-schema versions decide what a report says and what
 a config may contain; the CLI version is packaging.
 
@@ -277,14 +277,14 @@ nothing to revoke on that concept; passing `--revoke` with `--all`, `--type`,
 `--stable` or `--draft` is a usage error (exit `64`).
 
 `--all` and `--type <Type>` (repeatable) attest in batch: every concept whose
-type sets `require_verified` (or of the named types) that you have not
-already verified. A batch skips a concept and reports why: `draft`,
+type sets `require_verified`, plus every drifted concept of any type (or, with
+`--type`, only the named types) that you have not already verified. A batch skips a concept and reports why: `draft`,
 `deprecated`, or `already-verified`. A batch never re-attests a
 `deprecated` concept; verifying one by id is still allowed.
 
 Bare `okfit verify` in a terminal opens a picker: every concept of a
-`require_verified` type you have not attested, drafts included and
-deprecated excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
+`require_verified` type you have not attested, plus every drifted concept of
+any type, drafts included and deprecated excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
 one all-or-nothing write. When a candidate is drifted, the picker shows a

@@ -36,6 +36,8 @@ const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<
  * batch. A draft is unsettled and a deprecated concept is retired (#143), so
  * both are skipped before the already-verified check. A concept whose
  * verification has drifted, or is bound to another actor, is a candidate.
+ * With `options.drifted`, a drifted concept of any type is considered too,
+ * as the picker does: the `verified-drift` lint's remedy is `okfit verify`.
  *
  * @public
  */
@@ -44,11 +46,13 @@ export const selectAttestable = (
 	types: ReadonlySet<string>,
 	actor: string,
 	signals: ReadonlyMap<string, ConceptSignal>,
+	options: { readonly drifted?: boolean } = {},
 ): AttestableSelection => {
 	const candidates: Array<LoadedConcept> = [];
 	const skipped: Array<{ readonly id: string; readonly reason: VerifyBatchSkipReason }> = [];
 	for (const [id, concept] of bundle.concepts) {
-		if (!types.has(concept.frontmatter.type)) continue;
+		const drifted = options.drifted === true && signals.get(id)?.integrity === "drifted";
+		if (!types.has(concept.frontmatter.type) && !drifted) continue;
 		const status = concept.frontmatter.status;
 		if (status === "draft" || status === "deprecated") {
 			skipped.push({ id, reason: status });
@@ -101,8 +105,11 @@ const boundAtOf = (concept: LoadedConcept): string | null => {
 
 /**
  * Every concept whose type sets `require_verified` that `actor` has not
- * attested: drafts included, deprecated concepts and the actor's own still-bound
- * attestations excluded (a drifted one is offered again). Sorted by type, then id; grouping is the caller's.
+ * attested, plus every drifted concept of any type (a human verified it once
+ * and its content has changed since, so the `verified-drift` lint sends the
+ * reader here): drafts included, deprecated concepts and the actor's own
+ * still-bound attestations excluded (a drifted one is offered again). Sorted
+ * by type, then id; grouping is the caller's.
  *
  * @public
  */
@@ -116,7 +123,8 @@ export const selectPickerCandidates = (
 	const rows: Array<PickerCandidate> = [];
 	for (const [id, concept] of bundle.concepts) {
 		const { type, status, title, description } = concept.frontmatter;
-		if (!types.has(type) || status === "deprecated") continue;
+		const drifted = signals.get(id)?.integrity === "drifted";
+		if ((!types.has(type) && !drifted) || status === "deprecated") continue;
 		const verified = concept.frontmatter.verified ?? [];
 		if (attestedBy(concept, actor, signals)) continue;
 		rows.push({

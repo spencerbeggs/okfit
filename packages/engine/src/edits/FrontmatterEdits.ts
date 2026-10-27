@@ -30,10 +30,6 @@ export class UnsupportedFrontmatterError extends Schema.TaggedError<UnsupportedF
 const shift = (edit: MarkdownEdit, by: number): MarkdownEdit =>
 	by === 0 ? edit : MarkdownEdit.make({ offset: edit.offset + by, length: edit.length, content: edit.content });
 
-/** The value of a located scalar's raw source text, quotes removed. */
-const unquote = (raw: string, quote: "plain" | "single-quoted" | "double-quoted"): string =>
-	quote === "plain" ? raw.trim() : raw.slice(1, -1);
-
 /**
  * A public facade over the `verify/locate.ts` and `verify/splice.ts`
  * machinery: byte-range `MarkdownEdit`s for a concept's top-level `status`
@@ -124,7 +120,7 @@ export class FrontmatterEdits {
 			if (target._tag === "unsupported") {
 				return yield* new UnsupportedFrontmatterError({ key: "status", shape: target.shape });
 			}
-			if (target._tag !== "replaceScalar" || unquote(text.slice(target.start, target.end), target.quote) !== status) {
+			if (target._tag !== "replaceScalar" || target.value !== status) {
 				statusEdit = spliceTopLevelScalar(target, "status", status, newline);
 			}
 			const integrity = yield* locateIntegrity(text);
