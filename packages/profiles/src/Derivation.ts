@@ -1,7 +1,6 @@
 import type { GitCommandError, NotARepositoryError, UnknownRefError } from "@effected/git";
 import { Git } from "@effected/git";
 import { JsoncFingerprint } from "@effected/jsonc";
-import { Walker } from "@effected/walker";
 import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { Crypto, PlatformError } from "effect";
@@ -303,30 +302,10 @@ export class Derivation {
 	) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> = contentDigest;
 
 	/**
-	 * The worktree root holding `start`: the nearest ancestor directory (inclusive) with a `.git` entry, a
-	 * directory in a main checkout and a file in a linked worktree or submodule; `undefined` when none has one.
-	 * Asked of the filesystem rather than of `git rev-parse --show-toplevel` because a pre-commit hook in a
-	 * linked worktree exports `GIT_DIR` without `GIT_WORK_TREE`, and git then takes each call's cwd as the
-	 * worktree, naming whatever directory it was asked from as the top level (okfit #315). Not
-	 * symlink-resolved; callers `realPath` it as they would `Git.repoRoot`.
-	 */
-	static readonly worktreeRoot: (
-		start: string,
-	) => Effect.Effect<string | undefined, never, FileSystem.FileSystem | Path.Path> = Effect.fn(
-		"Derivation.worktreeRoot",
-	)(function* (start: string) {
-		const fs = yield* FileSystem.FileSystem;
-		const path = yield* Path.Path;
-		const dirs = yield* Walker.ascend(path.resolve(start));
-		const root = yield* Walker.findRoot(dirs, (dir) => fs.exists(path.join(dir, ".git")));
-		return Option.getOrUndefined(root);
-	});
-
-	/**
 	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:
-	 *  1. `root = worktreeRoot(dirname(file)) ?? Git.repoRoot(dirname(file))`: the filesystem walk first, so a
-	 *     linked worktree's hook environment (`GIT_DIR` exported) cannot shrink the root to the file's directory
-	 *     (okfit #315); git answers when no ancestor holds `.git`, and a file outside any repository surfaces
+	 *  1. `root = Git.repoRoot(dirname(file), { ignoreRepositoryEnv: true })`: the option drops the
+	 *     repository-pointing variables (`GIT_DIR` and kin), so a linked worktree's hook environment cannot shrink
+	 *     the root to the file's directory (okfit #315); a file outside any repository surfaces
 	 *     `NotARepositoryError`. Submodules and worktrees work because both are asked from the file's directory (P-39).
 	 *  2. `realPath` both (rev-parse is symlink-resolved), then the repo-relative posix path via `Path` (P-39).
 	 *  3. `worktree = body(readFileString(file))`.
@@ -350,9 +329,7 @@ export class Derivation {
 			const fs = yield* FileSystem.FileSystem;
 			const path = yield* Path.Path;
 			// 1. GIT/index.d.ts:1587; EF/Path.ts:88
-			const root =
-				(yield* Derivation.worktreeRoot(path.dirname(options.file))) ??
-				(yield* git.repoRoot(path.dirname(options.file)));
+			const root = yield* git.repoRoot(path.dirname(options.file), { ignoreRepositoryEnv: true });
 			// 2. EF/FileSystem.ts:265; EF/Path.ts:96, :86
 			const realRoot = yield* fs.realPath(root);
 			const realFile = yield* fs.realPath(options.file);

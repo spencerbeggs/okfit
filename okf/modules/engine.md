@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-27T16:51:56Z
+  at: 2026-10-28T21:55:47Z
 integrity:
   generated:
-    body: a949c804b0f5339d
+    body: 4c6714dc179e1c01
 ---
 
 # Engine
@@ -197,9 +197,9 @@ honest](../decisions/sync-staged-stamps.md). Staged mode never
 walks history: its log mode reads the staged concepts' provenance from
 the index (the stamp instant; `Added` when `git show HEAD:<path>` finds
 nothing) and skips a `log.md` with unstaged edits as `dirty`. It takes the
-worktree root from `Derivation.worktreeRoot`, not from
-`git rev-parse --show-toplevel`, which names the bundle root when a
-linked worktree's hook exports `GIT_DIR` (#315). A malformed `--since` is
+worktree root from `Git.repoRoot(..., { ignoreRepositoryEnv: true })`, which
+drops the `GIT_DIR` a linked worktree's hook exports and would otherwise make
+git name the bundle root (#315). A malformed `--since` is
 a parse-time usage error from the CLI's own argument parser.
 
 ## Editor seams
