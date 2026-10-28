@@ -1,34 +1,8 @@
-// Offset to zero-based line/character over file text, and the frontmatter
-// offset shift (D-14). markdown and yaml keep their equivalents private, so
-// core owns this loop (diagnostic-range-and-position-mapping.md sections 2-3).
+// The frontmatter offset shift (D-14). Offset to line/character is the kit's
+// `LineIndex` (`@effected/source`), used by `DiagnosticRange.fromOffset`.
 
 const LF = 0x0a;
 const CR = 0x0d;
-
-/** A zero-based line and UTF-16 character position. @public */
-export interface LineCharacter {
-	readonly line: number;
-	readonly character: number;
-}
-
-/** Line and character of `offset` within `text`; `\n`, `\r` and `\r\n` each count as one line break. @public */
-export const lineCharacter = (text: string, offset: number): LineCharacter => {
-	let line = 0;
-	let lineStart = 0;
-	const limit = Math.min(offset, text.length);
-	for (let i = 0; i < limit; i++) {
-		const code = text.charCodeAt(i);
-		if (code === LF) {
-			line++;
-			lineStart = i + 1;
-		} else if (code === CR) {
-			if (i + 1 < text.length && text.charCodeAt(i + 1) === LF) i++;
-			line++;
-			lineStart = i + 1;
-		}
-	}
-	return { line, character: offset - lineStart };
-};
 
 /** The only frontmatter fence core recognizes (D-13). @public */
 export const FRONTMATTER_FENCE = "---";

@@ -261,6 +261,9 @@ catalogs:
     '@effected/schemastore-cli':
       specifier: ^0.27.0
       version: 0.27.0
+    '@effected/source':
+      specifier: ^0.1.0
+      version: 0.1.0
     '@effected/store':
       specifier: ^0.21.0
       version: 0.21.0
@@ -461,6 +464,9 @@ importers:
       '@effected/schemastore-cli':
         specifier: catalog:effected
         version: 0.27.0(@effected/config-file@0.22.0(@effected/glob@0.16.0(effect@4.0.7))(@effected/jsonc@0.21.0(effect@4.0.7))(@effected/toml@0.17.0(effect@4.0.7))(@effected/walker@0.22.0(@effected/glob@0.16.0(effect@4.0.7))(effect@4.0.7))(@effected/yaml@0.26.0(effect@4.0.7))(effect@4.0.7))(@effected/schemastore@0.27.0(effect@4.0.7))(@types/react@19.3.0)(effect@4.0.7)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.0)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/toml':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.7)

@@ -1,12 +1,18 @@
 import { assert, describe, it } from "@effect/vitest";
-import { FRONTMATTER_FENCE, frontmatterValueStart, lineCharacter, toFileOffset } from "../src/internal/position.js";
+import { DiagnosticRange } from "../src/Diagnostic.js";
+import { FRONTMATTER_FENCE, frontmatterValueStart, toFileOffset } from "../src/internal/position.js";
+
+const lineCharacter = (text: string, offset: number) => {
+	const { line, character } = DiagnosticRange.fromOffset(text, offset, 0);
+	return { line, character };
+};
 
 const LF = "---\ntype: Note\ntitle: Widget\n---\n\n# Widget\n";
 const CRLF = "---\r\ntype: Note\r\ntitle: Widget\r\n---\r\n";
 const CR = "---\rtype: Note\r---\r";
 
 describe("internal/position", () => {
-	it("lineCharacter is zero-based and counts LF, CR and CRLF once each", () => {
+	it("DiagnosticRange.fromOffset is zero-based and counts LF, CR and CRLF once each", () => {
 		assert.deepStrictEqual(lineCharacter(LF, 0), { line: 0, character: 0 });
 		assert.deepStrictEqual(lineCharacter(LF, 4), { line: 1, character: 0 });
 		assert.deepStrictEqual(lineCharacter(LF, 10), { line: 1, character: 6 });
@@ -14,6 +20,9 @@ describe("internal/position", () => {
 		assert.deepStrictEqual(lineCharacter(CRLF, 5), { line: 1, character: 0 });
 		assert.deepStrictEqual(lineCharacter(CRLF, CRLF.indexOf("title")), { line: 2, character: 0 });
 		assert.deepStrictEqual(lineCharacter(CR, 4), { line: 1, character: 0 });
+		// The kit fixes the old -1 at the `\n` of a `\r\n`: it stays on its own line, at the break.
+		assert.deepStrictEqual(lineCharacter(CRLF, 3), { line: 0, character: 3 });
+		assert.deepStrictEqual(lineCharacter(CRLF, 4), { line: 0, character: 3 });
 	});
 
 	it("frontmatterValueStart is fence length plus terminator length", () => {

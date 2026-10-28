@@ -1,6 +1,6 @@
 import type { MarkdownDocument } from "@effected/markdown";
+import { LineIndex } from "@effected/source";
 import { Option, Schema } from "effect";
-import { lineCharacter } from "./internal/position.js";
 import { frontmatterPathSpan } from "./internal/yamlPathSpan.js";
 
 /** @public */
@@ -69,9 +69,9 @@ export class DiagnosticRange extends Schema.Class<DiagnosticRange>("DiagnosticRa
 	line: Schema.Number,
 	character: Schema.Number,
 }) {
-	/** Core's own offset-to-line/character helper over the file text (D-14, `internal/position.ts`). */
+	/** Builds a range from an offset over the file text; line breaks are the LSP rule (`\n`, `\r\n`, lone `\r`). */
 	static readonly fromOffset = (text: string, offset: number, length: number): DiagnosticRange => {
-		const { line, character } = lineCharacter(text, offset);
+		const { line, character } = LineIndex.make(text).positionAt(offset);
 		return DiagnosticRange.make({ offset, length, line, character });
 	};
 

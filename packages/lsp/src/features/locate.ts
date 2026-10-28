@@ -48,7 +48,7 @@ export const conceptAtPath = (bundle: LoadedBundle, absolutePath: string): Optio
 
 /**
  * `position` (LSP: zero-based line, UTF-16 character) as an offset into
- * `text`. Walks `text` line by line the way core's `lineCharacter` counts
+ * `text`. Walks `text` line by line the way core's `DiagnosticRange.fromOffset` (the kit's `LineIndex`) counts
  * them -- `\n`, `\r` and `\r\n` each count as one line break -- so this is
  * exactly the inverse of `DiagnosticRange.fromOffset`'s line/character
  * mapping. `position.character` is added as-is, in UTF-16 code units, which
