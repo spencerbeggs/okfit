@@ -57,9 +57,10 @@ End-to-end coverage of the assembled program lives in `@okfit/cli`'s and
   unconditionally, since the bundler replaces it with a string literal at
   build time (K-32), the same carve-out cli and mcp document for their own
   `version.ts`. Do not widen it -- a real `process` read belongs in a
-  front end, never in the shared engine. A second, hand-rolled scanner
-  (`findAppImportNames`) stays alongside `SourceBoundary` for the
-  `App`/`AppStore`/`AppCache` import check: `SourceBoundary`'s
-  `forbidImports` only forbids a whole module specifier, never specific
-  named imports from an otherwise-legitimate one, and this package
-  legitimately imports `AppConfig` from `@effected/app`.
+  front end, never in the shared engine. The K-9 check (no `App`/`AppStore`/`AppCache` imported from
+  `@effected/app`; `AppConfig` is allowed, `config/layer.ts` uses it) is a
+  second `SourceBoundary` rule in the same file, `{ forbidImportedNames:
+  { from: "@effected/app", names: [...] } }`. The lexer does not see a name
+  taken from a dynamic `import()`/`require()` or a computed member
+  (`m["App"]`); the retired regex scanner missed those too. A default
+  import is forbidden only by listing `"default"` in `names`.
