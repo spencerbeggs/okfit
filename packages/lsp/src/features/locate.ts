@@ -7,6 +7,7 @@
  */
 
 import { LspUri } from "@effected/lsp";
+import { LineIndex } from "@effected/source";
 import type { GraphLink, LinkGraph, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { ConceptId, DiagnosticRange } from "@okfit/core";
 import { conceptFor } from "@okfit/engine";
@@ -47,6 +48,13 @@ export const conceptAtPath = (bundle: LoadedBundle, absolutePath: string): Optio
 	conceptFor(bundle, absolutePath);
 
 /**
+ * An LSP position component as an integer. The client is untrusted and `LineIndex` throws a `RangeError` on a
+ * non-integer, so `NaN` reads as `0`, a fraction truncates and an infinity saturates -- the index then clamps.
+ */
+const toInteger = (value: number): number =>
+	Number.isNaN(value) ? 0 : Math.trunc(Math.max(Number.MIN_SAFE_INTEGER, Math.min(Number.MAX_SAFE_INTEGER, value)));
+
+/**
  * `position` (LSP: zero-based line, UTF-16 character) as an offset into
  * `text`. Walks `text` line by line the way core's `DiagnosticRange.fromOffset` (the kit's `LineIndex`) counts
  * them -- `\n`, `\r` and `\r\n` each count as one line break -- so this is
@@ -58,32 +66,8 @@ export const conceptAtPath = (bundle: LoadedBundle, absolutePath: string): Optio
  *
  * @internal
  */
-export const offsetOf = (text: string, position: Position): number => {
-	let offset = 0;
-	let line = 0;
-	while (line < position.line && offset < text.length) {
-		const code = text.charCodeAt(offset);
-		if (code === 0x0d) {
-			offset++;
-			if (text.charCodeAt(offset) === 0x0a) offset++;
-			line++;
-		} else if (code === 0x0a) {
-			offset++;
-			line++;
-		} else {
-			offset++;
-		}
-	}
-	// Clamp to the line's own end (its line break, or the end of text), as the LSP spec asks for a
-	// character past the end of the line: never let it run on into the next line.
-	const lineStart = offset;
-	while (offset < text.length && offset - lineStart < position.character) {
-		const code = text.charCodeAt(offset);
-		if (code === 0x0d || code === 0x0a) break;
-		offset++;
-	}
-	return offset;
-};
+export const offsetOf = (text: string, position: Position): number =>
+	LineIndex.make(text).offsetAt({ line: toInteger(position.line), character: toInteger(position.character) });
 
 /**
  * The edge, among every outgoing edge of the concept at `bundleRelativePath`,

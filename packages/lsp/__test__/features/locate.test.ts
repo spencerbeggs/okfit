@@ -44,6 +44,14 @@ describe("offsetOf", () => {
 		assert.strictEqual(offsetOf("abc\ndef", { line: 1, character: 99 }), 7);
 	});
 
+	it("stays total on an untrusted non-integer position (NaN, a fraction, an infinity) instead of throwing", () => {
+		assert.strictEqual(offsetOf("abc\ndef", { line: 1, character: 1 }), 5);
+		assert.strictEqual(offsetOf("abc\ndef", { line: 1.5, character: 1.9 }), 5);
+		assert.strictEqual(offsetOf("abc\ndef", { line: Number.NaN, character: Number.NaN }), 0);
+		assert.strictEqual(offsetOf("abc\ndef", { line: 0, character: Number.POSITIVE_INFINITY }), 3);
+		assert.strictEqual(offsetOf("abc\ndef", { line: Number.POSITIVE_INFINITY, character: 0 }), 7);
+	});
+
 	it("a lone CR (no following LF) still counts as one line break", () => {
 		assert.strictEqual(offsetOf("abc\rdef", { line: 1, character: 0 }), 4);
 	});

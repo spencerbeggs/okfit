@@ -25,6 +25,7 @@
  */
 
 import { LspUri } from "@effected/lsp";
+import { LineIndex } from "@effected/source";
 import type { ConceptId, LinkGraph, LoadedBundle, LoadedConcept, OkfitConfig, TypeDeclaration } from "@okfit/core";
 import { Derive, DiagnosticRange } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
@@ -111,8 +112,9 @@ const fieldKeyAt = (concept: LoadedConcept, position: HoverParams["position"]): 
 	if (block === undefined) return undefined;
 	const offset = offsetOf(text, position);
 	if (offset < block.offset || offset >= block.offset + block.length) return undefined;
-	const line = text.split("\n")[position.line];
-	if (line === undefined) return undefined;
+	const index = LineIndex.make(text);
+	if (!Number.isInteger(position.line) || position.line < 0 || position.line >= index.lineCount) return undefined;
+	const line = index.lineText(position.line);
 	const match = TOP_LEVEL_KEY_RE.exec(line);
 	if (match === null) return undefined;
 	const key = match[1] ?? "";

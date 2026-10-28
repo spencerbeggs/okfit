@@ -289,6 +289,30 @@ describe("registerHover", () => {
 		}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 
+	for (const [name, eol] of [
+		["CRLF", "\r\n"],
+		["bare-CR", "\r"],
+	] as const) {
+		it.effect(`a field key on a ${name} document is found on its own line, not by splitting on LF`, () =>
+			Effect.gen(function* () {
+				const { registry, call, sourcePath } = yield* setup();
+				const text = SOURCE.replaceAll("\n", eol);
+				yield* openAndRevalidate(registry, sourcePath, text);
+
+				// Count line breaks the way LSP does (CRLF, CR and LF each end one line), independent of the fix.
+				const line = text.slice(0, text.indexOf("kind:")).split(/\r\n|\r|\n/).length - 1;
+				assert.isAbove(line, 0);
+				const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+					textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
+					position: { line, character: 1 },
+				});
+
+				const { value } = contentsOf(hover);
+				assert.include(value, "Which package shape this module is.");
+			}).pipe(Effect.provide(platform), Effect.scoped),
+		);
+	}
+
 	it.effect("plain body text answers null (positive control above)", () =>
 		Effect.gen(function* () {
 			const { registry, call, sourcePath } = yield* setup();
