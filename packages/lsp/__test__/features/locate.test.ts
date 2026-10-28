@@ -1,8 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import type { ConceptId } from "@okfit/core";
 import { Bundle, Graph } from "@okfit/core";
 import { Effect, Option } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { conceptAtPath, definitionOf, edgeAt, offsetOf } from "../../src/features/locate.js";
 import { testPlatform } from "../utils/platform.js";
 import { makeTempBundle } from "../utils/tempBundle.js";
@@ -119,7 +120,7 @@ describe("definitionOf", () => {
 			const location = definitionOf(bundle, "target" as ConceptId);
 			assert.isTrue(Option.isSome(location));
 			const { uri, range } = Option.getOrThrow(location);
-			assert.strictEqual(uri, pathToUri(`${root}/target.md`));
+			assert.strictEqual(uri, LspUri.fromPath(`${root}/target.md`, URI_OPTIONS));
 			const concept = bundle.concepts.get("target" as ConceptId)!;
 			assert.isTrue(concept.document.source.slice(concept.document.source.indexOf("# Target")).startsWith("# Target"));
 			assert.strictEqual(range.start.line, 6);

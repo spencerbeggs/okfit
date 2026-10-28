@@ -3,8 +3,10 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import { Effect, Option } from "effect";
-import { uriToPath } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type {
 	DidChangeTextDocumentParams,
@@ -31,7 +33,7 @@ const forPath = (
 	onEvent: (event: DocumentEvent) => Effect.Effect<void>,
 	make: (path: string) => DocumentEvent,
 ): Effect.Effect<void> =>
-	Option.match(uriToPath(uri), { onNone: () => Effect.void, onSome: (path) => onEvent(make(path)) });
+	Option.match(LspUri.toPath(uri, URI_OPTIONS), { onNone: () => Effect.void, onSome: (path) => onEvent(make(path)) });
 
 /**
  * Registers the four textDocument/did* handlers; non-file URIs are dropped.

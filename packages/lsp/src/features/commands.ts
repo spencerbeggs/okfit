@@ -27,10 +27,11 @@
  * @packageDocumentation
  */
 import type { Git } from "@effected/git";
+import { LspUri } from "@effected/lsp";
 import { Status } from "@okfit/core";
 import type { Crypto } from "effect";
 import { DateTime, Effect, Option, Result, Schema } from "effect";
-import { pathToUri, uriToPath } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import { LspError } from "../errors.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type {
@@ -105,7 +106,7 @@ const targetFor = (
 	uri: string,
 ): Effect.Effect<EditTarget, LspError> =>
 	Effect.gen(function* () {
-		const path = uriToPath(uri);
+		const path = LspUri.toPath(uri, URI_OPTIONS);
 		if (Option.isNone(path)) return yield* Effect.fail(notAConcept);
 		const target = yield* editTarget(registry, documents, path.value);
 		if (Option.isNone(target)) return yield* Effect.fail(notAConcept);
@@ -171,7 +172,7 @@ const handleRevalidate = (
 	Effect.gen(function* () {
 		const [rootUri] = yield* decodeArgs(RevalidateArgs, args, "okfit.lsp.revalidate expects [rootUri?]");
 		const handles = yield* registry.sessions;
-		const rootPath = rootUri === undefined ? Option.none<string>() : uriToPath(rootUri);
+		const rootPath = rootUri === undefined ? Option.none<string>() : LspUri.toPath(rootUri, URI_OPTIONS);
 		const targets =
 			rootUri === undefined ? handles : handles.filter((handle) => Option.contains(rootPath, handle.bundleRoot));
 		yield* Effect.forEach(
@@ -179,7 +180,7 @@ const handleRevalidate = (
 			(handle) => Effect.andThen(handle.scheduler.schedule("full"), handle.scheduler.settle),
 			{ discard: true, concurrency: "unbounded" },
 		);
-		return { roots: targets.map((handle) => pathToUri(handle.bundleRoot)) };
+		return { roots: targets.map((handle) => LspUri.fromPath(handle.bundleRoot, URI_OPTIONS)) };
 	});
 
 /** `LspError` naming an unrecognized command id. */

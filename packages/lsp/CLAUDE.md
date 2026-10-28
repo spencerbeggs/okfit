@@ -37,8 +37,11 @@ src/
                      listens; ServeOptions { delay, maxWait, distribution },
                      ServeServices
   convert/
-    uri.ts         -- uriToPath, pathToUri: file: URI <-> absolute path,
-                      percent-encoded, None for a non-file or malformed URI
+    platform.ts    -- URI_OPTIONS: the `LspUri` path syntax (win32 or posix)
+                      from `node:os`, passed to every `LspUri.toPath` /
+                      `fromPath` call (file: URI <-> absolute path comes from
+                      `@effected/lsp`'s `LspUri`; None for a non-file or
+                      malformed URI); @internal, not in the barrel
     diagnostic.ts  -- SEVERITY, toLspDiagnostic: RenderedDiagnostic (engine) ->
                       LSP Diagnostic; sourceTextOf: a bundle concept's source text
     range.ts       -- toLspRange, toLspLocation: DiagnosticRange (core) -> LSP
@@ -317,7 +320,7 @@ every bundle root all answer `null`/`[]` -- never a hang.
   bundles each with a `project` concept are two symbols), sorted by id then
   URI, and capped at 200.
 
-Bundle-relative and absolute paths round-trip through `convert/uri.ts` only;
+Bundle-relative and absolute paths round-trip through `LspUri` (`@effected/lsp`, with `convert/platform.ts`'s `URI_OPTIONS`) only;
 range conversion goes through `convert/range.ts`'s `toLspRange`/
 `toLspLocation`, which re-map a `DiagnosticRange`'s end position through the
 file text the same way `convert/diagnostic.ts`'s `toLspDiagnostic` does.
@@ -504,10 +507,10 @@ naming it (`-32601`).
   may send `[]` or omit `arguments` entirely. `rootUri` present: schedules a
   `full` revalidate (`handle.scheduler.schedule("full")` then `.settle`, the
   same warm-up path `okfit/concepts` uses) on the one live session whose
-  `handle.bundleRoot` matches it (`uriToPath`), or none when no session
+  `handle.bundleRoot` matches it (`LspUri.toPath`), or none when no session
   matches. `rootUri` absent: every live session (`registry.sessions`).
   Answers `{ roots }`, the revalidated sessions' `bundleRoot`s as `file:`
-  URIs (`pathToUri`) -- `{ roots: [] }` for an unmatched `rootUri` or no live
+  URIs (`LspUri.fromPath`) -- `{ roots: [] }` for an unmatched `rootUri` or no live
   sessions. A revalidate that changes nothing in a session's diagnostic set
   still fires `okfit/bundleChanged` (`reason: "revalidated"`, same rule as
   every other revalidate) even though no `textDocument/publishDiagnostics`

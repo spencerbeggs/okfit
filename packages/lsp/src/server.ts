@@ -3,10 +3,12 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { Distribution } from "@okfit/engine";
 import type { Duration, Scope } from "effect";
 import { Cause, Deferred, Effect, Exit, Option, Queue } from "effect";
-import { uriToPath } from "./convert/uri.js";
+import { URI_OPTIONS } from "./convert/platform.js";
 import { registerCodeActions } from "./features/actions.js";
 import { registerCommands } from "./features/commands.js";
 import { notifyBundleChanged, registerConcepts } from "./features/concepts.js";
@@ -55,7 +57,7 @@ export type ServeServices = SessionRegistryServices;
 
 /** Absolute paths of the `file:` URIs in `uris`; any other URI is dropped. */
 const pathsOf = (uris: ReadonlyArray<string>): ReadonlyArray<string> =>
-	uris.flatMap((uri) => Option.toArray(uriToPath(uri)));
+	uris.flatMap((uri) => Option.toArray(LspUri.toPath(uri, URI_OPTIONS)));
 
 /** The workspace folders `initialize` names: `workspaceFolders` when the client sent it, else `rootUri`. */
 const initialFolders = (params: InitializeParams): ReadonlyArray<string> => {

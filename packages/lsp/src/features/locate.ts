@@ -5,12 +5,14 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { GraphLink, LinkGraph, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { ConceptId, DiagnosticRange } from "@okfit/core";
 import { conceptFor } from "@okfit/engine";
 import { Option } from "effect";
+import { URI_OPTIONS } from "../convert/platform.js";
 import { toLspLocation } from "../convert/range.js";
-import { pathToUri } from "../convert/uri.js";
 import type { Location, Position } from "../protocol/types.js";
 
 /** Drops every trailing `/` without a regex (a `/\/+$/` pattern is quadratic on a long run of slashes). */
@@ -128,6 +130,6 @@ export const definitionOf = (bundle: LoadedBundle, conceptId: ConceptId): Option
 			? DiagnosticRange.fromOffset(text, h1.position.start.offset, h1.position.end.offset - h1.position.start.offset)
 			: (DiagnosticRange.forFrontmatterPath(concept.document, []) ??
 				DiagnosticRange.make({ offset: 0, length: 0, line: 0, character: 0 }));
-	const uri = pathToUri(absolutePathOf(bundle.root, ConceptId.toPath(conceptId)));
+	const uri = LspUri.fromPath(absolutePathOf(bundle.root, ConceptId.toPath(conceptId)), URI_OPTIONS);
 	return Option.some(toLspLocation(uri, text, range));
 };

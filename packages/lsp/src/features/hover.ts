@@ -23,12 +23,14 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { ConceptId, LinkGraph, LoadedBundle, LoadedConcept, OkfitConfig, TypeDeclaration } from "@okfit/core";
 import { Derive, DiagnosticRange } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { DateTime as DateTimeService, Effect, Option } from "effect";
-import { uriToPath } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { Hover, HoverParams, MarkupContent } from "../protocol/types.js";
 import type { SessionRegistryShape } from "../session/registry.js";
@@ -157,7 +159,7 @@ const toHover = (value: string | undefined): Hover | null =>
 export const registerHover = (transport: LspTransportShape, registry: SessionRegistryShape): Effect.Effect<void> =>
 	transport.onRequest<HoverParams, Hover | null>("textDocument/hover", (params) =>
 		Effect.gen(function* () {
-			const path = uriToPath(params.textDocument.uri);
+			const path = LspUri.toPath(params.textDocument.uri, URI_OPTIONS);
 			if (Option.isNone(path)) return null;
 			const snapshot = yield* snapshotFor(registry, path.value);
 			if (Option.isNone(snapshot)) return null;

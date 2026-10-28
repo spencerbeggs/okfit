@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
+import { LspUri } from "@effected/lsp";
 import type { Duration, Fiber, Layer, Scope } from "effect";
 import { Effect, Logger, Queue } from "effect";
 import type { GenericRequestHandler, MessageConnection } from "vscode-jsonrpc/node";
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from "vscode-jsonrpc/node";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import type { ListenOutcome, LspTransportShape } from "../../src/protocol/LspTransport.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
 import type { InitializeResult } from "../../src/protocol/types.js";
@@ -211,13 +212,13 @@ export const makeServeHarness = (options: ServeHarnessOptions = {}): Effect.Effe
 				Effect.provide(silentLogger),
 			),
 		);
-		const uriOf = (relative: string): string => pathToUri(join(root, relative));
+		const uriOf = (relative: string): string => LspUri.fromPath(join(root, relative), URI_OPTIONS);
 		const initialize = Effect.gen(function* () {
 			const result = yield* request<InitializeResult>(harness.client, "initialize", {
 				processId: null,
-				rootUri: pathToUri(root),
+				rootUri: LspUri.fromPath(root, URI_OPTIONS),
 				capabilities: {},
-				workspaceFolders: [{ uri: pathToUri(root), name: "project" }],
+				workspaceFolders: [{ uri: LspUri.fromPath(root, URI_OPTIONS), name: "project" }],
 				initializationOptions: {},
 			});
 			yield* notify(harness.client, "initialized", {});

@@ -136,7 +136,7 @@ export const { activate, deactivate } = defineExtension(async (context) => {
 	// current `okfit/concepts` result's concepts (Task 6 decision 3) --
 	// re-normalized through `vscode.Uri.parse(...).toString()` the same way
 	// `updateStatus`'s `normalizedResult` re-normalizes `rootUri`, since a
-	// concept's `uri` comes from the server's own `pathToUri` (never
+	// concept's `uri` comes from the server's own `LspUri.fromPath` (never
 	// percent-encoded) while `documentUri` is VS Code's own `Uri.toString()`.
 	const updateIsConcept = async (): Promise<void> => {
 		const documentUri = vscode.window.activeTextEditor?.document.uri.toString();

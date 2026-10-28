@@ -20,13 +20,15 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { Concept } from "@okfit/core";
 import { Actor, Derive, DiagnosticRange } from "@okfit/core";
 import type { IntegrityState } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { DateTime as DateTimeService, Effect, Option } from "effect";
+import { URI_OPTIONS } from "../convert/platform.js";
 import { toLspRange } from "../convert/range.js";
-import { uriToPath } from "../convert/uri.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { InlayHint, InlayHintParams } from "../protocol/types.js";
 import { INLAY_HINT_KIND_TYPE } from "../protocol/types.js";
@@ -121,7 +123,7 @@ const isFallback = (range: DiagnosticRange, whole: DiagnosticRange | undefined):
 export const registerInlayHints = (transport: LspTransportShape, registry: SessionRegistryShape): Effect.Effect<void> =>
 	transport.onRequest<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", (params) =>
 		Effect.gen(function* () {
-			const path = uriToPath(params.textDocument.uri);
+			const path = LspUri.toPath(params.textDocument.uri, URI_OPTIONS);
 			if (Option.isNone(path)) return [];
 			const snapshot = yield* conceptSnapshot(registry, path.value);
 			if (Option.isNone(snapshot)) return [];

@@ -1,8 +1,9 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { DateTime, Effect, Option } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { registerHover } from "../../src/features/hover.js";
 import type { Hover, HoverParams } from "../../src/protocol/types.js";
 import type { SessionRegistryShape } from "../../src/session/registry.js";
@@ -142,7 +143,7 @@ describe("registerHover", () => {
 
 			const position = positionOf(SOURCE, "[Target]");
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: position.line, character: position.character + 1 },
 			});
 
@@ -164,7 +165,7 @@ describe("registerHover", () => {
 
 			const position = positionOf(SOURCE, "[Target]");
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: position.line, character: position.character + 1 },
 			});
 
@@ -181,7 +182,7 @@ describe("registerHover", () => {
 
 			const position = positionOf(SOURCE, "[Target]");
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: position.line, character: position.character + 1 },
 			});
 
@@ -197,7 +198,7 @@ describe("registerHover", () => {
 
 			const position = positionOf(SOURCE, "beta.md\nkind");
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: position.line, character: position.character + 1 },
 			});
 
@@ -218,14 +219,14 @@ describe("registerHover", () => {
 
 				const missingPosition = positionOf(SOURCE_WITH_BROKEN_LINKS, "[Missing]");
 				const missingHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-					textDocument: { uri: pathToUri(brokenPath) },
+					textDocument: { uri: LspUri.fromPath(brokenPath, URI_OPTIONS) },
 					position: { line: missingPosition.line, character: missingPosition.character + 1 },
 				});
 				assert.isNull(missingHover);
 
 				const notesPosition = positionOf(SOURCE_WITH_BROKEN_LINKS, "[Notes]");
 				const notesHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-					textDocument: { uri: pathToUri(brokenPath) },
+					textDocument: { uri: LspUri.fromPath(brokenPath, URI_OPTIONS) },
 					position: { line: notesPosition.line, character: notesPosition.character + 1 },
 				});
 				assert.isNull(notesHover);
@@ -241,14 +242,14 @@ describe("registerHover", () => {
 
 				const nested = positionOf(SOURCE, "by:");
 				const nestedHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-					textDocument: { uri: pathToUri(sourcePath) },
+					textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 					position: nested,
 				});
 				assert.isNull(nestedHover);
 
 				const typeKey = positionOf(SOURCE, "type: Module");
 				const typeKeyHover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-					textDocument: { uri: pathToUri(sourcePath) },
+					textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 					position: typeKey,
 				});
 				assert.isNull(typeKeyHover);
@@ -262,7 +263,7 @@ describe("registerHover", () => {
 
 			const position = positionOf(SOURCE, "Module\ntitle");
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: position.line, character: position.character + 1 },
 			});
 
@@ -279,7 +280,7 @@ describe("registerHover", () => {
 
 			const line = SOURCE.split("\n").findIndex((entry) => entry.startsWith("kind:"));
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line, character: 1 },
 			});
 
@@ -295,7 +296,7 @@ describe("registerHover", () => {
 
 			const position = positionOf(SOURCE, "Plain text");
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: position.line, character: position.character + 1 },
 			});
 			assert.isNull(hover);
@@ -307,7 +308,7 @@ describe("registerHover", () => {
 			const { registry, call, sourcePath } = yield* setup();
 			assert.isTrue(Option.isSome(yield* registry.sessionFor(sourcePath)));
 			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
-				textDocument: { uri: pathToUri(sourcePath) },
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
 				position: { line: 0, character: 0 },
 			});
 			assert.isNull(hover);

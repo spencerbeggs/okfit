@@ -5,10 +5,12 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { RevalidateTier } from "@okfit/engine";
 import { DateTime, Effect, Option, Path, Result } from "effect";
 import { sourceTextOf, toLspDiagnostic } from "../convert/diagnostic.js";
-import { pathToUri } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import { messageOf } from "../internal/messageOf.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { OpenDocuments } from "../session/documents.js";
@@ -108,7 +110,7 @@ export const makeRevalidatePublisher = (
 					changed,
 					([file, diagnostics]) => {
 						const target = file === "" ? path.join(handle.bundleRoot, "index.md") : path.join(handle.bundleRoot, file);
-						const uri = pathToUri(target);
+						const uri = LspUri.fromPath(target, URI_OPTIONS);
 						const text = sourceTextOf(bundle, file);
 						const isEmpty = diagnostics.length === 0;
 						// Uninterruptible as one unit: the send must land before `remember` is updated, or a

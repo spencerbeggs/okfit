@@ -38,10 +38,11 @@
  * @packageDocumentation
  */
 import type { Git } from "@effected/git";
+import { LspUri } from "@effected/lsp";
 import { Status } from "@okfit/core";
 import type { Crypto } from "effect";
 import { DateTime, Effect, Option, Result } from "effect";
-import { uriToPath } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { CodeAction, CodeActionParams, Position, Range } from "../protocol/types.js";
 import { CODE_ACTION_KIND_QUICKFIX } from "../protocol/types.js";
@@ -140,7 +141,7 @@ export const registerCodeActions = (
 		yield* transport.onRequest<CodeActionParams, ReadonlyArray<CodeAction>>("textDocument/codeAction", (params) =>
 			Effect.gen(function* () {
 				const uri = params.textDocument.uri;
-				const path = uriToPath(uri);
+				const path = LspUri.toPath(uri, URI_OPTIONS);
 				if (Option.isNone(path)) return [];
 				const found = yield* editTarget(registry, documents, path.value);
 				if (Option.isNone(found)) return [];

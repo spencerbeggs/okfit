@@ -1,15 +1,16 @@
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { Effect } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { spawnLsp } from "./utils/lspBin.js";
 import { makeSandbox } from "./utils/sandbox.js";
 
 const initializeParams = (cwd: string) => ({
 	processId: null,
-	rootUri: pathToUri(cwd),
+	rootUri: LspUri.fromPath(cwd, URI_OPTIONS),
 	capabilities: {},
-	workspaceFolders: [{ uri: pathToUri(cwd), name: "p" }],
+	workspaceFolders: [{ uri: LspUri.fromPath(cwd, URI_OPTIONS), name: "p" }],
 });
 
 // The `exitBeforeConnect` policy in `src/main.ts`, both halves, against the
