@@ -1,5 +1,42 @@
 # @okfit/cli
 
+## 0.15.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.6 | ^4.0.7 |
+| @effected/cli | dependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/config-file | dependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/engine | dependency | updated | ^0.9.0 | ^0.10.0 |
+| @effected/env | dependency | updated | ^0.6.0 | ^0.7.0 |
+| @effected/git | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/glob | dependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/jsonc | dependency | updated | ^0.20.1 | ^0.21.0 |
+| @effected/markdown | dependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/schemastore | dependency | updated | ^0.26.3 | ^0.27.0 |
+| @effected/toml | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/walker | dependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/yaml | dependency | updated | ^0.25.1 | ^0.26.0 |
+| @okfit/core | dependency | updated | 0.11.7 | 0.11.8 |
+| @okfit/engine | dependency | updated | 0.18.1 | 0.18.2 |
+| @okfit/profiles | dependency | updated | 0.12.0 | 0.13.0 |
+| effect | dependency | updated | ^4.0.6 | ^4.0.7 |
+| @effected/source | dependency | added | — | ^0.1.0 |
+
+[#339][#339]
+
+### Maintenance
+
+- The `--format` flag is declared with `CliFormat.flag` on every command, and JSON prints through `CliFormat.printJson`. Accepted values and defaults are unchanged, and the JSON is the same single line; under GitHub Actions a `##[` inside it is written as a JSON escape, which parses to the same value. Help and usage-error text now list the choices as `json, human` (`graph`: `json, mermaid, dot`). [#339][#339]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#339]: https://github.com/spencerbeggs/okfit/pull/339
+
 ## 0.15.0
 
 ### Breaking Changes

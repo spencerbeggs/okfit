@@ -1,5 +1,35 @@
 # @okfit/profiles
 
+## 0.13.0
+
+### Breaking Changes
+
+- `Derivation.worktreeRoot` has been removed. Resolve the repository root with `Git.repoRoot(dir, { ignoreRepositoryEnv: true })` from `@effected/git`, which is also what `Derivation.generatedAt` now uses.
+
+### Bug Fixes
+
+- `generatedAt` derivation again finds a repository defined only by `GIT_DIR` and `GIT_WORK_TREE` (a bare-dotfiles setup with no `.git` on disk), by retrying with that environment honoured when the hook-safe lookup finds none. [#339][#339]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.11.7 | 0.11.8 |
+| @effected/git | peerDependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/glob | peerDependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/jsonc | peerDependency | updated | ^0.20.0 | ^0.21.0 |
+| @effected/markdown | peerDependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/walker | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/source | peerDependency | added | — | ^0.1.0 |
+
+[#339][#339]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#339]: https://github.com/spencerbeggs/okfit/pull/339
+
 ## 0.12.0
 
 ### Breaking Changes
