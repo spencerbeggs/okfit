@@ -1,5 +1,34 @@
 # @okfit/core
 
+## 0.11.8
+
+### Bug Fixes
+
+- Diagnostic positions that land on the `\n` of a `\r\n` line ending no longer report character `-1`.
+- `DiagnosticRange.fromOffset` clamps an offset past the end of the text to the end, and throws a `RangeError` for a non-integer offset. [#339][#339]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/glob | peerDependency | updated | ^0.15.0 | ^0.16.0 |
+| @effected/jsonc | peerDependency | updated | ^0.20.0 | ^0.21.0 |
+| @effected/markdown | peerDependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/schemastore | peerDependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/toml | peerDependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/walker | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/yaml | peerDependency | updated | ^0.25.0 | ^0.26.0 |
+| @effected/source | peerDependency | added | — | ^0.1.0 |
+
+[#339][#339]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#339]: https://github.com/spencerbeggs/okfit/pull/339
+
 ## 0.11.7
 
 ### Dependencies
