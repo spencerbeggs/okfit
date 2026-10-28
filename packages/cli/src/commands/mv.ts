@@ -1,4 +1,4 @@
-import { Doc } from "@effected/cli";
+import { CliFormat, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import {
 	MoveEnvelope,
@@ -9,7 +9,7 @@ import {
 	resolveProjectConfig,
 	runMove,
 } from "@okfit/engine";
-import { Console, Effect, Option, Path, Schema } from "effect";
+import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
@@ -33,10 +33,11 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
 	Flag.withDescription("print the plan; write nothing"),
 );
 
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 /**
  * `okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]`.
@@ -84,7 +85,7 @@ export const mvCommand = Command.make(
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
-					yield* Console.log(JSON.stringify(Schema.encodeSync(MoveEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(MoveEnvelope)(envelope), { indent: 0 });
 				} else {
 					yield* Doc.print(humanMoveDoc({ from, to, edits: plan.edits, drifts: plan.drifts, dryRun: result.dryRun }));
 				}
@@ -94,7 +95,7 @@ export const mvCommand = Command.make(
 			if (input.format === "json") {
 				return yield* body.pipe(
 					Effect.tapError((error) =>
-						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+						CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 					),
 				);
 			}

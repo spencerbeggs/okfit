@@ -1,3 +1,4 @@
+import { CliFormat } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
@@ -13,10 +14,11 @@ const configFlag = Flag.File("config").pipe(
 );
 
 /** Default `mermaid`, unlike every other command's `--format` (which defaults `human`). */
-const formatFlag = Flag.Literals("format", ["mermaid", "dot", "json"] as const).pipe(
-	Flag.withDefault("mermaid"),
-	Flag.withDescription("output format: mermaid (default), dot, or json"),
-);
+const formatFlag = CliFormat.flag<"json", Record<never, never>, "mermaid" | "dot">(["json"], {
+	custom: ["mermaid", "dot"],
+	default: "mermaid",
+	description: "output format: mermaid (default), dot, or json",
+});
 
 /**
  * `okfit graph [--root <dir>] [--config <file>] [--format mermaid|dot|json]`.
@@ -62,7 +64,7 @@ export const graphCommand = Command.make("graph", { root: rootFlag, config: conf
 					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 					...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 				});
-				yield* Console.log(JSON.stringify(Schema.encodeSync(GraphEnvelope)(envelope)));
+				yield* CliFormat.printJson(Schema.encodeSync(GraphEnvelope)(envelope), { indent: 0 });
 			} else if (input.format === "dot") {
 				yield* Console.log(result.graph.toGraphViz());
 			} else {
@@ -75,7 +77,7 @@ export const graphCommand = Command.make("graph", { root: rootFlag, config: conf
 		if (input.format === "json") {
 			return yield* body.pipe(
 				Effect.tapError((error) =>
-					Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+					CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 				),
 			);
 		}

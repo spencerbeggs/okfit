@@ -1,4 +1,4 @@
-import { CliInteractive, Doc } from "@effected/cli";
+import { CliFormat, CliInteractive, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
@@ -26,10 +26,11 @@ const configFlag = Flag.File("config").pipe(
 	Flag.withDescription("explicit config file; skips discovery"),
 );
 
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 const verifyFlag = Flag.Boolean("verify").pipe(
 	Flag.withDefault(false),
@@ -95,7 +96,7 @@ export const staleCommand = Command.make(
 				});
 
 				if (input.format === "json") {
-					yield* Console.log(JSON.stringify(Schema.encodeSync(StaleEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(StaleEnvelope)(envelope), { indent: 0 });
 				} else {
 					yield* Doc.print(humanStaleDoc(envelope.items, { root: bundleRoot }));
 					yield* Console.error(
@@ -130,7 +131,7 @@ export const staleCommand = Command.make(
 			if (input.format === "json") {
 				return yield* body.pipe(
 					Effect.tapError((error) =>
-						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+						CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 					),
 				);
 			}
