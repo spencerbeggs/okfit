@@ -1,12 +1,13 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { MarkdownDocument } from "@effected/markdown";
 import { Actor, Concept, DiagnosticRange, Verification } from "@okfit/core";
 import { DateTime, Effect, Option, Result, Schema } from "effect";
 import { TestClock } from "effect/testing";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { toLspRange } from "../../src/convert/range.js";
-import { pathToUri } from "../../src/convert/uri.js";
 import { hintsFor, registerInlayHints } from "../../src/features/inlayHints.js";
 import type { InlayHint, InlayHintParams } from "../../src/protocol/types.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
@@ -240,7 +241,7 @@ describe("registerInlayHints", () => {
 			yield* handle.session.revalidate({ now, tier: "full" });
 
 			const hints = yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", {
-				textDocument: { uri: pathToUri(conceptPath) },
+				textDocument: { uri: LspUri.fromPath(conceptPath, URI_OPTIONS) },
 				range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
 			});
 
@@ -287,7 +288,7 @@ describe("registerInlayHints", () => {
 				yield* handle.session.revalidate({ now, tier: "full" });
 
 				const hints = yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", {
-					textDocument: { uri: pathToUri(conceptPath) },
+					textDocument: { uri: LspUri.fromPath(conceptPath, URI_OPTIONS) },
 					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
 				});
 
@@ -332,7 +333,7 @@ describe("registerInlayHints", () => {
 				yield* handle.session.revalidate({ now, tier: "full" });
 
 				const hints = yield* call<InlayHintParams, ReadonlyArray<InlayHint>>("textDocument/inlayHint", {
-					textDocument: { uri: pathToUri(conceptPath) },
+					textDocument: { uri: LspUri.fromPath(conceptPath, URI_OPTIONS) },
 					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
 				});
 
@@ -378,7 +379,7 @@ describe("registerInlayHints", () => {
 			yield* registry.setFolders([root]);
 			const handle = Option.getOrThrow(yield* registry.sessionFor(conceptPath));
 			const params: InlayHintParams = {
-				textDocument: { uri: pathToUri(conceptPath) },
+				textDocument: { uri: LspUri.fromPath(conceptPath, URI_OPTIONS) },
 				range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
 			};
 			const labels = (hints: ReadonlyArray<InlayHint>) => hints.map((hint) => String(hint.label));

@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { DateTime, Effect, Option } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { registerNavigation } from "../../src/features/navigation.js";
 import type {
 	DefinitionParams,
@@ -213,11 +214,11 @@ describe("registerNavigation", () => {
 					yield* openAndRevalidate(registry, alphaPath, ALPHA);
 
 					const links = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
-						textDocument: { uri: pathToUri(alphaPath) },
+						textDocument: { uri: LspUri.fromPath(alphaPath, URI_OPTIONS) },
 					});
 
-					assert.isTrue(links.some((link) => link.target === pathToUri(betaPath))); // body link, positive control
-					assert.isTrue(links.some((link) => link.target === pathToUri(gammaPath))); // frontmatter sources.resource
+					assert.isTrue(links.some((link) => link.target === LspUri.fromPath(betaPath, URI_OPTIONS))); // body link, positive control
+					assert.isTrue(links.some((link) => link.target === LspUri.fromPath(gammaPath, URI_OPTIONS))); // frontmatter sources.resource
 					assert.isTrue(links.some((link) => link.target === "https://example.com/")); // raw URL, never a graph edge
 					assert.isFalse(links.some((link) => link.target?.endsWith("missing.md"))); // dangling target: omitted
 				}).pipe(Effect.provide(platform), Effect.scoped),
@@ -231,10 +232,10 @@ describe("registerNavigation", () => {
 					yield* openAndRevalidate(registry, etaPath, ETA);
 
 					const links = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
-						textDocument: { uri: pathToUri(etaPath) },
+						textDocument: { uri: LspUri.fromPath(etaPath, URI_OPTIONS) },
 					});
 
-					assert.isTrue(links.some((link) => link.target === pathToUri(betaPath)));
+					assert.isTrue(links.some((link) => link.target === LspUri.fromPath(betaPath, URI_OPTIONS)));
 				}).pipe(Effect.provide(platform), Effect.scoped),
 		);
 
@@ -245,10 +246,10 @@ describe("registerNavigation", () => {
 				yield* openAndRevalidate(registry, epsilonPath, EPSILON);
 
 				const links = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
-					textDocument: { uri: pathToUri(epsilonPath) },
+					textDocument: { uri: LspUri.fromPath(epsilonPath, URI_OPTIONS) },
 				});
 
-				assert.isTrue(links.some((link) => link.target === pathToUri(gammaPath)));
+				assert.isTrue(links.some((link) => link.target === LspUri.fromPath(gammaPath, URI_OPTIONS)));
 			}).pipe(Effect.provide(platform), Effect.scoped),
 		);
 
@@ -258,7 +259,7 @@ describe("registerNavigation", () => {
 				// Session exists (setFolders built the folder set) but nothing has been opened or revalidated yet.
 				assert.isTrue(Option.isSome(yield* registry.sessionFor(alphaPath)));
 				const links = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
-					textDocument: { uri: pathToUri(alphaPath) },
+					textDocument: { uri: LspUri.fromPath(alphaPath, URI_OPTIONS) },
 				});
 				assert.deepStrictEqual(links, []);
 				const nonFile = yield* call<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", {
@@ -282,18 +283,18 @@ describe("registerNavigation", () => {
 					const character = offset - before.lastIndexOf("\n") - 1;
 
 					const location = yield* call<DefinitionParams, Location | null>("textDocument/definition", {
-						textDocument: { uri: pathToUri(alphaPath) },
+						textDocument: { uri: LspUri.fromPath(alphaPath, URI_OPTIONS) },
 						position: { line, character },
 					});
 					assert.isNotNull(location);
-					assert.strictEqual(location?.uri, pathToUri(betaPath));
+					assert.strictEqual(location?.uri, LspUri.fromPath(betaPath, URI_OPTIONS));
 
 					const headingOffset = ALPHA.indexOf("# Alpha");
 					const headingBefore = ALPHA.slice(0, headingOffset);
 					const headingLine = headingBefore.split("\n").length - 1;
 
 					const none = yield* call<DefinitionParams, Location | null>("textDocument/definition", {
-						textDocument: { uri: pathToUri(alphaPath) },
+						textDocument: { uri: LspUri.fromPath(alphaPath, URI_OPTIONS) },
 						position: { line: headingLine, character: 0 }, // the heading itself: not inside any link
 					});
 					assert.isNull(none);
@@ -305,7 +306,7 @@ describe("registerNavigation", () => {
 				const { registry, call, alphaPath } = yield* setup();
 				assert.isTrue(Option.isSome(yield* registry.sessionFor(alphaPath)));
 				const location = yield* call<DefinitionParams, Location | null>("textDocument/definition", {
-					textDocument: { uri: pathToUri(alphaPath) },
+					textDocument: { uri: LspUri.fromPath(alphaPath, URI_OPTIONS) },
 					position: { line: 0, character: 0 },
 				});
 				assert.isNull(location);
@@ -325,16 +326,16 @@ describe("registerNavigation", () => {
 					yield* openAndRevalidate(registry, lonelyPath, LONELY);
 
 					const references = yield* call<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", {
-						textDocument: { uri: pathToUri(betaPath) },
+						textDocument: { uri: LspUri.fromPath(betaPath, URI_OPTIONS) },
 						position: { line: 0, character: 0 },
 						context: { includeDeclaration: false },
 					});
 					assert.strictEqual(references.length, 2);
-					assert.isTrue(references.some((location) => location.uri === pathToUri(alphaPath)));
-					assert.isTrue(references.some((location) => location.uri === pathToUri(gammaPath)));
+					assert.isTrue(references.some((location) => location.uri === LspUri.fromPath(alphaPath, URI_OPTIONS)));
+					assert.isTrue(references.some((location) => location.uri === LspUri.fromPath(gammaPath, URI_OPTIONS)));
 
 					const none = yield* call<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", {
-						textDocument: { uri: pathToUri(lonelyPath) },
+						textDocument: { uri: LspUri.fromPath(lonelyPath, URI_OPTIONS) },
 						position: { line: 0, character: 0 },
 						context: { includeDeclaration: false },
 					});
@@ -351,13 +352,13 @@ describe("registerNavigation", () => {
 					yield* openAndRevalidate(registry, zetaReferrerPath, ZETA_REFERRER);
 
 					const references = yield* call<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", {
-						textDocument: { uri: pathToUri(zetaPath) },
+						textDocument: { uri: LspUri.fromPath(zetaPath, URI_OPTIONS) },
 						position: { line: 0, character: 0 },
 						context: { includeDeclaration: false },
 					});
 
 					assert.strictEqual(references.length, 1);
-					assert.strictEqual(references[0]?.uri, pathToUri(zetaReferrerPath));
+					assert.strictEqual(references[0]?.uri, LspUri.fromPath(zetaReferrerPath, URI_OPTIONS));
 				}).pipe(Effect.provide(platform), Effect.scoped),
 		);
 
@@ -369,12 +370,12 @@ describe("registerNavigation", () => {
 				yield* openAndRevalidate(registry, gammaPath, GAMMA);
 
 				const withDeclaration = yield* call<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", {
-					textDocument: { uri: pathToUri(betaPath) },
+					textDocument: { uri: LspUri.fromPath(betaPath, URI_OPTIONS) },
 					position: { line: 0, character: 0 },
 					context: { includeDeclaration: true },
 				});
 				assert.strictEqual(withDeclaration.length, 3);
-				assert.isTrue(withDeclaration.some((location) => location.uri === pathToUri(betaPath)));
+				assert.isTrue(withDeclaration.some((location) => location.uri === LspUri.fromPath(betaPath, URI_OPTIONS)));
 			}).pipe(Effect.provide(platform), Effect.scoped),
 		);
 
@@ -383,7 +384,7 @@ describe("registerNavigation", () => {
 				const { registry, call, betaPath } = yield* setup();
 				assert.isTrue(Option.isSome(yield* registry.sessionFor(betaPath)));
 				const references = yield* call<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", {
-					textDocument: { uri: pathToUri(betaPath) },
+					textDocument: { uri: LspUri.fromPath(betaPath, URI_OPTIONS) },
 					position: { line: 0, character: 0 },
 					context: { includeDeclaration: false },
 				});

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-27T16:51:56Z
+  at: 2026-10-28T21:55:47Z
 integrity:
   generated:
-    body: c40ea4ab3b6968ec
+    body: a0f9a35bffe5af15
 ---
 
 # Profiles
@@ -33,12 +33,11 @@ layout, and check -- never re-exported, reachable only via
 `Profiles.softwareProject`. `Profiles.ts` is the facade: `get(name)`,
 `softwareProject`. `GitHistory.ts` and `BodyProvenance.ts` are the
 git-log-walking primitives. `Derivation.ts` is the
-`body`/`worktreeRoot`/`generatedAt`/`humanActorId`/`generatedBy`/`verifier`/`staleAfter` facade
-(`packages/profiles/CLAUDE.md:8-22`). `worktreeRoot` finds the repository
-root by walking up to the nearest `.git` entry, because
-`git rev-parse --show-toplevel` names the caller's own directory when a
-linked worktree's hook exports `GIT_DIR` (#315). `generatedAt` and
-`--staged` sync both take their root from it. `verifier` resolves the human and gates them on the `[actors].humans` allow-list (`HumanActorNotAllowedError`), and `Trust` reports `actor-not-allowed` as a `DriftReason`; see [A non-empty actors list is an allow-list and okfit never stores emails](../decisions/actor-allow-list.md).
+`body`/`generatedAt`/`humanActorId`/`generatedBy`/`verifier`/`staleAfter` facade
+(`packages/profiles/CLAUDE.md:8-22`). `generatedAt` and `--staged` sync both
+take their root from `Git.repoRoot` with `{ ignoreRepositoryEnv: true }`,
+because `git rev-parse --show-toplevel` names the caller's own directory when a
+linked worktree's hook exports `GIT_DIR` (#315). `verifier` resolves the human and gates them on the `[actors].humans` allow-list (`HumanActorNotAllowedError`), and `Trust` reports `actor-not-allowed` as a `DriftReason`; see [A non-empty actors list is an allow-list and okfit never stores emails](../decisions/actor-allow-list.md).
 
 `presets/` holds the docs-surface presets (`DocsPreset`, `SurfaceTemplate`):
 `npm-package`, `monorepo-router`, `monorepo-shared-docs` and the additive

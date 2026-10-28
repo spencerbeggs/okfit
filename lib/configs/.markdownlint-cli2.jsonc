@@ -86,6 +86,7 @@
 		"**/dist",
 		"**/CHANGELOG.md",
 		"**/.claude/plans",
+		"**/.claude/worktrees",
 		"**/docs/superpowers",
 		"**/.git",
 		"**/__test__/**/fixtures/**",

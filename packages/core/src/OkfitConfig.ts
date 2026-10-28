@@ -1,5 +1,5 @@
 import type { ConfigReadError } from "@effected/config-file";
-import { ConfigFile } from "@effected/config-file";
+import { ConfigFile, ConfigMerge } from "@effected/config-file";
 import { TomlCodec } from "@effected/config-file/toml";
 import { HostedSchema } from "@effected/schemastore";
 import type { FileSystem } from "effect";
@@ -619,40 +619,10 @@ const OkfitConfigWire = RawTable.pipe(
 	),
 ) as unknown as Schema.Codec<OkfitConfig, Record<string, unknown>>;
 
-const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> => {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-	const proto = Object.getPrototypeOf(value);
-	return proto === Object.prototype || proto === null;
-};
-
-const define = (target: Record<string, unknown>, key: string, value: unknown): void => {
-	Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
-};
-
-// deepMerge.ts semantics (config-file 0.5.2): plain objects merge key-wise,
-// everything else is atomic and `override` wins. Fresh result, inputs untouched.
-const mergeRecords = (base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> => {
-	const result: Record<string, unknown> = {};
-	for (const key of Object.keys(base)) {
-		if (!FORBIDDEN_KEYS.has(key)) define(result, key, base[key]);
-	}
-	for (const key of Object.keys(override)) {
-		if (FORBIDDEN_KEYS.has(key)) continue;
-		const incoming = override[key];
-		const current = result[key];
-		if (Object.hasOwn(result, key) && isPlainObject(current) && isPlainObject(incoming)) {
-			define(result, key, mergeRecords(current, incoming));
-		} else {
-			define(result, key, incoming);
-		}
-	}
-	return result;
-};
-
+// `ConfigMerge.deep`: plain objects merge key-wise (null-prototype or not), arrays and everything
+// else are atomic, an own key on `override` wins even as `undefined`, prototype keys are dropped.
 const merge = (base: OkfitConfig, override: OkfitConfig): OkfitConfig =>
-	mergeRecords(base as Record<string, unknown>, override as Record<string, unknown>) as OkfitConfig;
+	ConfigMerge.deep(base as Record<string, unknown>, override as Record<string, unknown>) as OkfitConfig;
 
 const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"broken-links": "broken_links",

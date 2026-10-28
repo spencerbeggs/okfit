@@ -1,4 +1,4 @@
-import { CliExit } from "@effected/cli";
+import { CliExit, CliFormat } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION } from "@okfit/core";
@@ -15,7 +15,7 @@ import {
 	run,
 } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import { Console, Effect, Layer, Option, Path, Schema } from "effect";
+import { Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { printDiagnostics } from "../internal/print-diagnostics.js";
 import { rootFlag } from "../internal/root.js";
@@ -30,10 +30,11 @@ const configFlag = Flag.File("config").pipe(
 );
 
 /** K-6: `--format` is on `validate` only. */
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 /** Scope: report only these files' diagnostics; the bundle still loads whole so link lints stay right. */
 const targetsArg = Argument.String("targets").pipe(
@@ -123,7 +124,7 @@ export const validateCommand = Command.make(
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
-					yield* Console.log(JSON.stringify(Schema.encodeSync(JsonEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(JsonEnvelope)(envelope), { indent: 0 });
 				} else {
 					yield* printDiagnostics({ diagnostics, cwd, bundleRoot, path, concepts: result.bundle.concepts.size });
 				}
@@ -137,7 +138,7 @@ export const validateCommand = Command.make(
 			if (input.format === "json") {
 				return yield* body.pipe(
 					Effect.tapError((error) =>
-						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+						CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 					),
 				);
 			}

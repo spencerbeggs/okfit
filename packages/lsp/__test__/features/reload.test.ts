@@ -2,9 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { Deferred, Effect, Fiber, Option, Ref } from "effect";
 import { TestClock } from "effect/testing";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { makeDiagnosticsFeature, makeRevalidatePublisher } from "../../src/features/diagnostics.js";
 import { makeSessionRegistry } from "../../src/session/registry.js";
 import type { RecordedNotification } from "../utils/fakeTransport.js";
@@ -87,10 +88,10 @@ describe("config reload and dropped-session cleanup", () => {
 				const oldConfig = yield* Effect.promise(() => readFile(OLD_CONFIG_VARIANT_PATH, "utf8"));
 				yield* Effect.promise(() => writeFile(configPath, oldConfig, "utf8"));
 
-				const alphaUri = pathToUri(alphaPath);
-				const betaUri = pathToUri(betaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
+				const betaUri = LspUri.fromPath(betaPath, URI_OPTIONS);
 				const gammaPath = join(root, "okf", "modules", "gamma.md");
-				const gammaUri = pathToUri(gammaPath);
+				const gammaUri = LspUri.fromPath(gammaPath, URI_OPTIONS);
 				// gamma.md exists only in the overlay, with an explicit status, so status_missing never
 				// flags it under either config: it is the "never touched" control.
 				const gammaText =
@@ -149,7 +150,7 @@ describe("config reload and dropped-session cleanup", () => {
 				const baseConfig = yield* Effect.promise(() => readFile(configPath, "utf8"));
 				const alphaOnDisk = yield* Effect.promise(() => readFile(alphaPath, "utf8"));
 				const brokenOverlay = BROKEN_LINK(alphaOnDisk);
-				const alphaUri = pathToUri(alphaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
 
 				yield* feature.onDocumentEvent({ kind: "open", path: alphaPath, text: brokenOverlay, version: 1 });
 				let handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
@@ -189,8 +190,8 @@ describe("config reload and dropped-session cleanup", () => {
 				const alphaBroken = BROKEN_LINK(yield* Effect.promise(() => readFile(alphaPath, "utf8")));
 				const betaOnDisk = yield* Effect.promise(() => readFile(betaPath, "utf8"));
 				const betaBroken = `${betaOnDisk}\nSee [Nowhere](nowhere.md).\n`;
-				const alphaUri = pathToUri(alphaPath);
-				const betaUri = pathToUri(betaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
+				const betaUri = LspUri.fromPath(betaPath, URI_OPTIONS);
 
 				yield* feature.onDocumentEvent({ kind: "open", path: alphaPath, text: alphaBroken, version: 1 });
 				yield* feature.onDocumentEvent({ kind: "open", path: betaPath, text: betaBroken, version: 1 });
@@ -226,7 +227,7 @@ describe("config reload and dropped-session cleanup", () => {
 				const { registry, feature, notifications, alphaPath, configPath } = yield* setup();
 				const goodConfig = yield* Effect.promise(() => readFile(configPath, "utf8"));
 				const alphaBroken = BROKEN_LINK(yield* Effect.promise(() => readFile(alphaPath, "utf8")));
-				const alphaUri = pathToUri(alphaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
 
 				yield* feature.onDocumentEvent({ kind: "open", path: alphaPath, text: alphaBroken, version: 1 });
 				let handle = Option.getOrThrow(yield* registry.sessionFor(alphaPath));
@@ -258,7 +259,7 @@ describe("config reload and dropped-session cleanup", () => {
 	it.effect("(e) a watched non-config file change still schedules full and publishes (positive control)", () =>
 		Effect.gen(function* () {
 			const { registry, feature, notifications, alphaPath } = yield* setup();
-			const alphaUri = pathToUri(alphaPath);
+			const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
 			const alphaBroken = BROKEN_LINK(yield* Effect.promise(() => readFile(alphaPath, "utf8")));
 
 			// Changed on disk directly, bypassing didChange/overlay entirely: only a watched-files
@@ -284,7 +285,7 @@ describe("config reload and dropped-session cleanup", () => {
 			Effect.gen(function* () {
 				const { root } = yield* copyFixtureProject();
 				const alphaPath = join(root, "okf", "modules", "alpha.md");
-				const alphaUri = pathToUri(alphaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
 				const armed = yield* Ref.make(false);
 				const started = yield* Deferred.make<void>();
 				const gate = yield* Deferred.make<void>();
@@ -351,7 +352,7 @@ describe("config reload and dropped-session cleanup", () => {
 			Effect.gen(function* () {
 				const { root } = yield* copyFixtureProject();
 				const alphaPath = join(root, "okf", "modules", "alpha.md");
-				const alphaUri = pathToUri(alphaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
 				const armed = yield* Ref.make(false);
 				const started = yield* Deferred.make<void>();
 				const gate = yield* Deferred.make<void>();
@@ -387,7 +388,7 @@ describe("config reload and dropped-session cleanup", () => {
 			Effect.gen(function* () {
 				const { root, registry, feature, notifications, alphaPath } = yield* setup((root) => [root, join(root, "okf")]);
 				const alphaOnDisk = yield* Effect.promise(() => readFile(alphaPath, "utf8"));
-				const alphaUri = pathToUri(alphaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
 
 				// README.md is the outer folder's own document: outside the bundle, so ignored, but it resolves
 				// that folder onto the shared root.
@@ -434,8 +435,8 @@ describe("config reload and dropped-session cleanup", () => {
 				const baseConfig = yield* Effect.promise(() => readFile(configPath, "utf8"));
 				const oldConfig = yield* Effect.promise(() => readFile(OLD_CONFIG_VARIANT_PATH, "utf8"));
 				yield* Effect.promise(() => writeFile(configPath, oldConfig, "utf8"));
-				const alphaUri = pathToUri(alphaPath);
-				const betaUri = pathToUri(betaPath);
+				const alphaUri = LspUri.fromPath(alphaPath, URI_OPTIONS);
+				const betaUri = LspUri.fromPath(betaPath, URI_OPTIONS);
 
 				yield* feature.onDocumentEvent({
 					kind: "open",

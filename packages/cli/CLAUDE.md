@@ -154,6 +154,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   it. `@okfit/cli` carries no `peerDependencies` block itself — it is where
   core's and profiles' Convention A dependency chain terminates, since a CLI
   bin is installed, never depended on.
+- `--format` is `CliFormat.flag(["json"], { aliases: { human: "auto" }, default: "human" })` on every command (`graph`: `custom: ["mermaid", "dot"]`, default `mermaid`); JSON prints through `CliFormat.printJson(value, { indent: 0 })`, the same single-line bytes as before. Pass the explicit type arguments: `default` also feeds inference of the built-in set, which otherwise widens to include `human`.
 - Tests live in `__test__/`, never in `src/`.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type imports
   are separate `import type` statements. TSDoc `@public` on every `src/`

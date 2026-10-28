@@ -23,12 +23,15 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
+import { LineIndex } from "@effected/source";
 import type { ConceptId, LinkGraph, LoadedBundle, LoadedConcept, OkfitConfig, TypeDeclaration } from "@okfit/core";
 import { Derive, DiagnosticRange } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import type { DateTime } from "effect";
 import { DateTime as DateTimeService, Effect, Option } from "effect";
-import { uriToPath } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { Hover, HoverParams, MarkupContent } from "../protocol/types.js";
 import type { SessionRegistryShape } from "../session/registry.js";
@@ -109,8 +112,9 @@ const fieldKeyAt = (concept: LoadedConcept, position: HoverParams["position"]): 
 	if (block === undefined) return undefined;
 	const offset = offsetOf(text, position);
 	if (offset < block.offset || offset >= block.offset + block.length) return undefined;
-	const line = text.split("\n")[position.line];
-	if (line === undefined) return undefined;
+	const index = LineIndex.make(text);
+	if (!Number.isInteger(position.line) || position.line < 0 || position.line >= index.lineCount) return undefined;
+	const line = index.lineText(position.line);
 	const match = TOP_LEVEL_KEY_RE.exec(line);
 	if (match === null) return undefined;
 	const key = match[1] ?? "";
@@ -157,7 +161,7 @@ const toHover = (value: string | undefined): Hover | null =>
 export const registerHover = (transport: LspTransportShape, registry: SessionRegistryShape): Effect.Effect<void> =>
 	transport.onRequest<HoverParams, Hover | null>("textDocument/hover", (params) =>
 		Effect.gen(function* () {
-			const path = uriToPath(params.textDocument.uri);
+			const path = LspUri.toPath(params.textDocument.uri, URI_OPTIONS);
 			if (Option.isNone(path)) return null;
 			const snapshot = yield* snapshotFor(registry, path.value);
 			if (Option.isNone(snapshot)) return null;

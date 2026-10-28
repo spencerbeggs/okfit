@@ -8,11 +8,13 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { ConceptId, LinkGraph, LoadedBundle } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import { Effect, Option } from "effect";
+import { URI_OPTIONS } from "../convert/platform.js";
 import { toLspRange } from "../convert/range.js";
-import { pathToUri, uriToPath } from "../convert/uri.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type {
 	DefinitionParams,
@@ -59,7 +61,7 @@ const documentLinksOf = (bundle: LoadedBundle, graph: LinkGraph, path: string): 
 		const targetNode = graph.node(edge.to);
 		if (Option.isNone(targetNode) || targetNode.value.kind === "missing") continue;
 		const relative = targetNode.value.kind === "concept" ? `${targetNode.value.id}.md` : targetNode.value.id;
-		links.push({ range: position, target: pathToUri(absolutePathOf(bundle.root, relative)) });
+		links.push({ range: position, target: LspUri.fromPath(absolutePathOf(bundle.root, relative), URI_OPTIONS) });
 	}
 
 	for (const link of document.links) {
@@ -91,7 +93,7 @@ export const registerNavigation = (transport: LspTransportShape, registry: Sessi
 	Effect.gen(function* () {
 		yield* transport.onRequest<DocumentLinkParams, ReadonlyArray<DocumentLink>>("textDocument/documentLink", (params) =>
 			Effect.gen(function* () {
-				const path = uriToPath(params.textDocument.uri);
+				const path = LspUri.toPath(params.textDocument.uri, URI_OPTIONS);
 				if (Option.isNone(path)) return [];
 				const snapshot = yield* snapshotFor(registry, path.value);
 				if (Option.isNone(snapshot)) return [];
@@ -101,7 +103,7 @@ export const registerNavigation = (transport: LspTransportShape, registry: Sessi
 
 		yield* transport.onRequest<DefinitionParams, Location | null>("textDocument/definition", (params) =>
 			Effect.gen(function* () {
-				const path = uriToPath(params.textDocument.uri);
+				const path = LspUri.toPath(params.textDocument.uri, URI_OPTIONS);
 				if (Option.isNone(path)) return null;
 				const snapshot = yield* snapshotFor(registry, path.value);
 				if (Option.isNone(snapshot)) return null;
@@ -118,14 +120,14 @@ export const registerNavigation = (transport: LspTransportShape, registry: Sessi
 					const location = definitionOf(bundle, targetNode.value.id as ConceptId);
 					return Option.isNone(location) ? null : location.value;
 				}
-				const uri = pathToUri(absolutePathOf(bundle.root, targetNode.value.id));
+				const uri = LspUri.fromPath(absolutePathOf(bundle.root, targetNode.value.id), URI_OPTIONS);
 				return { uri, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } };
 			}),
 		);
 
 		yield* transport.onRequest<ReferenceParams, ReadonlyArray<Location>>("textDocument/references", (params) =>
 			Effect.gen(function* () {
-				const path = uriToPath(params.textDocument.uri);
+				const path = LspUri.toPath(params.textDocument.uri, URI_OPTIONS);
 				if (Option.isNone(path)) return [];
 				const snapshot = yield* snapshotFor(registry, path.value);
 				if (Option.isNone(snapshot)) return [];
@@ -141,7 +143,7 @@ export const registerNavigation = (transport: LspTransportShape, registry: Sessi
 					const referrer = bundle.concepts.get(edge.from as ConceptId);
 					if (referrer === undefined) continue;
 					locations.push({
-						uri: pathToUri(absolutePathOf(bundle.root, `${edge.from}.md`)),
+						uri: LspUri.fromPath(absolutePathOf(bundle.root, `${edge.from}.md`), URI_OPTIONS),
 						range: toLspRange(referrer.document.source, position),
 					});
 				}

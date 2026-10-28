@@ -5,11 +5,13 @@
  *
  * @packageDocumentation
  */
+
+import { ErrorText } from "@effected/engine";
+import { LspUri } from "@effected/lsp";
 import type { RevalidateTier } from "@okfit/engine";
 import { DateTime, Effect, Option, Path, Result } from "effect";
 import { sourceTextOf, toLspDiagnostic } from "../convert/diagnostic.js";
-import { pathToUri } from "../convert/uri.js";
-import { messageOf } from "../internal/messageOf.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { OpenDocuments } from "../session/documents.js";
 import { makeDocumentMemory } from "../session/documents.js";
@@ -99,7 +101,7 @@ export const makeRevalidatePublisher = (
 				const result = yield* Effect.result(handle.session.revalidate({ now, tier }));
 				if (Result.isFailure(result)) {
 					yield* Effect.logWarning(
-						`okfit-lsp: revalidate failed for ${handle.bundleRoot}: ${messageOf(result.failure)}`,
+						`okfit-lsp: revalidate failed for ${handle.bundleRoot}: ${ErrorText.describe(result.failure)}`,
 					);
 					return;
 				}
@@ -108,7 +110,7 @@ export const makeRevalidatePublisher = (
 					changed,
 					([file, diagnostics]) => {
 						const target = file === "" ? path.join(handle.bundleRoot, "index.md") : path.join(handle.bundleRoot, file);
-						const uri = pathToUri(target);
+						const uri = LspUri.fromPath(target, URI_OPTIONS);
 						const text = sourceTextOf(bundle, file);
 						const isEmpty = diagnostics.length === 0;
 						// Uninterruptible as one unit: the send must land before `remember` is updated, or a

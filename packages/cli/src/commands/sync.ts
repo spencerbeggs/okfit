@@ -1,4 +1,4 @@
-import { CliInteractive } from "@effected/cli";
+import { CliFormat, CliInteractive } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import type { SyncMode } from "@okfit/engine";
@@ -62,10 +62,11 @@ const yesFlag = Flag.Boolean("yes").pipe(
 	Flag.withDescription("skip the interactive confirm and write the plan"),
 );
 
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 /** #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). */
 const ISO_DATE = Schema.String.pipe(
@@ -164,7 +165,7 @@ export const syncCommand = Command.make(
 							// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 							...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 						});
-						yield* Console.log(JSON.stringify(Schema.encodeSync(SyncEnvelope)(envelope)));
+						yield* CliFormat.printJson(Schema.encodeSync(SyncEnvelope)(envelope), { indent: 0 });
 					} else {
 						for (const line of humanPublication(stamped, input.dryRun)) {
 							yield* Console.log(line);
@@ -202,7 +203,7 @@ export const syncCommand = Command.make(
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
-					yield* Console.log(JSON.stringify(Schema.encodeSync(SyncEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(SyncEnvelope)(envelope), { indent: 0 });
 				} else {
 					for (const line of humanSync(result)) {
 						yield* Console.log(line);
@@ -220,7 +221,7 @@ export const syncCommand = Command.make(
 			if (input.format === "json") {
 				return yield* body.pipe(
 					Effect.tapError((error) =>
-						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+						CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 					),
 				);
 			}

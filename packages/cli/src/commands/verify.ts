@@ -1,4 +1,4 @@
-import { CliInteractive, Doc } from "@effected/cli";
+import { CliFormat, CliInteractive, Doc } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import { Git } from "@effected/git";
 import { Bundle, Timestamp } from "@okfit/core";
@@ -100,10 +100,11 @@ const noDiffFlag = Flag.Boolean("no-diff").pipe(
 	),
 );
 
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 /**
  * `okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
@@ -211,7 +212,7 @@ export const verifyCommand = Command.make(
 					);
 					if (input.format === "json") {
 						// R2: one target keeps the bare object; several are an array of the same envelopes.
-						yield* Console.log(JSON.stringify(envelopes.length === 1 ? envelopes[0] : envelopes));
+						yield* CliFormat.printJson(envelopes.length === 1 ? envelopes[0] : envelopes, { indent: 0 });
 					} else {
 						for (const result of results) {
 							yield* Doc.print(
@@ -309,7 +310,7 @@ export const verifyCommand = Command.make(
 							// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 							...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 						});
-						yield* Console.log(JSON.stringify(Schema.encodeSync(VerifyBatchEnvelope)(envelope)));
+						yield* CliFormat.printJson(Schema.encodeSync(VerifyBatchEnvelope)(envelope), { indent: 0 });
 					} else {
 						yield* Doc.print(
 							humanVerifyBatchDoc({
@@ -369,7 +370,7 @@ export const verifyCommand = Command.make(
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
-					yield* Console.log(JSON.stringify(Schema.encodeSync(VerifyEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(VerifyEnvelope)(envelope), { indent: 0 });
 				} else {
 					yield* Doc.print(
 						humanVerifyDoc({
@@ -403,7 +404,7 @@ export const verifyCommand = Command.make(
 			if (input.format === "json") {
 				return yield* body.pipe(
 					Effect.tapError((error) =>
-						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+						CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 					),
 				);
 			}

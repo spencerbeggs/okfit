@@ -18,11 +18,13 @@
  *
  * @packageDocumentation
  */
+
+import { LspUri } from "@effected/lsp";
 import type { LoadedBundle, Status, TrustTier } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
 import { DateTime, Effect, Option, Ref } from "effect";
-import { pathToUri } from "../convert/uri.js";
+import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
 import { definitionOf } from "./locate.js";
@@ -102,7 +104,7 @@ const bundleSummary = (handle: SessionHandle, now: DateTime.Utc): Effect.Effect<
 		const signals = Option.getOrUndefined(yield* handle.session.signals());
 		return Option.map(bundle, (loaded) => ({
 			root: handle.bundleRoot,
-			rootUri: pathToUri(handle.bundleRoot),
+			rootUri: LspUri.fromPath(handle.bundleRoot, URI_OPTIONS),
 			profile: profileOf(handle),
 			concepts: summarise(loaded, now, signals),
 		}));
@@ -209,4 +211,7 @@ export const notifyBundleChanged = (
 	root: string,
 	reason: BundleChangedParams["reason"],
 ): Effect.Effect<void> =>
-	transport.sendNotification<BundleChangedParams>(BUNDLE_CHANGED_NOTIFICATION, { rootUri: pathToUri(root), reason });
+	transport.sendNotification<BundleChangedParams>(BUNDLE_CHANGED_NOTIFICATION, {
+		rootUri: LspUri.fromPath(root, URI_OPTIONS),
+		reason,
+	});

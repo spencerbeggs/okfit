@@ -17,6 +17,7 @@
  *
  * @packageDocumentation
  */
+import { ErrorText } from "@effected/engine";
 import type { Git } from "@effected/git";
 import type { MarkdownEdit } from "@effected/markdown";
 import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
@@ -30,7 +31,6 @@ import { Derivation, Trust } from "@okfit/profiles";
 import type { Crypto, DateTime } from "effect";
 import { Effect, Option, Result, Schema } from "effect";
 import { toLspRange } from "../convert/range.js";
-import { messageOf } from "../internal/messageOf.js";
 import type { Range, TextEdit, WorkspaceEdit } from "../protocol/types.js";
 import type { OpenDocuments } from "../session/documents.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
@@ -306,7 +306,7 @@ export const verifiedStableTextEdits = (
  */
 export const resolveActor = (handle: SessionHandle): Effect.Effect<string, EditFailure, Git> =>
 	Derivation.verifier({ cwd: handle.folder, config: handle.session.config() }).pipe(
-		Effect.mapError((error): EditFailure => ({ _tag: "ActorUnresolved", message: messageOf(error) })),
+		Effect.mapError((error): EditFailure => ({ _tag: "ActorUnresolved", message: ErrorText.describe(error) })),
 	);
 
 /**

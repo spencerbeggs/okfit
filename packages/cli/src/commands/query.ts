@@ -1,3 +1,4 @@
+import { CliFormat } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
@@ -44,10 +45,11 @@ const configFlag = Flag.File("config").pipe(
 	Flag.withDescription("explicit config file; skips discovery"),
 );
 
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 const typeFlag = Flag.String("type").pipe(
 	Flag.atLeast(0),
@@ -93,7 +95,7 @@ const run = <A, E, R>(
 	input: {
 		readonly root: Option.Option<string>;
 		readonly config: Option.Option<string>;
-		readonly format: "human" | "json";
+		readonly format: "auto" | "json";
 	},
 	use: (ctx: {
 		readonly bundle: LoadedBundle;
@@ -133,7 +135,7 @@ const run = <A, E, R>(
 		if (input.format === "json") {
 			return yield* body.pipe(
 				Effect.tapError((error) =>
-					Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+					CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 				),
 			);
 		}
@@ -186,7 +188,7 @@ export const queryListCommand = Command.make(
 							items,
 							...distributionOf(distribution),
 						});
-						yield* Console.log(JSON.stringify(Schema.encodeSync(QueryListEnvelope)(envelope)));
+						yield* CliFormat.printJson(Schema.encodeSync(QueryListEnvelope)(envelope), { indent: 0 });
 					} else {
 						for (const line of humanQueryList(items)) yield* Console.log(line);
 						yield* Console.error(queryListSummary(items.length, root));
@@ -232,7 +234,7 @@ export const queryGetCommand = Command.make(
 							}),
 						),
 					);
-					yield* Console.log(JSON.stringify(encoded.length === 1 ? encoded[0] : encoded));
+					yield* CliFormat.printJson(encoded.length === 1 ? encoded[0] : encoded, { indent: 0 });
 				} else {
 					let first = true;
 					for (const { concept, links, signal, summary } of views) {
@@ -280,7 +282,7 @@ export const queryNeighborsCommand = Command.make(
 						incoming,
 						...distributionOf(distribution),
 					});
-					yield* Console.log(JSON.stringify(Schema.encodeSync(QueryNeighborsEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(QueryNeighborsEnvelope)(envelope), { indent: 0 });
 				} else {
 					for (const line of humanQueryNeighbors({ outgoing, incoming })) yield* Console.log(line);
 				}

@@ -286,6 +286,48 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
+	it.effect("finds a repository defined only by GIT_DIR and GIT_WORK_TREE, with no .git on disk", () =>
+		Effect.gen(function* () {
+			const work = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-envrepo-")));
+			const store = `${work}-git`;
+			const saved = { dir: process.env.GIT_DIR, tree: process.env.GIT_WORK_TREE };
+			const restore = () => {
+				if (saved.dir === undefined) delete process.env.GIT_DIR;
+				else process.env.GIT_DIR = saved.dir;
+				if (saved.tree === undefined) delete process.env.GIT_WORK_TREE;
+				else process.env.GIT_WORK_TREE = saved.tree;
+			};
+			try {
+				const env = ["--git-dir", store, "--work-tree", work];
+				git(work, ["init", "-q", "--bare", "-b", "main", store]);
+				yield* Effect.promise(() => mkdir(join(work, "okf")));
+				yield* Effect.promise(() => writeFile(join(work, "okf", "index.md"), "# Index\n"));
+				yield* Effect.promise(() =>
+					writeFile(
+						join(work, "okf", "a.md"),
+						"---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n---\n\n# A\n",
+					),
+				);
+				git(work, [...env, "add", "okf/a.md"]);
+				// A bare-dotfiles setup: the hook-safe lookup finds no .git, so only the env-honouring retry answers.
+				process.env.GIT_DIR = store;
+				process.env.GIT_WORK_TREE = work;
+				const result = yield* runSync({
+					bundleRoot: join(work, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: true,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live), Effect.ensuring(Effect.sync(restore)));
+				assert.deepStrictEqual(result.generated.written, ["a"]);
+			} finally {
+				restore();
+				yield* Effect.promise(() => rm(store, { recursive: true, force: true }));
+				yield* Effect.promise(() => rm(work, { recursive: true, force: true }));
+			}
+		}),
+	);
+
 	const concept = (title: string, extra = ""): string =>
 		`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n---\n\n# ${title}\n${extra}`;
 	const ALL = new Set(["generated", "index", "log"] as const);

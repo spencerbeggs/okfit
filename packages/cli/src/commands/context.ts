@@ -1,3 +1,4 @@
+import { CliFormat } from "@effected/cli";
 import { CurrentDistribution } from "@effected/engine";
 import {
 	ContextEnvelope,
@@ -22,10 +23,11 @@ const configFlag = Flag.File("config").pipe(
 );
 
 /** No `--profile` flag: M-15's exact ruling; that flag belongs to `init` alone. */
-const formatFlag = Flag.Literals("format", ["human", "json"] as const).pipe(
-	Flag.withDefault("human"),
-	Flag.withDescription("output format: human (default) or json"),
-);
+const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
+	aliases: { human: "auto" },
+	default: "human",
+	description: "output format: human (default) or json",
+});
 
 const trustFlag = Flag.Boolean("trust").pipe(
 	Flag.withDefault(false),
@@ -107,7 +109,7 @@ export const contextCommand = Command.make(
 				});
 
 				if (input.format === "json") {
-					yield* Console.log(JSON.stringify(Schema.encodeSync(ContextEnvelope)(envelope)));
+					yield* CliFormat.printJson(Schema.encodeSync(ContextEnvelope)(envelope), { indent: 0 });
 				} else {
 					for (const contextLine of humanContext(envelope)) {
 						yield* Console.log(contextLine);
@@ -121,7 +123,7 @@ export const contextCommand = Command.make(
 			if (input.format === "json") {
 				return yield* body.pipe(
 					Effect.tapError((error) =>
-						Console.log(JSON.stringify(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)))),
+						CliFormat.printJson(jsonError(error, CLI_VERSION, Option.getOrUndefined(distribution)), { indent: 0 }),
 					),
 				);
 			}

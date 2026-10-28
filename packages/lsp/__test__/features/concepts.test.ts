@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { Effect, Logger } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import type { ConceptsResult } from "../../src/features/concepts.js";
 import { registerConcepts } from "../../src/features/concepts.js";
 import { testPlatform } from "../utils/platform.js";
@@ -52,7 +53,7 @@ describe("registerConcepts", () => {
 			assert.strictEqual(result.bundles.length, 1);
 			const bundle = result.bundles[0]!;
 			assert.strictEqual(bundle.root, root);
-			assert.strictEqual(bundle.rootUri, pathToUri(root));
+			assert.strictEqual(bundle.rootUri, LspUri.fromPath(root, URI_OPTIONS));
 			assert.deepStrictEqual(
 				bundle.concepts.map((c) => [c.type, c.title, c.status, c.stale]),
 				[
@@ -61,7 +62,7 @@ describe("registerConcepts", () => {
 					["Module", "Bravo", "draft", false],
 				],
 			);
-			assert.strictEqual(bundle.concepts[1]!.uri, pathToUri(`${root}/a.md`));
+			assert.strictEqual(bundle.concepts[1]!.uri, LspUri.fromPath(`${root}/a.md`, URI_OPTIONS));
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 

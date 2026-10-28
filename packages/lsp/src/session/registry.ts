@@ -1,3 +1,4 @@
+import { ErrorText } from "@effected/engine";
 import type { Git } from "@effected/git";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { BundleSessionShape, ResolvedProjectConfig, RevalidateTier } from "@okfit/engine";
@@ -5,7 +6,6 @@ import { BundleSession, provideConfig, resolveProjectConfig } from "@okfit/engin
 import type { GitHistory } from "@okfit/profiles";
 import type { Crypto, Duration, FileSystem, Path } from "effect";
 import { Context, Deferred, Effect, Exit, Option, Ref, Result, Scope } from "effect";
-import { messageOf } from "../internal/messageOf.js";
 import { isUnder } from "../internal/paths.js";
 import type { Scheduler } from "./scheduler.js";
 import { makeScheduler } from "./scheduler.js";
@@ -262,7 +262,7 @@ export const makeSessionRegistry = (
 					}).pipe(provideConfig({ explicitConfigPath: Option.none(), discoveryCwd: folder })),
 				);
 				if (Result.isFailure(resolved)) {
-					const message = messageOf(resolved.failure);
+					const message = ErrorText.describe(resolved.failure);
 					const previous = (yield* Ref.get(lastLogged)).get(folder);
 					if (previous !== message) {
 						yield* Effect.logWarning(`okfit-lsp: no bundle for ${folder}: ${message}`);

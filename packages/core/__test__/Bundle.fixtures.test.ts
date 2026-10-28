@@ -3,7 +3,7 @@ import { Effect, Option } from "effect";
 import { Bundle } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
 import { Diagnostic } from "../src/Diagnostic.js";
-import { MOUNT, OKF_BUNDLES, okfBundlePlatform } from "./utils/bundles.js";
+import { MOUNT, OKF_BUNDLES, okfBundleAtRootPlatform } from "./utils/fixtures.js";
 
 const EXPECTED = {
 	acme_retail: { files: 18, concepts: 9, indexes: 7, logs: 1 },
@@ -25,7 +25,7 @@ describe("Bundle.load over the vendored OKF bundles", () => {
 				assert.isTrue(bundle.indexes.has(""));
 				for (const dir of bundle.directories) assert.isTrue(bundle.indexes.has(dir), `index for ${dir}`);
 				for (const [id, concept] of bundle.concepts) assert.strictEqual(concept.path, `${id}.md`);
-			}).pipe(Effect.provide(okfBundlePlatform(name))),
+			}).pipe(Effect.provide(okfBundleAtRootPlatform(name))),
 		);
 	}
 	it.effect("acme_retail: log groups, attester file, computation body, log-frontmatter warning", () =>
@@ -44,6 +44,6 @@ describe("Bundle.load over the vendored OKF bundles", () => {
 			const computation = bundle.concepts.get("computations/revenue-ytd" as ConceptId);
 			assert.strictEqual(computation?.frontmatter.type, "Attested Computation");
 			assert.isTrue(Option.isSome(computation?.computationBody ?? Option.none()));
-		}).pipe(Effect.provide(okfBundlePlatform("acme_retail"))),
+		}).pipe(Effect.provide(okfBundleAtRootPlatform("acme_retail"))),
 	);
 });

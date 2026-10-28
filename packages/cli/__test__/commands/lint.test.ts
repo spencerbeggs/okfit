@@ -37,7 +37,7 @@ describe("lintCommand", () => {
 			| { readonly f: (value: Option.Option<string>) => string }
 			| undefined;
 		if (formatFlag === undefined) throw new Error("expected a --format flag with a default-value mapper");
-		assert.strictEqual(formatFlag.f(Option.none()), "human");
+		assert.strictEqual(formatFlag.f(Option.none()), "auto");
 	});
 
 	it("--skip-provenance defaults to false", () => {

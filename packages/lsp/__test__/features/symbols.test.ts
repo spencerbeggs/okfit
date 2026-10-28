@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { Effect } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { registerWorkspaceSymbols } from "../../src/features/symbols.js";
 import type { SymbolInformation, WorkspaceSymbolParams } from "../../src/protocol/types.js";
 import { SYMBOL_KIND_OBJECT } from "../../src/protocol/types.js";
@@ -129,7 +130,10 @@ describe("registerWorkspaceSymbols", () => {
 				assert.deepStrictEqual(all.map((symbol) => symbol.name).toSorted(), ["First Project", "Second Project"]);
 				assert.deepStrictEqual(
 					all.map((symbol) => symbol.location.uri).toSorted(),
-					[pathToUri(`${rootA}/project.md`), pathToUri(`${rootB}/project.md`)].toSorted(),
+					[
+						LspUri.fromPath(`${rootA}/project.md`, URI_OPTIONS),
+						LspUri.fromPath(`${rootB}/project.md`, URI_OPTIONS),
+					].toSorted(),
 				);
 
 				const onlyOne = yield* call<WorkspaceSymbolParams, ReadonlyArray<SymbolInformation>>("workspace/symbol", {

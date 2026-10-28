@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import type { MemoryFileSystemSeed } from "@effected/memfs";
 import { Effect, FileSystem } from "effect";
 import {
 	BAD_BUNDLES,
@@ -18,12 +19,21 @@ const EXPECTED = {
 	stackoverflow: { files: 32, md: 32, index: 6, log: 0 },
 } as const;
 
+// NodeDirectorySeed also seeds every directory (the mount itself included); the guard counts files.
+const fileKeys = (seed: MemoryFileSystemSeed): string[] =>
+	Object.entries(seed)
+		.filter(
+			([, entry]) =>
+				typeof entry === "string" || entry instanceof Uint8Array || entry._tag === "MemoryFileSystemSeedFile",
+		)
+		.map(([key]) => key);
+
 const AcmePlatform = okfBundlePlatform("acme_retail");
 
 describe("vendored OKF corpus guard", () => {
 	for (const bundle of OKF_BUNDLES) {
 		it(`seeds ${bundle} with the recorded file counts`, () => {
-			const keys = Object.keys(okfBundleSeed(bundle));
+			const keys = fileKeys(okfBundleSeed(bundle));
 			const expected = EXPECTED[bundle];
 			assert.strictEqual(keys.length, expected.files);
 			assert.strictEqual(keys.filter((key) => key.endsWith(".md")).length, expected.md);
@@ -58,7 +68,7 @@ describe("vendored OKF corpus guard", () => {
 describe("bad bundle fixtures guard", () => {
 	for (const bundle of BAD_BUNDLES) {
 		it(`seeds ${bundle} with at least one markdown file under its mount`, () => {
-			const keys = Object.keys(badBundleSeed(bundle));
+			const keys = fileKeys(badBundleSeed(bundle));
 			assert.isAtLeast(keys.filter((key) => key.endsWith(".md")).length, 1);
 			for (const key of keys) assert.isTrue(key.startsWith(`${BAD_MOUNT}/${bundle}/`));
 		});

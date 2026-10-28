@@ -4,8 +4,9 @@ import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
+import { LspUri } from "@effected/lsp";
 import { Effect } from "effect";
-import { pathToUri } from "../../src/convert/uri.js";
+import { URI_OPTIONS } from "../../src/convert/platform.js";
 import { LSP_BIN, spawnLsp } from "./utils/lspBin.js";
 import { makeSandbox } from "./utils/sandbox.js";
 
@@ -16,9 +17,9 @@ interface PublishDiagnosticsParams {
 
 const initializeParams = (cwd: string) => ({
 	processId: null,
-	rootUri: pathToUri(cwd),
+	rootUri: LspUri.fromPath(cwd, URI_OPTIONS),
 	capabilities: {},
-	workspaceFolders: [{ uri: pathToUri(cwd), name: "p" }],
+	workspaceFolders: [{ uri: LspUri.fromPath(cwd, URI_OPTIONS), name: "p" }],
 });
 
 describe("okfit-lsp over real stdio", () => {
@@ -53,7 +54,7 @@ describe("okfit-lsp over real stdio", () => {
 			yield* server.readUntilResponse(1);
 			yield* server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
 
-			const alphaUri = pathToUri(join(sandbox.cwd, "okf", "modules", "alpha.md"));
+			const alphaUri = LspUri.fromPath(join(sandbox.cwd, "okf", "modules", "alpha.md"), URI_OPTIONS);
 			const brokenText = yield* Effect.promise(() =>
 				import("node:fs/promises").then((fs) =>
 					fs
