@@ -1,3 +1,4 @@
+import { ErrorText } from "@effected/engine";
 import { Runtime, Schema } from "effect";
 
 /**
@@ -103,15 +104,6 @@ export class VerifyNothingToRevokeError extends Schema.TaggedError<VerifyNothing
 	}
 }
 
-/** The error's `message` when it has one as a string, else `String(error)`. */
-const messageOf = (error: unknown): string => {
-	if (typeof error === "object" && error !== null && "message" in error) {
-		const message = (error as { readonly message: unknown }).message;
-		if (typeof message === "string") return message;
-	}
-	return String(error);
-};
-
 /**
  * A config file at a KNOWN path failed to parse or validate (K-46's own
  * intent — "each class' message already names the offending path" does not
@@ -128,7 +120,7 @@ export class ConfigMalformedError extends Schema.TaggedError<ConfigMalformedErro
 }) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		return `malformed config ${this.path}: ${messageOf(this.cause)}`;
+		return `malformed config ${this.path}: ${ErrorText.describe(this.cause)}`;
 	}
 }
 

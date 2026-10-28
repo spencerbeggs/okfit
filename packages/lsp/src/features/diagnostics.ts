@@ -6,12 +6,12 @@
  * @packageDocumentation
  */
 
+import { ErrorText } from "@effected/engine";
 import { LspUri } from "@effected/lsp";
 import type { RevalidateTier } from "@okfit/engine";
 import { DateTime, Effect, Option, Path, Result } from "effect";
 import { sourceTextOf, toLspDiagnostic } from "../convert/diagnostic.js";
 import { URI_OPTIONS } from "../convert/platform.js";
-import { messageOf } from "../internal/messageOf.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { OpenDocuments } from "../session/documents.js";
 import { makeDocumentMemory } from "../session/documents.js";
@@ -101,7 +101,7 @@ export const makeRevalidatePublisher = (
 				const result = yield* Effect.result(handle.session.revalidate({ now, tier }));
 				if (Result.isFailure(result)) {
 					yield* Effect.logWarning(
-						`okfit-lsp: revalidate failed for ${handle.bundleRoot}: ${messageOf(result.failure)}`,
+						`okfit-lsp: revalidate failed for ${handle.bundleRoot}: ${ErrorText.describe(result.failure)}`,
 					);
 					return;
 				}

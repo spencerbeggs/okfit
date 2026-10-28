@@ -1,3 +1,4 @@
+import { ErrorText } from "@effected/engine";
 import { ToolRefusal } from "@effected/mcp";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
@@ -6,19 +7,6 @@ import type { ResolvedProjectConfig } from "@okfit/engine";
 import { provideConfig, resolveProjectConfig } from "@okfit/engine";
 import type { FileSystem, Path } from "effect";
 import { Effect, Option } from "effect";
-
-/**
- * The error's `message` when it has one as a string, else `String(error)`.
- * A four-line local copy of `CLI/render/json.ts`'s own helper, which is
- * module-private there and cannot be imported.
- */
-export const messageOf = (error: unknown): string => {
-	if (typeof error === "object" && error !== null && "message" in error) {
-		const message = (error as { readonly message: unknown }).message;
-		if (typeof message === "string") return message;
-	}
-	return String(error);
-};
 
 const CONFIG_HINT =
 	"Check the project's .okfit.toml, okfit.toml, or .config/okfit.toml for a syntax or schema error; remove it to fall back to defaults.";
@@ -47,7 +35,7 @@ export const resolveConfigOnly = (
 		provideConfig({ explicitConfigPath: Option.none(), discoveryCwd: projectRoot }),
 		Effect.mapError((cause) => {
 			const remediation = { hint: CONFIG_HINT, suggestedTool: "describe_vocabulary" };
-			return ToolRefusal.refuse(messageOf(cause), remediation);
+			return ToolRefusal.refuse(ErrorText.describe(cause), remediation);
 		}),
 	);
 

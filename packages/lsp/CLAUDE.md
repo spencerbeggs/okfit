@@ -23,10 +23,6 @@ src/
                      renderHover, documents.ts) are @internal and tests
                      import them from their src/ paths
   internal/
-    messageOf.ts   -- messageOf: the error's `message` when it has one as a
-                      string, else `String(error)`; shared by
-                      features/diagnostics.ts and session/registry.ts,
-                      @internal, not in the barrel
     paths.ts       -- isUnder(root, path): whether path is root itself or
                       under it; shared by session/documents.ts and
                       session/registry.ts, @internal, not in the barrel

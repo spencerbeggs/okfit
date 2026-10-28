@@ -1,3 +1,4 @@
+import { ErrorText } from "@effected/engine";
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import { Runtime, Schema } from "effect";
 import { ENGINE_VERSION } from "../version.js";
@@ -143,15 +144,6 @@ const tagOf = (error: unknown): string => {
 	return error.constructor?.name ?? "UnknownError";
 };
 
-/** The error's `message` when it has one as a string, else `String(error)`. */
-const messageOf = (error: unknown): string => {
-	if (typeof error === "object" && error !== null && "message" in error) {
-		const message = (error as { readonly message: unknown }).message;
-		if (typeof message === "string") return message;
-	}
-	return String(error);
-};
-
 /**
  * The `[Runtime.errorExitCode]` marker's value when it is present and is one
  * of the two exit codes the JSON error envelope can carry; `3` otherwise
@@ -173,5 +165,5 @@ export const jsonError = (error: unknown, okfitVersion: string, distribution?: D
 	engine_version: ENGINE_VERSION,
 	distribution: distribution ?? null,
 	exit_code: exitCodeOf(error),
-	error: { tag: tagOf(error), message: messageOf(error) },
+	error: { tag: tagOf(error), message: ErrorText.describe(error) },
 });
