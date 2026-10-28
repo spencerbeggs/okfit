@@ -44,6 +44,7 @@
 		"@effected/lsp": "catalog:effected",
 		"@effected/markdown": "catalog:effected",
 		"@effected/schemastore": "catalog:effected",
+		"@effected/source": "catalog:effected",
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
 		"@effected/xdg": "catalog:effected",

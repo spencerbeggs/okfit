@@ -384,6 +384,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.27.0(effect@4.0.7)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/toml':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.7)
@@ -522,6 +525,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.27.0(effect@4.0.7)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/store':
         specifier: catalog:effected
         version: 0.21.0(effect@4.0.7)
@@ -599,6 +605,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.27.0(effect@4.0.7)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/toml':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.7)
@@ -679,6 +688,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.27.0(effect@4.0.7)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/toml':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.7)
@@ -797,6 +809,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.27.0(effect@4.0.7)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/toml':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.7)
@@ -851,6 +866,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.27.0(effect@4.0.7)
+      '@effected/source':
+        specifier: catalog:effected
+        version: 0.1.0
       '@effected/toml':
         specifier: catalog:effected
         version: 0.17.0(effect@4.0.7)
