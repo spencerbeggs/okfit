@@ -142,8 +142,11 @@ export const planSync: (
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
 		// `ignoreRepositoryEnv` keeps a hook's exported GIT_DIR from naming the cwd the top level (#315); the
-		// answer is already physical (git resolves symlinks), so it needs no realPath.
-		repoRoot = yield* git.repoRoot(bundle.root, { ignoreRepositoryEnv: true });
+		// answer is already physical (git resolves symlinks), so it needs no realPath. A repository defined only by
+		// that environment (GIT_DIR/GIT_WORK_TREE with no .git on disk) is found by the env-honouring retry.
+		repoRoot = yield* git
+			.repoRoot(bundle.root, { ignoreRepositoryEnv: true })
+			.pipe(Effect.catchTag("NotARepositoryError", () => git.repoRoot(bundle.root)));
 		const stagedPaths = new Set(yield* git.stagedChanges(repoRoot));
 		const selected = new Set<ConceptId>();
 		const provenanceStaged = new Map<ConceptId, GeneratedProvenance>();

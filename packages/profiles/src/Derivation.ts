@@ -305,8 +305,9 @@ export class Derivation {
 	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:
 	 *  1. `root = Git.repoRoot(dirname(file), { ignoreRepositoryEnv: true })`: the option drops the
 	 *     repository-pointing variables (`GIT_DIR` and kin), so a linked worktree's hook environment cannot shrink
-	 *     the root to the file's directory (okfit #315); a file outside any repository surfaces
-	 *     `NotARepositoryError`. Submodules and worktrees work because both are asked from the file's directory (P-39).
+	 *     the root to the file's directory (okfit #315). On `NotARepositoryError` it retries with that
+	 *     environment honoured, so a repository defined only by `GIT_DIR`/`GIT_WORK_TREE` still resolves; a file
+	 *     outside any repository surfaces `NotARepositoryError`. Submodules and worktrees work because both are asked from the file's directory (P-39).
 	 *  2. `realPath` both (rev-parse is symlink-resolved), then the repo-relative posix path via `Path` (P-39).
 	 *  3. `worktree = body(readFileString(file))`.
 	 *  4. `Git.show(realRoot, "HEAD", rel)`: `UnknownRefError` is `uncommitted { unborn }` (P-11), `Option.none`
@@ -329,7 +330,10 @@ export class Derivation {
 			const fs = yield* FileSystem.FileSystem;
 			const path = yield* Path.Path;
 			// 1. GIT/index.d.ts:1587; EF/Path.ts:88
-			const root = yield* git.repoRoot(path.dirname(options.file), { ignoreRepositoryEnv: true });
+			const dir = path.dirname(options.file);
+			const root = yield* git
+				.repoRoot(dir, { ignoreRepositoryEnv: true })
+				.pipe(Effect.catchTag("NotARepositoryError", () => git.repoRoot(dir)));
 			// 2. EF/FileSystem.ts:265; EF/Path.ts:96, :86
 			const realRoot = yield* fs.realPath(root);
 			const realFile = yield* fs.realPath(options.file);
