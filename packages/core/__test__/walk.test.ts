@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
 import { Effect } from "effect";
 import { walk } from "../src/internal/walk.js";
-import { faultyPlatform, platform } from "./utils/bundles.js";
+import { faultyPlatform, platform } from "./utils/fixtures.js";
 
 const seed = {
 	"/b/index.md": "",

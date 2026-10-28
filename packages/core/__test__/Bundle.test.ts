@@ -4,10 +4,10 @@ import type { BundleLoadOptions } from "../src/Bundle.js";
 import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
 import type { Diagnostic } from "../src/Diagnostic.js";
-import { MOUNT, badBundlePlatform, faultyPlatform, platform } from "./utils/bundles.js";
+import { MOUNT, badBundleAtRootPlatform, faultyPlatform, platform } from "./utils/fixtures.js";
 
 const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
-	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundlePlatform(name)));
+	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundleAtRootPlatform(name)));
 const codes = (diagnostics: ReadonlyArray<Diagnostic>) => diagnostics.map((d) => [d.file, d.code, d.range?.line]);
 const id = (value: string) => value as ConceptId;
 
@@ -18,7 +18,7 @@ describe("Bundle.load", () => {
 			assert.instanceOf(missing, BundleRootNotFoundError);
 			assert.strictEqual(missing.root, "/nowhere");
 			assert.instanceOf(yield* Effect.flip(Bundle.load({ root: `${MOUNT}/visible.md` })), BundleRootNotFoundError);
-		}).pipe(Effect.provide(badBundlePlatform("c-hidden-directory"))),
+		}).pipe(Effect.provide(badBundleAtRootPlatform("c-hidden-directory"))),
 	);
 	it.effect("unreadable root and unreadable file are BundleReadError; unreadable subdirectory is a warning", () =>
 		Effect.gen(function* () {
