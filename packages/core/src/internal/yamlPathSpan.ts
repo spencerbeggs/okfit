@@ -1,7 +1,7 @@
 import type { Frontmatter } from "@effected/markdown";
 import type { YamlParseError, YamlPath } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
-import { Effect, Option, Result } from "effect";
+import { Option, Result } from "effect";
 import { toFileOffset } from "./position.js";
 
 /**
@@ -34,7 +34,7 @@ const parsedCache = new WeakMap<Frontmatter, Result.Result<YamlDocument, YamlPar
 const parsedYamlOf = (node: Frontmatter): Result.Result<YamlDocument, YamlParseError> => {
 	const cached = parsedCache.get(node);
 	if (cached !== undefined) return cached;
-	const parsed = Effect.runSync(Effect.result(YamlDocument.parse(node.value)));
+	const parsed = YamlDocument.parseResult(node.value);
 	parsedCache.set(node, parsed);
 	return parsed;
 };

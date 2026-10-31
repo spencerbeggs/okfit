@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
-import { Effect } from "effect";
+import { Effect, Exit } from "effect";
 import { walk } from "../src/internal/walk.js";
 import { faultyPlatform, platform } from "./utils/fixtures.js";
 
@@ -48,6 +48,14 @@ describe("internal/walk", () => {
 			assert.strictEqual(failure.reason, "depthExceeded");
 			assert.strictEqual(failure.path, "deep");
 			assert.strictEqual(failure.limit, 1);
+		}).pipe(Effect.provide(platform(seed))),
+	);
+	it.effect("a maxDepth that is not a positive integer is a defect, not a typed failure", () =>
+		Effect.gen(function* () {
+			for (const maxDepth of [0, -1, 1.5]) {
+				const exit = yield* Effect.exit(walk({ ...defaults, maxDepth }));
+				assert.isTrue(Exit.hasDies(exit), `maxDepth ${maxDepth}`);
+			}
 		}).pipe(Effect.provide(platform(seed))),
 	);
 	it.effect("a file symlink is listed as a file; a directory symlink is never descended", () =>

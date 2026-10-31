@@ -64,9 +64,6 @@ export const walk = (
 	options: WalkOptions,
 ): Effect.Effect<WalkResult, PlatformError.PlatformError | DescendError, FileSystem.FileSystem | Path.Path> =>
 	Effect.gen(function* () {
-		if (!Number.isInteger(options.maxDepth) || options.maxDepth < 1) {
-			return yield* Effect.die(new Error(`walk: maxDepth must be a positive integer, received ${options.maxDepth}`));
-		}
 		const pattern = yield* GlobPattern.compile("**/*", GlobPatternOptions.make({ dot: options.includeHidden })).pipe(
 			Effect.orDie,
 		);
