@@ -18,11 +18,13 @@ integrity:
     body: 741048e34a798597
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: 4d20e30f9a1f1b1f
+    at: 2026-10-31T21:31:20Z
+    content: 00a6aed983d15763
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-10-31T21:31:20Z
 ---
 
 # Every okfit digest lives in one integrity family, outside the spec's families
