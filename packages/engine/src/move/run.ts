@@ -10,7 +10,6 @@ import type { Digest } from "effect/crypto";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
 import { writeAtomic } from "../sync/write.js";
-import { relativeInside } from "../targets/inside.js";
 import { Targets } from "../targets/resolve.js";
 import { referencesOf, rewriteReference } from "./references.js";
 
