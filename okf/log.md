@@ -9,6 +9,8 @@
 * Updated Profiles
 * Updated Workspace
 * Updated scratchpad
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
 
 ## 2026-10-28
 
