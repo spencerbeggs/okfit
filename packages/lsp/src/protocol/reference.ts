@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { LspFrame } from "@effected/lsp";
 import type { Duration, Exit, Fiber, Scope } from "effect";
 import { Cause, Deferred, Effect, FiberSet, Option, Predicate } from "effect";
+import { SecureRandom } from "effect/crypto";
 import type { Connection, WatchDog } from "vscode-languageserver";
 import { createConnection as createServerConnection } from "vscode-languageserver";
 import {
@@ -166,7 +166,7 @@ export const makeReferenceTransport = (
 		const writeSettleTimeout = options?.drain?.writeSettle ?? WRITE_SETTLE_TIMEOUT;
 		/* `emitClose: false`: the reader's `onClose` would mark the connection Closed before the drain runs, and a drained handler could no longer send. The finalizer's `dispose` closes it instead. */
 		const readerInput = new PassThrough({ emitClose: false });
-		const sentinelToken = randomUUID();
+		const sentinelToken = SecureRandom.uuidV4Unsafe();
 		let inputEnded = false;
 
 		const connection: Connection = streams

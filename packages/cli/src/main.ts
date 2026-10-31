@@ -88,18 +88,14 @@ export const main = (options: MainOptions = {}): void => {
 			// `CliInteractive`, and gates the terminal and `--wizard` when the run
 			// is not interactive -- inside failure reporting, like `platform`.
 			//
-			// `stderrIsTerminal` is stderr's own check (the kit otherwise mirrors
-			// stdout's), so `okfit ... 2>err.log` never paints a redirected stderr.
-			// The kit has no default for it, by design: core exposes no stderr
-			// terminal check (Effect-TS/effect#8639) and a library never reads
-			// `process`, so the bin, the one place that reads its host, passes it.
-			// This is the kit's documented shape; it drops out when core ships one.
+			// Stderr's colour follows core's own `Stdio.stderrIsTerminal` (Effect
+			// 4.1), so `okfit ... 2>err.log` never paints a redirected stderr with
+			// nothing passed here.
 			// `formatter` keeps okfit's `--version` line; it must come through
 			// `env` (not a layer inside the program) for `helpOnUsageError` to
 			// see the formatter. Help and error rendering stay the kit's default.
 			env: {
 				audienceEnvVar: "OKFIT_AUDIENCE",
-				stderrIsTerminal: Effect.sync(() => process.stderr.isTTY === true),
 				formatter: versionFormatter,
 			},
 		}),
