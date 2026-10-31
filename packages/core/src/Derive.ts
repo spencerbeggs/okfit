@@ -3,8 +3,8 @@ import { Actor } from "./Actor.js";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import type { Concept } from "./Concept.js";
 import type { ConceptId } from "./ConceptId.js";
-import type { IndexEntryInput } from "./internal/templates.js";
-import { indexEntry, indexFrontmatter, indexSection, logEntry } from "./internal/templates.js";
+import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
+import { indexDocument, logEntry } from "./internal/templates.js";
 import type { Status } from "./Status.js";
 
 /** Trust tier from `verified` (OKF 0.2 §5.3): none maps to unverified; only non-human maps to machine-confirmed; any `human:` maps to human-reviewed. @public */
@@ -35,7 +35,7 @@ export interface StaleConcept {
 
 /** Options for {@link Derive.renderIndex}. @public */
 export interface RenderIndexOptions {
-	/** Emits `---\nokf_version: "<v>"\n---\n\n` first; root index only (D-21). */
+	/** Emits a frontmatter block carrying only `okf_version` first; root index only (D-21). */
 	readonly okfVersion?: string;
 	/** Rendered as `* [name](name/index.md)` under a trailing `# Subdirectories` section. */
 	readonly subdirectories?: ReadonlyArray<string>;
@@ -114,17 +114,18 @@ export class Derive {
 			});
 			groups.set(concept.frontmatter.type, entries);
 		}
-		const sections = [...groups.keys()].sort(compare).map((type) => {
-			const entries = (groups.get(type) ?? []).sort((a, b) => compare(a.title, b.title));
-			return indexSection(type, entries.map(indexEntry));
-		});
+		const sections: Array<IndexSectionInput> = [...groups.keys()].sort(compare).map((type) => ({
+			heading: type,
+			entries: (groups.get(type) ?? []).sort((a, b) => compare(a.title, b.title)),
+		}));
 		const subdirectories = [...(options.subdirectories ?? [])].sort(compare);
 		if (subdirectories.length > 0) {
-			const entries = subdirectories.map((name) => indexEntry({ title: name, target: `${name}/index.md` }));
-			sections.push(indexSection("Subdirectories", entries));
+			sections.push({
+				heading: "Subdirectories",
+				entries: subdirectories.map((name) => ({ title: name, target: `${name}/index.md` })),
+			});
 		}
-		const header = options.okfVersion === undefined ? "" : indexFrontmatter(options.okfVersion);
-		return header + sections.join("\n");
+		return indexDocument(sections, options.okfVersion);
 	};
 
 	/** `## <date>` plus one `* <item>` line per item, newline-terminated (D-36). */
