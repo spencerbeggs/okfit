@@ -9,3 +9,5 @@
 ## Bug Fixes
 
 * The overlay filesystem (`makeOverlayFileSystem` / `layerOverlayFileSystem`) now shadows Effect 4.1's `readDirectoryEntries`, so unsaved open documents are listed as `File` entries in directory reads.
+* `changeSince` (the `okfit verify` change preview) reads its patch through `@effected/git`'s `Git.diffFile`, which pins colour, prefixes, context and algorithm, so user diff config no longer changes the preview. It no longer requires `ChildProcessSpawner`; every diff failure still surfaces as `GitCommandError`.
+* `planMove` places a destination through `@effected/walker`'s `relativeWithin`. A destination whose containment cannot be proved (for example a permission error while resolving it) is now refused as `outside-bundle` instead of being resolved lexically.
