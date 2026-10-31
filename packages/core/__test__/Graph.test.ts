@@ -4,7 +4,14 @@ import { Effect, Graph as EffectGraph, Layer, Option, Path } from "effect";
 import { Bundle } from "../src/Bundle.js";
 import type { GraphLink } from "../src/Graph.js";
 import { Graph } from "../src/Graph.js";
-import { BROKEN_ROOT, BrokenPlatform, ESCAPE_ROOT, EscapePlatform } from "./utils/graphSeeds.js";
+import {
+	BROKEN_ROOT,
+	BrokenPlatform,
+	ESCAPE_ROOT,
+	EscapePlatform,
+	REPEAT_ROOT,
+	RepeatPlatform,
+} from "./utils/graphSeeds.js";
 
 const ids = (nodes: ReadonlyArray<{ readonly id: string }>) => nodes.map((node) => node.id).sort();
 const byEdge = (a: GraphLink, b: GraphLink) => `${a.from}|${a.to}`.localeCompare(`${b.from}|${b.to}`);
@@ -52,6 +59,23 @@ describe("Graph.fromBundle", () => {
 			const gone = dangling[1]!.data.position!;
 			assert.deepStrictEqual([gone.length, gone.line, gone.character], [17, 12, 0]);
 		}).pipe(Effect.provide(BrokenPlatform)),
+	);
+
+	it.effect("ranges each frontmatter edge at its own field when the path repeats (okfit#353)", () =>
+		Effect.gen(function* () {
+			const graph = Graph.fromBundle(yield* Bundle.load({ root: REPEAT_ROOT }));
+			const edges = graph.edges.filter((link) => link.from === "note" && link.data.source === "frontmatter");
+			assert.deepStrictEqual(
+				edges.map((link) => {
+					const position = link.data.position;
+					return [link.data.field, position?.line, position?.character, position?.length];
+				}),
+				[
+					["resource", 3, 10, 9],
+					["sources.resource", 5, 14, 9],
+				],
+			);
+		}).pipe(Effect.provide(RepeatPlatform)),
 	);
 
 	it.effect("successors/predecessors are unique, [] for unknown ids; node() is an Option; Mermaid/DOT render", () =>

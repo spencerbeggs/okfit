@@ -49,3 +49,16 @@ export const escapeSeed: MemoryFileSystemSeed = {
 
 /** memfs + posix Path layer for `escapeSeed`. */
 export const EscapePlatform = Layer.mergeAll(MemoryFileSystem.layerWith(escapeSeed), Path.layer);
+
+/** Root of the bundle below, where one path appears in a comment, `resource` and `sources` (okfit#353). */
+export const REPEAT_ROOT = "/repo/repeat";
+
+/** `target.md` named three times in one frontmatter block: a YAML comment first, then two path fields. */
+export const repeatSeed: MemoryFileSystemSeed = {
+	[`${REPEAT_ROOT}/note.md`]:
+		"---\n# see target.md for details\ntype: Note\nresource: target.md\nsources:\n  - resource: target.md\n---\n\n# Note\n",
+	[`${REPEAT_ROOT}/target.md`]: "---\ntype: Note\n---\n\n# Target\n",
+};
+
+/** memfs + posix Path layer for the repeated-path bundle. */
+export const RepeatPlatform = Layer.mergeAll(MemoryFileSystem.layerWith(repeatSeed), Path.layer);

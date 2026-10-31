@@ -75,7 +75,7 @@ const edgesOf = (concept: LoadedConcept, lookup: BundleIndex): ReadonlyArray<Pen
 	for (const ref of pathFieldsOf(concept.frontmatter)) {
 		const resolved = resolvePathField(concept.path, ref.field, ref.raw, lookup);
 		if (resolved._tag !== "node") continue;
-		const span = frontmatterFieldSpan(concept.document, ref.raw);
+		const span = frontmatterFieldSpan(concept.document, ref);
 		const position = span === undefined ? {} : { position: DiagnosticRange.fromOffset(text, span.offset, span.length) };
 		out.push({
 			to: resolved.id,

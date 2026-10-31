@@ -147,12 +147,12 @@ describe("internal/links", () => {
 				raw: {},
 			});
 			assert.deepStrictEqual(pathFieldsOf(concept), [
-				{ field: "resource", raw: "https://example.com/asset" },
-				{ field: "sources.resource", raw: "policies/a.md" },
-				{ field: "sources.resource", raw: "all queries in project X" },
-				{ field: "computation", raw: "lib/q.sql" },
-				{ field: "executor.resource", raw: "skills/run.md" },
-				{ field: "attester.resource", raw: "attesters/eq.py" },
+				{ field: "resource", raw: "https://example.com/asset", path: ["resource"] },
+				{ field: "sources.resource", raw: "policies/a.md", path: ["sources", 0, "resource"] },
+				{ field: "sources.resource", raw: "all queries in project X", path: ["sources", 1, "resource"] },
+				{ field: "computation", raw: "lib/q.sql", path: ["computation"] },
+				{ field: "executor.resource", raw: "skills/run.md", path: ["executor", "resource"] },
+				{ field: "attester.resource", raw: "attesters/eq.py", path: ["attester", "resource"] },
 			]);
 			assert.deepStrictEqual(pathFieldsOf(new Concept({ type: "Note", extensions: {}, raw: {} })), []);
 		}),
