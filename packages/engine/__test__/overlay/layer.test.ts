@@ -51,6 +51,22 @@ describe("layerOverlayFileSystem", () => {
 		}).pipe(Effect.provide(overlayPlatform(SEED, documents)));
 	});
 
+	it.effect("readDirectoryEntries lists an overlay-only file as a File beside disk's entries, once", () => {
+		const documents = OverlayDocuments.make();
+		return Effect.gen(function* () {
+			const fs = yield* FileSystem.FileSystem;
+			const before = yield* fs.readDirectoryEntries(ROOT);
+			yield* documents.open(`${ROOT}/c.md`, moduleConcept("C"));
+			yield* documents.open(`${ROOT}/a.md`, moduleConcept("A2"));
+			const after = yield* fs.readDirectoryEntries(ROOT);
+			assert.deepStrictEqual(after, [...before, { name: "c.md", type: "File" }]);
+			assert.deepStrictEqual(
+				after.map((entry) => entry.name),
+				yield* fs.readDirectory(ROOT),
+			);
+		}).pipe(Effect.provide(overlayPlatform(SEED, documents)));
+	});
+
 	it.effect("readFile returns the overlay text as UTF-8 bytes", () => {
 		const documents = OverlayDocuments.make();
 		return Effect.gen(function* () {
