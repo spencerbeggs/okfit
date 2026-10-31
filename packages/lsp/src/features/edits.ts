@@ -53,7 +53,8 @@ export type EditFailure =
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
 	| { readonly _tag: "DraftCannotBeVerified" }
 	| { readonly _tag: "DeprecatedCannotBeVerified" }
-	| { readonly _tag: "NotADraft" };
+	| { readonly _tag: "NotADraft" }
+	| { readonly _tag: "Unhashable"; readonly message: string };
 
 /** The owning session's last-loaded concept, config and project root for `path`; `None` when there is no session, no loaded bundle, or `path` is not a concept. */
 interface ConceptSnapshot {
@@ -197,7 +198,8 @@ export const statusTextEdits = (
 /**
  * The content digest of `text` as the editor holds it: the parsed frontmatter
  * and body hashed exactly as `Bundle.load` + `Derivation.contentDigest` do for
- * a file. `Unsupported` (`yaml-parse-error`) when the frontmatter does not parse.
+ * a file. `Unsupported` (`yaml-parse-error`) when the frontmatter does not parse;
+ * `Unhashable` when a value cannot be canonicalized (an unpaired surrogate, okfit#327).
  */
 const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
@@ -210,7 +212,9 @@ const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Diges
 		if (Result.isFailure(decoded)) return yield* Effect.fail(unparseable());
 		const raw = decoded.success;
 		if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return yield* Effect.fail(unparseable());
-		return yield* Derivation.contentDigest(raw as Record<string, unknown>, text).pipe(Effect.orDie);
+		return yield* Derivation.contentDigest(raw as Record<string, unknown>, text).pipe(
+			Effect.mapError((error): EditFailure => ({ _tag: "Unhashable", message: error.message })),
+		);
 	});
 
 /**
@@ -345,5 +349,7 @@ export const describeFailure = (failure: EditFailure): string => {
 			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
 		case "NotADraft":
 			return "Mark verified and stable promotes a draft concept; use Mark verified for a concept that is not a draft";
+		case "Unhashable":
+			return `${failure.message}; fix the value before marking it verified`;
 	}
 };

@@ -5,32 +5,46 @@ import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Bundle } from "@okfit/core";
-import { Effect, Layer } from "effect";
-import { Canonical } from "../src/Canonical.js";
+import { Effect, Layer, Result } from "effect";
+import { Canonical, ContentUnhashableError } from "../src/Canonical.js";
 import { Derivation } from "../src/Derivation.js";
 
 const BODY = "\n# Title\n\nText.\n";
 const src = (fm: string) => `---\n${fm}\n---${BODY}`;
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 
-describe("Canonical.json", () => {
+/** The canonical string a frontmatter value contributes, or the failure, through the real contentInput. */
+const canonical = (frontmatter: Record<string, unknown>) => Canonical.contentInput(frontmatter, "---\n---\n");
+const ok = (frontmatter: Record<string, unknown>): string => {
+	const result = canonical(frontmatter);
+	if (Result.isFailure(result)) return assert.fail(result.failure.message);
+	return result.success;
+};
+
+/** Oracle: JSON.stringify of the value with object keys sorted at every depth (okfit's former Canonical.json). */
+const sortedStringify = (value: unknown): string =>
+	JSON.stringify(value, (_key, inner: unknown) =>
+		inner !== null && typeof inner === "object" && !Array.isArray(inner)
+			? Object.fromEntries(
+					Object.entries(inner as Record<string, unknown>).toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+				)
+			: inner,
+	);
+
+describe("Canonical.contentInput canonicalization", () => {
 	it("sorts keys recursively and keeps array order", () => {
-		assert.strictEqual(Canonical.json({ b: 1, a: { d: [2, 1], c: null } }), '{"a":{"c":null,"d":[2,1]},"b":1}');
+		assert.include(ok({ b: 1, a: { d: [2, 1], c: null } }), '"frontmatter":{"a":{"c":null,"d":[2,1]},"b":1}');
 	});
 
 	it("encodes a bigint as its bare decimal literal, distinct from the same digits as a string", () => {
 		const big = 123456789012345678901n;
-		assert.strictEqual(
-			Canonical.json({ ticket: big, list: [big] }),
-			'{"list":[123456789012345678901],"ticket":123456789012345678901}',
-		);
-		assert.notStrictEqual(Canonical.json({ ticket: big }), Canonical.json({ ticket: "123456789012345678901" }));
-		assert.strictEqual(Canonical.json({ ticket: big }), Canonical.json({ ticket: 123456789012345678901n }));
+		assert.include(ok({ ticket: big, list: [big] }), '{"list":[123456789012345678901],"ticket":123456789012345678901}');
+		assert.notStrictEqual(ok({ ticket: big }), ok({ ticket: "123456789012345678901" }));
 	});
 
-	it("matches JSON.stringify for every non-bigint value", () => {
+	it("matches sorted JSON.stringify for every non-bigint value", () => {
 		const value = {
-			s: 'q"\\u',
+			s: 'q"\\u\u00e9\ud83d\ude00',
 			n: -1.5,
 			nan: Number.NaN,
 			t: true,
@@ -38,18 +52,23 @@ describe("Canonical.json", () => {
 			u: undefined,
 			a: [undefined, 1, { y: 2, x: 1 }],
 		};
-		assert.strictEqual(
-			Canonical.json(value),
-			JSON.stringify({
-				a: [undefined, 1, { x: 1, y: 2 }],
-				n: -1.5,
-				nan: Number.NaN,
-				s: 'q"\\u',
-				t: true,
-				u: undefined,
-				z: null,
-			}),
-		);
+		assert.include(ok(value), `"frontmatter":${sortedStringify(value)}`);
+	});
+
+	it("refuses a value holding an unpaired surrogate, naming its path (okfit#327)", () => {
+		const result = canonical({ title: "ok", sources: [{ id: "a", resource: "x\ud800y" }] });
+		if (Result.isSuccess(result)) return assert.fail("an unpaired surrogate must not hash");
+		assert.instanceOf(result.failure, ContentUnhashableError);
+		assert.deepStrictEqual(result.failure.path, ["sources", 0, "resource"]);
+		assert.include(result.failure.message, "sources.0.resource cannot be hashed");
+	});
+
+	it("refuses an object key holding an unpaired surrogate", () => {
+		assert.isTrue(Result.isFailure(canonical({ "k\udc00": 1 })));
+	});
+
+	it("still hashes a well-formed surrogate pair", () => {
+		assert.include(ok({ emoji: "\ud83d\ude00" }), `"emoji":"\ud83d\ude00"`);
 	});
 });
 
@@ -66,7 +85,7 @@ describe("Canonical.contentInput", () => {
 			timestamp: "2026-01-01T00:00:00Z",
 			renders: [{ path: "a.md", body: "0123456789abcdef", body_sha256: "a".repeat(64) }],
 		};
-		const input = JSON.parse(Canonical.contentInput(raw, src("type: Publication")));
+		const input = JSON.parse(Result.getOrThrow(Canonical.contentInput(raw, src("type: Publication"))));
 		assert.deepStrictEqual(input.frontmatter, { renders: [{ path: "a.md" }], title: "T", type: "Publication" });
 		assert.strictEqual(input.body, "# Title\n\nText.");
 	});

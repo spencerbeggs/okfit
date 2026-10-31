@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:48:16Z
+  at: 2026-10-31T21:41:07Z
 integrity:
   generated:
-    body: 860adcba216582b1
+    body: 4748b45b2f78d16b
 ---
 
 # Profiles
@@ -87,15 +87,23 @@ carries `Git | GitHistory`. The digest functions (`digestFull`, `digest`,
 `bodyDigest`, `contentDigest`) have error channel `never`, since
 `JsoncFingerprint.hashText` cannot fail with a typed error.
 `Derivation.contentDigest(concept)` digests the body plus authored
-frontmatter, encoded by the new `Canonical` module (canonical JSON, keys
-sorted by code point, bookkeeping keys excluded).
+frontmatter, encoded by the `Canonical` module: `@effected/jsonc`'s RFC 8785
+canonical JSON (keys sorted by UTF-16 code unit, bookkeeping keys excluded),
+relaxed only for a `bigint`, an `undefined` member, a non-finite number and
+`toJSON`, all matching `JSON.stringify`. A value holding an unpaired
+surrogate is not well-formed Unicode and is refused: `contentDigest` fails
+with `ContentUnhashableError`, naming the frontmatter path (okfit#327).
 
 ## Trust and drift
 
 The `Trust` module derives a `ConceptSignal`: the spec trust tier
 (unchanged), `integrity` of `current`, `drifted` or `none`, a drift reason
-(`content-changed`, `unbound` or `entry-superseded`, with the editor named
-from `generated` when it is later than the bound `at`) and staleness. Its
+(`content-changed`, `unbound`, `entry-superseded`, `actor-not-allowed` or
+`content-unhashable`, with the editor named from `generated` when it is
+later than the bound `at`) and staleness. `content-unhashable` means a bound
+concept's content cannot be canonicalized, so its binding cannot be checked;
+its `verified-drift` finding ranges at the offending value, and `okfit
+verify` refuses it (engine's `VerifyContentUnhashableError`). Its
 lint, `verified-drift`, fires on a drifted concept at the configured
 severity (default `warn`) and does no hashing when the level is `off`.
 `Trust.evaluate` and `Trust.needsDigest` are pure and shared: the lint,

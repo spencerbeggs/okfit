@@ -1,7 +1,6 @@
 import type { Actor, LoadedBundle, LoadedConcept, TrustTier, Verification } from "@okfit/core";
 import { Actor as ActorNS, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
-import type { PlatformError } from "effect";
-import { DateTime, Effect, Schema } from "effect";
+import { DateTime, Effect, Result, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
 
@@ -18,12 +17,20 @@ export type IntegrityState = "current" | "drifted" | "none";
 
 /**
  * Why a human verification no longer binds: the content changed, the entry has
- * no `integrity.verified` binding, a later human entry is not the bound one, or
- * the bound actor fails a non-empty `[actors].humans` allow-list.
+ * no `integrity.verified` binding, a later human entry is not the bound one, the
+ * bound actor fails a non-empty `[actors].humans` allow-list, or the content
+ * cannot be hashed at all (an unpaired surrogate; okfit#327), so the binding
+ * cannot be checked.
  *
  * @public
  */
-export const DriftReason = Schema.Literals(["content-changed", "unbound", "entry-superseded", "actor-not-allowed"]);
+export const DriftReason = Schema.Literals([
+	"content-changed",
+	"unbound",
+	"entry-superseded",
+	"actor-not-allowed",
+	"content-unhashable",
+]);
 /**
  * The type of {@link (DriftReason:variable)}.
  * @public
@@ -40,7 +47,13 @@ export type DriftReason = typeof DriftReason.Type;
 export interface ConceptSignal {
 	readonly tier: TrustTier;
 	readonly integrity: IntegrityState;
-	readonly drift?: { readonly reason: DriftReason; readonly editedBy?: Actor; readonly editedAt?: string };
+	readonly drift?: {
+		readonly reason: DriftReason;
+		readonly editedBy?: Actor;
+		readonly editedAt?: string;
+		/** For `content-unhashable`: why, and the offending frontmatter path. */
+		readonly unhashable?: { readonly detail: string; readonly path: ReadonlyArray<string | number> };
+	};
 	readonly stale: boolean;
 }
 
@@ -118,10 +131,18 @@ const signal = Effect.fn("Trust.signal")(function* (concept: LoadedConcept, conf
 	const tier = Derive.trustTier(concept.frontmatter);
 	const stale = Derive.isStale(concept.frontmatter, now);
 	const input = inputOf(concept, config);
-	const content = needsDigest(input)
-		? yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source)
-		: undefined;
-	return { tier, stale, ...evaluate(input, content) } satisfies ConceptSignal;
+	if (!needsDigest(input)) return { tier, stale, ...evaluate(input, undefined) } satisfies ConceptSignal;
+	const content = yield* Effect.result(Derivation.contentDigest(concept.frontmatter.raw, concept.document.source));
+	if (Result.isFailure(content)) {
+		const { detail, path } = content.failure;
+		return {
+			tier,
+			stale,
+			integrity: "drifted",
+			drift: { reason: "content-unhashable", unhashable: { detail, path } },
+		} satisfies ConceptSignal;
+	}
+	return { tier, stale, ...evaluate(input, content.success) } satisfies ConceptSignal;
 });
 
 const signals = Effect.fn("Trust.signals")(function* (bundle: LoadedBundle, config: OkfitConfig, now: DateTime.Utc) {
@@ -141,6 +162,13 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 		return `the latest human verification (${by} at ${at}) is not the one integrity.verified binds; re-run okfit verify`;
 	}
 	const binding = concept.frontmatter.integrity?.verified;
+	if (drift.reason === "content-unhashable") {
+		const where =
+			drift.unhashable === undefined || drift.unhashable.path.length === 0
+				? "the frontmatter"
+				: drift.unhashable.path.join(".");
+		return `${where} cannot be hashed (${drift.unhashable?.detail ?? "not canonicalizable"}), so the verification by ${binding?.by ?? by} cannot be checked; fix the value, then re-run okfit verify`;
+	}
 	if (drift.reason === "actor-not-allowed") {
 		return `verified by ${binding?.by ?? by}, who is not in [actors].humans; a listed human re-runs okfit verify`;
 	}
@@ -149,11 +177,15 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 };
 
 /**
- * Where a `verified-drift` finding points (spec section 6): the binding when one exists,
- * else the latest human `verified` entry -- by its list index when `verified` is a
+ * Where a `verified-drift` finding points (spec section 6): the offending value for
+ * `content-unhashable`, else the binding when one exists, else the latest human `verified` entry -- by its list index when `verified` is a
  * sequence, the key itself when it is a single bare mapping.
  */
-const rangePath = (concept: LoadedConcept): ReadonlyArray<string | number> => {
+const rangePath = (
+	concept: LoadedConcept,
+	drift: NonNullable<ConceptSignal["drift"]>,
+): ReadonlyArray<string | number> => {
+	if (drift.unhashable !== undefined && drift.unhashable.path.length > 0) return drift.unhashable.path;
 	if (concept.frontmatter.integrity?.verified !== undefined) return ["integrity", "verified"];
 	const latest = latestHuman(concept);
 	const index = latest === undefined ? -1 : (concept.frontmatter.verified ?? []).indexOf(latest);
@@ -175,7 +207,7 @@ const lint = Effect.fn("Trust.lint")(function* (
 		if (status === "draft" || status === "deprecated") continue;
 		const result = given?.get(id) ?? (yield* signal(concept, config, now));
 		if (result.drift === undefined) continue;
-		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept));
+		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept, result.drift));
 		diagnostics.push(
 			Diagnostic.make({
 				file: concept.path,
@@ -204,13 +236,13 @@ export class Trust {
 		concept: LoadedConcept,
 		config: OkfitConfig,
 		now: DateTime.Utc,
-	) => Effect.Effect<ConceptSignal, PlatformError.PlatformError, Digest.Digest> = signal;
+	) => Effect.Effect<ConceptSignal, never, Digest.Digest> = signal;
 	/** The signal for every concept in a bundle, keyed by concept id. */
 	static readonly signals: (
 		bundle: LoadedBundle,
 		config: OkfitConfig,
 		now: DateTime.Utc,
-	) => Effect.Effect<Map<string, ConceptSignal>, PlatformError.PlatformError, Digest.Digest> = signals;
+	) => Effect.Effect<Map<string, ConceptSignal>, never, Digest.Digest> = signals;
 	/** Pure integrity decision; no hashing. `content` may be `undefined` only when {@link Trust.needsDigest} is false. */
 	static readonly evaluate: (
 		input: EvaluateInput,
@@ -230,5 +262,5 @@ export class Trust {
 		config: OkfitConfig,
 		now: DateTime.Utc,
 		signals?: ReadonlyMap<string, ConceptSignal>,
-	) => Effect.Effect<Array<Diagnostic>, PlatformError.PlatformError, Digest.Digest> = lint;
+	) => Effect.Effect<Array<Diagnostic>, never, Digest.Digest> = lint;
 }

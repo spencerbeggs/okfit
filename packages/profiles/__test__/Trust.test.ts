@@ -291,6 +291,32 @@ describe("Trust.lint", () => {
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
+	it.effect(
+		"a bound concept whose content cannot be hashed is drifted/content-unhashable, ranged at the value (okfit#327)",
+		() =>
+			Effect.gen(function* () {
+				const binding = { by: "human:spencer", at: AT, content: "0123456789abcdef" };
+				const broken = concept(
+					{
+						type: "Decision",
+						title: "x\ud800",
+						verified: [{ by: "human:spencer", at: AT }],
+						integrity: { verified: binding },
+					},
+					BODY,
+					"broken.md",
+				);
+				const result = yield* Trust.signal(broken, OkfitConfig.DEFAULTS, NOW);
+				assert.strictEqual(result.integrity, "drifted");
+				assert.strictEqual(result.drift?.reason, "content-unhashable");
+				assert.deepStrictEqual(result.drift?.unhashable?.path, ["title"]);
+				const [diagnostic] = yield* Trust.lint(bundleOf(broken), OkfitConfig.DEFAULTS, NOW);
+				assert.strictEqual(diagnostic?.code, "verified-drift");
+				assert.include(diagnostic?.message ?? "", "title cannot be hashed");
+				assert.deepStrictEqual(diagnostic?.range, DiagnosticRange.forFrontmatterPath(broken.document, ["title"]));
+			}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+	);
+
 	it.effect("an unbound drift ranges at the latest human verified entry, not the whole key", () =>
 		Effect.gen(function* () {
 			const c = concept({

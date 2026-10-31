@@ -21,7 +21,9 @@ src/
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
   Derivation.ts       -- Writer, GitIdentity, the four actor errors (HumanActorUnresolvedError, AgentActorUnconfiguredError, ActorConfigInvalidError, HumanActorNotAllowedError), Derivation facade: body, digest, bodyDigest, contentDigest, generatedAt, humanActorId, generatedBy, verifier, staleAfter
                          bodyDigest/contentDigest are 16-hex SHA-256 prefixes via core's `Digest` service (`effect/crypto`) (issue #19); core holds the field, never computes it
-  Canonical.ts        -- Canonical facade: json, contentInput, EXCLUDED_KEYS (the exact string a content digest hashes)
+  Canonical.ts        -- Canonical facade: contentInput (a Result: the exact string a content digest hashes, via
+                         @effected/jsonc's RFC 8785 canonicalization), EXCLUDED_KEYS; ContentUnhashableError (an
+                         unpaired surrogate is refused, never hashed; okfit#327)
   internal/body.ts    -- the normalised-body helper shared by Derivation and Canonical (breaks the import cycle)
   Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config, options?), the generated-at-drift lint (S-8); not a Profile member;
                          ranges at generated.at's own value (phase 4 decision 2), range-less only when the concept's document has no frontmatter

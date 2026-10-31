@@ -299,6 +299,24 @@ describe("runVerify status (issue #185)", () => {
 		);
 	});
 
+	it.effect(
+		"a frontmatter value with an unpaired surrogate is refused, real and dry run, file byte-identical (okfit#327)",
+		() => {
+			const before = '---\ntype: Decision\ntitle: "x\\uD800"\n---\n';
+			return withConcept(before, (root, file) =>
+				Effect.gen(function* () {
+					for (const dryRun of [false, true]) {
+						const error = yield* run(root, "stable", dryRun).pipe(Effect.flip);
+						assert.strictEqual(error._tag, "VerifyContentUnhashableError");
+						if (error._tag === "VerifyContentUnhashableError") assert.deepStrictEqual(error.path, ["title"]);
+						assert.include(error.message, "title cannot be hashed");
+						assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), before);
+					}
+				}),
+			);
+		},
+	);
+
 	it.effect("CRLF + BOM: the inserted status line ends CRLF and no bare LF appears", () =>
 		withConcept("\uFEFF---\r\ntype: Decision\r\ntitle: T\r\n---\r\n", (root, file) =>
 			Effect.gen(function* () {

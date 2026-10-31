@@ -14,6 +14,7 @@ import {
 	SyncPlanStaleError,
 	SyncPublicationConflictError,
 	VerifyConceptNotFoundError,
+	VerifyContentUnhashableError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
@@ -59,8 +60,8 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    `ConfigIssueRenderer.render(error)` line per entry.
  * 4a. `InitBundleDirError` (`okfit init --bundle`, exit 64) renders as one
  *    `error: <message>` line.
- * 5. `VerifyConceptNotFoundError` and `VerifyUnsupportedFrontmatterError`
- *    each render as their own `error: <message>` line; both messages
+ * 5. `VerifyConceptNotFoundError`, `VerifyUnsupportedFrontmatterError` and
+ *    `VerifyContentUnhashableError` each render as their own `error: <message>` line; each message
  *    already name the concept id and what to do about it, and neither
  *    carries a filesystem path needing K-51 relativisation.
  * 5b. `VerifySelectionError` (issue #138) renders the same way, one
@@ -102,6 +103,7 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	if (error instanceof InitBundleDirError) return [`error: ${error.message}`];
 	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
+	if (error instanceof VerifyContentUnhashableError) return [`error: ${error.message}`];
 	if (error instanceof SyncPlanStaleError) return [`error: ${error.message}`];
 	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
 	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a

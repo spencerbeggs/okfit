@@ -7,6 +7,7 @@ import type { PlatformError } from "effect";
 import { DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { Digest as CoreDigest } from "effect/crypto";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
+import type { ContentUnhashableError } from "./Canonical.js";
 import { Canonical } from "./Canonical.js";
 import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 import { GitHistory } from "./GitHistory.js";
@@ -176,7 +177,8 @@ const bodyDigest = (source: string): Effect.Effect<Digest, never, CoreDigest.Dig
 const contentDigest = (
 	raw: Readonly<Record<string, unknown>>,
 	source: string,
-): Effect.Effect<Digest, never, CoreDigest.Digest> => digest(Canonical.contentInput(raw, source));
+): Effect.Effect<Digest, ContentUnhashableError, CoreDigest.Digest> =>
+	Effect.flatMap(Effect.fromResult(Canonical.contentInput(raw, source)), digest);
 
 /** The text before the first `@` (the whole value when there is none), or undefined when empty or containing whitespace. */
 const localPartOf = (email: string | undefined): string | undefined => {
@@ -291,12 +293,13 @@ export class Derivation {
 
 	/**
 	 * 16-hex digest of the canonical content input (`Canonical.contentInput`): authored frontmatter
-	 * plus the normalised body, insensitive to style, key order and CRLF.
+	 * plus the normalised body, insensitive to style, key order and CRLF. Fails with
+	 * {@link ContentUnhashableError} when the content cannot be canonicalized (an unpaired surrogate).
 	 */
 	static readonly contentDigest: (
 		raw: Readonly<Record<string, unknown>>,
 		source: string,
-	) => Effect.Effect<Digest, never, CoreDigest.Digest> = contentDigest;
+	) => Effect.Effect<Digest, ContentUnhashableError, CoreDigest.Digest> = contentDigest;
 
 	/**
 	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:

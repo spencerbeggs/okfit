@@ -10,6 +10,7 @@ const VALUES = [
 	"BodyProvenance",
 	"BodyUncommitted",
 	"Canonical",
+	"ContentUnhashableError",
 	"ActorConfigInvalidError",
 	"AgentActorUnconfiguredError",
 	"Derivation",
