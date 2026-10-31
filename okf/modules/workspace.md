@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-31T20:48:16Z
 integrity:
   generated:
-    body: da021c55a3728318
+    body: 3e1727c1416a1bf7
 ---
 
 # Workspace
@@ -54,7 +54,7 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 
 ## Rules
 
-- Effect v4 only, at the version pinned in `catalog:effect`; `node_modules`
+- Effect v4 only, at the version pinned in `catalog:effected` (held to one minor); `node_modules`
   wins over `.repos/effect` on any disagreement between the two.
 - `@okfit/core` has no opinions of its own and no Node-only imports; opinions
   about what a bundle should contain belong in `@okfit/profiles` or config.

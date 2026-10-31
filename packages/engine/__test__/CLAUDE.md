@@ -18,7 +18,8 @@ __test__/
   sync/                # sync/{generated,index,log,write}.ts, sync/run.ts
   validate/            # validate/run.ts
   verify/              # verify/{locate,splice}.ts
-  utils/               # Shared mocks, helpers, and type utilities
+  utils/               # Shared mocks, helpers, and type utilities (platform.ts: TestPlatform =
+                        # NodeServices.layer + NodeCrypto.layerDigest, since NodeServices carries no crypto)
   fixtures/            # Static test data and fixture files
   *.test.ts            # Package-level tests (boundaries.test.ts, errors.test.ts,
                         # platform.test.ts, smoke.test.ts)

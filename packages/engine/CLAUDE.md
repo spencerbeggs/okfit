@@ -100,7 +100,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 
 ## Rules
 
-- Effect v4 only, at the version in `catalog:effect`. Consult
+- Effect v4 only, at the version in `catalog:effected`. Consult
   `.repos/effect/packages/effect/src` for what v4 exports; `node_modules`
   wins on disagreement.
 - **Process boundary, enforced by `__test__/boundaries.test.ts` -- with

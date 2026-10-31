@@ -1,25 +1,25 @@
 ---
 type: Convention
-title: Effect v4 pinned to catalog:effect
-description: Every okfit package uses Effect v4 at the version pinned in catalog:effect; node_modules wins over the vendored source on disagreement.
+title: Effect v4 pinned to catalog:effected
+description: "Every okfit package uses Effect v4 at the version pinned in catalog:effected, served by @effected/pnpm-plugin-effected; node_modules wins over the vendored source on disagreement."
 status: stable
 generated:
   by: human:spencer
-  at: 2026-09-28T19:49:01Z
+  at: 2026-10-31T20:48:16Z
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
 integrity:
   generated:
-    body: 3df975ebfce43bc0
+    body: f9b39a1116e3778e
 ---
 
-# Effect v4 pinned to catalog:effect
+# Effect v4 pinned to catalog:effected
 
 ## Rule
 
 Every package — `core`, `profiles`, `cli` — uses Effect v4 only, at
-whatever version `catalog:effect` pins in the workspace's pnpm catalog; no
+whatever version `catalog:effected` pins (held to one minor, `~4.1.1`) in the pnpm catalog that `@effected/pnpm-plugin-effected` serves; no
 package declares its own `effect` version (root `CLAUDE.md:34-36`).
 
 ## Why the vendored source is a reference, not a dependency
@@ -38,4 +38,4 @@ what v4 exports, `node_modules` wins — it is what actually builds and runs
 
 `packages/cli/CLAUDE.md:70-72` (v4 only, `.repos/effect/packages/effect/src/cli`
 for `effect/cli`, `node_modules` wins) and
-`packages/profiles/CLAUDE.md:28` (v4 only, at the `catalog:effect` version).
+`packages/profiles/CLAUDE.md:28` (v4 only, at the `catalog:effected` version).

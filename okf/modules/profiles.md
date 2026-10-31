@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-28T21:55:47Z
+  at: 2026-10-31T20:48:16Z
 integrity:
   generated:
-    body: a0f9a35bffe5af15
+    body: 860adcba216582b1
 ---
 
 # Profiles
@@ -60,7 +60,7 @@ matching the old parser's behaviour
 
 ## Rules and boundaries
 
-Effect v4 is pinned to `catalog:effect`; `@okfit/core`, `@effected/git`,
+Effect v4 is pinned to `catalog:effected`; `@okfit/core`, `@effected/git`,
 `@effected/glob`, `@effected/jsonc`, `@effected/markdown` and
 `@effected/walker` are peers (Convention A) -- nothing under `src/`
 imports `@effect/platform-node` or `node:child_process` directly. No
@@ -70,7 +70,7 @@ imports `@effect/platform-node` or `node:child_process` directly. No
 ## Provenance linting
 
 `Provenance.lint(bundle, config)` runs the `generated-at-drift` lint,
-requiring `Git | GitHistory | FileSystem | Path | Crypto.Crypto`. The lint
+requiring `Git | GitHistory | FileSystem | Path | Digest.Digest`. The lint
 is two-tier: a concept carrying `integrity.generated.body` (or, as a
 migration fallback, the 16-hex prefix of a legacy `generated.body_sha256`)
 is checked by pure content comparison against `Derivation.bodyDigest` of
@@ -80,9 +80,12 @@ comparing its stamped `generated.at` against what the same git walk
 in one integrity family](../decisions/integrity-family.md).
 
 `Derivation.bodyDigest(text)` computes the 16-hex digest of the
-P-6-normalized body through effect's own `Crypto` service, never
-`node:crypto` directly, so it carries `Crypto.Crypto` in its R channel the
-same way `Derivation.generatedAt` carries `Git | GitHistory`.
+P-6-normalized body through effect's own `Digest` service
+(`effect/crypto`), never `node:crypto` directly, so it carries
+`Digest.Digest` in its R channel the same way `Derivation.generatedAt`
+carries `Git | GitHistory`. The digest functions (`digestFull`, `digest`,
+`bodyDigest`, `contentDigest`) have error channel `never`, since
+`JsoncFingerprint.hashText` cannot fail with a typed error.
 `Derivation.contentDigest(concept)` digests the body plus authored
 frontmatter, encoded by the new `Canonical` module (canonical JSON, keys
 sorted by code point, bookkeeping keys excluded).
@@ -117,7 +120,7 @@ anchors the same way, at the misplaced Project concept's `type` value;
 
 `Publications.lint(bundle, config)` runs the `publication-drift` and
 `publication-orphan` lints over concepts of type `Publication`, requiring
-`Crypto.Crypto`. A Publication whose `renders` entry carries a
+`Digest.Digest`. A Publication whose `renders` entry carries a
 `body` digest (16-hex) that no longer matches `Derivation.bodyDigest` of the rendered
 source concept reports drift. An orphan is reported for a `surface` that
 resolves to no bundle concept or to a concept whose type is not `Surface`

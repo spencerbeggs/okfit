@@ -13,10 +13,10 @@ sources:
     resource: ../../scratchpad/CLAUDE.md
 generated:
   by: "okfit/claude-code"
-  at: 2026-10-06T04:20:11Z
+  at: 2026-10-31T20:48:16Z
 integrity:
   generated:
-    body: 0f263039b7fd00dd
+    body: 53963bd14d950711
 ---
 
 # scratchpad
@@ -39,7 +39,7 @@ other member. But it is a fixture, not a package: `"private": true`, no
 `publishConfig`, no `savvy.build.ts`, no build scripts. Its only scripts
 are the three runners (`probe`, `check`, `reset`).
 
-Its manifest lists `effect: catalog:effect` and every published
+Its manifest lists `effect: catalog:effected` and every published
 `@okfit/*` package at `workspace:*` (`core`, `profiles`, `engine`, `cli`,
 `mcp`, `plugin`) -- the manifest **is** the probe roster, so a package
 missing from it is simply unprobeable here, and a new workspace package
@@ -49,7 +49,7 @@ has to be added to it explicitly. It also carries `@effected/git`,
 themselves touch, plus `vscode-languageserver` and `vscode-jsonrpc` as
 devDependencies so LSP-roadmap probes of those two libraries type-check
 here. Dev dependencies are `@effect/platform-node` and `@effect/vitest`
-(`catalog:effect`), `tsx`, `typescript` and `@types/node`
+(`catalog:effected`), `tsx`, `typescript` and `@types/node`
 (`catalog:build`). It carries no `vitest` devDependency of its own -- the
 project runs through the root vitest install, and adding one locally
 would only invite version skew.

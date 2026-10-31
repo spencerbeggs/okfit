@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-28T21:55:47Z
+  at: 2026-10-31T20:48:16Z
 integrity:
   generated:
-    body: 4c6714dc179e1c01
+    body: dfdc98ee4e2cc256
 ---
 
 # Engine
@@ -66,8 +66,10 @@ package agree on one shape -- see [okfit's front ends build on
 equivalents](../decisions/effected-kit-adoption.md).
 
 `validate/run.ts#run` and `sync/run.ts#runSync` both now carry
-`Crypto.Crypto` in their dependencies, satisfied for free wherever
-`OkfitPlatform`/`NodeServices.layer` already runs, since `@okfit/profiles`'
+`Digest.Digest` (`effect/crypto`) in their dependencies, satisfied for
+free wherever `OkfitPlatform` already runs -- it merges
+`NodeCrypto.layerDigest` beside `NodeServices.layer`, which no longer
+carries crypto -- since `@okfit/profiles`'
 `Provenance.lint`, `Derivation.bodyDigest` and the `verified-drift` lint
 need it. `verify/integrity.ts` locates and splices the top-level
 `integrity` block (`locateIntegrity`, `spliceIntegrityVerified`, plus the
@@ -207,7 +209,9 @@ a parse-time usage error from the CLI's own argument parser.
 `overlay/layer.ts` shadows the ambient `FileSystem` with open editor
 buffers (`OverlayDocuments`, absolute path to text and version), falling
 through to disk for everything else and listing overlay-only files in
-their parent directory so an unsaved new concept is walked. It answers
+their parent directory (through both `readDirectory` and Effect 4.1's
+`readDirectoryEntries`, which reports them as `"File"`) so an unsaved new
+concept is walked. It answers
 `lstat` as well as `stat` for them: `@effected/walker` `lstat`s every
 entry it descends into, and drops one whose `lstat` is not found.
 `overlay/documents.ts#provideDocuments` is the one entry point the CLI's

@@ -1,5 +1,15 @@
 # Log
 
+## 2026-10-31
+
+* Updated Effect v4 pinned to catalog:effected
+* Updated Engine
+* Updated LSP
+* Updated MCP
+* Updated Profiles
+* Updated Workspace
+* Updated scratchpad
+
 ## 2026-10-28
 
 * Updated Engine
