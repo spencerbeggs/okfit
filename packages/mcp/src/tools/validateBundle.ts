@@ -1,11 +1,8 @@
-import { Git } from "@effected/git";
 import { ToolRefusal } from "@effected/mcp";
-import { AppDirs, Xdg } from "@effected/xdg";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import type { Distribution } from "@okfit/engine";
 import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provideDocuments, run } from "@okfit/engine";
-import { GitHistory } from "@okfit/profiles";
-import { Crypto, Effect, FileSystem, Option, Path } from "effect";
+import { Effect, Option } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
@@ -18,21 +15,17 @@ const DESCRIPTION =
 	"Returns the report `okfit validate --format json` prints, unchanged: each diagnostic's file, code, severity, message and range, the summary counts and the CLI's exit code. Call it after editing any concept file. Optional documents: [{ path, text }] (bundle-relative, e.g. metrics/churn.md) stand in for disk, a file not yet written under an existing directory included; nothing is written.";
 
 /**
- * `dependencies` mirrors the other tools' (Task B1's Deviation 1):
- * `resolveConfigOnly` and `run()` need the same platform services, and
- * without a `dependencies` declaration `Tool.HandlerServices` infers
- * `never`, failing the handler record against `HandlersFrom` when passed to
- * `OkfitToolkit.toLayer`.
+ * No `dependencies`: since Effect 4.1 a declared dependency becomes a
+ * per-request `McpRequest<"Requires", S>` requirement. The platform services
+ * the handler needs are captured once when `ToolsLayer` builds instead
+ * (`toolkit.ts`), so the handler's own requirement channel is `never`.
  *
- * `Git` and `GitHistory` are new in this list: B3 widened `run()`'s own
- * requirement channel to `FileSystem.FileSystem | Path.Path | Git |
- * GitHistory` so it can run `Provenance.lint`'s `generated-at-drift`
- * check (S-8, S-16). Both are provided by `server.ts`'s `ServerLayer`,
- * which needs only `ChildProcessSpawner` to build them — already
- * supplied by `@okfit/engine`'s `OkfitPlatform` (S-16). `Crypto` joined the
- * same channel for issue #19's body-digest tier of `Provenance.lint`, and
- * is provided the same way -- `OkfitPlatform`'s `NodeServices.layer` bundles
- * it alongside `FileSystem`/`Path`.
+ * `Git`, `GitHistory` and `Digest` reach the handler the same way: B3
+ * widened `run()`'s requirement channel so it can run `Provenance.lint`'s
+ * `generated-at-drift` check (S-8, S-16) and its body-digest tier (issue
+ * #19). `server.ts`'s `ServerLayer` builds `Git`/`GitHistory` from the
+ * `ChildProcessSpawner` `@okfit/engine`'s `OkfitPlatform` supplies, which
+ * also merges `NodeCrypto.layerDigest` beside `NodeServices.layer`.
  *
  * @public
  */
@@ -41,7 +34,6 @@ export const validateBundle = Tool.make("validate_bundle", {
 	parameters: Params,
 	success: JsonEnvelope,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Git, GitHistory, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Validate the bundle")
 	.annotate(Tool.Readonly, true)

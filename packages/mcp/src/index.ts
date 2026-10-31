@@ -28,5 +28,6 @@ export {
 } from "./schema/tools.js";
 export type { PlatformServices, ServerOptions } from "./server.js";
 export { SERVER_INSTRUCTIONS, ServerLayer } from "./server.js";
+export type { ToolServices } from "./toolkit.js";
 export { OkfitToolkit, ToolsLayer } from "./toolkit.js";
 export { MCP_VERSION } from "./version.js";

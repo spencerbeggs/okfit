@@ -3,9 +3,11 @@ import { McpStdio, McpToolkit } from "@effected/mcp";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { Distribution } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import type { FileSystem, Path, Stdio } from "effect";
+import type { FileSystem, Path, Scope, Stdio } from "effect";
 import { Layer } from "effect";
+import type { McpServer } from "effect/ai";
 import { McpProtocol } from "effect/ai";
+import type { Digest } from "effect/crypto";
 import type { ChildProcessSpawner } from "effect/process";
 import { ConceptResources } from "./resources/conceptResource.js";
 import { IndexResource } from "./resources/indexResource.js";
@@ -26,7 +28,9 @@ import { MCP_VERSION } from "./version.js";
  * `Git.layer` internally, `packages/profiles/src/GitHistory.ts:136`), which
  * `@okfit/engine`'s `OkfitPlatform` already supplies via
  * `NodeServices.layer`. This type widening is the only thing that changes
- * at that boundary.
+ * at that boundary. `Digest` (Effect 4.1's `effect/crypto`) feeds every body
+ * and content digest; `OkfitPlatform` supplies it through
+ * `NodeCrypto.layerDigest`, since `NodeServices.layer` no longer carries crypto.
  *
  * @public
  */
@@ -36,7 +40,8 @@ export type PlatformServices =
 	| AppDirs
 	| Xdg
 	| Stdio.Stdio
-	| ChildProcessSpawner.ChildProcessSpawner;
+	| ChildProcessSpawner.ChildProcessSpawner
+	| Digest.Digest;
 
 /**
  * Options `ServerLayer` accepts, beyond `projectRoot`. `distribution`
@@ -95,6 +100,10 @@ export const SERVER_INSTRUCTIONS: string = [
  * call carries, at every depth, in one response, instead of only the
  * first.
  *
+ * The toolkit and resources go in as `McpStdio.layer`'s `registrations`
+ * (Effect 4.1's shape): they build before the server reads its first
+ * request, and their build-time logs go to stderr, never onto the wire.
+ *
  * `protocols` ships three adapters, newest first -- the same list
  * `McpStdio.protocols` defaults to, spelled out here since the decision
  * behind the exact order is this package's own
@@ -116,24 +125,21 @@ export const SERVER_INSTRUCTIONS: string = [
 export const ServerLayer = (
 	projectRoot: string,
 	options: ServerOptions = {},
-): Layer.Layer<never, never, PlatformServices> =>
-	Layer.mergeAll(
-		McpToolkit.layer(OkfitToolkit).pipe(Layer.provideMerge(ToolsLayer(projectRoot, options.distribution))),
-		ConceptResources(projectRoot),
-		IndexResource(projectRoot),
-	).pipe(
-		// S-16, contract §10.3: `validate_bundle`'s widened `dependencies`
-		// (Step 3) put `Git | GitHistory` into the toolkit layer's own
-		// requirement channel above. `Layer.provide`, not `Layer.provideMerge`
-		// — `ServerLayer`'s own success type stays `never`; nothing downstream
-		// needs `Git`/`GitHistory` themselves, only the discharge.
-		Layer.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
-		Layer.provide(
-			McpStdio.layer({
-				name: "okfit",
-				version: MCP_VERSION,
-				instructions: SERVER_INSTRUCTIONS,
-				protocols: [McpProtocol.v2026_07_28, McpProtocol.v2025_11_25, McpProtocol.v2025_06_18],
-			}),
+): Layer.Layer<McpServer.McpServer | McpServer.McpRequest<"Requires", Scope.Scope>, never, PlatformServices> =>
+	McpStdio.layer({
+		name: "okfit",
+		version: MCP_VERSION,
+		instructions: SERVER_INSTRUCTIONS,
+		protocols: [McpProtocol.v2026_07_28, McpProtocol.v2025_11_25, McpProtocol.v2025_06_18],
+		registrations: Layer.mergeAll(
+			McpToolkit.layer(OkfitToolkit).pipe(Layer.provide(ToolsLayer(projectRoot, options.distribution))),
+			ConceptResources(projectRoot),
+			IndexResource(projectRoot),
+		).pipe(
+			// S-16, contract §10.3: `validate_bundle` runs `Provenance.lint`'s
+			// `generated-at-drift` check, so `ToolsLayer` captures `Git | GitHistory`.
+			// `Layer.provide`, not `Layer.provideMerge` — nothing downstream needs
+			// `Git`/`GitHistory` themselves, only the discharge.
+			Layer.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
 		),
-	);
+	});

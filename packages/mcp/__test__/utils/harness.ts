@@ -64,7 +64,7 @@ export interface OkfitMcpHarness {
  * The real platform layer, minus `Stdio` (and `Terminal`, which no code path
  * here needs): `Xdg`/`AppDirs` composed exactly as `bin.ts` does, so
  * `resolveProjectConfig` and `Bundle.load` run against a real fixture
- * directory on disk, over the individual `FileSystem`/`Path`/`Crypto`/
+ * directory on disk, over the individual `FileSystem`/`Path`/`Digest`/
  * `ChildProcessSpawner` layers `@effect/platform-node/NodeServices`' own
  * source composes internally -- deliberately NOT the `NodeServices.layer`
  * bundle itself, which also carries `NodeStdio.layer`. `Stdio` is supplied
@@ -78,7 +78,7 @@ export interface OkfitMcpHarness {
  */
 const NodePlatformLayer = Layer.provideMerge(
 	NodeChildProcessSpawner.layer,
-	Layer.mergeAll(NodeFileSystem.layer, NodeCrypto.layer, NodePath.layer),
+	Layer.mergeAll(NodeFileSystem.layer, NodeCrypto.layerDigest, NodePath.layer),
 );
 const PlatformLayer = Layer.mergeAll(
 	Xdg.layer,
