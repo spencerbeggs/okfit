@@ -1,6 +1,5 @@
 import { Git, GitCommandError } from "@effected/git";
 import { DateTime, Effect, Path } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 /**
  * What changed in a concept file since a human last verified it.
@@ -25,11 +24,10 @@ export type ChangeSince =
  * at or before `at`; the patch is `git diff <baseline> -- <file>`.
  *
  * Git access: `@effected/git`'s `Git.log` (scoped to the file, newest first,
- * filtered here on `committedAt`) finds the baseline. `Git.log` has no `until`,
- * and no `Git` member returns a patch (`show` returns a blob, `nameStatus` only
- * paths), so the diff itself runs `git diff` through `effect/process`'s
- * `ChildProcessSpawner`, the same spawner `Git.layer` is built on. Spawn
- * failure maps onto `Git`'s own `GitCommandError`.
+ * filtered here on `committedAt`) finds the baseline (`Git.log` has no
+ * `until`), and `Git.diffFile` produces the patch with the output-shaping
+ * flags pinned, so user git config cannot change its bytes. Every diff
+ * failure is reported as `GitCommandError`, the one error callers handle.
  *
  * @param options - `file` is the absolute path of the concept file; `at` is the
  *   time the binding recorded.
@@ -40,7 +38,6 @@ export const changeSince = Effect.fn("okfit/verify/changeSince")(function* (opti
 	readonly at: DateTime.Utc;
 }) {
 	const git = yield* Git;
-	const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 	const path = yield* Path.Path;
 	const cwd = path.dirname(options.file);
 	const name = path.basename(options.file);
@@ -50,11 +47,15 @@ export const changeSince = Effect.fn("okfit/verify/changeSince")(function* (opti
 	if (log === undefined) return { _tag: "no-baseline", reason: "not-a-repository" } satisfies ChangeSince;
 	const baseline = log.find((entry) => DateTime.isLessThanOrEqualTo(entry.committedAt, options.at));
 	if (baseline === undefined) return { _tag: "no-baseline", reason: "no-commit-before" } satisfies ChangeSince;
-	const args = ["diff", "--no-color", "--no-ext-diff", baseline.sha, "--", name];
-	const patch = yield* spawner
-		.string(ChildProcess.setCwd(ChildProcess.make("git", args), cwd))
-		.pipe(
-			Effect.mapError((error) => new GitCommandError({ kind: "failed", args, cwd, stderr: "", detail: error.message })),
-		);
+	const patch = yield* git.diffFile(cwd, baseline.sha, name, { allowMissing: true }).pipe(
+		Effect.catchTags({
+			NotARepositoryError: (error) => Effect.fail(asCommandError(error, baseline.sha, name, cwd)),
+			UnknownRefError: (error) => Effect.fail(asCommandError(error, baseline.sha, name, cwd)),
+			FileNotFoundError: (error) => Effect.fail(asCommandError(error, baseline.sha, name, cwd)),
+		}),
+	);
 	return { _tag: "diff", baseline: baseline.sha.slice(0, 7), patch } satisfies ChangeSince;
 });
+
+const asCommandError = (error: { readonly message: string }, ref: string, name: string, cwd: string): GitCommandError =>
+	new GitCommandError({ kind: "failed", args: ["diff", ref, "--", name], cwd, stderr: "", detail: error.message });
