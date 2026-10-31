@@ -1,21 +1,25 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
+import { NodeCrypto, NodeServices } from "@effect/platform-node";
 import { afterAll, assert, beforeAll, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Effect, Layer } from "effect";
+import type { Digest } from "effect/crypto";
 import { Derivation } from "../../src/Derivation.js";
 import { GitHistory } from "../../src/GitHistory.js";
 import { Provenance } from "../../src/Provenance.js";
 import { git, initRepo, makeTempDir, removeDir } from "../utils/git.js";
 
-// P-30: both live layers over the real spawner; provideMerge keeps FileSystem, Path, Crypto and the
-// spawner in scope (`NodeServices.layer` bundles Crypto too, EF/Crypto.ts's Node backend).
-const TestLayer = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer));
-const run = <A, E>(effect: Effect.Effect<A, E, Git | GitHistory | NodeServices.NodeServices>): Effect.Effect<A, E> =>
-	effect.pipe(Effect.provide(TestLayer));
-const build = <A>(effect: Effect.Effect<A, never, NodeServices.NodeServices>): Promise<A> =>
+// P-30: both live layers over the real spawner; provideMerge keeps FileSystem, Path, Digest and the
+// spawner in scope (`NodeServices.layer` carries no crypto since Effect 4.1, so `NodeCrypto.layerDigest` joins it).
+const TestLayer = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(
+	Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layerDigest)),
+);
+const run = <A, E>(
+	effect: Effect.Effect<A, E, Git | GitHistory | NodeServices.NodeServices | Digest.Digest>,
+): Effect.Effect<A, E> => effect.pipe(Effect.provide(TestLayer));
+const build = <A>(effect: Effect.Effect<A, never, NodeServices.NodeServices | Digest.Digest>): Promise<A> =>
 	Effect.runPromise(run(effect));
 
 const CONCEPT_PATH = "okf/modules/core.md";

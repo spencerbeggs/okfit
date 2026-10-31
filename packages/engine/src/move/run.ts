@@ -3,8 +3,9 @@ import { MarkdownEdit } from "@effected/markdown";
 import type { BundleLoadError, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import type { Crypto, DateTime, PlatformError } from "effect";
+import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path } from "effect";
+import type { Digest } from "effect/crypto";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
 import { writeAtomic } from "../sync/write.js";
@@ -146,7 +147,7 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
  */
 export const planMove = Effect.fn("okfit/move/plan")(function* (
 	options: PlanMoveOptions,
-): Effect.fn.Return<MovePlan, PlanError, FileSystem.FileSystem | Path.Path | Crypto.Crypto> {
+): Effect.fn.Return<MovePlan, PlanError, FileSystem.FileSystem | Path.Path | Digest.Digest> {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
@@ -263,7 +264,7 @@ export const runMove = Effect.fn("okfit/move/run")(function* (
 ): Effect.fn.Return<
 	{ readonly plan: MovePlan; readonly bundleRoot: string; readonly dryRun: boolean },
 	PlanError,
-	FileSystem.FileSystem | Path.Path | Crypto.Crypto
+	FileSystem.FileSystem | Path.Path | Digest.Digest
 > {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;

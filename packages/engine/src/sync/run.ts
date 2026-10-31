@@ -3,8 +3,8 @@ import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okf
 import { Bundle, Derive } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
-import type { Crypto } from "effect";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
@@ -108,7 +108,7 @@ export const planSync: (
 ) => Effect.Effect<
 	SyncPlan,
 	BundleLoadError | GeneratedAtError,
-	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+	Git | GitHistory | FileSystem.FileSystem | Path.Path | Digest.Digest
 > = Effect.fn("okfit/sync/planSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 
@@ -311,7 +311,7 @@ export const runSync: (
 ) => Effect.Effect<
 	SyncResult,
 	BundleLoadError | GeneratedAtError | SyncPlanStaleError,
-	Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+	Git | GitHistory | FileSystem.FileSystem | Path.Path | Digest.Digest
 > = Effect.fn("okfit/sync/runSync")(function* (options: SyncOptions) {
 	const plan = yield* planSync(options);
 	if (options.dryRun) return { ...plan.result, dryRun: true } satisfies SyncResult;

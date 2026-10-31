@@ -3,8 +3,9 @@ import type { YamlParseError } from "@effected/yaml";
 import type { BundleLoadError } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Derivation, PUBLICATION_TYPE, Publications } from "@okfit/profiles";
-import type { Crypto, FileSystem, PlatformError } from "effect";
+import type { FileSystem, PlatformError } from "effect";
 import { Effect, Option, Path, Runtime, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "../edits/FrontmatterEdits.js";
 import type { PublicationEnvelope } from "../render/sync.js";
 import { writeAtomic } from "./write.js";
@@ -63,7 +64,7 @@ export const stampPublication = (options: {
 	| YamlParseError
 	| UnsupportedFrontmatterError
 	| PlatformError.PlatformError,
-	FileSystem.FileSystem | Path.Path | Crypto.Crypto
+	FileSystem.FileSystem | Path.Path | Digest.Digest
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.bundleRoot });

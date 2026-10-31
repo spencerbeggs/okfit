@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
 import type { Actor } from "@okfit/core";
@@ -28,6 +27,7 @@ import {
 	stripBom,
 } from "../../src/verify/locate.js";
 import { spliceGenerated, spliceGeneratedBlock } from "../../src/verify/splice.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sync", "generated");
 
@@ -413,7 +413,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 	const OTHER_SOURCE = ["---", "type: Module", "title: Digested", "---", "", "# Digested", "", "New body.", ""].join(
 		"\n",
 	);
-	const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), NodeServices.layer);
+	const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), TestPlatform);
 
 	const committed: BodyProvenance = {
 		_tag: "committed",
@@ -465,7 +465,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				dryRun: false,
 			}).pipe(
 				// Fails any file read/write (the noop is last, so it shadows NodeServices' FileSystem): proves the unchanged branch never reaches step 7 at all.
-				Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]),
+				Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]),
 			);
 			assert.deepStrictEqual(result.written, []);
 			assert.deepStrictEqual(result.unchanged, [concept.id]);
@@ -494,7 +494,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					const result = yield* syncGenerated(bundle, {
 						provenance: new Map([[concept.id, committed]]),
 						dryRun: false,
-					}).pipe(Effect.provide(NodeServices.layer));
+					}).pipe(Effect.provide(TestPlatform));
 					assert.deepStrictEqual(result.written, [concept.id]);
 					assert.deepStrictEqual(result.migrated, [concept.id]);
 					const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
@@ -527,14 +527,14 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					provenance: new Map([[concept.id, committed]]),
 					dryRun: true,
 					pending,
-				}).pipe(Effect.provide(NodeServices.layer));
+				}).pipe(Effect.provide(TestPlatform));
 				assert.deepStrictEqual(dry.written, []);
 				assert.deepStrictEqual(dry.unchanged, [concept.id]);
 				assert.deepStrictEqual(pending, []);
 				const result = yield* syncGenerated(bundleWith(concept, dir), {
 					provenance: new Map([[concept.id, committed]]),
 					dryRun: false,
-				}).pipe(Effect.provide(NodeServices.layer));
+				}).pipe(Effect.provide(TestPlatform));
 				assert.deepStrictEqual(result.written, []);
 				assert.deepStrictEqual(result.migrated, []);
 				assert.deepStrictEqual(result.unchanged, [concept.id]);
@@ -569,7 +569,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				const result = yield* syncGenerated(bundle, {
 					provenance: new Map([[concept.id, committed]]),
 					dryRun: false,
-				}).pipe(Effect.provide(NodeServices.layer));
+				}).pipe(Effect.provide(TestPlatform));
 				assert.deepStrictEqual(result.written, [concept.id]);
 				const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 				assert.include(written, `at: '${ENCODED_DERIVED_AT}'`); // single-quote style preserved
@@ -607,7 +607,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					const result = yield* syncGenerated(bundle, {
 						provenance: new Map([[concept.id, committed]]),
 						dryRun: false,
-					}).pipe(Effect.provide(NodeServices.layer));
+					}).pipe(Effect.provide(TestPlatform));
 					assert.deepStrictEqual(result.written, [concept.id]);
 					const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 					assert.include(written, `    at: ${ENCODED_DERIVED_AT}`);
@@ -663,7 +663,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	for (const spelling of ["generated:", "generated: ~"]) {
@@ -712,7 +712,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				} finally {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}
-			}).pipe(Effect.provide(NodeServices.layer)),
+			}).pipe(Effect.provide(TestPlatform)),
 		);
 	}
 
@@ -728,7 +728,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map([[concept.id, committed]]),
 				dryRun: false,
-			}).pipe(Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]));
+			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result.skipped, [{ id: concept.id, reason: "generated-missing" }]);
 		}),
 	);
@@ -744,7 +744,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map(),
 				dryRun: false,
-			}).pipe(Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]));
+			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result.unchanged, [concept.id]);
 		}),
 	);
@@ -756,7 +756,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				provenance: new Map([[concept.id, committed]]),
 				dryRun: true,
 				scope: new Set(),
-			}).pipe(Effect.provide([NodeServices.layer, FileSystem.layerNoop({}), Path.layer]));
+			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result, { written: [], unchanged: [], migrated: [], skipped: [] });
 		}),
 	);
@@ -786,7 +786,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 				yield* Effect.promise(() => writeFile(join(root, "page.md"), `---\ntype: Module\n${frontmatter}---${body}`));
 				return yield* use(root);
 			}).pipe(Effect.ensuring(Effect.promise(() => rm(root, { recursive: true, force: true }))));
-		}).pipe(Effect.provide(NodeServices.layer));
+		}).pipe(Effect.provide(TestPlatform));
 
 	const run = (root: string, agent?: Actor) =>
 		Effect.gen(function* () {
@@ -934,7 +934,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 				} finally {
 					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				}
-			}).pipe(Effect.provide(NodeServices.layer));
+			}).pipe(Effect.provide(TestPlatform));
 		},
 	);
 

@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { AppDirs, Xdg } from "@effected/xdg";
 import { Layer } from "effect";
@@ -16,8 +17,9 @@ export const OKFIT_APP_NAMESPACE = "okfit";
  * `Layer.provide(Xdg.layer)` alone does not close it.
  * `Layer.provideMerge(NodeServices.layer)` supplies `FileSystem`/`Path` to
  * both members and keeps every service in the output.
- * `NodeServices.layer` provides `ChildProcessSpawner | Crypto | FileSystem | Path | Stdio | Terminal`,
- * a superset of `Command.Environment`.
+ * `NodeServices.layer` provides `ChildProcessSpawner | FileSystem | Path | Stdio | Terminal`,
+ * a superset of `Command.Environment`. Since Effect 4.1 it carries no crypto, so
+ * `NodeCrypto.layerDigest` supplies the `Digest` every body and content digest needs.
  *
  * K-13: `Xdg.layer` fails with `XdgEnvError` when `HOME` is unset. Callers
  * are responsible for providing this layer INSIDE whatever region renders
@@ -29,4 +31,4 @@ export const OKFIT_APP_NAMESPACE = "okfit";
 export const OkfitPlatform = Layer.mergeAll(
 	Xdg.layer,
 	AppDirs.layer({ namespace: OKFIT_APP_NAMESPACE }).pipe(Layer.provide(Xdg.layer)),
-).pipe(Layer.provideMerge(NodeServices.layer));
+).pipe(Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layerDigest)));

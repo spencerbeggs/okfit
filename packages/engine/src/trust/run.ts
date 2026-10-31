@@ -1,8 +1,9 @@
 import type { BundleLoadError, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
+import type { DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Effect } from "effect";
+import type { Digest } from "effect/crypto";
 import type { ContextTrust } from "../render/context.js";
 
 /** @public */
@@ -30,7 +31,7 @@ export const runContextTrust = (
 ): Effect.Effect<
 	ContextTrust,
 	BundleLoadError | PlatformError.PlatformError,
-	FileSystem.FileSystem | Path.Path | Crypto.Crypto
+	FileSystem.FileSystem | Path.Path | Digest.Digest
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.bundleRoot });

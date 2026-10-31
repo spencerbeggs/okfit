@@ -97,7 +97,7 @@ describe("Canonical.contentInput", () => {
 			assert.strictEqual(typeof concept.frontmatter.raw.ticket, "bigint");
 			const digest = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
 			assert.match(digest, /^[0-9a-f]{16}$/u);
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });
 
@@ -109,7 +109,7 @@ describe("Derivation digests", () => {
 			const full = yield* Derivation.digestFull(Derivation.body(src("type: X")));
 			assert.strictEqual(full.length, 64);
 			assert.strictEqual(short, full.slice(0, 16));
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("contentDigest ignores style, order, CRLF and bookkeeping; sees authored edits", () =>
@@ -138,6 +138,6 @@ describe("Derivation digests", () => {
 			assert.notStrictEqual(a, editedTitle);
 			assert.notStrictEqual(a, reorderedTags);
 			assert.notStrictEqual(a, editedBody);
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });

@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
@@ -9,6 +8,7 @@ import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { DateTime, Effect, Exit, Layer } from "effect";
 import { runVerifyIds } from "../../src/verify/run.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
+import { TestPlatform } from "../utils/platform.js";
 
 describe("runVerifyIds (issue #214)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
@@ -22,7 +22,7 @@ describe("runVerifyIds (issue #214)", () => {
 	const gitFake = Layer.succeed(Git, {
 		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
-	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+	const platform = Layer.mergeAll(gitFake, TestPlatform);
 	const verifiedByAda = "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
 
 	const withRoot = <A, E, R>(
@@ -189,7 +189,7 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 	const gitFake = Layer.succeed(Git, {
 		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
-	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	const withRoot = <A, E, R>(
 		files: ReadonlyArray<readonly [string, string]>,
@@ -227,7 +227,7 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 				const text = yield* read(root, "decisions/a.md");
 				assert.ok(text.includes('stale_after: "2027-01-07T00:00:00Z"\n'), text);
 				assert.ok(text.includes("by: human:ada"));
-				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
 				assert.deepStrictEqual(Derive.staleReport(bundle, AT), []);
 			}),
 		),

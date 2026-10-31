@@ -11,7 +11,8 @@ import {
 	LoadedConcept,
 	OkfitConfig,
 } from "@okfit/core";
-import { Crypto, DateTime, Effect, Layer, Option, Result, Schema } from "effect";
+import { DateTime, Effect, Layer, Option, Result, Schema } from "effect";
+import { Digest } from "effect/crypto";
 import { Derivation } from "../src/Derivation.js";
 import { Trust } from "../src/Trust.js";
 
@@ -21,11 +22,15 @@ const LATER = "2026-04-01T00:00:00Z";
 const NOW = DateTime.makeUnsafe("2026-06-01T00:00:00Z");
 const BODY = "\nBody.\n";
 
-/** NodeCrypto with `digest` replaced by a defect: any hashing attempt fails the test. */
+/** NodeCrypto's `Digest` with every member replaced by a defect: any hashing attempt fails the test. */
 const noHashing = Layer.effect(
-	Crypto.Crypto,
-	Effect.map(Crypto.Crypto, (real) => ({ ...real, digest: () => Effect.die("hashed") })),
-).pipe(Layer.provide(NodeCrypto.layer));
+	Digest.Digest,
+	Effect.map(Digest.Digest, (real) => ({
+		...real,
+		digest: () => Effect.die("hashed"),
+		digestHex: () => Effect.die("hashed"),
+	})),
+).pipe(Layer.provide(NodeCrypto.layerDigest));
 
 const decode = Schema.decodeUnknownSync(Concept);
 
@@ -81,7 +86,7 @@ describe("Trust.signal", () => {
 			const c = concept({ type: "Decision", verified: [{ by: "process:nightly", at: AT }] });
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual(signal, { tier: "machine-confirmed", integrity: "none", stale: false });
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("bound and unchanged -> current", () =>
@@ -92,7 +97,7 @@ describe("Trust.signal", () => {
 			const boundConcept = concept({ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } });
 			const signal = yield* Trust.signal(boundConcept, OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual(signal, { tier: "human-reviewed", integrity: "current", stale: false });
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("legacy entry without integrity -> drifted/unbound", () =>
@@ -105,7 +110,7 @@ describe("Trust.signal", () => {
 				drift: { reason: "unbound" },
 				stale: false,
 			});
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("body edited -> drifted/content-changed, editedBy from a later generated", () =>
@@ -126,7 +131,7 @@ describe("Trust.signal", () => {
 				drift: { reason: "content-changed", editedBy: "agent/x", editedAt: LATER },
 				stale: false,
 			});
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("body edited without a later generated -> content-changed with no editor", () =>
@@ -138,7 +143,7 @@ describe("Trust.signal", () => {
 			);
 			const signal = yield* Trust.signal(edited, OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual(signal.drift, { reason: "content-changed" });
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("later human entry not named by binding -> drifted/entry-superseded", () =>
@@ -155,7 +160,7 @@ describe("Trust.signal", () => {
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(signal.integrity, "drifted");
 			assert.deepStrictEqual(signal.drift, { reason: "entry-superseded" });
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("machine entry after the bound human entry stays current", () =>
@@ -172,7 +177,7 @@ describe("Trust.signal", () => {
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(signal.integrity, "current");
 			assert.strictEqual(signal.tier, "human-reviewed");
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("status and stale_after changes stay current", () =>
@@ -187,7 +192,7 @@ describe("Trust.signal", () => {
 			});
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(signal.integrity, "current");
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("stale flag follows stale_after vs now", () =>
@@ -198,7 +203,7 @@ describe("Trust.signal", () => {
 			assert.isTrue((yield* Trust.signal(past, OkfitConfig.DEFAULTS, NOW)).stale);
 			assert.isFalse((yield* Trust.signal(future, OkfitConfig.DEFAULTS, NOW)).stale);
 			assert.isFalse((yield* Trust.signal(none, OkfitConfig.DEFAULTS, NOW)).stale);
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });
 
@@ -211,7 +216,7 @@ describe("Trust.signals", () => {
 			assert.strictEqual(signals.size, 2);
 			assert.strictEqual(signals.get(a.id)?.integrity, "none");
 			assert.strictEqual(signals.get(b.id)?.integrity, "drifted");
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });
 
@@ -227,7 +232,7 @@ describe("Trust.lint", () => {
 			assert.strictEqual(diagnostics[0]?.severity, "warning");
 			assert.strictEqual(diagnostics[0]?.file, "drifted.md");
 			assert.isDefined(diagnostics[0]?.range);
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("a drifted draft or deprecated concept lints nothing while its signal still says drifted", () =>
@@ -246,7 +251,7 @@ describe("Trust.lint", () => {
 				assert.strictEqual((yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW)).integrity, "drifted");
 			}
 			assert.deepStrictEqual(yield* Trust.lint(bundleOf(draft, deprecated), OkfitConfig.DEFAULTS, NOW), []);
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("a drifted stable concept still warns, with explicit and absent status", () =>
@@ -259,7 +264,7 @@ describe("Trust.lint", () => {
 			const absent = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] }, BODY, "absent.md");
 			const diagnostics = yield* Trust.lint(bundleOf(explicit, absent), OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual(diagnostics.map((d) => d.file).sort(), ["absent.md", "explicit.md"]);
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("a bigint frontmatter value (an integer beyond 2^53) lints instead of defecting", () =>
@@ -283,7 +288,7 @@ describe("Trust.lint", () => {
 			const diagnostics = yield* Trust.lint(bundleOf(current, changed), OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(diagnostics.length, 1);
 			assert.include(diagnostics[0]?.message ?? "", "content changed since");
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("an unbound drift ranges at the latest human verified entry, not the whole key", () =>
@@ -301,14 +306,14 @@ describe("Trust.lint", () => {
 			assert.isDefined(entry);
 			assert.deepStrictEqual(diagnostic?.range, entry);
 			assert.notDeepEqual(diagnostic?.range, DiagnosticRange.forFrontmatterPath(c.document, ["verified"]));
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
 	it.effect("off severity returns [] without hashing", () =>
 		Effect.gen(function* () {
 			const drifted = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] });
 			const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { extensions: {}, lint: { verified_drift: "off" } });
-			// A Crypto whose every member dies: a hash attempt would defect the test.
+			// A Digest whose every member dies: a hash attempt would defect the test.
 			const diagnostics = yield* Trust.lint(bundleOf(drifted), config, NOW);
 			assert.deepStrictEqual(diagnostics, []);
 		}).pipe(Effect.provide(noHashing)),
@@ -317,7 +322,7 @@ describe("Trust.lint", () => {
 	it.effect("an unlisted binding is verified-drift with an actor-not-allowed message", () =>
 		Effect.gen(function* () {
 			// Binding needs a real digest; the lint itself must then skip hashing.
-			const { concept: c } = yield* bound().pipe(Effect.provide(NodeCrypto.layer));
+			const { concept: c } = yield* bound().pipe(Effect.provide(NodeCrypto.layerDigest));
 			const config: OkfitConfig = {
 				actors: { humans: [Schema.decodeSync(ActorPattern)("human:ada")] },
 				extensions: {},
@@ -348,11 +353,11 @@ describe("Trust.lint", () => {
 			const legacy = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] });
 			const [unbound] = yield* Trust.lint(bundleOf(legacy), OkfitConfig.DEFAULTS, NOW);
 			assert.include(unbound?.message ?? "", "no integrity.verified binding records what was verified");
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });
 
-describe("Trust.evaluate (pure: no Crypto provided)", () => {
+describe("Trust.evaluate (pure: no Digest provided)", () => {
 	const at = DateTime.makeUnsafe(AT);
 	const later = DateTime.makeUnsafe(LATER);
 	const actor = Schema.decodeSync(Actor);
@@ -461,7 +466,7 @@ describe("Trust.signal parity with evaluate", () => {
 				};
 				assert.deepStrictEqual<unknown>(got, expected);
 			}
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });
 
@@ -471,10 +476,12 @@ describe("Trust.lint given signals", () => {
 			const { concept: current } = yield* bound();
 			const drifted = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] }, BODY, "drifted.md");
 			const bundle = bundleOf(current, drifted);
-			const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(Effect.provide(NodeCrypto.layer));
+			const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
+				Effect.provide(NodeCrypto.layerDigest),
+			);
 			const diagnostics = yield* Trust.lint(bundle, OkfitConfig.DEFAULTS, NOW, signals).pipe(Effect.provide(noHashing));
 			assert.strictEqual(diagnostics.length, 1);
 			assert.strictEqual(diagnostics[0]?.file, "drifted.md");
-		}).pipe(Effect.provide(NodeCrypto.layer)),
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });

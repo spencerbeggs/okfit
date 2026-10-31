@@ -13,8 +13,8 @@ import {
 	OkfitConfig,
 	Timestamp,
 } from "@okfit/core";
-import type { Crypto } from "effect";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { Derivation } from "../src/Derivation.js";
 import { GitHistory } from "../src/GitHistory.js";
 import { Provenance } from "../src/Provenance.js";
@@ -59,12 +59,12 @@ const bundleOf = (concept: LoadedConcept): LoadedBundle =>
 // Every member of Git/GitHistory/FileSystem dies on any call, proving a
 // scenario touches none of them (mirrors `notScripted`'s die-by-default
 // posture, GitHistory.ts:117-118).
-const noGit: Layer.Layer<Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto> = Layer.mergeAll(
+const noGit: Layer.Layer<Git | GitHistory | FileSystem.FileSystem | Path.Path | Digest.Digest> = Layer.mergeAll(
 	Git.layerTest({}),
 	GitHistory.layerTest({}),
 	FileSystem.layerNoop({}),
 	Path.layer,
-	NodeCrypto.layer,
+	NodeCrypto.layerDigest,
 );
 
 describe("Provenance.lint", () => {
@@ -131,7 +131,7 @@ describe("Provenance.lint", () => {
 	describe("tier 1: generated.body_sha256 present (issue #19)", () => {
 		const SOURCE = "---\ntype: Module\ntitle: Digested\n---\n\n# Digested\n\nBody text.\n";
 		const OTHER_SOURCE = "---\ntype: Module\ntitle: Digested\n---\n\n# Digested\n\nA different body.\n";
-		const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), NodeCrypto.layer);
+		const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), NodeCrypto.layerDigest);
 
 		it.effect(
 			"is silent when the digest matches the current body, with no git call at all",
@@ -163,7 +163,7 @@ describe("Provenance.lint", () => {
 
 		it.effect("reads a legacy 64-hex generated.body_sha256 by its 16-char prefix", () =>
 			Effect.gen(function* () {
-				const full = yield* Effect.provide(Derivation.digestFull(Derivation.body(SOURCE)), NodeCrypto.layer);
+				const full = yield* Effect.provide(Derivation.digestFull(Derivation.body(SOURCE)), NodeCrypto.layerDigest);
 				assert.lengthOf(full, 64);
 				const generated = Generated.make({ by: actor("human:okfit-test"), body_sha256: full });
 				const result = yield* Provenance.lint(bundleOf(conceptWith(generated, SOURCE)), OkfitConfig.DEFAULTS);
@@ -318,7 +318,7 @@ describe("Provenance.lint", () => {
 	describe("skipGitTier (S-31)", () => {
 		const SOURCE = "---\ntype: Module\ntitle: Digested\n---\n\n# Digested\n\nBody text.\n";
 		const OTHER_SOURCE = "---\ntype: Module\ntitle: Digested\n---\n\n# Digested\n\nA different body.\n";
-		const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), NodeCrypto.layer);
+		const digestOf = (source: string) => Effect.provide(Derivation.bodyDigest(source), NodeCrypto.layerDigest);
 
 		it.effect(
 			"a concept WITH a digest whose body changed still reports, with no git call at all",
@@ -387,7 +387,7 @@ describe("Provenance.lint", () => {
 					GitHistory.layerTest({}),
 					FileSystem.layerNoop({}),
 					Path.layer,
-					NodeCrypto.layer,
+					NodeCrypto.layerDigest,
 				),
 			),
 		),

@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, GitCommandError } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
@@ -13,6 +12,7 @@ import type { PickerCandidate } from "../../src/verify/select.js";
 import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "../../src/verify/select.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { commit, initRepo, withDir } from "../utils/git.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const NOW = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
 
@@ -47,12 +47,10 @@ describe("selectAttestable (issues #138, #143)", () => {
 				}
 				yield* Effect.promise(() => writeFile(join(root, "module.md"), "---\ntype: Module\ntitle: M\n---\n\n# M\n"));
 				yield* bindFixtures(root, ["decisions/d.md", "decisions/e.md", "decisions/h.md"]).pipe(
-					Effect.provide(NodeServices.layer),
+					Effect.provide(TestPlatform),
 				);
-				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
-					Effect.provide(NodeServices.layer),
-				);
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(Effect.provide(TestPlatform));
 				assert.strictEqual(signals.get("decisions/d")?.integrity, "current");
 				assert.strictEqual(signals.get("decisions/f")?.drift?.reason, "unbound");
 				assert.strictEqual(signals.get("decisions/g")?.drift?.reason, "content-changed");
@@ -88,11 +86,9 @@ describe("selectAttestable (issues #138, #143)", () => {
 				for (const [name, text] of files) {
 					yield* Effect.promise(() => writeFile(join(root, "modules", `${name}.md`), text));
 				}
-				yield* bindFixtures(root, ["modules/current.md"]).pipe(Effect.provide(NodeServices.layer));
-				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
-					Effect.provide(NodeServices.layer),
-				);
+				yield* bindFixtures(root, ["modules/current.md"]).pipe(Effect.provide(TestPlatform));
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(Effect.provide(TestPlatform));
 				const types = new Set(["Decision"]);
 				assert.deepStrictEqual(selectAttestable(bundle, types, "human:ada", signals).candidates, []);
 				const widened = selectAttestable(bundle, types, "human:ada", signals, { drifted: true });
@@ -188,11 +184,9 @@ describe("selectPickerCandidates (picker)", () => {
 						["module.md", concept("Module", "M")],
 					];
 					for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
-					yield* bindFixtures(root, ["decisions/d.md", "decisions/e.md"]).pipe(Effect.provide(NodeServices.layer));
-					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-					const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
-						Effect.provide(NodeServices.layer),
-					);
+					yield* bindFixtures(root, ["decisions/d.md", "decisions/e.md"]).pipe(Effect.provide(TestPlatform));
+					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+					const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(Effect.provide(TestPlatform));
 					const rows = selectPickerCandidates(bundle, config, "human:ada", signals);
 					assert.deepStrictEqual(rows, [
 						{
@@ -268,11 +262,9 @@ describe("selectPickerCandidates (picker)", () => {
 						["modules/gone.md", concept("Module", "Gone", `status: deprecated\n${bound("human:ada")}`)],
 					];
 					for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
-					yield* bindFixtures(root, ["modules/current.md"]).pipe(Effect.provide(NodeServices.layer));
-					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-					const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
-						Effect.provide(NodeServices.layer),
-					);
+					yield* bindFixtures(root, ["modules/current.md"]).pipe(Effect.provide(TestPlatform));
+					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+					const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(Effect.provide(TestPlatform));
 					const rows = selectPickerCandidates(bundle, config, "human:ada", signals);
 					assert.deepStrictEqual(
 						rows.map((row) => [row.id, row.integrity]),
@@ -286,8 +278,8 @@ describe("selectPickerCandidates (picker)", () => {
 });
 
 describe("loadPreviews (verify picker diff preview)", () => {
-	const platform = Layer.mergeAll(Git.layer, NodeServices.layer).pipe(Layer.provide(NodeServices.layer));
-	const layer = Layer.mergeAll(platform, NodeServices.layer);
+	const platform = Layer.mergeAll(Git.layer, TestPlatform).pipe(Layer.provide(TestPlatform));
+	const layer = Layer.mergeAll(platform, TestPlatform);
 	const candidate = (id: string, path: string, integrity: PickerCandidate["integrity"], boundAt: string | null) =>
 		({
 			id,
@@ -349,7 +341,7 @@ describe("loadPreviews (verify picker diff preview)", () => {
 			} as unknown as Git["Service"]);
 			const previews = yield* loadPreviews([
 				candidate("a", "/nowhere/a.md", "drifted", "2026-09-05T00:00:00.000Z"),
-			]).pipe(Effect.provide(Layer.mergeAll(failing, NodeServices.layer)));
+			]).pipe(Effect.provide(Layer.mergeAll(failing, TestPlatform)));
 			assert.deepStrictEqual(previews.get("a"), { _tag: "no-baseline", reason: "not-a-repository" });
 		}),
 	);

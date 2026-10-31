@@ -2,12 +2,12 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Git } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option } from "effect";
+import { TestPlatform } from "./platform.js";
 
 export const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
 
@@ -29,7 +29,7 @@ export const platform = Layer.mergeAll(
 						: Option.none(),
 			),
 	} as unknown as Git["Service"]),
-	NodeServices.layer,
+	TestPlatform,
 );
 
 const concept = (type: string, title: string, extra = "", description?: string): string =>
@@ -91,10 +91,10 @@ export const bindFixtures = (root: string, names: ReadonlyArray<string>) =>
 			const text = yield* Effect.promise(() => readFile(join(root, name), "utf8"));
 			yield* Effect.promise(() => writeFile(join(root, name), text.replaceAll(DIGEST, digest)));
 		}
-	}).pipe(Effect.provide(NodeServices.layer));
+	}).pipe(Effect.provide(TestPlatform));
 
 /** The real `Git` (history and identity read from the temp repository) over Node's services. */
-export const repoPlatform = Layer.mergeAll(Git.layer, NodeServices.layer).pipe(Layer.provideMerge(NodeServices.layer));
+export const repoPlatform = Layer.mergeAll(Git.layer, TestPlatform).pipe(Layer.provideMerge(TestPlatform));
 
 const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", LC_ALL: "C" };
 

@@ -1,8 +1,9 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { LoadedBundle } from "@okfit/core";
 import { Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
-import type { Crypto, FileSystem, PlatformError } from "effect";
+import type { FileSystem, PlatformError } from "effect";
 import { DateTime, Effect, Path, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
 import type { GitHistory, GitHistoryError } from "./GitHistory.js";
 
@@ -69,7 +70,7 @@ export class Provenance {
 	) => Effect.Effect<
 		ReadonlyArray<Diagnostic>,
 		GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
-		Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+		Git | GitHistory | FileSystem.FileSystem | Path.Path | Digest.Digest
 	> = Effect.fn("Provenance.lint")(function* (
 		bundle: LoadedBundle,
 		config: OkfitConfig,

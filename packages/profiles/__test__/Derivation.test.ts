@@ -2,8 +2,8 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
 import { Actor, ActorPattern, OkfitConfig } from "@okfit/core";
-import type { Crypto } from "effect";
 import { Cause, DateTime, Duration, Effect, Exit, FileSystem, Layer, Option, Path, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import {
 	ActorConfigInvalidError,
 	AgentActorUnconfiguredError,
@@ -326,8 +326,8 @@ describe("Derivation.generatedAt (P-2, P-9, P-39)", () => {
 });
 
 describe("Derivation.bodyDigest (issue #19)", () => {
-	const withCrypto = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto>): Effect.Effect<A, E> =>
-		effect.pipe(Effect.provide(NodeCrypto.layer));
+	const withCrypto = <A, E>(effect: Effect.Effect<A, E, Digest.Digest>): Effect.Effect<A, E> =>
+		effect.pipe(Effect.provide(NodeCrypto.layerDigest));
 
 	it.effect("is the same digest for CRLF, lone-CR and trailing-whitespace variants of the same body (P-6)", () =>
 		Effect.gen(function* () {

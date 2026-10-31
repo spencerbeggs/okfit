@@ -1,7 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { Git, UnknownRefError } from "@effected/git";
-import type { Crypto } from "effect";
 import { Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { GitHistory, PathHistoryEntry } from "../../src/GitHistory.js";
 import type { HistoryCommit } from "../fixtures/history.js";
 import { F4_PATH_RENAMED } from "../fixtures/history.js";
@@ -82,7 +82,7 @@ export interface WorldOptions {
  */
 export const world = (
 	options: WorldOptions,
-): Layer.Layer<Git | GitHistory | FileSystem.FileSystem | Path.Path | Crypto.Crypto> => {
+): Layer.Layer<Git | GitHistory | FileSystem.FileSystem | Path.Path | Digest.Digest> => {
 	const root = options.root ?? ROOT;
 	const file = options.file ?? FILE;
 	const rel = options.rel ?? REL;
@@ -106,7 +106,7 @@ export const world = (
 			path === file ? Effect.succeed(options.worktree) : Effect.die(new Error(`unexpected readFileString(${path})`)),
 		realPath: (path) => Effect.succeed(realPaths[path] ?? path),
 	});
-	return Layer.mergeAll(git, history, fs, options.path ?? Path.layer, NodeCrypto.layer);
+	return Layer.mergeAll(git, history, fs, options.path ?? Path.layer, NodeCrypto.layerDigest);
 };
 
 const toPosix = (path: string): string => path.split("\\").join("/");

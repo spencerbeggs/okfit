@@ -1,11 +1,11 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { OkfitConfig } from "@okfit/core";
 import { DateTime, Effect } from "effect";
 import { runContextTrust } from "../../src/trust/run.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const now = DateTime.makeUnsafe("2026-10-09T12:00:00Z");
 
@@ -32,6 +32,6 @@ describe("runContextTrust", () => {
 			assert.strictEqual(summary.drifted, 0);
 			assert.deepStrictEqual(summary.stale_ids, ["t/a", "t/b", "t/c", "t/d", "t/e"]);
 			assert.deepStrictEqual(summary.drifted_ids, []);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

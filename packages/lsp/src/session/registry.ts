@@ -4,8 +4,9 @@ import type { AppDirs, Xdg } from "@effected/xdg";
 import type { BundleSessionShape, ResolvedProjectConfig, RevalidateTier } from "@okfit/engine";
 import { BundleSession, provideConfig, resolveProjectConfig } from "@okfit/engine";
 import type { GitHistory } from "@okfit/profiles";
-import type { Crypto, Duration, FileSystem, Path } from "effect";
+import type { Duration, FileSystem, Path } from "effect";
 import { Context, Deferred, Effect, Exit, Option, Ref, Result, Scope } from "effect";
+import type { Digest } from "effect/crypto";
 import { isUnder } from "../internal/paths.js";
 import type { Scheduler } from "./scheduler.js";
 import { makeScheduler } from "./scheduler.js";
@@ -127,7 +128,7 @@ export type SessionRegistryServices =
 	| Xdg
 	| Git
 	| GitHistory
-	| Crypto.Crypto;
+	| Digest.Digest;
 
 /** A built session and the scope that owns its scheduler. */
 interface Built {

@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { ActorPattern, ConceptId } from "@okfit/core";
@@ -13,6 +12,7 @@ import { locateVerifiedEntries } from "../../src/verify/revoke.js";
 import { runRevoke, runRevokeIds } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const head = "---\ntype: Decision\ntitle: T\n";
 const ada = "  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
@@ -177,7 +177,7 @@ describe("runRevoke", () => {
 	const gitFake = Layer.succeed(Git, {
 		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
-	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	const withConcept = <A, E, R>(source: string, use: (root: string, file: string) => Effect.Effect<A, E, R>) =>
 		Effect.gen(function* () {
@@ -186,7 +186,7 @@ describe("runRevoke", () => {
 				yield* Effect.promise(() => mkdir(join(root, "decisions")));
 				const file = join(root, "decisions", "a.md");
 				yield* Effect.promise(() => writeFile(file, source));
-				yield* bindFixtures(root, ["decisions/a.md"]).pipe(Effect.provide(NodeServices.layer));
+				yield* bindFixtures(root, ["decisions/a.md"]).pipe(Effect.provide(TestPlatform));
 				return yield* use(root, file);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
@@ -204,7 +204,7 @@ describe("runRevoke", () => {
 			const concept = bundle.concepts.get("decisions/a" as ConceptId);
 			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
 			return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, AT);
-		}).pipe(Effect.provide(NodeServices.layer));
+		}).pipe(Effect.provide(TestPlatform));
 
 	const binding = (by: string, at: string) =>
 		`integrity:\n  verified:\n    by: ${by}\n    at: ${at}\n    content: ${DIGEST}\n`;

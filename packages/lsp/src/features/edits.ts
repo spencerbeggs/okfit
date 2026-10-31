@@ -17,6 +17,7 @@
  *
  * @packageDocumentation
  */
+
 import { ErrorText } from "@effected/engine";
 import type { Git } from "@effected/git";
 import type { MarkdownEdit } from "@effected/markdown";
@@ -28,8 +29,9 @@ import { DiagnosticRange, Timestamp, Verification } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
-import type { Crypto, DateTime } from "effect";
+import type { DateTime } from "effect";
 import { Effect, Option, Result, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { toLspRange } from "../convert/range.js";
 import type { Range, TextEdit, WorkspaceEdit } from "../protocol/types.js";
 import type { OpenDocuments } from "../session/documents.js";
@@ -197,7 +199,7 @@ export const statusTextEdits = (
  * and body hashed exactly as `Bundle.load` + `Derivation.contentDigest` do for
  * a file. `Unsupported` (`yaml-parse-error`) when the frontmatter does not parse.
  */
-const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Crypto.Crypto> =>
+const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
 		const unparseable = (): EditFailure => ({ _tag: "Unsupported", key: "verified", shape: "yaml-parse-error" });
 		const parsed = MarkdownDocument.parseResult(text, MarkdownParseOptions.make({ frontmatter: true }));
@@ -254,7 +256,7 @@ export const verifiedTextEdits = (
 	target: EditTarget,
 	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Crypto.Crypto> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
 		if (target.status === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
 		if (target.status === "deprecated") return yield* Effect.fail<EditFailure>({ _tag: "DeprecatedCannotBeVerified" });
@@ -282,7 +284,7 @@ export const verifiedStableTextEdits = (
 	target: EditTarget,
 	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Crypto.Crypto> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
 		if (target.status !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
 		const content = yield* contentDigestOf(target.text);

@@ -1,13 +1,13 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import { OkfitConfig } from "@okfit/core";
 import { Derivation, GitHistory } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
 import { applySyncPlan, planSync, runSync } from "../../src/sync/run.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const AT = "2026-06-01T08:00:00Z";
 
@@ -18,7 +18,7 @@ const fakes = (root: string) => {
 			Effect.gen(function* () {
 				const fs = yield* FileSystem.FileSystem;
 				return Option.some(yield* fs.readFileString(join(root, path)));
-			}).pipe(Effect.provide(NodeServices.layer)),
+			}).pipe(Effect.provide(TestPlatform)),
 	} as unknown as Git["Service"]);
 	const history = Layer.succeed(GitHistory, {
 		pathLog: (_root: string, path: string) =>
@@ -33,15 +33,13 @@ const fakes = (root: string) => {
 				},
 			]),
 	} as unknown as GitHistory["Service"]);
-	return Layer.mergeAll(git, history, NodeServices.layer);
+	return Layer.mergeAll(git, history, TestPlatform);
 };
 
 /** One concept whose recorded digest is stale, so generated mode must re-stamp it; index.md is missing. */
 const seed = async (root: string): Promise<void> => {
 	const digest = await Effect.runPromise(
-		Derivation.bodyDigest("---\ntype: Module\ntitle: A\n---\n\n# A\n\nOld body.\n").pipe(
-			Effect.provide(NodeServices.layer),
-		),
+		Derivation.bodyDigest("---\ntype: Module\ntitle: A\n---\n\n# A\n\nOld body.\n").pipe(Effect.provide(TestPlatform)),
 	);
 	await writeFile(
 		join(root, "a.md"),

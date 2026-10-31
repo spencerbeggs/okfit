@@ -1,7 +1,8 @@
 import type { Actor, LoadedBundle, LoadedConcept, TrustTier, Verification } from "@okfit/core";
 import { Actor as ActorNS, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
-import type { Crypto, PlatformError } from "effect";
+import type { PlatformError } from "effect";
 import { DateTime, Effect, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
 
 const encodeAt = Schema.encodeSync(Timestamp);
@@ -203,13 +204,13 @@ export class Trust {
 		concept: LoadedConcept,
 		config: OkfitConfig,
 		now: DateTime.Utc,
-	) => Effect.Effect<ConceptSignal, PlatformError.PlatformError, Crypto.Crypto> = signal;
+	) => Effect.Effect<ConceptSignal, PlatformError.PlatformError, Digest.Digest> = signal;
 	/** The signal for every concept in a bundle, keyed by concept id. */
 	static readonly signals: (
 		bundle: LoadedBundle,
 		config: OkfitConfig,
 		now: DateTime.Utc,
-	) => Effect.Effect<Map<string, ConceptSignal>, PlatformError.PlatformError, Crypto.Crypto> = signals;
+	) => Effect.Effect<Map<string, ConceptSignal>, PlatformError.PlatformError, Digest.Digest> = signals;
 	/** Pure integrity decision; no hashing. `content` may be `undefined` only when {@link Trust.needsDigest} is false. */
 	static readonly evaluate: (
 		input: EvaluateInput,
@@ -229,5 +230,5 @@ export class Trust {
 		config: OkfitConfig,
 		now: DateTime.Utc,
 		signals?: ReadonlyMap<string, ConceptSignal>,
-	) => Effect.Effect<Array<Diagnostic>, PlatformError.PlatformError, Crypto.Crypto> = lint;
+	) => Effect.Effect<Array<Diagnostic>, PlatformError.PlatformError, Digest.Digest> = lint;
 }

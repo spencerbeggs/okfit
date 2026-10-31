@@ -1,12 +1,12 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import { DateTime, Effect } from "effect";
 import { selectStaleCandidates } from "../../src/verify/select.js";
+import { TestPlatform } from "../utils/platform.js";
 
 describe("selectStaleCandidates (issue #228)", () => {
 	const NOW = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
@@ -26,10 +26,8 @@ describe("selectStaleCandidates (issue #228)", () => {
 					["mod.md", doc("Module", stale)],
 				];
 				for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
-				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
-				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(
-					Effect.provide(NodeServices.layer),
-				);
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+				const signals = yield* Trust.signals(bundle, OkfitConfig.DEFAULTS, NOW).pipe(Effect.provide(TestPlatform));
 				const rows = selectStaleCandidates(bundle, Derive.staleReport(bundle, NOW), "human:ada", signals);
 				assert.deepStrictEqual(
 					rows.map((row) => [row.id, row.type, row.otherAttestations, row.integrity]),
