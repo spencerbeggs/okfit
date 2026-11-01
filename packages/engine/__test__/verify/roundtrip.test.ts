@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { ActorPattern, ConceptId } from "@okfit/core";
@@ -12,6 +11,7 @@ import { runSync } from "../../src/sync/run.js";
 import { runRevoke, runVerify } from "../../src/verify/run.js";
 import { countLines } from "../utils/frontmatter.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
+import { TestPlatform } from "../utils/platform.js";
 
 /**
  * The cross-task round trip (final review item 4): one legacy concept through every
@@ -39,7 +39,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 					Effect.gen(function* () {
 						const fs = yield* FileSystem.FileSystem;
 						return Option.some(yield* fs.readFileString(join(root, path)));
-					}).pipe(Effect.provide(NodeServices.layer)),
+					}).pipe(Effect.provide(TestPlatform)),
 				configGet: identityConfigGet,
 			} as unknown as Git["Service"]),
 			Layer.succeed(GitHistory, {
@@ -55,7 +55,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						},
 					]),
 			} as unknown as GitHistory["Service"]),
-			NodeServices.layer,
+			TestPlatform,
 		);
 
 	it.effect("ends with a sync that changes no byte", () =>
@@ -80,7 +80,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						const concept = bundle.concepts.get("decisions/a" as ConceptId);
 						if (concept === undefined) return yield* Effect.die(new Error("decisions/a did not load"));
 						return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, NOW);
-					}).pipe(Effect.provide(NodeServices.layer));
+					}).pipe(Effect.provide(TestPlatform));
 				const oneIntegrity = (text: string) => {
 					assert.strictEqual(countLines(text, /^integrity:/u), 1);
 					assert.isAtMost(countLines(text, /^ {2}verified:/u), 1);
@@ -89,7 +89,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 
 				// A legacy concept: the full sha256 of the committed body under generated.body_sha256.
 				const fullDigest = yield* Derivation.digestFull(Derivation.body(`---\n---${BODY}`)).pipe(
-					Effect.provide(NodeServices.layer),
+					Effect.provide(TestPlatform),
 				);
 				const legacy = `---\ntype: Decision\ntitle: T\ngenerated:\n  by: human:ada\n  at: ${COMMITTED}\n  body_sha256: ${fullDigest}\n---${BODY}`;
 				yield* Effect.promise(() => writeFile(file, legacy));

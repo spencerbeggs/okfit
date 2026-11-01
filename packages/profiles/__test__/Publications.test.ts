@@ -2,7 +2,8 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
 import { Concept, ConceptId, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Crypto, Effect, Layer, Option, Result } from "effect";
+import { Effect, Layer, Option, Result } from "effect";
+import { Digest } from "effect/crypto";
 import { Derivation } from "../src/Derivation.js";
 import { Publications } from "../src/Publications.js";
 
@@ -43,7 +44,8 @@ const sourceB = conceptAt(
 );
 const surface = conceptAt("surfaces/readme.md", "Surface", { type: "Surface" }, "---\ntype: Surface\n---\n\n# S\n");
 
-const digestOf = (c: LoadedConcept) => Derivation.bodyDigest(c.document.source).pipe(Effect.provide(NodeCrypto.layer));
+const digestOf = (c: LoadedConcept) =>
+	Derivation.bodyDigest(c.document.source).pipe(Effect.provide(NodeCrypto.layerDigest));
 
 /** A Publication at `publications/pr.md` whose frontmatter text matches `raw`. */
 const publication = (raw: Record<string, unknown>, frontmatterYaml: string): LoadedConcept =>
@@ -72,7 +74,7 @@ describe("Publications.resolveRef", () => {
 
 describe("Publications.lint", () => {
 	const run = (bundle: LoadedBundle, config: OkfitConfig = OkfitConfig.DEFAULTS) =>
-		Publications.lint(bundle, config).pipe(Effect.provide(NodeCrypto.layer));
+		Publications.lint(bundle, config).pipe(Effect.provide(NodeCrypto.layerDigest));
 
 	it.effect("silent when every digest matches", () =>
 		Effect.gen(function* () {
@@ -89,7 +91,7 @@ describe("Publications.lint", () => {
 		Effect.gen(function* () {
 			const a = yield* digestOf(sourceA);
 			const full = yield* Derivation.digestFull(Derivation.body(sourceA.document.source)).pipe(
-				Effect.provide(NodeCrypto.layer),
+				Effect.provide(NodeCrypto.layerDigest),
 			);
 			const fresh = publication(
 				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body: a }] },
@@ -322,12 +324,12 @@ describe("Publications.lint", () => {
 				...OkfitConfig.DEFAULTS,
 				lint: { ...OkfitConfig.DEFAULTS.lint, publication_drift: "off", publication_orphan: "off" },
 			};
-			// A Crypto that dies on any use proves no digest work happens.
+			// A Digest that dies on any use proves no digest work happens.
 			const dying = Layer.succeed(
-				Crypto.Crypto,
-				new Proxy({} as Crypto.Crypto, {
+				Digest.Digest,
+				new Proxy({} as Digest.Digest["Service"], {
 					get: () => {
-						throw new Error("Crypto must not be used");
+						throw new Error("Digest must not be used");
 					},
 				}),
 			);

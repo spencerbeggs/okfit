@@ -17,6 +17,7 @@
  *
  * @packageDocumentation
  */
+
 import { ErrorText } from "@effected/engine";
 import type { Git } from "@effected/git";
 import type { MarkdownEdit } from "@effected/markdown";
@@ -28,8 +29,9 @@ import { DiagnosticRange, Timestamp, Verification } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
-import type { Crypto, DateTime } from "effect";
+import type { DateTime } from "effect";
 import { Effect, Option, Result, Schema } from "effect";
+import type { Digest } from "effect/crypto";
 import { toLspRange } from "../convert/range.js";
 import type { Range, TextEdit, WorkspaceEdit } from "../protocol/types.js";
 import type { OpenDocuments } from "../session/documents.js";
@@ -51,7 +53,8 @@ export type EditFailure =
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
 	| { readonly _tag: "DraftCannotBeVerified" }
 	| { readonly _tag: "DeprecatedCannotBeVerified" }
-	| { readonly _tag: "NotADraft" };
+	| { readonly _tag: "NotADraft" }
+	| { readonly _tag: "Unhashable"; readonly message: string };
 
 /** The owning session's last-loaded concept, config and project root for `path`; `None` when there is no session, no loaded bundle, or `path` is not a concept. */
 interface ConceptSnapshot {
@@ -195,9 +198,10 @@ export const statusTextEdits = (
 /**
  * The content digest of `text` as the editor holds it: the parsed frontmatter
  * and body hashed exactly as `Bundle.load` + `Derivation.contentDigest` do for
- * a file. `Unsupported` (`yaml-parse-error`) when the frontmatter does not parse.
+ * a file. `Unsupported` (`yaml-parse-error`) when the frontmatter does not parse;
+ * `Unhashable` when a value cannot be canonicalized (an unpaired surrogate, okfit#327).
  */
-const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Crypto.Crypto> =>
+const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
 		const unparseable = (): EditFailure => ({ _tag: "Unsupported", key: "verified", shape: "yaml-parse-error" });
 		const parsed = MarkdownDocument.parseResult(text, MarkdownParseOptions.make({ frontmatter: true }));
@@ -208,7 +212,9 @@ const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Crypt
 		if (Result.isFailure(decoded)) return yield* Effect.fail(unparseable());
 		const raw = decoded.success;
 		if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return yield* Effect.fail(unparseable());
-		return yield* Derivation.contentDigest(raw as Record<string, unknown>, text).pipe(Effect.orDie);
+		return yield* Derivation.contentDigest(raw as Record<string, unknown>, text).pipe(
+			Effect.mapError((error): EditFailure => ({ _tag: "Unhashable", message: error.message })),
+		);
 	});
 
 /**
@@ -254,7 +260,7 @@ export const verifiedTextEdits = (
 	target: EditTarget,
 	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Crypto.Crypto> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
 		if (target.status === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
 		if (target.status === "deprecated") return yield* Effect.fail<EditFailure>({ _tag: "DeprecatedCannotBeVerified" });
@@ -282,7 +288,7 @@ export const verifiedStableTextEdits = (
 	target: EditTarget,
 	actor: string,
 	now: DateTime.Utc,
-): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Crypto.Crypto> =>
+): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
 		if (target.status !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
 		const content = yield* contentDigestOf(target.text);
@@ -343,5 +349,7 @@ export const describeFailure = (failure: EditFailure): string => {
 			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
 		case "NotADraft":
 			return "Mark verified and stable promotes a draft concept; use Mark verified for a concept that is not a draft";
+		case "Unhashable":
+			return `${failure.message}; fix the value before marking it verified`;
 	}
 };

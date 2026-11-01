@@ -1,6 +1,5 @@
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli/ui/testing";
 import { Git } from "@effected/git";
@@ -10,6 +9,7 @@ import { GitHistory } from "@okfit/profiles";
 import { DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
 import { syncWithConfirm, writeCount } from "../../src/commands/sync-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
+import { TestPlatform } from "../utils/platform.js";
 
 /** Index-only needs no git history; `add`/`stagedChanges` serve the --staged case. */
 const fakes = (root: string) =>
@@ -20,7 +20,7 @@ const fakes = (root: string) =>
 			add: () => Effect.void,
 		} as unknown as Git["Service"]),
 		Layer.succeed(GitHistory, {} as unknown as GitHistory["Service"]),
-		NodeServices.layer,
+		TestPlatform,
 	);
 
 const options = (root: string, extra: Partial<SyncOptions> = {}): SyncOptions => ({

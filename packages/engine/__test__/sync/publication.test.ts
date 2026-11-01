@@ -1,17 +1,18 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
-import type { Crypto, FileSystem, Path } from "effect";
+import type { FileSystem, Path } from "effect";
 import { Effect, Runtime } from "effect";
+import type { Digest } from "effect/crypto";
 import { UnsupportedFrontmatterError } from "../../src/edits/FrontmatterEdits.js";
 import { NotAPublicationError, PublicationNotFoundError, stampPublication } from "../../src/sync/publication.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const withBundle = <A, E>(
 	files: Record<string, string>,
-	use: (root: string) => Effect.Effect<A, E, FileSystem.FileSystem | Path.Path | Crypto.Crypto>,
+	use: (root: string) => Effect.Effect<A, E, FileSystem.FileSystem | Path.Path | Digest.Digest>,
 ) =>
 	Effect.gen(function* () {
 		const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-stamp-")));
@@ -24,7 +25,7 @@ const withBundle = <A, E>(
 			}
 			return yield* use(root);
 		}).pipe(Effect.ensuring(Effect.promise(() => rm(root, { recursive: true, force: true }))));
-	}).pipe(Effect.provide(NodeServices.layer));
+	}).pipe(Effect.provide(TestPlatform));
 
 const MOD_A = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
 const MOD_B = "---\ntype: Module\ntitle: B\n---\n\n# B\n";

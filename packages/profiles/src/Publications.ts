@@ -1,7 +1,8 @@
 import type { LoadedBundle, LoadedConcept } from "@okfit/core";
 import { ConceptId, Diagnostic, DiagnosticRange, OkfitConfig } from "@okfit/core";
-import type { Crypto, PlatformError } from "effect";
+import type { PlatformError } from "effect";
 import { Effect, Option } from "effect";
+import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
 
 /**
@@ -83,7 +84,7 @@ export class Publications {
 	static readonly lint: (
 		bundle: LoadedBundle,
 		config: OkfitConfig,
-	) => Effect.Effect<ReadonlyArray<Diagnostic>, PlatformError.PlatformError, Crypto.Crypto> = Effect.fn(
+	) => Effect.Effect<ReadonlyArray<Diagnostic>, PlatformError.PlatformError, Digest.Digest> = Effect.fn(
 		"Publications.lint",
 	)(function* (bundle: LoadedBundle, config: OkfitConfig) {
 		const driftSeverity = OkfitConfig.severityFor(config, "publication-drift");

@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { Effect, FileSystem, Option, Path } from "effect";
+import { SecureRandom } from "effect/crypto";
 
 /**
  * S-33: the one atomic write every sync mode shares. Resolves `target`'s
@@ -21,8 +21,8 @@ import { Effect, FileSystem, Option, Path } from "effect";
  * DISCREPANCY from S-33's literal "the temp name carries the pid": `src/`
  * outside `bin.ts`/`commands/*`/`internal/exit.ts`/`internal/tty.ts` never
  * reads the global `process` (K-39, enforced by `__test__/boundaries.test.ts`),
- * and `sync/write.ts` is not on that allowlist. A `randomUUID()` token
- * (`node:crypto`, not `process`) satisfies S-33's actual requirement --
+ * and `sync/write.ts` is not on that allowlist. A random UUIDv4 token
+ * (`SecureRandom.uuidV4Unsafe` from `effect/crypto`, not `process`) satisfies S-33's actual requirement --
  * two concurrent `sync` runs never collide on a fixed temp name -- without
  * widening the process-access boundary for one helper. Recorded here per
  * the Global Constraints' "record the discrepancy" instruction.
@@ -38,7 +38,7 @@ export const writeAtomic = Effect.fn("okfit/sync/writeAtomic")(function* (target
 		.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(target)));
 	const dir = path.dirname(resolved);
 	const base = path.basename(resolved);
-	const tempPath = path.join(dir, `${base}.okfit-sync.${randomUUID()}.tmp`);
+	const tempPath = path.join(dir, `${base}.okfit-sync.${SecureRandom.uuidV4Unsafe()}.tmp`);
 	const originalMode = yield* fs.stat(resolved).pipe(
 		Effect.map((info) => Option.some(info.mode)),
 		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(Option.none<number>())),

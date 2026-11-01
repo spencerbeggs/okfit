@@ -121,7 +121,8 @@ const shadowInfo = (
 
 /**
  * Wrap `underlying` so `readFile`, `readFileString`, `exists`, `stat` and `lstat` answer
- * from `documents` for open paths, and a non-recursive `readDirectory` also lists
+ * from `documents` for open paths, and a non-recursive `readDirectory` (and
+ * `readDirectoryEntries`, Effect 4.1's typed listing, as a `"File"`) also lists
  * open documents whose parent is the directory read (so a brand-new unsaved file
  * is walked). Every other member, and every path not open, is `underlying`'s.
  *
@@ -163,13 +164,35 @@ export const makeOverlayFileSystem = (
 				? underlying.readDirectory(path, options)
 				: Effect.gen(function* () {
 						const names = yield* underlying.readDirectory(path, options);
-						const directory = trimTrailingSeparators(path);
-						const extra = (yield* documents.entries())
-							.map(([key]) => parentAndName(key))
-							.filter(([parent, name]) => parent === directory && !names.includes(name))
-							.map(([, name]) => name);
+						const extra = yield* overlayOnlyNames(documents, path, names);
 						return extra.length === 0 ? names : [...names, ...extra];
 					}),
+		readDirectoryEntries: (path) =>
+			Effect.gen(function* () {
+				const entries = yield* underlying.readDirectoryEntries(path);
+				const extra = yield* overlayOnlyNames(
+					documents,
+					path,
+					entries.map((entry) => entry.name),
+				);
+				return extra.length === 0
+					? entries
+					: [...entries, ...extra.map((name): FileSystem.DirectoryEntry => ({ name, type: "File" }))];
+			}),
+	});
+
+/** Names of open documents directly under `path` that `listed` does not already hold. */
+const overlayOnlyNames = (
+	documents: OverlayDocumentsShape,
+	path: string,
+	listed: ReadonlyArray<string>,
+): Effect.Effect<Array<string>> =>
+	Effect.map(documents.entries(), (entries) => {
+		const directory = trimTrailingSeparators(path);
+		return entries
+			.map(([key]) => parentAndName(key))
+			.filter(([parent, name]) => parent === directory && !listed.includes(name))
+			.map(([, name]) => name);
 	});
 
 /**

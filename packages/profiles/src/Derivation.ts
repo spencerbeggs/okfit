@@ -3,9 +3,11 @@ import { Git } from "@effected/git";
 import { JsoncFingerprint } from "@effected/jsonc";
 import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
-import type { Crypto, PlatformError } from "effect";
+import type { PlatformError } from "effect";
 import { DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
+import type { Digest as CoreDigest } from "effect/crypto";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
+import type { ContentUnhashableError } from "./Canonical.js";
 import { Canonical } from "./Canonical.js";
 import type { GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 import { GitHistory } from "./GitHistory.js";
@@ -162,22 +164,21 @@ const decodeActor = Schema.decodeSync(Actor);
 // lowercase 64-char hex sha256 of the P-6-normalized body, so `core.autocrlf` worktrees and
 // trailing-newline churn hash identically and a frontmatter-only edit never changes the digest.
 // `JsoncFingerprint.hashText` hashes the text's UTF-8 bytes as given (no EOL or BOM handling by
-// default; `body()` has already normalised) through `effect`'s `Crypto` service, so this stays a
-// service requirement rather than a hidden Node dependency; `NodeServices.layer` (provided at
-// every call site through `OkfitPlatform`) supplies the live implementation.
-const digestFull = (text: string): Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =>
-	JsoncFingerprint.hashText(text);
+// default; `body()` has already normalised) through core's `Digest` service (`effect/crypto`), so this
+// stays a service requirement rather than a hidden Node dependency; `OkfitPlatform` supplies
+// `NodeCrypto.layerDigest` at every call site. Core's digest cannot fail with a typed error.
+const digestFull = (text: string): Effect.Effect<string, never, CoreDigest.Digest> => JsoncFingerprint.hashText(text);
 
-const digest = (text: string): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =>
+const digest = (text: string): Effect.Effect<Digest, never, CoreDigest.Digest> =>
 	Effect.map(digestFull(text), (hex) => hex.slice(0, 16) as Digest);
 
-const bodyDigest = (source: string): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =>
-	digest(body(source));
+const bodyDigest = (source: string): Effect.Effect<Digest, never, CoreDigest.Digest> => digest(body(source));
 
 const contentDigest = (
 	raw: Readonly<Record<string, unknown>>,
 	source: string,
-): Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> => digest(Canonical.contentInput(raw, source));
+): Effect.Effect<Digest, ContentUnhashableError, CoreDigest.Digest> =>
+	Effect.flatMap(Effect.fromResult(Canonical.contentInput(raw, source)), digest);
 
 /** The text before the first `@` (the whole value when there is none), or undefined when empty or containing whitespace. */
 const localPartOf = (email: string | undefined): string | undefined => {
@@ -268,21 +269,19 @@ export class Derivation {
 	 *
 	 * @internal
 	 */
-	static readonly digestFull: (text: string) => Effect.Effect<string, PlatformError.PlatformError, Crypto.Crypto> =
-		digestFull;
+	static readonly digestFull: (text: string) => Effect.Effect<string, never, CoreDigest.Digest> = digestFull;
 
 	/**
 	 * The okfit digest of a string: the first 16 lowercase hex characters of its SHA-256, through
-	 * `effect`'s platform-agnostic `Crypto` service.
+	 * core's platform-agnostic `Digest` service.
 	 */
-	static readonly digest: (text: string) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> = digest;
+	static readonly digest: (text: string) => Effect.Effect<Digest, never, CoreDigest.Digest> = digest;
 
 	/**
 	 * 16-hex digest of `Derivation.body(source)` (issue #19). Same normalization as `body`, so a
 	 * frontmatter-only edit or a `core.autocrlf` worktree never changes the digest.
 	 */
-	static readonly bodyDigest: (source: string) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> =
-		bodyDigest;
+	static readonly bodyDigest: (source: string) => Effect.Effect<Digest, never, CoreDigest.Digest> = bodyDigest;
 
 	/**
 	 * The body digest recorded for a generated concept: `integrity.generated.body`, else the legacy
@@ -294,12 +293,13 @@ export class Derivation {
 
 	/**
 	 * 16-hex digest of the canonical content input (`Canonical.contentInput`): authored frontmatter
-	 * plus the normalised body, insensitive to style, key order and CRLF.
+	 * plus the normalised body, insensitive to style, key order and CRLF. Fails with
+	 * {@link ContentUnhashableError} when the content cannot be canonicalized (an unpaired surrogate).
 	 */
 	static readonly contentDigest: (
 		raw: Readonly<Record<string, unknown>>,
 		source: string,
-	) => Effect.Effect<Digest, PlatformError.PlatformError, Crypto.Crypto> = contentDigest;
+	) => Effect.Effect<Digest, ContentUnhashableError, CoreDigest.Digest> = contentDigest;
 
 	/**
 	 * Spec 5.4 rule 2 as P-2 (DERIVE option C). Steps:

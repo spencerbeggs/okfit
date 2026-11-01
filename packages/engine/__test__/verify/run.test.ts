@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { ActorPattern, ConceptId } from "@okfit/core";
@@ -11,6 +10,7 @@ import { DateTime, Effect, Layer } from "effect";
 import { runVerify, runVerifyBatch } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
+import { TestPlatform } from "../utils/platform.js";
 
 describe("runVerifyBatch (issue #138)", () => {
 	const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
@@ -24,7 +24,7 @@ describe("runVerifyBatch (issue #138)", () => {
 	const gitFake = Layer.succeed(Git, {
 		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
-	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	it.effect(
 		"selects every require_verified concept lacking the actor's entry, skips drafts and repeats, writes all",
@@ -44,7 +44,7 @@ describe("runVerifyBatch (issue #138)", () => {
 							),
 						),
 					);
-					yield* bindFixtures(root, ["decisions/c.md"]).pipe(Effect.provide(NodeServices.layer));
+					yield* bindFixtures(root, ["decisions/c.md"]).pipe(Effect.provide(TestPlatform));
 					yield* Effect.promise(() => writeFile(join(root, "module.md"), "---\ntype: Module\ntitle: M\n---\n\n# M\n"));
 					const result = yield* runVerifyBatch({
 						bundleRoot: root,
@@ -192,7 +192,7 @@ describe("runVerify status (issue #185)", () => {
 	const gitFake = Layer.succeed(Git, {
 		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
-	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	/** Write `source` as decisions/a.md, run `use`, always clean up. */
 	const withConcept = <A, E>(source: string, use: (root: string, file: string) => Effect.Effect<A, E>) =>
@@ -299,6 +299,24 @@ describe("runVerify status (issue #185)", () => {
 		);
 	});
 
+	it.effect(
+		"a frontmatter value with an unpaired surrogate is refused, real and dry run, file byte-identical (okfit#327)",
+		() => {
+			const before = '---\ntype: Decision\ntitle: "x\\uD800"\n---\n';
+			return withConcept(before, (root, file) =>
+				Effect.gen(function* () {
+					for (const dryRun of [false, true]) {
+						const error = yield* run(root, "stable", dryRun).pipe(Effect.flip);
+						assert.strictEqual(error._tag, "VerifyContentUnhashableError");
+						if (error._tag === "VerifyContentUnhashableError") assert.deepStrictEqual(error.path, ["title"]);
+						assert.include(error.message, "title cannot be hashed");
+						assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), before);
+					}
+				}),
+			);
+		},
+	);
+
 	it.effect("CRLF + BOM: the inserted status line ends CRLF and no bare LF appears", () =>
 		withConcept("\uFEFF---\r\ntype: Decision\r\ntitle: T\r\n---\r\n", (root, file) =>
 			Effect.gen(function* () {
@@ -335,7 +353,7 @@ describe("runVerify binds integrity.verified", () => {
 	const gitFake = Layer.succeed(Git, {
 		configGet: identityConfigGet,
 	} as unknown as Git["Service"]);
-	const platform = Layer.mergeAll(gitFake, NodeServices.layer);
+	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	const withConcept = <A, E, R>(source: string, use: (root: string, file: string) => Effect.Effect<A, E, R>) =>
 		Effect.gen(function* () {
@@ -367,7 +385,7 @@ describe("runVerify binds integrity.verified", () => {
 			const concept = bundle.concepts.get("decisions/a" as ConceptId);
 			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
 			return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, now);
-		}).pipe(Effect.provide(NodeServices.layer));
+		}).pipe(Effect.provide(TestPlatform));
 
 	const SRC = "---\ntype: Decision\ntitle: T\n---\n\n# T\n\nBody.\n";
 
@@ -385,11 +403,11 @@ describe("runVerify binds integrity.verified", () => {
 				const signal = yield* signalOf(root, AT);
 				assert.strictEqual(signal.integrity, "current");
 				// the binding digest is the digest of the file AFTER the edit, not just before it
-				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(NodeServices.layer));
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
 				const written = bundle.concepts.get("decisions/a" as ConceptId);
 				assert.ok(written !== undefined);
 				const recomputed = yield* Derivation.contentDigest(written.frontmatter.raw, written.document.source).pipe(
-					Effect.provide(NodeServices.layer),
+					Effect.provide(TestPlatform),
 				);
 				assert.strictEqual(recomputed, result.content);
 			}),

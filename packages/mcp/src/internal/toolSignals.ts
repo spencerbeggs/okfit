@@ -3,8 +3,9 @@ import { ToolRefusal } from "@effected/mcp";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";
-import type { Crypto, DateTime } from "effect";
+import type { DateTime } from "effect";
 import { Effect } from "effect";
+import type { Digest } from "effect/crypto";
 
 /**
  * `Trust.signals` with its platform failure (a concept file unreadable while
@@ -16,7 +17,7 @@ export const toolSignals = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
 	now: DateTime.Utc,
-): Effect.Effect<Map<string, ConceptSignal>, ToolRefusal, Crypto.Crypto> =>
+): Effect.Effect<Map<string, ConceptSignal>, ToolRefusal, Digest.Digest> =>
 	Trust.signals(bundle, config, now).pipe(
 		Effect.mapError((cause) =>
 			ToolRefusal.refuse(ErrorText.describe(cause), {

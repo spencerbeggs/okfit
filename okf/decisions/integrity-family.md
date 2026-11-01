@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-10-31T20:53:25Z
 status: stable
 supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,14 +15,16 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 integrity:
   generated:
-    body: 565cf7625b3b1fb7
+    body: 741048e34a798597
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: 4d20e30f9a1f1b1f
+    at: 2026-10-31T21:31:20Z
+    content: 00a6aed983d15763
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-10-31T21:31:20Z
 ---
 
 # Every okfit digest lives in one integrity family, outside the spec's families
@@ -48,7 +50,7 @@ pure spec shape; OKF v0.2 section 4.1 allows producers to add keys and asks
 consumers to preserve them, so the family is conformant.
 
 A digest is the first 16 lowercase hex characters (64 bits) of SHA-256,
-computed through effect's `Crypto` service. Core holds the schema and never
+computed through core's `Digest` service (`effect/crypto`). Core holds the schema and never
 hashes. The old keys, `generated.body_sha256` and Publication
 `renders[].body_sha256`, are legacy: `okfit sync` migrates them to
 `integrity.generated.body` and `renders[].body` and reports them as

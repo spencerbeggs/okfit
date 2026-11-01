@@ -1,13 +1,15 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Git } from "@effected/git";
 import type { AppDirs as AppDirsType, Xdg as XdgType } from "@effected/xdg";
 import { AppDirs, Xdg, XdgPaths } from "@effected/xdg";
 import { GitHistory } from "@okfit/profiles";
-import type { Crypto, FileSystem, Path } from "effect";
+import type { FileSystem, Path } from "effect";
 import { Effect, Layer, Option } from "effect";
+import type { Digest } from "effect/crypto";
 import type { SessionRegistryServices } from "../../src/session/registry.js";
 
 /** Layers memoize by reference; bind these once per file rather than reconstructing them per call. */
@@ -47,7 +49,7 @@ const gitConfigGetDiesTest = Git.layerTest({
 });
 
 /** Fresh, per-call temp XDG directories, mirroring `packages/engine/__test__/config/resolve.test.ts:19-34`. */
-const testEnv = (): Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.Path | Crypto.Crypto> => {
+const testEnv = (): Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.Path | Digest.Digest> => {
 	const home = mkdtempSync(join(tmpdir(), "okfit-lsp-xdg-"));
 	const testXdg: Layer.Layer<XdgType> = Xdg.layerFrom(
 		XdgPaths.make({
@@ -63,7 +65,7 @@ const testEnv = (): Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | 
 
 	return AppDirs.layer({ namespace: "okfit" }).pipe(
 		Layer.provideMerge(testXdg),
-		Layer.provideMerge(NodeServices.layer),
+		Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layerDigest)),
 	);
 };
 

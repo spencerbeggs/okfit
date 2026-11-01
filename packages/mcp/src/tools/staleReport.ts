@@ -1,7 +1,6 @@
-import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { signalFor, toTrustDrift } from "@okfit/engine";
-import { Crypto, DateTime, Effect, FileSystem, Path } from "effect";
+import { DateTime, Effect } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
@@ -15,11 +14,10 @@ const DESCRIPTION =
 	"Lists every stale or drifted concept. items: stale_after passed, each with its summary, the date and whole days past. drifted: human-verified concepts whose content changed since (or was never bound), with the reason and last editor. Uses the current time unless now is given (ISO-8601 with an explicit offset).";
 
 /**
- * `dependencies` mirrors the other tools' (Task B1's Deviation 1):
- * `loadToolContext` needs the same platform services, and without a
- * `dependencies` declaration `Tool.HandlerServices` infers `never`, failing
- * the handler record against `HandlersFrom` when passed to
- * `OkfitToolkit.toLayer`.
+ * No `dependencies`: since Effect 4.1 a declared dependency becomes a
+ * per-request `McpRequest<"Requires", S>` requirement. The platform services
+ * the handler needs are captured once when `ToolsLayer` builds instead
+ * (`toolkit.ts`), so the handler's own requirement channel is `never`.
  *
  * @public
  */
@@ -28,7 +26,6 @@ export const staleReport = Tool.make("stale_report", {
 	parameters: Params,
 	success: StaleReportSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Stale concepts")
 	.annotate(Tool.Readonly, true)

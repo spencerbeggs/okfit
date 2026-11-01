@@ -3,8 +3,9 @@ import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } fro
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
 import type { ConceptSignal, GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
 import { Provenance, Publications, Trust } from "@okfit/profiles";
-import type { Crypto, DateTime, FileSystem, Path, PlatformError } from "effect";
+import type { DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
+import type { Digest } from "effect/crypto";
 import { lintResources } from "./resources.js";
 import { lintSurfaces } from "./surfaces.js";
 
@@ -97,7 +98,7 @@ export const run = (
 ): Effect.Effect<
 	RunResult,
 	BundleLoadError | GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
-	FileSystem.FileSystem | Path.Path | Git | GitHistory | Crypto.Crypto
+	FileSystem.FileSystem | Path.Path | Git | GitHistory | Digest.Digest
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.root });

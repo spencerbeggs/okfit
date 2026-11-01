@@ -1,8 +1,7 @@
 import { ToolOutcome } from "@effected/mcp";
-import { AppDirs, Xdg } from "@effected/xdg";
 import type { ConceptNeighbor } from "@okfit/engine";
 import { ConceptQuery, signalFor } from "@okfit/engine";
-import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { conceptNotFound } from "../internal/conceptNotFound.js";
@@ -15,9 +14,10 @@ const DESCRIPTION =
 	"Returns the graph neighbours of one concept: everything it links to (outgoing) and everything that links to it (incoming), each with the node kind and, for a concept target, its full summary. Use it after get_concept to walk the bundle's link graph one hop at a time without loading every concept.";
 
 /**
- * `dependencies` mirrors the other tools' (Task B1's Deviation 1): without it
- * `Tool.HandlerServices` infers `never`, failing the handler record against
- * `HandlersFrom` when passed to `OkfitToolkit.toLayer`.
+ * No `dependencies`: since Effect 4.1 a declared dependency becomes a
+ * per-request `McpRequest<"Requires", S>` requirement. The platform services
+ * the handler needs are captured once when `ToolsLayer` builds instead
+ * (`toolkit.ts`), so the handler's own requirement channel is `never`.
  *
  * @public
  */
@@ -26,7 +26,6 @@ export const conceptNeighbors = Tool.make("concept_neighbors", {
 	parameters: Schema.Struct({ id: Schema.String }),
 	success: ConceptNeighborsSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Concept graph neighbors")
 	.annotate(Tool.Readonly, true)

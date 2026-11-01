@@ -1,7 +1,6 @@
 import { symlinkSync } from "node:fs";
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { writeTwoDecisions } from "./utils/concepts.js";
@@ -9,9 +8,11 @@ import { conceptDigest } from "./utils/digest.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
+import type { TestServices } from "./utils/platform.js";
+import { TestPlatform } from "./utils/platform.js";
 
-const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
-	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+const withServices = <A, E>(effect: Effect.Effect<A, E, TestServices>): Promise<A> =>
+	Effect.runPromise(effect.pipe(Effect.provide(TestPlatform)));
 
 const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> => ({
 	...env,

@@ -727,7 +727,7 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
   it to the seam first.
 - `now` is read once per revalidate at the server boundary (`DateTime.now`)
   and passed into the engine; nothing in the engine reads a `Clock`.
-- Effect v4 only, at the version in `catalog:effect`. Consult
+- Effect v4 only, at the version in `catalog:effected`. Consult
   `.repos/effect/packages/effect/src` for what v4 exports; `node_modules`
   wins on disagreement.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type

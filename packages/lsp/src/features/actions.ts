@@ -37,11 +37,12 @@
  *
  * @packageDocumentation
  */
+
 import type { Git } from "@effected/git";
 import { LspUri } from "@effected/lsp";
 import { Status } from "@okfit/core";
-import type { Crypto } from "effect";
 import { DateTime, Effect, Option, Result } from "effect";
+import type { Digest } from "effect/crypto";
 import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
 import type { CodeAction, CodeActionParams, Position, Range } from "../protocol/types.js";
@@ -101,9 +102,9 @@ export const registerCodeActions = (
 	transport: LspTransportShape,
 	registry: SessionRegistryShape,
 	documents: OpenDocuments,
-): Effect.Effect<void, never, Git | Crypto.Crypto> =>
+): Effect.Effect<void, never, Git | Digest.Digest> =>
 	Effect.gen(function* () {
-		const context = yield* Effect.context<Git | Crypto.Crypto>();
+		const context = yield* Effect.context<Git | Digest.Digest>();
 		// Keyed by handle identity: a rebuilt session is a new handle, so its actor is looked up afresh,
 		// and a disposed handle's entry is collected with it.
 		const actors = new WeakMap<SessionHandle, string>();

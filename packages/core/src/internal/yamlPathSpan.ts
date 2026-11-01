@@ -1,7 +1,7 @@
 import type { Frontmatter } from "@effected/markdown";
 import type { YamlParseError, YamlPath } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
-import { Effect, Option, Result } from "effect";
+import { Option, Result } from "effect";
 import { toFileOffset } from "./position.js";
 
 /**
@@ -34,7 +34,7 @@ const parsedCache = new WeakMap<Frontmatter, Result.Result<YamlDocument, YamlPar
 const parsedYamlOf = (node: Frontmatter): Result.Result<YamlDocument, YamlParseError> => {
 	const cached = parsedCache.get(node);
 	if (cached !== undefined) return cached;
-	const parsed = Effect.runSync(Effect.result(YamlDocument.parse(node.value)));
+	const parsed = YamlDocument.parseResult(node.value);
 	parsedCache.set(node, parsed);
 	return parsed;
 };
@@ -54,11 +54,23 @@ export const frontmatterPathSpan = (
 	text: string,
 	node: Frontmatter,
 	path: ReadonlyArray<string | number>,
-): OffsetSpan => {
-	if (path.length === 0) return blockSpan(node);
+): OffsetSpan => (path.length === 0 ? blockSpan(node) : (findFrontmatterPathSpan(text, node, path) ?? blockSpan(node)));
+
+/**
+ * The file span of the YAML node at `path`, or `undefined` when there is none (or the re-parse is
+ * fatal): {@link frontmatterPathSpan} without its whole-block fallback, for a caller that would
+ * rather carry no range than a wrong one. Same quoting rule: a double-quoted scalar's span covers
+ * its quotes.
+ *
+ * @internal
+ */
+export const findFrontmatterPathSpan = (
+	text: string,
+	node: Frontmatter,
+	path: ReadonlyArray<string | number>,
+): OffsetSpan | undefined => {
 	const parsed = parsedYamlOf(node);
-	if (Result.isFailure(parsed) || parsed.success.contents === null) return blockSpan(node);
+	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
 	const hit = parsed.success.contents.find(path as YamlPath);
-	if (Option.isNone(hit)) return blockSpan(node);
-	return { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+	return Option.isNone(hit) ? undefined : { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
 };

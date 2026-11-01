@@ -2,8 +2,9 @@ import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LinkGraph, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Graph } from "@okfit/core";
 import type { ConceptSignal, GitHistory, GitHistoryError, Profile } from "@okfit/profiles";
-import type { Crypto, DateTime, PlatformError } from "effect";
+import type { DateTime, PlatformError } from "effect";
 import { Context, Effect, FileSystem, Option, Path, Ref, Semaphore } from "effect";
+import type { Digest } from "effect/crypto";
 import { PROJECT_CONFIG_NAMES } from "../init/scaffold.js";
 import { OverlayDocuments, makeOverlayFileSystem } from "../overlay/layer.js";
 import type { RenderedDiagnostic } from "../render/sort.js";
@@ -73,7 +74,7 @@ export interface WatchedFilesOutcome {
  *
  * @public
  */
-export type BundleSessionServices = FileSystem.FileSystem | Path.Path | Git | GitHistory | Crypto.Crypto;
+export type BundleSessionServices = FileSystem.FileSystem | Path.Path | Git | GitHistory | Digest.Digest;
 
 /** @public */
 export interface BundleSessionShape {

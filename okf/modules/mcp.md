@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-10-31T20:48:16Z
 integrity:
   generated:
-    body: 2619dd6576cc86d9
+    body: b5ababba94a4f4a4
 ---
 
 # MCP
@@ -28,7 +28,7 @@ resolved profile's `docs_presets`. For the
 log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
 "writes nothing, ever" promise stands, since a read is not a write. For a
 migrated concept the same lint now runs as pure content comparison
-through `Crypto.Crypto`, also part of `validate_bundle`'s dependencies,
+through `Digest.Digest`, also part of `validate_bundle`'s platform services,
 with no git call at all — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate_bundle` also reports
 the `verified-drift` lint, since it runs the same engine validation; the
@@ -70,12 +70,17 @@ Layout, `packages/mcp/src`: `bin.ts` (shebang entry point), `main.ts`
 names the engine separately — see [The engine version, not the producer
 version, is what a report is compared
 on](../decisions/comparable-version.md)),
-`server.ts` (`ServerLayer`: `McpToolkit.layer` and resource layers
-over `McpStdio.layer`, its three-adapter `protocols` list and the exported
+`server.ts` (`ServerLayer`: the toolkit and resource layers passed as
+`McpStdio.layer({ registrations })`, so they build before the first
+request with their build logs on stderr; its three-adapter `protocols` list and the exported
 `SERVER_INSTRUCTIONS` string -- see [The MCP server is Effect-native and
 lists the stateless 2026-07-28 adapter
 first](../decisions/mcp-protocol-versions.md)), `toolkit.ts` (`OkfitToolkit`, the six tools plus
-handler wiring), `errors.ts` (`McpToolError`, an alias of
+handler wiring; tools declare no `dependencies`, because in Effect 4.1 a
+declared dependency becomes a per-request `McpRequest` requirement --
+`ToolsLayer` instead captures the platform services (the exported
+`ToolServices`: FileSystem, Path, AppDirs, Xdg, Digest, Git, GitHistory)
+once at build and provides them on each call, as `IndexResource` does), `errors.ts` (`McpToolError`, an alias of
 `@effected/mcp`'s `ToolRefusal`, plus `@effected/engine`'s `Remediation`),
 `schema/` (per-tool parameter and success
 schemas), `tools/` (one file per tool), `resources/` (the index and

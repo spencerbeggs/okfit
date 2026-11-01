@@ -1,29 +1,31 @@
 import { assert, describe, it } from "@effect/vitest";
-import { indexEntry } from "../src/internal/templates.js";
+import { indexDocument } from "../src/internal/templates.js";
 
-describe("internal/templates indexEntry", () => {
-	it("backslash-escapes markdown-active characters in the description", () => {
+describe("internal/templates indexDocument", () => {
+	it("renders H1 sections of tight `*` lists, entries with and without a description", () => {
 		assert.strictEqual(
-			indexEntry({ title: "Point resource", target: "pkg/index.md", description: "Point resource at <pkg>/src" }),
-			"* [Point resource](pkg/index.md) - Point resource at \\<pkg\\>/src",
-		);
-		assert.strictEqual(
-			indexEntry({ title: "Math", target: "math.md", description: "a * b" }),
-			"* [Math](math.md) - a \\* b",
+			indexDocument([
+				{ heading: "Module", entries: [{ title: "Core", target: "core.md", description: "The core package." }] },
+				{ heading: "Subdirectories", entries: [{ title: "decisions", target: "decisions/index.md" }] },
+			]),
+			"# Module\n\n* [Core](core.md) - The core package.\n\n# Subdirectories\n\n* [decisions](decisions/index.md)\n",
 		);
 	});
 
-	it("backslash-escapes markdown-active characters in the title", () => {
-		assert.strictEqual(
-			indexEntry({ title: "<Weird> *Title*", target: "weird.md" }),
-			"* [\\<Weird\\> \\*Title\\*](weird.md)",
-		);
+	it("opens the root index with a frontmatter block carrying only okf_version", () => {
+		const text = indexDocument([{ heading: "Module", entries: [{ title: "Core", target: "core.md" }] }], "0.2");
+		assert.match(text, /^---\nokf_version: ['"]0\.2['"]\n---\n\n# Module\n/);
 	});
 
-	it("leaves plain text untouched", () => {
-		assert.strictEqual(
-			indexEntry({ title: "Core", target: "core.md", description: "The core package." }),
-			"* [Core](core.md) - The core package.",
-		);
+	it("escapes markdown-active text instead of letting it render as syntax", () => {
+		const text = indexDocument([
+			{ heading: "Metric", entries: [{ title: "<Weird> *Title*", target: "weird.md", description: "a * b" }] },
+		]);
+		assert.notInclude(text, "[<Weird> *Title*]");
+		assert.notInclude(text, " - a * b");
+	});
+
+	it("renders nothing for no sections and no okf_version", () => {
+		assert.strictEqual(indexDocument([]), "");
 	});
 });

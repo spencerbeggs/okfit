@@ -40,7 +40,7 @@ import { loadToolContext } from "../internal/toolContext.js";
  */
 export const ConceptResources = (
 	projectRoot: string,
-): Layer.Layer<never, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg> =>
+): Layer.Layer<never, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg | McpServer.McpServer> =>
 	Layer.unwrap(
 		Effect.gen(function* () {
 			const ctx = yield* loadToolContext(projectRoot);
@@ -64,7 +64,7 @@ export const ConceptResources = (
 			});
 			return resourceLayers.reduce(
 				(acc, layer) => acc.pipe(Layer.merge(layer)),
-				Layer.empty as Layer.Layer<never, never, never>,
+				Layer.empty as Layer.Layer<never, never, McpServer.McpServer>,
 			);
 		}).pipe(
 			Effect.tapError((error) =>

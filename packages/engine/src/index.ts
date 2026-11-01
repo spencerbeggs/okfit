@@ -30,6 +30,7 @@ export {
 	TargetFailure,
 	TargetResolutionError,
 	VerifyConceptNotFoundError,
+	VerifyContentUnhashableError,
 	VerifyNothingToRevokeError,
 	VerifySelectionError,
 	VerifyUnsupportedFrontmatterError,

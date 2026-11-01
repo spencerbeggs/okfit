@@ -105,7 +105,7 @@ describe("Derive", () => {
 			const modules = all.filter((c) => c.path.startsWith("modules/"));
 			assert.strictEqual(
 				Derive.renderIndex("modules", modules, { okfVersion: "0.2", subdirectories: ["z", "a"] }),
-				'---\nokf_version: "0.2"\n---\n\n# Module\n\n* [Core](core.md) - The core package.\n* [Web](web.md) - The website, served from packages/web.\n\n# Subdirectories\n\n* [a](a/index.md)\n* [z](z/index.md)\n',
+				"---\nokf_version: '0.2'\n---\n\n# Module\n\n* [Core](core.md) - The core package.\n* [Web](web.md) - The website, served from packages/web.\n\n# Subdirectories\n\n* [a](a/index.md)\n* [z](z/index.md)\n",
 			);
 			assert.strictEqual(Derive.renderIndex("modules", []), "");
 		}),
@@ -125,7 +125,7 @@ describe("Derive", () => {
 			});
 			assert.strictEqual(
 				Derive.renderIndex("", [concept]),
-				"# Metric\n\n* [\\<Weird\\> \\*Title\\*](weird.md) - Point resource at \\<pkg\\>/src\n",
+				"# Metric\n\n* [\\<Weird> \\*Title\\*](weird.md) - Point resource at \\<pkg>/src\n",
 			);
 		}),
 	);

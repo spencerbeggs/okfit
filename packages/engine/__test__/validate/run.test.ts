@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { NodeCrypto, NodeFileSystem, NodePath, NodeServices } from "@effect/platform-node";
+import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import { ActorPattern, BundleRootNotFoundError, OkfitConfig } from "@okfit/core";
@@ -9,6 +9,7 @@ import { GitHistory, PathHistoryEntry, Profiles } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option, Schema } from "effect";
 import { Now, run } from "../../src/validate/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { TestPlatform } from "../utils/platform.js";
 
 // K-44: no CLI-owned fixtures. Profiles' clean bundle is read IN PLACE, by
 // absolute path; this suite only loads and validates, it never writes.
@@ -16,11 +17,11 @@ const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profil
 /**
  * Real disk, read-only static fixtures (precedent: PROFILES/__test__/SoftwareProject.check.test.ts).
  * `run` now also requires `Git | GitHistory` (contract §10.1, S-16) for its
- * `Provenance.lint` call — real layers over `NodeServices.layer`'s
+ * `Provenance.lint` call — real layers over `TestPlatform`'s
  * `ChildProcessSpawner`, since this fixture tree lives inside the real
  * okfit git repository and the drift lint genuinely walks it.
  */
-const platform = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer));
+const platform = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(TestPlatform));
 const now = DateTime.makeUnsafe("2026-09-05T00:00:00Z");
 const profile = Profiles.softwareProject;
 const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, profile.config);
@@ -131,7 +132,7 @@ const scriptedHistory: Layer.Layer<GitHistory> = GitHistory.layerTest({
 	],
 });
 
-const nodePlatform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer, NodeCrypto.layer);
+const nodePlatform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer, NodeCrypto.layerDigest);
 
 describe("run — generated-at-drift lint (scripted history)", () => {
 	it.effect("appends one generated-at-drift diagnostic when the recorded at differs from the derived instant", () =>

@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-27T16:51:56Z
+  at: 2026-10-31T20:53:25Z
 status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
@@ -29,13 +29,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-27T16:38:31Z
+  - by: human:spencer
+    at: 2026-10-31T21:31:20Z
 integrity:
   generated:
-    body: 52b7407cf0156e41
+    body: f4fc8df4af3adbd6
   verified:
     by: human:spencer
-    at: 2026-10-27T16:38:31Z
-    content: b44d665bbdec4aa0
+    at: 2026-10-31T21:31:20Z
+    content: 99943417685c9b80
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
@@ -57,7 +59,7 @@ settled for the older era.
 ## Decision
 
 `@okfit/mcp` remains built on `effect/ai/McpServer` at the
-`catalog:effect` pin; nothing about the SDK comparison changed. Every tool
+`catalog:effected` pin; nothing about the SDK comparison changed. Every tool
 and resource still obeys the era-agnostic constraints the superseded
 Decision stated, carried forward verbatim: no `initialize`-time state
 beyond what Effect keeps internally; no server-initiated requests; no

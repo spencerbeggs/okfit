@@ -1,10 +1,11 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Bundle } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
 import type { Scope } from "effect";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { acquireTempDir } from "./tempDir.js";
 
 /**
@@ -21,7 +22,7 @@ export const loadedContentDigest = (text: string): Effect.Effect<string, never, 
 		const concept = [...bundle.concepts.values()][0];
 		if (concept === undefined) return yield* Effect.die(new Error("digest oracle: no concept loaded"));
 		return yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
-	}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+	}).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layerDigest)), Effect.orDie);
 
 /**
  * `text` with an `integrity.verified` binding of `by` at `at` appended before

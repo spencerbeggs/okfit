@@ -1,16 +1,17 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
 import type { Sandbox } from "./utils/fixtures.js";
 import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
+import type { TestServices } from "./utils/platform.js";
+import { TestPlatform } from "./utils/platform.js";
 import { commit, initRepo, stage, stagedContents, stagedStatus } from "./utils/repo.js";
 
-const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
-	Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+const withServices = <A, E>(effect: Effect.Effect<A, E, TestServices>): Promise<A> =>
+	Effect.runPromise(effect.pipe(Effect.provide(TestPlatform)));
 
 /** `okfit sync`'s own digest, computed the identical way, so an expectation never hand-rolls a hash. */
 const digestOf = (contents: string): Promise<string> => withServices(Derivation.bodyDigest(contents));

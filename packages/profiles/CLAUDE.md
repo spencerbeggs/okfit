@@ -20,8 +20,10 @@ src/
                          parsing, and the stderr classification.
   BodyProvenance.ts   -- BodyCommitted | BodyUncommitted tagged union
   Derivation.ts       -- Writer, GitIdentity, the four actor errors (HumanActorUnresolvedError, AgentActorUnconfiguredError, ActorConfigInvalidError, HumanActorNotAllowedError), Derivation facade: body, digest, bodyDigest, contentDigest, generatedAt, humanActorId, generatedBy, verifier, staleAfter
-                         bodyDigest/contentDigest are 16-hex SHA-256 prefixes via effect's Crypto service (issue #19); core holds the field, never computes it
-  Canonical.ts        -- Canonical facade: json, contentInput, EXCLUDED_KEYS (the exact string a content digest hashes)
+                         bodyDigest/contentDigest are 16-hex SHA-256 prefixes via core's `Digest` service (`effect/crypto`) (issue #19); core holds the field, never computes it
+  Canonical.ts        -- Canonical facade: contentInput (a Result: the exact string a content digest hashes, via
+                         @effected/jsonc's RFC 8785 canonicalization), EXCLUDED_KEYS; ContentUnhashableError (an
+                         unpaired surrogate is refused, never hashed; okfit#327)
   internal/body.ts    -- the normalised-body helper shared by Derivation and Canonical (breaks the import cycle)
   Provenance.ts       -- Provenance facade: Provenance.lint(bundle, config, options?), the generated-at-drift lint (S-8); not a Profile member;
                          ranges at generated.at's own value (phase 4 decision 2), range-less only when the concept's document has no frontmatter
@@ -32,7 +34,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 
 ## Rules
 
-- Effect v4 only, at the version in `catalog:effect`. `@okfit/core`, `@effected/git`, `@effected/glob`, `@effected/jsonc`, `@effected/markdown` and `@effected/walker` are peers (Convention A; digests hash through `JsoncFingerprint.hashText`, and glob is walker's own peer); nothing under `src/` imports `@effect/platform-node` or `node:child_process` directly — `GitHistory.layer` goes through `effect/process`.
+- Effect v4 only, at the version in `catalog:effected`. `@okfit/core`, `@effected/git`, `@effected/glob`, `@effected/jsonc`, `@effected/markdown` and `@effected/walker` are peers (Convention A; digests hash through `JsoncFingerprint.hashText`, and glob is walker's own peer); nothing under `src/` imports `@effect/platform-node` or `node:child_process` directly — `GitHistory.layer` goes through `effect/process`.
 - `SoftwareProject.ts` is never re-exported from `src/index.ts`; `softwareProject` is reachable only as `Profiles.softwareProject`. Nothing under `internal/` crosses the barrel.
 - `Derivation` is package-global, not per profile. It never rewrites `generated.by` on re-derivation and never substitutes `now` for an uncommitted body — both are the caller's decision.
 - No `process.cwd()` and no environment reads anywhere in `src/`: `writer` and `cwd` are explicit arguments (P-16).

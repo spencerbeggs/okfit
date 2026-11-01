@@ -47,6 +47,9 @@ ${GENERATED}
 # Draft Concept
 `;
 
+/** A stable concept whose title holds an unpaired surrogate (a YAML escape): its content cannot be hashed (okfit#327). */
+const UNHASHABLE_SOURCE = STABLE_SOURCE.replace("title: Stable Concept", 'title: "x\\uD800"');
+
 const DEPRECATED_SOURCE = DRAFT_SOURCE.replace("status: draft", "status: deprecated").replaceAll("Draft", "Deprecated");
 
 const executeCommand = <R>(client: Parameters<typeof request>[0], command: string, args: ReadonlyArray<unknown>) =>
@@ -145,6 +148,25 @@ describe("registerCommands", () => {
 			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.markVerified", [uri]);
 
 			assert.include(failure.message, "deprecated");
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("okfit.lsp.markVerified on content that cannot be hashed fails naming the field, sending no applyEdit", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* Effect.promise(() =>
+				writeFile(join(h.root, "okf", "modules", "unhashable.md"), UNHASHABLE_SOURCE, "utf8"),
+			);
+			yield* h.initialize;
+			yield* h.open("okf/modules/unhashable.md");
+			yield* h.nextPublish();
+
+			const uri = h.uriOf("okf/modules/unhashable.md");
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.markVerified", [uri]);
+
+			assert.strictEqual(failure.code, -32803);
+			assert.include(failure.message, "title cannot be hashed");
+			assert.strictEqual(h.serverRequests.length, 0);
 		}).pipe(Effect.scoped),
 	);
 

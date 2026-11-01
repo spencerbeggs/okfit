@@ -1,5 +1,17 @@
 # Log
 
+## 2026-10-31
+
+* Updated Effect v4 pinned to catalog:effected
+* Updated Engine
+* Updated LSP
+* Updated MCP
+* Updated Profiles
+* Updated Workspace
+* Updated scratchpad
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+
 ## 2026-10-28
 
 * Updated Engine

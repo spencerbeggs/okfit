@@ -5,8 +5,9 @@ import { MemoryFileSystem } from "@effected/memfs";
 import type { LoadedBundle } from "@okfit/core";
 import { ConceptId, OkfitConfig } from "@okfit/core";
 import { GitHistory } from "@okfit/profiles";
-import type { Crypto, FileSystem } from "effect";
+import type { FileSystem } from "effect";
 import { Layer, Option, Path } from "effect";
+import type { Digest } from "effect/crypto";
 import type { OverlayDocumentsShape } from "../../src/overlay/layer.js";
 import { OverlayDocuments, layerOverlayFileSystem } from "../../src/overlay/layer.js";
 
@@ -58,7 +59,7 @@ export const sessionConfig = (lint: OkfitConfig["lint"] = {}): OkfitConfig => ({
 });
 
 /**
- * memfs, posix `Path`, real `Crypto`, and `Git`/`GitHistory` doubles that die on
+ * memfs, posix `Path`, real `Digest`, and `Git`/`GitHistory` doubles that die on
  * any call (their "die by default" posture, packages/engine/__test__/validate/run.test.ts)
  * so a test that reaches the git tier fails loudly. `faults`, when given, is
  * registered on the memfs volume (delegate-by-default `layerWith(seed, { faults })`).
@@ -66,11 +67,11 @@ export const sessionConfig = (lint: OkfitConfig["lint"] = {}): OkfitConfig => ({
 export const sessionPlatform = (
 	seed: MemoryFileSystemSeed,
 	faults?: MemoryFileSystemFaults,
-): Layer.Layer<FileSystem.FileSystem | Path.Path | Crypto.Crypto | Git | GitHistory> =>
+): Layer.Layer<FileSystem.FileSystem | Path.Path | Digest.Digest | Git | GitHistory> =>
 	Layer.mergeAll(
 		MemoryFileSystem.layerWith(seed, { faults }),
 		Path.layer,
-		NodeCrypto.layer,
+		NodeCrypto.layerDigest,
 		Git.layerTest({}),
 		GitHistory.layerTest({}),
 	);

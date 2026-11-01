@@ -2,6 +2,7 @@ import type { MarkdownDocument } from "@effected/markdown";
 import { Option } from "effect";
 import type { Concept } from "../Concept.js";
 import { basename, dirname, join, normalize } from "./posixPath.js";
+import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
 
 /** Frontmatter fields whose value is a bundle path (D-23). @internal */
 export type PathFieldName = "resource" | "sources.resource" | "computation" | "executor.resource" | "attester.resource";
@@ -13,6 +14,8 @@ export type ResolvedKind = "concept" | "file" | "missing";
 export interface PathFieldRef {
 	readonly field: PathFieldName;
 	readonly raw: string;
+	/** Where the value sits in the frontmatter YAML, for ranging the edge at its own field (okfit#353). */
+	readonly path: ReadonlyArray<string | number>;
 }
 
 /** Every walked file (posix, bundle-relative, with extension) and every loaded concept id. @internal */
@@ -135,23 +138,33 @@ export const resolvePathField = (
 /** The path-valued fields present on a concept, in frontmatter order. @internal */
 export const pathFieldsOf = (concept: Concept): ReadonlyArray<PathFieldRef> => {
 	const out: Array<PathFieldRef> = [];
-	if (concept.resource !== undefined) out.push({ field: "resource", raw: concept.resource });
-	for (const source of concept.sources ?? []) out.push({ field: "sources.resource", raw: source.resource });
+	if (concept.resource !== undefined) out.push({ field: "resource", raw: concept.resource, path: ["resource"] });
+	// `sources` decodes all or nothing, so a decoded entry's index is its index in the YAML sequence.
+	for (const [index, source] of (concept.sources ?? []).entries()) {
+		out.push({ field: "sources.resource", raw: source.resource, path: ["sources", index, "resource"] });
+	}
+	// The Attested Computation keys sit at the frontmatter top level (spec section 10).
 	const attested = concept.attested;
-	if (attested?.computation !== undefined) out.push({ field: "computation", raw: attested.computation });
-	if (attested?.executor !== undefined) out.push({ field: "executor.resource", raw: attested.executor.resource });
-	if (attested?.attester !== undefined) out.push({ field: "attester.resource", raw: attested.attester.resource });
+	if (attested?.computation !== undefined) {
+		out.push({ field: "computation", raw: attested.computation, path: ["computation"] });
+	}
+	if (attested?.executor !== undefined) {
+		out.push({ field: "executor.resource", raw: attested.executor.resource, path: ["executor", "resource"] });
+	}
+	if (attested?.attester !== undefined) {
+		out.push({ field: "attester.resource", raw: attested.attester.resource, path: ["attester", "resource"] });
+	}
 	return out;
 };
 
-/** File span of the first occurrence of `raw` in the frontmatter block: `fenceLine.length + terminator.length + indexInValue`. @internal */
-export const frontmatterFieldSpan = (document: MarkdownDocument, raw: string): TextSpan | undefined => {
+/**
+ * File span of a path-valued field's own YAML value, found by its YAML path rather than by searching
+ * the text, so a value repeated in another field or a comment ranges at the right place (okfit#353).
+ * `undefined` without frontmatter or when the path is absent.
+ *
+ * @internal
+ */
+export const frontmatterFieldSpan = (document: MarkdownDocument, ref: PathFieldRef): TextSpan | undefined => {
 	const node = Option.getOrUndefined(document.frontmatter);
-	if (node === undefined) return undefined;
-	const at = node.value.indexOf(raw);
-	if (at < 0) return undefined;
-	const fence = node.format === "json" ? "---json" : node.format === "toml" ? "+++" : "---";
-	const fenceEnd = node.position.start.offset + fence.length;
-	const crlf = document.source.charCodeAt(fenceEnd) === 0x0d && document.source.charCodeAt(fenceEnd + 1) === 0x0a;
-	return { offset: fenceEnd + (crlf ? 2 : 1) + at, length: raw.length };
+	return node === undefined ? undefined : findFrontmatterPathSpan(document.source, node, ref.path);
 };

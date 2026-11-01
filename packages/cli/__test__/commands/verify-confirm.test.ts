@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli/ui/testing";
 import { Git } from "@effected/git";
@@ -10,6 +9,7 @@ import { HumanActorNotAllowedError } from "@okfit/profiles";
 import { DateTime, Effect, Fiber, Layer, Schema } from "effect";
 import { confirmReverify } from "../../src/commands/verify-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", LC_ALL: "C" };
 
@@ -33,8 +33,8 @@ const driftedRepo = (root: string) =>
 		yield* Effect.promise(() => appendFile(join(root, "decisions", "c.md"), "\nA new sentence.\n"));
 	});
 
-const platform = Layer.mergeAll(Git.layer, NodeServices.layer).pipe(Layer.provide(NodeServices.layer));
-const layer = Layer.mergeAll(platform, NodeServices.layer);
+const platform = Layer.mergeAll(Git.layer, TestPlatform).pipe(Layer.provide(TestPlatform));
+const layer = Layer.mergeAll(platform, TestPlatform);
 
 const NOW = DateTime.makeUnsafe("2026-10-10T00:00:00Z");
 

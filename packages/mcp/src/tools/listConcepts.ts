@@ -1,7 +1,6 @@
 import { ToolFailure, ToolRefusal } from "@effected/mcp";
-import { AppDirs, Xdg } from "@effected/xdg";
 import { ConceptQuery, signalFor } from "@okfit/engine";
-import { Crypto, Effect, FileSystem, Path } from "effect";
+import { Effect } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveNow } from "../internal/resolveNow.js";
@@ -15,12 +14,10 @@ const DESCRIPTION =
 	"Lists concept summaries, filtered by exact type, tags that must all be present (AND), status, verified (true: current human verification; false: never verified), drifted or stale. Each summary carries tier, integrity and stale. now (ISO-8601 with offset) sets the staleness time. Pages by limit (default 200, max 1000) and offset, with total. An unknown type or tag fails with the valid names.";
 
 /**
- * `dependencies` mirrors `describe_vocabulary`'s (Deviation 1 in Task B1's
- * report): `loadToolContext` needs the same platform services
- * (`resolveConfigOnly` -> `resolveProjectConfig`/`provideConfig`, plus
- * `Bundle.load`), and without a `dependencies` declaration
- * `Tool.HandlerServices` infers `never`, failing the handler record against
- * `HandlersFrom` when it is passed to `OkfitToolkit.toLayer`.
+ * No `dependencies`: since Effect 4.1 a declared dependency becomes a
+ * per-request `McpRequest<"Requires", S>` requirement. The platform services
+ * the handler needs are captured once when `ToolsLayer` builds instead
+ * (`toolkit.ts`), so the handler's own requirement channel is `never`.
  *
  * @public
  */
@@ -29,7 +26,6 @@ export const listConcepts = Tool.make("list_concepts", {
 	parameters: Params,
 	success: ListConceptsSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "List OKF concepts")
 	.annotate(Tool.Readonly, true)

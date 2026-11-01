@@ -49,7 +49,7 @@ Each package has its own `CLAUDE.md` and `__test__/CLAUDE.md`.
 
 ## Rules
 
-- Effect v4 only, at the version in `catalog:effect`. Consult
+- Effect v4 only, at the version in `catalog:effected`. Consult
   `.repos/effect/packages/effect/src` for what v4 exports; `node_modules`
   wins on disagreement. `.repos/effect` is read-only vendored source;
   never write under `.repos/`.

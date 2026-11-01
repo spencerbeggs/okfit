@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import type { ActorPattern } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
@@ -10,6 +9,8 @@ import { DateTime, Effect, Exit } from "effect";
 import { MoveError } from "../../src/errors.js";
 import { planMove, runMove } from "../../src/move/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import type { TestServices } from "../utils/platform.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const AT = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
 const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
@@ -49,7 +50,7 @@ const snapshot = async (dir: string, base = dir): Promise<Record<string, string>
 };
 
 const withBundle = <A, E>(
-	body: (project: string, okf: string) => Effect.Effect<A, E, NodeServices.NodeServices>,
+	body: (project: string, okf: string) => Effect.Effect<A, E, TestServices>,
 	extra: Record<string, string> = {},
 ) =>
 	Effect.gen(function* () {
@@ -66,7 +67,7 @@ const withBundle = <A, E>(
 		return yield* body(project, okf).pipe(
 			Effect.ensuring(Effect.promise(() => rm(project, { recursive: true, force: true }))),
 		);
-	}).pipe(Effect.provide(NodeServices.layer));
+	}).pipe(Effect.provide(TestPlatform));
 
 const base = (okf: string, cwd: string, from: string, to: string) => ({
 	from,
@@ -77,7 +78,7 @@ const base = (okf: string, cwd: string, from: string, to: string) => ({
 	now: AT,
 });
 
-const refusal = (effect: Effect.Effect<unknown, unknown, NodeServices.NodeServices>) =>
+const refusal = (effect: Effect.Effect<unknown, unknown, TestServices>) =>
 	Effect.gen(function* () {
 		const exit = yield* Effect.exit(effect);
 		const error = Exit.findErrorOption(exit);

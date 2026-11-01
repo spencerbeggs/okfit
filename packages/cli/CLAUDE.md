@@ -114,7 +114,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 
 ## Rules
 
-- Effect v4 only, at the version in `catalog:effect`. Consult
+- Effect v4 only, at the version in `catalog:effected`. Consult
   `.repos/effect/packages/effect/src/cli` for `effect/cli`;
   `node_modules` wins on disagreement.
 - **Process boundary (K-9, K-49), enforced by `__test__/boundaries.test.ts`.**

@@ -88,6 +88,29 @@ export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<Verify
 }
 
 /**
+ * `okfit verify` cannot bind a verification to a concept whose content cannot be
+ * hashed: a frontmatter value holds an unpaired surrogate (a YAML `"\\uD800"`
+ * escape), which the content digest's canonical JSON refuses (okfit#327). Nothing
+ * was written. Exit 3, like the other verify refusals.
+ *
+ * @public
+ */
+export class VerifyContentUnhashableError extends Schema.TaggedError<VerifyContentUnhashableError>()(
+	"VerifyContentUnhashableError",
+	{
+		id: Schema.String,
+		path: Schema.Array(Schema.Union([Schema.String, Schema.Number])),
+		detail: Schema.String,
+	},
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		const where = this.path.length === 0 ? "its frontmatter" : this.path.join(".");
+		return `"${this.id}" cannot be verified: ${where} cannot be hashed (${this.detail}); fix the value, then re-run okfit verify`;
+	}
+}
+
+/**
  * `okfit verify --revoke` found no `verified` entry by the resolved actor on
  * the concept, so there is nothing to remove. Exit 3, like any other verify
  * outcome that cannot proceed on the concept.

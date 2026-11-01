@@ -1,14 +1,15 @@
 import { posix } from "node:path";
 import { MarkdownEdit } from "@effected/markdown";
+import { relativeWithin } from "@effected/walker";
 import type { BundleLoadError, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import type { Crypto, DateTime, PlatformError } from "effect";
+import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path } from "effect";
+import type { Digest } from "effect/crypto";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
 import { writeAtomic } from "../sync/write.js";
-import { relativeInside } from "../targets/inside.js";
 import { Targets } from "../targets/resolve.js";
 import { referencesOf, rewriteReference } from "./references.js";
 
@@ -66,18 +67,13 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const realOr = (absolute: string) => fs.realPath(absolute).pipe(Effect.orElseSucceed(() => absolute));
-	/** Real path of the deepest existing ancestor, re-joined with the rest (the file does not exist yet). */
-	const realish = (absolute: string): Effect.Effect<string> =>
-		Effect.gen(function* () {
-			const resolved = yield* fs.realPath(absolute).pipe(Effect.option);
-			if (Option.isSome(resolved)) return resolved.value;
-			const parent = path.dirname(absolute);
-			if (parent === absolute) return absolute;
-			return path.join(yield* realish(parent), path.basename(absolute));
-		});
 	const root = yield* realOr(bundle.root);
-	/** Bundle-relative posix path of `absolute` (`""` for the root itself); `undefined` outside the bundle. */
-	const inside = (absolute: string): string | undefined => relativeInside(path, root, absolute);
+	/**
+	 * Bundle-relative posix path of `absolute` (`""` for the root itself), resolved physically through
+	 * its deepest existing ancestor, since the destination does not exist yet (`@effected/walker`'s
+	 * `relativeWithin`); `undefined` outside the bundle or when containment cannot be proved.
+	 */
+	const within = (absolute: string) => Effect.map(relativeWithin(root, absolute), Option.getOrUndefined);
 	const exists = (absolute: string) => fs.exists(absolute).pipe(Effect.orElseSucceed(() => false));
 	const isDirectory = (absolute: string) =>
 		fs.stat(absolute).pipe(
@@ -89,8 +85,7 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 	const base = posix.basename(sourcePath);
 
 	const underCwd = path.isAbsolute(spelled) ? spelled : path.resolve(cwd, spelled);
-	const cwdReal = yield* realish(underCwd);
-	const cwdPath = inside(cwdReal);
+	const cwdPath = yield* within(underCwd);
 	// A cwd reading that is lexically inside the bundle but really leads out (a symlinked directory)
 	// is refused outright; the id-reading fallback is only for spellings that are not bundle paths.
 	const lexicalInside = (base: string) => {
@@ -110,7 +105,7 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
 		const id = Option.getOrUndefined(ConceptId.normalize(spelled));
 		if (id === undefined) return undefined;
 		// Resolve through the deepest existing ancestor so a symlinked directory cannot lead out.
-		return inside(yield* realish(path.join(root, posix.normalize(id))));
+		return yield* within(path.join(root, posix.normalize(id)));
 	});
 	// Into a directory: it exists in the bundle under either reading, or the destination ends in `/`.
 	const dirs = [cwdPath, idPath].filter((candidate): candidate is string => candidate !== undefined);
@@ -146,7 +141,7 @@ const resolveDestination = Effect.fn("okfit/move/destination")(function* (
  */
 export const planMove = Effect.fn("okfit/move/plan")(function* (
 	options: PlanMoveOptions,
-): Effect.fn.Return<MovePlan, PlanError, FileSystem.FileSystem | Path.Path | Crypto.Crypto> {
+): Effect.fn.Return<MovePlan, PlanError, FileSystem.FileSystem | Path.Path | Digest.Digest> {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
@@ -263,7 +258,7 @@ export const runMove = Effect.fn("okfit/move/run")(function* (
 ): Effect.fn.Return<
 	{ readonly plan: MovePlan; readonly bundleRoot: string; readonly dryRun: boolean },
 	PlanError,
-	FileSystem.FileSystem | Path.Path | Crypto.Crypto
+	FileSystem.FileSystem | Path.Path | Digest.Digest
 > {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;

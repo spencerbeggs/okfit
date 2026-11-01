@@ -1,8 +1,7 @@
 import { ToolOutcome } from "@effected/mcp";
-import { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
 import { ConceptQuery, signalFor, toTrustDrift } from "@okfit/engine";
-import { Crypto, DateTime, Effect, FileSystem, Path, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { conceptNotFound } from "../internal/conceptNotFound.js";
@@ -14,11 +13,10 @@ const DESCRIPTION =
 	"Returns one concept by id: its decoded frontmatter, raw markdown, bundle-relative path, every outgoing link (with where it was written and whether the target is a concept, a file, or missing), and its okfit trust signal: tier, integrity, stale and drift. Accepts a tolerant id, with or without a leading slash or trailing .md.";
 
 /**
- * `dependencies` mirrors `list_concepts`' and `describe_vocabulary`'s
- * (Task B1's Deviation 1, carried through Task C1): `loadToolContext` needs
- * the same platform services, and without a `dependencies` declaration
- * `Tool.HandlerServices` infers `never`, failing the handler record against
- * `HandlersFrom` when it is passed to `OkfitToolkit.toLayer`.
+ * No `dependencies`: since Effect 4.1 a declared dependency becomes a
+ * per-request `McpRequest<"Requires", S>` requirement. The platform services
+ * the handler needs are captured once when `ToolsLayer` builds instead
+ * (`toolkit.ts`), so the handler's own requirement channel is `never`.
  *
  * @public
  */
@@ -27,7 +25,6 @@ export const getConcept = Tool.make("get_concept", {
 	parameters: Schema.Struct({ id: Schema.String }),
 	success: GetConceptSuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg, Crypto.Crypto],
 })
 	.annotate(Tool.Title, "Get one OKF concept")
 	.annotate(Tool.Readonly, true)

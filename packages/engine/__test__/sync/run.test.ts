@@ -2,13 +2,13 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import { OkfitConfig } from "@okfit/core";
 import { Derivation, GitHistory } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
 import { planSync, runSync } from "../../src/sync/run.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const AT = "2026-06-01T08:00:00Z";
 
@@ -25,7 +25,7 @@ const fakes = (root: string, calls: { repoRoot: number; show: number; pathLog: n
 				calls.show += 1;
 				const fs = yield* FileSystem.FileSystem;
 				return Option.some(yield* fs.readFileString(join(root, path)));
-			}).pipe(Effect.provide(NodeServices.layer)),
+			}).pipe(Effect.provide(TestPlatform)),
 	} as unknown as Git["Service"]);
 	const history = Layer.succeed(GitHistory, {
 		pathLog: (_root: string, path: string) =>
@@ -43,13 +43,13 @@ const fakes = (root: string, calls: { repoRoot: number; show: number; pathLog: n
 				];
 			}),
 	} as unknown as GitHistory["Service"]);
-	return Layer.mergeAll(git, history, NodeServices.layer);
+	return Layer.mergeAll(git, history, TestPlatform);
 };
 
 const stamped = async (root: string, name: string, title: string): Promise<void> => {
 	const body = `\n# ${title}\n\nBody.\n`;
 	const digest = await Effect.runPromise(
-		Derivation.bodyDigest(`---\ntype: Module\ntitle: ${title}\n---${body}`).pipe(Effect.provide(NodeServices.layer)),
+		Derivation.bodyDigest(`---\ntype: Module\ntitle: ${title}\n---${body}`).pipe(Effect.provide(TestPlatform)),
 	);
 	await writeFile(
 		join(root, name),
@@ -138,7 +138,7 @@ describe("runSync --staged (issue #140)", () => {
 	const gitEnv = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
 	const git = (cwd: string, args: ReadonlyArray<string>): string =>
 		execFileSync("git", [...args], { cwd, env: gitEnv, encoding: "utf8" });
-	const live = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(NodeServices.layer));
+	const live = Layer.mergeAll(Git.layer, GitHistory.layer).pipe(Layer.provideMerge(TestPlatform));
 
 	const repo = async (): Promise<string> => {
 		const root = await mkdtemp(join(tmpdir(), "okfit-staged-"));
@@ -205,7 +205,7 @@ describe("runSync --staged (issue #140)", () => {
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("ignores an unstaged dirty concept entirely: not written, not skipped, not listed", () =>

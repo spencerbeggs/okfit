@@ -32,9 +32,10 @@ src/
                                    reports; validate_bundle's envelope names the engine as
                                    engine_version and the launching meta-package as
                                    distribution (okf/decisions/comparable-version.md)
-  server.ts                    -- ServerLayer: McpToolkit.layer + resource layers over
-                                   McpStdio.layer (both @effected/mcp)
-  toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); handler wiring
+  server.ts                    -- ServerLayer: McpToolkit.layer + resource layers passed as
+                                   McpStdio.layer's `registrations` (both @effected/mcp)
+  toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); ToolsLayer captures
+                                   ToolServices once at build and provides them per call
   errors.ts                    -- McpToolError = @effected/mcp's ToolRefusal, plus
                                    @effected/engine's Remediation
   schema/
@@ -57,6 +58,12 @@ src/
     toolContext.ts             -- loadToolContext: config + bundle per call
     resolveNow.ts              -- optional ISO `now` argument else the Effect clock
 ```
+
+No tool declares `dependencies`: since Effect 4.1 a declared dependency
+becomes a per-request `McpRequest<"Requires", S>` requirement that a plain
+`Layer.provide` cannot meet. `ToolsLayer` and `IndexResource` capture the
+platform services (`ToolServices`) when they build instead; they are fixed
+for the server's lifetime.
 
 One responsibility per file. `toolkit.ts` is the single place a tool's
 `Tool.make` value and its handler meet, so a structural test can import the

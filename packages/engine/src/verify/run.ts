@@ -6,6 +6,7 @@ import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import {
 	VerifyConceptNotFoundError,
+	VerifyContentUnhashableError,
 	VerifyNothingToRevokeError,
 	VerifyUnsupportedFrontmatterError,
 } from "../errors.js";
@@ -133,7 +134,11 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	staleAfter: string | undefined = undefined,
 ) {
 	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
-	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
+	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source).pipe(
+		Effect.catchTag("ContentUnhashableError", (error) =>
+			Effect.fail(new VerifyContentUnhashableError({ id: concept.id, path: error.path, detail: error.detail })),
+		),
+	);
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const absolutePath = path.join(bundle.root, concept.path);

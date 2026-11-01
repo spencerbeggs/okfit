@@ -13,13 +13,13 @@
 import { readdirSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
+import { TestPlatform } from "./utils/platform.js";
 import { amendDate, commit, initRepo } from "./utils/repo.js";
 
 const CORE_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "core", "__test__", "fixtures");
@@ -74,7 +74,7 @@ describe("okfit validate: clean bundle", () => {
 			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 18 concepts (okf)\n");
 
 			assertNoStateFiles(sandbox.env);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -94,7 +94,7 @@ describe("okfit validate: profile-tier error", () => {
 				"(bundle) error project-missing No Project concept in the bundle; software-project expects exactly one at the bundle root (project.md)\n",
 			);
 			assert.strictEqual(result.stderr, "1 errors, 0 warnings, 0 info in 1 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -117,7 +117,7 @@ describe("okfit validate: GitHub Actions annotations", () => {
 				`${line}\n::error::project-missing No Project concept in the bundle; software-project expects exactly one at the bundle root (project.md)\n`,
 			);
 			assert.strictEqual(result.stderr, "1 errors, 0 warnings, 0 info in 1 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -141,7 +141,7 @@ describe("okfit validate: conformance beats a co-occurring profile error", () =>
 					"no-front.md error frontmatter-missing concept files must start with a --- frontmatter block\n",
 			);
 			assert.strictEqual(result.stderr, "2 errors, 0 warnings, 0 info in 0 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -192,7 +192,7 @@ describe("okfit validate --format json", () => {
 					},
 				],
 			});
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("an unknown profile: stderr is exactly the K-4 warning, stdout parses as one envelope", () =>
@@ -233,7 +233,7 @@ describe("okfit validate --format json", () => {
 				},
 				diagnostics: [],
 			});
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("exit 3 under json still gets the K-22 error envelope on stdout", () =>
@@ -260,7 +260,7 @@ describe("okfit validate --format json", () => {
 			assert.strictEqual(envelope.error.tag, "ConfigPathNotFoundError");
 			assert.strictEqual(envelope.error.message, `config path not found: ${missingConfig}`);
 			assert.isTrue(result.stderr.includes(`error: config path not found: ${missingConfig}`));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -285,7 +285,7 @@ describe("okfit validate: config discovery", () => {
 			// literal K-51 text, not the brief's original "../../okf" expectation,
 			// which this test corrects (see task report for the discrepancy).
 			assert.strictEqual(result.stderr, `0 errors, 0 warnings, 0 info in 18 concepts (${join(sandbox.cwd, "okf")})\n`);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("finds okfit.toml alone", () =>
@@ -298,7 +298,7 @@ describe("okfit validate: config discovery", () => {
 
 			assert.strictEqual(result.exitCode, 0);
 			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 18 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("finds .okfit.toml alone", () =>
@@ -311,7 +311,7 @@ describe("okfit validate: config discovery", () => {
 
 			assert.strictEqual(result.exitCode, 0);
 			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 18 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("a project-local okfit.toml beats the XDG config", () =>
@@ -330,7 +330,7 @@ describe("okfit validate: config discovery", () => {
 
 			assert.strictEqual(result.exitCode, 0);
 			assert.isFalse(result.stderr.includes("xdg-discovery-profile"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("falls through every tier and still runs on defaults when nothing is found", () =>
@@ -342,7 +342,7 @@ describe("okfit validate: config discovery", () => {
 
 			assert.strictEqual(result.exitCode, 0);
 			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 18 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("explicit --config short-circuits discovery and anchors on its own directory (K-1, K-10, K-12)", () =>
@@ -383,7 +383,7 @@ describe("okfit validate: config discovery", () => {
 			);
 			assert.isFalse(result.stderr.includes("cwd-discovery-profile"));
 			assert.isFalse(result.stderr.includes("xdg-discovery-profile"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("missing --config: exit 3 with the exact K-51 message", () =>
@@ -396,7 +396,7 @@ describe("okfit validate: config discovery", () => {
 			assert.strictEqual(result.exitCode, 3);
 			assert.strictEqual(result.stdout, "");
 			assert.isTrue(result.stderr.includes(`error: config path not found: ${missingConfig}\n`));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("malformed TOML: exit 3, stderr names the file (K-46 fix round 1)", () =>
@@ -417,7 +417,7 @@ describe("okfit validate: config discovery", () => {
 			// error renders (captured this session by running the CLI directly
 			// against this fixture — see task report).
 			assert.strictEqual(result.stderr, `error: malformed config ${badConfigPath}: toml parse failed\n`);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect(
@@ -443,7 +443,7 @@ describe("okfit validate: config discovery", () => {
 					result.stderr,
 					`error: malformed config ${configPath}: Config validation failed at "${configPath}"\n`,
 				);
-			}).pipe(Effect.provide(NodeServices.layer)),
+			}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("unknown profile: warning on stderr, continues with defaults (K-4)", () =>
@@ -460,7 +460,7 @@ describe("okfit validate: config discovery", () => {
 			assert.isTrue(
 				result.stderr.startsWith('warning: unknown profile "not-a-real-profile"; continuing with defaults\n'),
 			);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("XDG_CONFIG_HOME fallback is read when no project-local config exists (K-11)", () =>
@@ -482,7 +482,7 @@ describe("okfit validate: config discovery", () => {
 			assert.isTrue(
 				result.stderr.startsWith('warning: unknown profile "xdg-only-profile"; continuing with defaults\n'),
 			);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -526,7 +526,7 @@ describe("okfit validate: OKFIT_NOW", () => {
 				"modules/core.md:9:14 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
 			);
 			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 18 concepts (okf)\n");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -609,7 +609,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			assert.isDefined(drift);
 			assert.strictEqual(drift?.severity, "warning");
 			assert.strictEqual(drift?.file, "decisions/drift.md");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("does not report generated-at-drift when the recorded digest still matches the body (issue #19)", () =>
@@ -664,7 +664,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 				readonly diagnostics: ReadonlyArray<{ readonly code: string }>;
 			};
 			assert.isUndefined(envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("escalates generated-at-drift to exit 1 at error severity", () =>
@@ -687,7 +687,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			assert.strictEqual(envelope.summary.lint_errors, 1);
 			const drift = envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift");
 			assert.strictEqual(drift?.severity, "error");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("suppresses the git walk entirely when the lint is off", () =>
@@ -712,7 +712,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 			assert.strictEqual(result.exitCode, 0);
 			const envelope = JSON.parse(result.stdout) as { readonly diagnostics: ReadonlyArray<{ readonly code: string }> };
 			assert.isUndefined(envelope.diagnostics.find((diagnostic) => diagnostic.code === "generated-at-drift"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("--skip-provenance suppresses the git walk without touching [lint] (S-31)", () =>
@@ -738,7 +738,7 @@ describe("okfit validate: generated-at-drift lint (drift-lint e2e)", () => {
 				envelope.diagnostics.filter((diagnostic) => diagnostic.code === "generated-at-drift"),
 				[],
 			);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -765,7 +765,7 @@ describe("okfit validate --document", () => {
 				const escaping = yield* runOkfit(["validate", "--document", "../escape.md"], { ...sandbox, stdin: "x" });
 				assert.strictEqual(escaping.exitCode, 64);
 				assert.include(escaping.stderr, 'error: document path "../escape.md" resolves outside the bundle root');
-			}).pipe(Effect.provide(NodeServices.layer)),
+			}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -781,7 +781,7 @@ describe("okfit --root", () => {
 			});
 			assert.strictEqual(run.exitCode, 0);
 			assert.strictEqual(JSON.parse(run.stdout).root, join(sandbox.cwd, "okf"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("no longer accepts the project root as a positional", () =>
@@ -789,14 +789,14 @@ describe("okfit --root", () => {
 			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-root-positional-"));
 			const run = yield* runOkfit(["context", sandbox.cwd], sandbox);
 			assert.strictEqual(run.exitCode, 64);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
 describe("okfit validate: targets scope the reported diagnostics", () => {
 	const seed = async (): Promise<Sandbox> => {
 		const sandbox = await makeSandbox("okfit-validate-targets-");
-		const init = await Effect.runPromise(runOkfit(["init"], sandbox).pipe(Effect.provide(NodeServices.layer)));
+		const init = await Effect.runPromise(runOkfit(["init"], sandbox).pipe(Effect.provide(TestPlatform)));
 		assert.strictEqual(init.exitCode, 0);
 		await writeFileDeep(
 			join(sandbox.cwd, "okf", "glossary", "good.md"),
@@ -836,7 +836,7 @@ describe("okfit validate: targets scope the reported diagnostics", () => {
 			const afterBody = JSON.parse(after.stdout) as { diagnostics: Diag[] };
 			assert.isTrue(afterBody.diagnostics.some((d) => d.file === "glossary/bad.md"));
 			assert.isTrue(afterBody.diagnostics.every((d) => d.file === "glossary/bad.md"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("an unknown target exits 64", () =>
@@ -844,7 +844,7 @@ describe("okfit validate: targets scope the reported diagnostics", () => {
 			const sandbox = yield* Effect.promise(seed);
 			const run = yield* runOkfit(["validate", "glossary/zzz"], sandbox);
 			assert.strictEqual(run.exitCode, 64);
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -861,7 +861,7 @@ describe("okfit validate: a file that does not decode", () => {
 				["no-front.md"],
 			);
 			assert.strictEqual(body.diagnostics[0]?.code, "frontmatter-missing");
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
 
@@ -881,6 +881,6 @@ describe("okfit validate: an unparseable file", () => {
 				run.stdout,
 			);
 			assert.isTrue(body.diagnostics.every((d) => d.file === "decisions/broken.md"));
-		}).pipe(Effect.provide(NodeServices.layer)),
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

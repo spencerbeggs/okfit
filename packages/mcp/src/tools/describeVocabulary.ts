@@ -1,6 +1,5 @@
-import { AppDirs, Xdg } from "@effected/xdg";
 import { contextEnvelope } from "@okfit/engine";
-import { Effect, FileSystem, Option, Path } from "effect";
+import { Effect, Option } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
 import { resolveConfigOnly } from "../internal/toolContext.js";
@@ -10,12 +9,10 @@ const DESCRIPTION =
 	"Returns this project's resolved okfit configuration: project root, bundle root, active profile, agent actor, every concept type and tag the config declares, and docs_presets, the active profile's Surface templates (empty without a profile). Call this first, before filtering or writing any concept, to learn which names exist.";
 
 /**
- * `dependencies` names the platform services `handleDescribeVocabulary`
- * needs (`resolveConfigOnly` -> `resolveProjectConfig`/`provideConfig`);
- * without it `Tool.HandlerServices` infers `never` and the handler record
- * passed to `Toolkit.toLayer` fails to typecheck against `HandlersFrom`
- * (verified against `.repos/effect/packages/effect/src/ai/Tool.ts`
- * `dependencies`/`HandlerServices`; not spelled out in the brief's snippet).
+ * No `dependencies`: since Effect 4.1 a declared dependency becomes a
+ * per-request `McpRequest<"Requires", S>` requirement. The platform services
+ * the handler needs are captured once when `ToolsLayer` builds instead
+ * (`toolkit.ts`), so the handler's own requirement channel is `never`.
  *
  * `parameters` is `Tool.EmptyParams`, not the brief's `Schema.Struct({})`:
  * a zero-key `Schema.Struct` fails `McpServer.layerStdio`'s build with a
@@ -32,7 +29,6 @@ export const describeVocabulary = Tool.make("describe_vocabulary", {
 	parameters: Tool.EmptyParams,
 	success: DescribeVocabularySuccess,
 	failure: McpToolError,
-	dependencies: [FileSystem.FileSystem, Path.Path, AppDirs, Xdg],
 })
 	.annotate(Tool.Title, "Describe okfit vocabulary")
 	.annotate(Tool.Readonly, true)

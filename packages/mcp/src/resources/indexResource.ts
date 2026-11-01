@@ -1,4 +1,6 @@
-import { Effect, FileSystem, Path } from "effect";
+import type { AppDirs, Xdg } from "@effected/xdg";
+import type { Context } from "effect";
+import { Effect, FileSystem, Layer, Path } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
 import { loadToolContext } from "../internal/toolContext.js";
 
@@ -25,9 +27,26 @@ import { loadToolContext } from "../internal/toolContext.js";
  * at all — the declared `mimeType` option only documents the resource in
  * `resources/list`, it is never merged into a `resources/read` response.
  *
+ * The platform services `content` reads are captured once when the layer
+ * builds and provided to every read: since Effect 4.1 a resource handler's
+ * services are request-level `McpRequest<"Requires", S>` requirements, and
+ * these are fixed for the server's lifetime.
+ *
  * @public
  */
-export const IndexResource = (projectRoot: string) =>
+export const IndexResource = (
+	projectRoot: string,
+): Layer.Layer<never, never, FileSystem.FileSystem | Path.Path | AppDirs | Xdg | McpServer.McpServer> =>
+	Layer.unwrap(
+		Effect.map(Effect.context<FileSystem.FileSystem | Path.Path | AppDirs | Xdg>(), (services) =>
+			indexResource(projectRoot, services),
+		),
+	);
+
+const indexResource = (
+	projectRoot: string,
+	services: Context.Context<FileSystem.FileSystem | Path.Path | AppDirs | Xdg>,
+) =>
 	McpServer.resource({
 		uri: "okf://index",
 		name: "OKF bundle index",
@@ -42,5 +61,5 @@ export const IndexResource = (projectRoot: string) =>
 				.readFileString(indexPath)
 				.pipe(Effect.mapError(() => new McpSchema.InternalError({ message: `no readable index.md at ${indexPath}` })));
 			return { contents: [{ uri: "okf://index", mimeType: "text/markdown", text }] };
-		}),
+		}).pipe(Effect.provide(services)),
 	});

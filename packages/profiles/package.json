@@ -32,8 +32,8 @@
 		"types:check": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@effect/platform-node": "catalog:effect",
-		"@effect/vitest": "catalog:effect",
+		"@effect/platform-node": "catalog:effected",
+		"@effect/vitest": "catalog:effected",
 		"@effected/commands": "catalog:effected",
 		"@effected/config-file": "catalog:effected",
 		"@effected/git": "catalog:effected",
@@ -48,19 +48,19 @@
 		"@okfit/core": "workspace:*",
 		"@savvy-web/bundler": "^2.7.1",
 		"@types/node": "catalog:build",
-		"effect": "catalog:effect",
+		"effect": "catalog:effected",
 		"typescript": "catalog:build",
 		"vitest": "catalog:test"
 	},
 	"peerDependencies": {
-		"@effected/git": "catalog:effected:peers",
-		"@effected/glob": "catalog:effected:peers",
-		"@effected/jsonc": "catalog:effected:peers",
-		"@effected/markdown": "catalog:effected:peers",
-		"@effected/source": "catalog:effected:peers",
-		"@effected/walker": "catalog:effected:peers",
+		"@effected/git": "catalog:effected",
+		"@effected/glob": "catalog:effected",
+		"@effected/jsonc": "catalog:effected",
+		"@effected/markdown": "catalog:effected",
+		"@effected/source": "catalog:effected",
+		"@effected/walker": "catalog:effected",
 		"@okfit/core": "workspace:^",
-		"effect": "catalog:effect:peers"
+		"effect": "catalog:effected"
 	},
 	"engines": {
 		"node": ">=24.11.0"
