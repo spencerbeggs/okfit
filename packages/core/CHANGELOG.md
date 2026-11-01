@@ -1,5 +1,38 @@
 # @okfit/core
 
+## 0.12.0
+
+### Breaking Changes
+
+- `Derive.renderIndex` and `Derive.synthesizeIndex` now render `index.md` through `@effected/markdown`'s emitter instead of string templates. Titles and descriptions are escaped only where markdown would read them as syntax (`node_modules` stays as written, `<pkg>` becomes `\<pkg>`), a link target containing a space is written in angle brackets, and the root frontmatter is emitted as `okf_version: '0.2'`. The parsed entries are unchanged. Existing `index.md` files are rewritten to the new form the next time `okfit sync` runs. [#354][#354]
+
+### Bug Fixes
+
+- `Graph.fromBundle` now ranges each frontmatter edge at its own field, found by its YAML path (`resource`, `sources[i].resource`, `computation`, `executor.resource`, `attester.resource`). Before, a path that appeared twice, such as under both `resource` and `sources`, or earlier in a YAML comment, gave every edge the first occurrence's position. For a double-quoted value, the edge's range now covers the quotes, matching frontmatter lint diagnostics. [#354][#354]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | peerDependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/glob | peerDependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/jsonc | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/markdown | peerDependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/schemastore | peerDependency | updated | ^0.27.0 | ^0.28.0 |
+| @effected/source | peerDependency | updated | ^0.1.0 | ^0.2.0 |
+| @effected/toml | peerDependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/walker | peerDependency | updated | ^0.22.0 | ^0.24.0 |
+| @effected/yaml | peerDependency | updated | ^0.26.0 | ^0.27.0 |
+| effect | peerDependency | updated | ^4.0.0 | ~4.1.1 |
+
+[#354][#354]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#354]: https://github.com/spencerbeggs/okfit/pull/354
+
 ## 0.11.8
 
 ### Bug Fixes

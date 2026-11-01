@@ -1,5 +1,49 @@
 # @okfit/engine
 
+## 0.19.0
+
+### Breaking Changes
+
+- `run`, `runSync`, the move, trust and validate programs, and `BundleSessionServices` now require `Digest.Digest` (from `effect/crypto`) instead of `Crypto.Crypto`, which Effect 4.1 removed. `OkfitPlatform` now provides `Digest` itself (via `NodeCrypto.layerDigest`), because `NodeServices.layer` no longer carries crypto. If you compose your own layers rather than using `OkfitPlatform`, add `NodeCrypto.layerDigest` from `@effect/platform-node`. Digests are byte-identical to before.
+
+### Bug Fixes
+
+- The overlay filesystem (`makeOverlayFileSystem` / `layerOverlayFileSystem`) now shadows Effect 4.1's `readDirectoryEntries`, so unsaved open documents are listed as `File` entries in directory reads.
+- `changeSince` (the `okfit verify` change preview) reads its patch through `@effected/git`'s `Git.diffFile`, which pins colour, prefixes, context and algorithm, so user diff config no longer changes the preview. It no longer requires `ChildProcessSpawner`; every diff failure still surfaces as `GitCommandError`.
+- `planMove` places a destination through `@effected/walker`'s `relativeWithin`. A destination whose containment cannot be proved (for example a permission error while resolving it) is now refused as `outside-bundle` instead of being resolved lexically.
+- `okfit verify` refuses a concept whose content cannot be hashed (a frontmatter value holding an unpaired surrogate) with the new `VerifyContentUnhashableError` (exit 3), naming the field. Nothing is written. [#354][#354]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.7 | ~4.1.1 |
+| @effected/app | dependency | updated | ^0.29.0 | ^0.30.0 |
+| @effected/config-file | dependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/engine | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/git | dependency | updated | ^0.27.0 | ^0.29.0 |
+| @effected/glob | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/jsonc | dependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/markdown | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/schemastore | dependency | updated | ^0.27.0 | ^0.28.0 |
+| @effected/source | dependency | updated | ^0.1.0 | ^0.2.0 |
+| @effected/store | dependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/toml | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/walker | dependency | updated | ^0.22.0 | ^0.24.0 |
+| @effected/xdg | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/yaml | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @okfit/core | dependency | updated | 0.11.8 | 0.12.0 |
+| @okfit/profiles | dependency | updated | 0.13.0 | 0.14.0 |
+| effect | dependency | updated | ^4.0.7 | ~4.1.1 |
+
+[#354][#354]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#354]: https://github.com/spencerbeggs/okfit/pull/354
+
 ## 0.18.2
 
 ### Bug Fixes

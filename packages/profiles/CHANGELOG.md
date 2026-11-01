@@ -1,5 +1,44 @@
 # @okfit/profiles
 
+## 0.14.0
+
+### Breaking Changes
+
+- The digest and lint helpers now require core's `Digest.Digest` service (from `effect/crypto`) instead of `Crypto.Crypto`, which Effect 4.1 removed. This affects `Derivation.digestFull`, `Derivation.digest`, `Derivation.bodyDigest`, `Derivation.contentDigest`, `Provenance.lint`, `Publications.lint`, `Trust.signal`, `Trust.signals` and `Trust.lint`. The digest functions' error channel is now `never` (no more `PlatformError`). Digests are byte-identical to before.
+
+- To migrate, provide a `Digest` layer where you previously provided `Crypto`:
+
+```typescript
+import { NodeCrypto } from "@effect/platform-node";
+import { Effect } from "effect";
+
+program.pipe(Effect.provide(NodeCrypto.layerDigest));
+```
+
+- Content digests now canonicalize through `@effected/jsonc`'s `JsoncFingerprint` (RFC 8785, relaxed for `bigint`, `undefined`, non-finite numbers and `toJSON`). Existing digests are byte-identical. `Canonical.json` is removed, and `Canonical.contentInput` now returns a `Result`.
+- A frontmatter value holding an unpaired surrogate (a YAML `"\uD800"` escape) is no longer hashed. `Derivation.contentDigest` fails with the new `ContentUnhashableError`, which names the frontmatter path. `Trust` reports a bound concept like that as drifted with the new `DriftReason` `content-unhashable`, and its `verified-drift` finding is ranged at the offending value. [#354][#354]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.11.8 | 0.12.0 |
+| @effected/git | peerDependency | updated | ^0.27.0 | ^0.29.0 |
+| @effected/glob | peerDependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/jsonc | peerDependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/markdown | peerDependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/source | peerDependency | updated | ^0.1.0 | ^0.2.0 |
+| @effected/walker | peerDependency | updated | ^0.22.0 | ^0.24.0 |
+| effect | peerDependency | updated | ^4.0.0 | ~4.1.1 |
+
+[#354][#354]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#354]: https://github.com/spencerbeggs/okfit/pull/354
+
 ## 0.13.0
 
 ### Breaking Changes
