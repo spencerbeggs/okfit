@@ -1,5 +1,48 @@
 # @okfit/mcp
 
+## 0.11.0
+
+### Breaking Changes
+
+- Tools and resources are now registered through `McpStdio.layer({ registrations })`, built before the first request (build logs go to stderr). Tools no longer declare `dependencies`. Wire behaviour is unchanged.
+- `PlatformServices` now includes `Digest.Digest`, so hosts must provide a digest layer (for example `NodeCrypto.layerDigest` from `@effect/platform-node`).
+- `ServerLayer` now outputs `McpServer | McpRequest<"Requires", Scope>` instead of `never`.
+
+### Features
+
+- New exported type `ToolServices` describing the services tools require. [#354][#354]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ^4.0.7 | ~4.1.1 |
+| @effected/config-file | dependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/engine | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/git | dependency | updated | ^0.27.0 | ^0.29.0 |
+| @effected/glob | dependency | updated | ^0.16.0 | ^0.17.0 |
+| @effected/jsonc | dependency | updated | ^0.21.0 | ^0.22.0 |
+| @effected/markdown | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/mcp | dependency | updated | ^0.11.0 | ^0.12.0 |
+| @effected/schemastore | dependency | updated | ^0.27.0 | ^0.28.0 |
+| @effected/source | dependency | updated | ^0.1.0 | ^0.2.0 |
+| @effected/toml | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/walker | dependency | updated | ^0.22.0 | ^0.24.0 |
+| @effected/xdg | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/yaml | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @okfit/core | dependency | updated | 0.11.8 | 0.12.0 |
+| @okfit/engine | dependency | updated | 0.18.2 | 0.19.0 |
+| @okfit/profiles | dependency | updated | 0.13.0 | 0.14.0 |
+| effect | dependency | updated | ^4.0.7 | ~4.1.1 |
+
+[#354][#354]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#354]: https://github.com/spencerbeggs/okfit/pull/354
+
 ## 0.10.1
 
 ### Bug Fixes
