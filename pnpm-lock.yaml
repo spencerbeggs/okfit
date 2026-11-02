@@ -345,8 +345,8 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4(@changesets/cli@3.0.3)(@commitlint/cli@21.2.4(conventional-commits-parser@7.1.3)(typescript@7.1.0-beta))(@commitlint/config-conventional@21.2.4)(@types/bun@1.4.4)(@types/node@26.6.5)(@types/react@19.3.0)(@vitest/coverage-istanbul@5.0.5)(@vitest/coverage-v8@5.0.5)(@vitest/expect@5.0.5)(husky@9.1.7)(lint-staged@17.6.0)(markdownlint-cli2-formatter-codequality@0.0.8(markdownlint-cli2@0.24.0(supports-color@8.1.1)))(markdownlint-cli2@0.24.0(supports-color@8.1.1))(redis@6.3.0)(tsx@4.23.15)(turbo@2.11.10)(typescript@7.1.0-beta)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.0.5)
       '@vitest-agent/plugin':
-        specifier: ^6.0.2
-        version: 6.0.2(@effected/jsonc@0.21.0)(@effected/memfs@0.21.0)(@effected/toml@0.17.0)(@effected/yaml@0.26.0)(@types/react@19.3.0)(@vitest/coverage-istanbul@5.0.5)(@vitest/coverage-v8@5.0.5)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.0)(vitest@5.0.5)
+        specifier: ^6.0.3
+        version: 6.0.3(@effected/jsonc@0.21.0)(@effected/memfs@0.21.0)(@effected/toml@0.17.0)(@effected/yaml@0.26.0)(@types/react@19.3.0)(@vitest/coverage-istanbul@5.0.5)(@vitest/coverage-v8@5.0.5)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.0)(vitest@5.0.5)
       pluginfinity:
         specifier: ^0.3.11
         version: 0.3.11(@effected/jsonc@0.21.0)(@effected/toml@0.17.0)(@effected/yaml@0.26.0)(@types/react@19.3.0)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.0)
@@ -939,20 +939,20 @@ importers:
         specifier: catalog:build
         version: 26.6.5
       '@types/vscode':
-        specifier: ^1.100.0
-        version: 1.140.0
+        specifier: ^1.144.0
+        version: 1.144.0
       '@vscode/vsce':
-        specifier: ^4.0.0
-        version: 4.0.0(supports-color@8.1.1)
+        specifier: ^4.1.0
+        version: 4.1.0(supports-color@8.1.1)
       ovsx:
         specifier: ^1.2.0
         version: 1.3.0(@types/node@26.6.5)(supports-color@8.1.1)
       reactive-vscode:
         specifier: ^1.0.2
-        version: 1.0.2(@types/vscode@1.140.0)
+        version: 1.0.2(@types/vscode@1.144.0)
       tsdown:
-        specifier: ^0.23.0
-        version: 0.23.2(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
+        specifier: ^0.23.4
+        version: 0.23.4(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
       typescript:
         specifier: catalog:build
         version: 7.1.0-beta
@@ -3056,8 +3056,8 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
-  '@types/vscode@1.140.0':
-    resolution: {integrity: sha512-KAB5RBZIgnUhpp4mKsVJPPHLOQKu6WtGy2xpfWjaajEXO4xIIC+UESAXLiQ9ewx6QD1uBmvC/S8BJzkbvv4bRA==}
+  '@types/vscode@1.144.0':
+    resolution: {integrity: sha512-IDd4eQzu6MjGucfaQF0V/TY5vHX9o1albkKyZD6K/iVXSCcL5NSj4KW1wWfx1QDadPKWyxMaE/+M1wKLCJlXpA==}
 
   '@types/ws@8.18.2':
     resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
@@ -3221,8 +3221,8 @@ packages:
     peerDependencies:
       vitest: ^5.0.0
 
-  '@vitest-agent/plugin@6.0.2':
-    resolution: {integrity: sha512-NNkfs9EWl59dCh0LWpONrJqtXik09Kxfg9xciJEoVWHDSfyeKg1PkjakedMWEH+5pxwHieVwQ9u0MbmJJik7bg==}
+  '@vitest-agent/plugin@6.0.3':
+    resolution: {integrity: sha512-pYhTN4zYHDz0VxpuDyGVS/Db5oiHKUtJt+ll94E8dRr48RJGfXlFJUAB7PDqVyGpbSeEYmjHQbD/Ee9+mWKWxw==}
     engines: {node: '>=24.11.0'}
     hasBin: true
     peerDependencies:
@@ -3400,8 +3400,8 @@ packages:
   '@vscode/vsce-sign@2.1.0':
     resolution: {integrity: sha512-9AQrqazrBgTgRSuwleLVXUrIUphY02/SFCh2TKYoLV/xifJAdblhdmEmw5gUrYSPQ3sRwNs9iyCMD14sATEE6g==}
 
-  '@vscode/vsce@4.0.0':
-    resolution: {integrity: sha512-NImwuLaenMmb5D5Jer9/lzi/F9ZQUBOp8Azhj/BVYcTFgixv8KehFXqEUDjQlD2tAiw2E6dDGyjTuAB//di60A==}
+  '@vscode/vsce@4.1.0':
+    resolution: {integrity: sha512-iWNykEfLWTAU7FC2iBiE0vJvnJDpGm3GlL89dsBtRs62F+8tkPtq80Imi0QSFHjNBWu4QIdYII+3F9v/ZQRExw==}
     engines: {node: '>= 22'}
     hasBin: true
 
@@ -5056,16 +5056,19 @@ packages:
     resolution: {integrity: sha512-g6QUff04oZpHs0eG5p83rFLhHeV00ug/Yf9nZM6fLeUrPguBTkTQOdpAWWspMh55TZfVQDPaN3NQJfbVRAxdIw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
 
-  rolldown-plugin-dts@0.29.0-beta.2:
-    resolution: {integrity: sha512-0NT4q7HMRIpQv47+SfZB5IhEWJh0gp2rDEZPu2ry+LeJFb9tlMB08Sy+sl1+cqcCXnHpkd9dvBy3rZDCBF1JIg==}
+  rolldown-plugin-dts@0.28.8:
+    resolution: {integrity: sha512-FVhfqxorCWcc20BVT5eVRfRjzLLl6mgzjcMR4gSBf0K4oQMXT0qoHhhzfXy0L7y83fQy7Ug5ZDNk90xM3/LiCQ==}
     engines: {node: ^22.18.0 || ^24.11.0 || >=26.0.0}
     peerDependencies:
+      '@typescript/native-preview': '*'
       '@volar/typescript': ~2.4.0
       '@vue/language-core': ~3.2.0 || ~3.3.0
       rolldown: ^1.2.0
-      typescript: ^5.0.0 || ^6.0.0 || ~7.0.0 || ~7.1.0-0
+      typescript: ^5.0.0 || ^6.0.0 || ~7.0.0
       vue-tsc: ~3.2.0 || ~3.3.0
     peerDependenciesMeta:
+      '@typescript/native-preview':
+        optional: true
       '@volar/typescript':
         optional: true
       '@vue/language-core':
@@ -5270,6 +5273,9 @@ packages:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
 
+  tinyps@0.5.1:
+    resolution: {integrity: sha512-B6Ykif5HflC3AdDkS4Zst/2muYVfeXoVMy+KorqH80s/1x4vunIORpNySH681X7fjj+dFM9MDKD6/Hsccjb87Q==}
+
   tinyrainbow@3.2.0:
     resolution: {integrity: sha512-LgO3D9yZJjApUiuUfl9iFAwrtaX4+lok3wJIqttGoKCHlWUqHqbQpnxCf82L8FjgKsh4iGo78hqJwgL8F6To2A==}
     engines: {node: '>=14.0.0'}
@@ -5281,24 +5287,20 @@ packages:
   toggle-selection@1.0.6:
     resolution: {integrity: sha512-BiZS+C1OS8g/q2RRbJmy59xpyghNBqrr6k5L/uKBGRsTfxmu3ffiRnd8mlGPUVayg8pvfi5urfnu8TU7DVOkLQ==}
 
-  tree-kill@1.2.2:
-    resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
-    hasBin: true
-
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
 
   trough@2.2.0:
     resolution: {integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==}
 
-  tsdown@0.23.2:
-    resolution: {integrity: sha512-om1OoDykFlv07uM98WAX3ZNmu02FBmHqZYLW1hm+IMktb92r7VMNKgQ/G8dknECI1Q2huPrFJ+sggdYk8efsQg==}
+  tsdown@0.23.4:
+    resolution: {integrity: sha512-AQQ/2Y7KBnf15GL4Ynjdltc94PkbKRI+arStyrp7inSQkRmTWNiXgfv50ESsjhBEsoVtiSloCAO2VyrqojWIOQ==}
     engines: {node: ^22.18.0 || ^24.11.0 || >=26.0.0}
     hasBin: true
     peerDependencies:
       '@arethetypeswrong/core': ^0.18.1
-      '@tsdown/css': 0.23.2
-      '@tsdown/exe': 0.23.2
+      '@tsdown/css': 0.23.4
+      '@tsdown/exe': 0.23.4
       '@vitejs/devtools': '*'
       publint: ^0.3.8
       tsx: '*'
@@ -7413,11 +7415,11 @@ snapshots:
     dependencies:
       '@effected/env': 0.7.0
       '@savvy-web/tsdown-plugins': 2.11.3(@tsdown/exe@0.23.2)(@types/node@26.6.5)(redis@6.3.0)(tsx@4.23.15)
-      '@tsdown/exe': 0.23.2(tsdown@0.23.2)
+      '@tsdown/exe': 0.23.2(tsdown@0.23.4)
       '@types/node': 26.6.5
       effect: 4.0.7
       rolldown: 1.2.15
-      tsdown: 0.23.2(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
+      tsdown: 0.23.4(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
       typescript: 7.1.0-beta
     optionalDependencies:
       '@types/react': 19.3.0
@@ -7427,6 +7429,7 @@ snapshots:
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
       - '@tsdown/css'
+      - '@typescript/native-preview'
       - '@vitejs/devtools'
       - '@volar/typescript'
       - '@vue/language-core'
@@ -7583,13 +7586,14 @@ snapshots:
       '@tsdoctor/manifest': 0.2.11
       effect: 4.0.7
       picocolors: 1.1.1
-      tsdown: 0.23.2(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
+      tsdown: 0.23.4(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
       typescript: 7.1.0-beta
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
       - '@tsdown/css'
       - '@tsdown/exe'
       - '@types/node'
+      - '@typescript/native-preview'
       - '@vitejs/devtools'
       - '@volar/typescript'
       - '@vue/language-core'
@@ -7794,11 +7798,11 @@ snapshots:
       '@typescript/vfs': 1.6.5(supports-color@8.1.1)(typescript@6.0.3)
       typescript: 6.0.3
 
-  '@tsdown/exe@0.23.2(tsdown@0.23.2)':
+  '@tsdown/exe@0.23.2(tsdown@0.23.4)':
     dependencies:
       obug: 3.0.0
       tinyexec: 1.3.1
-      tsdown: 0.23.2(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
+      tsdown: 0.23.4(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta)
       verkit: 0.5.0
 
   '@turbo/darwin-64@2.11.10':
@@ -7881,7 +7885,7 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
-  '@types/vscode@1.140.0': {}
+  '@types/vscode@1.144.0': {}
 
   '@types/ws@8.18.2':
     dependencies:
@@ -8051,7 +8055,7 @@ snapshots:
       - redis
       - utf-8-validate
 
-  '@vitest-agent/plugin@6.0.2(@effected/jsonc@0.21.0)(@effected/memfs@0.21.0)(@effected/toml@0.17.0)(@effected/yaml@0.26.0)(@types/react@19.3.0)(@vitest/coverage-istanbul@5.0.5)(@vitest/coverage-v8@5.0.5)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.0)(vitest@5.0.5)':
+  '@vitest-agent/plugin@6.0.3(@effected/jsonc@0.21.0)(@effected/memfs@0.21.0)(@effected/toml@0.17.0)(@effected/yaml@0.26.0)(@types/react@19.3.0)(@vitest/coverage-istanbul@5.0.5)(@vitest/coverage-v8@5.0.5)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.0)(vitest@5.0.5)':
     dependencies:
       '@effect/platform-node': 4.0.7(redis@6.3.0)
       '@effected/cli': 0.24.0(@effected/config-file@0.22.0(@effected/glob@0.16.0)(@effected/jsonc@0.21.0)(@effected/toml@0.17.0)(@effected/walker@0.22.0(@effected/glob@0.16.0))(@effected/yaml@0.26.0))(@effected/env@0.7.0)(@effected/glob@0.16.0)(@effected/walker@0.22.0(@effected/glob@0.16.0))(@types/react@19.3.0)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
@@ -8261,7 +8265,7 @@ snapshots:
       '@vscode/vsce-sign-win32-arm64': 2.0.6
       '@vscode/vsce-sign-win32-x64': 2.0.6
 
-  '@vscode/vsce@4.0.0(supports-color@8.1.1)':
+  '@vscode/vsce@4.1.0(supports-color@8.1.1)':
     dependencies:
       '@azure/identity': 4.14.0(supports-color@8.1.1)
       '@napi-rs/keyring': 1.3.0
@@ -9937,7 +9941,7 @@ snapshots:
   ovsx@1.3.0(@types/node@26.6.5)(supports-color@8.1.1):
     dependencies:
       '@inquirer/prompts': 7.10.1(@types/node@26.6.5)
-      '@vscode/vsce': 4.0.0(supports-color@8.1.1)
+      '@vscode/vsce': 4.1.0(supports-color@8.1.1)
       commander: 14.0.3
       cross-keychain: 1.1.0(@types/node@26.6.5)
       is-ci: 2.0.0
@@ -10110,10 +10114,10 @@ snapshots:
 
   react@19.3.1: {}
 
-  reactive-vscode@1.0.2(@types/vscode@1.140.0):
+  reactive-vscode@1.0.2(@types/vscode@1.144.0):
     dependencies:
       '@reactive-vscode/reactivity': 1.0.2
-      '@types/vscode': 1.140.0
+      '@types/vscode': 1.144.0
 
   read@1.0.7:
     dependencies:
@@ -10280,7 +10284,7 @@ snapshots:
 
   reusify@1.1.0: {}
 
-  rolldown-plugin-dts@0.29.0-beta.2(rolldown@1.2.15)(typescript@7.1.0-beta):
+  rolldown-plugin-dts@0.28.8(rolldown@1.2.15)(typescript@7.1.0-beta):
     dependencies:
       dts-resolver: 3.0.0
       get-tsconfig: 5.0.0-beta.6
@@ -10536,6 +10540,8 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.7)
       picomatch: 4.0.7
 
+  tinyps@0.5.1: {}
+
   tinyrainbow@3.2.0: {}
 
   to-regex-range@5.0.1:
@@ -10544,13 +10550,11 @@ snapshots:
 
   toggle-selection@1.0.6: {}
 
-  tree-kill@1.2.2: {}
-
   trim-lines@3.0.1: {}
 
   trough@2.2.0: {}
 
-  tsdown@0.23.2(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta):
+  tsdown@0.23.4(@tsdown/exe@0.23.2)(tsx@4.23.15)(typescript@7.1.0-beta):
     dependencies:
       cac: 7.1.0
       defu: 6.1.7
@@ -10560,17 +10564,18 @@ snapshots:
       obug: 3.0.0
       picomatch: 4.0.7
       rolldown: 1.2.15
-      rolldown-plugin-dts: 0.29.0-beta.2(rolldown@1.2.15)(typescript@7.1.0-beta)
+      rolldown-plugin-dts: 0.28.8(rolldown@1.2.15)(typescript@7.1.0-beta)
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      tree-kill: 1.2.2
+      tinyps: 0.5.1
       unconfig-core: 7.5.0
       verkit: 0.5.0
     optionalDependencies:
-      '@tsdown/exe': 0.23.2(tsdown@0.23.2)
+      '@tsdown/exe': 0.23.2(tsdown@0.23.4)
       tsx: 4.23.15
       typescript: 7.1.0-beta
     transitivePeerDependencies:
+      - '@typescript/native-preview'
       - '@volar/typescript'
       - '@vue/language-core'
       - oxc-resolver
