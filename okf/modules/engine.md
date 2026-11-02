@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:48:16Z
+  at: 2026-11-02T19:16:31Z
 integrity:
   generated:
-    body: dfdc98ee4e2cc256
+    body: d73ccab90669b402
 ---
 
 # Engine
@@ -59,7 +59,7 @@ the producer version, is what a report is compared
 on](../decisions/comparable-version.md).
 
 `render/distribution.ts`'s `Distribution`/`DistributionField` are now
-re-exported from `@effected/engine` rather than declared locally, so
+re-exported from `@effected/kit` rather than declared locally, so
 `@okfit/cli`'s `CurrentDistribution` reference and every envelope in this
 package agree on one shape -- see [okfit's front ends build on
 @effected/{engine,cli,mcp} rather than hand-rolled

@@ -1,5 +1,5 @@
-import type { FailureDetails } from "@effected/cli";
-import { Cancelled, CliRuntime, NotInteractive } from "@effected/cli";
+import type { FailureDetails } from "@effected/cli-kit";
+import { Cancelled, CliRuntime, NotInteractive } from "@effected/cli-kit";
 import { Cause, Runtime } from "effect";
 import { renderFailure } from "../../src/errors.js";
 

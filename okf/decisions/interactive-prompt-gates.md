@@ -8,7 +8,7 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-02T19:16:31Z
 verified:
   - by: human:spencer
     at: 2026-10-01T23:24:55Z
@@ -16,13 +16,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 96760593ba5a5056
+    body: 3521619ffa279fc3
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 8c8c3ac1561fb333
+    at: 2026-11-02T19:15:49Z
+    content: 3e895e16c48403fd
 ---
 
 # Interactive prompts are gated by audience and terminal, and the audience never refuses a command
@@ -31,7 +33,7 @@ integrity:
 
 Bare `okfit verify` and `okfit init` gained interactive screens (a concept
 picker and a setup wizard). okfit is also run by agents, hooks and CI, where
-a prompt that waits for a keypress hangs the run. `@effected/cli` 0.11.0
+a prompt that waits for a keypress hangs the run. `@effected/cli-kit` 0.11.0
 ships an audience model (human, agent, ci), a theme, and a terminal gate.
 
 ## Decision

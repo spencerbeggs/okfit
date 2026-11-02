@@ -1,6 +1,6 @@
-import { CliExit, CliFormat } from "@effected/cli";
-import { CurrentDistribution } from "@effected/engine";
+import { CliExit, CliFormat } from "@effected/cli-kit";
 import { Git } from "@effected/git";
+import { CurrentDistribution } from "@effected/kit";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import {
 	JsonEnvelope,

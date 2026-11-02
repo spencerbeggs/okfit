@@ -1,4 +1,4 @@
-import { ToolOutcome } from "@effected/mcp";
+import { ToolOutcome } from "@effected/mcp-kit";
 import { Derive } from "@okfit/core";
 import { ConceptQuery, signalFor, toTrustDrift } from "@okfit/engine";
 import { DateTime, Effect, Schema } from "effect";

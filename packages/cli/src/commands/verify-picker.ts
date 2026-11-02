@@ -1,5 +1,5 @@
-import { Cancelled, CliInteractive } from "@effected/cli";
-import { CliUi, Confirm, MultiSelect } from "@effected/cli/ui";
+import { Cancelled, CliInteractive } from "@effected/cli-kit";
+import { CliUi, Confirm, MultiSelect } from "@effected/cli-kit/ui";
 import type { OkfitConfig } from "@okfit/core";
 import type { PickerCandidate } from "@okfit/engine";
 import { loadPickerCandidates, loadPreviews } from "@okfit/engine";

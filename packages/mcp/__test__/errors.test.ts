@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ToolFailure, ToolRefusal } from "@effected/mcp";
+import { ToolFailure, ToolRefusal } from "@effected/mcp-kit";
 
-describe("ToolFailure.message (@effected/mcp)", () => {
+describe("ToolFailure.message (@effected/mcp-kit)", () => {
 	it("appends the hint alone when no suggestedTool is given", () => {
 		assert.strictEqual(
 			ToolFailure.message("toml parse failed", { hint: "check the syntax" }),
@@ -24,7 +24,7 @@ describe("ToolFailure.message (@effected/mcp)", () => {
 	});
 });
 
-describe("ToolFailure.truncate (@effected/mcp)", () => {
+describe("ToolFailure.truncate (@effected/mcp-kit)", () => {
 	it("leaves a value at or under the limit unchanged", () => {
 		assert.strictEqual(ToolFailure.truncate("decisions/cli-exit-codes"), "decisions/cli-exit-codes");
 	});

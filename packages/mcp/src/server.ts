@@ -1,5 +1,5 @@
 import { Git } from "@effected/git";
-import { McpStdio, McpToolkit } from "@effected/mcp";
+import { McpStdio, McpToolkit } from "@effected/mcp-kit";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { Distribution } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
@@ -87,7 +87,7 @@ export const SERVER_INSTRUCTIONS: string = [
  * The whole server as one layer: the toolkit, one static resource per
  * concept (`okf://concept/<id>`, built once at boot — see
  * {@link ConceptResources}), and `okf://index` (re-read from disk on every
- * call), over `@effected/mcp`'s `McpStdio.layer`.
+ * call), over `@effected/mcp-kit`'s `McpStdio.layer`.
  *
  * `McpStdio.layer` (not core's own `McpServer.layerStdio`, hand-wired) is
  * load-bearing, not a style choice: it wraps core's stdin decoder with a

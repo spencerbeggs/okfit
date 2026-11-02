@@ -5,13 +5,13 @@ description: Only bin.ts, main.ts, and commands/*.ts read process; every other f
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-02T19:16:31Z
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
 integrity:
   generated:
-    body: 9e2cb49ee7a0067d
+    body: 99e12ee710740afc
 ---
 
 # process reads confined to the CLI's boundary files
@@ -22,14 +22,14 @@ integrity:
 `config/anchor.ts` has no `process` access and no `@effect/platform-node`
 import (`packages/cli/CLAUDE.md`). `internal/tty.ts`, this package's former
 `isTTY`/`NO_COLOR` reader, is gone: colour is now decided by
-`@effected/cli`'s `CliColor`, read through the ambient `ConfigProvider`
+`@effected/cli-kit`'s `CliColor`, read through the ambient `ConfigProvider`
 rather than `process` directly, so this package performs no colour-related
 `process` read of its own at all. `version.ts`'s
 `process.env.__PACKAGE_VERSION__` needs no allowlist entry either: it is a
 build-time constant the bundler substitutes, which `SourceBoundary`'s
 `process` rule (below) exempts unconditionally. `internal/exit.ts` (the
 former sole writer of `process.exitCode`) is deleted too: exit codes are set
-through `@effected/cli`'s `CliExit.set`, and the interactive screens, the
+through `@effected/cli-kit`'s `CliExit.set`, and the interactive screens, the
 audience and the terminal checks all go through the kit's services, so none
 of them is a `process` read of this package's own.
 

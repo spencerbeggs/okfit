@@ -1,5 +1,5 @@
-import { ErrorText } from "@effected/engine";
-import { ToolRefusal } from "@effected/mcp";
+import { ErrorText } from "@effected/kit";
+import { ToolRefusal } from "@effected/mcp-kit";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";

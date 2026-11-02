@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Render } from "@effected/cli";
+import { Render } from "@effected/cli-kit";
 import { humanMoveDoc } from "../../src/render/move.js";
 
 const agent = Render.contextOf({ audience: "agent" });

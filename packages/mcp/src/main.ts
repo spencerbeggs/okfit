@@ -4,7 +4,7 @@
  * @packageDocumentation
  */
 
-import { McpGuard } from "@effected/mcp/guard";
+import { McpGuard } from "@effected/mcp-kit/guard";
 import type { Distribution } from "@okfit/engine";
 
 /**
@@ -22,7 +22,7 @@ export interface MainOptions {
 /**
  * Run the okfit MCP server over stdio. Owns the process.
  *
- * `McpGuard.run` (`@effected/mcp/guard`, itself free of static runtime
+ * `McpGuard.run` (`@effected/mcp-kit/guard`, itself free of static runtime
  * imports) installs the crash guards before `load` evaluates the server
  * graph, so a throw during module evaluation is still reported on stderr.
  * This module therefore carries no other static runtime import (`Distribution`

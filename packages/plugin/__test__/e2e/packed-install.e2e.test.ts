@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it, layer } from "@effect/vitest";
 import { LspProbe } from "@effected/lsp/testing";
-import { McpProbe } from "@effected/mcp/testing";
+import { McpProbe } from "@effected/mcp-kit/testing";
 import { Workspaces } from "@effected/workspaces";
 import type { PackedInstallOptions } from "@effected/workspaces/testing";
 import { PackedInstall } from "@effected/workspaces/testing";
@@ -28,7 +28,7 @@ const RUN: PackedInstallOptions = {
 	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
 	bins: ["okfit", "okfit-mcp", "okfit-lsp"],
 	allowSharedBins: true,
-	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli 0.11; a CI
+	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli-kit 0.11; a CI
 	// runner exporting it would colour the output asserted below (okfit #232).
 	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
 	// A missing manager fails in CI; locally any one that is installed is enough.

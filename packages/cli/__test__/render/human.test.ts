@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { CliTheme, Render } from "@effected/cli";
+import { CliTheme, Render } from "@effected/cli-kit";
 import { DiagnosticRange } from "@okfit/core";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import { Effect, Path } from "effect";

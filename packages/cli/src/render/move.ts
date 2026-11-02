@@ -1,5 +1,5 @@
-import type { Document } from "@effected/cli";
-import { Doc } from "@effected/cli";
+import type { Document } from "@effected/cli-kit";
+import { Doc } from "@effected/cli-kit";
 
 /** `humanMoveDoc`'s input shape. @public */
 export interface MoveLines {

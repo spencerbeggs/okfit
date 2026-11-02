@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { withDistributionVersion } from "@effected/engine";
+import { withDistributionVersion } from "@effected/kit";
 import { CONFIG_SCHEMA_VERSION, OKF_SPEC_VERSION } from "@okfit/core";
 import { ENGINE_VERSION } from "@okfit/engine";
 import { Option } from "effect";

@@ -44,7 +44,7 @@ export const runOkfit = (
 		ChildProcess.setCwd(
 			ChildProcess.make(process.execPath, [BIN, ...args], {
 				// FORCE_COLOR=0 first so a caller's env still wins: it beats NO_COLOR and the TTY check
-				// since @effected/cli 0.11, and the sandbox env alone only sets NO_COLOR (okfit #232).
+				// since @effected/cli-kit 0.11, and the sandbox env alone only sets NO_COLOR (okfit #232).
 				env: { FORCE_COLOR: "0", ...options.env },
 				// exactOptionalPropertyTypes: omit the key when no stdin is given.
 				...(options.stdin === undefined ? {} : { stdin: Stream.make(new TextEncoder().encode(options.stdin)) }),

@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:48:16Z
+  at: 2026-11-02T19:16:31Z
 integrity:
   generated:
-    body: b5ababba94a4f4a4
+    body: aa7c91860423ecd9
 ---
 
 # MCP
@@ -44,11 +44,11 @@ This package depends on [Engine](engine.md) directly -- for the platform
 layer (`OkfitPlatform`), the config/bundle loading `validate_bundle`
 wraps, and the `render`/`json` envelope pieces its tools re-export
 unchanged -- and no longer depends on `@okfit/cli` at all, so
-`pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
+`pnpm add -D @okfit/mcp` no longer resolves `@effected/cli-kit` or the
 command tree. See [A shared @okfit/engine package replaces
 cli-as-copy-contract](../decisions/engine-front-end-split.md).
 
-It also depends directly on `@effected/mcp` and `@effected/engine`: the
+It also depends directly on `@effected/mcp-kit` and `@effected/kit`: the
 server assembly, its error shape, and project-root resolution build on
 that kit rather than on hand-rolled equivalents -- see [okfit's front ends
 build on @effected/{engine,cli,mcp} rather than hand-rolled
@@ -56,7 +56,7 @@ equivalents](../decisions/effected-kit-adoption.md).
 
 ## Status
 
-The server implements MCP over stdio, on `@effected/mcp`'s
+The server implements MCP over stdio, on `@effected/mcp-kit`'s
 `McpStdio`/`McpToolkit` (themselves built on `effect/ai/McpServer`):
 six read-only tools and static concept resources; see
 `okf/interfaces/okfit-mcp.md`. `list_concepts`, `get_concept` and
@@ -81,11 +81,11 @@ declared dependency becomes a per-request `McpRequest` requirement --
 `ToolsLayer` instead captures the platform services (the exported
 `ToolServices`: FileSystem, Path, AppDirs, Xdg, Digest, Git, GitHistory)
 once at build and provides them on each call, as `IndexResource` does), `errors.ts` (`McpToolError`, an alias of
-`@effected/mcp`'s `ToolRefusal`, plus `@effected/engine`'s `Remediation`),
+`@effected/mcp-kit`'s `ToolRefusal`, plus `@effected/kit`'s `Remediation`),
 `schema/` (per-tool parameter and success
 schemas), `tools/` (one file per tool), `resources/` (the index and
 concept resources), `internal/` (project root resolution over
-`@effected/engine`'s `LaunchContext.projectDir`, per-call
+`@effected/kit`'s `LaunchContext.projectDir`, per-call
 config/bundle loading, the optional-`now` helper).
 
 `McpToolkit.layer` closes every served tool's `inputSchema`

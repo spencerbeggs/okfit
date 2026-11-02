@@ -1,4 +1,4 @@
-import { Doc } from "@effected/cli";
+import { Doc } from "@effected/cli-kit";
 import type { OkfitConfig } from "@okfit/core";
 import { loadStaleCandidates, runVerifyIds } from "@okfit/engine";
 import type { DateTime } from "effect";

@@ -2,8 +2,8 @@ import * as NodeChildProcessSpawner from "@effect/platform-node/NodeChildProcess
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
-import type { JsonRpcMessage, McpTestFailure, ServedResource, ServedTool } from "@effected/mcp/testing";
-import { McpHarness } from "@effected/mcp/testing";
+import type { JsonRpcMessage, McpTestFailure, ServedResource, ServedTool } from "@effected/mcp-kit/testing";
+import { McpHarness } from "@effected/mcp-kit/testing";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { Scope } from "effect";
 import { Effect, Layer } from "effect";
@@ -11,12 +11,12 @@ import { McpProtocol } from "effect/ai";
 import type { ServerOptions } from "../../src/server.js";
 import { ServerLayer } from "../../src/server.js";
 
-export type { ServedResource } from "@effected/mcp/testing";
+export type { ServedResource } from "@effected/mcp-kit/testing";
 
 /**
  * The three adapters `ServerLayer` declares, spelled as the wire-format
  * strings this package's own tests already use, mapped onto
- * `@effected/mcp/testing`'s `McpHarness`, which takes a `McpProtocol.ProtocolAdapter`
+ * `@effected/mcp-kit/testing`'s `McpHarness`, which takes a `McpProtocol.ProtocolAdapter`
  * rather than a bare string.
  */
 export type ProtocolVersion = "2026-07-28" | "2025-11-25" | "2025-06-18";
@@ -69,7 +69,7 @@ export interface OkfitMcpHarness {
  * source composes internally -- deliberately NOT the `NodeServices.layer`
  * bundle itself, which also carries `NodeStdio.layer`. `Stdio` is supplied
  * internally by `McpHarness.make`, over queue-backed stdio -- see
- * `@effected/mcp/testing`'s own reference for why a harness is passed a
+ * `@effected/mcp-kit/testing`'s own reference for why a harness is passed a
  * server layer WITHOUT its own `Stdio`. Pulling in `NodeServices.layer`
  * wholesale satisfies the server's `Stdio` requirement with the REAL
  * `process.stdin`/`stdout` before `McpHarness.make` ever gets a chance to
@@ -87,7 +87,7 @@ const PlatformLayer = Layer.mergeAll(
 
 /**
  * `tools/call` and `resources/read` return the whole `JsonRpcMessage` from
- * `@effected/mcp/testing`'s `McpHarness` (a JSON-RPC error is data, same as
+ * `@effected/mcp-kit/testing`'s `McpHarness` (a JSON-RPC error is data, same as
  * every other request) -- unwrapped here to `.result` for the common case
  * this package's own tests want, matching the shape the hand-rolled harness
  * this replaces returned. A caller that needs to see a JSON-RPC-level
@@ -102,7 +102,7 @@ const unwrapResult = <A>(response: JsonRpcMessage): A =>
 
 /**
  * An in-process MCP client for `ServerLayer(projectRoot)`, over
- * `@effected/mcp/testing`'s `McpHarness` -- the kit's own in-process,
+ * `@effected/mcp-kit/testing`'s `McpHarness` -- the kit's own in-process,
  * queue-backed-stdio test client. What this wrapper still owns: the real
  * platform layer (`Xdg`/`AppDirs`/
  * the individual Node platform layers), the `ProtocolVersion` string ->

@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
-import { Fmt } from "@effected/cli";
+import { Fmt } from "@effected/cli-kit";
 import { BIN } from "./okfit.js";
 
 /** One scripted keystroke: wait for `waitFor` to appear in new output, then write `send`. */

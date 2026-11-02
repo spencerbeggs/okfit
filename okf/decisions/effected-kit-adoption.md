@@ -1,14 +1,14 @@
 ---
 type: Decision
 title: okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
-description: "@okfit/cli, @okfit/mcp, @okfit/engine and the workspace's own boundary tests now depend on effected's front-end kit -- @effected/engine, @effected/cli, @effected/mcp, and @effected/workspaces -- in place of copies this repository hand-rolled and maintained itself."
+description: "@okfit/cli, @okfit/mcp, @okfit/engine and the workspace's own boundary tests now depend on effected's front-end kit -- @effected/kit, @effected/cli-kit, @effected/mcp-kit, and @effected/workspaces -- in place of copies this repository hand-rolled and maintained itself."
 status: stable
 tags:
   - architecture
   - deps
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:52:46Z
+  at: 2026-11-02T19:16:31Z
 sources:
   - id: main-ts
     resource: ../../packages/cli/src/main.ts
@@ -35,13 +35,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: c1ed88262e1a765d
+    body: 334daec7bbd6e7bb
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 2c3a4355005443e2
+    at: 2026-11-02T19:15:49Z
+    content: 4d302672ebd1239b
 ---
 
 # okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
@@ -72,10 +74,10 @@ package:
 `effected` (the sibling kit this repository already depends on for
 `@effected/git`, `@effected/xdg`, `@effected/config-file`, and others)
 shipped a front-end kit distilled from exactly this kind of duplication
-across its own consumers: `@effected/engine` (`Distribution`,
+across its own consumers: `@effected/kit` (`Distribution`,
 `DistributionField`, `LaunchContext`, `Remediation`, `CurrentDistribution`,
-`distributionSuffix`), `@effected/cli` (`CliRuntime.main`, `CliColor`),
-`@effected/mcp` (`McpStdio`, `McpToolkit`, `ToolFailure`), and
+`distributionSuffix`), `@effected/cli-kit` (`CliRuntime.main`, `CliColor`),
+`@effected/mcp-kit` (`McpStdio`, `McpToolkit`, `ToolFailure`), and
 `@effected/workspaces` (`SourceBoundary`, `WorkspaceLayering`,
 `LayerPolicy`), all resolved through the `@effected/pnpm-plugin-effect`
 catalog this repository already opts into for the `effect` version
@@ -85,16 +87,16 @@ itself.[^pnpm-plugin-effect]
 
 Adopt the kit across all three front ends and the workspace's own tests,
 replacing the hand-rolled equivalent each one used before, at the versions
-`@effected/pnpm-plugin-effect` 0.11.0 resolves: `@effected/engine` 0.1.0,
-`@effected/mcp` 0.1.0, `@effected/cli` 0.8.0, `@effected/workspaces`
+`@effected/pnpm-plugin-effect` 0.11.0 resolves: `@effected/kit` 0.1.0,
+`@effected/mcp-kit` 0.1.0, `@effected/cli-kit` 0.8.0, `@effected/workspaces`
 0.26.0.
 
 - **`@okfit/engine`** re-exports `Distribution`/`DistributionField` from
-  `@effected/engine` (`render/distribution.ts`) instead of declaring its
+  `@effected/kit` (`render/distribution.ts`) instead of declaring its
   own `{ name, version }` struct, so `@okfit/cli`'s `CurrentDistribution`
   reference and every envelope in this package agree on one shape rather
   than two hand-rolled structs drifting apart.[^distribution-ts]
-- **`@okfit/cli`** runs on `@effected/cli`'s `CliRuntime.main`, which
+- **`@okfit/cli`** runs on `@effected/cli-kit`'s `CliRuntime.main`, which
   already provides `platform` inside failure reporting, a fresh
   `CliExit` cell, and the logger outermost, and already remaps a
   `ShowHelp` carrying parse errors to the usage exit code -- the
@@ -102,15 +104,15 @@ replacing the hand-rolled equivalent each one used before, at the versions
   goes through `CliColor.enabled`/`CliColor.formatterLayer`, read from the
   ambient `ConfigProvider` rather than `process` directly; `internal/tty.ts`
   is deleted.[^version-formatter] The distribution comes from
-  `@effected/engine`'s `CurrentDistribution` reference, provided once in
+  `@effected/kit`'s `CurrentDistribution` reference, provided once in
   `main.ts`; `internal/distribution.ts` is deleted.
 - **`@okfit/mcp`** runs on `McpStdio.launch`/`.teardown`/`.layer` and
   `McpToolkit.layer` in place of hand-wiring
   `effect/unstable/ai/McpServer.layerStdio`/`.toolkit` directly.[^mcp-server-ts]
-  `errors.ts` is built on `ToolFailure` (`@effected/mcp`) and `Remediation`
-  (`@effected/engine`) instead of this package's own
+  `errors.ts` is built on `ToolFailure` (`@effected/mcp-kit`) and `Remediation`
+  (`@effected/kit`) instead of this package's own
   `composeRemediatedMessage`/`truncateEchoed`.[^mcp-errors-ts] The project
-  root resolves through `@effected/engine`'s `LaunchContext.projectDir`,
+  root resolves through `@effected/kit`'s `LaunchContext.projectDir`,
   which additionally guards against a launch context that still carries a
   literal, unexpanded `${CLAUDE_PROJECT_DIR}` placeholder -- protection the
   old hand-rolled `??` chain did not have.
@@ -179,7 +181,7 @@ duplication in place.
   keeps serving.
 - The `mcp-protocol-versions` Decision's claim that this
   package "uses native `McpServer.toolkit`" no longer holds literally --
-  it now goes through `@effected/mcp`'s `McpToolkit.layer`, which runs
+  it now goes through `@effected/mcp-kit`'s `McpToolkit.layer`, which runs
   core's own `registerToolkit` unchanged underneath and adds the
   unknown-key pre-check above; the protocol list and its ordering rules
   that Decision states are otherwise unaffected.

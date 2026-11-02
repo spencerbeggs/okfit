@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
-import { CliUiTest } from "@effected/cli/ui/testing";
+import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import { Git } from "@effected/git";
 import { ActorPattern, OkfitConfig } from "@okfit/core";
 import { HumanActorNotAllowedError } from "@okfit/profiles";

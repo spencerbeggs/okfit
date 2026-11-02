@@ -144,7 +144,7 @@ describe("validate_bundle", () => {
 	// reaches `tools/call`'s `content[0].text`. This asserts the composed
 	// message includes both the root and the remediation hint, catching a
 	// regression where `run()`'s failure is mapped to `BundleNotFound` with
-	// a bare `cause.message` instead of `@effected/mcp`'s
+	// a bare `cause.message` instead of `@effected/mcp-kit`'s
 	// `ToolFailure.message(raw, remediation)`.
 	it.effect("fails BundleNotFound when the config's bundle path does not exist, with a composed remediation", () =>
 		Effect.gen(function* () {

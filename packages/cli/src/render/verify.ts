@@ -1,5 +1,5 @@
-import type { Document } from "@effected/cli";
-import { Doc } from "@effected/cli";
+import type { Document } from "@effected/cli-kit";
+import { Doc } from "@effected/cli-kit";
 import type { VerifyBatchSkipReason } from "@okfit/engine";
 /** @public */
 export interface VerifyLines {

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
-import { McpProcess } from "@effected/mcp/testing";
+import { McpProcess } from "@effected/mcp-kit/testing";
 import { Effect } from "effect";
 import { ChildProcess } from "effect/process";
 import { readUntilErrorCode } from "./utils/wire.js";
@@ -14,7 +14,7 @@ const MISSING_BUNDLE_FIXTURE = resolve(import.meta.dirname, "..", "fixtures", "m
 const MCP_BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "bin", "okfit-mcp.js");
 
 /**
- * Spawns the built bin as a long-lived server over `@effected/mcp/testing`'s
+ * Spawns the built bin as a long-lived server over `@effected/mcp-kit/testing`'s
  * `McpProcess`, which provides `send`/`nextLine`/`closeStdin`/`exitCode`/
  * `stderrSoFar` plus `readUntilResponse` (used below to skip past
  * interleaved notifications).
@@ -53,7 +53,7 @@ const STATELESS_META = {
  * request/response pair rather than always preceding it -- reproduced
  * directly against the built bin, where a `validate_bundle` call (slow
  * enough to leave room for the notification) received three notification
- * lines before its own response. `@effected/mcp/testing`'s `McpProcess.readUntilResponse`
+ * lines before its own response. `@effected/mcp-kit/testing`'s `McpProcess.readUntilResponse`
  * is exactly this: it reads past interleaved notifications to the matching
  * id and returns `{ response, seen }`, `seen` carrying every line read along
  * the way (notifications included) for the one case below that wants to

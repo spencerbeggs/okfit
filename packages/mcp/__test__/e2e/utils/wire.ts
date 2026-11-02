@@ -1,4 +1,4 @@
-import type { McpProcess } from "@effected/mcp/testing";
+import type { McpProcess } from "@effected/mcp-kit/testing";
 import { Effect } from "effect";
 
 /**

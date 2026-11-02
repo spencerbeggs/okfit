@@ -97,4 +97,4 @@ __test__/
   local-only; `PackedInstall`, needs the prod
   build; the `preflight` + `gate` pair skips without it locally and fails under `CI`) and proves the published artifact. `runOkfit`
   defaults `FORCE_COLOR=0` under the caller's env (it beats `NO_COLOR` since
-  `@effected/cli` 0.11); the packed suite pins it the same way.
+  `@effected/cli-kit` 0.11); the packed suite pins it the same way.

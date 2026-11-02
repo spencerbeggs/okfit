@@ -1,4 +1,4 @@
-import { ToolOutcome } from "@effected/mcp";
+import { ToolOutcome } from "@effected/mcp-kit";
 import { GraphNodeKind, Status } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
 import { DriftReason } from "@okfit/profiles";

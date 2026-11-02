@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Render } from "@effected/cli";
+import { Render } from "@effected/cli-kit";
 import { Option } from "effect";
 import { humanStale, humanStaleDoc } from "../../src/render/stale.js";
 

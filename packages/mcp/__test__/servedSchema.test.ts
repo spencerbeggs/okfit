@@ -67,7 +67,7 @@ describe("served schema", () => {
 
 	it.effect("every tool's input schema is closed, and an unknown key is reported by name", () =>
 		Effect.gen(function* () {
-			// `@effected/mcp`'s `McpToolkit.layer` (`server.ts`) registers every
+			// `@effected/mcp-kit`'s `McpToolkit.layer` (`server.ts`) registers every
 			// unannotated tool strict by default (`strict: "all"`), restoring the
 			// closed-world input contract N-15 originally asked for: core serves
 			// `additionalProperties: false` on every object node of a strict

@@ -10,7 +10,7 @@ sources:
     resource: ../../packages/cli/__test__/boundaries.test.ts
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:52:46Z
+  at: 2026-11-02T19:16:31Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -20,13 +20,15 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 581e4c4c8c778157
+    body: 5eab2247619cf15c
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: bc57d94b62a6762b
+    at: 2026-11-02T19:15:49Z
+    content: ca838ce0b0ae398c
 ---
 
 # A shared @okfit/engine package replaces cli-as-copy-contract
@@ -64,7 +66,7 @@ would have exposed — moved out of `@okfit/cli` into a new `@okfit/engine`
 package. `@okfit/cli` is reduced to a presentation shell: commands, human
 renderers, `renderFailure`, and the bin/main wiring. `@okfit/mcp` depends
 on `@okfit/engine` directly and no longer depends on `@okfit/cli` at all,
-so installing `@okfit/mcp` alone no longer resolves `@effected/cli` or
+so installing `@okfit/mcp` alone no longer resolves `@effected/cli-kit` or
 the command tree that only a CLI needs.
 
 The XDG application namespace literal (`"okfit"`) now exists exactly once,
@@ -96,7 +98,7 @@ story would only have been half true.
 
 ## Consequences
 
-`pnpm add -D @okfit/mcp` no longer resolves `@effected/cli` or the
+`pnpm add -D @okfit/mcp` no longer resolves `@effected/cli-kit` or the
 command tree. `@okfit/cli` carries a narrower `process`-read allowlist
 (`bin.ts`, `main.ts`, `commands/**`, `internal/exit.ts`), enforced by
 `@effected/workspaces/testing`'s `SourceBoundary` in
@@ -105,7 +107,7 @@ before, since everything under `config/`, `validate/`, `verify/`,
 `sync/`, `init/`, and the envelope halves of `render/` moved to
 `@okfit/engine`, which enforces its own boundary test with no allowlist
 at all — no file under `engine/src` may read `process`. Colour comes
-from `@effected/cli`'s `CliColor.enabled`, read from the ambient
+from `@effected/cli-kit`'s `CliColor.enabled`, read from the ambient
 `ConfigProvider`, never a `process` read this package performs directly
 — the package's own `internal/tty.ts` no longer exists
 ([effected-kit-adoption](effected-kit-adoption.md)).

@@ -1,5 +1,5 @@
-import { ErrorText } from "@effected/engine";
 import type { Git } from "@effected/git";
+import { ErrorText } from "@effected/kit";
 import type { AppDirs, Xdg } from "@effected/xdg";
 import type { BundleSessionShape, ResolvedProjectConfig, RevalidateTier } from "@okfit/engine";
 import { BundleSession, provideConfig, resolveProjectConfig } from "@okfit/engine";

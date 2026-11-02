@@ -3,8 +3,8 @@ allowBuilds:
   keytar: false
 autoInstallPeers: true
 configDependencies:
-  "@effected/pnpm-plugin-effected": 0.20.0
-  "@savvy-web/pnpm-plugin-silk": 0.51.3
+  "@effected/pnpm-plugin-effected": 0.21.0
+  "@savvy-web/pnpm-plugin-silk": 0.52.0
 minimumReleaseAgeExclude:
   - "@effected/pnpm-plugin-effected"
   - "@savvy-web/pnpm-plugin-silk"

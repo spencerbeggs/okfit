@@ -1,4 +1,4 @@
-import { ToolFailure, ToolRefusal } from "@effected/mcp";
+import { ToolFailure, ToolRefusal } from "@effected/mcp-kit";
 import { ConceptQuery, signalFor } from "@okfit/engine";
 import { Effect } from "effect";
 import { Tool } from "effect/ai";
@@ -34,7 +34,7 @@ export const listConcepts = Tool.make("list_concepts", {
 
 /**
  * Deviation from the brief's literal snippet: `message` is composed through
- * `ToolFailure.message` (`@effected/mcp`), and the raw message embeds the
+ * `ToolFailure.message` (`@effected/mcp-kit`), and the raw message embeds the
  * full `valid` list rather than leaving it only on the schema's `valid`
  * field — a declared typed failure under `failureMode: "error"` never
  * reaches the wire with `structuredContent` (B1's finding), so `valid`

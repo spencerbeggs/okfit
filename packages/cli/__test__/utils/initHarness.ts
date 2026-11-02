@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CliExit } from "@effected/cli";
+import { CliExit } from "@effected/cli-kit";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { ConfigProvider, DateTime, Effect, Option } from "effect";
 import { initProgram } from "../../src/commands/init.js";

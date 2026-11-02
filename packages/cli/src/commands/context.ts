@@ -1,5 +1,5 @@
-import { CliFormat } from "@effected/cli";
-import { CurrentDistribution } from "@effected/engine";
+import { CliFormat } from "@effected/cli-kit";
+import { CurrentDistribution } from "@effected/kit";
 import {
 	ContextEnvelope,
 	Now,
