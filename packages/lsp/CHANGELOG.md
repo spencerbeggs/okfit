@@ -1,5 +1,43 @@
 # @okfit/lsp
 
+## 0.6.2
+
+### Refactoring
+
+- Imports the kit's engine library under its new name, `@effected/kit` (was `@effected/engine`), including the `ProcessGuard` the server runs under. Behaviour is unchanged. [#357][#357]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/engine | dependency | removed | ^0.11.0 | — |
+| @effect/platform-node | dependency | updated | ~4.1.1 | ~4.1.2 |
+| @effected/config-file | dependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/git | dependency | updated | ^0.29.0 | ^0.30.0 |
+| @effected/glob | dependency | updated | ^0.17.0 | ^0.18.0 |
+| @effected/jsonc | dependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/lsp | dependency | updated | ^0.7.0 | ^0.8.0 |
+| @effected/markdown | dependency | updated | ^0.25.0 | ^0.26.0 |
+| @effected/schemastore | dependency | updated | ^0.28.0 | ^0.29.0 |
+| @effected/source | dependency | updated | ^0.2.0 | ^0.3.0 |
+| @effected/toml | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/walker | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/xdg | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/yaml | dependency | updated | ^0.27.0 | ^0.28.0 |
+| @okfit/core | dependency | updated | 0.12.0 | 0.12.1 |
+| @okfit/engine | dependency | updated | 0.19.0 | 0.19.1 |
+| @okfit/profiles | dependency | updated | 0.14.0 | 0.14.1 |
+| effect | dependency | updated | ~4.1.1 | ~4.1.2 |
+| @effected/kit | dependency | added | — | ^0.12.0 |
+
+[#357][#357]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#357]: https://github.com/spencerbeggs/okfit/pull/357
+
 ## 0.6.1
 
 ### Bug Fixes
