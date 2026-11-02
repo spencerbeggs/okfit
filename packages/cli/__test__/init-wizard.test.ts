@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Cancelled } from "@effected/cli";
-import { CliUiTest } from "@effected/cli/ui/testing";
+import { Cancelled } from "@effected/cli-kit";
+import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import { Cause, Effect, Exit, Fiber, Option } from "effect";
 import { renderFailure } from "../src/errors.js";
 import { InitBundleDirError, checkBundleDir } from "../src/internal/initWizard.js";

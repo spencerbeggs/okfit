@@ -1,4 +1,4 @@
-import { ToolFailure } from "@effected/mcp";
+import { ToolFailure } from "@effected/mcp-kit";
 import type { QueryConceptNotFoundError } from "@okfit/engine";
 
 /**

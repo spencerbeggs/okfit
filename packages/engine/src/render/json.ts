@@ -1,4 +1,4 @@
-import { ErrorText } from "@effected/engine";
+import { ErrorText } from "@effected/kit";
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import { Runtime, Schema } from "effect";
 import { ENGINE_VERSION } from "../version.js";

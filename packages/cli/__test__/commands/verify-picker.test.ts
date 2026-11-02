@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { assert, describe, it } from "@effect/vitest";
-import { CliUiTest } from "@effected/cli/ui/testing";
+import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import type { Actor } from "@okfit/core";
 import { loadStaleCandidates, runVerifyIds } from "@okfit/engine";
 import { Effect, Exit, Fiber, Option } from "effect";

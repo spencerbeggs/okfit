@@ -1,4 +1,4 @@
-import { Doc } from "@effected/cli";
+import { Doc } from "@effected/cli-kit";
 import type { RenderedDiagnostic } from "@okfit/engine";
 import type { Path } from "effect";
 import { Config, Console, Effect, Option } from "effect";

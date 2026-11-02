@@ -1,4 +1,4 @@
-import { CliAudience } from "@effected/cli";
+import { CliAudience } from "@effected/cli-kit";
 import { Command } from "effect/cli";
 import { contextCommand } from "./context.js";
 import { graphCommand } from "./graph.js";

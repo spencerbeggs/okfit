@@ -1,6 +1,6 @@
 # @okfit/mcp
 
-The `okfit-mcp` bin: an MCP server over stdio, built on `@effected/mcp`'s
+The `okfit-mcp` bin: an MCP server over stdio, built on `@effected/mcp-kit`'s
 `McpStdio`/`McpToolkit` (themselves built on `effect/ai`'s
 `McpServer`), exposing six read-only tools and the bundle index plus one
 resource per concept against an OKF bundle. The server writes nothing,
@@ -16,7 +16,7 @@ for what moved from a hand-rolled equivalent to the kit.
 ```text
 src/
   bin.ts                       -- the shebang entry point: imports and awaits main()
-  main.ts                      -- McpGuard.run crash guards (@effected/mcp/guard, policy
+  main.ts                      -- McpGuard.run crash guards (@effected/mcp-kit/guard, policy
                                    exitBeforeConnect), OkfitPlatform (@okfit/engine),
                                    McpStdio.launch/.teardown run by the guard.
                                    onRejection is exitBeforeConnect, not the skill's
@@ -33,11 +33,11 @@ src/
                                    engine_version and the launching meta-package as
                                    distribution (okf/decisions/comparable-version.md)
   server.ts                    -- ServerLayer: McpToolkit.layer + resource layers passed as
-                                   McpStdio.layer's `registrations` (both @effected/mcp)
+                                   McpStdio.layer's `registrations` (both @effected/mcp-kit)
   toolkit.ts                   -- OkfitToolkit = Toolkit.make(...six tools); ToolsLayer captures
                                    ToolServices once at build and provides them per call
-  errors.ts                    -- McpToolError = @effected/mcp's ToolRefusal, plus
-                                   @effected/engine's Remediation
+  errors.ts                    -- McpToolError = @effected/mcp-kit's ToolRefusal, plus
+                                   @effected/kit's Remediation
   schema/
     ConceptSummary.ts          -- the one shared concept summary schema
     tools.ts                   -- per-tool Parameters/Success structs
@@ -52,7 +52,7 @@ src/
     conceptResource.ts         -- okf://concept/<id>, one static resource per concept at boot
     indexResource.ts           -- okf://index, re-read from disk on every call
   internal/
-    projectRoot.ts             -- resolveMcpProjectRoot(env, cwd): @effected/engine's
+    projectRoot.ts             -- resolveMcpProjectRoot(env, cwd): @effected/kit's
                                    LaunchContext.projectDir over the env precedence, called
                                    once from main.ts with process.env/process.cwd()
     toolContext.ts             -- loadToolContext: config + bundle per call
@@ -93,7 +93,7 @@ fixed list needs none.
 
 ## Errors reach the wire as `isError`
 
-Every tool declares `McpToolError` (`@effected/mcp`'s `ToolRefusal`) as its
+Every tool declares `McpToolError` (`@effected/mcp-kit`'s `ToolRefusal`) as its
 failure schema. Under `McpServer`'s `failureMode: "error"` (the only mode
 this server uses), a declared failure collapses to
 `{ isError: true, content: [{ type: "text", text: error.message }] }` --
@@ -127,7 +127,7 @@ sets it.
 
 ## Strict input, every unknown key named at once
 
-`server.ts` registers the toolkit through `@effected/mcp`'s
+`server.ts` registers the toolkit through `@effected/mcp-kit`'s
 `McpToolkit.layer`, not core's own `McpServer.toolkit` directly. Every
 served tool's `inputSchema` is closed (`additionalProperties: false` at
 every object node), and a call carrying an argument the schema does not
@@ -162,10 +162,10 @@ split, not a bug).
 Classified by filename suffix, as the root `vitest.config.ts` already does:
 
 - `.test.ts` — in-process against `Stdio.layerTest`, no child process;
-  `__test__/utils/harness.ts` wraps `@effected/mcp/testing`'s
+  `__test__/utils/harness.ts` wraps `@effected/mcp-kit/testing`'s
   `McpHarness` rather than hand-porting the request/response plumbing.
 - `.e2e.test.ts` — spawns the real built bin,
-  `dist/dev/pkg/bin/okfit-mcp.js`, through `@effected/mcp/testing`'s
+  `dist/dev/pkg/bin/okfit-mcp.js`, through `@effected/mcp-kit/testing`'s
   `McpProcess` (`McpProcess.spawn`/`.readUntilResponse`), which replaced
   this package's own hand-rolled queue/stream reader
   (`__test__/e2e/utils/mcpProcess.ts`, deleted).
@@ -174,7 +174,7 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
 
 `internal/projectRoot.ts#resolveMcpProjectRoot` resolves once, at bin
 startup: `OKFIT_PROJECT_DIR` → `CLAUDE_PROJECT_DIR` → `cwd`. Built on
-`@effected/engine`'s `LaunchContext.projectDir` with an empty `argv` (this
+`@effected/kit`'s `LaunchContext.projectDir` with an empty `argv` (this
 server has no command parser); the plugin's `start-mcp.sh` loader forwards
 `"$@"` with nothing in it. `LaunchContext.projectDir` also treats a value
 still carrying a literal, unexpanded `${VAR}` placeholder as unusable --

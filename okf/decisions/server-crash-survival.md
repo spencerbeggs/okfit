@@ -15,19 +15,21 @@ sources:
     resource: https://github.com/spencerbeggs/okfit/issues/191
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T22:58:46Z
+  at: 2026-11-02T19:16:31Z
 verified:
   - by: human:spencer
     at: 2026-10-05T23:03:56Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: ef0014c6c62a639d
+    body: 3bae55e87511ab51
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: 7bef555232e0acec
+    at: 2026-11-02T19:15:49Z
+    content: 480d34de53c00d24
 ---
 
 # The language and MCP servers survive a stray crash once serving, and exit on one before
@@ -35,8 +37,8 @@ integrity:
 ## Context
 
 Both long-lived servers install process-level crash guards before their module
-graph loads: `okfit-mcp` through `McpGuard.run` (`@effected/mcp/guard`) and
-`okfit-lsp` through `ProcessGuard.run` (`@effected/engine/guard`). The guards
+graph loads: `okfit-mcp` through `McpGuard.run` (`@effected/mcp-kit/guard`) and
+`okfit-lsp` through `ProcessGuard.run` (`@effected/kit/guard`). The guards
 catch what nothing else catches: an `uncaughtException` or
 `unhandledRejection` raised outside any request, from a timer, a watcher or a
 library callback. A failure inside a request handler never reaches them;

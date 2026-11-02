@@ -1,5 +1,5 @@
-import { ErrorText } from "@effected/engine";
-import { ToolRefusal } from "@effected/mcp";
+import { ErrorText } from "@effected/kit";
+import { ToolRefusal } from "@effected/mcp-kit";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";

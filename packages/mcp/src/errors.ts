@@ -1,15 +1,15 @@
-import { Remediation } from "@effected/engine";
-import { ToolRefusal } from "@effected/mcp";
+import { Remediation } from "@effected/kit";
+import { ToolRefusal } from "@effected/mcp-kit";
 
 /**
  * What a caller should do next about a failed tool call. Re-exported from
- * `@effected/engine`, the shape `ToolRefusal.refuse` takes. @public
+ * `@effected/kit`, the shape `ToolRefusal.refuse` takes. @public
  */
 export { Remediation };
 
 /**
  * The one failure schema every tool declares (N-14): `ToolRefusal` from
- * `@effected/mcp`.
+ * `@effected/mcp-kit`.
  *
  * @remarks
  * Replaces five bespoke tagged errors. Under `failureMode: "error"` a declared

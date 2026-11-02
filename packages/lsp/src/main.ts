@@ -4,7 +4,7 @@
  * @packageDocumentation
  */
 
-import { ProcessGuard } from "@effected/engine/guard";
+import { ProcessGuard } from "@effected/kit/guard";
 import type { Distribution } from "@okfit/engine";
 
 /**
@@ -21,7 +21,7 @@ export interface MainOptions {
 /**
  * Run the okfit LSP server over stdio. Owns the process.
  *
- * `ProcessGuard.run` (`@effected/engine/guard`, itself free of static runtime
+ * `ProcessGuard.run` (`@effected/kit/guard`, itself free of static runtime
  * imports) installs the crash guards before `load` evaluates the server
  * graph, so a throw during module evaluation is still reported on stderr
  * rather than crashing silently. This module therefore carries no other

@@ -1,4 +1,4 @@
-import { CliExit, CliTheme } from "@effected/cli";
+import { CliExit, CliTheme } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile, SCHEMA_DIRECTIVE } from "@okfit/core";
 import type { RenderedDiagnostic, ScaffoldOptions } from "@okfit/engine";

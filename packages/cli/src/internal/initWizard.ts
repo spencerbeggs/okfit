@@ -1,6 +1,6 @@
 import { posix } from "node:path";
-import type { Cancelled, CliTheme, NotInteractive } from "@effected/cli";
-import { CliUi, Select, TextInput } from "@effected/cli/ui";
+import type { Cancelled, CliTheme, NotInteractive } from "@effected/cli-kit";
+import { CliUi, Select, TextInput } from "@effected/cli-kit/ui";
 import { PROFILE_NAMES } from "@okfit/profiles";
 import { Effect, Option, Runtime, Schema } from "effect";
 

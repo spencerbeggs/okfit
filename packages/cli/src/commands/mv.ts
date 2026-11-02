@@ -1,5 +1,5 @@
-import { CliFormat, Doc } from "@effected/cli";
-import { CurrentDistribution } from "@effected/engine";
+import { CliFormat, Doc } from "@effected/cli-kit";
+import { CurrentDistribution } from "@effected/kit";
 import {
 	MoveEnvelope,
 	Now,

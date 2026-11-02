@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Cancelled, ConfigIssueRenderer, NotInteractive } from "@effected/cli";
+import { Cancelled, ConfigIssueRenderer, NotInteractive } from "@effected/cli-kit";
 import { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,

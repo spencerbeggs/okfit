@@ -1,7 +1,7 @@
 ---
 type: Module
 title: CLI
-description: The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli, with audience flags and interactive prompts.
+description: The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli-kit, with audience flags and interactive prompts.
 status: stable
 resource: ../../packages/cli
 kind: package
@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-02T19:16:31Z
 integrity:
   generated:
-    body: d2ad5264aed5f95c
+    body: 24880ea472f4fe65
 ---
 
 # CLI
@@ -23,13 +23,13 @@ integrity:
 `okfit context`, `okfit verify`, `okfit query`, `okfit sync`, `okfit lint`,
 `okfit graph` and `okfit stale`; built on
 `effect/cli` for the command tree, flags, and help, and
-`@effected/cli`'s `CliRuntime.main`/`CliTheme`/`CliExit` for assembly,
+`@effected/cli-kit`'s `CliRuntime.main`/`CliTheme`/`CliExit` for assembly,
 failure rendering, colour, and exit codes. It
 is a presentation shell over [Engine](engine.md): config discovery and the
 validate/verify/sync/init/context programs live in `@okfit/engine`, not
 here (`packages/cli/CLAUDE.md:1-8`). The distribution comes from
-`@effected/engine`'s `CurrentDistribution` reference; `Distribution`
-itself is re-exported from `@effected/engine` too -- see [okfit's front
+`@effected/kit`'s `CurrentDistribution` reference; `Distribution`
+itself is re-exported from `@effected/kit` too -- see [okfit's front
 ends build on @effected/{engine,cli,mcp} rather than hand-rolled
 equivalents](../decisions/effected-kit-adoption.md). `okfit context` prints the same
 orientation data (project root, bundle root, config path, profile,
@@ -96,7 +96,7 @@ Contract details: [CLI commands](../interfaces/cli-commands.md).
 ## Report rendering
 
 The human reports of `validate`, `lint`, `verify` and `stale` render
-through the `@effected/cli` Doc IR (`render/human.ts#humanDoc`,
+through the `@effected/cli-kit` Doc IR (`render/human.ts#humanDoc`,
 `render/verify.ts#humanVerifyDoc`/`humanVerifyBatchDoc`,
 `render/stale.ts#humanStaleDoc`), printed with `Doc.print`. Plain output is
 byte-identical to the string renderers they replaced, which stay exported.
@@ -139,7 +139,7 @@ engine version, not the producer version, is what a report is compared
 on](../decisions/comparable-version.md)).
 `internal/tty.ts`, this package's former sole reader of `isTTY`/
 `NO_COLOR`, and `internal/exit.ts` (`setExitCode`) are deleted: colour is
-now `@effected/cli`'s `CliTheme` decision, read through the ambient
+now `@effected/cli-kit`'s `CliTheme` decision, read through the ambient
 `ConfigProvider` rather than `process`, and exit codes go through
 `CliExit.set` -- a **user-visible change**: `NO_COLOR` used to disable colour
 only when it was exactly `1`; now any non-empty value does, the

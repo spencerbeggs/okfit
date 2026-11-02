@@ -66,7 +66,7 @@ An id that names no concept is not a failed call. `get_concept` and
 
 Every other failing tool call reaches the client as `isError: true`, with
 the remediation text folded directly into the message and no structured
-error field. `McpToolError` is `@effected/mcp`'s `ToolRefusal`: config
+error field. `McpToolError` is `@effected/mcp-kit`'s `ToolRefusal`: config
 failures, an unreadable bundle root, an undeclared type or tag, and an
 invalid argument all refuse with a message that names the problem and
 what to do next.

@@ -627,7 +627,7 @@ A future Effect-native transport is done when
 ## The process boundary: `bin.ts` and `main.ts`
 
 `bin.ts` is the shebang entry point, nothing else: imports and awaits
-`main()`. `main.ts` runs under `ProcessGuard.run` (`@effected/engine/guard`,
+`main()`. `main.ts` runs under `ProcessGuard.run` (`@effected/kit/guard`,
 itself free of static runtime imports), so `uncaughtException` and
 `unhandledRejection` are installed before any dynamic import and a throw
 during module evaluation still reaches stderr. Its policy is `exitBeforeConnect`

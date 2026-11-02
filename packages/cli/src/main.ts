@@ -5,8 +5,8 @@
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import { CliAudience, CliRuntime } from "@effected/cli";
-import type { Distribution } from "@effected/engine";
+import { CliAudience, CliRuntime } from "@effected/cli-kit";
+import type { Distribution } from "@effected/kit";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
 import { rootCommand } from "./commands/root.js";
@@ -41,7 +41,7 @@ export interface MainOptions {
  * Run the okfit CLI. Owns the process: installs the runtime teardown and
  * sets the exit code. `NodeRuntime.runMain` does not return a promise.
  *
- * Assembled with `@effected/cli`'s `CliRuntime.main` (`effect-v4-cli`'s
+ * Assembled with `@effected/cli-kit`'s `CliRuntime.main` (`effect-v4-cli`'s
  * `recipes.md#the-main-assembly`), which already provides
  * `platform` INSIDE failure reporting, a fresh `CliExit` cell, and the
  * logger outermost -- the same order this package used to assemble by

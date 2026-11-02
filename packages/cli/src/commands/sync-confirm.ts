@@ -1,5 +1,5 @@
-import { Cancelled, CliInteractive } from "@effected/cli";
-import { CliUi, Confirm } from "@effected/cli/ui";
+import { Cancelled, CliInteractive } from "@effected/cli-kit";
+import { CliUi, Confirm } from "@effected/cli-kit/ui";
 import type { SyncOptions, SyncResult } from "@okfit/engine";
 import { applySyncPlan, planSync, runSync } from "@okfit/engine";
 import { Console, Effect } from "effect";

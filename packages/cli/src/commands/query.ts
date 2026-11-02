@@ -1,5 +1,5 @@
-import { CliFormat } from "@effected/cli";
-import { CurrentDistribution } from "@effected/engine";
+import { CliFormat } from "@effected/cli-kit";
+import { CurrentDistribution } from "@effected/kit";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle } from "@okfit/core";
 import type { ConceptFilter, Distribution } from "@okfit/engine";

@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:53:25Z
+  at: 2026-11-02T19:16:31Z
 status: stable
 supersedes: mcp-effect-native-legacy-era.md
 sources:
@@ -31,13 +31,15 @@ verified:
     at: 2026-10-27T16:38:31Z
   - by: human:spencer
     at: 2026-10-31T21:31:20Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: f4fc8df4af3adbd6
+    body: 2c321e613b67747f
   verified:
     by: human:spencer
-    at: 2026-10-31T21:31:20Z
-    content: 99943417685c9b80
+    at: 2026-11-02T19:15:49Z
+    content: 3cf434bbcbedbc88
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
@@ -138,7 +140,7 @@ inline. New in rc.116, `registerToolkit` renders that declared branch
 without any log line; only an internal, unexpected failure goes through
 `Effect.logError` and the `ErrorReporter`.[^mcp-server-ts] This package
 has no port of that code path -- it runs core's `registerToolkit`
-unchanged, now reached through `@effected/mcp`'s `McpToolkit.layer`
+unchanged, now reached through `@effected/mcp-kit`'s `McpToolkit.layer`
 rather than core's own `McpServer.toolkit` called directly (see [okfit's
 front ends build on @effected/{engine,cli,mcp} rather than hand-rolled
 equivalents](effected-kit-adoption.md)) -- so nothing of the

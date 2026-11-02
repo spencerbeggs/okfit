@@ -4,7 +4,7 @@ The `okfit` bin: `okfit validate`, `okfit init`, `okfit context`,
 `okfit verify`, and `okfit sync` -- the full list is
 `okf/interfaces/cli-commands.md`'s to keep, not counted here. Built on
 `effect/cli` for the command tree, flags, and help;
-`@effected/cli` for output and failure rendering. This package is a
+`@effected/cli-kit` for output and failure rendering. This package is a
 presentation shell over `@okfit/engine`: config discovery and the
 validate/verify/sync/init/context programs live there, not here -- see
 `okf/decisions/engine-front-end-split.md`.
@@ -49,7 +49,7 @@ and `human` take `{ paint }` (the kit's `SeverityPaint`), not `{ color }`.
 src/
   bin.ts               -- the shebang entry point: imports and calls main(), nothing else
   main.ts               -- the assembled program: resolves Now, provides OkfitPlatform and
-                            the version formatter (env.formatter), runs on @effected/cli's
+                            the version formatter (env.formatter), runs on @effected/cli-kit's
                             CliRuntime.main (env wiring, audienceEnvVar OKFIT_AUDIENCE, and
                             `distribution`, which provides CurrentDistribution) via CliAudience.run
   index.ts               -- programmatic surface: rootCommand, renderFailure, humanContext,
@@ -101,7 +101,7 @@ src/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)
     versionFormatter.ts            -- versionFormatter: the env.formatter override passed to CliRuntime.main,
-                                       only formatVersion overridden; colour itself is @effected/cli's
+                                       only formatVersion overridden; colour itself is @effected/cli-kit's
                                        own decision, read from the ambient ConfigProvider, never a
                                        process read this package performs
 ```
@@ -125,7 +125,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `SourceBoundary` exempts it unconditionally, so it needs no explicit
   allowlist entry). `internal/tty.ts`, this package's former sole reader of
   `isTTY`/`NO_COLOR`, is deleted, as is `internal/exit.ts` (exit codes go
-  through `CliExit.set`): colour is now `@effected/cli`'s `CliTheme`
+  through `CliExit.set`): colour is now `@effected/cli-kit`'s `CliTheme`
   decision, read through the ambient `ConfigProvider`, never a `process`
   read this package performs itself -- see [okfit's front ends build on
   @effected/{engine,cli,mcp} rather than hand-rolled
@@ -145,7 +145,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   peers (`@effected/git`, `@effected/glob`, `@effected/jsonc`, `@effected/markdown`,
   `@effected/walker`, `@okfit/core`), and the
   CLI's own wiring (`@effect/platform-node` for `NodeRuntime`,
-  `@effected/cli`). `@okfit/engine` itself declares no `peerDependencies` —
+  `@effected/cli-kit`). `@okfit/engine` itself declares no `peerDependencies` —
   there is nothing of engine's to satisfy here. Several
   of these are never imported directly by a file under `src/` — they satisfy
   a peer of a dependency this package DOES import directly. Do not "clean up"

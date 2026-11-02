@@ -1,4 +1,4 @@
-import { ToolOutcome } from "@effected/mcp";
+import { ToolOutcome } from "@effected/mcp-kit";
 import type { ConceptNeighbor } from "@okfit/engine";
 import { ConceptQuery, signalFor } from "@okfit/engine";
 import { DateTime, Effect, Schema } from "effect";

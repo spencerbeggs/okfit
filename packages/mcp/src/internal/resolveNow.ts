@@ -1,4 +1,4 @@
-import { ToolRefusal } from "@effected/mcp";
+import { ToolRefusal } from "@effected/mcp-kit";
 import { Timestamp } from "@okfit/core";
 import { DateTime, Effect, Schema } from "effect";
 

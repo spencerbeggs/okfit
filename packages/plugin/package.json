@@ -44,7 +44,7 @@
 		"@effect/platform-node": "catalog:effected",
 		"@effect/vitest": "catalog:effected",
 		"@effected/lsp": "catalog:effected",
-		"@effected/mcp": "catalog:effected",
+		"@effected/mcp-kit": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
 		"@savvy-web/bundler": "^2.7.1",
 		"@types/node": "catalog:build",

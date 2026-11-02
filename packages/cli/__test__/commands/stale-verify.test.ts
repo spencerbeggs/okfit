@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { CliEnv, CliLinks } from "@effected/cli";
-import { CliUiTest } from "@effected/cli/ui/testing";
+import { CliEnv, CliLinks } from "@effected/cli-kit";
+import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import { DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
 import { reverifyStale } from "../../src/commands/stale-verify.js";
 import { config, platform, read, withBundle } from "../utils/picker.js";

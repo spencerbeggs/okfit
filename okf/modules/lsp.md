@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:48:16Z
+  at: 2026-11-02T19:16:31Z
 integrity:
   generated:
-    body: 2de201c6becf9149
+    body: 74d3464b2edf4424
 ---
 
 # LSP
@@ -235,7 +235,7 @@ seam](../decisions/lsp-reference-transport.md).
 
 ## Crash policy
 
-`main.ts` runs under `ProcessGuard.run` from `@effected/engine/guard` with the
+`main.ts` runs under `ProcessGuard.run` from `@effected/kit/guard` with the
 `exitBeforeConnect` policy, the same as the MCP server: a stray error before
 the transport is up exits `1`; once serving it is logged to stderr and the
 server keeps answering, since every answer is derived from the bundle on disk

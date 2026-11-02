@@ -1,5 +1,5 @@
-import { CliInteractive } from "@effected/cli";
-import { CliUi, Confirm } from "@effected/cli/ui";
+import { CliInteractive } from "@effected/cli-kit";
+import { CliUi, Confirm } from "@effected/cli-kit/ui";
 import type { OkfitConfig } from "@okfit/core";
 import type { ChangeSince } from "@okfit/engine";
 import { changeSince, inspectDrift } from "@okfit/engine";

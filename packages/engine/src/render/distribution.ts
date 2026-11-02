@@ -1,5 +1,5 @@
-import type { Distribution as KitDistribution } from "@effected/engine";
-import { DistributionField as KitDistributionField } from "@effected/engine";
+import type { Distribution as KitDistribution } from "@effected/kit";
+import { DistributionField as KitDistributionField } from "@effected/kit";
 
 /**
  * The meta-package an okfit report's bins were installed through -- e.g.
@@ -9,7 +9,7 @@ import { DistributionField as KitDistributionField } from "@effected/engine";
  * reports; `engine_version` and `okf_version` are the pair a reader
  * compares.
  *
- * Re-exported from `@effected/engine`'s own `Distribution` -- the shape
+ * Re-exported from `@effected/kit`'s own `Distribution` -- the shape
  * both `@okfit/cli`'s `CurrentDistribution` (K-137/carrier-version-threading)
  * and every JSON envelope in this package agree on, instead of two
  * independently hand-rolled `{ name, version }` structs drifting apart.

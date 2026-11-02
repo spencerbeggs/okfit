@@ -21,7 +21,7 @@ sources:
     resource: ../../packages/cli/src/internal/versionFormatter.ts
 generated:
   by: okfit/claude-code
-  at: 2026-10-27T16:51:56Z
+  at: 2026-11-02T19:16:31Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -33,13 +33,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-27T16:38:31Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: e0c8a44061cdccec
+    body: 0ca8a0cb40a3b677
   verified:
     by: human:spencer
-    at: 2026-10-27T16:38:31Z
-    content: fe9e3dfbbaacdb21
+    at: 2026-11-02T19:15:49Z
+    content: d15051e7a6881de3
 ---
 
 # The engine version, not the producer version, is what a report is compared on
@@ -139,8 +141,8 @@ packaging.[^owner-ruling]
   `--format json` envelope already carries the triple, so a dedicated
   probe only adds surface; `--version` is overridden instead, through
   [`internal/versionFormatter.ts`](../../packages/cli/src/internal/versionFormatter.ts),
-  built on `@effected/cli`'s `CliColor.formatterLayer` and reading
-  `@effected/engine`'s `CurrentDistribution`[^version-formatter] — the
+  built on `@effected/cli-kit`'s `CliColor.formatterLayer` and reading
+  `@effected/kit`'s `CurrentDistribution`[^version-formatter] — the
   mechanism that replaced this package's original hand-rolled
   `CliOutput.Formatter` override
   ([effected-kit-adoption](effected-kit-adoption.md)).

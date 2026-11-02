@@ -6,7 +6,7 @@
  * @packageDocumentation
  */
 
-import { ErrorText } from "@effected/engine";
+import { ErrorText } from "@effected/kit";
 import { LspUri } from "@effected/lsp";
 import type { RevalidateTier } from "@okfit/engine";
 import { DateTime, Effect, Option, Path, Result } from "effect";

@@ -1,5 +1,21 @@
 # Log
 
+## 2026-11-02
+
+* Updated A shared @okfit/engine package replaces cli-as-copy-contract
+* Updated CLI
+* Updated Engine
+* Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated LSP
+* Updated MCP
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated The engine version, not the producer version, is what a report is compared on
+* Updated The language and MCP servers survive a stray crash once serving, and exit on one before
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated process reads confined to the CLI's boundary files
+
 ## 2026-10-31
 
 * Updated Effect v4 pinned to catalog:effected

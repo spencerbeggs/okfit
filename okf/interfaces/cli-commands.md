@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-27T16:51:56Z
+  at: 2026-11-02T19:16:31Z
 tags:
   - architecture
 verified:
@@ -29,13 +29,15 @@ verified:
     at: 2026-10-27T16:43:32Z
   - by: human:spencer
     at: 2026-10-27T16:51:31Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: f494d35cde7a9006
+    body: 55f6fa8f9597c31e
   verified:
     by: human:spencer
-    at: 2026-10-27T16:51:31Z
-    content: 193369c344ba0e42
+    at: 2026-11-02T19:15:49Z
+    content: d6330cfd9a0b8e5b
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -65,7 +67,7 @@ otherwise, and `(bundle)` in place of `<file>` for a bundle-level
 diagnostic. Diagnostics sort by file (`(bundle)` first), then range-less
 before ranged, then by offset, then by code. The summary line prints to
 stderr (the `okfit validate` section of `packages/cli/README.md`). The human
-report renders through the `@effected/cli` Doc IR and is byte-identical to the
+report renders through the `@effected/cli-kit` Doc IR and is byte-identical to the
 plain lines above when colour and links are off; for a human on a terminal the
 `<file>:<line>:<col>` prefix is an OSC 8 hyperlink to the file. Under GitHub
 Actions (the CI audience), `validate` and `lint` also print one `::error`,
@@ -456,7 +458,7 @@ on](../decisions/comparable-version.md): compare
 `okfit --version` prints the same numbers in one line, plus the config
 schema version — `okfit <cli> (engine <engine>, okf <okf>, config-schema
 <schema>)`, with `via <distribution name> <version>` at the end of the
-line when there is one (appended by `@effected/cli`'s `CliRuntime.main`
+line when there is one (appended by `@effected/cli-kit`'s `CliRuntime.main`
 `distribution` option).
 
 `okfit context --format json` prints a distinct

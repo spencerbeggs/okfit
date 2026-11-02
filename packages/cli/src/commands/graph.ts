@@ -1,5 +1,5 @@
-import { CliFormat } from "@effected/cli";
-import { CurrentDistribution } from "@effected/engine";
+import { CliFormat } from "@effected/cli-kit";
+import { CurrentDistribution } from "@effected/kit";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";

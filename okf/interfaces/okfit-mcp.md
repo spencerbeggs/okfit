@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-27T16:51:56Z
+  at: 2026-11-02T19:16:31Z
 tags:
   - architecture
 verified:
@@ -19,13 +19,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-27T16:43:32Z
+  - by: human:spencer
+    at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 4ab9a6a5ad35f2d9
+    body: 3078f3d00f2f6777
   verified:
     by: human:spencer
-    at: 2026-10-27T16:43:32Z
-    content: 7bf5822166655673
+    at: 2026-11-02T19:15:49Z
+    content: c035f0398342835c
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -61,11 +63,11 @@ then would mislead later in the session.
 
 ## Errors
 
-Two channels, split the way `@effected/mcp` splits them.
+Two channels, split the way `@effected/mcp-kit` splits them.
 
 **An id that names no concept is an expected outcome, not a failed call.**
 `get_concept` and `concept_neighbors` answer it on the success channel
-(`isError` unset) with `@effected/mcp`'s `ToolOutcome` envelope:
+(`isError` unset) with `@effected/mcp-kit`'s `ToolOutcome` envelope:
 `structuredContent` is `{ ok: false, error: { _tag:
 "QueryConceptNotFoundError", id, reason, message, remediation } }`, where
 `reason` is `"empty-id"` or `"not-a-concept"` and `remediation` names
@@ -74,7 +76,7 @@ caller discriminates on `ok`. The served `outputSchema` is the union of
 the two, with the failure member under `$defs/ConceptNotFound`.
 
 **Everything else is a declared refusal.** `McpToolError` is
-`@effected/mcp`'s `ToolRefusal`, every tool's declared failure schema. A
+`@effected/mcp-kit`'s `ToolRefusal`, every tool's declared failure schema. A
 refusal covers config discovery, parsing or validation failing, an
 unreadable bundle root, a type or tag the config does not declare (the
 message lists the valid names), and a tool argument that is structurally

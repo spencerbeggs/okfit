@@ -1,5 +1,5 @@
-import type { FailureDetails } from "@effected/cli";
-import { ConfigIssueRenderer } from "@effected/cli";
+import type { FailureDetails } from "@effected/cli-kit";
+import { ConfigIssueRenderer } from "@effected/cli-kit";
 import type { ConfigValidationError } from "@effected/config-file";
 import {
 	ConfigMalformedError,

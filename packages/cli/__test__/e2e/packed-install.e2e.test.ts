@@ -25,7 +25,7 @@ const RUN: PackedInstallOptions = {
 	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
 	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
 	bins: ["okfit"],
-	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli 0.11 (okfit #232).
+	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli-kit 0.11 (okfit #232).
 	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
 	// A missing manager fails in CI; locally any one that is installed is enough.
 	require: process.env.CI ? "all" : "any",

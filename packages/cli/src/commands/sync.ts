@@ -1,6 +1,6 @@
-import { CliFormat, CliInteractive } from "@effected/cli";
-import { CurrentDistribution } from "@effected/engine";
+import { CliFormat, CliInteractive } from "@effected/cli-kit";
 import { Git } from "@effected/git";
+import { CurrentDistribution } from "@effected/kit";
 import type { SyncMode } from "@okfit/engine";
 import {
 	Now,

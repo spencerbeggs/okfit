@@ -1,4 +1,4 @@
-import { ToolRefusal } from "@effected/mcp";
+import { ToolRefusal } from "@effected/mcp-kit";
 import { OKF_SPEC_VERSION } from "@okfit/core";
 import type { Distribution } from "@okfit/engine";
 import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provideDocuments, run } from "@okfit/engine";

@@ -1,4 +1,4 @@
-import { LaunchContext } from "@effected/engine";
+import { LaunchContext } from "@effected/kit";
 
 /**
  * N-21's precedence: `OKFIT_PROJECT_DIR`, else `CLAUDE_PROJECT_DIR`, else
@@ -7,7 +7,7 @@ import { LaunchContext } from "@effected/engine";
  * passed down as plain values (`main.ts` is the only place this package
  * reads `process`).
  *
- * Built on `@effected/engine`'s `LaunchContext.projectDir` with an empty
+ * Built on `@effected/kit`'s `LaunchContext.projectDir` with an empty
  * `argv`: this server has no command parser and `start-mcp.sh` forwards no
  * positional arguments, so the only candidates are the two env keys and the
  * cwd fallback. `LaunchContext.projectDir` additionally treats a value

@@ -1,4 +1,4 @@
-import { ErrorText } from "@effected/engine";
+import { ErrorText } from "@effected/kit";
 import { Runtime, Schema } from "effect";
 
 /**

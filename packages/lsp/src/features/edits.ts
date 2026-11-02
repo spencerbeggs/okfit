@@ -18,8 +18,8 @@
  * @packageDocumentation
  */
 
-import { ErrorText } from "@effected/engine";
 import type { Git } from "@effected/git";
+import { ErrorText } from "@effected/kit";
 import type { MarkdownEdit } from "@effected/markdown";
 import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
