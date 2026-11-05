@@ -3,6 +3,7 @@
 ## 2026-11-05
 
 * Updated okfit config file schema
+* Updated okfit-mcp — MCP tool and resource contract
 
 ## 2026-11-02
 

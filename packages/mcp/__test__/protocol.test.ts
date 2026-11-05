@@ -55,6 +55,22 @@ describe("protocol 2026-07-28 (stateless)", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.effect("tools/list carries a one-hour private cache hint; resources/list and server/discover stay unhinted", () =>
+		Effect.gen(function* () {
+			const harness = yield* open("2026-07-28");
+			const hint = (response: { readonly result?: unknown }) => {
+				const result = response.result as { readonly ttlMs?: number; readonly cacheScope?: string };
+				return { ttlMs: result.ttlMs, cacheScope: result.cacheScope };
+			};
+			assert.deepStrictEqual(hint(yield* harness.sendRequest("tools/list")), {
+				ttlMs: 3_600_000,
+				cacheScope: "private",
+			});
+			assert.strictEqual(hint(yield* harness.sendRequest("resources/list")).ttlMs, 0);
+			assert.strictEqual(hint(yield* harness.sendRequest("server/discover")).ttlMs, 0);
+		}).pipe(Effect.scoped),
+	);
+
 	it.effect("initialize on the stateless adapter is METHOD_NOT_FOUND, and no initialized notification follows", () =>
 		Effect.gen(function* () {
 			const harness = yield* open("2026-07-28");

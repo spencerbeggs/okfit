@@ -45,6 +45,7 @@
 		"@effected/source": "catalog:effected",
 		"@effected/toml": "catalog:effected",
 		"@effected/walker": "catalog:effected",
+		"@effected/workspaces": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
 		"@savvy-web/bundler": "^2.7.3",
 		"@types/node": "catalog:build",

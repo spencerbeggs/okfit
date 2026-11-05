@@ -122,7 +122,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `@effected/yaml`), `@okfit/profiles`'s peers (`@effected/git`,
   `@effected/glob`, `@effected/jsonc`, `@effected/markdown`, `@effected/walker`,
   `@okfit/core`), and the engine's own wiring
-  (`@effected/app`, `@effected/xdg`, `@effected/store`,
+  (`@effected/app`, `@effected/files`, `@effected/xdg`, `@effected/store`,
   `@effect/platform-node`). Several of these are never imported directly by
   a file under `src/` -- they satisfy a peer of a dependency this package
   DOES import directly. Do not "clean up" an apparently-unused entry:

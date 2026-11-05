@@ -1,3 +1,4 @@
+import { EditDistance } from "@effected/source";
 import { DateTime, Option } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
@@ -310,30 +311,9 @@ const headingSlugs = (concept: LoadedConcept): ReadonlyArray<string> => {
 	return slugs;
 };
 
-/** Levenshtein distance (two-row DP). */
-const editDistance = (a: string, b: string): number => {
-	let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-	for (let i = 1; i <= a.length; i++) {
-		const current = [i];
-		for (let j = 1; j <= b.length; j++) {
-			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-			current[j] = Math.min((previous[j] ?? 0) + 1, (current[j - 1] ?? 0) + 1, (previous[j - 1] ?? 0) + cost);
-		}
-		previous = current;
-	}
-	return previous[b.length] ?? 0;
-};
-
 /** The closest slug within max(2, ⌊|fragment| / 3⌋) edits, ties to the earliest heading; else undefined. */
-const nearestSlug = (fragment: string, slugs: ReadonlyArray<string>): string | undefined => {
-	const limit = Math.max(2, Math.floor(fragment.length / 3));
-	let best: { slug: string; distance: number } | undefined;
-	for (const slug of slugs) {
-		const distance = editDistance(fragment, slug);
-		if (distance <= limit && (best === undefined || distance < best.distance)) best = { slug, distance };
-	}
-	return best?.slug;
-};
+const nearestSlug = (fragment: string, slugs: ReadonlyArray<string>): string | undefined =>
+	EditDistance.suggest(fragment, slugs, { maxDistance: Math.max(2, Math.floor(fragment.length / 3)) })[0];
 
 const candidateHint = (fragment: string, slugs: ReadonlyArray<string>): string => {
 	if (slugs.length === 0) return "it has no headings";

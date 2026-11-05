@@ -1,3 +1,4 @@
+import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
 import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
@@ -213,15 +214,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 
 /** The I4/V-16 atomic write: real path, temp beside it, mode preserved, rename. */
 const writeVerified = Effect.fn("okfit/verify/writeVerified")(function* (absolutePath: string, finalText: string) {
-	const fs = yield* FileSystem.FileSystem;
-	const target = yield* fs.realPath(absolutePath);
-	const tempPath = `${target}.okfit-verify.tmp`;
-	const original = yield* fs.stat(target);
-	yield* fs.writeFileString(tempPath, finalText);
-	yield* fs.chmod(tempPath, original.mode);
-	yield* fs
-		.rename(tempPath, target)
-		.pipe(Effect.onError(() => fs.remove(tempPath, { force: true }).pipe(Effect.ignore)));
+	yield* AtomicFile.write(absolutePath, finalText);
 });
 
 /** Steps 7a-7d of runVerify, shared with `runVerifyIds`: tolerant id, reserved file, located concept. */

@@ -150,7 +150,9 @@ both the `initialize` and `server/discover` results. `2026-07-28` is the
 stateless adapter (no `initialize`, `_meta`-routed requests); the stateful
 two stay because `initialize` only matches stateful adapters. Claude Code
 opens with `initialize` by default and with `server/discover` under
-`MCP_PROTOCOL_NEGOTIATION=auto`. See
+`MCP_PROTOCOL_NEGOTIATION=auto`. `cacheHints` sets a one-hour private TTL on
+`tools/list` only (the stateless adapter is the only one that carries it);
+keep resources and discover unhinted. See
 `okf/decisions/mcp-protocol-versions.md` for the rationale and
 `__test__/protocol.test.ts` for the
 revision × outcome matrix (invalid params is a JSON-RPC `-32602` on
