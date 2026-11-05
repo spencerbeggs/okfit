@@ -363,6 +363,39 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect("broken-links resolves fragments against github-slugger slugs (issue #361)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"modules/a.md": [
+					"---\ntype: Module\n---\n\n# A\n",
+					"[1](b.md#a--b) [2](b.md#foo_bar) [3](b.md#dup) [4](b.md#dup-1) [5](b.md#dup-1-1) [6](b.md#dup-2)\n",
+				].join("\n"),
+				"modules/b.md":
+					"---\ntype: Module\n---\n\n# B\n\n## A — B\n\n## foo_bar\n\n## dup\n\n## dup\n\n## dup-1\n\n## dup\n",
+			});
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "broken-links");
+			assert.deepStrictEqual(
+				lint.map((d) => d.message),
+				[],
+			);
+		}),
+	);
+
+	it.effect("broken-links points a link written to the collapsed form at its github-slugger slug (issue #361)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"modules/a.md": "---\ntype: Module\n---\n\n# A\n\n[x](b.md#a-b)\n",
+				"modules/b.md": "---\ntype: Module\n---\n\n# B\n\n## A — B\n",
+			});
+			const messages = Validate.lint(bundle, OkfitConfig.DEFAULTS)
+				.filter((d) => d.code === "broken-links")
+				.map((d) => d.message);
+			assert.deepStrictEqual(messages, [
+				'Link target "b.md#a-b" exists but has no heading "#a-b"; did you mean "#a--b"?',
+			]);
+		}),
+	);
+
 	it.effect("broken-links truncates a long heading list to five with a (+N more) count (issue #148)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadFromSources({

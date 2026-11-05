@@ -294,23 +294,6 @@ export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, 
 	return out;
 });
 
-/** GitHub-style heading slug: lowercase, punctuation dropped, spaces to hyphens, duplicates suffixed `-1`, `-2`, ... */
-const headingSlugs = (concept: LoadedConcept): ReadonlyArray<string> => {
-	const seen = new Map<string, number>();
-	const slugs: Array<string> = [];
-	for (const heading of concept.document.headings) {
-		const base = heading.text
-			.toLowerCase()
-			.replace(/[^\p{L}\p{N}\s-]/gu, "")
-			.trim()
-			.replace(/\s+/g, "-");
-		const count = seen.get(base) ?? 0;
-		seen.set(base, count + 1);
-		slugs.push(count === 0 ? base : `${base}-${count}`);
-	}
-	return slugs;
-};
-
 /** The closest slug within max(2, ⌊|fragment| / 3⌋) edits, ties to the earliest heading; else undefined. */
 const nearestSlug = (fragment: string, slugs: ReadonlyArray<string>): string | undefined =>
 	EditDistance.suggest(fragment, slugs, { maxDistance: Math.max(2, Math.floor(fragment.length / 3)) })[0];
@@ -350,7 +333,7 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 	const slugsOf = (id: string, target: LoadedConcept): ReadonlyArray<string> => {
 		const cached = slugCache.get(id);
 		if (cached !== undefined) return cached;
-		const slugs = headingSlugs(target);
+		const slugs = target.document.headingSlugs;
 		slugCache.set(id, slugs);
 		return slugs;
 	};

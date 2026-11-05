@@ -83,7 +83,9 @@ for an agent, so suggest the human run it instead of attempting it.
 8. Prefer bundle-relative links; a broken link is tolerated, never "fixed"
    by inventing a target. A `broken-links` anchor diagnostic ends with a
    hint (`did you mean "#slug"?`, or the target's headings), so repair a
-   bad anchor from that hint rather than guessing.
+   bad anchor from that hint rather than guessing. Anchors follow
+   `github-slugger`: lowercase, punctuation dropped, each space one hyphen
+   with no collapsing, so `## A — B` is `#a--b`.
 9. Only `index.md` and `log.md` are reserved, at any depth.
 10. `index.md` carries no frontmatter except an optional root-only
     `okf_version`.

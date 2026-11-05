@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-05T22:49:48Z
+  at: 2026-11-05T22:55:24Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 21cd05cf6f7058f1
+    body: 7b705428731cc21a
   verified:
     by: human:spencer
     at: 2026-10-11T22:01:13Z
@@ -91,7 +91,8 @@ one lint core cannot run itself: a `resource` or `sources[].resource` path
 that resolves to nothing in the bundle is a descriptor to core (D-24), so
 `@okfit/engine` resolves it on disk in D-23 order and reports the miss.
 `broken_links` also checks a `#fragment` against the target concept's
-heading slugs (issue #69).
+heading slugs (issue #69), which follow `github-slugger` ([Heading anchors
+match github-slugger](../decisions/heading-slugs.md)).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md).
