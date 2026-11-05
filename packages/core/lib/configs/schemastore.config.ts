@@ -6,10 +6,10 @@
  * build writes can never disagree. Run via `pnpm schema:build` /
  * `pnpm schema:check` (`okf/interfaces/okfit-config-schema.md`).
  */
-import { defineConfig } from "@effected/schemastore";
+import { defineSchemastore } from "@effected/plugin";
 import { okfitConfigDocumentFields, okfitConfigSchemaHost } from "../../src/OkfitConfig.js";
 
-export default defineConfig({
+export default defineSchemastore({
 	outputDir: "../../../../schemas",
 	name: "okfit",
 	schemas: {

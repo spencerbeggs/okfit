@@ -131,6 +131,9 @@ export const ServerLayer = (
 		version: MCP_VERSION,
 		instructions: SERVER_INSTRUCTIONS,
 		protocols: [McpProtocol.v2026_07_28, McpProtocol.v2025_11_25, McpProtocol.v2025_06_18],
+		// The tool list is fixed for the server's lifetime. Resources stay unhinted:
+		// concept resources are built at boot, and a positive TTL would keep a stale list.
+		cacheHints: { tools: { ttl: "1 hour", cacheScope: "private" } },
 		registrations: Layer.mergeAll(
 			McpToolkit.layer(OkfitToolkit).pipe(Layer.provide(ToolsLayer(projectRoot, options.distribution))),
 			ConceptResources(projectRoot),

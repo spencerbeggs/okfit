@@ -1,5 +1,11 @@
 # Log
 
+## 2026-11-05
+
+* Updated okfit config file schema
+* Updated okfit-mcp — MCP tool and resource contract
+* Added Heading anchors match github-slugger, through the kit's slugger
+
 ## 2026-11-02
 
 * Updated A shared @okfit/engine package replaces cli-as-copy-contract

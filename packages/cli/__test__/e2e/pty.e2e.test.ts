@@ -432,3 +432,50 @@ describe.skipIf(!ptyAvailable)("human report lines stay unwrapped on a narrow te
 		TIMEOUT,
 	);
 });
+
+// #343: colour on a usage error's help follows stderr's own terminal check, not stdout's.
+describe.skipIf(!ptyAvailable)("usage-error help on a redirected stderr (#343)", () => {
+	const ESCAPE = "\x1b[";
+
+	it(
+		"paints stderr on a terminal, the positive control for the redirected case",
+		async () => {
+			const sandbox = await makeSandbox("okfit-pty-usage-");
+			try {
+				const result = await runPty(["validate", "--human", "--nonexistent-flag"], {
+					cwd: sandbox.cwd,
+					env: ptyEnv(sandbox),
+					color: true,
+				});
+				assert.strictEqual(result.exitCode, 64);
+				assert.include(result.raw, ESCAPE);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"writes no escape sequences into a redirected stderr while stdout stays on the terminal",
+		async () => {
+			const sandbox = await makeSandbox("okfit-pty-usage-");
+			try {
+				const stderrFile = join(sandbox.cwd, "err.log");
+				const result = await runPty(["validate", "--human", "--nonexistent-flag"], {
+					cwd: sandbox.cwd,
+					env: ptyEnv(sandbox),
+					color: true,
+					stderrFile,
+				});
+				assert.strictEqual(result.exitCode, 64);
+				const stderr = await readFile(stderrFile, "utf8");
+				assert.include(stderr, "--nonexistent-flag");
+				assert.notInclude(stderr, ESCAPE);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+});

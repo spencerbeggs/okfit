@@ -251,10 +251,9 @@ different instant; `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
 
-A read-only concept is overwritten anyway — the write goes through a temp
-file and an atomic rename, and the target's mode is preserved on the
-replacement, but the file is not skipped just because it is `chmod`-ed
-read-only.
+The write goes through a temp file and an atomic rename, and the target's
+mode is preserved on the replacement. A concept without write permission is
+refused and left untouched, exiting `3`.
 
 `--stable` or `--draft` sets the concept's `status` in the same write as the
 attestation, so settling a reviewed draft is one command:

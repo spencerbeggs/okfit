@@ -19,11 +19,17 @@ export interface PtyOptions {
 	readonly nodeArgs?: ReadonlyArray<string>;
 	/** Per-wait and overall timeout in ms. Default 20000. */
 	readonly timeoutMs?: number;
+	/** Redirect the bin's stderr to this file, leaving stdout on the pty. */
+	readonly stderrFile?: string;
+	/** Let the kit decide colour from the terminal, rather than pinning `FORCE_COLOR=0`. */
+	readonly color?: boolean;
 }
 
 export interface PtyResult {
 	/** ANSI-stripped, CR-normalised terminal output. */
 	readonly output: string;
+	/** The terminal output exactly as received, escape sequences included. */
+	readonly raw: string;
 	readonly exitCode: number;
 }
 
@@ -52,7 +58,8 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 	const cols = options.cols ?? 100;
 	const rows = options.rows ?? 30;
 	const timeoutMs = options.timeoutMs ?? 10_000;
-	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, ...(options.nodeArgs ?? []), BIN, ...args].map(quote).join(" ")}; echo ${SENTINEL}$?`;
+	const redirect = options.stderrFile === undefined ? "" : ` 2>${quote(options.stderrFile)}`;
+	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, ...(options.nodeArgs ?? []), BIN, ...args].map(quote).join(" ")}${redirect}; echo ${SENTINEL}$?`;
 	const scriptCommand =
 		process.platform === "darwin"
 			? `script -q /dev/null sh -c ${quote(inner)}`
@@ -60,8 +67,8 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 	// BSD `script` rejects a socket on stdin (tcgetattr: "Operation not supported on socket") and
 	// Node's piped stdio is a socketpair, so `cat` re-presents our keystrokes as an anonymous pipe.
 	const pipeline = `cat | ${scriptCommand}`;
-	const { NO_COLOR: _noColor, ...rest } = options.env;
-	const env = { ...rest, TERM: "xterm-256color", FORCE_COLOR: "0" };
+	const { NO_COLOR: _noColor, FORCE_COLOR: _forceColor, ...rest } = options.env;
+	const env = { ...rest, TERM: "xterm-256color", ...(options.color === true ? {} : { FORCE_COLOR: "0" }) };
 
 	return new Promise((resolve, reject) => {
 		// detached: own process group, so a kill reaches cat, script and node, not just the outer sh.
@@ -156,7 +163,7 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 					reject(new Error(`exited before step ${next + 1} (${String(steps[next]?.waitFor)})\n${text}`));
 					return;
 				}
-				resolve({ output: text.replace(new RegExp(`${SENTINEL}\\d+\\n?`), ""), exitCode: Number(match[1]) });
+				resolve({ output: text.replace(new RegExp(`${SENTINEL}\\d+\\n?`), ""), raw, exitCode: Number(match[1]) });
 			});
 		});
 	});

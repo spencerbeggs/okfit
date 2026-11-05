@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-05T22:54:01Z
 tags:
   - architecture
 verified:
@@ -21,13 +21,15 @@ verified:
     at: 2026-10-27T16:43:32Z
   - by: human:spencer
     at: 2026-11-02T19:15:49Z
+  - by: human:spencer
+    at: 2026-11-05T22:58:34Z
 integrity:
   generated:
-    body: 3078f3d00f2f6777
+    body: ddf398cfeda2aa84
   verified:
     by: human:spencer
-    at: 2026-11-02T19:15:49Z
-    content: c035f0398342835c
+    at: 2026-11-05T22:58:34Z
+    content: 7255628e3aa6951e
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -128,7 +130,11 @@ order: `2026-07-28` (stateless: no `initialize`, opened with
 with `initialize`); see
 [The MCP server is Effect-native and lists the stateless 2026-07-28
 adapter first](../decisions/mcp-protocol-versions.md) for why
-those three and in that order, not restated here. The server's
+those three and in that order, not restated here. On `2026-07-28`,
+`tools/list` tells a client it may cache the list privately for one hour,
+since the tool list is fixed for the server's lifetime; every other list and
+`server/discover` carry a zero TTL, because concept resources are built at
+boot and a cached list would outlive them. The server's
 `instructions` string is part of the contract: it is returned verbatim in
 both the `initialize` result and the `server/discover` result, and it
 states the orientation above (read-only tools, `describe_vocabulary` then

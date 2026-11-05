@@ -1,4 +1,5 @@
 import { posix } from "node:path";
+import { EditDistance } from "@effected/source";
 import type { LoadedBundle } from "@okfit/core";
 import { ConceptId } from "@okfit/core";
 import type { PlatformError } from "effect";
@@ -22,20 +23,6 @@ export interface ResolvedTarget {
 
 type Hit = { readonly path: string } | { readonly failure: TargetFailureType["reason"] } | undefined;
 
-const levenshtein = (a: string, b: string): number => {
-	const row = Array.from({ length: b.length + 1 }, (_, i) => i);
-	for (let i = 1; i <= a.length; i++) {
-		let previous = row[0] ?? 0;
-		row[0] = i;
-		for (let j = 1; j <= b.length; j++) {
-			const current = row[j] ?? 0;
-			row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
-			previous = current;
-		}
-	}
-	return row[b.length] ?? 0;
-};
-
 const suggest = (arg: string, bundle: LoadedBundle): string | undefined => {
 	const wanted = Option.getOrUndefined(ConceptId.normalize(arg));
 	if (wanted === undefined) return undefined;
@@ -43,13 +30,7 @@ const suggest = (arg: string, bundle: LoadedBundle): string | undefined => {
 	const base = posix.basename(wanted);
 	const byBase = ids.filter((id) => posix.basename(id) === base);
 	if (byBase.length === 1) return byBase[0];
-	const limit = Math.max(2, Math.floor(wanted.length / 3));
-	let best: { id: string; distance: number } | undefined;
-	for (const id of ids) {
-		const distance = levenshtein(wanted, id);
-		if (distance <= limit && (best === undefined || distance < best.distance)) best = { id, distance };
-	}
-	return best?.id;
+	return EditDistance.suggest(wanted, ids, { maxDistance: Math.max(2, Math.floor(wanted.length / 3)) })[0];
 };
 
 const withSuggestion = (arg: string, bundle: LoadedBundle): TargetFailureType => {

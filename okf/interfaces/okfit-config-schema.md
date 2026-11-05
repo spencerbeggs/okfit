@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-05T22:55:24Z
 tags:
   - architecture
 verified:
@@ -19,13 +19,15 @@ verified:
     at: 2026-10-11T17:15:28Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-05T22:58:34Z
 integrity:
   generated:
-    body: 46b01efb3652ea9a
+    body: 7b705428731cc21a
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: c41d4fb3013df3de
+    at: 2026-11-05T22:58:34Z
+    content: 6e8018ca2572e042
 ---
 
 # okfit config file schema
@@ -91,7 +93,8 @@ one lint core cannot run itself: a `resource` or `sources[].resource` path
 that resolves to nothing in the bundle is a descriptor to core (D-24), so
 `@okfit/engine` resolves it on disk in D-23 order and reports the miss.
 `broken_links` also checks a `#fragment` against the target concept's
-heading slugs (issue #69).
+heading slugs (issue #69), which follow `github-slugger` ([Heading anchors
+match github-slugger](../decisions/heading-slugs.md)).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md).
@@ -118,7 +121,7 @@ config only ever tightens the spec (`packages/core/CLAUDE.md:32`).
 okfit hosts a SchemaStore-compatible Draft-07 document at
 `schemas/1.0/config.json`, generated from `okfitConfigDocumentFields`
 (`@okfit/core`) by `packages/core/lib/configs/schemastore.config.ts` via
-`@effected/schemastore` and `@effected/schemastore-cli` (`pnpm schema:build` /
+`@effected/schemastore` and `effected schema` (`pnpm schema:build` /
 `pnpm schema:check`, the latter the CI drift gate). Its `$id` is
 `https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json`
 — the same identity `okfitConfigSchemaHost` (`@okfit/core`, beside the
