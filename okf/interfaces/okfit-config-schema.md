@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-05T22:49:48Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 46b01efb3652ea9a
+    body: 21cd05cf6f7058f1
   verified:
     by: human:spencer
     at: 2026-10-11T22:01:13Z
@@ -118,7 +118,7 @@ config only ever tightens the spec (`packages/core/CLAUDE.md:32`).
 okfit hosts a SchemaStore-compatible Draft-07 document at
 `schemas/1.0/config.json`, generated from `okfitConfigDocumentFields`
 (`@okfit/core`) by `packages/core/lib/configs/schemastore.config.ts` via
-`@effected/schemastore` and `@effected/schemastore-cli` (`pnpm schema:build` /
+`@effected/schemastore` and `effected schema` (`pnpm schema:build` /
 `pnpm schema:check`, the latter the CI drift gate). Its `$id` is
 `https://raw.githubusercontent.com/spencerbeggs/okfit/main/schemas/1.0/config.json`
 — the same identity `okfitConfigSchemaHost` (`@okfit/core`, beside the

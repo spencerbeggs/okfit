@@ -1,5 +1,9 @@
 # Log
 
+## 2026-11-05
+
+* Updated okfit config file schema
+
 ## 2026-11-02
 
 * Updated A shared @okfit/engine package replaces cli-as-copy-contract
