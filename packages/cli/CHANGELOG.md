@@ -1,5 +1,61 @@
 # @okfit/cli
 
+## 0.16.0
+
+### Breaking Changes
+
+- `okfit sync`, `okfit verify` and `okfit mv` now refuse a concept file without write permission and leave it untouched. They used to replace a read-only file anyway, because the write went through a temp file and a rename.
+
+- To keep writing to such a file, restore its write permission with `chmod u+w <file>` first.
+
+* The `broken-links` lint now resolves a `#fragment` against `github-slugger` slugs. Each space in a heading becomes one hyphen with no trimming or collapsing, underscores and combining marks are kept, and repeated headings always get unique slugs.
+
+#### Migrating
+
+- A link written to the old form now reports `broken-links`. The diagnostic names the new anchor, so each one can be fixed from its own message:
+
+```text
+Link target "b.md#a-b" exists but has no heading "#a-b"; did you mean "#a--b"?
+```
+
+- Run `okfit validate` after upgrading to find them. Headings with an em dash, an ampersand or an underscore are the likely ones: `## A — B` is now `#a--b`, and `## foo_bar` is now `#foo_bar`.
+
+- Parity is with `github-slugger`, not with GitHub itself, whose algorithm is not public. [#362][#362]
+
+### Bug Fixes
+
+- `okfit verify` no longer leaves a stray temp file behind when writing a concept fails partway, and two concurrent runs no longer share one temp file name [#362][#362]
+
+* Usage-error help no longer writes ANSI colour into a redirected stderr while stdout is on a terminal [#362][#362]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli-kit | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/config-file | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/env | dependency | updated | ^0.10.0 | ^0.11.0 |
+| @effected/glob | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/jsonc | dependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/kit | dependency | updated | ^0.12.0 | ^0.13.0 |
+| @effected/markdown | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/schemastore | dependency | updated | ^0.29.0 | ^0.30.0 |
+| @effected/source | dependency | updated | ^0.3.0 | ^0.4.0 |
+| @effected/toml | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @effected/walker | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @effected/yaml | dependency | updated | ^0.28.0 | ^0.29.0 |
+| @okfit/core | dependency | updated | 0.12.1 | 0.13.0 |
+| @okfit/engine | dependency | updated | 0.19.1 | 0.20.0 |
+| @okfit/profiles | dependency | updated | 0.14.1 | 0.14.2 |
+
+[#362][#362]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#362]: https://github.com/spencerbeggs/okfit/pull/362
+
 ## 0.15.3
 
 ### Refactoring
