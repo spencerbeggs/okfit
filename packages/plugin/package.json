@@ -46,7 +46,7 @@
 		"@effected/lsp": "catalog:effected",
 		"@effected/mcp-kit": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@savvy-web/bundler": "^2.7.3",
+		"@savvy-web/bundler": "^2.7.4",
 		"@types/node": "catalog:build",
 		"effect": "catalog:effected",
 		"typescript": "catalog:build",
