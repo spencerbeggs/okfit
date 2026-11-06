@@ -1,5 +1,17 @@
 # @okfit/ai-plugins
 
+## 0.11.1
+
+### Documentation
+
+- The `okf-authoring` skill now states how a heading becomes an anchor, so agents no longer have to guess the form for an em-dash heading [#362][#362]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#362]: https://github.com/spencerbeggs/okfit/pull/362
+
 ## 0.11.0
 
 ### Features

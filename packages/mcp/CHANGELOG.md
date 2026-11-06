@@ -1,5 +1,39 @@
 # @okfit/mcp
 
+## 0.12.0
+
+### Features
+
+- `tools/list` on the stateless `2026-07-28` protocol now lets a client cache the tool list privately for one hour. Resource lists and `server/discover` stay uncached. [#362][#362]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/glob | dependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/jsonc | dependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/kit | dependency | updated | ^0.12.0 | ^0.13.0 |
+| @effected/markdown | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/mcp-kit | dependency | updated | ^0.13.0 | ^0.14.0 |
+| @effected/schemastore | dependency | updated | ^0.29.0 | ^0.30.0 |
+| @effected/source | dependency | updated | ^0.3.0 | ^0.4.0 |
+| @effected/toml | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @effected/walker | dependency | updated | ^0.25.0 | ^0.25.1 |
+| @effected/xdg | dependency | updated | ^0.19.0 | ^0.19.1 |
+| @effected/yaml | dependency | updated | ^0.28.0 | ^0.29.0 |
+| @okfit/core | dependency | updated | 0.12.1 | 0.13.0 |
+| @okfit/engine | dependency | updated | 0.19.1 | 0.20.0 |
+| @okfit/profiles | dependency | updated | 0.14.1 | 0.14.2 |
+
+[#362][#362]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#362]: https://github.com/spencerbeggs/okfit/pull/362
+
 ## 0.11.1
 
 ### Refactoring

@@ -1,5 +1,45 @@
 # @okfit/core
 
+## 0.13.0
+
+### Breaking Changes
+
+- The `broken-links` lint now resolves a `#fragment` against `github-slugger` slugs. Each space in a heading becomes one hyphen with no trimming or collapsing, underscores and combining marks are kept, and repeated headings always get unique slugs.
+
+#### Migrating
+
+- A link written to the old form now reports `broken-links`. The diagnostic names the new anchor, so each one can be fixed from its own message:
+
+```text
+Link target "b.md#a-b" exists but has no heading "#a-b"; did you mean "#a--b"?
+```
+
+- Run `okfit validate` after upgrading to find them. Headings with an em dash, an ampersand or an underscore are the likely ones: `## A — B` is now `#a--b`, and `## foo_bar` is now `#foo_bar`.
+
+- Parity is with `github-slugger`, not with GitHub itself, whose algorithm is not public. [#362][#362]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | peerDependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/glob | peerDependency | updated | ^0.18.0 | ^0.19.0 |
+| @effected/jsonc | peerDependency | updated | ^0.23.0 | ^0.24.0 |
+| @effected/markdown | peerDependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/schemastore | peerDependency | updated | ^0.29.0 | ^0.30.0 |
+| @effected/source | peerDependency | updated | ^0.3.0 | ^0.4.0 |
+| @effected/toml | peerDependency | updated | ^0.19.0 | ^0.19.1 |
+| @effected/walker | peerDependency | updated | ^0.25.0 | ^0.25.1 |
+| @effected/yaml | peerDependency | updated | ^0.28.0 | ^0.29.0 |
+
+[#362][#362]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#362]: https://github.com/spencerbeggs/okfit/pull/362
+
 ## 0.12.1
 
 ### Dependencies
