@@ -2,7 +2,7 @@
 type: Decision
 title: User docs live under /docs; package hierarchies live at the site root beside their generated API
 description: The okfit site serves user-facing docs under /docs and a technical page hierarchy per package at /<pkg>, next to that package's generated /<pkg>/api, rather than nesting packages under /docs or using one flat tree.
-status: draft
+status: stable
 tags:
   - docs
   - architecture
@@ -19,13 +19,15 @@ verified:
     at: 2026-09-29T22:19:48Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-08T20:24:05Z
 integrity:
   generated:
     body: b041b203fdd79035
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 249c9acabb15d0b4
+    at: 2026-11-08T20:24:05Z
+    content: e656b13cc18bf27d
 ---
 
 # User docs live under /docs; package hierarchies live at the site root beside their generated API
