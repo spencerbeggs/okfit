@@ -1,5 +1,34 @@
 # @okfit/core
 
+## 0.13.1
+
+### Bug Fixes
+
+- The `footnote-undefined` lint reads the markdown parser's unresolved footnote markers, so an escaped `\[^x]`, a label that differs only in case from its definition (`[^Foo]` against `[^foo]:`), and an indented or list-item definition no longer warn. These were false positives, and markdownlint MD052 agrees.
+- The `footnote-source-unknown` lint reads parsed references and definitions instead of matching text, with identical results on every fixture. An escaped marker is no longer checked.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | peerDependency | updated | ^0.25.0 | ^0.26.0 |
+| @effected/glob | peerDependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/markdown | peerDependency | updated | ^0.27.0 | ^0.28.0 |
+| @effected/schemastore | peerDependency | updated | ^0.30.0 | ^0.31.0 |
+| @effected/walker | peerDependency | updated | ^0.25.1 | ^0.26.0 |
+
+[#367][#367]
+
+### Maintenance
+
+- Actor allow-list matching, posix path arithmetic and frontmatter fence detection now use the effected kit's `Wildcard`, `PosixPath` and `FrontmatterSource.split`, with no change in behavior. [#367][#367]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#367]: https://github.com/spencerbeggs/okfit/pull/367
+
 ## 0.13.0
 
 ### Breaking Changes

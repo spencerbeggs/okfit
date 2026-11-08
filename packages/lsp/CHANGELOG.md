@@ -1,5 +1,34 @@
 # @okfit/lsp
 
+## 0.6.4
+
+### Build System
+
+- Builds with `effected package build` instead of `@savvy-web/bundler`. The published artifact's shape and paths are unchanged.
+- Each bin entry registers tsx itself when it runs as TypeScript source; the published JavaScript is unaffected. [#367][#367]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | ^0.25.0 | ^0.26.0 |
+| @effected/glob | dependency | updated | ^0.19.0 | ^0.20.0 |
+| @effected/markdown | dependency | updated | ^0.27.0 | ^0.28.0 |
+| @effected/schemastore | dependency | updated | ^0.30.0 | ^0.31.0 |
+| @effected/walker | dependency | updated | ^0.25.1 | ^0.26.0 |
+| @effected/xdg | dependency | updated | ^0.19.1 | ^0.19.2 |
+| @okfit/core | dependency | updated | 0.13.0 | 0.13.1 |
+| @okfit/engine | dependency | updated | 0.20.0 | 0.20.1 |
+| @okfit/profiles | dependency | updated | 0.14.2 | 0.14.3 |
+
+[#367][#367]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#367]: https://github.com/spencerbeggs/okfit/pull/367
+
 ## 0.6.3
 
 ### Dependencies
