@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-08T19:59:05Z
 integrity:
   generated:
-    body: bb93aec98db2ccdf
+    body: c0e19f1ddc564bf4
 ---
 
 # Core
@@ -48,9 +48,14 @@ which `lib/configs/schemastore.config.ts` publishes to the repo-root
 `schemas/` tree via `pnpm schema:build` / `schema:check` (see [The engine
 version, not the producer version, is what a report is compared
 on](../decisions/comparable-version.md)).
-`internal/` is the engine: `posixPath`, `position`, `walk`, `frontmatter`,
+`internal/` is the engine: `position`, `fence`, `walk`, `frontmatter`,
 `reserved`, `links`, `lintRules`, `templates`
-(`packages/core/CLAUDE.md:17-26`).
+(`packages/core/CLAUDE.md:17-26`). Posix path arithmetic is `@effected/walker`'s
+`PosixPath`, which never reads the working directory; actor allow-list
+matching is `@effected/glob`'s `Wildcard`; the fence state and the value
+offset are `@effected/markdown`'s `FrontmatterSource.split`, held to the `---`
+fence; and `footnote-undefined` reads the parser's
+`unresolvedFootnoteReferences`.
 
 `internal/walk.ts` is now a thin adapter over `@effected/walker`'s
 `descend(pattern, { onUnreadable: "record" })` rather than a hand-rolled

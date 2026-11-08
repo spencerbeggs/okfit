@@ -56,10 +56,13 @@ __test__/
   command tree. Set it in an e2e test's `env` (through `e2e/utils/okfit.ts`'s
   `runOkfit`) whenever a test asserts on a `stale`-diagnostic or a `log.md`
   date; never document it outside this file.
-- **E2E always spawns the built bin.** `dist/dev/pkg/bin/okfit.js`, built by
+- **E2E always spawns the built bin.** `dist/prod/npm/pkg/bin/okfit.js`, built by
   the root `vitest.setup.ts`'s `globalSetup` before any test file runs
-  (`pnpm turbo run build:dev`). `e2e/utils/okfit.ts`'s `BIN` resolves that
+  (`pnpm turbo run build --filter=!docs`). `e2e/utils/okfit.ts`'s `BIN` resolves that
   path from `import.meta.dirname`; no e2e test hand-builds the path itself.
+  The built bin imports its workspace siblings from their `src/`, so every
+  spawn passes `TSX_IMPORT` (`--import` with tsx's absolute file URL) ahead of
+  the bin; the hermetic env inherits no `nodeOptions`.
 - **The pty suite drives the interactive screens (#231).**
   `e2e/pty.e2e.test.ts` runs the built bin under a real pseudo-terminal through
   the system `script` (no dependency): `e2e/utils/pty.ts`'s
@@ -90,8 +93,8 @@ __test__/
   plus `NO_COLOR=1`, and, like every other e2e suite here, never invokes
   `okfit init` against the live bundle — only the read-only `validate`
   subcommand and `@okfit/core`'s read-only `Bundle.load`.
-- **One packed smoke, everything else on the dev dist.** The many fast cases
-  here stay on `dist/dev` through `runOkfit`; only
+- **One packed smoke, everything else on the workspace build.** The many fast cases
+  here run the built bin through `runOkfit`; only
   `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/cli` tarballs
   under every available package manager (npm, pnpm, bun required in `CI`, Yarn
   local-only; `PackedInstall`, needs the prod

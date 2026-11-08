@@ -1,5 +1,5 @@
 // Acceptance suite for `okfit lint` (issue #17): same handler skeleton as
-// `okfit validate`, minus the conformance tier. Spawns the built dist/dev
+// `okfit validate`, minus the conformance tier. Spawns the built
 // bin (K-43), never Command.run in-process, per this package's e2e
 // convention.
 //

@@ -11,7 +11,7 @@ workspace member, never published.
   `/<pkg>/**` is each package's technical hierarchy beside its generated
   `/<pkg>/api`.
 - `lib/models/<pkg>/` -- API models copied in by each package's prod build
-  (`meta.localPaths` in the package's `savvy.build.ts`).
+  (`meta.localPaths` in the package's `effected.toml`).
 - `lib/scripts/` -- the `dev` and `preview` launchers.
 
 ## Rules
@@ -25,7 +25,7 @@ workspace member, never published.
 ## Commands
 
 ```bash
-pnpm dev        # from the repo root: build:prod for the packages, then the dev server
+pnpm dev        # from the repo root: build for the packages, then the dev server
 pnpm preview    # from the repo root: build, then preview the built site
 ```
 

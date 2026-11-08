@@ -5,13 +5,13 @@
 		"build": {
 			"cache": false,
 			"dependsOn": [
-				"@okfit/cli#build:prod",
-				"@okfit/core#build:prod",
-				"@okfit/engine#build:prod",
-				"@okfit/lsp#build:prod",
-				"@okfit/mcp#build:prod",
-				"@okfit/plugin#build:prod",
-				"@okfit/profiles#build:prod"
+				"@okfit/cli#build",
+				"@okfit/core#build",
+				"@okfit/engine#build",
+				"@okfit/lsp#build",
+				"@okfit/mcp#build",
+				"@okfit/plugin#build",
+				"@okfit/profiles#build"
 			],
 			"outputLogs": "full",
 			"outputs": ["dist/**"]

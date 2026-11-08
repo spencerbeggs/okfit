@@ -1,13 +1,13 @@
+import { PosixPath } from "@effected/walker";
 import type { Brand } from "effect";
 import { Option, Schema } from "effect";
-import { basename } from "./internal/posixPath.js";
 
 const RESERVED_BASENAMES = new Set(["index.md", "log.md"]);
 
 /** A posix bundle-relative path with `.md` stripped and no leading slash (D-12). @public */
 export type ConceptId = string & Brand.Brand<"ConceptId">;
 
-const isReservedFile = (path: string): boolean => RESERVED_BASENAMES.has(basename(path));
+const isReservedFile = (path: string): boolean => RESERVED_BASENAMES.has(PosixPath.basename(path));
 
 const fromPath = (path: string): Option.Option<ConceptId> => {
 	if (isReservedFile(path) || !path.endsWith(".md")) return Option.none();

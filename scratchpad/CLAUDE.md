@@ -54,11 +54,8 @@ is `scratchpad/` itself, use the local scripts instead: `pnpm probe <file>`,
 ## Two venues — pick deliberately
 
 - **Workspace mode** (default): a bare `@okfit/<pkg>` import resolves to that
-  package's `dist/dev` build (pnpm links workspace deps via `publishConfig`),
-  kept fresh by install prepare hooks and the vitest pre-build. After editing a
-  package's `src/`, rebuild before trusting a tsx probe:
-  `pnpm build --filter @okfit/<pkg>` (test-shaped probes run through vitest
-  pre-build automatically via the root globalSetup).
+  package's `src/` (pnpm links workspace deps through their `exports`), so a tsx
+  probe always sees the current source with no rebuild.
 - **Artifact mode**: deep-import
   `../../packages/core/dist/prod/npm/pkg/index.js` (see
   `probes/artifact-probe.ts`) to interrogate the **built artifact**.

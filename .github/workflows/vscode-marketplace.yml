@@ -54,7 +54,6 @@ jobs:
 
       - name: Build
         run: |
-          pnpm turbo run build:prod --filter=@okfit/lsp
           pnpm --filter @okfit/vscode-extension build
 
       - name: Package

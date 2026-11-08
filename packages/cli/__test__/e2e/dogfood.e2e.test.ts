@@ -1,5 +1,5 @@
 // Acceptance suite for okfit's own dogfooded okf/ bundle (phase-1 item 6,
-// decisions.md F-13). (a) spawns the built dist/dev bin (K-43) against
+// decisions.md F-13). (a) spawns the built bin (K-43) against
 // the repo's real okf/ bundle and asserts a clean validate summary now that
 // every Decision concept carries a human verification (F-5 discharged); (b) loads the same
 // bundle through @okfit/core's Bundle.load and asserts every concept is

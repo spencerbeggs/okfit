@@ -98,8 +98,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Everything in `devDependencies`, nothing in `dependencies`, on purpose:
   both bundle entries are self-contained, so `vsce` must never pack a
   `node_modules` dependency.
-- `build:dev` exists only so Turbo's `^build:dev` edge builds this
-  member's `dist/` in the same graph as the packages it depends on.
+- `build` (tsdown) bundles `@okfit/lsp` from its `src/` through the
+  workspace link, so no package build has to run first.
 - `src/tree/model.ts`, `src/status.ts`, `src/resolve-server.ts`,
   `src/next-candidate.ts`, `src/status-picks.ts`, `src/save-after-apply.ts`,
   `src/debounce.ts` and

@@ -1,3 +1,4 @@
+import { PosixPath } from "@effected/walker";
 import { DateTime, Schema } from "effect";
 import { Actor } from "./Actor.js";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
@@ -43,8 +44,11 @@ export interface RenderIndexOptions {
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
-const basename = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
-const dirnameOf = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+/** The bundle-relative directory of `path`; `""` for a file at the bundle root. */
+const dirnameOf = (path: string): string => {
+	const dir = PosixPath.dirname(path);
+	return dir === "." ? "" : dir;
+};
 const relativeTarget = (dir: string, path: string): string =>
 	dir !== "" && path.startsWith(`${dir}/`) ? path.slice(dir.length + 1) : path;
 
@@ -95,7 +99,7 @@ export class Derive {
 
 	/** Frontmatter `title`, else the file name without `.md` (OKF 0.2 §4.1). */
 	static readonly title = (concept: LoadedConcept): string =>
-		concept.frontmatter.title ?? basename(concept.path).replace(/\.md$/, "");
+		concept.frontmatter.title ?? PosixPath.basename(concept.path).replace(/\.md$/, "");
 
 	/** One H1 per `type` (sorted), entries sorted by title, then `# Subdirectories` (D-36; spec §8). */
 	static readonly renderIndex = (

@@ -62,11 +62,11 @@ Each package has its own `CLAUDE.md` and `__test__/CLAUDE.md`.
 ## Commands
 
 ```bash
-pnpm build        # dual dev + prod builds via Turbo
+pnpm build        # effected package build per package via Turbo
 pnpm typecheck    # tsc --noEmit per package via Turbo
 pnpm lint         # Biome
 pnpm lint:md      # markdownlint
-pnpm test         # Vitest across the monorepo (builds dist/dev first)
+pnpm test         # Vitest across the monorepo (builds dist/prod first)
 pnpm test:bats    # BATS for plugin shell scripts
 pnpm claude       # Claude Code with the local plugin loaded
 pnpm vscode:install  # build, package, reinstall the extension locally

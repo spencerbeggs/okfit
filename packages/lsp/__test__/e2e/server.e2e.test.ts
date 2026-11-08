@@ -7,7 +7,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { LspUri } from "@effected/lsp";
 import { Effect } from "effect";
 import { URI_OPTIONS } from "../../src/convert/platform.js";
-import { LSP_BIN, spawnLsp } from "./utils/lspBin.js";
+import { LSP_BIN, TSX_IMPORT, spawnLsp } from "./utils/lspBin.js";
 import { makeSandbox } from "./utils/sandbox.js";
 
 interface PublishDiagnosticsParams {
@@ -143,7 +143,7 @@ describe("okfit-lsp over real stdio", () => {
 				() =>
 					new Promise<{ readonly code: number | null; readonly stdout: string; readonly stderr: string }>((resolve) => {
 						const devNull = openSync("/dev/null", "r");
-						const child = spawn(process.execPath, [LSP_BIN, "--stdio"], {
+						const child = spawn(process.execPath, [...TSX_IMPORT, LSP_BIN, "--stdio"], {
 							env: sandbox.env,
 							cwd: sandbox.cwd,
 							stdio: [devNull, "pipe", "pipe"],

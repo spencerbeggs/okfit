@@ -1,7 +1,7 @@
 import type { MarkdownDocument } from "@effected/markdown";
+import { PosixPath } from "@effected/walker";
 import { Option } from "effect";
 import type { Concept } from "../Concept.js";
-import { basename, dirname, join, normalize } from "./posixPath.js";
 import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
 
 /** Frontmatter fields whose value is a bundle path (D-23). @internal */
@@ -62,7 +62,7 @@ const percentDecode = (raw: string): string => {
 };
 
 const isReserved = (path: string): boolean => {
-	const name = basename(path);
+	const name = PosixPath.basename(path);
 	return name === "index.md" || name === "log.md";
 };
 
@@ -84,7 +84,7 @@ const lookup = (candidate: string, index: BundleIndex, via: LinkVia): LinkResolu
 	if (path === "." || path === "") return undefined;
 	const direct = existing(path, index, via);
 	if (direct !== undefined) return direct;
-	return basename(path).includes(".") ? undefined : existing(`${path}.md`, index, via);
+	return PosixPath.basename(path).includes(".") ? undefined : existing(`${path}.md`, index, via);
 };
 
 const missing = (candidate: string, via: LinkVia): LinkResolution => ({
@@ -102,17 +102,17 @@ export const resolveTarget = (from: string, raw: string, index: BundleIndex): Li
 	if (target === "") return { _tag: "self" };
 	if (target.startsWith("/")) {
 		const rooted = target.slice(1);
-		const candidate = rooted === "" ? "index.md" : normalize(rooted);
+		const candidate = rooted === "" ? "index.md" : PosixPath.normalize(rooted);
 		if (escapes(candidate)) return { _tag: "external" };
 		return lookup(candidate, index, "rooted") ?? missing(candidate, "rooted");
 	}
 	const relative = target.startsWith("./") || target.startsWith("../");
-	const fileRelative = join(dirname(from), target);
+	const fileRelative = PosixPath.join(PosixPath.dirname(from), target);
 	if (escapes(fileRelative)) return { _tag: "external" };
 	const hitB = lookup(fileRelative, index, "file");
 	if (hitB !== undefined) return hitB;
 	if (!relative) {
-		const rootRelative = normalize(target);
+		const rootRelative = PosixPath.normalize(target);
 		if (escapes(rootRelative)) return { _tag: "external" };
 		const hitC = lookup(rootRelative, index, "root");
 		if (hitC !== undefined) return hitC;

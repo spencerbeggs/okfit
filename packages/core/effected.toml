@@ -1,0 +1,11 @@
+[package.build.meta]
+localPaths = ["../../website/lib/models/core"]
+
+# A rule list replaces the default, so the `_base` rule is restated.
+[[package.build.meta.tsdoc.suppressWarnings]]
+messageId = "ae-forgotten-export"
+pattern = "_base"
+
+[[package.build.meta.tsdoc.suppressWarnings]]
+messageId = "ae-forgotten-export"
+pattern = "okfitConfigFields"

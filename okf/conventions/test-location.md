@@ -5,13 +5,13 @@ description: Every package's tests sit under __test__/; nothing under src/ is a 
 status: stable
 generated:
   by: human:spencer
-  at: 2026-10-11T20:52:46Z
+  at: 2026-11-08T19:48:20Z
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"
 integrity:
   generated:
-    body: 1d7e24bb71b625ab
+    body: d952f7913f97cf8b
 ---
 
 # Tests live in __test__/, never in src/
@@ -24,7 +24,7 @@ okfit agent plugin's own BATS suite (`plugin/__test__/*.bats`).
 
 ## Why
 
-Keeping `src/` test-free means the published `dist/dev`/`dist/prod` output
+Keeping `src/` test-free means the published `dist/prod` output
 never carries test-only code, and keeps each package's own
 `__test__/CLAUDE.md` the one place to look for that package's test
 conventions rather than scattering them next to the implementation (root

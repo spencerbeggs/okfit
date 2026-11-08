@@ -1,7 +1,7 @@
 // Acceptance suite for `okfit validate` (contract §6.2 `validate-*` rows,
 // §6.2 `config-discovery.e2e.test.ts`'s matrix, and the K-9 no-state-files
 // check), all folded into one file per this group's brief. Spawns the built
-// dist/dev bin (K-43) — never Command.run in-process — so every exit code
+// built bin (K-43) — never Command.run in-process — so every exit code
 // and every byte of stdout/stderr is what a real invocation produces.
 //
 // Fixture exception (K-44, recorded per decision 3 above): the OKFIT_NOW/

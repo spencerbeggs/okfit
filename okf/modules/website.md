@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-08T19:48:20Z
 integrity:
   generated:
-    body: f92efe256287f148
+    body: 3d6a6eadba581d95
 ---
 
 # Website
@@ -45,14 +45,14 @@ under `/docs`, not as sites of their own.
 - `lib/scripts/dev.mts` and `lib/scripts/preview.mts` -- what the root
   `pnpm dev` and `pnpm preview` scripts run.
 - `turbo.json` -- the `build`, `dev` and `preview` tasks, all uncached; each
-  depends on the workspace's `^build:prod` so the models exist first.
+  depends on each package's `build` so the models exist first.
 - `dist/` -- the built site.
 
 ## Build and model hand-off
 
 The API reference is generated, not written. Each publishable package's
-`savvy.build.ts` sets `meta.localPaths` to
-`../../website/lib/models/<pkg>`, so that package's `build:prod` copies its
+`effected.toml` sets `meta.localPaths` to
+`../../website/lib/models/<pkg>`, so that package's `build` copies its
 `*.api.json`, `package.json`, `tsconfig.json` and `tsdoctor.json` into that
 directory. `ApiExtractorPlugin` then turns the models under `lib/models`
 into each package's `/<pkg>/api` pages at site build time. The seven
@@ -60,9 +60,8 @@ packages that hand over models are `cli`, `core`, `engine`, `lsp`, `mcp`,
 `plugin` and `profiles`.
 
 Because the models come from prod builds, the site's `build`, `dev` and
-`preview` tasks depend on `^build:prod` and are never cached; an API change
-in a package shows up in the site only after that package is rebuilt for
-prod.
+`preview` tasks depend on each package's `build` and are never cached; an API change
+in a package shows up in the site only after that package is rebuilt.
 
 ## URL model
 
@@ -87,7 +86,7 @@ repository's site uses the same pattern.
 ## Commands
 
 ```bash
-pnpm dev        # turbo run dev --filter=docs: build:prod for the packages, then the RSPress dev server
+pnpm dev        # turbo run dev --filter=docs: build for the packages, then the RSPress dev server
 pnpm preview    # turbo run preview --filter=docs: build, then serve the built site
 pnpm --filter docs build   # a production site build into website/dist
 ```

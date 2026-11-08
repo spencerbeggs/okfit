@@ -10,10 +10,10 @@ sources:
     resource: ../../scratchpad/CLAUDE.md
 generated:
   by: "okfit/claude-code"
-  at: 2026-09-22T23:49:20Z
+  at: 2026-11-08T19:48:20Z
 integrity:
   generated:
-    body: dcd9ce677faeee8a
+    body: fa9c40dc89e1c0a3
 ---
 
 # Ghost workspace
@@ -22,7 +22,7 @@ A **ghost workspace** in this repository is a pnpm workspace member that
 the tooling treats as fully real -- `workspace:*` dependencies resolve,
 turbo and vitest-agent see it as an ordinary project -- while being
 deliberately excluded from the paths that matter for a shippable package:
-it is never versioned by changesets, never built with a `savvy.build.ts`,
+it is never versioned by changesets, never built with `effected package build`,
 never counted toward release scope, and its tests never gate CI.
 
 [scratchpad](../modules/scratchpad.md) is the repository's one instance.

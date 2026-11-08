@@ -1,9 +1,7 @@
 /**
  * Free-form probe — WORKSPACE mode. Bare @okfit imports resolve to each
- * package's dist/dev build (pnpm links workspace deps via publishConfig
- * directory), kept fresh by install prepare hooks and the vitest pre-build.
- * After editing a package's src, rebuild before trusting a tsx probe:
- * pnpm build --filter @okfit/<pkg>
+ * package's src/ (pnpm links workspace deps through their exports), so a
+ * probe always sees the current source with no rebuild.
  *
  * Run from the repo root: pnpm scratchpad:probe probes/probe.ts
  * This file is disposable — pnpm scratchpad:reset reseeds it.

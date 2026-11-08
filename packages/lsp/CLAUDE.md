@@ -700,7 +700,8 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
 - `.test.ts` -- in-process against a harness built on `makeReferenceTransport`
   over in-memory streams (`__test__/utils/harness.ts`), no child process.
 - `.e2e.test.ts` (`__test__/e2e/`) -- spawns the real built bin,
-  `dist/dev/pkg/bin/okfit-lsp.js`, with `--stdio`, framed on
+  `dist/prod/npm/pkg/bin/okfit-lsp.js` (under `TSX_IMPORT`, since its
+  siblings load from source), with `--stdio`, framed on
   `Content-Length` through the kit's `LspProcess` (`@effected/lsp/testing`,
   spawned by `__test__/e2e/utils/lspBin.ts`), against a
   hermetic sandbox with the fixture project copied into `cwd`

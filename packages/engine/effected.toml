@@ -1,0 +1,14 @@
+[package.build.meta]
+localPaths = ["../../website/lib/models/engine"]
+
+# A rule list replaces the default, so the `_base` rule is restated.
+[[package.build.meta.tsdoc.suppressWarnings]]
+messageId = "ae-forgotten-export"
+pattern = "_base"
+
+# `Now` (validate/run.ts) is exported from the barrel because cli's main.ts can
+# only reach it there. It keeps its @internal tag, so API Extractor still flags
+# its anonymous base as a forgotten export.
+[[package.build.meta.tsdoc.suppressWarnings]]
+messageId = "ae-forgotten-export"
+pattern = '"Now"'

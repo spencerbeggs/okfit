@@ -159,9 +159,8 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type imports
   are separate `import type` statements. TSDoc `@public` on every `src/`
   export. Tab indentation.
-- `savvy.build.ts` carries no `meta.tsdoc.suppressWarnings` block. It once
-  suppressed two `ae-forgotten-export` warnings (`_base`, `"Now"`) for
-  symbols that have since moved to `@okfit/engine`; removing the block and
-  rebuilding confirms `dist/prod/issues.json`'s `warnings` array is still
-  empty, so nothing here needs the suppression any more.
+- `effected.toml` sets only `meta.localPaths`. The bundler's default
+  suppression (`ae-forgotten-export` matching `_base`) is all this package
+  needs; `"Now"` moved to `@okfit/engine` with the symbol, and
+  `dist/prod/issues.json`'s `warnings` array stays empty.
 - Commits are conventional, DCO signed, and never on `main`.

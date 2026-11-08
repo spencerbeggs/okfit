@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:48:16Z
+  at: 2026-11-08T19:48:20Z
 integrity:
   generated:
-    body: 3e1727c1416a1bf7
+    body: 443d02ece86aed6c
 ---
 
 # Workspace
@@ -64,14 +64,14 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
 
 ## Commands
 
-- `pnpm build` -- dual dev and prod builds via Turbo.
+- `pnpm build` -- `effected package build` per package via Turbo (`--filter=!docs`).
 - `pnpm typecheck` -- `tsc --noEmit` per package via Turbo.
 - `pnpm lint` -- Biome.
 - `pnpm lint:md` -- markdownlint.
-- `pnpm test` -- Vitest across the monorepo; builds `dist/dev` first. The
+- `pnpm test` -- Vitest across the monorepo; builds `dist/prod` first. The
   packed-install e2e suites (`packages/{plugin,cli,mcp}/__test__/e2e/packed-install.e2e.test.ts`)
-  also need `pnpm turbo run build:prod`: they skip without it locally and fail
-  under `CI`, and `ci:test` runs `turbo run build:prod` before vitest. In `CI`
+  need that build: they skip without it locally and fail
+  under `CI`, and `ci:test` runs `turbo run build` before vitest. In `CI`
   they require npm, pnpm and bun (`devEngines.runtime` names bun so
   `silk-runtime-action` installs it); locally they run whichever of npm, pnpm,
   bun and Yarn are installed.
@@ -85,8 +85,13 @@ Scope a single package's tests with `pnpm vitest run packages/core`
 
 ## Build and release
 
-`@savvy-web/bundler` produces `dist/dev` and `dist/prod` per package and
-flips `private` on publish; a source `package.json` never sets
+`effected package build` (from `@effected/plugin`, configured per package
+by `effected.toml`) writes `dist/prod` and flips `private` in the built
+manifest. There is no dev build and no link directory: a workspace link
+resolves through `exports` to a sibling's `src/`, so `pnpm-workspace.yaml`
+sets `nodeOptions: --import=tsx` and every source bin registers tsx itself
+for a run outside pnpm (a git hook, an MCP loader). The website's scripts
+clear `NODE_OPTIONS`, since RSPress loads its own bundles; a source `package.json` never sets
 `"private": false"` directly. Changesets, with `@savvy-web/changelog`,
 version everything. `plugin/` (`@okfit/ai-plugins`) is tagged but never published to
 npm, and both built `plugin.json` versions are mirrored from its own `package.json`

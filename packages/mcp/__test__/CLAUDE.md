@@ -36,9 +36,9 @@ __test__/
 - **Never inline large test data in test files.** Extract it to `fixtures/`.
 - **Never define shared mocks or helper functions in test files.** Extract them
   to the appropriate `utils/` directory so other tests can reuse them.
-- **One packed smoke, everything else on the dev dist.** The lifecycle and
-  crash-guard suites stay on `dist/dev` (fast, many cases, dev-only injection
-  knobs). `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/mcp`
+- **One packed smoke, everything else on the workspace build.** The lifecycle and
+  crash-guard suites spawn the built bin from `e2e/utils/bins.ts` under its
+  `TSX_IMPORT` (fast, many cases, test-only injection knobs). `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/mcp`
   tarballs under every available package manager (npm, pnpm, bun required in
   `CI`, Yarn local-only) and runs `McpProbe.initialize`
   against `consumer.command` (`PackedInstall`; needs the prod build; the

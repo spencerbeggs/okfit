@@ -1,3 +1,4 @@
+import { Wildcard, WildcardOptions } from "@effected/glob";
 import type { Brand } from "effect";
 import { Schema } from "effect";
 
@@ -28,19 +29,12 @@ const form = (actor: string): ActorForm => {
 };
 
 const GLOB_RE = /[*?]/u;
-const ESCAPE_RE = /[.+^${}()|[\]\\/]/gu;
 
 /** `*` is any run of non-whitespace, `?` one non-whitespace character; everything else is literal. */
-const patternRegExp = (pattern: string): RegExp =>
-	new RegExp(
-		`^${[...pattern]
-			.map((char) => (char === "*" ? "\\S*" : char === "?" ? "\\S" : char.replace(ESCAPE_RE, "\\$&")))
-			.join("")}$`,
-		"iu",
-	);
+const NOCASE = WildcardOptions.make({ nocase: true });
 
 const isPattern = (value: string): boolean => GLOB_RE.test(value);
-const matches = (actor: string, pattern: string): boolean => patternRegExp(pattern).test(actor);
+const matches = (actor: string, pattern: string): boolean => Wildcard.matches(pattern, actor, NOCASE);
 const allowed = (actor: string, humans: ReadonlyArray<string>): boolean =>
 	humans.length === 0 || humans.some((pattern) => matches(actor, pattern));
 

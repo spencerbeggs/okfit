@@ -1,25 +1,25 @@
 ---
 type: Convention
 title: Never flip private in a source package.json
-description: '@savvy-web/bundler flips "private" on publish; a source package.json never sets "private": false itself, and no changeset is written before the initial release.'
+description: 'effected package build flips "private" in the built manifest; a source package.json never sets "private": false itself, and no changeset is written before the initial release.'
 status: stable
 generated:
   by: human:spencer
-  at: 2026-10-06T04:20:11Z
+  at: 2026-11-08T19:48:20Z
 tags:
   - release
 stale_after: "2026-12-05T00:00:00Z"
 integrity:
   generated:
-    body: fe6a4926e2e877ff
+    body: e563624cb275591c
 ---
 
 # Never flip private in a source package.json
 
 ## Rule
 
-`@savvy-web/bundler` produces `dist/dev` and `dist/prod` per package and
-flips `"private"` on publish; no source `package.json` ever sets
+`effected package build` writes each package's `dist/prod` and flips
+`"private"` in the built manifest; no source `package.json` ever sets
 `"private": false` itself (root `CLAUDE.md:59-60`).
 
 ## Why

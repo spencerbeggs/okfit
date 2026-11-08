@@ -30,7 +30,10 @@ const RUN: PackedInstallOptions = {
 	allowSharedBins: true,
 	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli-kit 0.11; a CI
 	// runner exporting it would colour the output asserted below (okfit #232).
-	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+	// A pnpm script inherits the workspace nodeOptions (--import=tsx); a scratch consumer has no tsx, and the
+	// packed artifact must run without it, so the consumers get an empty NODE_OPTIONS. Remove once PackedInstall
+	// strips it (effected#1300, tracked in okfit#366).
+	env: { ...process.env, NODE_OPTIONS: "", FORCE_COLOR: "0", NO_COLOR: "1" },
 	// A missing manager fails in CI; locally any one that is installed is enough.
 	require: process.env.CI ? "all" : "any",
 	installTimeout: "3 minutes",
@@ -78,7 +81,7 @@ const VERSION =
 	/^okfit \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.2, config-schema 1\.0\) via @okfit\/plugin \d+\.\d+\.\d+$/;
 
 describe.runIf(GATE.action === "fail")("packed install (@okfit/plugin) prod build", () => {
-	it("dist/prod exists (run `pnpm turbo run build:prod` before the tests)", () => {
+	it("dist/prod exists (run `pnpm build` before the tests)", () => {
 		assert.fail(GATE.message);
 	});
 });

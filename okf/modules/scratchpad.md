@@ -13,10 +13,10 @@ sources:
     resource: ../../scratchpad/CLAUDE.md
 generated:
   by: "okfit/claude-code"
-  at: 2026-10-31T20:48:16Z
+  at: 2026-11-08T19:48:20Z
 integrity:
   generated:
-    body: 53963bd14d950711
+    body: 5710c11c731a234c
 ---
 
 # scratchpad
@@ -36,7 +36,7 @@ compile time instead.
 `packages/*`, `plugin` and the other roots in `pnpm-workspace.yaml` -- so `workspace:*`
 dependencies resolve and turbo, vitest-agent and pnpm treat it like any
 other member. But it is a fixture, not a package: `"private": true`, no
-`publishConfig`, no `savvy.build.ts`, no build scripts. Its only scripts
+`publishConfig`, no `effected.toml`, no build scripts. Its only scripts
 are the three runners (`probe`, `check`, `reset`).
 
 Its manifest lists `effect: catalog:effected` and every published
@@ -89,11 +89,9 @@ There is no zero-staleness venue: workspace imports do not resolve to
 build they read.
 
 - **Workspace mode** (the default for API-semantics probes): a bare
-  `@okfit/<pkg>` import resolves through pnpm's workspace linking, which
-  honors each package's `publishConfig`, to that package's `dist/dev`
-  build. Probes type against the dev build's declarations. After editing
-  a package's `src/`, run `pnpm build --filter @okfit/<pkg>` before
-  trusting a tsx probe; test-shaped probes get a fresh build automatically
+  `@okfit/<pkg>` import resolves through pnpm's workspace linking and that package's
+  `exports` to its `src/`. Probes type against the source and always see
+  the current code; test-shaped probes get a fresh build automatically
   via the root globalSetup.
 - **Artifact mode**: deep-import
   `packages/core/dist/prod/npm/pkg/index.js` to interrogate the built prod
@@ -162,8 +160,7 @@ type-checks here instead of an untyped `/tmp` probe.
 
 ## Testing and build
 
-Not applicable in the ordinary sense: `scratchpad/` has no `build:dev` or
-`build:prod`, and CI never sees the project (skipped when `CI` is set).
+Not applicable in the ordinary sense: `scratchpad/` has no `build` task, and CI never sees the project (skipped when `CI` is set).
 Its own "tests" are the seeded `probe.test.ts` demonstration and whatever
 test-shaped probes an agent writes in the gitignored `__test__/*.test.ts`
 zone, none of which gate anything.

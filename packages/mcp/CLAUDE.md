@@ -71,7 +71,7 @@ served toolkit with no bin or platform dependency. `main.ts` is the only
 place `process.env`/`process.cwd()` are read in this package --
 `internal/projectRoot.ts` takes both as plain arguments so it stays pure
 and testable; `version.ts` also reads `process.env.__PACKAGE_VERSION__`,
-but that is a build-time constant `@savvy-web/bundler` replaces at compile
+but that is a build-time constant `effected package build` replaces at compile
 time, not a runtime environment read, the same distinction `@okfit/cli`'s
 boundary-test allowlist comment draws for its own copy of that pattern.
 This package has no boundary test of its own (no scanner, no
@@ -167,7 +167,8 @@ Classified by filename suffix, as the root `vitest.config.ts` already does:
   `__test__/utils/harness.ts` wraps `@effected/mcp-kit/testing`'s
   `McpHarness` rather than hand-porting the request/response plumbing.
 - `.e2e.test.ts` — spawns the real built bin,
-  `dist/dev/pkg/bin/okfit-mcp.js`, through `@effected/mcp-kit/testing`'s
+  `dist/prod/npm/pkg/bin/okfit-mcp.js` (under `e2e/utils/bins.ts`'s
+  `TSX_IMPORT`, since its siblings load from source), through `@effected/mcp-kit/testing`'s
   `McpProcess` (`McpProcess.spawn`/`.readUntilResponse`), which replaced
   this package's own hand-rolled queue/stream reader
   (`__test__/e2e/utils/mcpProcess.ts`, deleted).

@@ -53,13 +53,14 @@ __test__/
   per-manager `binProvenance` table. `allowSharedBins: true` because the front
   ends share the bin names (see the shared-bins Decision).
 - **The packed suite needs the PROD build.** `PackedInstall` packs
-  `dist/prod/npm/pkg`; `vitest.setup.ts` builds only `dist/dev`, so the suite
+  `dist/prod/npm/pkg`, which `vitest.setup.ts` builds; the suite
   skips when `PackedInstall.preflight` + `PackedInstall.gate` find the prod
   build absent locally but FAILS under `CI` (a `describe.runIf` guard asserts
   with the gate's message), so a missing build is loud. `workspaceOverrides:
   true` hands the scratch consumers any `file:` sibling build linked in
   `pnpm-workspace.yaml` (a no-op when none is).
-  Root `ci:test` runs `turbo run build:prod` before vitest. Run
-  `pnpm turbo run build:prod` locally before expecting it to run.
+  Root `ci:test` runs `turbo run build` before vitest. The env sets an
+  empty `NODE_OPTIONS`: a pnpm script inherits the workspace's
+  `--import=tsx`, which a scratch consumer cannot resolve.
   Its timeout comes from `PackedInstall.closure` + `timeoutBudget`, planned
   with a top-level `await` at module evaluation; the env pins `FORCE_COLOR=0`.

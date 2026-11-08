@@ -27,8 +27,8 @@ const stripTrailingSlashes = (path: string): string => {
  * Posix-normalizes `root` (backslashes to forward slashes, no trailing
  * slash) and joins `relative` onto it with one `/`. Mirrors the
  * normalisation the engine's own `session/concept.ts` applies to
- * `bundle.root`, since core's path helpers (`internal/posixPath.ts`) stay
- * internal. Shared with `features/navigation.ts`; not in the public barrel.
+ * `bundle.root`, the same `@effected/walker` `PosixPath` rules
+ * core uses. Shared with `features/navigation.ts`; not in the public barrel.
  *
  * @internal
  */

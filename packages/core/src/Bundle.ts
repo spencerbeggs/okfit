@@ -1,6 +1,6 @@
 import type { Frontmatter } from "@effected/markdown";
 import { FrontmatterDecodeError, MarkdownDocument, YamlFrontmatter } from "@effected/markdown";
-import { DescendError } from "@effected/walker";
+import { DescendError, PosixPath } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
@@ -12,7 +12,6 @@ import { IndexDocument } from "./IndexDocument.js";
 import { detectFence } from "./internal/fence.js";
 import { decodeConcept } from "./internal/frontmatter.js";
 import { toFileOffset } from "./internal/position.js";
-import { basename, dirname } from "./internal/posixPath.js";
 import { OPTIONS, parseIndex, parseLog } from "./internal/reserved.js";
 import { DEFAULT_MAX_DEPTH, DEFAULT_PRUNE, walk } from "./internal/walk.js";
 import { LogDocument } from "./LogDocument.js";
@@ -137,7 +136,7 @@ const blockRange = (text: string, node: Frontmatter): DiagnosticRange =>
 
 /** Group A's `dirname` returns `"."` for a bundle-root file; `LoadedBundle` keys the root `""`. */
 const directoryKey = (relativePath: string): string => {
-	const dir = dirname(relativePath);
+	const dir = PosixPath.dirname(relativePath);
 	return dir === "." ? "" : dir;
 };
 
@@ -215,7 +214,7 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 		}
 		const document = parsed.success;
 		const dir = directoryKey(file);
-		if (reserved && basename(file) === "log.md") {
+		if (reserved && PosixPath.basename(file) === "log.md") {
 			const result = parseLog({ file, dir, document });
 			return { diagnostics: result.diagnostics, log: result.document };
 		}
