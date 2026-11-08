@@ -1,66 +1,11 @@
 import { GlobPattern } from "@effected/glob";
+import { descend } from "@effected/walker";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfit/core";
 import { SURFACE_TYPE } from "@okfit/profiles";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path, Result } from "effect";
 import { GLOB_RE } from "./resources.js";
-
-/**
- * Lists `root` breadth-first, only as deep as `segments` (the glob's remaining
- * segments) can match, or without a bound when the pattern contains `**`.
- * `node_modules` and dot-entries are skipped unless a segment names them, and
- * symlinked directories are listed but never descended into. Entry
- * paths are `/`-joined and relative to `root`. An unreadable directory
- * contributes nothing.
- */
-const walk = (
-	fs: FileSystem.FileSystem,
-	path: Path.Path,
-	root: string,
-	segments: ReadonlyArray<string>,
-): Effect.Effect<ReadonlyArray<string>> =>
-	Effect.gen(function* () {
-		const maxDepth = segments.some((segment) => segment.includes("**")) ? Number.POSITIVE_INFINITY : segments.length;
-		// A dot names a hidden entry when it starts a segment or follows a brace,
-		// comma, extglob or class opener (`{.github,docs}`, `[.]x`, `@(.a|b)`).
-		const namesHidden = segments.some((segment) => /(^|[{,(|[])\./.test(segment));
-		const namesModules = segments.some((segment) => segment.includes("node_modules"));
-		const skipped = (name: string): boolean =>
-			(name === "node_modules" && !namesModules) || (name.startsWith(".") && !namesHidden);
-		const out: Array<string> = [];
-		let level: ReadonlyArray<string> = [""];
-		for (let depth = 1; depth <= maxDepth && level.length > 0; depth++) {
-			const next: Array<string> = [];
-			for (const dir of level) {
-				const names = yield* fs
-					.readDirectory(dir === "" ? root : path.join(root, dir))
-					.pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
-				for (const name of names) {
-					if (skipped(name)) continue;
-					const relative = dir === "" ? name : `${dir}/${name}`;
-					out.push(relative);
-					if (depth < maxDepth) {
-						const full = path.join(root, relative);
-						const isDirectory = yield* fs.stat(full).pipe(
-							Effect.map((info) => info.type === "Directory"),
-							Effect.orElseSucceed(() => false),
-						);
-						// Never descend into a symlink: a cycle under `**` would not end.
-						const isSymlink = isDirectory
-							? yield* fs.readLink(full).pipe(
-									Effect.as(true),
-									Effect.orElseSucceed(() => false),
-								)
-							: false;
-						if (isDirectory && !isSymlink) next.push(relative);
-					}
-				}
-			}
-			level = next;
-		}
-		return out;
-	});
 
 /**
  * A Surface's `resource` glob matches nothing on disk. Only concepts of type
@@ -110,8 +55,21 @@ export const lintSurfaces = (
 				if (Result.isFailure(compiled)) {
 					problem = `: ${compiled.failure.message}`;
 				} else {
-					const entries = yield* walk(fs, path, prefix, restSegments);
-					if (!entries.some((entry) => compiled.success.matches(entry))) problem = "";
+					// `descend` reads only directories a match can lie in, never enters a symlinked
+					// directory, and treats a symlinked base as empty, so the prefix is resolved first.
+					// `node_modules` stays pruned unless the pattern names it.
+					const matches = yield* fs.realPath(prefix).pipe(
+						Effect.flatMap((cwd) =>
+							descend(compiled.success, {
+								cwd,
+								match: "any",
+								prune: restSegments.some((segment) => segment.includes("node_modules")) ? [] : ["node_modules"],
+								onUnreadable: "skip",
+							}),
+						),
+						Effect.orElseSucceed((): ReadonlyArray<string> => []),
+					);
+					if (matches.length === 0) problem = "";
 				}
 			}
 			if (problem === undefined) continue;
