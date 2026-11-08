@@ -1,6 +1,6 @@
 // Acceptance suite for `okfit stale` (issue #17): same handler skeleton as
 // `okfit validate`/`okfit context`, diverging into `@okfit/engine`'s
-// `runStale`. Spawns the built dist/dev bin (K-43), never Command.run
+// `runStale`. Spawns the built bin (K-43), never Command.run
 // in-process, per this package's e2e convention.
 //
 // K-44/decision 3 (mirrors validate.e2e.test.ts's own OKFIT_NOW case): no

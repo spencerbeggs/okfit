@@ -5,13 +5,10 @@ import { assert, describe, it } from "@effect/vitest";
 import { McpProcess } from "@effected/mcp-kit/testing";
 import { Effect } from "effect";
 import { ChildProcess } from "effect/process";
+import { CLI_BIN, MCP_BIN, REPO_ROOT, TSX_IMPORT } from "./utils/bins.js";
 import { readUntilErrorCode } from "./utils/wire.js";
 
-const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
-const CLI_BIN = resolve(REPO_ROOT, "packages", "cli", "dist", "dev", "pkg", "bin", "okfit.js");
 const MISSING_BUNDLE_FIXTURE = resolve(import.meta.dirname, "..", "fixtures", "missing-bundle");
-/** The built dev bin, resolved from this file's own location, never from cwd. */
-const MCP_BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "bin", "okfit-mcp.js");
 
 /**
  * Spawns the built bin as a long-lived server over `@effected/mcp-kit/testing`'s
@@ -20,7 +17,7 @@ const MCP_BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "
  * interleaved notifications).
  */
 const spawnMcp = (env: Readonly<Record<string, string>>) =>
-	McpProcess.spawn(ChildProcess.make(process.execPath, [MCP_BIN], { env }));
+	McpProcess.spawn(ChildProcess.make(process.execPath, [...TSX_IMPORT, MCP_BIN], { env }));
 
 const ENV = {
 	PATH: process.env.PATH ?? "",
@@ -204,11 +201,15 @@ describe("server lifecycle", () => {
 			const envelope = response.result.structuredContent;
 			yield* server.closeStdin;
 
-			const cliOutput = execFileSync(process.execPath, [CLI_BIN, "validate", "--root", ".", "--format", "json"], {
-				cwd: REPO_ROOT,
-				env: { PATH: ENV.PATH, HOME: ENV.HOME, NO_COLOR: "1" },
-				encoding: "utf8",
-			});
+			const cliOutput = execFileSync(
+				process.execPath,
+				[...TSX_IMPORT, CLI_BIN, "validate", "--root", ".", "--format", "json"],
+				{
+					cwd: REPO_ROOT,
+					env: { PATH: ENV.PATH, HOME: ENV.HOME, NO_COLOR: "1" },
+					encoding: "utf8",
+				},
+			);
 			const cliEnvelope = JSON.parse(cliOutput) as {
 				readonly exit_code: number;
 				readonly summary: {

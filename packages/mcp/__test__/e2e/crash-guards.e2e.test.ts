@@ -1,17 +1,13 @@
-import { resolve } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { McpProcess } from "@effected/mcp-kit/testing";
 import { Effect } from "effect";
 import { ChildProcess } from "effect/process";
-
-/** The built dev bin, resolved from this file's own location, never from cwd. */
-const MCP_BIN = resolve(import.meta.dirname, "..", "..", "dist", "dev", "pkg", "bin", "okfit-mcp.js");
-const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
+import { MCP_BIN, REPO_ROOT, TSX_IMPORT } from "./utils/bins.js";
 
 const spawnWithCrash = (injection: string) =>
 	McpProcess.spawn(
-		ChildProcess.make(process.execPath, [MCP_BIN], {
+		ChildProcess.make(process.execPath, [...TSX_IMPORT, MCP_BIN], {
 			env: {
 				PATH: process.env.PATH ?? "",
 				HOME: process.env.HOME ?? "",

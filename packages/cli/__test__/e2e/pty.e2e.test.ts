@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { assert, describe, it } from "@effect/vitest";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox, removeSandbox } from "./utils/fixtures.js";
-import { BIN } from "./utils/okfit.js";
+import { BIN, TSX_IMPORT } from "./utils/okfit.js";
 import { KEYS, ptyAvailable, runPty } from "./utils/pty.js";
 import { commit, initRepo } from "./utils/repo.js";
 
@@ -71,7 +71,7 @@ describe("no ink or react on the non-interactive path (#231)", () => {
 			const dir = await mkdtemp(join(tmpdir(), "okfit-trace-"));
 			const trace = join(dir, "trace.txt");
 			try {
-				await execFileAsync(process.execPath, ["--import", TRACER, BIN, "--help"], {
+				await execFileAsync(process.execPath, [...TSX_IMPORT, "--import", TRACER, BIN, "--help"], {
 					env: { ...process.env, OKFIT_TRACE_FILE: trace },
 				});
 				const specifiers = (await readFile(trace, "utf8")).split("\n").filter((line) => line !== "");
@@ -188,7 +188,7 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 
 				const json = await execFileAsync(
 					process.execPath,
-					[BIN, "verify", "decisions/a", "--format", "json", "--dry-run"],
+					[...TSX_IMPORT, BIN, "verify", "decisions/a", "--format", "json", "--dry-run"],
 					{
 						cwd: sandbox.cwd,
 						env,

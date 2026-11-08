@@ -27,7 +27,6 @@
 	"main": "./dist/extension.js",
 	"scripts": {
 		"build": "tsdown",
-		"build:dev": "tsdown",
 		"package": "node --experimental-strip-types lib/package-vsix.ts",
 		"types:check": "tsc --noEmit",
 		"vscode:prepublish": "pnpm run build"
@@ -174,7 +173,6 @@
 	"dependencies": {},
 	"devDependencies": {
 		"@okfit/lsp": "workspace:*",
-		"@savvy-web/bundler": "^2.7.4",
 		"@types/node": "catalog:build",
 		"@types/vscode": "^1.100.0",
 		"@vscode/vsce": "^4.0.0",

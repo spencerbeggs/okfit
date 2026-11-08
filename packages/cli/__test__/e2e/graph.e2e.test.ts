@@ -1,6 +1,6 @@
 // Acceptance suite for `okfit graph` (issue #17): same handler skeleton as
 // `okfit validate`/`okfit context`, diverging into `@okfit/engine`'s
-// `runGraph`. Spawns the built dist/dev bin (K-43), never Command.run
+// `runGraph`. Spawns the built bin (K-43), never Command.run
 // in-process, per this package's e2e convention.
 //
 // K-44: no CLI-owned fixture. Reuses the same software-project fixture

@@ -8,6 +8,7 @@ configDependencies:
 minimumReleaseAgeExclude:
   - "@effected/pnpm-plugin-effected"
   - "@savvy-web/pnpm-plugin-silk"
+nodeOptions: --import=tsx
 packages:
   - packages/*
   - plugin

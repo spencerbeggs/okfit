@@ -1,5 +1,5 @@
 // Acceptance suite for `okfit context` (contract §9.5), spawning the built
-// dist/dev bin (K-43) exactly as validate.e2e.test.ts does -- never
+// built bin (K-43) exactly as validate.e2e.test.ts does -- never
 // Command.run in-process -- so every exit code and every byte of
 // stdout/stderr is what a real invocation produces.
 //

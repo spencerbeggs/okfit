@@ -1,4 +1,6 @@
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { CommandFailedError, CommandOutputError } from "@effected/commands"; // CMD/Run.d.ts:365, :412
 import { Run } from "@effected/commands"; // CMD/Run.d.ts:452
 import type { Effect } from "effect";
@@ -6,8 +8,29 @@ import { Stream } from "effect";
 import type { ChildProcessSpawner } from "effect/process";
 import { ChildProcess } from "effect/process";
 
-/** The built dev bin, resolved from this file's own location (contract section 6.3). */
-export const BIN: string = resolve(import.meta.dirname, "..", "..", "..", "dist", "dev", "pkg", "bin", "okfit.js");
+/** The built bin, resolved from this file's own location (contract section 6.3). */
+export const BIN: string = resolve(
+	import.meta.dirname,
+	"..",
+	"..",
+	"..",
+	"dist",
+	"prod",
+	"npm",
+	"pkg",
+	"bin",
+	"okfit.js",
+);
+
+/**
+ * Node arguments that load tsx in the spawned child. The built bin imports its workspace siblings,
+ * and those links resolve to their `src/`, so the child needs tsx; a hermetic env inherits no
+ * `nodeOptions` and the child's cwd is a sandbox, so the loader is named by absolute URL.
+ */
+export const TSX_IMPORT: ReadonlyArray<string> = [
+	"--import",
+	pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href,
+];
 
 /** Everything one `okfit` run produced. */
 export interface OkfitRun {
@@ -42,7 +65,7 @@ export const runOkfit = (
 ): Effect.Effect<OkfitRun, CommandFailedError | CommandOutputError, ChildProcessSpawner.ChildProcessSpawner> =>
 	Run.collect(
 		ChildProcess.setCwd(
-			ChildProcess.make(process.execPath, [BIN, ...args], {
+			ChildProcess.make(process.execPath, [...TSX_IMPORT, BIN, ...args], {
 				// FORCE_COLOR=0 first so a caller's env still wins: it beats NO_COLOR and the TTY check
 				// since @effected/cli-kit 0.11, and the sandbox env alone only sets NO_COLOR (okfit #232).
 				env: { FORCE_COLOR: "0", ...options.env },

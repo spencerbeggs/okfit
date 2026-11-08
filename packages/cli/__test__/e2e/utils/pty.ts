@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { Fmt } from "@effected/cli-kit";
-import { BIN } from "./okfit.js";
+import { BIN, TSX_IMPORT } from "./okfit.js";
 
 /** One scripted keystroke: wait for `waitFor` to appear in new output, then write `send`. */
 export interface PtyStep {
@@ -59,7 +59,7 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 	const rows = options.rows ?? 30;
 	const timeoutMs = options.timeoutMs ?? 10_000;
 	const redirect = options.stderrFile === undefined ? "" : ` 2>${quote(options.stderrFile)}`;
-	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, ...(options.nodeArgs ?? []), BIN, ...args].map(quote).join(" ")}${redirect}; echo ${SENTINEL}$?`;
+	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, ...TSX_IMPORT, ...(options.nodeArgs ?? []), BIN, ...args].map(quote).join(" ")}${redirect}; echo ${SENTINEL}$?`;
 	const scriptCommand =
 		process.platform === "darwin"
 			? `script -q /dev/null sh -c ${quote(inner)}`

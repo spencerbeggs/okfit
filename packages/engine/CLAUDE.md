@@ -138,7 +138,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type imports
   are separate `import type` statements. TSDoc `@public` on every `src/`
   export. Tab indentation.
-- `savvy.build.ts` keeps two `ae-forgotten-export` suppressions: `_base`,
+- `effected.toml` keeps two `ae-forgotten-export` suppressions: `_base`,
   for the inline `Schema.TaggedError` classes (`errors.ts`), and `"Now"`.
   `validate/run.ts`'s `Now` IS exported from the barrel (`index.ts:36`),
   kept `@internal`. K-49 kept `Now` out of the barrel when `commands/` and
@@ -147,7 +147,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `@okfit/engine`, a cross-package import cannot reach into `src/`, so
   `@okfit/cli`'s `main.ts` can only get `Now` through this barrel. Both
   suppressions are load-bearing here -- `dist/prod/issues.json`'s
-  `suppressed` array is non-empty. `@okfit/cli`'s own `savvy.build.ts` is
-  bare `await build({})`: Task 13 removed its copy of these rules, since
-  both symbols now live here and cli has nothing left for them to match.
+  `suppressed` array is non-empty. A rule list replaces the bundler's
+  default, so `_base` is restated beside `"Now"`. `@okfit/cli`'s own
+  `effected.toml` carries no rules: both symbols now live here.
 - Commits are conventional, DCO signed, and never on `main`.

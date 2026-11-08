@@ -9,10 +9,10 @@ const rootManifest = JSON.parse(readFileSync(join(repoRoot, "package.json"), "ut
 };
 
 describe("root vscode:package / vscode:install scripts", () => {
-	it("defines vscode:package building the lsp then this extension's dist and .vsix", () => {
+	it("defines vscode:package building this extension's dist (bundling @okfit/lsp from source) and .vsix", () => {
 		const script = rootManifest.scripts["vscode:package"];
 		expect(script).toBeDefined();
-		expect(script).toContain("--filter=@okfit/lsp");
+		expect(script).not.toContain("--filter=@okfit/lsp");
 		expect(script).toContain("--filter @okfit/vscode-extension build");
 		expect(script).toContain("--filter @okfit/vscode-extension package");
 	});

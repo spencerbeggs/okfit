@@ -343,10 +343,10 @@ importers:
         version: 0.3.0(@effected/markdown@0.28.0(@effected/jsonc@0.24.0(effect@4.1.2))(@effected/toml@0.19.1(effect@4.1.2))(@effected/yaml@0.29.0(effect@4.1.2))(effect@4.1.2))(@types/node@26.6.6)(@types/react@19.3.0)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@okfit/cli':
         specifier: workspace:*
-        version: link:packages/cli/dist/dev/pkg
+        version: link:packages/cli
       '@okfit/plugin':
         specifier: workspace:*
-        version: link:packages/plugin/dist/dev/pkg
+        version: link:packages/plugin
       '@savvy-web/silk':
         specifier: ^4.5.7
         version: 4.5.7(@changesets/cli@3.0.3)(@commitlint/cli@21.2.4(conventional-commits-parser@7.1.4)(typescript@7.1.0-beta))(@commitlint/config-conventional@21.2.4)(@types/bun@1.4.4)(@types/node@26.6.6)(@types/react@19.3.0)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/expect@5.1.0)(husky@9.1.7)(lint-staged@17.6.0)(markdownlint-cli2-formatter-codequality@0.0.8(markdownlint-cli2@0.24.0(supports-color@8.1.1)))(markdownlint-cli2@0.24.0(supports-color@8.1.1))(redis@6.3.1)(tsx@4.23.15)(turbo@2.11.10)(typescript@7.1.0-beta)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.1.0)
@@ -356,6 +356,9 @@ importers:
       pluginfinity:
         specifier: ^0.3.14
         version: 0.3.14(@effected/jsonc@0.24.0(effect@4.1.2))(@effected/toml@0.19.1(effect@4.1.2))(@effected/yaml@0.29.0(effect@4.1.2))(@types/react@19.3.0)(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(redis@6.3.1)
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   packages/cli:
     dependencies:
@@ -403,13 +406,13 @@ importers:
         version: 0.29.0(effect@4.1.2)
       '@okfit/core':
         specifier: workspace:*
-        version: link:../core/dist/dev/pkg
+        version: link:../core
       '@okfit/engine':
         specifier: workspace:*
-        version: link:../engine/dist/dev/pkg
+        version: link:../engine
       '@okfit/profiles':
         specifier: workspace:*
-        version: link:../profiles/dist/dev/pkg
+        version: link:../profiles
       effect:
         specifier: catalog:effected
         version: 4.1.2
@@ -429,9 +432,6 @@ importers:
       '@effected/workspaces':
         specifier: catalog:effected
         version: 0.44.0(effect@4.1.2)
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -444,7 +444,6 @@ importers:
       vitest:
         specifier: catalog:test
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-    publishDirectory: dist/dev/pkg
 
   packages/core:
     devDependencies:
@@ -487,9 +486,6 @@ importers:
       '@effected/yaml':
         specifier: catalog:effected
         version: 0.29.0(effect@4.1.2)
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -502,7 +498,6 @@ importers:
       vitest:
         specifier: catalog:test
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-    publishDirectory: dist/dev/pkg
 
   packages/engine:
     dependencies:
@@ -556,10 +551,10 @@ importers:
         version: 0.29.0(effect@4.1.2)
       '@okfit/core':
         specifier: workspace:*
-        version: link:../core/dist/dev/pkg
+        version: link:../core
       '@okfit/profiles':
         specifier: workspace:*
-        version: link:../profiles/dist/dev/pkg
+        version: link:../profiles
       effect:
         specifier: catalog:effected
         version: 4.1.2
@@ -573,9 +568,6 @@ importers:
       '@effected/workspaces':
         specifier: catalog:effected
         version: 0.44.0(effect@4.1.2)
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -585,7 +577,6 @@ importers:
       vitest:
         specifier: catalog:test
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-    publishDirectory: dist/dev/pkg
 
   packages/lsp:
     dependencies:
@@ -633,13 +624,13 @@ importers:
         version: 0.29.0(effect@4.1.2)
       '@okfit/core':
         specifier: workspace:*
-        version: link:../core/dist/dev/pkg
+        version: link:../core
       '@okfit/engine':
         specifier: workspace:*
-        version: link:../engine/dist/dev/pkg
+        version: link:../engine
       '@okfit/profiles':
         specifier: workspace:*
-        version: link:../profiles/dist/dev/pkg
+        version: link:../profiles
       effect:
         specifier: catalog:effected
         version: 4.1.2
@@ -653,9 +644,6 @@ importers:
       '@effected/workspaces':
         specifier: catalog:effected
         version: 0.44.0(effect@4.1.2)
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -668,7 +656,6 @@ importers:
       vscode-jsonrpc:
         specifier: ^10.0.0
         version: 10.0.0
-    publishDirectory: dist/dev/pkg
 
   packages/mcp:
     dependencies:
@@ -716,13 +703,13 @@ importers:
         version: 0.29.0(effect@4.1.2)
       '@okfit/core':
         specifier: workspace:*
-        version: link:../core/dist/dev/pkg
+        version: link:../core
       '@okfit/engine':
         specifier: workspace:*
-        version: link:../engine/dist/dev/pkg
+        version: link:../engine
       '@okfit/profiles':
         specifier: workspace:*
-        version: link:../profiles/dist/dev/pkg
+        version: link:../profiles
       effect:
         specifier: catalog:effected
         version: 4.1.2
@@ -733,9 +720,6 @@ importers:
       '@effected/workspaces':
         specifier: catalog:effected
         version: 0.44.0(effect@4.1.2)
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -745,19 +729,18 @@ importers:
       vitest:
         specifier: catalog:test
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-    publishDirectory: dist/dev/pkg
 
   packages/plugin:
     dependencies:
       '@okfit/cli':
         specifier: workspace:*
-        version: link:../cli/dist/dev/pkg
+        version: link:../cli
       '@okfit/lsp':
         specifier: workspace:*
-        version: link:../lsp/dist/dev/pkg
+        version: link:../lsp
       '@okfit/mcp':
         specifier: workspace:*
-        version: link:../mcp/dist/dev/pkg
+        version: link:../mcp
     devDependencies:
       '@effect/platform-node':
         specifier: catalog:effected
@@ -774,9 +757,6 @@ importers:
       '@effected/workspaces':
         specifier: catalog:effected
         version: 0.44.0(effect@4.1.2)
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -789,7 +769,6 @@ importers:
       vitest:
         specifier: catalog:test
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-    publishDirectory: dist/dev/pkg
 
   packages/profiles:
     devDependencies:
@@ -834,10 +813,7 @@ importers:
         version: 0.29.0(effect@4.1.2)
       '@okfit/core':
         specifier: workspace:*
-        version: link:../core/dist/dev/pkg
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
+        version: link:../core
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -850,7 +826,6 @@ importers:
       vitest:
         specifier: catalog:test
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-istanbul@5.1.0)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-    publishDirectory: dist/dev/pkg
 
   plugin: {}
 
@@ -894,25 +869,25 @@ importers:
         version: 0.29.0(effect@4.1.2)
       '@okfit/cli':
         specifier: workspace:*
-        version: link:../packages/cli/dist/dev/pkg
+        version: link:../packages/cli
       '@okfit/core':
         specifier: workspace:*
-        version: link:../packages/core/dist/dev/pkg
+        version: link:../packages/core
       '@okfit/engine':
         specifier: workspace:*
-        version: link:../packages/engine/dist/dev/pkg
+        version: link:../packages/engine
       '@okfit/lsp':
         specifier: workspace:*
-        version: link:../packages/lsp/dist/dev/pkg
+        version: link:../packages/lsp
       '@okfit/mcp':
         specifier: workspace:*
-        version: link:../packages/mcp/dist/dev/pkg
+        version: link:../packages/mcp
       '@okfit/plugin':
         specifier: workspace:*
-        version: link:../packages/plugin/dist/dev/pkg
+        version: link:../packages/plugin
       '@okfit/profiles':
         specifier: workspace:*
-        version: link:../packages/profiles/dist/dev/pkg
+        version: link:../packages/profiles
     devDependencies:
       '@effect/platform-node':
         specifier: catalog:effected
@@ -943,10 +918,7 @@ importers:
     devDependencies:
       '@okfit/lsp':
         specifier: workspace:*
-        version: link:../packages/lsp/dist/dev/pkg
-      '@savvy-web/bundler':
-        specifier: ^2.7.4
-        version: 2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)
+        version: link:../packages/lsp
       '@types/node':
         specifier: catalog:build
         version: 26.6.6
@@ -2761,31 +2733,6 @@ packages:
     resolution: {integrity: sha512-acP68tGx/DJEIQgTqj/xStBRaghN7axV+uAjNasDjVXgHgHaLQ1f16/bbXtw6mNLjURhTORD4fdfbOZM7kyWcw==}
     engines: {node: '>=20.9.0'}
 
-  '@savvy-web/bundler@2.7.4':
-    resolution: {integrity: sha512-x5MWnKKqf8eZAjQyc9+jqXJNiGFrv8hQXSloZPPV0P+mXWDD88ePfEpTstaa+v/4T33mYQgVinlKN+iVpP2/GA==}
-    peerDependencies:
-      '@resvg/resvg-js': ^2.6.2
-      '@types/node': ^26.6.0
-      '@types/react': ^19.3.0
-      '@types/react-dom': ^19.3.0
-      react: ^19.3.0
-      react-dom: ^19.3.0
-      satori: ^0.63.2
-      typescript: 7.1.0-beta
-    peerDependenciesMeta:
-      '@resvg/resvg-js':
-        optional: true
-      '@types/react':
-        optional: true
-      '@types/react-dom':
-        optional: true
-      react:
-        optional: true
-      react-dom:
-        optional: true
-      satori:
-        optional: true
-
   '@savvy-web/changelog@1.0.30':
     resolution: {integrity: sha512-DWcY7Ow0wZKJ8tqgYRsRPa/8cNWuWLRLZIcwPWILh4kBGl01/CjjjOmcCNDRsbItnr/aXesAsd4TtJVUl2UdKw==}
 
@@ -2838,9 +2785,6 @@ packages:
     peerDependenciesMeta:
       '@biomejs/biome':
         optional: true
-
-  '@savvy-web/tsdown-plugins@2.11.7':
-    resolution: {integrity: sha512-GI4pc0O71f3WpJDsAQ3j8SqS6Gr6SVoyZz45gTFsZFgOhBeCsSe/c7TiL7tAMwAxTsH8dCrVUNJcUS6WIVjuwQ==}
 
   '@secretlint/core@10.2.2':
     resolution: {integrity: sha512-6rdwBwLP9+TO3rRjMVW1tX+lQeo5gBbxl1I5F8nh8bgGtKwdlCMhMKsBWzWg1ostxx/tIG7OjZI0/BxsP8bUgw==}
@@ -7578,39 +7522,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@savvy-web/bundler@2.7.4(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(redis@6.3.1)(tsx@4.23.15)(typescript@7.1.0-beta)':
-    dependencies:
-      '@effected/env': 0.11.0(effect@4.1.2)
-      '@savvy-web/tsdown-plugins': 2.11.7(@tsdown/exe@0.23.7)(@types/node@26.6.6)(redis@6.3.1)(tsx@4.23.15)
-      '@tsdown/exe': 0.23.7(tsdown@0.23.7)
-      '@types/node': 26.6.6
-      effect: 4.1.2
-      rolldown: 1.3.0
-      tsdown: 0.23.7(@tsdown/exe@0.23.7)(tsx@4.23.15)(typescript@7.1.0-beta)
-      typescript: 7.1.0-beta
-    optionalDependencies:
-      '@types/react': 19.3.0
-      '@types/react-dom': 19.3.0(@types/react@19.3.0)
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@tsdown/css'
-      - '@vitejs/devtools'
-      - '@volar/typescript'
-      - '@vue/language-core'
-      - '@yuku-toolchain/wasm'
-      - bufferutil
-      - oxc-resolver
-      - publint
-      - redis
-      - tsrs
-      - tsx
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - vue-tsc
-
   '@savvy-web/changelog@1.0.30':
     dependencies:
       '@effected/commands': 0.20.0(effect@4.1.2)
@@ -7732,48 +7643,6 @@ snapshots:
       - react-devtools-core
       - redis
       - utf-8-validate
-
-  '@savvy-web/tsdown-plugins@2.11.7(@tsdown/exe@0.23.7)(@types/node@26.6.6)(redis@6.3.1)(tsx@4.23.15)':
-    dependencies:
-      '@changesets/get-release-plan': 5.0.2
-      '@effect/platform-node': 4.1.2(effect@4.1.2)(redis@6.3.1)
-      '@effected/env': 0.11.0(effect@4.1.2)
-      '@effected/glob': 0.19.0(effect@4.1.2)
-      '@effected/images': 0.9.0(effect@4.1.2)
-      '@effected/jsonc': 0.24.0(effect@4.1.2)
-      '@effected/npm': 0.30.1(@effected/semver@0.22.0(effect@4.1.2))(effect@4.1.2)
-      '@effected/package-json': 0.30.0(effect@4.1.2)
-      '@effected/semver': 0.22.0(effect@4.1.2)
-      '@effected/tsconfig-json': 0.20.2(@effected/glob@0.19.0(effect@4.1.2))(@effected/jsonc@0.24.0(effect@4.1.2))(@effected/walker@0.25.1(@effected/glob@0.19.0(effect@4.1.2))(effect@4.1.2))(effect@4.1.2)
-      '@effected/walker': 0.25.1(@effected/glob@0.19.0(effect@4.1.2))(effect@4.1.2)
-      '@effected/workspaces': 0.43.0(effect@4.1.2)
-      '@jridgewell/sourcemap-codec': 1.6.0
-      '@microsoft/api-extractor': 7.60.1(@types/node@26.6.6)
-      '@microsoft/tsdoc': 0.17.1
-      '@microsoft/tsdoc-config': 0.18.3
-      '@tsdoctor/manifest': 0.4.0(effect@4.1.2)
-      effect: 4.1.2
-      tsdown: 0.23.7(@tsdown/exe@0.23.7)(tsx@4.23.15)(typescript@7.1.0-beta)
-      typescript: 7.1.0-beta
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@types/node'
-      - '@vitejs/devtools'
-      - '@volar/typescript'
-      - '@vue/language-core'
-      - '@yuku-toolchain/wasm'
-      - bufferutil
-      - oxc-resolver
-      - publint
-      - redis
-      - tsrs
-      - tsx
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - vue-tsc
 
   '@secretlint/core@10.2.2(supports-color@8.1.1)':
     dependencies:

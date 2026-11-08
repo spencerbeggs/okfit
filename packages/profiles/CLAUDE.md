@@ -39,5 +39,5 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - `Derivation` is package-global, not per profile. It never rewrites `generated.by` on re-derivation and never substitutes `now` for an uncommitted body — both are the caller's decision.
 - No `process.cwd()` and no environment reads anywhere in `src/`: `writer` and `cwd` are explicit arguments (P-16).
 - Relative imports use `.js` extensions; built-ins use `node:`; type imports are separate `import type` statements; TSDoc `@public` on every export from `src/`; tab indentation.
-- `Context.Service` and `Schema.TaggedError` classes (`GitHistory`, `GitHistoryError`, `HumanActorUnresolvedError`, `AgentActorUnconfiguredError`) are declared inline; `savvy.build.ts` keeps the `_base` `ae-forgotten-export` suppression rather than hand-exporting the synthesized base.
+- `Context.Service` and `Schema.TaggedError` classes (`GitHistory`, `GitHistoryError`, `HumanActorUnresolvedError`, `AgentActorUnconfiguredError`) are declared inline; the bundler's default `_base` `ae-forgotten-export` suppression covers the synthesized base, so `effected.toml` lists no rules of its own.
 - The `README.md` TOML fence is a test fixture: `__test__/SoftwareProject.test.ts` decodes it and deep-equals it against the `software-project` literal. Change both together.
