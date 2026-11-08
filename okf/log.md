@@ -1,5 +1,17 @@
 # Log
 
+## 2026-11-08
+
+* Updated Contributor guide -- making a pull request
+* Updated Ghost workspace
+* Updated Never flip private in a source package.json
+* Updated Plugin
+* Updated Tests live in __test__/, never in src/
+* Updated User docs live under /docs; package hierarchies live at the site root beside their generated API
+* Updated Website
+* Updated Workspace
+* Updated scratchpad
+
 ## 2026-11-05
 
 * Updated okfit config file schema

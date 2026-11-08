@@ -7,10 +7,10 @@ resource: ../../packages/plugin
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-08T19:48:20Z
 integrity:
   generated:
-    body: f11d7c313971016a
+    body: 8362cd8d9b90e12d
 ---
 
 # Plugin
@@ -54,5 +54,5 @@ allowSharedBins](../decisions/plugin-shared-bins.md).
 tarballs under npm, pnpm and bun (all required in `CI`; Yarn is
 exercised only where it is installed, and its slot row is asserted only on
 Yarn 2+) and runs this package's own bins with
-`runCarrierBin`, so it proves the published artifact rather than `dist/dev`. It
+`runCarrierBin`, so it proves the published artifact rather than the workspace links. It
 needs the prod build: it skips without it locally and fails under `CI`.

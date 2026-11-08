@@ -13,7 +13,7 @@ sources:
     last_modified: 2026-09-29T00:00:00Z
 generated:
   by: okfit/claude-code
-  at: 2026-09-29T22:18:38Z
+  at: 2026-11-08T19:48:20Z
 verified:
   - by: human:spencer
     at: 2026-09-29T22:19:48Z
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T22:01:13Z
 integrity:
   generated:
-    body: 96fc4a302944f3c7
+    body: b041b203fdd79035
   verified:
     by: human:spencer
     at: 2026-10-11T22:01:13Z
@@ -70,7 +70,7 @@ site follows the same pattern.
 
 The site root carries seven package directories next to `/docs`, and a
 package's pages must not be written into `/docs`. A new package adds a
-`/<pkg>` hierarchy, a `savvy.build.ts` `meta.localPaths` entry pointing at
+`/<pkg>` hierarchy, an `effected.toml` `meta.localPaths` entry pointing at
 `website/lib/models/<pkg>` and a row in `/docs/packages`. Cross-links
 between `/docs` and `/<pkg>` are ordinary site links rather than nesting.
 
