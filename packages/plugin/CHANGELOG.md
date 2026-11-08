@@ -1,5 +1,26 @@
 # @okfit/plugin
 
+## 0.5.31
+
+### Build System
+
+- Builds with `effected package build` instead of `@savvy-web/bundler`. The published artifact's shape and paths are unchanged.
+- Each bin entry registers tsx itself when it runs as TypeScript source; the published JavaScript is unaffected. [#367][#367]
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/cli | dependency | updated | 0.16.0 | 0.16.1 |
+| @okfit/lsp | dependency | updated | 0.6.3 | 0.6.4 |
+| @okfit/mcp | dependency | updated | 0.12.0 | 0.12.1 |
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#367]: https://github.com/spencerbeggs/okfit/pull/367
+
 ## 0.5.30
 
 ### Dependencies
