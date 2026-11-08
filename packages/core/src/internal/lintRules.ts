@@ -1,5 +1,5 @@
 import { EditDistance } from "@effected/source";
-import { DateTime, Option } from "effect";
+import { DateTime } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
 import { Derive } from "../Derive.js";
@@ -21,23 +21,7 @@ export interface LintContext {
 /** One function per lint code (D-34). */
 export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 
-const FOOTNOTE_RE = /\[\^([^\]\s]+)\]/g;
-/** A footnote definition: the label at a line start, followed by a colon. */
-const FOOTNOTE_DEFINITION_RE = /^\[\^([^\]\s]+)\]:/gm;
-
 const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && raw[key] !== null;
-
-/**
- * Source spans of every inline code span and code block, so a footnote-shaped
- * token inside backticks is read as literal text (issue #67).
- */
-const codeSpansOf = (concept: LoadedConcept): ReadonlyArray<readonly [number, number]> =>
-	concept.document
-		.findAll((node) => node.type === "inlineCode" || node.type === "code")
-		.map((node) => [node.position.start.offset, node.position.end.offset] as const);
-
-const insideAny = (spans: ReadonlyArray<readonly [number, number]>, offset: number): boolean =>
-	spans.some(([start, end]) => offset >= start && offset < end);
 
 const diagnostic = (
 	file: string,
@@ -224,6 +208,39 @@ export const stale: LintRule = perConcept("stale", (concept, context) =>
 		: [],
 );
 
+/**
+ * Every footnote label a concept uses, once each in source order, with the offset of its first
+ * `[^label]` marker: resolved references, definitions and the markers the parser rejected for want
+ * of a definition. A marker in a code span or block, or an escaped one, is literal text and absent.
+ */
+const footnoteLabelsOf = (
+	concept: LoadedConcept,
+): ReadonlyArray<{ readonly label: string; readonly offset: number }> => {
+	const markers = [
+		...concept.document
+			.findAll((node) => node.type === "footnoteReference" || node.type === "footnoteDefinition")
+			.flatMap((node) =>
+				node.type === "footnoteReference" || node.type === "footnoteDefinition"
+					? [{ label: node.label ?? node.identifier, offset: node.position.start.offset }]
+					: [],
+			),
+		...concept.document.unresolvedFootnoteReferences.map((marker) => ({
+			label: marker.label,
+			offset: marker.position.start.offset,
+		})),
+	].sort((left, right) => left.offset - right.offset);
+	const seen = new Set<string>();
+	const first: Array<{ readonly label: string; readonly offset: number }> = [];
+	for (const marker of markers) {
+		if (seen.has(marker.label)) {
+			continue;
+		}
+		seen.add(marker.label);
+		first.push(marker);
+	}
+	return first;
+};
+
 export const footnoteSourceUnknown: LintRule = rule("footnote-source-unknown", (context, severity) => {
 	const out: Array<Diagnostic> = [];
 	for (const concept of context.bundle.concepts.values()) {
@@ -231,17 +248,11 @@ export const footnoteSourceUnknown: LintRule = rule("footnote-source-unknown", (
 		if (ids.size === 0) {
 			continue;
 		}
-		const source = concept.document.source;
-		const start = Option.getOrUndefined(concept.document.frontmatter)?.position.end.offset ?? 0;
-		const code = codeSpansOf(concept);
-		const seen = new Set<string>();
-		for (const match of source.slice(start).matchAll(FOOTNOTE_RE)) {
-			const label = match[1];
-			if (label === undefined || ids.has(label) || seen.has(label) || insideAny(code, start + match.index)) {
+		for (const { label, offset } of footnoteLabelsOf(concept)) {
+			if (ids.has(label)) {
 				continue;
 			}
-			seen.add(label);
-			const range = DiagnosticRange.fromOffset(source, start + match.index, match[0].length);
+			const range = DiagnosticRange.fromOffset(concept.document.source, offset, label.length + 3);
 			out.push(
 				diagnostic(
 					concept.path,
@@ -264,29 +275,22 @@ export const footnoteUndefined: LintRule = rule("footnote-undefined", (context, 
 	const out: Array<Diagnostic> = [];
 	for (const concept of context.bundle.concepts.values()) {
 		const source = concept.document.source;
-		const start = Option.getOrUndefined(concept.document.frontmatter)?.position.end.offset ?? 0;
-		const body = source.slice(start);
-		const code = codeSpansOf(concept);
-		const defined = new Set(
-			[...body.matchAll(FOOTNOTE_DEFINITION_RE)].flatMap((m) =>
-				m[1] === undefined || insideAny(code, start + m.index) ? [] : [m[1]],
-			),
-		);
 		const seen = new Set<string>();
-		for (const match of body.matchAll(FOOTNOTE_RE)) {
-			const label = match[1];
-			if (label === undefined || defined.has(label) || seen.has(label) || insideAny(code, start + match.index)) {
+		// The parser records each marker it rejects for want of a definition, so a marker in a code
+		// span or code block never appears, and label matching follows GFM (case-insensitive).
+		for (const marker of concept.document.unresolvedFootnoteReferences) {
+			if (seen.has(marker.label)) {
 				continue;
 			}
-			seen.add(label);
-			const range = DiagnosticRange.fromOffset(source, start + match.index, match[0].length);
+			seen.add(marker.label);
+			const { start, end } = marker.position;
 			out.push(
 				diagnostic(
 					concept.path,
 					"footnote-undefined",
 					severity,
-					`Footnote "${label}" is referenced but has no [^${label}]: definition`,
-					range,
+					`Footnote "${marker.label}" is referenced but has no [^${marker.label}]: definition`,
+					DiagnosticRange.fromOffset(source, start.offset, end.offset - start.offset),
 				),
 			);
 		}

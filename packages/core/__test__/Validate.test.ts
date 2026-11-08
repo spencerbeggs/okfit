@@ -322,6 +322,22 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect(
+		"footnote-undefined follows GFM: escaped markers, case-folded labels and indented definitions resolve",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"notes/a.md":
+						"---\ntype: Note\ntitle: A\n---\n\n# A\n\nSee \\[^esc], [^Upper], [^ind] and [^real].\n\n[^upper]: Defined in lower case.\n\n   [^ind]: Indented definition.\n",
+				});
+				const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "footnote-undefined");
+				assert.deepStrictEqual(summary(lint), [["footnote-undefined", "notes/a.md", "warning"]]);
+				assert.match(lint[0]?.message ?? "", /"real"/);
+				const range = lint[0]?.range;
+				assert.strictEqual(range?.length, "[^real]".length);
+			}),
+	);
+
 	it.effect("broken-links checks a #fragment against the target's heading slugs (issue #69)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadAnchorsBundle;
