@@ -11,6 +11,7 @@
 * Updated Website
 * Updated Workspace
 * Updated scratchpad
+* Updated Core
 
 ## 2026-11-05
 

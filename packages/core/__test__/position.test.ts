@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { DiagnosticRange } from "../src/Diagnostic.js";
-import { FRONTMATTER_FENCE, frontmatterValueStart, toFileOffset } from "../src/internal/position.js";
+import { toFileOffset } from "../src/internal/position.js";
 
 const lineCharacter = (text: string, offset: number) => {
 	const { line, character } = DiagnosticRange.fromOffset(text, offset, 0);
@@ -25,13 +25,6 @@ describe("internal/position", () => {
 		assert.deepStrictEqual(lineCharacter(CRLF, 4), { line: 0, character: 3 });
 	});
 
-	it("frontmatterValueStart is fence length plus terminator length", () => {
-		assert.strictEqual(FRONTMATTER_FENCE.length, 3);
-		assert.strictEqual(frontmatterValueStart(LF), 4);
-		assert.strictEqual(frontmatterValueStart(CRLF), 5);
-		assert.strictEqual(frontmatterValueStart(CR), 4);
-	});
-
 	it("toFileOffset lands a yaml offset on the same text in the file", () => {
 		const yaml = "type: Note\ntitle: Widget";
 		const fileOffset = toFileOffset(LF, yaml.indexOf("Widget"));
@@ -40,5 +33,8 @@ describe("internal/position", () => {
 		const crlfYaml = "type: Note\r\ntitle: Widget";
 		const crlfOffset = toFileOffset(CRLF, crlfYaml.indexOf("Widget"));
 		assert.strictEqual(CRLF.slice(crlfOffset, crlfOffset + 6), "Widget");
+		const crYaml = "type: Note";
+		const crOffset = toFileOffset(CR, crYaml.indexOf("Note"));
+		assert.strictEqual(CR.slice(crOffset, crOffset + 4), "Note");
 	});
 });

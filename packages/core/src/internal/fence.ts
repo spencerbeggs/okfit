@@ -1,4 +1,4 @@
-import { FRONTMATTER_FENCE } from "./position.js";
+import { FrontmatterSource } from "@effected/markdown";
 
 /**
  * Whether a file opens a YAML frontmatter block and whether it closes (D-13).
@@ -7,20 +7,14 @@ import { FRONTMATTER_FENCE } from "./position.js";
  */
 export type FenceState = "absent" | "unclosed" | "closed";
 
-const LINE_BREAK = /\r\n|\r|\n/;
-
 /**
- * Core's own fence check, run before the markdown parser because the parser treats an
- * unclosed fence as no frontmatter (effected-markdown.md section 2). Line 0 must be
- * exactly `---`; the block closes at the first later line that is exactly `---`.
+ * Core's fence check, run before the markdown parser because the parser treats an unclosed fence as
+ * no frontmatter (effected-markdown.md section 2). The fence state is `FrontmatterSource.split`'s;
+ * core recognizes only the `---` YAML fence (D-13), so a `+++` or `---json` fence reads as absent.
  *
  * @public
  */
 export const detectFence = (text: string): FenceState => {
-	const lines = text.split(LINE_BREAK);
-	if (lines[0] !== FRONTMATTER_FENCE) return "absent";
-	for (let index = 1; index < lines.length; index += 1) {
-		if (lines[index] === FRONTMATTER_FENCE) return "closed";
-	}
-	return "unclosed";
+	const split = FrontmatterSource.split(text);
+	return split.fenceFormat === undefined || split.fenceFormat === "yaml" ? (split.fence ?? "absent") : "absent";
 };

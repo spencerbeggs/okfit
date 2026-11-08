@@ -14,8 +14,8 @@ const stripTrailingSlashes = (path: string): string => {
 
 /**
  * The loaded concept at `absolutePath`, if any. `absolutePath` must already sit under
- * `bundle.root` (a real resolved path, never re-resolved here: `@okfit/core`'s own
- * `internal/posixPath.ts` avoids `path.resolve`/`path.relative` on purpose, because both read
+ * `bundle.root` (a real resolved path, never re-resolved here: `@okfit/core`'s path
+ * arithmetic, `@effected/walker`'s `PosixPath`, has no `resolve` on purpose, because it would read
  * `process.cwd()`, and this package holds the same line). Strips `bundle.root` as a plain
  * string prefix, then applies the same `ConceptId.fromPath` normalisation `withFallbackRange`
  * uses: `None` for a path outside the bundle, a reserved file (`index.md`, `log.md`), a
