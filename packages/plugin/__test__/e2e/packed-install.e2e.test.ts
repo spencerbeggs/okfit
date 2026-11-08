@@ -31,7 +31,8 @@ const RUN: PackedInstallOptions = {
 	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli-kit 0.11; a CI
 	// runner exporting it would colour the output asserted below (okfit #232).
 	// A pnpm script inherits the workspace nodeOptions (--import=tsx); a scratch consumer has no tsx, and the
-	// packed artifact must run without it, so the consumers get an empty NODE_OPTIONS.
+	// packed artifact must run without it, so the consumers get an empty NODE_OPTIONS. Remove once PackedInstall
+	// strips it (effected#1300, tracked in okfit#366).
 	env: { ...process.env, NODE_OPTIONS: "", FORCE_COLOR: "0", NO_COLOR: "1" },
 	// A missing manager fails in CI; locally any one that is installed is enough.
 	require: process.env.CI ? "all" : "any",
