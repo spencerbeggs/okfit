@@ -58,9 +58,9 @@
 		"@effect/vitest": "catalog:effected",
 		"@effected/commands": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@types/node": "catalog:build",
+		"@types/node": "catalog:effected:build",
 		"@types/react": "catalog:silk",
-		"typescript": "catalog:build",
+		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test"
 	},
 	"engines": {

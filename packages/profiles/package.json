@@ -44,9 +44,9 @@
 		"@effected/walker": "catalog:effected",
 		"@effected/yaml": "catalog:effected",
 		"@okfit/core": "workspace:*",
-		"@types/node": "catalog:build",
+		"@types/node": "catalog:effected:build",
 		"effect": "catalog:effected",
-		"typescript": "catalog:build",
+		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test"
 	},
 	"peerDependencies": {

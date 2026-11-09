@@ -1,5 +1,9 @@
 # Log
 
+## 2026-11-09
+
+* Updated Website
+
 ## 2026-11-08
 
 * Updated Contributor guide -- making a pull request

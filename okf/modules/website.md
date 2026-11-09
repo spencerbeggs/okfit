@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-08T19:48:20Z
+  at: 2026-11-09T17:30:04Z
 integrity:
   generated:
-    body: 3d6a6eadba581d95
+    body: 160b20b1e1a079fa
 ---
 
 # Website
@@ -53,7 +53,7 @@ under `/docs`, not as sites of their own.
 The API reference is generated, not written. Each publishable package's
 `effected.toml` sets `meta.localPaths` to
 `../../website/lib/models/<pkg>`, so that package's `build` copies its
-`*.api.json`, `package.json`, `tsconfig.json` and `tsdoctor.json` into that
+`*.api.json`, `package.json`, `tsconfig.json` and `bundle.json` into that
 directory. `ApiExtractorPlugin` then turns the models under `lib/models`
 into each package's `/<pkg>/api` pages at site build time. The seven
 packages that hand over models are `cli`, `core`, `engine`, `lsp`, `mcp`,
