@@ -44,9 +44,9 @@
 		"@effected/lsp": "catalog:effected",
 		"@effected/mcp-kit": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@types/node": "catalog:build",
+		"@types/node": "catalog:effected:build",
 		"effect": "catalog:effected",
-		"typescript": "catalog:build",
+		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test"
 	},
 	"engines": {

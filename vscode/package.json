@@ -173,13 +173,13 @@
 	"dependencies": {},
 	"devDependencies": {
 		"@okfit/lsp": "workspace:*",
-		"@types/node": "catalog:build",
+		"@types/node": "catalog:effected:build",
 		"@types/vscode": "^1.100.0",
 		"@vscode/vsce": "^4.0.0",
 		"ovsx": "^1.2.0",
 		"reactive-vscode": "^1.0.2",
 		"tsdown": "^0.23.0",
-		"typescript": "catalog:build",
+		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test",
 		"vscode-languageclient": "^11.0.0"
 	},

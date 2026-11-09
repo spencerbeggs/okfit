@@ -54,8 +54,8 @@
 		"@effect/vitest": "catalog:effected",
 		"@effected/memfs": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@types/node": "catalog:build",
-		"typescript": "catalog:build",
+		"@types/node": "catalog:effected:build",
+		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test"
 	},
 	"engines": {

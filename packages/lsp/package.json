@@ -56,8 +56,8 @@
 	"devDependencies": {
 		"@effect/vitest": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
-		"@types/node": "catalog:build",
-		"typescript": "catalog:build",
+		"@types/node": "catalog:effected:build",
+		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test",
 		"vscode-jsonrpc": "^10.0.0"
 	},

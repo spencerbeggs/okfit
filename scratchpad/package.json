@@ -33,10 +33,10 @@
 	"devDependencies": {
 		"@effect/platform-node": "catalog:effected",
 		"@effect/vitest": "catalog:effected",
-		"@types/node": "catalog:build",
+		"@types/node": "catalog:effected:build",
 		"effect": "catalog:effected",
 		"tsx": "^4.23.12",
-		"typescript": "catalog:build",
+		"typescript": "catalog:effected:build",
 		"vscode-jsonrpc": "^10.0.0",
 		"vscode-languageserver": "^11.0.0"
 	}

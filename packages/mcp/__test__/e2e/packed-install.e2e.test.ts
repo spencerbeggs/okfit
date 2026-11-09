@@ -27,10 +27,7 @@ const RUN: PackedInstallOptions = {
 	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
 	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
 	bins: ["okfit-mcp"],
-	// A pnpm script inherits the workspace nodeOptions (--import=tsx); a scratch consumer has no tsx, and the
-	// packed artifact must run without it, so the consumers get an empty NODE_OPTIONS. Remove once PackedInstall
-	// strips it (effected#1300, tracked in okfit#366).
-	env: { ...process.env, NODE_OPTIONS: "", FORCE_COLOR: "0", NO_COLOR: "1" },
+	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
 	// A missing manager fails in CI; locally any one that is installed is enough.
 	require: process.env.CI ? "all" : "any",
 	installTimeout: "3 minutes",
