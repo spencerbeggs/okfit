@@ -52,14 +52,14 @@
 		"@okfit/profiles": "workspace:*",
 		"effect": "catalog:effected",
 		"ink": "catalog:silk",
-		"react": "catalog:silk"
+		"react": "catalog:effected:build"
 	},
 	"devDependencies": {
 		"@effect/vitest": "catalog:effected",
 		"@effected/commands": "catalog:effected",
 		"@effected/workspaces": "catalog:effected",
 		"@types/node": "catalog:effected:build",
-		"@types/react": "catalog:silk",
+		"@types/react": "catalog:effected:build",
 		"typescript": "catalog:effected:build",
 		"vitest": "catalog:test"
 	},
