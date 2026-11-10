@@ -1,8 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Option } from "effect";
 import { rootCommand } from "../../src/commands/root.js";
 import { validateCommand } from "../../src/commands/validate.js";
-import { nameOf, primitiveTypeOf } from "../utils/params.js";
+import { defaultOf, nameOf, primitiveTypeOf } from "../utils/params.js";
 
 /** `Command`'s public interface declares no `config` member; every real command carries one at runtime. */
 const configOf = (
@@ -34,21 +33,16 @@ describe("validateCommand", () => {
 
 	it('--format defaults to "human" (contract §6.1)', () => {
 		const config = configOf(validateCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format") as
-			| { readonly f: (value: Option.Option<string>) => string }
-			| undefined;
-		if (formatFlag === undefined) throw new Error("expected a --format flag with a default-value mapper");
-		assert.strictEqual(formatFlag.f(Option.none()), "auto");
+		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
+		if (formatFlag === undefined) throw new Error("expected a --format flag");
+		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--skip-provenance defaults to false (S-31)", () => {
 		const config = configOf(validateCommand);
-		const skipProvenanceFlag = config.flags.find((flag) => nameOf(flag) === "skip-provenance") as
-			| { readonly f: (value: Option.Option<boolean>) => boolean }
-			| undefined;
-		if (skipProvenanceFlag === undefined)
-			throw new Error("expected a --skip-provenance flag with a default-value mapper");
-		assert.strictEqual(skipProvenanceFlag.f(Option.none()), false);
+		const skipProvenanceFlag = config.flags.find((flag) => nameOf(flag) === "skip-provenance");
+		if (skipProvenanceFlag === undefined) throw new Error("expected a --skip-provenance flag");
+		assert.strictEqual(defaultOf(skipProvenanceFlag), false);
 	});
 
 	it("--config carries no mustExist on its underlying Path primitive (contract §6.1)", () => {

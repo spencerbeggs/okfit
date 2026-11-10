@@ -50,14 +50,14 @@
 		"vitest": "catalog:test"
 	},
 	"peerDependencies": {
-		"@effected/git": "catalog:effected",
-		"@effected/glob": "catalog:effected",
-		"@effected/jsonc": "catalog:effected",
-		"@effected/markdown": "catalog:effected",
-		"@effected/source": "catalog:effected",
-		"@effected/walker": "catalog:effected",
+		"@effected/git": "catalog:effected:peers",
+		"@effected/glob": "catalog:effected:peers",
+		"@effected/jsonc": "catalog:effected:peers",
+		"@effected/markdown": "catalog:effected:peers",
+		"@effected/source": "catalog:effected:peers",
+		"@effected/walker": "catalog:effected:peers",
 		"@okfit/core": "workspace:^",
-		"effect": "catalog:effected"
+		"effect": "catalog:effected:peers"
 	},
 	"engines": {
 		"node": ">=24.11.0"

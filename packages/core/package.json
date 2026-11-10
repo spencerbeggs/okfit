@@ -51,16 +51,16 @@
 		"vitest": "catalog:test"
 	},
 	"peerDependencies": {
-		"@effected/config-file": "catalog:effected",
-		"@effected/glob": "catalog:effected",
-		"@effected/jsonc": "catalog:effected",
-		"@effected/markdown": "catalog:effected",
-		"@effected/schemastore": "catalog:effected",
-		"@effected/source": "catalog:effected",
-		"@effected/toml": "catalog:effected",
-		"@effected/walker": "catalog:effected",
-		"@effected/yaml": "catalog:effected",
-		"effect": "catalog:effected"
+		"@effected/config-file": "catalog:effected:peers",
+		"@effected/glob": "catalog:effected:peers",
+		"@effected/jsonc": "catalog:effected:peers",
+		"@effected/markdown": "catalog:effected:peers",
+		"@effected/schemastore": "catalog:effected:peers",
+		"@effected/source": "catalog:effected:peers",
+		"@effected/toml": "catalog:effected:peers",
+		"@effected/walker": "catalog:effected:peers",
+		"@effected/yaml": "catalog:effected:peers",
+		"effect": "catalog:effected:peers"
 	},
 	"engines": {
 		"node": ">=24.11.0"
