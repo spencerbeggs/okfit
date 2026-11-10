@@ -1,5 +1,38 @@
 # @okfit/cli
 
+## 0.16.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | ~4.1.2 | 4.1.3 |
+| @effected/cli-kit | dependency | updated | ^0.27.1 | ^0.28.0 |
+| @effected/config-file | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/env | dependency | updated | ^0.11.0 | ^0.12.0 |
+| @effected/git | dependency | updated | ^0.30.0 | ^0.32.0 |
+| @effected/glob | dependency | updated | ^0.20.0 | ^0.21.0 |
+| @effected/jsonc | dependency | updated | ^0.24.0 | ^0.25.0 |
+| @effected/kit | dependency | updated | ^0.13.0 | ^0.14.0 |
+| @effected/markdown | dependency | updated | ^0.28.0 | ^0.29.0 |
+| @effected/schemastore | dependency | updated | ^0.31.0 | ^0.32.0 |
+| @effected/source | dependency | updated | ^0.4.0 | ^0.5.0 |
+| @effected/toml | dependency | updated | ^0.19.1 | ^0.20.0 |
+| @effected/walker | dependency | updated | ^0.26.0 | ^0.27.0 |
+| @effected/yaml | dependency | updated | ^0.29.0 | ^0.30.0 |
+| @okfit/core | dependency | updated | 0.13.1 | 0.13.2 |
+| @okfit/engine | dependency | updated | 0.20.1 | 0.20.2 |
+| @okfit/profiles | dependency | updated | 0.14.3 | 0.14.4 |
+| effect | dependency | updated | ~4.1.2 | 4.1.3 |
+
+[#370][#370]
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
+[#370]: https://github.com/spencerbeggs/okfit/pull/370
+
 ## 0.16.1
 
 ### Build System
