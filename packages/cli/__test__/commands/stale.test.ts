@@ -1,7 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Option } from "effect";
 import { staleCommand } from "../../src/commands/stale.js";
-import { nameOf, primitiveTypeOf } from "../utils/params.js";
+import { defaultOf, nameOf, primitiveTypeOf } from "../utils/params.js";
 
 /** `Command`'s public interface declares no `config` member; every real command carries one at runtime. */
 const configOf = (
@@ -33,11 +32,9 @@ describe("staleCommand", () => {
 
 	it('--format defaults to "human"', () => {
 		const config = configOf(staleCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format") as
-			| { readonly f: (value: Option.Option<string>) => string }
-			| undefined;
-		if (formatFlag === undefined) throw new Error("expected a --format flag with a default-value mapper");
-		assert.strictEqual(formatFlag.f(Option.none()), "auto");
+		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
+		if (formatFlag === undefined) throw new Error("expected a --format flag");
+		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--config carries no mustExist on its underlying Path primitive", () => {

@@ -37,6 +37,24 @@ export const nameOf = (value: unknown): string => {
  * asserting that absence is this contract row's own words, not a claim that
  * the flag ignores `mustExist` at parse time.
  */
+/**
+ * Returns the literal default `withDefault` recorded on a flag or argument,
+ * read from the nearest node carrying `effect/cli`'s public
+ * `Param.Fallback` (`fallback: { _tag: "Default", value }`, since
+ * effect 4.1.3) — never by invoking the node's internal mapper, whose
+ * shape changed when `withDefault` moved onto `transform`.
+ */
+export const defaultOf = (value: unknown): unknown => {
+	if (!isRecord(value)) throw new Error("expected a Flag/Argument param object");
+	const fallback = value.fallback;
+	if (isRecord(fallback)) {
+		if (fallback._tag !== "Default") throw new Error(`expected a literal default, got a ${String(fallback._tag)}`);
+		return fallback.value;
+	}
+	if ("param" in value) return defaultOf(value.param);
+	throw new Error("expected a nested `param` or a `fallback`");
+};
+
 export const primitiveTypeOf = (value: unknown): Record<string, unknown> => {
 	if (!isRecord(value)) throw new Error("expected a Flag/Argument param object");
 	if (isRecord(value.primitiveType)) return value.primitiveType;

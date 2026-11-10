@@ -232,15 +232,11 @@ describe("server lifecycle", () => {
 	// here and by a standalone spawn outside Vitest. N-8's escape hatch (an
 	// explicit stdin `end` handler in `bin.ts`) is prescribed only if the
 	// process does NOT exit within the window; it does, so that hatch is not
-	// needed. Without a custom teardown the exit code would be 130:
-	// `runMain`'s `defaultTeardown` (VERIFIED `effect/src/Runtime.ts:108-113`)
-	// reports 130 whenever the main fiber's `Cause` contains only
-	// interruptions and no failure/defect -- exactly what a stdin-EOF-driven
-	// scope closure produces, since nothing in this server treats stdin
-	// closing as a normal `Exit.succeed`. `bin.ts` maps that case to 0 via
-	// `runMain`'s `teardown` option (review Minor finding 3), since 130
-	// conventionally means "killed by SIGINT" and this is the ordinary end
-	// of every session.
+	// needed. Since effect 4.1.3 core marks the stdin-EOF interrupt with
+	// `Runtime.InterruptExitCode` 0, so even `runMain`'s `defaultTeardown`
+	// exits 0 here; `McpStdio.teardown` (main.ts) still maps the
+	// unannotated SIGINT/SIGTERM interrupts to 0, since this is the ordinary
+	// end of every session rather than a kill.
 	// I4 (final whole-branch review): `McpStdio.layer`'s stdin guard is
 	// "load-bearing, not a style choice" (server.ts's own doc comment), but
 	// nothing under `__test__` exercised it before this test. A malformed

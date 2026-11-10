@@ -1,8 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Option } from "effect";
 import { contextCommand } from "../../src/commands/context.js";
 import { rootCommand } from "../../src/commands/root.js";
-import { nameOf, primitiveTypeOf } from "../utils/params.js";
+import { defaultOf, nameOf, primitiveTypeOf } from "../utils/params.js";
 
 /** `Command`'s public interface declares no `config` member; every real command carries one at runtime. */
 const configOf = (
@@ -38,11 +37,9 @@ describe("contextCommand", () => {
 
 	it('--format defaults to "human" (contract §8.3)', () => {
 		const config = configOf(contextCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format") as
-			| { readonly f: (value: Option.Option<string>) => string }
-			| undefined;
-		if (formatFlag === undefined) throw new Error("expected a --format flag with a default-value mapper");
-		assert.strictEqual(formatFlag.f(Option.none()), "auto");
+		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
+		if (formatFlag === undefined) throw new Error("expected a --format flag");
+		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--config carries no mustExist on its underlying Path primitive (contract §8.3)", () => {
