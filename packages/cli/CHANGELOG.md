@@ -1,5 +1,18 @@
 # @okfit/cli
 
+## 0.16.3
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/cli-kit | dependency | updated | ^0.28.0 | ^0.28.1 |
+| @effected/config-file | dependency | updated | ^0.27.0 | ^0.27.1 |
+| @effected/walker | dependency | updated | ^0.27.0 | ^0.28.0 |
+| @okfit/core | dependency | updated | 0.13.2 | 0.13.3 |
+| @okfit/engine | dependency | updated | 0.20.2 | 0.20.3 |
+| @okfit/profiles | dependency | updated | 0.14.4 | 0.14.5 |
+
 ## 0.16.2
 
 ### Dependencies
