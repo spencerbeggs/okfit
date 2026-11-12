@@ -52,7 +52,7 @@
 		"@okfit/cli": "workspace:*",
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^5.1.2",
-		"@vitest-agent/plugin": "^6.0.11",
+		"@vitest-agent/plugin": "^6.0.12",
 		"pluginfinity": "^0.3.18",
 		"tsx": "^4.23.15"
 	},
