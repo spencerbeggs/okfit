@@ -1,5 +1,9 @@
 # Log
 
+## 2026-11-12
+
+* Added Tool packages pin the kit exactly; libraries keep carets and peers
+
 ## 2026-11-09
 
 * Updated Website
