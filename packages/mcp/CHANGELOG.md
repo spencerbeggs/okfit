@@ -1,5 +1,20 @@
 # @okfit/mcp
 
+## 0.12.5
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/config-file | dependency | updated | 0.27.1 | 0.28.0 |
+| @effected/glob | dependency | updated | 0.21.0 | 0.22.0 |
+| @effected/schemastore | dependency | updated | 0.32.0 | 0.33.0 |
+| @effected/walker | dependency | updated | 0.28.0 | 0.29.0 |
+| @effected/xdg | dependency | updated | 0.20.1 | 0.21.0 |
+| @okfit/core | dependency | updated | 0.13.3 | 0.13.4 |
+| @okfit/engine | dependency | updated | 0.20.4 | 0.20.5 |
+| @okfit/profiles | dependency | updated | 0.14.5 | 0.14.6 |
+
 ## 0.12.4
 
 ### Build System
