@@ -1,5 +1,14 @@
 # @okfit/lsp
 
+## 0.6.9
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/schemastore | dependency | updated | 0.33.0 | 0.33.1 |
+| @okfit/engine | dependency | updated | 0.20.5 | 0.20.6 |
+
 ## 0.6.8
 
 ### Dependencies
