@@ -1,5 +1,11 @@
 # Log
 
+## 2026-11-13
+
+* Updated Plugin
+* Updated The carrier keeps its front ends' bin names, proven under allowSharedBins
+* Updated Workspace
+
 ## 2026-11-12
 
 * Added Tool packages pin the kit exactly; libraries keep carets and peers

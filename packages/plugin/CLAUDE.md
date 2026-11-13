@@ -40,6 +40,6 @@ declaration.
 `okfit`, `okfit-mcp` and `okfit-lsp` are declared here AND by the three front
 ends, on purpose (`okf/decisions/plugin-shared-bins.md`).
 Do not remove either side's declaration. Under npm and bun the front end can
-own the `.bin` slot; Yarn keeps this carrier; pnpm writes shims.
+own the `.bin` slot; pnpm writes shims.
 `__test__/e2e/packed-install.e2e.test.ts` passes `allowSharedBins: true` and
 proves this package's own shims with `runCarrierBin`.

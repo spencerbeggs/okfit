@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-08T19:48:20Z
+  at: 2026-11-13T16:43:01Z
 integrity:
   generated:
-    body: 443d02ece86aed6c
+    body: 34319287f8d0b0f4
 ---
 
 # Workspace
@@ -73,8 +73,8 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
   need that build: they skip without it locally and fail
   under `CI`, and `ci:test` runs `turbo run build` before vitest. In `CI`
   they require npm, pnpm and bun (`devEngines.runtime` names bun so
-  `silk-runtime-action` installs it); locally they run whichever of npm, pnpm,
-  bun and Yarn are installed.
+  `silk-runtime-action` installs it); locally they run whichever of npm, pnpm
+  and bun are installed.
 - `pnpm test:bats` -- BATS for the plugin's shell scripts.
 - `pnpm claude` -- Claude Code with the local plugin loaded.
 - `pnpm dev` and `pnpm preview` -- the documentation site's dev server and

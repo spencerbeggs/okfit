@@ -24,8 +24,8 @@ const RUN: PackedInstallOptions = {
 	// While a dogfood loop links an unreleased sibling build (`file:` overrides in pnpm-workspace.yaml), the
 	// consumers get that build too; with no such override this reads nothing.
 	workspaceOverrides: true,
-	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
-	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
+	// The kit supports npm, pnpm and bun (it dropped yarn in @effected/workspaces 0.48); CI provisions all three (root devEngines).
+	managers: ["npm", "pnpm", "bun"],
 	bins: ["okfit-mcp"],
 	env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
 	// A missing manager fails in CI; locally any one that is installed is enough.

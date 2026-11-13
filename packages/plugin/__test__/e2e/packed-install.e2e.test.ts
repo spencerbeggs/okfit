@@ -24,8 +24,8 @@ const RUN: PackedInstallOptions = {
 	// While a dogfood loop links an unreleased sibling build (`file:` overrides in pnpm-workspace.yaml), the
 	// consumers get that build too; with no such override this reads nothing.
 	workspaceOverrides: true,
-	// CI provisions npm, pnpm and bun (root devEngines), so they are required there; yarn is opportunistic locally.
-	managers: process.env.CI ? ["npm", "pnpm", "bun"] : ["npm", "pnpm", "bun", "yarn"],
+	// The kit supports npm, pnpm and bun (it dropped yarn in @effected/workspaces 0.48); CI provisions all three (root devEngines).
+	managers: ["npm", "pnpm", "bun"],
 	bins: ["okfit", "okfit-mcp", "okfit-lsp"],
 	allowSharedBins: true,
 	// FORCE_COLOR beats NO_COLOR and the TTY check since @effected/cli-kit 0.11; a CI
@@ -61,16 +61,14 @@ const BUDGET = PackedInstall.timeoutBudget({
 
 /**
  * Which package owns each `.bin` slot under shared bins, observed on npm 11,
- * pnpm 12, Yarn 4 and bun 1: npm and bun link the front end whose name sorts
- * before `@okfit/plugin`, Yarn keeps the carrier (the consumer's direct
- * dependency), and pnpm writes shell shims (`undefined`). A change here means
+ * pnpm 12 and bun 1: npm and bun link the front end whose name sorts
+ * before `@okfit/plugin`, and pnpm writes shell shims (`undefined`). A change here means
  * a manager changed which package wins the slot -- the carrier's own shim is
  * still proven by `runCarrierBin`, so update this table rather than the bins.
  */
-const SLOT_OWNER: Record<"npm" | "pnpm" | "yarn" | "bun", Record<string, string | undefined>> = {
+const SLOT_OWNER: Record<"npm" | "pnpm" | "bun", Record<string, string | undefined>> = {
 	npm: { okfit: "@okfit/cli", "okfit-mcp": "@okfit/mcp", "okfit-lsp": "@okfit/lsp" },
 	bun: { okfit: "@okfit/cli", "okfit-mcp": "@okfit/mcp", "okfit-lsp": "@okfit/lsp" },
-	yarn: { okfit: "@okfit/plugin", "okfit-mcp": "@okfit/plugin", "okfit-lsp": "@okfit/plugin" },
 	pnpm: { okfit: undefined, "okfit-mcp": undefined, "okfit-lsp": undefined },
 };
 
@@ -129,9 +127,7 @@ describe.skipIf(!RUNNABLE)("packed install (@okfit/plugin)", () => {
 						assert.include(lsp.stderr, "via @okfit/plugin", label);
 
 						// Who owns each .bin slot under shared bins.
-						// The yarn row was observed on Yarn 4; Yarn Classic (1.x) links differently, so it is not asserted.
-						const classicYarn = consumer.manager === "yarn" && Number(consumer.managerVersion.split(".")[0]) < 2;
-						for (const bin of classicYarn ? [] : RUN.bins) {
+						for (const bin of RUN.bins) {
 							const provenance = yield* consumer.binProvenance(bin);
 							assert.strictEqual(provenance?.package, SLOT_OWNER[consumer.manager][bin], `${label} .bin/${bin}`);
 						}
