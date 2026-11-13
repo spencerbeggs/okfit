@@ -1,5 +1,14 @@
 # @okfit/mcp
 
+## 0.12.6
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/schemastore | dependency | updated | 0.33.0 | 0.33.1 |
+| @okfit/engine | dependency | updated | 0.20.5 | 0.20.6 |
+
 ## 0.12.5
 
 ### Dependencies
