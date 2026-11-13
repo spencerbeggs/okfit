@@ -39,7 +39,7 @@ __test__/
 - **One packed smoke, everything else on the workspace build.** The lifecycle and
   crash-guard suites spawn the built bin from `e2e/utils/bins.ts` under its
   `TSX_IMPORT` (fast, many cases, test-only injection knobs). `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/mcp`
-  tarballs under every available package manager (npm, pnpm, bun required in
-  `CI`, Yarn local-only) and runs `McpProbe.initialize`
+  tarballs under every available package manager (npm, pnpm and bun, all required in
+  `CI`) and runs `McpProbe.initialize`
   against `consumer.command` (`PackedInstall`; needs the prod build; the
   `preflight` + `gate` pair skips without it locally and fails under `CI`).

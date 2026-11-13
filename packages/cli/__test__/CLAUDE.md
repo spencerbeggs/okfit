@@ -96,8 +96,8 @@ __test__/
 - **One packed smoke, everything else on the workspace build.** The many fast cases
   here run the built bin through `runOkfit`; only
   `e2e/packed-install.e2e.test.ts` installs the packed `@okfit/cli` tarballs
-  under every available package manager (npm, pnpm, bun required in `CI`, Yarn
-  local-only; `PackedInstall`, needs the prod
+  under every available package manager (npm, pnpm and bun, all required in `CI`;
+  `PackedInstall`, needs the prod
   build; the `preflight` + `gate` pair skips without it locally and fails under `CI`) and proves the published artifact. `runOkfit`
   defaults `FORCE_COLOR=0` under the caller's env (it beats `NO_COLOR` since
   `@effected/cli-kit` 0.11); the packed suite pins it the same way.

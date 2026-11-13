@@ -13,7 +13,7 @@ sources:
     resource: https://github.com/spencerbeggs/okfit/issues/191
 generated:
   by: okfit/claude-code
-  at: 2026-10-05T17:12:42Z
+  at: 2026-11-13T16:43:01Z
 verified:
   - by: human:spencer
     at: 2026-10-05T22:56:15Z
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 3054ab0ed7066bdc
+    body: ec0f7489dc4d0d38
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
@@ -46,10 +46,10 @@ suite passes `allowSharedBins: true`, proves what a user typing the bin name
 gets with `runBin`, proves the carrier's own shim with `runCarrierBin` and
 `carrierCommand` (the `via @okfit/plugin` suffix, the `distribution` stamp, an
 MCP and an LSP handshake), and pins who owns each slot with `binProvenance`:
-npm and bun link the front end, Yarn keeps the carrier, pnpm writes shell
-shims. CI requires npm, pnpm and bun (root `devEngines.runtime` names bun so
-the runner installs it); Yarn is checked only where installed, and its row only
-on Yarn 2+.
+npm and bun link the front end, pnpm writes shell shims. The suite runs
+npm, pnpm and bun (root `devEngines.runtime` names bun so the CI runner
+installs it), required in CI; Yarn is not exercised, since
+`@effected/workspaces` 0.48 dropped Yarn support.
 
 ## Alternatives rejected
 
