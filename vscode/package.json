@@ -175,7 +175,7 @@
 		"@okfit/lsp": "workspace:*",
 		"@types/node": "catalog:effected:build",
 		"@types/vscode": "^1.100.0",
-		"@vscode/vsce": "^4.0.0",
+		"@vscode/vsce": "^4.1.1",
 		"ovsx": "^1.2.0",
 		"reactive-vscode": "^1.0.2",
 		"tsdown": "^0.23.0",
