@@ -1,5 +1,19 @@
 # @okfit/engine
 
+## 0.20.7
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/app | dependency | updated | 0.33.0 | 0.34.0 |
+| @effected/config-file | dependency | updated | 0.28.0 | 0.29.0 |
+| @effected/glob | dependency | updated | 0.22.0 | 0.23.0 |
+| @effected/walker | dependency | updated | 0.29.0 | 0.30.0 |
+| @effected/xdg | dependency | updated | 0.21.0 | 0.22.0 |
+| @okfit/core | dependency | updated | 0.13.4 | 0.13.5 |
+| @okfit/profiles | dependency | updated | 0.14.6 | 0.14.7 |
+
 ## 0.20.6
 
 ### Dependencies

@@ -1,5 +1,15 @@
 # @okfit/profiles
 
+## 0.14.7
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.13.4 | 0.13.5 |
+| @effected/glob | peerDependency | updated | ^0.22.0 | ^0.23.0 |
+| @effected/walker | peerDependency | updated | ^0.29.0 | ^0.30.0 |
+
 ## 0.14.6
 
 ### Dependencies
