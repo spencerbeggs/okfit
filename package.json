@@ -51,7 +51,7 @@
 		"@effected/plugin": "catalog:effected",
 		"@okfit/cli": "workspace:*",
 		"@okfit/plugin": "workspace:*",
-		"@savvy-web/silk": "^5.1.6",
+		"@savvy-web/silk": "^5.1.7",
 		"@vitest-agent/plugin": "^6.0.15",
 		"pluginfinity": "^0.3.21",
 		"tsx": "^4.23.15"
@@ -62,7 +62,7 @@
 	"devEngines": {
 		"packageManager": {
 			"name": "pnpm",
-			"version": "12.21.0",
+			"version": "12.22.0",
 			"onFail": "download"
 		},
 		"runtime": [
