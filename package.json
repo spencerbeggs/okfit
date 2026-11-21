@@ -29,6 +29,7 @@
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
 		"lint:md": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc'",
 		"lint:md:fix": "markdownlint-cli2 --config './lib/configs/.markdownlint-cli2.jsonc' --fix",
+		"okf:check": "node lib/okf-check.mjs",
 		"plugin:build": "pluginfinity build plugin",
 		"plugin:check": "pluginfinity build --check plugin",
 		"prepare": "husky",

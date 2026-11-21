@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-13T16:43:01Z
+  at: 2026-11-21T01:40:31Z
 integrity:
   generated:
-    body: 34319287f8d0b0f4
+    body: f61a85ef2cfdf2aa
 ---
 
 # Workspace
@@ -76,6 +76,11 @@ okfit's monorepo root holds the seven `packages/*` workspace packages (`core`,
   `silk-runtime-action` installs it); locally they run whichever of npm, pnpm
   and bun are installed.
 - `pnpm test:bats` -- BATS for the plugin's shell scripts.
+- `pnpm okf:check` -- the bundle gate (`lib/okf-check.mjs`, run in CI by
+  `.github/workflows/okf.yml`): `okfit validate` over `okf/` (errors fail;
+  warnings are reported only, as annotations) plus `okfit sync --dry-run`
+  (fails when sync would write anything). Bundle content is gated here, not in
+  the dogfood e2e suite, which is only a structural smoke check (#381).
 - `pnpm claude` -- Claude Code with the local plugin loaded.
 - `pnpm dev` and `pnpm preview` -- the documentation site's dev server and
   built-site preview, run through Turbo filtered to `docs`.

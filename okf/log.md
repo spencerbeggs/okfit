@@ -7,6 +7,7 @@
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 * Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 * Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated Workspace
 
 ## 2026-11-13
 
