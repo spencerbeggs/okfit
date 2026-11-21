@@ -1,5 +1,6 @@
 import type { GitCommandError, NotARepositoryError, UnknownRefError } from "@effected/git";
 import { Git } from "@effected/git";
+import { relativeWithin } from "@effected/walker";
 import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
@@ -87,6 +88,25 @@ export class HumanActorNotAllowedError extends Schema.TaggedError<HumanActorNotA
 }
 
 /**
+ * The concept file resolves outside the repository (an escaping symlink), or containment in the
+ * repository cannot be proved, so no repo-relative path exists to date it by (#351). `root` is the
+ * repository's real top level; `file` is the path as given.
+ *
+ * @public
+ */
+export class ConceptOutsideRepositoryError extends Schema.TaggedError<ConceptOutsideRepositoryError>()(
+	"ConceptOutsideRepositoryError",
+	{
+		file: Schema.String,
+		root: Schema.String,
+	},
+) {
+	override get message(): string {
+		return `concept file ${this.file} resolves outside the repository at ${this.root}, so its generated.at cannot be derived from git history`;
+	}
+}
+
+/**
  * Options for {@link Derivation.generatedAt} (P-39).
  *
  * @public
@@ -100,8 +120,9 @@ export interface GeneratedAtOptions {
 
 /**
  * Everything {@link Derivation.generatedAt} can fail with: profiles' own
- * `GitHistoryError`, the `@effected/git` peer's errors (P-12), and the
- * `PlatformError` of `realPath`/`readFileString` on `file`.
+ * `GitHistoryError`, the `@effected/git` peer's errors (P-12), the
+ * `PlatformError` of `realPath`/`readFileString` on `file`, and
+ * {@link ConceptOutsideRepositoryError} when `file` resolves outside the repository (#351).
  *
  * @public
  */
@@ -110,6 +131,7 @@ export type GeneratedAtError =
 	| GitCommandError
 	| NotARepositoryError
 	| UnknownRefError
+	| ConceptOutsideRepositoryError
 	| PlatformError.PlatformError;
 
 /**
@@ -309,8 +331,9 @@ export class Derivation {
 	 *     the root to the file's directory (okfit #315). On `NotARepositoryError` it retries with that
 	 *     environment honoured, so a repository defined only by `GIT_DIR`/`GIT_WORK_TREE` still resolves; a file
 	 *     outside any repository surfaces `NotARepositoryError`. Submodules and worktrees work because both are asked from the file's directory (P-39).
-	 *  2. `realPath` both (rev-parse is symlink-resolved), then the repo-relative posix path via `Path` (P-39).
-	 *  3. `worktree = body(readFileString(file))`.
+	 *  2. `realPath` the root (rev-parse is symlink-resolved); `worktree = body(readFileString(file))`, read first so a missing
+	 *     file is a `PlatformError`; then the repo-relative posix path via `relativeWithin(realRoot, file, { missing: "refuse" })`,
+	 *     where `None` (escaping symlink, containment unprovable) fails {@link ConceptOutsideRepositoryError} (#351).
 	 *  4. `Git.show(realRoot, "HEAD", rel)`: `UnknownRefError` is `uncommitted { unborn }` (P-11), `Option.none`
 	 *     is `uncommitted { untracked }` (P-47), a body differing from `worktree` is `uncommitted { dirty }` (P-9).
 	 *     The comparison is against HEAD's blob, never the newest log entry (P-46).
@@ -337,10 +360,13 @@ export class Derivation {
 				.pipe(Effect.catchTag("NotARepositoryError", () => git.repoRoot(dir)));
 			// 2. EF/FileSystem.ts:265; EF/Path.ts:96, :86
 			const realRoot = yield* fs.realPath(root);
-			const realFile = yield* fs.realPath(options.file);
-			const rel = path.relative(realRoot, realFile).split(path.sep).join("/");
-			// 3. EF/FileSystem.ts:252
+			// 3. EF/FileSystem.ts:252. Read first so a missing file or dangling link keeps failing with PlatformError NotFound.
 			const worktree = body(yield* fs.readFileString(options.file));
+			// #351: containment is proved physically; None (escaping symlink, loop, EACCES) is a typed failure, never a git-path guess.
+			const relOption = yield* relativeWithin(realRoot, options.file, { missing: "refuse" });
+			if (Option.isNone(relOption))
+				return yield* new ConceptOutsideRepositoryError({ file: options.file, root: realRoot });
+			const rel = relOption.value;
 			// 4. GIT/index.d.ts:1170; EF/Effect.ts:2693
 			const head = yield* git.show(realRoot, "HEAD", rel).pipe(
 				Effect.map((blob) => ({ unborn: false as const, blob })),

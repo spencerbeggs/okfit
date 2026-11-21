@@ -1,7 +1,14 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LoadedBundle, OkfitConfig, ValidationReport } from "@okfit/core";
 import { Bundle, OkfitConfig as OkfitConfigNS, Validate } from "@okfit/core";
-import type { ConceptSignal, GitHistory, GitHistoryError, Profile, ProfileDiagnostic } from "@okfit/profiles";
+import type {
+	ConceptOutsideRepositoryError,
+	ConceptSignal,
+	GitHistory,
+	GitHistoryError,
+	Profile,
+	ProfileDiagnostic,
+} from "@okfit/profiles";
 import { Provenance, Publications, Trust } from "@okfit/profiles";
 import type { DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
@@ -97,7 +104,12 @@ export const run = (
 	options: RunOptions,
 ): Effect.Effect<
 	RunResult,
-	BundleLoadError | GitHistoryError | GitCommandError | UnknownRefError | PlatformError.PlatformError,
+	| BundleLoadError
+	| GitHistoryError
+	| GitCommandError
+	| UnknownRefError
+	| ConceptOutsideRepositoryError
+	| PlatformError.PlatformError,
 	FileSystem.FileSystem | Path.Path | Git | GitHistory | Digest.Digest
 > =>
 	Effect.gen(function* () {

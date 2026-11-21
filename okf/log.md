@@ -8,6 +8,7 @@
 * Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 * Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
 * Updated Workspace
+* Added A concept outside the repository is a typed failure
 
 ## 2026-11-13
 

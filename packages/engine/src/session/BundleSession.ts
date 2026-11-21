@@ -1,7 +1,13 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { BundleLoadError, LinkGraph, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Graph } from "@okfit/core";
-import type { ConceptSignal, GitHistory, GitHistoryError, Profile } from "@okfit/profiles";
+import type {
+	ConceptOutsideRepositoryError,
+	ConceptSignal,
+	GitHistory,
+	GitHistoryError,
+	Profile,
+} from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Context, Effect, FileSystem, Option, Path, Ref, Semaphore } from "effect";
 import type { Digest } from "effect/crypto";
@@ -61,6 +67,7 @@ export type RevalidateError =
 	| GitHistoryError
 	| GitCommandError
 	| UnknownRefError
+	| ConceptOutsideRepositoryError
 	| PlatformError.PlatformError;
 
 /** @public */

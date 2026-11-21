@@ -180,6 +180,31 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
+	it.effect("fails with ConceptOutsideRepositoryError for a concept symlinked outside the repository (#351)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
+			try {
+				const target = join(outside, "elsewhere.md");
+				yield* Effect.promise(() => writeFile(target, "---\ntype: Module\ntitle: Else\n---\n\n# Else\n"));
+				yield* Effect.promise(() => symlink(target, join(root, "okf", "else.md")));
+				const error = yield* Effect.flip(
+					runSync({
+						bundleRoot: join(root, "okf"),
+						config: OkfitConfig.DEFAULTS,
+						modes: new Set(["generated"]),
+						dryRun: false,
+						staged: { at: STAMP },
+					}).pipe(Effect.provide(live)),
+				);
+				assert.strictEqual(error._tag, "ConceptOutsideRepositoryError");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));
+			}
+		}),
+	);
+
 	it.effect("restages a migrate-only concept: its legacy digest moves to integrity and the file is re-added", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

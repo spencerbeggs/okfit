@@ -1,8 +1,9 @@
 import { Git } from "@effected/git";
+import { relativeWithin } from "@effected/walker";
 import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle, Derive } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
-import { Derivation } from "@okfit/profiles";
+import { ConceptOutsideRepositoryError, Derivation } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { SyncPlanStaleError } from "../errors.js";
@@ -159,7 +160,10 @@ export const planSync: (
 		const conceptRels = new Map<ConceptId, string>();
 		for (const [id, concept] of bundle.concepts) {
 			const real = yield* fs.realPath(path.join(bundle.root, concept.path));
-			const rel = path.relative(root, real).split(path.sep).join("/");
+			const relOption = yield* relativeWithin(root, real, { missing: "refuse" });
+			// #351: a concept that resolves outside the repository is a typed failure, not a silent skip.
+			if (Option.isNone(relOption)) return yield* new ConceptOutsideRepositoryError({ file: real, root });
+			const rel = relOption.value;
 			conceptRels.set(id, rel);
 			if (!stagedPaths.has(rel)) continue;
 			selected.add(id);
@@ -179,8 +183,9 @@ export const planSync: (
 				.realPath(path.join(bundle.root, "log.md"))
 				.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)));
 			if (logReal !== undefined) {
-				const logRel = path.relative(root, logReal).split(path.sep).join("/");
-				logDirty = (yield* git.unstagedChanges(root)).includes(logRel);
+				const logRelOption = yield* relativeWithin(root, logReal, { missing: "refuse" });
+				if (Option.isNone(logRelOption)) return yield* new ConceptOutsideRepositoryError({ file: logReal, root });
+				logDirty = (yield* git.unstagedChanges(root)).includes(logRelOption.value);
 			}
 		}
 		if (options.modes.has("index")) indexView = yield* committedView(bundle, root, conceptRels, stagedPaths);
