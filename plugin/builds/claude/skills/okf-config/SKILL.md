@@ -252,9 +252,14 @@ markdownlint's defaults, and neither can be satisfied at the source: MD025
 (one top-level heading) counts a concept's frontmatter `title:` as its H1,
 so the body H1 the spec requires reads as a second one, and the spec shapes
 every `index.md` as `# Section` groups, one H1 per concept type. `log.md`
-is fine: `init` and `sync` both start it with `# Log`. Add this to a
-`.markdownlint-cli2.jsonc` at the repository root, adjusting the bundle
-path if `bundle.path` is not `okf`:
+is fine: `init` and `sync` both start it with `# Log`. Add this to the
+config markdownlint actually loads: the file a `lint:md`-style script names
+with `--config` (in a Silk repository,
+`lib/configs/.markdownlint-cli2.jsonc`), otherwise the root
+`.markdownlint-cli2.jsonc`. Creating a new root file next to a
+`--config`-loaded one has no effect, because markdownlint-cli2 reads only
+the file `--config` names. Adjust the bundle path if `bundle.path` is not
+`okf`:
 
 ```jsonc
 "overrides": [
@@ -280,6 +285,12 @@ at the root, fire CSH001/CSH002 on every concept. If the root config
 genuinely cannot express `overrides`, the nested file must restate the
 whole root `config` block with `MD025` off; the bundle loader ignores
 non-markdown files, so the nested file itself is harmless to okfit.
+
+If the root config declares `globs`, a per-file run must pass `--no-globs`
+(`pnpm exec markdownlint-cli2 --no-globs <your files>`, or
+`npx markdownlint-cli2 --no-globs ...`). markdownlint-cli2 unions the
+config's `globs` with the file arguments, so without the flag the run lints
+and, with `fix: true`, rewrites every file the globs match.
 
 ## A worked example
 

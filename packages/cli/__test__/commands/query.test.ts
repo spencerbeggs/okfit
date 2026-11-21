@@ -1,5 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
-import { queryCommand, queryGetCommand, queryListCommand, queryNeighborsCommand } from "../../src/commands/query.js";
+import {
+	queryBrowseCommand,
+	queryCommand,
+	queryGetCommand,
+	queryListCommand,
+	queryNeighborsCommand,
+} from "../../src/commands/query.js";
 import { nameOf } from "../utils/params.js";
 
 /** `Command`'s public interface declares no `config` member; every real command carries one at runtime. */
@@ -13,11 +19,27 @@ const configOf = (
 	).config;
 
 describe("queryCommand", () => {
-	it("is named query with list, get, neighbors subcommands in that order", () => {
+	it("is named query with list, get, neighbors, browse subcommands in that order", () => {
 		assert.strictEqual(queryCommand.name, "query");
 		assert.deepStrictEqual(
 			queryCommand.subcommands.flatMap((group) => group.commands.map((command) => command.name)),
-			["list", "get", "neighbors"],
+			["list", "get", "neighbors", "browse"],
+		);
+	});
+
+	it("takes the root and config flags itself, so bare `query` can open the browser", () => {
+		assert.deepStrictEqual(
+			configOf(queryCommand).flags.map((f) => nameOf(f)),
+			["root", "config"],
+		);
+	});
+
+	it("browse takes only the root and config flags: no --format", () => {
+		const config = configOf(queryBrowseCommand);
+		assert.deepStrictEqual(config.arguments, []);
+		assert.deepStrictEqual(
+			config.flags.map((f) => nameOf(f)),
+			["root", "config"],
 		);
 	});
 

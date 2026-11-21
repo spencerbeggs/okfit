@@ -68,7 +68,8 @@ export interface HumanDocOptions {
  * The bundle root as GitHub resolves an annotation `file`: relative to
  * `GITHUB_WORKSPACE` when it is set, else to `cwd`. `.` is the base itself;
  * `null` is a bundle outside the base (its path would be absolute or leave
- * it through `..`), where an annotation can name no file.
+ * it through `..`), where an annotation can name no file. The result is always
+ * a forward-slash (POSIX) path, as GitHub expects, even when `path` is win32.
  *
  * @public
  */
@@ -80,7 +81,8 @@ export const annotationDir = (
 ): string | null => {
 	const rel = path.relative(workspace ?? cwd, bundleRoot);
 	if (rel === "") return ".";
-	return rel === ".." || rel.startsWith("../") || path.isAbsolute(rel) ? null : rel;
+	if (rel === ".." || rel.startsWith(`..${path.sep}`) || rel.startsWith("../") || path.isAbsolute(rel)) return null;
+	return rel.split(path.sep).join("/");
 };
 
 const LEVEL = { error: "error", warning: "warning", info: "notice" } as const;

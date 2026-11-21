@@ -208,6 +208,105 @@ describe("runSync --staged (issue #140)", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	describe("index mode lists the git index, not the working tree (#142)", () => {
+		const concept = (title: string, description?: string): string =>
+			`---\ntype: Module\ntitle: ${title}\n${description === undefined ? "" : `description: ${description}\n`}generated:\n  by: human:ada\n---\n\n# ${title}\n`;
+		const plan = (root: string, staged: boolean) =>
+			planSync({
+				bundleRoot: join(root, "okf"),
+				config: OkfitConfig.DEFAULTS,
+				modes: new Set(["index"]),
+				dryRun: true,
+				...(staged ? { staged: { at: STAMP } } : {}),
+			}).pipe(Effect.provide(live));
+		const rootIndex = (planned: { pending: ReadonlyArray<{ target: string; contents: string }> }) =>
+			planned.pending.find((write) => write.target.endsWith(join("okf", "index.md")))?.contents ?? "";
+		const seed = async (): Promise<string> => {
+			const root = await repo();
+			await writeFile(join(root, "okf", "tracked.md"), concept("Tracked", "Committed description"));
+			await writeFile(join(root, "okf", "other.md"), concept("Other"));
+			git(root, ["add", "."]);
+			git(root, ["commit", "-q", "-m", "init"]);
+			return root;
+		};
+
+		it.effect("omits an untracked concept under staged; lists it without staged", () =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(seed);
+				try {
+					yield* Effect.promise(() => writeFile(join(root, "okf", "draft.md"), concept("Untracked Draft")));
+					const withStaged = yield* plan(root, true);
+					assert.notInclude(rootIndex(withStaged), "Untracked Draft");
+					assert.include(rootIndex(withStaged), "Tracked");
+					const plain = yield* plan(root, false);
+					assert.include(rootIndex(plain), "Untracked Draft");
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+		);
+
+		it.effect("renders the indexed title of a tracked concept with unstaged edits", () =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(seed);
+				try {
+					yield* Effect.promise(() =>
+						writeFile(join(root, "okf", "tracked.md"), concept("Unstaged Retitle", "Edited")),
+					);
+					const planned = yield* plan(root, true);
+					assert.include(rootIndex(planned), "Tracked");
+					assert.include(rootIndex(planned), "Committed description");
+					assert.notInclude(rootIndex(planned), "Unstaged Retitle");
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+		);
+
+		it.effect("keeps a concept deleted from the working tree but still indexed", () =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(seed);
+				try {
+					yield* Effect.promise(() => rm(join(root, "okf", "other.md")));
+					const planned = yield* plan(root, true);
+					assert.include(rootIndex(planned), "Other");
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+		);
+
+		it.effect("drops a directory holding only untracked concepts from the parent and writes no index for it", () =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(seed);
+				try {
+					yield* Effect.promise(() => mkdir(join(root, "okf", "fresh")));
+					yield* Effect.promise(() => writeFile(join(root, "okf", "fresh", "x.md"), concept("Fresh X")));
+					const planned = yield* plan(root, true);
+					assert.notInclude(rootIndex(planned), "fresh");
+					assert.isFalse(planned.pending.some((write) => write.target.includes(join("okf", "fresh"))));
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+		);
+
+		it.effect("still lists a staged concept and restages index.md", () =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(seed);
+				try {
+					yield* Effect.promise(() => writeFile(join(root, "okf", "added.md"), concept("Added Concept")));
+					git(root, ["add", "okf/added.md"]);
+					const planned = yield* plan(root, true);
+					assert.include(rootIndex(planned), "Added Concept");
+					assert.isTrue(planned.restage?.files.some((file) => file.endsWith(join("okf", "index.md"))));
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+		);
+	});
+
 	it.effect("ignores an unstaged dirty concept entirely: not written, not skipped, not listed", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

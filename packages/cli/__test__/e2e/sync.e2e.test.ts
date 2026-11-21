@@ -935,6 +935,37 @@ describe("okfit sync (e2e)", () => {
 			await removeSandbox(sandbox);
 		}
 	});
+
+	it("--staged renders index.md from the git index: an untracked concept is left out (#142)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeFile(decisionPath(cwd, "draft"), decisionWithGeneratedBy("Untracked draft", "Never added."), "utf8");
+			await writeFile(decisionPath(cwd, "staged"), decisionWithGeneratedBy("Staged one", "Going in."), "utf8");
+			await stage(cwd, ["okf/decisions/staged.md"], env);
+
+			const run = await withServices(
+				runOkfit(["sync", "--staged", "--only", "index", "--format", "json"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-16T10:00:00.500Z" },
+				}),
+			);
+			assert.strictEqual(run.exitCode, 0);
+			const decisionsIndex = await stagedContents(cwd, "okf/decisions/index.md", env);
+			assert.include(decisionsIndex, "Staged one");
+			assert.notInclude(decisionsIndex, "Untracked draft");
+
+			// The on-disk index is the staged one, so a second staged dry run has nothing to write.
+			const again = await withServices(
+				runOkfit(["sync", "--staged", "--only", "index", "--dry-run", "--format", "json"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-16T10:00:00.500Z" },
+				}),
+			);
+			assert.deepStrictEqual(parseEnvelope(again.stdout).index.written, []);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
 });
 
 const SURFACE = [

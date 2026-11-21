@@ -11,6 +11,7 @@ import { syncGenerated } from "./generated.js";
 import { syncIndex } from "./index.js";
 import type { LogProvenance, SyncLogResult } from "./log.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
+import { committedView } from "./staged.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -132,6 +133,8 @@ export const planSync: (
 	// than history: the stamp instant, and Added for a path HEAD lacks.
 	let stagedLog: Map<ConceptId, LogProvenance> | undefined;
 	let logDirty = false;
+	// #142: index mode under --staged lists the index's concepts, not the working tree's.
+	let indexView: LoadedBundle = bundle;
 
 	if (options.staged !== undefined) {
 		// Issue #140: the pre-commit shape. Inside a hook, `now` is the commit's
@@ -153,9 +156,11 @@ export const planSync: (
 		const resolvedPaths = new Map<ConceptId, string>();
 		const logProvenance = new Map<ConceptId, LogProvenance>();
 		const root = repoRoot;
+		const conceptRels = new Map<ConceptId, string>();
 		for (const [id, concept] of bundle.concepts) {
 			const real = yield* fs.realPath(path.join(bundle.root, concept.path));
 			const rel = path.relative(root, real).split(path.sep).join("/");
+			conceptRels.set(id, rel);
 			if (!stagedPaths.has(rel)) continue;
 			selected.add(id);
 			provenanceStaged.set(id, { _tag: "committed", at: options.staged.at });
@@ -178,6 +183,7 @@ export const planSync: (
 				logDirty = (yield* git.unstagedChanges(root)).includes(logRel);
 			}
 		}
+		if (options.modes.has("index")) indexView = yield* committedView(bundle, root, conceptRels, stagedPaths);
 		staged = provenanceStaged;
 		stagedLog = logProvenance;
 		scope = selected;
@@ -211,7 +217,7 @@ export const planSync: (
 			}
 		: UNSELECTED;
 	const index: SyncModeResult = options.modes.has("index")
-		? { ...(yield* syncIndex(bundle, true, pending)), migrated: [] }
+		? { ...(yield* syncIndex(indexView, true, pending)), migrated: [] }
 		: UNSELECTED;
 	const log: SyncModeResult = !options.modes.has("log")
 		? UNSELECTED

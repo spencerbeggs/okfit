@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-21T01:27:56Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 55f6fa8f9597c31e
+    body: 760389d2696a8492
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -206,7 +206,19 @@ draft|stable|deprecated]... [--verified|--unverified] [--drifted]
 [--stale] [--config <file>] [--format human|json]`, `okfit query get <targets...> [--root <dir>]` and `okfit query
 neighbors <target> [--root <dir>]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
-`concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
+`concept_neighbors` tools share. `okfit query browse [--root <dir>] [--config <file>]`
+opens an interactive, read-only browser (it takes no `--format`): concepts
+grouped by type on the left, filterable by type (`t` cycles) and tag (`g`
+cycles, `c` clears), and for the selected concept a Detail tab (title,
+description, status, tier, integrity, stale, tags, verified entries and a
+scrollable body) and a Neighbours tab (outgoing and incoming links; Enter
+follows one). Keys: up/down/pgup/pgdn/home/end move, left/right/Tab switch
+tabs, `j`/`k` scroll the body or move through neighbours, Esc or `q` quit.
+Quitting exits `0` (a read-only browser has nothing to cancel); Ctrl-C
+exits `130`. It needs a terminal: when the run is not interactive it exits
+`64` ("run in a terminal to browse interactively; use okfit query
+list/get/neighbors"). Bare `okfit query` opens the browser on a terminal
+and otherwise prints help. Exit `0`;
 `get` takes one or more concepts (ids or paths) and prints a JSON array for
 more than one, a bare object for one; `64` for an unknown target, an undeclared type or tag or for
 `--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`
@@ -252,8 +264,8 @@ malformed `--since`; there is no `1`/`2` content tier, since `sync` never
 runs conformance or lint checks.
 
 Interactive `okfit sync` (a human audience with a terminal on stdin and
-stdout, not `--format json`) computes the plan, prints it, then asks `Write N
-file(s)?`. Yes applies exactly that plan, with no recomputation; no or Esc
+stdout, not `--format json`) computes the plan, then shows it above a `Write N
+file(s)?` question on one screen. Yes applies exactly that plan, with no recomputation; no or Esc
 exits `130` with nothing written. There is no prompt for an empty plan, nor
 under `--yes`, `--staged`, `--dry-run` or `--publication`, nor for `--format
 json` and non-interactive runs, which behave as before. `--yes` skips the
@@ -269,10 +281,9 @@ concept, dated with the same `now`, `Added` for a path HEAD lacks and
 `Updated` otherwise, and re-adds `log.md`. A `log.md` with unstaged edits
 is skipped `dirty` rather than staged. `--only` narrows `--staged` like
 any other run ([decision](../decisions/sync-staged-stamps.md)).
-Index mode under `--staged` still renders `index.md` from the working
-tree, not the index, so an unstaged or untracked concept already on disk
-is listed in the committed index before the concept itself is committed;
-the next commit reconciles it.
+Index mode under `--staged` lists only concepts in the git index, with
+their staged titles and descriptions; an untracked concept on disk is not
+listed until it is staged.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,

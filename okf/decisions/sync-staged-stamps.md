@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-11-21T01:18:47Z
 status: stable
 verified:
   - by: human:spencer
@@ -20,7 +20,7 @@ verified:
     at: 2026-10-25T18:29:21Z
 integrity:
   generated:
-    body: 93eec6da025c2415
+    body: 6023acdb73359b3c
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -76,7 +76,7 @@ harmlessly; re-running the hook for an amend adds no second entry.
 `--staged` stages the whole file, so a partially staged concept
 (`git add -p`) is fully staged by it. savvy-web/systems#657 carries the
 husky side: skip in CI, skip without `okfit` on PATH, fail the commit on
-a non-zero exit. Index mode under `--staged` renders `index.md` from the
-working tree, not the index, so an unstaged or untracked concept already
-on disk is listed in the committed index before the concept itself is
-committed; the next commit reconciles it.
+a non-zero exit. Index mode under `--staged` lists only concepts in the git index,
+with their indexed titles and descriptions: an untracked concept, or one
+removed with `git rm --cached`, is absent, and a tracked concept with unstaged
+edits renders its indexed text (#142).

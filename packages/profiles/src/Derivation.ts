@@ -1,11 +1,10 @@
 import type { GitCommandError, NotARepositoryError, UnknownRefError } from "@effected/git";
 import { Git } from "@effected/git";
-import { JsoncFingerprint } from "@effected/jsonc";
 import type { Digest, LoadedConcept } from "@okfit/core";
 import { Actor, OkfitConfig } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { DateTime, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
-import type { Digest as CoreDigest } from "effect/crypto";
+import { Digest as CoreDigest } from "effect/crypto";
 import type { BodyProvenance, UncommittedReason } from "./BodyProvenance.js";
 import type { ContentUnhashableError } from "./Canonical.js";
 import { Canonical } from "./Canonical.js";
@@ -163,11 +162,13 @@ const decodeActor = Schema.decodeSync(Actor);
 // Issue #19 (body-digest design, supersedes the reverted `BodyProvenance.stamps` approach): a
 // lowercase 64-char hex sha256 of the P-6-normalized body, so `core.autocrlf` worktrees and
 // trailing-newline churn hash identically and a frontmatter-only edit never changes the digest.
-// `JsoncFingerprint.hashText` hashes the text's UTF-8 bytes as given (no EOL or BOM handling by
-// default; `body()` has already normalised) through core's `Digest` service (`effect/crypto`), so this
-// stays a service requirement rather than a hidden Node dependency; `OkfitPlatform` supplies
-// `NodeCrypto.layerDigest` at every call site. Core's digest cannot fail with a typed error.
-const digestFull = (text: string): Effect.Effect<string, never, CoreDigest.Digest> => JsoncFingerprint.hashText(text);
+// `digestFull` hashes the text's UTF-8 bytes as given (no EOL or BOM handling here; `body()` has
+// already normalised) through core's `Digest` service (`effect/crypto`), so this stays a service
+// requirement rather than a hidden Node dependency; `OkfitPlatform` supplies `NodeCrypto.layerDigest`
+// at every call site. Core's digest cannot fail with a typed error.
+const encoder = new TextEncoder();
+const digestFull = (text: string): Effect.Effect<string, never, CoreDigest.Digest> =>
+	CoreDigest.Digest.use((d) => d.digestHex(CoreDigest.sha256, encoder.encode(text)));
 
 const digest = (text: string): Effect.Effect<Digest, never, CoreDigest.Digest> =>
 	Effect.map(digestFull(text), (hex) => hex.slice(0, 16) as Digest);

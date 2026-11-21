@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-21T01:27:56Z
 integrity:
   generated:
-    body: 24880ea472f4fe65
+    body: 843efb3e247ef8ec
 ---
 
 # CLI
@@ -76,10 +76,16 @@ with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
 [Engine](engine.md); when any row is drifted the list is
 `commands/verify-preview.tsx`: the same selection keys beside a two-pane
 preview of the highlighted row's diff since its verification was bound);
-`okfit stale --verify` reuses that picker
+`okfit query browse` (and bare `okfit query` on a terminal) opens a
+read-only browser: `commands/query.ts` checks `CliInteractive` first (else a
+`QuerySelectionError` `browse-needs-terminal`, exit 64), loads every row, body
+and neighbour set through `ConceptQuery` before mounting, and mounts
+`commands/query-browser.tsx` through `CliUi.lazy`; the pure state, filters and
+`browserStep` reducer live in `commands/query-browser-state.ts`. The screen
+resolves on Esc or `q` (exit 0), unlike the pickers; `okfit stale --verify` reuses that picker
 (`commands/stale-verify.ts`) over the stale concepts and writes through
-`runVerifyIds` with `refreshStaleAfter`; `okfit sync` prints its plan and
-confirms `Write N file(s)?` (`commands/sync-confirm.ts`), then applies that
+`runVerifyIds` with `refreshStaleAfter`; `okfit sync` shows its plan on the screen that
+confirms `Write N file(s)?` (`commands/sync-confirm.ts`, `sync-confirm-screen.tsx`), then applies that
 exact plan; and `okfit init` runs a wizard (`internal/initWizard.ts`) for
 whichever of profile, `--bundle <dir>` and `--config-location` was not given
 as a flag. Cancelling (Esc, `q`, Ctrl-C,
