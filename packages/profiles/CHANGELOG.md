@@ -1,5 +1,23 @@
 # @okfit/profiles
 
+## 0.15.0
+
+### Features
+
+- `Derivation.generatedAt` now fails with the new `ConceptOutsideRepositoryError`, naming the file, when a concept resolves outside the repository through an escaping symlink or when containment cannot be proved. It replaces the opaque `GitCommandError` this case produced before, and `GeneratedAtError` and `Provenance.lint` include it.
+
+* Adds software-project vocabulary round four. A `Flow` type (directory `flows/`, optional path fields `entry`, `crosses` and `resource`) holds a runtime sequence across several modules. A `Fixture` type (directory `fixtures/`, `resource` required, optional `runbooks`) holds a stand-in for an external thing and takes the default 90-day staleness window. A `config` tag covers a project's own user-facing configuration, and `compat` now also covers portability across agent hosts, runtimes, and operating systems.
+
+### Refactoring
+
+- Hash persisted `integrity.*` digests directly through core's `Digest` service instead of `JsoncFingerprint.hashText`; digest output is byte-identical
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.13.5 | 0.14.0 |
+
 ## 0.14.7
 
 ### Dependencies
