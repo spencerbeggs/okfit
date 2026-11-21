@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:09:41Z
+  at: 2026-11-21T01:27:19Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: b4f180344dbd2373
+    body: 7cdf18f501cb9e37
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -269,10 +269,9 @@ concept, dated with the same `now`, `Added` for a path HEAD lacks and
 `Updated` otherwise, and re-adds `log.md`. A `log.md` with unstaged edits
 is skipped `dirty` rather than staged. `--only` narrows `--staged` like
 any other run ([decision](../decisions/sync-staged-stamps.md)).
-Index mode under `--staged` still renders `index.md` from the working
-tree, not the index, so an unstaged or untracked concept already on disk
-is listed in the committed index before the concept itself is committed;
-the next commit reconciles it.
+Index mode under `--staged` lists only concepts in the git index, with
+their staged titles and descriptions; an untracked concept on disk is not
+listed until it is staged.
 
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,

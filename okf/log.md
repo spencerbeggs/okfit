@@ -5,6 +5,7 @@
 * Updated Profiles
 * Updated CLI
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 
 ## 2026-11-13
 

@@ -74,6 +74,7 @@ src/
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
     index.ts                   -- syncIndex
+    staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
     write.ts                     -- writeAtomic
     run.ts                        -- SkipReason, SyncMode/Options/Result, runSync
