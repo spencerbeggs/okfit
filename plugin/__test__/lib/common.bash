@@ -59,7 +59,7 @@ one_object() {
 barebin() {
 	local dir="$1" tool
 	shift
-	for tool in bash cat mktemp rm date mkdir basename dirname "$@"; do
+	for tool in bash cat mktemp rm date mkdir basename dirname tr "$@"; do
 		ln -sf "$(command -v "$tool")" "$dir/$tool"
 	done
 }

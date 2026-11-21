@@ -12,6 +12,7 @@
 * Added A cited file that other checkouts cannot see is a lint, split by whether it is ignored
 * Updated Engine
 * Updated okfit config file schema
+* Added The plugin declares a minimum CLI version and the context envelope reports the CLI's
 
 ## 2026-11-13
 

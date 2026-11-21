@@ -224,4 +224,26 @@ if [ -z "$actors_agent" ]; then
 Note: actors.agent is not set in this project's config. Set actors.agent = \"okfit/claude-code\" so this plugin's agent can stamp generated.by."
 fi
 
+# okfit #221: the plugin declares the oldest CLI its hooks and skills work
+# with (OKFIT_MIN_CLI_VERSION, injected from plugin/min-cli.ts through
+# pluginfinity.config.ts). A CLI older than that, or one whose envelope has no
+# cli_version at all (it predates the field, so it is older), gets one line.
+# Silent when supported, or when no floor is declared.
+min_cli="${OKFIT_MIN_CLI_VERSION:-}"
+if [ -n "$min_cli" ]; then
+	cli_version=$(printf '%s' "$context_json" | jq -r '.cli_version // empty' 2>/dev/null || true)
+	cli_outdated=0
+	if [ -z "$cli_version" ]; then
+		cli_outdated=1
+	elif okfit_version_lt "$cli_version" "$min_cli"; then
+		cli_outdated=1
+	fi
+	if [ "$cli_outdated" -eq 1 ]; then
+		plugin_version=$(okfit_plugin_version)
+		CONTEXT="${CONTEXT}
+
+okfit plugin${plugin_version:+ $plugin_version} expects CLI >= ${min_cli}; this project resolves ${cli_version:-an older CLI that reports no version}. Update @okfit/cli (or @okfit/plugin, which carries it)."
+	fi
+fi
+
 hook_context "$CONTEXT"

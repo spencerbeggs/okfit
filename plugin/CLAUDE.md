@@ -24,6 +24,7 @@ drifts the build.
 ```text
 plugin/
   pluginfinity.config.ts               -- name, metadata, hooks, MCP + LSP servers, targets
+  min-cli.ts                           -- MIN_CLI_VERSION, injected as OKFIT_MIN_CLI_VERSION (bump only when a hook or skill needs a newer CLI)
   package.json                         -- its version is every built manifest's version
   CHANGELOG.md, README.md, CLAUDE.md   -- not shipped
   skills/<name>/SKILL.md               -- ten skills; a `targets.copilot` block only where `Bash(...)` rules must collapse to `Bash`
@@ -109,6 +110,11 @@ so there the server falls back to its working directory and the launcher
 goes straight to `npx`. The install hint names `@okfit/plugin`
 (`server_exec_bin … --install @okfit/plugin`), the package that ships the
 bins; npx still runs the single-bin `@okfit/mcp` / `@okfit/lsp`.
+
+`orientation.sh` also compares the envelope's `cli_version` to
+`OKFIT_MIN_CLI_VERSION` (declared in `pluginfinity.config.ts` from
+`min-cli.ts`) and adds one line when the CLI is older or reports no version
+(`okf/decisions/plugin-declares-minimum-cli.md`).
 
 Run the BATS suite with `pnpm test:bats` from the repo root, or one file
 with `pnpm exec bats plugin/__test__/<file>`.

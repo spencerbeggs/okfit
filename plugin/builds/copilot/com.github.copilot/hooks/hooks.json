@@ -4,6 +4,14 @@
 		"SessionStart": [
 			{
 				"type": "command",
+				"bash": "sh \"${PLUGIN_ROOT}/lib/pluginfinity/env-run.sh\"",
+				"timeoutSec": 15,
+				"env": {
+					"PLUGINFINITY_EVENT": "SessionStart"
+				}
+			},
+			{
+				"type": "command",
 				"bash": "bash \"${PLUGIN_ROOT}/hooks/session-start/orientation.sh\"",
 				"timeoutSec": 10,
 				"env": {
