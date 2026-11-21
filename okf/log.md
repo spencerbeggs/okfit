@@ -13,6 +13,8 @@
 * Updated Engine
 * Updated okfit config file schema
 * Added The plugin declares a minimum CLI version and the context envelope reports the CLI's
+* Added The software-project vocabulary grows a fourth time from open migration findings
+* Updated The software-project vocabulary grows from what migrations could not express
 
 ## 2026-11-13
 

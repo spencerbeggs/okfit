@@ -25,3 +25,5 @@ okf_version: "0.2"
 * [incidents](incidents/index.md) - Dated production failures and the guards that now stop them.
 * [surfaces](surfaces/index.md) - Where each kind of published docs lives and who reads it.
 * [publications](publications/index.md) - Published pages rendered from bundle concepts.
+* [flows](flows/index.md) - Runtime sequences that cross several modules.
+* [fixtures](fixtures/index.md) - Stand-ins for external things that tests depend on.
