@@ -3,9 +3,9 @@ type: Flow
 status: stable
 title: Config resolution
 description: How a config file is found, merged, and handed to a command.
-entry: ../../src/config.ts
+entry: ../../src/Config.ts
 crosses: [../modules/core.md]
-resource: ../../src/config.ts
+resource: ../../src/Config.ts
 tags: [config]
 ---
 

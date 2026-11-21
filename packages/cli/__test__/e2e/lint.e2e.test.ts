@@ -37,7 +37,7 @@ describe("okfit lint: clean bundle", () => {
 
 			assert.strictEqual(result.exitCode, 0);
 			assert.strictEqual(result.stdout, "");
-			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 18 concepts (okf)\n");
+			assert.strictEqual(result.stderr, "0 errors, 0 warnings, 0 info in 20 concepts (okf)\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });
