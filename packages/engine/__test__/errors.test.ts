@@ -129,6 +129,12 @@ describe("query errors", () => {
 		assert.strictEqual(error[Runtime.errorExitCode], 64);
 		assert.strictEqual(error.message, "query list takes --verified or --unverified, not both");
 	});
+
+	it("QuerySelectionError browse-needs-terminal exits 64 and points at the print commands (#227)", () => {
+		const error = new QuerySelectionError({ reason: "browse-needs-terminal" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, "run in a terminal to browse interactively; use okfit query list/get/neighbors");
+	});
 });
 
 describe("VerifySelectionError dry-run-needs-verify (#228)", () => {

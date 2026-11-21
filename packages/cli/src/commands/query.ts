@@ -1,7 +1,8 @@
-import { CliFormat } from "@effected/cli-kit";
+import { CliFormat, CliInteractive } from "@effected/cli-kit";
+import { CliUi } from "@effected/cli-kit/ui";
 import { CurrentDistribution } from "@effected/kit";
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
-import { Bundle } from "@okfit/core";
+import { Bundle, Timestamp } from "@okfit/core";
 import type { ConceptFilter, Distribution } from "@okfit/engine";
 import {
 	ConceptQuery,
@@ -24,11 +25,13 @@ import {
 import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";
 import { Console, Effect, Option, Path, Schema } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Argument, CliError, Command, Flag } from "effect/cli";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanQueryGet, humanQueryList, humanQueryNeighbors, queryListSummary } from "../render/query.js";
 import { CLI_VERSION } from "../version.js";
+import type { BrowserData, BrowserDetail, BrowserNeighbor } from "./query-browser-state.js";
+import { bodyOf } from "./query-browser-state.js";
 
 const idArg = Argument.String("target").pipe(
 	Argument.withDescription("concept: an id (leading / and trailing .md tolerated) or a path to its file"),
@@ -290,15 +293,79 @@ export const queryNeighborsCommand = Command.make(
 		),
 ).pipe(Command.withDescription("Show the concepts a concept links to and the ones that link to it."));
 
+const browseNeedsTerminal = () => new QuerySelectionError({ reason: "browse-needs-terminal" });
+
 /**
- * `okfit query`: read-only questions about the bundle, one subcommand per
- * MCP query tool (`list_concepts`, `get_concept`, `concept_neighbors`) over
- * the same `@okfit/engine` `ConceptQuery`. No handler: bare `okfit query`
- * prints help and exits 0, the root command's own K-5 behaviour.
+ * The interactive browser's handler. Decides before touching the bundle: a run
+ * that cannot mount a screen is a plain usage error (64). The rows, every
+ * concept's body and every concept's neighbours are read before the screen
+ * mounts, so no Effect runs while a frame is drawn. The screen resolves on Esc
+ * or `q` (exit 0); Ctrl-C keeps the kit's 130.
+ */
+const browse = (input: { readonly root: Option.Option<string>; readonly config: Option.Option<string> }) =>
+	Effect.gen(function* () {
+		if (!(yield* CliInteractive)) return yield* browseNeedsTerminal();
+		yield* run({ ...input, format: "auto" }, ({ bundle, config, root, signals }) =>
+			Effect.gen(function* () {
+				const concepts = yield* ConceptQuery.list(bundle, config, {}, signals);
+				if (concepts.length === 0) {
+					yield* Console.log(`no concepts in ${root}`);
+					return;
+				}
+				const rows = concepts.map((c) => toConceptSummary(c, signalFor(signals, c.id)));
+				const titles = new Map(rows.map((row) => [row.id, row.title]));
+				const toNeighbor = (n: { readonly id: string; readonly kind: string }): BrowserNeighbor => ({
+					id: n.id,
+					kind: n.kind,
+					title: titles.get(n.id) ?? null,
+				});
+				const details = new Map<string, BrowserDetail>();
+				for (const [index, concept] of concepts.entries()) {
+					const { outgoing, incoming } = yield* ConceptQuery.neighbors(bundle, concept.id);
+					details.set(concept.id, {
+						summary: rows[index] as (typeof rows)[number],
+						body: bodyOf(concept.document.source),
+						verified: (concept.frontmatter.verified ?? []).map((entry) => ({
+							by: entry.by,
+							at: Schema.encodeSync(Timestamp)(entry.at),
+						})),
+						outgoing: outgoing.map(toNeighbor),
+						incoming: incoming.map(toNeighbor),
+					});
+				}
+				const data: BrowserData = { rows, details };
+				yield* CliUi.prompt(
+					CliUi.lazy(() => import("./query-browser.js").then((module) => ({ default: module.browserScreen(data) }))),
+				).pipe(Effect.catchTag("NotInteractive", () => Effect.fail(browseNeedsTerminal())));
+			}),
+		);
+	});
+
+/**
+ * `okfit query browse [--root <dir>] [--config <file>]`: an interactive
+ * browser over the bundle (list by type, filters, detail and neighbours
+ * tabs). Needs a terminal: otherwise a usage error, exit 64.
  *
  * @public
  */
-export const queryCommand = Command.make("query", {}).pipe(
-	Command.withDescription("Read-only queries over the bundle: list, get, neighbors."),
-	Command.withSubcommands([queryListCommand, queryGetCommand, queryNeighborsCommand]),
+export const queryBrowseCommand = Command.make("browse", { root: rootFlag, config: configFlag }, browse).pipe(
+	Command.withDescription("Browse the bundle interactively (terminal only): concepts by type, detail, neighbours."),
+);
+
+/**
+ * `okfit query`: read-only questions about the bundle, one subcommand per
+ * MCP query tool (`list_concepts`, `get_concept`, `concept_neighbors`) over
+ * the same `@okfit/engine` `ConceptQuery`, plus `browse`. Bare `okfit query`
+ * opens the browser on a terminal; otherwise it prints help and exits 0.
+ *
+ * @public
+ */
+export const queryCommand = Command.make("query", { root: rootFlag, config: configFlag }, (input) =>
+	Effect.gen(function* () {
+		if (yield* CliInteractive) return yield* browse(input);
+		return yield* new CliError.ShowHelp({ commandPath: ["okfit", "query"], errors: [] });
+	}),
+).pipe(
+	Command.withDescription("Read-only queries over the bundle: list, get, neighbors, browse."),
+	Command.withSubcommands([queryListCommand, queryGetCommand, queryNeighborsCommand, queryBrowseCommand]),
 );

@@ -36,7 +36,7 @@ export interface PtyResult {
 }
 
 /** Keys for `PtyStep.send`. */
-export const KEYS = { space: " ", enter: "\r", esc: "\x1b", ctrlC: "\x03", down: "\x1b[B" } as const;
+export const KEYS = { space: " ", enter: "\r", esc: "\x1b", ctrlC: "\x03", down: "\x1b[B", right: "\x1b[C" } as const;
 
 /** `script` is the only dependency; it ships with macOS and util-linux. */
 export const ptyAvailable: boolean =

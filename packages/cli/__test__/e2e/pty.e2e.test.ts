@@ -137,6 +137,35 @@ describe("no ink or react on the non-interactive path (#231)", () => {
 
 describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	it(
+		"query browse: lists concepts, switches tabs, and q exits 0; bare query opens it too, Esc exits 0 (#227)",
+		async () => {
+			const { sandbox, env } = await verifyFixture();
+			try {
+				const browse = await runPty(["query", "browse", "--human"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [
+						{ waitFor: /type: all/, send: KEYS.right },
+						{ waitFor: /outgoing|no links/, send: "q" },
+					],
+				});
+				assert.strictEqual(browse.exitCode, 0, browse.output);
+				assert.include(browse.output, "decisions/a");
+
+				const bare = await runPty(["query", "--human"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: /type: all/, send: KEYS.esc }],
+				});
+				assert.strictEqual(bare.exitCode, 0, bare.output);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
 		"verify picker: Space, Enter, Enter attests (dry run); Esc cancels with 130 and writes nothing",
 		async () => {
 			const { sandbox, env, files } = await verifyFixture();

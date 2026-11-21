@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:27:19Z
+  at: 2026-11-21T01:27:56Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 7cdf18f501cb9e37
+    body: 760389d2696a8492
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -206,7 +206,19 @@ draft|stable|deprecated]... [--verified|--unverified] [--drifted]
 [--stale] [--config <file>] [--format human|json]`, `okfit query get <targets...> [--root <dir>]` and `okfit query
 neighbors <target> [--root <dir>]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
-`concept_neighbors` tools share. Bare `okfit query` prints help. Exit `0`;
+`concept_neighbors` tools share. `okfit query browse [--root <dir>] [--config <file>]`
+opens an interactive, read-only browser (it takes no `--format`): concepts
+grouped by type on the left, filterable by type (`t` cycles) and tag (`g`
+cycles, `c` clears), and for the selected concept a Detail tab (title,
+description, status, tier, integrity, stale, tags, verified entries and a
+scrollable body) and a Neighbours tab (outgoing and incoming links; Enter
+follows one). Keys: up/down/pgup/pgdn/home/end move, left/right/Tab switch
+tabs, `j`/`k` scroll the body or move through neighbours, Esc or `q` quit.
+Quitting exits `0` (a read-only browser has nothing to cancel); Ctrl-C
+exits `130`. It needs a terminal: when the run is not interactive it exits
+`64` ("run in a terminal to browse interactively; use okfit query
+list/get/neighbors"). Bare `okfit query` opens the browser on a terminal
+and otherwise prints help. Exit `0`;
 `get` takes one or more concepts (ids or paths) and prints a JSON array for
 more than one, a bare object for one; `64` for an unknown target, an undeclared type or tag or for
 `--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`

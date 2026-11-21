@@ -290,10 +290,13 @@ export class QueryConceptNotFoundError extends Schema.TaggedError<QueryConceptNo
  * @public
  */
 export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>()("QuerySelectionError", {
-	reason: Schema.Literals(["verified-conflict"]),
+	reason: Schema.Literals(["verified-conflict", "browse-needs-terminal"]),
 }) {
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
+		if (this.reason === "browse-needs-terminal") {
+			return "run in a terminal to browse interactively; use okfit query list/get/neighbors";
+		}
 		return "query list takes --verified or --unverified, not both";
 	}
 }

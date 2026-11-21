@@ -50,6 +50,38 @@ const run = (args: ReadonlyArray<string>, cwd: string, env: Record<string, strin
 	withServices(runOkfit(args, { cwd, env }));
 
 describe("okfit query (e2e)", () => {
+	it("bare query, run non-interactively, prints help and exits 0 (#227)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const r = await run(["query", "--agent"], cwd, env);
+			assert.strictEqual(r.exitCode, 0);
+			assert.include(r.stdout + r.stderr, "browse");
+			assert.include(r.stdout + r.stderr, "neighbors");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("query browse, run non-interactively, exits 64 pointing at list/get/neighbors (#227)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			for (const args of [
+				["query", "browse", "--agent"],
+				["query", "browse", "--ci"],
+			]) {
+				const r = await run(args, cwd, env);
+				assert.strictEqual(r.exitCode, 64);
+				assert.include(r.stderr, "run in a terminal to browse interactively; use okfit query list/get/neighbors");
+				assert.strictEqual(r.stdout, "");
+			}
+			// No --format: it is a usage error rather than an ignored flag.
+			const json = await run(["query", "browse", "--format", "json"], cwd, env);
+			assert.strictEqual(json.exitCode, 64);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("list: exits 0 with one sorted line per concept", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {

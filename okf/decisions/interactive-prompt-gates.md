@@ -8,7 +8,7 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-21T01:21:09Z
 verified:
   - by: human:spencer
     at: 2026-10-01T23:24:55Z
@@ -20,7 +20,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 3521619ffa279fc3
+    body: c0c46c42349987aa
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -50,6 +50,9 @@ ships an audience model (human, agent, ci), a theme, and a terminal gate.
 - Cancelling a prompt (Esc, `q`, Ctrl-C, answering no) exits `130` and writes
   nothing; the picked work is written only after the last screen, in one
   all-or-nothing write.
+- Exception: a read-only browser (`okfit query browse`) has nothing to
+  cancel, so Esc and `q` exit `0`; Ctrl-C still exits `130`. It is
+  gated like every prompt: non-interactive is exit `64`.
 - `ink` and `react` load lazily so a non-interactive run never imports them.
 
 ## Alternatives rejected
