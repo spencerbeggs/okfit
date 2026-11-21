@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-21T01:09:41Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 55f6fa8f9597c31e
+    body: b4f180344dbd2373
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -252,8 +252,8 @@ malformed `--since`; there is no `1`/`2` content tier, since `sync` never
 runs conformance or lint checks.
 
 Interactive `okfit sync` (a human audience with a terminal on stdin and
-stdout, not `--format json`) computes the plan, prints it, then asks `Write N
-file(s)?`. Yes applies exactly that plan, with no recomputation; no or Esc
+stdout, not `--format json`) computes the plan, then shows it above a `Write N
+file(s)?` question on one screen. Yes applies exactly that plan, with no recomputation; no or Esc
 exits `130` with nothing written. There is no prompt for an empty plan, nor
 under `--yes`, `--staged`, `--dry-run` or `--publication`, nor for `--format
 json` and non-interactive runs, which behave as before. `--yes` skips the

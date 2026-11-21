@@ -3,6 +3,8 @@
 ## 2026-11-21
 
 * Updated Profiles
+* Updated CLI
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 
 ## 2026-11-13
 

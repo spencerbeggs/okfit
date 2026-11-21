@@ -1,12 +1,13 @@
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { NotInteractive } from "@effected/cli-kit";
 import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import { Git } from "@effected/git";
 import { OkfitConfig } from "@okfit/core";
 import type { SyncOptions } from "@okfit/engine";
 import { GitHistory } from "@okfit/profiles";
-import { DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
+import { Console, DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
 import { syncWithConfirm, writeCount } from "../../src/commands/sync-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -71,9 +72,33 @@ describe("syncWithConfirm", () => {
 					const { session, fiber } = yield* start(root);
 					const confirm = yield* session.next({ contains: "Write 3 file(s)?" });
 					assert.isFalse(yield* exists(root, "index.md"));
-					assert.include(yield* session.stdout, "would write 3");
+					assert.include(yield* session.transcript, "would write 3");
 					yield* confirm.press("enter");
 					const result = yield* Fiber.join(fiber);
+					assert.isFalse(result.dryRun);
+					assert.strictEqual(result.index.written.length, 3);
+					assert.isTrue(yield* exists(root, "index.md"));
+				}),
+			),
+		),
+	);
+
+	it.effect("a confirm that cannot mount writes without printing the plan", () =>
+		withBundle(FILES, (root) =>
+			Effect.scoped(
+				Effect.gen(function* () {
+					const session = yield* CliUiTest.session({ interactive: true });
+					const lines: Array<string> = [];
+					const recording = Layer.succeed(Console.Console, {
+						...globalThis.console,
+						log: (...args: ReadonlyArray<unknown>) => void lines.push(args.join(" ")),
+					} as unknown as Console.Console);
+					const result = yield* syncWithConfirm(options(root), false, () => Effect.fail(new NotInteractive())).pipe(
+						Effect.provide(session.layer),
+						Effect.provide(fakes(root)),
+						Effect.provide(recording),
+					);
+					assert.isFalse(lines.some((line) => line.includes("would write")));
 					assert.isFalse(result.dryRun);
 					assert.strictEqual(result.index.written.length, 3);
 					assert.isTrue(yield* exists(root, "index.md"));
