@@ -23,6 +23,8 @@ export interface PtyOptions {
 	readonly stderrFile?: string;
 	/** Let the kit decide colour from the terminal, rather than pinning `FORCE_COLOR=0`. */
 	readonly color?: boolean;
+	/** Called with the pid (also the process-group id) right after the spawn. */
+	readonly onSpawn?: (pid: number) => void;
 }
 
 export interface PtyResult {
@@ -45,6 +47,35 @@ export const ptyAvailable: boolean =
 export const stripAnsi = (text: string): string => Fmt.stripAnsi(text).replaceAll("\r\n", "\n").replaceAll("\r", "\n");
 
 const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
+
+/** Process groups of live pty runs in this worker; `detached` cuts them off from the terminal's SIGINT. */
+const liveGroups = new Set<number>();
+let handlersInstalled = false;
+
+const killAllGroups = (): void => {
+	for (const pid of liveGroups) {
+		try {
+			process.kill(-pid, "SIGKILL");
+		} catch {
+			// already gone
+		}
+	}
+	liveGroups.clear();
+};
+
+/** Once per worker: reap live groups on exit, and on SIGINT/SIGTERM before re-raising the default. */
+const installHandlers = (): void => {
+	if (handlersInstalled) return;
+	handlersInstalled = true;
+	process.on("exit", killAllGroups);
+	for (const sig of ["SIGINT", "SIGTERM"] as const) {
+		process.once(sig, () => {
+			killAllGroups();
+			// `once` already removed this handler, so the re-raised signal terminates as the default would.
+			process.kill(process.pid, sig);
+		});
+	}
+};
 
 const SETTLE_MS = 200;
 const SENTINEL = "__PTY_EXIT__:";
@@ -71,13 +102,19 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 	const env = { ...rest, TERM: "xterm-256color", ...(options.color === true ? {} : { FORCE_COLOR: "0" }) };
 
 	return new Promise((resolve, reject) => {
+		installHandlers();
 		// detached: own process group, so a kill reaches cat, script and node, not just the outer sh.
+		// The group no longer gets the terminal's SIGINT; the handlers above stand in for it.
 		const child = spawn("sh", ["-c", pipeline], {
 			cwd: options.cwd,
 			env,
 			stdio: ["pipe", "pipe", "pipe"],
 			detached: true,
 		});
+		if (child.pid !== undefined) {
+			liveGroups.add(child.pid);
+			options.onSpawn?.(child.pid);
+		}
 		let raw = "";
 		let rawOffset = 0;
 		let next = 0;
@@ -101,6 +138,7 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 			clearInterval(timer);
 			for (const t of sends) clearTimeout(t);
 			killGroup();
+			if (child.pid !== undefined) liveGroups.delete(child.pid);
 			child.stdin.destroy();
 			fn();
 		};

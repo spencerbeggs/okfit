@@ -78,6 +78,10 @@ __test__/
   while one profile is registered. The same file proves, with
   `e2e/utils/resolve-tracer.mjs` (`module.registerHooks` writing specifiers to
   `OKFIT_TRACE_FILE`), that `--help` never resolves `ink` or `react`.
+  The helper tracks live process groups and kills them on SIGINT, SIGTERM and
+  exit, because `detached: true` cuts them off from the terminal's SIGINT
+  (#270); `e2e/pty-cleanup.e2e.test.ts` proves it through
+  `e2e/utils/pty-hang-driver.ts`.
 - **E2E is hermetic.** Every e2e test that touches config discovery or XDG
   paths uses `e2e/utils/fixtures.ts`'s `makeSandbox()` for a fresh `HOME`,
   `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, and
