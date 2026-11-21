@@ -21,9 +21,9 @@ describe("runVerifyBatch (issue #138)", () => {
 		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
-	const gitFake = Layer.succeed(Git, {
+	const gitFake = Git.layerTest({
 		configGet: identityConfigGet,
-	} as unknown as Git["Service"]);
+	});
 	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	it.effect(
@@ -189,9 +189,9 @@ describe("runVerify status (issue #185)", () => {
 		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
-	const gitFake = Layer.succeed(Git, {
+	const gitFake = Git.layerTest({
 		configGet: identityConfigGet,
-	} as unknown as Git["Service"]);
+	});
 	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	/** Write `source` as decisions/a.md, run `use`, always clean up. */
@@ -350,9 +350,9 @@ describe("runVerify binds integrity.verified", () => {
 		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
-	const gitFake = Layer.succeed(Git, {
+	const gitFake = Git.layerTest({
 		configGet: identityConfigGet,
-	} as unknown as Git["Service"]);
+	});
 	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	const withConcept = <A, E, R>(source: string, use: (root: string, file: string) => Effect.Effect<A, E, R>) =>

@@ -335,10 +335,10 @@ describe("loadPreviews (verify picker diff preview)", () => {
 
 	it.effect("a git command failure maps to no-baseline not-a-repository", () =>
 		Effect.gen(function* () {
-			const failing = Layer.succeed(Git, {
+			const failing = Git.layerTest({
 				log: (cwd: string) =>
 					Effect.fail(new GitCommandError({ kind: "failed", args: ["log"], cwd, stderr: "boom", detail: "boom" })),
-			} as unknown as Git["Service"]);
+			});
 			const previews = yield* loadPreviews([
 				candidate("a", "/nowhere/a.md", "drifted", "2026-09-05T00:00:00.000Z"),
 			]).pipe(Effect.provide(Layer.mergeAll(failing, TestPlatform)));

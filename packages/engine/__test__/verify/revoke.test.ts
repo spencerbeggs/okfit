@@ -174,9 +174,9 @@ describe("runRevoke", () => {
 		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
-	const gitFake = Layer.succeed(Git, {
+	const gitFake = Git.layerTest({
 		configGet: identityConfigGet,
-	} as unknown as Git["Service"]);
+	});
 	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	const withConcept = <A, E, R>(source: string, use: (root: string, file: string) => Effect.Effect<A, E, R>) =>

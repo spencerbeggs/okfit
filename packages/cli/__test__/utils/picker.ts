@@ -19,7 +19,7 @@ export const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 
 /** A fake `Git` whose identity resolves to `human:ada`. */
 export const platform = Layer.mergeAll(
-	Layer.succeed(Git, {
+	Git.layerTest({
 		configGet: (_cwd: string, key: string) =>
 			Effect.succeed(
 				key === "user.name"
@@ -28,7 +28,7 @@ export const platform = Layer.mergeAll(
 						? Option.some("ada@example.com")
 						: Option.none(),
 			),
-	} as unknown as Git["Service"]),
+	}),
 	TestPlatform,
 );
 

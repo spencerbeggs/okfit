@@ -12,14 +12,14 @@ import { TestPlatform } from "../utils/platform.js";
 const AT = "2026-06-01T08:00:00Z";
 
 const fakes = (root: string) => {
-	const git = Layer.succeed(Git, {
+	const git = Git.layerTest({
 		repoRoot: () => Effect.succeed(root),
 		show: (_cwd: string, _ref: string, path: string) =>
 			Effect.gen(function* () {
 				const fs = yield* FileSystem.FileSystem;
 				return Option.some(yield* fs.readFileString(join(root, path)));
-			}).pipe(Effect.provide(TestPlatform)),
-	} as unknown as Git["Service"]);
+			}).pipe(Effect.provide(TestPlatform), Effect.orDie),
+	});
 	const history = Layer.succeed(GitHistory, {
 		pathLog: (_root: string, path: string) =>
 			Effect.succeed([
