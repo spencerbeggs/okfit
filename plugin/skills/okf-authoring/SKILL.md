@@ -131,9 +131,14 @@ for an agent, so suggest the human run it instead of attempting it.
     `#1, #2` list becomes `# 2`; write `#90` mid-sentence or as
     `issue 90`; re-indent code lifted from a tab-indented source tree
     with spaces before fencing it, since MD010 rejects hard tabs inside
-    fences; and lint scoped to the files you wrote, because an autofix
-    pass over the whole bundle deletes another writer's still-unreferenced
-    footnote definitions (rule 6) mid-dispatch.
+    fences; and lint only the files you wrote with
+    `pnpm exec markdownlint-cli2 --no-globs <your files>` (or the repo
+    runner's equivalent, e.g. `npx markdownlint-cli2 --no-globs ...`).
+    markdownlint-cli2 unions the config's `globs` with the file arguments,
+    so a config that sets `globs` plus `fix: true` autofixes the whole tree
+    on a "scoped" run unless `--no-globs` drops the config globs; an
+    autofix pass over the whole bundle deletes another writer's
+    still-unreferenced footnote definitions (rule 6) mid-dispatch.
 19. A historical delta -- "was 1481 lines, now 19", "`STATE_token`
     deleted, not moved", a table of old names to new -- has no home in
     OKF by design: `log.md` is derived history and a concept describes

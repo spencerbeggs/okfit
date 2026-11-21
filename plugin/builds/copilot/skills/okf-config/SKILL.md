@@ -281,6 +281,12 @@ genuinely cannot express `overrides`, the nested file must restate the
 whole root `config` block with `MD025` off; the bundle loader ignores
 non-markdown files, so the nested file itself is harmless to okfit.
 
+If the root config declares `globs`, a per-file run must pass `--no-globs`
+(`pnpm exec markdownlint-cli2 --no-globs <your files>`, or
+`npx markdownlint-cli2 --no-globs ...`). markdownlint-cli2 unions the
+config's `globs` with the file arguments, so without the flag the run lints
+and, with `fix: true`, rewrites every file the globs match.
+
 ## A worked example
 
 Load `references/example-config.toml` when: writing a config from scratch.
