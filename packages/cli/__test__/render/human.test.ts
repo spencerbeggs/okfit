@@ -1,3 +1,4 @@
+import { NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { CliTheme, Render } from "@effected/cli-kit";
 import { DiagnosticRange } from "@okfit/core";
@@ -10,6 +11,8 @@ const ESC = String.fromCharCode(27);
 // effect's own POSIX Path layer needs no FileSystem and no Node import (EF/Path.ts:867);
 // same precedent as @okfit/engine's __test__/config/anchor.test.ts.
 const path: Path.Path = Effect.runSync(Effect.provide(Path.Path, Path.layer));
+
+const win32: Path.Path = Effect.runSync(Effect.provide(Path.Path, NodePath.layerWin32));
 
 const base: RenderedDiagnostic = {
 	source: "core.lint",
@@ -212,6 +215,39 @@ describe("annotationDir", () => {
 	it.effect("unset: absolute (outside cwd) has no annotation dir", () =>
 		Effect.sync(() => {
 			assert.strictEqual(annotationDir("/repo/sub", "/repo/other", undefined, path), null);
+		}),
+	);
+});
+
+describe("annotationDir on win32", () => {
+	it.effect("workspace-relative bundle roots come back with forward slashes", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("C:\\ws\\pkg", "C:\\ws\\okf", "C:\\ws", win32), "okf");
+			assert.strictEqual(annotationDir("C:\\ws\\pkg", "C:\\ws\\docs\\okf", "C:\\ws", win32), "docs/okf");
+			assert.strictEqual(annotationDir("C:\\ws\\pkg", "C:\\ws", "C:\\ws", win32), ".");
+		}),
+	);
+
+	it.effect("a bundle outside the workspace has no annotation dir", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("C:\\ws", "C:\\elsewhere\\okf", "C:\\ws", win32), null);
+			assert.strictEqual(annotationDir("C:\\ws", "C:\\ws-other\\okf", "C:\\ws", win32), null);
+			assert.strictEqual(annotationDir("C:\\ws", "D:\\okf", "C:\\ws", win32), null);
+		}),
+	);
+
+	it.effect("unset workspace: falls back to cwd", () =>
+		Effect.sync(() => {
+			assert.strictEqual(annotationDir("C:\\repo", "C:\\repo\\okf", undefined, win32), "okf");
+			assert.strictEqual(annotationDir("C:\\repo\\sub", "C:\\repo\\other", undefined, win32), null);
+		}),
+	);
+
+	it.effect("the annotation file is a POSIX path", () =>
+		Effect.sync(() => {
+			const dir = annotationDir("C:\\ws", "C:\\ws\\docs\\okf", "C:\\ws", win32);
+			const out = Render.githubLog(humanDoc([base], { annotationDir: dir }), Render.contextOf({ audience: "ci" }));
+			assert.include(out, "file=docs/okf/modules/router.md");
 		}),
 	);
 });
