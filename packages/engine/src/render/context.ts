@@ -99,11 +99,18 @@ export type ContextTrust = typeof ContextTrust.Type;
  * stamped by {@link contextEnvelope} itself -- callers cannot pass or fake
  * it (okfit #137).
  *
+ * `cli_version` is the `@okfit/cli` version that printed the envelope
+ * (`CLI_VERSION`), `null` when the envelope was built outside the CLI (the
+ * MCP `describe_vocabulary` tool). The agent plugin's SessionStart hook
+ * compares it to the minimum CLI it expects and treats a missing or `null`
+ * value as an outdated CLI (okfit #221).
+ *
  * @public
  */
 export const ContextEnvelope = Schema.Struct({
 	schema: Schema.Literal(1),
 	config_schema_version: Schema.String,
+	cli_version: Schema.NullOr(Schema.String),
 	project_root: Schema.String,
 	bundle_root: Schema.String,
 	config_path: Schema.NullOr(Schema.String),
@@ -136,11 +143,14 @@ export const contextEnvelope = (input: {
 	readonly indexPath: string;
 	readonly indexExists: boolean;
 	readonly config: OkfitConfig;
+	/** The running `@okfit/cli` version; absent (an MCP caller) becomes `null` on the wire. */
+	readonly cliVersion?: string;
 	/** Present only under `--trust`; absent becomes `null` on the wire. */
 	readonly trust?: ContextTrust;
 }): ContextEnvelope => ({
 	schema: 1,
 	config_schema_version: CONFIG_SCHEMA_VERSION,
+	cli_version: input.cliVersion ?? null,
 	project_root: input.projectRoot,
 	bundle_root: input.bundleRoot,
 	config_path: input.configPath,

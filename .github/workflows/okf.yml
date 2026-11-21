@@ -1,0 +1,33 @@
+name: OKF
+
+on:
+  pull_request:
+    branches: [main, changeset-release/main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: okf-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  okf:
+    name: Bundle check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # generated-at-drift reads git history.
+          fetch-depth: 0
+
+      - name: Setup Runtime
+        uses: savvy-web/silk-runtime-action@v1
+        with:
+          ignore-scripts: false
+
+      # The okfit bin runs from source through tsx (no build needed).
+      - name: Check okfit's own bundle
+        run: pnpm okf:check

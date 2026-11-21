@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-21T01:47:57Z
 integrity:
   generated:
-    body: d73ccab90669b402
+    body: 361de23891b653fa
 ---
 
 # Engine
@@ -235,7 +235,11 @@ frontmatter block. `validate/run.ts#run` also appends
 the `software-project` profile, and
 `validate/surfaces.ts#lintSurfaces` (`surface-unmatched`: a Surface's glob
 `resource` matching nothing, warned and ranged at the `resource` value; a
-literal `resource` stays `source-resource-missing`'s). The `lintSurfaces`
+literal `resource` stays `source-resource-missing`'s). `validate/untracked.ts#lintUntrackedResources`
+raises `resource-ignored` and `resource-untracked` for literal resources that exist
+but that git ignores or does not track (batched per repository, submodules resolved
+against their own index); `run` skips it under `skipProvenance` or `skipUntracked`,
+and `BundleSession` always skips it. The `lintSurfaces`
 walk is breadth-first and depth-bounded to what the glob can match
 (unbounded only under `**`); it skips `node_modules` and dot-directories
 unless the pattern names them (including through braces, classes and

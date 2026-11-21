@@ -5,6 +5,15 @@
 				"hooks": [
 					{
 						"type": "command",
+						"command": "export PLUGINFINITY_EVENT='SessionStart'; sh \"${CLAUDE_PLUGIN_ROOT}/lib/pluginfinity/env-run.sh\"",
+						"timeout": 15
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
 						"command": "env",
 						"args": [
 							"PLUGINFINITY_EVENT=SessionStart",

@@ -97,6 +97,7 @@ export const contextCommand = Command.make(
 						: undefined;
 
 				const envelope = contextEnvelope({
+					cliVersion: CLI_VERSION,
 					projectRoot,
 					bundleRoot,
 					configPath,

@@ -1,4 +1,5 @@
 import { defineConfig } from "pluginfinity";
+import { MIN_CLI_VERSION } from "./min-cli.js";
 
 export default defineConfig({
 	name: "okfit",
@@ -23,6 +24,16 @@ export default defineConfig({
 			args: ["${PLUGIN_ROOT}/bin/start-lsp.sh", "--stdio"],
 			extensionToLanguage: { ".md": "markdown" },
 			diagnostics: true,
+		},
+	},
+	// The minimum CLI the hooks expect (okfit #221), read by the SessionStart hook.
+	env: {
+		prefix: "OKFIT",
+		vars: {
+			OKFIT_MIN_CLI_VERSION: {
+				default: MIN_CLI_VERSION,
+				description: "The oldest @okfit/cli this plugin works with; the SessionStart hook warns below it.",
+			},
 		},
 	},
 	claude: true,

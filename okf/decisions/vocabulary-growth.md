@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-09-13T03:51:46Z
+  at: 2026-11-21T01:51:15Z
 status: stable
 verified:
   - by: human:spencer
@@ -16,7 +16,7 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 661f1ae0554cd71c
+    body: c7717c059c982a5a
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
@@ -113,3 +113,7 @@ extensions:
   ([#33](https://github.com/spencerbeggs/okfit/issues/33)), so an agent
   learns what a valid concept needs before writing one instead of from a
   lint error afterwards.
+- Later rounds extend the same vocabulary: [round two](profiles-vocabulary-round-two.md),
+  [round three](profiles-vocabulary-round-three.md), and
+  [round four](profiles-vocabulary-round-four.md) (Flow, Fixture, the
+  `config` tag, and a broader `compat`).

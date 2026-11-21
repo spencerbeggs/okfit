@@ -21,6 +21,7 @@ export type {
 export {
 	ActorConfigInvalidError,
 	AgentActorUnconfiguredError,
+	ConceptOutsideRepositoryError,
 	Derivation,
 	HumanActorNotAllowedError,
 	HumanActorUnresolvedError,

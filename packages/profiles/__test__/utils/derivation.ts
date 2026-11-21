@@ -108,24 +108,3 @@ export const world = (
 	});
 	return Layer.mergeAll(git, history, fs, options.path ?? Path.layer, NodeCrypto.layerDigest);
 };
-
-const toPosix = (path: string): string => path.split("\\").join("/");
-const toWindows = (path: string): string => path.split("/").join("\\");
-
-/**
- * A `Path` whose `sep` is `\` and whose `dirname`/`relative` speak backslashes, layered over the posix
- * implementation (EF/Path.ts:867; `Layer.effect` EF/Layer.ts:1014, `Layer.provide` :1432). Proves P-39's
- * separator conversion without a Windows host.
- */
-export const windowsPath: Layer.Layer<Path.Path> = Layer.effect(
-	Path.Path,
-	Effect.gen(function* () {
-		const posix = yield* Path.Path;
-		return {
-			...posix,
-			sep: "\\",
-			dirname: (path: string) => toWindows(posix.dirname(toPosix(path))),
-			relative: (from: string, to: string) => toWindows(posix.relative(toPosix(from), toPosix(to))),
-		};
-	}),
-).pipe(Layer.provide(Path.layer));

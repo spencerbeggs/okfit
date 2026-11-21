@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-05T22:55:24Z
+  at: 2026-11-21T01:47:57Z
 tags:
   - architecture
 verified:
@@ -23,7 +23,7 @@ verified:
     at: 2026-11-05T22:58:34Z
 integrity:
   generated:
-    body: 7b705428731cc21a
+    body: 050416ad0d850d8b
   verified:
     by: human:spencer
     at: 2026-11-05T22:58:34Z
@@ -77,11 +77,12 @@ in.
 
 ## Lint severities
 
-The twenty-six default lint codes: `broken_links`, `missing_index`,
+The twenty-eight default lint codes: `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
 `publication_drift`, `surface_unmatched`, and `verified_drift` default `warn`;
-`unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
+`resource_untracked` defaults `warn` and `resource_ignored` defaults `error` (issue #279;
+see below); `unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
 `family_invalid`, `computation_runtime_missing`, and `publication_orphan` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
 `actor_email` (an actor contains `@`) and `verified_actor_unknown` (a verifier matches no entry of a non-empty `[actors].humans`) default `warn`, as does `verified_drift` when the bound verifier has left the list;
@@ -92,6 +93,13 @@ severity that profile sets. `source_resource_missing` (issue #106) is the
 one lint core cannot run itself: a `resource` or `sources[].resource` path
 that resolves to nothing in the bundle is a descriptor to core (D-24), so
 `@okfit/engine` resolves it on disk in D-23 order and reports the miss.
+`resource_ignored` and `resource_untracked` (issue #279) cover the same literal
+values when the file exists locally but other checkouts would not have it: the
+first for a gitignored file, the second for a file git does not track yet (not
+raised once it is staged). Both are git-backed, skip a bundle outside a git
+repository, and are skipped by `--skip-provenance` and the language server; see
+[A cited file that other checkouts cannot see is a lint, split by whether it is
+ignored](../decisions/untracked-resources.md).
 `broken_links` also checks a `#fragment` against the target concept's
 heading slugs (issue #69), which follow `github-slugger` ([Heading anchors
 match github-slugger](../decisions/heading-slugs.md)).

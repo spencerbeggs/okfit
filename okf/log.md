@@ -7,6 +7,14 @@
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 * Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 * Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated Workspace
+* Added A concept outside the repository is a typed failure
+* Added A cited file that other checkouts cannot see is a lint, split by whether it is ignored
+* Updated Engine
+* Updated okfit config file schema
+* Added The plugin declares a minimum CLI version and the context envelope reports the CLI's
+* Added The software-project vocabulary grows a fourth time from open migration findings
+* Updated The software-project vocabulary grows from what migrations could not express
 
 ## 2026-11-13
 

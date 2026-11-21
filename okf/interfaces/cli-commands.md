@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:27:56Z
+  at: 2026-11-21T01:59:33Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 760389d2696a8492
+    body: 8c2656905076e420
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -86,7 +86,8 @@ project's `[lint]` table; a concept carrying a digest is still checked by
 pure content comparison, since that tier makes no git call. The
 PostToolUse hook passes it so an edit-time validate stays git-free for any
 un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
-git tier too (ruling S-31). See [Every okfit digest lives in one integrity
+git tier too (ruling S-31). `--skip-provenance` also skips the git-backed
+`resource-ignored` and `resource-untracked` lints (issue #279). See [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate` also reports the
 `verified-drift` lint (default `warn`) for a concept whose verification no
 longer matches its content.
@@ -480,7 +481,11 @@ carries a `trust` field (`null` unless `--trust` was given: `concepts`,
 `drifted`, `stale`, `unverified`, `drifted_ids`, `stale_ids`) and
 `config_schema_version`, core's `CONFIG_SCHEMA_VERSION`, the
 `major.minor` label of the schema the loaded config was checked against
-(`okf/interfaces/okfit-config-schema.md`). `okfit verify
+(`okf/interfaces/okfit-config-schema.md`). It also carries `cli_version`, the
+running `@okfit/cli` version (`null` only when the envelope is built outside
+the CLI); the agent plugin's SessionStart hook compares it to the minimum CLI
+the plugin declares and treats a missing value as an outdated CLI
+([the minimum-CLI Decision](../decisions/plugin-declares-minimum-cli.md)). `okfit verify
 --format json` prints a distinct `VerifyEnvelope` with `schema`,
 `okfit_version`, `engine_version`, `distribution`, `id`, `path`,
 `verified`, `status` (`{ from, to }` or `null` without `--stable`/`--draft`),

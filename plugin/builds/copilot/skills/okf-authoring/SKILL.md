@@ -87,6 +87,11 @@ for an agent, so suggest the human run it instead of attempting it.
    conversation with the repository owner`, `author: human:<id>`, and
    `last_modified` set to the date it was said. A concept with no
    `sources` block is indistinguishable from one nobody bothered to cite.
+   Never cite a gitignored or untracked file (plans, specs, scratchpad
+   material) as a `resource`: other checkouts and CI do not have it, and
+   `okfit validate` reports `resource-ignored` (error) or
+   `resource-untracked` (warn). Restate the reasoning in the concept
+   instead.
 8. Prefer bundle-relative links; a broken link is tolerated, never "fixed"
    by inventing a target. A `broken-links` anchor diagnostic ends with a
    hint (`did you mean "#slug"?`, or the target's headings), so repair a

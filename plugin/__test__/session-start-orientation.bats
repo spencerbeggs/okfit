@@ -31,12 +31,15 @@ STUB
 }
 
 # _stub_context bundle_root index_path index_exists config_path profile
-#   actors_agent types_json tags_json [profile_requested] [trust_json]
+#   actors_agent types_json tags_json [profile_requested] [trust_json] [cli_version|absent]
 _stub_context() {
 	local bundle_root="$1" index_path="$2" index_exists="$3" config_path="$4"
 	local profile="$5" actors_agent="$6" types_json="${7:-[]}" tags_json="${8:-[]}"
 	local profile_requested="${9:-$profile}"
 	local trust_json="${10:-null}"
+	# Default far above any floor so only the version tests see the nudge; "absent" omits the key.
+	local cli_version="${11:-99.0.0}" cli_field=""
+	[ "$cli_version" != absent ] && cli_field="\"cli_version\":\"$cli_version\","
 	local config_field="null"
 	[ -n "$config_path" ] && config_field="\"$config_path\""
 	local profile_field="null"
@@ -45,7 +48,7 @@ _stub_context() {
 	[ -n "$profile_requested" ] && profile_requested_field="\"$profile_requested\""
 	local agent_field="null"
 	[ -n "$actors_agent" ] && agent_field="\"$actors_agent\""
-	_stub_cli "{\"schema\":1,\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json,\"trust\":$trust_json}"
+	_stub_cli "{\"schema\":1,${cli_field}\"project_root\":\"$PROJECT_DIR\",\"bundle_root\":\"$bundle_root\",\"config_path\":$config_field,\"profile\":$profile_field,\"profile_requested\":$profile_requested_field,\"index_path\":\"$index_path\",\"index_exists\":$index_exists,\"actors\":{\"agent\":$agent_field},\"types\":$types_json,\"tags\":$tags_json,\"trust\":$trust_json}"
 }
 
 # _fixture — a SessionStart input whose cwd is the fake project.
@@ -395,5 +398,60 @@ STUB
 		assert_hook_exit 0
 		[ "$(wc -l <"$STUB_DIR/calls" | tr -d ' ')" = "1" ]
 		[[ "$(context_text)" != *"trust:"* ]]
+	done
+}
+
+# okfit #221: the CLI version floor. OKFIT_MIN_CLI_VERSION is the session
+# variable pluginfinity.config.ts declares; a test sets it directly.
+
+_cli_version_stub() {
+	_stub_context "$PROJECT_DIR/okf" "$PROJECT_DIR/okf/index.md" false "" software-project "" '[]' '[]' "" null "$1"
+}
+
+@test "a CLI older than the floor adds the version line with the floor and the resolved version" {
+	_cli_version_stub 0.10.0
+	for target in $TARGETS; do
+		_run "$target" "$(_fixture)" OKFIT_MIN_CLI_VERSION=0.16.7
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"expects CLI >= 0.16.7; this project resolves 0.10.0. Update @okfit/cli"* ]]
+		[[ "$(context_text)" == "okfit bundle:"* ]]
+	done
+}
+
+@test "an envelope with no cli_version counts as an outdated CLI" {
+	_cli_version_stub absent
+	for target in $TARGETS; do
+		_run "$target" "$(_fixture)" OKFIT_MIN_CLI_VERSION=0.16.7
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"expects CLI >= 0.16.7; this project resolves an older CLI that reports no version."* ]]
+	done
+}
+
+@test "a CLI at or above the floor adds no version line" {
+	for v in 0.16.7 0.16.10 1.0.0 0.17.0-next.1; do
+		_cli_version_stub "$v"
+		for target in $TARGETS; do
+			_run "$target" "$(_fixture)" OKFIT_MIN_CLI_VERSION=0.16.7
+			assert_hook_exit 0
+			[[ "$(context_text)" != *"expects CLI >="* ]]
+		done
+	done
+}
+
+@test "versions compare numerically, not lexically" {
+	_cli_version_stub 0.9.0
+	_run claude "$(_fixture)" OKFIT_MIN_CLI_VERSION=0.16.7
+	[[ "$(context_text)" == *"expects CLI >= 0.16.7"* ]]
+	_cli_version_stub 0.100.0
+	_run claude "$(_fixture)" OKFIT_MIN_CLI_VERSION=0.16.7
+	[[ "$(context_text)" != *"expects CLI >="* ]]
+}
+
+@test "the built hook carries the plugin's own floor as the session default" {
+	_cli_version_stub 0.0.1
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"expects CLI >= $(sed -n 's/.*MIN_CLI_VERSION = "\(.*\)";/\1/p' "$PLUGIN_DIR/min-cli.ts");"* ]]
 	done
 }

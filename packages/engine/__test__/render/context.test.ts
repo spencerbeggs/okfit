@@ -42,10 +42,11 @@ const baseInput = {
 describe("contextEnvelope", () => {
 	it.effect("builds a fully specified envelope, deepStrictEqual, types/tags sorted by name", () =>
 		Effect.sync(() => {
-			const built = contextEnvelope({ ...baseInput, config: fullConfig });
+			const built = contextEnvelope({ ...baseInput, config: fullConfig, cliVersion: "1.2.3" });
 			assert.deepStrictEqual(built, {
 				schema: 1,
 				config_schema_version: CONFIG_SCHEMA_VERSION,
+				cli_version: "1.2.3",
 				project_root: "/repo",
 				bundle_root: "/repo/okf",
 				config_path: "/repo/okfit.toml",
@@ -111,6 +112,14 @@ describe("contextEnvelope", () => {
 			assert.deepStrictEqual(built.trust, trust);
 			const encoded = Schema.encodeSync(ContextEnvelope)(built);
 			assert.deepStrictEqual(Schema.decodeUnknownSync(ContextEnvelope)(encoded), built);
+		}),
+	);
+
+	it.effect("cli_version is null when no cliVersion is given, never an omitted key", () =>
+		Effect.sync(() => {
+			const built = contextEnvelope({ ...baseInput, config: fullConfig });
+			assert.isNull(built.cli_version);
+			assert.isTrue(Object.hasOwn(built, "cli_version"));
 		}),
 	);
 

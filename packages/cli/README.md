@@ -479,6 +479,7 @@ one above:
 {
  "schema": 1,
  "config_schema_version": "1.0",
+ "cli_version": "0.17.0",
  "project_root": "/abs/path/to/my-repo",
  "bundle_root": "/abs/path/to/my-repo/okf",
  "config_path": null,

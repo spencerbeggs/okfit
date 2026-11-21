@@ -83,6 +83,8 @@ validation on the file without any further setup.
   | `walk_unreadable` | `warn` |
   | `status_missing` | `off` |
   | `source_resource_missing` | `warn` |
+  | `resource_ignored` | `error` |
+  | `resource_untracked` | `warn` |
   | `generated_missing` | `warn` |
   | `publication_drift` | `warn` |
   | `publication_orphan` | `error` |
@@ -106,8 +108,8 @@ validation on the file without any further setup.
 
 ## What software-project contributes
 
-The `software-project` profile (`bundle.profile`'s default) sets sixteen
-types and thirteen tags on top of `OkfitConfig.DEFAULTS`, plus
+The `software-project` profile (`bundle.profile`'s default) sets twenty
+types and fourteen tags on top of `OkfitConfig.DEFAULTS`, plus
 `concepts.required = ["title", "description"]`.
 
 Types, one sentence each:
@@ -141,6 +143,10 @@ Types, one sentence each:
 - `Incident` -- "A dated production failure: what shipped broken, what it
   looked like to the consumer, the root cause, and the guard that now
   stops it."
+- `Flow` -- "A named runtime sequence that crosses several modules: where
+  it starts, which modules it passes through in order, and how it fails."
+- `Fixture` -- "A stand-in for an external thing that tests or tooling
+  depend on: a recorded response, a sample repository, a vendored sample."
 
 Choosing between the near neighbours: a Limitation is "this cannot do X";
 a Gotcha is "this looks broken (or looks fine) and is the opposite". A
@@ -162,7 +168,13 @@ scheduled to fix is a Gotcha with a `stale_after`, not a Roadmap; it
 becomes a Roadmap once the fix is planned. A Gotcha whose signal comes
 from outside the repository (a GitHub platform behaviour, a consumer's
 bundler) omits `resource` and names the outside system in the body rather
-than pointing `resource` at a directory that merely sits nearby.
+than pointing `resource` at a directory that merely sits nearby. A Flow
+is one runtime sequence across several Modules, with its failure modes in
+the body (`entry`, `crosses` in order, optional `resource`); a Module owns
+one boundary, an Interface is a promise to consumers, and a Runbook is
+followed by a person. A Fixture (`resource` required, optional `runbooks`
+that refresh it) has a staleness window, 90 days by default, because it
+drifts from the thing it imitates.
 
 Each type's full `guidance` string is longer than is worth reproducing here;
 read it from the merged config (`okfit context --format json`, which also
@@ -171,8 +183,8 @@ lists each type's `required` keys, `require_verified`, and declared
 than trusting a paraphrase.
 
 Tags: `architecture`, `testing`, `release`, `security`, `performance`,
-`dx`, `ci`, `compat`, `bundle`, `observability`, `deps`, `github`, `docs`
--- each a one-sentence `description`, no `guidance`. `bundle` is install
+`dx`, `ci`, `compat`, `bundle`, `observability`, `deps`, `github`, `docs`,
+`config` -- each a one-sentence `description`, no `guidance`. `bundle` is install
 weight and reachability (tree-shaking, subpath entrypoints, edges declined
 for their cost) where `performance` is runtime cost; `observability` is
 how the system reports on itself; `deps` is how third-party dependencies
@@ -180,7 +192,10 @@ are declared, pinned, and distributed; `github` is the GitHub platform
 surface (the APIs, Apps and tokens, Actions, Packages, check runs, pull
 request conventions) where `ci` is the unattended path wherever it runs;
 `docs` is the documentation itself (provenance, rot, re-derivation, what
-would falsify a claim) where `dx` is tooling.
+would falsify a claim) where `dx` is tooling; `config` is the project's own
+user-facing configuration (format, discovery, schema, defaults, drift);
+`compat` covers versions and also portability across agent hosts,
+runtimes, and operating systems.
 
 Framework tags are deliberately not in the profile. A concern that names
 one framework -- Effect layer memoisation, React hook ordering, Django
@@ -222,11 +237,11 @@ Details that surprise:
   is exempt from `require-verified-unmet`, so a freshly authored bundle
   can validate clean before anyone has run `okfit verify`.
 
-The profile also carries a `layout` (`root.{index,log,project}` plus fifteen
+The profile also carries a `layout` (`root.{index,log,project}` plus nineteen
 directories: `modules/`, `decisions/`, `conventions/`, `interfaces/`,
 `references/`, `runbooks/`, `glossary/`, `limitations/`, `models/`,
 `gotchas/`, `consumers/`, `roadmaps/`, `measurements/`, `invariants/`,
-`incidents/`) that `okfit init` scaffolds from. That layout is **not** part
+`incidents/`, `surfaces/`, `publications/`, `flows/`, `fixtures/`) that `okfit init` scaffolds from. That layout is **not** part
 of `OkfitConfig` itself -- it never appears in a config file, and it does
 not bound where concepts may live. `okfit sync` and the `missing-index`
 lint work from the bundle on disk, not from the layout: any directory that

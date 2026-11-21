@@ -275,6 +275,45 @@ const config: OkfitConfig = {
 				},
 			},
 		},
+		Flow: {
+			description:
+				"A named runtime sequence that crosses several modules: where it starts, which modules it passes through in order, and how it fails.",
+			guidance:
+				"Write the steps in the order they happen and put the failure modes in the body, naming what a reader observes at each point it breaks. Distinct from Interface, which is a promise to consumers, from Runbook, which a person follows, and from Module, which owns one boundary rather than a sequence across several.",
+			fields: {
+				entry: {
+					description: "A path relative to this concept file to the code or config where the sequence starts.",
+					kind: "path",
+				},
+				crosses: {
+					description: "The Module concepts the sequence passes through, as paths, in the order it reaches them.",
+					kind: "path",
+				},
+				resource: {
+					description:
+						"A path relative to this concept file to the code, script, or config that implements the sequence end to end, when one place does.",
+					kind: "path",
+				},
+			},
+		},
+		Fixture: {
+			description:
+				"A stand-in for an external thing that tests or tooling depend on: a recorded response, a sample repository, a vendored sample.",
+			guidance:
+				"Name the external thing it stands in for, how it was captured, and what breaks when it drifts from the real one. Give it a staleness window, 90 days by default, since a fixture quietly diverges from what it imitates.",
+			required: ["resource"],
+			fields: {
+				resource: {
+					description:
+						"A path relative to this concept file to the external thing the fixture stands in for, or to the fixture itself when it lives in this repository.",
+					kind: "path",
+				},
+				runbooks: {
+					description: "The Runbook concepts that regenerate, refresh, or verify the fixture, as paths.",
+					kind: "path",
+				},
+			},
+		},
 	},
 	tags: {
 		architecture: { description: "Concerns the shape of the system rather than one module." },
@@ -285,7 +324,8 @@ const config: OkfitConfig = {
 		dx: { description: "Concerns the experience of the people and agents who author, build, and debug the code." },
 		ci: { description: "Concerns the unattended path: what runs without a human present, and how it fails." },
 		compat: {
-			description: "Concerns compatibility across versions of the runtime, the package manager, or a dependency.",
+			description:
+				"Concerns compatibility across versions of the runtime, the package manager, or a dependency, and portability across agent hosts, runtimes, and operating systems.",
 		},
 		bundle: {
 			description:
@@ -304,6 +344,10 @@ const config: OkfitConfig = {
 		docs: {
 			description:
 				"Concerns the documentation itself: provenance, rot, re-derivation, and what a claim would take to falsify.",
+		},
+		config: {
+			description:
+				"Concerns the project's own user-facing configuration: file format, discovery and resolution, schema validation, defaults, and drift between config and behavior.",
 		},
 	},
 	extensions: {},
@@ -330,6 +374,8 @@ const layout: Layout = {
 		{ directory: "incidents", type: "Incident" },
 		{ directory: "surfaces", type: "Surface" },
 		{ directory: "publications", type: "Publication" },
+		{ directory: "flows", type: "Flow" },
+		{ directory: "fixtures", type: "Fixture" },
 	],
 };
 

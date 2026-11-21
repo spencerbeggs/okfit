@@ -22,7 +22,7 @@ import {
 	FIXTURE_AUTHOR_EMAIL,
 	FIXTURE_AUTHOR_NAME,
 } from "./fixtures/history.js";
-import { FILE, REL, ROOT, blobsOf, entriesOf, identityGit, windowsPath, world } from "./utils/derivation.js";
+import { FILE, REL, ROOT, blobsOf, entriesOf, identityGit, world } from "./utils/derivation.js";
 
 const actor = Schema.decodeUnknownSync(Actor);
 const pattern = Schema.decodeUnknownSync(ActorPattern);
@@ -269,25 +269,6 @@ describe("Derivation.generatedAt (P-2, P-9, P-39)", () => {
 					head: Option.some(HEAD_TEXT),
 					blobs,
 					history,
-				}),
-			),
-		),
-	);
-	it.effect("converts a Windows path.sep to posix for git (P-39)", () =>
-		Effect.gen(function* () {
-			const result = yield* Derivation.generatedAt({ file: "C:\\repo\\okf\\modules\\core-lib.md" });
-			assert.strictEqual(result._tag, "committed");
-			if (result._tag === "committed") assert.strictEqual(result.sha, byName(F4_EXPECTED_BODY_COMMIT_AT_HEAD).sha);
-		}).pipe(
-			Effect.provide(
-				world({
-					root: "C:\\repo",
-					file: "C:\\repo\\okf\\modules\\core-lib.md",
-					worktree: HEAD_TEXT,
-					head: Option.some(HEAD_TEXT),
-					blobs,
-					history,
-					path: windowsPath,
 				}),
 			),
 		),

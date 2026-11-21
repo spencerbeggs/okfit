@@ -94,7 +94,10 @@ describe("okfit context --format json", () => {
 				assert.strictEqual(result.exitCode, 0);
 				assert.strictEqual(result.stderr, "");
 				const bundleRoot = join(sandbox.cwd, "okf");
-				assert.deepStrictEqual(JSON.parse(result.stdout), {
+				const { cli_version: cliVersion, ...envelope } = JSON.parse(result.stdout) as { cli_version: unknown };
+				// The CLI stamps its own version (okfit #221); the plugin's SessionStart hook compares it to its floor.
+				assert.match(String(cliVersion), /^\d+\.\d+\.\d+/);
+				assert.deepStrictEqual(envelope, {
 					schema: 1,
 					config_schema_version: CONFIG_SCHEMA_VERSION,
 					project_root: sandbox.cwd,

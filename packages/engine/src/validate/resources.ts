@@ -19,23 +19,23 @@ export const GLOB_RE = /[*?[{]|[@+!]\(/;
  * metacharacter (`src/**`) is a descriptor and is skipped, never resolved
  * against the filesystem.
  */
-const isDescriptor = (value: string): boolean =>
+export const isDescriptor = (value: string): boolean =>
 	SCHEME_RE.test(value) || value.includes("://") || /\s/.test(value) || GLOB_RE.test(value);
 
 /** Strips a trailing `#fragment` or `?query` suffix before filesystem resolution. */
-const stripSuffix = (value: string): string => {
+export const stripSuffix = (value: string): string => {
 	const at = value.search(/[?#]/);
 	return at === -1 ? value : value.slice(0, at);
 };
 
 /** One `resource`/`sources[i].resource` value, paired with the frontmatter path that names it. */
-interface ResourceValue {
+export interface ResourceValue {
 	readonly value: string;
 	readonly path: ReadonlyArray<string | number>;
 }
 
 /** Every `resource` value on a concept, each with its own frontmatter path: the top-level field, then each source's. */
-const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> => {
+export const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> => {
 	const values: Array<ResourceValue> = [];
 	if (concept.frontmatter.resource !== undefined)
 		values.push({ value: concept.frontmatter.resource, path: ["resource"] });
@@ -43,6 +43,27 @@ const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> => {
 		values.push({ value: source.resource, path: ["sources", index, "resource"] });
 	});
 	return values;
+};
+
+/**
+ * The absolute filesystem candidates a literal `resource` value may resolve to,
+ * in D-23 order: a leading `/` is bundle-root-relative; otherwise file-relative
+ * first, then (for a bare path with no `./` or `../` prefix) bundle-root-relative.
+ * The caller has already ruled out descriptors.
+ */
+export const resourceCandidates = (
+	bundle: LoadedBundle,
+	concept: LoadedConcept,
+	value: string,
+	path: Path.Path,
+): ReadonlyArray<string> => {
+	const stripped = stripSuffix(value);
+	return stripped.startsWith("/")
+		? [path.join(bundle.root, stripped.slice(1))]
+		: [
+				path.resolve(bundle.root, path.dirname(concept.path), stripped),
+				...(stripped.startsWith("./") || stripped.startsWith("../") ? [] : [path.resolve(bundle.root, stripped)]),
+			];
 };
 
 /**
@@ -74,15 +95,7 @@ export const lintResources = (
 		for (const [, concept] of bundle.concepts) {
 			for (const { value, path: fieldPath } of resourceValuesOf(concept)) {
 				if (isDescriptor(value)) continue;
-				const stripped = stripSuffix(value);
-				// D-23 order: a leading `/` is bundle-root-relative; otherwise file-relative
-				// first, then (for a bare path with no `./` or `../` prefix) bundle-root-relative.
-				const candidates = stripped.startsWith("/")
-					? [path.join(bundle.root, stripped.slice(1))]
-					: [
-							path.resolve(bundle.root, path.dirname(concept.path), stripped),
-							...(stripped.startsWith("./") || stripped.startsWith("../") ? [] : [path.resolve(bundle.root, stripped)]),
-						];
+				const candidates = resourceCandidates(bundle, concept, value, path);
 				let exists = false;
 				for (const candidate of candidates) {
 					if (yield* fs.exists(candidate)) {

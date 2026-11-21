@@ -1,11 +1,11 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { afterAll, assert, beforeAll, describe, it } from "@effect/vitest";
 import { Git, NotARepositoryError } from "@effected/git";
 import { ActorPattern, OkfitConfig, Timestamp } from "@okfit/core";
 import { DateTime, Effect, Layer, Schema } from "effect";
-import { Derivation } from "../../src/Derivation.js";
+import { ConceptOutsideRepositoryError, Derivation } from "../../src/Derivation.js";
 import { GitHistory } from "../../src/GitHistory.js";
 import {
 	CONFLICT_EXPECTED_BODY_COMMIT,
@@ -332,6 +332,62 @@ describe("Derivation outside any repository", () => {
 				const error = yield* Effect.flip(Derivation.generatedAt({ file }));
 				assert.instanceOf(error, NotARepositoryError);
 				assert.strictEqual(error.cwd, dir);
+			}),
+		),
+	);
+});
+
+describe("Derivation over symlinked concept files (#351)", () => {
+	let repo: FixtureRepo;
+	let outside = "";
+	let escaping = "";
+	let dangling = "";
+	let inRepoLink = "";
+	let target = "";
+
+	beforeAll(async () => {
+		repo = await build(buildRepo(F4_STEPS));
+		outside = await Effect.runPromise(makeTempDir("okfit-profiles-outside-"));
+		await writeFile(join(outside, "elsewhere.md"), "---\ntype: Module\ntitle: Elsewhere\n---\n\n# Elsewhere\n");
+		escaping = join(repo.dir, "escaping.md");
+		await symlink(join(outside, "elsewhere.md"), escaping);
+		dangling = join(repo.dir, "dangling.md");
+		await symlink(join(outside, "missing.md"), dangling);
+		target = join(repo.dir, F4_PATH_RENAMED);
+		inRepoLink = join(repo.dir, "alias.md");
+		await symlink(target, inRepoLink);
+	});
+	afterAll(async () => {
+		await removeDir(repo.dir);
+		await removeDir(outside);
+	});
+
+	it.effect("a concept symlinked outside the repository fails with ConceptOutsideRepositoryError", () =>
+		run(
+			Effect.gen(function* () {
+				const error = yield* Effect.flip(Derivation.generatedAt({ file: escaping }));
+				assert.instanceOf(error, ConceptOutsideRepositoryError);
+				assert.strictEqual((error as ConceptOutsideRepositoryError).file, escaping);
+			}),
+		),
+	);
+
+	it.effect("a dangling link still fails with a PlatformError NotFound, not the containment error", () =>
+		run(
+			Effect.gen(function* () {
+				const error = yield* Effect.flip(Derivation.generatedAt({ file: dangling }));
+				assert.strictEqual(error._tag, "PlatformError");
+			}),
+		),
+	);
+
+	it.effect("a symlink that stays inside the repository dates identically to its target", () =>
+		run(
+			Effect.gen(function* () {
+				const direct = yield* Derivation.generatedAt({ file: target });
+				const viaLink = yield* Derivation.generatedAt({ file: inRepoLink });
+				assert.strictEqual(direct._tag, "committed");
+				assert.deepStrictEqual(viaLink, direct);
 			}),
 		),
 	);
