@@ -1,6 +1,7 @@
 # Decision
 
 * [A body digest inside generated detects real drift, not a rewritten date](profiles-body-sha256-detects-real-drift.md) - generated.body_sha256, a lowercase hex sha256 of the P-6-normalized body, lets generated-at-drift compare content instead of dates, so a squash or rebase merge no longer looks like drift.
+* [A cited file that other checkouts cannot see is a lint, split by whether it is ignored](untracked-resources.md) - validate flags a resource or sources\[\].resource that exists locally but is gitignored (resource-ignored, error) or not yet tracked (resource-untracked, warn), as an engine lint that --skip-provenance and the language server skip.
 * [A concept outside the repository is a typed failure](concept-outside-repository-is-a-typed-failure.md) - Derivation.generatedAt fails with ConceptOutsideRepositoryError when a concept file resolves outside the repository, rather than reporting a provenance reason or a git error.
 * [A non-empty actors list is an allow-list and okfit never stores emails](actor-allow-list.md) - A non-empty \[actors\].humans list gates who may verify, matched by id or glob without emails, and okfit.actor in git config names the explicit id.
 * [A shared @okfit/engine package replaces cli-as-copy-contract](engine-front-end-split.md) - The platform layer, config discovery, and the validate/verify/sync/init/context programs moved into a new @okfit/engine package that both @okfit/cli and @okfit/mcp depend on directly, replacing an auto-installed peer-dependency arrangement that could never produce a runnable bin.

@@ -9,6 +9,9 @@
 * Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
 * Updated Workspace
 * Added A concept outside the repository is a typed failure
+* Added A cited file that other checkouts cannot see is a lint, split by whether it is ignored
+* Updated Engine
+* Updated okfit config file schema
 
 ## 2026-11-13
 

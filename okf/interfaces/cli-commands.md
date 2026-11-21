@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:27:56Z
+  at: 2026-11-21T01:59:27Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-02T19:15:49Z
 integrity:
   generated:
-    body: 760389d2696a8492
+    body: f6d0cd26970a58aa
   verified:
     by: human:spencer
     at: 2026-11-02T19:15:49Z
@@ -86,7 +86,8 @@ project's `[lint]` table; a concept carrying a digest is still checked by
 pure content comparison, since that tier makes no git call. The
 PostToolUse hook passes it so an edit-time validate stays git-free for any
 un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
-git tier too (ruling S-31). See [Every okfit digest lives in one integrity
+git tier too (ruling S-31). `--skip-provenance` also skips the git-backed
+`resource-ignored` and `resource-untracked` lints (issue #279). See [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate` also reports the
 `verified-drift` lint (default `warn`) for a concept whose verification no
 longer matches its content.

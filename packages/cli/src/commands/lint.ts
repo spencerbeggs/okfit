@@ -44,7 +44,9 @@ const targetsArg = Argument.String("targets").pipe(
 /** S-31: skips `Provenance.lint`'s git tier for this invocation, without touching `[lint]`. */
 const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("skip the generated-at-drift lint's git tier for this run"),
+	Flag.withDescription(
+		"skip the git-backed lints (generated-at-drift's git tier, resource-ignored, resource-untracked) for this run",
+	),
 );
 
 /**

@@ -83,6 +83,8 @@ validation on the file without any further setup.
   | `walk_unreadable` | `warn` |
   | `status_missing` | `off` |
   | `source_resource_missing` | `warn` |
+  | `resource_ignored` | `error` |
+  | `resource_untracked` | `warn` |
   | `generated_missing` | `warn` |
   | `publication_drift` | `warn` |
   | `publication_orphan` | `error` |

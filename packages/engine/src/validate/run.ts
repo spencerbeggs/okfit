@@ -15,6 +15,7 @@ import { Context, Effect, Option } from "effect";
 import type { Digest } from "effect/crypto";
 import { lintResources } from "./resources.js";
 import { lintSurfaces } from "./surfaces.js";
+import { lintUntrackedResources } from "./untracked.js";
 
 /**
  * K-47's ambient clock. `bin.ts` resolves `OKFIT_NOW` (or the wall clock)
@@ -58,6 +59,12 @@ export interface RunOptions {
 	 * `severity === "off"`, but no longer on this flag.
 	 */
 	readonly skipProvenance?: boolean;
+	/**
+	 * Issue #279: skip the git-backed `resource-ignored` / `resource-untracked`
+	 * lint. `skipProvenance` implies it; the LSP's `BundleSession` sets it on
+	 * every tier. Defaults to `false`.
+	 */
+	readonly skipUntracked?: boolean;
 }
 
 /** @public */
@@ -127,6 +134,11 @@ export const run = (
 		const signals = yield* Trust.signals(bundle, options.config, options.now);
 		const drift = yield* Trust.lint(bundle, options.config, options.now, signals);
 		const resources = yield* lintResources(bundle, options.config);
+		// #279: git-backed, so --skip-provenance (the edit-time hook path) skips it.
+		const untracked =
+			options.skipProvenance === true || options.skipUntracked === true
+				? []
+				: yield* lintUntrackedResources(bundle, options.config);
 		// Publication lints are software-project's; any other profile (or none)
 		// may declare its own `Publication` type with different semantics.
 		const publications = Option.exists(options.profile, (profile) => profile.name === "software-project")
@@ -137,7 +149,7 @@ export const run = (
 			bundle,
 			report: {
 				...report,
-				lint: [...report.lint, ...provenance, ...drift, ...resources, ...publications, ...surfaces],
+				lint: [...report.lint, ...provenance, ...drift, ...resources, ...untracked, ...publications, ...surfaces],
 			},
 			profileDiagnostics,
 			signals,

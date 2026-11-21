@@ -144,6 +144,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					profile: options.profile,
 					now: revalidate.now,
 					skipProvenance: revalidate.tier === "edit",
+					skipUntracked: true,
 				}).pipe(Effect.provideService(FileSystem.FileSystem, fileSystem), Effect.provideContext(context));
 				const rendered = sort(
 					collect(result.report.conformance, result.report.lint, result.profileDiagnostics).map((diagnostic) =>

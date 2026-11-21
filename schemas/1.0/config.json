@@ -622,6 +622,50 @@
 						}
 					}
 				},
+				"resource_ignored": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "resource-ignored",
+					"description": "A resource or sources[].resource path names a file that exists locally but is gitignored, so every other checkout sees it missing (issue #279). Skipped outside a git repository and under --skip-provenance. Default \"error\".",
+					"default": "error",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"resource_untracked": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "resource-untracked",
+					"description": "A resource or sources[].resource path names a file that exists locally but git does not track yet; not raised once the file is staged (issue #279). Skipped outside a git repository and under --skip-provenance. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"generated_missing": {
 					"type": "string",
 					"enum": [

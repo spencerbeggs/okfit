@@ -353,6 +353,22 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	resource_ignored: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "resource-ignored",
+			description:
+				'A resource or sources[].resource path names a file that exists locally but is gitignored, so every other checkout sees it missing (issue #279). Skipped outside a git repository and under --skip-provenance. Default "error".',
+			default: "error",
+		}),
+	),
+	resource_untracked: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "resource-untracked",
+			description:
+				'A resource or sources[].resource path names a file that exists locally but git does not track yet; not raised once the file is staged (issue #279). Skipped outside a git repository and under --skip-provenance. Default "warn".',
+			default: "warn",
+		}),
+	),
 	generated_missing: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "generated-missing",
@@ -647,6 +663,8 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"verified-drift": "verified_drift",
 	"status-missing": "status_missing",
 	"source-resource-missing": "source_resource_missing",
+	"resource-ignored": "resource_ignored",
+	"resource-untracked": "resource_untracked",
 	"generated-missing": "generated_missing",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
@@ -677,6 +695,8 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	verified_drift: "warn",
 	status_missing: "off",
 	source_resource_missing: "warn",
+	resource_ignored: "error",
+	resource_untracked: "warn",
 	generated_missing: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",

@@ -278,9 +278,13 @@ describe("run — source-resource-missing lint (issue #106)", () => {
 				yield* Effect.promise(() => writeFile(join(root, "package.json"), "{}\n"));
 				const text = "---\ntype: Module\nresource: package.json\n---\n\n# Thing\n\nBody text.\n";
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
-				const result = yield* run({ root, config: resourceConfig, profile: Option.none(), now }).pipe(
-					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
-				);
+				const result = yield* run({
+					root,
+					config: resourceConfig,
+					profile: Option.none(),
+					now,
+					skipProvenance: true, // #279's git-backed lint is skipped; this suite scripts no Git
+				}).pipe(Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))));
 				assert.deepStrictEqual(result.report.lint, []);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
