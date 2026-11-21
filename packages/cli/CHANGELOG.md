@@ -1,5 +1,29 @@
 # @okfit/cli
 
+## 0.17.0
+
+### Features
+
+- `okfit context --format json` now carries `cli_version`, the running `@okfit/cli` version, so the agent plugin can tell when a project resolves a CLI older than the plugin expects.
+
+* Add `okfit query browse`, an interactive read-only browser over the bundle, and open it from bare `okfit query` on a terminal. Concepts are grouped by type and filterable by type and tag, with a Detail tab (trust fields, verified entries, scrollable body) and a Neighbours tab where Enter follows a link. Esc or `q` exits 0; a run that is not interactive exits 64 with a hint to use `okfit query list`, `get` or `neighbors`.
+
+- `okfit validate` and `okfit lint` now report references to gitignored or untracked files as `resource-ignored` and `resource-untracked`. `--skip-provenance` also skips these git-backed lints, so the PostToolUse hook stays git-free.
+
+### Bug Fixes
+
+- Fix GitHub annotation file paths on Windows runners: a bundle outside the workspace no longer yields a `..\` path, and workspace-relative paths always use forward slashes.
+
+* Interactive `okfit sync` now shows its plan as part of the confirm screen instead of printing it first, so a prompt that cannot mount no longer prints the plan twice.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.13.5 | 0.14.0 |
+| @okfit/engine | dependency | updated | 0.20.7 | 0.21.0 |
+| @okfit/profiles | dependency | updated | 0.14.7 | 0.15.0 |
+
 ## 0.16.7
 
 ### Dependencies

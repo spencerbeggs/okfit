@@ -1,5 +1,29 @@
 # @okfit/engine
 
+## 0.21.0
+
+### Features
+
+- The `ContextEnvelope` schema gains a `cli_version` field (`string | null`) and `contextEnvelope` accepts an optional `cliVersion`, `null` when the envelope is built outside the CLI.
+
+* `QuerySelectionError` gains the reason `browse-needs-terminal`, used when `okfit query browse` runs without a terminal (exit 64).
+
+- `okfit validate` and the MCP `validate_bundle` now report a `resource` or `sources[].resource` that exists locally but is gitignored (`resource-ignored`, error) or not yet tracked by git (`resource-untracked`, warning; not raised once the file is staged). A directory is tracked when the index lists a file under it, a path inside a submodule is judged against the submodule's own index, and a bundle outside a git repository is skipped.
+- `RunOptions` gains `skipUntracked`. `skipProvenance` implies it, and the language server's `BundleSession` always sets it.
+
+### Bug Fixes
+
+- `okfit sync --staged` resolves repository-relative paths with `relativeWithin` and fails with `ConceptOutsideRepositoryError` for a concept or `log.md` that resolves outside the repository, instead of silently skipping it. Validate and session revalidate carry the new error in their failure unions.
+
+* `okfit sync --staged` in index mode now renders `index.md` from the git index instead of the working tree. An untracked concept, or one removed with `git rm --cached`, is no longer listed in the committed index, directories holding only untracked concepts are dropped, and a tracked concept with unstaged edits renders its indexed title and description (#142).
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.13.5 | 0.14.0 |
+| @okfit/profiles | dependency | updated | 0.14.7 | 0.15.0 |
+
 ## 0.20.7
 
 ### Dependencies

@@ -1,5 +1,25 @@
 # @okfit/ai-plugins
 
+## 0.12.0
+
+### Features
+
+- The SessionStart hook compares the project's CLI to the minimum the plugin expects and adds one line to its context when the CLI is older, or too old to report `cli_version`. It stays silent when the CLI is supported.
+
+* Updates the `okf-config` skill for software-project vocabulary round four: the `Flow` and `Fixture` types, the `config` tag, the broadened `compat` tag, and the nineteen scaffolded directories.
+
+### Bug Fixes
+
+- Fix the `okf-config` skill's markdownlint advice to point at the config markdownlint actually loads (the file a `lint:md`-style script names with `--config`, otherwise the root `.markdownlint-cli2.jsonc`) instead of always a new root file, which has no effect next to a `--config`-loaded one.
+
+* Fix the markdownlint scoping advice in the `okf-authoring` and `okf-config` skills so a per-file lint run passes `--no-globs`. markdownlint-cli2 unions a config's `globs` with the file arguments, so a "scoped" run on a config with `globs` and `fix: true` otherwise autofixed the whole tree.
+
+### Documentation
+
+- The `okf-authoring` skill now defaults footnote definitions to a code span for paths, package specifiers and issue references, so a markdownlint `--fix` pass no longer rewrites `__test__` into bold text
+
+* The okf-authoring skill now says never to cite a gitignored or untracked plan, spec or scratchpad file as a source, and to restate the reasoning in the concept instead. The okf-config skill lists the two new lint codes.
+
 ## 0.11.1
 
 ### Documentation
