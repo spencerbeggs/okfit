@@ -1,5 +1,18 @@
 # @okfit/mcp
 
+## 0.12.9
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.1.4 | 4.1.5 |
+| @effected/git | dependency | updated | 0.32.0 | 0.33.0 |
+| @effected/mcp-kit | dependency | updated | 0.15.0 | 0.15.1 |
+| @okfit/engine | dependency | updated | 0.21.0 | 0.21.1 |
+| @okfit/profiles | dependency | updated | 0.15.0 | 0.15.1 |
+| effect | dependency | updated | 4.1.4 | 4.1.5 |
+
 ## 0.12.8
 
 ### Dependencies

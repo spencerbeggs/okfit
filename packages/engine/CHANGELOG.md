@@ -1,5 +1,16 @@
 # @okfit/engine
 
+## 0.21.1
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.1.4 | 4.1.5 |
+| @effected/git | dependency | updated | 0.32.0 | 0.33.0 |
+| @okfit/profiles | dependency | updated | 0.15.0 | 0.15.1 |
+| effect | dependency | updated | 4.1.4 | 4.1.5 |
+
 ## 0.21.0
 
 ### Features
