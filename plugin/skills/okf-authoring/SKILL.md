@@ -67,7 +67,14 @@ for an agent, so suggest the human run it instead of attempting it.
    `[^schema-org]` against `id: schema-org-package-json` fails
    `footnote-source-unknown` and `footnote-undefined` as a pair. A
    footnote is two halves and both are required: the inline `[^id]` use
-   *and* a `[^id]: <resource>` definition line at the end of the body.
+   *and* a definition line at the end of the body. Put a path, package
+   specifier or issue reference in a code span
+   (`` [^id]: `packages/x/__test__/foo.test.ts` ``,
+   `` [^id]: `issue 90` ``); keep a bare URL in autolink form
+   (`[^id]: <https://...>`); plain prose provenance ("conversation with
+   the repository owner") stays as is. The code span is what lets the
+   definition survive a markdownlint `--fix` (MD050 emphasis, ATX
+   heading); rule 18 lists the traps.
    An inline use with no definition fails `footnote-undefined`; a
    definition with no inline use is an orphan okfit does not lint but
    markdownlint's MD053 rejects. Every listed `sources[]` entry therefore
@@ -124,9 +131,9 @@ for an agent, so suggest the human run it instead of attempting it.
     quote defensively whenever a value names one.
 18. Write for the repository's markdownlint config, which usually runs at
     pre-commit with `fix: true` and rewrites prose rather than reporting.
-    Four traps recur: wrap a path in a code span inside a footnote
-    definition (`` [^t]: `__test__/foo.test.ts` ``), since a bare `__test__`
-    is "emphasis" MD050 turns into `**test**`; never start a line with
+    Four traps recur: a footnote definition's path goes in a code span
+    (rule 6), since a bare `__test__` is "emphasis" MD050 turns into
+    `**test**`; never start a line with
     `#N` (an issue number) -- `#90.` becomes an ATX heading and a wrapped
     `#1, #2` list becomes `# 2`; write `#90` mid-sentence or as
     `issue 90`; re-indent code lifted from a tab-indented source tree
