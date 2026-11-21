@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T21:41:07Z
+  at: 2026-11-21T01:05:37Z
 integrity:
   generated:
-    body: 4748b45b2f78d16b
+    body: 908cd51e7cd29ce2
 ---
 
 # Profiles
@@ -85,7 +85,7 @@ P-6-normalized body through effect's own `Digest` service
 `Digest.Digest` in its R channel the same way `Derivation.generatedAt`
 carries `Git | GitHistory`. The digest functions (`digestFull`, `digest`,
 `bodyDigest`, `contentDigest`) have error channel `never`, since
-`JsoncFingerprint.hashText` cannot fail with a typed error.
+core's `Digest` cannot fail with a typed error.
 `Derivation.contentDigest(concept)` digests the body plus authored
 frontmatter, encoded by the `Canonical` module: `@effected/jsonc`'s RFC 8785
 canonical JSON (keys sorted by UTF-16 code unit, bookkeeping keys excluded),

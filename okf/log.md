@@ -1,5 +1,9 @@
 # Log
 
+## 2026-11-21
+
+* Updated Profiles
+
 ## 2026-11-13
 
 * Updated Plugin
