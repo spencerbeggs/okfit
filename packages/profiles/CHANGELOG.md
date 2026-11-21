@@ -1,5 +1,13 @@
 # @okfit/profiles
 
+## 0.15.2
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/git | peerDependency | updated | ^0.33.0 | ^0.34.0 |
+
 ## 0.15.1
 
 ### Dependencies

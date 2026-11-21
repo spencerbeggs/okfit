@@ -1,5 +1,15 @@
 # @okfit/mcp
 
+## 0.12.10
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/git | dependency | updated | 0.33.0 | 0.34.0 |
+| @okfit/engine | dependency | updated | 0.21.1 | 0.21.2 |
+| @okfit/profiles | dependency | updated | 0.15.1 | 0.15.2 |
+
 ## 0.12.9
 
 ### Dependencies
