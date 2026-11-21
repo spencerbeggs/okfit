@@ -33,15 +33,15 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 	/** Git answers HEAD with the on-disk file (the body is committed) and the actor's identity. */
 	const services = (root: string) =>
 		Layer.mergeAll(
-			Layer.succeed(Git, {
+			Git.layerTest({
 				repoRoot: () => Effect.succeed(root),
 				show: (_cwd: string, _ref: string, path: string) =>
 					Effect.gen(function* () {
 						const fs = yield* FileSystem.FileSystem;
 						return Option.some(yield* fs.readFileString(join(root, path)));
-					}).pipe(Effect.provide(TestPlatform)),
+					}).pipe(Effect.provide(TestPlatform), Effect.orDie),
 				configGet: identityConfigGet,
-			} as unknown as Git["Service"]),
+			}),
 			Layer.succeed(GitHistory, {
 				pathLog: (_root: string, path: string) =>
 					Effect.succeed([

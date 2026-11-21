@@ -19,9 +19,9 @@ describe("runVerifyIds (issue #214)", () => {
 		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
-	const gitFake = Layer.succeed(Git, {
+	const gitFake = Git.layerTest({
 		configGet: identityConfigGet,
-	} as unknown as Git["Service"]);
+	});
 	const platform = Layer.mergeAll(gitFake, TestPlatform);
 	const verifiedByAda = "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
 
@@ -186,9 +186,9 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 		actors: { humans: ["human:ada" as ActorPattern] },
 		extensions: {},
 	});
-	const gitFake = Layer.succeed(Git, {
+	const gitFake = Git.layerTest({
 		configGet: identityConfigGet,
-	} as unknown as Git["Service"]);
+	});
 	const platform = Layer.mergeAll(gitFake, TestPlatform);
 
 	const withRoot = <A, E, R>(

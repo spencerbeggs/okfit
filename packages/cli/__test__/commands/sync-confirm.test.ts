@@ -15,14 +15,14 @@ import { TestPlatform } from "../utils/platform.js";
 /** Index-only needs no git history; `add`/`stagedChanges` serve the --staged case. */
 const fakes = (root: string) =>
 	Layer.mergeAll(
-		Layer.succeed(Git, {
+		Git.layerTest({
 			repoRoot: () => Effect.succeed(root),
 			stagedChanges: () => Effect.succeed([]),
 			// #142: --staged index mode reads the committed view through lsFiles/unstagedChanges.
 			lsFiles: () => Effect.succeed([]),
 			unstagedChanges: () => Effect.succeed([]),
 			add: () => Effect.void,
-		} as unknown as Git["Service"]),
+		}),
 		Layer.succeed(GitHistory, {} as unknown as GitHistory["Service"]),
 		TestPlatform,
 	);
