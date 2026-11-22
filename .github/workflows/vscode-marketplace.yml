@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
+      id-token: write # signs the job in to the hosted turbo cache
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
@@ -39,8 +39,9 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Runtime
-        uses: savvy-web/silk-runtime-action@v1
+        uses: savvy-web/silk-runtime-action@v2
         with:
+          turbo-api: https://cache.savvyweb.systems
           ignore-scripts: false
 
       - name: Check for a Marketplace PAT
