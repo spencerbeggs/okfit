@@ -14,10 +14,17 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-11-23T21:45:40Z
-status: draft
+status: stable
 integrity:
   generated:
     body: b114d078627aa76a
+  verified:
+    by: human:spencer
+    at: 2026-11-23T22:18:48Z
+    content: 43750283af39aeae
+verified:
+  - by: human:spencer
+    at: 2026-11-23T22:18:48Z
 ---
 
 # Markdown that is not a concept is skipped, not an error

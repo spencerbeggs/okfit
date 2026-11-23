@@ -18,13 +18,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-11-02T19:15:49Z
+  - by: human:spencer
+    at: 2026-11-23T22:13:15Z
 integrity:
   generated:
     body: c0c46c42349987aa
   verified:
     by: human:spencer
-    at: 2026-11-02T19:15:49Z
-    content: 3e895e16c48403fd
+    at: 2026-11-23T22:13:15Z
+    content: d4bfec8c9d9b0cbb
 ---
 
 # Interactive prompts are gated by audience and terminal, and the audience never refuses a command
