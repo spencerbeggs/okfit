@@ -401,6 +401,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	index_metadata_invalid: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "index-metadata-invalid",
+			description:
+				'The bundle-root index.md frontmatter carries an okf_version that is not a quoted <major>.<minor> string, or a title, description or license that is not a string; the value is read best-effort. Default "warn".',
+			default: "warn",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -669,6 +677,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
+	"index-metadata-invalid": "index_metadata_invalid",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -701,6 +710,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	publication_drift: "warn",
 	publication_orphan: "error",
 	surface_unmatched: "warn",
+	index_metadata_invalid: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

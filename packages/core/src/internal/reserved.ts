@@ -5,6 +5,7 @@ import type { ConformanceCode, DiagnosticSeverity, LintCode } from "../Diagnosti
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import { IndexDocument, IndexEntry, IndexSection } from "../IndexDocument.js";
 import { LogDocument, LogGroup, LogItem } from "../LogDocument.js";
+import { OkfVersion } from "../OkfVersion.js";
 
 /**
  * The one parse configuration every OKF file uses: GFM with frontmatter capture
@@ -92,21 +93,77 @@ export const parseIndex = (
 	const { file, dir, document } = input;
 	const text = document.source;
 	const diagnostics: Array<Diagnostic> = [];
-	let okfVersion: string | undefined;
+	const metadata: {
+		okfVersion?: string;
+		title?: string;
+		description?: string;
+		license?: string;
+		metadata?: Record<string, unknown>;
+		frontmatter?: string;
+	} = {};
 	const node = Option.getOrUndefined(document.frontmatter);
 	if (node !== undefined && Option.isSome(input.frontmatter)) {
 		const raw = input.frontmatter.value;
 		const record =
 			raw !== null && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : undefined;
-		const keys = record === undefined ? [] : Object.keys(record);
-		if (dir === "" && record !== undefined && keys.length === 1 && typeof record.okf_version === "string") {
-			okfVersion = record.okf_version;
+		if (dir !== "") {
+			diagnostics.push(
+				diagnostic(
+					file,
+					"index-frontmatter",
+					"error",
+					"index.md below the bundle root must not carry frontmatter",
+					rangeOf(text, node.position),
+				),
+			);
+		} else if (raw === null) {
+			// An empty block is no metadata.
+		} else if (record === undefined) {
+			diagnostics.push(
+				diagnostic(
+					file,
+					"index-frontmatter",
+					"error",
+					"root index.md frontmatter must be a mapping",
+					rangeOf(text, node.position),
+				),
+			);
 		} else {
-			const message =
-				dir === ""
-					? 'root index.md frontmatter may only carry a string "okf_version"'
-					: "index.md below the bundle root must not carry frontmatter";
-			diagnostics.push(diagnostic(file, "index-frontmatter", "error", message, rangeOf(text, node.position)));
+			metadata.metadata = record;
+			metadata.frontmatter = node.value;
+			const warn = (key: string, message: string): void => {
+				diagnostics.push(
+					diagnostic(
+						file,
+						"index-metadata-invalid",
+						"warning",
+						message,
+						DiagnosticRange.forFrontmatterPath(document, [key]) ?? rangeOf(text, node.position),
+					),
+				);
+			};
+			const version = record.okf_version;
+			if (typeof version === "string") {
+				if (version !== "") {
+					metadata.okfVersion = version;
+					if (Option.isNone(OkfVersion.parse(version)))
+						warn("okf_version", `okf_version "${version}" is not a <major>.<minor> version`);
+				}
+			} else if (version !== null && version !== undefined) {
+				metadata.okfVersion = typeof version === "number" ? String(version) : JSON.stringify(version);
+				warn(
+					"okf_version",
+					typeof version === "number"
+						? `okf_version ${String(version)} is an unquoted number; quote it as "<major>.<minor>"`
+						: "okf_version must be a quoted <major>.<minor> string",
+				);
+			}
+			for (const key of ["title", "description", "license"] as const) {
+				const value = record[key];
+				if (typeof value === "string") {
+					if (value !== "") metadata[key] = value;
+				} else if (value !== null && value !== undefined) warn(key, `${key} must be a string`);
+			}
 		}
 	}
 	const sections: Array<IndexSection> = [];
@@ -165,7 +222,7 @@ export const parseIndex = (
 	}
 	flush(text.length);
 	const fields = { path: file, dir, sections };
-	return { document: IndexDocument.make(okfVersion === undefined ? fields : { ...fields, okfVersion }), diagnostics };
+	return { document: IndexDocument.make({ ...fields, ...metadata }), diagnostics };
 };
 
 /**

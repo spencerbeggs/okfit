@@ -17,12 +17,19 @@ export class IndexSection extends Schema.Class<IndexSection>("IndexSection")({
 }) {}
 
 /**
- * A parsed `index.md` (D-21). `okfVersion` is present only on the bundle root.
+ * A parsed `index.md` (D-21). The metadata fields are present only on the bundle root (OKF 0.3 section 8.1):
+ * `okfVersion`, `title`, `description` and `license` are the typed reads, `metadata` is the whole decoded
+ * mapping (extension keys included) and `frontmatter` is the raw YAML text between the fences.
  * @public
  */
 export class IndexDocument extends Schema.Class<IndexDocument>("IndexDocument")({
 	path: Schema.String,
 	dir: Schema.String,
 	okfVersion: Schema.optionalKey(Schema.String),
+	title: Schema.optionalKey(Schema.String),
+	description: Schema.optionalKey(Schema.String),
+	license: Schema.optionalKey(Schema.String),
+	metadata: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+	frontmatter: Schema.optionalKey(Schema.String),
 	sections: Schema.Array(IndexSection),
 }) {}

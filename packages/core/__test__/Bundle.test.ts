@@ -4,6 +4,7 @@ import type { BundleLoadOptions } from "../src/Bundle.js";
 import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
 import type { Diagnostic } from "../src/Diagnostic.js";
+import { OkfVersion } from "../src/OkfVersion.js";
 import { MOUNT, badBundleAtRootPlatform, faultyPlatform, platform } from "./utils/fixtures.js";
 
 const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
@@ -89,6 +90,20 @@ describe("Bundle.load", () => {
 				);
 				assert.deepStrictEqual(bundle.directories, ["sub"]);
 			}),
+	);
+	it.effect("an unquoted root okf_version warns and still gates the legacy fallbacks (OKF 0.3 §8.1)", () =>
+		Effect.gen(function* () {
+			const load = (version: string) =>
+				Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(platform({ [`${MOUNT}/index.md`]: `---\nokf_version: ${version}\n---\n\n# Metric\n` })),
+				);
+			const old = yield* load("0.2");
+			assert.deepStrictEqual(codes(old.diagnostics), [["index.md", "index-metadata-invalid", 1]]);
+			assert.isTrue(OkfVersion.legacyFallbacks(old));
+			const current = yield* load("0.3");
+			assert.deepStrictEqual(codes(current.diagnostics), [["index.md", "index-metadata-invalid", 1]]);
+			assert.isFalse(OkfVersion.legacyFallbacks(current));
+		}),
 	);
 	it.effect("log-heading-invalid comes from the reserved parser; log.md is never a concept (D-12)", () =>
 		Effect.gen(function* () {

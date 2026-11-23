@@ -52,8 +52,9 @@ describe("Diagnostic", () => {
 				"verified-drift",
 				"actor-email",
 				"verified-actor-unknown",
+				"index-metadata-invalid",
 			];
-			assert.strictEqual(codes.length, 26);
+			assert.strictEqual(codes.length, 27);
 			for (const code of codes) {
 				assert.strictEqual(yield* decodeCode(code), code);
 			}
