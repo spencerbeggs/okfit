@@ -1,3 +1,4 @@
+import { confineReal } from "@effected/walker";
 import type { LoadedBundle } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
@@ -9,8 +10,30 @@ export interface SyncIndexResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: readonly [];
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" }>;
 }
+
+/**
+ * OKF 0.3 section 3.2: a consumer does not follow a symbolic link out of the bundle. `Bundle.load` records
+ * `symlink-escape` on a link that resolves outside the root and drops it, so a load diagnostic answers first.
+ * The walker never lists a DANGLING link, so it has no diagnostic and no `files` entry; `lstat` plus `confineReal`
+ * (the rule `Bundle.load` applies) decides every other case. A reserved `index.md` or `log.md` that escapes is
+ * never read and never written, in any mode.
+ *
+ * @internal
+ */
+export const escapesBundle = Effect.fn("okfit/sync/escapesBundle")(function* (bundle: LoadedBundle, relative: string) {
+	if (bundle.diagnostics.some((entry) => entry.code === "symlink-escape" && entry.file === relative)) return true;
+	const fs = yield* FileSystem.FileSystem;
+	const path = yield* Path.Path;
+	const target = path.join(bundle.root, relative);
+	const link = yield* fs.lstat(target).pipe(
+		Effect.map((info) => info as FileSystem.File.Info | undefined),
+		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
+	);
+	if (link === undefined || link.type !== "SymbolicLink") return false;
+	return yield* confineReal(bundle.root, target).pipe(Effect.match({ onFailure: () => true, onSuccess: () => false }));
+});
 
 /**
  * Immediate child directories of `dir`, unioned from `bundle.directories`
@@ -84,28 +107,36 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
+	const skipped: Array<{ readonly id: string; readonly reason: "symlink-escape" }> = [];
 
 	// Step 1: the root.
-	const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
-	const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
-	const rootRendered = Derive.renderIndex("", rootConcepts, {
-		...(okfVersion === undefined ? {} : { okfVersion }),
-		...(rootFrontmatter === undefined ? {} : { frontmatter: rootFrontmatter }),
-		subdirectories: childDirectoriesOf(bundle, ""),
-	});
-	yield* writeOrCompare(
-		path.join(bundle.root, "index.md"),
-		"index.md",
-		rootRendered,
-		dryRun,
-		written,
-		unchanged,
-		pending,
-	);
+	if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
+	else {
+		const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
+		const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
+		const rootRendered = Derive.renderIndex("", rootConcepts, {
+			...(okfVersion === undefined ? {} : { okfVersion }),
+			...(rootFrontmatter === undefined ? {} : { frontmatter: rootFrontmatter }),
+			subdirectories: childDirectoriesOf(bundle, ""),
+		});
+		yield* writeOrCompare(
+			path.join(bundle.root, "index.md"),
+			"index.md",
+			rootRendered,
+			dryRun,
+			written,
+			unchanged,
+			pending,
+		);
+	}
 
 	// Step 2: every other directory.
 	for (const dir of Derive.indexDirectories(bundle)) {
 		if (dir === "") continue;
+		if (yield* escapesBundle(bundle, `${dir}/index.md`)) {
+			skipped.push({ id: `${dir}/index.md`, reason: "symlink-escape" });
+			continue;
+		}
 		const rendered = Derive.synthesizeIndex(bundle, dir);
 		yield* writeOrCompare(
 			path.join(bundle.root, dir, "index.md"),
@@ -121,5 +152,5 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	// Step 3 (dry-run) is folded into writeOrCompare above: the
 	// written/unchanged classification is identical either way, only the
 	// actual file write is skipped.
-	return { selected: true, written, unchanged, skipped: [] } satisfies SyncIndexResult;
+	return { selected: true, written, unchanged, skipped } satisfies SyncIndexResult;
 });

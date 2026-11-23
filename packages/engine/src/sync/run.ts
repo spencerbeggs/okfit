@@ -9,7 +9,7 @@ import type { Digest } from "effect/crypto";
 import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
-import { syncIndex } from "./index.js";
+import { escapesBundle, syncIndex } from "./index.js";
 import type { LogProvenance, SyncLogResult } from "./log.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
 import { committedView } from "./staged.js";
@@ -35,6 +35,7 @@ export const SkipReason = Schema.Literals([
 	"integrity-unsupported",
 	"renders-unsupported",
 	"log-unparseable",
+	"symlink-escape",
 ]);
 /** @public */
 export type SkipReason = typeof SkipReason.Type;
@@ -177,7 +178,7 @@ export const planSync: (
 				logProvenance.set(id, { _tag: "committed", at: options.staged.at, creating: Option.isNone(inHead) });
 			}
 		}
-		if (options.modes.has("log")) {
+		if (options.modes.has("log") && !(yield* escapesBundle(bundle, "log.md"))) {
 			// Restaging log.md would sweep a human's unstaged edits into the commit.
 			const logReal = yield* fs
 				.realPath(path.join(bundle.root, "log.md"))

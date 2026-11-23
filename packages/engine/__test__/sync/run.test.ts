@@ -213,30 +213,103 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
-	it.effect("fails with ConceptOutsideRepositoryError when log.md is a symlink out of the repository (#351)", () =>
-		Effect.gen(function* () {
-			const root = yield* Effect.promise(repo);
-			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
-			try {
-				const target = join(outside, "log.md");
-				yield* Effect.promise(() => writeFile(target, "# Log\n"));
-				yield* Effect.promise(() => symlink(target, join(root, "okf", "log.md")));
-				const error = yield* Effect.flip(
-					runSync({
+	it.effect(
+		"skips a log.md that is a symlink out of the repository rather than failing (#351, OKF 0.3 section 3.2)",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(repo);
+				const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
+				try {
+					const target = join(outside, "log.md");
+					yield* Effect.promise(() => writeFile(target, "# Log\n"));
+					yield* Effect.promise(() => symlink(target, join(root, "okf", "log.md")));
+					const result = yield* runSync({
 						bundleRoot: join(root, "okf"),
 						config: OkfitConfig.DEFAULTS,
 						modes: new Set(["log"]),
 						dryRun: false,
 						staged: { at: STAMP },
-					}).pipe(Effect.provide(live)),
-				);
-				assert.strictEqual(error._tag, "ConceptOutsideRepositoryError");
-			} finally {
-				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-				yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));
-			}
-		}),
+					}).pipe(Effect.provide(live));
+					assert.deepStrictEqual(result.log.skipped, [{ id: "log.md", reason: "symlink-escape" }]);
+					assert.deepStrictEqual(result.log.written, []);
+					assert.strictEqual(yield* Effect.promise(() => readFile(target, "utf8")), "# Log\n");
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+					yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));
+				}
+			}),
 	);
+
+	for (const kind of ["escaping", "dangling"] as const) {
+		for (const dryRun of [false, true]) {
+			it.effect(`skips ${kind} reserved files, still syncs a plain sibling, and exits cleanly (dryRun ${dryRun})`, () =>
+				Effect.gen(function* () {
+					const root = yield* Effect.promise(repo);
+					const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
+					try {
+						const concept = (title: string): string =>
+							`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n---\n\n# ${title}\n`;
+						const names = { index: "index.md", sub: "sub-index.md", log: "log.md" } as const;
+						if (kind === "escaping") {
+							for (const name of Object.values(names)) {
+								yield* Effect.promise(() => writeFile(join(outside, name), `# Outside ${name}\n`));
+							}
+						}
+						const link = async (target: string, at: string): Promise<void> => {
+							await rm(at, { force: true });
+							await symlink(join(outside, target), at);
+						};
+						yield* Effect.promise(() => mkdir(join(root, "okf", "linked")));
+						yield* Effect.promise(() => mkdir(join(root, "okf", "plain")));
+						yield* Effect.promise(() => link(names.index, join(root, "okf", "index.md")));
+						yield* Effect.promise(() => link(names.sub, join(root, "okf", "linked", "index.md")));
+						yield* Effect.promise(() => link(names.log, join(root, "okf", "log.md")));
+						yield* Effect.promise(() => writeFile(join(root, "okf", "linked", "a.md"), concept("A")));
+						yield* Effect.promise(() => writeFile(join(root, "okf", "plain", "b.md"), concept("B")));
+						git(root, ["add", "okf/linked/a.md", "okf/plain/b.md"]);
+						const result = yield* runSync({
+							bundleRoot: join(root, "okf"),
+							config: OkfitConfig.DEFAULTS,
+							modes: new Set(["index", "log"]),
+							dryRun,
+							staged: { at: STAMP },
+						}).pipe(Effect.provide(live));
+						assert.deepStrictEqual(
+							[...result.index.skipped].sort((x, y) => x.id.localeCompare(y.id)),
+							[
+								{ id: "index.md", reason: "symlink-escape" },
+								{ id: "linked/index.md", reason: "symlink-escape" },
+							],
+						);
+						assert.deepStrictEqual(result.log.skipped, [{ id: "log.md", reason: "symlink-escape" }]);
+						assert.deepStrictEqual(result.log.written, []);
+						// Control: the plain sibling's index is written (planned under a dry run).
+						assert.deepStrictEqual(result.index.written, ["plain/index.md"]);
+						const plain = join(root, "okf", "plain", "index.md");
+						const exists = yield* Effect.promise(() =>
+							readFile(plain, "utf8").then(
+								() => true,
+								() => false,
+							),
+						);
+						assert.strictEqual(exists, !dryRun);
+						for (const name of Object.values(names)) {
+							const text = yield* Effect.promise(() =>
+								readFile(join(outside, name), "utf8").then(
+									(value) => value,
+									() => undefined,
+								),
+							);
+							assert.strictEqual(text, kind === "escaping" ? `# Outside ${name}\n` : undefined);
+						}
+					} finally {
+						yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+						yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));
+					}
+				}),
+			);
+		}
+	}
 
 	it.effect("restages a migrate-only concept: its legacy digest moves to integrity and the file is re-added", () =>
 		Effect.gen(function* () {

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
+import type { MemoryFileSystemSeed } from "@effected/memfs";
 import { MemoryFileSystem } from "@effected/memfs";
 import {
 	Bundle,
@@ -17,8 +18,8 @@ import {
 } from "@okfit/core";
 import { Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
-import { UNDECLARED_PROJECT, V02_PROJECT } from "../fixtures/bundles.js";
-import { ROOT, projectPlatform } from "../utils/bundle.js";
+import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
+import { ROOT, denyAccess, mountProject, projectPlatform, seedPlatform } from "../utils/bundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -235,5 +236,73 @@ describe("syncIndex", () => {
 			assert.include(second.unchanged, "index.md");
 			assert.notInclude(second.written, "index.md");
 		}).pipe(Effect.provide(projectPlatform(V02_PROJECT))),
+	);
+});
+
+describe("syncIndex: a reserved index.md linked out of the bundle (OKF 0.3 section 3.2 rule 5)", () => {
+	const LINKED = [`${ROOT}/index.md`, `${ROOT}/metrics/index.md`];
+	const kinds = {
+		escaping: { root: "/outside/index.md", sub: "/outside/metrics-index.md" },
+		dangling: { root: "/outside/missing-index.md", sub: "/outside/missing-metrics-index.md" },
+	} as const;
+
+	const seedFor = (kind: keyof typeof kinds): MemoryFileSystemSeed => ({
+		...mountProject(V03_PROJECT),
+		[`${ROOT}/index.md`]: MemoryFileSystem.symlink(kinds[kind].root),
+		[`${ROOT}/metrics/index.md`]: MemoryFileSystem.symlink(kinds[kind].sub),
+		// Control: a symlinked index that stays inside the bundle is still synced.
+		[`${ROOT}/computations/index.md`]: MemoryFileSystem.symlink(`${ROOT}/references/computations-index.md`),
+		[`${ROOT}/references/computations-index.md`]: "# Stale\n",
+		...(kind === "escaping" ? { "/outside/index.md": "# Outside\n", "/outside/metrics-index.md": "# Outside\n" } : {}),
+	});
+
+	for (const kind of ["escaping", "dangling"] as const) {
+		for (const dryRun of [false, true]) {
+			it.effect(`skips a ${kind} root and subdirectory index.md and never touches the link (dryRun ${dryRun})`, () => {
+				const touched: Array<string> = [];
+				return Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					// Positive control: the guard is armed, so a stray access would be caught and recorded.
+					const probe = yield* Effect.flip(fs.readFileString("/outside/index.md"));
+					assert.strictEqual(probe._tag, "PlatformError");
+					assert.deepStrictEqual(touched, ["readFileString /outside/index.md"]);
+					touched.length = 0;
+
+					const bundle = yield* Bundle.load({ root: ROOT });
+					const pending: Array<{ target: string; contents: string }> = [];
+					const result = yield* syncIndex(bundle, dryRun, pending);
+					assert.deepStrictEqual(result.skipped, [
+						{ id: "index.md", reason: "symlink-escape" },
+						{ id: "metrics/index.md", reason: "symlink-escape" },
+					]);
+					assert.isFalse(result.written.includes("index.md"));
+					assert.isFalse(result.written.includes("metrics/index.md"));
+					assert.isFalse(result.unchanged.includes("index.md"));
+					assert.isFalse(result.unchanged.includes("metrics/index.md"));
+					assert.deepStrictEqual(touched, []);
+					for (const link of LINKED) assert.isFalse(pending.some((write) => write.target === link));
+					// Control: the in-bundle symlinked index is still synced.
+					assert.isTrue(result.written.includes("computations/index.md"));
+					if (dryRun) assert.isTrue(pending.some((write) => write.target === `${ROOT}/computations/index.md`));
+					else assert.notStrictEqual(yield* fs.readFileString(`${ROOT}/computations/index.md`), "# Stale\n");
+				}).pipe(Effect.provide(seedPlatform(seedFor(kind), denyAccess(touched, LINKED))));
+			});
+		}
+	}
+
+	it.effect("leaves the files the links point at unchanged", () =>
+		Effect.gen(function* () {
+			const fs = yield* FileSystem.FileSystem;
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const result = yield* syncIndex(bundle, false);
+			assert.deepStrictEqual(
+				result.skipped.map((entry) => entry.id),
+				["index.md", "metrics/index.md"],
+			);
+			assert.strictEqual(yield* fs.readFileString("/outside/index.md"), "# Outside\n");
+			assert.strictEqual(yield* fs.readFileString("/outside/metrics-index.md"), "# Outside\n");
+			// Control: the same call writes the indexes that do not link out.
+			assert.isTrue(result.written.includes("modules/index.md") || result.unchanged.includes("modules/index.md"));
+		}).pipe(Effect.provide(seedPlatform(seedFor("escaping")))),
 	);
 });
