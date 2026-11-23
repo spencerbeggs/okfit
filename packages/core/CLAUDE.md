@@ -21,6 +21,7 @@ src/
   index.ts          -- public barrel; never exports from internal/
   Actor.ts (Actor, ActorPattern, Actor.matches/allowed/isPattern) Timestamp.ts Source.ts Generated.ts Verification.ts Status.ts AttestedComputation.ts
   Concept.ts ConceptId.ts Diagnostic.ts IndexDocument.ts LogDocument.ts Bundle.ts Graph.ts (Graph.fromBundle, Graph.resolve, LinkResolution) Derive.ts Validate.ts
+  OkfVersion.ts (OkfVersion.parse/compare/declared/legacyFallbacks: the one declared-version gate)
   OkfitConfig.ts    -- spec 4.2 struct, DEFAULTS, merge, severityFor, read, OkfitConfigFile tag
   internal/         -- engine: position, fence, yamlPathSpan (YAML path to file span, shared by frontmatter.ts and Diagnostic.ts), frontmatter, reserved, links, lintRules, templates;
                        walk.ts is a thin adapter over @effected/walker's descend (record mode for

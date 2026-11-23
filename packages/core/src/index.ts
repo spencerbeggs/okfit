@@ -54,6 +54,8 @@ export {
 	okfitConfigDocumentFields,
 	okfitConfigSchemaHost,
 } from "./OkfitConfig.js";
+export type { OkfVersionNumber } from "./OkfVersion.js";
+export { OkfVersion } from "./OkfVersion.js";
 export { Source, UsageWindow } from "./Source.js";
 export { Status } from "./Status.js";
 export { Timestamp } from "./Timestamp.js";
