@@ -20,7 +20,7 @@ const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profil
 
 const CLEAN_FIXTURE = join(PROFILES_FIXTURES, "software-project");
 const LINT_BAD_FIXTURE = join(PROFILES_FIXTURES, "bad", "module-no-kind");
-const CONFORMANCE_BAD_FIXTURE = join(CORE_FIXTURES, "bad", "c-frontmatter-missing");
+const CONFORMANCE_BAD_FIXTURE = join(CORE_FIXTURES, "bad", "c-frontmatter-unclosed");
 
 const writeFileDeep = async (path: string, contents: string): Promise<void> => {
 	await mkdir(dirname(path), { recursive: true });

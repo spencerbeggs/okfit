@@ -1,10 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
+import { MemoryFileSystem } from "@effected/memfs";
 import { DateTime, Effect, Option } from "effect";
 import type { BundleLoadOptions } from "../src/Bundle.js";
 import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
 import type { Diagnostic } from "../src/Diagnostic.js";
+import { OkfitConfig } from "../src/OkfitConfig.js";
 import { OkfVersion } from "../src/OkfVersion.js";
+import { Validate } from "../src/Validate.js";
 import { MOUNT, badBundleAtRootPlatform, faultyPlatform, platform } from "./utils/fixtures.js";
 
 const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
@@ -44,14 +47,24 @@ describe("Bundle.load", () => {
 			assert.match(bundle.diagnostics[0]?.message ?? "", /"locked".*PermissionDenied/);
 		}),
 	);
-	it.effect("frontmatter-missing on a concept; index.md without a fence is normal (D-13)", () =>
-		Effect.gen(function* () {
-			const bundle = yield* load("c-frontmatter-missing");
-			assert.deepStrictEqual(codes(bundle.diagnostics), [["no-front.md", "frontmatter-missing", undefined]]);
-			assert.strictEqual(bundle.concepts.size, 0);
-			assert.strictEqual(bundle.indexes.get("")?.sections[0]?.entries[0]?.target, "no-front.md");
-			assert.deepStrictEqual(bundle.files, ["index.md", "no-front.md"]);
-		}),
+	it.effect(
+		"a .md with no frontmatter is skipped with a lint warning, not a conformance error (OKF 0.3 §3.2, R5)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* load("c-frontmatter-missing");
+				assert.deepStrictEqual(codes(bundle.diagnostics), [["no-front.md", "frontmatter-missing", undefined]]);
+				assert.strictEqual(bundle.diagnostics[0]?.severity, "warning");
+				assert.strictEqual(bundle.concepts.size, 0);
+				assert.strictEqual(bundle.indexes.get("")?.sections[0]?.entries[0]?.target, "no-front.md");
+				assert.deepStrictEqual(bundle.files, ["index.md", "no-front.md"]);
+				assert.deepStrictEqual(Validate.conformance(bundle), []);
+				assert.deepStrictEqual(
+					Validate.lint(bundle, OkfitConfig.DEFAULTS).map((d) => [d.code, d.severity]),
+					[["frontmatter-missing", "warning"]],
+				);
+				const off = OkfitConfig.merge(OkfitConfig.DEFAULTS, { lint: { frontmatter_missing: "off" }, extensions: {} });
+				assert.deepStrictEqual(Validate.lint(bundle, off), []);
+			}),
 	);
 	it.effect("frontmatter-unclosed points at the fence; unparseable YAML maps into file coordinates (D-14)", () =>
 		Effect.gen(function* () {
@@ -63,15 +76,53 @@ describe("Bundle.load", () => {
 			assert.strictEqual(unclosed.concepts.size + dup.concepts.size, 0);
 		}),
 	);
-	it.effect("type-missing flows through from the stage-1 decoder (D-15)", () =>
+	it.effect("a typeless .md is skipped with a lint warning, not a conformance error (OKF 0.3 §3.2, R5)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load("c-type-missing");
 			assert.deepStrictEqual(
 				bundle.diagnostics.map((d) => d.code),
 				["type-missing"],
 			);
+			assert.strictEqual(bundle.diagnostics[0]?.severity, "warning");
+			assert.strictEqual(bundle.concepts.size, 0);
+			assert.deepStrictEqual(Validate.conformance(bundle), []);
+		}),
+	);
+	it.effect("a frontmatter block that is a list is not a mapping: frontmatter-unparseable, a conformance error", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(platform({ [`${MOUNT}/list.md`]: "---\n- a\n- b\n---\n" })),
+			);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["list.md", "frontmatter-unparseable", 0]]);
+			assert.strictEqual(bundle.diagnostics[0]?.severity, "error");
+			assert.strictEqual(bundle.diagnostics[0]?.message, "frontmatter is not a mapping");
+			assert.strictEqual(Validate.conformance(bundle).length, 1);
 			assert.strictEqual(bundle.concepts.size, 0);
 		}),
+	);
+	it.effect("a symlink that leaves the bundle is neither listed nor read; one inside is (OKF 0.3 §3.2 rule 5)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.files, ["a.md", "in.md"]);
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["a", "in"]);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [
+				["logo.png", "symlink-escape", undefined],
+				["out.md", "symlink-escape", undefined],
+			]);
+			assert.isTrue(bundle.diagnostics.every((d) => d.severity === "warning"));
+			assert.deepStrictEqual(Validate.conformance(bundle), []);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/in.md`]: MemoryFileSystem.symlink(`${MOUNT}/a.md`),
+					[`${MOUNT}/out.md`]: MemoryFileSystem.symlink("/outside/secret.md"),
+					[`${MOUNT}/logo.png`]: MemoryFileSystem.symlink("/outside/logo.png"),
+					"/outside/secret.md": "---\ntype: Secret\n---\n",
+					"/outside/logo.png": "",
+				}),
+			),
+		),
 	);
 	it.effect(
 		"root okf_version accepted, non-root index frontmatter rejected; concept and computation body load (D-20, D-21)",

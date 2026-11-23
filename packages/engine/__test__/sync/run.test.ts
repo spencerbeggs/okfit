@@ -180,24 +180,32 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
-	it.effect("fails with ConceptOutsideRepositoryError for a concept symlinked outside the repository (#351)", () =>
+	it.effect("never loads, stamps or rewrites a concept symlinked outside the bundle (#351, OKF 0.3 §3.2)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);
 			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
 			try {
 				const target = join(outside, "elsewhere.md");
-				yield* Effect.promise(() => writeFile(target, "---\ntype: Module\ntitle: Else\n---\n\n# Else\n"));
+				const original = "---\ntype: Module\ntitle: Else\n---\n\n# Else\n";
+				yield* Effect.promise(() => writeFile(target, original));
 				yield* Effect.promise(() => symlink(target, join(root, "okf", "else.md")));
-				const error = yield* Effect.flip(
-					runSync({
-						bundleRoot: join(root, "okf"),
-						config: OkfitConfig.DEFAULTS,
-						modes: new Set(["generated"]),
-						dryRun: false,
-						staged: { at: STAMP },
-					}).pipe(Effect.provide(live)),
+				// Positive control: a real staged concept beside it is stamped.
+				yield* Effect.promise(() =>
+					writeFile(
+						join(root, "okf", "new.md"),
+						"---\ntype: Module\ntitle: New\ngenerated:\n  by: human:ada\n---\n\n# New\n",
+					),
 				);
-				assert.strictEqual(error._tag, "ConceptOutsideRepositoryError");
+				git(root, ["add", "okf/new.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["new"]);
+				assert.strictEqual(yield* Effect.promise(() => readFile(target, "utf8")), original);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));

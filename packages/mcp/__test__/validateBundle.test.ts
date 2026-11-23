@@ -79,13 +79,16 @@ describe("validate_bundle", () => {
 		}).pipe(Effect.scoped),
 	);
 
-	it.effect("reports a conformance error when a concept file loses its frontmatter", () =>
+	it.effect("reports a conformance error when a concept file leaves its frontmatter unclosed", () =>
 		Effect.gen(function* () {
 			const result = yield* validate({}, (root) =>
 				Effect.gen(function* () {
 					const fs = yield* FileSystem.FileSystem;
 					const path = yield* Path.Path;
-					yield* fs.writeFileString(path.join(root, "bundle", "metrics", "churn.md"), "# Churn\n\nNo frontmatter.\n");
+					yield* fs.writeFileString(
+						path.join(root, "bundle", "metrics", "churn.md"),
+						"---\ntype: Metric\n\n# Churn\n\nNever closed.\n",
+					);
 				}).pipe(Effect.orDie),
 			);
 			const data = result.structuredContent as Envelope;

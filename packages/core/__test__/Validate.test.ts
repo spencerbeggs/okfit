@@ -65,17 +65,22 @@ describe("Validate", () => {
 	it.effect("conformance keeps conformance codes; lint re-severities load-time lint codes and drops off", () =>
 		Effect.sync(() => {
 			const bundle = emptyBundle([
-				Diagnostic.make({ file: "a.md", code: "frontmatter-missing", severity: "error", message: "m" }),
+				Diagnostic.make({ file: "a.md", code: "frontmatter-unclosed", severity: "error", message: "m" }),
+				Diagnostic.make({ file: "n.md", code: "frontmatter-missing", severity: "warning", message: "m" }),
 				Diagnostic.make({ file: "b.md", code: "legacy-timestamp", severity: "info", message: "m" }),
 				Diagnostic.make({ file: "c/log.md", code: "log-frontmatter", severity: "warning", message: "m" }),
 			]);
-			assert.deepStrictEqual(summary(Validate.conformance(bundle)), [["frontmatter-missing", "a.md", "error"]]);
+			assert.deepStrictEqual(summary(Validate.conformance(bundle)), [["frontmatter-unclosed", "a.md", "error"]]);
 			const raised = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 				lint: { legacy_timestamp: "error", log_frontmatter: "off" },
 				extensions: {},
 			});
-			assert.deepStrictEqual(summary(Validate.lint(bundle, raised)), [["legacy-timestamp", "b.md", "error"]]);
+			assert.deepStrictEqual(summary(Validate.lint(bundle, raised)), [
+				["frontmatter-missing", "n.md", "warning"],
+				["legacy-timestamp", "b.md", "error"],
+			]);
 			assert.deepStrictEqual(summary(Validate.lint(bundle, OkfitConfig.DEFAULTS)), [
+				["frontmatter-missing", "n.md", "warning"],
 				["legacy-timestamp", "b.md", "info"],
 				["log-frontmatter", "c/log.md", "warning"],
 			]);

@@ -534,6 +534,72 @@
 						}
 					}
 				},
+				"frontmatter_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "frontmatter-missing",
+					"description": "A .md file other than index.md or log.md has no frontmatter, so it is not a concept and is skipped (OKF 0.3 §3.2). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"type_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "type-missing",
+					"description": "A .md file's frontmatter has no non-empty string type, so it is not a concept and is skipped (OKF 0.3 §3.2). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"symlink_escape": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "symlink-escape",
+					"description": "A file in the bundle is a symbolic link whose target lies outside the bundle root; it is not read and not part of the bundle (OKF 0.3 §3.2). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"generated_at_drift": {
 					"type": "string",
 					"enum": [

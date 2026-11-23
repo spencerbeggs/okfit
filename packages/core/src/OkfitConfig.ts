@@ -321,6 +321,30 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	frontmatter_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "frontmatter-missing",
+			description:
+				'A .md file other than index.md or log.md has no frontmatter, so it is not a concept and is skipped (OKF 0.3 §3.2). Default "warn".',
+			default: "warn",
+		}),
+	),
+	type_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "type-missing",
+			description:
+				'A .md file\'s frontmatter has no non-empty string type, so it is not a concept and is skipped (OKF 0.3 §3.2). Default "warn".',
+			default: "warn",
+		}),
+	),
+	symlink_escape: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "symlink-escape",
+			description:
+				'A file in the bundle is a symbolic link whose target lies outside the bundle root; it is not read and not part of the bundle (OKF 0.3 §3.2). Default "warn".',
+			default: "warn",
+		}),
+	),
 	generated_at_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "generated-at-drift",
@@ -705,6 +729,9 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"entry-ignored": "entry_ignored",
 	"value-malformed": "value_malformed",
 	"value-unknown": "value_unknown",
+	"frontmatter-missing": "frontmatter_missing",
+	"type-missing": "type_missing",
+	"symlink-escape": "symlink_escape",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -741,6 +768,9 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	entry_ignored: "warn",
 	value_malformed: "warn",
 	value_unknown: "warn",
+	frontmatter_missing: "warn",
+	type_missing: "warn",
+	symlink_escape: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

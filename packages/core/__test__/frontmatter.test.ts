@@ -17,8 +17,8 @@ describe("internal/frontmatter", () => {
 			const result = decodeConcept({ title: "no type" }, { file: "no-type.md", text, node });
 			assert.isTrue(Option.isNone(result.concept));
 			assert.deepStrictEqual(
-				result.diagnostics.map((d) => [d.code, d.range]),
-				[["type-missing", undefined]],
+				result.diagnostics.map((d) => [d.code, d.severity, d.range]),
+				[["type-missing", "warning", undefined]],
 			);
 		}),
 	);

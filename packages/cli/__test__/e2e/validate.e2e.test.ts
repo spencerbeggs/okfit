@@ -28,7 +28,7 @@ const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profil
 const CLEAN_FIXTURE = join(PROFILES_FIXTURES, "software-project");
 const PROFILE_BAD_FIXTURE = join(PROFILES_FIXTURES, "bad", "no-project");
 const LINT_BAD_FIXTURE = join(PROFILES_FIXTURES, "bad", "module-no-kind");
-const CONFORMANCE_BAD_FIXTURE = join(CORE_FIXTURES, "bad", "c-frontmatter-missing");
+const CONFORMANCE_BAD_FIXTURE = join(CORE_FIXTURES, "bad", "c-frontmatter-unclosed");
 
 const CONFIG_TOML = `[bundle]\npath = "okf"\nprofile = "software-project"\n`;
 
@@ -122,7 +122,7 @@ describe("okfit validate: GitHub Actions annotations", () => {
 });
 
 describe("okfit validate: conformance beats a co-occurring profile error", () => {
-	it.effect("a frontmatter-missing concept: exit 2, sorted stdout, both diagnostics counted", () =>
+	it.effect("a frontmatter-unclosed concept: exit 2, sorted stdout, both diagnostics counted", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CONFORMANCE_BAD_FIXTURE, join(sandbox.cwd, "okf")));
@@ -132,15 +132,44 @@ describe("okfit validate: conformance beats a co-occurring profile error", () =>
 			assert.strictEqual(result.exitCode, 2);
 			// Captured this session: this fixture has no project.md, so it also
 			// carries a "project-missing" profile error (file "") alongside core's
-			// conformance "frontmatter-missing" on no-front.md — K-17 sorts the
+			// conformance "frontmatter-unclosed" on unclosed.md — K-17 sorts the
 			// bundle-level ("") entry first; conformance (exit 2) still beats the
 			// co-occurring profile error (tier 1). concepts=0.
 			assert.strictEqual(
 				result.stdout,
 				"(bundle) error project-missing No Project concept in the bundle; software-project expects exactly one at the bundle root (project.md)\n" +
-					"no-front.md error frontmatter-missing concept files must start with a --- frontmatter block\n",
+					"unclosed.md:1:1 error frontmatter-unclosed frontmatter opens with --- but never closes\n",
 			);
 			assert.strictEqual(result.stderr, "2 errors, 0 warnings, 0 info in 0 concepts (okf)\n");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: a .md with no frontmatter is skipped with a warning (OKF 0.3 §3.2)", () => {
+	it.effect("exits 1 on the profile's project-missing alone; the skipped file is a core.lint warning", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() =>
+				copyFixtureInto(join(CORE_FIXTURES, "bad", "c-frontmatter-missing"), join(sandbox.cwd, "okf")),
+			);
+
+			const result = yield* runOkfit(["validate", "--format", "json"], sandbox);
+
+			assert.strictEqual(result.exitCode, 1);
+			const body = JSON.parse(result.stdout) as {
+				summary: { conformance_errors: number };
+				diagnostics: Array<{ file: string; code: string; source: string; severity: string }>;
+			};
+			assert.strictEqual(body.summary.conformance_errors, 0);
+			const skipped = body.diagnostics.find((d) => d.code === "frontmatter-missing");
+			assert.strictEqual(skipped?.file, "no-front.md");
+			assert.strictEqual(skipped?.source, "core.lint");
+			assert.strictEqual(skipped?.severity, "warning");
+			// Positive control: the profile error is the one that fails the run.
+			assert.deepStrictEqual(
+				body.diagnostics.filter((d) => d.severity === "error").map((d) => d.code),
+				["project-missing"],
+			);
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
@@ -853,14 +882,14 @@ describe("okfit validate: a file that does not decode", () => {
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => copyFixtureInto(CONFORMANCE_BAD_FIXTURE, join(sandbox.cwd, "okf")));
-			const run = yield* runOkfit(["validate", join(sandbox.cwd, "okf", "no-front.md"), "--format", "json"], sandbox);
+			const run = yield* runOkfit(["validate", join(sandbox.cwd, "okf", "unclosed.md"), "--format", "json"], sandbox);
 			assert.strictEqual(run.exitCode, 2);
 			const body = JSON.parse(run.stdout) as { diagnostics: Array<{ file: string; code: string }> };
 			assert.deepStrictEqual(
 				body.diagnostics.map((d) => d.file),
-				["no-front.md"],
+				["unclosed.md"],
 			);
-			assert.strictEqual(body.diagnostics[0]?.code, "frontmatter-missing");
+			assert.strictEqual(body.diagnostics[0]?.code, "frontmatter-unclosed");
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

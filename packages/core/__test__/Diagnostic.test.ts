@@ -23,7 +23,7 @@ describe("Diagnostic", () => {
 			assert.strictEqual((yield* Effect.flip(decodeCode("not-a-code")))._tag, "SchemaError");
 		}),
 	);
-	it.effect("decodes all thirty LintCode members, including status-missing and source-resource-missing", () =>
+	it.effect("decodes all every LintCode members, including status-missing and source-resource-missing", () =>
 		Effect.gen(function* () {
 			const codes = [
 				"broken-links",
@@ -56,15 +56,25 @@ describe("Diagnostic", () => {
 				"entry-ignored",
 				"value-malformed",
 				"value-unknown",
+				"resource-ignored",
+				"resource-untracked",
+				"frontmatter-missing",
+				"type-missing",
+				"symlink-escape",
 			];
-			assert.strictEqual(codes.length, 30);
+			assert.strictEqual(codes.length, 35);
 			for (const code of codes) {
 				assert.strictEqual(yield* decodeCode(code), code);
 			}
 		}),
 	);
 	it("isConformance is true only for a ConformanceCode member (D-32/D-33)", () => {
-		const conformance = Diagnostic.make({ file: "a.md", code: "type-missing", severity: "error", message: "x" });
+		const conformance = Diagnostic.make({
+			file: "a.md",
+			code: "frontmatter-unclosed",
+			severity: "error",
+			message: "x",
+		});
 		const lint = Diagnostic.make({ file: "a.md", code: "stale", severity: "info", message: "x" });
 		assert.isTrue(Diagnostic.isConformance(conformance));
 		assert.isFalse(Diagnostic.isConformance(lint));

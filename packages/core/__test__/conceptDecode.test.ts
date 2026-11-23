@@ -34,10 +34,14 @@ describe("decodeConcept", () => {
 		assert.deepStrictEqual(concept.extensions, { owner: "data-eng", runtime: "bigquery" });
 		assert.deepStrictEqual(concept.raw, value);
 	});
-	it("reports TypeMissing for absent, null, empty, non-string type and non-mapping input", () => {
-		for (const value of [{ title: "x" }, { type: null }, { type: "" }, { type: 3 }, null, "type: x", ["type"]]) {
+	it("reports TypeMissing for absent, null, empty and non-string type and a null block; NotMapping for a scalar or list", () => {
+		for (const value of [{ title: "x" }, { type: null }, { type: "" }, { type: 3 }, null]) {
 			assert.strictEqual(decodeConcept(value)._tag, "TypeMissing");
 		}
+		for (const value of ["type: x", ["type"]]) {
+			assert.strictEqual(decodeConcept(value)._tag, "NotMapping");
+		}
+		assert.strictEqual(decodeConcept({ type: "Note" })._tag, "Decoded");
 	});
 	it("keeps generated.by when at is malformed, drops only at, and reports value-malformed (D-15, Design 13)", () => {
 		const { concept, issues } = decoded({

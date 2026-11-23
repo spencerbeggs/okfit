@@ -41,6 +41,7 @@ export interface FamilyIssue {
  */
 export type ConceptDecodeResult =
 	| { readonly _tag: "TypeMissing"; readonly message: string }
+	| { readonly _tag: "NotMapping" }
 	| { readonly _tag: "Decoded"; readonly concept: Concept; readonly issues: ReadonlyArray<FamilyIssue> };
 
 /** Top-level keys that form the computation family when `type` is `Attested Computation`.
@@ -248,13 +249,14 @@ const decodeAttested = (
 
 /**
  * Decode a frontmatter value into a `Concept` without ever rejecting it for a
- * bad family. `TypeMissing` is the only failure (conformance `type-missing`). Reading is
+ * bad family. `TypeMissing` (lint `type-missing`) and `NotMapping` (conformance `frontmatter-unparseable`) are the only failures. Reading is
  * tolerant, key by key (OKF 0.3 11.2 rules 1-4); only okfit's own `integrity`
  * family keeps the whole-family `family-invalid` decode.
  * @public
  */
 export const decodeConcept = (value: unknown): ConceptDecodeResult => {
-	if (!isMapping(value)) return { _tag: "TypeMissing", message: "frontmatter is not a mapping" };
+	if (value === null || value === undefined) return { _tag: "TypeMissing", message: "frontmatter has no `type`" };
+	if (!isMapping(value)) return { _tag: "NotMapping" };
 	const raw = Object.fromEntries(Object.entries(value));
 	const type = raw.type;
 	if (typeof type !== "string") return { _tag: "TypeMissing", message: "`type` must be a non-empty string" };

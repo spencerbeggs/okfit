@@ -1,6 +1,6 @@
 import type { Frontmatter } from "@effected/markdown";
 import { FrontmatterDecodeError, MarkdownDocument, YamlFrontmatter } from "@effected/markdown";
-import { DescendError, PosixPath } from "@effected/walker";
+import { DescendError, PosixPath, confineReal } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
@@ -193,7 +193,12 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 		if (fence === "absent" && !reserved) {
 			return {
 				diagnostics: [
-					diagnostic(file, "frontmatter-missing", "error", "concept files must start with a --- frontmatter block"),
+					diagnostic(
+						file,
+						"frontmatter-missing",
+						"warning",
+						"no frontmatter, so this file is not a concept and is skipped",
+					),
 				],
 			};
 		}
@@ -295,11 +300,34 @@ export class Bundle {
 					`directory "${dir}" could not be read (${reason}); its files are not part of the bundle`,
 				),
 			);
+			const files: Array<string> = [];
+			for (const file of walked.files) {
+				const link = yield* fs
+					.lstat(path.join(root, file))
+					.pipe(Effect.mapError((cause) => new BundleReadError({ root, path: file, cause })));
+				if (link.type === "SymbolicLink") {
+					const escaped = yield* confineReal(root, path.join(root, file)).pipe(
+						Effect.match({ onFailure: () => true, onSuccess: () => false }),
+					);
+					if (escaped) {
+						diagnostics.push(
+							diagnostic(
+								file,
+								"symlink-escape",
+								"warning",
+								"symbolic link resolves outside the bundle root, so it is not read and not part of the bundle",
+							),
+						);
+						continue;
+					}
+				}
+				files.push(file);
+			}
 			const concepts = new Map<ConceptId, LoadedConcept>();
 			const indexes = new Map<string, IndexDocument>();
 			const logs = new Map<string, LogDocument>();
 			const directories = new Set<string>();
-			for (const file of walked.files) {
+			for (const file of files) {
 				if (!file.endsWith(".md")) continue;
 				const text = yield* fs
 					.readFileString(path.join(root, file))
@@ -315,7 +343,7 @@ export class Bundle {
 			}
 			return LoadedBundle.make({
 				root,
-				files: walked.files,
+				files,
 				directories: [...directories].sort(),
 				concepts,
 				indexes,
