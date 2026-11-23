@@ -167,6 +167,35 @@ describe("Bundle.load", () => {
 				assert.deepStrictEqual(body(bundle, "after"), Option.none());
 			}),
 	);
+	it.effect(
+		"0.3: an indented block opening with a fence line is not the computation; tildes and a deeper subsection are found",
+		() =>
+			Effect.gen(function* () {
+				const concept = (text: string, extra = "") =>
+					`---\ntype: Attested Computation\nruntime: bigquery\n${extra}---\n\n${text}`;
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform({
+							[`${MOUNT}/index.md`]: '---\nokf_version: "0.3"\n---\n\n# Index\n',
+							[`${MOUNT}/indented.md`]: concept(
+								"## Computation\n\n    ```sql\n    SELECT 9\n    ```\n\n```sql\nSELECT 1\n```\n",
+							),
+							[`${MOUNT}/tilde.md`]: concept("## Computation\n\n~~~sql\nSELECT 4\n~~~\n"),
+							[`${MOUNT}/deeper.md`]: concept("## Computation\n\nprose\n\n### Query\n\n```sql\nSELECT 5\n```\n"),
+							[`${MOUNT}/both.md`]: concept(
+								"## Computation\n\n```sql\nSELECT 6\n```\n",
+								"computation: queries/q.sql\n",
+							),
+						}),
+					),
+				);
+				assert.deepStrictEqual(body(bundle, "indented"), Option.some("SELECT 1"));
+				assert.deepStrictEqual(body(bundle, "tilde"), Option.some("SELECT 4"));
+				assert.deepStrictEqual(body(bundle, "deeper"), Option.some("SELECT 5"));
+				assert.deepStrictEqual(body(bundle, "both"), Option.some("SELECT 6"));
+				assert.strictEqual(bundle.concepts.get(id("both"))?.frontmatter.attested?.computation, "queries/q.sql");
+			}),
+	);
 	it.effect("0.2 or undeclared: the depth-1 Computation section's body, as before (owner ruling 3)", () =>
 		Effect.gen(function* () {
 			for (const frontmatter of [undefined, 'okf_version: "0.2"']) {

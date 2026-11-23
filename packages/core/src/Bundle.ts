@@ -94,8 +94,14 @@ export interface BundleLoadOptions {
 
 /**
  * One concept file after loading: typed frontmatter, the parsed body, and the
- * computation when present: 0.3 or later, the code of the first fenced block in the
- * `Computation` section; 0.2 or undeclared, the body of the depth-1 `Computation` section.
+ * inline computation when present.
+ *
+ * @remarks
+ * `computationBody` is the inline form only. 0.3 or later: the code of the first fenced block in
+ * the first `Computation` section at any heading level (an empty fence yields an empty string; no
+ * fence is `None`). 0.2 or undeclared: the body of the depth-1 `Computation` section. When
+ * `attested.computation` is set, the file that path names is the computation (OKF 0.3 10.3 rule 1)
+ * and this field is not authoritative; core does not read that file.
  *
  * @public
  */
@@ -133,13 +139,17 @@ const diagnostic = (
 ): Diagnostic =>
 	Diagnostic.make(range === undefined ? { file, code, severity, message } : { file, code, severity, message, range });
 
+/** CommonMark: a fence opens with three backticks or tildes after at most three spaces; four or more is indented code. */
+const FENCE_OPENING = /^ {0,3}(```|~~~)/;
+
 /** OKF 0.3 10.3: the code of the first fenced block among the root children of the first `Computation` section. */
 const fencedComputation = (document: MarkdownDocument): Option.Option<string> =>
 	Option.flatMapNullishOr(document.sectionByHeading("Computation"), (section) => {
 		for (const child of section.children) {
 			if (child.type !== "code") continue;
-			const opening = document.source.slice(child.position.start.offset).trimStart();
-			if (opening.startsWith("```") || opening.startsWith("~~~")) return child.value;
+			const offset = child.position.start.offset;
+			const lineStart = document.source.lastIndexOf("\n", offset - 1) + 1;
+			if (FENCE_OPENING.test(document.source.slice(lineStart, lineStart + 6))) return child.value;
 		}
 		return undefined;
 	});
