@@ -1,6 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
+import { MemoryFileSystem } from "@effected/memfs";
+import { Bundle } from "@okfit/core";
 import { Profiles } from "@okfit/profiles";
-import { Effect } from "effect";
+import { Effect, Layer, Path } from "effect";
 import type { ScaffoldOptions } from "../../src/init/scaffold.js";
 import { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "../../src/init/scaffold.js";
 
@@ -107,6 +109,8 @@ describe("files", () => {
 					[
 						"---",
 						"okf_version: '0.2'",
+						"title: my-repo",
+						"description: What this project is, how it is built, and why it is built that way.",
 						"---",
 						"",
 						"# Project",
@@ -204,4 +208,32 @@ describe("files", () => {
 			}),
 		);
 	});
+
+	it.effect("writes the bundle title and description, and Bundle.load reads them back clean (OKF 0.3 §8.1)", () =>
+		Effect.gen(function* () {
+			const entries = yield* files({ ...OPTIONS, okfVersion: "0.3" });
+			const seed = Object.fromEntries(entries.map((entry) => [entry.path, entry.contents]));
+			const bundle = yield* Bundle.load({ root: "/tmp/my-repo/okf" }).pipe(
+				Effect.provide(Layer.merge(Path.layer, MemoryFileSystem.layerWith(seed))),
+			);
+			const root = bundle.indexes.get("");
+			assert.strictEqual(root?.title, "my-repo");
+			assert.strictEqual(root?.description, "What this project is, how it is built, and why it is built that way.");
+			assert.strictEqual(root?.okfVersion, "0.3");
+			assert.isFalse(bundle.diagnostics.some((diagnostic) => diagnostic.code === "index-metadata-invalid"));
+			// control: the decode is live, so a different title in the seed reads back differently
+			const other = yield* Bundle.load({ root: "/tmp/my-repo/okf" }).pipe(
+				Effect.provide(
+					Layer.merge(
+						Path.layer,
+						MemoryFileSystem.layerWith({
+							...seed,
+							"/tmp/my-repo/okf/index.md": "---\ntitle: Other\n---\n\n# Project\n",
+						}),
+					),
+				),
+			);
+			assert.strictEqual(other.indexes.get("")?.title, "Other");
+		}),
+	);
 });

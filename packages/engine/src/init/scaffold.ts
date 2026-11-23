@@ -105,6 +105,8 @@ const ProjectFrontmatter = Schema.Struct({
 	status: Schema.Literals(["draft", "stable", "deprecated"]),
 });
 
+const BUNDLE_DESCRIPTION = "What this project is, how it is built, and why it is built that way.";
+
 const PROJECT_DESCRIPTION = "What this project is, its boundaries, and its non-goals.";
 
 const capitalize = (name: string): string => `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
@@ -175,6 +177,7 @@ export const files = (
 		const subdirectories = layout.directories.map((directory) => directory.directory);
 		const rootIndexText = Derive.renderIndex("", [projectConcept], {
 			okfVersion: options.okfVersion,
+			metadata: { title: projectTitle, description: BUNDLE_DESCRIPTION },
 			subdirectories,
 		});
 

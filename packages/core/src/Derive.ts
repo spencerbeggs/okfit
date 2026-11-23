@@ -47,6 +47,13 @@ export interface RenderIndexOptions {
 	 * title, description, license, version or extension key survives a re-render (D6). `""` is absent.
 	 */
 	readonly frontmatter?: string;
+	/**
+	 * The bundle's `title` and `description` (OKF 0.3 §8.1), written after `okf_version` in a new root block.
+	 * Ignored when `frontmatter` keeps an existing block: a kept block is never merged with it.
+	 *
+	 * @public
+	 */
+	readonly metadata?: { readonly title?: string; readonly description?: string };
 	/** Rendered as `* [name](name/index.md)` under a trailing `# Subdirectories` section. */
 	readonly subdirectories?: ReadonlyArray<string>;
 }
@@ -158,6 +165,7 @@ export class Derive {
 		return indexDocument(sections, {
 			...(options.okfVersion === undefined ? {} : { okfVersion: options.okfVersion }),
 			...(options.frontmatter === undefined ? {} : { frontmatter: options.frontmatter }),
+			...(options.metadata === undefined ? {} : { metadata: options.metadata }),
 		});
 	};
 

@@ -180,6 +180,52 @@ describe("Derive", () => {
 			}),
 	);
 
+	it.effect("renderIndex writes bundle metadata after okf_version only when no block is kept (OKF 0.3 §8.1)", () =>
+		Effect.gen(function* () {
+			const revenue = LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("revenue")),
+				path: "revenue.md",
+				frontmatter: metric({ title: "Revenue" }),
+				document: emptyDocument,
+				computationBody: Option.none(),
+			});
+			const fresh = Derive.renderIndex("", [revenue], {
+				okfVersion: "0.3",
+				metadata: { title: "Acme: retail", description: "Tables." },
+			});
+			assert.match(
+				fresh,
+				/^---\nokf_version: ['"]0\.3['"]\ntitle: ['"]Acme: retail['"]\ndescription: Tables\.\n---\n\n# /,
+			);
+			const kept = Derive.renderIndex("", [revenue], { frontmatter: "title: Kept", metadata: { title: "Ignored" } });
+			assert.isTrue(kept.startsWith("---\ntitle: Kept\n---\n\n# "));
+			assert.notInclude(kept, "Ignored");
+			// title only: no description line; control: description present above
+			const titleOnly = Derive.renderIndex("", [revenue], { okfVersion: "0.3", metadata: { title: "T" } });
+			assert.match(titleOnly, /^---\nokf_version: ['"]0\.3['"]\ntitle: T\n---\n\n# /);
+			assert.notInclude(titleOnly, "description");
+			// empty and absent metadata render identically to today
+			const bare = Derive.renderIndex("", [revenue], { okfVersion: "0.3" });
+			assert.strictEqual(Derive.renderIndex("", [revenue], { okfVersion: "0.3", metadata: {} }), bare);
+			assert.match(bare, /^---\nokf_version: ['"]0\.3['"]\n---\n\n# /);
+			assert.strictEqual(Derive.renderIndex("", [revenue], { metadata: {} }), Derive.renderIndex("", [revenue]));
+			// awkward titles round-trip through the index decoder
+			for (const title of ["a: b", "# not a heading", "line one\nline two", "- dash"]) {
+				const text = Derive.renderIndex("", [revenue], { okfVersion: "0.3", metadata: { title, description: "D" } });
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						memPlatform({
+							[`${MOUNT}/index.md`]: text,
+							[`${MOUNT}/revenue.md`]: "---\ntype: Metric\ntitle: Revenue\n---\n\nB.\n",
+						}),
+					),
+				);
+				assert.strictEqual(bundle.indexes.get("")?.title, title);
+				assert.strictEqual(bundle.indexes.get("")?.description, "D");
+			}
+		}),
+	);
+
 	it.effect("renderIndex over a loaded root index keeps the source's text before its first heading (D6)", () =>
 		Effect.gen(function* () {
 			const declared =
