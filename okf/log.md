@@ -1,5 +1,18 @@
 # Log
 
+## 2026-11-23
+
+* Updated A concept outside the repository is a typed failure
+* Updated Core
+* Updated Engine
+* Updated LSP
+* Updated Loading never fails a concept for a bad family
+* Added Markdown that is not a concept is skipped, not an error
+* Added The declared OKF version gates the v0.2 fallbacks
+* Added The root index's metadata is read and kept
+* Updated VS Code Extension
+* Updated okfit config file schema
+
 ## 2026-11-21
 
 * Updated Profiles

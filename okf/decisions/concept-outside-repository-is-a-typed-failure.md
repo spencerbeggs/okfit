@@ -6,11 +6,11 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:47:57Z
+  at: 2026-11-23T21:20:06Z
 status: draft
 integrity:
   generated:
-    body: 4725fbd66cfab3f5
+    body: 0cfa3c3c549fb10e
 ---
 
 # A concept outside the repository is a typed failure
@@ -45,6 +45,25 @@ containment fault they should fix.
 
 ## Consequences
 
-A symlinked-out concept now stops `sync`, `validate` and the LSP revalidate
-with a message naming the file, where `--staged` previously skipped such a
-concept silently. In-repo symlinks date identically to their target.
+When this Decision was made, a symlinked-out concept stopped `sync`,
+`validate` and the LSP revalidate with a message naming the file, where
+`--staged` previously skipped such a concept silently. In-repo symlinks date
+identically to their target.
+
+OKF v0.3 §3.2 changed the first half. A concept file that is a symbolic link
+out of the bundle root is now never loaded: `Bundle.load` reports the lint
+`symlink-escape` (`warn`) and drops the file, so it never reaches
+`Derivation.generatedAt` or `sync`, and that route no longer produces
+`ConceptOutsideRepositoryError`. `sync` neither stamps nor rewrites such a
+file, which an engine test pins.
+
+`ConceptOutsideRepositoryError` still occurs in `sync --staged` when
+`log.md` resolves outside the repository: the `log.md` check in
+`packages/engine/src/sync/run.ts` still fails with it, and an engine test
+(`__test__/sync/run.test.ts`) pins that case. The concept-path guard in the
+same function (the check made for each loaded concept) is kept, but whether
+any path through symlinks can still reach it is unverified: the walker does
+not descend a symlinked directory and `Bundle.load` drops an escaping file
+link, which suggests it is unreachable that way, but no test shows it either
+way. A bundle root that is itself a symlink resolving outside the repository
+is the candidate case, and it has not been tested.

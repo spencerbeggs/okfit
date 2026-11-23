@@ -10,10 +10,10 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-23T21:20:06Z
 integrity:
   generated:
-    body: 9570e3a7117e42e8
+    body: f86fa5891d07ea47
 ---
 
 # VS Code Extension
@@ -338,6 +338,8 @@ extension ships in the repository unreleased on this branch, by the
 owner's decision; its first Marketplace and Open VSX release, the
 publisher registration, the icon and the federation credentials are the
 next phase.
+
+The tree model (`src/tree/model.ts`) reads a missing `status` from the concepts wire as `stable`, so a concept whose `status` is outside the vocabulary shows as `stable` until the wire carries the derived `unknown` status.
 
 ## Not in scope
 

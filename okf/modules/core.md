@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-08T19:59:05Z
+  at: 2026-11-23T21:20:06Z
 integrity:
   generated:
-    body: c0e19f1ddc564bf4
+    body: 677b436b274fd04d
 ---
 
 # Core
@@ -85,8 +85,10 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-twenty-three keys, including `generated_at_drift` and `generated_missing`, are
-enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
+thirty-five keys, including `generated_at_drift`, `generated_missing` and the
+seven added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
+`value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,
+`symlink_escape`, all default `warn`), are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
 (issue #73, `internal/lintRules.ts#generatedMissing`) fires only when
 `actors.agent` is set and a concept's frontmatter has no `generated` block
 at all -- surfacing the gap at validate time instead of leaving it to
@@ -117,7 +119,9 @@ the surrounding quotes.
 `IntegrityGenerated { body }`, `IntegrityVerified { by, at, content }` and
 `Integrity`, and `Concept` carries an optional top-level `integrity`
 decoded as its own family, so a malformed block yields `family-invalid`
-for `integrity` only and never drops `generated` or `verified`. Core only
+(now the only family that does; every other family reads key by key, see
+"Reading OKF v0.3 bundles") for `integrity` only and never drops `generated`
+or `verified`. Core only
 holds the shape; it never computes a digest, since that would need a
 hashing capability core's no-Node-imports rule keeps out of this package.
 `Generated.body_sha256` remains a lenient optional legacy string, read only
@@ -127,3 +131,59 @@ schema is gone from the barrel. `verified-drift` is a registered lint code
 digest lives in one integrity family](../decisions/integrity-family.md) and
 the [integrity frontmatter](../interfaces/integrity-frontmatter.md)
 contract.
+
+## Reading OKF v0.3 bundles
+
+Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
+
+- **Declared version.** `OkfVersion` (`parse`, `compare`, `declared`,
+  `legacyFallbacks`) reads the root index's `okf_version`; one gate decides
+  whether the v0.2 root fallback and the legacy computation reading apply
+  ([The declared OKF version gates the v0.2
+  fallbacks](../decisions/declared-okf-version-gates-fallbacks.md)).
+- **Root index metadata.** `IndexDocument` carries `title`, `description`,
+  `license`, `metadata` and the raw `frontmatter` of the root index; a bad
+  value is `index-metadata-invalid` ([The root index's metadata is read and
+  kept](../decisions/root-index-metadata-is-kept.md)).
+- **Tolerant reading.** Key-by-key decode with `entry-ignored`,
+  `value-malformed` and `value-unknown`; `family-invalid` is only
+  `integrity`; `Concept.entries` (`EntryPaths`) and `Concept.entryPath` give
+  a kept entry's YAML path ([Loading never fails a concept for a bad
+  family](../decisions/content-tolerant-loading.md)).
+- **Non-concept markdown.** `frontmatter-missing` and `type-missing` are
+  lints that skip the file; `symlink-escape` refuses a link out of the
+  bundle ([Markdown that is not a concept is
+  skipped](../decisions/non-concept-markdown-is-skipped.md)).
+- **Status and staleness.** `Derive.status` returns `DerivedStatus`
+  (`draft`, `stable`, `deprecated`, `unknown`); `Derive.rawStatus` returns
+  the value as written. `Staleness` gains `malformed`, for a `stale_after`
+  that cannot be read: never fresh, never stale. Timestamps accept a
+  date-only `YYYY-MM-DD` as the start of that day in UTC.
+- **`superseded_by`.** A typed string field on `Concept`, a sixth path
+  field (`PathField` `superseded_by`) and a graph edge, so `broken-links`
+  reports a dangling one and the language server's document links and
+  definition follow it.
+- **Actors.** `team:` is a known scheme (`ActorForm` `team`);
+  `actor-prefix-unknown` also checks `sources[].author`, and its message
+  lists `human:`, `team:`, `process:` and the producer form.
+- **Computation.** `computationBody` follows the §10.3 locator for a bundle
+  declaring 0.3 or later; `executor.resource`, `executor.receipt` and
+  `attester.resource` are optional; `parameters` decode per entry.
+
+### Not done in this phase
+
+- `OKF_SPEC_VERSION` is still `"0.2"`, and the config key `okf_version`
+  still only selects what `init` and `sync` write.
+- `Derive.trustTier` is unchanged: it counts every verification event, not
+  only those at or after `generated.at` (OKF v0.3 §5.3).
+- Readers of the typed `status` outside core still treat an unknown status
+  as absent: engine `verify/select.ts`, the language server's concepts wire
+  (`features/concepts.ts`) and the VS Code tree show it as `stable`. Only
+  `Derive.status`, `ConceptQuery` and the MCP `get_concept` result report
+  `unknown`.
+- `okfit mv` does not rewrite `superseded_by`, and its computation
+  path-field lookup still reads an `attested` key that does not exist.
+- The engine's cited-resource check still tries the bundle root as a
+  candidate for every bundle, whatever it declares.
+- Prose elsewhere in the bundle and the plugin skills still describe the
+  v0.2 rules.

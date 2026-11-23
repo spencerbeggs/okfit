@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:47:57Z
+  at: 2026-11-23T21:20:06Z
 tags:
   - architecture
 verified:
@@ -23,7 +23,7 @@ verified:
     at: 2026-11-05T22:58:34Z
 integrity:
   generated:
-    body: 050416ad0d850d8b
+    body: 920959aa250b0ae0
   verified:
     by: human:spencer
     at: 2026-11-05T22:58:34Z
@@ -77,15 +77,16 @@ in.
 
 ## Lint severities
 
-The twenty-eight default lint codes: `broken_links`, `missing_index`,
+The thirty-five default lint codes (the twenty-eight below plus the seven that OKF v0.3 support added, listed after them): `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
 `publication_drift`, `surface_unmatched`, and `verified_drift` default `warn`;
 `resource_untracked` defaults `warn` and `resource_ignored` defaults `error` (issue #279;
 see below); `unknown_type`, `required_key_missing`, `field_value_unknown`, `require_verified_unmet`,
-`family_invalid`, `computation_runtime_missing`, and `publication_orphan` default `error`;
+`family_invalid` (since OKF v0.3 support only okfit's own `integrity` family; every other malformed family reads key by key and raises one of the warnings below instead), `computation_runtime_missing` (whenever the decoded `runtime` is absent, including a present but unreadable one), and `publication_orphan` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
 `actor_email` (an actor contains `@`) and `verified_actor_unknown` (a verifier matches no entry of a non-empty `[actors].humans`) default `warn`, as does `verified_drift` when the bound verifier has left the list;
+The seven codes added for OKF v0.3 all default `warn`: `index_metadata_invalid` (the root `index.md` carries an `okf_version` that is not a quoted `<major>.<minor>` string, or a non-string `title`, `description` or `license`), `entry_ignored` (a `sources`, `verified`, `generated` or `parameters` entry lacks a required key or has one okfit cannot read, so the entry is ignored), `value_malformed` (a defined value cannot be read in its shape and is read as absent; a malformed `stale_after` reads as `malformed`), `value_unknown` (a `status` outside `draft`, `stable` and `deprecated` is kept and the concept is not read as current knowledge), `frontmatter_missing` and `type_missing` (the `.md` file is not a concept and is skipped; they were conformance errors in OKF v0.2), and `symlink_escape` (a bundle file is a symbolic link out of the bundle root and is not read). `actor_prefix_unknown` accepts `team:` and also checks `sources[].author`. The config schema label stays `1.0`; the keys are additive and the document has not been catalogued.
 `status_missing` defaults `off`, because the spec reads an absent `status`
 as `stable` and core keeps no opinion about it -- the software-project
 profile is the layer that raises it to `warn` (issue #110), the one lint
