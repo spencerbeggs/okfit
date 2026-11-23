@@ -69,7 +69,9 @@ export const indexDocument = (
 	sections: ReadonlyArray<IndexSectionInput>,
 	options: IndexDocumentOptions = {},
 ): string => {
-	const { okfVersion, frontmatter } = options;
+	const { okfVersion } = options;
+	// The renderer writes LF everywhere, so a kept CRLF block is normalised to LF.
+	const frontmatter = options.frontmatter?.replace(/\r\n?/g, "\n");
 	const versionLine =
 		okfVersion === undefined
 			? undefined

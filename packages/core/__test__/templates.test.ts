@@ -19,6 +19,15 @@ describe("internal/templates indexDocument", () => {
 		assert.match(text, /^---\nokf_version: ['"]0\.2['"]\n---\n\n# Module\n/);
 	});
 
+	it("normalises a kept CRLF frontmatter block to LF, and leaves an LF block byte for byte", () => {
+		const sections = [{ heading: "Module", entries: [{ title: "Core", target: "core.md" }] }];
+		const crlf = indexDocument(sections, { okfVersion: "0.3", frontmatter: "title: T\r\ndescription: D" });
+		assert.notInclude(crlf, "\r");
+		assert.match(crlf, /^---\nokf_version: ['"]0\.3['"]\ntitle: T\ndescription: D\n---\n/);
+		const lf = indexDocument(sections, { frontmatter: 'okf_version: "0.3"\ntitle: T' });
+		assert.match(lf, /^---\nokf_version: "0\.3"\ntitle: T\n---\n/);
+	});
+
 	it("escapes markdown-active text instead of letting it render as syntax", () => {
 		const text = indexDocument([
 			{ heading: "Metric", entries: [{ title: "<Weird> *Title*", target: "weird.md", description: "a * b" }] },

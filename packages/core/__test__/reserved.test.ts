@@ -121,6 +121,24 @@ describe("internal/reserved", () => {
 			const unquoted = yield* run("okf_version: 0.2", { okf_version: 0.2 });
 			assert.deepStrictEqual(summary(unquoted), [["index-metadata-invalid", "warning", 1]]);
 			assert.strictEqual(unquoted.document.okfVersion, "0.2");
+			const zeroTen = yield* run("okf_version: 0.10", { okf_version: 0.1 });
+			assert.deepStrictEqual(summary(zeroTen), [["index-metadata-invalid", "warning", 1]]);
+			assert.strictEqual(zeroTen.document.okfVersion, "0.1");
+			const boolVersion = yield* run("okf_version: true", { okf_version: true });
+			assert.deepStrictEqual(summary(boolVersion), [["index-metadata-invalid", "warning", 1]]);
+			assert.strictEqual(boolVersion.document.okfVersion, "true");
+			const wrongDescription = yield* run("description: 5\nlicense: [a]", { description: 5, license: ["a"] });
+			assert.deepStrictEqual(summary(wrongDescription), [
+				["index-metadata-invalid", "warning", 1],
+				["index-metadata-invalid", "warning", 2],
+			]);
+			assert.strictEqual(wrongDescription.document.description, undefined);
+			assert.strictEqual(wrongDescription.document.license, undefined);
+			assert.strictEqual(wrongDescription.document.metadata?.description, 5);
+			assert.deepStrictEqual(wrongDescription.document.metadata?.license, ["a"]);
+			const emptyBlock = yield* run("", null);
+			assert.deepStrictEqual(emptyBlock.diagnostics, []);
+			assert.strictEqual(emptyBlock.document.metadata, undefined);
 			const prefixed = yield* run('okf_version: "v0.3"', { okf_version: "v0.3" });
 			assert.deepStrictEqual(summary(prefixed), [["index-metadata-invalid", "warning", 1]]);
 			assert.strictEqual(prefixed.document.okfVersion, "v0.3");
