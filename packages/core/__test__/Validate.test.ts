@@ -252,6 +252,36 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect(
+		"status-missing is silent on an unknown status (value-unknown owns it), beside a control with no status",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"archived.md": "---\ntype: Note\nstatus: archived\n---\n\n# Archived\n",
+					"bare.md": "---\ntype: Note\n---\n\n# Bare\n",
+				});
+				const lint = Validate.lint(bundle, statusConfig).filter((d) => d.code === "status-missing");
+				assert.deepStrictEqual(summary(lint), [["status-missing", "bare.md", "warning"]]);
+			}),
+	);
+
+	it.effect("value-unknown loads as a warning on the status value, follows config, and a known status has none", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"archived.md": "---\ntype: Note\nstatus: archived\n---\n\n# Archived\n",
+				"draft.md": "---\ntype: Note\nstatus: draft\n---\n\n# Draft\n",
+			});
+			assert.deepStrictEqual(
+				bundle.diagnostics.map((d) => [d.file, d.code, d.severity, d.range?.line, d.range?.character]),
+				[["archived.md", "value-unknown", "warning", 2, 8]],
+			);
+			const unknown = (config: OkfitConfig) => Validate.lint(bundle, config).filter((d) => d.code === "value-unknown");
+			assert.deepStrictEqual(summary(unknown(OkfitConfig.DEFAULTS)), [["value-unknown", "archived.md", "warning"]]);
+			const off = OkfitConfig.merge(OkfitConfig.DEFAULTS, { lint: { value_unknown: "off" }, extensions: {} });
+			assert.deepStrictEqual(unknown(off), []);
+		}),
+	);
+
 	describe("generated-missing (issue #73)", () => {
 		const withAgent = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 			actors: { agent: "okfit/claude-code" as Actor, humans: [] },

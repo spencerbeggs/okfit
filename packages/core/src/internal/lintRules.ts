@@ -109,7 +109,9 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 // Issue #110: `Derive.status` reads an absent `status` as `stable`, so a freshly
 // generated, never-verified concept looked settled to every consumer.
 export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
-	concept.frontmatter.status === undefined && (concept.frontmatter.verified ?? []).length === 0
+	concept.frontmatter.status === undefined &&
+	Derive.rawStatus(concept.frontmatter) === undefined &&
+	(concept.frontmatter.verified ?? []).length === 0
 		? ["Concept has no status and no verified entry, so it reads as stable; set status: draft or stable explicitly"]
 		: [],
 );

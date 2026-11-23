@@ -92,7 +92,7 @@ export class Derive {
 
 	/**
 	 * `stale` when `now >= stale_after` (OKF 0.3 §5.5); `unknown` without `stale_after`; `malformed`
-	 * when `raw.stale_after` is present (not `null` or `""`) but unreadable, so never fresh and never stale.
+	 * when `raw.stale_after` is present (not `null`, `""` or `[]`) but unreadable, so never fresh and never stale.
 	 */
 	static readonly staleness = (concept: Concept, now: DateTime.Utc): Staleness => {
 		if (concept.stale_after === undefined) {
