@@ -59,6 +59,7 @@ export class Concept extends Schema.Class<Concept>("Concept")({
 	verified: Schema.optionalKey(Verification.List),
 	status: Schema.optionalKey(Status),
 	stale_after: Schema.optionalKey(Timestamp),
+	superseded_by: Schema.optionalKey(Schema.String),
 	integrity: Schema.optionalKey(Integrity),
 	attested: Schema.optionalKey(AttestedComputation),
 	entries: Schema.optionalKey(EntryPaths),

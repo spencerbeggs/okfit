@@ -16,7 +16,13 @@ export const GraphNodeKind = Schema.Literals(["concept", "file", "missing"]);
 export type GraphNodeKind = typeof GraphNodeKind.Type;
 
 /** Frontmatter fields whose value is a bundle path (D-23). @public */
-export type PathField = "resource" | "sources.resource" | "computation" | "executor.resource" | "attester.resource";
+export type PathField =
+	| "resource"
+	| "sources.resource"
+	| "computation"
+	| "executor.resource"
+	| "attester.resource"
+	| "superseded_by";
 
 /**
  * How one reference resolved (D-23, D-24); `via` says which D-23 branch produced a node: `rooted` (a leading

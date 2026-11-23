@@ -317,4 +317,15 @@ describe("decodeConcept", () => {
 		assert.strictEqual(result.concept.generated?.body_sha256, "a".repeat(64));
 		assert.strictEqual(result.issues.length, 0);
 	});
+	it("reads superseded_by as a string; null is absent with no issue, a non-string is value-malformed", () => {
+		const control = decoded({ type: "Metric", superseded_by: "/metrics/gross-margin.md" });
+		assert.strictEqual(control.concept.superseded_by, "/metrics/gross-margin.md");
+		assert.deepStrictEqual(control.issues, []);
+		const absent = decoded({ type: "Metric", superseded_by: null });
+		assert.isFalse("superseded_by" in absent.concept);
+		assert.deepStrictEqual(absent.issues, []);
+		const malformed = decoded({ type: "Metric", superseded_by: 3 });
+		assert.isFalse("superseded_by" in malformed.concept);
+		assert.deepStrictEqual(shape(malformed.issues), [["value-malformed", "superseded_by", ["superseded_by"]]]);
+	});
 });

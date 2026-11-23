@@ -58,6 +58,7 @@ const SCALAR_SCHEMAS = {
 	description: Schema.String,
 	resource: Schema.String,
 	stale_after: Timestamp,
+	superseded_by: Schema.String,
 } as const;
 
 const PARSE_OPTIONS = { errors: "all" } as const;
@@ -371,6 +372,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 		}
 	}
 	scalar("stale_after");
+	scalar("superseded_by");
 
 	if (present("integrity")) {
 		const integrity = decodeFamily(Integrity, "integrity", ["integrity"], raw.integrity, issues, "family-invalid");

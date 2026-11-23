@@ -5,7 +5,13 @@ import { Concept } from "../Concept.js";
 import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
 
 /** Frontmatter fields whose value is a bundle path (D-23). @internal */
-export type PathFieldName = "resource" | "sources.resource" | "computation" | "executor.resource" | "attester.resource";
+export type PathFieldName =
+	| "resource"
+	| "sources.resource"
+	| "computation"
+	| "executor.resource"
+	| "attester.resource"
+	| "superseded_by";
 
 /** Node kind a resolved target lands on (D-25). @internal */
 export type ResolvedKind = "concept" | "file" | "missing";
@@ -157,6 +163,10 @@ export const pathFieldsOf = (concept: Concept): ReadonlyArray<PathFieldRef> => {
 	}
 	if (attested?.attester?.resource !== undefined) {
 		out.push({ field: "attester.resource", raw: attested.attester.resource, path: ["attester", "resource"] });
+	}
+	// OKF 0.3 5.4, 6.2: a scalar path to the concept that replaces this one.
+	if (concept.superseded_by !== undefined) {
+		out.push({ field: "superseded_by", raw: concept.superseded_by, path: ["superseded_by"] });
 	}
 	return out;
 };

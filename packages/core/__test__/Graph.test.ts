@@ -211,4 +211,27 @@ describe("Graph.fromBundle after a dropped sources entry", () => {
 			),
 		),
 	);
+
+	it.effect("superseded_by is a path field and a graph edge (OKF 0.3 §5.4, §6.2)", () =>
+		Effect.gen(function* () {
+			const graph = Graph.fromBundle(yield* Bundle.load({ root: MOUNT }));
+			const edge = graph.edges.find((link) => link.data.field === "superseded_by");
+			assert.strictEqual(edge?.from, "metrics/gross-margin-legacy");
+			assert.strictEqual(edge?.to, "metrics/gross-margin");
+			assert.strictEqual(edge?.data.position?.line, 3);
+			assert.deepStrictEqual(
+				graph.dangling().map((link) => [link.from, link.data.field]),
+				[["metrics/old", "superseded_by"]],
+			);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/metrics/gross-margin.md`]: "---\ntype: Metric\n---\n",
+					[`${MOUNT}/metrics/gross-margin-legacy.md`]:
+						"---\ntype: Metric\nstatus: deprecated\nsuperseded_by: /metrics/gross-margin.md\n---\n",
+					[`${MOUNT}/metrics/old.md`]: "---\ntype: Metric\nstatus: deprecated\nsuperseded_by: ./gone.md\n---\n",
+				}),
+			),
+		),
+	);
 });

@@ -131,11 +131,12 @@ describe("internal/links", () => {
 		}),
 	);
 
-	it.effect("pathFieldsOf lists the five path fields in frontmatter order", () =>
+	it.effect("pathFieldsOf lists the six path fields in frontmatter order", () =>
 		Effect.sync(() => {
 			const concept = new Concept({
 				type: "Attested Computation",
 				resource: "https://example.com/asset",
+				superseded_by: "/metrics/gross-margin.md",
 				sources: [new Source({ resource: "policies/a.md" }), new Source({ resource: "all queries in project X" })],
 				attested: new AttestedComputation({
 					parameters: [],
@@ -143,7 +144,7 @@ describe("internal/links", () => {
 					executor: new ComputationExecutor({ resource: "skills/run.md", receipt: [] }),
 					attester: new ComputationAttester({ resource: "attesters/eq.py" }),
 				}),
-				extensions: {},
+				extensions: { license: "LICENSE.md" },
 				// `Concept.entryPath` reads a hand-built concept's list shape from `raw`.
 				raw: { sources: [{}, {}] },
 			});
@@ -154,7 +155,10 @@ describe("internal/links", () => {
 				{ field: "computation", raw: "lib/q.sql", path: ["computation"] },
 				{ field: "executor.resource", raw: "skills/run.md", path: ["executor", "resource"] },
 				{ field: "attester.resource", raw: "attesters/eq.py", path: ["attester", "resource"] },
+				{ field: "superseded_by", raw: "/metrics/gross-margin.md", path: ["superseded_by"] },
 			]);
+			// D7: an extension key such as `license` is never a path field.
+			assert.isFalse(pathFieldsOf(concept).some((ref) => (ref.field as string) === "license"));
 			assert.deepStrictEqual(pathFieldsOf(new Concept({ type: "Note", extensions: {}, raw: {} })), []);
 		}),
 	);
