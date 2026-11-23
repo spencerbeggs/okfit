@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-23T21:45:40Z
 status: draft
 integrity:
   generated:
-    body: bdce512b5320f487
+    body: b114d078627aa76a
 ---
 
 # Markdown that is not a concept is skipped, not an error
@@ -36,8 +36,11 @@ Core follows §3.2. `frontmatter-missing` (no frontmatter fence) and
 `type-missing` (no non-empty string `type`) are lint codes with default
 severity `warn`, no longer conformance errors. The file is skipped: it is
 not in `concepts`, not in the graph and not in any index. A frontmatter
-block that is not a mapping stays a conformance error under the existing
-`frontmatter-unparseable`, and `frontmatter-unclosed` is unchanged. Both
+block that is not a mapping is a conformance error, now reported as
+`frontmatter-unparseable` (before this work it was `type-missing`), and
+`frontmatter-unclosed` is unchanged. An empty frontmatter block has no
+`type`, so it is `type-missing` (a warning), not a conformance error
+(OKF v0.3 §3.2 rule 2). Both
 new codes are overridable in `[lint]` like any other lint.
 
 A file in the bundle that is a symbolic link whose target resolves outside
@@ -74,5 +77,14 @@ matches §3.2.
 A concept that loses its `type` in an edit now disappears from the graph with
 a warning instead of failing validation, so a team that wants the old
 strictness raises `type_missing` to `error` in `[lint]`. The hook is quieter
-than before until the open question is settled. `sync` never stamps or
-rewrites a file that is a link out of the bundle; an engine test pins that.
+than before until the open question is settled.
+
+`sync` never stamps or rewrites a concept file that is a link out of the
+bundle, because `Bundle.load` drops it, and an engine test pins that. The
+reserved files differ. A root `index.md` that is a symlink out of the bundle
+is not loaded, so its metadata and declared version are not read and the
+bundle reads as legacy. `syncIndex` then renders a fresh root index from the
+concepts alone and `writeAtomic` writes it through the link, as it did
+before this work. A `log.md` in that state is read through the link by
+`syncLog`, finds no loaded log document, and is skipped with the reason
+`log-unparseable`, so it is never rewritten.

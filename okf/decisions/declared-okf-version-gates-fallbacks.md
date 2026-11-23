@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-23T21:45:40Z
 status: draft
 integrity:
   generated:
-    body: 66f0e98d8b2ef563
+    body: 7dfff1022d2a9fdb
 ---
 
 # The declared OKF version gates the v0.2 fallbacks
@@ -58,7 +58,9 @@ current, best effort as §12 asks, and the root index load reports it as
   children of the first `Computation` section, at any heading level. No
   fence means no computation; an empty fence yields an empty string. A fence
   counts only when it opens with three backticks or tildes after at most
-  three spaces of indentation, so an indented code block is not a fence. For
+  three spaces of indentation, so an indented code block is not a fence. The locator looks only at the
+  root-level blocks of the `Computation` section and of its subsections, so a
+  fence nested inside a list item or a block quote is not found. For
   a bundle declaring 0.2 or earlier, or nothing, `computationBody` stays the
   body of the depth-1 `Computation` section.
 

@@ -6,11 +6,11 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-23T21:45:40Z
 status: draft
 integrity:
   generated:
-    body: 0cfa3c3c549fb10e
+    body: ab5fee96929909dd
 ---
 
 # A concept outside the repository is a typed failure
@@ -61,9 +61,10 @@ file, which an engine test pins.
 `log.md` resolves outside the repository: the `log.md` check in
 `packages/engine/src/sync/run.ts` still fails with it, and an engine test
 (`__test__/sync/run.test.ts`) pins that case. The concept-path guard in the
-same function (the check made for each loaded concept) is kept, but whether
-any path through symlinks can still reach it is unverified: the walker does
-not descend a symlinked directory and `Bundle.load` drops an escaping file
-link, which suggests it is unreachable that way, but no test shows it either
-way. A bundle root that is itself a symlink resolving outside the repository
-is the candidate case, and it has not been tested.
+same function (the check made for each loaded concept) is kept as defensive
+code. By reading, it is not reachable through a symlink alone: `Bundle.load`
+drops an escaping file link, the walker never descends a symlinked
+directory, and when the bundle root is itself a symlink `git.repoRoot`
+resolves it physically. Only a race reaches the guard: a file replaced by a
+link between the load and the real-path check. This rests on reading the
+code, not on a test.
