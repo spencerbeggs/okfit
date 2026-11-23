@@ -402,6 +402,22 @@ export const LintTable = Schema.Struct({
 			default: "info",
 		}),
 	),
+	superseded_by_orphan: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "superseded-by-orphan",
+			description:
+				'A concept carries superseded_by but its status is not deprecated; superseded_by has a meaning only with status: deprecated (OKF 0.3 §5.4). Default "warn".',
+			default: "warn",
+		}),
+	),
+	superseded_by_unresolved: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "superseded-by-unresolved",
+			description:
+				'A deprecated concept\'s superseded_by resolves to an asset, an external value or the concept itself rather than a replacement concept (OKF 0.3 §5.4). A missing target is reported by broken-links. Default "warn".',
+			default: "warn",
+		}),
+	),
 	generated_missing: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "generated-missing",
@@ -731,6 +747,8 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"resource-ignored": "resource_ignored",
 	"resource-untracked": "resource_untracked",
 	"resource-outside-project": "resource_outside_project",
+	"superseded-by-orphan": "superseded_by_orphan",
+	"superseded-by-unresolved": "superseded_by_unresolved",
 	"generated-missing": "generated_missing",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
@@ -771,6 +789,8 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	resource_ignored: "error",
 	resource_untracked: "warn",
 	resource_outside_project: "info",
+	superseded_by_orphan: "warn",
+	superseded_by_unresolved: "warn",
 	generated_missing: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",

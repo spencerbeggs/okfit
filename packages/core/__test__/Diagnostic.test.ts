@@ -59,6 +59,8 @@ describe("Diagnostic", () => {
 				"resource-ignored",
 				"resource-untracked",
 				"resource-outside-project",
+				"superseded-by-orphan",
+				"superseded-by-unresolved",
 				"frontmatter-missing",
 				"type-missing",
 				"symlink-escape",

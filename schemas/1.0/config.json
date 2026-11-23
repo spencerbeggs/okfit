@@ -753,6 +753,50 @@
 						}
 					}
 				},
+				"superseded_by_orphan": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "superseded-by-orphan",
+					"description": "A concept carries superseded_by but its status is not deprecated; superseded_by has a meaning only with status: deprecated (OKF 0.3 §5.4). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"superseded_by_unresolved": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "superseded-by-unresolved",
+					"description": "A deprecated concept's superseded_by resolves to an asset, an external value or the concept itself rather than a replacement concept (OKF 0.3 §5.4). A missing target is reported by broken-links. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"generated_missing": {
 					"type": "string",
 					"enum": [

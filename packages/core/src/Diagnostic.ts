@@ -51,6 +51,8 @@ export const LintCode = Schema.Literals([
 	"resource-ignored",
 	"resource-untracked",
 	"resource-outside-project",
+	"superseded-by-orphan",
+	"superseded-by-unresolved",
 	"index-metadata-invalid",
 	"entry-ignored",
 	"value-malformed",

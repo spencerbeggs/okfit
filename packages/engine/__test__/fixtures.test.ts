@@ -74,17 +74,26 @@ describe("ERROR_PROJECTS: one defect each", () => {
 					["metrics/margin-legacy.md", "broken-links"],
 				],
 			);
+			// one defect, one diagnostic: the missing target is not also superseded-by-unresolved
+			assert.isFalse(lintOf(bundle).some((d) => d.code === "superseded-by-unresolved"));
 			const clean = yield* load(V03_PROJECT);
 			assert.isFalse(lintOf(clean).some((d) => d.code === "broken-links"));
+			assert.isFalse(lintOf(clean).some((d) => d.code.startsWith("superseded-by")));
+		}),
+	);
+	it.effect("superseded-by-orphan yields superseded-by-orphan on margin-legacy; the clean seed yields none", () =>
+		Effect.gen(function* () {
+			const { bundle } = yield* loadsClean("superseded-by-orphan");
+			assert.deepStrictEqual(
+				lintOf(bundle)
+					.filter((d) => d.code.startsWith("superseded-by"))
+					.map((d) => [d.file, d.code]),
+				[["metrics/margin-legacy.md", "superseded-by-orphan"]],
+			);
 		}),
 	);
 	// Later tasks define the expectation for these; today each loads with only the README note.
-	for (const name of [
-		"superseded-by-orphan",
-		"empty-required-title",
-		"resource-outside-project",
-		"resource-missing-in-repository",
-	] as const) {
+	for (const name of ["empty-required-title", "resource-outside-project", "resource-missing-in-repository"] as const) {
 		it.effect(`${name} loads and carries its one defect`, () =>
 			Effect.gen(function* () {
 				const { codes } = yield* loadsClean(name);
