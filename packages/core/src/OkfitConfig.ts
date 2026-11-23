@@ -273,7 +273,8 @@ export const LintTable = Schema.Struct({
 	actor_prefix_unknown: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "actor-prefix-unknown",
-			description: 'An actor\'s prefix is not human, process, or a producer shape. Default "info".',
+			description:
+				'An actor in generated.by, verified[].by or sources[].author uses a scheme other than human, team, process or a producer shape; it is accepted and read as non-human. Default "info".',
 			default: "info",
 		}),
 	),

@@ -117,3 +117,37 @@ describe("actor-prefix-unknown after a dropped verified entry", () => {
 		),
 	);
 });
+
+describe("actor-prefix-unknown", () => {
+	const run = (text: string) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			const found = Validate.lint(bundle, { extensions: {} } as unknown as OkfitConfig).filter(
+				(d) => d.code === "actor-prefix-unknown",
+			);
+			return found.map((d) => ({
+				message: d.message,
+				text: d.range === undefined ? undefined : text.slice(d.range.offset, d.range.offset + d.range.length),
+			}));
+		}).pipe(Effect.provide(platform({ [`${MOUNT}/n.md`]: text })));
+
+	it.effect("accepts team: and flags only the unknown scheme in sources[].author", () => {
+		const text =
+			"---\ntype: Note\ngenerated:\n  by: team:writers\n  at: 2026-06-25T09:00:00Z\nsources:\n  - resource: a.md\n    author: team:platform\n  - resource: b.md\n    author: crew:x\n---\n";
+		return Effect.gen(function* () {
+			const found = yield* run(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0]?.text, "crew:x");
+			assert.include(found[0]?.message ?? "", "team:<id>");
+		});
+	});
+
+	it.effect("ranges a source author at its own line after an ignored entry", () => {
+		const text = "---\ntype: Note\nsources:\n  - title: no resource\n  - resource: b.md\n    author: crew:x\n---\n";
+		return Effect.gen(function* () {
+			const found = yield* run(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0]?.text, "crew:x");
+		});
+	});
+});

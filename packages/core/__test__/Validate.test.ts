@@ -150,7 +150,7 @@ describe("Validate", () => {
 			assert.isDefined(actorRange);
 			assert.strictEqual(
 				adr!.document.source.slice(actorRange!.offset, actorRange!.offset + actorRange!.length),
-				"team:platform",
+				"crew:platform",
 			);
 
 			const staleRange = byCode("stale")[0]?.range;

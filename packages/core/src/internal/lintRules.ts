@@ -135,12 +135,16 @@ export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (
 			by: entry.by,
 			path: [...Concept.entryPath(concept.frontmatter, "verified", index), "by"] as ReadonlyArray<string | number>,
 		})),
+		...(concept.frontmatter.sources ?? []).map((entry, index) => ({
+			by: entry.author,
+			path: [...Concept.entryPath(concept.frontmatter, "sources", index), "author"] as ReadonlyArray<string | number>,
+		})),
 	];
 	const out: Array<RangedMessage> = [];
 	for (const candidate of candidates) {
 		if (candidate.by === undefined || Actor.form(candidate.by) !== "other") continue;
 		out.push({
-			message: `Actor "${candidate.by}" uses an unknown prefix; expected human:<id>, process:<id>, or <producer>/<version>`,
+			message: `Actor "${candidate.by}" uses an unknown prefix; expected human:<id>, team:<id>, process:<id>, or <producer>/<version>`,
 			path: candidate.path,
 		});
 	}

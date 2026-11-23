@@ -56,6 +56,7 @@ describe("Derive", () => {
 				verified: [verifiedBy("process:nightly"), verifiedBy("reference_agent/gemini-2.5-pro")],
 			});
 			assert.strictEqual(Derive.trustTier(machine), "machine-confirmed");
+			assert.strictEqual(Derive.trustTier(metric({ verified: [verifiedBy("team:finance-fpa")] })), "machine-confirmed");
 			const human = metric({ verified: [verifiedBy("process:nightly"), verifiedBy("human:jsmith@acme")] });
 			assert.strictEqual(Derive.trustTier(human), "human-reviewed");
 		}),
