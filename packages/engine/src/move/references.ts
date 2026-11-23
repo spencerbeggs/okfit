@@ -49,38 +49,78 @@ interface FieldPath {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
+interface CoreField {
+	/** The top-level frontmatter key the field lives under. */
+	readonly key: string;
+	/** Whether the key holds the path itself, so a declared extension field of that name would double it. */
+	readonly scalar: boolean;
+	/** The field's path values in this frontmatter. */
+	readonly read: (raw: Record<string, unknown>) => ReadonlyArray<Found>;
+}
+
+type Found = Omit<FieldPath, "field">;
+
+const scalarAt = (raw: Record<string, unknown>, key: string): ReadonlyArray<Found> => {
+	const value = raw[key];
+	return typeof value === "string" ? [{ path: [key], value }] : [];
+};
+
+const nestedAt = (raw: Record<string, unknown>, key: string, inner: string): ReadonlyArray<Found> => {
+	const holder = raw[key];
+	const value = isRecord(holder) ? holder[inner] : undefined;
+	return typeof value === "string" ? [{ path: [key, inner], value }] : [];
+};
+
 /**
- * Top-level frontmatter keys core already reads as a scalar path field (OKF 0.3 5.4, 6.2, 10.2): a
- * declared `kind = "path"` field of the same name is skipped so no reference is listed twice. The
- * dotted core fields (`sources.resource`, `executor.resource`, `attester.resource`) are read below.
+ * Every path field core reads (OKF 0.3 5.4, 6.2, 10.2, 11.2). Typed `Record<PathField, ...>` so a new
+ * member of core's `PathField` is a compile error here until `mv` handles it.
  */
-const CORE_SCALAR_KEYS: ReadonlySet<string> = new Set(["resource", "computation", "superseded_by"]);
+const CORE_FIELDS: Record<PathField, CoreField> = {
+	resource: { key: "resource", scalar: true, read: (raw) => scalarAt(raw, "resource") },
+	"sources.resource": {
+		key: "sources",
+		scalar: false,
+		read: (raw) => {
+			const { sources } = raw;
+			// OKF 0.3 11.2 rule 2: a single mapping stands for a one-item list.
+			if (isRecord(sources)) return nestedAt(raw, "sources", "resource");
+			if (!Array.isArray(sources)) return [];
+			return sources.flatMap((entry, i) =>
+				isRecord(entry) && typeof entry.resource === "string"
+					? [{ path: ["sources", i, "resource"], value: entry.resource }]
+					: [],
+			);
+		},
+	},
+	// The Attested Computation keys sit at the frontmatter top level (OKF 0.3 10.2).
+	computation: { key: "computation", scalar: true, read: (raw) => scalarAt(raw, "computation") },
+	"executor.resource": {
+		key: "executor",
+		scalar: false,
+		read: (raw) => nestedAt(raw, "executor", "resource"),
+	},
+	"attester.resource": {
+		key: "attester",
+		scalar: false,
+		read: (raw) => nestedAt(raw, "attester", "resource"),
+	},
+	superseded_by: { key: "superseded_by", scalar: true, read: (raw) => scalarAt(raw, "superseded_by") },
+};
+
+/** Keys a declared `kind = "path"` extension field must not reuse: core already lists them. */
+const CORE_SCALAR_KEYS: ReadonlySet<string> = new Set(
+	Object.values(CORE_FIELDS)
+		.filter((field) => field.scalar)
+		.map((field) => field.key),
+);
 
 /** The frontmatter paths whose values are bundle paths, for this concept. */
 const fieldPaths = (concept: LoadedConcept, config: OkfitConfig): ReadonlyArray<FieldPath> => {
 	const raw = concept.frontmatter.raw;
 	const out: Array<FieldPath> = [];
-	if (typeof raw.resource === "string") out.push({ path: ["resource"], value: raw.resource, field: "resource" });
-	if (Array.isArray(raw.sources)) {
-		raw.sources.forEach((entry, i) => {
-			if (isRecord(entry) && typeof entry.resource === "string")
-				out.push({ path: ["sources", i, "resource"], value: entry.resource, field: "sources.resource" });
-		});
-	} else if (isRecord(raw.sources) && typeof raw.sources.resource === "string") {
-		// OKF 0.3 11.2 rule 2: a single mapping stands for a one-item list.
-		out.push({ path: ["sources", "resource"], value: raw.sources.resource, field: "sources.resource" });
+	for (const [field, core] of Object.entries(CORE_FIELDS) as Array<[PathField, CoreField]>) {
+		for (const found of core.read(raw)) out.push({ ...found, field });
 	}
-	// The Attested Computation keys sit at the frontmatter top level (OKF 0.3 10.2).
-	if (typeof raw.computation === "string")
-		out.push({ path: ["computation"], value: raw.computation, field: "computation" });
-	const executor = raw.executor;
-	if (isRecord(executor) && typeof executor.resource === "string")
-		out.push({ path: ["executor", "resource"], value: executor.resource, field: "executor.resource" });
-	const attester = raw.attester;
-	if (isRecord(attester) && typeof attester.resource === "string")
-		out.push({ path: ["attester", "resource"], value: attester.resource, field: "attester.resource" });
-	if (typeof raw.superseded_by === "string")
-		out.push({ path: ["superseded_by"], value: raw.superseded_by, field: "superseded_by" });
 	const declared = config.types?.[concept.frontmatter.type]?.fields ?? {};
 	for (const [key, declaration] of Object.entries(declared)) {
 		if (declaration.kind !== "path" || CORE_SCALAR_KEYS.has(key)) continue;
