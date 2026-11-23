@@ -49,6 +49,13 @@ interface FieldPath {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
+/**
+ * Top-level frontmatter keys core already reads as a scalar path field (OKF 0.3 5.4, 6.2, 10.2): a
+ * declared `kind = "path"` field of the same name is skipped so no reference is listed twice. The
+ * dotted core fields (`sources.resource`, `executor.resource`, `attester.resource`) are read below.
+ */
+const CORE_SCALAR_KEYS: ReadonlySet<string> = new Set(["resource", "computation", "superseded_by"]);
+
 /** The frontmatter paths whose values are bundle paths, for this concept. */
 const fieldPaths = (concept: LoadedConcept, config: OkfitConfig): ReadonlyArray<FieldPath> => {
 	const raw = concept.frontmatter.raw;
@@ -59,21 +66,24 @@ const fieldPaths = (concept: LoadedConcept, config: OkfitConfig): ReadonlyArray<
 			if (isRecord(entry) && typeof entry.resource === "string")
 				out.push({ path: ["sources", i, "resource"], value: entry.resource, field: "sources.resource" });
 		});
+	} else if (isRecord(raw.sources) && typeof raw.sources.resource === "string") {
+		// OKF 0.3 11.2 rule 2: a single mapping stands for a one-item list.
+		out.push({ path: ["sources", "resource"], value: raw.sources.resource, field: "sources.resource" });
 	}
-	const attested = raw.attested;
-	if (isRecord(attested)) {
-		if (typeof attested.computation === "string")
-			out.push({ path: ["attested", "computation"], value: attested.computation, field: "computation" });
-		const executor = attested.executor;
-		if (isRecord(executor) && typeof executor.resource === "string")
-			out.push({ path: ["attested", "executor", "resource"], value: executor.resource, field: "executor.resource" });
-		const attester = attested.attester;
-		if (isRecord(attester) && typeof attester.resource === "string")
-			out.push({ path: ["attested", "attester", "resource"], value: attester.resource, field: "attester.resource" });
-	}
+	// The Attested Computation keys sit at the frontmatter top level (OKF 0.3 10.2).
+	if (typeof raw.computation === "string")
+		out.push({ path: ["computation"], value: raw.computation, field: "computation" });
+	const executor = raw.executor;
+	if (isRecord(executor) && typeof executor.resource === "string")
+		out.push({ path: ["executor", "resource"], value: executor.resource, field: "executor.resource" });
+	const attester = raw.attester;
+	if (isRecord(attester) && typeof attester.resource === "string")
+		out.push({ path: ["attester", "resource"], value: attester.resource, field: "attester.resource" });
+	if (typeof raw.superseded_by === "string")
+		out.push({ path: ["superseded_by"], value: raw.superseded_by, field: "superseded_by" });
 	const declared = config.types?.[concept.frontmatter.type]?.fields ?? {};
 	for (const [key, declaration] of Object.entries(declared)) {
-		if (declaration.kind !== "path" || key === "resource") continue;
+		if (declaration.kind !== "path" || CORE_SCALAR_KEYS.has(key)) continue;
 		const value = raw[key];
 		if (typeof value === "string") out.push({ path: [key], value });
 		else if (Array.isArray(value)) {

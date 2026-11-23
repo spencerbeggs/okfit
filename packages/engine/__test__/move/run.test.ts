@@ -1,14 +1,18 @@
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { NodeCrypto } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import type { ActorPattern } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import { DateTime, Effect, Exit } from "effect";
+import { DateTime, Effect, Exit, Layer } from "effect";
 import { MoveError } from "../../src/errors.js";
 import { planMove, runMove } from "../../src/move/run.js";
+import type { ProjectSeed } from "../fixtures/bundles.js";
+import { V03_PROJECT } from "../fixtures/bundles.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { projectPlatform } from "../utils/bundle.js";
 import type { TestServices } from "../utils/platform.js";
 import { TestPlatform } from "../utils/platform.js";
 
@@ -394,5 +398,51 @@ describe("runMove", () => {
 				assert.strictEqual(nested.to, "topics/walk2.md");
 			}),
 		),
+	);
+});
+
+describe("planMove over an OKF 0.3 bundle (memfs)", () => {
+	// `okf/README.md` has no `type`, which `mv` refuses to move around (R8 is phase 4's): leave it out.
+	const base: ProjectSeed = Object.fromEntries(
+		Object.entries(V03_PROJECT).filter(([path]) => path !== "okf/README.md"),
+	);
+	const platform = Layer.mergeAll(projectPlatform(base), NodeCrypto.layerDigest);
+	const pathsConfig: OkfitConfig = { ...OkfitConfig.DEFAULTS, types: { Metric: {}, "Attested Computation": {} } };
+	const plan = (from: string, to: string, project: ProjectSeed = base) =>
+		planMove({ from, to, cwd: "/repo/okf", bundleRoot: "/repo/okf", config: pathsConfig, now: AT }).pipe(
+			Effect.provide(Layer.mergeAll(projectPlatform(project), NodeCrypto.layerDigest)),
+		);
+
+	it.effect("rewrites superseded_by, keeping its leading /", () =>
+		Effect.gen(function* () {
+			const result = yield* plan("metrics/margin", "metrics/gross-margin");
+			const legacy = result.edits.find((edit) => edit.path === "metrics/margin-legacy.md");
+			assert.isDefined(legacy);
+			assert.include(legacy?.text, "superseded_by: /metrics/gross-margin.md\n");
+			assert.notInclude(legacy?.text, "superseded_by: /metrics/margin.md");
+			// Control: a move that no concept's superseded_by names leaves margin-legacy.md untouched.
+			const other = yield* plan("metrics/revenue", "metrics/net-revenue");
+			assert.isUndefined(other.edits.find((edit) => edit.path === "metrics/margin-legacy.md"));
+			assert.isDefined(other.edits.find((edit) => edit.path === "computations/revenue-ytd.md"));
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("rewrites the top-level computation, executor, attester and a single-mapping sources", () =>
+		Effect.gen(function* () {
+			const project: ProjectSeed = {
+				...base,
+				"okf/computations/revenue-ytd.md":
+					"---\ntype: Attested Computation\ntitle: Revenue year to date\ndescription: Sums revenue.\nstatus: stable\nruntime: sql\n" +
+					"computation: ../metrics/margin.md\nexecutor:\n  resource: /metrics/margin.md\nattester:\n  resource: ../metrics/margin.md\n" +
+					"sources:\n  resource: /metrics/margin.md\n---\n\n# Revenue year to date\n\nText.\n",
+			};
+			const result = yield* plan("metrics/margin", "metrics/gross-margin", project);
+			const text = result.edits.find((edit) => edit.path === "computations/revenue-ytd.md")?.text ?? "";
+			assert.include(text, "computation: ../metrics/gross-margin.md\n");
+			assert.include(text, "executor:\n  resource: /metrics/gross-margin.md\n");
+			assert.include(text, "attester:\n  resource: ../metrics/gross-margin.md\n");
+			assert.include(text, "sources:\n  resource: /metrics/gross-margin.md\n");
+			assert.notInclude(text, "/margin.md");
+		}).pipe(Effect.provide(platform)),
 	);
 });
