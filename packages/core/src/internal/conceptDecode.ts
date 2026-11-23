@@ -26,6 +26,7 @@ export interface FamilyIssue {
 		| "family-invalid"
 		| "entry-ignored"
 		| "value-malformed"
+		| "value-unknown"
 		| "legacy-timestamp"
 		| "computation-runtime-missing";
 	readonly family: string;
@@ -56,7 +57,6 @@ const SCALAR_SCHEMAS = {
 	title: Schema.String,
 	description: Schema.String,
 	resource: Schema.String,
-	status: Status,
 	stale_after: Timestamp,
 } as const;
 
@@ -260,6 +260,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 	const known = new Set<string>([
 		"type",
 		...Object.keys(SCALAR_SCHEMAS),
+		"status",
 		"tags",
 		"sources",
 		"usage_window",
@@ -353,7 +354,19 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 		}
 	}
 
-	for (const key of ["status", "stale_after"] as const) scalar(key);
+	if (present("status")) {
+		// OKF 0.3 11.2 rule 4: a value outside the vocabulary (or of the wrong type) is kept in `raw`, reported, never typed.
+		if (Schema.is(Status)(raw.status)) out.status = raw.status;
+		else {
+			issues.push({
+				code: "value-unknown",
+				family: "status",
+				path: ["status"],
+				message: "expected draft, stable or deprecated",
+			});
+		}
+	}
+	scalar("stale_after");
 
 	if (present("integrity")) {
 		const integrity = decodeFamily(Integrity, "integrity", ["integrity"], raw.integrity, issues, "family-invalid");

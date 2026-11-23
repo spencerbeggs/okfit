@@ -819,6 +819,28 @@
 							]
 						}
 					}
+				},
+				"value_unknown": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "value-unknown",
+					"description": "A defined key carries a value outside its vocabulary (today: status); the value is kept and the concept is not read as current knowledge (OKF 0.3 §5.4, §11.2 rule 4). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
 				}
 			},
 			"additionalProperties": false,

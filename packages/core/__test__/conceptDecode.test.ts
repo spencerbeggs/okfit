@@ -51,6 +51,20 @@ describe("decodeConcept", () => {
 		assert.deepStrictEqual(shape(issues), [["value-malformed", "generated", ["generated", "at"]]]);
 		assert.include(issues[0]!.message, "explicit offset");
 	});
+	it("reads an out-of-vocabulary status as value-unknown and keeps it raw; a bad stale_after stays value-malformed", () => {
+		const { concept, issues } = decoded({ type: "Note", status: "archived", stale_after: "90d" });
+		assert.isFalse("status" in concept);
+		assert.strictEqual(concept.raw.status, "archived");
+		assert.deepStrictEqual(shape(issues), [
+			["value-unknown", "status", ["status"]],
+			["value-malformed", "stale_after", ["stale_after"]],
+		]);
+		const wrongType = decoded({ type: "Note", status: 5 });
+		assert.deepStrictEqual(shape(wrongType.issues), [["value-unknown", "status", ["status"]]]);
+		const control = decoded({ type: "Note", status: "draft" });
+		assert.strictEqual(control.concept.status, "draft");
+		assert.deepStrictEqual(control.issues, []);
+	});
 	it("folds a legacy timestamp into generated.at, keeps the key in extensions, ignores it when generated exists", () => {
 		const { concept, issues } = decoded({ type: "Metric", timestamp: "2026-05-28T22:53:05+00:00" });
 		assert.instanceOf(concept.generated, Generated);

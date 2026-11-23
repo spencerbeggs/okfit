@@ -58,7 +58,7 @@ export {
 export type { OkfVersionNumber } from "./OkfVersion.js";
 export { OkfVersion } from "./OkfVersion.js";
 export { Source, UsageWindow } from "./Source.js";
-export { Status } from "./Status.js";
+export { DerivedStatus, Status } from "./Status.js";
 export { Timestamp } from "./Timestamp.js";
 export type { ValidateOptions, ValidationReport } from "./Validate.js";
 export { Validate } from "./Validate.js";

@@ -6,7 +6,7 @@ import type { Concept } from "./Concept.js";
 import type { ConceptId } from "./ConceptId.js";
 import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
 import { indexDocument, logEntry } from "./internal/templates.js";
-import type { Status } from "./Status.js";
+import type { DerivedStatus } from "./Status.js";
 
 /** Trust tier from `verified` (OKF 0.2 §5.3): none maps to unverified; only non-human maps to machine-confirmed; any `human:` maps to human-reviewed. @public */
 export const TrustTier = Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]);
@@ -14,8 +14,8 @@ export const TrustTier = Schema.Literals(["unverified", "machine-confirmed", "hu
 /** @public */
 export type TrustTier = typeof TrustTier.Type;
 
-/** Three-way staleness; `unknown` means no `stale_after`. @public */
-export const Staleness = Schema.Literals(["fresh", "stale", "unknown"]);
+/** Staleness; `unknown` means no `stale_after`, `malformed` a `stale_after` okfit cannot read (OKF 0.3 §5.5). @public */
+export const Staleness = Schema.Literals(["fresh", "stale", "unknown", "malformed"]);
 
 /** @public */
 export type Staleness = typeof Staleness.Type;
@@ -73,13 +73,30 @@ export class Derive {
 		return verified.some((entry) => Actor.isHuman(entry.by)) ? "human-reviewed" : "machine-confirmed";
 	};
 
-	/** Absent `status` reads as `stable` (OKF 0.2 §5.4). */
-	static readonly status = (concept: Concept): Status => concept.status ?? "stable";
+	/**
+	 * The typed status; `unknown` when `raw.status` is present (not `null` or `""`) but outside the
+	 * vocabulary; `stable` when absent (OKF 0.3 §5.4).
+	 */
+	static readonly status = (concept: Concept): DerivedStatus => {
+		if (concept.status !== undefined) return concept.status;
+		return Derive.rawStatus(concept) === undefined ? "stable" : "unknown";
+	};
 
-	/** `stale` when `now >= stale_after` (OKF 0.2 §5.5); `unknown` without `stale_after`. */
+	/** The `status` value as written, as text for display; `undefined` when absent, `null` or `""`. */
+	static readonly rawStatus = (concept: Concept): string | undefined => {
+		const value: unknown = concept.raw.status;
+		if (value === undefined || value === null || value === "") return undefined;
+		return typeof value === "string" ? value : JSON.stringify(value);
+	};
+
+	/**
+	 * `stale` when `now >= stale_after` (OKF 0.3 §5.5); `unknown` without `stale_after`; `malformed`
+	 * when `raw.stale_after` is present (not `null` or `""`) but unreadable, so never fresh and never stale.
+	 */
 	static readonly staleness = (concept: Concept, now: DateTime.Utc): Staleness => {
 		if (concept.stale_after === undefined) {
-			return "unknown";
+			const raw: unknown = concept.raw.stale_after;
+			return raw === undefined || raw === null || raw === "" ? "unknown" : "malformed";
 		}
 		return DateTime.toEpochMillis(now) >= DateTime.toEpochMillis(concept.stale_after) ? "stale" : "fresh";
 	};

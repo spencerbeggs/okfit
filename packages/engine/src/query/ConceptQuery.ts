@@ -111,7 +111,8 @@ export const ConceptQuery = {
 						if (types.length > 0 && !types.includes(concept.frontmatter.type)) return false;
 						const tags = concept.frontmatter.tags ?? [];
 						if (!requestedTags.every((tag) => tags.includes(tag))) return false;
-						if (statuses.length > 0 && !statuses.includes(Derive.status(concept.frontmatter))) return false;
+						if (statuses.length > 0 && !statuses.some((wanted) => wanted === Derive.status(concept.frontmatter)))
+							return false;
 						const signal = signals.get(concept.id);
 						if (signal !== undefined) {
 							if (filter.verified === "current" && signal.integrity !== "current") return false;

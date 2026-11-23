@@ -425,6 +425,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	value_unknown: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "value-unknown",
+			description:
+				'A defined key carries a value outside its vocabulary (today: status); the value is kept and the concept is not read as current knowledge (OKF 0.3 §5.4, §11.2 rule 4). Default "warn".',
+			default: "warn",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -696,6 +704,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"index-metadata-invalid": "index_metadata_invalid",
 	"entry-ignored": "entry_ignored",
 	"value-malformed": "value_malformed",
+	"value-unknown": "value_unknown",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -731,6 +740,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	index_metadata_invalid: "warn",
 	entry_ignored: "warn",
 	value_malformed: "warn",
+	value_unknown: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

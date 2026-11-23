@@ -44,6 +44,7 @@ const VALUES = [
 	"GraphNodeKind",
 	"LinkGraph",
 	"Derive",
+	"DerivedStatus",
 	"OkfVersion",
 	"Staleness",
 	"TrustTier",

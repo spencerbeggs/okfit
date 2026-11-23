@@ -7,6 +7,7 @@ import { Concept } from "../src/Concept.js";
 import { ConceptId } from "../src/ConceptId.js";
 import { Derive } from "../src/Derive.js";
 import { Verification } from "../src/Verification.js";
+import { conceptWithRaw, conceptWithStaleAfter, conceptWithStatus } from "./utils/conceptBuilders.js";
 import { MOUNT, platform as memPlatform } from "./utils/fixtures.js";
 import { platformFor } from "./utils/lintFixtures.js";
 
@@ -76,6 +77,34 @@ describe("Derive", () => {
 			assert.strictEqual(Derive.staleness(concept, staleAfter), "stale");
 			assert.isFalse(Derive.isStale(metric({}), staleAfter));
 			assert.isTrue(Derive.isStale(concept, DateTime.makeUnsafe("2027-01-01T00:00:00Z")));
+		}),
+	);
+
+	it.effect(
+		"status: an unknown value reads unknown and keeps its raw text; null and empty read stable (OKF 0.3 §5.4, D3)",
+		() =>
+			Effect.sync(() => {
+				const archived = conceptWithRaw({ status: "archived" });
+				assert.strictEqual(Derive.status(archived), "unknown");
+				assert.strictEqual(Derive.rawStatus(archived), "archived");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: 5 })), "unknown");
+				assert.strictEqual(Derive.rawStatus(conceptWithRaw({ status: 5 })), "5");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: null })), "stable");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: "" })), "stable");
+				assert.strictEqual(Derive.status(conceptWithRaw({})), "stable");
+				assert.isUndefined(Derive.rawStatus(conceptWithRaw({})));
+				assert.strictEqual(Derive.status(conceptWithStatus("deprecated")), "deprecated");
+			}),
+	);
+
+	it.effect("staleness: an unparsable stale_after is malformed, never fresh and never stale (OKF 0.3 §5.5, D4)", () =>
+		Effect.sync(() => {
+			const now = DateTime.makeUnsafe("2026-07-01T00:00:00Z");
+			const bad = conceptWithRaw({ stale_after: "next tuesday" });
+			assert.strictEqual(Derive.staleness(bad, now), "malformed");
+			assert.isFalse(Derive.isStale(bad, now));
+			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: null }), now), "unknown");
+			assert.strictEqual(Derive.staleness(conceptWithStaleAfter("2026-06-01T00:00:00Z"), now), "stale");
 		}),
 	);
 

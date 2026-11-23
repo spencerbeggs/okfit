@@ -1,5 +1,5 @@
 import { ToolOutcome } from "@effected/mcp-kit";
-import { GraphNodeKind, Status } from "@okfit/core";
+import { DerivedStatus, GraphNodeKind, Status } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
@@ -93,7 +93,7 @@ export const GetConceptFound = Schema.Struct({
 	type: Schema.String,
 	title: Schema.String,
 	description: Schema.NullOr(Schema.String),
-	status: Status,
+	status: DerivedStatus,
 	tags: Schema.Array(Schema.String),
 	path: Schema.String,
 	frontmatter: Schema.Record(Schema.String, Schema.Unknown),

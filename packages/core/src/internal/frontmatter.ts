@@ -14,6 +14,7 @@ const FAMILY_ISSUE_SEVERITY: Record<FamilyIssue["code"], DiagnosticSeverity> = {
 	"computation-runtime-missing": "error",
 	"entry-ignored": "warning",
 	"value-malformed": "warning",
+	"value-unknown": "warning",
 };
 
 interface Context {

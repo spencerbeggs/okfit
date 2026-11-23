@@ -3,11 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
-import type { LoadedBundle } from "@okfit/core";
+import { MemoryFileSystem } from "@effected/memfs";
+import type { LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
-import { Cause, Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit, Layer, Path } from "effect";
 import { ConceptQuery } from "../../src/query/ConceptQuery.js";
+import { toConceptSummary } from "../../src/render/query.js";
+import { ROOT } from "../utils/bundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 
@@ -108,6 +111,35 @@ describe("ConceptQuery.list", () => {
 				assert.deepStrictEqual(error.valid, ["architecture", "dx"]);
 			}),
 		),
+	);
+});
+
+describe("ConceptQuery.list with an unknown status", () => {
+	const seed = {
+		[`${ROOT}/archived.md`]: "---\ntype: Decision\nstatus: archived\n---\n\n# Archived\n",
+		[`${ROOT}/live.md`]: "---\ntype: Decision\nstatus: stable\n---\n\n# Live\n",
+	};
+	const memPlatform = Layer.mergeAll(MemoryFileSystem.layerWith(seed), Path.layer);
+	const unknownSignals: ReadonlyMap<string, ConceptSignal> = new Map<string, ConceptSignal>([
+		["archived", { tier: "unverified", integrity: "none", stale: false }],
+		["live", { tier: "unverified", integrity: "none", stale: false }],
+	]);
+
+	it.effect("filters statuses: [stable] to the stable concept and summarizes the archived one as unknown", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			assert.deepStrictEqual(ids(yield* ConceptQuery.list(bundle, config, { statuses: ["stable"] }, unknownSignals)), [
+				"live",
+			]);
+			const all = yield* ConceptQuery.list(bundle, config, {}, unknownSignals);
+			assert.deepStrictEqual(ids(all), ["archived", "live"]);
+			const summary = toConceptSummary(all[0] as LoadedConcept, unknownSignals.get("archived") as ConceptSignal);
+			assert.strictEqual(summary.status, "unknown");
+			assert.strictEqual(
+				toConceptSummary(all[1] as LoadedConcept, unknownSignals.get("live") as ConceptSignal).status,
+				"stable",
+			);
+		}).pipe(Effect.provide(memPlatform)),
 	);
 });
 
