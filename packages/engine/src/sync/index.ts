@@ -63,6 +63,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 /**
  * Contract §7. The root index keeps its existing frontmatter verbatim (D6);
  * `OKF_SPEC_VERSION` only fills a root index that declares no `okf_version`.
+ *
  * Directories: the bundle root plus every directory in
  * `Derive.indexDirectories` -- each directory holding a concept and its
  * ancestors, which a parent index links to (S-20, amended: an ancestor with

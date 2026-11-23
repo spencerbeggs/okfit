@@ -9,6 +9,7 @@ export interface OkfVersionNumber {
 
 const VERSION = /^(\d+)\.(\d+)$/;
 
+// The last version before the v0.3 rules: at or below it a bundle keeps the v0.2 fallbacks.
 const LEGACY: OkfVersionNumber = { major: 0, minor: 2 };
 
 /**

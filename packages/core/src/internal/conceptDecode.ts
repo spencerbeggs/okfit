@@ -131,13 +131,13 @@ export const decodeMapping = (
 	}
 	const out: Record<string, unknown> = {};
 	const dropped: Array<FamilyIssue> = [];
+	const ignore = (message: string): undefined => {
+		issues.push({ code: "entry-ignored", family, path, message });
+		return undefined;
+	};
 	for (const key of Object.keys(fields)) {
 		const isRequired = required.includes(key);
 		const present = Object.hasOwn(value, key) && !isAbsent(value[key]);
-		const ignore = (message: string): undefined => {
-			issues.push({ code: "entry-ignored", family, path, message });
-			return undefined;
-		};
 		if (isRequired && !present) return ignore(`\`${key}\` is required`);
 		const schema = Schema.Struct({
 			[key]: fields[key] as Schema.Struct.Fields[string],
@@ -157,6 +157,12 @@ export const decodeMapping = (
 	return out;
 };
 
+/** A schema class decoded key by key: its declared `fields` and its constructor. */
+interface MappingClass<A> {
+	readonly fields: Schema.Struct.Fields;
+	readonly make: (input: never) => A;
+}
+
 /** A list family's items (rule 2: a non-list is a list of one) and each item's YAML path. */
 const itemsOf = (key: string, value: unknown): ReadonlyArray<{ readonly item: unknown; readonly path: YamlPath }> =>
 	Array.isArray(value) ? value.map((item, index) => ({ item, path: [key, index] })) : [{ item: value, path: [key] }];
@@ -166,17 +172,16 @@ const decodeMappingList = <A>(
 	key: string,
 	family: string,
 	value: unknown,
-	fields: Schema.Struct.Fields,
+	cls: MappingClass<A>,
 	required: ReadonlyArray<string>,
-	make: (decoded: Record<string, unknown>) => A,
 	issues: Array<FamilyIssue>,
 ): { readonly values: ReadonlyArray<A>; readonly paths: ReadonlyArray<YamlPath> } | undefined => {
 	const values: Array<A> = [];
 	const paths: Array<YamlPath> = [];
 	for (const { item, path } of itemsOf(key, value)) {
-		const decoded = decodeMapping(fields, required, item, path, family, issues);
+		const decoded = decodeMapping(cls.fields, required, item, path, family, issues);
 		if (decoded === undefined) continue;
-		values.push(make(decoded));
+		values.push(cls.make(decoded as never));
 		paths.push(path);
 	}
 	return values.length === 0 ? undefined : { values, paths };
@@ -187,14 +192,13 @@ const decodeSingle = <A>(
 	key: string,
 	family: string,
 	raw: Record<string, unknown>,
-	fields: Schema.Struct.Fields,
+	cls: MappingClass<A>,
 	required: ReadonlyArray<string>,
-	make: (decoded: Record<string, unknown>) => A,
 	issues: Array<FamilyIssue>,
 ): A | undefined => {
 	if (isAbsent(raw[key])) return undefined;
-	const decoded = decodeMapping(fields, required, raw[key], [key], family, issues);
-	return decoded === undefined ? undefined : make(decoded);
+	const decoded = decodeMapping(cls.fields, required, raw[key], [key], family, issues);
+	return decoded === undefined ? undefined : cls.make(decoded as never);
 };
 
 /** Decode the computation keys independently (a bad `executor` no longer drops `runtime`). */
@@ -214,9 +218,8 @@ const decodeAttested = (
 			"parameters",
 			"attested",
 			raw.parameters,
-			ComputationParameter.fields,
+			ComputationParameter,
 			["name", "type"],
-			(decoded) => ComputationParameter.make(decoded as Parameters<typeof ComputationParameter.make>[0]),
 			issues,
 		);
 		if (list !== undefined) {
@@ -224,25 +227,9 @@ const decodeAttested = (
 			entries.parameters = list.paths;
 		}
 	}
-	const executor = decodeSingle(
-		"executor",
-		"attested",
-		raw,
-		ComputationExecutor.fields,
-		[],
-		(decoded) => ComputationExecutor.make(decoded as Parameters<typeof ComputationExecutor.make>[0]),
-		issues,
-	);
+	const executor = decodeSingle("executor", "attested", raw, ComputationExecutor, [], issues);
 	if (executor !== undefined) input.executor = executor;
-	const attester = decodeSingle(
-		"attester",
-		"attested",
-		raw,
-		ComputationAttester.fields,
-		[],
-		(decoded) => ComputationAttester.make(decoded as Parameters<typeof ComputationAttester.make>[0]),
-		issues,
-	);
+	const attester = decodeSingle("attester", "attested", raw, ComputationAttester, [], issues);
 	if (attester !== undefined) input.attester = attester;
 	return AttestedComputation.make(input as ConstructorParameters<typeof AttestedComputation>[0]);
 };
@@ -250,8 +237,8 @@ const decodeAttested = (
 /**
  * Decode a frontmatter value into a `Concept` without ever rejecting it for a
  * bad family. `TypeMissing` (lint `type-missing`) and `NotMapping` (conformance
- * `frontmatter-unparseable`) are the only failures. Reading is tolerant, key by key (OKF 0.3 11.2 rules 1-4); only okfit's own `integrity`
- * family keeps the whole-family `family-invalid` decode.
+ * `frontmatter-unparseable`) are the only failures. Reading is tolerant, key by key (OKF 0.3 11.2
+ * rules 1-4); only okfit's own `integrity` family keeps the whole-family `family-invalid` decode.
  * @public
  */
 export const decodeConcept = (value: unknown): ConceptDecodeResult => {
@@ -308,53 +295,21 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 	}
 
 	if (present("sources")) {
-		const list = decodeMappingList(
-			"sources",
-			"sources",
-			raw.sources,
-			Source.fields,
-			["resource"],
-			(decoded) => Source.make(decoded as Parameters<typeof Source.make>[0]),
-			issues,
-		);
+		const list = decodeMappingList("sources", "sources", raw.sources, Source, ["resource"], issues);
 		if (list !== undefined) {
 			out.sources = list.values;
 			entries.sources = list.paths;
 		}
 	}
 
-	const usageWindow = decodeSingle(
-		"usage_window",
-		"usage_window",
-		raw,
-		UsageWindow.fields,
-		[],
-		(decoded) => UsageWindow.make(decoded as Parameters<typeof UsageWindow.make>[0]),
-		issues,
-	);
+	const usageWindow = decodeSingle("usage_window", "usage_window", raw, UsageWindow, [], issues);
 	if (usageWindow !== undefined) out.usage_window = usageWindow;
 
-	const generated = decodeSingle(
-		"generated",
-		"generated",
-		raw,
-		Generated.fields,
-		["by"],
-		(decoded) => Generated.make(decoded as Parameters<typeof Generated.make>[0]),
-		issues,
-	);
+	const generated = decodeSingle("generated", "generated", raw, Generated, ["by"], issues);
 	if (generated !== undefined) out.generated = generated;
 
 	if (present("verified")) {
-		const list = decodeMappingList(
-			"verified",
-			"verified",
-			raw.verified,
-			Verification.fields,
-			["by", "at"],
-			(decoded) => Verification.make(decoded as Parameters<typeof Verification.make>[0]),
-			issues,
-		);
+		const list = decodeMappingList("verified", "verified", raw.verified, Verification, ["by", "at"], issues);
 		if (list !== undefined) {
 			out.verified = list.values;
 			entries.verified = list.paths;

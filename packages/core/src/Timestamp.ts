@@ -9,7 +9,8 @@ const OFFSET_RE = /(?:Z|[+-]\d{2}:\d{2})$/u;
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/u;
 
 // `DateTimeUtcFromString` rolls an impossible date (2026-02-30) over to the next month, so the date-only
-// form is re-read and must format back to the same day.
+// form is re-read and must format back to the same day. (`Date.UTC` maps years 0-99 to 1900-1999, so
+// those years are rejected, which is intended: no real timestamp is that old.)
 const isCalendarDay = (value: string): boolean => {
 	const [year, month, day] = value.split("-").map(Number) as [number, number, number];
 	const date = new Date(Date.UTC(year, month - 1, day));

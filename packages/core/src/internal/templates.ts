@@ -74,12 +74,12 @@ export const indexDocument = (
 		okfVersion === undefined
 			? undefined
 			: Result.getOrThrow(Yaml.stringifyResult({ okf_version: okfVersion })).replace(/\n$/, "");
-	let value: string | undefined;
-	if (frontmatter !== undefined && frontmatter !== "") {
-		value = versionLine !== undefined && lacksOkfVersion(frontmatter) ? `${versionLine}\n${frontmatter}` : frontmatter;
-	} else {
-		value = versionLine;
-	}
+	const value =
+		frontmatter === undefined || frontmatter === ""
+			? versionLine
+			: versionLine !== undefined && lacksOkfVersion(frontmatter)
+				? `${versionLine}\n${frontmatter}`
+				: frontmatter;
 	const block = value === undefined ? [] : [Frontmatter.make({ format: "yaml", value })];
 	const root = Root.make({ children: [...block, ...sections.flatMap(sectionNodes)] });
 	return Result.getOrThrow(Markdown.stringifyResult(root));

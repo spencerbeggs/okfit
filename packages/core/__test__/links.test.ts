@@ -172,6 +172,7 @@ describe("internal/links", () => {
 					executor: new ComputationExecutor({ resource: "skills/run.md", receipt: [] }),
 					attester: new ComputationAttester({ resource: "attesters/eq.py" }),
 				}),
+				// D7: an extension key such as `license` is never a path field.
 				extensions: { license: "LICENSE.md" },
 				// `Concept.entryPath` reads a hand-built concept's list shape from `raw`.
 				raw: { sources: [{}, {}] },
@@ -185,8 +186,6 @@ describe("internal/links", () => {
 				{ field: "attester.resource", raw: "attesters/eq.py", path: ["attester", "resource"] },
 				{ field: "superseded_by", raw: "/metrics/gross-margin.md", path: ["superseded_by"] },
 			]);
-			// D7: an extension key such as `license` is never a path field.
-			assert.isFalse(pathFieldsOf(concept).some((ref) => (ref.field as string) === "license"));
 			assert.deepStrictEqual(pathFieldsOf(new Concept({ type: "Note", extensions: {}, raw: {} })), []);
 		}),
 	);

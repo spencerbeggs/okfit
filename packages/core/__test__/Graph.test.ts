@@ -237,18 +237,14 @@ describe("Graph.fromBundle after a dropped sources entry", () => {
 });
 
 describe("Graph version-gated root fallback", () => {
-	const ROOT = "/repo/gate";
 	const seed = (frontmatter?: string) => ({
-		[`${ROOT}/index.md`]: `${frontmatter === undefined ? "" : `---\n${frontmatter}\n---\n\n`}# Metric\n\n* [Revenue](metrics/revenue.md)\n`,
-		[`${ROOT}/metrics/revenue.md`]: "---\ntype: Metric\n---\n",
-		[`${ROOT}/computations/revenue-ytd.md`]:
+		[`${MOUNT}/index.md`]: `${frontmatter === undefined ? "" : `---\n${frontmatter}\n---\n\n`}# Metric\n\n* [Revenue](metrics/revenue.md)\n`,
+		[`${MOUNT}/metrics/revenue.md`]: "---\ntype: Metric\n---\n",
+		[`${MOUNT}/computations/revenue-ytd.md`]:
 			"---\ntype: Attested Computation\nruntime: bigquery\nattester:\n  resource: attesters/sql_equality.py\n---\n\nSee [revenue](metrics/revenue.md).\n",
-		[`${ROOT}/attesters/sql_equality.py`]: "",
+		[`${MOUNT}/attesters/sql_equality.py`]: "",
 	});
-	const load = (frontmatter?: string) =>
-		Bundle.load({ root: ROOT }).pipe(
-			Effect.provide(Layer.mergeAll(MemoryFileSystem.layerWith(seed(frontmatter)), Path.layer)),
-		);
+	const load = (frontmatter?: string) => Bundle.load({ root: MOUNT }).pipe(Effect.provide(platform(seed(frontmatter))));
 	const from = "computations/revenue-ytd.md";
 
 	for (const [label, frontmatter] of [
