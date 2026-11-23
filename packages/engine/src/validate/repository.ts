@@ -74,42 +74,6 @@ export const resourceCandidates = (input: {
 	return candidates;
 };
 
-/** `realPath`, or `undefined` when nothing exists there; any other failure stays in the channel. */
-const realOrUndefined = (
-	fs: FileSystem.FileSystem,
-	target: string,
-): Effect.Effect<string | undefined, PlatformError.PlatformError> =>
-	fs.realPath(target).pipe(
-		Effect.catchIf(
-			(error) => error.reason._tag === "NotFound",
-			() => Effect.succeed(undefined),
-		),
-	);
-
-/**
- * The real path of `absolute`, or `undefined` when nothing exists there. A path `realPath` cannot see but
- * `lstat` can is a document that lives only in the editor overlay (the overlay shadows `lstat`, not `realPath`):
- * it counts, at its parent's real path, unless it is a symlink, which `realPath` could not follow (dangling).
- */
-const realOf = (
-	fs: FileSystem.FileSystem,
-	path: Path.Path,
-	absolute: string,
-): Effect.Effect<string | undefined, PlatformError.PlatformError> =>
-	Effect.gen(function* () {
-		const real = yield* realOrUndefined(fs, absolute);
-		if (real !== undefined) return real;
-		const parent = yield* realOrUndefined(fs, path.dirname(absolute));
-		if (parent === undefined) return undefined;
-		const info = yield* fs.lstat(absolute).pipe(
-			Effect.catchIf(
-				(error) => error.reason._tag === "NotFound",
-				() => Effect.succeed(undefined),
-			),
-		);
-		return info === undefined || info.type === "SymbolicLink" ? undefined : path.join(parent, path.basename(absolute));
-	});
-
 /**
  * Where a literal `resource` value ended up: `found` (a real path inside the project), `outside` (it, or the
  * symlink it goes through, leaves the project root; nothing beyond containment was read), or `missing`.
@@ -122,11 +86,48 @@ export type ResourceLocation =
 	| { readonly _tag: "missing" };
 
 /**
+ * `realPath`, or `undefined` when it cannot be resolved for any reason (absent, a file used as a directory,
+ * a symlink loop, an unreadable directory): one hostile frontmatter value must not fail the whole run, and
+ * `fs.exists` used to answer `false` for the first three as well.
+ */
+const realOrUndefined = (fs: FileSystem.FileSystem, target: string): Effect.Effect<string | undefined> =>
+	fs.realPath(target).pipe(Effect.orElseSucceed(() => undefined));
+
+/**
+ * Resolves one candidate: `found` at its real path, `outside` when that real path (or, for a path `realPath`
+ * cannot see, its parent's) leaves `realRoots`, `missing` otherwise. A path `realPath` cannot see but `lstat`
+ * can is a document that lives only in the editor overlay (the overlay shadows `lstat`, not `realPath`): it
+ * counts at its parent's real path, unless it is a symlink (dangling). The `lstat` runs only after the parent
+ * has been shown to be inside, so nothing is ever statted through a link that leads out of the project.
+ */
+const resolveCandidate = (
+	fs: FileSystem.FileSystem,
+	path: Path.Path,
+	realRoots: ReadonlyArray<string>,
+	absolute: string,
+): Effect.Effect<ResourceLocation> =>
+	Effect.gen(function* () {
+		const inside = (real: string) => realRoots.some((root) => withinRoot(root, real, path));
+		const real = yield* realOrUndefined(fs, absolute);
+		if (real !== undefined) {
+			return inside(real) ? ({ _tag: "found", absolute, real } as const) : ({ _tag: "outside" } as const);
+		}
+		const parent = yield* realOrUndefined(fs, path.dirname(absolute));
+		if (parent === undefined) return { _tag: "missing" } as const;
+		if (!inside(parent)) return { _tag: "outside" } as const;
+		const info = yield* fs.lstat(absolute).pipe(Effect.orElseSucceed(() => undefined));
+		return info === undefined || info.type === "SymbolicLink"
+			? ({ _tag: "missing" } as const)
+			: ({ _tag: "found", absolute, real: path.join(parent, path.basename(absolute)) } as const);
+	});
+
+/**
  * Resolves a literal `resource` value to a real path inside the project, trying each candidate in order.
- * The only filesystem call made on a candidate is `realPath` of the candidate itself, and a candidate whose
- * real path leaves the real project root (and the real bundle root) is never `exists`ed, `stat`ed or read: a
- * symlink inside the project that points out of it is reported `outside`. A value with no in-project
- * candidate is `outside` without touching the filesystem at all.
+ * A candidate is resolved with `realPath` (resolving a link to decide containment is permitted); one whose real
+ * path leaves the real project root (and the real bundle root) is never `exists`ed, `stat`ed, read or descended,
+ * so a symlink, or a symlinked parent, that leads out of the project is reported `outside`. A value with no
+ * in-project candidate is `outside` without touching the filesystem at all. Any `realPath` failure counts as
+ * `missing`.
  *
  * @public
  */
@@ -147,20 +148,16 @@ export const locateResource = (input: {
 		}
 		let escaped = false;
 		for (const candidate of candidates) {
-			const real = yield* realOf(fs, path, candidate.absolute);
-			if (real === undefined) continue;
-			if (!realRoots.some((root) => withinRoot(root, real, path))) {
-				escaped = true;
-				continue;
-			}
-			return { _tag: "found", absolute: candidate.absolute, real } as const;
+			const located = yield* resolveCandidate(fs, path, realRoots, candidate.absolute);
+			if (located._tag === "found") return located;
+			if (located._tag === "outside") escaped = true;
 		}
 		return escaped ? ({ _tag: "outside" } as const) : ({ _tag: "missing" } as const);
 	});
 
 /**
  * The `resource-outside-project` diagnostic for one value, ranged at its frontmatter path. okfit's own
- * repository check, not OKF: the value is reported from its text alone.
+ * repository check, not OKF.
  *
  * @public
  */

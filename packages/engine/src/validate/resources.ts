@@ -50,7 +50,7 @@ export const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> =
  * resolved in OKF 0.3 §6 order (see `resourceCandidates`). okfit checks a path
  * only inside `projectRoot`: a value that resolves outside it, lexically or
  * through a symlink, is never read, stat'ed or asked about, and is reported
- * from its text alone as `resource-outside-project` (okfit's repository check,
+ * as `resource-outside-project` (okfit's repository check,
  * not OKF); a value inside it that exists nowhere stays `source-resource-missing`.
  * Ranges at the offending value via `DiagnosticRange.forFrontmatterPath`, using
  * the `["resource"]` or `["sources", index, "resource"]` path the value came

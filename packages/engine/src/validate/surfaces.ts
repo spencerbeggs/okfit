@@ -48,7 +48,7 @@ export const lintSurfaces = (
 			const firstGlob = written.findIndex((segment) => GLOB_RE.test(segment));
 			if (firstGlob < 0) continue;
 			const prefix = path.resolve(bundle.root, path.dirname(concept.path), ...written.slice(0, firstGlob));
-			// A prefix outside the project root is reported from its text alone and never reaches the disk.
+			// A prefix outside the project root is reported as `resource-outside-project` and never reaches the disk.
 			if (!withinRoot(projectRoot, prefix, path)) {
 				if (outsideSeverity !== "off")
 					diagnostics.push(outsideProjectDiagnostic(concept, resource, ["resource"], outsideSeverity));

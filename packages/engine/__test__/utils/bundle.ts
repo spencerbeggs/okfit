@@ -146,3 +146,20 @@ export const denyAccess = (
 		...PROBE_METHODS.map((method) => [method, fault(method, under)]),
 	]) as MemoryFileSystemFaults;
 };
+
+/**
+ * A memfs fault map that denies nothing and records every access (`method path`, the path as the call received
+ * it) into `calls`, so a test can assert which paths a program asked the filesystem about. A call through a
+ * symlink carries the link's path, never its target's, so this is how a test sees an access `denyAccess`'s
+ * prefix match cannot.
+ */
+export const recordCalls = (calls: Array<string>): MemoryFileSystemFaults =>
+	Object.fromEntries(
+		[...CONTENT_METHODS, ...PROBE_METHODS, "lstat"].map((method) => [
+			method,
+			(path: unknown) => {
+				calls.push(`${method} ${String(path)}`);
+				return undefined;
+			},
+		]),
+	) as MemoryFileSystemFaults;

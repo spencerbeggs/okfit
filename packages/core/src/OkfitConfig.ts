@@ -398,7 +398,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "resource-outside-project",
 			description:
-				'A resource value resolves outside the project root, so okfit never reads, stats or asks git about it; the value is reported from its text alone (okfit\'s repository check, not OKF). Default "info".',
+				'A resource value resolves outside the project root, directly or through a symlink, so okfit never reads, stats or asks git about the target (okfit\'s repository check, not OKF). Default "info".',
 			default: "info",
 		}),
 	),
