@@ -214,7 +214,7 @@ describe("syncIndex", () => {
 			assert.isFalse(bare.includes("okf_version"));
 			// control: the config key fills it
 			yield* syncIndex(bundle, false, undefined, "0.3");
-			assert.isTrue((yield* readRoot).startsWith(`---\nokf_version: '0.3'\n---\n`));
+			assert.match(yield* readRoot, /^---\nokf_version: ['"]0\.3['"]\n---\n/);
 		}).pipe(Effect.provide(projectPlatform(UNDECLARED_PROJECT))),
 	);
 
