@@ -152,6 +152,12 @@ export const decodeMapping = (
 		const message = leafMessages(result.failure)[0]?.message ?? "unreadable";
 		if (isRequired) return ignore(`\`${key}\` is unreadable: ${message}`);
 		dropped.push({ code: "value-malformed", family, path: [...path, key], message });
+		// A dropped key reads as absent, so a decoding default (e.g. `required`) still fills in.
+		const fromAbsence = Schema.decodeUnknownResult(schema, PARSE_OPTIONS)({});
+		if (Result.isSuccess(fromAbsence)) {
+			const filled = fromAbsence.success as Record<string, unknown>;
+			if (Object.hasOwn(filled, key)) out[key] = filled[key];
+		}
 	}
 	issues.push(...dropped);
 	return out;
@@ -162,6 +168,27 @@ interface MappingClass<A> {
 	readonly fields: Schema.Struct.Fields;
 	readonly make: (input: never) => A;
 }
+
+/** Build a kept mapping; a throw (a value the per-key decode accepted but the class rejects) ignores the mapping. */
+const build = <A>(
+	cls: MappingClass<A>,
+	decoded: Record<string, unknown>,
+	path: YamlPath,
+	family: string,
+	issues: Array<FamilyIssue>,
+): A | undefined => {
+	try {
+		return cls.make(decoded as never);
+	} catch (error) {
+		issues.push({
+			code: "entry-ignored",
+			family,
+			path,
+			message: error instanceof Error ? error.message : "unreadable",
+		});
+		return undefined;
+	}
+};
 
 /** A list family's items (rule 2: a non-list is a list of one) and each item's YAML path. */
 const itemsOf = (key: string, value: unknown): ReadonlyArray<{ readonly item: unknown; readonly path: YamlPath }> =>
@@ -181,7 +208,9 @@ const decodeMappingList = <A>(
 	for (const { item, path } of itemsOf(key, value)) {
 		const decoded = decodeMapping(cls.fields, required, item, path, family, issues);
 		if (decoded === undefined) continue;
-		values.push(cls.make(decoded as never));
+		const built = build(cls, decoded, path, family, issues);
+		if (built === undefined) continue;
+		values.push(built);
 		paths.push(path);
 	}
 	return values.length === 0 ? undefined : { values, paths };
@@ -198,7 +227,7 @@ const decodeSingle = <A>(
 ): A | undefined => {
 	if (isAbsent(raw[key])) return undefined;
 	const decoded = decodeMapping(cls.fields, required, raw[key], [key], family, issues);
-	return decoded === undefined ? undefined : cls.make(decoded as never);
+	return decoded === undefined ? undefined : build(cls, decoded, [key], family, issues);
 };
 
 /** Decode the computation keys independently (a bad `executor` no longer drops `runtime`). */
@@ -274,7 +303,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 		if (decoded !== undefined) out[key] = decoded;
 	};
 
-	// Family order is the issue order: title, description, resource, tags, sources, usage_window, generated, verified, status, stale_after, integrity.
+	// Family order is the issue order: title, description, resource, tags, sources, usage_window, generated, verified, status, stale_after, superseded_by, integrity.
 	for (const key of ["title", "description", "resource"] as const) scalar(key);
 
 	if (present("tags")) {

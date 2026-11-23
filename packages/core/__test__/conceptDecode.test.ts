@@ -369,4 +369,15 @@ describe("decodeConcept", () => {
 		assert.isFalse("superseded_by" in malformed.concept);
 		assert.deepStrictEqual(shape(malformed.issues), [["value-malformed", "superseded_by", ["superseded_by"]]]);
 	});
+	it("a malformed parameters[].required is dropped at its own path and the parameter kept with required false (list and single form)", () => {
+		for (const [parameters, path] of [
+			[[{ name: "year", type: "integer", required: "yes" }], ["parameters", 0, "required"]],
+			[{ name: "year", type: "integer", required: "x" }, ["parameters", "required"]],
+		] as const) {
+			const { concept, issues } = decoded({ type: "Attested Computation", runtime: "sql", parameters });
+			assert.deepStrictEqual(shape(issues), [["value-malformed", "attested", path]]);
+			assert.strictEqual(concept.attested?.parameters[0]?.name, "year");
+			assert.strictEqual(concept.attested?.parameters[0]?.required, false);
+		}
+	});
 });

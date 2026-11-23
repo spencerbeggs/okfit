@@ -1,0 +1,115 @@
+import { assert, describe, it } from "@effect/vitest";
+import { Effect } from "effect";
+import { Bundle } from "../src/Bundle.js";
+import type { ConceptId } from "../src/ConceptId.js";
+import { MOUNT, platform } from "./utils/fixtures.js";
+
+const load = (frontmatter: string) =>
+	Bundle.load({ root: MOUNT }).pipe(
+		Effect.provide(platform({ [`${MOUNT}/c.md`]: `---\n${frontmatter}\n---\n\n# C\n` })),
+	);
+
+const WRONG = ["5", "true", "null", "{ a: 1 }", "[1]", "yes", "2026-01-01x"];
+
+// One row per mapping class: the YAML head up to the key under test, the keys, and the base text for the mapping.
+interface Row {
+	readonly cls: string;
+	readonly build: (key: string, value: string) => string;
+	readonly keys: ReadonlyArray<string>;
+}
+const ROWS: ReadonlyArray<Row> = [
+	{
+		cls: "Source",
+		build: (key, value) => `type: T\nsources:\n  - resource: a.md\n    ${key}: ${value}`,
+		keys: ["id", "title", "author", "usage_count", "last_modified", "usage_window"],
+	},
+	{
+		cls: "Verification",
+		build: (key, value) => `type: T\nverified:\n  - by: human:a\n    at: 2026-01-01T00:00:00Z\n    ${key}: ${value}`,
+		keys: [],
+	},
+	{
+		cls: "ComputationParameter",
+		build: (key, value) =>
+			`type: Attested Computation\nruntime: sql\nparameters:\n  - name: year\n    type: integer\n    ${key}: ${value}`,
+		keys: ["required"],
+	},
+	{
+		cls: "ComputationParameter (single mapping)",
+		build: (key, value) =>
+			`type: Attested Computation\nruntime: sql\nparameters:\n  name: year\n  type: integer\n  ${key}: ${value}`,
+		keys: ["required"],
+	},
+	{
+		cls: "Generated",
+		build: (key, value) => `type: T\ngenerated:\n  by: process:x\n  ${key}: ${value}`,
+		keys: ["at", "body_sha256"],
+	},
+	{
+		cls: "UsageWindow",
+		build: (key, value) => `type: T\nusage_window:\n  ${key}: ${value}`,
+		keys: ["from", "to"],
+	},
+	{
+		cls: "ComputationExecutor",
+		build: (key, value) => `type: Attested Computation\nruntime: sql\nexecutor:\n  ${key}: ${value}`,
+		keys: ["resource", "receipt"],
+	},
+	{
+		cls: "ComputationAttester",
+		build: (key, value) => `type: Attested Computation\nruntime: sql\nattester:\n  ${key}: ${value}`,
+		keys: ["resource"],
+	},
+];
+
+describe("Bundle.load on hostile optional keys", () => {
+	it.effect(
+		"a malformed parameters[].required is dropped with one warning and the parameter is kept (list and single form)",
+		() =>
+			Effect.gen(function* () {
+				const list = yield* load(
+					"type: Attested Computation\nruntime: sql\nparameters:\n  - name: year\n    type: integer\n    required: yes",
+				);
+				const warnings = list.diagnostics.filter((d) => d.code === "value-malformed");
+				assert.strictEqual(warnings.length, 1);
+				assert.strictEqual(warnings[0]?.severity, "warning");
+				const parameter = list.concepts.get("c" as ConceptId)?.frontmatter.attested?.parameters[0];
+				assert.strictEqual(parameter?.name, "year");
+				assert.strictEqual(parameter?.required, false);
+
+				const single = yield* load(
+					"type: Attested Computation\nruntime: sql\nparameters:\n  name: year\n  type: integer\n  required: x",
+				);
+				assert.strictEqual(single.diagnostics.filter((d) => d.code === "value-malformed").length, 1);
+				assert.strictEqual(single.concepts.get("c" as ConceptId)?.frontmatter.attested?.parameters[0]?.required, false);
+
+				// control: a real boolean is kept and nothing is reported
+				const good = yield* load(
+					"type: Attested Computation\nruntime: sql\nparameters:\n  - name: year\n    type: integer\n    required: true",
+				);
+				assert.strictEqual(good.diagnostics.length, 0);
+				assert.strictEqual(good.concepts.get("c" as ConceptId)?.frontmatter.attested?.parameters[0]?.required, true);
+			}),
+	);
+
+	it.effect("every class survives every wrong-typed optional key: the load succeeds and reports only warnings", () =>
+		Effect.gen(function* () {
+			let reported = 0;
+			for (const row of ROWS) {
+				for (const key of row.keys) {
+					for (const value of WRONG) {
+						const bundle = yield* load(row.build(key, value));
+						assert.isTrue(bundle.concepts.has("c" as ConceptId), `${row.cls}.${key}: ${value}`);
+						assert.isTrue(
+							bundle.diagnostics.every((d) => d.severity === "warning"),
+							`${row.cls}.${key}: ${value}`,
+						);
+						reported += bundle.diagnostics.length;
+					}
+				}
+			}
+			// positive control: the table does provoke warnings
+			assert.isAbove(reported, 0);
+		}),
+	);
+});
