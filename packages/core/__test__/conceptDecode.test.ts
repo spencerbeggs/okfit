@@ -183,7 +183,7 @@ describe("decodeConcept", () => {
 			["value-malformed", "generated", ["generated", "at"]],
 		]);
 	});
-	it("a wrong-typed family is absent with value-malformed; a malformed integrity block is still family-invalid", () => {
+	it("a wrong-typed family is absent with value-malformed", () => {
 		const { issues } = decoded({ type: "Note", title: 5, tags: { a: 1 }, sources: 5 });
 		assert.deepStrictEqual(
 			shape(issues).map(([code, , path]) => [code, path]),
@@ -195,6 +195,76 @@ describe("decodeConcept", () => {
 		);
 	});
 
+	it("computation-runtime-missing fires whenever the decoded runtime is absent, beside a readable control", () => {
+		const codes = (runtime: unknown) =>
+			decoded({ type: "Attested Computation", runtime }).issues.map((issue) => [issue.code, issue.path]);
+		assert.deepStrictEqual(codes("bigquery"), []);
+		assert.deepStrictEqual(codes(7), [
+			["value-malformed", ["runtime"]],
+			["computation-runtime-missing", []],
+		]);
+		assert.deepStrictEqual(codes(null), [["computation-runtime-missing", []]]);
+		assert.deepStrictEqual(codes(""), [["computation-runtime-missing", []]]);
+	});
+	it("reads null and empty computation keys as absent with no issue (rule 1)", () => {
+		for (const empty of [null, ""]) {
+			const { concept, issues } = decoded({
+				type: "Attested Computation",
+				runtime: "bigquery",
+				executor: empty,
+				attester: empty,
+				computation: empty,
+				parameters: empty,
+			});
+			assert.deepStrictEqual(issues, []);
+			assert.isFalse("executor" in concept.attested!);
+			assert.isFalse("attester" in concept.attested!);
+			assert.isFalse("computation" in concept.attested!);
+			assert.deepStrictEqual(concept.attested?.parameters, []);
+		}
+		assert.deepStrictEqual(decoded({ type: "Attested Computation", runtime: "r", parameters: [] }).issues, []);
+	});
+	it("keeps the YAML index of a kept parameter after a dropped one", () => {
+		const { concept, issues } = decoded({
+			type: "Attested Computation",
+			runtime: "bigquery",
+			parameters: [{ name: "no type" }, { name: "year", type: "integer" }],
+		});
+		assert.deepStrictEqual(
+			concept.attested?.parameters.map((p) => p.name),
+			["year"],
+		);
+		assert.deepStrictEqual(concept.entries?.parameters, [["parameters", 1]]);
+		assert.deepStrictEqual(shape(issues), [["entry-ignored", "attested", ["parameters", 0]]]);
+	});
+	it("drops a malformed Source.usage_window alone and keeps the source", () => {
+		const { concept, issues } = decoded({
+			type: "Note",
+			sources: [{ resource: "a.md", usage_window: { from: "2026-06-01T00:00:00Z", to: "soon" } }],
+		});
+		assert.strictEqual(concept.sources?.[0]?.resource, "a.md");
+		assert.isFalse("usage_window" in concept.sources![0]!);
+		assert.deepStrictEqual(shape(issues), [["value-malformed", "sources", ["sources", 0, "usage_window"]]]);
+	});
+	it("ignores a source with an empty resource and a non-mapping item", () => {
+		const empty = decoded({ type: "Note", sources: [{ resource: "" }, { resource: "ok.md" }] });
+		assert.deepStrictEqual(
+			empty.concept.sources?.map((s) => s.resource),
+			["ok.md"],
+		);
+		assert.deepStrictEqual(shape(empty.issues), [["entry-ignored", "sources", ["sources", 0]]]);
+		const scalar = decoded({ type: "Note", sources: ["a.md"] });
+		assert.isFalse("sources" in scalar.concept);
+		assert.deepStrictEqual(shape(scalar.issues), [["entry-ignored", "sources", ["sources", 0]]]);
+	});
+	it("reads a null or empty legacy timestamp as absent with no issue (rule 1)", () => {
+		for (const timestamp of [null, ""]) {
+			const { concept, issues } = decoded({ type: "Metric", timestamp });
+			assert.deepStrictEqual(issues, []);
+			assert.isFalse("generated" in concept);
+		}
+		assert.strictEqual(decoded({ type: "Metric", timestamp: "2026-05-28T22:53:05Z" }).issues.length, 1);
+	});
 	it("stores a YAML __proto__ key as data, not as a prototype", () => {
 		const { concept } = decoded(
 			Object.fromEntries([

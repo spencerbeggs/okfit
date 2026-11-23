@@ -243,7 +243,7 @@ const decodeAttested = (
 
 /**
  * Decode a frontmatter value into a `Concept` without ever rejecting it for a
- * bad family. `TypeMissing` is the only failure (lint `type-missing`). Reading is
+ * bad family. `TypeMissing` is the only failure (conformance `type-missing`). Reading is
  * tolerant, key by key (OKF 0.3 11.2 rules 1-4); only okfit's own `integrity`
  * family keeps the whole-family `family-invalid` decode.
  * @public
@@ -360,7 +360,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 		if (integrity !== undefined) out.integrity = integrity;
 	}
 
-	if (!("generated" in raw) && "timestamp" in raw) {
+	if (!("generated" in raw) && present("timestamp")) {
 		const at = decodeFamily(Timestamp, "timestamp", ["timestamp"], raw.timestamp, issues);
 		if (at !== undefined) {
 			fields.generated = Generated.make({ by: Generated.LEGACY_BY, at });
@@ -375,7 +375,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 
 	if (isComputation) {
 		fields.attested = decodeAttested(raw, issues, entries);
-		if (raw.runtime === undefined) {
+		if (fields.attested.runtime === undefined) {
 			issues.push({
 				code: "computation-runtime-missing",
 				family: "attested",
