@@ -88,17 +88,29 @@ describe("ERROR_PROJECTS: one defect each", () => {
 			Effect.gen(function* () {
 				const { codes } = yield* loadsClean(name);
 				assert.deepStrictEqual(codes, [README]);
-				assert.notDeepEqual(ERROR_PROJECTS[name], V03_PROJECT);
 			}),
 		);
 	}
+	// The one path each case changes against its base (`bare-path-under-0.3` is the V02 control).
+	const CHANGED: Readonly<Record<ErrorCase, readonly [ProjectSeed, string]>> = {
+		"unknown-status": [V03_PROJECT, "okf/metrics/margin.md"],
+		"malformed-stale-after": [V03_PROJECT, "okf/metrics/margin.md"],
+		"superseded-by-orphan": [V03_PROJECT, "okf/metrics/margin-legacy.md"],
+		"superseded-by-unresolved": [V03_PROJECT, "okf/metrics/margin-legacy.md"],
+		"empty-required-title": [V03_PROJECT, "okf/metrics/margin.md"],
+		"resource-outside-project": [V03_PROJECT, "okf/modules/widget.md"],
+		"resource-missing-in-repository": [V03_PROJECT, "packages/widget/README.md"],
+		"bare-path-under-0.3": [V02_PROJECT, "okf/index.md"],
+		"unparsable-version": [V03_PROJECT, "okf/index.md"],
+	};
 	it("each case differs from its base by exactly the named change", () => {
 		const diff = (a: ProjectSeed, b: ProjectSeed) =>
 			[...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => a[k] !== b[k]);
-		assert.deepStrictEqual(diff(ERROR_PROJECTS["resource-missing-in-repository"], V03_PROJECT), [
-			"packages/widget/README.md",
-		]);
-		assert.deepStrictEqual(diff(ERROR_PROJECTS["unknown-status"], V03_PROJECT), ["okf/metrics/margin.md"]);
-		assert.deepStrictEqual(diff(ERROR_PROJECTS["resource-outside-project"], V03_PROJECT), ["okf/modules/widget.md"]);
+		for (const name of Object.keys(ERROR_PROJECTS) as ErrorCase[]) {
+			const [base, path] = CHANGED[name];
+			assert.deepStrictEqual(diff(ERROR_PROJECTS[name], base), [path], name);
+		}
+		// control: the helper does report a difference
+		assert.deepStrictEqual(diff({ a: "1" }, { a: "2" }), ["a"]);
 	});
 });

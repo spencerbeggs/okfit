@@ -26,18 +26,27 @@ const indexOf = (version: string | undefined): string =>
 			`license: CC-BY-4.0\n---\n\n# Acme retail analytics\n\n* [Revenue](metrics/revenue.md)\n`;
 
 const REVENUE =
-	"---\ntype: Metric\ntitle: Revenue\nstatus: stable\nverified:\n  - by: human:a\n    at: 2026-01-01T00:00:00Z\n---\n\n# Revenue\n\nNet revenue.\n";
-const MARGIN = "---\ntype: Metric\ntitle: Margin\n---\n\n# Margin\n\nGross margin.\n";
+	"---\ntype: Metric\ntitle: Revenue\ndescription: Net revenue.\nstatus: stable\nverified:\n  - by: human:a\n    at: 2026-01-01T00:00:00Z\n---\n\n# Revenue\n\nNet revenue.\n";
+const MARGIN =
+	"---\ntype: Metric\ntitle: Margin\ndescription: Gross margin.\nstatus: stable\n---\n\n# Margin\n\nGross margin.\n";
 const MARGIN_LEGACY =
-	"---\ntype: Metric\ntitle: Legacy margin\nstatus: deprecated\nsuperseded_by: /metrics/margin.md\n---\n\n# Legacy margin\n\nUse [margin](/metrics/margin.md).\n";
+	"---\ntype: Metric\ntitle: Legacy margin\ndescription: Superseded margin.\nstatus: deprecated\nsuperseded_by: /metrics/margin.md\n---\n\n# Legacy margin\n\nUse [margin](/metrics/margin.md).\n";
 
 const computation = (link: string, attester: string, extra = ""): string =>
-	`---\ntype: Attested Computation\ntitle: Revenue year to date\nruntime: sql\n${extra}attester:\n  resource: ${attester}\n---\n\n` +
+	`---\ntype: Attested Computation\ntitle: Revenue year to date\ndescription: Sums revenue.\nstatus: stable\nruntime: sql\n${extra}attester:\n  resource: ${attester}\n---\n\n` +
 	`# Revenue year to date\n\nSums [revenue](${link}).\n\n## Computation\n\n\`\`\`sql\nSELECT SUM(amount) FROM sales\n\`\`\`\n`;
 
-const WIDGET = (resource: string): string => `---\ntype: Module\ntitle: Widget\nresource: ${resource}\n---\n\n# Widget\n\nThe widget package.\n`;
+const WIDGET = (resource: string): string => `---\ntype: Module\ntitle: Widget\ndescription: The widget package.\nstatus: stable\nkind: package\nresource: ${resource}\n---\n\n# Widget\n\nThe widget package.\n`;
+
+const CONFIG = '[types.Metric]\n\n[types."Attested Computation"]\n';
+const indexFor = (title: string, entry: string, file: string): string => `# ${title}\n\n* [${entry}](${file})\n`;
 
 const shared: ProjectSeed = {
+	".config/okfit.toml": CONFIG,
+	"okf/project.md": "---\ntype: Project\ntitle: Acme analytics\ndescription: Retail metrics.\nstatus: stable\n---\n\n# Acme analytics\n\nRetail metrics.\n",
+	"okf/metrics/index.md": indexFor("Metrics", "Revenue", "revenue.md"),
+	"okf/computations/index.md": indexFor("Computations", "Revenue year to date", "revenue-ytd.md"),
+	"okf/modules/index.md": indexFor("Modules", "Widget", "widget.md"),
 	"okf/metrics/revenue.md": REVENUE,
 	"okf/metrics/margin.md": MARGIN,
 	"okf/references/attesters/check.py": "print('ok')\n",
@@ -72,7 +81,7 @@ const without = (seed: ProjectSeed, ...paths: ReadonlyArray<string>): ProjectSee
 
 /** Each case is `V03_PROJECT` (or `V02_PROJECT` for the bare-path control) with exactly one defect. */
 export const ERROR_PROJECTS: Readonly<Record<ErrorCase, ProjectSeed>> = {
-	"unknown-status": { ...V03_PROJECT, "okf/metrics/margin.md": MARGIN.replace("title: Margin", "title: Margin\nstatus: bogus") },
+	"unknown-status": { ...V03_PROJECT, "okf/metrics/margin.md": MARGIN.replace("status: stable", "status: bogus") },
 	"malformed-stale-after": {
 		...V03_PROJECT,
 		"okf/metrics/margin.md": MARGIN.replace("title: Margin", "title: Margin\nstale_after: not-a-date"),
