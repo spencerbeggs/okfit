@@ -15,6 +15,17 @@ Per OKF v0.3 §3.2, a `.md` file with no frontmatter or no `type` is no longer a
 - An entry is ignored only when it lacks a required key (`entry-ignored`); a malformed optional key is dropped alone (`value-malformed`); a value outside its vocabulary is kept (`value-unknown`, today `status`).
 - These are warnings, so a bundle whose only errors were `family-invalid` on spec-defined values now exits 0. `family-invalid` remains an error only for okfit's own `integrity` family.
 
+### Type-level breaks
+
+- `ConformanceCode` loses `frontmatter-missing` and `type-missing`; both are now `LintCode` members.
+- `Derive.status` returns `DerivedStatus`, which adds `unknown`. `Staleness` gains `malformed`. `PathField` gains `superseded_by`.
+- `Timestamp` accepts a date-only value (`YYYY-MM-DD`, read as midnight UTC) everywhere it is used.
+- `superseded_by` moves out of `Concept.extensions` into a typed field. A bundle that already used it as an extension key now gets a graph edge, and a `broken-links` warning when its target is missing.
+
+### Tolerant reading can raise a trust tier
+
+A `verified` list with one good and one bad entry used to be dropped whole, so the concept read as unverified. It now keeps the good entry and warns about the bad one, so the concept can reach a higher trust tier than before.
+
 ### Other behavior changes
 
 - A symbolic link that resolves outside the bundle root is not listed or read (`symlink-escape`, warn).

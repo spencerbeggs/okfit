@@ -83,7 +83,9 @@ const configFlag = Flag.File("config").pipe(
 /** V-6: `Flag.String`, decoded through core's `Timestamp` — never `Flag.Date`, which yields a bare Date. */
 const atFlag = Flag.String("at").pipe(
 	Flag.optional,
-	Flag.withDescription("ISO 8601 timestamp with an explicit offset to record instead of now"),
+	Flag.withDescription(
+		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now",
+	),
 );
 
 /** V-6/V-8: the preview is a flag, never a prompt. */
