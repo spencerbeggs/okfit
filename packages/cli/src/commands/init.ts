@@ -122,7 +122,7 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
  *     create its parent (`CF/index.d.ts:517-521`), and `save` is unusable
  *     here since it targets the XDG `defaultPath`, which K-14 forbids.
  *  9. `Console.log` the K-51 success line.
- * 10. self-validate (K-29): `run({ root: bundleRoot, config: merged,
+ * 10. self-validate (K-29): `run({ root: bundleRoot, projectRoot, config: merged,
  *     profile, now })` over the bundle just written, rendered exactly as
  *     `validate --format human` does, `CliExit.set` to its
  *     `forDiagnostics` result. The handler SUCCEEDS (K-7); the failure path
@@ -235,7 +235,7 @@ export const initProgram = (input: InitInput, cwd: string) =>
 
 				yield* Console.log(`Initialized ${displayRoot(cwd, bundleRoot, path)} with the ${profileName} profile`);
 
-				const result = yield* run({ root: bundleRoot, config: merged, profile, now }).pipe(
+				const result = yield* run({ root: bundleRoot, projectRoot, config: merged, profile, now }).pipe(
 					Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)),
 				);
 				const diagnostics = collect(result.report.conformance, result.report.lint, result.profileDiagnostics);

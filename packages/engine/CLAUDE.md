@@ -36,7 +36,11 @@ src/
     ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
                                  (phase 7 adds layerHttp)
   validate/
-    run.ts                 -- Now (Context.Service), RunOptions, RunResult, run
+    run.ts                 -- Now (Context.Service), RunOptions (projectRoot required), RunResult, run
+    repository.ts           -- withinRoot, resourceCandidates, locateResource: a repository `resource` is
+                                checked only inside the project root (R1); resource-outside-project
+    resources.ts / untracked.ts / surfaces.ts -- lintResources, lintUntrackedResources, lintSurfaces
+                                (each takes projectRoot)
   query/
     ConceptQuery.ts          -- ConceptFilter, ConceptLink, ConceptNeighbor, ConceptQuery.list/get/neighbors
                                 (read-only bundle queries; the MCP tools and `okfit query` share them)

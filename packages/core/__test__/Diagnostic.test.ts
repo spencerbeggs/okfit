@@ -58,6 +58,7 @@ describe("Diagnostic", () => {
 				"value-unknown",
 				"resource-ignored",
 				"resource-untracked",
+				"resource-outside-project",
 				"frontmatter-missing",
 				"type-missing",
 				"symlink-escape",

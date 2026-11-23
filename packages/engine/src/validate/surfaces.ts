@@ -5,6 +5,7 @@ import { Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfi
 import { SURFACE_TYPE } from "@okfit/profiles";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path, Result } from "effect";
+import { outsideProjectDiagnostic, withinRoot } from "./repository.js";
 import { GLOB_RE } from "./resources.js";
 
 /**
@@ -28,10 +29,12 @@ import { GLOB_RE } from "./resources.js";
 export const lintSurfaces = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
+	projectRoot: string,
 ): Effect.Effect<ReadonlyArray<Diagnostic>, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> =>
 	Effect.gen(function* () {
 		const severity = OkfitConfigNS.severityFor(config, "surface-unmatched");
-		if (severity === "off") return [];
+		const outsideSeverity = OkfitConfigNS.severityFor(config, "resource-outside-project");
+		if (severity === "off" && outsideSeverity === "off") return [];
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
 		const diagnostics: Array<Diagnostic> = [];
@@ -45,34 +48,43 @@ export const lintSurfaces = (
 			const firstGlob = written.findIndex((segment) => GLOB_RE.test(segment));
 			if (firstGlob < 0) continue;
 			const prefix = path.resolve(bundle.root, path.dirname(concept.path), ...written.slice(0, firstGlob));
+			// A prefix outside the project root is reported from its text alone and never reaches the disk.
+			if (!withinRoot(projectRoot, prefix, path)) {
+				if (outsideSeverity !== "off")
+					diagnostics.push(outsideProjectDiagnostic(concept, resource, ["resource"], outsideSeverity));
+				continue;
+			}
 			const restSegments = written.slice(firstGlob);
 			const rest = restSegments.join("/");
 			let problem: string | undefined;
-			if (!(yield* fs.exists(prefix).pipe(Effect.orElseSucceed(() => false)))) {
+			// `descend` reads only directories a match can lie in, never enters a symlinked directory, and treats
+			// a symlinked base as empty, so the prefix is resolved first; that real path must stay inside the
+			// project, or a link under it that points out would be walked.
+			const real = yield* fs.realPath(prefix).pipe(Effect.orElseSucceed(() => undefined));
+			if (real === undefined) {
 				problem = "";
 			} else {
+				const realProject = yield* fs.realPath(projectRoot).pipe(Effect.orElseSucceed(() => projectRoot));
+				if (!withinRoot(realProject, real, path)) {
+					if (outsideSeverity !== "off")
+						diagnostics.push(outsideProjectDiagnostic(concept, resource, ["resource"], outsideSeverity));
+					continue;
+				}
 				const compiled = GlobPattern.compileResult(rest);
 				if (Result.isFailure(compiled)) {
 					problem = `: ${compiled.failure.message}`;
 				} else {
-					// `descend` reads only directories a match can lie in, never enters a symlinked
-					// directory, and treats a symlinked base as empty, so the prefix is resolved first.
 					// `node_modules` stays pruned unless the pattern names it.
-					const matches = yield* fs.realPath(prefix).pipe(
-						Effect.flatMap((cwd) =>
-							descend(compiled.success, {
-								cwd,
-								match: "any",
-								prune: restSegments.some((segment) => segment.includes("node_modules")) ? [] : ["node_modules"],
-								onUnreadable: "skip",
-							}),
-						),
-						Effect.orElseSucceed((): ReadonlyArray<string> => []),
-					);
+					const matches = yield* descend(compiled.success, {
+						cwd: real,
+						match: "any",
+						prune: restSegments.some((segment) => segment.includes("node_modules")) ? [] : ["node_modules"],
+						onUnreadable: "skip",
+					}).pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
 					if (matches.length === 0) problem = "";
 				}
 			}
-			if (problem === undefined) continue;
+			if (problem === undefined || severity === "off") continue;
 			const range = DiagnosticRange.forFrontmatterPath(concept.document, ["resource"]);
 			diagnostics.push(
 				Diagnostic.make({

@@ -1,12 +1,14 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
+import { MemoryFileSystem } from "@effected/memfs";
 import { Concept, ConceptId, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Effect, FileSystem, Layer, Option, Result } from "effect";
 import { lintSurfaces } from "../../src/validate/surfaces.js";
+import { denyAccess, seedPlatform } from "../utils/bundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -56,7 +58,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.deepStrictEqual(diagnostics, []);
 				}),
 		),
@@ -68,7 +72,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.strictEqual(diagnostics.length, 1);
 					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
 					assert.strictEqual(diagnostics[0]?.severity, "warning");
@@ -84,7 +90,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.strictEqual(diagnostics.length, 1);
 					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
 				}),
@@ -97,7 +105,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../README.md/*"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.strictEqual(diagnostics.length, 1);
 					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
 				}),
@@ -113,9 +123,14 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const hit = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/README.md"));
-					assert.deepStrictEqual(yield* lintSurfaces(hit, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+					assert.deepStrictEqual(
+						yield* lintSurfaces(hit, OkfitConfig.DEFAULTS, dirname(hit.root)).pipe(Effect.provide(platform)),
+						[],
+					);
 					const miss = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/docs"));
-					const diagnostics = yield* lintSurfaces(miss, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(miss, OkfitConfig.DEFAULTS, dirname(miss.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.strictEqual(diagnostics.length, 1);
 				}),
 		),
@@ -130,7 +145,10 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/**/x.md"));
-					assert.deepStrictEqual(yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+					assert.deepStrictEqual(
+						yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(Effect.provide(platform)),
+						[],
+					);
 				}),
 		),
 	);
@@ -141,7 +159,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/[a"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.strictEqual(diagnostics.length, 1);
 					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
 				}),
@@ -172,7 +192,7 @@ describe("validate/surfaces lintSurfaces", () => {
 						}),
 					).pipe(Layer.provide(NodeFileSystem.layer));
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/README.md"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
 						Effect.provide(Layer.mergeAll(counting, NodePath.layer)),
 					);
 					assert.deepStrictEqual(diagnostics, []);
@@ -197,7 +217,7 @@ describe("validate/surfaces lintSurfaces", () => {
 					Effect.gen(function* () {
 						const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", resource));
 						assert.deepStrictEqual(
-							yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)),
+							yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(Effect.provide(platform)),
 							[],
 						);
 					}),
@@ -216,7 +236,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/**/*.md"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.strictEqual(diagnostics.length, 1);
 					assert.strictEqual(diagnostics[0]?.code, "surface-unmatched");
 				}),
@@ -229,7 +251,10 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/pkgs.md", "../../packages/*/node_modules/*"));
-					assert.deepStrictEqual(yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+					assert.deepStrictEqual(
+						yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(Effect.provide(platform)),
+						[],
+					);
 				}),
 		),
 	);
@@ -243,7 +268,10 @@ describe("validate/surfaces lintSurfaces", () => {
 					await mkdir(join(base, "packages", "a"), { recursive: true });
 				});
 				const bundle = bundleOf(join(base, "okf"), surfaceAt("surfaces/pkgs.md", "../../packages/*"));
-				assert.deepStrictEqual(yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform)), []);
+				assert.deepStrictEqual(
+					yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(Effect.provide(platform)),
+					[],
+				);
 			} finally {
 				yield* Effect.promise(() => rm(base, { recursive: true, force: true }));
 			}
@@ -256,7 +284,9 @@ describe("validate/surfaces lintSurfaces", () => {
 			(root) =>
 				Effect.gen(function* () {
 					const bundle = bundleOf(root, surfaceAt("surfaces/docs.md", "../../docs"));
-					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+					const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+						Effect.provide(platform),
+					);
 					assert.deepStrictEqual(diagnostics, []);
 				}),
 		),
@@ -266,13 +296,53 @@ describe("validate/surfaces lintSurfaces", () => {
 		Effect.gen(function* () {
 			const config: OkfitConfig = {
 				...OkfitConfig.DEFAULTS,
-				lint: { ...OkfitConfig.DEFAULTS.lint, surface_unmatched: "off" },
+				lint: { ...OkfitConfig.DEFAULTS.lint, surface_unmatched: "off", resource_outside_project: "off" },
 			};
 			const bundle = bundleOf("/does/not/exist", surfaceAt("surfaces/pkgs.md", "../../packages/*"));
-			const diagnostics = yield* lintSurfaces(bundle, config).pipe(
+			const diagnostics = yield* lintSurfaces(bundle, config, dirname(bundle.root)).pipe(
 				Effect.provide(Layer.mergeAll(FileSystem.layerNoop({}), NodePath.layer)),
 			);
 			assert.deepStrictEqual(diagnostics, []);
 		}),
 	);
+
+	describe("containment (R1, R13)", () => {
+		const seed = {
+			"/repo/okf/surfaces/.keep": "",
+			"/repo/packages/a/x.md": "x",
+			"/repo/packages/link": MemoryFileSystem.symlink("/elsewhere/a"),
+			"/elsewhere/a/x.md": "x",
+		};
+		const run = (resource: string) => {
+			const touched: Array<string> = [];
+			return Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const bundle = bundleOf("/repo/okf", surfaceAt("surfaces/pkgs.md", resource));
+				const diagnostics = yield* lintSurfaces(bundle, OkfitConfig.DEFAULTS, "/repo");
+				// the guard is armed: a direct access under /elsewhere is refused and recorded
+				const before = touched.length;
+				yield* Effect.flip(fs.readDirectory("/elsewhere/a"));
+				assert.strictEqual(touched.length, before + 1);
+				return { codes: diagnostics.map((d) => d.code), touched: touched.slice(0, before) };
+			}).pipe(Effect.provide(seedPlatform(seed, denyAccess(touched, [], "/elsewhere"))));
+		};
+
+		it.effect("a glob prefix outside the project is one resource-outside-project and never touched", () =>
+			Effect.gen(function* () {
+				const outside = yield* run("../../../elsewhere/**/*.md");
+				assert.deepStrictEqual(outside, { codes: ["resource-outside-project"], touched: [] });
+				// control: the same glob inside the project matches and reports nothing
+				assert.deepStrictEqual(yield* run("../../packages/**/*.md"), { codes: [], touched: [] });
+			}),
+		);
+
+		it.effect("a symlinked prefix that leaves the project is outside and is never walked", () =>
+			Effect.gen(function* () {
+				assert.deepStrictEqual(yield* run("../../packages/link/**/*.md"), {
+					codes: ["resource-outside-project"],
+					touched: [],
+				});
+			}),
+		);
+	});
 });

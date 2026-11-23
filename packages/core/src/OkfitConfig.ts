@@ -394,6 +394,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	resource_outside_project: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "resource-outside-project",
+			description:
+				'A resource value resolves outside the project root, so okfit never reads, stats or asks git about it; the value is reported from its text alone (okfit\'s repository check, not OKF). Default "info".',
+			default: "info",
+		}),
+	),
 	generated_missing: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "generated-missing",
@@ -722,6 +730,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"source-resource-missing": "source_resource_missing",
 	"resource-ignored": "resource_ignored",
 	"resource-untracked": "resource_untracked",
+	"resource-outside-project": "resource_outside_project",
 	"generated-missing": "generated_missing",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
@@ -761,6 +770,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	source_resource_missing: "warn",
 	resource_ignored: "error",
 	resource_untracked: "warn",
+	resource_outside_project: "info",
 	generated_missing: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",

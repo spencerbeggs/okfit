@@ -102,7 +102,7 @@ describe("OkfitConfig", () => {
 		assert.deepStrictEqual([d.actors, d.types, d.tags, d.extensions], [{ humans: [] }, {}, {}, {}]);
 		assert.deepStrictEqual(
 			[d.lint!.broken_links, d.lint!.unknown_type, d.lint!.legacy_timestamp, Object.keys(d.lint!).length],
-			["warn", "error", "info", 35],
+			["warn", "error", "info", 36],
 		);
 	});
 	it("merge: DEFAULTS < profile < file, arrays replace, tables merge, inputs untouched", () => {

@@ -3,11 +3,14 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import type { LsFilesEntry } from "@effected/git";
 import { Git } from "@effected/git";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
+import { MemoryFileSystem } from "@effected/memfs";
 import { Concept, ConceptId, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Effect, Layer, Option, Result } from "effect";
+import { Effect, FileSystem, Layer, Option, Result } from "effect";
 import { lintUntrackedResources } from "../../src/validate/untracked.js";
+import { denyAccess, seedPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
 const platform = Git.layer.pipe(Layer.provideMerge(TestPlatform));
@@ -77,7 +80,7 @@ const withRepo = <A, E, R>(
 	);
 
 const lint = (repo: string, ...resources: Array<string>) =>
-	lintUntrackedResources(bundleAt(join(repo, "okf"), conceptWith(resources)), OkfitConfig.DEFAULTS).pipe(
+	lintUntrackedResources(bundleAt(join(repo, "okf"), conceptWith(resources)), OkfitConfig.DEFAULTS, repo).pipe(
 		Effect.provide(platform),
 	);
 
@@ -206,10 +209,66 @@ describe("lintUntrackedResources (issue #279)", () => {
 				...OkfitConfig.DEFAULTS,
 				lint: { ...OkfitConfig.DEFAULTS.lint, resource_ignored: "off", resource_untracked: "off" },
 			};
-			const ds = yield* lintUntrackedResources(bundleAt("/does/not/exist", conceptWith(["../x.md"])), config).pipe(
-				Effect.provide(platform),
-			);
+			const ds = yield* lintUntrackedResources(
+				bundleAt("/does/not/exist", conceptWith(["../x.md"])),
+				config,
+				"/does",
+			).pipe(Effect.provide(platform));
 			assert.deepStrictEqual(ds, []);
 		}),
+	);
+});
+
+describe("lintUntrackedResources containment (R1)", () => {
+	it.effect(
+		"never reaches git or /elsewhere for a symlink out of the project, and still classifies an in-repo path",
+		() => {
+			const touched: Array<string> = [];
+			const lsFilesCalls: Array<ReadonlyArray<string>> = [];
+			const repoRootCalls: Array<string> = [];
+			const git = Git.layerTest({
+				repoRoot: (cwd) =>
+					Effect.suspend(() => {
+						repoRootCalls.push(cwd);
+						return Effect.succeed("/repo");
+					}),
+				submoduleStatus: () => Effect.succeed([]),
+				lsFiles: (_cwd, options) =>
+					Effect.suspend(() => {
+						lsFilesCalls.push(options?.pathspec ?? []);
+						return Effect.succeed([] as ReadonlyArray<LsFilesEntry>);
+					}),
+				checkIgnore: () => Effect.succeed([]),
+			});
+			const platform = Layer.mergeAll(
+				seedPlatform(
+					{
+						"/repo/okf/.keep": "",
+						"/repo/loose.md": "x",
+						"/repo/link": MemoryFileSystem.symlink("/elsewhere/real"),
+						"/elsewhere/real": "secret",
+					},
+					denyAccess(touched, [], "/elsewhere"),
+				),
+				git,
+			);
+			const run = (...resources: Array<string>) =>
+				lintUntrackedResources(bundleAt("/repo/okf", conceptWith(resources)), OkfitConfig.DEFAULTS, "/repo");
+			return Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				assert.deepStrictEqual(yield* run("../link"), []);
+				assert.deepStrictEqual(lsFilesCalls, []);
+				assert.deepStrictEqual(repoRootCalls, []);
+				assert.deepStrictEqual(touched, []);
+				// control: an in-repo path the double answers as untracked is reported and reaches git
+				assert.deepStrictEqual(summary(yield* run("../link", "../loose.md")), ["resource-untracked:warning"]);
+				assert.deepStrictEqual(lsFilesCalls, [["loose.md"]]);
+				// a value that leaves the project lexically is silent here too (lintResources reports it)
+				assert.deepStrictEqual(yield* run("../../elsewhere/real"), []);
+				// the guard is armed
+				yield* Effect.flip(fs.exists("/elsewhere/real"));
+				assert.deepStrictEqual(touched, ["exists /elsewhere/real"]);
+			}).pipe(Effect.provide(platform));
+		},
 	);
 });

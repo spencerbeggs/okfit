@@ -4,7 +4,8 @@ import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
-import { isDescriptor, resourceCandidates, resourceValuesOf } from "./resources.js";
+import { locateResource } from "./repository.js";
+import { isDescriptor, resourceValuesOf } from "./resources.js";
 
 type State = "tracked" | "ignored" | "untracked";
 
@@ -84,6 +85,7 @@ const classify = (
 export const lintUntrackedResources = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
+	projectRoot: string,
 ): Effect.Effect<
 	ReadonlyArray<Diagnostic>,
 	PlatformError.PlatformError | GitCommandError | UnknownRefError,
@@ -107,12 +109,10 @@ export const lintUntrackedResources = (
 		for (const [, concept] of bundle.concepts) {
 			for (const { value, path: fieldPath } of resourceValuesOf(concept)) {
 				if (isDescriptor(value)) continue;
-				for (const candidate of resourceCandidates(bundle, concept, value, path)) {
-					if (!(yield* fs.exists(candidate))) continue;
-					const real = yield* fs.realPath(candidate);
-					targets.push({ concept, value, fieldPath, real });
-					break;
-				}
+				// A value (or a symlink under it) leaving the project root is never stat'ed and never reaches git;
+				// `lintResources` reports it, so this lint stays silent and one value gets one report.
+				const location = yield* locateResource({ bundle, concept, value, projectRoot });
+				if (location._tag === "found") targets.push({ concept, value, fieldPath, real: location.real });
 			}
 		}
 		if (targets.length === 0) return [];

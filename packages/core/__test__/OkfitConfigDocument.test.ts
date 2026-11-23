@@ -96,7 +96,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the thirty-five lint keys its own rendered code as the title", () => {
+	it("gives each of the thirty-six lint keys its own rendered code as the title", () => {
 		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value.title]),
@@ -128,6 +128,7 @@ describe("okfitConfigDocumentFields", () => {
 				["source_resource_missing", "source-resource-missing"],
 				["resource_ignored", "resource-ignored"],
 				["resource_untracked", "resource-untracked"],
+				["resource_outside_project", "resource-outside-project"],
 				["generated_missing", "generated-missing"],
 				["publication_drift", "publication-drift"],
 				["publication_orphan", "publication-orphan"],

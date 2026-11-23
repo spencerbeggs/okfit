@@ -104,6 +104,7 @@ export const validateCommand = Command.make(
 					: [];
 				const result = yield* run({
 					root: bundleRoot,
+					projectRoot: resolved.projectRoot,
 					config: merged,
 					profile,
 					now,

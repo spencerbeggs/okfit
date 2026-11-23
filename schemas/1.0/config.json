@@ -731,6 +731,28 @@
 						}
 					}
 				},
+				"resource_outside_project": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "resource-outside-project",
+					"description": "A resource value resolves outside the project root, so okfit never reads, stats or asks git about it; the value is reported from its text alone (okfit's repository check, not OKF). Default \"info\".",
+					"default": "info",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"generated_missing": {
 					"type": "string",
 					"enum": [

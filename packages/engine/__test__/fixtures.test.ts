@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import type { LoadedBundle } from "@okfit/core";
 import { Bundle, Graph, OkfVersion, OkfitConfig, Validate } from "@okfit/core";
 import { Effect, Option } from "effect";
+import { lintResources } from "../src/validate/resources.js";
 import type { ErrorCase, ProjectSeed } from "./fixtures/bundles.js";
 import { ERROR_PROJECTS, UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "./fixtures/bundles.js";
 import { ROOT, projectPlatform } from "./utils/bundle.js";
@@ -113,4 +114,27 @@ describe("ERROR_PROJECTS: one defect each", () => {
 		// control: the helper does report a difference
 		assert.deepStrictEqual(diff({ a: "1" }, { a: "2" }), ["a"]);
 	});
+});
+
+describe("ERROR_PROJECTS: repository resources", () => {
+	const lintOf = (name: "resource-outside-project" | "resource-missing-in-repository") =>
+		Effect.gen(function* () {
+			const bundle = yield* load(ERROR_PROJECTS[name]);
+			return (yield* lintResources(bundle, OkfitConfig.DEFAULTS, "/repo")).map((d) => [d.file, d.code, d.severity]);
+		}).pipe(Effect.provide(projectPlatform(ERROR_PROJECTS[name])));
+
+	it.effect("resource-outside-project is reported as info, never as missing", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* lintOf("resource-outside-project"), [
+				["modules/widget.md", "resource-outside-project", "info"],
+			]);
+		}),
+	);
+	it.effect("resource-missing-in-repository is source-resource-missing", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* lintOf("resource-missing-in-repository"), [
+				["modules/widget.md", "source-resource-missing", "warning"],
+			]);
+		}),
+	);
 });

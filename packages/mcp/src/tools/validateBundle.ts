@@ -66,6 +66,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 		const now = yield* resolveNow(params.now);
 		const result = yield* run({
 			root: resolved.bundleRoot,
+			projectRoot: resolved.projectRoot,
 			config: resolved.config,
 			profile: resolved.profile,
 			now,

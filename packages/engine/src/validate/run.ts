@@ -38,6 +38,11 @@ export class Now extends Context.Service<Now, DateTime.Utc>()("@okfit/engine/Now
 export interface RunOptions {
 	/** Absolute bundle root; `Bundle.load` never reads cwd (D-8). */
 	readonly root: string;
+	/**
+	 * Absolute project root. A repository `resource` is checked only inside it; a path leaving it, by `..` or
+	 * a symlink, is never read, stat'ed or passed to git. Callers pass the resolved project root, never the bundle root.
+	 */
+	readonly projectRoot: string;
 	/** Already merged `DEFAULTS < profile < file` by the caller (D-28). */
 	readonly config: OkfitConfig;
 	/** The resolved profile, when `Profiles.get` found one. */
@@ -133,18 +138,18 @@ export const run = (
 				: yield* Provenance.lint(bundle, options.config, { skipGitTier: options.skipProvenance === true });
 		const signals = yield* Trust.signals(bundle, options.config, options.now);
 		const drift = yield* Trust.lint(bundle, options.config, options.now, signals);
-		const resources = yield* lintResources(bundle, options.config);
+		const resources = yield* lintResources(bundle, options.config, options.projectRoot);
 		// #279: git-backed, so --skip-provenance (the edit-time hook path) skips it.
 		const untracked =
 			options.skipProvenance === true || options.skipUntracked === true
 				? []
-				: yield* lintUntrackedResources(bundle, options.config);
+				: yield* lintUntrackedResources(bundle, options.config, options.projectRoot);
 		// Publication lints are software-project's; any other profile (or none)
 		// may declare its own `Publication` type with different semantics.
 		const publications = Option.exists(options.profile, (profile) => profile.name === "software-project")
 			? yield* Publications.lint(bundle, options.config)
 			: [];
-		const surfaces = yield* lintSurfaces(bundle, options.config);
+		const surfaces = yield* lintSurfaces(bundle, options.config, options.projectRoot);
 		return {
 			bundle,
 			report: {
