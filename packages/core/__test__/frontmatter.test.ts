@@ -17,12 +17,12 @@ describe("internal/frontmatter", () => {
 			const result = decodeConcept({ title: "no type" }, { file: "no-type.md", text, node });
 			assert.isTrue(Option.isNone(result.concept));
 			assert.deepStrictEqual(
-				result.diagnostics.map((d) => [d.code, d.range]),
-				[["type-missing", undefined]],
+				result.diagnostics.map((d) => [d.code, d.severity, d.range]),
+				[["type-missing", "warning", undefined]],
 			);
 		}),
 	);
-	it.effect("a failing family reports family-invalid at the yaml-shifted, D-14 file offset", () =>
+	it.effect("a malformed optional key reports value-malformed at the yaml-shifted, D-14 file offset", () =>
 		Effect.gen(function* () {
 			const text =
 				'---\ntype: Module\ngenerated: { by: reference_agent/gemini-2.5-pro, at: "2026-06-30T14:00:00" }\n---\n\nBody\n';
@@ -36,7 +36,11 @@ describe("internal/frontmatter", () => {
 			assert.isTrue(Option.isSome(result.concept));
 			assert.deepStrictEqual(
 				result.diagnostics.map((d) => d.code),
-				["family-invalid"],
+				["value-malformed"],
+			);
+			assert.deepStrictEqual(
+				result.diagnostics.map((d) => d.severity),
+				["warning"],
 			);
 			assert.isDefined(result.diagnostics[0]?.range);
 			assert.isAbove(result.diagnostics[0]!.range!.offset, text.indexOf("generated:"));

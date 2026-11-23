@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:47:57Z
+  at: 2026-11-23T21:20:06Z
 integrity:
   generated:
-    body: 361de23891b653fa
+    body: f1e001039f561c89
 ---
 
 # Engine
@@ -203,6 +203,27 @@ worktree root from `Git.repoRoot(..., { ignoreRepositoryEnv: true })`, which
 drops the `GIT_DIR` a linked worktree's hook exports and would otherwise make
 git name the bundle root (#315). A malformed `--since` is
 a parse-time usage error from the CLI's own argument parser.
+
+`sync/index.ts#syncIndex` keeps the root index's existing frontmatter: it
+passes the loaded root `IndexDocument.frontmatter` to `Derive.renderIndex`,
+which re-emits it verbatim and adds `okf_version` (the `OKF_SPEC_VERSION`
+constant) only when the block declares none, so a declared `title`,
+`description`, `license`, extension key or version survives a sync (see [The
+root index's metadata is read and kept](../decisions/root-index-metadata-is-kept.md)).
+`sync --staged` still fails with `ConceptOutsideRepositoryError` when
+`log.md` resolves outside the repository, and never stamps a concept file
+that is a symlink out of the bundle, because core no longer loads one (see
+[A concept outside the repository is a typed
+failure](../decisions/concept-outside-repository-is-a-typed-failure.md)).
+
+Not done for OKF v0.3 in this package yet: `ConceptSummary.status` and the
+`ConceptQuery` status filter report `unknown`, but `verify/select.ts` reads
+the typed `status`, so a concept with an unknown status is not skipped
+there and the picker labels it `stable`; the `validate/resources.ts`
+cited-resource check still tries the bundle root as a candidate for every
+bundle regardless of its declared version; and `move/references.ts` still
+reads computation path fields under an `attested` key that does not exist
+and does not know `superseded_by`, so `okfit mv` rewrites neither.
 
 ## Editor seams
 

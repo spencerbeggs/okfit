@@ -4,9 +4,11 @@ import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
+import { MemoryFileSystem } from "@effected/memfs";
 import { Concept, ConceptId, Derive, IndexDocument, LoadedBundle, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
-import { Effect, Layer, Option, Result } from "effect";
+import { Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
+import { ROOT } from "../utils/bundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -155,4 +157,43 @@ describe("syncIndex", () => {
 			}
 		}).pipe(Effect.provide(platform)),
 	);
+
+	it.effect("keeps a declared root frontmatter and never forces the spec constant over it (D6)", () => {
+		const bareRoot = `${ROOT}/bare`;
+		const handle = MemoryFileSystem.makeSync({
+			[`${ROOT}/thing.md`]: "",
+			[`${bareRoot}/thing.md`]: "",
+		});
+		const rootBundle = (root: string, frontmatter: string): LoadedBundle => {
+			const concept = conceptAt("thing.md", "Thing");
+			return LoadedBundle.make({
+				root,
+				files: [concept.path],
+				directories: [],
+				concepts: new Map([[concept.id, concept]]),
+				indexes: new Map([
+					["", IndexDocument.make({ path: "index.md", dir: "", sections: [], okfVersion: "0.3", frontmatter })],
+				]),
+				logs: new Map(),
+				diagnostics: [],
+			});
+		};
+		return Effect.gen(function* () {
+			const fs = yield* FileSystem.FileSystem;
+			const declared = 'okf_version: "0.3"\ntitle: Acme retail analytics\nlicense: CC-BY-4.0';
+			const bundle = rootBundle(ROOT, declared);
+			const first = yield* syncIndex(bundle, false);
+			assert.include(first.written, "index.md");
+			const text = yield* fs.readFileString(`${ROOT}/index.md`);
+			assert.isTrue(text.startsWith(`---\n${declared}\n---\n`));
+			const second = yield* syncIndex(bundle, false);
+			assert.include(second.unchanged, "index.md");
+			assert.notInclude(second.written, "index.md");
+
+			// control: a block declaring no okf_version gets the spec constant prepended and keeps its keys
+			yield* syncIndex(rootBundle(bareRoot, "title: Acme"), false);
+			const bare = yield* fs.readFileString(`${bareRoot}/index.md`);
+			assert.match(bare, new RegExp(`^---\\nokf_version: ['"]${OKF_SPEC_VERSION}['"]\\ntitle: Acme\\n---\\n`));
+		}).pipe(Effect.provide(Layer.mergeAll(handle.layer, Path.layer)));
+	});
 });

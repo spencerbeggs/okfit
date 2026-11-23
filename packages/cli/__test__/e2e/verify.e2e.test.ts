@@ -331,7 +331,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(run.exitCode, 3);
 			assert.isTrue(
 				run.stderr.includes(
-					"error: SchemaError(Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm))",
+					"error: SchemaError(Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm) or a calendar date (YYYY-MM-DD))",
 				),
 			);
 			assert.strictEqual(await readProject(cwd), before);
@@ -441,10 +441,10 @@ describe("okfit verify (e2e)", () => {
 	it("verifies a symlinked concept by rewriting its target, keeping the link intact (I4)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
-			// `okf/linked.md` is a symlink to a real file OUTSIDE the bundle
-			// directory; `Bundle`'s walker follows it via `fs.stat` (typed
-			// "File"), so it decodes as the concept id "linked".
-			const targetPath = join(cwd, "linked-target.md");
+			// `okf/linked.md` is a symlink to a real file INSIDE the bundle
+			// (a link that leaves the bundle is never loaded, OKF 0.3 3.2), so
+			// it decodes as the concept id "linked".
+			const targetPath = join(cwd, "okf", "linked-target.md");
 			const before = await readProject(cwd);
 			const content = await digestOf(cwd, "project");
 			await writeFile(targetPath, before, "utf8");

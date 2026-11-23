@@ -71,7 +71,7 @@ describe("Source", () => {
 			});
 			assert.strictEqual(source.usage_count, 1240);
 			assert.instanceOf(source.usage_window, UsageWindow);
-			assert.strictEqual(DateTime.formatIso(source.usage_window!.to), "2026-06-30T00:00:00.000Z");
+			assert.strictEqual(DateTime.formatIso(source.usage_window!.to!), "2026-06-30T00:00:00.000Z");
 			assert.deepStrictEqual(Object.keys(yield* decodeSource({ resource: "policies/pii.md" })), ["resource"]);
 		}),
 	);

@@ -4,6 +4,7 @@ import { Effect, Graph as EffectGraph, Layer, Option, Path } from "effect";
 import { Bundle } from "../src/Bundle.js";
 import type { GraphLink } from "../src/Graph.js";
 import { Graph } from "../src/Graph.js";
+import { MOUNT, platform } from "./utils/fixtures.js";
 import {
 	BROKEN_ROOT,
 	BrokenPlatform,
@@ -189,4 +190,114 @@ describe("Graph.resolve", () => {
 			});
 		}).pipe(Effect.provide(platform)),
 	);
+});
+
+describe("Graph.fromBundle after a dropped sources entry", () => {
+	it.effect("ranges the kept source's edge at its own YAML line, not its decoded index", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			const graph = Graph.fromBundle(bundle);
+			const edges = graph.edges.filter((edge) => edge.from === "a" && edge.to === "b");
+			assert.strictEqual(edges.length, 1);
+			assert.strictEqual(edges[0]?.data.field, "sources.resource");
+			assert.strictEqual(edges[0]?.data.position?.line, 4);
+			assert.strictEqual(edges[0]?.data.position?.character, 14);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\nsources:\n  - title: no resource\n  - resource: b.md\n---\n",
+					[`${MOUNT}/b.md`]: "---\ntype: Note\n---\n",
+				}),
+			),
+		),
+	);
+
+	it.effect("superseded_by is a path field and a graph edge (OKF 0.3 §5.4, §6.2)", () =>
+		Effect.gen(function* () {
+			const graph = Graph.fromBundle(yield* Bundle.load({ root: MOUNT }));
+			const edge = graph.edges.find((link) => link.data.field === "superseded_by");
+			assert.strictEqual(edge?.from, "metrics/gross-margin-legacy");
+			assert.strictEqual(edge?.to, "metrics/gross-margin");
+			assert.strictEqual(edge?.data.position?.line, 3);
+			assert.deepStrictEqual(
+				graph.dangling().map((link) => [link.from, link.data.field]),
+				[["metrics/old", "superseded_by"]],
+			);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/metrics/gross-margin.md`]: "---\ntype: Metric\n---\n",
+					[`${MOUNT}/metrics/gross-margin-legacy.md`]:
+						"---\ntype: Metric\nstatus: deprecated\nsuperseded_by: /metrics/gross-margin.md\n---\n",
+					[`${MOUNT}/metrics/old.md`]: "---\ntype: Metric\nstatus: deprecated\nsuperseded_by: ./gone.md\n---\n",
+				}),
+			),
+		),
+	);
+});
+
+describe("Graph version-gated root fallback", () => {
+	const seed = (frontmatter?: string) => ({
+		[`${MOUNT}/index.md`]: `${frontmatter === undefined ? "" : `---\n${frontmatter}\n---\n\n`}# Metric\n\n* [Revenue](metrics/revenue.md)\n`,
+		[`${MOUNT}/metrics/revenue.md`]: "---\ntype: Metric\n---\n",
+		[`${MOUNT}/computations/revenue-ytd.md`]:
+			"---\ntype: Attested Computation\nruntime: bigquery\nattester:\n  resource: attesters/sql_equality.py\n---\n\nSee [revenue](metrics/revenue.md).\n",
+		[`${MOUNT}/attesters/sql_equality.py`]: "",
+	});
+	const load = (frontmatter?: string) => Bundle.load({ root: MOUNT }).pipe(Effect.provide(platform(seed(frontmatter))));
+	const from = "computations/revenue-ytd.md";
+
+	for (const [label, frontmatter] of [
+		["0.3", 'okf_version: "0.3"'],
+		["an unparsable version", 'okf_version: "next"'],
+	] as const) {
+		it.effect(`does not fall back to the root for ${label}`, () =>
+			Effect.gen(function* () {
+				const bundle = yield* load(frontmatter);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), {
+					_tag: "node",
+					id: "computations/metrics/revenue.md",
+					kind: "missing",
+					via: "file",
+				});
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "/metrics/revenue.md"), {
+					_tag: "node",
+					id: "metrics/revenue",
+					kind: "concept",
+					via: "rooted",
+				});
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "attesters/sql_equality.py", "attester.resource"), {
+					_tag: "node",
+					id: "computations/attesters/sql_equality.py",
+					kind: "missing",
+					via: "file",
+				});
+				assert.strictEqual(Graph.fromBundle(bundle).dangling().length, 2);
+			}),
+		);
+	}
+
+	for (const [label, frontmatter] of [
+		["nothing declared", undefined],
+		["0.2", 'okf_version: "0.2"'],
+	] as const) {
+		it.effect(`keeps the root fallback for ${label}`, () =>
+			Effect.gen(function* () {
+				const bundle = yield* load(frontmatter);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), {
+					_tag: "node",
+					id: "metrics/revenue",
+					kind: "concept",
+					via: "root",
+				});
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "attesters/sql_equality.py", "attester.resource"), {
+					_tag: "node",
+					id: "attesters/sql_equality.py",
+					kind: "file",
+					via: "root",
+				});
+				assert.strictEqual(Graph.fromBundle(bundle).dangling().length, 0);
+			}),
+		);
+	}
 });

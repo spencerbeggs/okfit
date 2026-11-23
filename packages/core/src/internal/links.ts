@@ -1,11 +1,17 @@
 import type { MarkdownDocument } from "@effected/markdown";
 import { PosixPath } from "@effected/walker";
 import { Option } from "effect";
-import type { Concept } from "../Concept.js";
+import { Concept } from "../Concept.js";
 import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
 
 /** Frontmatter fields whose value is a bundle path (D-23). @internal */
-export type PathFieldName = "resource" | "sources.resource" | "computation" | "executor.resource" | "attester.resource";
+export type PathFieldName =
+	| "resource"
+	| "sources.resource"
+	| "computation"
+	| "executor.resource"
+	| "attester.resource"
+	| "superseded_by";
 
 /** Node kind a resolved target lands on (D-25). @internal */
 export type ResolvedKind = "concept" | "file" | "missing";
@@ -22,6 +28,8 @@ export interface PathFieldRef {
 export interface BundleIndex {
 	readonly files: ReadonlySet<string>;
 	readonly concepts: ReadonlySet<string>;
+	/** Whether a bare value may fall back to the bundle root (rule C); true only for a bundle declaring OKF 0.2 or earlier, or nothing. */
+	readonly rootFallback: boolean;
 }
 
 /** Outcome of resolving one raw target (D-23, D-24); only `node` yields an edge. @internal */
@@ -111,7 +119,7 @@ export const resolveTarget = (from: string, raw: string, index: BundleIndex): Li
 	if (escapes(fileRelative)) return { _tag: "external" };
 	const hitB = lookup(fileRelative, index, "file");
 	if (hitB !== undefined) return hitB;
-	if (!relative) {
+	if (!relative && index.rootFallback) {
 		const rootRelative = PosixPath.normalize(target);
 		if (escapes(rootRelative)) return { _tag: "external" };
 		const hitC = lookup(rootRelative, index, "root");
@@ -139,20 +147,28 @@ export const resolvePathField = (
 export const pathFieldsOf = (concept: Concept): ReadonlyArray<PathFieldRef> => {
 	const out: Array<PathFieldRef> = [];
 	if (concept.resource !== undefined) out.push({ field: "resource", raw: concept.resource, path: ["resource"] });
-	// `sources` decodes all or nothing, so a decoded entry's index is its index in the YAML sequence.
+	// An ignored entry shifts the decoded index off the YAML index, so the path comes from `Concept.entryPath`.
 	for (const [index, source] of (concept.sources ?? []).entries()) {
-		out.push({ field: "sources.resource", raw: source.resource, path: ["sources", index, "resource"] });
+		out.push({
+			field: "sources.resource",
+			raw: source.resource,
+			path: [...Concept.entryPath(concept, "sources", index), "resource"],
+		});
 	}
 	// The Attested Computation keys sit at the frontmatter top level (spec section 10).
 	const attested = concept.attested;
 	if (attested?.computation !== undefined) {
 		out.push({ field: "computation", raw: attested.computation, path: ["computation"] });
 	}
-	if (attested?.executor !== undefined) {
+	if (attested?.executor?.resource !== undefined) {
 		out.push({ field: "executor.resource", raw: attested.executor.resource, path: ["executor", "resource"] });
 	}
-	if (attested?.attester !== undefined) {
+	if (attested?.attester?.resource !== undefined) {
 		out.push({ field: "attester.resource", raw: attested.attester.resource, path: ["attester", "resource"] });
+	}
+	// OKF 0.3 5.4, 6.2: a scalar path to the concept that replaces this one.
+	if (concept.superseded_by !== undefined) {
+		out.push({ field: "superseded_by", raw: concept.superseded_by, path: ["superseded_by"] });
 	}
 	return out;
 };

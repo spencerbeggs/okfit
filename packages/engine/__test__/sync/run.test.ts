@@ -180,19 +180,52 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
-	it.effect("fails with ConceptOutsideRepositoryError for a concept symlinked outside the repository (#351)", () =>
+	it.effect("never loads, stamps or rewrites a file symlinked outside the bundle (OKF 0.3 §3.2)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);
 			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
 			try {
 				const target = join(outside, "elsewhere.md");
-				yield* Effect.promise(() => writeFile(target, "---\ntype: Module\ntitle: Else\n---\n\n# Else\n"));
+				const original = "---\ntype: Module\ntitle: Else\n---\n\n# Else\n";
+				yield* Effect.promise(() => writeFile(target, original));
 				yield* Effect.promise(() => symlink(target, join(root, "okf", "else.md")));
+				// Positive control: a real staged concept beside it is stamped.
+				yield* Effect.promise(() =>
+					writeFile(
+						join(root, "okf", "new.md"),
+						"---\ntype: Module\ntitle: New\ngenerated:\n  by: human:ada\n---\n\n# New\n",
+					),
+				);
+				git(root, ["add", "okf/new.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["new"]);
+				assert.strictEqual(yield* Effect.promise(() => readFile(target, "utf8")), original);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("fails with ConceptOutsideRepositoryError when log.md is a symlink out of the repository (#351)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
+			try {
+				const target = join(outside, "log.md");
+				yield* Effect.promise(() => writeFile(target, "# Log\n"));
+				yield* Effect.promise(() => symlink(target, join(root, "okf", "log.md")));
 				const error = yield* Effect.flip(
 					runSync({
 						bundleRoot: join(root, "okf"),
 						config: OkfitConfig.DEFAULTS,
-						modes: new Set(["generated"]),
+						modes: new Set(["log"]),
 						dryRun: false,
 						staged: { at: STAMP },
 					}).pipe(Effect.provide(live)),

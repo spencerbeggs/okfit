@@ -823,6 +823,33 @@ describe("syncGenerated: integrity and legacy migration", () => {
 		),
 	);
 
+	it.effect("a kept generated with an offset-less at ends with exactly one at line after sync (tolerant reading)", () =>
+		withFile("generated:\n  by: human:ada\n  at: 2026-06-30T14:00:00\n", BODY, (root) =>
+			Effect.gen(function* () {
+				const result = yield* run(root);
+				assert.deepStrictEqual(result.written, ["page"]);
+				const text = yield* readPage(root);
+				assert.strictEqual(text.split("\n").filter((line) => /^\s*at:/.test(line)).length, 1);
+				assert.include(text, `at: ${"2026-06-01T08:00:00Z"}`);
+				assert.notInclude(text, "2026-06-30T14:00:00\n");
+			}),
+		),
+	);
+
+	it.effect(
+		"a generated with no by reads as absent; with an agent set it is skipped generated-unsupported, unwritten",
+		() =>
+			withFile("generated:\n  at: 2026-06-30T14:00:00Z\n", BODY, (root) =>
+				Effect.gen(function* () {
+					const before = yield* readPage(root);
+					const result = yield* run(root, "okfit/claude-code" as Actor);
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "generated-unsupported" }]);
+					assert.deepStrictEqual(result.written, []);
+					assert.strictEqual(yield* readPage(root), before);
+				}),
+			),
+	);
+
 	it.effect("idempotent: a second run reports everything unchanged with nothing migrated", () =>
 		withFile(`generated:\n  by: human:ada\n  at: ${OLD_AT}\n  body_sha256: ${"a".repeat(64)}\n`, BODY, (root) =>
 			Effect.gen(function* () {

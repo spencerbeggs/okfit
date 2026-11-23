@@ -24,7 +24,9 @@ describe("Actor", () => {
 		assert.strictEqual(Actor.form("reference_agent/gemini-2.5-pro"), "producer");
 		assert.strictEqual(Actor.form("human:kliu@acme"), "human");
 		assert.strictEqual(Actor.form("process:etl"), "process");
-		assert.strictEqual(Actor.form("team:data-eng"), "other");
+		assert.strictEqual(Actor.form("team:data-eng"), "team");
+		assert.strictEqual(Actor.form("crew:x"), "other");
+		assert.isFalse(Actor.isHuman("team:data-eng"));
 		assert.isTrue(Actor.isHuman("human:kliu@acme"));
 		assert.isFalse(Actor.isHuman("humanoid:x"));
 	});

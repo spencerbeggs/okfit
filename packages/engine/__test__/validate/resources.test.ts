@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
-import { Concept, ConceptId, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
+import { Concept, ConceptId, EntryPaths, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Effect, Layer, Option, Result } from "effect";
-import { lintResources } from "../../src/validate/resources.js";
+import { lintResources, resourceValuesOf } from "../../src/validate/resources.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const FRONTMATTER_OPTIONS = MarkdownParseOptions.make({ frontmatter: true });
@@ -22,7 +22,13 @@ const conceptAt = (
 	LoadedConcept.make({
 		id: Option.getOrThrow(ConceptId.normalize(path)),
 		path,
-		frontmatter: Concept.make({ type: "Module", extensions: {}, raw: {}, ...fields }),
+		// `Concept.entryPath` reads a hand-built concept's list shape from `raw`, so mirror `sources` there.
+		frontmatter: Concept.make({
+			type: "Module",
+			extensions: {},
+			raw: fields.sources === undefined ? {} : { sources: fields.sources },
+			...fields,
+		}),
 		document:
 			source === undefined
 				? emptyDocument
@@ -159,4 +165,14 @@ describe("validate/resources lintResources", () => {
 			}
 		}),
 	);
+
+	it("resourceValuesOf takes a kept source's path from Concept.entryPath after an ignored first entry", () => {
+		const concept = conceptAt("thing.md", {
+			sources: [{ resource: "b.md" }],
+			entries: EntryPaths.make({ sources: [["sources", 1]] }),
+		});
+		assert.deepStrictEqual(resourceValuesOf(concept), [{ value: "b.md", path: ["sources", 1, "resource"] }]);
+		const plain = conceptAt("plain.md", { sources: [{ resource: "b.md" }] });
+		assert.deepStrictEqual(resourceValuesOf(plain), [{ value: "b.md", path: ["sources", 0, "resource"] }]);
+	});
 });

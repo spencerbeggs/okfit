@@ -1,5 +1,5 @@
 import type { LoadedConcept } from "@okfit/core";
-import { Derive, GraphNodeKind, Status } from "@okfit/core";
+import { Derive, DerivedStatus, GraphNodeKind } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
@@ -28,7 +28,7 @@ export const ConceptSummary = Schema.Struct({
 	type: Schema.String,
 	title: Schema.String,
 	description: Schema.NullOr(Schema.String),
-	status: Status,
+	status: DerivedStatus,
 	tags: Schema.Array(Schema.String),
 	path: Schema.String,
 	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),

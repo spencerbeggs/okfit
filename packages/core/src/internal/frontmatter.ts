@@ -7,11 +7,14 @@ import type { FamilyIssue } from "./conceptDecode.js";
 import { decodeConcept as decodeEnvelope } from "./conceptDecode.js";
 import { frontmatterPathSpan } from "./yamlPathSpan.js";
 
-/** D-34 default severities for a `FamilyIssue`'s lint code; `type-missing` (D-33) is always "error". */
+/** D-34 default severities for a `FamilyIssue`'s lint code. */
 const FAMILY_ISSUE_SEVERITY: Record<FamilyIssue["code"], DiagnosticSeverity> = {
 	"family-invalid": "error",
 	"legacy-timestamp": "info",
 	"computation-runtime-missing": "error",
+	"entry-ignored": "warning",
+	"value-malformed": "warning",
+	"value-unknown": "warning",
 };
 
 interface Context {
@@ -60,8 +63,8 @@ const toDiagnostic = (context: Context, issue: FamilyIssue): Diagnostic =>
 /**
  * Group C's seam onto group B's two-stage decoder (decision 2): adapts B3's
  * `decodeConcept(value): ConceptDecodeResult` into the `Option<Concept>` / `Diagnostic[]`
- * shape `Bundle.ts` consumes. Never fails; a `TypeMissing` envelope reports `type-missing`
- * with no concept and no range.
+ * shape `Bundle.ts` consumes. Never fails; a `TypeMissing` envelope reports the lint `type-missing`
+ * with no concept and no range, and a `NotMapping` one the conformance `frontmatter-unparseable` over the block.
  *
  * @public
  */
@@ -70,11 +73,25 @@ export const decodeConcept = (
 	context: Context,
 ): { readonly concept: Option.Option<Concept>; readonly diagnostics: ReadonlyArray<Diagnostic> } => {
 	const result = decodeEnvelope(raw);
+	if (result._tag === "NotMapping") {
+		return {
+			concept: Option.none(),
+			diagnostics: [
+				Diagnostic.make({
+					file: context.file,
+					code: "frontmatter-unparseable",
+					severity: "error",
+					message: "frontmatter is not a mapping",
+					range: rangeFor(context, []),
+				}),
+			],
+		};
+	}
 	if (result._tag === "TypeMissing") {
 		return {
 			concept: Option.none(),
 			diagnostics: [
-				Diagnostic.make({ file: context.file, code: "type-missing", severity: "error", message: result.message }),
+				Diagnostic.make({ file: context.file, code: "type-missing", severity: "warning", message: result.message }),
 			],
 		};
 	}

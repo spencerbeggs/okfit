@@ -10,10 +10,8 @@ export type DiagnosticSeverity = typeof DiagnosticSeverity.Type;
 
 /** Always `"error"`, never configurable (D-33). @public */
 export const ConformanceCode = Schema.Literals([
-	"frontmatter-missing",
 	"frontmatter-unclosed",
 	"frontmatter-unparseable",
-	"type-missing",
 	"index-frontmatter",
 	"index-malformed",
 	"log-heading-invalid",
@@ -52,6 +50,13 @@ export const LintCode = Schema.Literals([
 	"verified-actor-unknown",
 	"resource-ignored",
 	"resource-untracked",
+	"index-metadata-invalid",
+	"entry-ignored",
+	"value-malformed",
+	"value-unknown",
+	"frontmatter-missing",
+	"type-missing",
+	"symlink-escape",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

@@ -1,6 +1,6 @@
 import type { Frontmatter } from "@effected/markdown";
 import { FrontmatterDecodeError, MarkdownDocument, YamlFrontmatter } from "@effected/markdown";
-import { DescendError, PosixPath } from "@effected/walker";
+import { DescendError, PosixPath, confineReal } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
@@ -15,6 +15,7 @@ import { toFileOffset } from "./internal/position.js";
 import { OPTIONS, parseIndex, parseLog } from "./internal/reserved.js";
 import { DEFAULT_MAX_DEPTH, DEFAULT_PRUNE, walk } from "./internal/walk.js";
 import { LogDocument } from "./LogDocument.js";
+import { OkfVersion } from "./OkfVersion.js";
 
 /**
  * The bundle root does not exist or is not a directory (D-9).
@@ -93,7 +94,14 @@ export interface BundleLoadOptions {
 
 /**
  * One concept file after loading: typed frontmatter, the parsed body, and the
- * `# Computation` section body when present (D-20).
+ * inline computation when present.
+ *
+ * @remarks
+ * `computationBody` is the inline form only. 0.3 or later: the code of the first fenced block in
+ * the first `Computation` section at any heading level (an empty fence yields an empty string; no
+ * fence is `None`). 0.2 or undeclared: the body of the depth-1 `Computation` section. When
+ * `attested.computation` is set, the file that path names is the computation (OKF 0.3 10.3 rule 1)
+ * and this field is not authoritative; core does not read that file.
  *
  * @public
  */
@@ -130,6 +138,21 @@ const diagnostic = (
 	range?: DiagnosticRange,
 ): Diagnostic =>
 	Diagnostic.make(range === undefined ? { file, code, severity, message } : { file, code, severity, message, range });
+
+/** CommonMark: a fence opens with three backticks or tildes after at most three spaces; four or more is indented code. */
+const FENCE_OPENING = /^ {0,3}(```|~~~)/;
+
+/** OKF 0.3 10.3: the code of the first fenced block among the root children of the first `Computation` section. */
+const fencedComputation = (document: MarkdownDocument): Option.Option<string> =>
+	Option.flatMapNullishOr(document.sectionByHeading("Computation"), (section) => {
+		for (const child of section.children) {
+			if (child.type !== "code") continue;
+			const offset = child.position.start.offset;
+			const lineStart = document.source.lastIndexOf("\n", offset - 1) + 1;
+			if (FENCE_OPENING.test(document.source.slice(lineStart, lineStart + 6))) return child.value;
+		}
+		return undefined;
+	});
 
 const blockRange = (text: string, node: Frontmatter): DiagnosticRange =>
 	DiagnosticRange.fromOffset(text, node.position.start.offset, node.position.end.offset - node.position.start.offset);
@@ -193,7 +216,12 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 		if (fence === "absent" && !reserved) {
 			return {
 				diagnostics: [
-					diagnostic(file, "frontmatter-missing", "error", "concept files must start with a --- frontmatter block"),
+					diagnostic(
+						file,
+						"frontmatter-missing",
+						"warning",
+						"no frontmatter, so this file is not a concept and is skipped",
+					),
 				],
 			};
 		}
@@ -295,11 +323,38 @@ export class Bundle {
 					`directory "${dir}" could not be read (${reason}); its files are not part of the bundle`,
 				),
 			);
+			const files: Array<string> = [];
+			for (const file of walked.files) {
+				const link = yield* fs
+					.lstat(path.join(root, file))
+					.pipe(Effect.mapError((cause) => new BundleReadError({ root, path: file, cause })));
+				if (link.type === "SymbolicLink") {
+					const refused = yield* confineReal(root, path.join(root, file)).pipe(
+						Effect.match({ onFailure: (error) => error, onSuccess: () => undefined }),
+					);
+					if (refused !== undefined) {
+						const why =
+							refused.reason === "outside"
+								? "resolves outside the bundle root"
+								: "could not be resolved, so it cannot be shown to stay inside the bundle root";
+						diagnostics.push(
+							diagnostic(
+								file,
+								"symlink-escape",
+								"warning",
+								`symbolic link ${why}; it is not read and not part of the bundle`,
+							),
+						);
+						continue;
+					}
+				}
+				files.push(file);
+			}
 			const concepts = new Map<ConceptId, LoadedConcept>();
 			const indexes = new Map<string, IndexDocument>();
 			const logs = new Map<string, LogDocument>();
 			const directories = new Set<string>();
-			for (const file of walked.files) {
+			for (const file of files) {
 				if (!file.endsWith(".md")) continue;
 				const text = yield* fs
 					.readFileString(path.join(root, file))
@@ -313,15 +368,25 @@ export class Bundle {
 				if (outcome.index !== undefined) indexes.set(outcome.index.dir, outcome.index);
 				if (outcome.log !== undefined) logs.set(outcome.log.dir, outcome.log);
 			}
-			return LoadedBundle.make({
+			const bundle = LoadedBundle.make({
 				root,
-				files: walked.files,
+				files,
 				directories: [...directories].sort(),
 				concepts,
 				indexes,
 				logs,
 				diagnostics,
 			});
+			if (OkfVersion.legacyFallbacks(bundle)) return bundle;
+			// The root index is read after most concepts, so a 0.3 bundle's locator runs once it is known.
+			const located = new Map<ConceptId, LoadedConcept>();
+			for (const [conceptId, concept] of concepts) {
+				located.set(
+					conceptId,
+					LoadedConcept.make({ ...concept, computationBody: fencedComputation(concept.document) }),
+				);
+			}
+			return LoadedBundle.make({ ...bundle, concepts: located });
 		},
 	);
 }

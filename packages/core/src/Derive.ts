@@ -4,9 +4,10 @@ import { Actor } from "./Actor.js";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import type { Concept } from "./Concept.js";
 import type { ConceptId } from "./ConceptId.js";
+import { isAbsent } from "./internal/conceptDecode.js";
 import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
 import { indexDocument, logEntry } from "./internal/templates.js";
-import type { Status } from "./Status.js";
+import type { DerivedStatus } from "./Status.js";
 
 /** Trust tier from `verified` (OKF 0.2 §5.3): none maps to unverified; only non-human maps to machine-confirmed; any `human:` maps to human-reviewed. @public */
 export const TrustTier = Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]);
@@ -14,8 +15,8 @@ export const TrustTier = Schema.Literals(["unverified", "machine-confirmed", "hu
 /** @public */
 export type TrustTier = typeof TrustTier.Type;
 
-/** Three-way staleness; `unknown` means no `stale_after`. @public */
-export const Staleness = Schema.Literals(["fresh", "stale", "unknown"]);
+/** Staleness; `unknown` means no `stale_after`, `malformed` a `stale_after` okfit cannot read (OKF 0.3 §5.5). @public */
+export const Staleness = Schema.Literals(["fresh", "stale", "unknown", "malformed"]);
 
 /** @public */
 export type Staleness = typeof Staleness.Type;
@@ -36,8 +37,16 @@ export interface StaleConcept {
 
 /** Options for {@link Derive.renderIndex}. @public */
 export interface RenderIndexOptions {
-	/** Emits a frontmatter block carrying only `okf_version` first; root index only (D-21). */
+	/**
+	 * Emits a root frontmatter block first (root index only). Without `frontmatter` it carries only
+	 * `okf_version` (D-21); with it, `okf_version` is added only when the kept block declares none.
+	 */
 	readonly okfVersion?: string;
+	/**
+	 * The existing root block's YAML text (`IndexDocument.frontmatter`), re-emitted verbatim so a declared
+	 * title, description, license, version or extension key survives a re-render (D6). `""` is absent.
+	 */
+	readonly frontmatter?: string;
 	/** Rendered as `* [name](name/index.md)` under a trailing `# Subdirectories` section. */
 	readonly subdirectories?: ReadonlyArray<string>;
 }
@@ -65,13 +74,30 @@ export class Derive {
 		return verified.some((entry) => Actor.isHuman(entry.by)) ? "human-reviewed" : "machine-confirmed";
 	};
 
-	/** Absent `status` reads as `stable` (OKF 0.2 §5.4). */
-	static readonly status = (concept: Concept): Status => concept.status ?? "stable";
+	/**
+	 * The typed status; `unknown` when `raw.status` is present (not `null`, `""` or `[]`) but outside the
+	 * vocabulary; `stable` when absent (OKF 0.3 §5.4).
+	 */
+	static readonly status = (concept: Concept): DerivedStatus => {
+		if (concept.status !== undefined) return concept.status;
+		return Derive.rawStatus(concept) === undefined ? "stable" : "unknown";
+	};
 
-	/** `stale` when `now >= stale_after` (OKF 0.2 §5.5); `unknown` without `stale_after`. */
+	/** The `status` value as written, as text for display; `undefined` when absent, `null`, `""` or `[]`. */
+	static readonly rawStatus = (concept: Concept): string | undefined => {
+		const value: unknown = concept.raw.status;
+		if (isAbsent(value)) return undefined;
+		return typeof value === "string" ? value : JSON.stringify(value);
+	};
+
+	/**
+	 * `stale` when `now >= stale_after` (OKF 0.3 §5.5); `unknown` without `stale_after`; `malformed`
+	 * when `raw.stale_after` is present (not `null`, `""` or `[]`) but unreadable, so never fresh and never stale.
+	 */
 	static readonly staleness = (concept: Concept, now: DateTime.Utc): Staleness => {
 		if (concept.stale_after === undefined) {
-			return "unknown";
+			const raw: unknown = concept.raw.stale_after;
+			return isAbsent(raw) ? "unknown" : "malformed";
 		}
 		return DateTime.toEpochMillis(now) >= DateTime.toEpochMillis(concept.stale_after) ? "stale" : "fresh";
 	};
@@ -129,7 +155,10 @@ export class Derive {
 				entries: subdirectories.map((name) => ({ title: name, target: `${name}/index.md` })),
 			});
 		}
-		return indexDocument(sections, options.okfVersion);
+		return indexDocument(sections, {
+			...(options.okfVersion === undefined ? {} : { okfVersion: options.okfVersion }),
+			...(options.frontmatter === undefined ? {} : { frontmatter: options.frontmatter }),
+		});
 	};
 
 	/** `## <date>` plus one `* <item>` line per item, newline-terminated (D-36). */

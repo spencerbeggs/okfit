@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect";
 import { AttestedComputation, ComputationParameter } from "../src/AttestedComputation.js";
 import { ATTESTED_COMPUTATION_TYPE, Concept } from "../src/Concept.js";
 import { Generated } from "../src/Generated.js";
+import { decodeConcept as decodeLoose } from "../src/internal/conceptDecode.js";
 import { Verification } from "../src/Verification.js";
 
 const decodeFamily = Schema.decodeUnknownEffect(AttestedComputation);
@@ -32,11 +33,7 @@ describe("AttestedComputation", () => {
 			assert.isFalse(
 				(yield* decodeFamily({ parameters: [{ name: "period_end", type: "date" }] })).parameters[0]!.required,
 			);
-			for (const input of [
-				{ executor: { resource: "skills/run-on-bq.md" } },
-				{ parameters: [{ name: "year" }] },
-				{ runtime: 7 },
-			]) {
+			for (const input of [{ executor: { resource: 5 } }, { parameters: [{ name: "year" }] }, { runtime: 7 }]) {
 				assert.strictEqual((yield* Effect.flip(decodeFamily(input)))._tag, "SchemaError");
 			}
 		}),
@@ -70,4 +67,24 @@ describe("Concept", () => {
 			assert.throws(() => Concept.make({ type: "", extensions: {}, raw: {} }));
 		}),
 	);
+});
+
+describe("Concept.entryPath", () => {
+	it("returns the YAML path of a kept entry after a dropped one, and falls back for a hand-built concept", () => {
+		const result = decodeLoose({
+			type: "Note",
+			sources: [{ title: "no resource" }, { resource: "b.md" }, { resource: "c.md" }],
+		});
+		if (result._tag !== "Decoded") return assert.fail("expected Decoded");
+		assert.deepStrictEqual(Concept.entryPath(result.concept, "sources", 0), ["sources", 1]);
+		assert.deepStrictEqual(Concept.entryPath(result.concept, "sources", 1), ["sources", 2]);
+		const bare = Concept.make({ type: "Note", extensions: {}, raw: { verified: { by: "human:a" } } });
+		assert.deepStrictEqual(Concept.entryPath(bare, "verified", 0), ["verified"]);
+		const list = Concept.make({
+			type: "Note",
+			extensions: {},
+			raw: { verified: [{ by: "human:a" }, { by: "human:b" }] },
+		});
+		assert.deepStrictEqual(Concept.entryPath(list, "verified", 1), ["verified", 1]);
+	});
 });

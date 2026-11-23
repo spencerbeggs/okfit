@@ -6,8 +6,8 @@ import { Schema } from "effect";
 const ACTOR_RE = /^(?:[^\s/:]+\/[^\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\s]+)$/u;
 
 /**
- * An OKF actor string: `<producer>/<version>`, `human:<id>`, `process:<id>`,
- * or any other `<prefix>:<id>` (the spec's `team:` examples).
+ * An OKF actor string: `<producer>/<version>`, `human:<id>`, `team:<id>`,
+ * `process:<id>`, or any other `<prefix>:<id>`.
  * @public
  */
 export type Actor = string & Brand.Brand<"Actor">;
@@ -16,7 +16,7 @@ export type Actor = string & Brand.Brand<"Actor">;
  * Prefix classification; `other` drives lint `actor-prefix-unknown` (D-18).
  * @public
  */
-export type ActorForm = "producer" | "human" | "process" | "other";
+export type ActorForm = "producer" | "human" | "team" | "process" | "other";
 
 const isHuman = (actor: string): boolean => actor.startsWith("human:");
 
@@ -25,7 +25,7 @@ const form = (actor: string): ActorForm => {
 	const slash = actor.indexOf("/");
 	if (slash !== -1 && (colon === -1 || slash < colon)) return "producer";
 	const prefix = colon === -1 ? "" : actor.slice(0, colon);
-	return prefix === "human" ? "human" : prefix === "process" ? "process" : "other";
+	return prefix === "human" ? "human" : prefix === "team" ? "team" : prefix === "process" ? "process" : "other";
 };
 
 const GLOB_RE = /[*?]/u;

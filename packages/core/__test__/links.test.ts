@@ -27,6 +27,7 @@ const index: BundleIndex = {
 		"computations/revenue-ytd",
 		"policies/revenue-recognition",
 	]),
+	rootFallback: true,
 };
 const from = "computations/revenue-ytd.md";
 const gm = "metrics/gross-margin.md";
@@ -87,6 +88,33 @@ describe("internal/links", () => {
 		}),
 	);
 
+	it.effect("rule C is skipped when rootFallback is false: a bare miss stays file-relative", () =>
+		Effect.sync(() => {
+			const gated: BundleIndex = { ...index, rootFallback: false };
+			assert.deepStrictEqual(
+				resolveSansVia(from, "policies/revenue-recognition.md", gated),
+				node("computations/policies/revenue-recognition.md", "missing"),
+			);
+			assert.deepStrictEqual(
+				resolveSansVia(from, "lib/query.sql", gated),
+				node("computations/lib/query.sql", "missing"),
+			);
+			assert.deepStrictEqual(
+				resolveSansVia(from, "/policies/revenue-recognition.md", gated),
+				node("policies/revenue-recognition", "concept"),
+			);
+			assert.deepStrictEqual(
+				resolveSansVia(from, "../policies/revenue-recognition.md", gated),
+				node("policies/revenue-recognition", "concept"),
+			);
+			// Positive control: the same bare value resolves from the root while the fallback is on.
+			assert.deepStrictEqual(
+				resolveSansVia(from, "policies/revenue-recognition.md", index),
+				node("policies/revenue-recognition", "concept"),
+			);
+		}),
+	);
+
 	it.effect("directory targets, .md retry, fragment/query stripping, percent-decoding, non-concept .md", () =>
 		Effect.sync(() => {
 			assert.deepStrictEqual(resolveSansVia(from, "/metrics/", index), node("metrics/index.md", "file"));
@@ -131,11 +159,12 @@ describe("internal/links", () => {
 		}),
 	);
 
-	it.effect("pathFieldsOf lists the five path fields in frontmatter order", () =>
+	it.effect("pathFieldsOf lists the six path fields in frontmatter order", () =>
 		Effect.sync(() => {
 			const concept = new Concept({
 				type: "Attested Computation",
 				resource: "https://example.com/asset",
+				superseded_by: "/metrics/gross-margin.md",
 				sources: [new Source({ resource: "policies/a.md" }), new Source({ resource: "all queries in project X" })],
 				attested: new AttestedComputation({
 					parameters: [],
@@ -143,8 +172,10 @@ describe("internal/links", () => {
 					executor: new ComputationExecutor({ resource: "skills/run.md", receipt: [] }),
 					attester: new ComputationAttester({ resource: "attesters/eq.py" }),
 				}),
-				extensions: {},
-				raw: {},
+				// D7: an extension key such as `license` is never a path field.
+				extensions: { license: "LICENSE.md" },
+				// `Concept.entryPath` reads a hand-built concept's list shape from `raw`.
+				raw: { sources: [{}, {}] },
 			});
 			assert.deepStrictEqual(pathFieldsOf(concept), [
 				{ field: "resource", raw: "https://example.com/asset", path: ["resource"] },
@@ -153,6 +184,7 @@ describe("internal/links", () => {
 				{ field: "computation", raw: "lib/q.sql", path: ["computation"] },
 				{ field: "executor.resource", raw: "skills/run.md", path: ["executor", "resource"] },
 				{ field: "attester.resource", raw: "attesters/eq.py", path: ["attester", "resource"] },
+				{ field: "superseded_by", raw: "/metrics/gross-margin.md", path: ["superseded_by"] },
 			]);
 			assert.deepStrictEqual(pathFieldsOf(new Concept({ type: "Note", extensions: {}, raw: {} })), []);
 		}),

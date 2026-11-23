@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-23T21:20:06Z
 integrity:
   generated:
-    body: 74d3464b2edf4424
+    body: 48fc95ca600b369a
 ---
 
 # LSP
@@ -263,6 +263,8 @@ exempt from the `process` rule but still checked for a stray stdout
 write) rather than exempting a file from every rule at once -- see
 [okfit's front ends build on @effected/{engine,cli,mcp} rather than
 hand-rolled equivalents](../decisions/effected-kit-adoption.md).
+
+The concepts wire (`features/concepts.ts`) still sends the typed `status`, which is absent for a `status` outside `draft`, `stable` and `deprecated`; core now derives `unknown` for that case (`Derive.status`), but this wire does not carry it yet, so clients read such a concept as `stable`. A `superseded_by` value is a path field in core, so document links and definition on it come from the shared graph with no server change.
 
 ## Links
 

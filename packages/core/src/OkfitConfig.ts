@@ -238,7 +238,7 @@ export const LintTable = Schema.Struct({
 	family_invalid: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "family-invalid",
-			description: 'A concept\'s declared family does not match an accepted shape. Default "error".',
+			description: 'okfit\'s own integrity family does not match its shape. Default "error".',
 			default: "error",
 		}),
 	),
@@ -273,7 +273,8 @@ export const LintTable = Schema.Struct({
 	actor_prefix_unknown: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "actor-prefix-unknown",
-			description: 'An actor\'s prefix is not human, process, or a producer shape. Default "info".',
+			description:
+				'An actor in generated.by, verified[].by or sources[].author uses a scheme other than human, team, process or a producer shape; it is accepted and read as non-human. Default "info".',
 			default: "info",
 		}),
 	),
@@ -318,6 +319,30 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "walk-unreadable",
 			description: 'A directory in the bundle could not be read while walking. Default "warn".',
+			default: "warn",
+		}),
+	),
+	frontmatter_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "frontmatter-missing",
+			description:
+				'A .md file other than index.md or log.md has no frontmatter, so it is not a concept and is skipped (OKF 0.3 §3.2). Default "warn".',
+			default: "warn",
+		}),
+	),
+	type_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "type-missing",
+			description:
+				'A .md file\'s frontmatter has no non-empty string type, so it is not a concept and is skipped (OKF 0.3 §3.2). Default "warn".',
+			default: "warn",
+		}),
+	),
+	symlink_escape: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "symlink-escape",
+			description:
+				'A file in the bundle is a symbolic link whose target lies outside the bundle root; it is not read and not part of the bundle (OKF 0.3 §3.2). Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -398,6 +423,38 @@ export const LintTable = Schema.Struct({
 			title: "surface-unmatched",
 			description:
 				'A Surface\'s resource glob matches no file or directory; legitimate in a brand-new monorepo, so it only warns. Default "warn".',
+			default: "warn",
+		}),
+	),
+	index_metadata_invalid: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "index-metadata-invalid",
+			description:
+				'The bundle-root index.md frontmatter carries an okf_version that is not a quoted <major>.<minor> string, or a title, description or license that is not a string; the value is read best-effort. Default "warn".',
+			default: "warn",
+		}),
+	),
+	entry_ignored: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "entry-ignored",
+			description:
+				'An entry or mapping the spec defines (a sources, verified or parameters entry, generated) lacks a REQUIRED key or has one okfit cannot read, so it is ignored (OKF 0.3 §11.2 rule 3). Default "warn".',
+			default: "warn",
+		}),
+	),
+	value_malformed: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "value-malformed",
+			description:
+				'A defined value okfit cannot read in its defined shape (wrong type, unparsable timestamp, malformed optional key) is read as absent; a malformed stale_after reads as malformed, never fresh (OKF 0.3 §5.5, §11.2). Default "warn".',
+			default: "warn",
+		}),
+	),
+	value_unknown: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "value-unknown",
+			description:
+				'A defined key carries a value outside its vocabulary (today: status); the value is kept and the concept is not read as current knowledge (OKF 0.3 §5.4, §11.2 rule 4). Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -669,6 +726,13 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
+	"index-metadata-invalid": "index_metadata_invalid",
+	"entry-ignored": "entry_ignored",
+	"value-malformed": "value_malformed",
+	"value-unknown": "value_unknown",
+	"frontmatter-missing": "frontmatter_missing",
+	"type-missing": "type_missing",
+	"symlink-escape": "symlink_escape",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -701,6 +765,13 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	publication_drift: "warn",
 	publication_orphan: "error",
 	surface_unmatched: "warn",
+	index_metadata_invalid: "warn",
+	entry_ignored: "warn",
+	value_malformed: "warn",
+	value_unknown: "warn",
+	frontmatter_missing: "warn",
+	type_missing: "warn",
+	symlink_escape: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

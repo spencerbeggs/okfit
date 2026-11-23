@@ -279,7 +279,7 @@
 						"error"
 					],
 					"title": "family-invalid",
-					"description": "A concept's declared family does not match an accepted shape. Default \"error\".",
+					"description": "okfit's own integrity family does not match its shape. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {
@@ -389,7 +389,7 @@
 						"error"
 					],
 					"title": "actor-prefix-unknown",
-					"description": "An actor's prefix is not human, process, or a producer shape. Default \"info\".",
+					"description": "An actor in generated.by, verified[].by or sources[].author uses a scheme other than human, team, process or a producer shape; it is accepted and read as non-human. Default \"info\".",
 					"default": "info",
 					"x-taplo": {
 						"docs": {
@@ -522,6 +522,72 @@
 					],
 					"title": "walk-unreadable",
 					"description": "A directory in the bundle could not be read while walking. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"frontmatter_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "frontmatter-missing",
+					"description": "A .md file other than index.md or log.md has no frontmatter, so it is not a concept and is skipped (OKF 0.3 §3.2). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"type_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "type-missing",
+					"description": "A .md file's frontmatter has no non-empty string type, so it is not a concept and is skipped (OKF 0.3 §3.2). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"symlink_escape": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "symlink-escape",
+					"description": "A file in the bundle is a symbolic link whose target lies outside the bundle root; it is not read and not part of the bundle (OKF 0.3 §3.2). Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -742,6 +808,94 @@
 					],
 					"title": "surface-unmatched",
 					"description": "A Surface's resource glob matches no file or directory; legitimate in a brand-new monorepo, so it only warns. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"index_metadata_invalid": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "index-metadata-invalid",
+					"description": "The bundle-root index.md frontmatter carries an okf_version that is not a quoted <major>.<minor> string, or a title, description or license that is not a string; the value is read best-effort. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"entry_ignored": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "entry-ignored",
+					"description": "An entry or mapping the spec defines (a sources, verified or parameters entry, generated) lacks a REQUIRED key or has one okfit cannot read, so it is ignored (OKF 0.3 §11.2 rule 3). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"value_malformed": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "value-malformed",
+					"description": "A defined value okfit cannot read in its defined shape (wrong type, unparsable timestamp, malformed optional key) is read as absent; a malformed stale_after reads as malformed, never fresh (OKF 0.3 §5.5, §11.2). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"value_unknown": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "value-unknown",
+					"description": "A defined key carries a value outside its vocabulary (today: status); the value is kept and the concept is not read as current knowledge (OKF 0.3 §5.4, §11.2 rule 4). Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

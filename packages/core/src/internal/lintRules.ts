@@ -2,6 +2,7 @@ import { EditDistance } from "@effected/source";
 import { DateTime } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
+import { Concept } from "../Concept.js";
 import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
@@ -108,7 +109,9 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 // Issue #110: `Derive.status` reads an absent `status` as `stable`, so a freshly
 // generated, never-verified concept looked settled to every consumer.
 export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
-	concept.frontmatter.status === undefined && (concept.frontmatter.verified ?? []).length === 0
+	concept.frontmatter.status === undefined &&
+	Derive.rawStatus(concept.frontmatter) === undefined &&
+	(concept.frontmatter.verified ?? []).length === 0
 		? ["Concept has no status and no verified entry, so it reads as stable; set status: draft or stable explicitly"]
 		: [],
 );
@@ -130,14 +133,18 @@ export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (
 		{ by: concept.frontmatter.generated?.by, path: ["generated", "by"] },
 		...(concept.frontmatter.verified ?? []).map((entry, index) => ({
 			by: entry.by,
-			path: ["verified", index, "by"] as ReadonlyArray<string | number>,
+			path: [...Concept.entryPath(concept.frontmatter, "verified", index), "by"] as ReadonlyArray<string | number>,
+		})),
+		...(concept.frontmatter.sources ?? []).map((entry, index) => ({
+			by: entry.author,
+			path: [...Concept.entryPath(concept.frontmatter, "sources", index), "author"] as ReadonlyArray<string | number>,
 		})),
 	];
 	const out: Array<RangedMessage> = [];
 	for (const candidate of candidates) {
 		if (candidate.by === undefined || Actor.form(candidate.by) !== "other") continue;
 		out.push({
-			message: `Actor "${candidate.by}" uses an unknown prefix; expected human:<id>, process:<id>, or <producer>/<version>`,
+			message: `Actor "${candidate.by}" uses an unknown prefix; expected human:<id>, team:<id>, process:<id>, or <producer>/<version>`,
 			path: candidate.path,
 		});
 	}
@@ -148,8 +155,10 @@ export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (
 const actorsOf = (
 	concept: LoadedConcept,
 ): ReadonlyArray<{ readonly by: Actor; readonly path: ReadonlyArray<string | number> }> => {
-	const verifiedPath = (index: number): ReadonlyArray<string | number> =>
-		Array.isArray(concept.frontmatter.raw.verified) ? ["verified", index, "by"] : ["verified", "by"];
+	const verifiedPath = (index: number): ReadonlyArray<string | number> => [
+		...Concept.entryPath(concept.frontmatter, "verified", index),
+		"by",
+	];
 	const binding = concept.frontmatter.integrity?.verified;
 	return [
 		...(concept.frontmatter.generated === undefined

@@ -3,6 +3,7 @@ import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import { DiagnosticRange } from "./Diagnostic.js";
 import type { BundleIndex, LinkResolution as InternalLinkResolution } from "./internal/links.js";
 import { frontmatterFieldSpan, pathFieldsOf, resolvePathField, resolveTarget } from "./internal/links.js";
+import { OkfVersion } from "./OkfVersion.js";
 
 /**
  * Kind of a graph node: a loaded concept, an existing non-concept file (including reserved
@@ -16,7 +17,13 @@ export const GraphNodeKind = Schema.Literals(["concept", "file", "missing"]);
 export type GraphNodeKind = typeof GraphNodeKind.Type;
 
 /** Frontmatter fields whose value is a bundle path (D-23). @public */
-export type PathField = "resource" | "sources.resource" | "computation" | "executor.resource" | "attester.resource";
+export type PathField =
+	| "resource"
+	| "sources.resource"
+	| "computation"
+	| "executor.resource"
+	| "attester.resource"
+	| "superseded_by";
 
 /**
  * How one reference resolved (D-23, D-24); `via` says which D-23 branch produced a node: `rooted` (a leading
@@ -175,11 +182,18 @@ export class LinkGraph {
 
 const indexes = new WeakMap<LoadedBundle, BundleIndex>();
 
+/** Builds the lookup sets and the version-gated root fallback for one loaded bundle: the single place the gate is computed. */
+const buildIndex = (bundle: LoadedBundle): BundleIndex => ({
+	files: new Set(bundle.files),
+	concepts: new Set<string>(bundle.concepts.keys()),
+	rootFallback: OkfVersion.legacyFallbacks(bundle),
+});
+
 /** The lookup sets for one loaded bundle, built once: a bundle is immutable after load. */
 const indexOf = (bundle: LoadedBundle): BundleIndex => {
 	const cached = indexes.get(bundle);
 	if (cached !== undefined) return cached;
-	const built: BundleIndex = { files: new Set(bundle.files), concepts: new Set<string>(bundle.concepts.keys()) };
+	const built = buildIndex(bundle);
 	indexes.set(bundle, built);
 	return built;
 };
@@ -206,7 +220,7 @@ export class Graph {
 	 * Placeholder `missing` nodes are added before their edge because `Graph.addEdge` throws on an absent endpoint.
 	 */
 	static readonly fromBundle = (bundle: LoadedBundle): LinkGraph => {
-		const lookup: BundleIndex = { files: new Set(bundle.files), concepts: new Set<string>(bundle.concepts.keys()) };
+		const lookup = indexOf(bundle);
 		const index = new Map<string, EffectGraph.NodeIndex>();
 		const graph = EffectGraph.directed<GraphNode, GraphEdge>((mutable) => {
 			const node = (id: string, kind: GraphNodeKind): EffectGraph.NodeIndex => {

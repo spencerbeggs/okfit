@@ -65,17 +65,22 @@ describe("Validate", () => {
 	it.effect("conformance keeps conformance codes; lint re-severities load-time lint codes and drops off", () =>
 		Effect.sync(() => {
 			const bundle = emptyBundle([
-				Diagnostic.make({ file: "a.md", code: "frontmatter-missing", severity: "error", message: "m" }),
+				Diagnostic.make({ file: "a.md", code: "frontmatter-unclosed", severity: "error", message: "m" }),
+				Diagnostic.make({ file: "n.md", code: "frontmatter-missing", severity: "warning", message: "m" }),
 				Diagnostic.make({ file: "b.md", code: "legacy-timestamp", severity: "info", message: "m" }),
 				Diagnostic.make({ file: "c/log.md", code: "log-frontmatter", severity: "warning", message: "m" }),
 			]);
-			assert.deepStrictEqual(summary(Validate.conformance(bundle)), [["frontmatter-missing", "a.md", "error"]]);
+			assert.deepStrictEqual(summary(Validate.conformance(bundle)), [["frontmatter-unclosed", "a.md", "error"]]);
 			const raised = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 				lint: { legacy_timestamp: "error", log_frontmatter: "off" },
 				extensions: {},
 			});
-			assert.deepStrictEqual(summary(Validate.lint(bundle, raised)), [["legacy-timestamp", "b.md", "error"]]);
+			assert.deepStrictEqual(summary(Validate.lint(bundle, raised)), [
+				["frontmatter-missing", "n.md", "warning"],
+				["legacy-timestamp", "b.md", "error"],
+			]);
 			assert.deepStrictEqual(summary(Validate.lint(bundle, OkfitConfig.DEFAULTS)), [
+				["frontmatter-missing", "n.md", "warning"],
 				["legacy-timestamp", "b.md", "info"],
 				["log-frontmatter", "c/log.md", "warning"],
 			]);
@@ -145,7 +150,7 @@ describe("Validate", () => {
 			assert.isDefined(actorRange);
 			assert.strictEqual(
 				adr!.document.source.slice(actorRange!.offset, actorRange!.offset + actorRange!.length),
-				"team:platform",
+				"crew:platform",
 			);
 
 			const staleRange = byCode("stale")[0]?.range;
@@ -249,6 +254,36 @@ describe("Validate", () => {
 				Validate.lint(bundle, statusConfig).filter((d) => d.code === "status-missing"),
 				[],
 			);
+		}),
+	);
+
+	it.effect(
+		"status-missing is silent on an unknown status (value-unknown owns it), beside a control with no status",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"archived.md": "---\ntype: Note\nstatus: archived\n---\n\n# Archived\n",
+					"bare.md": "---\ntype: Note\n---\n\n# Bare\n",
+				});
+				const lint = Validate.lint(bundle, statusConfig).filter((d) => d.code === "status-missing");
+				assert.deepStrictEqual(summary(lint), [["status-missing", "bare.md", "warning"]]);
+			}),
+	);
+
+	it.effect("value-unknown loads as a warning on the status value, follows config, and a known status has none", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"archived.md": "---\ntype: Note\nstatus: archived\n---\n\n# Archived\n",
+				"draft.md": "---\ntype: Note\nstatus: draft\n---\n\n# Draft\n",
+			});
+			assert.deepStrictEqual(
+				bundle.diagnostics.map((d) => [d.file, d.code, d.severity, d.range?.line, d.range?.character]),
+				[["archived.md", "value-unknown", "warning", 2, 8]],
+			);
+			const unknown = (config: OkfitConfig) => Validate.lint(bundle, config).filter((d) => d.code === "value-unknown");
+			assert.deepStrictEqual(summary(unknown(OkfitConfig.DEFAULTS)), [["value-unknown", "archived.md", "warning"]]);
+			const off = OkfitConfig.merge(OkfitConfig.DEFAULTS, { lint: { value_unknown: "off" }, extensions: {} });
+			assert.deepStrictEqual(unknown(off), []);
 		}),
 	);
 

@@ -7,6 +7,8 @@ import { Concept } from "../src/Concept.js";
 import { ConceptId } from "../src/ConceptId.js";
 import { Derive } from "../src/Derive.js";
 import { Verification } from "../src/Verification.js";
+import { conceptWithRaw, conceptWithStaleAfter, conceptWithStatus } from "./utils/conceptBuilders.js";
+import { MOUNT, platform as memPlatform } from "./utils/fixtures.js";
 import { platformFor } from "./utils/lintFixtures.js";
 
 type ConceptInput = Parameters<typeof Concept.make>[0];
@@ -54,6 +56,7 @@ describe("Derive", () => {
 				verified: [verifiedBy("process:nightly"), verifiedBy("reference_agent/gemini-2.5-pro")],
 			});
 			assert.strictEqual(Derive.trustTier(machine), "machine-confirmed");
+			assert.strictEqual(Derive.trustTier(metric({ verified: [verifiedBy("team:finance-fpa")] })), "machine-confirmed");
 			const human = metric({ verified: [verifiedBy("process:nightly"), verifiedBy("human:jsmith@acme")] });
 			assert.strictEqual(Derive.trustTier(human), "human-reviewed");
 		}),
@@ -75,6 +78,38 @@ describe("Derive", () => {
 			assert.strictEqual(Derive.staleness(concept, staleAfter), "stale");
 			assert.isFalse(Derive.isStale(metric({}), staleAfter));
 			assert.isTrue(Derive.isStale(concept, DateTime.makeUnsafe("2027-01-01T00:00:00Z")));
+		}),
+	);
+
+	it.effect(
+		"status: an unknown value reads unknown and keeps its raw text; null and empty read stable (OKF 0.3 §5.4, D3)",
+		() =>
+			Effect.sync(() => {
+				const archived = conceptWithRaw({ status: "archived" });
+				assert.strictEqual(Derive.status(archived), "unknown");
+				assert.strictEqual(Derive.rawStatus(archived), "archived");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: 5 })), "unknown");
+				assert.strictEqual(Derive.rawStatus(conceptWithRaw({ status: 5 })), "5");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: null })), "stable");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: "" })), "stable");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: [] })), "stable");
+				assert.isUndefined(Derive.rawStatus(conceptWithRaw({ status: [] })));
+				assert.strictEqual(Derive.status(conceptWithRaw({})), "stable");
+				assert.isUndefined(Derive.rawStatus(conceptWithRaw({})));
+				assert.strictEqual(Derive.status(conceptWithStatus("deprecated")), "deprecated");
+			}),
+	);
+
+	it.effect("staleness: an unparsable stale_after is malformed, never fresh and never stale (OKF 0.3 §5.5, D4)", () =>
+		Effect.sync(() => {
+			const now = DateTime.makeUnsafe("2026-07-01T00:00:00Z");
+			const bad = conceptWithRaw({ stale_after: "next tuesday" });
+			assert.strictEqual(Derive.staleness(bad, now), "malformed");
+			assert.isFalse(Derive.isStale(bad, now));
+			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: null }), now), "unknown");
+			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: [] }), now), "unknown");
+			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: "" }), now), "unknown");
+			assert.strictEqual(Derive.staleness(conceptWithStaleAfter("2026-06-01T00:00:00Z"), now), "stale");
 		}),
 	);
 
@@ -108,6 +143,62 @@ describe("Derive", () => {
 				"---\nokf_version: '0.2'\n---\n\n# Module\n\n* [Core](core.md) - The core package.\n* [Web](web.md) - The website, served from packages/web.\n\n# Subdirectories\n\n* [a](a/index.md)\n* [z](z/index.md)\n",
 			);
 			assert.strictEqual(Derive.renderIndex("modules", []), "");
+		}),
+	);
+
+	it.effect(
+		"renderIndex re-emits existing root frontmatter byte for byte and adds okf_version only when none is declared (D6)",
+		() =>
+			Effect.sync(() => {
+				const revenue = LoadedConcept.make({
+					id: Option.getOrThrow(ConceptId.normalize("revenue")),
+					path: "revenue.md",
+					frontmatter: metric({ title: "Revenue" }),
+					document: emptyDocument,
+					computationBody: Option.none(),
+				});
+				const declared =
+					'okf_version: "0.3"   # declared\ntitle:   Acme retail analytics\nx-acme-owner: { team: finance }';
+				const kept = Derive.renderIndex("", [revenue], { okfVersion: "0.2", frontmatter: declared });
+				assert.isTrue(kept.startsWith(`---\n${declared}\n---\n\n# `));
+				const bare = "title: Acme\nlicense: CC-BY-4.0";
+				assert.match(
+					Derive.renderIndex("", [revenue], { okfVersion: "0.3", frontmatter: bare }),
+					/^---\nokf_version: ['"]0\.3['"]\ntitle: Acme\nlicense: CC-BY-4\.0\n---\n\n# /,
+				);
+				assert.isTrue(Derive.renderIndex("", [revenue], { frontmatter: bare }).startsWith(`---\n${bare}\n---\n\n# `));
+				// control: no frontmatter keeps today's okf_version-only block
+				assert.match(
+					Derive.renderIndex("", [revenue], { okfVersion: "0.2" }),
+					/^---\nokf_version: ['"]0\.2['"]\n---\n\n# /,
+				);
+				// control: an empty string is absent
+				assert.match(
+					Derive.renderIndex("", [revenue], { okfVersion: "0.2", frontmatter: "" }),
+					/^---\nokf_version: ['"]0\.2['"]\n---\n\n# /,
+				);
+			}),
+	);
+
+	it.effect("renderIndex over a loaded root index keeps the source's text before its first heading (D6)", () =>
+		Effect.gen(function* () {
+			const declared =
+				'okf_version: "0.3"   # declared\ntitle:   Acme retail analytics\nx-acme-owner: { team: finance }';
+			const source = `---\n${declared}\n---\n\n# Metric\n\n* [Revenue](revenue.md)\n`;
+			const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(
+					memPlatform({
+						[`${MOUNT}/index.md`]: source,
+						[`${MOUNT}/revenue.md`]: "---\ntype: Metric\ntitle: Revenue\n---\n\nBody.\n",
+					}),
+				),
+			);
+			const frontmatter = bundle.indexes.get("")?.frontmatter;
+			assert.strictEqual(frontmatter, declared);
+			const rendered = Derive.renderIndex("", [...bundle.concepts.values()], {
+				...(frontmatter === undefined ? {} : { frontmatter }),
+			});
+			assert.strictEqual(rendered.slice(0, rendered.indexOf("# ")), source.slice(0, source.indexOf("# ")));
 		}),
 	);
 
