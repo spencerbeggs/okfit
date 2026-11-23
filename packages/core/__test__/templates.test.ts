@@ -13,7 +13,9 @@ describe("internal/templates indexDocument", () => {
 	});
 
 	it("opens the root index with a frontmatter block carrying only okf_version", () => {
-		const text = indexDocument([{ heading: "Module", entries: [{ title: "Core", target: "core.md" }] }], "0.2");
+		const text = indexDocument([{ heading: "Module", entries: [{ title: "Core", target: "core.md" }] }], {
+			okfVersion: "0.2",
+		});
 		assert.match(text, /^---\nokf_version: ['"]0\.2['"]\n---\n\n# Module\n/);
 	});
 

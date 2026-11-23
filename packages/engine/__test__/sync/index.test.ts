@@ -155,4 +155,47 @@ describe("syncIndex", () => {
 			}
 		}).pipe(Effect.provide(platform)),
 	);
+
+	it.effect("keeps a declared root frontmatter and never forces the spec constant over it (D6)", () =>
+		Effect.gen(function* () {
+			const rootBundle = (root: string, frontmatter: string): LoadedBundle => {
+				const concept = conceptAt("thing.md", "Thing");
+				return LoadedBundle.make({
+					root,
+					files: [concept.path],
+					directories: [],
+					concepts: new Map([[concept.id, concept]]),
+					indexes: new Map([
+						["", IndexDocument.make({ path: "index.md", dir: "", sections: [], okfVersion: "0.3", frontmatter })],
+					]),
+					logs: new Map(),
+					diagnostics: [],
+				});
+			};
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-index-keep-")));
+			try {
+				const declared = 'okf_version: "0.3"\ntitle: Acme retail analytics\nlicense: CC-BY-4.0';
+				const bundle = rootBundle(root, declared);
+				const first = yield* syncIndex(bundle, false);
+				assert.include(first.written, "index.md");
+				const text = yield* Effect.promise(() => readFile(join(root, "index.md"), "utf8"));
+				assert.isTrue(text.startsWith(`---\n${declared}\n---\n`));
+				const second = yield* syncIndex(bundle, false);
+				assert.include(second.unchanged, "index.md");
+				assert.notInclude(second.written, "index.md");
+
+				// control: a block declaring no okf_version gets the spec constant prepended and keeps its keys
+				const bareRoot = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-index-bare-")));
+				try {
+					yield* syncIndex(rootBundle(bareRoot, "title: Acme"), false);
+					const bare = yield* Effect.promise(() => readFile(join(bareRoot, "index.md"), "utf8"));
+					assert.match(bare, new RegExp(`^---\\nokf_version: ['"]${OKF_SPEC_VERSION}['"]\\ntitle: Acme\\n---\\n`));
+				} finally {
+					yield* Effect.promise(() => rm(bareRoot, { recursive: true, force: true }));
+				}
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(platform)),
+	);
 });

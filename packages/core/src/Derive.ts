@@ -36,8 +36,16 @@ export interface StaleConcept {
 
 /** Options for {@link Derive.renderIndex}. @public */
 export interface RenderIndexOptions {
-	/** Emits a frontmatter block carrying only `okf_version` first; root index only (D-21). */
+	/**
+	 * Emits a root frontmatter block first (root index only). Without `frontmatter` it carries only
+	 * `okf_version` (D-21); with it, `okf_version` is added only when the kept block declares none.
+	 */
 	readonly okfVersion?: string;
+	/**
+	 * The existing root block's YAML text (`IndexDocument.frontmatter`), re-emitted verbatim so a declared
+	 * title, description, license, version or extension key survives a re-render (D6). `""` is absent.
+	 */
+	readonly frontmatter?: string;
 	/** Rendered as `* [name](name/index.md)` under a trailing `# Subdirectories` section. */
 	readonly subdirectories?: ReadonlyArray<string>;
 }
@@ -129,7 +137,10 @@ export class Derive {
 				entries: subdirectories.map((name) => ({ title: name, target: `${name}/index.md` })),
 			});
 		}
-		return indexDocument(sections, options.okfVersion);
+		return indexDocument(sections, {
+			...(options.okfVersion === undefined ? {} : { okfVersion: options.okfVersion }),
+			...(options.frontmatter === undefined ? {} : { frontmatter: options.frontmatter }),
+		});
 	};
 
 	/** `## <date>` plus one `* <item>` line per item, newline-terminated (D-36). */
