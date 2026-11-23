@@ -331,7 +331,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(run.exitCode, 3);
 			assert.isTrue(
 				run.stderr.includes(
-					"error: SchemaError(Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm))",
+					"error: SchemaError(Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm) or a calendar date (YYYY-MM-DD))",
 				),
 			);
 			assert.strictEqual(await readProject(cwd), before);

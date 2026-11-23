@@ -4,6 +4,7 @@ import { Actor } from "./Actor.js";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import type { Concept } from "./Concept.js";
 import type { ConceptId } from "./ConceptId.js";
+import { isAbsent } from "./internal/conceptDecode.js";
 import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
 import { indexDocument, logEntry } from "./internal/templates.js";
 import type { DerivedStatus } from "./Status.js";
@@ -74,7 +75,7 @@ export class Derive {
 	};
 
 	/**
-	 * The typed status; `unknown` when `raw.status` is present (not `null` or `""`) but outside the
+	 * The typed status; `unknown` when `raw.status` is present (not `null`, `""` or `[]`) but outside the
 	 * vocabulary; `stable` when absent (OKF 0.3 §5.4).
 	 */
 	static readonly status = (concept: Concept): DerivedStatus => {
@@ -82,10 +83,10 @@ export class Derive {
 		return Derive.rawStatus(concept) === undefined ? "stable" : "unknown";
 	};
 
-	/** The `status` value as written, as text for display; `undefined` when absent, `null` or `""`. */
+	/** The `status` value as written, as text for display; `undefined` when absent, `null`, `""` or `[]`. */
 	static readonly rawStatus = (concept: Concept): string | undefined => {
 		const value: unknown = concept.raw.status;
-		if (value === undefined || value === null || value === "") return undefined;
+		if (isAbsent(value)) return undefined;
 		return typeof value === "string" ? value : JSON.stringify(value);
 	};
 
@@ -96,7 +97,7 @@ export class Derive {
 	static readonly staleness = (concept: Concept, now: DateTime.Utc): Staleness => {
 		if (concept.stale_after === undefined) {
 			const raw: unknown = concept.raw.stale_after;
-			return raw === undefined || raw === null || raw === "" ? "unknown" : "malformed";
+			return isAbsent(raw) ? "unknown" : "malformed";
 		}
 		return DateTime.toEpochMillis(now) >= DateTime.toEpochMillis(concept.stale_after) ? "stale" : "fresh";
 	};

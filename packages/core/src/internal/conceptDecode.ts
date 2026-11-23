@@ -66,8 +66,12 @@ const formatIssue = SchemaIssue.makeFormatterStandardSchemaV1();
 const isMapping = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** OKF 0.3 11.2 rule 1: `null`, an empty string and an empty list read as absent. */
-const isAbsent = (value: unknown): boolean =>
+/**
+ * OKF 0.3 11.2 rule 1: `null`, an empty string and an empty list read as absent.
+ *
+ * @internal
+ */
+export const isAbsent = (value: unknown): boolean =>
 	value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 
 const leafMessages = (failure: {

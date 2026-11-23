@@ -91,6 +91,8 @@ describe("Derive", () => {
 				assert.strictEqual(Derive.rawStatus(conceptWithRaw({ status: 5 })), "5");
 				assert.strictEqual(Derive.status(conceptWithRaw({ status: null })), "stable");
 				assert.strictEqual(Derive.status(conceptWithRaw({ status: "" })), "stable");
+				assert.strictEqual(Derive.status(conceptWithRaw({ status: [] })), "stable");
+				assert.isUndefined(Derive.rawStatus(conceptWithRaw({ status: [] })));
 				assert.strictEqual(Derive.status(conceptWithRaw({})), "stable");
 				assert.isUndefined(Derive.rawStatus(conceptWithRaw({})));
 				assert.strictEqual(Derive.status(conceptWithStatus("deprecated")), "deprecated");
@@ -104,6 +106,8 @@ describe("Derive", () => {
 			assert.strictEqual(Derive.staleness(bad, now), "malformed");
 			assert.isFalse(Derive.isStale(bad, now));
 			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: null }), now), "unknown");
+			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: [] }), now), "unknown");
+			assert.strictEqual(Derive.staleness(conceptWithRaw({ stale_after: "" }), now), "unknown");
 			assert.strictEqual(Derive.staleness(conceptWithStaleAfter("2026-06-01T00:00:00Z"), now), "stale");
 		}),
 	);
