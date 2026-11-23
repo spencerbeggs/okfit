@@ -14,10 +14,17 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-11-23T21:20:06Z
-status: draft
+status: stable
 integrity:
   generated:
     body: ccb5f22124c74ee5
+  verified:
+    by: human:spencer
+    at: 2026-11-23T22:18:50Z
+    content: ae3b7a269306fe4a
+verified:
+  - by: human:spencer
+    at: 2026-11-23T22:18:50Z
 ---
 
 # The root index's metadata is read and kept

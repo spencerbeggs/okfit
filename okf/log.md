@@ -12,6 +12,10 @@
 * Added The root index's metadata is read and kept
 * Updated VS Code Extension
 * Updated okfit config file schema
+* Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated The software-project vocabulary grows from what migrations could not express
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 
 ## 2026-11-21
 

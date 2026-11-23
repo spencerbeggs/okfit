@@ -18,13 +18,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-23T22:13:15Z
 integrity:
   generated:
     body: 6023acdb73359b3c
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: c530b370b4374f43
+    at: 2026-11-23T22:13:15Z
+    content: fc4f55f3621a6fa8
 ---
 
 # okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest

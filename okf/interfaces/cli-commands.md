@@ -31,13 +31,15 @@ verified:
     at: 2026-10-27T16:51:31Z
   - by: human:spencer
     at: 2026-11-02T19:15:49Z
+  - by: human:spencer
+    at: 2026-11-23T22:13:15Z
 integrity:
   generated:
     body: 8c2656905076e420
   verified:
     by: human:spencer
-    at: 2026-11-02T19:15:49Z
-    content: d6330cfd9a0b8e5b
+    at: 2026-11-23T22:13:15Z
+    content: 2ac2998bf5df11d8
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv

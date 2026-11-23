@@ -14,13 +14,15 @@ verified:
     at: 2026-09-13T04:13:10Z
   - by: human:spencer
     at: 2026-10-11T14:21:44Z
+  - by: human:spencer
+    at: 2026-11-23T22:13:15Z
 integrity:
   generated:
     body: c7717c059c982a5a
   verified:
     by: human:spencer
-    at: 2026-10-11T14:21:44Z
-    content: dcf2b496a607267f
+    at: 2026-11-23T22:13:15Z
+    content: 9702c3181925ad7d
 ---
 
 # The software-project vocabulary grows from what migrations could not express

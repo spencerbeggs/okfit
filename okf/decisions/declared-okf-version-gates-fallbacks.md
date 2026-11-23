@@ -14,10 +14,17 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-11-23T21:45:40Z
-status: draft
+status: stable
 integrity:
   generated:
     body: 7dfff1022d2a9fdb
+  verified:
+    by: human:spencer
+    at: 2026-11-23T22:18:45Z
+    content: 2f38d701f264252e
+verified:
+  - by: human:spencer
+    at: 2026-11-23T22:18:45Z
 ---
 
 # The declared OKF version gates the v0.2 fallbacks
