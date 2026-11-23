@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 import type { BundleLoadOptions } from "../src/Bundle.js";
 import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
@@ -141,5 +141,38 @@ describe("Bundle.load", () => {
 				[".drafts/secret", ".hidden", "visible"],
 			);
 		}),
+	);
+	it.effect(
+		"reads a date-only stale_after and generated.at; an offset-less date-time is value-malformed (OKF 0.3 §5)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform({
+							[`${MOUNT}/day.md`]:
+								"---\ntype: Note\nstale_after: 2026-12-31\ngenerated:\n  by: human:a\n  at: 2026-06-30\n---\n\n# Day\n",
+							[`${MOUNT}/offsetless.md`]: "---\ntype: Note\nstale_after: 2026-12-31T08:00:00\n---\n\n# Offsetless\n",
+						}),
+					),
+				);
+				const day = bundle.concepts.get(id("day"));
+				assert.strictEqual(
+					day?.frontmatter.stale_after === undefined ? undefined : DateTime.formatIso(day.frontmatter.stale_after),
+					"2026-12-31T00:00:00.000Z",
+				);
+				assert.strictEqual(
+					day?.frontmatter.generated?.at === undefined ? undefined : DateTime.formatIso(day.frontmatter.generated.at),
+					"2026-06-30T00:00:00.000Z",
+				);
+				assert.deepStrictEqual(
+					bundle.diagnostics.filter((d) => d.file === "day.md"),
+					[],
+				);
+				const control = bundle.diagnostics.filter((d) => d.file === "offsetless.md");
+				assert.deepStrictEqual(
+					control.map((d) => [d.code, d.severity, d.range?.line, d.range?.character]),
+					[["value-malformed", "warning", 2, 13]],
+				);
+			}),
 	);
 });
