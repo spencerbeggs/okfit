@@ -10,9 +10,17 @@ import { Layer, Option, Path } from "effect";
 import type { Digest } from "effect/crypto";
 import type { OverlayDocumentsShape } from "../../src/overlay/layer.js";
 import { OverlayDocuments, layerOverlayFileSystem } from "../../src/overlay/layer.js";
+import type { ProjectSeed } from "../fixtures/bundles.js";
 
 /** Absolute memfs mount point of every engine seam test bundle. */
 export const ROOT = "/repo/okf";
+
+/**
+ * Prefixes each project-relative key of a `ProjectSeed` with `at` (default `/repo`, so the
+ * bundle lands at `ROOT`), producing a memfs seed.
+ */
+export const mountProject = (seed: ProjectSeed, at = "/repo"): MemoryFileSystemSeed =>
+	Object.fromEntries(Object.entries(seed).map(([path, text]) => [`${at}/${path}`, text]));
 
 /** A minimal `Module` concept; `body` is the paragraph under the heading. */
 export const moduleConcept = (title: string, body = "Body."): string =>
@@ -75,3 +83,7 @@ export const sessionPlatform = (
 		Git.layerTest({}),
 		GitHistory.layerTest({}),
 	);
+
+/** memfs seeded with `seed` mounted at `/repo`, plus posix `Path`: what `Bundle.load` needs. */
+export const projectPlatform = (seed: ProjectSeed): Layer.Layer<FileSystem.FileSystem | Path.Path> =>
+	Layer.mergeAll(MemoryFileSystem.layerWith(mountProject(seed)), Path.layer);

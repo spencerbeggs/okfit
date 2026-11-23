@@ -1,6 +1,7 @@
-import { cp, mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import type { ProjectSeed } from "../../../../engine/__test__/fixtures/bundles.js";
 
 /**
  * One hermetic per-test filesystem: an isolated `cwd` and an `env` pointing
@@ -64,3 +65,17 @@ export const removeSandbox = (sandbox: Sandbox): Promise<void> =>
  * when more than one fixture is needed in one test.
  */
 export const copyFixtureInto = (from: string, to: string): Promise<void> => cp(from, to, { recursive: true });
+
+/**
+ * Writes a `ProjectSeed` (project-relative posix paths to file text) under `cwd`, creating each
+ * file's parent directories. The seeds live in `engine/__test__/fixtures/bundles.ts` (K-44).
+ */
+export const writeSeedInto = async (cwd: string, seed: ProjectSeed): Promise<void> => {
+	await Promise.all(
+		Object.entries(seed).map(async ([path, text]) => {
+			const target = join(cwd, ...path.split("/"));
+			await mkdir(dirname(target), { recursive: true });
+			await writeFile(target, text);
+		}),
+	);
+};

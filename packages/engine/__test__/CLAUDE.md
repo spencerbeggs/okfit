@@ -20,8 +20,9 @@ __test__/
   verify/              # verify/{locate,splice}.ts
   utils/               # Shared mocks, helpers, and type utilities (platform.ts: TestPlatform =
                         # NodeServices.layer + NodeCrypto.layerDigest, since NodeServices carries no crypto)
-  fixtures/            # Static test data and fixture files
-  *.test.ts            # Package-level tests (boundaries.test.ts, errors.test.ts,
+  fixtures/            # Static test data and fixture files (bundles.ts: the in-memory v0.3, v0.2,
+                        # undeclared and one-defect ERROR_PROJECTS seeds; mount with utils/bundle.ts's mountProject)
+  *.test.ts            # Package-level tests (fixtures.test.ts pins what each seed means; boundaries.test.ts, errors.test.ts,
                         # platform.test.ts, smoke.test.ts)
 ```
 
