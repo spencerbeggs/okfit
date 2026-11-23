@@ -15,6 +15,7 @@ import { toFileOffset } from "./internal/position.js";
 import { OPTIONS, parseIndex, parseLog } from "./internal/reserved.js";
 import { DEFAULT_MAX_DEPTH, DEFAULT_PRUNE, walk } from "./internal/walk.js";
 import { LogDocument } from "./LogDocument.js";
+import { OkfVersion } from "./OkfVersion.js";
 
 /**
  * The bundle root does not exist or is not a directory (D-9).
@@ -93,7 +94,8 @@ export interface BundleLoadOptions {
 
 /**
  * One concept file after loading: typed frontmatter, the parsed body, and the
- * `# Computation` section body when present (D-20).
+ * computation when present: 0.3 or later, the code of the first fenced block in the
+ * `Computation` section; 0.2 or undeclared, the body of the depth-1 `Computation` section.
  *
  * @public
  */
@@ -130,6 +132,17 @@ const diagnostic = (
 	range?: DiagnosticRange,
 ): Diagnostic =>
 	Diagnostic.make(range === undefined ? { file, code, severity, message } : { file, code, severity, message, range });
+
+/** OKF 0.3 10.3: the code of the first fenced block among the root children of the first `Computation` section. */
+const fencedComputation = (document: MarkdownDocument): Option.Option<string> =>
+	Option.flatMapNullishOr(document.sectionByHeading("Computation"), (section) => {
+		for (const child of section.children) {
+			if (child.type !== "code") continue;
+			const opening = document.source.slice(child.position.start.offset).trimStart();
+			if (opening.startsWith("```") || opening.startsWith("~~~")) return child.value;
+		}
+		return undefined;
+	});
 
 const blockRange = (text: string, node: Frontmatter): DiagnosticRange =>
 	DiagnosticRange.fromOffset(text, node.position.start.offset, node.position.end.offset - node.position.start.offset);
@@ -345,7 +358,7 @@ export class Bundle {
 				if (outcome.index !== undefined) indexes.set(outcome.index.dir, outcome.index);
 				if (outcome.log !== undefined) logs.set(outcome.log.dir, outcome.log);
 			}
-			return LoadedBundle.make({
+			const bundle = LoadedBundle.make({
 				root,
 				files,
 				directories: [...directories].sort(),
@@ -354,6 +367,16 @@ export class Bundle {
 				logs,
 				diagnostics,
 			});
+			if (OkfVersion.legacyFallbacks(bundle)) return bundle;
+			// The root index is read after most concepts, so a 0.3 bundle's locator runs once it is known.
+			const located = new Map<ConceptId, LoadedConcept>();
+			for (const [conceptId, concept] of concepts) {
+				located.set(
+					conceptId,
+					LoadedConcept.make({ ...concept, computationBody: fencedComputation(concept.document) }),
+				);
+			}
+			return LoadedBundle.make({ ...bundle, concepts: located });
 		},
 	);
 }

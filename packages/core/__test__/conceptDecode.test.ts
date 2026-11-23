@@ -255,6 +255,43 @@ describe("decodeConcept", () => {
 		assert.deepStrictEqual(concept.entries?.parameters, [["parameters", 1]]);
 		assert.deepStrictEqual(shape(issues), [["entry-ignored", "attested", ["parameters", 0]]]);
 	});
+	it("a scalar receipt and a bad attester.resource are each dropped alone, keeping runtime and both objects", () => {
+		const { concept, issues } = decoded({
+			type: "Attested Computation",
+			runtime: "bigquery",
+			executor: { receipt: "job_id" },
+			attester: { resource: 5 },
+		});
+		assert.strictEqual(concept.attested?.runtime, "bigquery");
+		assert.isFalse("receipt" in concept.attested!.executor!);
+		assert.isFalse("resource" in concept.attested!.attester!);
+		assert.deepStrictEqual(shape(issues), [
+			["value-malformed", "attested", ["executor", "receipt"]],
+			["value-malformed", "attested", ["attester", "resource"]],
+		]);
+	});
+	it("an executor with a resource and no receipt is valid", () => {
+		const { concept, issues } = decoded({
+			type: "Attested Computation",
+			runtime: "bigquery",
+			executor: { resource: "skills/run-on-bq.md" },
+		});
+		assert.strictEqual(concept.attested?.executor?.resource, "skills/run-on-bq.md");
+		assert.deepStrictEqual(issues, []);
+	});
+	it("drops a later parameter entry alone and reports its YAML index", () => {
+		const { concept, issues } = decoded({
+			type: "Attested Computation",
+			runtime: "bigquery",
+			parameters: [{ name: "year", type: "integer" }, { name: "x" }],
+		});
+		assert.deepStrictEqual(
+			concept.attested?.parameters.map((p) => p.name),
+			["year"],
+		);
+		assert.deepStrictEqual(concept.entries?.parameters, [["parameters", 0]]);
+		assert.deepStrictEqual(shape(issues), [["entry-ignored", "attested", ["parameters", 1]]]);
+	});
 	it("drops a malformed Source.usage_window alone and keeps the source", () => {
 		const { concept, issues } = decoded({
 			type: "Note",

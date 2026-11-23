@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
 import { DateTime, Effect, Option } from "effect";
-import type { BundleLoadOptions } from "../src/Bundle.js";
+import type { BundleLoadOptions, LoadedBundle } from "../src/Bundle.js";
 import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
 import type { Diagnostic } from "../src/Diagnostic.js";
@@ -14,6 +14,19 @@ const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
 	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundleAtRootPlatform(name)));
 const codes = (diagnostics: ReadonlyArray<Diagnostic>) => diagnostics.map((d) => [d.file, d.code, d.range?.line]);
 const id = (value: string) => value as ConceptId;
+
+const computations = (frontmatter?: string) => ({
+	...(frontmatter === undefined
+		? {}
+		: { [`${MOUNT}/index.md`]: `---\n${frontmatter}\n---\n\n# Attested Computation\n\n* [H2](h2.md)\n` }),
+	[`${MOUNT}/h2.md`]:
+		"---\ntype: Attested Computation\nruntime: bigquery\n---\n\n# Revenue\n\n## Computation\n\nprose\n\n    indented\n\n```sql\nSELECT 1\n```\n\n### Notes\n\n```sql\nSELECT 2\n```\n",
+	[`${MOUNT}/prose.md`]: "---\ntype: Attested Computation\nruntime: bigquery\n---\n\n# Computation\n\nSELECT 1\n",
+	[`${MOUNT}/after.md`]:
+		"---\ntype: Attested Computation\nruntime: bigquery\n---\n\n## Computation\n\nnone here\n\n## Next\n\n```sql\nSELECT 3\n```\n",
+});
+const body = (bundle: LoadedBundle, conceptId: string) =>
+	Option.map(bundle.concepts.get(id(conceptId))?.computationBody ?? Option.none(), (text) => text.trim());
 
 describe("Bundle.load", () => {
 	it.effect("fails typed when the root is missing or a file (D-9)", () =>
@@ -141,6 +154,27 @@ describe("Bundle.load", () => {
 				);
 				assert.deepStrictEqual(bundle.directories, ["sub"]);
 			}),
+	);
+	it.effect(
+		"0.3: the computation is the first fenced block of the Computation section at any heading level; no fence is missing (OKF 0.3 §10.3)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(platform(computations('okf_version: "0.3"'))),
+				);
+				assert.deepStrictEqual(body(bundle, "h2"), Option.some("SELECT 1"));
+				assert.deepStrictEqual(body(bundle, "prose"), Option.none());
+				assert.deepStrictEqual(body(bundle, "after"), Option.none());
+			}),
+	);
+	it.effect("0.2 or undeclared: the depth-1 Computation section's body, as before (owner ruling 3)", () =>
+		Effect.gen(function* () {
+			for (const frontmatter of [undefined, 'okf_version: "0.2"']) {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(Effect.provide(platform(computations(frontmatter))));
+				assert.deepStrictEqual(body(bundle, "prose"), Option.some("SELECT 1"));
+				assert.deepStrictEqual(body(bundle, "h2"), Option.none());
+			}
+		}),
 	);
 	it.effect("an unquoted root okf_version warns and still gates the legacy fallbacks (OKF 0.3 §8.1)", () =>
 		Effect.gen(function* () {
