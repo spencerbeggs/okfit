@@ -53,6 +53,8 @@ export const LintCode = Schema.Literals([
 	"resource-ignored",
 	"resource-untracked",
 	"index-metadata-invalid",
+	"entry-ignored",
+	"value-malformed",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

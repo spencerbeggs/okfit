@@ -12,6 +12,8 @@ const FAMILY_ISSUE_SEVERITY: Record<FamilyIssue["code"], DiagnosticSeverity> = {
 	"family-invalid": "error",
 	"legacy-timestamp": "info",
 	"computation-runtime-missing": "error",
+	"entry-ignored": "warning",
+	"value-malformed": "warning",
 };
 
 interface Context {

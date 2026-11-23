@@ -39,21 +39,16 @@ describe("decodeConcept", () => {
 			assert.strictEqual(decodeConcept(value)._tag, "TypeMissing");
 		}
 	});
-	it("omits a failing family, keeps it in raw, and reports family-invalid with the leaf path (D-15)", () => {
+	it("keeps generated.by when at is malformed, drops only at, and reports value-malformed (D-15, Design 13)", () => {
 		const { concept, issues } = decoded({
 			type: "Module",
 			generated: { by: "reference_agent/gemini-2.5-pro", at: "2026-06-30T14:00:00" },
-			status: "archived",
 			title: "still fine",
 		});
-		assert.isFalse("generated" in concept);
-		assert.isFalse("status" in concept);
+		assert.strictEqual(concept.generated?.by, "reference_agent/gemini-2.5-pro");
+		assert.isFalse("at" in concept.generated!);
 		assert.strictEqual(concept.title, "still fine");
-		assert.strictEqual(concept.raw.status, "archived");
-		assert.deepStrictEqual(shape(issues), [
-			["family-invalid", "generated", ["generated", "at"]],
-			["family-invalid", "status", ["status"]],
-		]);
+		assert.deepStrictEqual(shape(issues), [["value-malformed", "generated", ["generated", "at"]]]);
 		assert.include(issues[0]!.message, "explicit offset");
 	});
 	it("folds a legacy timestamp into generated.at, keeps the key in extensions, ignores it when generated exists", () => {
@@ -68,7 +63,7 @@ describe("decodeConcept", () => {
 		assert.isFalse("at" in kept.concept.generated!);
 		const malformed = decoded({ type: "Metric", timestamp: "2026-05-28T22:53:05" });
 		assert.isFalse("generated" in malformed.concept);
-		assert.deepStrictEqual(shape(malformed.issues), [["family-invalid", "timestamp", ["timestamp"]]]);
+		assert.deepStrictEqual(shape(malformed.issues), [["value-malformed", "timestamp", ["timestamp"]]]);
 	});
 	it("decodes the computation family only for Attested Computation and flags a missing runtime (D-20)", () => {
 		const { concept, issues } = decoded({
@@ -89,17 +84,117 @@ describe("decodeConcept", () => {
 			},
 		]);
 	});
-	it("reports a failing computation family under the top-level key path and keeps the concept", () => {
+	it("decodes each computation key alone: a bad executor.resource keeps runtime and the executor (rule 3)", () => {
 		const { concept, issues } = decoded({
 			type: "Attested Computation",
 			runtime: "bigquery",
-			executor: { resource: "skills/run-on-bq.md" },
+			executor: { resource: 5, receipt: ["job_id"] },
 		});
-		assert.isFalse("attested" in concept);
+		assert.strictEqual(concept.attested?.runtime, "bigquery");
+		assert.deepStrictEqual(concept.attested?.executor?.receipt, ["job_id"]);
+		assert.isFalse("resource" in concept.attested!.executor!);
 		assert.deepStrictEqual(concept.extensions, {});
 		assert.strictEqual(concept.raw.runtime, "bigquery");
-		assert.deepStrictEqual(shape(issues), [["family-invalid", "attested", ["executor", "receipt"]]]);
+		assert.deepStrictEqual(shape(issues), [["value-malformed", "attested", ["executor", "resource"]]]);
 	});
+	it("reads null, an empty string and an empty list as absent, with no issue (OKF 0.3 11.2 rule 1)", () => {
+		const { concept, issues } = decoded({
+			type: "Note",
+			title: "",
+			description: null,
+			tags: [],
+			stale_after: null,
+			sources: null,
+		});
+		assert.deepStrictEqual(issues, []);
+		for (const key of ["title", "description", "tags", "stale_after", "sources"]) assert.isFalse(key in concept, key);
+		assert.strictEqual(concept.raw.title, "");
+		assert.strictEqual(decoded({ type: "Note", title: "T" }).concept.title, "T");
+	});
+	it("reads one item as a list of one and never splits a scalar tag (rule 2)", () => {
+		const { concept, issues } = decoded({
+			type: "Attested Computation",
+			runtime: "bigquery",
+			tags: "finance, revenue",
+			sources: { resource: "https://example.com/a" },
+			parameters: { name: "year", type: "integer" },
+		});
+		assert.deepStrictEqual(issues, []);
+		assert.deepStrictEqual(concept.tags, ["finance, revenue"]);
+		assert.strictEqual(concept.sources?.[0]?.resource, "https://example.com/a");
+		assert.deepStrictEqual(concept.entries?.sources, [["sources"]]);
+		assert.strictEqual(concept.attested?.parameters[0]?.name, "year");
+	});
+	it("ignores an entry without a readable REQUIRED key and keeps each kept entry's YAML index (rule 3)", () => {
+		const { concept, issues } = decoded({
+			type: "Note",
+			tags: ["x", 3, "z"],
+			sources: [{ resource: "a.md" }, { title: "no resource" }, { resource: "c.md" }],
+			verified: [
+				{ by: "human:a", at: "2026-06-25T09:00:00Z" },
+				{ by: "human:b" },
+				{ by: "human:c", at: "2026-06-25T09:00:00" },
+			],
+			generated: { at: "2026-06-25T09:00:00Z" },
+		});
+		assert.deepStrictEqual(concept.tags, ["x", "z"]);
+		assert.deepStrictEqual(concept.entries?.tags, [
+			["tags", 0],
+			["tags", 2],
+		]);
+		assert.deepStrictEqual(
+			concept.sources?.map((s) => s.resource),
+			["a.md", "c.md"],
+		);
+		assert.deepStrictEqual(concept.entries?.sources, [
+			["sources", 0],
+			["sources", 2],
+		]);
+		assert.deepStrictEqual(
+			concept.verified?.map((v) => v.by),
+			["human:a"],
+		);
+		assert.isFalse("generated" in concept);
+		assert.deepStrictEqual(shape(issues), [
+			["value-malformed", "tags", ["tags", 1]],
+			["entry-ignored", "sources", ["sources", 1]],
+			["entry-ignored", "generated", ["generated"]],
+			["entry-ignored", "verified", ["verified", 1]],
+			["entry-ignored", "verified", ["verified", 2]],
+		]);
+	});
+	it("keeps an entry whose OPTIONAL key is malformed and drops only that key (rule 3)", () => {
+		const { concept, issues } = decoded({
+			type: "Note",
+			sources: [{ resource: "a.md", id: "a", usage_count: "many", last_modified: "yesterday" }],
+			generated: { by: "human:a", at: "2026-06-30T14:00:00" },
+			usage_window: { from: "2026-06-01T00:00:00Z", to: "soon" },
+		});
+		assert.deepStrictEqual([concept.sources?.[0]?.resource, concept.sources?.[0]?.id], ["a.md", "a"]);
+		assert.isFalse("usage_count" in concept.sources![0]!);
+		assert.isFalse("last_modified" in concept.sources![0]!);
+		assert.strictEqual(concept.generated?.by, "human:a");
+		assert.isFalse("at" in concept.generated!);
+		assert.isDefined(concept.usage_window?.from);
+		assert.deepStrictEqual(shape(issues), [
+			["value-malformed", "sources", ["sources", 0, "usage_count"]],
+			["value-malformed", "sources", ["sources", 0, "last_modified"]],
+			["value-malformed", "usage_window", ["usage_window", "to"]],
+			["value-malformed", "generated", ["generated", "at"]],
+		]);
+	});
+	it("a wrong-typed family is absent with value-malformed; a malformed integrity block is still family-invalid", () => {
+		const { issues } = decoded({ type: "Note", title: 5, tags: { a: 1 }, sources: 5 });
+		assert.deepStrictEqual(
+			shape(issues).map(([code, , path]) => [code, path]),
+			[
+				["value-malformed", ["title"]],
+				["value-malformed", ["tags"]],
+				["entry-ignored", ["sources"]],
+			],
+		);
+	});
+
 	it("stores a YAML __proto__ key as data, not as a prototype", () => {
 		const { concept } = decoded(
 			Object.fromEntries([

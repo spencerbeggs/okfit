@@ -21,7 +21,8 @@ export {
 	LoadedBundle,
 	LoadedConcept,
 } from "./Bundle.js";
-export { ATTESTED_COMPUTATION_TYPE, Concept } from "./Concept.js";
+export type { EntryFamily } from "./Concept.js";
+export { ATTESTED_COMPUTATION_TYPE, Concept, EntryPaths } from "./Concept.js";
 export { ConceptId } from "./ConceptId.js";
 export type { LogEntry, RenderIndexOptions, StaleConcept } from "./Derive.js";
 export { Derive, Staleness, TrustTier } from "./Derive.js";

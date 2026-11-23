@@ -144,7 +144,8 @@ describe("internal/links", () => {
 					attester: new ComputationAttester({ resource: "attesters/eq.py" }),
 				}),
 				extensions: {},
-				raw: {},
+				// `Concept.entryPath` reads a hand-built concept's list shape from `raw`.
+				raw: { sources: [{}, {}] },
 			});
 			assert.deepStrictEqual(pathFieldsOf(concept), [
 				{ field: "resource", raw: "https://example.com/asset", path: ["resource"] },

@@ -1,5 +1,5 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfit/core";
+import { Concept, Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 
@@ -40,7 +40,10 @@ export const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> =
 	if (concept.frontmatter.resource !== undefined)
 		values.push({ value: concept.frontmatter.resource, path: ["resource"] });
 	concept.frontmatter.sources?.forEach((source, index) => {
-		values.push({ value: source.resource, path: ["sources", index, "resource"] });
+		values.push({
+			value: source.resource,
+			path: [...Concept.entryPath(concept.frontmatter, "sources", index), "resource"],
+		});
 	});
 	return values;
 };

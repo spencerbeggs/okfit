@@ -6,6 +6,7 @@ const VALUES = [
 	"ActorPattern",
 	"Timestamp",
 	"Source",
+	"EntryPaths",
 	"UsageWindow",
 	"Generated",
 	"Digest",

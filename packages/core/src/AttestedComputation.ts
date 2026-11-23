@@ -15,8 +15,8 @@ export class ComputationParameter extends Schema.Class<ComputationParameter>("Co
  * @public
  */
 export class ComputationExecutor extends Schema.Class<ComputationExecutor>("ComputationExecutor")({
-	resource: Schema.String,
-	receipt: Schema.Array(Schema.String),
+	resource: Schema.optionalKey(Schema.String),
+	receipt: Schema.optionalKey(Schema.Array(Schema.String)),
 }) {}
 
 /**
@@ -24,7 +24,7 @@ export class ComputationExecutor extends Schema.Class<ComputationExecutor>("Comp
  * @public
  */
 export class ComputationAttester extends Schema.Class<ComputationAttester>("ComputationAttester")({
-	resource: Schema.String,
+	resource: Schema.optionalKey(Schema.String),
 }) {}
 
 /**

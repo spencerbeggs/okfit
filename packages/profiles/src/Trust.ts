@@ -1,5 +1,5 @@
 import type { Actor, LoadedBundle, LoadedConcept, TrustTier, Verification } from "@okfit/core";
-import { Actor as ActorNS, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
+import { Actor as ActorNS, Concept, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
 import { DateTime, Effect, Result, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
@@ -189,7 +189,7 @@ const rangePath = (
 	if (concept.frontmatter.integrity?.verified !== undefined) return ["integrity", "verified"];
 	const latest = latestHuman(concept);
 	const index = latest === undefined ? -1 : (concept.frontmatter.verified ?? []).indexOf(latest);
-	return Array.isArray(concept.frontmatter.raw.verified) && index >= 0 ? ["verified", index] : ["verified"];
+	return index >= 0 ? Concept.entryPath(concept.frontmatter, "verified", index) : ["verified"];
 };
 
 const lint = Effect.fn("Trust.lint")(function* (

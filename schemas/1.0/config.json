@@ -279,7 +279,7 @@
 						"error"
 					],
 					"title": "family-invalid",
-					"description": "A concept's declared family does not match an accepted shape. Default \"error\".",
+					"description": "okfit's own integrity family does not match its shape. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {
@@ -764,6 +764,50 @@
 					],
 					"title": "index-metadata-invalid",
 					"description": "The bundle-root index.md frontmatter carries an okf_version that is not a quoted <major>.<minor> string, or a title, description or license that is not a string; the value is read best-effort. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"entry_ignored": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "entry-ignored",
+					"description": "An entry or mapping the spec defines (a sources, verified or parameters entry, generated) lacks a REQUIRED key or has one okfit cannot read, so it is ignored (OKF 0.3 §11.2 rule 3). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"value_malformed": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "value-malformed",
+					"description": "A defined value okfit cannot read in its defined shape (wrong type, unparsable timestamp, malformed optional key) is read as absent; a malformed stale_after reads as malformed, never fresh (OKF 0.3 §5.5, §11.2). Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

@@ -7,8 +7,8 @@ import { Timestamp } from "./Timestamp.js";
  * @public
  */
 export class UsageWindow extends Schema.Class<UsageWindow>("UsageWindow")({
-	from: Timestamp,
-	to: Timestamp,
+	from: Schema.optionalKey(Timestamp),
+	to: Schema.optionalKey(Timestamp),
 }) {}
 
 /**

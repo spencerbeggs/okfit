@@ -1,7 +1,7 @@
 import type { MarkdownDocument } from "@effected/markdown";
 import { PosixPath } from "@effected/walker";
 import { Option } from "effect";
-import type { Concept } from "../Concept.js";
+import { Concept } from "../Concept.js";
 import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
 
 /** Frontmatter fields whose value is a bundle path (D-23). @internal */
@@ -139,19 +139,23 @@ export const resolvePathField = (
 export const pathFieldsOf = (concept: Concept): ReadonlyArray<PathFieldRef> => {
 	const out: Array<PathFieldRef> = [];
 	if (concept.resource !== undefined) out.push({ field: "resource", raw: concept.resource, path: ["resource"] });
-	// `sources` decodes all or nothing, so a decoded entry's index is its index in the YAML sequence.
+	// An ignored entry shifts the decoded index off the YAML index, so the path comes from `Concept.entryPath`.
 	for (const [index, source] of (concept.sources ?? []).entries()) {
-		out.push({ field: "sources.resource", raw: source.resource, path: ["sources", index, "resource"] });
+		out.push({
+			field: "sources.resource",
+			raw: source.resource,
+			path: [...Concept.entryPath(concept, "sources", index), "resource"],
+		});
 	}
 	// The Attested Computation keys sit at the frontmatter top level (spec section 10).
 	const attested = concept.attested;
 	if (attested?.computation !== undefined) {
 		out.push({ field: "computation", raw: attested.computation, path: ["computation"] });
 	}
-	if (attested?.executor !== undefined) {
+	if (attested?.executor?.resource !== undefined) {
 		out.push({ field: "executor.resource", raw: attested.executor.resource, path: ["executor", "resource"] });
 	}
-	if (attested?.attester !== undefined) {
+	if (attested?.attester?.resource !== undefined) {
 		out.push({ field: "attester.resource", raw: attested.attester.resource, path: ["attester", "resource"] });
 	}
 	return out;

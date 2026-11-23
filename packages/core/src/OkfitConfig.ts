@@ -238,7 +238,7 @@ export const LintTable = Schema.Struct({
 	family_invalid: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "family-invalid",
-			description: 'A concept\'s declared family does not match an accepted shape. Default "error".',
+			description: 'okfit\'s own integrity family does not match its shape. Default "error".',
 			default: "error",
 		}),
 	),
@@ -406,6 +406,22 @@ export const LintTable = Schema.Struct({
 			title: "index-metadata-invalid",
 			description:
 				'The bundle-root index.md frontmatter carries an okf_version that is not a quoted <major>.<minor> string, or a title, description or license that is not a string; the value is read best-effort. Default "warn".',
+			default: "warn",
+		}),
+	),
+	entry_ignored: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "entry-ignored",
+			description:
+				'An entry or mapping the spec defines (a sources, verified or parameters entry, generated) lacks a REQUIRED key or has one okfit cannot read, so it is ignored (OKF 0.3 §11.2 rule 3). Default "warn".',
+			default: "warn",
+		}),
+	),
+	value_malformed: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "value-malformed",
+			description:
+				'A defined value okfit cannot read in its defined shape (wrong type, unparsable timestamp, malformed optional key) is read as absent; a malformed stale_after reads as malformed, never fresh (OKF 0.3 §5.5, §11.2). Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -678,6 +694,8 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
 	"index-metadata-invalid": "index_metadata_invalid",
+	"entry-ignored": "entry_ignored",
+	"value-malformed": "value_malformed",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -711,6 +729,8 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	publication_orphan: "error",
 	surface_unmatched: "warn",
 	index_metadata_invalid: "warn",
+	entry_ignored: "warn",
+	value_malformed: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

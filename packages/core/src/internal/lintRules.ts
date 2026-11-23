@@ -2,6 +2,7 @@ import { EditDistance } from "@effected/source";
 import { DateTime } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
+import { Concept } from "../Concept.js";
 import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
@@ -130,7 +131,7 @@ export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (
 		{ by: concept.frontmatter.generated?.by, path: ["generated", "by"] },
 		...(concept.frontmatter.verified ?? []).map((entry, index) => ({
 			by: entry.by,
-			path: ["verified", index, "by"] as ReadonlyArray<string | number>,
+			path: [...Concept.entryPath(concept.frontmatter, "verified", index), "by"] as ReadonlyArray<string | number>,
 		})),
 	];
 	const out: Array<RangedMessage> = [];
@@ -148,8 +149,10 @@ export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (
 const actorsOf = (
 	concept: LoadedConcept,
 ): ReadonlyArray<{ readonly by: Actor; readonly path: ReadonlyArray<string | number> }> => {
-	const verifiedPath = (index: number): ReadonlyArray<string | number> =>
-		Array.isArray(concept.frontmatter.raw.verified) ? ["verified", index, "by"] : ["verified", "by"];
+	const verifiedPath = (index: number): ReadonlyArray<string | number> => [
+		...Concept.entryPath(concept.frontmatter, "verified", index),
+		"by",
+	];
 	const binding = concept.frontmatter.integrity?.verified;
 	return [
 		...(concept.frontmatter.generated === undefined

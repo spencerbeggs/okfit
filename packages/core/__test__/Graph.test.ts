@@ -4,6 +4,7 @@ import { Effect, Graph as EffectGraph, Layer, Option, Path } from "effect";
 import { Bundle } from "../src/Bundle.js";
 import type { GraphLink } from "../src/Graph.js";
 import { Graph } from "../src/Graph.js";
+import { MOUNT, platform } from "./utils/fixtures.js";
 import {
 	BROKEN_ROOT,
 	BrokenPlatform,
@@ -188,5 +189,26 @@ describe("Graph.resolve", () => {
 				via: "rooted",
 			});
 		}).pipe(Effect.provide(platform)),
+	);
+});
+
+describe("Graph.fromBundle after a dropped sources entry", () => {
+	it.effect("ranges the kept source's edge at its own YAML line, not its decoded index", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			const graph = Graph.fromBundle(bundle);
+			const edges = graph.edges.filter((edge) => edge.from === "a" && edge.to === "b");
+			assert.strictEqual(edges.length, 1);
+			assert.strictEqual(edges[0]?.data.field, "sources.resource");
+			assert.strictEqual(edges[0]?.data.position?.line, 4);
+			assert.strictEqual(edges[0]?.data.position?.character, 14);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\nsources:\n  - title: no resource\n  - resource: b.md\n---\n",
+					[`${MOUNT}/b.md`]: "---\ntype: Note\n---\n",
+				}),
+			),
+		),
 	);
 });
