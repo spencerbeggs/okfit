@@ -180,7 +180,7 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
-	it.effect("never loads, stamps or rewrites a concept symlinked outside the bundle (#351, OKF 0.3 §3.2)", () =>
+	it.effect("never loads, stamps or rewrites a file symlinked outside the bundle (OKF 0.3 §3.2)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);
 			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
@@ -206,6 +206,31 @@ describe("runSync --staged (issue #140)", () => {
 				}).pipe(Effect.provide(live));
 				assert.deepStrictEqual(result.generated.written, ["new"]);
 				assert.strictEqual(yield* Effect.promise(() => readFile(target, "utf8")), original);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("fails with ConceptOutsideRepositoryError when log.md is a symlink out of the repository (#351)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			const outside = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-outside-")));
+			try {
+				const target = join(outside, "log.md");
+				yield* Effect.promise(() => writeFile(target, "# Log\n"));
+				yield* Effect.promise(() => symlink(target, join(root, "okf", "log.md")));
+				const error = yield* Effect.flip(
+					runSync({
+						bundleRoot: join(root, "okf"),
+						config: OkfitConfig.DEFAULTS,
+						modes: new Set(["log"]),
+						dryRun: false,
+						staged: { at: STAMP },
+					}).pipe(Effect.provide(live)),
+				);
+				assert.strictEqual(error._tag, "ConceptOutsideRepositoryError");
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 				yield* Effect.promise(() => rm(outside, { recursive: true, force: true }));

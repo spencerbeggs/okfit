@@ -306,16 +306,20 @@ export class Bundle {
 					.lstat(path.join(root, file))
 					.pipe(Effect.mapError((cause) => new BundleReadError({ root, path: file, cause })));
 				if (link.type === "SymbolicLink") {
-					const escaped = yield* confineReal(root, path.join(root, file)).pipe(
-						Effect.match({ onFailure: () => true, onSuccess: () => false }),
+					const refused = yield* confineReal(root, path.join(root, file)).pipe(
+						Effect.match({ onFailure: (error) => error, onSuccess: () => undefined }),
 					);
-					if (escaped) {
+					if (refused !== undefined) {
+						const why =
+							refused.reason === "outside"
+								? "resolves outside the bundle root"
+								: "could not be resolved, so it cannot be shown to stay inside the bundle root";
 						diagnostics.push(
 							diagnostic(
 								file,
 								"symlink-escape",
 								"warning",
-								"symbolic link resolves outside the bundle root, so it is not read and not part of the bundle",
+								`symbolic link ${why}; it is not read and not part of the bundle`,
 							),
 						);
 						continue;

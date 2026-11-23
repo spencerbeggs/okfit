@@ -249,8 +249,8 @@ const decodeAttested = (
 
 /**
  * Decode a frontmatter value into a `Concept` without ever rejecting it for a
- * bad family. `TypeMissing` (lint `type-missing`) and `NotMapping` (conformance `frontmatter-unparseable`) are the only failures. Reading is
- * tolerant, key by key (OKF 0.3 11.2 rules 1-4); only okfit's own `integrity`
+ * bad family. `TypeMissing` (lint `type-missing`) and `NotMapping` (conformance
+ * `frontmatter-unparseable`) are the only failures. Reading is tolerant, key by key (OKF 0.3 11.2 rules 1-4); only okfit's own `integrity`
  * family keeps the whole-family `family-invalid` decode.
  * @public
  */

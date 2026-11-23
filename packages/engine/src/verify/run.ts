@@ -22,13 +22,13 @@ import { orderVerifyEdits, quoteLike, splice, spliceTopLevelScalar } from "./spl
 
 /**
  * The only four diagnostic codes that can co-occur with a MISSING
- * `concepts` entry (V-9, contract §12 note 10): `Bundle.ts:143/164/175/186`
- * emit the three frontmatter codes and return without a concept, and
- * `internal/frontmatter.ts:73` emits `type-missing` for `decodeConcept`'s
- * only failure branch. Every other code — `family-invalid`,
- * `computation-runtime-missing`, `legacy-timestamp` — is pushed as an issue
- * while `decodeConcept` still returns a concept, so the concept IS in the
- * map (`internal/conceptDecode.ts:84-134`).
+ * `concepts` entry (V-9, contract §12 note 10): `Bundle.load` emits the three
+ * frontmatter codes and returns without a concept, and `decodeConcept`'s two
+ * failure branches emit `type-missing` (a block with no `type`) or
+ * `frontmatter-unparseable` (a block that is not a mapping). Every other
+ * code — `family-invalid`, `computation-runtime-missing`, `legacy-timestamp`
+ * — is pushed as an issue while `decodeConcept` still returns a concept, so
+ * the concept IS in the map.
  */
 const UNDECODABLE_CODES: ReadonlySet<string> = new Set([
 	"frontmatter-unparseable",

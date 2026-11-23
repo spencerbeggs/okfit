@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { Diagnostic, DiagnosticCode, DiagnosticRange } from "../src/Diagnostic.js";
+import { Diagnostic, DiagnosticCode, DiagnosticRange, LintCode } from "../src/Diagnostic.js";
 
 const decodeCode = Schema.decodeUnknownEffect(DiagnosticCode);
 
@@ -23,7 +23,7 @@ describe("Diagnostic", () => {
 			assert.strictEqual((yield* Effect.flip(decodeCode("not-a-code")))._tag, "SchemaError");
 		}),
 	);
-	it.effect("decodes all every LintCode members, including status-missing and source-resource-missing", () =>
+	it.effect("decodes every LintCode member, including status-missing and source-resource-missing", () =>
 		Effect.gen(function* () {
 			const codes = [
 				"broken-links",
@@ -62,7 +62,7 @@ describe("Diagnostic", () => {
 				"type-missing",
 				"symlink-escape",
 			];
-			assert.strictEqual(codes.length, 35);
+			assert.deepStrictEqual([...codes].sort(), [...LintCode.literals].sort());
 			for (const code of codes) {
 				assert.strictEqual(yield* decodeCode(code), code);
 			}

@@ -125,13 +125,23 @@ CLEAN='{"schema":1,"exit_code":0,"diagnostics":[]}'
 	[ ! -f "$STUB_DIR/validate-invoked" ]
 }
 
+@test "a core.lint frontmatter-missing warning for the edited file does not block (OKF 0.3 3.2)" {
+	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
+		'{"schema":1,"exit_code":0,"diagnostics":[{"source":"core.lint","file":"modules/example.md","code":"frontmatter-missing","severity":"warning","message":"no frontmatter, so this file is not a concept and is skipped"}]}' 0
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$REPO_ROOT/okf/modules/example.md" "$REPO_ROOT")"
+		assert_hook_noop
+	done
+	[ -f "$STUB_DIR/validate-invoked" ]
+}
+
 @test "reads Copilot's tool_input.path spelling of the edited file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"type is required"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"frontmatter-unclosed","severity":"error","message":"type is required"}]}' 2
 	local fixture
 	fixture=$(hook_fixture PostToolUse "$(jq -nc --arg f "$REPO_ROOT/okf/modules/example.md" --arg c "$REPO_ROOT" '{tool_name: "Edit", tool_input: {path: $f, old_str: "a", new_str: "b"}, cwd: $c}')")
 	_run copilot "$fixture"
-	assert_stop copilot "type-missing"
+	assert_stop copilot "frontmatter-unclosed"
 }
 
 @test "no-ops outside the bundle root without invoking the validate stub" {
@@ -161,17 +171,17 @@ CLEAN='{"schema":1,"exit_code":0,"diagnostics":[]}'
 
 @test "blocks on a core.conformance diagnostic for the edited file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"type is required"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"frontmatter-unclosed","severity":"error","message":"type is required"}]}' 2
 	for target in $TARGETS; do
 		_run "$target" "$(render posttooluse.write-clean.json)"
 		assert_hook_exit 0
-		assert_stop "$target" "type-missing: type is required"
+		assert_stop "$target" "frontmatter-unclosed: type is required"
 	done
 }
 
 @test "does not block on a core.conformance diagnostic for a DIFFERENT file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/other.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/other.md","code":"frontmatter-unclosed","severity":"error","message":"m"}]}' 2
 	for target in $TARGETS; do
 		_run "$target" "$(render posttooluse.write-clean.json)"
 		assert_hook_noop
@@ -262,7 +272,7 @@ STUB
 
 @test "retries the pre-phase-4 whole-bundle form when the scoped call exits 64, and still blocks on the edited file" {
 	_stub_old_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"type-missing","severity":"error","message":"m"},{"source":"core.conformance","file":"modules/other.md","code":"type-missing","severity":"error","message":"o"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example.md","code":"frontmatter-unclosed","severity":"error","message":"m"},{"source":"core.conformance","file":"modules/other.md","code":"frontmatter-unclosed","severity":"error","message":"o"}]}' 2
 	for target in $TARGETS; do
 		rm -f "$STUB_DIR/validate-calls"
 		_run "$target" "$(render posttooluse.write-clean.json)"
@@ -301,7 +311,7 @@ STUB
 
 @test "blocks on an Edit of index.md exactly like any other concept file" {
 	_stub_cli "$(_ctx "$REPO_ROOT/okf" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"index.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"index.md","code":"frontmatter-unclosed","severity":"error","message":"m"}]}' 2
 	for target in $TARGETS; do
 		_run "$target" "$(render posttooluse.edit-index.json)"
 		assert_stop "$target" "index.md:"
@@ -312,16 +322,16 @@ STUB
 
 @test "classifies correctly when bundle_root equals project_root" {
 	_stub_cli "$(_ctx "$REPO_ROOT" "$REPO_ROOT")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"okf/modules/example.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"okf/modules/example.md","code":"frontmatter-unclosed","severity":"error","message":"m"}]}' 2
 	_run claude "$(_input Write "$REPO_ROOT/okf/modules/example.md" "$REPO_ROOT")"
-	assert_stop claude "type-missing"
+	assert_stop claude "frontmatter-unclosed"
 }
 
 @test "quotes a file path containing a space through every branch" {
 	local spaced="$BATS_TEST_TMPDIR/fake proj"
 	mkdir -p "$spaced/okf/modules"
 	_stub_cli "$(_ctx "$spaced/okf" "$spaced")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example file.md","code":"type-missing","severity":"error","message":"m"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/example file.md","code":"frontmatter-unclosed","severity":"error","message":"m"}]}' 2
 	for target in $TARGETS; do
 		_run "$target" "$(_input Write "$spaced/okf/modules/example file.md" "$spaced")" "$spaced"
 		assert_stop "$target" "modules/example file.md:"
@@ -416,9 +426,9 @@ title: Core
 generated:
   by: okfit/claude-code')
 	_stub_cli "$(_ctx "$proj/okf" "$proj")" \
-		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/core.md","code":"type-missing","severity":"error","message":"type is required"},{"source":"core.lint","file":"modules/core.md","code":"stale","severity":"warning","message":"m"}]}' 2
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"modules/core.md","code":"frontmatter-unclosed","severity":"error","message":"type is required"},{"source":"core.lint","file":"modules/core.md","code":"stale","severity":"warning","message":"m"}]}' 2
 	_run claude "$(_input Edit "$proj/okf/modules/core.md" "$proj")" "$proj"
-	assert_stop claude "type-missing"
+	assert_stop claude "frontmatter-unclosed"
 	assert_hook_json '.reason | contains("stale")' false
 }
 
