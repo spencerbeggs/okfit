@@ -365,7 +365,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 		if (integrity !== undefined) out.integrity = integrity;
 	}
 
-	if (!("generated" in raw) && present("timestamp")) {
+	if (!present("generated") && present("timestamp")) {
 		const at = decodeFamily(Timestamp, "timestamp", ["timestamp"], raw.timestamp, issues);
 		if (at !== undefined) {
 			fields.generated = Generated.make({ by: Generated.LEGACY_BY, at });

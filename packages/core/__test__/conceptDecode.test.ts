@@ -380,4 +380,12 @@ describe("decodeConcept", () => {
 			assert.strictEqual(concept.attested?.parameters[0]?.required, false);
 		}
 	});
+	it("a null generated is absent (rule 1), so the legacy timestamp still applies; a real generated suppresses it", () => {
+		const nullGenerated = decoded({ type: "T", generated: null, timestamp: "2026-01-01T00:00:00Z" });
+		assert.strictEqual(nullGenerated.concept.generated?.by, Generated.LEGACY_BY);
+		assert.deepStrictEqual(shape(nullGenerated.issues), [["legacy-timestamp", "timestamp", ["timestamp"]]]);
+		const real = decoded({ type: "T", generated: { by: "human:a" }, timestamp: "2026-01-01T00:00:00Z" });
+		assert.strictEqual(real.concept.generated?.by, "human:a");
+		assert.deepStrictEqual(real.issues, []);
+	});
 });
