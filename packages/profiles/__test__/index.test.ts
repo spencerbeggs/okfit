@@ -36,7 +36,7 @@ describe("@okfit/profiles", () => {
 	it.effect("ships the software-project profile and resolves @okfit/core through the workspace", () =>
 		Effect.sync(() => {
 			assert.deepStrictEqual([...Barrel.PROFILE_NAMES], ["software-project"]);
-			assert.strictEqual(OKF_SPEC_VERSION, "0.2");
+			assert.strictEqual(OKF_SPEC_VERSION, "0.3");
 		}),
 	);
 

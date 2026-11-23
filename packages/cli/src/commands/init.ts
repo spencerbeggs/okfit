@@ -110,24 +110,23 @@ const countsOf = (diagnostics: ReadonlyArray<RenderedDiagnostic>, concepts: numb
  *  5. `merged = OkfitConfig.merge(OkfitConfig.merge(DEFAULTS, profileConfig),
  *     fileConfig)`, `profileConfig` falling back to `NO_PROFILE_CONFIG` when
  *     no profile resolved.
- *  6. `merged.okf_version !== OKF_SPEC_VERSION` warns (K-15).
- *  7. `projectRoot`/`bundleRoot` via `@okfit/engine`'s `config/anchor.ts`; `now = yield* Now`;
+ *  6. `projectRoot`/`bundleRoot` via `@okfit/engine`'s `config/anchor.ts`; `now = yield* Now`;
  *     `layout` falls back to `Profiles.softwareProject.layout` when no
  *     profile resolved (this file's own decision 2 above — `Layout` has no
  *     `DEFAULTS` equivalent).
- *  8. `paths = targetPaths(...)`; every path stat-ed; ANY existing fails
+ *  7. `paths = targetPaths(...)`; every path stat-ed; ANY existing fails
  *     with `InitOverwriteError` before a single byte is written (K-28).
- *  9. `mkdir -p` every target's parent, THEN write `configValue(...)`
+ *  8. `mkdir -p` every target's parent, THEN write `configValue(...)`
  *     through `OkfitConfigFile.write` and every `files(...)` entry through
  *     `fs.writeFileString` — `OkfitConfigFile.write` deliberately does not
  *     create its parent (`CF/index.d.ts:517-521`), and `save` is unusable
  *     here since it targets the XDG `defaultPath`, which K-14 forbids.
- * 10. `Console.log` the K-51 success line.
- * 11. self-validate (K-29): `run({ root: bundleRoot, config: merged,
+ *  9. `Console.log` the K-51 success line.
+ * 10. self-validate (K-29): `run({ root: bundleRoot, config: merged,
  *     profile, now })` over the bundle just written, rendered exactly as
  *     `validate --format human` does, `CliExit.set` to its
  *     `forDiagnostics` result. The handler SUCCEEDS (K-7); the failure path
- *     is only `InitOverwriteError` at step 8, or an infrastructure error
+ *     is only `InitOverwriteError` at step 7, or an infrastructure error
  *     that already carries its own `[Runtime.errorExitCode]`.
  *
  * @public
@@ -171,12 +170,6 @@ export const initProgram = (input: InitInput, cwd: string) =>
 				// bundle root, the written config's `bundle.path`, and the self-validate.
 				const merged: OkfitConfig = { ...mergedBase, bundle: { ...mergedBase.bundle, path: answers.bundle } };
 
-				if (merged.okf_version !== undefined && merged.okf_version !== OKF_SPEC_VERSION) {
-					yield* Console.error(
-						`warning: okf_version "${merged.okf_version}" does not match this okfit's spec version "${OKF_SPEC_VERSION}"; continuing`,
-					);
-				}
-
 				const path = yield* Path.Path;
 				const fs = yield* FileSystem.FileSystem;
 
@@ -203,6 +196,7 @@ export const initProgram = (input: InitInput, cwd: string) =>
 					profileName,
 					projectTitle: path.basename(projectRoot),
 					today: DateTime.formatIso(now).slice(0, 10),
+					okfVersion: merged.okf_version ?? OKF_SPEC_VERSION,
 				};
 
 				const paths = targetPaths(scaffoldOptions);

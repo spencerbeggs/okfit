@@ -229,8 +229,8 @@ example above reflects that, not a shortened path for readability.
 `--format json` uses its own envelope, `ContextEnvelope` (schema 1),
 documented in `## --format json` below — never `validate`'s `JsonEnvelope`.
 There is no `--profile` flag on `context`; that one belongs to `init`
-alone. Config discovery, the `--config` pre-flight, and the K-4/K-15
-warnings all behave exactly as `## Config discovery` describes below.
+alone. Config discovery, the `--config` pre-flight, and the K-4
+warning all behave exactly as `## Config discovery` describes below.
 
 ### `okfit verify`
 
@@ -371,8 +371,9 @@ $ echo $?
 3
 ```
 
-A config whose `okf_version` disagrees with the version this `okfit` speaks
-is a warning, not a failure; the run continues.
+A config's `okf_version` is only what `okfit init` and `okfit sync` write into a
+bundle-root `index.md` that declares none. The bundle's own declaration decides
+how it is read, and `--format json` reports it (`null` when the bundle declares none).
 
 ## Exit codes
 

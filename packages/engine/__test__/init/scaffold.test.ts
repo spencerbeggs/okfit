@@ -11,6 +11,7 @@ const OPTIONS: ScaffoldOptions = {
 	profileName: "software-project",
 	projectTitle: "my-repo",
 	today: "2026-09-05",
+	okfVersion: "0.2",
 };
 
 describe("CONFIG_RELATIVE_PATH", () => {
@@ -186,4 +187,21 @@ describe("files", () => {
 			}),
 		),
 	);
+
+	describe("files okfVersion", () => {
+		const rootIndex = (okfVersion: string) =>
+			files({ ...OPTIONS, okfVersion }).pipe(
+				Effect.map((entries) => entries.find((entry) => entry.path === "/tmp/my-repo/okf/index.md")?.contents ?? ""),
+			);
+
+		it.effect("writes the okfVersion it is given into the root index", () =>
+			Effect.gen(function* () {
+				assert.include(yield* rootIndex("0.3"), "okf_version: '0.3'");
+				// control: another value lands instead, so the option is what decides
+				const older = yield* rootIndex("0.2");
+				assert.include(older, "okf_version: '0.2'");
+				assert.notInclude(older, "0.3");
+			}),
+		);
+	});
 });

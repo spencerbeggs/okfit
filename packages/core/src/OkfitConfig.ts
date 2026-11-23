@@ -475,9 +475,9 @@ export const okfitConfigFields = Schema.Struct({
 	okf_version: Schema.optionalKey(
 		Schema.String.annotate({
 			title: "OKF spec version",
-			description: "The Open Knowledge Format spec version this bundle targets.",
-			default: "0.2",
-			examples: ["0.2"],
+			description:
+				"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+			examples: ["0.3"],
 		}),
 	),
 	bundle: Schema.optionalKey(
@@ -796,7 +796,6 @@ const deepFreeze = <A>(value: A): A => {
 };
 
 const DEFAULTS: OkfitConfig = deepFreeze({
-	okf_version: "0.2",
 	bundle: { path: "okf", profile: "software-project" },
 	concepts: { required: [], tags: { required: [] } },
 	lifecycle: { default_stale_after: Duration.days(90) },

@@ -1,5 +1,5 @@
 import type { LoadedBundle } from "@okfit/core";
-import { Derive, OKF_SPEC_VERSION } from "@okfit/core";
+import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
@@ -62,7 +62,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 
 /**
  * Contract §7. The root index keeps its existing frontmatter verbatim (D6);
- * `OKF_SPEC_VERSION` only fills a root index that declares no `okf_version`.
+ * `okfVersion` (the config's `okf_version`) only fills a root index that declares none; absent, nothing is added.
  *
  * Directories: the bundle root plus every directory in
  * `Derive.indexDirectories` -- each directory holding a concept and its
@@ -79,6 +79,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	bundle: LoadedBundle,
 	dryRun: boolean,
 	pending?: Array<PendingWrite>,
+	okfVersion?: string,
 ) {
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
@@ -88,7 +89,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
 	const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
 	const rootRendered = Derive.renderIndex("", rootConcepts, {
-		okfVersion: OKF_SPEC_VERSION,
+		...(okfVersion === undefined ? {} : { okfVersion }),
 		...(rootFrontmatter === undefined ? {} : { frontmatter: rootFrontmatter }),
 		subdirectories: childDirectoriesOf(bundle, ""),
 	});

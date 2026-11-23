@@ -73,7 +73,7 @@ const SLOT_OWNER: Record<"npm" | "pnpm" | "bun", Record<string, string | undefin
 };
 
 const VERSION =
-	/^okfit \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.2, config-schema 1\.0\) via @okfit\/plugin \d+\.\d+\.\d+$/;
+	/^okfit \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.3, config-schema 1\.0\) via @okfit\/plugin \d+\.\d+\.\d+$/;
 
 describe.runIf(GATE.action === "fail")("packed install (@okfit/plugin) prod build", () => {
 	it("dist/prod exists (run `pnpm build` before the tests)", () => {

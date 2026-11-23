@@ -1,5 +1,5 @@
 import type { ConfigReadError } from "@effected/config-file";
-import { OKF_SPEC_VERSION, OkfitConfig, OkfitConfigFile } from "@okfit/core";
+import { OkfitConfig, OkfitConfigFile } from "@okfit/core";
 import type { Profile } from "@okfit/profiles";
 import { Profiles } from "@okfit/profiles";
 import { Console, Effect, Option, Path } from "effect";
@@ -55,10 +55,9 @@ export interface ResolveProjectConfigInput {
  * The config-resolution step byte-identical between `validate` and
  * `context`'s handlers (A2 review finding): discover, pick `sources[0]`,
  * default `{ extensions: {} }`, resolve the profile name and the K-4
- * unknown-profile warning, merge `DEFAULTS < profile < file` (D-28), warn on
- * an `okf_version` mismatch (K-15), then resolve the project and bundle
- * roots (K-12). Every message string and the merge order are unchanged from
- * the two commands' former inline copies.
+ * unknown-profile warning, merge `DEFAULTS < profile < file` (D-28), then
+ * resolve the project and bundle roots (K-12). Every message string and the
+ * merge order are unchanged from the two commands' former inline copies.
  *
  * @public
  */
@@ -83,12 +82,6 @@ export const resolveProjectConfig = (
 			onSome: (p) => OkfitConfig.merge(OkfitConfig.DEFAULTS, p.config),
 		});
 		const merged = OkfitConfig.merge(base, fileConfig);
-
-		if (merged.okf_version !== undefined && merged.okf_version !== OKF_SPEC_VERSION) {
-			yield* Console.error(
-				`warning: okf_version "${merged.okf_version}" does not match this okfit's spec version "${OKF_SPEC_VERSION}"; continuing`,
-			);
-		}
 
 		const discovered: Option.Option<DiscoveredConfig> =
 			discoveredSource === undefined

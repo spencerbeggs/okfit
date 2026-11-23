@@ -222,7 +222,7 @@ export const planSync: (
 			}
 		: UNSELECTED;
 	const index: SyncModeResult = options.modes.has("index")
-		? { ...(yield* syncIndex(indexView, true, pending)), migrated: [] }
+		? { ...(yield* syncIndex(indexView, true, pending, options.config.okf_version)), migrated: [] }
 		: UNSELECTED;
 	const log: SyncModeResult = !options.modes.has("log")
 		? UNSELECTED

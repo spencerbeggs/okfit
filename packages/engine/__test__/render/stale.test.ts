@@ -96,4 +96,24 @@ describe("staleEnvelope", () => {
 			assert.deepStrictEqual(built.distribution, { name: "@okfit/plugin", version: "0.3.7" });
 		}),
 	);
+
+	it.effect("reports okf_version: null for a bundle that declares none, and the envelope still decodes", () =>
+		Effect.sync(() => {
+			const base = {
+				okfitVersion: "1.2.3",
+				producer: "okfit",
+				root: "/repo/okf",
+				profile: null,
+				now: DateTime.makeUnsafe("2026-09-13T00:00:00Z"),
+				concepts: 0,
+				items: [],
+			} as const;
+			const none = staleEnvelope({ ...base, okfVersion: null });
+			assert.strictEqual(none.okf_version, null);
+			const wire: unknown = JSON.parse(JSON.stringify(Schema.encodeSync(StaleEnvelope)(none)));
+			assert.deepStrictEqual(Schema.decodeUnknownSync(StaleEnvelope)(wire), none);
+			// control: a declared version is carried through unchanged
+			assert.strictEqual(staleEnvelope({ ...base, okfVersion: "0.3" }).okf_version, "0.3");
+		}),
+	);
 });

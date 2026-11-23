@@ -36,7 +36,7 @@ export const StaleEnvelope = Schema.Struct({
 	engine_version: Schema.String,
 	producer: Schema.String,
 	distribution: DistributionField,
-	okf_version: Schema.String,
+	okf_version: Schema.NullOr(Schema.String),
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
 	as_of: Schema.String,
@@ -56,7 +56,7 @@ export type StaleEnvelope = typeof StaleEnvelope.Type;
 export const staleEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly producer: string;
-	readonly okfVersion: string;
+	readonly okfVersion: string | null;
 	readonly root: string;
 	readonly profile: string | null;
 	readonly now: DateTime.Utc;

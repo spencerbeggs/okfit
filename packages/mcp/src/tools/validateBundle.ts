@@ -1,5 +1,5 @@
 import { ToolRefusal } from "@effected/mcp-kit";
-import { OKF_SPEC_VERSION } from "@okfit/core";
+import { OkfVersion } from "@okfit/core";
 import type { Distribution } from "@okfit/engine";
 import { DocumentPathError, JsonEnvelope, collect, forDiagnostics, json, provideDocuments, run } from "@okfit/engine";
 import { Effect, Option } from "effect";
@@ -89,7 +89,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 		return json({
 			okfitVersion: MCP_VERSION,
 			producer: "@okfit/mcp",
-			okfVersion: resolved.config.okf_version ?? OKF_SPEC_VERSION,
+			okfVersion: Option.getOrNull(OkfVersion.declared(result.bundle)),
 			root: resolved.bundleRoot,
 			profile: Option.match(resolved.profile, { onNone: () => null, onSome: (profile) => profile.name }),
 			exitCode: code,

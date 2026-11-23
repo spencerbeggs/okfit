@@ -44,7 +44,7 @@ export const GraphEnvelope = Schema.Struct({
 	engine_version: Schema.String,
 	producer: Schema.String,
 	distribution: DistributionField,
-	okf_version: Schema.String,
+	okf_version: Schema.NullOr(Schema.String),
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
 	summary: GraphSummary,
@@ -74,7 +74,7 @@ const toEdge = (edge: GraphLink): GraphEdgeEnvelope => ({
 export const graphEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly producer: string;
-	readonly okfVersion: string;
+	readonly okfVersion: string | null;
 	readonly root: string;
 	readonly profile: string | null;
 	readonly nodes: ReadonlyArray<GraphNode>;

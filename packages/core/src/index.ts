@@ -69,4 +69,4 @@ export { Verification } from "./Verification.js";
  *
  * @public
  */
-export const OKF_SPEC_VERSION = "0.2" as const;
+export const OKF_SPEC_VERSION = "0.3" as const;

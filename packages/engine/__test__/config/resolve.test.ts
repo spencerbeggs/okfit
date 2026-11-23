@@ -8,6 +8,7 @@ import { AppDirs, Xdg, XdgPaths } from "@effected/xdg";
 import { OkfitConfig } from "@okfit/core";
 import type { FileSystem, Path } from "effect";
 import { Effect, Layer, Option } from "effect";
+import { TestConsole } from "effect/testing";
 import { buildConfigLayer } from "../../src/config/layer.js";
 import { resolveProjectConfig } from "../../src/config/resolve.js";
 
@@ -114,6 +115,31 @@ describe("resolveProjectConfig", () => {
 			assert.isTrue(Option.isSome(resolved.discovered));
 			assert.strictEqual(resolved.projectRoot, nestedDir);
 			assert.strictEqual(resolved.bundleRoot, join(resolved.projectRoot, "docs"));
+			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+		}),
+	);
+
+	it.effect("an okf_version in the config writes nothing to stderr, while an unknown profile still does", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(makeTempDir);
+			const resolve = (toml: string) =>
+				Effect.gen(function* () {
+					yield* Effect.promise(() => writeFile(join(dir, "okfit.toml"), toml, "utf8"));
+					const layer = buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: dir });
+					return yield* resolveProjectConfig({
+						pathArg: Option.none(),
+						explicitConfigPath: Option.none(),
+						cwd: dir,
+					}).pipe(Effect.provide(layer), Effect.provide(testEnv));
+				});
+			const declared = yield* resolve('okf_version = "0.2"\n');
+			assert.strictEqual(declared.config.okf_version, "0.2");
+			assert.deepStrictEqual(yield* TestConsole.errorLines, []);
+			// control: the stderr capture is live, so an unknown profile is heard
+			yield* resolve('bundle.profile = "made-up"\n');
+			const lines = yield* TestConsole.errorLines;
+			assert.lengthOf(lines, 1);
+			assert.include(String(lines[0]), "unknown profile");
 			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 		}),
 	);

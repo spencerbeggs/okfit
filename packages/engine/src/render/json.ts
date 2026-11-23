@@ -40,7 +40,8 @@ export type JsonSummary = typeof JsonSummary.Type;
  * legitimately report different numbers over one bundle without that
  * reading as drift (okfit #75); `engine_version` and `okf_version` are the
  * pair that determines the report's content and the pair a reader should
- * actually compare across two producers. `distribution` names the
+ * actually compare across two producers. `okf_version` is the version the
+ * bundle's root index declares, `null` when it declares none. `distribution` names the
  * meta-package the bins were installed through (`@okfit/plugin`), or `null`
  * for a direct install of `@okfit/cli`/`@okfit/mcp` (okfit #137).
  *
@@ -52,7 +53,7 @@ export const JsonEnvelope = Schema.Struct({
 	engine_version: Schema.String,
 	producer: Schema.String,
 	distribution: DistributionField,
-	okf_version: Schema.String,
+	okf_version: Schema.NullOr(Schema.String),
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
 	exit_code: Schema.Literals([0, 1, 2]),
@@ -105,7 +106,7 @@ const toJsonDiagnostic = (d: RenderedDiagnostic): JsonDiagnostic => ({
 export const json = (input: {
 	readonly okfitVersion: string;
 	readonly producer: string;
-	readonly okfVersion: string;
+	readonly okfVersion: string | null;
 	readonly root: string;
 	readonly profile: string | null;
 	readonly exitCode: 0 | 1 | 2;

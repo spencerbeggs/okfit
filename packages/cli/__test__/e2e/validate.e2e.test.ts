@@ -16,8 +16,9 @@ import { dirname, join, resolve } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
+import { UNDECLARED_PROJECT, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
-import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
+import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 import { TestPlatform } from "./utils/platform.js";
 import { amendDate, commit, initRepo } from "./utils/repo.js";
@@ -75,6 +76,24 @@ describe("okfit validate: clean bundle", () => {
 
 			assertNoStateFiles(sandbox.env);
 		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: the declared OKF version", () => {
+	const reported = (seed: Parameters<typeof writeSeedInto>[1]) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, seed));
+			const result = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			return (JSON.parse(result.stdout) as { readonly okf_version: unknown }).okf_version;
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("--format json reports the bundle's own declaration, null when it declares none", () =>
+		Effect.gen(function* () {
+			assert.strictEqual(yield* reported(V03_PROJECT), "0.3");
+			// control: the same project minus its declaration reports null, so the value comes from the bundle
+			assert.isNull(yield* reported(UNDECLARED_PROJECT));
+		}),
 	);
 });
 

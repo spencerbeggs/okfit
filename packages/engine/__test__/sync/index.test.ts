@@ -5,10 +5,20 @@ import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
 import { MemoryFileSystem } from "@effected/memfs";
-import { Concept, ConceptId, Derive, IndexDocument, LoadedBundle, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
+import {
+	Bundle,
+	Concept,
+	ConceptId,
+	Derive,
+	IndexDocument,
+	LoadedBundle,
+	LoadedConcept,
+	OKF_SPEC_VERSION,
+} from "@okfit/core";
 import { Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
-import { ROOT } from "../utils/bundle.js";
+import { UNDECLARED_PROJECT, V02_PROJECT } from "../fixtures/bundles.js";
+import { ROOT, projectPlatform } from "../utils/bundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -37,10 +47,7 @@ describe("syncIndex", () => {
 					logs: new Map(),
 					diagnostics: [],
 				});
-				const expectedRootIndex = Derive.renderIndex("", [], {
-					okfVersion: OKF_SPEC_VERSION,
-					subdirectories: ["widgets"],
-				});
+				const expectedRootIndex = Derive.renderIndex("", [], { subdirectories: ["widgets"] });
 				const expectedWidgetsIndex = Derive.synthesizeIndex(bundle, "widgets");
 
 				// `bundle.directories` only ever names a directory that already holds
@@ -87,10 +94,7 @@ describe("syncIndex", () => {
 						logs: new Map(),
 						diagnostics: [],
 					});
-					const expectedRootIndex = Derive.renderIndex("", [], {
-						okfVersion: OKF_SPEC_VERSION,
-						subdirectories: ["empty"],
-					});
+					const expectedRootIndex = Derive.renderIndex("", [], { subdirectories: ["empty"] });
 
 					const result = yield* syncIndex(bundle, false);
 					assert.deepStrictEqual(result.written, ["index.md"]);
@@ -143,7 +147,7 @@ describe("syncIndex", () => {
 					logs: new Map(),
 					diagnostics: [],
 				});
-				const rendered = Derive.renderIndex("", [concept], { okfVersion: OKF_SPEC_VERSION, subdirectories: [] });
+				const rendered = Derive.renderIndex("", [concept], { subdirectories: [] });
 				// Pre-seed a matching index.md so THIS run is unchanged, and a
 				// second stale write never happens under --dry-run.
 				yield* Effect.promise(() => writeFile(join(root, "index.md"), rendered));
@@ -191,9 +195,45 @@ describe("syncIndex", () => {
 			assert.notInclude(second.written, "index.md");
 
 			// control: a block declaring no okf_version gets the spec constant prepended and keeps its keys
-			yield* syncIndex(rootBundle(bareRoot, "title: Acme"), false);
+			yield* syncIndex(rootBundle(bareRoot, "title: Acme"), false, undefined, OKF_SPEC_VERSION);
 			const bare = yield* fs.readFileString(`${bareRoot}/index.md`);
 			assert.match(bare, new RegExp(`^---\\nokf_version: ['"]${OKF_SPEC_VERSION}['"]\\ntitle: Acme\\n---\\n`));
 		}).pipe(Effect.provide(Layer.mergeAll(handle.layer, Path.layer)));
 	});
+
+	const readRoot = Effect.gen(function* () {
+		const fs = yield* FileSystem.FileSystem;
+		return yield* fs.readFileString(`${ROOT}/index.md`);
+	});
+
+	it.effect("never stamps a version into an undeclared root unless the config names one (R4)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			yield* syncIndex(bundle, false);
+			const bare = yield* readRoot;
+			assert.isFalse(bare.includes("okf_version"));
+			// control: the config key fills it
+			yield* syncIndex(bundle, false, undefined, "0.3");
+			assert.isTrue((yield* readRoot).startsWith(`---\nokf_version: '0.3'\n---\n`));
+		}).pipe(Effect.provide(projectPlatform(UNDECLARED_PROJECT))),
+	);
+
+	it.effect("never rewrites a declared version, whatever the config says (D6)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const frontmatter = bundle.indexes.get("")?.frontmatter ?? "";
+			assert.include(frontmatter, "okf_version: '0.2'");
+			// the seed's body lags the rendered index, so the first run rewrites the body, never the declaration
+			const first = yield* syncIndex(bundle, false, undefined, "0.3");
+			assert.include(first.written, "index.md");
+			const text = yield* readRoot;
+			assert.isTrue(text.startsWith(`---\n${frontmatter}\n---\n`));
+			assert.notInclude(text, "0.3");
+			// control: the second run finds nothing to change, still with the config naming 0.3
+			const reloaded = yield* Bundle.load({ root: ROOT });
+			const second = yield* syncIndex(reloaded, false, undefined, "0.3");
+			assert.include(second.unchanged, "index.md");
+			assert.notInclude(second.written, "index.md");
+		}).pipe(Effect.provide(projectPlatform(V02_PROJECT))),
+	);
 });
