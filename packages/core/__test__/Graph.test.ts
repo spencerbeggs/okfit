@@ -235,3 +235,73 @@ describe("Graph.fromBundle after a dropped sources entry", () => {
 		),
 	);
 });
+
+describe("Graph version-gated root fallback", () => {
+	const ROOT = "/repo/gate";
+	const seed = (frontmatter?: string) => ({
+		[`${ROOT}/index.md`]: `${frontmatter === undefined ? "" : `---\n${frontmatter}\n---\n\n`}# Metric\n\n* [Revenue](metrics/revenue.md)\n`,
+		[`${ROOT}/metrics/revenue.md`]: "---\ntype: Metric\n---\n",
+		[`${ROOT}/computations/revenue-ytd.md`]:
+			"---\ntype: Attested Computation\nruntime: bigquery\nattester:\n  resource: attesters/sql_equality.py\n---\n\nSee [revenue](metrics/revenue.md).\n",
+		[`${ROOT}/attesters/sql_equality.py`]: "",
+	});
+	const load = (frontmatter?: string) =>
+		Bundle.load({ root: ROOT }).pipe(
+			Effect.provide(Layer.mergeAll(MemoryFileSystem.layerWith(seed(frontmatter)), Path.layer)),
+		);
+	const from = "computations/revenue-ytd.md";
+
+	for (const [label, frontmatter] of [
+		["0.3", 'okf_version: "0.3"'],
+		["an unparsable version", 'okf_version: "next"'],
+	] as const) {
+		it.effect(`does not fall back to the root for ${label}`, () =>
+			Effect.gen(function* () {
+				const bundle = yield* load(frontmatter);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), {
+					_tag: "node",
+					id: "computations/metrics/revenue.md",
+					kind: "missing",
+					via: "file",
+				});
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "/metrics/revenue.md"), {
+					_tag: "node",
+					id: "metrics/revenue",
+					kind: "concept",
+					via: "rooted",
+				});
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "attesters/sql_equality.py", "attester.resource"), {
+					_tag: "node",
+					id: "computations/attesters/sql_equality.py",
+					kind: "missing",
+					via: "file",
+				});
+				assert.strictEqual(Graph.fromBundle(bundle).dangling().length, 2);
+			}),
+		);
+	}
+
+	for (const [label, frontmatter] of [
+		["nothing declared", undefined],
+		["0.2", 'okf_version: "0.2"'],
+	] as const) {
+		it.effect(`keeps the root fallback for ${label}`, () =>
+			Effect.gen(function* () {
+				const bundle = yield* load(frontmatter);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), {
+					_tag: "node",
+					id: "metrics/revenue",
+					kind: "concept",
+					via: "root",
+				});
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "attesters/sql_equality.py", "attester.resource"), {
+					_tag: "node",
+					id: "attesters/sql_equality.py",
+					kind: "file",
+					via: "root",
+				});
+				assert.strictEqual(Graph.fromBundle(bundle).dangling().length, 0);
+			}),
+		);
+	}
+});

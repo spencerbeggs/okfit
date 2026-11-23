@@ -28,6 +28,8 @@ export interface PathFieldRef {
 export interface BundleIndex {
 	readonly files: ReadonlySet<string>;
 	readonly concepts: ReadonlySet<string>;
+	/** Whether a bare value may fall back to the bundle root (rule C); true only for a bundle declaring OKF 0.2 or earlier, or nothing. */
+	readonly rootFallback: boolean;
 }
 
 /** Outcome of resolving one raw target (D-23, D-24); only `node` yields an edge. @internal */
@@ -117,7 +119,7 @@ export const resolveTarget = (from: string, raw: string, index: BundleIndex): Li
 	if (escapes(fileRelative)) return { _tag: "external" };
 	const hitB = lookup(fileRelative, index, "file");
 	if (hitB !== undefined) return hitB;
-	if (!relative) {
+	if (!relative && index.rootFallback) {
 		const rootRelative = PosixPath.normalize(target);
 		if (escapes(rootRelative)) return { _tag: "external" };
 		const hitC = lookup(rootRelative, index, "root");

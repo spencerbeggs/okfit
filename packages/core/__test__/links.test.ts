@@ -27,6 +27,7 @@ const index: BundleIndex = {
 		"computations/revenue-ytd",
 		"policies/revenue-recognition",
 	]),
+	rootFallback: true,
 };
 const from = "computations/revenue-ytd.md";
 const gm = "metrics/gross-margin.md";
@@ -84,6 +85,33 @@ describe("internal/links", () => {
 			);
 			assert.deepStrictEqual(resolveSansVia(from, "lib/query.sql", index), node("lib/query.sql", "missing"));
 			assert.deepStrictEqual(resolveSansVia(from, "check.py", index), node("computations/check.py", "missing"));
+		}),
+	);
+
+	it.effect("rule C is skipped when rootFallback is false: a bare miss stays file-relative", () =>
+		Effect.sync(() => {
+			const gated: BundleIndex = { ...index, rootFallback: false };
+			assert.deepStrictEqual(
+				resolveSansVia(from, "policies/revenue-recognition.md", gated),
+				node("computations/policies/revenue-recognition.md", "missing"),
+			);
+			assert.deepStrictEqual(
+				resolveSansVia(from, "lib/query.sql", gated),
+				node("computations/lib/query.sql", "missing"),
+			);
+			assert.deepStrictEqual(
+				resolveSansVia(from, "/policies/revenue-recognition.md", gated),
+				node("policies/revenue-recognition", "concept"),
+			);
+			assert.deepStrictEqual(
+				resolveSansVia(from, "../policies/revenue-recognition.md", gated),
+				node("policies/revenue-recognition", "concept"),
+			);
+			// Positive control: the same bare value resolves from the root while the fallback is on.
+			assert.deepStrictEqual(
+				resolveSansVia(from, "policies/revenue-recognition.md", index),
+				node("policies/revenue-recognition", "concept"),
+			);
 		}),
 	);
 
