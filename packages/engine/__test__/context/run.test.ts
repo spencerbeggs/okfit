@@ -95,7 +95,7 @@ describe("runContext and a symlinked index.md (OKF 0.3 section 3.2)", () => {
 		}),
 	);
 
-	it.effect("reports an index.md linked outside the bundle, or dangling, absent and never stats the link", () =>
+	it.effect("reports an index.md linked outside the bundle, or dangling, absent and never reads the link", () =>
 		Effect.gen(function* () {
 			for (const kind of ["escaping", "dangling"] as const) {
 				const { result, calls } = yield* run(kind);

@@ -30,7 +30,10 @@ export const escapesRoot = Effect.fn("okfit/confinement/escapesRoot")(function* 
  *
  * @public
  */
-export const escapesBundle = Effect.fn("okfit/sync/escapesBundle")(function* (bundle: LoadedBundle, relative: string) {
+export const escapesBundle = Effect.fn("okfit/confinement/escapesBundle")(function* (
+	bundle: LoadedBundle,
+	relative: string,
+) {
 	if (bundle.diagnostics.some((entry) => entry.code === "symlink-escape" && entry.file === relative)) return true;
 	return yield* escapesRoot(bundle.root, relative);
 });

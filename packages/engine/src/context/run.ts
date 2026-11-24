@@ -28,7 +28,7 @@ export interface ContextResult {
  * is reported absent (OKF 0.3 section 3.2): the answer is trusted by the
  * session-start hook, which prints the file into an agent's context. The
  * check is `escapesRoot`, an `lstat` plus a real-path confinement: still no
- * bundle load, and an escaping link's target is never stat'ed or read.
+ * bundle load, and an escaping link's target is never read (its real path may be resolved to decide containment).
  *
  * `exists` is `(path) => Effect.Effect<boolean, PlatformError>`, so an
  * unreadable parent directory would otherwise fail the command; here it is

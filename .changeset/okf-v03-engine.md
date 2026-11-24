@@ -26,5 +26,5 @@
 
 - `sync` skips an `index.md` or `log.md` that is a symlink out of the bundle (skip reason `symlink-escape`).
 - `sync` never stamps a version into a root index that declares none, unless the config names one.
-- `context` reports `index_exists: false` for a root `index.md` that is a symlink out of the bundle or dangling, and never stats its target. The session-start hook therefore no longer prints such a file.
+- `context` reports `index_exists: false` for a root `index.md` that is a symlink out of the bundle or dangling, and never reads its target (it may resolve the link's real path to decide containment). The session-start hook therefore no longer prints such a file.
 - A Surface `resource` glob with a leading `/` resolves from the bundle root, not from the Surface's directory.
