@@ -14,6 +14,7 @@ const REASON_TEXT = {
 	"entry-superseded": "a later verification is not the one its integrity binding covers",
 	"actor-not-allowed": "its verifier is not in [actors].humans",
 	"content-unhashable": "its content cannot be hashed (a frontmatter value holds an unpaired surrogate)",
+	"verified-before-change": "it was verified before its last change",
 } as const satisfies Record<DriftReason, string>;
 
 /**

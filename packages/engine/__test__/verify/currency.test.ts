@@ -116,7 +116,7 @@ const editVerifyCommit = (repo: Repo, mode: "walk" | "staged") =>
 
 describe("verify then sync, as it behaves before phase 3 (characterization; Task 7 flips the marked lines)", () => {
 	for (const mode of ["walk", "staged"] as const) {
-		it.effect(`${mode}: the commit instant lands after the verification, and integrity still reads current`, () =>
+		it.effect(`${mode}: the commit instant lands after the verification, and integrity reads drifted`, () =>
 			Effect.gen(function* () {
 				const { repo, edited } = yield* arrange;
 				return yield* Effect.gen(function* () {
@@ -129,9 +129,14 @@ describe("verify then sync, as it behaves before phase 3 (characterization; Task
 					assert.isTrue(DateTime.isGreaterThan(g, v)); // Task 7: false
 					assert.strictEqual(Derive.trustTier(concept.frontmatter), "unverified"); // Task 7: "human-reviewed" again
 					const signal = yield* Trust.signal(concept, config, NOW);
-					assert.strictEqual(signal.integrity, "current"); // Task 5: drifted, reason verified-before-change (until Task 7 removes the cause)
+					assert.strictEqual(signal.integrity, "drifted"); // Task 7: current again, once the clamp removes the cause
+					assert.strictEqual(signal.drift?.reason, "verified-before-change");
 					const batch = yield* runVerifyBatch({ ...batchOptions, dryRun: true });
-					assert.deepStrictEqual(batch.skipped, [{ id: "decisions/d", reason: "already-verified" }]); // Task 5: not skipped
+					assert.deepStrictEqual(batch.skipped, []); // Task 7: skipped already-verified again
+					assert.deepStrictEqual(
+						batch.verified.map((entry) => entry.id),
+						["decisions/d"],
+					);
 				}).pipe(Effect.provide(services(repo, edited)));
 			}),
 		);

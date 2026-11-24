@@ -76,6 +76,49 @@ describe("selectAttestable (issues #138, #143)", () => {
 		}),
 	);
 
+	it.effect(
+		"a binding older than generated.at is a candidate and a drifted picker row; at generated.at it is skipped",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-select-")));
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: { Decision: { require_verified: true } },
+					actors: { humans: ["human:ada" as ActorPattern] },
+					extensions: {},
+				});
+				const generated = (at: string): string => `generated:\n  by: agent:claude\n  at: ${at}\n`;
+				try {
+					yield* Effect.promise(() => mkdir(join(root, "decisions")));
+					const files: ReadonlyArray<readonly [string, string]> = [
+						// the binding (2026-09-01T00:00:00Z) is 42 seconds before the last change
+						["before", decision("Before", boundByAda + generated("2026-09-01T00:00:42Z"))],
+						// control: generated.at equal to the binding, so the verification is current
+						["equal", decision("Equal", boundByAda + generated("2026-09-01T00:00:00Z"))],
+					];
+					for (const [name, text] of files) {
+						yield* Effect.promise(() => writeFile(join(root, "decisions", `${name}.md`), text));
+					}
+					yield* bindFixtures(root, ["decisions/before.md", "decisions/equal.md"]).pipe(Effect.provide(TestPlatform));
+					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+					const signals = yield* Trust.signals(bundle, config, NOW).pipe(Effect.provide(TestPlatform));
+					assert.strictEqual(signals.get("decisions/before")?.drift?.reason, "verified-before-change");
+					assert.strictEqual(signals.get("decisions/equal")?.integrity, "current");
+					const selection = selectAttestable(bundle, new Set(["Decision"]), "human:ada", signals);
+					assert.deepStrictEqual(
+						selection.candidates.map((concept) => concept.id),
+						["decisions/before"],
+					);
+					assert.deepStrictEqual(selection.skipped, [{ id: "decisions/equal", reason: "already-verified" }]);
+					assert.deepStrictEqual(
+						selectPickerCandidates(bundle, config, "human:ada", signals).map((row) => [row.id, row.integrity]),
+						[["decisions/before", "drifted"]],
+					);
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}),
+	);
+
 	it.effect("with drifted: true, also takes a drifted concept outside types, never a current or unverified one", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-select-")));
