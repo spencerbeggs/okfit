@@ -6,6 +6,8 @@ import { Bundle, LoadedBundle, LoadedConcept } from "../src/Bundle.js";
 import { Concept } from "../src/Concept.js";
 import { ConceptId } from "../src/ConceptId.js";
 import { Derive } from "../src/Derive.js";
+import { Generated } from "../src/Generated.js";
+import { Timestamp } from "../src/Timestamp.js";
 import { Verification } from "../src/Verification.js";
 import { conceptWithRaw, conceptWithStaleAfter, conceptWithStatus } from "./utils/conceptBuilders.js";
 import { MOUNT, platform as memPlatform } from "./utils/fixtures.js";
@@ -16,7 +18,9 @@ const actor = Schema.decodeUnknownSync(Actor);
 const at = DateTime.makeUnsafe("2026-06-30T14:00:00Z");
 const metric = (fields: Omit<ConceptInput, "type" | "extensions" | "raw">): Concept =>
 	Concept.make({ type: "Metric", extensions: {}, raw: {}, ...fields });
-const verifiedBy = (by: string): Verification => Verification.make({ by: actor(by), at });
+const verifiedBy = (by: string, when?: string): Verification =>
+	Verification.make({ by: actor(by), at: when === undefined ? at : DateTime.makeUnsafe(when) });
+const decodeTimestamp = Schema.decodeUnknownSync(Timestamp);
 const platform = platformFor("lint/bundle", "/repo/bundle");
 const loadBundle = Effect.provide(Bundle.load({ root: "/repo/bundle" }), platform);
 
@@ -48,7 +52,7 @@ const bundleOf = (...concepts: ReadonlyArray<LoadedConcept>): LoadedBundle =>
 	});
 
 describe("Derive", () => {
-	it.effect("trustTier follows OKF 5.3", () =>
+	it.effect("trustTier follows OKF 0.3 §5.3", () =>
 		Effect.sync(() => {
 			assert.strictEqual(Derive.trustTier(metric({})), "unverified");
 			assert.strictEqual(Derive.trustTier(metric({ verified: [] })), "unverified");
@@ -59,6 +63,94 @@ describe("Derive", () => {
 			assert.strictEqual(Derive.trustTier(metric({ verified: [verifiedBy("team:finance-fpa")] })), "machine-confirmed");
 			const human = metric({ verified: [verifiedBy("process:nightly"), verifiedBy("human:jsmith@acme")] });
 			assert.strictEqual(Derive.trustTier(human), "human-reviewed");
+		}),
+	);
+
+	it.effect("trustTier counts only events at or after generated.at (OKF 0.3 §5.3)", () =>
+		Effect.sync(() => {
+			const g = (when: string) => ({
+				generated: Generated.make({ by: actor("okfit/test"), at: decodeTimestamp(when) }),
+			});
+			const human = (when: string) => verifiedBy("human:ada", when);
+			assert.strictEqual(
+				Derive.trustTier(metric({ ...g("2026-06-02T00:00:00Z"), verified: [human("2026-06-01T00:00:00Z")] })),
+				"unverified",
+			);
+			assert.strictEqual(
+				Derive.trustTier(metric({ ...g("2026-06-01T00:00:00Z"), verified: [human("2026-06-01T00:00:00Z")] })),
+				"human-reviewed",
+			); // equal is current
+			assert.strictEqual(
+				Derive.trustTier(metric({ ...g("2026-06-01T00:00:01Z"), verified: [human("2026-06-01T00:00:00Z")] })),
+				"unverified",
+			);
+			assert.strictEqual(
+				Derive.trustTier(metric({ ...g("2026-06-01T02:00:00+02:00"), verified: [human("2026-06-01T00:00:00Z")] })),
+				"human-reviewed",
+			); // same instant
+			assert.strictEqual(
+				Derive.trustTier(metric({ ...g("2026-06-01"), verified: [human("2026-06-01T08:00:00Z")] })),
+				"human-reviewed",
+			); // date-only is 00:00Z (D8)
+			assert.strictEqual(
+				Derive.trustTier(
+					metric({ generated: Generated.make({ by: actor("okfit/test") }), verified: [human("2000-01-01T00:00:00Z")] }),
+				),
+				"human-reviewed",
+			); // no generated.at
+			assert.strictEqual(Derive.trustTier(metric({ verified: [human("2000-01-01T00:00:00Z")] })), "human-reviewed"); // no generated
+			assert.strictEqual(
+				Derive.trustTier(
+					metric({
+						...g("2026-06-02T00:00:00Z"),
+						verified: [human("2026-06-01T00:00:00Z"), verifiedBy("process:nightly", "2026-06-03T00:00:00Z")],
+					}),
+				),
+				"machine-confirmed",
+			);
+			assert.strictEqual(
+				Derive.trustTier(
+					metric({
+						...g("2026-06-02T00:00:00Z"),
+						verified: [verifiedBy("process:nightly", "2026-06-01T00:00:00Z"), human("2026-06-03T00:00:00Z")],
+					}),
+				),
+				"human-reviewed",
+			);
+			assert.strictEqual(
+				Derive.trustTier(
+					metric({ ...g("2026-06-02T00:00:00Z"), verified: [verifiedBy("team:fpa", "2026-06-03T00:00:00Z")] }),
+				),
+				"machine-confirmed",
+			); // §7
+		}),
+	);
+
+	it.effect("currentVerifications keeps the current entries in list order; isCurrent compares instants", () =>
+		Effect.sync(() => {
+			const generated = Generated.make({ by: actor("okfit/test"), at: decodeTimestamp("2026-06-02T00:00:00Z") });
+			const early = verifiedBy("human:early", "2026-06-01T00:00:00Z");
+			const a = verifiedBy("human:a", "2026-06-03T00:00:00Z");
+			const b = verifiedBy("process:b", "2026-06-02T00:00:00Z");
+			const c = metric({ generated, verified: [a, early, b] });
+			assert.deepStrictEqual(
+				Derive.currentVerifications(c).map((entry) => entry.by),
+				["human:a", "process:b"],
+			);
+			assert.deepStrictEqual(Derive.currentVerifications(metric({ verified: [a, early, b] })).length, 3); // control
+			assert.deepStrictEqual(Derive.currentVerifications(metric({ generated })), []);
+			assert.isTrue(Derive.isCurrent(c, DateTime.makeUnsafe("2026-06-02T00:00:00Z")));
+			assert.isFalse(Derive.isCurrent(c, DateTime.makeUnsafe("2026-06-01T23:59:59Z")));
+			assert.isTrue(Derive.isCurrent(metric({}), DateTime.makeUnsafe("1999-01-01T00:00:00Z")));
+		}),
+	);
+
+	it.effect("a legacy timestamp folded into generated.at later than the event leaves the concept unverified", () =>
+		Effect.sync(() => {
+			const legacy = Generated.make({ by: Generated.LEGACY_BY, at: decodeTimestamp("2026-06-02T00:00:00Z") });
+			const event = verifiedBy("human:ada", "2026-06-01T00:00:00Z");
+			assert.strictEqual(Derive.trustTier(metric({ generated: legacy, verified: [event] })), "unverified");
+			assert.strictEqual(Derive.trustTier(metric({ verified: [event] })), "human-reviewed"); // control
 		}),
 	);
 

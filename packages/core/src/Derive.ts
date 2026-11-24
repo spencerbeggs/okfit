@@ -8,8 +8,14 @@ import { isAbsent } from "./internal/conceptDecode.js";
 import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
 import { indexDocument, logEntry } from "./internal/templates.js";
 import type { DerivedStatus } from "./Status.js";
+import type { Verification } from "./Verification.js";
 
-/** Trust tier from `verified` (OKF 0.2 §5.3): none maps to unverified; only non-human maps to machine-confirmed; any `human:` maps to human-reviewed. @public */
+/**
+ * Trust tier from the current `verified` events (OKF 0.3 §5.3, §7): no current event is unverified; current events
+ * none of which is `human:` (a `team:` or unknown scheme included) are machine-confirmed; any current `human:` event
+ * is human-reviewed. An event before the last `generated.at` is history: it stays in the file and counts for nothing.
+ * @public
+ */
 export const TrustTier = Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]);
 
 /** @public */
@@ -82,13 +88,38 @@ const relativeTarget = (dir: string, path: string): string =>
 export class Derive {
 	private constructor() {}
 
-	/** Any `human:` verifier means human-reviewed; otherwise machine-confirmed; none means unverified. */
+	/**
+	 * Whether a verification event at `at` is current for `concept` (OKF 0.3 §5.3): `at` is equal to or later than
+	 * `generated.at` by instant, or `generated` or `generated.at` is absent.
+	 *
+	 * @public
+	 */
+	static readonly isCurrent = (concept: Concept, at: DateTime.Utc): boolean => {
+		const generatedAt = concept.generated?.at;
+		return generatedAt === undefined || DateTime.toEpochMillis(at) >= DateTime.toEpochMillis(generatedAt);
+	};
+
+	/**
+	 * The decoded `verified` entries that are current ({@link Derive.isCurrent}), in list order. Earlier events stay
+	 * in the file as history (OKF 0.3 §5.3) and are not returned.
+	 *
+	 * @public
+	 */
+	static readonly currentVerifications = (concept: Concept): ReadonlyArray<Verification> =>
+		(concept.verified ?? []).filter((entry) => Derive.isCurrent(concept, entry.at));
+
+	/**
+	 * The trust tier from {@link Derive.currentVerifications} only (OKF 0.3 §5.3, §7; §11.2 makes it a MUST for every
+	 * bundle): none is unverified, any `human:` verifier is human-reviewed, otherwise machine-confirmed.
+	 *
+	 * @public
+	 */
 	static readonly trustTier = (concept: Concept): TrustTier => {
-		const verified = concept.verified ?? [];
-		if (verified.length === 0) {
+		const current = Derive.currentVerifications(concept);
+		if (current.length === 0) {
 			return "unverified";
 		}
-		return verified.some((entry) => Actor.isHuman(entry.by)) ? "human-reviewed" : "machine-confirmed";
+		return current.some((entry) => Actor.isHuman(entry.by)) ? "human-reviewed" : "machine-confirmed";
 	};
 
 	/**

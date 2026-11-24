@@ -140,7 +140,7 @@ describe("Trust.signal", () => {
 			);
 			const signal = yield* Trust.signal(edited, OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual<unknown>(signal, {
-				tier: "human-reviewed",
+				tier: "unverified", // generated.at (LATER) is after the verification: history under OKF 0.3 §5.3
 				integrity: "drifted",
 				drift: { reason: "content-changed", editedBy: "agent/x", editedAt: LATER },
 				stale: false,

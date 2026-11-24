@@ -127,7 +127,7 @@ describe("verify then sync, as it behaves before phase 3 (characterization; Task
 					assert.strictEqual(DateTime.formatIso(v), "2026-09-16T12:00:00.000Z");
 					assert.strictEqual(DateTime.formatIso(g), "2026-09-16T12:00:42.000Z"); // Task 7: becomes T1
 					assert.isTrue(DateTime.isGreaterThan(g, v)); // Task 7: false
-					assert.strictEqual(Derive.trustTier(concept.frontmatter), "human-reviewed"); // Task 2: "unverified"; Task 7: "human-reviewed" again
+					assert.strictEqual(Derive.trustTier(concept.frontmatter), "unverified"); // Task 7: "human-reviewed" again
 					const signal = yield* Trust.signal(concept, config, NOW);
 					assert.strictEqual(signal.integrity, "current"); // Task 5: drifted, reason verified-before-change (until Task 7 removes the cause)
 					const batch = yield* runVerifyBatch({ ...batchOptions, dryRun: true });

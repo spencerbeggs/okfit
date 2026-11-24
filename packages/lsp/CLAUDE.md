@@ -530,8 +530,8 @@ now)` (`@public`, exported from the barrel, tested with no harness) before
 either is positioned against a document:
 
 - A trust/staleness hint, labeled `unverified`, `machine-confirmed`, or
-  `human-reviewed by <by>` naming the newest `verified[]` entry whose `by`
-  starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
+  `human-reviewed by <by>` naming the newest *current* (OKF 0.3 §5.3, `Derive.currentVerifications`)
+  `verified[]` entry whose `by` starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
   three-way split, with the human-reviewed case's actor resolved here since
   the derivation itself only reports the tier. `· stale` is appended when
   `Derive.isStale(concept.frontmatter, now)`. `· drifted` is appended when the
