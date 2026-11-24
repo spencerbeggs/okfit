@@ -59,10 +59,12 @@ src/
     resolve.ts               -- Targets.resolve/suggest, ResolvedTarget: the shared concept-target resolver
                                 (absolute, cwd-relative, id; all or nothing)
   move/
-    references.ts           -- Reference, referencesOf, rewriteReference: find every reference in a concept
-                                (body links, images, definitions; path-valued frontmatter; renders[].path) and
-                                rewrite one keeping its spelling (pure)
-    run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing
+    references.ts           -- Reference, ReferenceSource, referencesOf, rewriteReference: find every reference in a
+                                concept or other parsed file (body links, images, definitions; path-valued
+                                frontmatter; renders[].path) and rewrite one keeping its spelling (pure)
+    run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing; also scans
+                                and rewrites links in `.md` files that are not concepts (no frontmatter or no
+                                `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter)
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)

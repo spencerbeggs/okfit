@@ -369,8 +369,9 @@ export class TargetResolutionError extends Schema.TaggedError<TargetResolutionEr
  * (`detail` is the destination); `unrewritable` lists every link that needs rewriting for this move
  * (`file: url`, one per line) whose URL text could not be located; `project-file` refuses to move the
  * bundle's root project file (`detail` is its path), which must stay at the bundle root;
- * `unloaded-files` lists (one per line) the bundle's Markdown files that did not load as concepts,
- * whose links to the moved file could not be rewritten.
+ * `unloaded-files` lists (one per line) the bundle's Markdown files okfit could not read (unclosed or
+ * unparseable frontmatter), whose links to the moved file could not be rewritten; a file that is merely not a
+ * concept (no frontmatter, or no `type`) is scanned and never listed.
  *
  * @public
  */

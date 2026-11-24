@@ -1,16 +1,17 @@
 import { posix } from "node:path";
-import { MarkdownEdit } from "@effected/markdown";
+import { MarkdownDocument, MarkdownEdit, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import { relativeWithin } from "@effected/walker";
 import type { BundleLoadError, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
-import { Effect, FileSystem, Option, Path } from "effect";
+import { Effect, FileSystem, Option, Path, Result } from "effect";
 import type { Digest } from "effect/crypto";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
 import { writeAtomic } from "../sync/write.js";
 import { Targets } from "../targets/resolve.js";
+import type { ReferenceSource } from "./references.js";
 import { referencesOf, rewriteReference } from "./references.js";
 
 /**
@@ -159,18 +160,44 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 		bundle.files.includes(destination) || (yield* fs.exists(toAbsolute).pipe(Effect.orElseSucceed(() => false)));
 	if (taken) return yield* new MoveError({ reason: "destination-exists", detail: destination });
 
-	// Markdown the bundle holds but could not load as a concept (undecodable, type missing) is not
-	// scanned for references, so a link to the moved file inside it would be left stale: refuse first.
+	// Markdown the bundle holds but did not load as a concept. A file the loader skipped as frontmatter-less or
+	// typeless (OKF 0.3 3.2: simply not a concept) is scanned like a concept body; one it could not read at all
+	// (unclosed or unparseable frontmatter, or no diagnostic saying why) cannot be trusted, so refuse first.
 	const unloaded = bundle.files.filter(
 		(file) =>
 			file.endsWith(".md") && !ConceptId.isReservedFile(file) && !bundle.concepts.has(file.slice(0, -3) as never),
 	);
-	if (unloaded.length > 0) return yield* new MoveError({ reason: "unloaded-files", detail: unloaded.join("\n") });
+	const unreadable = unloaded.filter((file) => {
+		const codes = bundle.diagnostics.filter((d) => d.file === file).map((d) => d.code);
+		const skipped = codes.some((code) => code === "frontmatter-missing" || code === "type-missing");
+		// An unclosed or unparseable block records only its own error, never one of the two skip warnings.
+		return !skipped;
+	});
+	if (unreadable.length > 0) return yield* new MoveError({ reason: "unloaded-files", detail: unreadable.join("\n") });
+	const nonConcepts: Array<ReferenceSource> = [];
+	for (const file of unloaded) {
+		const text = yield* fs.readFileString(path.join(bundle.root, file));
+		const parsed = MarkdownDocument.parseResult(text, MarkdownParseOptions.make({ frontmatter: true }));
+		const node = Result.isSuccess(parsed) ? Option.getOrUndefined(parsed.success.frontmatter) : undefined;
+		if (!Result.isSuccess(parsed)) return yield* new MoveError({ reason: "unloaded-files", detail: file });
+		let raw: Record<string, unknown> = {};
+		if (node !== undefined) {
+			const read = yield* Effect.result(YamlFrontmatter.decode(node));
+			if (Result.isFailure(read) || typeof read.success !== "object" || read.success === null)
+				return yield* new MoveError({ reason: "unloaded-files", detail: file });
+			raw = read.success as Record<string, unknown>;
+		}
+		nonConcepts.push({ path: file, document: parsed.success, frontmatter: { raw } });
+	}
 
-	const found = [...bundle.concepts.values()].map((concept) => ({
-		concept,
-		...referencesOf(concept, options.config),
-	}));
+	const found = [
+		...[...bundle.concepts.values()].map((concept) => ({
+			concept,
+			isConcept: true,
+			...referencesOf(concept, options.config),
+		})),
+		...nonConcepts.map((concept) => ({ concept, isConcept: false, ...referencesOf(concept, options.config) })),
+	];
 	// Only a reference that would need rewriting (it sits in the moved file, or resolves to it) can
 	// block the move; an unrelated link the locator cannot read is left alone.
 	const unlocatable = found.flatMap(({ concept, unlocatableRefs }) =>
@@ -210,7 +237,7 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 	const signals = yield* Trust.signals(bundle, options.config, options.now);
 	const edits: Array<{ path: string; count: number; text: string }> = [];
 	const drifts: Array<string> = [];
-	for (const { concept, references } of found) {
+	for (const { concept, isConcept, references } of found) {
 		const isMoved = concept.path === source.path;
 		const fromNew = isMoved ? destination : concept.path;
 		const pending: Array<MarkdownEdit> = [];
@@ -231,7 +258,7 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 		const text =
 			pending.length === 0 ? concept.document.source : MarkdownEdit.applyAll(concept.document.source, pending);
 		edits.push({ path: fromNew, count: pending.length, text });
-		if (pending.length > 0 && signals.get(concept.path.slice(0, -3))?.integrity === "current")
+		if (isConcept && pending.length > 0 && signals.get(concept.path.slice(0, -3))?.integrity === "current")
 			drifts.push(concept.path.slice(0, -3));
 	}
 	edits.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));

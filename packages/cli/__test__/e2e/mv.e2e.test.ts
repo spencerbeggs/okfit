@@ -4,8 +4,9 @@ import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
 import { writeTwoDecisions } from "./utils/concepts.js";
-import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
+import { makeSandbox, removeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
@@ -91,6 +92,47 @@ describe("okfit mv (e2e)", () => {
 			assert.strictEqual(spaced.exitCode, 64);
 			assert.include(spaced.stderr + spaced.stdout, "whitespace");
 			assert.isTrue(existsSync(join(okf, "decisions", "walk2.md")));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("runs over a bundle that holds a typeless README and rewrites the link inside it", async () => {
+		const sandbox = await makeSandbox("okfit-mv-");
+		const env = { ...sandbox.env, PATH: process.env.PATH ?? "", NO_COLOR: "1" };
+		try {
+			const readme = "# Notes for contributors\n\nSee [margin](./metrics/margin.md#why).\n";
+			await writeSeedInto(sandbox.cwd, { ...V03_PROJECT, "okf/README.md": readme });
+			const moved = await withServices(
+				runOkfit(["mv", "metrics/margin", "metrics/gross-margin"], { cwd: sandbox.cwd, env }),
+			);
+			assert.strictEqual(moved.exitCode, 0);
+			assert.strictEqual(
+				await readFile(join(sandbox.cwd, "okf", "README.md"), "utf8"),
+				"# Notes for contributors\n\nSee [margin](./metrics/gross-margin.md#why).\n",
+			);
+			assert.include(
+				await readFile(join(sandbox.cwd, "okf", "metrics", "margin-legacy.md"), "utf8"),
+				"superseded_by: /metrics/gross-margin.md",
+			);
+			assert.isTrue(existsSync(join(sandbox.cwd, "okf", "metrics", "gross-margin.md")));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("leaves a README with no link to the moved concept byte-identical", async () => {
+		const sandbox = await makeSandbox("okfit-mv-");
+		const env = { ...sandbox.env, PATH: process.env.PATH ?? "", NO_COLOR: "1" };
+		try {
+			await writeSeedInto(sandbox.cwd, V03_PROJECT);
+			const before = await readFile(join(sandbox.cwd, "okf", "README.md"), "utf8");
+			const moved = await withServices(
+				runOkfit(["mv", "metrics/margin", "metrics/gross-margin"], { cwd: sandbox.cwd, env }),
+			);
+			assert.strictEqual(moved.exitCode, 0);
+			assert.strictEqual(await readFile(join(sandbox.cwd, "okf", "README.md"), "utf8"), before);
+			assert.isFalse(existsSync(join(sandbox.cwd, "okf", "metrics", "margin.md")));
 		} finally {
 			await removeSandbox(sandbox);
 		}

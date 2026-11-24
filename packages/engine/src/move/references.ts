@@ -1,5 +1,6 @@
 import { posix } from "node:path";
-import type { LoadedBundle, LoadedConcept, OkfitConfig, PathField } from "@okfit/core";
+import type { MarkdownDocument } from "@effected/markdown";
+import type { LoadedBundle, OkfitConfig, PathField } from "@okfit/core";
 import { DiagnosticRange, Graph } from "@okfit/core";
 
 /**
@@ -114,14 +115,27 @@ const CORE_SCALAR_KEYS: ReadonlySet<string> = new Set(
 		.map((field) => field.key),
 );
 
-/** The frontmatter paths whose values are bundle paths, for this concept. */
-const fieldPaths = (concept: LoadedConcept, config: OkfitConfig): ReadonlyArray<FieldPath> => {
+/**
+ * A parsed Markdown file {@link referencesOf} can scan: a loaded concept, or a file that is not a concept
+ * (no frontmatter, or no `type`) read by `okfit mv` itself, whose `frontmatter.raw` is `{}` without a block.
+ *
+ * @public
+ */
+export interface ReferenceSource {
+	readonly path: string;
+	readonly document: MarkdownDocument;
+	readonly frontmatter: { readonly raw: Record<string, unknown>; readonly type?: string };
+}
+
+/** The frontmatter paths whose values are bundle paths, for this file. */
+const fieldPaths = (concept: ReferenceSource, config: OkfitConfig): ReadonlyArray<FieldPath> => {
 	const raw = concept.frontmatter.raw;
 	const out: Array<FieldPath> = [];
 	for (const [field, core] of Object.entries(CORE_FIELDS) as Array<[PathField, CoreField]>) {
 		for (const found of core.read(raw)) out.push({ ...found, field });
 	}
-	const declared = config.types?.[concept.frontmatter.type]?.fields ?? {};
+	const type = concept.frontmatter.type;
+	const declared = (type === undefined ? undefined : config.types?.[type]?.fields) ?? {};
 	for (const [key, declaration] of Object.entries(declared)) {
 		if (declaration.kind !== "path" || CORE_SCALAR_KEYS.has(key)) continue;
 		const value = raw[key];
@@ -165,14 +179,14 @@ const locateDestination = (slice: string, url: string, type: "link" | "image" | 
 };
 
 /**
- * Every rewritable reference in a concept, plus the references that could not be located in their file
+ * Every rewritable reference in a concept (or other {@link ReferenceSource}), plus the references that could not be located in their file
  * (`unlocatable` as `file: value` lines, `unlocatableRefs` with the decoded value). Body links, images and definitions with a URL; the path-valued frontmatter fields;
  * every field the concept's type declares with `kind = "path"`; and `renders[].path`.
  *
  * @public
  */
 export const referencesOf = (
-	concept: LoadedConcept,
+	concept: ReferenceSource,
 	config: OkfitConfig,
 ): {
 	readonly references: ReadonlyArray<Reference>;
