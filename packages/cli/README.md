@@ -239,7 +239,11 @@ Appends one attestation, `{ by: human:<id>, at: <now> }`, to a concept's
 `integrity.verified` (`{ by, at, content }`), where `content` is a 16-hex
 digest of the body plus the authored frontmatter. A later edit to the concept
 reports as the `verified-drift` lint (default `warn`): a signal that a human
-should look again, not a gate. `<id>` is a concept id with or
+should look again, not a gate. A verification also stops counting when the
+concept changes after it: under OKF 0.3 §5.3 only a `verified` entry whose
+`at` is equal to or later than `generated.at` is current, and the
+`verified-before-change` lint (default `warn`) reports a concept whose trust
+tier dropped for that reason. `<id>` is a concept id with or
 without a leading slash or trailing `.md`. The actor is always your own git
 identity, resolved from `git config okfit.actor` first, then `[actors].humans`,
 `user.email` and `user.name`; there is no `--by`. When `[actors].humans` is non-empty it is
@@ -247,7 +251,9 @@ an allow-list (exact ids or `*`/`?` globs, case-insensitive): an unlisted
 identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 `--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
-different instant; `--dry-run` runs the same splice and prints the exact
+different instant, which must not be earlier than the concept's `generated.at`:
+okfit refuses a verification that would not be current (exit `3`), and an `at`
+equal to `generated.at` is accepted. `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
 
@@ -277,12 +283,16 @@ nothing to revoke on that concept; passing `--revoke` with `--all`, `--type`,
 
 `--all` and `--type <Type>` (repeatable) attest in batch: every concept whose
 type sets `require_verified`, plus every drifted concept of any type (or, with
-`--type`, only the named types) that you have not already verified. A batch skips a concept and reports why: `draft`,
-`deprecated`, or `already-verified`. A batch never re-attests a
+`--type`, only the named types) whose verification by you is not already held.
+A verification is held when it is bound to the concept's current content and is
+current under OKF 0.3 §5.3 (okfit's own integrity rule); one made before the
+concept's last change is not, so the concept is selected again. A batch skips a
+concept and reports why: `draft`, `deprecated`, `unknown-status` or
+`already-verified`. A batch never re-attests a
 `deprecated` concept; verifying one by id is still allowed.
 
 Bare `okfit verify` in a terminal opens a picker: every concept of a
-`require_verified` type you have not attested, plus every drifted concept of
+`require_verified` type whose verification by you is not held (see above), plus every drifted concept of
 any type, drafts included and deprecated excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
@@ -460,7 +470,7 @@ envelope to stdout and exits `3`:
 `dry_run`, `exit_code`, and `prior_integrity` when the concept was drifted and the diff was shown), where `status` is `{ "from": ..., "to": ... }` when
 `--stable` or `--draft` was given and `null` otherwise. With `--all` or
 `--type` it prints `VerifyBatchEnvelope`, whose `skipped[].reason` is one of
-`draft`, `deprecated` or `already-verified`.
+`draft`, `deprecated`, `unknown-status` or `already-verified`.
 With `--revoke` it prints a revoke envelope carrying `removed` (how many of the
 actor's entries were removed), `binding_cleared` (whether `integrity.verified`
 was cleared) and `revoked_by` (the actor).

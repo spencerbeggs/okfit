@@ -8,7 +8,8 @@ import { VerifySelectionError } from "../errors.js";
  * Why a candidate concept was skipped by batch selection: `"draft"` and
  * `"deprecated"` mirror `status`, `"unknown-status"` is a `status` outside the vocabulary (OKF 0.3 §5.4),
  * `"already-verified"` means the actor's
- * `verified` entry is still bound to the concept's current content.
+ * `verified` entry is bound, current by OKF 0.3 §5.3 (its `at` is not before `generated.at`), and covering the
+ * concept's current content.
  *
  * @public
  */
@@ -26,9 +27,10 @@ export interface AttestableSelection {
 }
 
 /**
- * Whether `concept` is verified by `actor` AND that verification still binds
- * its content: the signal is `current` and `integrity.verified` names `actor`.
- * A drifted concept, or one whose current binding is another actor's, is not.
+ * Whether `concept` is verified by `actor` AND that verification is held: the signal is `current` (okfit's integrity
+ * rule: the bound entry covers the current content and is a current event under OKF 0.3 §5.3) and
+ * `integrity.verified` names `actor`. A drifted concept (changed content, or verified before the last change), or
+ * one whose current binding is another actor's, is not.
  */
 const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<string, ConceptSignal>): boolean =>
 	signals.get(concept.id)?.integrity === "current" && concept.frontmatter.integrity?.verified?.by === actor;
@@ -37,7 +39,7 @@ const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<
  * Issue #138/#143: which concepts of `types` the actor may attest in one
  * batch. A draft is unsettled, a deprecated concept is retired (#143) and an unknown status is not stable
  * (OKF 0.3 §5.4), so all three are skipped before the already-verified check. A concept whose
- * verification has drifted, or is bound to another actor, is a candidate.
+ * verification has drifted (including one made before `generated.at`), or is bound to another actor, is a candidate.
  * With `options.drifted`, a drifted concept of any type is considered too,
  * as the picker does: the `verified-drift` lint's remedy is `okfit verify`.
  *
