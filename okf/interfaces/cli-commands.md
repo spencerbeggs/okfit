@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T02:09:56Z
 tags:
   - architecture
 verified:
@@ -35,7 +35,7 @@ verified:
     at: 2026-11-23T22:13:15Z
 integrity:
   generated:
-    body: d0c9e961b0c54baa
+    body: bfe31400d207cb98
   verified:
     by: human:spencer
     at: 2026-11-23T22:13:15Z
@@ -89,7 +89,7 @@ pure content comparison, since that tier makes no git call. The
 PostToolUse hook passes it so an edit-time validate stays git-free for any
 un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
 git tier too (ruling S-31). `--skip-provenance` also skips the git-backed
-`resource-ignored` and `resource-untracked` lints (issue #279). A `resource` or `sources[].resource` value that resolves outside the project root, directly or through a symlink, is reported as `resource-outside-project` (default `info`, so it never changes the exit code) from the written value alone; okfit never reads, stats or asks git about the target. A value inside the project root but outside the bundle is a repository resource that okfit may stat and ask git about. See [Repository resources are classified by where they resolve](../decisions/repository-resources.md). See [Every okfit digest lives in one integrity
+`resource-ignored` and `resource-untracked` lints (issue #279). A `resource` or `sources[].resource` value that resolves outside the project root, directly or through a symlink, is reported as `resource-outside-project` (default `info`, so it never changes the exit code); okfit may resolve a link's real path to decide containment but never reads, stats or asks git about the target. A value inside the project root but outside the bundle is a repository resource that okfit may stat and ask git about. See [Repository resources are classified by where they resolve](../decisions/repository-resources.md). See [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate` also reports the
 `verified-drift` lint (default `warn`) for a concept whose verification no
 longer matches its content.
@@ -162,7 +162,7 @@ unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, and a batch or an id list that holds one writes nothing for any id. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
+`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, and an explicit id list that holds one fails whole and writes nothing for any id, while an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
 set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience

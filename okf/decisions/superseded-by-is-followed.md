@@ -15,11 +15,11 @@ sources:
     title: The current filter and the replacement on get.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T02:09:56Z
 status: draft
 integrity:
   generated:
-    body: 4480d6bc0b7c0069
+    body: 0b679c0002cdd2ec
 ---
 
 # A deprecated concept's replacement is followed
@@ -54,8 +54,9 @@ with it.
   stable concepts and drops deprecated and unknown-status ones, intersected
   with `statuses`; because `replacement` only ever returns a draft or stable
   concept, a replacement is listed whenever it passes the other filters.
-  `ConceptQuery.get` returns `replacement`, which `okfit query`, `okfit query
-  get` and the MCP tools show.
+  `ConceptQuery.get` returns `replacement`, which `okfit query get` and the MCP
+  `get_concept` tool show; `query list` summaries and `list_concepts` do not
+  carry it.
 - **`okfit context` is unchanged.** Following `superseded_by` lives in the
   query layer, behind `okfit query` and the MCP tools, not in the orientation
   command.

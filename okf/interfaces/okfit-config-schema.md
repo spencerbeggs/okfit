@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T02:09:56Z
 tags:
   - architecture
 verified:
@@ -25,7 +25,7 @@ verified:
     at: 2026-11-23T22:13:15Z
 integrity:
   generated:
-    body: a79561e5e6a8ad8f
+    body: 4b2fed6ad6d3641a
   verified:
     by: human:spencer
     at: 2026-11-23T22:13:15Z
@@ -103,8 +103,8 @@ that resolves to nothing in the bundle is a descriptor to core (D-24), so
 `@okfit/engine` resolves it on disk in D-23 order and reports the miss.
 `resource_outside_project` is okfit's repository check, not OKF's: a
 `resource` value that resolves outside the project root, directly or through
-a symlink, is reported from the written value alone and never read, statted or
-passed to git; see [Repository resources are classified by where they
+a symlink, is reported without okfit reading, statting or passing the target to git (it
+may resolve a link's real path to decide containment); see [Repository resources are classified by where they
 resolve](../decisions/repository-resources.md).
 `resource_ignored` and `resource_untracked` (issue #279) cover the same literal
 values when the file exists locally but other checkouts would not have it: the

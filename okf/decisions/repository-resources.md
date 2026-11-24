@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: Repository resources are classified by where they resolve
-description: A cited resource inside the bundle follows OKF v0.3 §6, one inside the project root is a repository resource okfit may stat, list and ask git about, and one outside the project root is never touched and is reported as resource-outside-project from the written value alone.
+description: A cited resource inside the bundle follows OKF v0.3 §6, one inside the project root is a repository resource okfit may stat, list and ask git about, and one outside the project root is never touched and is reported as resource-outside-project.
 tags:
   - architecture
 sources:
@@ -13,11 +13,11 @@ sources:
     title: The git-backed lints that judge only a located file.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T02:09:56Z
 status: draft
 integrity:
   generated:
-    body: d407c5801c104e50
+    body: d198b2509cf870d2
 ---
 
 # Repository resources are classified by where they resolve
@@ -51,7 +51,7 @@ holds the config, never the bundle root) is the line between the last two.
   tracked or ignored.
 - **Outside the project root.** okfit never touches it: no `exists`, `stat`,
   read, listing or git call. It is reported as `resource-outside-project`
-  (`info`), ranged at the value, from the written value alone.
+  (`info`), ranged at the value. Only the written value, and a link's real path to decide containment, are consulted.
 
 `resourceCandidates` in `validate/repository.ts` computes the absolute
 candidates in that order and classifies each as `bundle` or `repository`; a
