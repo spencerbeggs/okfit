@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:37:49Z
+  at: 2026-11-24T11:25:42Z
 integrity:
   generated:
-    body: 78c572fc02be62f4
+    body: 71231c044f7857d2
 ---
 
 # Engine
@@ -167,12 +167,13 @@ forward](../decisions/stale-verify.md).
 (`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
 `root-relative-path`, `computation-locator`), found by resolving each
 reference under both fallback rules; `computation-locator` appears only while
-the bundle reads with the legacy locator, and a bundle with no root index
+the bundle reads with the legacy locator and the two readings differ, and a bundle with no root index
 gets an `okf-version-undeclared` finding for `index.md` with no fix.
 `migrate/fix.ts` holds `planMigrationFixes` and `applyMigrationFixes`, which
 write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
 version fix while a root-only reference remains, when `okf_version` cannot be
-edited in place or when the root index's opening fence is malformed,
+edited in place, when the root index's opening fence is malformed or its
+frontmatter does not parse (the run continues),
 re-record `integrity.generated.body` for a concept whose digest matched
 before the edit, list `drifts` (each edited concept whose integrity was
 current before the edit, and each whose `integrity` block the fix will not

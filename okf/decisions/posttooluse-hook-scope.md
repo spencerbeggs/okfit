@@ -8,7 +8,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:37:49Z
+  at: 2026-11-24T11:25:42Z
 status: stable
 verified:
   - by: human:spencer
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-25T18:29:21Z
 integrity:
   generated:
-    body: 25cdd3c5422dbea5
+    body: c872fe2f261088f9
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -109,9 +109,3 @@ skipped, not an error](non-concept-markdown-is-skipped.md)). It is the one
 lint the hook reads: like the conformance check it has to stop the write,
 and the language server only publishes diagnostics (see Alternatives
 rejected).
-
-## Verification
-
-Not yet verified by a human; Spencer should confirm this reflects the
-intended phase 4 trade-off and run `okfit verify` on this concept
-himself.

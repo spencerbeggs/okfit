@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:37:49Z
+  at: 2026-11-24T11:25:42Z
 status: draft
 integrity:
   generated:
-    body: 5fa99d13884d46ae
+    body: 563be0b091aadecf
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -56,7 +56,8 @@ the ones that land only through the root fallback; a value that misses under
 both is a `broken-links` problem and not a finding. This works on a bundle
 that already declares 0.3. `computation-locator` is reported only while the
 bundle reads with the legacy locator, because raising the version is what
-changes the reading; it is `warning` when the concept would lose its
+changes the reading, and only when the two readings differ (a depth-one
+section that is exactly one fence reads the same and is not reported); it is `warning` when the concept would lose its
 computation and `info` otherwise. A bundle with no root `index.md` gets
 `okf-version-undeclared` with file `index.md` and no fix, since the root
 index body is `okfit sync`'s to write.
@@ -78,8 +79,12 @@ narrow or preview a run.
 root-only reference remains after this run, so `--only okf-version` or a
 file target cannot flip a bundle to 0.3 with broken links. It is also
 refused when `okf_version` cannot be edited in place, and when the root
-index's opening fence is not exactly `---`, each with its reason. Refusals
-are listed, not errors.
+index's opening fence is not exactly `---`, and when the root index frontmatter
+does not parse (malformed YAML, a duplicate key), each with its reason; the rest
+of the plan still applies. Refusals are listed, not errors. One cost is known:
+a `warning` `computation-locator` finding (a computation that 0.3 would not
+find) stops being reported once the bundle declares 0.3, so `okf-upgrade` stops
+before `--fix` and reports it to the human.
 
 **A link repair keeps the stamp.** OKF v0.3 §5.2 says a link repair does
 not change `generated.at`. When a fixed concept's recorded

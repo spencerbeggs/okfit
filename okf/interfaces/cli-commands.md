@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:37:49Z
+  at: 2026-11-24T11:25:42Z
 tags:
   - architecture
 verified:
@@ -39,7 +39,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: 4f959a7abccb1f6f
+    body: ebbd4ad1372ec0f1
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -109,20 +109,24 @@ and a terminal stdin, are usage errors (exit `64`). The MCP
 `--target <version>` adds the migration report: a fourth diagnostic source,
 `migrate`, listing what reads differently under that OKF version (codes
 `okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
-`root-relative-path`, `computation-locator`). Only `0.3` is accepted; any
+`root-relative-path`, `computation-locator`; the last only when the
+`Computation` section reads differently under 0.3, so a depth-one section that
+is exactly one fence is not reported). Only `0.3` is accepted; any
 other value is exit `64`. A `migrate` entry never changes the exit code, and
 a human run prints one extra stderr line, `OKF 0.3: <n> finding(s), <k>
 fixable with --fix`. `--fix` (requires `--target`) writes the two safe
 fixes: it prefixes `/` to a body link, image, definition or path field that
 resolves only from the bundle root, and it declares `okf_version: "0.3"` in
 the root index. The version fix is refused, with its reason, while a root-only
-reference remains, when `okf_version` cannot be edited in place, or when the
-root index's opening fence is malformed. `--only okf-version` and
+reference remains, when `okf_version` cannot be edited in place, when the
+root index's opening fence is malformed, or when the root index frontmatter
+does not parse (malformed YAML, a duplicate key); the rest of the plan still
+applies. `--only okf-version` and
 `--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
 the positional targets narrow the files, and `--dry-run` (requires `--fix`)
 writes nothing. A fix re-records `integrity.generated.body` for a concept
 whose digest matched before the edit, so `sync` keeps `generated.at`; it
-never writes `generated.at`, `verified` or `integrity.verified`, and a
+never writes `generated.at`, `verified` or `integrity.verified`, and an
 edited concept whose okfit integrity was current before the edit (a body-link
 edit counts too), or whose `integrity` block has a layout the fix will not
 edit, is listed as drifted. The human run prints `Fixed <n> finding(s) in <m> file(s)` (or
