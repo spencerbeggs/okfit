@@ -58,6 +58,11 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
 	const { text, bom } = stripBom(source);
 	const split = FrontmatterSource.split(text).frontmatter;
 	if (split === undefined) {
+		// A first line of `---` plus spaces or tabs is a fence the splitter rejects: prepending a block would leave two
+		// declarations in one file, so leave it to the author.
+		if (/^---[ \t]+(?:\r?\n|$)/.test(text)) {
+			return { reason: 'the opening fence is not exactly "---"; fix it by hand' };
+		}
 		const newline = detectNewline(text);
 		return { text: `${bom}---${newline}okf_version: "${target}"${newline}---${newline}${text}` };
 	}
@@ -164,7 +169,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;
 		const head = yield* fs.readFile(path.join(bundle.root, file));
-		if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf) text = `\uFEFF${text}`;
+		if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf && !text.startsWith("\uFEFF")) text = `\uFEFF${text}`;
 		edits.push({ path: file, text, fixes: applied });
 		const signal = yield* Trust.signal(concept, config, now);
 		if (signal.integrity === "current") drifts.add(concept.path.slice(0, -3));

@@ -41,6 +41,12 @@ const optionsFor = (
 const apply = (bundle: LoadedBundle, extra: Parameters<typeof optionsFor>[1] = {}) =>
 	applyMigrationFixes({ ...optionsFor(bundle, extra), dryRun: false });
 
+/** The plan for a whole other bundle, so one test can hold a "nothing" assertion beside its positive control. */
+const planIn = (seed: ProjectSeed) =>
+	Effect.gen(function* () {
+		return yield* planMigrationFixes(optionsFor(yield* load));
+	}).pipe(Effect.provide(on(seed)));
+
 const counts = Effect.gen(function* () {
 	const result = yield* run({
 		root: ROOT,
@@ -159,17 +165,12 @@ describe("migration fixes", () => {
 			const plan = yield* planMigrationFixes(optionsFor(yield* load));
 			assert.deepStrictEqual(plan.edits, []);
 			assert.deepStrictEqual(plan.refused, []);
-		}).pipe(Effect.provide(on(ERROR_PROJECTS["unparsable-version"]))),
-	);
-
-	it.effect("control: a V02_PROJECT plan does plan the version edit", () =>
-		Effect.gen(function* () {
-			const plan = yield* planMigrationFixes(optionsFor(yield* load));
+			const control = yield* planIn(V02_PROJECT);
 			assert.deepStrictEqual(
-				plan.edits.map((e) => e.path),
+				control.edits.map((e) => e.path),
 				["computations/revenue-ytd.md", "index.md"],
 			);
-		}).pipe(Effect.provide(on(V02_PROJECT))),
+		}).pipe(Effect.provide(on(ERROR_PROJECTS["unparsable-version"]))),
 	);
 
 	it.effect("dryRun returns the same plan and every file is byte-identical", () =>
@@ -319,13 +320,23 @@ describe("migration fixes", () => {
 		}
 
 		it.effect(
-			"an opening fence with trailing space is no frontmatter to the loader: a block is added, no byte is lost",
+			"an opening fence with trailing space is refused and the file is untouched (control: no fence at all gets a block)",
 			() =>
 				Effect.gen(function* () {
-					const original = "--- \nokf_version: '0.2'\n---\n\n# Acme\n";
+					const index = "--- \nokf_version: '0.2'\n---\n\n# Acme\n";
 					const plan = yield* apply(yield* load);
-					assert.deepStrictEqual(plan.refused, []);
-					assert.strictEqual(yield* read(INDEX), `---\nokf_version: "0.3"\n---\n${original}`);
+					assert.deepStrictEqual(
+						plan.refused.map((r) => [r.file, r.reason]),
+						[["index.md", 'the opening fence is not exactly "---"; fix it by hand']],
+					);
+					assert.isFalse(plan.edits.some((e) => e.path === "index.md"));
+					assert.strictEqual(yield* read(INDEX), index);
+					const control = yield* planIn(UNDECLARED_PROJECT);
+					assert.deepStrictEqual(control.refused, []);
+					assert.strictEqual(
+						control.edits.find((e) => e.path === "index.md")?.text,
+						`---\nokf_version: "0.3"\n---\n${UNDECLARED_PROJECT[INDEX] as string}`,
+					);
 				}).pipe(Effect.provide(on(V03_WITH_INDEX("--- \nokf_version: '0.2'\n---\n\n# Acme\n")))),
 		);
 
@@ -339,6 +350,11 @@ describe("migration fixes", () => {
 					assert.deepStrictEqual(plan.refused, []);
 				}
 				assert.isFalse(yield* fs.exists("/repo/okf/index.md"));
+				const control = yield* planIn(V03_WITH_INDEX(V02_PROJECT[INDEX] as string));
+				assert.deepStrictEqual(
+					control.edits.map((e) => e.path),
+					["index.md"],
+				);
 			}).pipe(Effect.provide(on(Object.fromEntries(Object.entries(V03_PROJECT).filter(([path]) => path !== INDEX))))),
 		);
 
@@ -411,6 +427,32 @@ describe("migration fixes", () => {
 			const bytes = yield* Effect.promise(() => readFile(join(dir, INDEX)));
 			assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
 			assert.strictEqual(bytes.toString("utf8"), original.replace("'0.2'", "'0.3'"));
+		}).pipe(Effect.scoped, Effect.provide(TestPlatform)),
+	);
+
+	it.effect("on the real disk a BOM concept keeps exactly one BOM and changes only the inserted slash", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-fix-")));
+			yield* Effect.addFinalizer(() => Effect.promise(() => rm(dir, { recursive: true, force: true })));
+			const original = `\uFEFF${V02_PROJECT[COMPUTATION] as string}`;
+			const seed: ProjectSeed = { ...V02_PROJECT, [COMPUTATION]: original };
+			for (const [file, text] of Object.entries(seed)) {
+				yield* Effect.promise(async () => {
+					await mkdir(dirname(join(dir, file)), { recursive: true });
+					await writeFile(join(dir, file), text);
+				});
+			}
+			const bundle = yield* Bundle.load({ root: join(dir, "okf") });
+			assert.isTrue(bundle.concepts.has(ID));
+			const plan = yield* applyMigrationFixes({
+				...optionsFor(bundle, { only: ["root-relative-path"] }),
+				dryRun: false,
+			});
+			assert.deepStrictEqual(plan.refused, []);
+			const bytes = yield* Effect.promise(() => readFile(join(dir, COMPUTATION)));
+			assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+			assert.strictEqual(bytes.toString("utf8"), `\uFEFF${V03_PROJECT[COMPUTATION] as string}`);
 		}).pipe(Effect.scoped, Effect.provide(TestPlatform)),
 	);
 });
