@@ -5,8 +5,8 @@ Guidance for Claude Code in the okfit repository.
 ## What this is
 
 okfit is Node.js tooling for the
-[Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)
-v0.2, published under the `@okfit` npm scope. Full purpose, boundaries,
+[Open Knowledge Format (OKF)](https://github.com/open-knowledge-format/open-knowledge-format/blob/main/SPEC.md)
+v0.3 (and still reads v0.2 bundles), published under the `@okfit` npm scope. Full purpose, boundaries,
 and non-goals: `okf/project.md`.
 
 The design spec lives locally (gitignored) at

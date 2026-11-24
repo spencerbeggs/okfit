@@ -1,6 +1,6 @@
 # @okfit/core
 
-The no-internal-deps base package. Owns OKF v0.2 frontmatter schemas, bundle
+The no-internal-deps base package. Owns OKF v0.3 frontmatter schemas (and reads v0.2 bundles), bundle
 loading, the link graph, derivation (trust tier, staleness, index and log
 rendering), and validation. Every other `@okfit/*` package depends on it.
 
