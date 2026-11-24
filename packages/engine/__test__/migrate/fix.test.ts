@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import type { LoadedBundle } from "@okfit/core";
 import { Bundle, ConceptId, OkfitConfig } from "@okfit/core";
@@ -14,6 +17,7 @@ import { run } from "../../src/validate/run.js";
 import type { ProjectSeed } from "../fixtures/bundles.js";
 import { ERROR_PROJECTS, UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, mountProject, sessionPlatform } from "../utils/bundle.js";
+import { TestPlatform } from "../utils/platform.js";
 
 const CONFIG = OkfitConfig.DEFAULTS;
 const NOW = DateTime.makeUnsafe("2026-11-24T00:00:00Z");
@@ -158,6 +162,16 @@ describe("migration fixes", () => {
 		}).pipe(Effect.provide(on(ERROR_PROJECTS["unparsable-version"]))),
 	);
 
+	it.effect("control: a V02_PROJECT plan does plan the version edit", () =>
+		Effect.gen(function* () {
+			const plan = yield* planMigrationFixes(optionsFor(yield* load));
+			assert.deepStrictEqual(
+				plan.edits.map((e) => e.path),
+				["computations/revenue-ytd.md", "index.md"],
+			);
+		}).pipe(Effect.provide(on(V02_PROJECT))),
+	);
+
 	it.effect("dryRun returns the same plan and every file is byte-identical", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load;
@@ -275,4 +289,128 @@ describe("migration fixes", () => {
 			}),
 		);
 	});
+
+	describe("hardening", () => {
+		const V03_WITH_INDEX = (index: string): ProjectSeed => ({ ...V03_PROJECT, [INDEX]: index });
+		const unchangedFiles = (seed: ProjectSeed) =>
+			Effect.gen(function* () {
+				for (const [file, text] of Object.entries(seed)) assert.strictEqual(yield* read(file), text);
+			});
+
+		for (const [name, index, shape] of [
+			["a flow-mapping frontmatter", '---\n{okf_version: "0.2", title: Acme}\n---\n\n# Acme\n', "flow-mapping"],
+			["an empty okf_version", "---\nokf_version:\ntitle: Acme\n---\n\n# Acme\n", "okf_version-empty"],
+			["an alias okf_version", '---\nx: &x "0.2"\nokf_version: *x\n---\n\n# Acme\n', "alias"],
+		] as const) {
+			it.effect(`${name} is refused in place and the file is untouched`, () =>
+				Effect.gen(function* () {
+					const seed = V03_WITH_INDEX(index);
+					const plan = yield* apply(yield* load);
+					assert.strictEqual(plan.refused.length, 1);
+					assert.strictEqual(plan.refused[0]?.file, "index.md");
+					assert.strictEqual(
+						plan.refused[0]?.reason,
+						`okf_version cannot be edited in place (${shape}); edit it by hand`,
+					);
+					assert.isFalse(plan.edits.some((e) => e.path === "index.md"));
+					yield* unchangedFiles(seed);
+				}).pipe(Effect.provide(on(V03_WITH_INDEX(index)))),
+			);
+		}
+
+		it.effect(
+			"an opening fence with trailing space is no frontmatter to the loader: a block is added, no byte is lost",
+			() =>
+				Effect.gen(function* () {
+					const original = "--- \nokf_version: '0.2'\n---\n\n# Acme\n";
+					const plan = yield* apply(yield* load);
+					assert.deepStrictEqual(plan.refused, []);
+					assert.strictEqual(yield* read(INDEX), `---\nokf_version: "0.3"\n---\n${original}`);
+				}).pipe(Effect.provide(on(V03_WITH_INDEX("--- \nokf_version: '0.2'\n---\n\n# Acme\n")))),
+		);
+
+		it.effect("a bundle with no root index plans no version edit and creates no file (control: with one it does)", () =>
+			Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const bundle = yield* load;
+				for (const extra of [{}, { only: ["okf-version" as const] }]) {
+					const plan = yield* apply(bundle, extra);
+					assert.deepStrictEqual(plan.edits, []);
+					assert.deepStrictEqual(plan.refused, []);
+				}
+				assert.isFalse(yield* fs.exists("/repo/okf/index.md"));
+			}).pipe(Effect.provide(on(Object.fromEntries(Object.entries(V03_PROJECT).filter(([path]) => path !== INDEX))))),
+		);
+
+		it.effect("a concept with CRLF line endings changes only the inserted slash", () =>
+			Effect.gen(function* () {
+				const crlf = (V02_PROJECT[COMPUTATION] as string).replaceAll("\n", "\r\n");
+				const plan = yield* apply(yield* load, { only: ["root-relative-path"] });
+				assert.deepStrictEqual(plan.refused, []);
+				const after = yield* read(COMPUTATION);
+				assert.strictEqual(after.length, crlf.length + 2);
+				assert.strictEqual(after.replace("(/metrics/", "(metrics/").replace("resource: /", "resource: "), crlf);
+			}).pipe(
+				Effect.provide(
+					on({ ...V02_PROJECT, [COMPUTATION]: (V02_PROJECT[COMPUTATION] as string).replaceAll("\n", "\r\n") }),
+				),
+			),
+		);
+
+		it.effect("a concept with a leading BOM keeps it: the loader drops it, the write gives it back", () =>
+			Effect.gen(function* () {
+				const bundle = yield* load;
+				assert.isTrue(bundle.concepts.has(ID));
+				const plan = yield* apply(bundle, { only: ["root-relative-path"] });
+				assert.deepStrictEqual(plan.refused, []);
+				assert.strictEqual(yield* read(COMPUTATION), `\uFEFF${V03_PROJECT[COMPUTATION] as string}`);
+			}).pipe(Effect.provide(on({ ...V02_PROJECT, [COMPUTATION]: `\uFEFF${V02_PROJECT[COMPUTATION] as string}` }))),
+		);
+
+		it.effect("an integrity layout the plan will not edit keeps the digest and lists the concept in drifts", () =>
+			Effect.gen(function* () {
+				const base = V02_PROJECT[COMPUTATION] as string;
+				const probe = yield* load;
+				const body = yield* Derivation.bodyDigest(
+					(probe.concepts.get(ID) as NonNullable<unknown> as never as { document: { source: string } }).document.source,
+				);
+				const flow = `runtime: sql\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nintegrity: { generated: { body: ${body} } }\n`;
+				const seed = { ...V02_PROJECT, [COMPUTATION]: base.replace("runtime: sql\n", flow) };
+				yield* Effect.gen(function* () {
+					const plan = yield* apply(yield* load);
+					assert.deepStrictEqual(plan.drifts, ["computations/revenue-ytd"]);
+					const text = yield* read(COMPUTATION);
+					assert.include(text, `integrity: { generated: { body: ${body} } }\n`);
+					assert.include(text, "](/metrics/revenue.md)");
+					assert.strictEqual(
+						text,
+						(seed[COMPUTATION] as string)
+							.replace("](metrics/", "](/metrics/")
+							.replace("resource: references/", "resource: /references/"),
+					);
+				}).pipe(Effect.provide(on(seed)));
+			}).pipe(Effect.provide(on(V02_PROJECT))),
+		);
+	});
+
+	it.effect("on the real disk a BOM root index keeps its first three bytes and changes only the value", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-fix-")));
+			yield* Effect.addFinalizer(() => Effect.promise(() => rm(dir, { recursive: true, force: true })));
+			const original = `\uFEFF${V02_PROJECT[INDEX] as string}`;
+			const seed: ProjectSeed = { ...V03_PROJECT, [INDEX]: original };
+			for (const [file, text] of Object.entries(seed)) {
+				yield* Effect.promise(async () => {
+					await mkdir(dirname(join(dir, file)), { recursive: true });
+					await writeFile(join(dir, file), text);
+				});
+			}
+			const bundle = yield* Bundle.load({ root: join(dir, "okf") });
+			const plan = yield* applyMigrationFixes({ ...optionsFor(bundle), dryRun: false });
+			assert.deepStrictEqual(plan.refused, []);
+			const bytes = yield* Effect.promise(() => readFile(join(dir, INDEX)));
+			assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			assert.strictEqual(bytes.toString("utf8"), original.replace("'0.2'", "'0.3'"));
+		}).pipe(Effect.scoped, Effect.provide(TestPlatform)),
+	);
 });

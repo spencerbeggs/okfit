@@ -30,8 +30,10 @@ export interface MigrationFixOptions {
 /**
  * The fixes {@link planMigrationFixes} would write. `edits` holds each changed file's bundle-relative path, its full
  * new text and the fix kinds applied (one entry per fixed finding); `refused` lists a finding whose fix was not
- * planned, with the reason; `drifts` lists the sorted ids whose human integrity was `current` and whose authored
- * content changes (never repaired, only listed).
+ * planned, with the reason (including a selected reference the plan could not locate); `drifts` lists the sorted ids
+ * whose human integrity was `current` and whose authored content changes, and the ids whose recorded
+ * `integrity.generated.body` went stale because the `integrity` block has a layout the plan will not edit (never
+ * repaired, only listed).
  *
  * @public
  */
@@ -108,25 +110,40 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			(only === undefined || only.includes(finding.fix)),
 	);
 	const pathFixes = selected.filter((finding) => finding.fix === "root-relative-path");
-	const remaining = all.filter((finding) => finding.code === "root-relative-path").length - pathFixes.length;
+	const allPathFindings = all.filter((finding) => finding.code === "root-relative-path").length;
 
 	const edits: Array<{ path: string; text: string; fixes: Array<MigrationFixKind> }> = [];
 	const refused: Array<{ file: string; code: MigrationCode; reason: string }> = [];
-	const drifts: Array<string> = [];
+	const drifts = new Set<string>();
+	// Findings this plan actually turns into an insert; a selected finding it cannot locate is refused, never counted.
+	let fixed = 0;
 
 	const byFile = new Map<string, Array<MigrationFinding & { readonly fix: MigrationFixKind }>>();
 	for (const finding of pathFixes) byFile.set(finding.file, [...(byFile.get(finding.file) ?? []), finding]);
 	for (const [file, found] of byFile) {
 		const concept: LoadedConcept | undefined = [...bundle.concepts.values()].find((c) => c.path === file);
-		if (concept === undefined) continue;
+		const refuse = (finding: MigrationFinding, reason: string) =>
+			refused.push({ file: finding.file, code: finding.code, reason });
+		if (concept === undefined) {
+			for (const finding of found) refuse(finding, "the concept is not loaded, so the reference cannot be rewritten");
+			continue;
+		}
 		const source = concept.document.source;
-		const inserts = found.flatMap((finding) => {
-			if (finding.range === undefined) return [];
+		const inserts: Array<MarkdownEdit> = [];
+		const applied: Array<MigrationFixKind> = [];
+		for (const finding of found) {
+			if (finding.range === undefined) {
+				refuse(finding, "the reference has no located range, so it cannot be rewritten");
+				continue;
+			}
 			// The range covers the raw value; the path part starts after any leading whitespace.
 			const raw = source.slice(finding.range.offset, finding.range.offset + finding.range.length);
 			const offset = finding.range.offset + (raw.length - raw.trimStart().length);
-			return [MarkdownEdit.make({ offset, length: 0, content: "/" })];
-		});
+			inserts.push(MarkdownEdit.make({ offset, length: 0, content: "/" }));
+			applied.push(finding.fix);
+		}
+		if (inserts.length === 0) continue;
+		fixed += inserts.length;
 		let text = MarkdownEdit.applyAll(source, inserts);
 		const recorded = concept.frontmatter.integrity?.generated?.body;
 		if (recorded !== undefined && recorded === (yield* Derivation.bodyDigest(source))) {
@@ -134,16 +151,25 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			if (next !== recorded) {
 				const { text: plain, bom } = stripBom(text);
 				const located = yield* locateIntegrity(plain);
-				if (located._tag !== "unsupported") {
+				if (located._tag === "unsupported") {
+					// Never forge a digest: the body changed and the record is left stale, so list the concept.
+					drifts.add(concept.path.slice(0, -3));
+				} else {
 					text =
 						bom + MarkdownEdit.applyAll(plain, [spliceIntegrityGenerated(located, plain, next, detectNewline(plain))]);
 				}
 			}
 		}
-		edits.push({ path: file, text, fixes: found.map((finding) => finding.fix) });
+		// The loader reads through `readFileString`, which drops a leading BOM; give it back on write.
+		const fs = yield* FileSystem.FileSystem;
+		const path = yield* Path.Path;
+		const head = yield* fs.readFile(path.join(bundle.root, file));
+		if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf) text = `\uFEFF${text}`;
+		edits.push({ path: file, text, fixes: applied });
 		const signal = yield* Trust.signal(concept, config, now);
-		if (signal.integrity === "current") drifts.push(concept.path.slice(0, -3));
+		if (signal.integrity === "current") drifts.add(concept.path.slice(0, -3));
 	}
+	const remaining = allPathFindings - fixed;
 
 	const version = selected.find((finding) => finding.fix === "okf-version");
 	if (version !== undefined) {
@@ -166,8 +192,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	}
 
 	edits.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-	drifts.sort();
-	return { edits, refused, drifts };
+	return { edits, refused, drifts: [...drifts].sort() };
 });
 
 /**
