@@ -14,10 +14,17 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-11-24T02:36:26Z
-status: draft
+status: stable
 integrity:
   generated:
     body: 31426d143208dafc
+  verified:
+    by: human:spencer
+    at: 2026-11-24T03:27:57Z
+    content: b771f6ce4beb7aae
+verified:
+  - by: human:spencer
+    at: 2026-11-24T03:27:57Z
 ---
 
 # Repository resources are classified by where they resolve

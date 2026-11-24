@@ -16,10 +16,17 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-11-24T02:05:35Z
-status: draft
+status: stable
 integrity:
   generated:
     body: 0eefa7ff670f68dd
+  verified:
+    by: human:spencer
+    at: 2026-11-24T03:27:27Z
+    content: 3f376c9ada5e62f1
+verified:
+  - by: human:spencer
+    at: 2026-11-24T03:27:27Z
 ---
 
 # An unknown status is not current knowledge
