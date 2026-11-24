@@ -10,10 +10,10 @@ tags:
   - release
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: f86fa5891d07ea47
+    body: 6c431162122183d3
 ---
 
 # VS Code Extension
@@ -273,7 +273,7 @@ free it.
   URI from the invoking tree node or the active editor
   (`vscode/src/status-picks.ts`'s `conceptUriFrom`), shows a quick pick over
   the statuses the concept is not already in -- all three when it has no
-  explicit `status` (`statusPicks`, `Status`'s own literal order) -- and
+  explicit `status` or one outside the vocabulary (`statusPicks`, `Status`'s own literal order) -- and
   sends `workspace/executeCommand` `okfit.lsp.setStatus [uri, status]`; the server computes the
   edit and applies it through `workspace/applyEdit`, and a `{ applied:
   false, failureReason }` or transport failure surfaces as one error
@@ -339,7 +339,7 @@ owner's decision; its first Marketplace and Open VSX release, the
 publisher registration, the icon and the federation credentials are the
 next phase.
 
-The tree model (`src/tree/model.ts`) reads a missing `status` from the concepts wire as `stable`, so a concept whose `status` is outside the vocabulary shows as `stable` until the wire carries the derived `unknown` status.
+The tree model (`src/tree/model.ts`) shows the status the server derived. `normalizeStatus` reads it: a string outside `draft`, `stable` and `deprecated` is `unknown`, shown as `unknown(<text>)` (for the server's own `unknown` the text is `rawStatus`), and a concept summary with no `status` at all, which only a language server older than this field sends, is read as `stable`. That last case is a compatibility shim and not a rule: the extension does not import `@okfit/lsp`, so it cannot ask the server's version of the derivation.
 
 ## Not in scope
 

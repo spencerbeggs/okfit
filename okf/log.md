@@ -1,5 +1,27 @@
 # Log
 
+## 2026-11-24
+
+* Updated A cited file that other checkouts cannot see is a lint, split by whether it is ignored
+* Added A deprecated concept's replacement is followed
+* Added An unknown status is not current knowledge
+* Updated CLI
+* Updated Core
+* Updated Engine
+* Updated LSP
+* Updated Loading never fails a concept for a bad family
+* Updated MCP
+* Updated Markdown that is not a concept is skipped, not an error
+* Updated Profiles
+* Added Repository resources are classified by where they resolve
+* Updated The declared OKF version gates the v0.2 fallbacks
+* Updated The root index's metadata is read and kept
+* Updated VS Code Extension
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit config file schema
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated stale --verify rolls stale_after forward, and plain verify never does
+
 ## 2026-11-23
 
 * Updated A concept outside the repository is a typed failure

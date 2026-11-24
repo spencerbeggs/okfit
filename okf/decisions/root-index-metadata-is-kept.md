@@ -13,11 +13,11 @@ sources:
     title: syncIndex passes the kept block to the renderer.
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-24T02:05:35Z
 status: stable
 integrity:
   generated:
-    body: ccb5f22124c74ee5
+    body: 96cd6703b1415029
   verified:
     by: human:spencer
     at: 2026-11-23T22:18:50Z
@@ -57,8 +57,13 @@ carries frontmatter.
 byte for byte. It adds `okf_version` only when the block declares none, and
 never rewrites a declared version: raising a bundle's version is a
 migration step, not a side effect of `sync`. Without a kept block it writes
-the old `okf_version`-only block. `syncIndex` passes the root index's
-`frontmatter` to the renderer, so `sync` keeps whatever the author wrote.
+a fresh block from `metadata` (`okf_version`, then `title` and `description`
+when given), serialized through the YAML writer so a value that needs quoting
+is quoted; a kept block is never merged with `metadata`. `syncIndex` passes the root index's
+`frontmatter` to the renderer, so `sync` keeps whatever the author wrote. It
+adds a version only when the caller passes one, and `runSync` passes the
+config's `okf_version` only when the config sets it, so an undeclared root
+stays undeclared.
 
 ## Alternatives rejected
 
@@ -72,6 +77,10 @@ okfit accept metadata it then deleted.
 ## Consequences
 
 A v0.3 root index survives `sync` unchanged apart from regenerated
-sections. `init` still writes only `okf_version`; writing `title` and
-`description` there is later work. The config's `okf_version` still fills a
-root index that declares none, using the constant `"0.2"`.
+sections. `init` writes `okf_version`, a `title` that is the project
+directory name and a fixed `description`, so a new bundle starts with
+metadata the author can then edit. The config's `okf_version` fills a root
+index that declares none only when the config sets it; there is no default,
+so `sync` never invents a declaration. A root `index.md` that is a symlink out
+of the bundle is not read or written by `sync` at all (see [Markdown that is
+not a concept is skipped](non-concept-markdown-is-skipped.md)).

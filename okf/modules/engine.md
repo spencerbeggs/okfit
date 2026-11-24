@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: f1e001039f561c89
+    body: 1587ee5b74e12c2f
 ---
 
 # Engine
@@ -83,7 +83,7 @@ composes `verified-drift` beside `Provenance.lint` and returns the
 per-concept `signals` from `run()`; `BundleSession` caches them on each
 revalidate, computing them even when the lint is `off` because the editor
 and agent surfaces need them. `ConceptSummary` carries `tier`, `integrity`
-and `stale`, `TrustDrift` holds `reason`, `edited_by` and `edited_at`, and
+`stale` and `staleness` (`fresh`, `stale`, `unknown` or `malformed`), `TrustDrift` holds `reason`, `edited_by` and `edited_at`, and
 `ConceptFilter` takes `verified` (`current` or `unverified`), `drifted` and
 `stale`, with `signalFor` looking up one concept's signal.
 `trust/run.ts#runContextTrust` backs `okfit context --trust`. See [Every okfit digest
@@ -121,8 +121,9 @@ empty or undeclared-type selection is a typed `VerifySelectionError`
 an unknown single id is exit `3`, not `64`. `render/*.ts`
 gained `VerifyBatchEnvelope` alongside the single-concept
 `VerifyEnvelope` for `--format json`. `verify/select.ts#selectAttestable`
-holds the selection rules once (skip `draft`, `deprecated` and
-already-verified concepts, each with its reason), and `runVerify` takes an
+holds the selection rules once (skip `draft`, `deprecated`, unknown-status and
+already-verified concepts, each with its reason; the batch skip reason for an
+unknown status is `unknown-status`), and `runVerify` takes an
 optional target status that it splices in the same write as the attestation
 through `FrontmatterEdits.status`; the envelope's `status` field reports
 `{ from, to }`. Writing a concept back keeps a leading UTF-8 byte-order
@@ -136,7 +137,7 @@ stable` in the same write. `verify/select.ts#selectPickerCandidates` and
 verify` picker offers: concepts of a `require_verified` type the caller has
 not attested, plus every drifted concept of any type (the `verified-drift`
 lint's remedy is `okfit verify`, so the picker must offer what it flags),
-drafts included and deprecated excluded; each row carries
+drafts included, deprecated and unknown-status concepts excluded; each row carries
 its absolute `path` and `boundAt`, and `verify/run.ts#loadPreviews` runs
 `changeSince` for the drifted rows (a git failure reads as `no-baseline`).
 `PickerCandidate.path` is bundle-relative from `selectPickerCandidates`
@@ -146,7 +147,8 @@ ends `(run in a terminal to pick interactively)`.
 
 `verify/select.ts#selectStaleCandidates` and
 `verify/run.ts#loadStaleCandidates` list the concepts `okfit stale --verify`
-offers (the stale ones; deprecated excluded). `runVerifyIds` takes a
+offers (the stale ones; deprecated and unknown-status concepts excluded; a concept whose `stale_after` is malformed is
+never stale, so it is never offered). `runVerifyIds` takes a
 `refreshStaleAfter` option: each attested concept's `stale_after` is rolled
 forward to the attestation instant plus `lifecycle.default_stale_after` in the
 same all-or-nothing write, through the shared `verify/locate.ts` and splice
@@ -206,24 +208,84 @@ a parse-time usage error from the CLI's own argument parser.
 
 `sync/index.ts#syncIndex` keeps the root index's existing frontmatter: it
 passes the loaded root `IndexDocument.frontmatter` to `Derive.renderIndex`,
-which re-emits it verbatim and adds `okf_version` (the `OKF_SPEC_VERSION`
-constant) only when the block declares none, so a declared `title`,
-`description`, `license`, extension key or version survives a sync (see [The
-root index's metadata is read and kept](../decisions/root-index-metadata-is-kept.md)).
-`sync --staged` still fails with `ConceptOutsideRepositoryError` when
-`log.md` resolves outside the repository, and never stamps a concept file
-that is a symlink out of the bundle, because core no longer loads one (see
-[A concept outside the repository is a typed
-failure](../decisions/concept-outside-repository-is-a-typed-failure.md)).
+which re-emits it verbatim, so a declared `title`, `description`, `license`,
+extension key or version survives a sync (see [The root index's metadata is
+read and kept](../decisions/root-index-metadata-is-kept.md)). `syncIndex`
+takes the version to add as an argument: `runSync` passes the config's
+`okf_version` when the config sets one, and nothing otherwise, so a root
+index that declares no version stays undeclared and the spec constant never
+moves a bundle (see [The declared OKF version gates the v0.2
+fallbacks](../decisions/declared-okf-version-gates-fallbacks.md)).
+`init/scaffold.ts` writes the root index with `okf_version` (the config's, or
+the `OKF_SPEC_VERSION` constant), a `title` that is the project directory name
+and the fixed `BUNDLE_DESCRIPTION`.
 
-Not done for OKF v0.3 in this package yet: `ConceptSummary.status` and the
-`ConceptQuery` status filter report `unknown`, but `verify/select.ts` reads
-the typed `status`, so a concept with an unknown status is not skipped
-there and the picker labels it `stable`; the `validate/resources.ts`
-cited-resource check still tries the bundle root as a candidate for every
-bundle regardless of its declared version; and `move/references.ts` still
-reads computation path fields under an `attested` key that does not exist
-and does not know `superseded_by`, so `okfit mv` rewrites neither.
+`sync` never reads or writes a root or subdirectory `index.md`, or the root
+`log.md`, that is a symbolic link out of the bundle, a dangling link
+included: `syncIndex` and `syncLog` return it in `skipped` with the reason
+`symlink-escape` (`SkipReason`), in plain, dry-run and `--staged` runs, and
+the exit code is unchanged. `sync/index.ts#escapesBundle` asks core's load
+diagnostics first and falls back to `lstat` plus `confineReal`, because the
+walker does not list a dangling link and so leaves no diagnostic. `sync
+--staged` never stamps a concept file that is a symlink out of the bundle,
+because core does not load one, and it skips an escaping `log.md` instead
+of failing; `ConceptOutsideRepositoryError` still covers a concept that
+resolves outside the repository (see [A concept outside the repository is a
+typed failure](../decisions/concept-outside-repository-is-a-typed-failure.md)).
+
+## Repository resources
+
+`validate/repository.ts` is the one place that decides where a cited
+`resource` value lies. `resourceCandidates` lists the absolute paths a value
+may name in OKF v0.3 §6 order (a leading `/` names the bundle root; otherwise
+the file-relative path, then the bundle root for a bare value only while
+`OkfVersion.legacyFallbacks` holds) and classifies each as `bundle` or
+`repository`; a candidate outside the project root is dropped, so a value with
+no candidate is outside the project and the filesystem is never asked about
+it. `locateResource` resolves a candidate with `realPath` and requires the
+real path to stay inside the real project or bundle root, so a symlink, or a
+symlinked parent, that leads out is `outside` and is never statted, read or
+sent to git. `RunOptions.projectRoot` and `BundleSessionOptions.projectRoot`
+are required: every front end passes the resolved project root, never the
+bundle root. `validate/resources.ts` reports `resource-outside-project`
+(`info`) beside `source-resource-missing`; `validate/surfaces.ts` reports it
+for a glob whose literal prefix is outside the project; `validate/untracked.ts`
+only ever judges a located file. See [Repository resources are classified by
+where they resolve](../decisions/repository-resources.md).
+
+## Unknown status and `superseded_by` in the engine
+
+`ConceptSummary` carries `status` as the derived status and `raw_status`,
+which `rawStatusOf` fills only for an unknown status (the string as written;
+a non-string is its JSON text) and leaves `null` otherwise. `ConceptFilter`
+takes `statuses` of `DerivedStatus`, so `unknown` is selectable, and `current`:
+draft and stable concepts only, intersected with `statuses`, so `current`
+with `statuses: ["deprecated"]` lists nothing. `ConceptQuery.get` returns a
+`replacement` (`Graph.replacement`) beside the concept: the first current
+concept at the end of a deprecated concept's `superseded_by` chain, or `null`.
+`okfit context` does not follow `superseded_by`.
+
+`verify` refuses a concept whose status is unknown: `prepareVerify` fails with
+`VerifyStatusUnknownError` (exit `3`) unless the call also sets the status
+(`--stable` or `--draft`), because that write repairs the status; the check
+runs before the drift diff and the confirm prompt, and `runVerifyIds` applies
+it to every id before writing any, so a refused id leaves the others
+untouched. `VerifyResult.status.from` is the raw string or `null`. See
+[An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md).
+
+`move/references.ts` lists the path-valued frontmatter fields `okfit mv`
+rewrites from a `CORE_FIELDS` table keyed on core's `PathField`, so a new core
+path field is a type error here until it is handled: `resource`,
+`sources[].resource` (a single mapping included), `computation`,
+`executor.resource`, `attester.resource` and `superseded_by`. They are read at
+the top level of the frontmatter (there is no `attested` key). `move/run.ts`
+runs on a bundle that holds `.md` files that are not concepts: a file with no
+frontmatter or no `type` is parsed through `Bundle.parseDocument` (the parse
+the loader uses) and scanned like a concept body, its links and its core path
+fields rewritten, and it appears in the plan's edits only when it changes. A
+file with an unclosed or unparseable frontmatter block still refuses with
+`MoveError` `unloaded-files`. `mv` writes a rewritten file back without a
+leading UTF-8 byte-order mark; that is a known gap, not a decision.
 
 ## Editor seams
 

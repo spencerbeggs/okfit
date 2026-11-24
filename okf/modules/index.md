@@ -2,7 +2,7 @@
 
 * [AI Plugins](ai-plugins.md) - The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.2 and keep a repository's okf bundle current.
 * [CLI](cli.md) - The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli-kit, with audience flags and interactive prompts.
-* [Core](core.md) - The no-internal-deps base package -- OKF v0.2 frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
+* [Core](core.md) - The no-internal-deps base package -- OKF frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
 * [Engine](engine.md) - The shared okfit engine -- platform layer, config discovery, and the validate/verify/sync/init/context programs both the CLI and the MCP server depend on directly.
 * [LSP](lsp.md) - The okfit-lsp language server, publishing engine diagnostics for a discovered bundle over stdio to Claude Code and any LSP client.
 * [MCP](mcp.md) - The okfit-mcp Model Context Protocol server, exposing six read-only tools and static concept resources over stdio.

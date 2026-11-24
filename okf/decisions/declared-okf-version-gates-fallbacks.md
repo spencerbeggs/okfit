@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:45:40Z
+  at: 2026-11-24T02:05:35Z
 status: stable
 integrity:
   generated:
-    body: 7dfff1022d2a9fdb
+    body: 146ab87c9ca9b375
   verified:
     by: human:spencer
     at: 2026-11-23T22:18:45Z
@@ -75,9 +75,16 @@ current, best effort as §12 asks, and the root index load reports it as
 a file, §10.3 says that file is the computation; core does not read it,
 because nothing downstream consumes the computation text yet.
 
-The config key `okf_version` plays no part in the gate. It still only
-selects what `init` and `sync` write, and `OKF_SPEC_VERSION` is still
-`"0.2"`.
+The config key `okf_version` plays no part in the gate. It only fills what
+okfit writes: `init` writes it, or the spec constant `OKF_SPEC_VERSION`
+(`"0.3"`) when the config sets none, and `sync` adds it only to a root index
+that declares none and only from an explicit config key, so raising the spec
+constant never moves an undeclared bundle to v0.3 resolution. `DEFAULTS` has
+no `okf_version` for that reason. The JSON envelopes of `validate`, `lint`,
+`graph` and `stale`, and the MCP `validate_bundle` result, report the bundle's
+own declaration as `okf_version`, or `null` when it declares none; the old
+warning that the config and the constant disagreed is gone, because the
+config no longer names what a bundle is.
 
 ## Alternatives rejected
 
@@ -96,5 +103,9 @@ and not an okfit switch. A bundle that declares nothing keeps the old
 behaviour indefinitely, so nothing existing breaks. Every new
 version-dependent rule asks `OkfVersion.legacyFallbacks` rather than
 comparing versions itself. The engine's cited-resource check
-(`validate/resources.ts`) does not read the gate yet: it still tries the
-bundle root as a candidate for every bundle, whatever it declares.
+reads the same gate: `resourceCandidates` (`validate/repository.ts`) tries
+the bundle root for a bare value only while `legacyFallbacks` holds (see
+[Repository resources are classified by where they
+resolve](repository-resources.md)). `Publications.resolveRef` in
+`@okfit/profiles` has no root fallback at all, a difference from core listed
+in its TSDoc.

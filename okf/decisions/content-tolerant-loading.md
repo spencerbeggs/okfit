@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-24T02:05:35Z
 status: stable
 verified:
   - by: human:spencer
@@ -17,7 +17,7 @@ verified:
     at: 2026-11-23T22:13:15Z
 integrity:
   generated:
-    body: dc86fb31c9be30d7
+    body: 5737eb70be0f412c
   verified:
     by: human:spencer
     at: 2026-11-23T22:13:15Z
@@ -61,6 +61,12 @@ has to. The reading follows §11.2 rule by rule:
    the value as written. An unknown status is excluded from current
    knowledge and never read as `stable`.
 
+A single mapping family (`usage_window`, `executor`, `attester`) whose every
+key was dropped reads as absent, with the per-key warnings kept; a mapping
+written as `{}` has nothing dropped and is kept. A source's own `usage_window`
+is the exception to key-by-key reading: it decodes as one value, so one bad
+key drops all of it and its good keys with it.
+
 All three codes are lint codes with default severity `warn`; none fails
 conformance. The concept keeps its place in the graph and every index.
 
@@ -84,6 +90,13 @@ longer drops `runtime`, and `executor.resource`, `executor.receipt`,
 `computation-runtime-missing` (error) fires whenever the decoded
 `runtime` is absent, which includes a `runtime` that is present but
 unreadable, because §10.2 forbids showing a value as attested without it.
+
+An empty required key follows rule 1 too. `required-key-missing` treats a key
+written as null, `""` or `[]` as absent and says "is empty" where an unwritten
+key says "is missing", ranged at the key's own line. The same test decides
+`field-value-unknown` (an empty value is absent, not an unknown value) and
+`generated-missing` (a `generated` written as null, `""` or `[]` counts as no
+block).
 
 `family-invalid` is narrowed to okfit's own `integrity` family, which still
 decodes whole. `frontmatter-missing` and `type-missing` left the conformance

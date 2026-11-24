@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:27:56Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: 843efb3e247ef8ec
+    body: 7da363eb727f484c
 ---
 
 # CLI
@@ -37,7 +37,7 @@ vocabulary) without loading the bundle (`--trust` is the one opt-in load, adding
 stale and unverified counts) -- cheap enough for a Claude Code
 hook to call on every session and every in-bundle write. `verify` also
 takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
-at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, filtered by `--verified`, `--unverified`, `--drifted` and `--stale`, and `sync` also takes `--since
+at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, filtered by `--verified`, `--unverified`, `--drifted`, `--stale` and `--current` (draft and stable only), with `--status unknown` selecting concepts whose `status` is outside the vocabulary (printed `unknown(<raw>)`; `query get` also prints a deprecated concept's `replacement`), and `sync` also takes `--since
 <YYYY-MM-DD>` (widens the log floor) and `--staged` (the pre-commit
 shape: stamps only the git index with `now` and re-adds what it writes)
 -- see [Engine](engine.md) for what each does; this package only threads
