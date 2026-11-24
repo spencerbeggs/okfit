@@ -9,6 +9,7 @@ import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
+import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
 
 /** Everything one lint rule may read; built once per `Validate.lint` call. */
@@ -23,7 +24,8 @@ export interface LintContext {
 /** One function per lint code (D-34). */
 export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 
-const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && raw[key] !== null;
+/** OKF 0.3 §11.2 rule 1: a key holding null, the empty string or the empty list is absent. */
+const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && !isAbsent(raw[key]);
 
 const diagnostic = (
 	file: string,
@@ -76,7 +78,14 @@ export const unknownType: LintRule = perConcept("unknown-type", (concept, contex
 export const requiredKeyMissing: LintRule = perConcept("required-key-missing", (concept, context) => {
 	const declared = context.config.types?.[concept.frontmatter.type]?.required ?? [];
 	const keys = [...new Set([...(context.config.concepts?.required ?? []), ...declared])];
-	return keys.filter((key) => !present(concept.frontmatter.raw, key)).map((key) => `Required key "${key}" is missing`);
+	const raw = concept.frontmatter.raw;
+	// Empty and missing share one code (R16); only the wording differs, and the range sits on the key when it is written.
+	return keys
+		.filter((key) => !present(raw, key))
+		.map((key) => ({
+			message: `Required key "${key}" is ${Object.hasOwn(raw, key) ? "empty" : "missing"}`,
+			path: [key],
+		}));
 });
 
 export const fieldValueUnknown: LintRule = perConcept("field-value-unknown", (concept, context) => {

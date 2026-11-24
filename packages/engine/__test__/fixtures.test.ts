@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { LoadedBundle } from "@okfit/core";
 import { Bundle, Graph, OkfVersion, OkfitConfig, Validate } from "@okfit/core";
+import { Profiles } from "@okfit/profiles";
 import { Effect, Option } from "effect";
 import { lintResources } from "../src/validate/resources.js";
 import type { ErrorCase, ProjectSeed } from "./fixtures/bundles.js";
@@ -57,6 +58,22 @@ describe("ERROR_PROJECTS: one defect each", () => {
 			const { codes } = yield* loadsClean("malformed-stale-after");
 			assert.deepStrictEqual(codes, [README, ["metrics/margin.md", "value-malformed"]]);
 		}),
+	);
+	it.effect(
+		"empty-required-title is required-key-missing (empty) under the software-project config; the clean seed has none",
+		() =>
+			Effect.gen(function* () {
+				const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config);
+				assert.isTrue(merged.concepts?.required?.includes("title"));
+				const requiredOf = (bundle: LoadedBundle) =>
+					Validate.lint(bundle, merged)
+						.filter((d) => d.code === "required-key-missing")
+						.map((d) => [d.file, d.message]);
+				const { bundle } = yield* loadsClean("empty-required-title");
+				assert.deepStrictEqual(requiredOf(bundle), [["metrics/margin.md", 'Required key "title" is empty']]);
+				const clean = yield* load(V03_PROJECT);
+				assert.deepStrictEqual(requiredOf(clean), []);
+			}),
 	);
 	it.effect("unparsable-version yields index-metadata-invalid on the root index", () =>
 		Effect.gen(function* () {
