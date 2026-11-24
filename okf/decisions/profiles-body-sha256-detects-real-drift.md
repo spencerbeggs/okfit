@@ -8,18 +8,21 @@ generated:
   by: okfit/claude-code
   at: 2026-10-11T20:51:30Z
 status: deprecated
+superseded_by: /decisions/integrity-family.md
 verified:
   - by: human:spencer
     at: 2026-09-09T23:08:38Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-24T17:12:02Z
 integrity:
   generated:
     body: 6fb998bd907cc31b
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 4d6ec0db46eec91d
+    at: 2026-11-24T17:12:02Z
+    content: f3bd2c59ba0b80d0
 ---
 
 # A body digest inside generated detects real drift, not a rewritten date

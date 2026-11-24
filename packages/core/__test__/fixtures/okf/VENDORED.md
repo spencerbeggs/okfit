@@ -5,7 +5,7 @@
 - **Tree:** <https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/fbbc7975388288244dfc62aea0066600b25b7c47/okf/bundles>
 - **License:** Apache-2.0; `LICENSE.md` beside this file is upstream `okf/LICENSE.md` verbatim (its copyright line is the unfilled template upstream; no NOTICE file exists upstream)
 - **Vendored via:** `./vendor.sh` (curl of raw URLs at the pinned commit; okfit has no `.repos/` entry for this source)
-- **Forward-looking home:** [GoogleCloudPlatform/open-knowledge-format](https://github.com/GoogleCloudPlatform/open-knowledge-format); its `acme_retail` and `stackoverflow` trees differ from this snapshot, so refreshes must re-pin deliberately
+- **Forward-looking home:** [open-knowledge-format/open-knowledge-format](https://github.com/open-knowledge-format/open-knowledge-format) (formerly `GoogleCloudPlatform/open-knowledge-format`); its sample trees differ from this snapshot, so refreshes must re-pin deliberately
 
 ## What this is
 

@@ -4,7 +4,7 @@ import { ApiExtractorPlugin } from "rspress-plugin-api-extractor";
 export default defineConfig({
 	root: "content",
 	title: "OKFit",
-	description: "Node.js tooling for Google Open Knowledge Format agentic documentation system",
+	description: "Node.js tooling for the Open Knowledge Format (OKF)",
 	outDir: "dist",
 	llms: true,
 	themeConfig: {

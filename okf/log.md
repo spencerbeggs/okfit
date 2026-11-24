@@ -36,6 +36,11 @@
 * Updated Agent plugin hooks contract
 * Added Migration to a newer OKF version is a report on validate, with two safe fixes
 * Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
+* Updated A body digest inside generated detects real drift, not a rewritten date
+* Updated Open Knowledge Format v0.3 specification
+* Updated The MCP server is Effect-native and speaks the legacy protocol era
+* Updated The validate hook fires PostToolUse, not PreToolUse
+* Updated okfit
 
 ## 2026-11-23
 

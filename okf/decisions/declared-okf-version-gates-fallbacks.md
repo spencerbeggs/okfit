@@ -13,15 +13,15 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T16:20:52Z
 status: stable
 integrity:
   generated:
-    body: 2052b7106efff37a
+    body: 6b23e6200b970892
   verified:
     by: human:spencer
-    at: 2026-11-24T14:56:24Z
-    content: be165a51d11802e9
+    at: 2026-11-24T17:12:02Z
+    content: 68a8cf7715ac334c
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:45Z
@@ -29,6 +29,8 @@ verified:
     at: 2026-11-24T02:55:14Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
+  - by: human:spencer
+    at: 2026-11-24T17:12:02Z
 ---
 
 # The declared OKF version gates the v0.2 fallbacks
@@ -36,9 +38,9 @@ verified:
 ## Context
 
 OKF v0.3 §6.2 resolves a bare path value (no `./`, `../` or `/`) from the
-file's own directory only. OKF v0.2 bundles, including this one before it
-moves, relied on a second try from the bundle root. §10.3 also changed how a
-computation is found: v0.3 names the first fenced code block of the
+file's own directory only. OKF v0.2 bundles, including this one until it
+declared 0.3, relied on a second try from the bundle root. §10.3 also changed
+how a computation is found: v0.3 names the first fenced code block of the
 `Computation` section, where v0.2 had no locator rule and okfit kept the
 whole depth-1 section body. Applying the v0.3 rules to every bundle would
 break bundles that okfit already accepted, so core needs to know which rules

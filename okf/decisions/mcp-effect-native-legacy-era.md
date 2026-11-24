@@ -8,18 +8,21 @@ generated:
   by: okfit/claude-code
   at: 2026-09-07T00:13:55Z
 status: deprecated
+superseded_by: /decisions/mcp-protocol-versions.md
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:07Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-24T17:12:02Z
 integrity:
   generated:
     body: 59a9ef0b71ad70df
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 7519e2ee8fe72335
+    at: 2026-11-24T17:12:02Z
+    content: 55bc5c5140474156
 ---
 
 # The MCP server is Effect-native and speaks the legacy protocol era
