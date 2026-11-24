@@ -219,6 +219,7 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 	it("catches an unquoted key, a member read and a bracket read of a profile field", () => {
 		expect(literalsIn("const o = { links_to: options.linksTo };")).toEqual(["links_to:"]);
 		expect(literalsIn("const o = { ...(a ? {} : { links_to: b }) };")).toEqual(["links_to:"]);
+		expect(literalsIn("const o = {\n\tlinks_to: b,\n\tother: 1,\n};")).toEqual(["links_to:"]);
 		expect(literalsIn("const v = raw.renders;")).toEqual([".renders"]);
 		expect(literalsIn('const v = raw["supersedes"];')).toEqual(['"supersedes"']);
 		expect(literalsIn("const v = raw.surface;")).toEqual([".surface"]);

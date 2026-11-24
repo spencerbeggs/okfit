@@ -300,7 +300,7 @@ describe("FrontmatterEdits.rendersDigests", () => {
 	);
 
 	it.effect("stamps under the legacy spelling when asked, so sync can migrate a file it has not renamed yet", () => {
-		const legacy = "---\ntype: Publication\nrenders:\n  - path: a.md\n    body_sha256: " + "f".repeat(64) + "\n---\n";
+		const legacy = `---\ntype: Publication\nrenders:\n  - path: a.md\n    body_sha256: ${"f".repeat(64)}\n---\n`;
 		return Effect.map(FrontmatterEdits.rendersDigests(legacy, [D1], "renders"), (edits) => {
 			const out = MarkdownEdit.applyAll(legacy, edits);
 			assert.include(out, `    body: ${D1}`);

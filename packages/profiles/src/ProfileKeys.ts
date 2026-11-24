@@ -51,14 +51,14 @@ export const PROFILE_FIELD_NAMES: ReadonlyArray<ProfileFieldName> = [
 ];
 
 /**
- * The literal frontmatter key of one profile field: `x-okfit-` plus the field name, `_` written as `-`
- * (`"links_to"` gives `"x-okfit-links-to"`). {@link ProfileKeys} and the function that builds each value are
- * both typed by it. The type handles one `_` per name, which is all the built-in fields use; the table test pins every field against the runtime spelling.
+ * The literal frontmatter key of one profile field: `x-okfit-` plus the field name, every `_` written as `-`
+ * (`"links_to"` gives `"x-okfit-links-to"`). {@link ProfileKeys} and the function that builds each value
+ * are both typed by it. `Rest` is the recursion's working name; leave it at its default.
  * @public
  */
-export type ProfileKey<N extends ProfileFieldName> = N extends `${infer Head}_${infer Tail}`
-	? `${typeof OKFIT_KEY_PREFIX}${Head}-${Tail}`
-	: `${typeof OKFIT_KEY_PREFIX}${N}`;
+export type ProfileKey<N extends ProfileFieldName, Rest extends string = N> = Rest extends `${infer Head}_${infer Tail}`
+	? ProfileKey<N, `${Head}-${Tail}`>
+	: `${typeof OKFIT_KEY_PREFIX}${Rest}`;
 
 /** The frontmatter spelling of one profile field, kebab case under the `x-okfit-` namespace. */
 const profileKey = <N extends ProfileFieldName>(name: N): ProfileKey<N> =>
@@ -67,8 +67,8 @@ const profileKey = <N extends ProfileFieldName>(name: N): ProfileKey<N> =>
 /**
  * The frontmatter key under which each built-in profile field is written: `x-okfit-` plus the field name,
  * with `_` written as `-` (so `links_to` is `x-okfit-links-to`). Every reader and writer of a profile field
- * goes through this table, never a literal. Each value's type is the key's literal spelling, so a computed property such as `[ProfileKeys.kind]` stays legal in an
- * interface or a `Schema.Struct`.
+ * goes through this table, never a literal. Each value's type is the key's literal spelling, so a computed
+ * property such as `[ProfileKeys.kind]` stays legal in an interface or a `Schema.Struct`.
  * @public
  */
 export const ProfileKeys: { readonly [N in ProfileFieldName]: ProfileKey<N> } = Object.fromEntries(
