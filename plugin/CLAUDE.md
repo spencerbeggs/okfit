@@ -69,12 +69,20 @@ and `PostToolUse` validate on `Write|Edit|Bash` — **not** `PreToolUse`:
 `PreToolUse` fires before the edited file exists on disk, and `okfit
 validate` has nothing to read at that point. The write has already landed by
 the time `PostToolUse` fires, so a block from that hook is a stop-and-fix
-signal, not a prevention. The hook keeps exactly two jobs (LSP phase 4,
-decision 8): it blocks on a `core.conformance` diagnostic for the edited
+signal, not a prevention. The hook keeps three jobs (LSP phase 4,
+decision 8, plus #476): it blocks on a `core.conformance` diagnostic for the edited
 file, and it reads the written file to block a `Write` (warn an `Edit`) of a
-concept with no `generated.by` when the config sets `actors.agent`. Copilot
+concept with no `generated.by` when the config sets `actors.agent`. A third
+check, from the `core.lint` code `non-concept-unlisted`
+([#476](https://github.com/spencerbeggs/okfit/issues/476), OKF 0.3 R8), stops
+a typeless `.md` the config does not list under `[bundle] non_concepts`: a
+`Write` blocks, an `Edit` warns, and the reason quotes the glob list from the
+lint's own message (the hook never parses config). No key or an older CLI
+means no lint, so no block. A `Bash` authoring write (`>`, `tee`, `cp`) of a
+typeless bundle file adds one scoped `okfit validate` call for it; edit-like
+`Bash` writes are never validated. Copilot
 honours no `PostToolUse` block, so there `okfit_stop` sends the same reason
-as `additionalContext`. A `Bash` call gets the `generated.by` check only
+as `additionalContext`. A `Bash` call gets the `generated.by` check and the typeless-file check
 ([#223](https://github.com/spencerbeggs/okfit/issues/223)): a heuristic scan
 of the command for write targets runs before `okfit context` is spawned, so
 a command with no `.md` write target (`cat README.md`) costs nothing. Targets

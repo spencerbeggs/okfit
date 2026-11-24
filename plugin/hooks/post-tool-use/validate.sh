@@ -15,7 +15,9 @@
 # (D-32, CLI/render/sort.ts:8-10). A core.conformance hit on that file
 # blocks (decision: "block", top-level per DOCS/hooks.md:416); everything
 # else `okfit validate` reports for the file is silent here, since the LSP
-# already surfaced it with a range. The second job reads the written file
+# already surfaced it with a range, except non-concept-unlisted (okfit #476):
+# a typeless .md the config does not list blocks a Write and warns an Edit.
+# The second job reads the written file
 # itself: a concept the agent wrote without generated.by blocks on Write
 # and warns on Edit (okfit #74, see below).
 #
@@ -25,7 +27,9 @@
 # write targets (see bash_write_targets), BEFORE `okfit context` is spawned,
 # so a command with no .md write target costs nothing. Exotic writes slip
 # through, which is acceptable because `okfit sync` backfills `generated`
-# from actors.agent. The conformance pass does not run for Bash. #74's split
+# from actors.agent. The conformance pass does not run for Bash; a typeless
+# authoring write gets one scoped validate for the non-concept-unlisted lint
+# (okfit #476), and edit-like writes are never validated. #74's split
 # carries over: authoring writes (>, >|, tee, cp/install destination) block;
 # edit-like writes (>>, tee -a, sed -i, mv destination) only warn, so a
 # human concept touched by sed -i is never force-attributed.
@@ -80,6 +84,28 @@ has_generated_by() {
 		NR > 1 && in_generated && /^[^[:space:]]/ { in_generated = 0 }
 		END { if (NR == 0) exit 1 }
 	' "$1"
+}
+
+# has_type file — succeeds when the file opens with a frontmatter block that
+# holds a top-level `type:` key (a concept, OKF 0.3 section 3.2). A file with
+# no frontmatter, or none with a type, is not a concept (okfit #476).
+has_type() {
+	awk '
+		NR == 1 && $0 != "---" { exit 1 }
+		NR > 1 && $0 == "---" { exit (found ? 0 : 1) }
+		NR > 1 && /^type:[[:space:]]*[^[:space:]]/ { found = 1 }
+		END { if (NR == 0) exit 1 }
+	' "$1"
+}
+
+# unlisted_line rel message — the one line the agent sees for a file the
+# non-concept-unlisted lint flagged. The glob list comes from the lint's own
+# message (`... matches no [bundle] non_concepts glob (<globs>); add ...`), so
+# the hook never parses the config.
+unlisted_line() {
+	local globs
+	globs=$(printf '%s' "$2" | sed -n 's/.*non_concepts glob (\(.*\)); add frontmatter.*/\1/p')
+	printf '%s: not a concept: it has no frontmatter type, and this bundle allows non-concept Markdown only where [bundle] non_concepts says (%s). Give it frontmatter with a type (okf-authoring), move it out of the bundle, or ask the human to add it to non_concepts.' "$1" "$globs"
 }
 
 # bash_write_targets command — prints candidate write targets ending in .md,
@@ -214,17 +240,15 @@ project_root=$(printf '%s' "$context_json" | jq -r '.project_root')
 agent_actor=$(printf '%s' "$context_json" | jq -r '.actors.agent // ""')
 generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and integrity.generated.body later"
 
-# The Bash branch (okfit #223): the generated.by check only. Resolve each
+# The Bash branch (okfit #223, #476): the generated.by check, plus one validate
+# call for typeless authoring writes. Resolve each
 # candidate against the project dir (the cwd after hook_cd_project), keep the
 # existing concept files under bundle_root; authoring writes block like a
 # Write, edit-like writes warn like an Edit.
 if [ -n "$bash_command" ]; then
-	if [ -z "$agent_actor" ]; then
-		hook_noop
-		exit 0
-	fi
-	block_offenders=""
-	warn_offenders=""
+	gen_offenders=""
+	typeless_targets=()
+	typeless_rels=" "
 	seen=" "
 	while IFS=$'\t' read -r kind target; do
 		[ -n "$target" ] || continue
@@ -255,17 +279,50 @@ if [ -n "$bash_command" ]; then
 		[ -f "$target" ] || continue
 		case "$seen" in *" $rel "*) continue ;; esac
 		seen="$seen$rel "
-		if ! has_generated_by "$target"; then
-			if [ "$kind" = write ]; then
-				block_offenders="${block_offenders}${rel}: ${generated_line}
-"
-			else
-				warn_offenders="${warn_offenders}${rel}: ${generated_line}
-"
-			fi
+		# A typeless authoring write is validated below (okfit #476); an
+		# edit-like write never is.
+		if [ "$kind" = write ] && ! has_type "$target"; then
+			typeless_targets+=("$target")
+			typeless_rels="$typeless_rels$rel "
+		fi
+		if [ -n "$agent_actor" ] && ! has_generated_by "$target"; then
+			gen_offenders="${gen_offenders}${kind}"$'\t'"${rel}"$'\n'
 		fi
 	done <<<"$bash_targets"
-	# Any authoring offender blocks, and the reason lists every offender.
+
+	# One validate call for every typeless authoring write; a hit on a
+	# file blocks. A CLI without the lint, or any failure, yields no hit.
+	unlisted_rels=" "
+	unlisted_lines=""
+	if [ "${#typeless_targets[@]}" -gt 0 ]; then
+		set +e
+		# shellcheck disable=SC2086
+		bash_validate_json=$($cli_cmd validate --root "$project_root" "${typeless_targets[@]}" --format json --skip-provenance 2>/dev/null)
+		set -e
+		if printf '%s' "$bash_validate_json" | jq -e '.diagnostics | type == "array"' >/dev/null 2>&1; then
+			while IFS=$'\t' read -r hit_file hit_message; do
+				[ -n "$hit_file" ] || continue
+				case "$typeless_rels" in *" $hit_file "*) ;; *) continue ;; esac
+				case "$unlisted_rels" in *" $hit_file "*) continue ;; esac
+				unlisted_rels="$unlisted_rels$hit_file "
+				unlisted_lines="${unlisted_lines}$(unlisted_line "$hit_file" "$hit_message")"$'\n'
+			done < <(printf '%s' "$bash_validate_json" | jq -r '.diagnostics[] | select(.source == "core.lint" and .code == "non-concept-unlisted") | [.file, .message] | @tsv')
+		fi
+	fi
+
+	# Any authoring offender blocks, and the reason lists every offender. A
+	# file the lint flagged is not a concept, so it carries no generated.by line.
+	block_offenders="$unlisted_lines"
+	warn_offenders=""
+	while IFS=$'\t' read -r kind rel; do
+		[ -n "$rel" ] || continue
+		case "$unlisted_rels" in *" $rel "*) continue ;; esac
+		if [ "$kind" = write ]; then
+			block_offenders="${block_offenders}${rel}: ${generated_line}"$'\n'
+		else
+			warn_offenders="${warn_offenders}${rel}: ${generated_line}"$'\n'
+		fi
+	done <<<"$gen_offenders"
 	all_offenders="${block_offenders}${warn_offenders}"
 	if [ -n "$block_offenders" ]; then
 		okfit_stop "${all_offenders%$'\n'}"
@@ -357,6 +414,15 @@ conformance_hits=$(printf '%s' "$validate_json" | jq --arg f "$bundle_relative" 
 
 conformance_count=$(printf '%s' "$conformance_hits" | jq 'length')
 
+# The non-concept-unlisted lint (okfit #476, R8): a typeless .md the config
+# does not list. The lint's message carries the glob list.
+unlisted_message=$(printf '%s' "$validate_json" | jq -r --arg f "$bundle_relative" \
+	'[.diagnostics[] | select(.source == "core.lint" and .code == "non-concept-unlisted" and .file == $f)][0].message // ""')
+unlisted_text=""
+if [ -n "$unlisted_message" ]; then
+	unlisted_text=$(unlisted_line "$bundle_relative" "$unlisted_message")
+fi
+
 # The generated.by check (okfit #74). okf-authoring rule 3 asks the agent
 # to stamp `generated.by: <actors.agent>` on every concept it writes, and
 # under one twelve-agent brief 109 of 268 concepts carried it: the rule in
@@ -381,6 +447,10 @@ case "$bundle_relative" in
 		fi
 		;;
 esac
+# A file the lint flagged is not a concept: its line replaces generated.by.
+if [ -n "$unlisted_text" ]; then
+	missing_generated_by=0
+fi
 
 # Branch 9: every core.conformance diagnostic is severity error by
 # construction (D-33/D-34), so this collapses to "block on any
@@ -394,7 +464,22 @@ ${lines}"
 		reason="${reason}
   ${generated_line}"
 	fi
+	if [ -n "$unlisted_text" ]; then
+		reason="${reason}
+  ${unlisted_text}"
+	fi
 	okfit_stop "$reason"
+	exit 0
+fi
+
+# Branch 9a (okfit #476): a Write of a non-concept the config does not list
+# blocks; an Edit warns.
+if [ -n "$unlisted_text" ]; then
+	if [ "$tool_name" = "Write" ]; then
+		okfit_stop "$unlisted_text"
+	else
+		hook_context "$unlisted_text"
+	fi
 	exit 0
 fi
 
