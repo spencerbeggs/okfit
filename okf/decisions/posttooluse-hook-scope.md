@@ -8,7 +8,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-11-24T10:28:07Z
 status: stable
 verified:
   - by: human:spencer
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-25T18:29:21Z
 integrity:
   generated:
-    body: b2c42230dd94769e
+    body: 2e16855653f6298e
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -101,6 +101,12 @@ feedback at all until the next `okfit validate` run; that gap is
 accepted for the same reason the original PostToolUse-not-PreToolUse
 decision accepted validating bytes only after they exist on disk: the
 alternative was building surface nothing else in the plan needed.
+
+A third job was added later: the hook reads the `non-concept-unlisted` lint
+and blocks a `Write` (or a Bash authoring write) of an unlisted non-concept
+`.md`, and warns on an `Edit` (see [Markdown that is not a concept is
+skipped, not an error](non-concept-markdown-is-skipped.md)). It is the one
+lint the hook reads, because the language server cannot stop the write.
 
 ## Verification
 

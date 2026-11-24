@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T10:28:07Z
 tags:
   - architecture
 verified:
@@ -29,7 +29,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: 7139950be18e10a4
+    body: 908b42af1e8abf72
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -86,9 +86,20 @@ required: [] } }`; `lifecycle: { default_stale_after: Duration.days(90) }`
 `extensions` all start empty, before a profile merges its own vocabulary
 in.
 
+## `[bundle] non_concepts`
+
+`non_concepts` is an optional list of globs, relative to the bundle root, of
+the `.md` files allowed to have no frontmatter or no `type`. `DEFAULTS` has no
+value for it, so core guards nothing by itself, and a glob that does not
+compile fails config decode. The software-project profile sets it to
+`**/README.md`, `**/AGENTS.md`, `**/CONTRIBUTING.md` and `**/SKILL.md`; an
+empty list allows none. A listed file still draws `type_missing` or
+`frontmatter_missing`. See [Markdown that is not a concept is skipped, not an
+error](../decisions/non-concept-markdown-is-skipped.md).
+
 ## Lint severities
 
-The thirty-nine default lint codes (the twenty-nine below plus the ten that OKF v0.3 support added, listed after them): `broken_links`, `missing_index`,
+The forty default lint codes (the twenty-nine below, the ten that OKF v0.3 support added, listed after them, and `non_concept_unlisted`, described after those): `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
 `publication_drift`, `surface_unmatched`, `verified_before_change` and `verified_drift` default `warn`;
@@ -98,6 +109,7 @@ see below); `unknown_type`, `required_key_missing` (a key written as null, `""` 
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
 `actor_email` (an actor contains `@`) and `verified_actor_unknown` (a verifier matches no entry of a non-empty `[actors].humans`) default `warn`, as does `verified_drift` when the bound verifier has left the list;
 The ten codes added for OKF v0.3 default `warn`, except `resource_outside_project`, which is `info`: `index_metadata_invalid` (the root `index.md` carries an `okf_version` that is not a quoted `<major>.<minor>` string, or a non-string `title`, `description` or `license`), `entry_ignored` (a `sources`, `verified`, `generated` or `parameters` entry lacks a required key or has one okfit cannot read, so the entry is ignored), `value_malformed` (a defined value cannot be read in its shape and is read as absent; a malformed `stale_after` reads as `malformed`), `value_unknown` (a `status` outside `draft`, `stable` and `deprecated` is kept and the concept is not read as current knowledge), `frontmatter_missing` and `type_missing` (the `.md` file is not a concept and is skipped; they were conformance errors in OKF v0.2), and `symlink_escape` (a bundle file is a symbolic link out of the bundle root and is not read). The other three are `resource_outside_project` (default `info`, described below), `superseded_by_orphan` (a concept carries `superseded_by` but its status is not `deprecated`) and `superseded_by_unresolved` (a deprecated concept's `superseded_by` resolves to an asset, an external value or the concept itself; a missing target stays `broken_links`). `actor_prefix_unknown` accepts `team:` and also checks `sources[].author`. The config schema label stays `1.0`; the keys are additive and the document has not been catalogued.
+`non_concept_unlisted` (default `warn`) is an okfit opinion, not OKF conformance (§3.2 allows such files): it reports a `.md` file that `frontmatter_missing` or `type_missing` skipped and that no glob of `[bundle] non_concepts` matches. It is silent while `non_concepts` is absent.
 `status_missing` defaults `off`, because the spec reads an absent `status`
 as `stable` and core keeps no opinion about it -- the software-project
 profile is the layer that raises it to `warn` (issue #110), the one lint

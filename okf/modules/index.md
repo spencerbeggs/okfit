@@ -1,6 +1,6 @@
 # Module
 
-* [AI Plugins](ai-plugins.md) - The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.2 and keep a repository's okf bundle current.
+* [AI Plugins](ai-plugins.md) - The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.3 and keep a repository's okf bundle current.
 * [CLI](cli.md) - The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli-kit, with audience flags and interactive prompts.
 * [Core](core.md) - The no-internal-deps base package -- OKF frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
 * [Engine](engine.md) - The shared okfit engine -- platform layer, config discovery, and the validate/verify/sync/init/context programs both the CLI and the MCP server depend on directly.

@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T10:28:07Z
 status: stable
 integrity:
   generated:
-    body: 4dd48327fb6d3eef
+    body: 8bef682aa48a3696
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -63,13 +63,29 @@ The consequence for exit codes is accepted: a bundle that holds a README or
 any other typeless markdown file now validates with exit code 0 and a
 warning, where it exited 2 before.
 
-The plugin's PostToolUse hook blocks only on `core.conformance` findings.
-Because the two codes left that tier, a Write of a typeless or
-frontmatter-less `.md` into a bundle no longer blocks the agent; a bats
-test pins this. Whether okfit should still stop an agent from writing such a
-file into a bundle is an open question for the owner, not a decision: it
-would be an okfit opinion on top of the spec, to be carried by the profile
-or the hook, not by core.
+Whether a typeless file belongs in a bundle at all is okfit's opinion, not
+conformance, because §3.2 allows such files. Two pieces carry it, and core
+stays free of any default:
+
+- `[bundle] non_concepts` is a list of globs, relative to the bundle root,
+  of the `.md` files allowed to have no frontmatter or no `type`. It has no
+  core default. A glob that does not compile fails config decode. The
+  software-project profile sets it to `**/README.md`, `**/AGENTS.md`,
+  `**/CONTRIBUTING.md` and `**/SKILL.md`, the four names §3.2 lists.
+- The lint `non-concept-unlisted` (key `non_concept_unlisted`, default
+  `warn`) reports a file that `Bundle.load` skipped as `frontmatter-missing`
+  or `type-missing` and that no glob matches. It is silent when the key is
+  absent, so a bundle on no profile and no key has no guard. A listed file
+  still draws `type-missing` or `frontmatter-missing`, as §3.2 asks of a
+  validator; an author who wants silence sets those two lints to `off`.
+
+The plugin's PostToolUse hook has a third job on top of the two in
+[its scope Decision](posttooluse-hook-scope.md): it reads that lint. A
+`Write`, or a Bash authoring write (`>`, `tee`, `cp`), that produces an
+unlisted non-concept `.md` blocks, and an `Edit` of one warns. The hook
+still fires after the file exists, so it is stop-and-fix, not prevention.
+The `okf-authoring`
+skill carries the same rule as rule 22.
 
 ## Alternatives rejected
 
@@ -85,8 +101,11 @@ matches §3.2.
 
 A concept that loses its `type` in an edit now disappears from the graph with
 a warning instead of failing validation, so a team that wants the old
-strictness raises `type_missing` to `error` in `[lint]`. The hook is quieter
-than before until the open question is settled.
+strictness raises `type_missing` to `error` in `[lint]`. On the
+software-project profile the guard catches the common case, an agent writing
+a typeless file that is not one of the four listed names; a bundle that sets
+`non_concepts = []` allows none, and a config without the key is unguarded.
+`non_concept_unlisted` is a public config key, so the lint keys number forty.
 
 `sync` never stamps or rewrites a concept file that is a link out of the
 bundle, because `Bundle.load` drops it, and an engine test pins that. The

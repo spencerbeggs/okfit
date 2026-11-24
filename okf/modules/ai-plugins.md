@@ -1,7 +1,7 @@
 ---
 type: Module
 title: AI Plugins
-description: The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.2 and keep a repository's okf bundle current.
+description: The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.3 and keep a repository's okf bundle current.
 status: stable
 resource: ../../plugin
 kind: plugin
@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-11-24T10:28:07Z
 integrity:
   generated:
-    body: 4936673faea44d50
+    body: e63014b36a4c95c3
 ---
 
 # AI Plugins
@@ -22,7 +22,7 @@ integrity:
 `plugin/` is one pluginfinity source (`plugin/pluginfinity.config.ts`) that
 `pluginfinity build` turns into a Claude Code plugin (`plugin/builds/claude/`)
 and a GitHub Copilot plugin (`plugin/builds/copilot/`); both teach an agent
-OKF v0.2 and keep a repository's `okf/` bundle current
+OKF v0.3 and keep a repository's `okf/` bundle current
 (`plugin/README.md:1-3`). It replaced the earlier Claude Code-only plugin at
 `plugins/claude-code` (workspace package `@okfit/claude-code-plugin`), which
 is gone along with the `plugins/` directory. `builds/` is generated,
@@ -43,11 +43,12 @@ through the `spencerbeggs/bot` marketplace, not yet listed
 
 ## Layout
 
-Ten skills (`okf-spec`, `okf-authoring`, `okf-config`, `okf-context`,
-`okf-finalize`, and the docs set `docs-detect-shape`, `docs-templates`,
+Eleven skills (`okf-spec`, `okf-authoring`, `okf-config`, `okf-context`,
+`okf-finalize`, `okf-upgrade` (migrating a bundle to OKF v0.3 with `okfit
+validate --target 0.3`), and the docs set `docs-detect-shape`, `docs-templates`,
 `docs-badges`, `docs-humanize`, `docs-render`) and two agents, split by write
 direction: `okf-docs` writes the bundle (and `CLAUDE.md` pointers) and
-preloads the five `okf-*` skills; `okf-publisher` writes the published pages
+preloads the six `okf-*` skills; `okf-publisher` writes the published pages
 outside `okf/` (READMEs, `docs/`) from Surface and Publication concepts,
 preloads the five `docs-*` skills, and touches the bundle only through
 `okfit sync --publication` (`plugin/CLAUDE.md:20-42`; the skills table at
@@ -78,10 +79,15 @@ deprecated and superseded by [The PostToolUse hook keeps only
 conformance blocking and the generated.by check, once the language
 server delivers lint and profile
 findings](../decisions/posttooluse-hook-scope.md)).
-As of LSP phase 4 the hook keeps exactly two jobs: it blocks on a `core.conformance`
+As of LSP phase 4 the hook keeps two jobs, plus a third added for non-concept
+Markdown: it blocks on a `core.conformance`
 diagnostic for the edited file, and it reads the written file to block a
 `Write` (warn an `Edit`) of a concept with no `generated.by` when the
-config sets `actors.agent`. It no longer emits `additionalContext` for
+config sets `actors.agent`. The third reads the `non-concept-unlisted` lint: a `Write` or Bash authoring
+write of a `.md` that has no `type` and that `[bundle] non_concepts` does not
+list blocks, and an `Edit` warns (see [Markdown that is not a concept is
+skipped, not an error](../decisions/non-concept-markdown-is-skipped.md)). It no
+longer emits `additionalContext` for
 `core.lint` or profile diagnostics — the registered language server (see
 [LSP](lsp.md)) now delivers those findings with precise ranges directly
 in the editor (`plugin/CLAUDE.md:64-76`). `PostToolUse` still
