@@ -1,12 +1,12 @@
 ---
 type: Decision
 title: Generated.at is the author date of the last commit that changed the body
-description: generated.at is computed as the author date of the newest commit whose blob changed the concept's body, never the stamp commit's date.
+description: Derivation computes generated.at as the author date of the newest commit whose blob changed the concept's body, never the stamp commit's date; sync stamps it, or the earlier binding.at of a verification of the same content.
 tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-09-06T11:25:53Z
+  at: 2026-11-24T06:04:04Z
 status: stable
 verified:
   - by: human:spencer
@@ -15,7 +15,7 @@ verified:
     at: 2026-10-11T14:21:44Z
 integrity:
   generated:
-    body: 89afe0f974544362
+    body: 211ce0705a6d3b90
   verified:
     by: human:spencer
     at: 2026-10-11T14:21:44Z
@@ -42,6 +42,11 @@ the stamp commit, not the body-change commit
 value taken is the author date (`%aI`), not the committer date; the
 committer date is still carried on the returned entry for callers that want
 it (ruling P-4).
+
+That is the derived instant. `okfit sync` stamps it as `generated.at`, except
+that it stamps the earlier `binding.at` when a human verification of exactly
+the current content is bound (see [Every okfit digest lives in one integrity
+family](integrity-family.md)).
 
 ## Alternatives rejected
 

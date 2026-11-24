@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 integrity:
   generated:
-    body: bced9cbefc285042
+    body: 7fd1a76fd6c6077b
 ---
 
 # Profiles
@@ -98,9 +98,10 @@ with `ContentUnhashableError`, naming the frontmatter path (okfit#327).
 
 The `Trust` module derives a `ConceptSignal`: the spec trust tier (from
 current verification events only, OKF v0.3 §5.3), `integrity` of `current`,
-`drifted` or `none`, a drift reason (`content-changed`, `unbound`,
-`entry-superseded`, `actor-not-allowed`, `verified-before-change` or
-`content-unhashable`) and staleness. `verified-before-change` means the bound
+`drifted` or `none`, a drift reason and staleness. `Trust.evaluate` decides the reasons in this
+order: `unbound`, `entry-superseded`, `actor-not-allowed`,
+`verified-before-change`, then (once the digest is computed)
+`content-unhashable` and `content-changed`. `verified-before-change` means the bound
 entry's `at` is earlier than `generated.at`, so it is no longer a current
 event; it names the editor from `generated` (`edited_by`, `edited_at`), and
 `Trust.evaluate` checks it after the allow-list and before it compares

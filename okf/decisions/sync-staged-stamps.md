@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:18:47Z
+  at: 2026-11-24T06:04:04Z
 status: stable
 verified:
   - by: human:spencer
@@ -22,7 +22,7 @@ verified:
     at: 2026-11-23T22:13:15Z
 integrity:
   generated:
-    body: 6023acdb73359b3c
+    body: c05db58fd3986677
   verified:
     by: human:spencer
     at: 2026-11-23T22:13:15Z
@@ -45,12 +45,17 @@ for an ordinary run: a file staged today may be committed next week.
 
 `okfit sync --staged` is a caller policy layered on top of that rule, not
 a change to it. It selects only the concepts in the git index, stamps
-`generated.at` with the current instant (truncated to seconds) and
+`generated.at` with the current instant (truncated to seconds), or the earlier
+`binding.at` when a human verification of exactly the current content is
+bound (see [Every okfit digest lives in one integrity
+family](integrity-family.md)), and
 `integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit. It never walks history.
 Its log mode (#295) writes the commit's own `log.md` entry from the same
-facts: the group date is the stamp instant, which is the author date a
-post-commit walk would derive a moment later; the verb is `Added` for a
+facts: the group date is the hook's instant, which is the author date a
+post-commit walk would derive a moment later. It equals the `generated.at`
+stamp except when that stamp was clamped to the earlier `binding.at`, in which
+case the two differ; the verb is `Added` for a
 path HEAD lacks and `Updated` otherwise; the text is the concept's title.
 A later ordinary sync finds that entry already named and leaves the log
 `unchanged`. A `log.md` with unstaged edits is skipped as `dirty`, since

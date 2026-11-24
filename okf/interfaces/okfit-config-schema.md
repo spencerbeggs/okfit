@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 tags:
   - architecture
 verified:
@@ -27,7 +27,7 @@ verified:
     at: 2026-11-24T02:55:14Z
 integrity:
   generated:
-    body: 8273c70848130adb
+    body: 7139950be18e10a4
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -129,8 +129,7 @@ repeat it. `verified_drift` fires when a human `verified` entry no longer covers
 concept's content: no binding (`unbound`), changed content, or a later
 unbound entry. Draft and deprecated concepts are exempt (`okfit verify`
 refuses them), though their signal still reads drifted. Raise it to `error` to gate on
-it, or set `off` to skip the hashing. This repository's own `.config/okfit.toml` sets it `off` until a
-human has re-verified the existing entries — see [Verification drift is a
+it, or set `off` to skip the hashing. This repository's own `.config/okfit.toml` leaves it at `warn` — see [Verification drift is a
 signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
 `generated_missing` (issue #73) fires only when `actors.agent` is set: a
 concept with no `generated` block would otherwise only surface as a skip in

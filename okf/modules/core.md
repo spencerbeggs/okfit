@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 integrity:
   generated:
-    body: a4c676f703e50b54
+    body: 543f146310fe2cee
 ---
 
 # Core
@@ -158,8 +158,8 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   skipped](../decisions/non-concept-markdown-is-skipped.md)).
 - **Trust tier.** `Derive.trustTier` counts only current verification
   events (OKF v0.3 §5.3): an event whose `at` is equal to or later than
-  `generated.at` by instant, or any event when `generated` or `generated.at`
-  is absent. An earlier event stays in the file as history and counts for
+  `generated.at` by instant, or any event when `generated` is absent (§5.3);
+  okfit reads a `generated` with no `at` the same way. An earlier event stays in the file as history and counts for
   nothing. The rule applies to every bundle, whatever version it declares
   (§11.2). `Derive.isCurrent` and `Derive.currentVerifications` are public.
   A `human:` current event gives `human-reviewed`; any other current event,

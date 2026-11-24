@@ -7,14 +7,14 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 integrity:
   generated:
-    body: 465023c7007d2635
+    body: b283a2e7b8d43c7a
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -50,7 +50,8 @@ not hold.
 
 The trust tier is the spec's. Under OKF v0.3 section 5.3 only current
 verification events count: an event whose `at` is equal to or later than
-`generated.at` (any event when `generated` or `generated.at` is absent). An
+`generated.at`, and every event is current when `generated` is absent (§5.3).
+okfit reads a `generated` with no `at` the same way. An
 earlier event stays in the file as history and counts for nothing, so a
 concept edited after its verification reads as a lower tier. That is the
 spec's rule, applied to every bundle whatever it declares, and okfit's
@@ -60,7 +61,7 @@ Integrity is stricter than the tier. Profiles derives whether a binding is
 still current from the bound digest, the current content, and whether the
 bound entry is itself a current event by section 5.3. It reports drift with
 the reasons `content-changed`, `unbound`, `entry-superseded`,
-`actor-not-allowed` and `verified-before-change`, through the
+`actor-not-allowed`, `verified-before-change` and `content-unhashable`, through the
 `verified-drift` lint and verify's results and envelope; a bound entry dated
 before the last change is `verified-before-change`, reported by core's lint
 of the same name and not repeated by `verified-drift`. Machine entries

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 tags:
   - architecture
 verified:
@@ -37,7 +37,7 @@ verified:
     at: 2026-11-24T02:55:14Z
 integrity:
   generated:
-    body: 0c297ad05d54f9da
+    body: 2be34607692fc3f8
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -278,9 +278,11 @@ one-time migration moves a legacy `generated.body_sha256` to
 `integrity.generated.body` and a Publication's `renders[].body_sha256` to
 `renders[].body` (16 hex); the plan and the JSON/human output report them
 as `migrated`, and a concept that cannot be spliced safely is skipped as
-`integrity-unsupported` or `renders-unsupported`. When the concept's
-`integrity.verified` binds its latest human entry and covers exactly the
-current content, it stamps `min(commit instant, binding.at)` instead, so the
+`integrity-unsupported` or `renders-unsupported`. `generated.at` is the derived instant (the last
+body-changing commit's author date; under `--staged`, the hook's clock). When
+the concept's `integrity.verified` binds its latest human entry and covers
+exactly the current content, sync stamps `min(derived instant, binding.at)`
+instead, so the
 edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
 §5.3); the `[actors].humans` allow-list does not gate this. It never
 touches `verified` and never writes `integrity.verified` and takes no clock — the same `now`-as-argument

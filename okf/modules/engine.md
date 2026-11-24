@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 integrity:
   generated:
-    body: 4eef597eb9af6191
+    body: c6bccd5dec3d07c2
 ---
 
 # Engine
@@ -93,9 +93,9 @@ Every `verified` write (`runVerify`, `runVerifyBatch`, `runVerifyIds`)
 also binds `integrity.verified`; the refresh path rewrites the binding in
 the same edit. Candidate selection counts an actor as already verified only
 when it holds the current binding, and a binding is current only while its
-bound entry is a current event by OKF v0.3 §5.3, so batch, the picker and
-`stale --verify` re-offer drifted concepts, a concept verified before its last
-change included. A write that would not be current is refused: `--at` before
+bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-offer drifted concepts, a concept verified before
+its last change included. `stale --verify`'s candidates come from staleness
+alone (`selectStaleCandidates` never consults integrity). A write that would not be current is refused: `--at` before
 `generated.at`, or a `generated.at` in the future, fails with
 `VerifyNotCurrentError` (exit `3`) in `runVerify`, `runVerifyBatch` and
 `runVerifyIds` alike, and a batch fails whole with nothing written. `verify/revoke.ts` implements

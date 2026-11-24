@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 status: stable
 supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,7 +15,7 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 integrity:
   generated:
-    body: 35fba1374e04f78d
+    body: d96fb1111c604cf9
   verified:
     by: human:spencer
     at: 2026-10-31T21:31:20Z
@@ -59,8 +59,9 @@ hashes. The old keys, `generated.body_sha256` and Publication
 `integrity` is a separate okfit signal beside the authoritative spec trust
 tier, never a replacement for it: the tier comes from the spec's current
 verification events (OKF v0.3 section 5.3), integrity from the bound digest.
-`okfit sync` stamps `generated.at` as the commit instant, except that it
-stamps `min(commit instant, binding.at)` when `integrity.verified` binds the
+`okfit sync` stamps `generated.at` as the derived instant (under `--staged`,
+the hook's clock), except that it
+stamps `min(derived instant, binding.at)` when `integrity.verified` binds the
 latest human entry and covers exactly the current content. The binding proves
 that content existed at `binding.at`, which makes that instant the content's
 last meaningful change (section 5.2), and it keeps a verification current

@@ -25,6 +25,8 @@
 * Updated Every okfit digest lives in one integrity family, outside the spec's families
 * Updated Verification drift is a signal to weigh, never a gate
 * Updated integrity frontmatter family
+* Updated Generated.at is the author date of the last commit that changed the body
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 
 ## 2026-11-23
 

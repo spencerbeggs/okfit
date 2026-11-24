@@ -8,10 +8,10 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T06:04:04Z
 integrity:
   generated:
-    body: a77fd85f1aa807c3
+    body: 26960d2572f81aba
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -55,8 +55,10 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
 - Candidates include a drifted concept even when this actor already has an
   entry, because "already verified" now means holding the current binding,
   and a binding is current only while its bound entry is a current event
-  under OKF v0.3 section 5.3 (not before `generated.at`). A concept verified
-  before its last change is therefore a candidate again.
+  under OKF v0.3 section 5.3 (not before `generated.at`). The stale picker's
+  candidates, however, are chosen by staleness alone
+  (`selectStaleCandidates` never consults integrity); the only currency check
+  on this path is the refusal at write time.
 - A write whose attestation instant is before the concept's `generated.at`
   is refused as `VerifyNotCurrentError` (exit `3`), as for every verify path,
   and as a batch it fails whole with nothing written.
