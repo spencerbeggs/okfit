@@ -1,5 +1,5 @@
 import type { Frontmatter } from "@effected/markdown";
-import { FrontmatterDecodeError, MarkdownDocument, YamlFrontmatter } from "@effected/markdown";
+import { FrontmatterDecodeError, MarkdownDocument, MarkdownVisitor, YamlFrontmatter } from "@effected/markdown";
 import { DescendError, PosixPath, confineReal } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
 import type { PlatformError } from "effect";
@@ -142,14 +142,30 @@ const diagnostic = (
 /** CommonMark: a fence opens with three backticks or tildes after at most three spaces; four or more is indented code. */
 const FENCE_OPENING = /^ {0,3}(```|~~~)/;
 
-/** OKF 0.3 10.3: the code of the first fenced block among the root children of the first `Computation` section. */
+/**
+ * OKF 0.3 10.3: the code of the first fenced block in the first `Computation` section, in source order.
+ *
+ * @remarks
+ * Blocks nested in a list item or block quote count (R17): the section's blocks are walked depth first.
+ * A deeper sub-heading does not end the section (`sectionByHeading` keeps its subsections), and the first
+ * fenced block wins even when it sits in a list item before a root-level fence. A code node's position starts
+ * at the fence character when it is fenced and at its indentation when it is an indented block, so the fence
+ * test reads from the node's own start; its `value` already has the container's indentation and `> ` markers
+ * removed and the inner relative indentation kept.
+ */
 const fencedComputation = (document: MarkdownDocument): Option.Option<string> =>
 	Option.flatMapNullishOr(document.sectionByHeading("Computation"), (section) => {
-		for (const child of section.children) {
-			if (child.type !== "code") continue;
-			const offset = child.position.start.offset;
-			const lineStart = document.source.lastIndexOf("\n", offset - 1) + 1;
-			if (FENCE_OPENING.test(document.source.slice(lineStart, lineStart + 6))) return child.value;
+		const first = section.children[0];
+		const last = section.children[section.children.length - 1];
+		if (first === undefined || last === undefined) return undefined;
+		// `walk` takes a root, so walk the document once (pre-order is source order) and keep the section's span.
+		const from = first.position.start.offset;
+		const to = last.position.end.offset;
+		for (const event of MarkdownVisitor.walk(document.root)) {
+			if (event._tag !== "Enter" || event.node.type !== "code") continue;
+			const offset = event.node.position.start.offset;
+			if (offset < from || offset >= to) continue;
+			if (FENCE_OPENING.test(document.source.slice(offset, offset + 6))) return event.node.value;
 		}
 		return undefined;
 	});
