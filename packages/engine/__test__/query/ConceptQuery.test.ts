@@ -249,6 +249,8 @@ describe("ConceptQuery.list current (OKF 0.3 5.4)", () => {
 					assert.deepStrictEqual(current, [...new Set(current)].toSorted());
 					assert.strictEqual(current.filter((id) => id === "metrics/margin").length, 1);
 					assert.notInclude(current, "metrics/margin-older");
+					// `current` drops margin-older either way; the chain itself is what `get` reports
+					assert.strictEqual((yield* ConceptQuery.get(bundle, "metrics/margin-older")).replacement, "metrics/margin");
 				}),
 		),
 	);

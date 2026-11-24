@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import type { Scope } from "effect";
 import { Effect } from "effect";
 import { copyFixtureProject, copySupersededProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
@@ -36,9 +37,9 @@ const get = (id: string) =>
 		return yield* harness.callTool("get_concept", { id });
 	});
 
-const getFrom = (project: typeof copyFixtureProject | typeof copySupersededProject, id: string) =>
+const getFrom = (project: Effect.Effect<string, never, Scope.Scope>, id: string) =>
 	Effect.gen(function* () {
-		const root = yield* project === copyFixtureProject ? copyFixtureProject("project") : copySupersededProject;
+		const root = yield* project;
 		const harness = yield* makeHarness(root);
 		yield* harness.initialize;
 		return (yield* harness.callTool("get_concept", { id })).structuredContent as {
@@ -55,7 +56,10 @@ describe("get_concept", () => {
 			);
 			assert.strictEqual((yield* getFrom(copySupersededProject, "metrics/gross-margin")).replacement, null);
 			// control: the unmodified fixture's deprecated concept names no replacement
-			assert.strictEqual((yield* getFrom(copyFixtureProject, "metrics/gross-margin-legacy")).replacement, null);
+			assert.strictEqual(
+				(yield* getFrom(copyFixtureProject("project"), "metrics/gross-margin-legacy")).replacement,
+				null,
+			);
 		}).pipe(Effect.scoped),
 	);
 

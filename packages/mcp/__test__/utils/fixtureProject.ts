@@ -31,9 +31,8 @@ export const copySupersededProject = Effect.gen(function* () {
 	const root = yield* copyFixtureProject("project");
 	const file = `${root}/bundle/metrics/gross-margin-legacy.md`;
 	const text = yield* fs.readFileString(file);
-	yield* fs.writeFileString(
-		file,
-		text.replace("status: deprecated\n", "status: deprecated\nsuperseded_by: /metrics/gross-margin.md\n"),
-	);
+	const edited = text.replace("status: deprecated\n", "status: deprecated\nsuperseded_by: /metrics/gross-margin.md\n");
+	if (edited === text) return yield* Effect.die(new Error(`fixture drift: no "status: deprecated" line in ${file}`));
+	yield* fs.writeFileString(file, edited);
 	return root;
 }).pipe(Effect.provide(NodeServices.layer), Effect.orDie);

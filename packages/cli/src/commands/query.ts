@@ -91,7 +91,9 @@ const staleFlag = Flag.Boolean("stale").pipe(
 
 const currentFlag = Flag.Boolean("current").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("only current knowledge: drafts and stable concepts, with a deprecated concept's replacement"),
+	Flag.withDescription(
+		"only draft and stable concepts; deprecated and unknown-status concepts are dropped, so a replacement is listed only if it passes the other filters",
+	),
 );
 
 /**
