@@ -2,7 +2,7 @@ import { CliInteractive } from "@effected/cli-kit";
 import { CliUi, Confirm } from "@effected/cli-kit/ui";
 import type { OkfitConfig } from "@okfit/core";
 import type { ChangeSince } from "@okfit/engine";
-import { VerifyStatusUnknownError, changeSince, inspectDrift } from "@okfit/engine";
+import { changeSince, inspectDrift } from "@okfit/engine";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
 import type { DateTime } from "effect";
@@ -59,11 +59,9 @@ export const confirmReverify = (options: {
 			bundleRoot: options.bundleRoot,
 			config: options.config,
 			now: options.now,
+			// OKF 0.3 5.4: inspectDrift refuses an unknown status exactly as the write would, before any diff or prompt.
+			...(options.status === undefined ? {} : { status: options.status }),
 		});
-		// OKF 0.3 5.4: refuse before the diff and the prompt, not after the person has said yes.
-		if (inspection.unknownStatus !== null && options.status === undefined) {
-			return yield* new VerifyStatusUnknownError({ id: inspection.id, status: inspection.unknownStatus });
-		}
 		if (inspection.drift === null) return true;
 		const change: ChangeSince | undefined =
 			inspection.drift === "unbound" || inspection.boundAt === undefined

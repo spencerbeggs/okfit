@@ -201,6 +201,46 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 
 	it(
+		"verify <id> on a drifted concept with an unknown status is refused before the prompt; --stable and --draft prompt and fix it (OKF 0.3 5.4)",
+		async () => {
+			const { sandbox, env, files } = await verifyFixture();
+			try {
+				const file = files[0] as string;
+				const first = await runPty(["verify", "decisions/a", "--human"], { cwd: sandbox.cwd, env, steps: [] });
+				assert.strictEqual(first.exitCode, 0, first.output);
+				const archive = async (from: string, to: string): Promise<string> => {
+					// `status` is outside the content digest, so a body edit is what makes the concept drift.
+					const text = `${(await readFile(file, "utf8")).replace(from, to)}\nAn edit after the verification.\n`;
+					await writeFile(file, text, "utf8");
+					return text;
+				};
+				const refusedText = await archive("title: Alpha\n", "title: Alpha\nstatus: archived\n");
+
+				const refused = await runPty(["verify", "decisions/a", "--human"], { cwd: sandbox.cwd, env, steps: [] });
+				assert.strictEqual(refused.exitCode, 3, refused.output);
+				assert.match(refused.output, /has status "archived"/);
+				assert.notMatch(refused.output, /Re-verify/);
+				assert.strictEqual(await readFile(file, "utf8"), refusedText);
+
+				for (const flag of ["--stable", "--draft"] as const) {
+					const fixed = await runPty(["verify", "decisions/a", flag, "--human"], {
+						cwd: sandbox.cwd,
+						env,
+						steps: [{ waitFor: /Re-verify decisions\/a\?/, send: `y${KEYS.enter}` }],
+					});
+					assert.strictEqual(fixed.exitCode, 0, fixed.output);
+					assert.include(await readFile(file, "utf8"), `status: ${flag.slice(2)}\n`);
+					// Back to an unknown status: the next flag starts from the same refused state.
+					await archive(`status: ${flag.slice(2)}\n`, "status: archived\n");
+				}
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
 		"verify <id> on a drifted concept shows the patch; n declines with 0 and writes nothing; y re-verifies; --no-diff and --format json never prompt",
 		async () => {
 			const { sandbox, env, files } = await verifyFixture();

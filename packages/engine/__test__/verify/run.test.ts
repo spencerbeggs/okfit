@@ -523,6 +523,10 @@ describe("runVerify refuses a status outside the vocabulary (OKF 0.3 5.4, R7/R11
 					runVerify({ ...base, id: "decisions/archived", dryRun: true }).pipe(Effect.provide(platform)),
 				);
 				assert.strictEqual(dry._tag, "VerifyStatusUnknownError");
+				const fixing = yield* runVerify({ ...base, id: "decisions/numeric", status: "stable", dryRun: true }).pipe(
+					Effect.provide(platform),
+				);
+				assert.deepStrictEqual(fixing.status, { from: "5", to: "stable" });
 				// controls: an empty or null status reads stable (11.2 rule 1) and verifies
 				for (const name of ["empty", "nulled"]) {
 					const ok = yield* runVerify({ ...base, id: `decisions/${name}` }).pipe(Effect.provide(platform));

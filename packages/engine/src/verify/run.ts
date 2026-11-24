@@ -123,6 +123,19 @@ interface PreparedVerify {
 	readonly content: string;
 }
 
+/**
+ * OKF 0.3 5.4: a status outside the vocabulary is not stable, so it is never attested unless the same
+ * write replaces it (`--stable`/`--draft`, ruling R11). The one place this rule is spelled: the write path
+ * (`prepareVerify`) and the prompt path (`inspectDrift`) both ask it.
+ */
+const unknownStatusRefusal = (
+	concept: LoadedConcept,
+	status: "stable" | "draft" | undefined,
+): VerifyStatusUnknownError | undefined =>
+	status === undefined && Derive.status(concept.frontmatter) === "unknown"
+		? new VerifyStatusUnknownError({ id: concept.id, status: Derive.rawStatus(concept.frontmatter) ?? "" })
+		: undefined;
+
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
 const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	bundle: LoadedBundle,
@@ -135,14 +148,8 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	// actor's existing entry's `at` rather than append a second entry.
 	staleAfter: string | undefined = undefined,
 ) {
-	// OKF 0.3 §5.4: a status outside the vocabulary is not stable, so it is never attested unless this same
-	// write replaces it (`--stable`/`--draft`, ruling R11).
-	if (status === undefined && Derive.status(concept.frontmatter) === "unknown") {
-		return yield* new VerifyStatusUnknownError({
-			id: concept.id,
-			status: Derive.rawStatus(concept.frontmatter) ?? "",
-		});
-	}
+	const refusal = unknownStatusRefusal(concept, status);
+	if (refusal !== undefined) return yield* refusal;
 	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
 	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source).pipe(
 		Effect.catchTag("ContentUnhashableError", (error) =>
@@ -327,8 +334,6 @@ export interface DriftInspection {
 	readonly absolutePath: string;
 	/** Why its human verification no longer binds, or `null` when it does not drift. */
 	readonly drift: DriftReason | null;
-	/** The `status` as written when it is outside the vocabulary (OKF 0.3 5.4), else `null`; `verify` refuses it. */
-	readonly unknownStatus: string | null;
 	/** When `integrity.verified` was bound, the time the shown patch is measured from; absent when unbound. */
 	readonly boundAt?: DateTime.Utc;
 }
@@ -336,7 +341,8 @@ export interface DriftInspection {
 /**
  * Read-only: is the concept's prior human verification drifted, and if so from
  * when was it bound? The CLI asks this before `runVerify` so it can show what
- * changed. Writes nothing.
+ * changed. Writes nothing. Fails with `VerifyStatusUnknownError` exactly when the write would
+ * (a status outside the vocabulary and no `status` option), so a prompt is never shown for a refusal.
  *
  * @internal
  */
@@ -345,9 +351,13 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 	readonly bundleRoot: string;
 	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
+	/** The `--stable`/`--draft` the write will carry, if any. */
+	readonly status?: "stable" | "draft";
 }) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const { id, concept } = yield* resolveConcept(bundle, options.id);
+	const refusal = unknownStatusRefusal(concept, options.status);
+	if (refusal !== undefined) return yield* refusal;
 	const path = yield* Path.Path;
 	const signal = yield* Trust.signal(concept, options.config, options.now);
 	const boundAt = concept.frontmatter.integrity?.verified?.at;
@@ -355,8 +365,6 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 		id,
 		absolutePath: path.join(bundle.root, concept.path),
 		drift: signal.drift?.reason ?? null,
-		unknownStatus:
-			Derive.status(concept.frontmatter) === "unknown" ? (Derive.rawStatus(concept.frontmatter) ?? "") : null,
 		...(boundAt === undefined ? {} : { boundAt }),
 	} satisfies DriftInspection;
 });
@@ -584,7 +592,8 @@ export interface VerifyIdsOptions {
  * one way only: a concept whose status is outside `draft | stable | deprecated`
  * (OKF 0.3 5.4) fails the whole call with `VerifyStatusUnknownError`, even under
  * `promote` (which only promotes a draft). Drafts, deprecated and
- * already-attested concepts are all attested, and `skipped` is always empty. Duplicate ids (after normalisation) are written
+ * already-attested concepts are all attested, and `skipped` is always empty.
+ * Duplicate ids (after normalisation) are written
  * once. With `promote`, a draft's `status` becomes `stable` in the same write.
  *
  * @public
