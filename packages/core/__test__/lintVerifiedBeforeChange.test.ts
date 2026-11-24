@@ -23,10 +23,30 @@ describe("verified-before-change", () => {
 				.map((d) => [d.file, d.range?.line, d.message]);
 			assert.deepStrictEqual(found, [
 				["dropped.md", 6, message("unverified")],
+				["newer-process.md", 8, message("unverified")],
+				[
+					"old-process.md",
+					6,
+					"Verified by process:ci at 2026-06-01T00:00:00Z, before the last change at 2026-06-02T00:00:00Z; the trust tier is now unverified (OKF 0.3 §5.3); re-run okfit verify",
+				],
 				["to-machine.md", 6, message("machine-confirmed")],
 			]);
-			// controls: current, history behind a current human event, draft, never verified, a dropped entry
-			for (const file of ["current.md", "rechecked.md", "draft.md", "none.md", "garbled.md"]) {
+			// newer-process.md: a human and a newer process event both predate the change; the diagnostic names the human
+			// (the tier fell from human-reviewed) at its own entry, index 1, not the newest lost event.
+			// controls: current, history behind a current human event, an old process event behind a current human one,
+			// exempt statuses, no generated or no generated.at, never verified, a dropped entry
+			for (const file of [
+				"current.md",
+				"rechecked.md",
+				"draft.md",
+				"deprecated.md",
+				"unknown.md",
+				"process-then-human.md",
+				"no-generated-at.md",
+				"no-generated.md",
+				"none.md",
+				"garbled.md",
+			]) {
 				assert.isFalse(
 					found.some(([f]) => f === file),
 					file,
@@ -41,7 +61,7 @@ describe("verified-before-change", () => {
 			const found = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "verified-before-change");
 			assert.deepStrictEqual(
 				found.map((d) => d.severity),
-				["warning", "warning"],
+				["warning", "warning", "warning", "warning"],
 			);
 		}),
 	);
