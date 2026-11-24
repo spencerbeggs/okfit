@@ -19,6 +19,8 @@ const G0 = "2026-01-01T00:00:00Z";
 const T1 = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
 const T2 = DateTime.makeUnsafe("2026-09-16T12:00:42Z");
 const T3 = DateTime.makeUnsafe("2026-09-16T12:05:00Z");
+/** What `git log` answers in staged mode: deliberately not T2, so only `staged.at` can produce a T2 stamp. */
+const LOG = DateTime.makeUnsafe("2026-09-20T00:00:00Z");
 const NOW = DateTime.makeUnsafe("2026-09-17T00:00:00Z");
 const FILE = `${ROOT}/decisions/d.md`;
 const REL = "okf/decisions/d.md";
@@ -38,7 +40,7 @@ const decision = (digest: string, body: string): string =>
 /** What `HEAD` holds and what `git log` answers: moved by the test to simulate the commit. */
 interface Repo {
 	head: string;
-	committedAt: DateTime.Utc;
+	logAt: DateTime.Utc;
 	staged: ReadonlyArray<string>;
 }
 
@@ -60,8 +62,8 @@ const services = (repo: Repo, text: string) =>
 					{
 						sha: "0123456789abcdef0123456789abcdef01234567",
 						path,
-						authoredAt: repo.committedAt,
-						committedAt: repo.committedAt,
+						authoredAt: repo.logAt,
+						committedAt: repo.logAt,
 						authorName: "Author",
 						authorEmail: "author@example.com",
 					},
@@ -75,9 +77,9 @@ const arrange = Effect.gen(function* () {
 	const oldDigest = yield* Derivation.bodyDigest(old);
 	const original = decision(oldDigest, "Old body.");
 	const edited = decision(oldDigest, "New body.");
-	const repo: Repo = { head: original, committedAt: T2, staged: [] };
+	const repo: Repo = { head: original, logAt: T2, staged: [] };
 	return { repo, edited };
-});
+}).pipe(Effect.provide(NodeCrypto.layerDigest));
 
 const load = Effect.gen(function* () {
 	const bundle = yield* Bundle.load({ root: ROOT });
@@ -86,20 +88,29 @@ const load = Effect.gen(function* () {
 	return concept;
 });
 
-/** Edit, `runVerify` at T1, then the commit at T2 and `runSync` in `mode`; returns the reloaded concept. */
-const editVerifyCommit = (repo: Repo, mode: "walk" | "staged") =>
+/** The commit: `HEAD` takes the file on disk, and the log or the hook's clock answers T2 (never the same instant in both). */
+const commit = (repo: Repo, mode: "walk" | "staged") =>
 	Effect.gen(function* () {
 		const fs = yield* FileSystem.FileSystem;
-		yield* runVerify({ ...options, id: "decisions/d", at: T1 });
-		// the commit: HEAD now holds the edited and verified text
 		repo.head = yield* fs.readFileString(FILE);
-		repo.committedAt = T2;
+		repo.logAt = mode === "walk" ? T2 : LOG;
 		repo.staged = [REL];
 		yield* runSync({
 			...options,
 			modes: new Set(["generated"]),
 			...(mode === "staged" ? { staged: { at: T2 } } : {}),
 		});
+	});
+
+/** Edit, `runVerify` at T1, then the commit at T2 and `runSync` in `mode`; returns the reloaded concept. */
+const editVerifyCommit = (repo: Repo, mode: "walk" | "staged") =>
+	Effect.gen(function* () {
+		const fs = yield* FileSystem.FileSystem;
+		// precondition: the body on disk is edited while HEAD still holds the old one (dirty)
+		assert.include(repo.head, "Old body.");
+		assert.notInclude(yield* fs.readFileString(FILE), "Old body.");
+		yield* runVerify({ ...options, id: "decisions/d", at: T1 });
+		yield* commit(repo, mode);
 		return yield* load;
 	});
 
@@ -122,33 +133,42 @@ describe("verify then sync, as it behaves before phase 3 (characterization; Task
 					const batch = yield* runVerifyBatch({ ...batchOptions, dryRun: true });
 					assert.deepStrictEqual(batch.skipped, [{ id: "decisions/d", reason: "already-verified" }]); // Task 5: not skipped
 				}).pipe(Effect.provide(services(repo, edited)));
-			}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+			}),
 		);
 	}
 
-	it.effect("control: edit, commit, then verify leaves a verification at or after generated.at", () =>
-		Effect.gen(function* () {
-			const { repo, edited } = yield* arrange;
-			yield* Effect.gen(function* () {
-				const fs = yield* FileSystem.FileSystem;
-				// edit then commit first: sync stamps the commit instant T2, with no verification yet
-				repo.committedAt = T2;
-				repo.staged = [REL];
-				repo.head = edited;
-				yield* runSync({ ...options, modes: new Set(["generated"]) });
-				const stamped = yield* load;
-				assert.strictEqual(DateTime.formatIso(stamped.frontmatter.generated?.at ?? T1), "2026-09-16T12:00:42.000Z");
-				assert.isUndefined(stamped.frontmatter.verified);
-				// then verify at T3 > T2
-				yield* runVerify({ ...options, id: "decisions/d", at: T3 });
-				const concept = yield* load;
-				const g = concept.frontmatter.generated?.at;
-				const v = concept.frontmatter.verified?.[0]?.at;
-				if (g === undefined || v === undefined) return assert.fail("generated.at and verified[0].at must be present");
-				assert.isTrue(DateTime.isGreaterThanOrEqualTo(v, g));
-				assert.include(yield* fs.readFileString(FILE), "2026-09-16T12:05:00Z");
-				assert.strictEqual((yield* Trust.signal(concept, config, NOW)).integrity, "current");
-			}).pipe(Effect.provide(services(repo, edited)));
-		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
-	);
+	for (const mode of ["walk", "staged"] as const) {
+		it.effect(`control (${mode}): edit, commit, then verify leaves a verification at or after generated.at`, () =>
+			Effect.gen(function* () {
+				const { repo, edited } = yield* arrange;
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					// edit then commit first: sync stamps the commit instant T2, with no verification yet
+					yield* commit(repo, mode);
+					const stamped = yield* load;
+					assert.strictEqual(DateTime.formatIso(stamped.frontmatter.generated?.at ?? T1), "2026-09-16T12:00:42.000Z");
+					assert.isUndefined(stamped.frontmatter.verified);
+					// positive control for the batch skip: an unverified concept is selected, not skipped
+					const before = yield* runVerifyBatch({ ...batchOptions, dryRun: true });
+					assert.deepStrictEqual(
+						before.verified.map((entry) => entry.id),
+						["decisions/d"],
+					);
+					assert.deepStrictEqual(before.skipped, []);
+					// then verify at T3 > T2
+					yield* runVerify({ ...options, id: "decisions/d", at: T3 });
+					const concept = yield* load;
+					const g = concept.frontmatter.generated?.at;
+					const v = concept.frontmatter.verified?.[0]?.at;
+					if (g === undefined || v === undefined) return assert.fail("generated.at and verified[0].at must be present");
+					assert.isTrue(DateTime.isGreaterThanOrEqualTo(v, g));
+					assert.include(yield* fs.readFileString(FILE), "2026-09-16T12:05:00Z");
+					assert.strictEqual((yield* Trust.signal(concept, config, NOW)).integrity, "current");
+					const after = yield* runVerifyBatch({ ...batchOptions, dryRun: true });
+					assert.deepStrictEqual(after.skipped, [{ id: "decisions/d", reason: "already-verified" }]);
+					assert.deepStrictEqual(after.verified, []);
+				}).pipe(Effect.provide(services(repo, edited)));
+			}),
+		);
+	}
 });
