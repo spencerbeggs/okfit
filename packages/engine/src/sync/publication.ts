@@ -2,7 +2,7 @@ import { MarkdownEdit } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import type { BundleLoadError } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
-import { Derivation, PUBLICATION_TYPE, Publications } from "@okfit/profiles";
+import { Derivation, PUBLICATION_TYPE, ProfileKeys, Publications } from "@okfit/profiles";
 import type { FileSystem, PlatformError } from "effect";
 import { Effect, Option, Path, Runtime, Schema } from "effect";
 import type { Digest } from "effect/crypto";
@@ -24,7 +24,7 @@ export class PublicationNotFoundError extends Schema.TaggedError<PublicationNotF
 	override get message(): string {
 		return this.publication === undefined
 			? `no concept "${this.id}" in the bundle`
-			: `a renders entry of "${this.publication}" points at "${this.id}", which is not a concept in the bundle; fix that renders entry`;
+			: `a ${ProfileKeys.renders} entry of "${this.publication}" points at "${this.id}", which is not a concept in the bundle; fix that ${ProfileKeys.renders} entry`;
 	}
 }
 
@@ -77,7 +77,7 @@ export const stampPublication = (options: {
 		}
 		const renders = Publications.rendersOf(concept);
 		if (renders === undefined) {
-			return yield* new UnsupportedFrontmatterError({ key: "renders", shape: "malformed" });
+			return yield* new UnsupportedFrontmatterError({ key: ProfileKeys.renders, shape: "malformed" });
 		}
 		const digests: Array<PublicationEnvelope["digests"][number]> = [];
 		for (const entry of renders) {

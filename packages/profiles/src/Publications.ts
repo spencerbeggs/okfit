@@ -4,6 +4,7 @@ import type { PlatformError } from "effect";
 import { Effect, Option } from "effect";
 import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
+import { ProfileKeys } from "./ProfileKeys.js";
 
 /**
  * The concept type name of a documentation surface.
@@ -63,7 +64,7 @@ const resolveRef = (from: string, raw: string): string => {
 };
 
 const rendersOf = (concept: LoadedConcept): ReadonlyArray<RendersEntry> | undefined => {
-	const value = concept.frontmatter.raw.renders;
+	const value = concept.frontmatter.raw[ProfileKeys.renders];
 	if (!Array.isArray(value)) return undefined;
 	const out: Array<RendersEntry> = [];
 	for (const [index, entry] of value.entries()) {
@@ -129,7 +130,7 @@ export class Publications {
 			if (concept.frontmatter.type !== PUBLICATION_TYPE) continue;
 			const resource = String(concept.frontmatter.raw.resource ?? concept.path);
 			if (orphanSeverity !== "off") {
-				const surface = concept.frontmatter.raw.surface;
+				const surface = concept.frontmatter.raw[ProfileKeys.surface];
 				// An absent surface is `required-key-missing`'s to report.
 				if (surface !== undefined) {
 					const target =
@@ -144,16 +145,16 @@ export class Publications {
 							concept,
 							"publication-orphan",
 							orphanSeverity,
-							`surface ${JSON.stringify(surface)} does not resolve to a concept in the bundle`,
-							["surface"],
+							`${ProfileKeys.surface} ${JSON.stringify(surface)} does not resolve to a concept in the bundle`,
+							[ProfileKeys.surface],
 						);
 					} else if (target.frontmatter.type !== SURFACE_TYPE) {
 						push(
 							concept,
 							"publication-orphan",
 							orphanSeverity,
-							`surface ${JSON.stringify(surface)} resolves to a concept of type ${JSON.stringify(target.frontmatter.type)}, not ${SURFACE_TYPE}`,
-							["surface"],
+							`${ProfileKeys.surface} ${JSON.stringify(surface)} resolves to a concept of type ${JSON.stringify(target.frontmatter.type)}, not ${SURFACE_TYPE}`,
+							[ProfileKeys.surface],
 						);
 					}
 				}
@@ -161,15 +162,21 @@ export class Publications {
 			const renders = rendersOf(concept);
 			if (renders === undefined) {
 				if (orphanSeverity !== "off") {
-					push(concept, "publication-orphan", orphanSeverity, "renders must be a list of { path, body } entries", [
-						"renders",
-					]);
+					push(
+						concept,
+						"publication-orphan",
+						orphanSeverity,
+						`${ProfileKeys.renders} must be a list of { path, body } entries`,
+						[ProfileKeys.renders],
+					);
 				}
 				continue;
 			}
 			if (renders.length === 0) {
 				if (orphanSeverity !== "off") {
-					push(concept, "publication-orphan", orphanSeverity, "renders must name at least one source", ["renders"]);
+					push(concept, "publication-orphan", orphanSeverity, `${ProfileKeys.renders} must name at least one source`, [
+						ProfileKeys.renders,
+					]);
 				}
 				continue;
 			}
@@ -186,8 +193,8 @@ export class Publications {
 							concept,
 							"publication-orphan",
 							orphanSeverity,
-							`renders[${entry.index}].path ${JSON.stringify(entry.path)} does not resolve to a concept in the bundle`,
-							["renders", entry.index, "path"],
+							`${ProfileKeys.renders}[${entry.index}].path ${JSON.stringify(entry.path)} does not resolve to a concept in the bundle`,
+							[ProfileKeys.renders, entry.index, "path"],
 						);
 					}
 					continue;
@@ -206,7 +213,7 @@ export class Publications {
 					"publication-drift",
 					driftSeverity,
 					`Rendered page ${resource} is stale against: ${stale.join(", ")}; re-render it, then run okfit sync --publication ${id}`,
-					["renders"],
+					[ProfileKeys.renders],
 				);
 			}
 		}

@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import type { MarkdownDocument } from "@effected/markdown";
 import type { LoadedBundle, OkfitConfig, PathField } from "@okfit/core";
 import { DiagnosticRange, Graph } from "@okfit/core";
+import { ProfileKeys } from "@okfit/profiles";
 
 /**
  * One reference's value text inside a file: whole-file offsets, quotes excluded. `field` is set for
@@ -150,10 +151,11 @@ const fieldPaths = (concept: ReferenceSource, config: OkfitConfig): ReadonlyArra
 			});
 		}
 	}
-	if (Array.isArray(raw.renders)) {
-		raw.renders.forEach((entry, i) => {
+	const renders = raw[ProfileKeys.renders];
+	if (Array.isArray(renders)) {
+		renders.forEach((entry, i) => {
 			if (isRecord(entry) && typeof entry.path === "string")
-				out.push({ path: ["renders", i, "path"], value: entry.path });
+				out.push({ path: [ProfileKeys.renders, i, "path"], value: entry.path });
 		});
 	}
 	return out;

@@ -1,7 +1,7 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { YamlDocument, YamlNode, YamlParseError } from "@effected/yaml";
 import { YamlAlias, YamlMap, YamlScalar, YamlSeq } from "@effected/yaml";
-import { Integrity } from "@okfit/core";
+import { INTEGRITY_KEY, Integrity } from "@okfit/core";
 import { Effect, Option, Schema } from "effect";
 import type { ParsedTopLevelMapping } from "./locate.js";
 import { hasMergeKey, parseTopLevelMapping } from "./locate.js";
@@ -111,7 +111,7 @@ export const locateIntegrity = Effect.fn("okfit/verify/locateIntegrity")(functio
 	const { value, valueStart, contents } = parsed;
 	if (contents.style === "flow") return { _tag: "unsupported", shape: "flow-document" } as const;
 
-	const pair = contents.items.find(isKey("integrity"));
+	const pair = contents.items.find(isKey(INTEGRITY_KEY));
 	if (pair === undefined) return { _tag: "absent", insertAt: valueStart + value.length } as const;
 
 	const node = pair.value;
@@ -215,7 +215,7 @@ export const renderIntegrity = (fields: IntegrityFields, newline: "\n" | "\r\n")
 			`    content: ${formatDigest(fields.verified.content)}`,
 		);
 	}
-	return lines.length === 0 ? "" : ["integrity:", ...lines].map((line) => `${line}${newline}`).join("");
+	return lines.length === 0 ? "" : [`${INTEGRITY_KEY}:`, ...lines].map((line) => `${line}${newline}`).join("");
 };
 
 /**

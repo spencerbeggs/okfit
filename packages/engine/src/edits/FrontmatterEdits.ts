@@ -1,7 +1,8 @@
 import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import type { Status } from "@okfit/core";
-import { DiagnosticRange } from "@okfit/core";
+import { DiagnosticRange, INTEGRITY_KEY } from "@okfit/core";
+import { ProfileKeys } from "@okfit/profiles";
 import { Effect, Result, Runtime, Schema } from "effect";
 import { formatDigest, locateIntegrity, spliceIntegrityVerified } from "../verify/integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, stripBom } from "../verify/locate.js";
@@ -87,7 +88,7 @@ export class FrontmatterEdits {
 			const verifiedEdit = splice(target, entry, newline);
 			const integrity = yield* locateIntegrity(text);
 			if (integrity._tag === "unsupported") {
-				return yield* new UnsupportedFrontmatterError({ key: "integrity", shape: integrity.shape });
+				return yield* new UnsupportedFrontmatterError({ key: INTEGRITY_KEY, shape: integrity.shape });
 			}
 			const integrityEdit = spliceIntegrityVerified(integrity, text, { ...entry, content }, newline);
 			return orderVerifyEdits(verifiedEdit, undefined, integrityEdit).map((edit) => shift(edit, bom.length));
@@ -125,7 +126,7 @@ export class FrontmatterEdits {
 			}
 			const integrity = yield* locateIntegrity(text);
 			if (integrity._tag === "unsupported") {
-				return yield* new UnsupportedFrontmatterError({ key: "integrity", shape: integrity.shape });
+				return yield* new UnsupportedFrontmatterError({ key: INTEGRITY_KEY, shape: integrity.shape });
 			}
 			const integrityEdit = spliceIntegrityVerified(integrity, text, { ...entry, content }, newline);
 			return orderVerifyEdits(verifiedEdit, statusEdit, integrityEdit).map((edit) => shift(edit, bom.length));
@@ -141,15 +142,16 @@ export class FrontmatterEdits {
 	static readonly rendersDigests = (
 		source: string,
 		digests: ReadonlyArray<string | undefined>,
+		key: string = ProfileKeys.renders,
 	): Effect.Effect<ReadonlyArray<MarkdownEdit>, YamlParseError | UnsupportedFrontmatterError> =>
 		Effect.gen(function* () {
 			const { text, bom } = stripBom(source);
-			const unsupported = (shape: string) => new UnsupportedFrontmatterError({ key: "renders", shape });
+			const unsupported = (shape: string) => new UnsupportedFrontmatterError({ key, shape });
 			const parsed = MarkdownDocument.parseResult(text, { frontmatter: true });
 			if (Result.isFailure(parsed)) return yield* unsupported("unparseable");
 			const document = parsed.success;
 			const block = DiagnosticRange.forFrontmatterPath(document, []);
-			const rendersSpan = DiagnosticRange.forFrontmatterPath(document, ["renders"]);
+			const rendersSpan = DiagnosticRange.forFrontmatterPath(document, [key]);
 			if (block === undefined || rendersSpan === undefined || rendersSpan.offset === block.offset) {
 				return yield* unsupported("absent");
 			}
@@ -160,7 +162,7 @@ export class FrontmatterEdits {
 				// `undefined` leaves that entry untouched (a migration that only converts legacy entries).
 				if (digest === undefined) continue;
 				const formatted = formatDigest(digest);
-				const legacySpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body_sha256"]);
+				const legacySpan = DiagnosticRange.forFrontmatterPath(document, [key, index, "body_sha256"]);
 				if (legacySpan !== undefined && legacySpan.offset !== block.offset) {
 					const start = text.lastIndexOf("\n", legacySpan.offset - 1) + 1;
 					const nl = text.indexOf("\n", legacySpan.offset + legacySpan.length);
@@ -173,7 +175,7 @@ export class FrontmatterEdits {
 					if (prefix.includes("-")) return yield* unsupported("dash-prefixed-key");
 					edits.push(shift(MarkdownEdit.make({ offset: start, length: end - start, content: "" }), bom.length));
 				}
-				const digestSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "body"]);
+				const digestSpan = DiagnosticRange.forFrontmatterPath(document, [key, index, "body"]);
 				if (digestSpan !== undefined && digestSpan.offset !== block.offset) {
 					const content = digestSpan.length === 0 ? ` ${formatted}` : formatted;
 					edits.push(
@@ -181,7 +183,7 @@ export class FrontmatterEdits {
 					);
 					continue;
 				}
-				const pathSpan = DiagnosticRange.forFrontmatterPath(document, ["renders", index, "path"]);
+				const pathSpan = DiagnosticRange.forFrontmatterPath(document, [key, index, "path"]);
 				if (pathSpan === undefined || pathSpan.offset === block.offset) return yield* unsupported("missing-path");
 				const lineStart = text.lastIndexOf("\n", pathSpan.offset - 1) + 1;
 				const prefix = /^[ ]*(?:-[ ]+)*(?:"path"|'path'|path)[ ]*:[ ]*$/u.exec(text.slice(lineStart, pathSpan.offset));

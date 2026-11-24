@@ -1,6 +1,7 @@
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { DiagnosticRange } from "@okfit/core";
 import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js"; // (checked) contract section 2 lists Layout, Profile, ProfileDiagnostic; ProfileDiagnosticCode is added type-only for the local `diagnostic` helper and changes no exported surface
+import { ProfileKeys } from "./ProfileKeys.js";
 import { DOCS_PRESETS } from "./presets/index.js";
 
 /**
@@ -32,9 +33,9 @@ const config: OkfitConfig = {
 			description: "A unit of code with an owner and a boundary.",
 			guidance:
 				"One per workspace package, plugin, website, action, worker, test harness, or config dependency. Link to the Decisions that shaped it and the Conventions it is bound by.",
-			required: ["resource", "kind"],
+			required: ["resource", ProfileKeys.kind],
 			fields: {
-				kind: {
+				[ProfileKeys.kind]: {
 					description: "What sort of unit this is; drives which conventions apply.",
 					values: {
 						workspace: "The monorepo root: tooling, CI, release, shared config.",
@@ -55,11 +56,11 @@ const config: OkfitConfig = {
 						"A path relative to this concept file, normally escaping the bundle, for example ../../packages/core.",
 					kind: "path",
 				},
-				layer: {
+				[ProfileKeys.layer]: {
 					description:
 						"The dependency layer this module sits in under the repository's own layering scheme, for example L2, so a reader can query every module at one layer.",
 				},
-				pins: {
+				[ProfileKeys.pins]: {
 					description:
 						"Paths to the sibling Module concepts this module is exact-version-pinned alongside, one entry per sibling.",
 					kind: "path",
@@ -72,7 +73,7 @@ const config: OkfitConfig = {
 				"Edit a Decision when the choice still stands and its text has drifted or is incomplete, which voids its verification until a human verifies it again; deprecate it and write a successor only when the choice itself changes and its history matters: set superseded_by on the deprecated Decision to the successor, and supersedes on the successor to the Decision it replaces. Name the file for the topic in two to four words, not the conclusion, which goes in the title.",
 			require_verified: true,
 			fields: {
-				supersedes: { description: "The Decision this one replaces.", kind: "path" },
+				[ProfileKeys.supersedes]: { description: "The Decision this one replaces.", kind: "path" },
 			},
 		},
 		Convention: {
@@ -84,9 +85,9 @@ const config: OkfitConfig = {
 			description: "A contract others depend on.",
 			guidance:
 				"Document the contract from the consumer's side: what stays stable, not how it is built. Point resource at the file, endpoint, or schema the promise lives in.",
-			required: ["kind"],
+			required: [ProfileKeys.kind],
 			fields: {
-				kind: {
+				[ProfileKeys.kind]: {
 					description: "What kind of contract this is.",
 					values: {
 						api: "A programmatic library surface: exported functions, classes, and types.",
@@ -133,7 +134,7 @@ const config: OkfitConfig = {
 			guidance:
 				"State the condition that triggers it and the observable symptom, not just the cause, and name the Interface or Module whose promise it bounds. If it is fixable and merely unfixed, say what the fix would take.",
 			fields: {
-				bounds: {
+				[ProfileKeys.bounds]: {
 					description: "The Interface or Module concept whose promise this limitation bounds.",
 					kind: "path",
 				},
@@ -169,9 +170,9 @@ const config: OkfitConfig = {
 			description: "An external application that consumes this repository and thereby scopes it.",
 			guidance:
 				"Name the surfaces it exercises, where the edge between the two repositories sits, and the open questions it raises, so the boundary of this repository is read from its consumers rather than inferred. Deprecate it when the consumer stops consuming.",
-			required: ["repository"],
+			required: [ProfileKeys.repository],
 			fields: {
-				repository: {
+				[ProfileKeys.repository]: {
 					description: "Where the consumer lives, as a URL or an owner/name pair, since it is outside this repository.",
 				},
 			},
@@ -181,7 +182,7 @@ const config: OkfitConfig = {
 			guidance:
 				"List the phases and what remains in each, and give it a staleness window so queued work is re-examined instead of read as settled. Deprecate it when the gate holds and write the Decisions the work produced; a known bug with nobody queued to fix it is a Gotcha, not a Roadmap.",
 			fields: {
-				gate: {
+				[ProfileKeys.gate]: {
 					description:
 						"The observable condition that closes this roadmap, for example a release shipped or a benchmark met.",
 				},
@@ -192,7 +193,7 @@ const config: OkfitConfig = {
 			guidance:
 				"Record the inputs, the method, and the numbers so a reader can judge whether they still hold, and give it a staleness window because numbers rot. A Decision links to the Measurement that justified it instead of embedding the result in its body.",
 			fields: {
-				justifies: {
+				[ProfileKeys.justifies]: {
 					description: "Paths to the Decisions this measurement supports, one entry per Decision.",
 					kind: "path",
 				},
@@ -216,12 +217,12 @@ const config: OkfitConfig = {
 				"A dated production failure: what shipped broken, what it looked like to the consumer, the root cause, and the guard that now stops it.",
 			guidance:
 				"Keep the whole narrative in one record rather than splitting the misleading signal into a Gotcha and the guard into a Decision, and link both where they exist. Set occurred to the date it happened so a reader can weigh how far the code has moved since.",
-			required: ["occurred"],
+			required: [ProfileKeys.occurred],
 			fields: {
-				occurred: {
+				[ProfileKeys.occurred]: {
 					description: "The ISO 8601 date the failure happened or was first observed.",
 				},
-				guard: {
+				[ProfileKeys.guard]: {
 					description:
 						"A path relative to this concept file to the test, check, or config that now stops the failure recurring.",
 					kind: "path",
@@ -233,9 +234,9 @@ const config: OkfitConfig = {
 				"A documentation surface: where one kind of published docs lives, who reads it, and how it is written.",
 			guidance:
 				"Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point links_to at the Surface this one routes readers to.",
-			required: ["kind", "audience", "resource"],
+			required: [ProfileKeys.kind, ProfileKeys.audience, "resource"],
 			fields: {
-				kind: {
+				[ProfileKeys.kind]: {
 					description: "How the surface is published.",
 					values: {
 						site: "A built website workspace, such as an RSPress site, published at a URL.",
@@ -243,7 +244,7 @@ const config: OkfitConfig = {
 						readme: "README files: the repository root's, each package's, or both.",
 					},
 				},
-				audience: {
+				[ProfileKeys.audience]: {
 					description: "Who the surface is written for.",
 					values: {
 						users: "People installing or calling what this repository ships.",
@@ -256,8 +257,8 @@ const config: OkfitConfig = {
 						"A path relative to this concept file to the surface root, or a glob pattern when the surface spans many directories, such as every package directory.",
 					kind: "path",
 				},
-				url: { description: "Where a site surface is published, as an absolute URL." },
-				links_to: {
+				[ProfileKeys.url]: { description: "Where a site surface is published, as an absolute URL." },
+				[ProfileKeys.links_to]: {
 					description: "The Surface this one routes readers to, such as a one-page README pointing at the site.",
 					kind: "path",
 				},
@@ -267,11 +268,11 @@ const config: OkfitConfig = {
 			description: "A published page that restates facts this bundle owns, and the concepts it was rendered from.",
 			guidance:
 				"Create one only for a page whose content comes from bundle concepts; the bundle is the source of truth and the page is re-rendered when a source changes. Use the body for rendering notes: what is audience-specific, what is deliberately left out, and what a re-render must keep.",
-			required: ["resource", "surface", "renders"],
+			required: ["resource", ProfileKeys.surface, ProfileKeys.renders],
 			fields: {
 				resource: { description: "A path relative to this concept file to the published page.", kind: "path" },
-				surface: { description: "The Surface concept this page is published on.", kind: "path" },
-				renders: {
+				[ProfileKeys.surface]: { description: "The Surface concept this page is published on.", kind: "path" },
+				[ProfileKeys.renders]: {
 					description:
 						"The source concepts as a list of entries that each hold a path and a body digest; okfit sync --publication stamps each digest.",
 				},
@@ -283,11 +284,11 @@ const config: OkfitConfig = {
 			guidance:
 				"Write the steps in the order they happen and put the failure modes in the body, naming what a reader observes at each point it breaks. Distinct from Interface, which is a promise to consumers, from Runbook, which a person follows, and from Module, which owns one boundary rather than a sequence across several.",
 			fields: {
-				entry: {
+				[ProfileKeys.entry]: {
 					description: "A path relative to this concept file to the code or config where the sequence starts.",
 					kind: "path",
 				},
-				crosses: {
+				[ProfileKeys.crosses]: {
 					description: "The Module concepts the sequence passes through, as paths, in the order it reaches them.",
 					kind: "path",
 				},
@@ -310,7 +311,7 @@ const config: OkfitConfig = {
 						"A path relative to this concept file to the external thing the fixture stands in for, or to the fixture itself when it lives in this repository.",
 					kind: "path",
 				},
-				runbooks: {
+				[ProfileKeys.runbooks]: {
 					description: "The Runbook concepts that regenerate, refresh, or verify the fixture, as paths.",
 					kind: "path",
 				},

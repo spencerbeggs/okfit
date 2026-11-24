@@ -1,6 +1,7 @@
 import type { LoadedBundle, OkfitConfig } from "@okfit/core";
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import { Schema } from "effect";
+import { ProfileKeys } from "./ProfileKeys.js";
 
 /**
  * Names of the profiles this package ships (P-38).
@@ -90,11 +91,11 @@ export interface SurfaceTemplate {
 		readonly status: "draft";
 		readonly title: string;
 		readonly description: string;
-		readonly kind: "site" | "repo" | "readme";
-		readonly audience: "users" | "contributors" | "agents";
+		readonly [ProfileKeys.kind]: "site" | "repo" | "readme";
+		readonly [ProfileKeys.audience]: "users" | "contributors" | "agents";
 		readonly resource: string;
-		readonly links_to?: string;
-		readonly url?: string;
+		readonly [ProfileKeys.links_to]?: string;
+		readonly [ProfileKeys.url]?: string;
 	};
 	readonly body: string;
 }

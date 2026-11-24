@@ -30,6 +30,8 @@ export type { GitHistoryShape, PathLogOptions } from "./GitHistory.js";
 export { GitHistory, GitHistoryError, PathHistoryEntry } from "./GitHistory.js";
 export type { DocsPreset, Layout, LayoutDirectory, Profile, ProfileName, SurfaceTemplate } from "./Profile.js";
 export { PROFILE_NAMES, ProfileDiagnostic, ProfileDiagnosticCode } from "./Profile.js";
+export type { ProfileFieldName } from "./ProfileKeys.js";
+export { PROFILE_FIELD_NAMES, ProfileKeys } from "./ProfileKeys.js";
 export { Profiles } from "./Profiles.js";
 export { Provenance } from "./Provenance.js";
 export type { RendersEntry } from "./Publications.js";

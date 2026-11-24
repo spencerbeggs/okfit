@@ -20,6 +20,13 @@ export const Digest = Schema.String.pipe(
 export type Digest = typeof Digest.Type;
 
 /**
+ * The top-level frontmatter key that holds okfit's {@link Integrity} family.
+ * Every reader and writer of that key goes through this constant.
+ * @public
+ */
+export const INTEGRITY_KEY = "integrity";
+
+/**
  * The body digest as of `generated.at`.
  * @public
  */

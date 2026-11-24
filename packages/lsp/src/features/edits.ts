@@ -25,7 +25,7 @@ import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmat
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import type { Actor, DerivedStatus, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Derive, DiagnosticRange, Generated, Status, Timestamp, Verification } from "@okfit/core";
+import { Derive, DiagnosticRange, Generated, INTEGRITY_KEY, Status, Timestamp, Verification } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -178,7 +178,7 @@ export const editTarget = (
 		const verifiedEntries = Option.getOrElse(Schema.decodeUnknownOption(Verification.List)(verified), () => []).map(
 			(entry) => ({ by: entry.by, at: entry.at }),
 		);
-		const verifiedBinding = field(field(data, "integrity"), "verified");
+		const verifiedBinding = field(field(data, INTEGRITY_KEY), "verified");
 		const bindingBy = field(verifiedBinding, "by");
 		const bindingContent = field(verifiedBinding, "content");
 		const bindingAt = decodeAt(field(verifiedBinding, "at"));

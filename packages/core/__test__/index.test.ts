@@ -10,6 +10,7 @@ const VALUES = [
 	"UsageWindow",
 	"Generated",
 	"Digest",
+	"INTEGRITY_KEY",
 	"Integrity",
 	"IntegrityGenerated",
 	"IntegrityVerified",

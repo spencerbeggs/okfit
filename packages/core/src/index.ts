@@ -38,7 +38,7 @@ export { Generated } from "./Generated.js";
 export type { FallbackRule, GraphEdge, GraphLink, GraphNode, LinkResolution, PathField } from "./Graph.js";
 export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";
-export { Digest, Integrity, IntegrityGenerated, IntegrityVerified } from "./Integrity.js";
+export { Digest, INTEGRITY_KEY, Integrity, IntegrityGenerated, IntegrityVerified } from "./Integrity.js";
 export { LogDocument, LogGroup, LogItem } from "./LogDocument.js";
 export type { OkfitConfigFields } from "./OkfitConfig.js";
 export {

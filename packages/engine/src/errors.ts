@@ -1,4 +1,5 @@
 import { ErrorText } from "@effected/kit";
+import { INTEGRITY_KEY } from "@okfit/core";
 import { Runtime, Schema } from "effect";
 
 /**
@@ -78,7 +79,7 @@ export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<Verify
 	{
 		id: Schema.String,
 		shape: Schema.String,
-		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after", "integrity"])),
+		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after", INTEGRITY_KEY])),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;

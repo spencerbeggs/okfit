@@ -1,5 +1,14 @@
 import type { Actor, LoadedBundle, LoadedConcept, Staleness, TrustTier, Verification } from "@okfit/core";
-import { Actor as ActorNS, Concept, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
+import {
+	Actor as ActorNS,
+	Concept,
+	Derive,
+	Diagnostic,
+	DiagnosticRange,
+	INTEGRITY_KEY,
+	OkfitConfig,
+	Timestamp,
+} from "@okfit/core";
 import { DateTime, Effect, Result, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { Derivation } from "./Derivation.js";
@@ -207,7 +216,7 @@ const rangePath = (
 	drift: NonNullable<ConceptSignal["drift"]>,
 ): ReadonlyArray<string | number> => {
 	if (drift.unhashable !== undefined && drift.unhashable.path.length > 0) return drift.unhashable.path;
-	if (concept.frontmatter.integrity?.verified !== undefined) return ["integrity", "verified"];
+	if (concept.frontmatter.integrity?.verified !== undefined) return [INTEGRITY_KEY, "verified"];
 	const latest = latestHuman(concept);
 	const index = latest === undefined ? -1 : (concept.frontmatter.verified ?? []).indexOf(latest);
 	return index >= 0 ? Concept.entryPath(concept.frontmatter, "verified", index) : ["verified"];

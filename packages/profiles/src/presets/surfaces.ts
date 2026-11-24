@@ -1,4 +1,5 @@
 import type { SurfaceTemplate } from "../Profile.js";
+import { ProfileKeys } from "../ProfileKeys.js";
 
 const FENCE = "```";
 
@@ -166,10 +167,10 @@ export const README_PACKAGE: SurfaceTemplate = {
 		status: "draft",
 		title: "Package README",
 		description: "The README published to npm for a package, written for people who install it.",
-		kind: "readme",
-		audience: "users",
+		[ProfileKeys.kind]: "readme",
+		[ProfileKeys.audience]: "users",
 		resource: "../../README.md",
-		links_to: "docs-repo.md",
+		[ProfileKeys.links_to]: "docs-repo.md",
 	},
 	body: body(
 		"# Package README",
@@ -193,10 +194,10 @@ export const README_PACKAGE_ONE_PAGE: SurfaceTemplate = {
 		status: "draft",
 		title: "Package README",
 		description: "A one-page README published to npm that routes readers to the documentation site.",
-		kind: "readme",
-		audience: "users",
+		[ProfileKeys.kind]: "readme",
+		[ProfileKeys.audience]: "users",
 		resource: "../../README.md",
-		links_to: "site.md",
+		[ProfileKeys.links_to]: "site.md",
 	},
 	body: body(
 		"# Package README",
@@ -220,8 +221,8 @@ export const README_ROOT: SurfaceTemplate = {
 		status: "draft",
 		title: "Repository README",
 		description: "The monorepo root README: a hub that explains the packages and how they relate.",
-		kind: "readme",
-		audience: "contributors",
+		[ProfileKeys.kind]: "readme",
+		[ProfileKeys.audience]: "contributors",
 		resource: "../../README.md",
 	},
 	body: body(
@@ -246,10 +247,10 @@ export const README_ROOT_ONE_PAGE: SurfaceTemplate = {
 		status: "draft",
 		title: "Repository README",
 		description: "A one-page monorepo root README that routes readers to the documentation site.",
-		kind: "readme",
-		audience: "contributors",
+		[ProfileKeys.kind]: "readme",
+		[ProfileKeys.audience]: "contributors",
 		resource: "../../README.md",
-		links_to: "site.md",
+		[ProfileKeys.links_to]: "site.md",
 	},
 	body: body(
 		"# Repository README",
@@ -272,8 +273,8 @@ export const README_PACKAGES: SurfaceTemplate = {
 		status: "draft",
 		title: "Sub-package READMEs",
 		description: "The README inside each monorepo package, published to npm with the package.",
-		kind: "readme",
-		audience: "users",
+		[ProfileKeys.kind]: "readme",
+		[ProfileKeys.audience]: "users",
 		resource: "../../packages/*/README.md",
 	},
 	body: body(
@@ -297,10 +298,10 @@ export const README_PACKAGES_ONE_PAGE: SurfaceTemplate = {
 		status: "draft",
 		title: "Sub-package READMEs",
 		description: "A one-page README inside each monorepo package that routes readers to the documentation site.",
-		kind: "readme",
-		audience: "users",
+		[ProfileKeys.kind]: "readme",
+		[ProfileKeys.audience]: "users",
 		resource: "../../packages/*/README.md",
-		links_to: "site.md",
+		[ProfileKeys.links_to]: "site.md",
 	},
 	body: body(
 		"# Sub-package READMEs",
@@ -331,8 +332,8 @@ const docsRepo = (options: {
 		status: "draft",
 		title: options.title,
 		description: options.description,
-		kind: "repo",
-		audience: options.audience,
+		[ProfileKeys.kind]: "repo",
+		[ProfileKeys.audience]: options.audience,
 		resource: options.resource,
 		...(options.linksTo === undefined ? {} : { links_to: options.linksTo }),
 	},
@@ -399,10 +400,10 @@ export const CONTRIBUTOR_GUIDES: SurfaceTemplate = {
 		title: "Contributor guides",
 		description:
 			"Task-shaped contributor guides in the root docs/, such as making a pull request, read in place on the forge.",
-		kind: "repo",
-		audience: "contributors",
+		[ProfileKeys.kind]: "repo",
+		[ProfileKeys.audience]: "contributors",
 		resource: "../../docs",
-		links_to: "readme-root.md",
+		[ProfileKeys.links_to]: "readme-root.md",
 	},
 	body: body(
 		"# Contributor guides",
@@ -426,10 +427,10 @@ export const SITE: SurfaceTemplate = {
 		status: "draft",
 		title: "Documentation site",
 		description: "The published documentation website: guides, reference and tutorials for people using the project.",
-		kind: "site",
-		audience: "users",
+		[ProfileKeys.kind]: "site",
+		[ProfileKeys.audience]: "users",
 		resource: "../../website",
-		url: "https://example.invalid",
+		[ProfileKeys.url]: "https://example.invalid",
 	},
 	body: body(
 		"# Documentation site",

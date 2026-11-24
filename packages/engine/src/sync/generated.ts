@@ -2,7 +2,7 @@ import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
-import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
+import { Derivation, PUBLICATION_TYPE, ProfileKeys, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
@@ -59,7 +59,7 @@ const encodeAt = Schema.encodeSync(Timestamp);
  */
 const legacyRendersDigests = (concept: LoadedConcept): ReadonlyArray<string | undefined> | undefined => {
 	if (concept.frontmatter.type !== PUBLICATION_TYPE) return undefined;
-	const renders = concept.frontmatter.raw.renders;
+	const renders = concept.frontmatter.raw[ProfileKeys.renders];
 	if (!Array.isArray(renders)) return undefined;
 	const digests = renders.map((entry: unknown) => {
 		if (typeof entry !== "object" || entry === null) return undefined;

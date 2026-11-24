@@ -1,7 +1,7 @@
 import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
+import { Bundle, ConceptId, Derive, INTEGRITY_KEY, Timestamp } from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
@@ -246,7 +246,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	}
 	const integrity = yield* locateIntegrity(text);
 	if (integrity._tag === "unsupported") {
-		return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: integrity.shape, key: "integrity" });
+		return yield* new VerifyUnsupportedFrontmatterError({ id: concept.id, shape: integrity.shape, key: INTEGRITY_KEY });
 	}
 	const integrityEdit = spliceIntegrityVerified(integrity, text, { by: actor, at, content }, newline);
 	const ordered = orderVerifyEdits(verifiedEdit, statusEdit, integrityEdit);
@@ -460,13 +460,13 @@ const prepareRevoke = Effect.fn("okfit/verify/prepareRevoke")(function* (
 
 	const integrity = yield* locateIntegrity(text);
 	if (integrity._tag === "unsupported") {
-		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: integrity.shape, key: "integrity" });
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: integrity.shape, key: INTEGRITY_KEY });
 	}
 	// Read from the parsed tree, so a block that does not decode as a whole still unbinds.
 	const bound = integrity._tag === "replace" && integrity.boundBy === actor;
 	const unbind = bound ? removeIntegrityVerified(integrity, text) : ({ _tag: "none" } as const);
 	if (unbind._tag === "unsupported") {
-		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: unbind.shape, key: "integrity" });
+		return yield* new VerifyUnsupportedFrontmatterError({ id, shape: unbind.shape, key: INTEGRITY_KEY });
 	}
 
 	const edits = [

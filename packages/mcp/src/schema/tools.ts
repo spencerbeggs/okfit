@@ -1,7 +1,7 @@
 import { ToolOutcome } from "@effected/mcp-kit";
 import { DerivedStatus, GraphNodeKind, Staleness } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
-import { DriftReason } from "@okfit/profiles";
+import { DriftReason, ProfileKeys } from "@okfit/profiles";
 import { Schema } from "effect";
 import { ConceptSummary } from "./ConceptSummary.js";
 
@@ -13,11 +13,11 @@ export const DocsPresetSurface = Schema.Struct({
 		status: Schema.Literal("draft"),
 		title: Schema.String,
 		description: Schema.String,
-		kind: Schema.Literals(["site", "repo", "readme"]),
-		audience: Schema.Literals(["users", "contributors", "agents"]),
+		[ProfileKeys.kind]: Schema.Literals(["site", "repo", "readme"]),
+		[ProfileKeys.audience]: Schema.Literals(["users", "contributors", "agents"]),
 		resource: Schema.String,
-		links_to: Schema.optionalKey(Schema.String),
-		url: Schema.optionalKey(Schema.String),
+		[ProfileKeys.links_to]: Schema.optionalKey(Schema.String),
+		[ProfileKeys.url]: Schema.optionalKey(Schema.String),
 	}),
 	body: Schema.String,
 });
