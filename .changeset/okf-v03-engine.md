@@ -8,6 +8,10 @@
 - The JSON, graph and stale envelopes' `okf_version` is `string | null` and reports the bundle's own declaration.
 - Verifying a concept whose status is outside the vocabulary fails with `VerifyStatusUnknownError` unless the same write sets the status. Batch verify skips such a concept with reason `unknown-status`. `VerifyResult.status.from` is the raw status text.
 - The version-mismatch warning is removed.
+- `ScaffoldOptions.okfVersion` is now required: `init`'s scaffold writes that version into the root index instead of the spec constant, so a caller building `ScaffoldOptions` must pass it.
+- `StaleEnvelope` gains a required `malformed` array and `summary.malformed`, and the input of `staleEnvelope` requires `malformed`. `ConceptSummary` gains required `raw_status` and `staleness`, and `QueryGetEnvelope`'s concept gains a required `replacement` (`string | null`). Decoding an envelope written by an older engine with these schemas now fails.
+- The output unions widened: `SkipReason` gains `symlink-escape`; `VerifyBatchSkipReason` and `VerifyBatchEnvelope.skipped[].reason` gain `unknown-status`. An exhaustive `switch` over either must handle the new literal.
+- `VerifyEnvelope.status.from` is widened from `Status | null` to `string | null`, because the status being replaced may be outside the vocabulary.
 
 ## Features
 
