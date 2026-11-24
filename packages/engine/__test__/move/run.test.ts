@@ -611,3 +611,32 @@ describe("planMove with non-concept Markdown (memfs)", () => {
 		),
 	);
 });
+
+describe("mv and a BOM on a real disk (documents current behaviour)", () => {
+	it.effect("loads a BOM-prefixed concept and non-concept, and drops the BOM when it rewrites their links", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root: okf });
+					// Control: the BOM-prefixed concept loads with its frontmatter intact.
+					assert.isTrue(bundle.concepts.has("notes/bom-concept" as never));
+					assert.isTrue(
+						bundle.diagnostics.some((d) => d.file === "notes/bom-readme.md" && d.code === "frontmatter-missing"),
+					);
+					yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					// Current behaviour (a later fix flips this): the read strips the BOM, so the rewrite writes none,
+					// for a concept and a non-concept alike; the frontmatter and the link are correct.
+					assert.strictEqual(
+						after["notes/bom-concept.md"],
+						"---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/beta.md).\n",
+					);
+					assert.strictEqual(after["notes/bom-readme.md"], "# Readme\n\nSee [b](../decisions/beta.md).\n");
+				}),
+			{
+				"notes/bom-concept.md": "\uFEFF---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/b.md).\n",
+				"notes/bom-readme.md": "\uFEFF# Readme\n\nSee [b](../decisions/b.md).\n",
+			},
+		),
+	);
+});

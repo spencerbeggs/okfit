@@ -1,4 +1,4 @@
-import type { Frontmatter } from "@effected/markdown";
+import type { Frontmatter, MarkdownParseError } from "@effected/markdown";
 import { FrontmatterDecodeError, MarkdownDocument, MarkdownVisitor, YamlFrontmatter } from "@effected/markdown";
 import { DescendError, PosixPath, confineReal } from "@effected/walker";
 import { YamlParseError } from "@effected/yaml";
@@ -298,7 +298,7 @@ export class Bundle {
 	 * Parse Markdown text exactly as `Bundle.load` parses every bundle file (frontmatter on), so a tool that
 	 * scans a file the loader did not keep as a concept reads its body the way a concept's is read.
 	 */
-	static readonly parseDocument = (text: string): ReturnType<typeof MarkdownDocument.parseResult> =>
+	static readonly parseDocument = (text: string): Result.Result<MarkdownDocument, MarkdownParseError> =>
 		MarkdownDocument.parseResult(text, OPTIONS);
 
 	/**

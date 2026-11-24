@@ -71,7 +71,7 @@ const ROWS: ReadonlyArray<Row> = [
 		crlf: true,
 	},
 	{
-		name: "a BOM survives",
+		name: "BOM: dropped on rewrite, for a concept and a non-concept alike (current behaviour)",
 		dir: "notes",
 		body: "# T\n\n[x]({M})\n",
 		expected: "# T\n\n[x]({G})\n",
@@ -105,8 +105,9 @@ describe("mv over a non-concept file agrees with the same body in a concept", ()
 				};
 				const result = yield* plan(mountProject(project));
 				const text = (path: string) => result.edits.find((edit) => edit.path === path)?.text;
-				// The filesystem read hands back the text without its BOM, for a concept and a non-concept alike, so
-				// the rewritten text carries none (a concept-body behaviour this row pins the non-concept path to).
+				// Known gap, current behaviour: the filesystem read hands back the text without its BOM (on the Node
+				// platform too: see the real-disk test in run.test.ts), so a rewritten file loses it. A concept and a
+				// non-concept agree; a later fix flips these expectations.
 				assert.strictEqual(text(plainPath), fill(row.dir, row.expected));
 				assert.strictEqual(text(twinPath), front + fill(row.dir, row.expected));
 				// Control: the move really rewrote something in this bundle.
@@ -133,32 +134,44 @@ describe("mv over a non-concept file agrees with the same body in a concept", ()
 		}),
 	);
 
-	it.effect("a non-string `type` makes a non-concept that is scanned; the type line is untouched", () =>
-		Effect.gen(function* () {
-			const project: ProjectSeed = {
-				...V03_PROJECT,
-				"okf/notes/typed.md": "---\ntype: 5\n---\n\n[x](../metrics/margin.md)\n",
-			};
-			const result = yield* plan(mountProject(project));
-			assert.strictEqual(
-				result.edits.find((edit) => edit.path === "notes/typed.md")?.text,
-				"---\ntype: 5\n---\n\n[x](../metrics/gross-margin.md)\n",
-			);
-		}),
+	it.effect(
+		"a non-string `type` makes a non-concept that is scanned like a concept twin; the type line is untouched",
+		() =>
+			Effect.gen(function* () {
+				const body = "[x](../metrics/margin.md)\n";
+				const project: ProjectSeed = {
+					...V03_PROJECT,
+					"okf/notes/typed.md": `---\ntype: 5\n---\n\n${body}`,
+					"okf/notes/twin.md": `---\ntype: Metric\n---\n\n${body}`,
+				};
+				const result = yield* plan(mountProject(project));
+				const text = (path: string) => result.edits.find((edit) => edit.path === path)?.text;
+				assert.strictEqual(text("notes/typed.md"), "---\ntype: 5\n---\n\n[x](../metrics/gross-margin.md)\n");
+				// Control: the concept twin with the same body is rewritten the same way.
+				assert.strictEqual(text("notes/twin.md"), "---\ntype: Metric\n---\n\n[x](../metrics/gross-margin.md)\n");
+			}),
 	);
 
-	it.effect("a README in a dot-directory is outside the bundle: not scanned, not blocking", () =>
+	it.effect("a README in a dot-directory is outside the bundle: not scanned, not blocking, bytes unchanged", () =>
 		Effect.gen(function* () {
-			const project: ProjectSeed = {
-				...V03_PROJECT,
-				"okf/.github/README.md": "[x](../metrics/margin.md)\n",
-				"okf/notes/README.md": "[x](../metrics/margin.md)\n",
-			};
-			const result = yield* plan(mountProject(project));
-			assert.isUndefined(result.edits.find((edit) => edit.path === ".github/README.md"));
-			// Control: the visible README is scanned.
-			assert.isDefined(result.edits.find((edit) => edit.path === "notes/README.md"));
-		}),
+			const hidden = "[x](../metrics/margin.md)\n";
+			const fs = yield* FileSystem.FileSystem;
+			const { plan: ran } = yield* runMove(move());
+			assert.isUndefined(ran.edits.find((edit) => edit.path === ".github/README.md"));
+			assert.strictEqual(yield* fs.readFileString("/repo/okf/.github/README.md"), hidden);
+			// Control: the visible README was scanned and written.
+			assert.strictEqual(yield* fs.readFileString("/repo/okf/notes/README.md"), "[x](../metrics/gross-margin.md)\n");
+		}).pipe(
+			Effect.provide(
+				platformFor(
+					mountProject({
+						...V03_PROJECT,
+						"okf/.github/README.md": "[x](../metrics/margin.md)\n",
+						"okf/notes/README.md": "[x](../metrics/margin.md)\n",
+					}),
+				),
+			),
+		),
 	);
 
 	it.effect("moving into or out of the README's directory respells its link", () =>
@@ -183,16 +196,18 @@ describe("mv over a non-concept file agrees with the same body in a concept", ()
 		}),
 	);
 
-	it.effect("a destination that is an existing non-concept file collides", () =>
-		Effect.gen(function* () {
-			const project: ProjectSeed = { ...V03_PROJECT, "okf/notes/README.md": "# Notes\n" };
-			const error = yield* Effect.flip(plan(mountProject(project), "notes/README"));
-			assert.isTrue(error instanceof MoveError && error.reason === "destination-exists");
-			// Control: a free destination in the same directory moves.
-			const ok = yield* plan(mountProject(project), "notes/margin");
-			assert.strictEqual(ok.to, "notes/margin.md");
-		}),
-	);
+	for (const name of ["README", "plain"]) {
+		it.effect(`a destination that is an existing non-concept file (notes/${name}.md) collides`, () =>
+			Effect.gen(function* () {
+				const project: ProjectSeed = { ...V03_PROJECT, [`okf/notes/${name}.md`]: "# Notes\n" };
+				const error = yield* Effect.flip(plan(mountProject(project), `notes/${name}`));
+				assert.isTrue(error instanceof MoveError && error.reason === "destination-exists");
+				// Control: a free destination in the same directory moves.
+				const ok = yield* plan(mountProject(project), "notes/margin");
+				assert.strictEqual(ok.to, "notes/margin.md");
+			}),
+		);
+	}
 });
 
 describe("mv and symlinked non-concept files", () => {
