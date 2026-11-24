@@ -53,16 +53,20 @@ Under 0.3 the computation is the first fenced block in the `Computation` section
 
 ## 4. Apply the safe fixes
 
+First, if the bundle was written by an older okfit, rename its keys, because `--fix` refuses a concept that still uses the old key names.
+
+A bundle written by an older okfit keeps its old key names (`integrity`, and the `software-project` fields such as `kind`) until a plain `okfit sync` renames them in place and reports the ids as `migrated`. Until then okfit does not see the old block, so earlier verifications report as no longer current (`verified-drift`) and a `software-project` bundle reports `required-key-missing`. `okfit sync --staged` only migrates the concepts being committed, so run a plain `okfit sync` once. Afterwards `verified-drift` may appear on concepts that were verified, and only a human re-verifies them. A project whose own config names a built-in field by its bare name keeps that config to update by hand.
+
+Then the fixes:
+
 ```bash
 okfit validate --target 0.3 --fix --dry-run   # says what would change, writes nothing
 okfit validate --target 0.3 --fix
 ```
 
-Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
+Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. It refuses a concept that still uses okfit's old key names (`refused: <file>: ...`); run `okfit sync` first, then fix again. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
 
 Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, and `Integrity drifted (re-verify with okfit verify): <ids>`. JSON carries `fixes: { applied, refused, drifts, dry_run }`. The fix never writes `verified`, `x-okfit-integrity.verified` or `generated.at`. When a concept's recorded `x-okfit-integrity.generated.body` matched its body before the edit, the fix re-records that digest. Otherwise the concept's body digest no longer matches, and the next `okfit sync` stamps a new `generated.at`, so an earlier human verification stops counting. Review the git diff.
-
-A bundle written by an older okfit keeps its old key names (`integrity`, and the `software-project` fields such as `kind`) until a plain `okfit sync` renames them in place and reports the ids as `migrated`. Until then okfit does not see the old block, so earlier verifications report as no longer current (`verified-drift`) and a `software-project` bundle reports `required-key-missing`. `okfit sync --staged` only migrates the concepts being committed, so run a plain `okfit sync` once. Afterwards `verified-drift` may appear on concepts that were verified, and only a human re-verifies them. A project whose own config names a built-in field by its bare name keeps that config to update by hand.
 
 ## 5. Work through what is left
 
