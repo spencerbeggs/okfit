@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
-import { FrontmatterSource, MarkdownDocument, MarkdownEdit, MarkdownParseOptions } from "@effected/markdown";
-import { YamlDocument } from "@effected/yaml";
-import { Concept, ConceptId, LoadedConcept, OkfitConfig } from "@okfit/core";
+import { MarkdownDocument, MarkdownEdit, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
+import { Bundle, Concept, ConceptId, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { ProfileKeys } from "@okfit/profiles";
 import { Effect, Option, Result } from "effect";
 import type { KeyRenames } from "../../src/sync/legacyKeys.js";
@@ -28,11 +27,12 @@ const field = { description: "d" };
 const config = (types: Record<string, { fields?: Record<string, typeof field> }>): OkfitConfig =>
 	OkfitConfig.merge(OkfitConfig.DEFAULTS, { extensions: {}, types });
 
-/** The frontmatter as a plain mapping, without decoding it (a foreign `integrity` would not decode). */
+/** The frontmatter as `Bundle.load` reads it: the same parse and decode, so `raw` is okfit's own view. */
 const rawFrontmatter = (text: string) =>
 	Effect.gen(function* () {
-		const doc = yield* YamlDocument.parse(FrontmatterSource.split(text).frontmatter?.value ?? "");
-		return doc.contents?.toValue() as Record<string, unknown>;
+		const document = Result.getOrThrow(Bundle.parseDocument(text));
+		const node = Option.getOrThrow(document.frontmatter);
+		return (yield* YamlFrontmatter.decode(node)) as Record<string, unknown>;
 	});
 
 /** A loaded concept whose frontmatter is the fixture's; the document is unused by the planner. */
@@ -172,12 +172,6 @@ describe("planKeyRenames", () => {
 		}),
 	);
 
-	it.effect("refuses a document with a merge key", () =>
-		Effect.gen(function* () {
-			assert.deepStrictEqual((yield* plan("merge-key.md")).plan, { _tag: "unsupported", shape: "merge-key" });
-		}),
-	);
-
 	it.effect("refuses a flow-mapping legacy integrity", () =>
 		Effect.gen(function* () {
 			assert.deepStrictEqual((yield* plan("flow-integrity.md")).plan, { _tag: "unsupported", shape: "flow-mapping" });
@@ -222,9 +216,29 @@ describe("planKeyRenames: refuse only what cannot be renamed in place", () => {
 		}),
 	);
 
-	it.effect("refuses a merge key that supplies a legacy key", () =>
+	it.effect("is none for a key only a merge supplies: okfit's decoded frontmatter does not hold it", () =>
 		Effect.gen(function* () {
-			assert.deepStrictEqual(yield* planOf("merge-key.md"), { _tag: "unsupported", shape: "merge-key" });
+			assert.deepStrictEqual(yield* planOf("merge-key.md"), { _tag: "none" });
+		}),
+	);
+
+	it.effect("plans promptly over chained merge anchors that fan out (8 levels, 10 aliases each)", () =>
+		Effect.gen(function* () {
+			const levels = ["a0: &a0 {x: 1}"];
+			for (let i = 1; i <= 8; i++)
+				levels.push(`a${i}: &a${i}\n  <<: [${Array.from({ length: 10 }, () => `*a${i - 1}`).join(", ")}]`);
+			const text = `---\ntype: Module\n${levels.join("\n")}\n<<: *a8\nkind: package\n---\n\nBody\n`;
+			const started = Date.now();
+			const concept = LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("thing.md")),
+				path: "thing.md",
+				frontmatter: Concept.make({ type: "Module", extensions: {}, raw: { type: "Module", kind: "package" } }),
+				document: Result.getOrThrow(MarkdownDocument.parseResult("", MarkdownParseOptions.make({ frontmatter: true }))),
+				computationBody: Option.none(),
+			});
+			const out = yield* planKeyRenames(text, concept, RENAMES);
+			assert.strictEqual(out._tag, "edits");
+			assert.isBelow(Date.now() - started, 2000);
 		}),
 	);
 
@@ -237,9 +251,18 @@ describe("planKeyRenames: refuse only what cannot be renamed in place", () => {
 
 	it.effect("refuses a duplicated key, and refuses it again over the unchanged text", () =>
 		Effect.gen(function* () {
-			const first = yield* planOf("duplicate.md");
+			// Bundle.load rejects a duplicate key, so the concept is built by hand with the last value.
+			const text = read("duplicate.md");
+			const concept = LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("thing.md")),
+				path: "thing.md",
+				frontmatter: Concept.make({ type: "Module", extensions: {}, raw: { type: "Module", kind: "b" } }),
+				document: Result.getOrThrow(MarkdownDocument.parseResult("", MarkdownParseOptions.make({ frontmatter: true }))),
+				computationBody: Option.none(),
+			});
+			const first = yield* planKeyRenames(text, concept, RENAMES);
 			assert.deepStrictEqual(first, { _tag: "unsupported", shape: "duplicate-key:kind" });
-			assert.deepStrictEqual(yield* planOf("duplicate.md"), first);
+			assert.deepStrictEqual(yield* planKeyRenames(text, concept, RENAMES), first);
 		}),
 	);
 
@@ -252,6 +275,16 @@ describe("planKeyRenames: refuse only what cannot be renamed in place", () => {
 	it.effect("leaves a null legacy integrity to the slot splice", () =>
 		Effect.gen(function* () {
 			assert.deepStrictEqual(yield* planOf("null-integrity.md"), { _tag: "none" });
+		}),
+	);
+});
+
+describe("what raw holds for a merge-supplied key", () => {
+	it.effect("does not expand <<", () =>
+		Effect.gen(function* () {
+			const raw = yield* rawFrontmatter(read("merge-key.md"));
+			assert.isFalse("kind" in raw);
+			assert.isTrue("<<" in raw);
 		}),
 	);
 });
