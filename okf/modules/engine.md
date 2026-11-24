@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T02:36:26Z
 integrity:
   generated:
-    body: 1587ee5b74e12c2f
+    body: 3fdc48aa739ee69c
 ---
 
 # Engine
@@ -224,9 +224,11 @@ and the fixed `BUNDLE_DESCRIPTION`.
 `log.md`, that is a symbolic link out of the bundle, a dangling link
 included: `syncIndex` and `syncLog` return it in `skipped` with the reason
 `symlink-escape` (`SkipReason`), in plain, dry-run and `--staged` runs, and
-the exit code is unchanged. `sync/index.ts#escapesBundle` asks core's load
-diagnostics first and falls back to `lstat` plus `confineReal`, because the
-walker does not list a dangling link and so leaves no diagnostic. `sync
+the exit code is unchanged. `confinement.ts#escapesBundle` (exported, with its bundle-free core
+`escapesRoot`) asks core's load diagnostics first and falls back to `lstat`
+plus `confineReal`, because the walker does not list a dangling link and so
+leaves no diagnostic. `okfit context` and the MCP `okf://index` resource use
+the same check, so an escaping root `index.md` is reported absent and never read. `sync
 --staged` never stamps a concept file that is a symlink out of the bundle,
 because core does not load one, and it skips an escaping `log.md` instead
 of failing; `ConceptOutsideRepositoryError` still covers a concept that

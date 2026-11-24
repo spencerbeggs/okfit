@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T02:36:26Z
 tags:
   - architecture
 verified:
@@ -25,7 +25,7 @@ verified:
     at: 2026-11-05T22:58:34Z
 integrity:
   generated:
-    body: 8d51abe1ef7b08b7
+    body: 4eda5685efd50cb4
   verified:
     by: human:spencer
     at: 2026-11-05T22:58:34Z
@@ -52,7 +52,8 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
 ## Resources
 
 - `okf://index` — the bundle's root `index.md`, read from disk on every
-  request.
+  request. A root `index.md` that is a symbolic link out of the bundle, or
+  dangling, is refused with `index.md links out of the bundle`, never read.
 - `okf://concept/<id>` — one static resource per concept, registered when
   the server starts. Content is read from disk per request, so an edit to
   an already-listed concept's file is live; a concept added or removed

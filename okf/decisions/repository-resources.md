@@ -13,11 +13,11 @@ sources:
     title: The git-backed lints that judge only a located file.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:09:56Z
+  at: 2026-11-24T02:36:26Z
 status: draft
 integrity:
   generated:
-    body: d198b2509cf870d2
+    body: 31426d143208dafc
 ---
 
 # Repository resources are classified by where they resolve
@@ -99,3 +99,9 @@ exists only in the editor overlay, in a directory that does not exist on
 disk, reads as missing. Resolving the real path of every candidate adds one
 filesystem call per literal `resource`, so a large bundle pays a small cost on
 each validate.
+
+A candidate inside the bundle that is a symbolic link into the repository is
+still found, because its real path is inside the project root. The bundle
+loader would not follow that link (OKF 0.3 section 3.2); the two rules differ
+because a repository resource is a citation of project files, not bundle
+content.

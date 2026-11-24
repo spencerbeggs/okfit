@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:09:56Z
+  at: 2026-11-24T02:36:26Z
 tags:
   - architecture
 verified:
@@ -35,7 +35,7 @@ verified:
     at: 2026-11-23T22:13:15Z
 integrity:
   generated:
-    body: bfe31400d207cb98
+    body: b2eea4fbd1e20b55
   verified:
     by: human:spencer
     at: 2026-11-23T22:13:15Z
@@ -132,6 +132,10 @@ never runs conformance or lint checks (the `okfit context` section of
 
 Without `--trust`, `context` never loads the bundle and its `trust` field
 is `null`; that keeps it cheap enough for a hook that runs on every write.
+`index_exists` is `false` for a root `index.md` that is a symbolic link out of
+the bundle, or dangling (OKF 0.3 section 3.2), so the session-start hook never
+prints it; this is an `lstat` and a real-path check, still without loading the
+bundle.
 `okfit context --trust` loads the bundle and fills `trust` with the
 counts of `concepts`, `drifted`, `stale` and `unverified`, plus
 `drifted_ids` and `stale_ids` (the first five of each, sorted). The
