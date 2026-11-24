@@ -274,13 +274,12 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 		const diagnostics = [...decoded.diagnostics, ...result.diagnostics];
 		const id = ConceptId.fromPath(file);
 		if (Option.isNone(result.concept) || Option.isNone(id)) return { diagnostics };
-		const computation = document.sectionByHeading("Computation", { depth: 1 });
 		const concept = LoadedConcept.make({
 			id: id.value,
 			path: file,
 			frontmatter: result.concept.value,
 			document,
-			computationBody: Option.map(computation, (section) => section.body),
+			computationBody: Bundle.inlineComputation(document, "legacy"),
 		});
 		return { diagnostics, concept };
 	});
@@ -300,6 +299,22 @@ export class Bundle {
 	 */
 	static readonly parseDocument = (text: string): Result.Result<MarkdownDocument, MarkdownParseError> =>
 		MarkdownDocument.parseResult(text, OPTIONS);
+
+	/**
+	 * Pure. The inline computation of `document` under one reading of the spec: `"legacy"` (OKF 0.2) is the body
+	 * of the depth-1 `Computation` section, `"current"` (OKF 0.3 section 10.3) is the first fenced block of the
+	 * first `Computation` section at any heading level. `None` when the reading finds nothing. `Bundle.load` calls
+	 * this for the reading its bundle's declared version selects; a tool comparing the two readings calls it twice.
+	 *
+	 * @public
+	 */
+	static readonly inlineComputation = (
+		document: MarkdownDocument,
+		reading: "legacy" | "current",
+	): Option.Option<string> =>
+		reading === "legacy"
+			? Option.map(document.sectionByHeading("Computation", { depth: 1 }), (section) => section.body)
+			: fencedComputation(document);
 
 	/**
 	 * Load the bundle at `options.root` (D-8, D-9, D-11 to D-14, D-21). Content never
@@ -406,7 +421,10 @@ export class Bundle {
 			for (const [conceptId, concept] of concepts) {
 				located.set(
 					conceptId,
-					LoadedConcept.make({ ...concept, computationBody: fencedComputation(concept.document) }),
+					LoadedConcept.make({
+						...concept,
+						computationBody: Bundle.inlineComputation(concept.document, "current"),
+					}),
 				);
 			}
 			return LoadedBundle.make({ ...bundle, concepts: located });

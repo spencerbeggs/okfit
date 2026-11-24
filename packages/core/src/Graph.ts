@@ -201,6 +201,14 @@ const indexOf = (bundle: LoadedBundle): BundleIndex => {
 };
 
 /**
+ * Which root-fallback rule {@link Graph.resolve} applies: `"declared"` follows the bundle's own `okf_version`,
+ * `"legacy"` forces the OKF 0.2 root fallback on and `"current"` forces it off, whatever the bundle declares.
+ *
+ * @public
+ */
+export type FallbackRule = "declared" | "legacy" | "current";
+
+/**
  * Static facade building a {@link LinkGraph} from a loaded bundle (D-6).
  *
  * @public
@@ -210,10 +218,18 @@ export class Graph {
 
 	/**
 	 * Pure. Resolve `raw`, written in the file at bundle-relative `from`, the way the graph does; `field`
-	 * applies the path-field rules (a `sources.resource` descriptor).
+	 * applies the path-field rules (a `sources.resource` descriptor). `rule` (default `"declared"`) states which
+	 * root-fallback rule applies; it is applied per call and never cached.
 	 */
-	static readonly resolve = (bundle: LoadedBundle, from: string, raw: string, field?: PathField): LinkResolution => {
-		const lookup = indexOf(bundle);
+	static readonly resolve = (
+		bundle: LoadedBundle,
+		from: string,
+		raw: string,
+		field?: PathField,
+		rule: FallbackRule = "declared",
+	): LinkResolution => {
+		const declared = indexOf(bundle);
+		const lookup = rule === "declared" ? declared : { ...declared, rootFallback: rule === "legacy" };
 		return field === undefined ? resolveTarget(from, raw, lookup) : resolvePathField(from, field, raw, lookup);
 	};
 

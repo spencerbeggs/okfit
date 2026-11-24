@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
-import { DateTime, Effect, Option } from "effect";
+import { DateTime, Effect, Option, Result } from "effect";
 import type { BundleLoadOptions, LoadedBundle } from "../src/Bundle.js";
 import { Bundle, BundleDepthExceededError, BundleReadError, BundleRootNotFoundError } from "../src/Bundle.js";
 import type { ConceptId } from "../src/ConceptId.js";
@@ -27,6 +27,35 @@ const computations = (frontmatter?: string) => ({
 });
 const body = (bundle: LoadedBundle, conceptId: string) =>
 	Option.map(bundle.concepts.get(id(conceptId))?.computationBody ?? Option.none(), (text) => text.trim());
+
+describe("Bundle.inlineComputation", () => {
+	const parse = (text: string) => {
+		const result = Bundle.parseDocument(text);
+		if (Result.isFailure(result)) throw new Error("parse failed");
+		return result.success;
+	};
+	const trimmed = (option: Option.Option<string>) => Option.map(option, (text) => text.trim());
+
+	it("a ## Computation with one fence: none under the legacy rule, the fence under the current rule", () => {
+		const document = parse("# Revenue\n\n## Computation\n\n```sql\nSELECT 1\n```\n");
+		assert.deepStrictEqual(Bundle.inlineComputation(document, "legacy"), Option.none());
+		assert.deepStrictEqual(trimmed(Bundle.inlineComputation(document, "current")), Option.some("SELECT 1"));
+	});
+	it("a # Computation with prose and two fences: the whole section legacy, the first fence current", () => {
+		const document = parse("# Computation\n\nsome prose\n\n```sql\nSELECT 1\n```\n\n```sql\nSELECT 2\n```\n");
+		const legacy = Bundle.inlineComputation(document, "legacy");
+		assert.isTrue(Option.isSome(legacy));
+		const text = Option.getOrThrow(legacy);
+		assert.include(text, "some prose");
+		assert.include(text, "SELECT 2");
+		assert.deepStrictEqual(trimmed(Bundle.inlineComputation(document, "current")), Option.some("SELECT 1"));
+	});
+	it("no Computation heading: none both ways", () => {
+		const document = parse("# Revenue\n\n```sql\nSELECT 1\n```\n");
+		assert.deepStrictEqual(Bundle.inlineComputation(document, "legacy"), Option.none());
+		assert.deepStrictEqual(Bundle.inlineComputation(document, "current"), Option.none());
+	});
+});
 
 describe("Bundle.load", () => {
 	it.effect("fails typed when the root is missing or a file (D-9)", () =>
