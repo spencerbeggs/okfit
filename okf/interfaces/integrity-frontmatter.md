@@ -1,7 +1,7 @@
 ---
 type: Interface
 title: integrity frontmatter family
-description: The top-level integrity key okfit writes into a concept, its digest format, and how integrity.verified joins to a verified entry.
+description: The top-level x-okfit-integrity key okfit writes into a concept, its digest format, and how x-okfit-integrity.verified joins to a verified entry.
 x-okfit-kind: config
 resource: ../../packages/core/src/Integrity.ts
 tags:

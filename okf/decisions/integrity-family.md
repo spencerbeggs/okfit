@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: Every okfit digest lives in one integrity family, outside the spec's families
-description: okfit stores its digests only under a top-level integrity key, so generated and verified stay exactly as OKF defines them and a digest is 16 hex characters of SHA-256.
+description: okfit stores its digests only under a top-level x-okfit-integrity key, so generated and verified stay exactly as OKF defines them and a digest is 16 hex characters of SHA-256.
 tags:
   - architecture
   - docs
