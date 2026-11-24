@@ -11,6 +11,9 @@ __test__/
   context/             # context/run.ts
   external/            # external/ExternalReferences.ts
   init/                # init/scaffold.ts
+  migrate/             # migrate/characterization.test.ts pins today's root-fallback reading and report sources
+                        # migrate/{findings,fix}.test.ts: the report and the two safe fixes
+                        # (phase 4; Tasks 3, 5, 6, 8 flip the marked lines)
   overlay/             # overlay/{layer,documents}.ts
   session/             # session/{BundleSession,diff,range}.ts
   render/              # render/{context,exit,json,sort,sync}.ts (context.ts and sync.ts

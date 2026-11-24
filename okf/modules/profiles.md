@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:05:31Z
+  at: 2026-11-24T10:28:07Z
 integrity:
   generated:
-    body: fb7ba0d3671e683f
+    body: 3044a082c753bf07
 ---
 
 # Profiles
@@ -26,6 +26,11 @@ git config). Core stays opinion-free; everything that says what a bundle
 *should* contain lives here (`packages/profiles/CLAUDE.md:1-6`).
 
 ## Layout
+
+The software-project config overlay sets `[bundle] non_concepts` to
+`**/README.md`, `**/AGENTS.md`, `**/CONTRIBUTING.md` and `**/SKILL.md`, beside
+its `status_missing = "warn"` lint, so the `non-concept-unlisted` lint and the
+plugin hook guard every other typeless `.md`.
 
 `Profile.ts` holds the shared types (`Layout`, `ProfileDiagnostic`,
 `Profile`). `SoftwareProject.ts` holds the `software-project` literal,

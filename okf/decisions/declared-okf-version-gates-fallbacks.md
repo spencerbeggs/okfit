@@ -13,20 +13,22 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T10:28:07Z
 status: stable
 integrity:
   generated:
-    body: 146ab87c9ca9b375
+    body: 2052b7106efff37a
   verified:
     by: human:spencer
-    at: 2026-11-24T02:55:14Z
-    content: 4e164e51836fd695
+    at: 2026-11-24T14:56:24Z
+    content: be165a51d11802e9
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:45Z
   - by: human:spencer
     at: 2026-11-24T02:55:14Z
+  - by: human:spencer
+    at: 2026-11-24T14:56:24Z
 ---
 
 # The declared OKF version gates the v0.2 fallbacks
@@ -87,6 +89,18 @@ no `okf_version` for that reason. The JSON envelopes of `validate`, `lint`,
 own declaration as `okf_version`, or `null` when it declares none; the old
 warning that the config and the constant disagreed is gone, because the
 config no longer names what a bundle is.
+
+## The migration report reads both rules
+
+`Graph.resolve` takes a third argument, the fallback rule: `"declared"`
+(the default, what the bundle's own declaration says), `"legacy"` or
+`"current"`. `Bundle.inlineComputation(document, rule)` does the same for
+the computation locator. The migration report of `okfit validate --target`
+([Migration is a report](migration-is-a-report.md)) resolves each reference
+under `"legacy"` and `"current"` and compares, which is how it finds a bare
+value that resolves only from the bundle root even in a bundle that already
+declares 0.3. Nothing else passes a rule; every other caller still reads
+the declared one.
 
 ## Alternatives rejected
 

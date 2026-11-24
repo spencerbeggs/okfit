@@ -32,6 +32,10 @@
 * Updated The engine version, not the producer version, is what a report is compared on
 * Updated The language and MCP servers survive a stray crash once serving, and exit on one before
 * Updated okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
+* Updated AI Plugins
+* Updated Agent plugin hooks contract
+* Added Migration to a newer OKF version is a report on validate, with two safe fixes
+* Updated The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 
 ## 2026-11-23
 

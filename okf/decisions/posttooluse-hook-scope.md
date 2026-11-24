@@ -8,7 +8,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-11-24T11:25:42Z
 status: stable
 verified:
   - by: human:spencer
@@ -19,13 +19,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T14:56:24Z
 integrity:
   generated:
-    body: b2c42230dd94769e
+    body: c872fe2f261088f9
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: 9eee7871ad82d35d
+    at: 2026-11-24T14:56:24Z
+    content: e55526db26edb09b
 ---
 
 # The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
@@ -102,8 +104,10 @@ accepted for the same reason the original PostToolUse-not-PreToolUse
 decision accepted validating bytes only after they exist on disk: the
 alternative was building surface nothing else in the plan needed.
 
-## Verification
-
-Not yet verified by a human; Spencer should confirm this reflects the
-intended phase 4 trade-off and run `okfit verify` on this concept
-himself.
+A third job was added later: the hook reads the `non-concept-unlisted` lint
+and blocks a `Write` (or a Bash authoring write) of an unlisted non-concept
+`.md`, and warns on an `Edit` (see [Markdown that is not a concept is
+skipped, not an error](non-concept-markdown-is-skipped.md)). It is the one
+lint the hook reads: like the conformance check it has to stop the write,
+and the language server only publishes diagnostics (see Alternatives
+rejected).

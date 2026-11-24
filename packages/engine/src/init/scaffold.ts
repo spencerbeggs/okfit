@@ -1,7 +1,7 @@
 import type { FrontmatterWriteError, MarkdownParseError } from "@effected/markdown";
 import { MarkdownDocument, MarkdownFrontmatter, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import type { OkfitConfig } from "@okfit/core";
-import { Concept, ConceptId, Derive, LoadedConcept } from "@okfit/core";
+import { Concept, ConceptId, Derive, LoadedConcept, OkfVersion } from "@okfit/core";
 import type { Layout } from "@okfit/profiles";
 import { Effect, Option, Schema } from "effect";
 
@@ -175,9 +175,13 @@ export const files = (
 		});
 
 		const subdirectories = layout.directories.map((directory) => directory.directory);
+		// Root `title` and `description` are OKF 0.3 (§8.1); a strict 0.2 reader rejects any root index key
+		// but `okf_version`, so a bundle that declares 0.2 or earlier gets none (#468). An unparsable version
+		// reads as current, as everywhere else.
+		const writesRootMetadata = !OkfVersion.allowsLegacyFallbacks(Option.some(options.okfVersion));
 		const rootIndexText = Derive.renderIndex("", [projectConcept], {
 			okfVersion: options.okfVersion,
-			metadata: { title: projectTitle, description: BUNDLE_DESCRIPTION },
+			...(writesRootMetadata ? { metadata: { title: projectTitle, description: BUNDLE_DESCRIPTION } } : {}),
 			subdirectories,
 		});
 

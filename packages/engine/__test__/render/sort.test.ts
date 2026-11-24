@@ -57,6 +57,31 @@ describe("collect", () => {
 	);
 });
 
+describe("collect with a migration", () => {
+	it.effect("tags migration findings source migrate and keeps their fix", () =>
+		Effect.sync(() => {
+			const result = collect(
+				[],
+				[],
+				[],
+				[
+					{ file: "index.md", code: "okf-version-older", severity: "warning", message: "m", fix: "okf-version" },
+					{ file: "a.md", code: "computation-locator", severity: "info", message: "n" },
+				],
+			);
+			assert.deepStrictEqual(
+				result.map((d) => [d.source, d.code, d.fix ?? null]),
+				[
+					["migrate", "okf-version-older", "okf-version"],
+					["migrate", "computation-locator", null],
+				],
+			);
+			// control: without a migration argument nothing is tagged migrate
+			assert.deepStrictEqual(collect([], [], []), []);
+		}),
+	);
+});
+
 describe("sort", () => {
 	const of = (file: string, code: string, r?: DiagnosticRange): RenderedDiagnostic => ({
 		source: "core.lint",

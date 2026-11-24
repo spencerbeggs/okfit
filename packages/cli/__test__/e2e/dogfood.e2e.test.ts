@@ -26,6 +26,34 @@ const MIN_CONCEPTS = 40;
  */
 const dirnameOf = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
+describe("okfit's own okf/ bundle: okfit validate --target 0.3", () => {
+	it.effect("reports exactly one migrate finding and leaves core.lint equal to the plain run", () =>
+		Effect.gen(function* () {
+			const env = { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", NO_COLOR: "1" };
+			interface Body {
+				diagnostics: Array<{ source: string; code: string; file: string }>;
+			}
+			const targeted = yield* runOkfit(["validate", "--root", REPO_ROOT, "--target", "0.3", "--format", "json"], {
+				cwd: REPO_ROOT,
+				env,
+			});
+			const plain = yield* runOkfit(["validate", "--root", REPO_ROOT, "--format", "json"], { cwd: REPO_ROOT, env });
+			assert.strictEqual(targeted.exitCode, 0);
+			const withTarget = JSON.parse(targeted.stdout) as Body;
+			const without = JSON.parse(plain.stdout) as Body;
+			const migrate = withTarget.diagnostics.filter((d) => d.source === "migrate");
+			assert.deepStrictEqual(
+				migrate.map((d) => `${d.file}:${d.code}`),
+				["index.md:okf-version-older"],
+			);
+			const lints = (body: Body) => body.diagnostics.filter((d) => d.source === "core.lint");
+			assert.deepStrictEqual(lints(withTarget), lints(without));
+			// control: the plain run carries no migrate diagnostic at all
+			assert.strictEqual(without.diagnostics.filter((d) => d.source === "migrate").length, 0);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
 describe("okfit's own okf/ bundle: okfit validate (F-13 case a)", () => {
 	it.effect(
 		"exits 0 with no errors over the real bundle (warnings are reported by `pnpm okf:check`, not asserted here)",

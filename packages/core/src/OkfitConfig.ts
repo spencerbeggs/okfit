@@ -1,9 +1,10 @@
 import type { ConfigReadError } from "@effected/config-file";
 import { ConfigFile, ConfigMerge } from "@effected/config-file";
 import { TomlCodec } from "@effected/config-file/toml";
+import { GlobPattern } from "@effected/glob";
 import { HostedSchema } from "@effected/schemastore";
 import type { FileSystem } from "effect";
-import { Duration, Effect, Option, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
+import { Duration, Effect, Option, Result, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
 import { Actor, ActorPattern } from "./Actor.js";
 import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
 
@@ -490,6 +491,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	non_concept_unlisted: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "non-concept-unlisted",
+			description:
+				'A .md file is not a concept (no frontmatter, or no type) and matches no glob in [bundle] non_concepts. An okfit opinion, not OKF conformance (§3.2 allows such files). Silent when non_concepts is absent. Default "warn".',
+			default: "warn",
+		}),
+	),
 }).annotate({
 	title: "Lint severities",
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
@@ -529,6 +538,21 @@ export const okfitConfigFields = Schema.Struct({
 						'The named profile merged under `DEFAULTS < profile < file`, or "none" to disable profile merging.',
 					default: "software-project",
 					examples: ["software-project", "none"],
+				}),
+			),
+			non_concepts: Schema.optionalKey(
+				Schema.Array(
+					Schema.String.check(
+						Schema.makeFilter((value: string) => {
+							const compiled = GlobPattern.compileResult(value);
+							return Result.isSuccess(compiled) || `Expected a valid glob pattern, got ${JSON.stringify(value)}`;
+						}),
+					),
+				).annotate({
+					title: "Non-concept Markdown",
+					description:
+						"Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
+					examples: [["**/README.md", "**/AGENTS.md"]],
 				}),
 			),
 		}).annotate({
@@ -769,6 +793,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"frontmatter-missing": "frontmatter_missing",
 	"type-missing": "type_missing",
 	"symlink-escape": "symlink_escape",
+	"non-concept-unlisted": "non_concept_unlisted",
 };
 
 // D-34 defaults, keyed by the [lint] table spelling.
@@ -812,6 +837,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	frontmatter_missing: "warn",
 	type_missing: "warn",
 	symlink_escape: "warn",
+	non_concept_unlisted: "warn",
 };
 
 const toSeverity = (level: LintLevel): DiagnosticSeverity | "off" => (level === "warn" ? "warning" : level);

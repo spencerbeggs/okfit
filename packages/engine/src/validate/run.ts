@@ -13,6 +13,8 @@ import { Provenance, Publications, Trust } from "@okfit/profiles";
 import type { DateTime, FileSystem, Path, PlatformError } from "effect";
 import { Context, Effect, Option } from "effect";
 import type { Digest } from "effect/crypto";
+import type { MigrationFinding } from "../migrate/findings.js";
+import { migrationFindings } from "../migrate/findings.js";
 import { lintResources } from "./resources.js";
 import { lintSurfaces } from "./surfaces.js";
 import { lintUntrackedResources } from "./untracked.js";
@@ -70,6 +72,11 @@ export interface RunOptions {
 	 * every tier. Defaults to `false`.
 	 */
 	readonly skipUntracked?: boolean;
+	/**
+	 * An OKF version to read the bundle against (`validate --target`): when set, `RunResult.migration` lists what
+	 * reads differently under it. It adds findings and changes none of the conformance, lint or profile output.
+	 */
+	readonly target?: string;
 }
 
 /** @public */
@@ -80,6 +87,8 @@ export interface RunResult {
 	readonly profileDiagnostics: ReadonlyArray<ProfileDiagnostic>;
 	/** The trust signal of every concept, keyed by concept id; computed once and shared with `Trust.lint`. */
 	readonly signals: ReadonlyMap<string, ConceptSignal>;
+	/** What reads differently under `RunOptions.target`; `[]` without a target. Never counted in an exit code (R50). */
+	readonly migration: ReadonlyArray<MigrationFinding>;
 }
 
 /**
@@ -158,5 +167,6 @@ export const run = (
 			},
 			profileDiagnostics,
 			signals,
+			migration: options.target === undefined ? [] : migrationFindings(bundle, options.config, options.target),
 		};
 	});

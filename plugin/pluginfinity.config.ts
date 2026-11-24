@@ -4,7 +4,7 @@ import { MIN_CLI_VERSION } from "./min-cli.js";
 export default defineConfig({
 	name: "okfit",
 	description:
-		"Teaches AI coding agents the Open Knowledge Format (OKF) v0.2 and keeps a repository's okf/ knowledge bundle current through skills, two docs agents, and the okfit CLI, MCP server and language server.",
+		"Teaches AI coding agents the Open Knowledge Format (OKF) v0.3 and keeps a repository's okf/ knowledge bundle current through skills, two docs agents, and the okfit CLI, MCP server and language server.",
 	author: { name: "C. Spencer Beggs", url: "https://spencerbeg.gs" },
 	homepage: "https://github.com/spencerbeggs/okfit",
 	repository: "https://github.com/spencerbeggs/okfit.git",

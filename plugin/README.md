@@ -1,6 +1,6 @@
 # okfit agent plugin
 
-Built with [pluginfinity](https://github.com/spencerbeggs/pluginfinity) from one source into a Claude Code plugin (`builds/claude/`) and a GitHub Copilot plugin (`builds/copilot/`). Teaches Claude Code the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 and keeps a repository's `okf/` bundle current.
+Built with [pluginfinity](https://github.com/spencerbeggs/pluginfinity) from one source into a Claude Code plugin (`builds/claude/`) and a GitHub Copilot plugin (`builds/copilot/`). Teaches Claude Code the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.3 and keeps a repository's `okf/` bundle current.
 
 ## Local development
 
@@ -42,10 +42,11 @@ pnpm exec bats plugin/__test__/launchers.bats
 
 | Skill | Purpose |
 | --- | --- |
-| `okf-spec` | OKF v0.2 condensed reference: the conformance floor, the frontmatter field table by family, reserved files, the actor convention, and the v0.1-to-v0.2 changes. |
-| `okf-authoring` | Twenty imperative rules for writing and editing OKF concept files under a config: what is required, what to never touch, and the actor/timestamp conventions. |
+| `okf-spec` | OKF v0.3 condensed reference: the conformance floor, the frontmatter field table by family, links and path fields, reserved files, the actor convention, and the changes from v0.2. |
+| `okf-authoring` | Twenty-three imperative rules for writing and editing OKF concept files under a config: what is required, what to never touch, and the actor/timestamp conventions. |
 | `okf-config` | The okfit config file: discovery order, the TOML schema table by table, lint severities, and what the `software-project` profile contributes. |
 | `okf-context` | CLAUDE.md as a thin router into the bundle, checked against `index.md` — a pointer-coverage checklist. |
+| `okf-upgrade` | Upgrade a bundle to OKF v0.3: run `okfit validate --target 0.3`, apply the safe fixes, work through what is left, and stop for the human where trust is involved. |
 | `okf-finalize` | Branch-end sweep: reconcile touched concepts, run `okfit validate`, regenerate derived files, check CLAUDE.md pointer coverage, and report. |
 | `docs-detect-shape` | Detects the repo's shape, recommends a docs preset from `describe_vocabulary`, and writes draft Surface concepts after asking where each surface lives. |
 | `docs-templates` | Section order and skeletons for a package README, a monorepo router README and a `docs/` folder with its TOC. The Surface body overrides a template default. |
@@ -54,7 +55,7 @@ pnpm exec bats plugin/__test__/launchers.bats
 | `docs-render` | Re-renders a Publication's page from its sources, humanizes it, runs `okfit sync --publication`, and checks the drift is gone. |
 
 Every skill is both user- and model-invocable (no `disable-model-invocation`)
-and the five `okf-*` skills are preloaded, in full, by the `okf-docs` agent below.
+and the six `okf-*` skills are preloaded, in full, by the `okf-docs` agent below.
 
 ## Agent
 
@@ -65,7 +66,7 @@ The plugin ships two agents, split by write direction.
 `agents/okf-docs.md` is the bundle writer. It keeps a repository's
 `okf/` bundle and its CLAUDE.md pointer files current under the resolved
 config's own type and tag vocabulary — never inventing one of its own. It
-preloads the five `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their
+preloads the six `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their
 full content is injected rather than merely discoverable). See its own
 `## What this agent does NOT do` section for the boundary rather than a
 restatement here: in short, it never writes `verified` or `integrity`, never edits

@@ -75,6 +75,34 @@ describe("ERROR_PROJECTS: one defect each", () => {
 				assert.deepStrictEqual(requiredOf(clean), []);
 			}),
 	);
+	it.effect("non-concept-unlisted follows the software-project list: README.md silent, notes.md fires once", () =>
+		Effect.gen(function* () {
+			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config);
+			const unlisted = (bundle: LoadedBundle) =>
+				Validate.lint(bundle, merged)
+					.filter((d) => d.code === "non-concept-unlisted")
+					.map((d) => d.file);
+			assert.deepStrictEqual(unlisted(yield* load(V03_PROJECT)), []);
+			const withNotes = yield* load({ ...V03_PROJECT, "okf/notes.md": "# Notes\n" });
+			assert.deepStrictEqual(unlisted(withNotes), ["notes.md"]);
+			// control: the load diagnostic for the listed README is still there (R46)
+			assert.isTrue(withNotes.diagnostics.some((d) => d.file === "README.md" && d.code === "frontmatter-missing"));
+		}),
+	);
+	it.effect("the software-project list matches the §3.2 names at any depth and nothing else", () =>
+		Effect.gen(function* () {
+			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config);
+			const files = ["README.md", "docs/a/README.md", "AGENTS.md", "skills/x/SKILL.md", "CONTRIBUTING.md"];
+			const bad = ["notes.md", "readme.md", "docs/README.markdown.md"];
+			const seed = Object.fromEntries([...files, ...bad].map((f) => [`okf/${f}`, "# Plain\n"]));
+			const bundle = yield* load({ ...V03_PROJECT, ...seed });
+			const fired = Validate.lint(bundle, merged)
+				.filter((d) => d.code === "non-concept-unlisted")
+				.map((d) => d.file)
+				.sort();
+			assert.deepStrictEqual(fired, [...bad].sort());
+		}),
+	);
 	it.effect("unparsable-version yields index-metadata-invalid on the root index", () =>
 		Effect.gen(function* () {
 			const { codes } = yield* loadsClean("unparsable-version");

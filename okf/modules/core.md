@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T10:28:07Z
 integrity:
   generated:
-    body: 543f146310fe2cee
+    body: 268cacdc2dfa96c5
 ---
 
 # Core
@@ -85,12 +85,12 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-thirty-nine keys, including `generated_at_drift`, `generated_missing`,
+forty keys, including `generated_at_drift`, `generated_missing`,
 `verified_before_change` (default `warn`) and the
 ten added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
 `value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,
 `symlink_escape`, `superseded_by_orphan` and `superseded_by_unresolved`, all
-default `warn`, and `resource_outside_project`, default `info`), are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
+default `warn`, and `resource_outside_project`, default `info`), and `non_concept_unlisted` (default `warn`, silent unless `[bundle] non_concepts` is set), are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
 (issue #73, `internal/lintRules.ts#generatedMissing`) fires only when
 `actors.agent` is set and a concept's frontmatter has no `generated` block
 at all (or one written as null, `""` or `[]`) -- surfacing the gap at validate
@@ -189,6 +189,15 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
 - **Actors.** `team:` is a known scheme (`ActorForm` `team`);
   `actor-prefix-unknown` also checks `sources[].author`, and its message
   lists `human:`, `team:`, `process:` and the producer form.
+- **Reading rules.** `Graph.resolve(bundle, from, raw, field?, rule?)` takes
+  a fallback rule, `"declared"` (the default), `"legacy"` or `"current"`,
+  and `Bundle.inlineComputation(document, rule)` takes the same, so the
+  migration report can read one bundle both ways; the rule is applied per
+  call and never cached ([The declared OKF version gates the v0.2
+  fallbacks](../decisions/declared-okf-version-gates-fallbacks.md)).
+  `[bundle] non_concepts` is a list of globs that decodes only if each
+  compiles, and has no default; the lint that reads it is
+  `non-concept-unlisted`.
 - **Computation.** `computationBody` follows the §10.3 locator for a bundle
   declaring 0.3 or later, and finds a fence nested in a list item or block
   quote; `executor.resource`, `executor.receipt` and `attester.resource` are

@@ -19,8 +19,12 @@ export const printDiagnostics = Effect.fn("okfit/cli/printDiagnostics")(function
 	readonly bundleRoot: string;
 	readonly path: Path.Path;
 	readonly concepts: number;
+	/** The `--target` version: migrate findings then get their own summary line and stay out of the counts. */
+	readonly target?: string;
 }) {
 	const { diagnostics, cwd, bundleRoot, path } = options;
+	const migrate = diagnostics.filter((d) => d.source === "migrate");
+	const checked = diagnostics.filter((d) => d.source !== "migrate");
 	const workspace = (yield* Config.String("GITHUB_WORKSPACE").pipe(Config.option)).pipe(
 		Option.filter((value) => value !== ""),
 	);
@@ -31,10 +35,14 @@ export const printDiagnostics = Effect.fn("okfit/cli/printDiagnostics")(function
 		}),
 	);
 	const counts: Counts = {
-		errors: diagnostics.filter((d) => d.severity === "error").length,
-		warnings: diagnostics.filter((d) => d.severity === "warning").length,
-		info: diagnostics.filter((d) => d.severity === "info").length,
+		errors: checked.filter((d) => d.severity === "error").length,
+		warnings: checked.filter((d) => d.severity === "warning").length,
+		info: checked.filter((d) => d.severity === "info").length,
 		concepts: options.concepts,
 	};
 	yield* Console.error(summary(counts, displayRoot(cwd, bundleRoot, path)));
+	if (options.target !== undefined) {
+		const fixable = migrate.filter((d) => d.fix !== undefined).length;
+		yield* Console.error(`OKF ${options.target}: ${migrate.length} finding(s), ${fixable} fixable with --fix`);
+	}
 });

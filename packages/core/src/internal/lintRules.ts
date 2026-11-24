@@ -1,5 +1,6 @@
+import { GlobPattern } from "@effected/glob";
 import { EditDistance } from "@effected/source";
-import { DateTime, Schema } from "effect";
+import { DateTime, Result, Schema } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
 import { Concept } from "../Concept.js";
@@ -175,6 +176,36 @@ export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
 		? ["Concept has no status and no verified entry, so it reads as stable; set status: draft or stable explicitly"]
 		: [],
 );
+
+/**
+ * R45/R46: an okfit opinion layered on the load diagnostics `frontmatter-missing` and `type-missing`
+ * (OKF 0.3 §3.2 allows such files). Silent when `[bundle] non_concepts` is absent; otherwise a typeless
+ * file no glob matches is reported, ranged like its load diagnostic. The load diagnostics are unchanged.
+ */
+export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (context, severity) => {
+	const globs = context.config.bundle?.non_concepts;
+	if (globs === undefined) return [];
+	// The config schema rejects an uncompilable glob at load, so the empty branch is unreachable for a decoded config.
+	const patterns = globs.flatMap((glob) => {
+		const compiled = GlobPattern.compileResult(glob);
+		return Result.isSuccess(compiled) ? [compiled.success] : [];
+	});
+	return context.bundle.diagnostics
+		.filter(
+			(d) =>
+				(d.code === "frontmatter-missing" || d.code === "type-missing") &&
+				!patterns.some((pattern) => pattern.matches(d.file)),
+		)
+		.map((d) =>
+			diagnostic(
+				d.file,
+				"non-concept-unlisted",
+				severity,
+				`${d.file} is not a concept (${d.code === "frontmatter-missing" ? "no frontmatter" : "no type"}) and matches no [bundle] non_concepts glob (${globs.join(", ")}); add frontmatter with a type, move it out of the bundle, or list it in non_concepts`,
+				d.range,
+			),
+		);
+});
 
 // Issue #73: `okfit sync` can only complete a `generated:` block that exists
 // (or, from this change on, create one from `actors.agent`). Surface the
@@ -495,6 +526,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	requireVerifiedUnmet,
 	verifiedBeforeChange,
 	statusMissing,
+	nonConceptUnlisted,
 	generatedMissing,
 	actorPrefixUnknown,
 	actorEmail,

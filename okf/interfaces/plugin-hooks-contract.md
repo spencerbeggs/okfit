@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-25T18:13:20Z
+  at: 2026-11-24T11:15:03Z
 tags:
   - architecture
 verified:
@@ -19,13 +19,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-25T18:30:29Z
+  - by: human:spencer
+    at: 2026-11-24T14:56:24Z
 integrity:
   generated:
-    body: 526a87d29b4cc7df
+    body: 7b298745d87960df
   verified:
     by: human:spencer
-    at: 2026-10-25T18:30:29Z
-    content: abd9517665b19618
+    at: 2026-11-24T14:56:24Z
+    content: c6e5071afb965dc0
 ---
 
 # Agent plugin hooks contract
@@ -63,7 +65,7 @@ stop-and-fix signal, never a prevention. As of LSP phase 4, [The
 PostToolUse hook keeps only conformance blocking and the generated.by
 check, once the language server delivers lint and profile
 findings](../decisions/posttooluse-hook-scope.md)
-the hook keeps exactly two jobs, now that the registered language server
+the hook keeps two jobs, now that the registered language server
 delivers `core.lint` and profile findings with precise ranges directly in
 the editor. For a path under the bundle root, it runs
 `okfit validate --root <project_root> <file> --format json --skip-provenance`
@@ -71,15 +73,23 @@ the editor. For a path under the bundle root, it runs
 diagnostics to it), and turns a
 `core.conformance` hit into `{"decision": "block", ...}`; every other
 diagnostic for that file — `core.lint`, profile findings — is silent
-here and no longer emitted as `additionalContext`. One check reads the
+here and no longer emitted as `additionalContext`. A third job reads one lint:
+for a `Write` or `Edit` it runs the same scoped validate, and a
+`non-concept-unlisted` diagnostic for the file (a typeless `.md` that
+`[bundle] non_concepts` does not list) blocks a `Write` and warns on an
+`Edit`; without that key the lint is silent and nothing happens (see
+[Markdown that is not a concept is skipped, not an
+error](../decisions/non-concept-markdown-is-skipped.md)). One check reads the
 written file itself: when the config sets `actors.agent`, a concept file
-(never `index.md` or `log.md`) whose frontmatter has no `generated.by`
+(frontmatter with a top-level `type:`; never `index.md` or `log.md`, and never a typeless file such as a listed
+`README.md`) whose frontmatter has no `generated.by`
 blocks on `Write` and warns on `Edit`, with the exact `by:` value to add
 in the message ([#74](https://github.com/spencerbeggs/okfit/issues/74):
 the okf-authoring rule alone reached 109 of 268 concepts under one
 brief, and this hook is the one place that knows the write came from the
-agent). A `Bash` call gets that check alone
-([#223](https://github.com/spencerbeggs/okfit/issues/223)): the hook
+agent). A `Bash` call gets that check, plus the non-concept guard for an authoring
+write (one scoped validate, only when a target is typeless), and no
+conformance check ([#223](https://github.com/spencerbeggs/okfit/issues/223)): the hook
 scans `tool_input.command` for write targets before it spawns
 `okfit context`, so a command with no `.md` write target costs nothing.
 It keeps the existing non-reserved files under the bundle root and splits

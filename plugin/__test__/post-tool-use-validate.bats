@@ -613,3 +613,203 @@ EOF" "$proj")" "$proj"
 	assert_hook_noop
 	[ ! -f "$STUB_DIR/context-cwd" ]
 }
+
+# OKF v0.3 phase 4, Task 1 (characterization): a typeless .md written into the
+# bundle passes the hook silently today. Task 8 teaches the hook to block it
+# where the config or profile forbids it.
+
+# _ctx_no_profile bundle_root project_root — a context for a bundle whose config sets nothing.
+_ctx_no_profile() {
+	printf '{"schema":1,"project_root":"%s","bundle_root":"%s","config_path":null,"profile":null,"index_path":"%s/index.md","index_exists":true,"actors":{"agent":null},"types":[],"tags":[]}' "$2" "$1" "$1"
+}
+
+# _typeless_proj — a project whose okf/ holds a root index and a typeless notes.md; echoes the project dir.
+_typeless_proj() {
+	local proj="$BATS_TEST_TMPDIR/typeless"
+	mkdir -p "$proj/okf"
+	printf -- '---\nokf_version: "0.3"\n---\n' >"$proj/okf/index.md"
+	printf '# Notes\n' >"$proj/okf/notes.md"
+	printf '%s' "$proj"
+}
+
+# _unlisted_json file globs — a validate envelope carrying the non-concept-unlisted lint.
+_unlisted_json() {
+	printf '{"schema":1,"exit_code":1,"diagnostics":[{"source":"core.lint","file":"%s","code":"non-concept-unlisted","severity":"warning","message":"%s is not a concept (no frontmatter) and matches no [bundle] non_concepts glob (%s); add frontmatter with a type, move it out of the bundle, or list it in non_concepts"}]}' "$1" "$1" "$2"
+}
+
+PROFILE_GLOBS='**/README.md, **/AGENTS.md, **/CONTRIBUTING.md, **/SKILL.md'
+UNLISTED_REASON="notes.md: not a concept: it has no frontmatter type, and this bundle allows non-concept Markdown only where [bundle] non_concepts says ($PROFILE_GLOBS). Give it frontmatter with a type (okf-authoring), move it out of the bundle, or ask the human to add it to non_concepts."
+
+@test "a Write of a typeless okf/notes.md is silent where the config sets nothing" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_profile "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+		# control: the hook did run its validate for the file, so the silence is the hook's verdict
+		[ -f "$STUB_DIR/validate-invoked" ]
+	done
+}
+
+@test "a Write of a typeless okf/notes.md blocks under the software-project profile (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json notes.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_stop "$target" "$UNLISTED_REASON"
+		[ -f "$STUB_DIR/validate-invoked" ]
+	done
+}
+
+@test "a Write of an unlisted okf/notes.md falls back to 'allows it' when the glob list is empty (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json notes.md "")" 1
+	local reason="notes.md: not a concept: it has no frontmatter type, and this bundle allows non-concept Markdown only where [bundle] non_concepts allows it. Give it frontmatter with a type (okf-authoring), move it out of the bundle, or ask the human to add it to non_concepts."
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_stop "$target" "$reason"
+		[[ "$reason" != *"says ()"* ]]
+	done
+}
+
+@test "an Edit of a typeless okf/notes.md warns, never blocks (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json notes.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		_run "$target" "$(_input Edit "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_hook_json '.decision // "none"' none
+		[[ "$(context_text)" == *"$UNLISTED_REASON"* ]]
+	done
+}
+
+@test "a Write of okf/README.md and of a typed concept stays clean under the profile (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	printf '# Readme\n' >"$proj/okf/README.md"
+	printf -- '---\ntype: Module\ntitle: T\n---\n' >"$proj/okf/typed.md"
+	# the lint does not flag a listed or typed file, so the stub reports nothing for them
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_input Write "$proj/okf/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		[ -f "$STUB_DIR/validate-invoked" ]
+		_run "$target" "$(_input Write "$proj/okf/typed.md" "$proj")" "$proj"
+		assert_hook_noop
+	done
+}
+
+@test "a lint hit for a different file does not block a Write (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json other.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+		[ -f "$STUB_DIR/validate-invoked" ]
+	done
+}
+
+@test "a conformance block also carries the non-concept line (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" \
+		'{"schema":1,"exit_code":2,"diagnostics":[{"source":"core.conformance","file":"notes.md","code":"frontmatter-unclosed","severity":"error","message":"m"},{"source":"core.lint","file":"notes.md","code":"non-concept-unlisted","severity":"warning","message":"notes.md is not a concept (no frontmatter) and matches no [bundle] non_concepts glob (**/README.md); add frontmatter with a type, move it out of the bundle, or list it in non_concepts"}]}' 2
+	_run claude "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+	assert_hook_json '.reason | contains("frontmatter-unclosed") and contains("notes.md: not a concept: it has no frontmatter type")' true
+}
+
+@test "a Bash authoring write of a typeless okf/notes.md blocks through one scoped validate (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json notes.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_bash_input $'cat > okf/notes.md <<\'EOF\'\n# Notes\nEOF' "$proj")" "$proj"
+		assert_stop "$target" "$UNLISTED_REASON"
+		[ -f "$STUB_DIR/validate-invoked" ]
+		[ "$(paste -sd' ' "$STUB_DIR/validate-argv")" = "validate --root $proj $proj/okf/notes.md --format json --skip-provenance" ]
+	done
+}
+
+@test "a Bash edit-like write of a typeless file never spawns validate (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json notes.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_bash_input "printf 'more\n' >> okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+		[ ! -f "$STUB_DIR/validate-invoked" ]
+	done
+	# control: the authoring form of the same command does spawn it
+	_run claude "$(_bash_input "printf 'more\n' > okf/notes.md" "$proj")" "$proj"
+	[ -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "a Bash authoring write of a typed concept never spawns validate (R8)" {
+	local proj
+	proj=$(_bash_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json x.md "$PROFILE_GLOBS")" 1
+	_run claude "$(_bash_input "echo hi > okf/x.md" "$proj")" "$proj"
+	assert_hook_noop
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
+# A listed non-concept is not a concept: with actors.agent set the hook never asks it for generated.by
+# (final-review finding 2). Controls: a typed concept without generated.by still blocks.
+
+@test "a Write of a listed README.md is clean when actors.agent is set, a typed concept without generated.by blocks" {
+	local proj
+	proj=$(_typeless_proj)
+	mkdir -p "$proj/okf/a/b"
+	printf '# Readme\n' >"$proj/okf/README.md"
+	printf '# Nested\n' >"$proj/okf/a/b/README.md"
+	printf -- '---\ntype: Module\ntitle: T\n---\n' >"$proj/okf/typed.md"
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		_run "$target" "$(_input Write "$proj/okf/a/b/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		# control: the same context blocks a typed concept that lacks generated.by
+		_run "$target" "$(_input Write "$proj/okf/typed.md" "$proj")" "$proj"
+		assert_stop "$target" "typed.md: generated.by is missing"
+	done
+}
+
+@test "a Bash write of a listed README.md, or an append to a typeless file, gets no generated.by advice when actors.agent is set" {
+	local proj
+	proj=$(_typeless_proj)
+	printf '# Readme\n' >"$proj/okf/README.md"
+	printf -- '---\ntype: Module\ntitle: T\n---\n' >"$proj/okf/typed.md"
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "cp /tmp/src.md okf/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		_run "$target" "$(_bash_input "printf 'more\n' >> okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+		# control: an appended write to a typed concept without generated.by is still told to stamp it
+		_run "$target" "$(_bash_input "printf 'more\n' >> okf/typed.md" "$proj")" "$proj"
+		[[ "$(context_text)" == *"generated.by is missing"* ]]
+	done
+}
+
+@test "an unlisted typeless Write blocks with the non-concept reason only when actors.agent is set" {
+	local proj text
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$(_unlisted_json notes.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_stop "$target" "$UNLISTED_REASON"
+		if [ "$target" = claude ]; then text=$(printf '%s' "$output" | jq -r '.reason'); else text=$(context_text); fi
+		[[ "$text" != *"generated.by"* ]]
+	done
+}

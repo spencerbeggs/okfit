@@ -10,6 +10,7 @@ const VALUES = [
 	"CLI_VERSION",
 	"DocumentStdinIsTerminalError",
 	"InitBundleDirError",
+	"ValidateUsageError",
 	"annotationDir",
 	"human",
 	"humanContext",

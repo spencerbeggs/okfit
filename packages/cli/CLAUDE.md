@@ -72,7 +72,8 @@ src/
   commands/
     root.ts               -- rootCommand: subcommands and the shared audience flags
                               (--audience, --human, --agent, --ci), no handler
-    validate.ts            -- validateCommand: flags/argument, the full handler
+    validate.ts            -- validateCommand: flags/argument, the full handler; --target/--fix/--only/--dry-run
+                              (engine's applyMigrationFixes; only "0.3" accepted, usage refusals are ValidateUsageError, exit 64)
     init.ts                 -- initCommand: flags/argument, the full handler
     context.ts                -- contextCommand: flags/argument, the full handler
     verify.ts                  -- verifyCommand: flags/argument, the full handler
@@ -98,6 +99,7 @@ src/
     move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
     stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), humanMalformed, staleSummary
   internal/
+    validate-usage.ts             -- ValidateUsageError (exit 64): a refused --target or --fix/--only/--dry-run combination
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)
     versionFormatter.ts            -- versionFormatter: the env.formatter override passed to CliRuntime.main,

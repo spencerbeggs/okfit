@@ -90,4 +90,13 @@ describe("forDiagnostics", () => {
 			assert.strictEqual(forDiagnostics([]), 0);
 		}),
 	);
+
+	it.effect("migrate entries never count, whatever their severity (R50)", () =>
+		Effect.sync(() => {
+			assert.strictEqual(forDiagnostics([of("migrate", "warning"), of("migrate", "info"), of("migrate", "error")]), 0);
+			// control: the same list with a lint error beside it is tier 1
+			assert.strictEqual(forDiagnostics([of("migrate", "warning"), of("core.lint", "error")]), 1);
+			assert.strictEqual(tally([of("migrate", "error")]).lintErrors, 0);
+		}),
+	);
 });

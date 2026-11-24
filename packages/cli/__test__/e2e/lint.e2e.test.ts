@@ -149,6 +149,7 @@ describe("okfit lint --format json", () => {
 					lint_warnings: 0,
 					lint_info: 0,
 					profile_errors: 0,
+					migration_findings: 0,
 					concepts: 2,
 				},
 				diagnostics: [

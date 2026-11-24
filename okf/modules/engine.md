@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T11:25:42Z
 integrity:
   generated:
-    body: c6bccd5dec3d07c2
+    body: 71231c044f7857d2
 ---
 
 # Engine
@@ -160,6 +160,33 @@ same all-or-nothing write, through the shared `verify/locate.ts` and splice
 helpers, and a re-attest by the same actor overwrites that actor's own
 `verified[].at` rather than appending. See [stale --verify rolls stale_after
 forward](../decisions/stale-verify.md).
+
+## Migration report and fixes
+
+`migrate/findings.ts` holds `migrationFindings(bundle, config, target)`: five codes
+(`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
+`root-relative-path`, `computation-locator`), found by resolving each
+reference under both fallback rules; `computation-locator` appears only while
+the bundle reads with the legacy locator and the two readings differ, and a bundle with no root index
+gets an `okf-version-undeclared` finding for `index.md` with no fix.
+`migrate/fix.ts` holds `planMigrationFixes` and `applyMigrationFixes`, which
+write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
+version fix while a root-only reference remains, when `okf_version` cannot be
+edited in place, when the root index's opening fence is malformed or its
+frontmatter does not parse (the run continues),
+re-record `integrity.generated.body` for a concept whose digest matched
+before the edit, list `drifts` (each edited concept whose integrity was
+current before the edit, and each whose `integrity` block the fix will not
+edit), and keep a BOM and the file's line endings.
+Both read and write the root index and concepts themselves, so they need
+`FileSystem`, `Path` and `Digest`. `validate/run.ts#run` takes a `target` and
+returns the findings as `migration`; they render as a fourth diagnostic
+source, `"migrate"`, which `render/exit.ts` never counts toward the exit
+code. The JSON envelope gains `target`, `fixes` (the named `JsonFixes`) and
+`summary.migration_findings`. `init` omits the root `title` and `description`
+for a bundle that declares 0.2 or earlier (#468). See [Migration to a newer
+OKF version is a report on validate, with two safe
+fixes](../decisions/migration-is-a-report.md).
 
 ## Concept queries
 

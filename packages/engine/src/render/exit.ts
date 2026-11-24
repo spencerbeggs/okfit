@@ -13,7 +13,8 @@ export interface Tally {
  * One pass over the collected diagnostics. `core.conformance` entries are
  * always severity `error` (D-33); the counts are still taken from `severity`
  * so a future non-error conformance code cannot silently change the exit
- * code.
+ * code. A `migrate` entry (`validate --target`) is never counted: it reports what would change under another
+ * OKF version, not a defect in the bundle (R50).
  *
  * @public
  */
@@ -34,6 +35,7 @@ export const tally = (diagnostics: ReadonlyArray<RenderedDiagnostic>): Tally => 
 			else lintInfo++;
 			continue;
 		}
+		if (d.source === "migrate") continue;
 		// d.source === "profile": always severity error (P-21); still gated on severity per the docstring above.
 		if (d.severity === "error") profileErrors++;
 	}

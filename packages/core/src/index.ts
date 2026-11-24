@@ -35,7 +35,7 @@ export {
 	LintCode,
 } from "./Diagnostic.js";
 export { Generated } from "./Generated.js";
-export type { GraphEdge, GraphLink, GraphNode, LinkResolution, PathField } from "./Graph.js";
+export type { FallbackRule, GraphEdge, GraphLink, GraphNode, LinkResolution, PathField } from "./Graph.js";
 export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";
 export { Digest, Integrity, IntegrityGenerated, IntegrityVerified } from "./Integrity.js";

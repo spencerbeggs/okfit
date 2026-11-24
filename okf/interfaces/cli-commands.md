@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T11:25:42Z
 tags:
   - architecture
 verified:
@@ -37,13 +37,15 @@ verified:
     at: 2026-11-24T02:55:14Z
   - by: human:spencer
     at: 2026-11-24T06:53:02Z
+  - by: human:spencer
+    at: 2026-11-24T14:56:24Z
 integrity:
   generated:
-    body: 2be34607692fc3f8
+    body: ebbd4ad1372ec0f1
   verified:
     by: human:spencer
-    at: 2026-11-24T06:53:02Z
-    content: c350bfe74812d737
+    at: 2026-11-24T14:56:24Z
+    content: c04d8b5ad469e615
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -106,6 +108,37 @@ the bundle, is not `.md`, or sits under a directory that does not exist,
 and a terminal stdin, are usage errors (exit `64`). The MCP
 `validate_bundle` tool's `documents` input is the same overlay.
 
+`--target <version>` adds the migration report: a fourth diagnostic source,
+`migrate`, listing what reads differently under that OKF version (codes
+`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
+`root-relative-path`, `computation-locator`; the last only when the
+`Computation` section reads differently under 0.3, so a depth-one section that
+is exactly one fence is not reported). Only `0.3` is accepted; any
+other value is exit `64`. A `migrate` entry never changes the exit code, and
+a human run prints one extra stderr line, `OKF 0.3: <n> finding(s), <k>
+fixable with --fix`. `--fix` (requires `--target`) writes the two safe
+fixes: it prefixes `/` to a body link, image, definition or path field that
+resolves only from the bundle root, and it declares `okf_version: "0.3"` in
+the root index. The version fix is refused, with its reason, while a root-only
+reference remains, when `okf_version` cannot be edited in place, when the
+root index's opening fence is malformed, or when the root index frontmatter
+does not parse (malformed YAML, a duplicate key); the rest of the plan still
+applies. `--only okf-version` and
+`--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
+the positional targets narrow the files, and `--dry-run` (requires `--fix`)
+writes nothing. A fix re-records `integrity.generated.body` for a concept
+whose digest matched before the edit, so `sync` keeps `generated.at`; it
+never writes `generated.at`, `verified` or `integrity.verified`, and an
+edited concept whose okfit integrity was current before the edit (a body-link
+edit counts too), or whose `integrity` block has a layout the fix will not
+edit, is listed as drifted. The human run prints `Fixed <n> finding(s) in <m> file(s)` (or
+`Would fix` under `--dry-run`), a `refused:` line per refusal and an
+`Integrity drifted` line. `--fix` without `--target`, `--only` or
+`--dry-run` without `--fix`, and `--fix` with `--document` are exit `64`
+(under `--format json` they also print the error envelope). See [Migration
+to a newer OKF version is a report on validate, with two safe
+fixes](../decisions/migration-is-a-report.md).
+
 ## okfit init
 
 Scaffolds a fresh bundle — config, `index.md`/`log.md`/`project.md` — then
@@ -114,7 +147,7 @@ scaffold that does not validate clean is treated as a defect. It never
 overwrites: if any target path already exists, nothing is written and it
 exits `3`. `--profile <name>` picks the profile to scaffold; an
 unrecognised name is a warning, not a failure, and `init` continues with
-the default profile (the `okfit init` section of `packages/cli/README.md`). The root `index.md` it writes declares `okf_version` (the config's key, or the spec constant `0.3` when the config sets none), a `title` that is the project directory name and a fixed `description`.
+the default profile (the `okfit init` section of `packages/cli/README.md`). The root `index.md` it writes declares `okf_version` (the config's key, or the spec constant `0.3` when the config sets none), a `title` that is the project directory name and a fixed `description` only when the version it declares is 0.3 or later: a root `title` or `description` is OKF v0.3 (§8.1), so a bundle scaffolded at 0.2 or earlier gets `okf_version` alone.
 `--bundle <dir>` sets the bundle directory (project-relative; default the
 resolved `bundle.path`, `okf`) and `--config-location
 <.config/okfit.toml|okfit.toml|.okfit.toml>` sets where the config file is
@@ -491,6 +524,7 @@ exit is always `0`, `1`, or one of the process-level codes above.
 `okfit validate --format json` prints `JsonEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `producer`, `distribution`,
 `okf_version`, `root`, `profile`, `exit_code`, `summary`, `diagnostics`.
+`summary` gains `migration_findings` (the count of `migrate` diagnostics, whether or not `--target` was given: 0 without it), and the envelope gains `target` when `--target` is given and `fixes` (`applied`, `refused`, `drifts`, `dry_run`) after `--fix`.
 
 Four of those fields are about versions, and only two of them are worth
 comparing. `engine_version` is the `@okfit/engine` that produced the

@@ -32,6 +32,20 @@
 						"software-project",
 						"none"
 					]
+				},
+				"non_concepts": {
+					"type": "array",
+					"title": "Non-concept Markdown",
+					"description": "Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
+					"examples": [
+						[
+							"**/README.md",
+							"**/AGENTS.md"
+						]
+					],
+					"items": {
+						"type": "string"
+					}
 				}
 			},
 			"additionalProperties": false,
@@ -983,6 +997,28 @@
 					],
 					"title": "value-unknown",
 					"description": "A defined key carries a value outside its vocabulary (today: status); the value is kept and the concept is not read as current knowledge (OKF 0.3 §5.4, §11.2 rule 4). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"non_concept_unlisted": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "non-concept-unlisted",
+					"description": "A .md file is not a concept (no frontmatter, or no type) and matches no glob in [bundle] non_concepts. An okfit opinion, not OKF conformance (§3.2 allows such files). Silent when non_concepts is absent. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

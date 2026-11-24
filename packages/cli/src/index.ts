@@ -11,6 +11,7 @@ export { rootCommand } from "./commands/root.js";
 export { renderFailure } from "./errors.js";
 export { InitBundleDirError } from "./internal/initWizard.js";
 export { DocumentStdinIsTerminalError } from "./internal/stdin.js";
+export { ValidateUsageError } from "./internal/validate-usage.js";
 export { humanContext } from "./render/context.js";
 export type { Counts, HumanDocOptions, SeverityPaint } from "./render/human.js";
 export { annotationDir, human, humanDoc, line, summary } from "./render/human.js";

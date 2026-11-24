@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T10:28:07Z
 integrity:
   generated:
-    body: 7a81941ef169503a
+    body: a472690bf59cac01
 ---
 
 # CLI
@@ -35,7 +35,11 @@ equivalents](../decisions/effected-kit-adoption.md). `okfit context` prints the 
 orientation data (project root, bundle root, config path, profile,
 vocabulary) without loading the bundle (`--trust` is the one opt-in load, adding drift,
 stale and unverified counts) -- cheap enough for a Claude Code
-hook to call on every session and every in-bundle write. `verify` also
+hook to call on every session and every in-bundle write. `validate` also
+takes `--target 0.3`, `--fix`, `--only` and `--dry-run` (engine's
+`applyMigrationFixes`; only `0.3` is accepted, and a refused combination is a
+`ValidateUsageError`, exit `64`), documented in
+`okf/interfaces/cli-commands.md`. `verify` also
 takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
 at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, filtered by `--verified`, `--unverified`, `--drifted`, `--stale` and `--current` (draft and stable only), with `--status unknown` selecting concepts whose `status` is outside the vocabulary (printed `unknown(<raw>)`; `query get` also prints a deprecated concept's `replacement`), and `sync` also takes `--since
 <YYYY-MM-DD>` (widens the log floor) and `--staged` (the pre-commit

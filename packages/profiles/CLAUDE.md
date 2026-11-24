@@ -40,4 +40,5 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
 - No `process.cwd()` and no environment reads anywhere in `src/`: `writer` and `cwd` are explicit arguments (P-16).
 - Relative imports use `.js` extensions; built-ins use `node:`; type imports are separate `import type` statements; TSDoc `@public` on every export from `src/`; tab indentation.
 - `Context.Service` and `Schema.TaggedError` classes (`GitHistory`, `GitHistoryError`, `HumanActorUnresolvedError`, `AgentActorUnconfiguredError`) are declared inline; the bundler's default `_base` `ae-forgotten-export` suppression covers the synthesized base, so `effected.toml` lists no rules of its own.
+- `software-project` sets `bundle.non_concepts` to `**/README.md`, `**/AGENTS.md`, `**/CONTRIBUTING.md`, `**/SKILL.md` (`**/` matches the bundle root too); core's `non-concept-unlisted` lint reads it.
 - The `README.md` TOML fence is a test fixture: `__test__/SoftwareProject.test.ts` decodes it and deep-equals it against the `software-project` literal. Change both together.

@@ -303,6 +303,56 @@ describe("Graph version-gated root fallback", () => {
 	}
 });
 
+describe("Graph.resolve under a stated rule", () => {
+	const seed = (frontmatter?: string) => ({
+		[`${MOUNT}/index.md`]: `${frontmatter === undefined ? "" : `---\n${frontmatter}\n---\n\n`}# Metric\n`,
+		[`${MOUNT}/metrics/revenue.md`]: "---\ntype: Metric\n---\n",
+		[`${MOUNT}/metrics/margin.md`]: "---\ntype: Metric\n---\n",
+		[`${MOUNT}/attesters/sql_equality.py`]: "",
+	});
+	const load = (frontmatter?: string) => Bundle.load({ root: MOUNT }).pipe(Effect.provide(platform(seed(frontmatter))));
+	const from = "metrics/margin.md";
+	const root = { _tag: "node", id: "metrics/revenue", kind: "concept", via: "root" } as const;
+	const missing = { _tag: "node", id: "metrics/metrics/revenue.md", kind: "missing", via: "file" } as const;
+	const sibling = { _tag: "node", id: "metrics/revenue", kind: "concept", via: "file" } as const;
+
+	for (const [label, frontmatter] of [
+		["a 0.2 bundle", 'okf_version: "0.2"'],
+		["an undeclared bundle", undefined],
+	] as const) {
+		it.effect(`${label}: current turns the root fallback off, legacy and declared keep it`, () =>
+			Effect.gen(function* () {
+				const bundle = yield* load(frontmatter);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md", undefined, "current"), missing);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md", undefined, "legacy"), root);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md", undefined, "declared"), root);
+				assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), root);
+				for (const rule of ["declared", "legacy", "current"] as const) {
+					assert.deepStrictEqual(Graph.resolve(bundle, from, "./revenue.md", undefined, rule), sibling);
+				}
+			}),
+		);
+	}
+
+	it.effect("a 0.3 bundle: declared and current miss, legacy forces the root fallback on", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load('okf_version: "0.3"');
+			assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), missing);
+			assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md", undefined, "current"), missing);
+			assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md", undefined, "legacy"), root);
+			assert.deepStrictEqual(Graph.resolve(bundle, from, "./revenue.md", undefined, "legacy"), sibling);
+			// A path field takes the override too, and the cached index is not poisoned by an earlier override.
+			assert.deepStrictEqual(Graph.resolve(bundle, from, "attesters/sql_equality.py", "attester.resource", "legacy"), {
+				_tag: "node",
+				id: "attesters/sql_equality.py",
+				kind: "file",
+				via: "root",
+			});
+			assert.deepStrictEqual(Graph.resolve(bundle, from, "metrics/revenue.md"), missing);
+		}),
+	);
+});
+
 const dep = (target: string, extra = "") =>
 	`---\ntype: Note\nstatus: deprecated\nsuperseded_by: ${target}\n${extra}---\n`;
 const note = (status?: string) => `---\ntype: Note\n${status === undefined ? "" : `status: ${status}\n`}---\n`;

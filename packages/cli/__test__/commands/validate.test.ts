@@ -27,7 +27,7 @@ describe("validateCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["root", "config", "format", "skip-provenance", "document"],
+			["root", "config", "format", "skip-provenance", "document", "target", "fix", "only", "dry-run"],
 		);
 	});
 

@@ -109,8 +109,6 @@ describe("files", () => {
 					[
 						"---",
 						"okf_version: '0.2'",
-						"title: my-repo",
-						"description: What this project is, how it is built, and why it is built that way.",
 						"---",
 						"",
 						"# Project",
@@ -208,6 +206,22 @@ describe("files", () => {
 			}),
 		);
 	});
+
+	it.effect("a 0.2 root index carries only okf_version; a 0.3 index carries title and description (#468, §8.1)", () =>
+		Effect.gen(function* () {
+			const entries = yield* files({ ...OPTIONS, okfVersion: "0.2" });
+			const text = entries.find((entry) => entry.path === "/tmp/my-repo/okf/index.md")?.contents ?? "";
+			assert.match(text, /^---\nokf_version: '0\.2'\n---\n/);
+			assert.notInclude(text, "title:");
+			assert.notInclude(text, "description:");
+			// control: the same keys are what a 0.3 index writes, so the assertion reads the frontmatter, not a stray word
+			const current = (yield* files({ ...OPTIONS, okfVersion: "0.3" })).find(
+				(entry) => entry.path === "/tmp/my-repo/okf/index.md",
+			)?.contents;
+			assert.include(current, "title: my-repo");
+			assert.include(current, "description:");
+		}),
+	);
 
 	it.effect("writes the bundle title and description, and Bundle.load reads them back clean (OKF 0.3 §8.1)", () =>
 		Effect.gen(function* () {
