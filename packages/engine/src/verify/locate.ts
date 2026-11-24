@@ -109,7 +109,8 @@ export interface KeySpan {
 /**
  * The one edit that renames a key: it replaces the token's span with `to`, written in the same quote
  * style the token had in `source` (plain stays plain, `'kind'` becomes `'x-okfit-kind'`). Nothing else
- * changes: the value, an anchor, a comment and the order stay. `to` must be a plain-safe key.
+ * changes: the value, an anchor, a comment and the order stay. The whole token is replaced, so a key written
+ * with escapes inside quotes becomes the plain spelling of `to` in the same quotes. `to` must be a plain-safe key.
  *
  * @internal
  */
@@ -130,6 +131,21 @@ export type LegacyIntegrityShape = "foreign" | "empty" | "block" | "flow" | "opa
 
 const LEGACY_SLOTS: ReadonlySet<string> = new Set(["generated", "verified"]);
 
+/**
+ * D2's key test, the one predicate both the parsed-tree and the plain-value checks use: every key is
+ * `generated` or `verified`.
+ *
+ * @internal
+ */
+export const isLegacySlotKeys = (keys: Iterable<string>): boolean => {
+	for (const key of keys) if (!LEGACY_SLOTS.has(key)) return false;
+	return true;
+};
+
+/** True when `value` is a mapping that satisfies D2: only `generated` and `verified` keys. @internal */
+export const isLegacyIntegrityValue = (value: unknown): boolean =>
+	value !== null && typeof value === "object" && !Array.isArray(value) && isLegacySlotKeys(Object.keys(value));
+
 /** Classify the value of a top-level legacy `integrity` pair. See {@link LegacyIntegrityShape}. @internal */
 export const classifyLegacyIntegrity = (node: YamlNode | null): LegacyIntegrityShape => {
 	if (
@@ -145,7 +161,9 @@ export const classifyLegacyIntegrity = (node: YamlNode | null): LegacyIntegrityS
 	if (node instanceof YamlAlias) return "opaque";
 	if (!(node instanceof YamlMap)) return "foreign";
 	if (hasMergeKey(node)) return "opaque";
-	const subset = node.items.every((item) => item.key instanceof YamlScalar && LEGACY_SLOTS.has(String(item.key.value)));
+	const subset =
+		node.items.every((item) => item.key instanceof YamlScalar) &&
+		isLegacySlotKeys(node.items.map((item) => String((item.key as YamlScalar).value)));
 	if (!subset) return "foreign";
 	return node.style === "flow" ? "flow" : "block";
 };

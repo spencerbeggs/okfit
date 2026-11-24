@@ -207,6 +207,55 @@ describe("planKeyRenames", () => {
 	);
 });
 
+describe("planKeyRenames: refuse only what cannot be renamed in place", () => {
+	const planOf = (name: string) => plan(name).pipe(Effect.map((out) => out.plan));
+
+	it.effect("is none for a merge-key document with nothing to rename", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* planOf("merge-nothing.md"), { _tag: "none" });
+		}),
+	);
+
+	it.effect("is none for an already-migrated flow-style document", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* planOf("flow-migrated.md"), { _tag: "none" });
+		}),
+	);
+
+	it.effect("refuses a merge key that supplies a legacy key", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* planOf("merge-key.md"), { _tag: "unsupported", shape: "merge-key" });
+		}),
+	);
+
+	it.effect("renames a real top-level key in a document that also uses <<", () =>
+		Effect.gen(function* () {
+			const { text, out } = yield* applied("merge-real-kind.md");
+			assert.strictEqual(out, text.replace("\nkind:", "\nx-okfit-kind:"));
+		}),
+	);
+
+	it.effect("refuses a duplicated key, and refuses it again over the unchanged text", () =>
+		Effect.gen(function* () {
+			const first = yield* planOf("duplicate.md");
+			assert.deepStrictEqual(first, { _tag: "unsupported", shape: "duplicate-key:kind" });
+			assert.deepStrictEqual(yield* planOf("duplicate.md"), first);
+		}),
+	);
+
+	it.effect("refuses an explicit ? key", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* planOf("explicit-key.md"), { _tag: "unsupported", shape: "explicit-key" });
+		}),
+	);
+
+	it.effect("leaves a null legacy integrity to the slot splice", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual(yield* planOf("null-integrity.md"), { _tag: "none" });
+		}),
+	);
+});
+
 describe("recordedBodyForSync", () => {
 	const withRaw = (raw: Record<string, unknown>) =>
 		LoadedConcept.make({
@@ -226,6 +275,16 @@ describe("recordedBodyForSync", () => {
 	it("is undefined for a malformed legacy block", () => {
 		const concept = withRaw({ integrity: { generated: { body: "zz" } } });
 		assert.strictEqual(recordedBodyForSync(concept, RENAMES), undefined);
+	});
+
+	it("is undefined for a block that fails D2 (a foreign key beside generated)", () => {
+		const concept = withRaw({ integrity: { generated: { body: "47fef58df84c6eb2" }, extra: 1 } });
+		assert.strictEqual(legacyIntegrity(concept, RENAMES), undefined);
+		assert.strictEqual(recordedBodyForSync(concept, RENAMES), undefined);
+	});
+
+	it("is undefined for a scalar integrity", () => {
+		assert.strictEqual(recordedBodyForSync(withRaw({ integrity: "sha256-abc" }), RENAMES), undefined);
 	});
 
 	it("is undefined without a rename", () => {

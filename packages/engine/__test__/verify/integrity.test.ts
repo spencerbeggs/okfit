@@ -266,6 +266,24 @@ describe("locateIntegrity key options", () => {
 		}),
 	);
 
+	it.effect("refuses a null legacy block too (D6)", () =>
+		Effect.gen(function* () {
+			const text = "---\ntype: T\nintegrity:\n---\n";
+			assert.deepStrictEqual(yield* locateIntegrity(text, { key: "x-okfit-integrity", legacyKey: "integrity" }), {
+				_tag: "unsupported",
+				shape: "legacy-key",
+			});
+		}),
+	);
+
+	it.effect("refuses a legacy block behind a merge key (D6)", () =>
+		Effect.gen(function* () {
+			const text = "---\ntype: T\nintegrity:\n  <<: {generated: {body: abc}}\n---\n";
+			const located = yield* locateIntegrity(text, { key: "x-okfit-integrity", legacyKey: "integrity" });
+			assert.deepStrictEqual(located, { _tag: "unsupported", shape: "legacy-key" });
+		}),
+	);
+
 	it("renameKey keeps a double-quoted token's quotes", () => {
 		const text = '"kind": x\n';
 		assert.strictEqual(

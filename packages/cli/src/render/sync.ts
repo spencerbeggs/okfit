@@ -11,9 +11,10 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"integrity-unsupported": "integrity is a shape sync cannot edit; edit it by hand",
 	"renders-unsupported": "renders is a shape sync cannot edit (flow style); edit it by hand",
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
-	"legacy-key-conflict": "carries both an old and a new spelling of an okfit key; remove one by hand",
+	"legacy-key-conflict":
+		"carries both the old and the new spelling of an okfit key; keep the new one, move any value you need into it, delete the old one, then run okfit sync again",
 	"legacy-key-unsupported":
-		"has an old okfit key sync cannot rename in place (flow style, alias or merge key); rename it by hand",
+		"has an old okfit key that sync cannot rename in place (flow style, merge key, alias, duplicate or explicit key); rename it by hand to the new spelling",
 	"symlink-escape": "is a symbolic link that leaves the bundle, so it is not read or written",
 };
 
