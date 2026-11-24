@@ -22,6 +22,7 @@ import {
 } from "@okfit/engine";
 import { InitBundleDirError } from "./internal/initWizard.js";
 import { DocumentStdinIsTerminalError } from "./internal/stdin.js";
+import { ValidateUsageError } from "./internal/validate-usage.js";
 
 const hasTag = (error: unknown, tag: string): boolean =>
 	typeof error === "object" && error !== null && "_tag" in error && (error as { readonly _tag: unknown })._tag === tag;
@@ -103,6 +104,7 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 		];
 	}
 	if (error instanceof InitBundleDirError) return [`error: ${error.message}`];
+	if (error instanceof ValidateUsageError) return [`error: ${error.message}`];
 	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof VerifyContentUnhashableError) return [`error: ${error.message}`];

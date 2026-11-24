@@ -935,17 +935,113 @@ describe("okfit validate: an unparseable file", () => {
 	);
 });
 
-describe("okfit validate: --target (characterization; Task 5 adds it)", () => {
-	it.effect("rejects --target 0.3 as an unknown flag today, while a plain validate of the same bundle succeeds", () =>
+describe("okfit validate: --target, --fix, --only, --dry-run", () => {
+	const seed = (name: string, files: Record<string, string> = V02_PROJECT) =>
 		Effect.gen(function* () {
-			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-target-"));
-			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, V02_PROJECT));
-			// Task 5: exit 0 with migrate findings
-			const target = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
-			assert.strictEqual(target.exitCode, 64);
-			// control: the same sandbox validates, so 64 comes from the flag and not from the bundle
-			const plain = yield* runOkfit(["validate"], sandbox);
-			assert.strictEqual(plain.exitCode, 0);
+			const sandbox = yield* Effect.promise(() => makeSandbox(name));
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, files));
+			return sandbox;
+		});
+	const read = (sandbox: Sandbox, path: string) => Effect.promise(() => readFile(join(sandbox.cwd, path), "utf8"));
+	const COMPUTATION = "okf/computations/revenue-ytd.md";
+
+	it.effect("reports four migrate findings, exits 0, and counts them in the summary", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-target-");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--format", "json"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			const body = JSON.parse(run.stdout) as {
+				target: string;
+				summary: { migration_findings: number };
+				diagnostics: Array<{ source: string; code: string }>;
+			};
+			assert.strictEqual(body.target, "0.3");
+			assert.strictEqual(body.summary.migration_findings, 4);
+			assert.strictEqual(body.diagnostics.filter((d) => d.source === "migrate").length, 4);
+			// control: without --target the same bundle has no migrate diagnostics
+			const plain = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			const plainBody = JSON.parse(plain.stdout) as { summary: { migration_findings: number }; target?: string };
+			assert.strictEqual(plainBody.summary.migration_findings, 0);
+			assert.isUndefined(plainBody.target);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("prints migrate findings in the list and one summary line in human output", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-target-human-");
+			const run = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "okf-version-older");
+			assert.include(run.stdout, "root-relative-path");
+			assert.include(run.stderr, "OKF 0.3: 4 finding(s), 3 fixable with --fix");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("rejects every other --target and every flag combination the brief refuses, with exit 64", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-usage-");
+			const old = yield* runOkfit(["validate", "--target", "0.2"], sandbox);
+			assert.strictEqual(old.exitCode, 64);
+			assert.include(old.stderr, '--target accepts only "0.3", the OKF version this okfit implements');
+			const noTarget = yield* runOkfit(["validate", "--fix"], sandbox);
+			assert.strictEqual(noTarget.exitCode, 64);
+			const doc = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--document", "index.md"], sandbox);
+			assert.strictEqual(doc.exitCode, 64);
+			const onlyAlone = yield* runOkfit(["validate", "--target", "0.3", "--only", "okf-version"], sandbox);
+			assert.strictEqual(onlyAlone.exitCode, 64);
+			const dryAlone = yield* runOkfit(["validate", "--target", "0.3", "--dry-run"], sandbox);
+			assert.strictEqual(dryAlone.exitCode, 64);
+			// control: the same sandbox validates with a valid target
+			const ok = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.strictEqual(ok.exitCode, 0);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--fix --dry-run says what it would fix and changes no file", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-dry-");
+			const before = yield* read(sandbox, COMPUTATION);
+			const index = yield* read(sandbox, "okf/index.md");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--dry-run"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "Would fix 3 finding(s) in 2 file(s)");
+			assert.strictEqual(yield* read(sandbox, COMPUTATION), before);
+			assert.strictEqual(yield* read(sandbox, "okf/index.md"), index);
+			assert.notStrictEqual(before, V03_PROJECT[COMPUTATION]);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--fix writes the fixes, leaves a clean plain validate, and reports the fixes in JSON", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-fix-");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--format", "json"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			const body = JSON.parse(run.stdout) as {
+				fixes: { applied: Array<{ path: string }>; refused: unknown[]; drifts: string[]; dry_run: boolean };
+			};
+			assert.strictEqual(body.fixes.applied.length, 2);
+			assert.isFalse(body.fixes.dry_run);
+			assert.strictEqual(yield* read(sandbox, COMPUTATION), V03_PROJECT[COMPUTATION]);
+			const after = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			const afterBody = JSON.parse(after.stdout) as { diagnostics: Array<{ code: string }> };
+			assert.strictEqual(afterBody.diagnostics.filter((d) => d.code === "broken-links").length, 0);
+			// control: the sandbox had a root-fallback bundle before the fix
+			assert.notStrictEqual(V02_PROJECT[COMPUTATION], V03_PROJECT[COMPUTATION]);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--fix --only okf-version prints the refused line and leaves index.md unchanged", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-only-");
+			const index = yield* read(sandbox, "okf/index.md");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--only", "okf-version"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "refused: index.md: 2 reference(s) still resolve only from the bundle root");
+			assert.strictEqual(yield* read(sandbox, "okf/index.md"), index);
+			// control: narrowing to the path fix does write the computation
+			const paths = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--only", "root-relative-path"], sandbox);
+			assert.strictEqual(paths.exitCode, 0);
+			assert.strictEqual(yield* read(sandbox, COMPUTATION), V03_PROJECT[COMPUTATION]);
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

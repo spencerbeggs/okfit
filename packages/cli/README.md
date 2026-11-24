@@ -8,7 +8,7 @@ The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/op
 
 ```text
 okfit [--help] [--version]
-okfit validate [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--help]
+okfit validate [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--document <bundle-path>] [--target 0.3 [--fix [--only okf-version|root-relative-path]... [--dry-run]]] [--help]
 okfit lint [targets...] [--root <dir>] [--config <file>] [--format human|json] [--skip-provenance] [--help]
 okfit init [--root <dir>] [--profile <name>] [--bundle <dir>] [--config-location <name>] [--config <file>] [--help]
 okfit context [--root <dir>] [--trust] [--config <file>] [--format human|json] [--help]
@@ -82,6 +82,28 @@ like any other), and nothing is written. A path that is absolute, escapes
 the bundle, is not `.md`, or sits under a directory that does not exist,
 and a terminal stdin, are usage errors (exit `64`). The MCP
 `validate_bundle` tool's `documents` input is the same overlay.
+
+`--target 0.3` reports, as `migrate` diagnostics with ranges, everything in
+the bundle that reads differently under OKF 0.3: an undeclared, older or
+unparsable `okf_version`, references that resolve only from the bundle root
+(`root-relative-path`) and a Computation section read by a different rule
+(`computation-locator`). Only `"0.3"`, the version this okfit implements, is
+accepted; any other value is a usage error (exit `64`). The findings print in
+the normal per-file list, stderr ends with `OKF 0.3: <n> finding(s), <k>
+fixable with --fix`, and they never change the exit code; the human counts
+line leaves them out and `summary.migration_findings` carries the count.
+
+`--fix` (requires `--target`; refused with `--document`) writes the two safe
+fixes: it declares `okf_version` and roots a reference that resolves only from
+the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
+(repeatable; requires `--fix`) narrows by kind, positional targets narrow by
+file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
+refused while any root-only reference remains unfixed. Output opens with
+`Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
+`refused: <file>: <reason>` line per refused fix, and `Integrity drifted
+(re-verify with okfit verify): <ids>` when a fix changed content whose human
+verification was current; then the diagnostics that remain, from a reload.
+The exit code is the exit code of what remains.
 
 ### `okfit init`
 
@@ -428,6 +450,7 @@ nothing else (no summary line, no warnings — those still go to stderr):
   "lint_warnings": 1,
   "lint_info": 0,
   "profile_errors": 0,
+  "migration_findings": 0,
   "concepts": 4
  },
  "diagnostics": [
@@ -449,6 +472,11 @@ nothing else (no summary line, no warnings — those still go to stderr):
  ]
 }
 ```
+
+With `--target 0.3` the envelope also carries `target` and each `migrate`
+diagnostic may carry `fix` (`okf-version` or `root-relative-path`); with
+`--fix` it adds `fixes: { applied: [{ path, fixes }], refused: [{ file, code,
+reason }], drifts: [id], dry_run }`.
 
 `engine_version` and `okf_version` are the pair to compare across reports:
 the MCP server's `validate_bundle` tool returns this same envelope with the
