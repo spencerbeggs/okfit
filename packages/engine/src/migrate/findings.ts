@@ -146,12 +146,14 @@ const computationFinding = (concept: LoadedConcept, target: string): MigrationFi
 	const legacy = Bundle.inlineComputation(concept.document, "legacy");
 	const current = Bundle.inlineComputation(concept.document, "current");
 	if (Option.isNone(legacy) && Option.isNone(current)) return undefined;
-	if (Option.isSome(legacy) && Option.isSome(current) && legacy.value === current.value) return undefined;
+	// Line endings are not content: compare the legacy body with CRLF and lone CR read as LF.
+	const legacyText = Option.map(legacy, (value) => value.replace(/\r\n?/g, "\n"));
+	if (Option.isSome(legacyText) && Option.isSome(current) && legacyText.value === current.value) return undefined;
 	// A section that is exactly one fence reads the same under both: the legacy body is that fence, markers included.
 	if (
-		Option.isSome(legacy) &&
+		Option.isSome(legacyText) &&
 		Option.isSome(current) &&
-		soleFenceInner(legacy.value) === current.value.replace(/\n$/, "")
+		soleFenceInner(legacyText.value) === current.value.replace(/\n$/, "")
 	)
 		return undefined;
 	const reading = Option.isNone(current)

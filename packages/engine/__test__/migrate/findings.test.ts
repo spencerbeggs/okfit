@@ -293,6 +293,56 @@ describe("migrationFindings", () => {
 		}),
 	);
 
+	describe("computation-locator line endings (#483)", () => {
+		const SPLIT = "---\n\n";
+		/** The same concept with its body (after the frontmatter) joined by CRLF instead of LF. */
+		const crlf = (text: string): string => {
+			const at = text.indexOf(SPLIT) + SPLIT.length;
+			return text.slice(0, at) + text.slice(at).replace(/\n/g, "\r\n");
+		};
+		const locator = (text: string) =>
+			findingsOf({ ...V02_PROJECT, [COMPUTATION]: text }).pipe(
+				Effect.map(({ found }) => found.filter((f) => f.code === "computation-locator")),
+			);
+		const depth1 = (t: string) => t.replace("## Computation", "# Computation");
+
+		it.effect("a CRLF section that is exactly one fence is unchanged, like its LF twin", () =>
+			Effect.gen(function* () {
+				const lf = depth1(V02_PROJECT[COMPUTATION] as string);
+				assert.deepStrictEqual(yield* locator(lf), []);
+				assert.deepStrictEqual(yield* locator(crlf(lf)), []);
+			}),
+		);
+
+		it.effect("a CRLF section with prose beside the fence is still info, like its LF twin", () =>
+			Effect.gen(function* () {
+				const lf = (V02_PROJECT[COMPUTATION] as string).replace("## Computation\n", "# Computation\n\nRun it.\n");
+				const a = yield* locator(lf);
+				const b = yield* locator(crlf(lf));
+				assert.deepStrictEqual(
+					a.map((f) => f.severity),
+					["info"],
+				);
+				assert.deepStrictEqual(
+					b.map((f) => f.severity),
+					["info"],
+				);
+				assert.strictEqual(a[0]?.message, b[0]?.message);
+			}),
+		);
+
+		it.effect("a CRLF prose-only section is still a warning", () =>
+			Effect.gen(function* () {
+				const lf = depth1((V02_PROJECT[COMPUTATION] as string).replace(/```sql\n[^`]*```\n/, "Run the query.\n"));
+				const found = yield* locator(crlf(lf));
+				assert.deepStrictEqual(
+					found.map((f) => f.severity),
+					["warning"],
+				);
+			}),
+		);
+	});
+
 	it.effect("a concept naming its computation file has no inline computation to compare", () =>
 		Effect.gen(function* () {
 			const { found } = yield* findingsOf({
