@@ -99,7 +99,7 @@ export interface EditTarget {
 	readonly text: string;
 	/** The open editor buffer's version, else `null` (the document is not open). */
 	readonly version: number | null;
-	/** The raw top-level `status` value, whatever its type (`undefined` when the key is absent); read it with {@link derivedStatusOf}. */
+	/** The raw top-level `status` value, whatever its type (`undefined` when the key is absent); read it with `derivedStatusOf`. */
 	readonly status: unknown;
 	/** The `verified[]` entries (`by`, decoded `at`) in order, decoded by core's `Verification.List`: one malformed entry voids the whole list (`[]`). */
 	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: DateTime.Utc }>;
