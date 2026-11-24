@@ -22,11 +22,13 @@ x-okfit-integrity:
     body: ecf8d5337fc93e11
   verified:
     by: human:spencer
-    at: 2026-11-24T03:27:42Z
-    content: 58a246bfb847180f
+    at: 2026-11-24T22:21:07Z
+    content: c8bcf7e37d72b2fd
 verified:
   - by: human:spencer
     at: 2026-11-24T03:27:42Z
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
 ---
 
 # A deprecated concept's replacement is followed

@@ -14,11 +14,13 @@ x-okfit-integrity:
     body: d28db09968ffde15
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: 1fc981b9b9e37de1
+    at: 2026-11-24T22:21:07Z
+    content: 56b2dc7b4842650f
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
 ---
 
 # Concept files are named for their topic; ids stay paths

@@ -17,13 +17,15 @@ x-okfit-integrity:
     body: 8e969c1a97e56879
   verified:
     by: human:spencer
-    at: 2026-11-24T06:53:02Z
-    content: b619841067e1352a
+    at: 2026-11-24T22:21:07Z
+    content: 4d1f9f5c3c741ebb
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
   - by: human:spencer
     at: 2026-11-24T06:53:02Z
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
 ---
 
 # A verification is bound to the content it covered

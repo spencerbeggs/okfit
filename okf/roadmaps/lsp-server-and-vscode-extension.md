@@ -41,13 +41,15 @@ verified:
     at: 2026-10-11T15:55:11Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
     body: e3a689690d4a03e9
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 428d5986a812baed
+    at: 2026-11-24T22:21:07Z
+    content: 350dec4455725299
 ---
 
 # An @okfit/lsp language server and a VS Code extension over the shared engine
