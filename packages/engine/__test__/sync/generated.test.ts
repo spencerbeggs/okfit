@@ -1082,6 +1082,12 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 					verified: [{ by: "human:ada", at: LATE }],
 					binding: { by: "human:ada", at: LATE },
 				}),
+				"frontmatter-edited": yield* build("frontmatter-edited", {
+					verified: [human],
+					binding: human,
+					note: "edited after the verify",
+					verifiedNote: "fine",
+				}),
 				hashable: yield* build("hashable", { verified: [human], binding: human, note: "fine" }),
 				unhashable: yield* build("unhashable", {
 					verified: [human],
@@ -1098,6 +1104,7 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			assert.strictEqual(stamped.unbound, T2_TEXT); // human entry, no binding
 			assert.strictEqual(stamped.superseded, T2_TEXT); // binding is not on the latest human entry
 			assert.strictEqual(stamped.later, T2_TEXT); // binding later than the commit: min keeps the commit instant
+			assert.strictEqual(stamped["frontmatter-edited"], T2_TEXT); // only hashable frontmatter changed after the verify
 			assert.strictEqual(stamped.hashable, V); // control: an extra scalar hashes and is clamped
 			assert.strictEqual(stamped.unhashable, T2_TEXT); // cannot be hashed: no clamp, no failure
 			const loaded = yield* Effect.provide(
@@ -1135,6 +1142,29 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			});
 			const signal = yield* Trust.signal(concept, config, T2).pipe(Effect.provide(NodeCrypto.layerDigest));
 			assert.strictEqual(signal.drift?.reason, "actor-not-allowed");
+		}),
+	);
+
+	it.effect("a second sync after a clamp rewrites nothing and generated.at stays binding.at", () =>
+		Effect.gen(function* () {
+			const text = yield* build("bound", { verified: [human], binding: human });
+			yield* Effect.gen(function* () {
+				const sync = Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root: ROOT });
+					const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(T2)] as const));
+					return yield* syncGenerated(bundle, { provenance, dryRun: false });
+				});
+				const fs = yield* FileSystem.FileSystem;
+				const first = yield* sync;
+				const afterFirst = yield* fs.readFileString(`${ROOT}/bound.md`);
+				const second = yield* sync;
+				assert.deepStrictEqual(first.written, ["bound"]); // positive control: the first run wrote
+				assert.deepStrictEqual(second.written, []);
+				assert.deepStrictEqual(second.unchanged, ["bound"]);
+				assert.strictEqual(yield* fs.readFileString(`${ROOT}/bound.md`), afterFirst);
+				assert.include(afterFirst, `at: ${V}\n`);
+				assert.notInclude(afterFirst, T2_TEXT);
+			}).pipe(Effect.provide(Layer.mergeAll(seedPlatform({ [`${ROOT}/bound.md`]: text }), NodeCrypto.layerDigest)));
 		}),
 	);
 
