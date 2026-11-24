@@ -7,6 +7,7 @@
 - `list_concepts` accepts `current` and the `unknown` status.
 - `get_concept` returns `raw_status`, `staleness` and `replacement`.
 - `stale_report` returns `malformed`, listing unreadable `stale_after` values.
+- The `limit` and `now` parameters of `list_concepts`, `stale_report` and `validate_bundle` carry their own descriptions (the default page size 200; an ISO-8601 instant or a date), and the `now` refusal hint names the date form.
 - `validate_bundle` may return `okf_version: null` for a bundle that declares no version.
 
 ## Bug Fixes

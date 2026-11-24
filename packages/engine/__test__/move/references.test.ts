@@ -344,8 +344,8 @@ describe("referencesOf, OKF 0.3 path fields", () => {
 			const core = Graph.fromBundle(bundle)
 				.edges.filter((e) => e.from === "m/full" && e.data.source === "frontmatter")
 				.map((e) => String(e.data.field));
-			// Control: core lists every field the fixture populates, so two agreeing empty lists cannot pass.
-			assert.isAbove(core.length, 0);
+			// Control: core lists every field the fixture populates (FULL writes six), so two agreeing empty lists cannot pass.
+			assert.strictEqual(core.length, 6);
 			assert.deepStrictEqual([...mine].sort(), [...core].sort());
 		}),
 	);

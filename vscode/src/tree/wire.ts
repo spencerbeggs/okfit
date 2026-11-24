@@ -21,6 +21,11 @@ export interface ConceptSummary {
 	readonly status?: string | undefined;
 	/** The `status` as written, as text, when `status` is `unknown`. */
 	readonly rawStatus?: string | undefined;
+	/**
+	 * Whether the concept writes a `status`. Absent from a workspace server that predates it; `writtenStatus` in
+	 * `tree/model.ts` then falls back to whether `status` was sent at all.
+	 */
+	readonly explicitStatus?: boolean | undefined;
 	readonly stale: boolean;
 	/** The trust tier as of the last revalidate. */
 	readonly tier: "unverified" | "machine-confirmed" | "human-reviewed";

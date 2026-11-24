@@ -40,6 +40,8 @@ export interface ConceptSummary {
 	readonly status: DerivedStatus;
 	/** The `status` as written, as text, when `status` is `unknown`; `undefined` otherwise. */
 	readonly rawStatus: string | undefined;
+	/** Whether the concept writes a `status` (not absent, `null`, `""` or `[]`), so an editor can offer `stable` on an implicit one. */
+	readonly explicitStatus: boolean;
 	readonly stale: boolean;
 	/** The trust tier as of the last revalidate. */
 	readonly tier: TrustTier;
@@ -89,6 +91,7 @@ const summarise = (
 			type: concept.frontmatter.type,
 			status: Derive.status(concept.frontmatter),
 			rawStatus: rawStatusOf(concept) ?? undefined,
+			explicitStatus: Derive.rawStatus(concept.frontmatter) !== undefined,
 			stale: Derive.isStale(concept.frontmatter, now),
 			tier: signals?.get(id)?.tier ?? Derive.trustTier(concept.frontmatter),
 			integrity: signals?.get(id)?.integrity ?? "none",

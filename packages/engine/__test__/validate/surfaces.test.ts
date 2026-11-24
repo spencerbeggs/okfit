@@ -306,6 +306,23 @@ describe("validate/surfaces lintSurfaces", () => {
 		}),
 	);
 
+	describe("a glob with a leading slash", () => {
+		const seed = { "/repo/okf/surfaces/.keep": "", "/repo/okf/modules/a.md": "x" };
+		const run = (resource: string) =>
+			lintSurfaces(bundleOf("/repo/okf", surfaceAt("surfaces/pkgs.md", resource)), OkfitConfig.DEFAULTS, "/repo").pipe(
+				Effect.map((diagnostics) => diagnostics.map((d) => d.code)),
+				Effect.provide(seedPlatform(seed)),
+			);
+
+		it.effect("resolves from the bundle root, not from the Surface's directory", () =>
+			Effect.gen(function* () {
+				assert.deepStrictEqual(yield* run("/modules/**/*.md"), []);
+				// Control: the same glob without the slash is relative to surfaces/, which has no modules/.
+				assert.deepStrictEqual(yield* run("modules/**/*.md"), ["surface-unmatched"]);
+			}),
+		);
+	});
+
 	describe("containment (R1, R13)", () => {
 		const seed = {
 			"/repo/okf/surfaces/.keep": "",

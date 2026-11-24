@@ -78,15 +78,18 @@ describe("registerConcepts", () => {
 			});
 			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
 			const byTitle = Object.fromEntries(
-				result.bundles[0]!.concepts.map((c) => [c.title, { status: c.status, rawStatus: c.rawStatus }]),
+				result.bundles[0]!.concepts.map((c) => [
+					c.title,
+					{ status: c.status, rawStatus: c.rawStatus, explicit: c.explicitStatus },
+				]),
 			);
 			assert.deepStrictEqual(byTitle, {
-				Archived: { status: "unknown", rawStatus: "archived" },
-				Number: { status: "unknown", rawStatus: "5" },
-				Nulled: { status: "stable", rawStatus: undefined },
-				Empty: { status: "stable", rawStatus: undefined },
-				Draft: { status: "draft", rawStatus: undefined },
-				Absent: { status: "stable", rawStatus: undefined },
+				Archived: { status: "unknown", rawStatus: "archived", explicit: true },
+				Number: { status: "unknown", rawStatus: "5", explicit: true },
+				Nulled: { status: "stable", rawStatus: undefined, explicit: false },
+				Empty: { status: "stable", rawStatus: undefined, explicit: false },
+				Draft: { status: "draft", rawStatus: undefined, explicit: true },
+				Absent: { status: "stable", rawStatus: undefined, explicit: false },
 			});
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);

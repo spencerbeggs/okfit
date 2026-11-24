@@ -71,6 +71,19 @@ export const normalizeStatus = (
 	return { status: "unknown", shown: `unknown(${raw === "unknown" ? (c.rawStatus ?? "") : raw})` };
 };
 
+/**
+ * The status the concept's file writes, for the "Set status" picker: `undefined` when it writes none (so `stable`
+ * can still be offered, making an implicit stable explicit) or when it is outside the vocabulary. A server that
+ * predates `explicitStatus` sent no `status` for such a concept.
+ */
+export const writtenStatus = (
+	c: Pick<ConceptSummary, "status" | "rawStatus" | "explicitStatus">,
+): Status | undefined => {
+	if (!(c.explicitStatus ?? c.status !== undefined)) return undefined;
+	const { status } = normalizeStatus(c);
+	return status === "unknown" ? undefined : status;
+};
+
 const conceptNode = (c: ConceptSummary): Extract<TreeNode, { kind: "concept" }> => {
 	const { status, shown } = normalizeStatus(c);
 	return {

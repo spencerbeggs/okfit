@@ -229,7 +229,7 @@ describe("containment edges (fix round 1)", () => {
 			assert.deepStrictEqual(result.codes, ["resource-outside-project"]);
 			assert.deepStrictEqual(through(result.calls, "/repo-other"), []);
 			// control: the recorder saw the in-project accesses of the same run
-			assert.isTrue(result.calls.some((call) => call.includes(" /repo")));
+			assert.isTrue(result.calls.some((call) => call.includes(" /repo/")));
 		}),
 	);
 

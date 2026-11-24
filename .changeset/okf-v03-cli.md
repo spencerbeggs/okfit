@@ -13,3 +13,4 @@
 
 - `okfit verify` refuses a concept with an out-of-vocabulary status (exit 3) unless `--stable` or `--draft` is passed, and refuses before the re-verify prompt.
 - `okfit mv` works on a bundle that has non-concept markdown such as a `README.md`.
+- The `okfit stale` stderr summary appends `, K malformed` when any `stale_after` value is unreadable; `staleSummary` takes an optional fourth argument for it.

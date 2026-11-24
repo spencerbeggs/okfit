@@ -49,6 +49,14 @@ export const DescribeVocabularySuccess = Schema.Struct({
 /** @public */
 export type DescribeVocabularySuccess = typeof DescribeVocabularySuccess.Type;
 
+/** The `now` argument shared by the tools that read the clock: one instant or date, decoded in the handler (J-5). */
+const NowParam = Schema.optionalKey(
+	Schema.String.annotate({
+		description:
+			"ISO-8601 instant with an explicit offset (2026-09-06T00:00:00Z) or a date (2026-09-06, midnight UTC); default the current time",
+	}),
+);
+
 /** `list_concepts`' arguments (§5.3). @public */
 export const ListConceptsParams = Schema.Struct({
 	type: Schema.optionalKey(Schema.String),
@@ -58,8 +66,12 @@ export const ListConceptsParams = Schema.Struct({
 	drifted: Schema.optionalKey(Schema.Boolean),
 	stale: Schema.optionalKey(Schema.Boolean),
 	current: Schema.optionalKey(Schema.Boolean),
-	now: Schema.optionalKey(Schema.String),
-	limit: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1000 }))),
+	now: NowParam,
+	limit: Schema.optionalKey(
+		Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1000 })).annotate({
+			description: "Page size, 1 to 1000; default 200",
+		}),
+	),
 	offset: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
 });
 /** @public */
@@ -153,7 +165,7 @@ export const ConceptNeighborsSuccess = ToolOutcome.envelope(ConceptNeighborsFoun
 export type ConceptNeighborsSuccess = typeof ConceptNeighborsSuccess.Type;
 
 /** `stale_report`'s arguments: an optional ISO instant, decoded in the handler (J-5). @public */
-export const StaleReportParams = Schema.Struct({ now: Schema.optionalKey(Schema.String) });
+export const StaleReportParams = Schema.Struct({ now: NowParam });
 /** @public */
 export type StaleReportParams = typeof StaleReportParams.Type;
 
@@ -188,7 +200,7 @@ export type ValidateBundleDocument = typeof ValidateBundleDocument.Type;
 
 /** `validate_bundle`'s arguments: stale_report's `now`, plus optional unsaved `documents` (spec 4.5). @public */
 export const ValidateBundleParams = Schema.Struct({
-	now: Schema.optionalKey(Schema.String),
+	now: NowParam,
 	documents: Schema.optionalKey(Schema.Array(ValidateBundleDocument)),
 });
 /** @public */

@@ -18,7 +18,7 @@ export const resolveNow = (input: string | undefined): Effect.Effect<DateTime.Ut
 		: Schema.decodeUnknownEffect(Timestamp)(input).pipe(
 				Effect.mapError((issue) => {
 					const remediation = {
-						hint: "now must be an ISO-8601 instant with an explicit offset, for example 2026-09-06T00:00:00Z.",
+						hint: "now must be an ISO-8601 instant with an explicit offset (2026-09-06T00:00:00Z) or a date (2026-09-06, read as midnight UTC).",
 					};
 					return ToolRefusal.refuse(String(issue), remediation);
 				}),

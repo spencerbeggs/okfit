@@ -102,7 +102,12 @@ export const staleCommand = Command.make(
 					yield* Doc.print(humanStaleDoc(envelope.items, { root: bundleRoot }));
 					for (const line of humanMalformed(envelope.malformed)) yield* Console.log(line);
 					yield* Console.error(
-						staleSummary(envelope.summary.stale, envelope.summary.concepts, displayRoot(cwd, bundleRoot, path)),
+						staleSummary(
+							envelope.summary.stale,
+							envelope.summary.concepts,
+							displayRoot(cwd, bundleRoot, path),
+							envelope.summary.malformed,
+						),
 					);
 					if (input.verify) {
 						yield* reverifyStale({

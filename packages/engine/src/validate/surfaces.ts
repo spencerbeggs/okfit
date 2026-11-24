@@ -44,10 +44,16 @@ export const lintSurfaces = (
 			if (resource === undefined || !GLOB_RE.test(resource)) continue;
 			// Split on the resource as written, not on the resolved absolute path:
 			// a metacharacter in the bundle root's own path must not move the split.
-			const written = resource.split("/");
+			// A leading `/` anchors at the bundle root (OKF 0.3 section 3.2), as a literal repository resource does.
+			const rooted = resource.startsWith("/");
+			const written = (rooted ? resource.slice(1) : resource).split("/");
 			const firstGlob = written.findIndex((segment) => GLOB_RE.test(segment));
 			if (firstGlob < 0) continue;
-			const prefix = path.resolve(bundle.root, path.dirname(concept.path), ...written.slice(0, firstGlob));
+			const prefix = path.resolve(
+				bundle.root,
+				rooted ? "" : path.dirname(concept.path),
+				...written.slice(0, firstGlob),
+			);
 			// A prefix outside the project root is reported as `resource-outside-project` and never reaches the disk.
 			if (!withinRoot(projectRoot, prefix, path)) {
 				if (outsideSeverity !== "off")

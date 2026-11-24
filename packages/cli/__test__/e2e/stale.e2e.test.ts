@@ -184,6 +184,7 @@ describe("okfit stale: malformed stale_after (OKF 0.3 section 5.5)", () => {
 			const text = yield* runOkfit(["stale"], { ...sandbox, env: env(sandbox) });
 			assert.strictEqual(text.exitCode, 0);
 			assert.include(text.stdout, "malformed stale_after:\nmetrics/margin  not-a-date\n");
+			assert.match(text.stderr, /^0 stale concepts of \d+ in \S+, 1 malformed\n$/);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
@@ -202,6 +203,7 @@ describe("okfit stale: malformed stale_after (OKF 0.3 section 5.5)", () => {
 			assert.strictEqual(envelope.summary.malformed, 0);
 			const text = yield* runOkfit(["stale"], { ...sandbox, env: env(sandbox) });
 			assert.notInclude(text.stdout, "malformed stale_after");
+			assert.match(text.stderr, /^0 stale concepts of \d+ in \S+\n$/);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

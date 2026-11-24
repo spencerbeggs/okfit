@@ -39,6 +39,30 @@ describe("superseded_by lints (OKF 0.3 5.4)", () => {
 		}),
 	);
 
+	it.effect("a self-reference is unresolved however it is spelled", () =>
+		Effect.gen(function* () {
+			const found = yield* lintSuperseded({
+				"dot.md": note("status: deprecated\nsuperseded_by: ./dot.md\n"),
+				"rooted.md": note("status: deprecated\nsuperseded_by: /rooted.md\n"),
+				"bare.md": note("status: deprecated\nsuperseded_by: bare.md\n"),
+				"anchor.md": note("status: deprecated\nsuperseded_by: anchor.md#x\n"),
+				"other.md": note("status: deprecated\nsuperseded_by: ./target.md\n"),
+				"target.md": note(""),
+			});
+			assert.deepStrictEqual(
+				found.map(([file, code]) => [file, code]),
+				[
+					["anchor.md", "superseded-by-unresolved"],
+					["bare.md", "superseded-by-unresolved"],
+					["dot.md", "superseded-by-unresolved"],
+					["rooted.md", "superseded-by-unresolved"],
+				],
+			);
+			// control: pointing at another concept is clean
+			assert.isFalse(found.some(([file]) => file === "other.md"));
+		}),
+	);
+
 	it.effect("a missing target is broken-links alone, never also superseded-by-unresolved", () =>
 		Effect.gen(function* () {
 			const found = yield* lintSuperseded({ "gone.md": note("status: deprecated\nsuperseded_by: /nowhere.md\n") });
@@ -91,6 +115,20 @@ describe("superseded_by lints (OKF 0.3 5.4)", () => {
 
 	it.effect("a non-string superseded_by adds no diagnostic from either lint", () =>
 		Effect.gen(function* () {
+			// The loader reports each exactly once, as a value-malformed frontmatter diagnostic.
+			const loaded = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(
+					platform({
+						[`${MOUNT}/list.md`]: note("status: deprecated\nsuperseded_by:\n  - ./new.md\n"),
+						[`${MOUNT}/map.md`]: note("status: deprecated\nsuperseded_by:\n  path: ./new.md\n"),
+						[`${MOUNT}/new.md`]: note(""),
+					}),
+				),
+			);
+			assert.deepStrictEqual(loaded.diagnostics.map((d) => [d.file, d.code]).sort(), [
+				["list.md", "value-malformed"],
+				["map.md", "value-malformed"],
+			]);
 			const found = yield* lintSuperseded({
 				"new.md": note(""),
 				"list.md": note("status: deprecated\nsuperseded_by:\n  - ./new.md\n"),

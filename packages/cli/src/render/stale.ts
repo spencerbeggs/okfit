@@ -33,12 +33,13 @@ export const humanStaleDoc = (items: ReadonlyArray<StaleItem>, options?: { reado
 	);
 
 /**
- * `<N> stale concepts of <M> in <root>` — the one-line stderr summary.
+ * `<N> stale concepts of <M> in <root>` — the one-line stderr summary, with `, <K> malformed` appended when
+ * `malformed` (the count of unreadable `stale_after` values) is above zero.
  *
  * @public
  */
-export const staleSummary = (stale: number, concepts: number, root: string): string =>
-	`${stale} stale concepts of ${concepts} in ${root}`;
+export const staleSummary = (stale: number, concepts: number, root: string, malformed = 0): string =>
+	`${stale} stale concepts of ${concepts} in ${root}${malformed > 0 ? `, ${malformed} malformed` : ""}`;
 
 /**
  * The malformed block (OKF 0.3 section 5.5): a `malformed stale_after:` heading, then one
