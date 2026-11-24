@@ -1340,6 +1340,68 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 		}),
 	);
 
+	it.effect(
+		"a foreign integrity mapping plus a bare kind: only the kind token moves, the foreign block is untouched",
+		() => {
+			const foreign = "integrity:\n  sha: abc\n  owner: someone-else\n";
+			const text = head(`kind: package\n${generatedHead}${foreign}`);
+			return withPage(text, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					const out = yield* page(root);
+					assert.include(out, foreign);
+					assert.notInclude(out, "sha: abc\n  generated");
+					assert.include(out, "x-okfit-kind: package\n");
+					const stamped = out.replace(/x-okfit-integrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/u, "");
+					assert.notStrictEqual(stamped, out); // a separate x-okfit-integrity block was added
+					assert.strictEqual(
+						stamped,
+						text.replace("kind:", "x-okfit-kind:").replace(`at: ${OLD_AT}`, "at: 2026-06-01T08:00:00Z"),
+					);
+				}),
+			);
+		},
+	);
+
+	it.effect("a foreign scalar integrity plus a bare kind: kind renamed, the scalar untouched, no skip", () => {
+		const text = head(`kind: package\n${generatedHead}integrity: high\n`);
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				const result = yield* run(root);
+				assert.deepStrictEqual(result.skipped, []);
+				const out = yield* page(root);
+				assert.include(out, "\nintegrity: high\n");
+				assert.include(out, "x-okfit-kind: package\n");
+				assert.match(out, /x-okfit-integrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/u);
+			}),
+		);
+	});
+
+	it.effect("a leading BOM survives a migration read through the production read path", () => {
+		const text = `\uFEFF${head(`kind: package\n${generatedHead}integrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n`)}`;
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				yield* run(root);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "page.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.notInclude(bytes.toString("utf8"), "\nkind:");
+			}),
+		);
+	});
+
+	it.effect("a BOM concept that only needs a rename keeps its BOM", () => {
+		const text = `\uFEFF${head(`kind: package\n`)}`;
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+				assert.deepStrictEqual(result.migrated, ["page"]);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "page.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			}),
+		);
+	});
+
 	it.effect("an unmigrated, unedited concept keeps generated.at (the sync trap)", () =>
 		Effect.gen(function* () {
 			const digest = yield* digestOf(generatedHead);
@@ -1348,7 +1410,7 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 				Effect.gen(function* () {
 					const result = yield* run(root);
 					assert.deepStrictEqual(result.written, []);
-					assert.include(yield* page(root), `  at: ${OLD_AT}\n`);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
 				}),
 			);
 		}),

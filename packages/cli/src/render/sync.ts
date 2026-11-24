@@ -16,11 +16,11 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"legacy-key-conflict":
 		"carries both the old and the new spelling of an okfit key; keep the new one, move any value you need into it, delete the old one, then run okfit sync again",
 	"legacy-key-unsupported":
-		"has an old okfit key that sync cannot rename in place (flow style, merge key, alias, duplicate or explicit key); rename it by hand to the new spelling",
+		"has an old okfit key that sync cannot rename in place (flow style, an alias or a `<<` merge in the old block, a duplicate or an explicit `?` key); rename it by hand to the new spelling",
 	"symlink-escape": "is a symbolic link that leaves the bundle, so it is not read or written",
 };
 
-const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<string> => {
+const humanMode = (name: string, mode: SyncResult["generated"], dryRun: boolean): ReadonlyArray<string> => {
 	if (!mode.selected) return [`${name}: not selected`];
 	const lines: Array<string> = [`${name}:`];
 	for (const id of mode.written) lines.push(`  wrote ${id}`);
@@ -28,7 +28,9 @@ const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<s
 	for (const id of mode.unchanged) lines.push(`  unchanged ${id}`);
 	for (const entry of mode.skipped) {
 		// A concept that could not be stamped still has its old okfit keys renamed: say so beside the reason.
-		const renamed = mode.migrated.includes(entry.id) ? " (its old okfit keys are still renamed)" : "";
+		const renamed = mode.migrated.includes(entry.id)
+			? ` (its old okfit keys ${dryRun ? "would still be" : "are still"} renamed)`
+			: "";
 		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}${renamed}`);
 	}
 	return lines;
@@ -44,9 +46,9 @@ const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<s
  */
 export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 	const lines: Array<string> = [
-		...humanMode("generated", result.generated),
-		...humanMode("index", result.index),
-		...humanMode("log", result.log),
+		...humanMode("generated", result.generated, result.dryRun),
+		...humanMode("index", result.index, result.dryRun),
+		...humanMode("log", result.log, result.dryRun),
 	];
 	const totalWritten = result.generated.written.length + result.index.written.length + result.log.written.length;
 	const totalMigrated = result.generated.migrated.length + result.index.migrated.length + result.log.migrated.length;

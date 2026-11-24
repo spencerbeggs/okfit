@@ -92,6 +92,15 @@ describe("VerifyUnsupportedFrontmatterError", () => {
 	});
 });
 
+describe("VerifyUnsupportedFrontmatterError legacy-key", () => {
+	it("names the old key so a user can find it, and points at okfit sync", () => {
+		const message = new VerifyUnsupportedFrontmatterError({ id: "a", shape: "legacy-key" }).message;
+		assert.include(message, "old `integrity` block");
+		assert.include(message, "`x-okfit-integrity`");
+		assert.include(message, "okfit sync");
+	});
+});
+
 describe("VerifySelectionError status reasons (#185)", () => {
 	it("status-conflict exits 64 and names both flags", () => {
 		const error = new VerifySelectionError({ reason: "status-conflict" });

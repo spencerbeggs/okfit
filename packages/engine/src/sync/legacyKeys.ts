@@ -42,11 +42,14 @@ export interface KeyRenames {
 
 /**
  * The renames `config` licenses (D3). On a type `T`, a profile field `k` is renamed to `names[k]` only when
- * `T` declares `names[k]` and does not declare `k`, so a project that keeps its own bare `kind`, uses
+ * `T` declares `names[k]`, does not declare `k` and does not list `k` in its `required`, so a project that keeps its own bare `kind`, uses
  * `profile = "none"` or defines a custom type is left alone. A rename whose two spellings are equal is
  * dropped, and `integrity` is `undefined` while {@link INTEGRITY_KEY} is the legacy spelling.
  *
  * @remarks
+ * A project's own config naming a built-in field by its bare name, in `fields` or in `required`, keeps that
+ * field unrenamed for that type: the project updates its config by hand, then `okfit sync` renames the key.
+ *
  * `names` defaults to {@link ProfileKeys}; it exists so a test can name a target spelling without changing
  * the production table.
  *
@@ -59,10 +62,13 @@ export const keyRenamesFor = (
 	const fields = new Map<string, ReadonlyArray<KeyRename>>();
 	for (const [type, definition] of Object.entries(config.types ?? {})) {
 		const declared = definition.fields ?? {};
+		const required = definition.required ?? [];
 		const renames: Array<KeyRename> = [];
 		for (const from of PROFILE_FIELD_NAMES) {
 			const to = names[from];
-			if (to !== from && Object.hasOwn(declared, to) && !Object.hasOwn(declared, from)) renames.push({ from, to });
+			if (to !== from && Object.hasOwn(declared, to) && !Object.hasOwn(declared, from) && !required.includes(from)) {
+				renames.push({ from, to });
+			}
 		}
 		if (renames.length > 0) fields.set(type, renames);
 	}
@@ -94,8 +100,10 @@ export const rendersKeyFor = (concept: LoadedConcept, renames: KeyRenames): stri
 /**
  * D2 plus a `<<` merge key: a legacy block that merges another mapping in is still okfit's legacy block as
  * far as verify is concerned (it refuses it), so sync must see it too and skip it as unsupported.
+ *
+ * @internal
  */
-const isLegacyBlock = (value: unknown): boolean => {
+export const isLegacyBlock = (value: unknown): boolean => {
 	if (isLegacyIntegrityValue(value)) return true;
 	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
 	const keys = Object.keys(value);

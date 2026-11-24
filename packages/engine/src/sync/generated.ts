@@ -16,9 +16,9 @@ import {
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
 import type { KeyRenamePlan, KeyRenames } from "./legacyKeys.js";
-import { legacyIntegrity, planKeyRenames, recordedBodyForSync, rendersKeyFor } from "./legacyKeys.js";
+import { isLegacyBlock, legacyIntegrity, planKeyRenames, recordedBodyForSync, rendersKeyFor } from "./legacyKeys.js";
 import type { PendingWrite } from "./write.js";
-import { writeAtomic } from "./write.js";
+import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
 /**
  * The five `SkipReason` members contract §6.2's algorithm can actually
@@ -224,7 +224,10 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const legacyBlock = legacyIntegrity(concept, renames);
 		const rawKeys = concept.frontmatter.raw;
 		const keyCandidate =
-			(renames.integrity !== undefined && Object.hasOwn(rawKeys, renames.integrity.from)) ||
+			(renames.integrity !== undefined &&
+				Object.hasOwn(rawKeys, renames.integrity.from) &&
+				// A foreign `integrity` value is not a candidate: the planner would skip it every run.
+				(rawKeys[renames.integrity.from] === null || isLegacyBlock(rawKeys[renames.integrity.from]))) ||
 			(renames.fields.get(concept.frontmatter.type) ?? []).some((rename) => Object.hasOwn(rawKeys, rename.from));
 		if (matches && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
 			unchanged.push(id);
@@ -234,7 +237,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// The key rename is a pure token edit: it needs no provenance, no `generated` block and no body check.
 		// So it is planned first, and a concept that cannot be stamped still gets the rename-only write below.
 		const absolutePath = path.join(bundle.root, concept.path);
-		const source = keyCandidate ? yield* fs.readFileString(absolutePath) : undefined;
+		const source = keyCandidate ? yield* readSourceKeepingBom(fs, absolutePath) : undefined;
 		const keyPlan =
 			source === undefined
 				? NO_KEY_PLAN
@@ -252,7 +255,10 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			renames.integrity !== undefined &&
 			concept.frontmatter.integrity === undefined &&
 			Object.hasOwn(rawKeys, renames.integrity.from) &&
-			(rawKeys[renames.integrity.from] === null || legacyBlock !== undefined || keyPlan._tag === "edits")
+			(rawKeys[renames.integrity.from] === null ||
+				legacyBlock !== undefined ||
+				// A plan that only renames profile fields must not claim a foreign `integrity` as okfit's block.
+				(keyPlan._tag === "edits" && keyPlan.keys.includes(renames.integrity.from)))
 				? renames.integrity.from
 				: undefined;
 
@@ -318,7 +324,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			continue;
 		}
 
-		const fileSource = source ?? (yield* fs.readFileString(absolutePath));
+		const fileSource = source ?? (yield* readSourceKeepingBom(fs, absolutePath));
 		const { text, bom } = stripBom(fileSource);
 		const newline = detectNewline(text);
 

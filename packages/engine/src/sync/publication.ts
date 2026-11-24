@@ -3,12 +3,12 @@ import type { YamlParseError } from "@effected/yaml";
 import type { BundleLoadError } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Derivation, PUBLICATION_TYPE, ProfileKeys, Publications } from "@okfit/profiles";
-import type { FileSystem, PlatformError } from "effect";
-import { Effect, Option, Path, Runtime, Schema } from "effect";
+import type { PlatformError } from "effect";
+import { Effect, FileSystem, Option, Path, Runtime, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "../edits/FrontmatterEdits.js";
 import type { PublicationEnvelope } from "../render/sync.js";
-import { writeAtomic } from "./write.js";
+import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
 /**
  * No concept answers to `id` -- or one of a Publication's `renders` paths
@@ -100,7 +100,11 @@ export const stampPublication = (options: {
 		if (next === original) return { id, written: false, digests };
 		if (!options.dryRun) {
 			const path = yield* Path.Path;
-			yield* writeAtomic(path.join(bundle.root, concept.path), next);
+			const fs = yield* FileSystem.FileSystem;
+			const target = path.join(bundle.root, concept.path);
+			// The loader's source has no BOM (`readFileString` drops it); give it back on write.
+			const bom = (yield* readSourceKeepingBom(fs, target)).startsWith("\uFEFF") ? "\uFEFF" : "";
+			yield* writeAtomic(target, bom + next);
 		}
 		return { id, written: true, digests };
 	});

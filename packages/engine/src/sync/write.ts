@@ -1,4 +1,5 @@
 import { AtomicFile } from "@effected/files";
+import type { FileSystem } from "effect";
 import { Effect } from "effect";
 
 /**
@@ -14,6 +15,16 @@ import { Effect } from "effect";
 export const writeAtomic = Effect.fn("okfit/sync/writeAtomic")(function* (target: string, contents: string) {
 	yield* AtomicFile.write(target, contents);
 });
+
+/**
+ * Read a concept file as text with a leading UTF-8 BOM kept. `readFileString` decodes with a BOM-stripping
+ * `TextDecoder`, so a writer that re-prepends `stripBom(...).bom` would otherwise always see an empty one and
+ * drop the BOM on write-back.
+ *
+ * @internal
+ */
+export const readSourceKeepingBom = (fs: FileSystem.FileSystem, target: string) =>
+	fs.readFile(target).pipe(Effect.map((bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes)));
 
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is

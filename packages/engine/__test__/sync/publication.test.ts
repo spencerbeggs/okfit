@@ -35,6 +35,17 @@ const PUB = pubFile("  - path: ../modules/a.md\n  - path: ../modules/b.md");
 const files = { "modules/a.md": MOD_A, "modules/b.md": MOD_B, "publications/p.md": PUB };
 
 describe("stampPublication", () => {
+	it.effect("keeps a leading BOM on the Publication it rewrites", () =>
+		withBundle({ ...files, "publications/p.md": `\uFEFF${PUB}` }, (root) =>
+			Effect.gen(function* () {
+				const result = yield* stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false });
+				assert.isTrue(result.written);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "publications/p.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			}),
+		),
+	);
+
 	it.effect("stamps every entry, then is a no-op on the second run", () =>
 		withBundle(files, (root) =>
 			Effect.gen(function* () {

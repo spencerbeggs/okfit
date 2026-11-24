@@ -374,11 +374,14 @@ place and reports the ids as `migrated`.
 `okfit sync --staged` (the pre-commit hook) only migrates the concepts being
 committed, so run a plain `okfit sync` once to move the whole bundle. A concept
 sync cannot stamp (uncommitted edits, untracked, no `generated` block) still has
-its keys renamed and is reported as both migrated and skipped; on a `--staged`
-run that rename restages the whole file, as a stamp does. A project whose own
-config names a built-in field by its bare name (a `required = ["kind"]` list, or
-its own `[types.Module.fields.kind]` table) is left alone for that field: update
-that config by hand.
+its keys renamed and is reported as both migrated and skipped. On a `--staged`
+run, a rename that is the only write to a concept restages the whole file, so
+the first commit that touches an unmigrated concept also commits any unstaged
+edits to it. Run a plain `okfit sync` once and commit the key move on its own
+before other work. A project whose own config names a built-in field by its bare
+name, in a `[types.<T>.fields.<k>]` table or in that type's `required` list, keeps
+`<k>` unrenamed for that type: update that config by hand, then run `okfit sync`
+to rename the key.
 
 Sync skips a concept and renames nothing in two cases: `legacy-key-conflict`
 (it holds both the old and the new spelling of a key; remove one by hand and run

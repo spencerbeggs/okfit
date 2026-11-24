@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownEdit, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import { Bundle, Concept, ConceptId, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { ProfileKeys } from "@okfit/profiles";
+import { ProfileKeys, Profiles } from "@okfit/profiles";
 import { Effect, Option, Result } from "effect";
 import type { KeyRenames } from "../../src/sync/legacyKeys.js";
 import {
@@ -24,8 +24,9 @@ const RENAMES: KeyRenames = {
 const NAMES = { ...ProfileKeys, kind: "x-okfit-kind" } as const;
 
 const field = { description: "d" };
-const config = (types: Record<string, { fields?: Record<string, typeof field> }>): OkfitConfig =>
-	OkfitConfig.merge(OkfitConfig.DEFAULTS, { extensions: {}, types });
+const config = (
+	types: Record<string, { fields?: Record<string, typeof field>; required?: ReadonlyArray<string> }>,
+): OkfitConfig => OkfitConfig.merge(OkfitConfig.DEFAULTS, { extensions: {}, types });
 
 /** The frontmatter as `Bundle.load` reads it: the same parse and decode, so `raw` is okfit's own view. */
 const rawFrontmatter = (text: string) =>
@@ -71,6 +72,23 @@ describe("keyRenamesFor", () => {
 	it("keeps a user's own bare kind (Review Focus 2)", () => {
 		const out = keyRenamesFor(config({ Module: { fields: { "x-okfit-kind": field, kind: field } } }), NAMES);
 		assert.isFalse(out.fields.has("Module"));
+	});
+
+	it("keeps a bare kind that the type's required list names, and still renames other types", () => {
+		const out = keyRenamesFor(
+			config({
+				Module: { fields: { "x-okfit-kind": field }, required: ["resource", "kind"] },
+				Other: { fields: { "x-okfit-kind": field } },
+			}),
+			NAMES,
+		);
+		assert.isFalse(out.fields.has("Module"));
+		assert.deepStrictEqual(out.fields.get("Other"), [{ from: "kind", to: "x-okfit-kind" }]);
+	});
+
+	it("renames kind on the default merged config's Module", () => {
+		const out = keyRenamesFor(OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config));
+		assert.isTrue((out.fields.get("Module") ?? []).some((rename) => rename.from === "kind"));
 	});
 
 	it("renames nothing under profile none (no declared fields)", () => {
