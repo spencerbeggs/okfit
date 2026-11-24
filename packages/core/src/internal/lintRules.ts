@@ -113,7 +113,16 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 	context.config.types?.[concept.frontmatter.type]?.require_verified === true &&
 	concept.frontmatter.status !== "draft" &&
 	(concept.frontmatter.verified ?? []).length === 0
-		? [{ message: `Type "${concept.frontmatter.type}" requires a verified entry`, path: ["status"] }]
+		? [
+				{
+					// An unknown status is not exempt, and `okfit verify` refuses it, so the message names the way out (#459).
+					message:
+						Derive.status(concept.frontmatter) === "unknown"
+							? `Type "${concept.frontmatter.type}" requires a verified entry; status "${Derive.rawStatus(concept.frontmatter)}" is not draft, stable or deprecated, so set it first or verify with okfit verify --stable or --draft`
+							: `Type "${concept.frontmatter.type}" requires a verified entry`,
+					path: ["status"],
+				},
+			]
 		: [],
 );
 
