@@ -20,11 +20,13 @@ integrity:
     body: 4dd48327fb6d3eef
   verified:
     by: human:spencer
-    at: 2026-11-23T22:18:48Z
-    content: 43750283af39aeae
+    at: 2026-11-24T02:55:14Z
+    content: 7cd62c9294f77f0f
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:48Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 ---
 
 # Markdown that is not a concept is skipped, not an error

@@ -20,11 +20,13 @@ integrity:
     body: 96cd6703b1415029
   verified:
     by: human:spencer
-    at: 2026-11-23T22:18:50Z
-    content: ae3b7a269306fe4a
+    at: 2026-11-24T02:55:14Z
+    content: f00587574e4dbfbc
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:50Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 ---
 
 # The root index's metadata is read and kept

@@ -14,11 +14,13 @@ integrity:
     body: f4fa8a58826ee119
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: 3cfab1575b2a29e6
+    at: 2026-11-24T02:55:14Z
+    content: d9abe43abbb4401e
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does

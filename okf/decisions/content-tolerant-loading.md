@@ -15,13 +15,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-11-23T22:13:15Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 integrity:
   generated:
     body: 5737eb70be0f412c
   verified:
     by: human:spencer
-    at: 2026-11-23T22:13:15Z
-    content: d119327afa51a619
+    at: 2026-11-24T02:55:14Z
+    content: 2509dad262017567
 ---
 
 # Loading never fails a concept for a bad family

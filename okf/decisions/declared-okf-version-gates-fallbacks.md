@@ -20,11 +20,13 @@ integrity:
     body: 146ab87c9ca9b375
   verified:
     by: human:spencer
-    at: 2026-11-23T22:18:45Z
-    content: 2f38d701f264252e
+    at: 2026-11-24T02:55:14Z
+    content: 4e164e51836fd695
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:45Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 ---
 
 # The declared OKF version gates the v0.2 fallbacks
