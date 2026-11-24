@@ -72,6 +72,34 @@ describe("Publications.resolveRef", () => {
 	});
 });
 
+describe("Publications.resolveRef (OKF v0.3 section 6)", () => {
+	const from = "publications/docs/api.md";
+	const at = (raw: string) => Publications.resolveRef(from, raw);
+	it("reads a leading slash from the bundle root, beside a file-relative control", () => {
+		assert.strictEqual(at("/modules/core.md"), "modules/core");
+		assert.strictEqual(at("modules/core.md"), "publications/docs/modules/core");
+		assert.strictEqual(at("../../modules/core.md"), "modules/core");
+		assert.strictEqual(at("./x.md"), "publications/docs/x");
+		assert.strictEqual(at("../x"), "publications/x");
+	});
+	it("ignores an anchor or query and a missing .md alike", () => {
+		assert.strictEqual(at("/modules/core.md#top"), "modules/core");
+		assert.strictEqual(at("/modules/core?x=1"), "modules/core");
+		assert.strictEqual(at("/modules/core"), "modules/core");
+		assert.strictEqual(at("x.md#a"), "publications/docs/x");
+	});
+	it("treats a lone or doubled slash as the root", () => {
+		assert.strictEqual(at("/"), "");
+		assert.strictEqual(at("//x"), "x");
+	});
+	it("returns empty for a reference climbing above the bundle root, beside a staying-inside control", () => {
+		assert.strictEqual(at("/../x"), "");
+		assert.strictEqual(at("../../../x"), "");
+		assert.strictEqual(at("/a/../x"), "x");
+		assert.strictEqual(at("../../x"), "x");
+	});
+});
+
 describe("Publications.lint", () => {
 	const run = (bundle: LoadedBundle, config: OkfitConfig = OkfitConfig.DEFAULTS) =>
 		Publications.lint(bundle, config).pipe(Effect.provide(NodeCrypto.layerDigest));
