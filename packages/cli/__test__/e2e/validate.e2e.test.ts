@@ -16,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
 import { Effect } from "effect";
-import { UNDECLARED_PROJECT, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
+import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
@@ -929,6 +929,21 @@ describe("okfit validate: an unparseable file", () => {
 				run.stdout,
 			);
 			assert.isTrue(body.diagnostics.every((d) => d.file === "decisions/broken.md"));
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: --target (characterization; Task 5 adds it)", () => {
+	it.effect("rejects --target 0.3 as an unknown flag today, while a plain validate of the same bundle succeeds", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-target-"));
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, V02_PROJECT));
+			// Task 5: exit 0 with migrate findings
+			const target = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.strictEqual(target.exitCode, 64);
+			// control: the same sandbox validates, so 64 comes from the flag and not from the bundle
+			const plain = yield* runOkfit(["validate"], sandbox);
+			assert.strictEqual(plain.exitCode, 0);
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

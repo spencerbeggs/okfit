@@ -613,3 +613,45 @@ EOF" "$proj")" "$proj"
 	assert_hook_noop
 	[ ! -f "$STUB_DIR/context-cwd" ]
 }
+
+# OKF v0.3 phase 4, Task 1 (characterization): a typeless .md written into the
+# bundle passes the hook silently today. Task 8 teaches the hook to block it
+# where the config or profile forbids it.
+
+# _ctx_no_profile bundle_root project_root — a context for a bundle whose config sets nothing.
+_ctx_no_profile() {
+	printf '{"schema":1,"project_root":"%s","bundle_root":"%s","config_path":null,"profile":null,"index_path":"%s/index.md","index_exists":true,"actors":{"agent":null},"types":[],"tags":[]}' "$2" "$1" "$1"
+}
+
+# _typeless_proj — a project whose okf/ holds a root index and a typeless notes.md; echoes the project dir.
+_typeless_proj() {
+	local proj="$BATS_TEST_TMPDIR/typeless"
+	mkdir -p "$proj/okf"
+	printf -- '---\nokf_version: "0.3"\n---\n' >"$proj/okf/index.md"
+	printf '# Notes\n' >"$proj/okf/notes.md"
+	printf '%s' "$proj"
+}
+
+@test "a Write of a typeless okf/notes.md is silent where the config sets nothing" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_profile "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+	done
+	# control: the hook did run its validate for the file, so the silence is the hook's verdict
+	[ -f "$STUB_DIR/validate-invoked" ]
+}
+
+@test "a Write of a typeless okf/notes.md is silent under the software-project profile" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		# Task 8: the profile case blocks
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+	done
+	[ -f "$STUB_DIR/validate-invoked" ]
+}

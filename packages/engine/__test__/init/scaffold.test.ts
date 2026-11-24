@@ -209,6 +209,22 @@ describe("files", () => {
 		);
 	});
 
+	it.effect("a 0.2 root index still carries title and description in its frontmatter", () =>
+		Effect.gen(function* () {
+			const entries = yield* files({ ...OPTIONS, okfVersion: "0.2" });
+			const text = entries.find((entry) => entry.path === "/tmp/my-repo/okf/index.md")?.contents ?? "";
+			// Task 6: omitted (R43)
+			assert.include(text, "title: my-repo");
+			assert.include(text, "description:");
+			assert.include(text, "okf_version: '0.2'");
+			// control: the same keys are what a 0.3 index writes, so the assertion reads the frontmatter, not a stray word
+			const current = (yield* files({ ...OPTIONS, okfVersion: "0.3" })).find(
+				(entry) => entry.path === "/tmp/my-repo/okf/index.md",
+			)?.contents;
+			assert.include(current, "title: my-repo");
+		}),
+	);
+
 	it.effect("writes the bundle title and description, and Bundle.load reads them back clean (OKF 0.3 §8.1)", () =>
 		Effect.gen(function* () {
 			const entries = yield* files({ ...OPTIONS, okfVersion: "0.3" });
