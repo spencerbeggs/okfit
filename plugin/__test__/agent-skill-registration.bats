@@ -221,9 +221,12 @@ _field_value() {
 	! grep -qi '^name:.*migrat' "$PLUGIN_ROOT"/skills/*/SKILL.md "$AGENTS"/*.md
 }
 
-# _outside_changes file — the file with the "Changes from v0.2" section removed.
+# _outside_changes file — the body with its frontmatter and its "Changes from v0.2" section removed.
 _outside_changes() {
 	awk '
+		NR == 1 && /^---$/ { fm = 1; next }
+		fm && /^---$/ { fm = 0; next }
+		fm { next }
 		/^## / { skip = ($0 ~ /^## Changes from v0\.2/) }
 		!skip { print }
 	' "$1"
@@ -233,8 +236,8 @@ _outside_changes() {
 	local checked=0 file
 	for file in "$PLUGIN_ROOT"/skills/*/SKILL.md "$AGENTS"/*.md; do
 		checked=$((checked + 1))
-		if _outside_changes "$file" | grep -q 'OKF v0\.2'; then
-			echo "$file mentions OKF v0.2 outside a 'Changes from v0.2' section" >&2
+		if _outside_changes "$file" | grep -q 'v0\.2'; then
+			echo "$file mentions v0.2 outside a 'Changes from v0.2' section" >&2
 			return 1
 		fi
 	done

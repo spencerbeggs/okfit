@@ -168,6 +168,8 @@ Types, one sentence each:
   it starts, which modules it passes through in order, and how it fails."
 - `Fixture` -- "A stand-in for an external thing that tests or tooling
   depend on: a recorded response, a sample repository, a vendored sample."
+- `Surface` -- "A documentation surface: where one kind of published docs lives, who reads it, and how it is written."
+- `Publication` -- "A published page that restates facts this bundle owns, and the concepts it was rendered from."
 
 Choosing between the near neighbours: a Limitation is "this cannot do X";
 a Gotcha is "this looks broken (or looks fine) and is the opposite". A

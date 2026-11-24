@@ -44,7 +44,7 @@ typeless `.md` the config's `[bundle] non_concepts` globs do not list
 | Field | Family | Required | Notes | § |
 | --- | --- | --- | --- | --- |
 | `type` | core | **yes**, the only always-required key | Short string; consumers MUST accept unknown types | 4.1 |
-| `title` | core | optional | Else derive from the filename | 4.1 |
+| `title` | core | optional | A consumer MAY derive one from the filename | 4.1 |
 | `description` | core | optional | One sentence | 4.1 |
 | `resource` | core | optional | URI of the underlying asset; absent for abstract concepts | 4.1 |
 | `tags` | core | optional | List of short strings; a scalar is one tag | 4.1, 11.2 |
@@ -159,11 +159,20 @@ Two breaking changes (§13.1):
 | A path field without a leading `/` resolves from its file's directory. v0.2 examples wrote bundle-root paths bare, and those no longer resolve. | A consumer MAY try the bundle root when the bundle declares `okf_version` 0.2 or earlier, or none (§6.2, §12.1). okfit does this; `okf-upgrade` moves a bundle off it. |
 | Only current verifications give the trust tier. | None needed: the tier can only go down. |
 
-The computation locator also changes (§10.3): a v0.2 reader took the body of
-a depth-one `Computation` section; v0.3 takes the first fence at any level.
-okfit applies the old locator while a bundle declares 0.2 or earlier, or none. Additive: `superseded_by`, root `title`/`description`/`license`, the
-`team:` scheme, date-only timestamps, and non-concept `.md` files (§13.2,
-§13.3). `okf-upgrade` covers the move.
+The computation locator is stated precisely (§10.3): the first fence in the
+`Computation` section at any heading level. okfit's v0.2 reading took the body
+of a depth-one `Computation` section, and okfit still applies it while a bundle
+declares 0.2 or earlier, or none.
+
+Additive changes (§13.2, §13.3):
+
+- `superseded_by` and guidance for retiring and moving concepts.
+- Root `title`, `description` and `license`.
+- The `team:` scheme.
+- Date-only timestamps.
+- Non-concept `.md` files.
+
+`okf-upgrade` covers the move.
 
 A v0.1 bundle: a legacy `timestamp` stands in for `generated.at` when
 `generated` is absent (Appendix B); okfit lints it as `legacy-timestamp`.

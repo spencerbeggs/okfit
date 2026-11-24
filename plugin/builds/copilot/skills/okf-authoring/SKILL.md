@@ -125,6 +125,9 @@ for an agent, so suggest the human run it instead of attempting it.
     a Decision yourself. Editing an already-stable Decision is allowed (the
     edit voids its verification as `verified-drift`) and leaves its `status`
     as it is.
+    A new concept is written with `status: draft`. An existing concept that has
+    no `status` is left as it is and reported to the human; never add one (rule
+    21).
 15. Never author `verified` or `integrity` at all (rule 2). If you must
     read or quote an existing `verified`, it is a list of `{by, at}`.
 16. Never delete an unrecognised frontmatter key -- extensions are legal
