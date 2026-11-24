@@ -6,7 +6,7 @@ const ROOT = resolve(import.meta.dirname, "..", "..", "..");
 
 /**
  * The only files that may spell okfit's own frontmatter keys: the constant for `integrity`, the profile field
- * table, and the legacy-spelling module the migration reads (not yet created; allowlisted ahead of it).
+ * table, and the legacy-spelling module the migration reads, the one home of the old spelling.
  */
 const ALLOWED: ReadonlySet<string> = new Set([
 	"packages/core/src/Integrity.ts",
@@ -85,7 +85,10 @@ const stripComments = (source: string): string => {
 	return out;
 };
 
-const PATTERNS: ReadonlyArray<RegExp> = [INTEGRITY_LITERAL, ...FIELD_PATTERNS];
+/** The new key's spelling, in any code position: only `core/src/Integrity.ts` (which builds it from the prefix) owns it. */
+const NEW_INTEGRITY_LITERAL = /x-okfit-integrity/;
+
+const PATTERNS: ReadonlyArray<RegExp> = [INTEGRITY_LITERAL, NEW_INTEGRITY_LITERAL, ...FIELD_PATTERNS];
 
 /** Each pattern's first match per line of `source` with comments removed. */
 const literalsIn = (source: string): ReadonlyArray<string> => hitsIn(source).map((hit) => hit.match);
@@ -179,6 +182,12 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 		expect(literalsIn('const url = "https://x.test"; const k = "links_to";')).toEqual(['"links_to"']);
 	});
 
+	it("catches a literal x-okfit-integrity in code, not in a comment (positive control)", () => {
+		expect(literalsIn('const k = "x-okfit-integrity";')).toEqual(["x-okfit-integrity"]);
+		expect(literalsIn("const k = `x-okfit-integrity:\\n`;")).toEqual(["x-okfit-integrity"]);
+		expect(literalsIn("// x-okfit-integrity\nconst k = 1;")).toEqual([]);
+	});
+
 	it("catches the integrity key line in each way it is rendered", () => {
 		expect(literalsIn('const k = "integrity:\\n";')).toEqual(['"integrity:\\n']);
 		const interpolation = "$" + "{";
@@ -199,8 +208,6 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 		const files = sourceFiles();
 		expect(files.length).toBeGreaterThan(100);
 		for (const allowed of ALLOWED) {
-			// The allowlisted files that exist must be scanned like any other; legacyKeys.ts arrives in a later task.
-			if (allowed.endsWith("legacyKeys.ts")) continue;
 			expect(files.map((file) => relative(ROOT, file))).toContain(allowed);
 		}
 		const offenders = files.flatMap((file) => {

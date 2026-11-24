@@ -46,7 +46,7 @@ export const FILES: ReadonlyArray<readonly [string, string]> = [
 		concept(
 			"Decision",
 			"Gamma",
-			`verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nintegrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
+			`verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nx-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
 		),
 	],
 	["modules/m.md", concept("Module", "Mu", "verified:\n  - by: human:bob\n    at: 2026-09-01T00:00:00Z\n")],

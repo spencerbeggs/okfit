@@ -12,7 +12,7 @@ status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
-integrity:
+x-okfit-integrity:
   generated:
     body: a8636d4a90f99518
   verified:

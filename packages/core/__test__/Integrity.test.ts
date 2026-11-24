@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
+import { MarkdownDocument, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import { Effect, Option, Result, Schema } from "effect";
 import { Digest, INTEGRITY_KEY, Integrity } from "../src/Integrity.js";
 import { decodeConcept } from "../src/internal/frontmatter.js";
@@ -22,11 +22,27 @@ describe("Integrity", () => {
 		assert.isUndefined(Schema.decodeUnknownSync(Integrity)({ generated: { body: "47fef58df84c6eb2" } }).verified);
 	});
 
-	it("names the top-level frontmatter key `integrity`", () => {
-		assert.strictEqual(INTEGRITY_KEY, "integrity");
+	it("names the top-level frontmatter key `x-okfit-integrity`", () => {
+		assert.strictEqual(INTEGRITY_KEY, "x-okfit-integrity");
 	});
 
-	it.effect("decodes the family through the constant", () =>
+	it.effect("decodes the family from the literal x-okfit-integrity key in real YAML", () =>
+		Effect.gen(function* () {
+			const text = "---\ntype: Module\nx-okfit-integrity:\n  generated:\n    body: 0123456789abcdef\n---\n\nBody\n";
+			const document = yield* MarkdownDocument.parse(text, MarkdownParseOptions.make({ frontmatter: true }));
+			const node = document.root.children[0] as Extract<
+				(typeof document.root.children)[number],
+				{ readonly type: "frontmatter" }
+			>;
+			const raw = (yield* YamlFrontmatter.decode(node)) as Record<string, unknown>;
+			const result = decodeConcept(raw, { file: "m.md", text, node });
+			const concept = Option.getOrThrow(result.concept);
+			assert.strictEqual(concept.integrity?.generated?.body, "0123456789abcdef");
+			assert.deepStrictEqual(result.diagnostics, []);
+		}),
+	);
+
+	it.effect("reads a legacy `integrity:` block as an unknown extra, so it is unverified until sync runs", () =>
 		Effect.gen(function* () {
 			const text = "---\ntype: Module\nintegrity:\n  generated:\n    body: 0123456789abcdef\n---\n\nBody\n";
 			const document = yield* MarkdownDocument.parse(text, MarkdownParseOptions.make({ frontmatter: true }));
@@ -34,11 +50,10 @@ describe("Integrity", () => {
 				(typeof document.root.children)[number],
 				{ readonly type: "frontmatter" }
 			>;
-			const raw = { type: "Module", [INTEGRITY_KEY]: { generated: { body: "0123456789abcdef" } } };
-			const result = decodeConcept(raw, { file: "m.md", text, node });
-			const concept = Option.getOrThrow(result.concept);
-			assert.strictEqual(concept.integrity?.generated?.body, "0123456789abcdef");
-			assert.deepStrictEqual(result.diagnostics, []);
+			const raw = (yield* YamlFrontmatter.decode(node)) as Record<string, unknown>;
+			const concept = Option.getOrThrow(decodeConcept(raw, { file: "m.md", text, node }).concept);
+			assert.isUndefined(concept.integrity);
+			assert.isDefined(concept.extensions.integrity);
 		}),
 	);
 });

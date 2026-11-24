@@ -35,7 +35,7 @@ const options = { bundleRoot: ROOT, projectRoot: REPO, config, dryRun: false } a
 const batchOptions = { ...options, at: T3, types: [] as ReadonlyArray<string> };
 
 const decision = (digest: string, body: string): string =>
-	`---\ntype: Decision\ntitle: D\nstatus: stable\ngenerated:\n  by: human:ada\n  at: ${G0}\nintegrity:\n  generated:\n    body: ${digest}\n---\n\n${body}\n`;
+	`---\ntype: Decision\ntitle: D\nstatus: stable\ngenerated:\n  by: human:ada\n  at: ${G0}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n\n${body}\n`;
 
 /** What `HEAD` holds and what `git log` answers: moved by the test to simulate the commit. */
 interface Repo {

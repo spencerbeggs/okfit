@@ -9,7 +9,7 @@ generated:
 tags:
   - architecture
 stale_after: "2026-12-05T00:00:00Z"
-integrity:
+x-okfit-integrity:
   generated:
     body: f9b39a1116e3778e
 ---

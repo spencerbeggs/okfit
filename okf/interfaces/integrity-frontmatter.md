@@ -16,7 +16,7 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
-integrity:
+x-okfit-integrity:
   generated:
     body: 1284cdd5314515a8
 ---

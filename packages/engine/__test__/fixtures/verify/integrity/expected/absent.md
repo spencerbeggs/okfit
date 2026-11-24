@@ -2,7 +2,7 @@
 type: Decision
 title: T
 status: stable
-integrity:
+x-okfit-integrity:
   generated:
     body: 47fef58df84c6eb2
 ---

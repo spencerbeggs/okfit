@@ -4,5 +4,5 @@ title: T
 status: stable
 base: &b
   a: 1
-integrity: *b
+x-okfit-integrity: *b
 ---

@@ -27,7 +27,7 @@ const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 	extensions: {},
 });
 
-const verified = `verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nintegrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
+const verified = `verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nx-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
 const decision = (title: string, extra: string, body: string) =>
 	`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n\n${body}\n`;
 

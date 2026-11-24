@@ -12,7 +12,7 @@ generated:
   at: 2026-10-03T00:39:07Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: e6bc7f653954bcea
 ---

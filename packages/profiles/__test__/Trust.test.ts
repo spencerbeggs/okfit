@@ -47,8 +47,10 @@ const concept = (
 	].join("\n");
 	const source = `---\n${yaml}\n---${body}`;
 	// The loader keeps a status outside the vocabulary in `raw` only, never in the typed field (OKF 0.3 5.4).
-	const { status, ...rest } = fm;
-	const typed = status === "draft" || status === "stable" || status === "deprecated" ? { ...rest, status } : rest;
+	const { status, "x-okfit-integrity": bound, ...rest } = fm;
+	const typedRest = bound === undefined ? rest : { ...rest, integrity: bound };
+	const typed =
+		status === "draft" || status === "stable" || status === "deprecated" ? { ...typedRest, status } : typedRest;
 	return LoadedConcept.make({
 		id: Option.getOrThrow(ConceptId.normalize(path)),
 		path,
@@ -79,7 +81,7 @@ const bound = (extra: Record<string, unknown> = {}, body = BODY) =>
 		return {
 			base,
 			content,
-			concept: concept({ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } }, body),
+			concept: concept({ ...base, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } }, body),
 		};
 	});
 
@@ -102,7 +104,10 @@ describe("Trust.signal", () => {
 			const base = { type: "Decision", verified: [{ by: "human:spencer", at: AT }] };
 			const probe = concept(base);
 			const content = yield* Derivation.contentDigest(probe.frontmatter.raw, probe.document.source);
-			const boundConcept = concept({ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } });
+			const boundConcept = concept({
+				...base,
+				"x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } },
+			});
 			const signal = yield* Trust.signal(boundConcept, OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual(signal, {
 				tier: "human-reviewed",
@@ -134,7 +139,7 @@ describe("Trust.signal", () => {
 				{
 					...base,
 					generated: { by: "agent/x", at: LATER },
-					integrity: { verified: { by: "human:spencer", at: AT, content } },
+					"x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } },
 				},
 				"\nA different body.\n",
 			);
@@ -153,7 +158,7 @@ describe("Trust.signal", () => {
 		Effect.gen(function* () {
 			const { base, content } = yield* bound();
 			const edited = concept(
-				{ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				{ ...base, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } },
 				"\nA different body.\n",
 			);
 			const signal = yield* Trust.signal(edited, OkfitConfig.DEFAULTS, NOW);
@@ -170,7 +175,7 @@ describe("Trust.signal", () => {
 					{ by: "human:spencer", at: AT },
 					{ by: "human:ada", at: LATER },
 				],
-				integrity: { verified: { by: "human:spencer", at: AT, content } },
+				"x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } },
 			});
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(signal.integrity, "drifted");
@@ -188,7 +193,7 @@ describe("Trust.signal", () => {
 				],
 			};
 			const content = yield* digestOf(concept(base));
-			const c = concept({ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } });
+			const c = concept({ ...base, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } });
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(signal.integrity, "current");
 			assert.strictEqual(signal.tier, "human-reviewed");
@@ -203,7 +208,7 @@ describe("Trust.signal", () => {
 				status: "draft",
 				stale_after: "2030-01-01T00:00:00Z",
 				verified: [{ by: "human:spencer", at: AT }],
-				integrity: { verified: { by: "human:spencer", at: AT, content } },
+				"x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } },
 			});
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
 			assert.strictEqual(signal.integrity, "current");
@@ -281,7 +286,7 @@ describe("Trust.lint", () => {
 			// bound at AT, but generated.at is 42 seconds later: verified before the last change
 			const content = yield* digestOf(concept(base));
 			const before = concept(
-				{ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				{ ...base, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } },
 				BODY,
 				"before.md",
 			);
@@ -290,7 +295,7 @@ describe("Trust.lint", () => {
 				{
 					type: "Decision",
 					verified: [{ by: "human:spencer", at: AT }],
-					integrity: { verified: { by: "human:spencer", at: AT, content: "ffffffffffffffff" } },
+					"x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content: "ffffffffffffffff" } },
 				},
 				BODY,
 				"changed.md",
@@ -362,14 +367,14 @@ describe("Trust.lint", () => {
 			const rawExtra = { ticket: 123456789012345678901n };
 			const content = yield* digestOf(concept(fm, BODY, "big.md", rawExtra));
 			const current = concept(
-				{ ...fm, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				{ ...fm, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } },
 				BODY,
 				"big.md",
 				rawExtra,
 			);
 			assert.strictEqual((yield* Trust.signal(current, OkfitConfig.DEFAULTS, NOW)).integrity, "current");
 			const changed = concept(
-				{ ...fm, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				{ ...fm, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } },
 				BODY,
 				"big.md",
 				{ ticket: 123456789012345678902n },
@@ -390,7 +395,7 @@ describe("Trust.lint", () => {
 						type: "Decision",
 						title: "x\ud800",
 						verified: [{ by: "human:spencer", at: AT }],
-						integrity: { verified: binding },
+						"x-okfit-integrity": { verified: binding },
 					},
 					BODY,
 					"broken.md",
@@ -455,14 +460,14 @@ describe("Trust.lint", () => {
 				{
 					...base,
 					generated: { by: "agent/x", at: LATER },
-					integrity: { verified: { by: "human:spencer", at: AT, content } },
+					"x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } },
 				},
 				"\nA different body.\n",
 			);
 			assert.deepStrictEqual(yield* Trust.lint(bundleOf(edited), OkfitConfig.DEFAULTS, NOW), []);
 			// control: the same edit without a later generated is a plain content change
 			const plain = concept(
-				{ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				{ ...base, "x-okfit-integrity": { verified: { by: "human:spencer", at: AT, content } } },
 				"\nA different body.\n",
 			);
 			const [changed] = yield* Trust.lint(bundleOf(plain), OkfitConfig.DEFAULTS, NOW);
@@ -471,7 +476,7 @@ describe("Trust.lint", () => {
 
 			const legacy = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] });
 			const [unbound] = yield* Trust.lint(bundleOf(legacy), OkfitConfig.DEFAULTS, NOW);
-			assert.include(unbound?.message ?? "", "no integrity.verified binding records what was verified");
+			assert.include(unbound?.message ?? "", "no x-okfit-integrity.verified binding records what was verified");
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });

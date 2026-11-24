@@ -81,9 +81,9 @@ describe("keyRenamesFor", () => {
 		assert.isFalse(keyRenamesFor(config({ Widget: {} }), NAMES).fields.has("Widget"));
 	});
 
-	it("is empty for the production config today", () => {
+	it("renames the integrity key from its legacy spelling, and no profile field until its key moves", () => {
 		const out = keyRenamesFor(config({ Module: { fields: { kind: field } } }));
-		assert.strictEqual(out.integrity, undefined);
+		assert.deepStrictEqual(out.integrity, { from: "integrity", to: "x-okfit-integrity" });
 		assert.strictEqual(out.fields.size, 0);
 		assert.strictEqual(LEGACY_INTEGRITY_KEY, "integrity");
 	});

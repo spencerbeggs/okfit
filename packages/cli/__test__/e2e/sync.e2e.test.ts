@@ -499,7 +499,7 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(project);
 			assert.match(
 				project,
-				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\nintegrity:\n {2}generated:\n {4}body: [\da-f]{16}\n---\n/,
+				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\nx-okfit-integrity:\n {2}generated:\n {4}body: [\da-f]{16}\n---\n/,
 			);
 			assert.ok(project.includes(`    body: ${digest}\n`));
 			assert.notInclude(project, "body_sha256");
@@ -903,7 +903,7 @@ describe("okfit sync (e2e)", () => {
 			const text = await readDecision(cwd, "staged");
 			assert.match(
 				text,
-				/\n {2}at: 2026-09-16T10:00:00Z\nstatus: draft\nintegrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/,
+				/\n {2}at: 2026-09-16T10:00:00Z\nstatus: draft\nx-okfit-integrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/,
 			);
 
 			// Prove `--staged` re-added the stamp itself, BEFORE `commit()` runs
@@ -1020,7 +1020,7 @@ const driftCount = async (cwd: string, env: Record<string, string>): Promise<num
 
 /** Append the canonical `integrity.generated.body` block as the last frontmatter key. */
 const stampIntegrity = (text: string, digest: string): string =>
-	text.replace("\n---\n", `\nintegrity:\n  generated:\n    body: ${digest}\n---\n`);
+	text.replace("\n---\n", `\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n`);
 
 describe("okfit sync --publication", () => {
 	it("restamps one Publication, after which validate reports no drift", async () => {

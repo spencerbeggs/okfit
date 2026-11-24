@@ -181,10 +181,10 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 	const by = latest?.by ?? "a human";
 	const at = latest === undefined ? "an unknown time" : encodeAt(latest.at);
 	if (drift.reason === "unbound") {
-		return `verified by ${by} at ${at}, but no integrity.verified binding records what was verified; re-run okfit verify`;
+		return `verified by ${by} at ${at}, but no ${INTEGRITY_KEY}.verified binding records what was verified; re-run okfit verify`;
 	}
 	if (drift.reason === "entry-superseded") {
-		return `the latest human verification (${by} at ${at}) is not the one integrity.verified binds; re-run okfit verify`;
+		return `the latest human verification (${by} at ${at}) is not the one ${INTEGRITY_KEY}.verified binds; re-run okfit verify`;
 	}
 	const binding = concept.frontmatter.integrity?.verified;
 	if (drift.reason === "content-unhashable") {

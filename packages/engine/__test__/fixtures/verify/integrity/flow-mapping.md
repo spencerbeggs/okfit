@@ -2,5 +2,5 @@
 type: Decision
 title: T
 status: stable
-integrity: { generated: { body: x } }
+x-okfit-integrity: { generated: { body: x } }
 ---

@@ -7,7 +7,13 @@ import type { ProfileFieldName } from "@okfit/profiles";
 import { Derivation, PROFILE_FIELD_NAMES, ProfileKeys } from "@okfit/profiles";
 import type { Effect } from "effect";
 import { Effect as E, Option, Schema } from "effect";
-import { classifyLegacyIntegrity, isLegacyIntegrityValue, parseTopLevelMapping, renameKey } from "../verify/locate.js";
+import {
+	classifyLegacyIntegrity,
+	isLegacyIntegrityValue,
+	isLegacySlotKeys,
+	parseTopLevelMapping,
+	renameKey,
+} from "../verify/locate.js";
 
 /**
  * The spelling okfit's integrity block had before it moved under the `x-okfit-` namespace. The one home of
@@ -60,9 +66,20 @@ export const keyRenamesFor = (
 		}
 		if (renames.length > 0) fields.set(type, renames);
 	}
-	const integrity =
-		INTEGRITY_KEY === LEGACY_INTEGRITY_KEY ? undefined : { from: LEGACY_INTEGRITY_KEY, to: INTEGRITY_KEY };
+	const target: string = INTEGRITY_KEY;
+	const integrity = target === LEGACY_INTEGRITY_KEY ? undefined : { from: LEGACY_INTEGRITY_KEY, to: target };
 	return { integrity, fields };
+};
+
+/**
+ * D2 plus a `<<` merge key: a legacy block that merges another mapping in is still okfit's legacy block as
+ * far as verify is concerned (it refuses it), so sync must see it too and skip it as unsupported.
+ */
+const isLegacyBlock = (value: unknown): boolean => {
+	if (isLegacyIntegrityValue(value)) return true;
+	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+	const keys = Object.keys(value);
+	return keys.includes("<<") && isLegacySlotKeys(keys.filter((key) => key !== "<<"));
 };
 
 const decodeIntegrity = Schema.decodeUnknownOption(Integrity);
@@ -145,7 +162,7 @@ export const planKeyRenames = E.fn("okfit/sync/planKeyRenames")(function* (
 	// there to rename; the parsed tree only supplies the key tokens.
 	const present = entries.filter((entry) => {
 		if (!Object.hasOwn(raw, entry.from)) return false;
-		return !isIntegrity(entry) || raw[entry.from] === null || isLegacyIntegrityValue(raw[entry.from]);
+		return !isIntegrity(entry) || raw[entry.from] === null || isLegacyBlock(raw[entry.from]);
 	});
 	const emptyIntegrity = (entry: KeyRename): boolean => isIntegrity(entry) && raw[entry.from] === null;
 	const conflicts = present.filter((entry) => Object.hasOwn(raw, entry.to)).map((entry) => entry.from);

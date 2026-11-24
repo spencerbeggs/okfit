@@ -39,7 +39,7 @@ verified:
     at: 2026-11-24T06:53:02Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
-integrity:
+x-okfit-integrity:
   generated:
     body: ebbd4ad1372ec0f1
   verified:

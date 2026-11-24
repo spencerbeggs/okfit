@@ -81,13 +81,21 @@ describe("Canonical.contentInput", () => {
 			stale_after: "2027-01-01T00:00:00Z",
 			generated: { by: "human:x", at: "2026-01-01T00:00:00Z" },
 			verified: [{ by: "human:x", at: "2026-01-01T00:00:00Z" }],
-			integrity: { generated: { body: "0123456789abcdef" } },
+			"x-okfit-integrity": { generated: { body: "0123456789abcdef" } },
 			timestamp: "2026-01-01T00:00:00Z",
 			renders: [{ path: "a.md", body: "0123456789abcdef", body_sha256: "a".repeat(64) }],
 		};
 		const input = JSON.parse(Result.getOrThrow(Canonical.contentInput(raw, src("type: Publication"))));
 		assert.deepStrictEqual(input.frontmatter, { renders: [{ path: "a.md" }], title: "T", type: "Publication" });
 		assert.strictEqual(input.body, "# Title\n\nText.");
+	});
+
+	it("excludes x-okfit-integrity from the content, but not a bare integrity mapping (D1)", () => {
+		const input = (raw: Record<string, unknown>) =>
+			Result.getOrThrow(Canonical.contentInput({ type: "Note", title: "T", ...raw }, src("type: Note")));
+		const plain = input({});
+		assert.strictEqual(input({ "x-okfit-integrity": { generated: { body: "0123456789abcdef" } } }), plain);
+		assert.notStrictEqual(input({ integrity: { generated: { body: "0123456789abcdef" } } }), plain);
 	});
 
 	it.effect("timestamps in a loaded concept's raw frontmatter arrive as strings", () =>
@@ -116,6 +124,19 @@ describe("Canonical.contentInput", () => {
 			assert.strictEqual(typeof concept.frontmatter.raw.ticket, "bigint");
 			const digest = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
 			assert.match(digest, /^[0-9a-f]{16}$/u);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+	);
+
+	it.effect("the migrated okf/decisions/comparable-version.md still hashes to its recorded verified.content", () =>
+		Effect.gen(function* () {
+			const root = join(import.meta.dirname, "..", "..", "..", "okf");
+			const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(platform));
+			const concept = [...bundle.concepts.values()].find((c) => c.id === "decisions/comparable-version");
+			assert.isDefined(concept);
+			if (concept === undefined) return;
+			const recorded = concept.frontmatter.integrity?.verified?.content;
+			assert.match(recorded ?? "", /^[0-9a-f]{16}$/u);
+			assert.strictEqual(yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source), recorded);
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });

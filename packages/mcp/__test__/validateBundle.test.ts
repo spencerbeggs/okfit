@@ -66,7 +66,7 @@ describe("validate_bundle", () => {
 			// .config/okfit.toml sets actors.agent and metrics/churn.md has no
 			// generated block, so generated-missing (issue #73) adds a third.
 			// Plus seven verified-drift warnings: the fixture's human-verified
-			// concepts carry no integrity.verified binding (integrity phase 1);
+			// concepts carry no x-okfit-integrity.verified binding (integrity phase 1);
 			// the deprecated metrics/gross-margin-legacy is exempt from the lint.
 			// Plus twelve actor-email warnings: the vendored corpus records
 			// email-bearing actors (human:kliu@acme).

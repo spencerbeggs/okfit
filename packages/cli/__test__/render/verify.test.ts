@@ -256,7 +256,7 @@ describe("humanRevoke", () => {
 		assert.deepStrictEqual(humanRevoke({ ...base, dryRun: false }), [
 			"revoked 1 verified entry of decisions/x by human:ada",
 			"  removed entry at 2026-09-01T00:00:00Z",
-			"  cleared the integrity.verified binding",
+			"  cleared the x-okfit-integrity.verified binding",
 		]);
 	});
 

@@ -345,7 +345,7 @@ describe("ConceptQuery.get replacement", () => {
 describe("ConceptQuery.list verified: current with a real before-change signal (OKF 0.3 5.3)", () => {
 	const entry = "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
 	const binding = (content: string) =>
-		`integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${content}\n`;
+		`x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${content}\n`;
 	const doc = (title: string, extra: string) => `---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
 	const generated = (at: string) => `generated:\n  by: agent:claude\n  at: ${at}\n`;
 	const NOW = DateTime.makeUnsafe("2026-10-09T00:00:00Z");

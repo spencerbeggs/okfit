@@ -26,7 +26,7 @@ const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> 
 
 /** The `integrity.verified` block a run by ada at `at` writes for the content digest `content`. */
 const binding = (content: string, at = "2026-09-07T00:00:00Z"): string =>
-	`integrity:\n  verified:\n    by: human:ada\n    at: ${at}\n    content: ${content}\n`;
+	`x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: ${at}\n    content: ${content}\n`;
 
 /** The digest of concept `id`, computed here in the test process rather than by the bin under test. */
 const digestOf = (cwd: string, id: string): Promise<string> =>

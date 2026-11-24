@@ -13,7 +13,7 @@ supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
   - id: integrity-ts
     resource: ../../packages/core/src/Integrity.ts
-integrity:
+x-okfit-integrity:
   generated:
     body: d96fb1111c604cf9
   verified:

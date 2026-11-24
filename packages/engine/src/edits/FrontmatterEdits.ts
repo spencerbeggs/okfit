@@ -23,6 +23,9 @@ export class UnsupportedFrontmatterError extends Schema.TaggedError<UnsupportedF
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
+		if (this.shape === "legacy-key") {
+			return `"${this.key}" is still spelled the older way in this file; run okfit sync to rename it, then retry`;
+		}
 		return `"${this.key}"'s frontmatter value is a shape FrontmatterEdits cannot edit (${this.shape}); edit it by hand`;
 	}
 }

@@ -1,5 +1,6 @@
 import type { Document } from "@effected/cli-kit";
 import { Doc } from "@effected/cli-kit";
+import { INTEGRITY_KEY } from "@okfit/core";
 import type { VerifyBatchSkipReason } from "@okfit/engine";
 /** @public */
 export interface VerifyLines {
@@ -185,7 +186,9 @@ export const humanRevoke = (input: RevokeLines): ReadonlyArray<string> => {
 			? `would revoke ${count} of ${input.id} by ${input.by} (dry run, nothing written)`
 			: `revoked ${count} of ${input.id} by ${input.by}`,
 		...input.removed.map((at) => `  ${input.dryRun ? "would remove" : "removed"} entry at ${at}`),
-		...(input.bindingCleared ? [`  ${input.dryRun ? "would clear" : "cleared"} the integrity.verified binding`] : []),
+		...(input.bindingCleared
+			? [`  ${input.dryRun ? "would clear" : "cleared"} the ${INTEGRITY_KEY}.verified binding`]
+			: []),
 	];
 };
 

@@ -9,7 +9,7 @@ status: stable
 generated:
   by: okfit/claude-code
   at: 2026-11-24T06:04:04Z
-integrity:
+x-okfit-integrity:
   generated:
     body: 26960d2572f81aba
   verified:

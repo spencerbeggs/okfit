@@ -10,6 +10,7 @@ import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { escapesBundle, syncIndex } from "./index.js";
+import { keyRenamesFor, recordedBodyForSync } from "./legacyKeys.js";
 import type { LogProvenance, SyncLogResult } from "./log.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
 import { committedView } from "./staged.js";
@@ -139,6 +140,8 @@ export const planSync: (
 	let logDirty = false;
 	// #142: index mode under --staged lists the index's concepts, not the working tree's.
 	let indexView: LoadedBundle = bundle;
+	// The key renames the config licenses, computed once and shared by the walk test and syncGenerated.
+	const renames = keyRenamesFor(options.config);
 
 	if (options.staged !== undefined) {
 		// Issue #140: the pre-commit shape. Inside a hook, `now` is the commit's
@@ -201,7 +204,7 @@ export const planSync: (
 		for (const [id, concept] of bundle.concepts) {
 			const generated = concept.frontmatter.generated;
 			const digest = yield* Derivation.bodyDigest(concept.document.source);
-			const stampedAt = Derivation.recordedBody(concept) === digest ? generated?.at : undefined;
+			const stampedAt = recordedBodyForSync(concept, renames) === digest ? generated?.at : undefined;
 			const wanted =
 				stampedAt === undefined ||
 				(options.modes.has("log") && wantsLogEntry(window, DateTime.formatIsoDate(stampedAt), Derive.title(concept)));
@@ -218,6 +221,7 @@ export const planSync: (
 				...(yield* syncGenerated(bundle, {
 					provenance: staged ?? walked,
 					dryRun: true,
+					renames,
 					pending,
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
 					...(scope === undefined ? {} : { scope }),

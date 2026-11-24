@@ -43,7 +43,7 @@ const seed = async (root: string): Promise<void> => {
 	);
 	await writeFile(
 		join(root, "a.md"),
-		`---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n  at: ${AT}\nintegrity:\n  generated:\n    body: ${digest}\n---\n\n# A\n\nNew body.\n`,
+		`---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n  at: ${AT}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n\n# A\n\nNew body.\n`,
 	);
 };
 

@@ -1175,7 +1175,7 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 						`runtime: sql\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nverified:\n  - by: human:a\n    at: 2026-03-01T00:00:00Z\n${
 							body === ""
 								? ""
-								: `integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:a\n    at: 2026-03-01T00:00:00Z\n    content: ${content}\n`
+								: `x-okfit-integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:a\n    at: 2026-03-01T00:00:00Z\n    content: ${content}\n`
 						}`,
 					);
 				const file = join(sandbox.cwd, COMPUTATION);

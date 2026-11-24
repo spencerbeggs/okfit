@@ -17,7 +17,7 @@ generated:
   at: 2026-10-03T00:23:40Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: dbd60423fcd79163
 ---

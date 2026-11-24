@@ -84,6 +84,9 @@ export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<Verify
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
+		if (this.shape === "legacy-key") {
+			return `"${this.id}" still uses the older spelling of its ${this.key ?? INTEGRITY_KEY} key; run okfit sync to rename it, then verify again`;
+		}
 		return `"${this.id}"'s ${this.key ?? "verified"} value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
 	}
 }

@@ -13,7 +13,7 @@ sources:
     title: "Open Knowledge Format (OKF) v0.2 specification (earlier version okfit still reads)"
   - resource: "../../packages/core/__test__/fixtures/okf"
     title: "Vendored upstream sample bundles (acme_retail, crypto_bitcoin, ga4, stackoverflow), Apache 2.0"
-integrity:
+x-okfit-integrity:
   generated:
     body: 2c6ab2cbaffcccb0
 ---

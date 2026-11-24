@@ -16,7 +16,7 @@ import { TestPlatform } from "../utils/platform.js";
 /**
  * The cross-task round trip (final review item 4): one legacy concept through every
  * writer of the integrity family, asserting after each step that the file still parses,
- * carries exactly one `integrity:` key, and reads the signal the step should leave.
+ * carries exactly one `x-okfit-integrity:` key, and reads the signal the step should leave.
  */
 describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () => {
 	const COMMITTED = "2026-06-01T08:00:00Z";
@@ -82,7 +82,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, NOW);
 					}).pipe(Effect.provide(TestPlatform));
 				const oneIntegrity = (text: string) => {
-					assert.strictEqual(countLines(text, /^integrity:/u), 1);
+					assert.strictEqual(countLines(text, /^x-okfit-integrity:/u), 1);
 					assert.isAtMost(countLines(text, /^ {2}verified:/u), 1);
 					assert.isAtMost(countLines(text, /^ {2}generated:/u), 1);
 				};

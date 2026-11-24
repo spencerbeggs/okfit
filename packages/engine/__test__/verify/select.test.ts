@@ -26,7 +26,7 @@ describe("selectAttestable (issues #138, #143)", () => {
 		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
 	const entry = (by: string): string => `verified:\n  - by: ${by}\n    at: 2026-09-01T00:00:00Z\n`;
 	const binding = (by: string, content = DIGEST): string =>
-		`integrity:\n  verified:\n    by: ${by}\n    at: 2026-09-01T00:00:00Z\n    content: ${content}\n`;
+		`x-okfit-integrity:\n  verified:\n    by: ${by}\n    at: 2026-09-01T00:00:00Z\n    content: ${content}\n`;
 	const boundByAda = entry("human:ada") + binding("human:ada");
 
 	it.effect("skips drafts, deprecated and still-bound; offers drifted, unbound and another actor's", () =>
@@ -218,7 +218,7 @@ describe("selectPickerCandidates (picker)", () => {
 							concept(
 								"Decision",
 								"D",
-								`verified:\n${by("human:ada")}${by("human:bob")}integrity:\n  verified:\n    by: human:bob\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
+								`verified:\n${by("human:ada")}${by("human:bob")}x-okfit-integrity:\n  verified:\n    by: human:bob\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
 							),
 						],
 						[
@@ -226,7 +226,7 @@ describe("selectPickerCandidates (picker)", () => {
 							concept(
 								"Decision",
 								"E",
-								`verified:\n${by("human:ada")}integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
+								`verified:\n${by("human:ada")}x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`,
 							),
 						],
 						["module.md", concept("Module", "M")],
@@ -298,7 +298,7 @@ describe("selectPickerCandidates (picker)", () => {
 			Effect.gen(function* () {
 				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-picker-")));
 				const bound = (actor: string) =>
-					`verified:\n${by(actor)}integrity:\n  verified:\n    by: ${actor}\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
+					`verified:\n${by(actor)}x-okfit-integrity:\n  verified:\n    by: ${actor}\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
 				try {
 					yield* Effect.promise(() => mkdir(join(root, "modules")));
 					const files: ReadonlyArray<readonly [string, string]> = [

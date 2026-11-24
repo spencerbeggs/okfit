@@ -8,7 +8,7 @@ kind: package
 generated:
   by: okfit/claude-code
   at: 2026-11-24T05:58:20Z
-integrity:
+x-okfit-integrity:
   generated:
     body: 81d227e5e156fed5
 ---

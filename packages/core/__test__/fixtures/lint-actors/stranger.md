@@ -4,7 +4,7 @@ title: Stranger
 verified:
   - by: human:mallory
     at: 2026-03-01T00:00:00Z
-integrity:
+x-okfit-integrity:
   verified:
     by: human:mallory
     at: 2026-03-01T00:00:00Z

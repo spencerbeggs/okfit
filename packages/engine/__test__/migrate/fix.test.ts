@@ -13,6 +13,7 @@ import { applyMigrationFixes, planMigrationFixes } from "../../src/migrate/fix.j
 import { tally } from "../../src/render/exit.js";
 import { collect } from "../../src/render/sort.js";
 import { syncGenerated } from "../../src/sync/generated.js";
+import { keyRenamesFor } from "../../src/sync/legacyKeys.js";
 import { run } from "../../src/validate/run.js";
 import type { ProjectSeed } from "../fixtures/bundles.js";
 import { ERROR_PROJECTS, UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
@@ -20,6 +21,7 @@ import { ROOT, mountProject, sessionPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
 const CONFIG = OkfitConfig.DEFAULTS;
+const RENAMES = keyRenamesFor(CONFIG);
 const NOW = DateTime.makeUnsafe("2026-11-24T00:00:00Z");
 const COMPUTATION = "okf/computations/revenue-ytd.md";
 const INDEX = "okf/index.md";
@@ -242,7 +244,7 @@ describe("migration fixes", () => {
 				"runtime: sql\n",
 				`runtime: sql\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nverified:\n  - by: human:a\n    at: 2026-03-01T00:00:00Z\n${
 					recorded
-						? `integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:a\n    at: 2026-03-01T00:00:00Z\n    content: ${content}\n`
+						? `x-okfit-integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:a\n    at: 2026-03-01T00:00:00Z\n    content: ${content}\n`
 						: ""
 				}`,
 			);
@@ -273,7 +275,12 @@ describe("migration fixes", () => {
 					const plan = yield* apply(bundle);
 					assert.deepStrictEqual(plan.drifts, ["computations/revenue-ytd"]);
 					const reloaded = yield* load;
-					const synced = yield* syncGenerated(reloaded, { provenance: new Map(), dryRun: true, scope: new Set([ID]) });
+					const synced = yield* syncGenerated(reloaded, {
+						provenance: new Map(),
+						renames: RENAMES,
+						dryRun: true,
+						scope: new Set([ID]),
+					});
 					assert.deepStrictEqual(synced.unchanged, ["computations/revenue-ytd"]);
 					assert.deepStrictEqual(synced.written, []);
 					const after = yield* Trust.signal(reloaded.concepts.get(ID) as never, CONFIG, NOW);
@@ -301,7 +308,7 @@ describe("migration fixes", () => {
 				yield* Effect.gen(function* () {
 					yield* apply(yield* load);
 					const text = yield* read(COMPUTATION);
-					assert.notInclude(text, "integrity:");
+					assert.notInclude(text, "x-okfit-integrity:");
 					assert.include(text, "](/metrics/revenue.md)");
 				}).pipe(Effect.provide(on(seed)));
 			}),
@@ -428,13 +435,13 @@ describe("migration fixes", () => {
 				const body = yield* Derivation.bodyDigest(
 					(probe.concepts.get(ID) as NonNullable<unknown> as never as { document: { source: string } }).document.source,
 				);
-				const flow = `runtime: sql\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nintegrity: { generated: { body: ${body} } }\n`;
+				const flow = `runtime: sql\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nx-okfit-integrity: { generated: { body: ${body} } }\n`;
 				const seed = { ...V02_PROJECT, [COMPUTATION]: base.replace("runtime: sql\n", flow) };
 				yield* Effect.gen(function* () {
 					const plan = yield* apply(yield* load);
 					assert.deepStrictEqual(plan.drifts, ["computations/revenue-ytd"]);
 					const text = yield* read(COMPUTATION);
-					assert.include(text, `integrity: { generated: { body: ${body} } }\n`);
+					assert.include(text, `x-okfit-integrity: { generated: { body: ${body} } }\n`);
 					assert.include(text, "](/metrics/revenue.md)");
 					assert.strictEqual(
 						text,

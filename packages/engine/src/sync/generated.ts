@@ -1,13 +1,21 @@
 import { MarkdownEdit } from "@effected/markdown";
-import type { Actor, ConceptId, LoadedBundle, LoadedConcept } from "@okfit/core";
+import type { Actor, ConceptId, Integrity, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
 import { Derivation, PUBLICATION_TYPE, ProfileKeys, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
-import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
+import {
+	locateIntegrity,
+	locateLegacyBodySha256,
+	removeLine,
+	spliceIntegrity,
+	spliceIntegrityGenerated,
+} from "../verify/integrity.js";
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
+import type { KeyRenames } from "./legacyKeys.js";
+import { legacyIntegrity, planKeyRenames, recordedBodyForSync } from "./legacyKeys.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -86,6 +94,8 @@ export type GeneratedProvenance =
 export interface SyncGeneratedOptions {
 	readonly provenance: ReadonlyMap<ConceptId, GeneratedProvenance>;
 	readonly dryRun: boolean;
+	/** The key renames the config licenses (`keyRenamesFor`), computed once per run. */
+	readonly renames: KeyRenames;
 	/** When set (with `dryRun`), each write that would happen is recorded here, in order, so a caller can apply it later. */
 	readonly pending?: Array<PendingWrite>;
 	/** #73: when set, a concept with no generated block gets one created from this actor. */
@@ -115,12 +125,12 @@ export interface SyncGeneratedOptions {
  * hand-written binding can name any actor), so gating on it would add a parameter and protect nothing.
  * `Trust.evaluate` still reports `actor-not-allowed` for such a binding.
  */
-const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc) =>
+const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc, legacy: Integrity | undefined) =>
 	Effect.gen(function* () {
 		const { frontmatter } = concept;
 		const binding = Trust.boundEntry({
 			verified: frontmatter.verified ?? [],
-			binding: frontmatter.integrity?.verified,
+			binding: (frontmatter.integrity ?? legacy)?.verified,
 		});
 		if (binding === undefined) return derived;
 		if (!DateTime.isLessThan(binding.at, derived)) return derived;
@@ -169,7 +179,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
-	const { provenance, dryRun, agent, scope, pending } = options;
+	const { provenance, dryRun, agent, scope, pending, renames } = options;
 
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
@@ -185,10 +195,17 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// walk for an already-stamped concept (#21).
 		const generated = concept.frontmatter.generated;
 		const currentDigest = yield* Derivation.bodyDigest(concept.document.source);
-		const matches = Derivation.recordedBody(concept) === currentDigest;
+		// An unmigrated concept's digest is still its record: reading only the new key would see drift and
+		// re-stamp `generated.at`, which voids every verification.
+		const matches = recordedBodyForSync(concept, renames) === currentDigest;
 		const hasLegacy = generated?.body_sha256 !== undefined;
 		const legacyRenders = legacyRendersDigests(concept);
-		if (matches && !hasLegacy && legacyRenders === undefined) {
+		const legacyBlock = legacyIntegrity(concept, renames);
+		const rawKeys = concept.frontmatter.raw;
+		const keyCandidate =
+			(renames.integrity !== undefined && Object.hasOwn(rawKeys, renames.integrity.from)) ||
+			(renames.fields.get(concept.frontmatter.type) ?? []).some((rename) => Object.hasOwn(rawKeys, rename.from));
+		if (matches && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
 			unchanged.push(id);
 			continue;
 		}
@@ -207,7 +224,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				skipped.push({ id, reason: derived.reason });
 				continue;
 			}
-			encodedAt = encodeAt(yield* stampInstant(concept, derived.at));
+			encodedAt = encodeAt(yield* stampInstant(concept, derived.at, legacyBlock));
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is
@@ -223,7 +240,29 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const { text, bom } = stripBom(source);
 		const newline = detectNewline(text);
 
-		const integrityLocated = yield* locateIntegrity(text).pipe(Effect.orDie);
+		// D4: both spellings, or a legacy key that cannot be renamed in place, skip the whole concept.
+		const keyPlan = yield* planKeyRenames(text, concept, renames).pipe(Effect.orDie);
+		if (keyPlan._tag === "conflict") {
+			skipped.push({ id, reason: "legacy-key-conflict" });
+			continue;
+		}
+		if (keyPlan._tag === "unsupported") {
+			skipped.push({ id, reason: "legacy-key-unsupported" });
+			continue;
+		}
+		// A legacy integrity block (D2, null included) is located under its old spelling; an empty one is
+		// then written whole under the new key rather than renamed.
+		const legacyKey =
+			renames.integrity !== undefined &&
+			concept.frontmatter.integrity === undefined &&
+			Object.hasOwn(rawKeys, renames.integrity.from) &&
+			(rawKeys[renames.integrity.from] === null || legacyBlock !== undefined || keyPlan._tag === "edits")
+				? renames.integrity.from
+				: undefined;
+		const integrityLocated = yield* locateIntegrity(
+			text,
+			legacyKey === undefined ? undefined : { key: legacyKey },
+		).pipe(Effect.orDie);
 		if (integrityLocated._tag === "unsupported") {
 			skipped.push({ id, reason: "integrity-unsupported" });
 			continue;
@@ -267,7 +306,23 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			}
 			edits.push(...renderEdits);
 		}
-		edits.push(spliceIntegrityGenerated(integrityLocated, text, currentDigest, newline));
+		if (keyPlan._tag === "edits") edits.push(...keyPlan.edits);
+		// A renamed block that already records this body needs only its key token moved.
+		const recorded =
+			legacyKey !== undefined &&
+			integrityLocated._tag === "replace" &&
+			integrityLocated.slots.length > 0 &&
+			integrityLocated.current?.generated?.body === currentDigest;
+		if (!recorded) {
+			// An empty legacy block holds nothing to keep: write it whole under the new key.
+			const emptyLegacy =
+				legacyKey !== undefined && integrityLocated._tag === "replace" && integrityLocated.slots.length === 0;
+			edits.push(
+				emptyLegacy
+					? spliceIntegrity(integrityLocated, { generated: { body: currentDigest } }, newline)
+					: spliceIntegrityGenerated(integrityLocated, text, currentDigest, newline),
+			);
+		}
 
 		const finalText = bom + MarkdownEdit.applyAll(text, mergeSameOffset(edits.toSorted((a, b) => a.offset - b.offset)));
 		// A block the parsed concept could not decode (say a malformed `integrity.verified`) never
@@ -277,7 +332,9 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			unchanged.push(id);
 			continue;
 		}
-		if (legacy._tag === "line" || legacyRenders !== undefined) migrated.push(id);
+		if (legacy._tag === "line" || legacyRenders !== undefined || keyPlan._tag === "edits" || legacyKey !== undefined) {
+			migrated.push(id);
+		}
 		if (!dryRun) {
 			yield* writeAtomic(absolutePath, finalText);
 		} else {
