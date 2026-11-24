@@ -85,7 +85,9 @@ src/
                                   concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
                                   and writes nothing; batch and ids are all or nothing (OKF 0.3 5.3, R33)
   sync/
-    generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
+    generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
+                                  min(commit instant, binding.at) when integrity.verified binds the latest human
+                                  entry and covers the current content (OKF 0.3 5.2, R30; needs options.humans)
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
