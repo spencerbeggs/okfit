@@ -21,6 +21,17 @@
 * Updated okfit config file schema
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated stale --verify rolls stale_after forward, and plain verify never does
+* Updated A verification is bound to the content it covered
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated Verification drift is a signal to weigh, never a gate
+* Updated integrity frontmatter family
+* Updated Generated.at is the author date of the last commit that changed the body
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
+* Updated A shared @okfit/engine package replaces cli-as-copy-contract
+* Updated The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first
+* Updated The engine version, not the producer version, is what a report is compared on
+* Updated The language and MCP servers survive a stray crash once serving, and exit on one before
+* Updated okfit's front ends build on @effected/{engine,cli,mcp} rather than hand-rolled equivalents
 
 ## 2026-11-23
 

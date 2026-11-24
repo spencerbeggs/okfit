@@ -16,6 +16,7 @@ src/
                             platform layer both front ends provide
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
+                             VerifyNotCurrentError (exit 3: a verification dated before generated.at, OKF 0.3 5.3, R33),
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
@@ -79,8 +80,15 @@ src/
                                   runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
                                   optional promote), loadPickerCandidates, loadStaleCandidates
                                   and loadPreviews (the picker's per-drifted-row changeSince)
+                                  The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
+                                  (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
+                                  concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
+                                  and writes nothing; batch and ids are all or nothing (OKF 0.3 5.3, R33)
   sync/
-    generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
+    generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
+                                  min(commit instant, binding.at) when integrity.verified binds the latest human
+                                  entry and covers the current content, unless binding.at is earlier than
+                                  the concept's existing generated.at (OKF 0.3 5.2, R30)
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog

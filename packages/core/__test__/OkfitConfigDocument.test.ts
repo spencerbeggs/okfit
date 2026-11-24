@@ -96,7 +96,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the thirty-eight lint keys its own rendered code as the title", () => {
+	it("gives each of the thirty-nine lint keys its own rendered code as the title", () => {
 		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value.title]),
@@ -107,6 +107,7 @@ describe("okfitConfigDocumentFields", () => {
 				["required_key_missing", "required-key-missing"],
 				["field_value_unknown", "field-value-unknown"],
 				["require_verified_unmet", "require-verified-unmet"],
+				["verified_before_change", "verified-before-change"],
 				["family_invalid", "family-invalid"],
 				["computation_runtime_missing", "computation-runtime-missing"],
 				["footnote_source_unknown", "footnote-source-unknown"],

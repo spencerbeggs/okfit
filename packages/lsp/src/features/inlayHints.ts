@@ -48,9 +48,9 @@ const STATUS_PATH: InlayHintPath = ["status"];
 const TYPE_PATH: InlayHintPath = ["type"];
 const GENERATED_AT_PATH: InlayHintPath = ["generated", "at"];
 
-/** `human-reviewed by <by>` for the newest `verified[]` entry whose `by` starts with `human:` (greatest `at`). */
+/** `human-reviewed by <by>` for the newest current (OKF 0.3 §5.3) `human:` `verified[]` entry (greatest `at`). */
 const newestHumanBy = (concept: Concept): string => {
-	const humans = (concept.verified ?? []).filter((entry) => Actor.isHuman(entry.by));
+	const humans = Derive.currentVerifications(concept).filter((entry) => Actor.isHuman(entry.by));
 	const [first, ...rest] = humans;
 	if (first === undefined) throw new Error("newestHumanBy called with no human `verified` entries");
 	const newest = rest.reduce(
@@ -61,7 +61,7 @@ const newestHumanBy = (concept: Concept): string => {
 	return newest.by;
 };
 
-/** `unverified` | `machine-confirmed` | `human-reviewed by <by>` (the newest human entry), plus ` · stale` when `Derive.isStale` and ` · drifted` when the cached integrity is drifted. */
+/** `unverified` | `machine-confirmed` | `human-reviewed by <by>` (the newest current human entry), plus ` · stale` when `Derive.isStale` and ` · drifted` when the cached integrity is drifted. */
 const trustLabel = (concept: Concept, now: DateTime.Utc, integrity: IntegrityState | undefined): string => {
 	const tier = Derive.trustTier(concept);
 	const base =

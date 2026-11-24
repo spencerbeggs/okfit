@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:36:26Z
+  at: 2026-11-24T06:04:04Z
 tags:
   - architecture
 verified:
@@ -35,13 +35,15 @@ verified:
     at: 2026-11-23T22:13:15Z
   - by: human:spencer
     at: 2026-11-24T02:55:14Z
+  - by: human:spencer
+    at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: b2eea4fbd1e20b55
+    body: 2be34607692fc3f8
   verified:
     by: human:spencer
-    at: 2026-11-24T02:55:14Z
-    content: b9fb13f0050aa6ed
+    at: 2026-11-24T06:53:02Z
+    content: c350bfe74812d737
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -156,13 +158,18 @@ content }` (see [integrity frontmatter](integrity-frontmatter.md)). A `<target>`
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
-instant; `--dry-run` prints what would be written and writes nothing.
+instant, but never one before the concept's `generated.at`: OKF v0.3 §5.3
+counts only a verification at or after the last change, so a write that would
+not be current (`--at` earlier, or a `generated.at` in the future from clock
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix. That holds
+for every write path (single id, targets, `--all`, the picker and `okfit stale
+--verify`), and a batch fails whole with nothing written. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
-is `draft`, `deprecated`, `unknown-status` or `already-verified`; the last now means you hold the current binding). The dry run prints one fragment per concept in write
+is `draft`, `deprecated`, `unknown-status` or `already-verified`; the last now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
@@ -231,8 +238,8 @@ and otherwise prints help. Exit `0`;
 `get` takes one or more concepts (ids or paths) and prints a JSON array for
 more than one, a bare object for one; `64` for an unknown target, an undeclared type or tag or for
 `--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`
-keeps those never verified, `--drifted` keeps those edited since their
-verification was bound, and `--stale` keeps those past `stale_after`; the
+keeps those with no current verification (tier unverified), `--drifted` keeps those edited since their
+verification was bound or verified before their last change, and `--stale` keeps those past `stale_after`; the
 filters combine with AND. `--current` keeps draft and stable concepts and
 drops deprecated and unknown-status ones; it is intersected with `--status`, so
 `--current --status deprecated` lists nothing. A list line reads `id  status  trust  type
@@ -273,7 +280,13 @@ one-time migration moves a legacy `generated.body_sha256` to
 `integrity.generated.body` and a Publication's `renders[].body_sha256` to
 `renders[].body` (16 hex); the plan and the JSON/human output report them
 as `migrated`, and a concept that cannot be spliced safely is skipped as
-`integrity-unsupported` or `renders-unsupported`. It never
+`integrity-unsupported` or `renders-unsupported`. `generated.at` is the derived instant (the last
+body-changing commit's author date; under `--staged`, the hook's clock). When
+the concept's `integrity.verified` binds its latest human entry and covers
+exactly the current content, sync stamps `min(derived instant, binding.at)`
+instead, so the
+edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
+§5.3); the `[actors].humans` allow-list does not gate this. It never
 touches `verified` and never writes `integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a

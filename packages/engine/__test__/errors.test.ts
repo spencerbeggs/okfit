@@ -9,6 +9,7 @@ import {
 	QueryUnknownVocabularyError,
 	TargetResolutionError,
 	VerifyConceptNotFoundError,
+	VerifyNotCurrentError,
 	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
@@ -177,6 +178,29 @@ describe("VerifyStatusUnknownError", () => {
 		assert.strictEqual(
 			error.message,
 			'"metrics/margin" has status "bogus", which is not draft, stable or deprecated; fix the status (or pass --stable or --draft) before verifying',
+		);
+	});
+});
+
+describe("VerifyNotCurrentError", () => {
+	it("a batch refusal says nothing was written; the single-concept message does not", () => {
+		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2026-09-16T12:00:00Z" };
+		const single = new VerifyNotCurrentError(fields).message;
+		const batch = new VerifyNotCurrentError({ ...fields, batch: true }).message;
+		assert.notInclude(single, "Nothing was written");
+		assert.strictEqual(batch, `${single}. Nothing was written, for this concept or any other in the selection`);
+	});
+
+	it("carries exit code 3 and names both instants and the fix", () => {
+		const error = new VerifyNotCurrentError({
+			id: "metrics/margin",
+			at: "2026-09-16T11:59:59Z",
+			generatedAt: "2026-09-16T12:00:00Z",
+		});
+		assert.strictEqual(error[Runtime.errorExitCode], 3);
+		assert.strictEqual(
+			error.message,
+			'"metrics/margin" was last changed at 2026-09-16T12:00:00Z, after the verification time 2026-09-16T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-09-16T12:00:00Z, or check the clock',
 		);
 	});
 });

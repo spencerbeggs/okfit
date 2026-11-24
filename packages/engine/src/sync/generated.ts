@@ -2,9 +2,8 @@ import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
-import { Derivation, PUBLICATION_TYPE } from "@okfit/profiles";
-import type { DateTime } from "effect";
-import { Effect, FileSystem, Path, Schema } from "effect";
+import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
+import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
@@ -94,6 +93,42 @@ export interface SyncGeneratedOptions {
 }
 
 /**
+ * OKF 0.3 5.2/5.3 (R30): the instant to stamp as `generated.at`. When the concept's `integrity.verified` binds its
+ * latest human entry and its content digest equals the digest of the concept as it
+ * is now, the binding proves this content existed at `binding.at`, so its last meaningful change is no later than
+ * that; the commit instant is only when git learned of it. The stamp is then `min(derived, binding.at)`, which keeps
+ * the edit, verify, commit sequence's verification current. Any other case, including content that cannot be hashed,
+ * stamps `derived` unchanged.
+ *
+ * The clamp applies only when `binding.at` is not earlier than the concept's existing `generated.at`. It exists for
+ * edit, verify, commit, where the verification is at or after the previous stamp (`verify` refuses otherwise). A
+ * binding older than the previous stamp means the content was reverted to something verified earlier, or the binding
+ * was written by hand; the last meaningful change is then the new commit, so `derived` is stamped and `generated.at`
+ * never moves backwards. A concept with no `generated.at` has no floor, and the clamp applies.
+ *
+ * Clamping to an earlier instant can make another verification event dated between `binding.at` and the commit
+ * instant current; that is what OKF 0.3 5.3 prescribes for content that already existed at `binding.at`.
+ *
+ * The `[actors].humans` allow-list does not gate the clamp: integrity is tamper-evident, not access control (a
+ * hand-written binding can name any actor), so gating on it would add a parameter and protect nothing.
+ * `Trust.evaluate` still reports `actor-not-allowed` for such a binding.
+ */
+const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc) =>
+	Effect.gen(function* () {
+		const { frontmatter } = concept;
+		const binding = Trust.boundEntry({
+			verified: frontmatter.verified ?? [],
+			binding: frontmatter.integrity?.verified,
+		});
+		if (binding === undefined) return derived;
+		if (!DateTime.isLessThan(binding.at, derived)) return derived;
+		const previous = frontmatter.generated?.at;
+		if (previous !== undefined && DateTime.isLessThan(binding.at, previous)) return derived;
+		const content = yield* Effect.result(Derivation.contentDigest(frontmatter.raw, concept.document.source));
+		return Result.isSuccess(content) && content.success === binding.content ? binding.at : derived;
+	});
+
+/**
  * Contract §6.2's algorithm, run once per `bundle.concepts` entry (S-22:
  * `index.md`/`log.md` are reserved files, never concepts, never seen here).
  * `options.provenance` is the single `Derivation.generatedAt` walk `runSync`
@@ -170,7 +205,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				skipped.push({ id, reason: derived.reason });
 				continue;
 			}
-			encodedAt = encodeAt(derived.at);
+			encodedAt = encodeAt(yield* stampInstant(concept, derived.at));
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is

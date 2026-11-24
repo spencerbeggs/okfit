@@ -16,10 +16,17 @@ sources:
 generated:
   by: okfit/claude-code
   at: 2026-11-24T02:09:56Z
-status: draft
+status: stable
 integrity:
   generated:
     body: 0b679c0002cdd2ec
+  verified:
+    by: human:spencer
+    at: 2026-11-24T03:27:42Z
+    content: 58a246bfb847180f
+verified:
+  - by: human:spencer
+    at: 2026-11-24T03:27:42Z
 ---
 
 # A deprecated concept's replacement is followed

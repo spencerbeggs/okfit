@@ -18,9 +18,11 @@ export type IntegrityState = "current" | "drifted" | "none";
 /**
  * Why a human verification no longer binds: the content changed, the entry has
  * no `integrity.verified` binding, a later human entry is not the bound one, the
- * bound actor fails a non-empty `[actors].humans` allow-list, or the content
- * cannot be hashed at all (an unpaired surrogate; okfit#327), so the binding
- * cannot be checked.
+ * bound actor fails a non-empty `[actors].humans` allow-list, the bound entry
+ * was made before the last change to the content (`at` earlier than
+ * `generated.at`, OKF 0.3 §5.3, so it is no longer a current event), or the
+ * content cannot be hashed at all (an unpaired surrogate; okfit#327), so the
+ * binding cannot be checked.
  *
  * @public
  */
@@ -30,6 +32,7 @@ export const DriftReason = Schema.Literals([
 	"entry-superseded",
 	"actor-not-allowed",
 	"content-unhashable",
+	"verified-before-change",
 ]);
 /**
  * The type of {@link (DriftReason:variable)}.
@@ -95,17 +98,28 @@ const inputOf = (concept: LoadedConcept, config: OkfitConfig): EvaluateInput => 
 	humans: config.actors?.humans ?? [],
 });
 
+/** What the bound-entry rule reads: the `verified` entries and the binding; no allow-list, no `generated`. */
+type BoundInput = Pick<EvaluateInput, "verified" | "binding">;
+
 /** The binding when it names the latest human entry; `undefined` when none, unbound or superseded. */
-const boundEntry = (input: EvaluateInput): NonNullable<EvaluateInput["binding"]> | undefined => {
+const boundEntry = (input: BoundInput): NonNullable<EvaluateInput["binding"]> | undefined => {
 	const latest = latestHumanOf(input.verified);
 	const binding = input.binding;
 	if (latest === undefined || binding === undefined) return undefined;
 	return binding.by === latest.by && DateTime.Equivalence(binding.at, latest.at) ? binding : undefined;
 };
 
+/** The editor fields of a `verified-before-change` drift: who stamped the `generated.at` the binding predates. */
+const editorOf = (input: EvaluateInput) =>
+	input.generated?.at === undefined ? {} : { editedBy: input.generated.by, editedAt: encodeAt(input.generated.at) };
+
+/** OKF 0.3 §5.3: the bound entry is a current event only while its `at` is at or after `generated.at`. */
+const boundBeforeChange = (input: EvaluateInput, binding: NonNullable<EvaluateInput["binding"]>): boolean =>
+	!Derive.isCurrent({ generated: input.generated }, binding.at);
+
 const needsDigest = (input: EvaluateInput): boolean => {
 	const bound = boundEntry(input);
-	return bound !== undefined && ActorNS.allowed(bound.by, input.humans);
+	return bound !== undefined && ActorNS.allowed(bound.by, input.humans) && !boundBeforeChange(input, bound);
 };
 
 const evaluate = (
@@ -119,14 +133,12 @@ const evaluate = (
 	if (boundEntry(input) === undefined) return { integrity: "drifted", drift: { reason: "entry-superseded" } };
 	if (!ActorNS.allowed(binding.by, input.humans))
 		return { integrity: "drifted", drift: { reason: "actor-not-allowed" } };
+	if (boundBeforeChange(input, binding))
+		return { integrity: "drifted", drift: { reason: "verified-before-change", ...editorOf(input) } };
 	if (content === undefined) throw new Error("Trust.evaluate: a bound verification needs a content digest");
 	if (content === binding.content) return { integrity: "current" };
-	const generated = input.generated;
-	const edited =
-		generated?.at !== undefined && DateTime.isGreaterThan(generated.at, binding.at)
-			? { editedBy: generated.by, editedAt: encodeAt(generated.at) }
-			: {};
-	return { integrity: "drifted", drift: { reason: "content-changed", ...edited } };
+	// A later `generated.at` would have returned `verified-before-change` above, so no editor is known here.
+	return { integrity: "drifted", drift: { reason: "content-changed" } };
 };
 
 const signal = Effect.fn("Trust.signal")(function* (concept: LoadedConcept, config: OkfitConfig, now: DateTime.Utc) {
@@ -176,8 +188,13 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 	if (drift.reason === "actor-not-allowed") {
 		return `verified by ${binding?.by ?? by}, who is not in [actors].humans; a listed human re-runs okfit verify`;
 	}
-	const edited = drift.editedBy === undefined ? "" : ` (edited by ${drift.editedBy} at ${drift.editedAt})`;
-	return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}${edited}; re-run okfit verify`;
+	if (drift.reason === "verified-before-change") {
+		return `verified by ${binding?.by ?? by} at ${binding === undefined ? at : encodeAt(binding.at)}, before the last change at ${drift.editedAt ?? "an unknown time"}; re-run okfit verify`;
+	}
+	if (drift.reason === "content-changed") {
+		return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}; re-run okfit verify`;
+	}
+	return drift.reason satisfies never;
 };
 
 /**
@@ -211,7 +228,8 @@ const lint = Effect.fn("Trust.lint")(function* (
 		const status = Derive.status(concept.frontmatter);
 		if (status === "draft" || status === "deprecated" || status === "unknown") continue;
 		const result = given?.get(id) ?? (yield* signal(concept, config, now));
-		if (result.drift === undefined) continue;
+		// core's `verified-before-change` lint is the one reporter of that defect (R31)
+		if (result.drift === undefined || result.drift.reason === "verified-before-change") continue;
 		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept, result.drift));
 		diagnostics.push(
 			Diagnostic.make({
@@ -255,6 +273,15 @@ export class Trust {
 	) => { readonly integrity: IntegrityState; readonly drift?: NonNullable<ConceptSignal["drift"]> } = evaluate;
 	/** True iff the latest human entry is bound by `integrity.verified` and its actor passes the allow-list, i.e. a digest is needed. */
 	static readonly needsDigest: (input: EvaluateInput) => boolean = needsDigest;
+	/**
+	 * The `integrity.verified` binding when it names the latest human entry (same actor, same instant); `undefined` when
+	 * there is no human entry, no binding, or the binding is superseded. It ignores the `[actors].humans` allow-list and
+	 * whether the entry is current, which are {@link Trust.evaluate}'s questions.
+	 *
+	 * @public
+	 */
+	static readonly boundEntry: (input: Pick<EvaluateInput, "verified" | "binding">) => EvaluateInput["binding"] =
+		boundEntry;
 	/** The {@link EvaluateInput} of a loaded concept. */
 	static readonly inputOf: (concept: LoadedConcept, config: OkfitConfig) => EvaluateInput = inputOf;
 	/**

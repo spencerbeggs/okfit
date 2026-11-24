@@ -32,6 +32,7 @@ export {
 	TargetResolutionError,
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
+	VerifyNotCurrentError,
 	VerifyNothingToRevokeError,
 	VerifySelectionError,
 	VerifyStatusUnknownError,

@@ -269,6 +269,28 @@
 						}
 					}
 				},
+				"verified_before_change": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "verified-before-change",
+					"description": "A concept has verification events, but the ones at or after generated.at give a lower trust tier than all of them would: the content changed after it was verified (OKF 0.3 §5.3, \"verified before the last change\"). Draft, deprecated and unknown-status concepts are exempt. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"family_invalid": {
 					"type": "string",
 					"enum": [

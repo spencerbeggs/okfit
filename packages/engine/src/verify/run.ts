@@ -8,6 +8,7 @@ import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
+	VerifyNotCurrentError,
 	VerifyNothingToRevokeError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
@@ -136,12 +137,45 @@ const unknownStatusRefusal = (
 		? new VerifyStatusUnknownError({ id: concept.id, status: Derive.rawStatus(concept.frontmatter) ?? "" })
 		: undefined;
 
+/**
+ * OKF 0.3 5.3 (ruling R33): a verification dated before the concept's `generated.at` would not count, so it is
+ * never written, whether `--at` or a `generated.at` in the future (clock skew) put it there. The one place this
+ * rule is spelled (through core's `Derive.isCurrent`): the write path (`prepareVerify`) and the prompt path
+ * (`inspectDrift`) both ask it, after the status refusal.
+ */
+const notCurrentRefusal = (concept: LoadedConcept, at: DateTime.Utc): VerifyNotCurrentError | undefined => {
+	const generatedAt = concept.frontmatter.generated?.at;
+	return generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)
+		? undefined
+		: new VerifyNotCurrentError({
+				id: concept.id,
+				at: Schema.encodeSync(Timestamp)(at),
+				generatedAt: Schema.encodeSync(Timestamp)(generatedAt),
+			});
+};
+
+/**
+ * A batch, an id list or a picker selection is all or nothing, so a not-current refusal there also says nothing was
+ * written (message only: the refusal and its exit code are unchanged).
+ */
+const inBatch = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+	Effect.mapError(effect, (error) =>
+		error instanceof VerifyNotCurrentError
+			? (new VerifyNotCurrentError({
+					id: error.id,
+					at: error.at,
+					generatedAt: error.generatedAt,
+					batch: true,
+				}) as typeof error)
+			: error,
+	);
+
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
 const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	bundle: LoadedBundle,
 	concept: LoadedConcept,
 	actor: Actor,
-	at: string,
+	when: DateTime.Utc,
 	status: "stable" | "draft" | undefined,
 	// Issue #228: the encoded new `stale_after`; set only by `runVerifyIds`'
 	// `refreshStaleAfter`. Also switches a re-attestation to overwrite the
@@ -150,6 +184,9 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 ) {
 	const refusal = unknownStatusRefusal(concept, status);
 	if (refusal !== undefined) return yield* refusal;
+	const stale = notCurrentRefusal(concept, when);
+	if (stale !== undefined) return yield* stale;
+	const at = Schema.encodeSync(Timestamp)(when);
 	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
 	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source).pipe(
 		Effect.catchTag("ContentUnhashableError", (error) =>
@@ -299,7 +336,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// like a real run would (I3): there is no cheaper preview path that skips
 	// classification, and the edit itself is computed unconditionally so a
 	// dry run reports the exact fragment it would write.
-	const prepared = yield* prepareVerify(bundle, concept, actor, at, options.status);
+	const prepared = yield* prepareVerify(bundle, concept, actor, options.at, options.status);
 	const prior = yield* Trust.signal(concept, options.config, options.at);
 
 	// Step 15 (I4/V-16): a temp file beside the real target, then a rename
@@ -341,8 +378,8 @@ export interface DriftInspection {
 /**
  * Read-only: is the concept's prior human verification drifted, and if so from
  * when was it bound? The CLI asks this before `runVerify` so it can show what
- * changed. Writes nothing. Fails with `VerifyStatusUnknownError` exactly when the write would
- * (a status outside the vocabulary and no `status` option), so a prompt is never shown for a refusal.
+ * changed. Writes nothing. Fails with `VerifyStatusUnknownError` or `VerifyNotCurrentError` exactly when the write would
+ * (a status outside the vocabulary and no `status` option; `now` before `generated.at`), so a prompt is never shown for a refusal.
  *
  * @internal
  */
@@ -358,6 +395,8 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 	const { id, concept } = yield* resolveConcept(bundle, options.id);
 	const refusal = unknownStatusRefusal(concept, options.status);
 	if (refusal !== undefined) return yield* refusal;
+	const stale = notCurrentRefusal(concept, options.now);
+	if (stale !== undefined) return yield* stale;
 	const path = yield* Path.Path;
 	const signal = yield* Trust.signal(concept, options.config, options.now);
 	const boundAt = concept.frontmatter.integrity?.verified?.at;
@@ -540,7 +579,7 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 		prepared.push({
 			id: concept.id,
 			conceptPath: concept.path,
-			...(yield* prepareVerify(bundle, concept, actor, at, undefined)),
+			...(yield* inBatch(prepareVerify(bundle, concept, actor, options.at, undefined))),
 		});
 	}
 
@@ -625,7 +664,7 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 		prepared.push({
 			id,
 			conceptPath: concept.path,
-			...(yield* prepareVerify(bundle, concept, actor, at, status, staleAfter)),
+			...(yield* inBatch(prepareVerify(bundle, concept, actor, options.at, status, staleAfter))),
 		});
 	}
 

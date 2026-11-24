@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:09:56Z
+  at: 2026-11-24T06:04:04Z
 tags:
   - architecture
 verified:
@@ -25,13 +25,15 @@ verified:
     at: 2026-11-23T22:13:15Z
   - by: human:spencer
     at: 2026-11-24T02:55:14Z
+  - by: human:spencer
+    at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: 4b2fed6ad6d3641a
+    body: 7139950be18e10a4
   verified:
     by: human:spencer
-    at: 2026-11-24T02:55:14Z
-    content: 6123e53012392d7b
+    at: 2026-11-24T06:53:02Z
+    content: 6cc3b039e444c76f
 ---
 
 # okfit config file schema
@@ -86,12 +88,12 @@ in.
 
 ## Lint severities
 
-The thirty-eight default lint codes (the twenty-eight below plus the ten that OKF v0.3 support added, listed after them): `broken_links`, `missing_index`,
+The thirty-nine default lint codes (the twenty-nine below plus the ten that OKF v0.3 support added, listed after them): `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
-`publication_drift`, `surface_unmatched`, and `verified_drift` default `warn`;
+`publication_drift`, `surface_unmatched`, `verified_before_change` and `verified_drift` default `warn`;
 `resource_untracked` defaults `warn` and `resource_ignored` defaults `error` (issue #279;
-see below); `unknown_type`, `required_key_missing` (a key written as null, `""` or `[]` is reported as "is empty", an unwritten one as "is missing"), `field_value_unknown` (an empty value is absent, not unknown), `require_verified_unmet`,
+see below); `unknown_type`, `required_key_missing` (a key written as null, `""` or `[]` is reported as "is empty", an unwritten one as "is missing"), `field_value_unknown` (an empty value is absent, not unknown), `require_verified_unmet` (no `verified` entry at all),
 `family_invalid` (since OKF v0.3 support only okfit's own `integrity` family; every other malformed family reads key by key and raises one of the warnings below instead), `computation_runtime_missing` (whenever the decoded `runtime` is absent, including a present but unreadable one), and `publication_orphan` default `error`;
 `actor_prefix_unknown`, `legacy_timestamp`, and `stale` default `info`;
 `actor_email` (an actor contains `@`) and `verified_actor_unknown` (a verifier matches no entry of a non-empty `[actors].humans`) default `warn`, as does `verified_drift` when the bound verifier has left the list;
@@ -121,12 +123,15 @@ match github-slugger](../decisions/heading-slugs.md)).
 `generated_at_drift` moved from `info` to `warn` when it gained a
 content-comparison tier — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md).
-`verified_drift` fires when a human `verified` entry no longer covers the
+`verified_before_change` (core) fires when a concept has `verified` entries
+but the ones at or after `generated.at` give a lower trust tier than all of
+them would (OKF v0.3 §5.3, "verified before the last change"); draft,
+deprecated and unknown-status concepts are exempt. `verified_drift` does not
+repeat it. `verified_drift` fires when a human `verified` entry no longer covers the
 concept's content: no binding (`unbound`), changed content, or a later
 unbound entry. Draft and deprecated concepts are exempt (`okfit verify`
 refuses them), though their signal still reads drifted. Raise it to `error` to gate on
-it, or set `off` to skip the hashing. This repository's own `.config/okfit.toml` sets it `off` until a
-human has re-verified the existing entries — see [Verification drift is a
+it, or set `off` to skip the hashing. This repository's own `.config/okfit.toml` leaves it at `warn` — see [Verification drift is a
 signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
 `generated_missing` (issue #73) fires only when `actors.agent` is set: a
 concept with no `generated` block would otherwise only surface as a skip in

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:36:26Z
+  at: 2026-11-24T06:04:04Z
 integrity:
   generated:
-    body: 3fdc48aa739ee69c
+    body: c6bccd5dec3d07c2
 ---
 
 # Engine
@@ -92,8 +92,13 @@ lives in one integrity family](../decisions/integrity-family.md).
 Every `verified` write (`runVerify`, `runVerifyBatch`, `runVerifyIds`)
 also binds `integrity.verified`; the refresh path rewrites the binding in
 the same edit. Candidate selection counts an actor as already verified only
-when it holds the current binding, so batch, the picker and `stale
---verify` re-offer drifted concepts. `verify/revoke.ts` implements
+when it holds the current binding, and a binding is current only while its
+bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-offer drifted concepts, a concept verified before
+its last change included. `stale --verify`'s candidates come from staleness
+alone (`selectStaleCandidates` never consults integrity). A write that would not be current is refused: `--at` before
+`generated.at`, or a `generated.at` in the future, fails with
+`VerifyNotCurrentError` (exit `3`) in `runVerify`, `runVerifyBatch` and
+`runVerifyIds` alike, and a batch fails whole with nothing written. `verify/revoke.ts` implements
 `--revoke`: it removes the current actor's own `verified` entries, clears
 `integrity.verified` when it was bound to one of them (and `integrity`
 when empty), removes the `verified` key when its list empties, and reports
@@ -197,7 +202,13 @@ index, stamps `generated.at` with `now` (truncated to seconds) and
 it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is
-honest](../decisions/sync-staged-stamps.md). Staged mode never
+honest](../decisions/sync-staged-stamps.md). In both modes the stamp is
+`min(derived instant, binding.at)` when the concept's `integrity.verified`
+binds its latest human entry and covers exactly the current content
+(`sync/generated.ts#stampInstant`), so an edit, verify, commit sequence keeps
+the verification current under OKF v0.3 §5.3; the `[actors].humans`
+allow-list does not gate it, and a concept whose body digest is unchanged is
+never rewritten. Staged mode never
 walks history: its log mode reads the staged concepts' provenance from
 the index (the stamp instant; `Added` when `git show HEAD:<path>` finds
 nothing) and skips a `log.md` with unstaged edits as `dirty`. It takes the

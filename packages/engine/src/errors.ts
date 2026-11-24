@@ -129,6 +129,30 @@ export class VerifyStatusUnknownError extends Schema.TaggedError<VerifyStatusUnk
 }
 
 /**
+ * OKF 0.3 §5.3: a verification made before the concept's last change (`generated.at`) does not count, so
+ * `okfit verify` refuses to write one, whether `at` came from `--at` or the clock is behind a `generated.at`
+ * in the future (ruling R33). `at` and `generatedAt` are the encoded instants. Verifying at or after
+ * `generatedAt` is the fix. Exit 3, like the other verify refusals.
+ *
+ * @public
+ */
+export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentError>()("VerifyNotCurrentError", {
+	id: Schema.String,
+	at: Schema.String,
+	generatedAt: Schema.String,
+	/** Set when the refusal stopped a batch, an id list or a picker selection, all of which are all-or-nothing. */
+	batch: Schema.optionalKey(Schema.Boolean),
+}) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		const single = `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or check the clock`;
+		return this.batch === true
+			? `${single}. Nothing was written, for this concept or any other in the selection`
+			: single;
+	}
+}
+
+/**
  * `okfit verify --revoke` found no `verified` entry by the resolved actor on
  * the concept, so there is nothing to remove. Exit 3, like any other verify
  * outcome that cannot proceed on the concept.

@@ -23,7 +23,7 @@
  *   already offers.
  * - **Verify actions** (kind `okfit.verify`). `Mark verified by <actor>` when
  *   a human actor resolves and the concept is neither a draft, deprecated nor
- *   already verified by that actor; on a draft instead,
+ *   already verified by that actor (bound, current, covering the current content); on a draft instead,
  *   `Mark verified by <actor> and set status: stable` (one edit, the same
  *   write `okfit verify --stable` performs) when that actor has not yet
  *   verified it.

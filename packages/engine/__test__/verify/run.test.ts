@@ -4,11 +4,11 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import type { ActorPattern, ConceptId } from "@okfit/core";
-import { Bundle, OkfitConfig } from "@okfit/core";
+import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer } from "effect";
-import type { VerifyStatusUnknownError } from "../../src/errors.js";
-import { runVerify, runVerifyBatch } from "../../src/verify/run.js";
+import type { VerifyNotCurrentError, VerifyStatusUnknownError } from "../../src/errors.js";
+import { inspectDrift, runVerify, runVerifyBatch } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -382,7 +382,7 @@ describe("runVerify binds integrity.verified", () => {
 
 	const signalOf = (root: string, now: DateTime.Utc) =>
 		Effect.gen(function* () {
-			const bundle = yield* Bundle.load({ root });
+			const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
 			const concept = bundle.concepts.get("decisions/a" as ConceptId);
 			if (concept === undefined) return yield* Effect.die(new Error("missing concept"));
 			return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, now);
@@ -577,5 +577,189 @@ describe("runVerify refuses a status outside the vocabulary (OKF 0.3 5.4, R7/R11
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
 		}),
+	);
+});
+
+describe("runVerify and runVerifyBatch refuse a verification that would not be current (OKF 0.3 5.3, R33)", () => {
+	const GENERATED = "2026-09-16T12:00:00Z";
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: { require_verified: true } },
+		actors: { humans: ["human:ada" as ActorPattern] },
+		extensions: {},
+	});
+	const platform = Layer.mergeAll(Git.layerTest({ configGet: identityConfigGet }), TestPlatform);
+	const doc = (title: string, extra: string): string =>
+		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
+	const generated = `generated:\n  by: process:sync\n  at: ${GENERATED}\n`;
+	const base = (root: string, at: string) => ({
+		bundleRoot: root,
+		projectRoot: root,
+		config,
+		at: DateTime.makeUnsafe(at),
+		dryRun: false,
+	});
+	const withRoot = <A, E, R>(files: Record<string, string>, body: (root: string) => Effect.Effect<A, E, R>) =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-current-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const [name, text] of Object.entries(files)) {
+					yield* Effect.promise(() => writeFile(join(root, name), text));
+				}
+				return yield* body(root);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		});
+	const read = (root: string, file: string) => Effect.promise(() => readFile(join(root, file), "utf8"));
+
+	it.effect(
+		"--at one second before generated.at fails VerifyNotCurrentError and leaves the file byte-identical",
+		() => {
+			const seed = doc("A", generated);
+			return withRoot({ "decisions/a.md": seed }, (root) =>
+				Effect.gen(function* () {
+					const error = yield* Effect.flip(
+						runVerify({ ...base(root, "2026-09-16T11:59:59Z"), id: "decisions/a" }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(error._tag, "VerifyNotCurrentError");
+					assert.strictEqual((error as VerifyNotCurrentError).at, "2026-09-16T11:59:59Z");
+					assert.strictEqual((error as VerifyNotCurrentError).generatedAt, GENERATED);
+					assert.strictEqual(yield* read(root, "decisions/a.md"), seed);
+					// a dry run is refused too: no prompt or preview for a write that cannot happen
+					const dry = yield* Effect.flip(
+						runVerify({ ...base(root, "2026-09-16T11:59:59Z"), id: "decisions/a", dryRun: true }).pipe(
+							Effect.provide(platform),
+						),
+					);
+					assert.strictEqual(dry._tag, "VerifyNotCurrentError");
+					// control: the same call at generated.at writes, and the file changes
+					const ok = yield* runVerify({ ...base(root, GENERATED), id: "decisions/a" }).pipe(Effect.provide(platform));
+					assert.strictEqual(ok.at, GENERATED);
+					const after = yield* read(root, "decisions/a.md");
+					assert.notStrictEqual(after, seed);
+					assert.include(after, `by: human:ada\n    at: ${GENERATED}\n`);
+					const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+					assert.strictEqual(
+						Derive.trustTier(bundle.concepts.get("decisions/a" as ConceptId)?.frontmatter as never),
+						"human-reviewed",
+					);
+				}),
+			);
+		},
+	);
+
+	it.effect("a generated.at in the future (clock skew) is refused for the real clock too", () =>
+		withRoot({ "decisions/a.md": doc("A", "generated:\n  by: process:sync\n  at: 2030-01-01T00:00:00Z\n") }, (root) =>
+			Effect.gen(function* () {
+				const error = yield* Effect.flip(
+					runVerify({ ...base(root, "2026-09-16T12:00:00Z"), id: "decisions/a" }).pipe(Effect.provide(platform)),
+				);
+				assert.strictEqual(error._tag, "VerifyNotCurrentError");
+				assert.strictEqual((error as VerifyNotCurrentError).generatedAt, "2030-01-01T00:00:00Z");
+				assert.notInclude(error.message, "Nothing was written"); // control: the single-concept wording is unchanged
+			}),
+		),
+	);
+
+	it.effect("a concept with no generated.at accepts any at", () =>
+		withRoot(
+			{ "decisions/a.md": doc("A", ""), "decisions/b.md": doc("B", "generated:\n  by: process:sync\n") },
+			(root) =>
+				Effect.gen(function* () {
+					for (const name of ["a", "b"]) {
+						const ok = yield* runVerify({ ...base(root, "1999-01-01T00:00:00Z"), id: `decisions/${name}` }).pipe(
+							Effect.provide(platform),
+						);
+						assert.strictEqual(ok.at, "1999-01-01T00:00:00Z", name);
+					}
+				}),
+		),
+	);
+
+	it.effect("a batch with one non-current concept fails whole and writes nothing; the control batch writes", () => {
+		const stale = doc("S", generated);
+		const fine = doc("F", "");
+		return withRoot({ "decisions/f.md": fine, "decisions/s.md": stale }, (root) =>
+			Effect.gen(function* () {
+				const error = yield* Effect.flip(
+					runVerifyBatch({ ...base(root, "2026-09-16T11:00:00Z"), types: [] }).pipe(Effect.provide(platform)),
+				);
+				assert.strictEqual(error._tag, "VerifyNotCurrentError");
+				assert.strictEqual((error as VerifyNotCurrentError).id, "decisions/s");
+				assert.include(error.message, "Nothing was written"); // a batch is all or nothing, and says so
+				assert.strictEqual(yield* read(root, "decisions/f.md"), fine);
+				assert.strictEqual(yield* read(root, "decisions/s.md"), stale);
+				const ok = yield* runVerifyBatch({ ...base(root, GENERATED), types: [] }).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(ok.verified.map((entry) => entry.id).toSorted(), ["decisions/f", "decisions/s"]);
+				assert.notStrictEqual(yield* read(root, "decisions/f.md"), fine);
+			}),
+		);
+	});
+
+	it.effect("inspectDrift refuses for the same reason, before a prompt could be shown", () =>
+		withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
+			Effect.gen(function* () {
+				const flipped = yield* Effect.flip(
+					inspectDrift({
+						id: "decisions/a",
+						bundleRoot: root,
+						config,
+						now: DateTime.makeUnsafe("2026-09-16T11:59:59Z"),
+					}).pipe(Effect.provide(platform)),
+				);
+				assert.strictEqual(flipped._tag, "VerifyNotCurrentError");
+				const ok = yield* inspectDrift({
+					id: "decisions/a",
+					bundleRoot: root,
+					config,
+					now: DateTime.makeUnsafe(GENERATED),
+				}).pipe(Effect.provide(platform));
+				assert.strictEqual(ok.id, "decisions/a");
+			}),
+		),
+	);
+
+	it.effect(
+		"a concept that is both an unknown status and not current fails the status refusal first (prepareVerify order)",
+		() =>
+			withRoot({ "decisions/a.md": doc("A", `status: bogus\n${generated}`) }, (root) =>
+				Effect.gen(function* () {
+					const early = base(root, "2026-09-16T11:59:59Z");
+					const both = yield* Effect.flip(runVerify({ ...early, id: "decisions/a" }).pipe(Effect.provide(platform)));
+					assert.strictEqual(both._tag, "VerifyStatusUnknownError");
+					const inspected = yield* Effect.flip(
+						inspectDrift({ id: "decisions/a", bundleRoot: root, config, now: early.at }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(inspected._tag, "VerifyStatusUnknownError");
+					// controls: --stable removes the status refusal, so the not-current one surfaces; at generated.at it writes
+					const stableEarly = yield* Effect.flip(
+						runVerify({ ...early, id: "decisions/a", status: "stable" }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(stableEarly._tag, "VerifyNotCurrentError");
+					const ok = yield* runVerify({ ...base(root, GENERATED), id: "decisions/a", status: "stable" }).pipe(
+						Effect.provide(platform),
+					);
+					assert.strictEqual(ok.at, GENERATED);
+				}),
+			),
+	);
+
+	it.effect(
+		"a date-only generated.at is the start of that day in UTC: an at at that instant succeeds, one second before refuses",
+		() =>
+			withRoot({ "decisions/a.md": doc("A", "generated:\n  by: process:sync\n  at: 2026-09-16\n") }, (root) =>
+				Effect.gen(function* () {
+					const error = yield* Effect.flip(
+						runVerify({ ...base(root, "2026-09-15T23:59:59Z"), id: "decisions/a" }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(error._tag, "VerifyNotCurrentError");
+					assert.strictEqual((error as VerifyNotCurrentError).generatedAt, "2026-09-16T00:00:00Z");
+					const ok = yield* runVerify({ ...base(root, "2026-09-16T00:00:00Z"), id: "decisions/a" }).pipe(
+						Effect.provide(platform),
+					);
+					assert.strictEqual(ok.at, "2026-09-16T00:00:00Z");
+				}),
+			),
 	);
 });

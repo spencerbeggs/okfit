@@ -25,7 +25,7 @@ import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmat
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import type { Actor, DerivedStatus, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { DiagnosticRange, Status, Timestamp, Verification } from "@okfit/core";
+import { Derive, DiagnosticRange, Generated, Status, Timestamp, Verification } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -51,6 +51,7 @@ export type EditFailure =
 	| { readonly _tag: "Unsupported"; readonly key: string; readonly shape: string }
 	| { readonly _tag: "ActorUnresolved"; readonly message: string }
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
+	| { readonly _tag: "NotCurrent"; readonly generatedAt: string }
 	| { readonly _tag: "DraftCannotBeVerified" }
 	| { readonly _tag: "DeprecatedCannotBeVerified" }
 	| { readonly _tag: "UnknownStatusCannotBeVerified"; readonly status: string }
@@ -105,9 +106,18 @@ export interface EditTarget {
 	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: DateTime.Utc }>;
 	/** The recorded `integrity.verified` binding (`by`, `at`, `content`) when the frontmatter carries a well-formed one. */
 	readonly binding: { readonly by: string; readonly at: DateTime.Utc; readonly content: string } | undefined;
+	/**
+	 * `generated.at` from the same text, decoded by core's `Generated` (OKF 0.3 5.2): `undefined` when the block is absent,
+	 * malformed, or has no `at`; with no `generated` at all, a legacy top-level `timestamp` stands in, as core folds it (D-15). A verification before it would not be current (5.3), so no verify edit is offered.
+	 */
+	readonly generated: { readonly by: Actor; readonly at: DateTime.Utc } | undefined;
 	/** The frontmatter block, opening fence through closing fence, as an LSP range over `text`. */
 	readonly frontmatter: Range;
 }
+
+/** OKF 0.3 11.2 rule 1, as core's decode applies it: `null`, an empty string and an empty list read as absent. */
+const isAbsentValue = (value: unknown): boolean =>
+	value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 
 /**
  * The status `Derive.status` derives from a raw frontmatter `status` value: a vocabulary string is itself, an
@@ -172,8 +182,20 @@ export const editTarget = (
 		const bindingBy = field(verifiedBinding, "by");
 		const bindingContent = field(verifiedBinding, "content");
 		const bindingAt = decodeAt(field(verifiedBinding, "at"));
+		const generatedRaw = field(data, "generated");
+		const generatedBlock = Schema.decodeUnknownOption(Generated)(generatedRaw);
+		const generatedAt = Option.isSome(generatedBlock) ? generatedBlock.value.at : undefined;
+		// Core folds a legacy top-level `timestamp` into `generated.at` only when `generated` is absent (D-15); its
+		// decode is internal to `@okfit/core`, so this mirrors that one rule with the public `Generated.LEGACY_BY`.
+		const legacyAt = isAbsentValue(generatedRaw) ? decodeAt(field(data, "timestamp")) : Option.none();
 		return Option.some({
 			handle: owner.value,
+			generated:
+				Option.isSome(generatedBlock) && generatedAt !== undefined
+					? { by: generatedBlock.value.by, at: generatedAt }
+					: Option.isSome(legacyAt)
+						? { by: Generated.LEGACY_BY, at: legacyAt.value }
+						: undefined,
 			binding:
 				typeof bindingBy === "string" && typeof bindingContent === "string" && Option.isSome(bindingAt)
 					? { by: bindingBy, at: bindingAt.value, content: bindingContent }
@@ -237,8 +259,8 @@ const contentDigestOf = (text: string): Effect.Effect<string, EditFailure, Diges
 	});
 
 /**
- * The {@link Trust.EvaluateInput} of `target`'s frontmatter (no `generated`: only
- * the integrity state is read, never the drift detail).
+ * The {@link Trust.EvaluateInput} of `target`'s frontmatter. `generated` is passed so integrity sees a binding
+ * older than the last change as drifted (`verified-before-change`); the drift detail itself is never read.
  */
 const trustInput = (target: EditTarget): EvaluateInput => ({
 	verified: target.verified.map((entry) => ({ by: entry.by as Actor, at: entry.at })),
@@ -246,7 +268,7 @@ const trustInput = (target: EditTarget): EvaluateInput => ({
 		target.binding === undefined
 			? undefined
 			: { by: target.binding.by as Actor, at: target.binding.at, content: target.binding.content },
-	generated: undefined,
+	generated: target.generated,
 	// The actor here comes from Derivation.verifier, so it already passes the allow-list; an empty list keeps the check about content only.
 	humans: [],
 });
@@ -265,11 +287,20 @@ const alreadyBound = (target: EditTarget, actor: string, content: string): boole
 };
 
 /**
+ * OKF 0.3 5.3 (R33): `NotCurrent` when `now` is before `generated.at`, since the entry the edit would write would not
+ * count. The editor's side of the engine's `VerifyNotCurrentError`; both ask core's `Derive.isCurrent`.
+ */
+const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefined =>
+	target.generated === undefined || Derive.isCurrent({ generated: target.generated }, now)
+		? undefined
+		: { _tag: "NotCurrent", generatedAt: Schema.encodeSync(Timestamp)(target.generated.at) };
+
+/**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
  * `actor`, `at` the encoded `now`) and bind it with `integrity.verified`, or
- * `EditFailure` when the concept is a draft, is deprecated, or `actor`'s
+ * `EditFailure` when `now` is before `generated.at` (`NotCurrent`), the concept is a draft, is deprecated, or `actor`'s
  * verification still binds its current content (a drifted one is verified
- * again; the editor action otherwise follows `okfit verify --batch`'s skip
+ * again; the editor action otherwise follows `okfit verify --all`'s skip
  * rules, not the single-concept `okfit verify <id>`), or the `verified` or
  * `integrity` shape is one `FrontmatterEdits.verified` cannot splice.
  *
@@ -290,6 +321,8 @@ export const verifiedTextEdits = (
 				status: rawStatusText(target.status),
 			});
 		}
+		const stale = notCurrent(target, now);
+		if (stale !== undefined) return yield* Effect.fail(stale);
 		const content = yield* contentDigestOf(target.text);
 		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
@@ -327,6 +360,8 @@ export const verifiedStableTextEdits = (
 			});
 		}
 		if (derived !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
+		const stale = notCurrent(target, now);
+		if (stale !== undefined) return yield* Effect.fail(stale);
 		const content = yield* contentDigestOf(target.text);
 		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
@@ -379,10 +414,12 @@ export const describeFailure = (failure: EditFailure): string => {
 			return failure.message;
 		case "AlreadyVerified":
 			return `already verified by ${failure.by}`;
+		case "NotCurrent":
+			return `the concept was last changed at ${failure.generatedAt}, after now; a verification before the last change does not count (OKF 0.3 5.3), so check the clock`;
 		case "DraftCannotBeVerified":
-			return "the editor's Mark verified skips a draft concept, as okfit verify --batch does";
+			return "the editor's Mark verified skips a draft concept, as okfit verify --all does";
 		case "DeprecatedCannotBeVerified":
-			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
+			return "the editor's Mark verified skips a deprecated concept, as okfit verify --all does";
 		case "UnknownStatusCannotBeVerified":
 			return `the status "${failure.status}" is not draft, stable or deprecated; set the status first, as okfit verify refuses it`;
 		case "NotADraft":

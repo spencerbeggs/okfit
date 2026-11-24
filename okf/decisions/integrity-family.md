@@ -1,13 +1,13 @@
 ---
 type: Decision
 title: Every okfit digest lives in one integrity family, outside the spec's families
-description: okfit stores its digests only under a top-level integrity key, so generated and verified stay exactly as OKF v0.2 defines them and a digest is 16 hex characters of SHA-256.
+description: okfit stores its digests only under a top-level integrity key, so generated and verified stay exactly as OKF defines them and a digest is 16 hex characters of SHA-256.
 tags:
   - architecture
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-10-31T20:53:25Z
+  at: 2026-11-24T06:04:04Z
 status: stable
 supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,16 +15,18 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 integrity:
   generated:
-    body: 741048e34a798597
+    body: d96fb1111c604cf9
   verified:
     by: human:spencer
-    at: 2026-10-31T21:31:20Z
-    content: 00a6aed983d15763
+    at: 2026-11-24T06:53:02Z
+    content: 5076496d59064ff9
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
   - by: human:spencer
     at: 2026-10-31T21:31:20Z
+  - by: human:spencer
+    at: 2026-11-24T06:53:02Z
 ---
 
 # Every okfit digest lives in one integrity family, outside the spec's families
@@ -46,7 +48,7 @@ writer of digests into it. The contract is [integrity
 frontmatter](../interfaces/integrity-frontmatter.md): `integrity.generated.body`
 replaces `generated.body_sha256`, and `integrity.verified` binds one
 `verified` entry to a content digest. `generated` and `verified` return to
-pure spec shape; OKF v0.2 section 4.1 allows producers to add keys and asks
+pure spec shape; OKF v0.3 section 4.1 allows producers to add keys and asks
 consumers to preserve them, so the family is conformant.
 
 A digest is the first 16 lowercase hex characters (64 bits) of SHA-256,
@@ -55,6 +57,19 @@ hashes. The old keys, `generated.body_sha256` and Publication
 `renders[].body_sha256`, are legacy: `okfit sync` migrates them to
 `integrity.generated.body` and `renders[].body` and reports them as
 `migrated`.
+
+`integrity` is a separate okfit signal beside the authoritative spec trust
+tier, never a replacement for it: the tier comes from the spec's current
+verification events (OKF v0.3 section 5.3), integrity from the bound digest.
+`okfit sync` stamps `generated.at` as the derived instant (under `--staged`,
+the hook's clock), except that it
+stamps `min(derived instant, binding.at)` when `integrity.verified` binds the
+latest human entry and covers exactly the current content. The binding proves
+that content existed at `binding.at`, which makes that instant the content's
+last meaningful change (section 5.2), and it keeps a verification current
+across the edit, verify, commit sequence. The `[actors].humans` allow-list
+does not gate the clamp, and a concept whose body digest is unchanged is
+never rewritten.
 
 ## Alternatives rejected
 

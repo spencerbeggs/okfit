@@ -17,7 +17,8 @@ __test__/
                         # cover only the envelope halves this package owns)
   sync/                # sync/{generated,index,log,write}.ts, sync/run.ts
   validate/            # validate/run.ts
-  verify/              # verify/{locate,splice}.ts
+  verify/              # verify/{locate,splice}.ts; verify/currency.test.ts pins today's verify-then-sync
+                        # sequence (generated.at lands after the verification; Tasks 2, 5, 7 flip marked lines)
   utils/               # Shared mocks, helpers, and type utilities (platform.ts: TestPlatform =
                         # NodeServices.layer + NodeCrypto.layerDigest, since NodeServices carries no crypto)
   fixtures/            # Static test data and fixture files (bundles.ts: the in-memory v0.3, v0.2,

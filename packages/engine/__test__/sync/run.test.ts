@@ -180,6 +180,35 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
+	it.effect("stamps the verification instant, not the hook's, over a staged edit-then-verify file (R30)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const frontmatter = (content: string) =>
+					`---\ntype: Module\ntitle: New\ngenerated:\n  by: human:ada\n  at: 2026-01-01T00:00:00Z\nverified:\n  - by: human:ada\n    at: 2026-09-16T09:00:00Z\nintegrity:\n  verified:\n    by: human:ada\n    at: 2026-09-16T09:00:00Z\n    content: ${content}\n---\n\n# New\n`;
+				const placeholder = frontmatter("0000000000000000");
+				const content = yield* Derivation.contentDigest({ type: "Module", title: "New" }, placeholder);
+				const file = join(root, "okf", "new.md");
+				yield* Effect.promise(() => writeFile(file, frontmatter(content)));
+				git(root, ["add", "okf/new.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: STAMP },
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["new"]);
+				const text = yield* Effect.promise(() => readFile(file, "utf8"));
+				// the hook's STAMP is 10:00:00; the binding is 09:00:00 over this exact content
+				assert.match(text, /generated:\n {2}by: human:ada\n {2}at: 2026-09-16T09:00:00Z\n/);
+				assert.notInclude(text, "2026-09-16T10:00:00Z");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("never loads, stamps or rewrites a file symlinked outside the bundle (OKF 0.3 §3.2)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

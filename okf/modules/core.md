@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T06:04:04Z
 integrity:
   generated:
-    body: 7a1f05b697623322
+    body: 543f146310fe2cee
 ---
 
 # Core
@@ -85,7 +85,8 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-thirty-eight keys, including `generated_at_drift`, `generated_missing` and the
+thirty-nine keys, including `generated_at_drift`, `generated_missing`,
+`verified_before_change` (default `warn`) and the
 ten added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
 `value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,
 `symlink_escape`, `superseded_by_orphan` and `superseded_by_unresolved`, all
@@ -155,6 +156,18 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   lints that skip the file; `symlink-escape` refuses a link out of the
   bundle ([Markdown that is not a concept is
   skipped](../decisions/non-concept-markdown-is-skipped.md)).
+- **Trust tier.** `Derive.trustTier` counts only current verification
+  events (OKF v0.3 §5.3): an event whose `at` is equal to or later than
+  `generated.at` by instant, or any event when `generated` is absent (§5.3);
+  okfit reads a `generated` with no `at` the same way. An earlier event stays in the file as history and counts for
+  nothing. The rule applies to every bundle, whatever version it declares
+  (§11.2). `Derive.isCurrent` and `Derive.currentVerifications` are public.
+  A `human:` current event gives `human-reviewed`; any other current event,
+  `team:` included (§7), gives `machine-confirmed`. The lint
+  `verified-before-change` (default `warn`) fires only when the tier dropped
+  for that reason, and exempts draft, deprecated and unknown-status
+  concepts; `require-verified-unmet` still means no `verified` entry at all,
+  and for an unknown status its message names a working fix.
 - **Status and staleness.** `Derive.status` returns `DerivedStatus`
   (`draft`, `stable`, `deprecated`, `unknown`); `Derive.rawStatus` returns
   the value as written. `Staleness` gains `malformed`, for a `stale_after`
@@ -193,8 +206,6 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
 
 ### Not done yet
 
-- `Derive.trustTier` is unchanged: it counts every verification event, not
-  only those at or after `generated.at` (OKF v0.3 §5.3).
 - The bundle itself, this repository's `okf/`, still declares
   `okf_version: '0.2'`, so prose elsewhere in it and the plugin skills still
   describe the v0.2 rules.

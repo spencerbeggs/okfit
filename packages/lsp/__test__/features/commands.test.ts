@@ -279,6 +279,30 @@ describe("registerCommands", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.live(
+		"okfit.lsp.verifyAndMarkStable on a concept last changed in the future fails NotCurrent and applies nothing",
+		() =>
+			Effect.gen(function* () {
+				const h = yield* makeServeHarness({ platform: identityPlatform });
+				yield* Effect.promise(() =>
+					writeFile(
+						join(h.root, "okf", "modules", "draft.md"),
+						DRAFT_SOURCE.replace(/at: "[^"]*"/, 'at: "2999-01-01T00:00:00Z"'),
+						"utf8",
+					),
+				);
+				yield* h.initialize;
+				yield* h.open("okf/modules/draft.md");
+				yield* h.nextPublish();
+				const failure = yield* executeCommandFailure(h.client, "okfit.lsp.verifyAndMarkStable", [
+					h.uriOf("okf/modules/draft.md"),
+				]);
+				assert.include(failure.message, "2999-01-01T00:00:00Z");
+				assert.include(failure.message, "does not count");
+				assert.strictEqual(h.serverRequests.length, 0);
+			}).pipe(Effect.scoped),
+	);
+
 	it.live("okfit.lsp.verifyAndMarkStable with bad arguments fails with the argument message", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });

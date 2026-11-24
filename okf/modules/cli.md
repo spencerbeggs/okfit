@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T05:58:20Z
 integrity:
   generated:
-    body: 7da363eb727f484c
+    body: 7a81941ef169503a
 ---
 
 # CLI
@@ -51,9 +51,11 @@ asks to confirm (`commands/verify-confirm.ts`); `--no-diff` skips it, and
 JSON carries only an optional `prior_integrity`. `okfit verify --revoke
 <id>` removes the current actor's own entries, exits `3` when there is
 nothing to revoke and `64` on a usage conflict (with `--all`, `--type`,
-`--stable`, `--draft`, `--at`, or no id). This repository's `.config/okfit.toml` temporarily
-sets `verified_drift = "off"`: its existing human verifications predate
-bindings, and the lint is re-enabled once a human has re-verified them. See
+`--stable`, `--draft`, `--at`, or no id). A verify that would write an entry
+before the concept's `generated.at` (`--at` earlier, or a `generated.at` in
+the future) exits `3` with `VerifyNotCurrentError`, because OKF v0.3 §5.3
+stops counting such an entry; the confirm prose names a drift of
+`verified-before-change` as "verified before its last change". See
 [A verification is bound to the content it
 covered](../decisions/verification-binds-content.md).
 

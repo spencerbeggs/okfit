@@ -341,6 +341,84 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
+	it("refuses an --at before generated.at (exit 3, file unchanged); --at equal to it exits 0 and writes", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const generated = "generated:\n  by: process:sync\n  at: 2026-09-07T12:00:00Z\n";
+			const original = await readProject(cwd);
+			assert.notInclude(original, "generated:");
+			await writeFile(projectPath(cwd), original.replace(/^---\n/, `---\n${generated}`), "utf8");
+			const before = await readProject(cwd);
+
+			const refused = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T11:59:59Z"], { cwd, env }));
+			assert.strictEqual(refused.exitCode, 3, refused.stderr);
+			assert.include(
+				refused.stderr,
+				"was last changed at 2026-09-07T12:00:00Z, after the verification time 2026-09-07T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3)",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+
+			const ok = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T12:00:00Z"], { cwd, env }));
+			assert.strictEqual(ok.exitCode, 0, ok.stderr);
+			const after = await readProject(cwd);
+			assert.notStrictEqual(after, before);
+			assert.include(after, "    at: 2026-09-07T12:00:00Z\n");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("an --at with an offset is compared as an instant: +02:00 at generated.at writes, one second earlier refuses", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const original = await readProject(cwd);
+			await writeFile(
+				projectPath(cwd),
+				original.replace(/^---\n/, "---\ngenerated:\n  by: process:sync\n  at: 2026-09-07T12:00:00Z\n"),
+				"utf8",
+			);
+			const before = await readProject(cwd);
+			const refused = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T13:59:59+02:00"], { cwd, env }),
+			);
+			assert.strictEqual(refused.exitCode, 3, refused.stderr);
+			assert.include(refused.stderr, "was last changed at 2026-09-07T12:00:00Z");
+			assert.strictEqual(await readProject(cwd), before);
+			const ok = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T14:00:00+02:00"], { cwd, env }));
+			assert.strictEqual(ok.exitCode, 0, ok.stderr);
+			assert.notStrictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--format json reports VerifyNotCurrentError in the error envelope, exit 3, nothing written", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const original = await readProject(cwd);
+			await writeFile(
+				projectPath(cwd),
+				original.replace(/^---\n/, "---\ngenerated:\n  by: process:sync\n  at: 2026-09-07T12:00:00Z\n"),
+				"utf8",
+			);
+			const before = await readProject(cwd);
+			const failed = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T11:59:59Z", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(failed.exitCode, 3, failed.stderr);
+			const envelope = JSON.parse(failed.stdout) as { exit_code: number; error: { tag: string; message: string } };
+			assert.strictEqual(envelope.exit_code, 3);
+			assert.strictEqual(envelope.error.tag, "VerifyNotCurrentError");
+			assert.strictEqual(
+				envelope.error.message,
+				'"project" was last changed at 2026-09-07T12:00:00Z, after the verification time 2026-09-07T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-09-07T12:00:00Z, or check the clock',
+			);
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("--format json prints the success envelope and the K-22 error envelope", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {

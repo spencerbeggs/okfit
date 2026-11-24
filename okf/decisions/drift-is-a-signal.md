@@ -7,21 +7,23 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:48:09Z
+  at: 2026-11-24T05:58:20Z
 status: stable
 sources:
   - id: trust-ts
     resource: ../../packages/profiles/src/Trust.ts
 integrity:
   generated:
-    body: e9d479678557e857
+    body: 4c6962ad47680337
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: a90f173dd44ecdc9
+    at: 2026-11-24T06:53:02Z
+    content: fad8a23f9b27441e
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T06:53:02Z
 ---
 
 # Verification drift is a signal to weigh, never a gate
@@ -39,7 +41,7 @@ covered](verification-binds-content.md) makes the check possible.
 Editing a verified concept is allowed for anyone, of any type. The edit
 turns the verification drifted; `okfit validate` reports the `verified-drift`
 lint at `warn`, carried by `okfit validate` and the MCP `validate_bundle`
-tool, beside the unchanged trust tier. The same signal reaches every front end:
+tool, beside the trust tier (drift never moves it; only the spec's current-event rule does). The same signal reaches every front end:
 `okfit query` filters (`--drifted`, `--stale`, `--verified`,
 `--unverified`), `okfit context --trust` counts, the MCP `list_concepts`
 filters and `get_concept` fields, the language server's hover, inlay hint
@@ -66,8 +68,9 @@ sets `verified_drift = "error"` or writes their own hook.
 
 ## Consequences
 
-This repository's `.config/okfit.toml` temporarily sets `verified_drift =
-"off"`: its existing human verifications predate bindings and are all
-`unbound`. It is turned back on once a human has run `okfit verify` over
-them. The lint's contract is in [okfit config file
+This repository's `.config/okfit.toml` leaves `verified_drift` at its default
+`warn`, so a concept edited after its verification warns until a human
+re-runs `okfit verify`. A verification made before the concept's last change
+is a separate report: core's `verified-before-change` lint, because OKF v0.3
+section 5.3 stops counting it and the trust tier drops. The lint's contract is in [okfit config file
 schema](../interfaces/okfit-config-schema.md).

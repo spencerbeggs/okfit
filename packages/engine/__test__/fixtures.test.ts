@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { LoadedBundle } from "@okfit/core";
-import { Bundle, Graph, OkfVersion, OkfitConfig, Validate } from "@okfit/core";
+import { Bundle, ConceptId, Graph, OkfVersion, OkfitConfig, Validate } from "@okfit/core";
 import { Profiles } from "@okfit/profiles";
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 import { lintResources } from "../src/validate/resources.js";
 import type { ErrorCase, ProjectSeed } from "./fixtures/bundles.js";
 import { ERROR_PROJECTS, UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "./fixtures/bundles.js";
@@ -109,6 +109,31 @@ describe("ERROR_PROJECTS: one defect each", () => {
 			);
 		}),
 	);
+	it.effect(
+		"verified-before-change loads with generated.at later than its one event; the clean seed has no generated",
+		() =>
+			Effect.gen(function* () {
+				const { bundle, codes } = yield* loadsClean("verified-before-change");
+				assert.deepStrictEqual(codes, [README]);
+				const frontmatter = bundle.concepts.get(ConceptId.make("metrics/revenue"))?.frontmatter;
+				const generated = frontmatter?.generated?.at;
+				const events = frontmatter?.verified ?? [];
+				assert.lengthOf(events, 1);
+				if (generated === undefined) return assert.fail("generated.at must be present");
+				assert.isTrue(DateTime.isGreaterThan(generated, events[0]?.at ?? generated));
+				// the seed carries no integrity block: a binding is written only by a real runVerify
+				assert.isUndefined(frontmatter?.raw.integrity);
+				const clean = yield* load(V03_PROJECT);
+				assert.isUndefined(clean.concepts.get(ConceptId.make("metrics/revenue"))?.frontmatter.generated);
+				// the lint fires once on the seed, at the one concept; the clean seed is the control
+				const found = (b: LoadedBundle) => lintOf(b).filter((d) => d.code === "verified-before-change");
+				assert.deepStrictEqual(
+					found(bundle).map((d) => d.file),
+					["metrics/revenue.md"],
+				);
+				assert.deepStrictEqual(found(clean), []);
+			}),
+	);
 	// Later tasks define the expectation for these; today each loads with only the README note.
 	for (const name of ["empty-required-title", "resource-outside-project", "resource-missing-in-repository"] as const) {
 		it.effect(`${name} loads and carries its one defect`, () =>
@@ -129,6 +154,7 @@ describe("ERROR_PROJECTS: one defect each", () => {
 		"resource-missing-in-repository": [V03_PROJECT, "packages/widget/README.md"],
 		"bare-path-under-0.3": [V02_PROJECT, "okf/index.md"],
 		"unparsable-version": [V03_PROJECT, "okf/index.md"],
+		"verified-before-change": [V03_PROJECT, "okf/metrics/revenue.md"],
 	};
 	it("each case differs from its base by exactly the named change", () => {
 		const diff = (a: ProjectSeed, b: ProjectSeed) =>

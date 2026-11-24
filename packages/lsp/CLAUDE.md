@@ -396,6 +396,7 @@ below) also shares:
   offsets corrupted a buffer that had moved on (final review I1). The raw
   `status` and every `verified[].by` are read from that same text
   (`FrontmatterSource.split` + `YamlDocument.parse(...).toValue()`), as is
+  `generated` (core's `Generated` decode; absent, malformed or without `at` is `undefined`) and
   the frontmatter block's LSP range. `version` is the buffer's version, or
   `null` for a document that is not open.
 - `versionedEdit(uri, target, edits)` wraps the edits as `documentChanges:
@@ -410,9 +411,10 @@ below) also shares:
   decodes as a concept at all (`frontmatter-missing`), which
   `__test__/features/actions.test.ts`'s BOM case proves. `verifiedTextEdits`
   fails `DraftCannotBeVerified` for a draft, `DeprecatedCannotBeVerified` for a
-  deprecated concept and `AlreadyVerified` when
-  `actor` already holds the CURRENT binding (`Trust.evaluate`; a drifted or
-  superseded entry does not count, so a drifted concept can be re-verified) -- `okfit verify --batch`'s
+  deprecated concept, `NotCurrent` when `now` is before `generated.at` (OKF 0.3 5.3, R33: the entry would not count; the engine's
+  `VerifyNotCurrentError` is the CLI's side of the same rule), and `AlreadyVerified` when
+  `actor` already holds the CURRENT binding (`Trust.evaluate`, which sees `EditTarget.generated`; a drifted, superseded or
+  verified-before-change entry does not count, so such a concept can be re-verified) -- `okfit verify --all`'s
   skip rules, not the single-concept `okfit verify <id>`'s.
 - `resolveActor(handle)` wraps `Derivation.verifier({ cwd: handle.folder,
   config })` (`handle.folder`, never `bundleRoot`: V-7's cwd) and fails
@@ -442,7 +444,7 @@ The action set, in order:
   `Status`'s literal order, minus any a quick fix already offers.
 - **Verify action** (kind `okfit.verify`): `Mark verified by <actor>` when
   the actor resolves and `verifiedTextEdits` succeeds (never on a draft or
-  deprecated concept).
+  deprecated concept, nor one whose `generated.at` is after now).
 
 The status and verify actions are offered only when `params.range`
 intersects the frontmatter block (opening fence through closing fence) or
@@ -494,8 +496,8 @@ naming it (`-32601`).
 - **`okfit.lsp.verifyAndMarkStable`** -- args `[uri]`. A draft's combined
   verify-and-promote: `verifiedStableTextEdits(target, actor, now)` (refuses an unknown status with `UnknownStatusCannotBeVerified`; wrapping
   `FrontmatterEdits.verifiedWithStatus`) sent as one versioned `applyEdit`,
-  labeled "Mark verified and stable". Fails `NotADraft` for any other status
-  and `AlreadyVerified` when the actor has already attested. The matching code
+  labeled "Mark verified and stable". Fails `NotADraft` for any other status,
+  `NotCurrent` when `now` is before `generated.at`, and `AlreadyVerified` when the actor has already attested. The matching code
   action (`Mark verified by <actor> and set status: stable`, kind
   `okfit.verify`) is offered only on a draft.
 - **`okfit.lsp.revalidate`** -- args `[rootUri?]`, an optional single-string
@@ -530,8 +532,8 @@ now)` (`@public`, exported from the barrel, tested with no harness) before
 either is positioned against a document:
 
 - A trust/staleness hint, labeled `unverified`, `machine-confirmed`, or
-  `human-reviewed by <by>` naming the newest `verified[]` entry whose `by`
-  starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
+  `human-reviewed by <by>` naming the newest *current* (OKF 0.3 §5.3, `Derive.currentVerifications`)
+  `verified[]` entry whose `by` starts with `human:` (greatest `at`) -- `Derive.trustTier`'s own
   three-way split, with the human-reviewed case's actor resolved here since
   the derivation itself only reports the tier. `· stale` is appended when
   `Derive.isStale(concept.frontmatter, now)`. `· drifted` is appended when the

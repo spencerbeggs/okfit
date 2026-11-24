@@ -1,13 +1,14 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NodeFileSystem, NodePath } from "@effect/platform-node";
+import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
 import type { LoadedBundle } from "@okfit/core";
-import { Bundle, OkfitConfig } from "@okfit/core";
+import { Bundle, ConceptId, OkfitConfig } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
-import { Cause, Effect, Exit, Layer, Path } from "effect";
+import { Derivation, Trust } from "@okfit/profiles";
+import { Cause, DateTime, Effect, Exit, Layer, Path } from "effect";
 import { ConceptQuery } from "../../src/query/ConceptQuery.js";
 import { toConceptSummary } from "../../src/render/query.js";
 import { ERROR_PROJECTS, V03_PROJECT } from "../fixtures/bundles.js";
@@ -338,5 +339,38 @@ describe("ConceptQuery.get replacement", () => {
 				assert.strictEqual((yield* ConceptQuery.get(bundle, "metrics/margin-legacy")).replacement, null);
 			}),
 		),
+	);
+});
+
+describe("ConceptQuery.list verified: current with a real before-change signal (OKF 0.3 5.3)", () => {
+	const entry = "verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\n";
+	const binding = (content: string) =>
+		`integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${content}\n`;
+	const doc = (title: string, extra: string) => `---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
+	const generated = (at: string) => `generated:\n  by: agent:claude\n  at: ${at}\n`;
+	const NOW = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
+
+	const loadSeed = (seed: Record<string, string>) =>
+		Bundle.load({ root: ROOT }).pipe(Effect.provide(Layer.mergeAll(MemoryFileSystem.layerWith(seed), Path.layer)));
+
+	it.effect("a binding older than generated.at is drifted and leaves the filter; an equal one stays", () =>
+		Effect.gen(function* () {
+			// the digest excludes generated and integrity, so one probe load yields the digest for both concepts
+			const probeBundle = yield* loadSeed({ [`${ROOT}/equal.md`]: doc("Equal", entry) });
+			const probed = probeBundle.concepts.get(ConceptId.make("equal"));
+			if (probed === undefined) return yield* Effect.die(new Error("equal did not load"));
+			const digest = yield* Derivation.contentDigest(probed.frontmatter.raw, probed.document.source);
+			const bundle = yield* loadSeed({
+				[`${ROOT}/before.md`]: doc("Before", entry + binding(digest) + generated("2026-09-01T00:00:42Z")),
+				[`${ROOT}/equal.md`]: doc("Equal", entry + binding(digest) + generated("2026-09-01T00:00:00Z")),
+			});
+			const real = yield* Trust.signals(bundle, config, NOW);
+			assert.strictEqual(real.get("before")?.drift?.reason, "verified-before-change");
+			assert.strictEqual(real.get("equal")?.integrity, "current");
+			const run = (filter: Parameters<typeof ConceptQuery.list>[2]) =>
+				ConceptQuery.list(bundle, config, filter, real).pipe(Effect.map(ids));
+			assert.deepStrictEqual(yield* run({ verified: "current" }), ["equal"]);
+			assert.deepStrictEqual(yield* run({ drifted: true }), ["before"]);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 });

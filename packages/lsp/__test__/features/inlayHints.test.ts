@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { LspUri } from "@effected/lsp";
 import { MarkdownDocument } from "@effected/markdown";
-import { Actor, Concept, DiagnosticRange, Verification } from "@okfit/core";
+import { Actor, Concept, DiagnosticRange, Generated, Verification } from "@okfit/core";
 import { DateTime, Effect, Option, Result, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { URI_OPTIONS } from "../../src/convert/platform.js";
@@ -53,6 +53,28 @@ describe("hintsFor", () => {
 				NOW,
 			);
 			assert.deepStrictEqual(hints, [{ path: ["status"], label: "human-reviewed by human:bob" }]);
+		}),
+	);
+
+	it.effect("human-reviewed names the newest current human, not an older history entry (OKF 0.3 §5.3)", () =>
+		Effect.sync(() => {
+			const generated = Generated.make({
+				by: decodeActor("okfit/test"),
+				at: DateTime.makeUnsafe("2026-06-02T00:00:00Z"),
+			});
+			const a = verifiedBy("human:a", "2026-06-03T00:00:00Z");
+			const b = verifiedBy("human:b", "2026-06-01T00:00:00Z");
+			const label = (c: Concept) => hintsFor(c, NOW)[0]?.label;
+			assert.strictEqual(
+				label(concept({ status: "stable", generated, verified: [b, a] })),
+				"human-reviewed by human:a",
+			);
+			// controls: no generated -> both current, the newest by `at` wins
+			assert.strictEqual(label(concept({ status: "stable", verified: [b, a] })), "human-reviewed by human:a");
+			const b2 = verifiedBy("human:b", "2026-06-04T00:00:00Z");
+			assert.strictEqual(label(concept({ status: "stable", verified: [b2, a] })), "human-reviewed by human:b");
+			// only history left: unverified
+			assert.strictEqual(label(concept({ status: "stable", generated, verified: [b] })), "unverified");
 		}),
 	);
 

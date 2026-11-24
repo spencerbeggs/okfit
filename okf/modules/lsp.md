@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T05:58:20Z
 integrity:
   generated:
-    body: 20ddbfa42d7960c3
+    body: 0e52d64658c9a347
 ---
 
 # LSP
@@ -70,13 +70,17 @@ status the concept does not already have -- all three when there
 is no explicit status or the status is outside the vocabulary (choosing one
 fixes it) -- and one `Mark verified by <actor>` action (kind
 `okfit.verify`) when a human actor resolves and the concept is neither a
-draft, deprecated, of unknown status, nor already verified by that actor. On a draft the
+draft, deprecated, of unknown status, nor already verified by that actor,
+and `now` is not before its `generated.at`: an action that would write a
+verification before the last change is omitted (OKF v0.3 §5.3;
+`EditTarget.generated`, `EditFailure` `NotCurrent`). On a draft the
 same kind instead offers `Mark verified by <actor> and set status: stable`
 (#215), one edit equal to what `okfit verify --stable` writes, when that
 actor has not yet verified it; the actor is cached per session
 handle. On a `verified-drift` diagnostic it offers a preferred `Re-verify as
 <actor>` quick fix. The already-verified check uses the profiles package's
-`Trust.evaluate`, and the Re-verify quick fix needs the `verified-drift` diagnostic, so with that lint off only `Mark verified` is offered. The buffer's `verified` is decoded through core's
+`Trust.evaluate` (given the concept's `generated`, so a binding older than the
+last change is not already verified), and the Re-verify quick fix needs the `verified-drift` diagnostic, so with that lint off only `Mark verified` is offered. The buffer's `verified` is decoded through core's
 `Verification.List`, which accepts a bare mapping. `registerCommands` (`src/features/commands.ts`) answers
 `workspace/executeCommand` for the four `OKFIT_COMMANDS`:
 `okfit.lsp.setStatus [uri, status]`, `okfit.lsp.markVerified [uri]` and
@@ -103,7 +107,8 @@ drop it), so it stays safe only because it is computed from the current
 buffer at request time. `registerInlayHints` (`src/features/inlayHints.ts`)
 answers `textDocument/inlayHint` with up to two hints per concept, computed
 by the pure `hintsFor(concept, now)`: a trust/staleness hint (`unverified`,
-`machine-confirmed`, or `human-reviewed by <by>`, `· stale` appended when
+`machine-confirmed`, or `human-reviewed by <by>` for the newest current human
+entry, `· stale` appended when
 stale, `· drifted` when drifted) anchored after the `status:` value when present, else after
 `type:`; and, only when `generated.at` is set, an age hint (`today`, `1 day
 ago`, `N days ago`) after its value. All three features answer `[]`/fail

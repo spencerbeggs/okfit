@@ -127,7 +127,7 @@ describe("Trust.signal", () => {
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
-	it.effect("body edited -> drifted/content-changed, editedBy from a later generated", () =>
+	it.effect("body edited and generated later than the binding -> drifted/verified-before-change, editor named", () =>
 		Effect.gen(function* () {
 			const { base, content } = yield* bound();
 			const edited = concept(
@@ -140,9 +140,9 @@ describe("Trust.signal", () => {
 			);
 			const signal = yield* Trust.signal(edited, OkfitConfig.DEFAULTS, NOW);
 			assert.deepStrictEqual<unknown>(signal, {
-				tier: "human-reviewed",
+				tier: "unverified", // generated.at (LATER) is after the verification: history under OKF 0.3 §5.3
 				integrity: "drifted",
-				drift: { reason: "content-changed", editedBy: "agent/x", editedAt: LATER },
+				drift: { reason: "verified-before-change", editedBy: "agent/x", editedAt: LATER },
 				stale: false,
 				staleness: "unknown",
 			});
@@ -270,6 +270,38 @@ describe("Trust.lint", () => {
 			assert.strictEqual(diagnostics[0]?.severity, "warning");
 			assert.strictEqual(diagnostics[0]?.file, "drifted.md");
 			assert.isDefined(diagnostics[0]?.range);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+	);
+
+	it.effect("verified-before-change is not a verified-drift finding; content-changed beside it is (R31)", () =>
+		Effect.gen(function* () {
+			const generatedAt = "2026-03-01T00:00:42Z";
+			const generated = { by: "agent:claude", at: generatedAt };
+			const base = { type: "Decision", verified: [{ by: "human:spencer", at: AT }], generated };
+			// bound at AT, but generated.at is 42 seconds later: verified before the last change
+			const content = yield* digestOf(concept(base));
+			const before = concept(
+				{ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				BODY,
+				"before.md",
+			);
+			// bound at AT with a stale digest and no later generated.at: content-changed
+			const changed = concept(
+				{
+					type: "Decision",
+					verified: [{ by: "human:spencer", at: AT }],
+					integrity: { verified: { by: "human:spencer", at: AT, content: "ffffffffffffffff" } },
+				},
+				BODY,
+				"changed.md",
+			);
+			const signal = yield* Trust.signal(before, OkfitConfig.DEFAULTS, NOW);
+			assert.strictEqual(signal.drift?.reason, "verified-before-change");
+			const diagnostics = yield* Trust.lint(bundleOf(before, changed), OkfitConfig.DEFAULTS, NOW);
+			assert.deepStrictEqual(
+				diagnostics.map((d) => [d.code, d.file]),
+				[["verified-drift", "changed.md"]],
+			);
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
@@ -416,7 +448,7 @@ describe("Trust.lint", () => {
 		}),
 	);
 
-	it.effect("message names the reason and the editor", () =>
+	it.effect("a later generated is not reported here (core owns it); a plain content change names its reason", () =>
 		Effect.gen(function* () {
 			const { base, content } = yield* bound();
 			const edited = concept(
@@ -427,11 +459,15 @@ describe("Trust.lint", () => {
 				},
 				"\nA different body.\n",
 			);
-			const [diagnostic] = yield* Trust.lint(bundleOf(edited), OkfitConfig.DEFAULTS, NOW);
-			const message = diagnostic?.message ?? "";
-			assert.include(message, "content changed since human:spencer verified it at");
-			assert.include(message, `edited by agent/x at ${LATER}`);
-			assert.include(message, "re-run okfit verify");
+			assert.deepStrictEqual(yield* Trust.lint(bundleOf(edited), OkfitConfig.DEFAULTS, NOW), []);
+			// control: the same edit without a later generated is a plain content change
+			const plain = concept(
+				{ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } },
+				"\nA different body.\n",
+			);
+			const [changed] = yield* Trust.lint(bundleOf(plain), OkfitConfig.DEFAULTS, NOW);
+			assert.include(changed?.message ?? "", "content changed since human:spencer verified it at");
+			assert.include(changed?.message ?? "", "re-run okfit verify");
 
 			const legacy = concept({ type: "Decision", verified: [{ by: "human:spencer", at: AT }] });
 			const [unbound] = yield* Trust.lint(bundleOf(legacy), OkfitConfig.DEFAULTS, NOW);
@@ -452,6 +488,46 @@ describe("Trust.evaluate (pure: no Digest provided)", () => {
 		generated: undefined,
 		humans: [],
 	};
+
+	it("a binding older than generated.at is drifted, needs no digest, and is not linted as verified-drift (R2)", () => {
+		const agent = actor("agent:claude");
+		const input = {
+			verified: [human("ada", at)],
+			binding: { by: actor("human:ada"), at, content: "aaaaaaaaaaaaaaaa" },
+			generated: { by: agent, at: DateTime.makeUnsafe("2026-03-01T00:00:42Z") },
+			humans: [],
+		};
+		assert.isFalse(Trust.needsDigest(input));
+		assert.deepStrictEqual(Trust.evaluate(input, undefined), {
+			integrity: "drifted",
+			drift: { reason: "verified-before-change", editedBy: agent, editedAt: "2026-03-01T00:00:42Z" },
+		});
+		// control: the same binding at generated.at exactly is decided by the digest
+		const equal = { ...input, generated: { by: agent, at } };
+		assert.isTrue(Trust.needsDigest(equal));
+		assert.deepStrictEqual(Trust.evaluate(equal, "aaaaaaaaaaaaaaaa"), { integrity: "current" });
+		// control: no generated.at at all is decided by the digest
+		const noAt = { ...input, generated: { by: agent } };
+		assert.isTrue(Trust.needsDigest(noAt));
+		assert.deepStrictEqual(Trust.evaluate(noAt, "aaaaaaaaaaaaaaaa"), { integrity: "current" });
+	});
+
+	it("actor-not-allowed and entry-superseded outrank verified-before-change when generated.at is later", () => {
+		const generated = { by: actor("agent:claude"), at: DateTime.makeUnsafe("2026-03-01T00:00:42Z") };
+		const plain = { ...base, binding: binding("abc"), generated };
+		// control: nothing else wrong, so the later generated.at decides
+		assert.strictEqual(Trust.evaluate(plain, undefined).drift?.reason, "verified-before-change");
+		const notAllowed = { ...plain, humans: ["human:ada"] };
+		assert.deepStrictEqual(Trust.evaluate(notAllowed, undefined), {
+			integrity: "drifted",
+			drift: { reason: "actor-not-allowed" },
+		});
+		const superseded = { ...plain, verified: [human("spencer", at), human("spencer", later)] };
+		assert.deepStrictEqual(Trust.evaluate(superseded, undefined), {
+			integrity: "drifted",
+			drift: { reason: "entry-superseded" },
+		});
+	});
 
 	it("a binding whose actor fails a non-empty allow-list -> drifted/actor-not-allowed, no digest needed", () => {
 		const input = { ...base, humans: ["human:ada"] };
@@ -512,11 +588,11 @@ describe("Trust.evaluate (pure: no Digest provided)", () => {
 		});
 	});
 
-	it("content-changed carries editedBy/editedAt only when generated.at is after the binding", () => {
+	it("editedBy/editedAt ride only on verified-before-change; content-changed never carries them", () => {
 		const after = { ...base, generated: { by: actor("agent/x"), at: later } };
 		assert.deepStrictEqual<unknown>(Trust.evaluate(after, "xyz"), {
 			integrity: "drifted",
-			drift: { reason: "content-changed", editedBy: "agent/x", editedAt: LATER },
+			drift: { reason: "verified-before-change", editedBy: "agent/x", editedAt: LATER },
 		});
 		const before = { ...base, generated: { by: actor("agent/x"), at: DateTime.makeUnsafe("2026-01-01T00:00:00Z") } };
 		assert.deepStrictEqual(Trust.evaluate(before, "xyz").drift, { reason: "content-changed" });

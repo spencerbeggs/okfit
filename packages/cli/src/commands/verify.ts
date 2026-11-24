@@ -42,7 +42,7 @@ const targetsArg = Argument.String("targets").pipe(
 const allFlag = Flag.Boolean("all").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription(
-		"verify every concept whose type sets require_verified and that you have not verified yet; drafts are skipped",
+		"verify every concept whose type sets require_verified and whose verification by you is not current; drafts are skipped",
 	),
 );
 
@@ -50,7 +50,7 @@ const allFlag = Flag.Boolean("all").pipe(
 const typeFlag = Flag.String("type").pipe(
 	Flag.atLeast(0),
 	Flag.withDescription(
-		"verify every unverified concept of this type (repeatable); implies --all's selection rule for the named types",
+		"verify every concept of this type whose verification by you is not current (repeatable); implies --all's selection rule for the named types",
 	),
 );
 
@@ -84,7 +84,7 @@ const configFlag = Flag.File("config").pipe(
 const atFlag = Flag.String("at").pipe(
 	Flag.optional,
 	Flag.withDescription(
-		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now",
+		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; must not be earlier than the concept's generated.at (OKF 0.3 5.3), which is refused",
 	),
 );
 
@@ -418,8 +418,9 @@ export const verifyCommand = Command.make(
 		"Record a human's attestation that a concept has been reviewed: append one verified entry, " +
 			"{ by: human:<id>, at: <now> }, to its frontmatter. The actor is always your own git identity; " +
 			"there is no --by. Give one or more concept targets (ids or paths), or --all/--type <Type> (repeatable) to attest a batch of " +
-			"unverified concepts at once; exactly one of the two selections is required. " +
+			"concepts you have not verified, or whose verification by you is no longer current, at once; exactly one of the two selections is required. " +
 			"With exactly one target, --stable or --draft also sets its status in the same write. " +
+			"A verification older than the concept's generated.at (OKF 0.3 5.3) would not count, so it is refused. " +
 			"--revoke <target>... takes back your own attestation: it removes your verified entries and the integrity binding. " +
 			"This is a human-run command: no agent, hook, or MCP tool ever invokes it.",
 	),
