@@ -104,6 +104,35 @@ has_type() {
 	' "$1"
 }
 
+# physical_dir dir — prints the directory's physical form (`cd … && pwd -P`
+# in a subshell), or the argument unchanged when it does not exist (okfit #486).
+physical_dir() {
+	local d
+	if d=$(cd "$1" 2>/dev/null && pwd -P); then
+		printf '%s' "$d"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+# physical_path path — prints <physical dir>/<basename> for an absolute path,
+# or the path unchanged when its directory does not exist (okfit #486). The
+# file itself is never resolved: a symlinked file is the symlink-escape lint's
+# business. Parameter expansion only, so no subprocess beyond the subshell.
+physical_path() {
+	local dir="${1%/*}"
+	[ -n "$dir" ] || dir="/"
+	if [ ! -d "$dir" ]; then
+		printf '%s' "$1"
+		return 0
+	fi
+	dir=$(physical_dir "$dir")
+	case "$dir" in
+		/) printf '/%s' "${1##*/}" ;;
+		*) printf '%s/%s' "$dir" "${1##*/}" ;;
+	esac
+}
+
 # unlisted_line rel message — the one line the agent sees for a file the
 # non-concept-unlisted lint flagged. The glob list comes from the lint's own
 # message (`... matches no [bundle] non_concepts glob (<globs>); add ...`), so
@@ -248,6 +277,9 @@ fi
 
 bundle_root=$(printf '%s' "$context_json" | jq -r '.bundle_root')
 project_root=$(printf '%s' "$context_json" | jq -r '.project_root')
+# Compare physical forms: the host may pass a symlinked path form while the
+# context reports the other (okfit #486).
+bundle_root=$(physical_dir "$bundle_root")
 agent_actor=$(printf '%s' "$context_json" | jq -r '.actors.agent // ""')
 generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and x-okfit-integrity.generated.body later"
 
@@ -279,6 +311,7 @@ if [ -n "$bash_command" ]; then
 			./*) target="$project_dir/${target#./}" ;;
 			*) target="$project_dir/$target" ;;
 		esac
+		target=$(physical_path "$target")
 		case "$target" in
 			"$bundle_root"/*) ;;
 			*) continue ;;
@@ -347,7 +380,13 @@ if [ -n "$bash_command" ]; then
 	exit 0
 fi
 
-# The outside-the-bundle fast path (branch 7): a lexical prefix test, run
+# An absolute path is compared in physical form (okfit #486); validate below
+# gets the physical path too.
+case "$file_path" in
+	/*) file_path=$(physical_path "$file_path") ;;
+esac
+
+# The outside-the-bundle fast path (branch 7): a prefix test on physical forms, run
 # BEFORE the expensive `okfit validate` subprocess is ever spawned. Quoted
 # throughout so a path containing a space still compares correctly.
 case "$file_path" in

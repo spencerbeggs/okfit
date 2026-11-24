@@ -388,6 +388,74 @@ generated:
 	done
 }
 
+# okfit #486: the hook compares physical paths, so a symlinked project path
+# form does not skip its checks. The symlink is created explicitly (BATS's
+# own tmpdir may already sit under a symlinked /var).
+
+# _linked_proj — a bundle_with project plus $BATS_TEST_TMPDIR/link -> proj;
+# sets proj, link, phys (the physical project root).
+_linked_proj() {
+	proj=$(_bundle_with modules/core.md 'type: Module
+title: Core')
+	ln -s "$proj" "$BATS_TEST_TMPDIR/link"
+	link="$BATS_TEST_TMPDIR/link"
+	phys=$(cd "$proj" && pwd -P)
+}
+
+@test "checks a Write through a symlinked project directory (#486)" {
+	local proj link phys
+	_linked_proj
+	_stub_cli "$(_ctx "$phys/okf" "$phys")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$link/okf/modules/core.md" "$proj")" "$proj"
+		assert_stop "$target" "modules/core.md: generated.by is missing"
+	done
+}
+
+@test "checks a Write when the context reports the symlinked form and the host the physical one (#486)" {
+	local proj link phys
+	_linked_proj
+	_stub_cli "$(_ctx "$link/okf" "$link")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$phys/okf/modules/core.md" "$proj")" "$proj"
+		assert_stop "$target" "modules/core.md: generated.by is missing"
+	done
+}
+
+@test "passes the physical file path to okfit validate (#486)" {
+	local proj link phys
+	_linked_proj
+	_stub_cli "$(_ctx "$phys/okf" "$phys")" "$CLEAN"
+	_run claude "$(_input Write "$link/okf/modules/core.md" "$proj")" "$proj"
+	[ -f "$STUB_DIR/validate-argv" ]
+	grep -qxF "$phys/okf/modules/core.md" "$STUB_DIR/validate-argv"
+}
+
+@test "checks a Bash heredoc write through a symlinked project directory (#486)" {
+	local proj link phys
+	_linked_proj
+	_stub_cli "$(_ctx "$phys/okf" "$phys")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "cat > $link/okf/modules/core.md <<EOF
+x
+EOF" "$proj")" "$proj"
+		assert_stop "$target" "modules/core.md: generated.by is missing"
+	done
+}
+
+@test "a file outside the bundle through a symlink is still a no-op (#486)" {
+	local proj link phys
+	_linked_proj
+	mkdir -p "$proj/docs"
+	printf -- '---\ntype: Module\n---\n' >"$proj/docs/x.md"
+	_stub_cli "$(_ctx "$phys/okf" "$phys")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$link/docs/x.md" "$proj")" "$proj"
+		assert_hook_noop
+	done
+	[ ! -f "$STUB_DIR/validate-invoked" ]
+}
+
 # okfit #483: CRLF line endings and a UTF-8 BOM must not hide a concept's
 # frontmatter from the awk helpers. _crlf_proj writes the bytes with printf.
 
@@ -790,7 +858,8 @@ UNLISTED_REASON="notes.md: not a concept: it has no frontmatter type, and this b
 		_run "$target" "$(_bash_input $'cat > okf/notes.md <<\'EOF\'\n# Notes\nEOF' "$proj")" "$proj"
 		assert_stop "$target" "$UNLISTED_REASON"
 		[ -f "$STUB_DIR/validate-invoked" ]
-		[ "$(paste -sd' ' "$STUB_DIR/validate-argv")" = "validate --root $proj $proj/okf/notes.md --format json --skip-provenance" ]
+		# the file argument is the physical path (#486); --root is the context's
+		[ "$(paste -sd' ' "$STUB_DIR/validate-argv")" = "validate --root $proj $(cd "$proj" && pwd -P)/okf/notes.md --format json --skip-provenance" ]
 	done
 }
 

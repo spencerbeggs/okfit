@@ -94,6 +94,9 @@ the `cp`/`install` destination) block; edit-like writes (`>>`, `tee -a`,
 touched by `sed -i` is never force-attributed. One command with both kinds
 blocks and lists every offender. The hook reads CRLF and BOM-prefixed
 frontmatter like LF ([#483](https://github.com/spencerbeggs/okfit/issues/483)).
+It compares physical paths (`physical_path`: `cd … && pwd -P` of the directory,
+basename kept, a symlinked file left alone), so a symlinked path form does not
+skip its checks ([#486](https://github.com/spencerbeggs/okfit/issues/486)).
 Exotic writes slip through; `okfit sync` backfills `generated` from
 `actors.agent`. Copilot's shell tool is `bash`, which the script accepts
 beside `Bash`. It no longer emits `additionalContext` for
