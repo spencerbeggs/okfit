@@ -92,7 +92,11 @@ const compare = (a: Diagnostic, b: Diagnostic): number =>
 export class Publications {
 	private constructor() {}
 
-	/** Resolves a raw reference against a bundle-relative concept path (a leading `/` from the bundle root); `""` when it escapes the bundle. */
+	/**
+	 * Resolves a raw reference against a bundle-relative concept path (a leading `/` from the bundle root); `""` when it escapes the bundle.
+	 * Unlike core's resolver it does not treat a URL as external (a URL yields no concept and is reported as an orphan), and it knowingly
+	 * differs in having no legacy root fallback for a bare value, and in `/` alone and a climb above the root both yielding no concept.
+	 */
 	static readonly resolveRef: (from: string, raw: string) => string = resolveRef;
 
 	/** The `renders` entries of a Publication, or `undefined` when malformed. */
