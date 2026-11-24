@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 status: stable
 x-okfit-supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,7 +15,7 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 x-okfit-integrity:
   generated:
-    body: be77564af93c0fa0
+    body: 1908c94d7d0e7eb9
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -43,14 +43,14 @@ leave both spec families carrying tooling state.
 
 ## Decision
 
-okfit owns one top-level frontmatter key, `x-okfit-integrity` (see
-[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)), and is the only
+okfit owns one top-level frontmatter key, `x-okfit-integrity`, and is the only
 writer of digests into it. The contract is [integrity
 frontmatter](../interfaces/integrity-frontmatter.md): `x-okfit-integrity.generated.body`
 replaces `generated.body_sha256`, and `x-okfit-integrity.verified` binds one
 `verified` entry to a content digest. `generated` and `verified` return to
 pure spec shape; OKF v0.3 section 4.1 allows producers to add keys and asks
-consumers to preserve them, so the family is conformant.
+consumers to preserve them, so the family is conformant. The prefix is explained in
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md).
 
 A digest is the first 16 lowercase hex characters (64 bits) of SHA-256,
 computed through core's `Digest` service (`effect/crypto`). Core holds the schema and never

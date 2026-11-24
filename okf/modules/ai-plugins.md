@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 x-okfit-integrity:
   generated:
-    body: fb84fad5da05c749
+    body: 7bc15f671aa78845
 ---
 
 # AI Plugins
@@ -102,7 +102,8 @@ integrity family](../decisions/integrity-family.md). The plugin's prose now
 says editing a verified concept is fine and shows as drift to a human to
 re-verify; agents still never write `verified` or `x-okfit-integrity`, and never run
 `okfit verify` (see [Verification drift is a signal to weigh, never a
-gate](../decisions/drift-is-a-signal.md)).
+gate](../decisions/drift-is-a-signal.md)). The key's prefix is explained in
+[okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md).
 On Copilot, which honours no `PostToolUse` block, the same reason arrives as
 `additionalContext` instead (`plugin/CLAUDE.md:72-74`). Kill switches: `OKFIT_HOOKS=off`
 disables both; `OKFIT_SESSION_HOOK=off` and `OKFIT_VALIDATE_HOOK=off`

@@ -8,10 +8,10 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 x-okfit-integrity:
   generated:
-    body: bc97a44a11fc5ef1
+    body: 9916ac9acc436793
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -51,10 +51,10 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   the list. Section 5.3 says earlier events stay in the file as history, and
   an overwrite replaces that actor's earlier `at`; this is okfit's named
   variation from the spec, kept so repeated stale cycles stay bounded. The
-  same edit rewrites `x-okfit-integrity.verified` (see
-[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)) so its `at` and
+  same edit rewrites `x-okfit-integrity.verified` so its `at` and
   content digest agree with the refreshed entry (see [integrity
-  frontmatter](../interfaces/integrity-frontmatter.md)).
+  frontmatter](../interfaces/integrity-frontmatter.md)). The key's prefix is explained in
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md).
 - Candidates include a drifted concept even when this actor already has an
   entry, because "already verified" now means holding the current binding,
   and a binding is current only while its bound entry is a current event

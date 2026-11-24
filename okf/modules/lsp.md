@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 x-okfit-integrity:
   generated:
-    body: d86318d3eb84162c
+    body: 76bf0de3c188a8b8
 ---
 
 # LSP
@@ -98,9 +98,9 @@ version from the diagnostics feature's open-document memory (else the file
 as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits`/`verifiedStableTextEdits` wrap
 [Engine](engine.md)'s `FrontmatterEdits.status`/`.verified`/
 `.verifiedWithStatus` over that text (each `verified` edit also binds
-`x-okfit-integrity.verified` (see [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md)), with the content digest computed through `Digest`),
+`x-okfit-integrity.verified`, with the content digest computed through `Digest`),
 and `versionedEdit` sends the result as `documentChanges` carrying the
-version. A command's edit goes over `workspace/applyEdit`, so a client
+version. The key's prefix is explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). A command's edit goes over `workspace/applyEdit`, so a client
 whose buffer has moved on refuses a stale one; a code action's edit carries
 no version on the client side (`vscode-languageclient` and VS Code both
 drop it), so it stays safe only because it is computed from the current

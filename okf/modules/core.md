@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 x-okfit-integrity:
   generated:
-    body: c99b70965ac33bfb
+    body: 1eaceb69f92b041b
 ---
 
 # Core
@@ -119,8 +119,8 @@ the surrounding quotes.
 
 `Integrity.ts` defines `Digest` (a 16-character lowercase hex string),
 `IntegrityGenerated { body }`, `IntegrityVerified { by, at, content }` and
-`Integrity`, and `Concept` carries an optional top-level `x-okfit-integrity`
-decoded as its own family, so a malformed block yields `family-invalid`
+`Integrity`, and `Concept` carries an optional `integrity` field holding the decoded top-level
+`x-okfit-integrity` block, read as its own family, so a malformed block yields `family-invalid`
 (now the only family that does; every other family reads key by key, see
 "Reading OKF v0.3 bundles") for `x-okfit-integrity` only and never drops `generated`
 or `verified`. Core only

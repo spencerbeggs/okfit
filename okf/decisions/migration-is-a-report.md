@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 8ae034a0cd1fc6d5
+    body: 975ab66042827eb8
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -92,8 +92,8 @@ not change `generated.at`. When a fixed concept's recorded
 re-records that one digest for the fixed body, so the next `sync` keeps
 `generated.at`; the trust tier, which counts only verification events at or
 after `generated.at` (§5.3), is therefore not lowered by the edit. The fix
-never writes `generated.at`, `verified` or `x-okfit-integrity.verified` (see
-[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)). okfit's own
+never writes `generated.at`, `verified` or `x-okfit-integrity.verified`. The key's prefix is explained in
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md). okfit's own
 verification integrity is a separate signal and can still drift, because its
 content digest covers the body and the authored frontmatter, so any edit
 moves it. `drifts` lists every edited concept whose integrity was current

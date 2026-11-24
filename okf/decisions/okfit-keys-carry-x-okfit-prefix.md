@@ -14,11 +14,11 @@ sources:
     title: The only home of the old spellings, read by the sync migration.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-24T20:41:11Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: d3dae7c11c82a7a3
+    body: 5e2419fc65450dea
 ---
 
 # okfit's own frontmatter keys carry the x-okfit- prefix
@@ -90,8 +90,8 @@ as `x-okfit-integrity` and `x-okfit-<field>`.
 
 ## Alternatives rejected
 
-- **A read-both period with a deprecation lint.** The first idea on the
-  ticket. Nothing outside the repository reads these keys and okfit is before
+- **A read-both period with a deprecation lint.** Considered and rejected.
+  Nothing outside the repository reads these keys and okfit is before
   1.0.0, so a period of accepting both spellings would be code to maintain for
   no reader; the owner ruled it out.
 - **One nested `x-okfit:` mapping.** It would break the flat
@@ -106,9 +106,10 @@ as `x-okfit-integrity` and `x-okfit-<field>`.
 ## Consequences
 
 Every verified concept that carried a profile key lost its current
-verification when the keys moved, until its owner re-verifies it: 8 concepts
-in this bundle. Prose that tells a reader what to write was updated to the new
-names; Decisions that record a point in time were left as written. The
+verification when the keys moved, until its owner re-verifies it: renaming the
+profile keys drifted 8 verified concepts in this bundle. Updating the prose
+that names the keys meant further concepts had to be re-verified too. Decisions
+that record a point in time were left as written. The
 contract is in [integrity frontmatter](../interfaces/integrity-frontmatter.md)
 and the family's rationale in [Every okfit digest lives in one integrity
 family](integrity-family.md).
