@@ -1,5 +1,6 @@
 import { Fmt } from "@effected/cli-kit";
 import type { ConceptSummary } from "@okfit/engine";
+import { statusText } from "../render/query.js";
 
 /** One concept a concept links to or is linked from; `title` is `null` when the target is not a concept in the bundle. */
 export interface BrowserNeighbor {
@@ -252,7 +253,7 @@ export const detailHeader = (detail: BrowserDetail): ReadonlyArray<string> => {
 		oneLine(`${summary.id}  (${summary.type})`),
 		...(summary.description === null ? [] : [oneLine(summary.description)]),
 		oneLine(
-			`status: ${summary.status}  tier: ${summary.tier}  integrity: ${summary.integrity}  stale: ${summary.stale ? "yes" : "no"}`,
+			`status: ${statusText(summary)}  tier: ${summary.tier}  integrity: ${summary.integrity}  stale: ${summary.stale ? "yes" : "no"}`,
 		),
 		oneLine(`tags: ${summary.tags.length === 0 ? "(none)" : summary.tags.join(", ")}`),
 		...shown.map((entry) => oneLine(`verified: ${entry.by} at ${entry.at}`)),

@@ -10,6 +10,7 @@ const summary = (id: string, over: Partial<ConceptSummary> = {}): ConceptSummary
 	title: `Title of ${id}`,
 	description: null,
 	status: "draft",
+	raw_status: null,
 	tags: [],
 	path: `${id}.md`,
 	tier: "unverified",
@@ -24,6 +25,20 @@ describe("humanQueryList", () => {
 			"a/x  draft  unverified  Decision  Title of a/x",
 			"b  stable  unverified  Module  Title of b",
 		]);
+	});
+	it("prints unknown(<raw>) for a status outside the vocabulary and the plain status otherwise", () => {
+		assert.deepStrictEqual(
+			humanQueryList([
+				summary("a", { status: "unknown", raw_status: "archived" }),
+				summary("b", { status: "unknown", raw_status: "5" }),
+				summary("c", { status: "stable" }),
+			]),
+			[
+				"a  unknown(archived)  unverified  Decision  Title of a",
+				"b  unknown(5)  unverified  Decision  Title of b",
+				"c  stable  unverified  Decision  Title of c",
+			],
+		);
 	});
 	it("prints nothing for no concepts", () => {
 		assert.deepStrictEqual(humanQueryList([]), []);
@@ -91,6 +106,22 @@ describe("humanQueryGet", () => {
 				"  -> gone (missing, frontmatter, supersedes)",
 			],
 		);
+	});
+	it("prints status: unknown(<raw>) for a status outside the vocabulary", () => {
+		const lines = humanQueryGet({
+			summary: summary("a", { status: "unknown", raw_status: "archived" }),
+			drift: null,
+			verified: [],
+			links: [],
+		});
+		assert.include(lines, "status: unknown(archived)");
+		const control = humanQueryGet({
+			summary: summary("a", { status: "stable" }),
+			drift: null,
+			verified: [],
+			links: [],
+		});
+		assert.include(control, "status: stable");
 	});
 	it("prints (none) for no tags and no links", () => {
 		const lines = humanQueryGet({ summary: summary("p"), drift: null, verified: [], links: [] });

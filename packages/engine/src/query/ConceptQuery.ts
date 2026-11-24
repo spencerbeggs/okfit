@@ -1,4 +1,4 @@
-import type { GraphNodeKind, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
+import type { DerivedStatus, GraphNodeKind, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { ConceptId, Derive, Graph } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Effect, Option } from "effect";
@@ -15,8 +15,8 @@ export interface ConceptFilter {
 	readonly types?: ReadonlyArray<string>;
 	/** AND: every tag must be present. */
 	readonly tags?: ReadonlyArray<string>;
-	/** OR, compared against `Derive.status` (an absent status reads as stable). */
-	readonly statuses?: ReadonlyArray<Status>;
+	/** OR, compared against `Derive.status` (an absent status reads as stable; a status outside the vocabulary is `unknown`). */
+	readonly statuses?: ReadonlyArray<DerivedStatus>;
 	/** `"current"`: integrity current; `"unverified"`: tier unverified. */
 	readonly verified?: "current" | "unverified";
 	/** `true`: integrity drifted. */

@@ -1,5 +1,5 @@
 import { ToolOutcome } from "@effected/mcp-kit";
-import { DerivedStatus, GraphNodeKind, Status } from "@okfit/core";
+import { DerivedStatus, GraphNodeKind } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
@@ -53,7 +53,7 @@ export type DescribeVocabularySuccess = typeof DescribeVocabularySuccess.Type;
 export const ListConceptsParams = Schema.Struct({
 	type: Schema.optionalKey(Schema.String),
 	tags: Schema.optionalKey(Schema.Array(Schema.String)),
-	status: Schema.optionalKey(Status),
+	status: Schema.optionalKey(DerivedStatus),
 	verified: Schema.optionalKey(Schema.Boolean),
 	drifted: Schema.optionalKey(Schema.Boolean),
 	stale: Schema.optionalKey(Schema.Boolean),
@@ -95,6 +95,8 @@ export const GetConceptFound = Schema.Struct({
 	title: Schema.String,
 	description: Schema.NullOr(Schema.String),
 	status: DerivedStatus,
+	/** The raw `status` text when the derived status is `unknown`; `null` otherwise. */
+	raw_status: Schema.NullOr(Schema.String),
 	tags: Schema.Array(Schema.String),
 	path: Schema.String,
 	frontmatter: Schema.Record(Schema.String, Schema.Unknown),

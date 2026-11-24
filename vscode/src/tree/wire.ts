@@ -12,7 +12,10 @@ export interface ConceptSummary {
 	readonly uri: string;
 	readonly title: string;
 	readonly type: string;
-	readonly status: "draft" | "stable" | "deprecated" | undefined;
+	/** The derived status (OKF 0.3 section 5.4): `unknown` for a `status` outside the vocabulary. */
+	readonly status: "draft" | "stable" | "deprecated" | "unknown";
+	/** The `status` as written, as text, when `status` is `unknown`. */
+	readonly rawStatus?: string | undefined;
 	readonly stale: boolean;
 	/** The trust tier as of the last revalidate. */
 	readonly tier: "unverified" | "machine-confirmed" | "human-reviewed";

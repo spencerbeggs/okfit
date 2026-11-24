@@ -36,3 +36,21 @@ export const copySupersededProject = Effect.gen(function* () {
 	yield* fs.writeFileString(file, edited);
 	return root;
 }).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+
+/**
+ * `copyFixtureProject("project")` plus two Metrics whose `status` is outside the vocabulary (`archived`, and the
+ * number `5`) and one whose `status` is `""` (stable by OKF 0.3 section 11.2 rule 1).
+ */
+export const copyUnknownStatusProject = Effect.gen(function* () {
+	const fs = yield* FileSystem.FileSystem;
+	const root = yield* copyFixtureProject("project");
+	const write = (name: string, status: string) =>
+		fs.writeFileString(
+			`${root}/bundle/metrics/${name}.md`,
+			`---\ntype: Metric\ntitle: ${name}\ndescription: A metric.\nstatus: ${status}\n---\n\n# ${name}\n\nBody.\n`,
+		);
+	yield* write("archived", "archived");
+	yield* write("numbered", "5");
+	yield* write("blank", '""');
+	return root;
+}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);

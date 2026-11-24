@@ -22,13 +22,15 @@ export const TrustDrift = Schema.Struct({
 /** @public */
 export type TrustDrift = typeof TrustDrift.Type;
 
-/** The ten-field shape every list-like query result carries: identity plus the trust signal (N-16). @public */
+/** The eleven-field shape every list-like query result carries: identity plus the trust signal (N-16). @public */
 export const ConceptSummary = Schema.Struct({
 	id: Schema.String,
 	type: Schema.String,
 	title: Schema.String,
 	description: Schema.NullOr(Schema.String),
 	status: DerivedStatus,
+	/** The `status` as written, as text, when the derived status is `unknown` (OKF 0.3 section 5.4); `null` otherwise. */
+	raw_status: Schema.NullOr(Schema.String),
 	tags: Schema.Array(Schema.String),
 	path: Schema.String,
 	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),
@@ -38,6 +40,10 @@ export const ConceptSummary = Schema.Struct({
 /** @public */
 export type ConceptSummary = typeof ConceptSummary.Type;
 
+/** `Derive.rawStatus` when the derived status is `unknown`, else `null` (OKF 0.3 section 5.4: show the raw value). @public */
+export const rawStatusOf = (concept: LoadedConcept): string | null =>
+	Derive.status(concept.frontmatter) === "unknown" ? (Derive.rawStatus(concept.frontmatter) ?? null) : null;
+
 /** Project one loaded concept and its trust signal into its summary. @public */
 export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal): ConceptSummary => ({
 	id: concept.id,
@@ -45,6 +51,7 @@ export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal):
 	title: Derive.title(concept),
 	description: concept.frontmatter.description ?? null,
 	status: Derive.status(concept.frontmatter),
+	raw_status: rawStatusOf(concept),
 	tags: [...(concept.frontmatter.tags ?? [])],
 	path: concept.path,
 	tier: signal.tier,

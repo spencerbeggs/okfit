@@ -3,6 +3,9 @@ import type { ConceptSummary, ConceptsResult } from "./wire.js";
 
 export type Status = "draft" | "stable" | "deprecated";
 
+/** What the server derives (OKF 0.3 section 5.4): `unknown` is a `status` outside the vocabulary. */
+export type DerivedStatus = Status | "unknown";
+
 export type TreeNode =
 	| {
 			readonly kind: "bundle";
@@ -28,7 +31,7 @@ export type TreeNode =
 			readonly type: string;
 			readonly stale: boolean;
 			readonly drifted: boolean;
-			readonly status: Status;
+			readonly status: DerivedStatus;
 	  };
 
 const ICONS: Readonly<Record<string, string>> = {
@@ -53,13 +56,14 @@ const ICONS: Readonly<Record<string, string>> = {
 export const iconFor = (type: string): string => ICONS[type] ?? "symbol-misc";
 
 const conceptNode = (c: ConceptSummary): Extract<TreeNode, { kind: "concept" }> => {
-	const status: Status = c.status ?? "stable";
+	const status = c.status;
+	const shown = status === "unknown" ? `unknown(${c.rawStatus ?? ""})` : status;
 	return {
 		kind: "concept",
 		id: c.id,
 		uri: c.uri,
 		label: c.title,
-		description: c.integrity === "drifted" ? `${status} \u00b7 drifted` : status,
+		description: c.integrity === "drifted" ? `${shown} \u00b7 drifted` : shown,
 		type: c.type,
 		stale: c.stale,
 		drifted: c.integrity === "drifted",

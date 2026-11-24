@@ -53,7 +53,9 @@ const statusOf = (provider: ConceptsProvider | undefined, uri: string): Status |
 	const target = vscode.Uri.parse(uri).toString();
 	for (const bundle of provider?.current.bundles ?? []) {
 		for (const concept of bundle.concepts) {
-			if (vscode.Uri.parse(concept.uri).toString() === target) return concept.status;
+			if (vscode.Uri.parse(concept.uri).toString() === target) {
+				return concept.status === "unknown" ? undefined : concept.status;
+			}
 		}
 	}
 	return undefined;

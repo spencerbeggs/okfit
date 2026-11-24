@@ -14,8 +14,12 @@ import { Schema } from "effect";
 export const humanQueryList = (items: ReadonlyArray<ConceptSummary>): ReadonlyArray<string> =>
 	items.map((item) => {
 		const trust = `${item.integrity === "drifted" ? "drifted" : item.tier}${item.stale ? ",stale" : ""}`;
-		return `${item.id}  ${item.status}  ${trust}  ${item.type}  ${item.title}`;
+		return `${item.id}  ${statusText(item)}  ${trust}  ${item.type}  ${item.title}`;
 	});
+
+/** The status as text: `unknown(<raw>)` for a status outside the vocabulary, else the status. @public */
+export const statusText = (summary: ConceptSummary): string =>
+	summary.status === "unknown" && summary.raw_status !== null ? `unknown(${summary.raw_status})` : summary.status;
 
 const integrityLine = (summary: ConceptSummary, drift: TrustDrift | null): string => {
 	if (summary.integrity !== "drifted") return `integrity: ${summary.integrity}`;
@@ -52,7 +56,7 @@ export const humanQueryGet = (input: {
 		summary.id,
 		`type: ${summary.type}`,
 		`title: ${summary.title}`,
-		`status: ${summary.status}`,
+		`status: ${statusText(summary)}`,
 		...(input.replacement === undefined || input.replacement === null ? [] : [`replacement: ${input.replacement}`]),
 		`tier: ${summary.tier}`,
 		integrityLine(summary, input.drift),

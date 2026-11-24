@@ -17,6 +17,7 @@ const summary = {
 	title: "A",
 	description: null,
 	status: "stable" as const,
+	raw_status: null,
 	tags: ["x"],
 	path: "a.md",
 	tier: "human-reviewed" as const,
@@ -85,6 +86,20 @@ describe("query envelopes", () => {
 			{ reason: "unbound", edited_by: null, edited_at: null },
 		);
 		assert.strictEqual(toTrustDrift({ tier: "unverified", integrity: "none", stale: false }), null);
+	});
+});
+
+describe("raw_status on the wire", () => {
+	const unknown = { ...summary, status: "unknown" as const, raw_status: "archived" };
+	it("round-trips a string raw_status and rejects an absent one", () => {
+		const envelope = queryListEnvelope({ okfitVersion: "1.2.3", total: 2, items: [summary, unknown] });
+		const encoded = Schema.encodeSync(QueryListEnvelope)(envelope);
+		assert.deepStrictEqual(
+			encoded.items.map((item) => item.raw_status),
+			[null, "archived"],
+		);
+		const { raw_status: _dropped, ...withoutIt } = unknown;
+		assert.throws(() => Schema.decodeUnknownSync(QueryListEnvelope)({ ...encoded, items: [withoutIt] }));
 	});
 });
 

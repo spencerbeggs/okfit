@@ -51,6 +51,7 @@ import type { OpenDocuments } from "../session/documents.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
 import type { EditTarget } from "./edits.js";
 import {
+	derivedStatusOf,
 	describeFailure,
 	editTarget,
 	resolveActor,
@@ -147,6 +148,8 @@ export const registerCodeActions = (
 				const found = yield* editTarget(registry, documents, path.value);
 				if (Option.isNone(found)) return [];
 				const target = found.value;
+				// The derived status: an unknown one offers every Set status (choosing one fixes it) and no verify action.
+				const derived = derivedStatusOf(target.status);
 				const only = params.context.only;
 				const inFrontmatter = intersects(params.range, target.frontmatter);
 				const offer = (kind: string): boolean => (only === undefined ? inFrontmatter : named(only, kind));
@@ -197,7 +200,7 @@ export const registerCodeActions = (
 					}
 				}
 
-				if (offer("okfit.verify") && target.status === "draft") {
+				if (offer("okfit.verify") && derived === "draft") {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;
@@ -213,7 +216,7 @@ export const registerCodeActions = (
 				}
 
 				// The Re-verify quick fix carries the identical edit, so it replaces Mark verified.
-				if (offer("okfit.verify") && !reverifyOffered && target.status !== "draft" && target.status !== "deprecated") {
+				if (offer("okfit.verify") && !reverifyOffered && derived === "stable") {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;

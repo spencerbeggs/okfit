@@ -24,8 +24,8 @@ import type { MarkdownEdit } from "@effected/markdown";
 import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
-import type { Actor, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
-import { DiagnosticRange, Timestamp, Verification } from "@okfit/core";
+import type { Actor, DerivedStatus, LoadedConcept, OkfitConfig } from "@okfit/core";
+import { DiagnosticRange, Status, Timestamp, Verification } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -53,6 +53,7 @@ export type EditFailure =
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
 	| { readonly _tag: "DraftCannotBeVerified" }
 	| { readonly _tag: "DeprecatedCannotBeVerified" }
+	| { readonly _tag: "UnknownStatusCannotBeVerified"; readonly status: string }
 	| { readonly _tag: "NotADraft" }
 	| { readonly _tag: "Unhashable"; readonly message: string };
 
@@ -98,8 +99,8 @@ export interface EditTarget {
 	readonly text: string;
 	/** The open editor buffer's version, else `null` (the document is not open). */
 	readonly version: number | null;
-	/** The raw top-level `status` value when it is a string, else `undefined` (no explicit status). */
-	readonly status: string | undefined;
+	/** The raw top-level `status` value, whatever its type (`undefined` when the key is absent); read it with {@link derivedStatusOf}. */
+	readonly status: unknown;
 	/** The `verified[]` entries (`by`, decoded `at`) in order, decoded by core's `Verification.List`: one malformed entry voids the whole list (`[]`). */
 	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: DateTime.Utc }>;
 	/** The recorded `integrity.verified` binding (`by`, `at`, `content`) when the frontmatter carries a well-formed one. */
@@ -107,6 +108,24 @@ export interface EditTarget {
 	/** The frontmatter block, opening fence through closing fence, as an LSP range over `text`. */
 	readonly frontmatter: Range;
 }
+
+/**
+ * The status `Derive.status` derives from a raw frontmatter `status` value: a vocabulary string is itself, an
+ * absent value (`undefined`, `null`, `""`, `[]`) is `stable` (OKF 0.3 section 11.2 rule 1), anything else is
+ * `unknown`. The editor holds only raw YAML data, not a typed concept, so this mirrors core's rule locally;
+ * `__test__/features/edits.test.ts` runs both over one table.
+ *
+ * @public
+ */
+export const derivedStatusOf = (raw: unknown): DerivedStatus => {
+	if (Schema.is(Status)(raw)) return raw;
+	const absent = raw === undefined || raw === null || raw === "" || (Array.isArray(raw) && raw.length === 0);
+	return absent ? "stable" : "unknown";
+};
+
+/** A raw `status` as text, the way `Derive.rawStatus` writes it (a string as is, anything else as JSON). @internal */
+export const rawStatusText = (raw: unknown): string =>
+	typeof raw === "string" ? raw : (JSON.stringify(raw) ?? String(raw));
 
 /** `value[key]` when `value` is a plain object, else `undefined`. */
 const field = (value: unknown, key: string): unknown =>
@@ -161,7 +180,7 @@ export const editTarget = (
 					: undefined,
 			text,
 			version,
-			status: typeof status === "string" ? status : undefined,
+			status,
 			verified: verifiedEntries,
 			frontmatter: toLspRange(text, DiagnosticRange.fromOffset(text, 0, split.bodyOffset)),
 		});
@@ -262,8 +281,15 @@ export const verifiedTextEdits = (
 	now: DateTime.Utc,
 ): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
-		if (target.status === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
-		if (target.status === "deprecated") return yield* Effect.fail<EditFailure>({ _tag: "DeprecatedCannotBeVerified" });
+		const derived = derivedStatusOf(target.status);
+		if (derived === "draft") return yield* Effect.fail<EditFailure>({ _tag: "DraftCannotBeVerified" });
+		if (derived === "deprecated") return yield* Effect.fail<EditFailure>({ _tag: "DeprecatedCannotBeVerified" });
+		if (derived === "unknown") {
+			return yield* Effect.fail<EditFailure>({
+				_tag: "UnknownStatusCannotBeVerified",
+				status: rawStatusText(target.status),
+			});
+		}
 		const content = yield* contentDigestOf(target.text);
 		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
@@ -278,8 +304,8 @@ export const verifiedTextEdits = (
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
  * `actor`, `at` the encoded `now`) AND set `status: stable` in one write --
  * `okfit verify --stable`'s combined edit. Fails `NotADraft` unless the
- * concept's raw `status` is `draft` (a non-draft takes the plain Mark
- * verified), `AlreadyVerified` when `actor`'s verification still binds the
+ * concept's status is `draft` or outside the vocabulary (the write replaces it with `stable`, as `okfit verify
+ * --stable` does; a stable or deprecated concept takes the plain Mark verified or none), `AlreadyVerified` when `actor`'s verification still binds the
  * current content, or when a shape `FrontmatterEdits.verifiedWithStatus` cannot splice.
  *
  * @public
@@ -290,7 +316,10 @@ export const verifiedStableTextEdits = (
 	now: DateTime.Utc,
 ): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
-		if (target.status !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
+		// An unknown status is promoted here too: this write replaces it with `stable`, the one case the engine's
+		// verify allows on a status outside the vocabulary (`--stable`, ruling R11).
+		const derived = derivedStatusOf(target.status);
+		if (derived !== "draft" && derived !== "unknown") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
 		const content = yield* contentDigestOf(target.text);
 		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
@@ -347,8 +376,10 @@ export const describeFailure = (failure: EditFailure): string => {
 			return "the editor's Mark verified skips a draft concept, as okfit verify --batch does";
 		case "DeprecatedCannotBeVerified":
 			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
+		case "UnknownStatusCannotBeVerified":
+			return `the status "${failure.status}" is not draft, stable or deprecated; set the status first, as okfit verify refuses it`;
 		case "NotADraft":
-			return "Mark verified and stable promotes a draft concept; use Mark verified for a concept that is not a draft";
+			return "Mark verified and stable promotes a draft concept (or one whose status is unknown); use Mark verified for the others";
 		case "Unhashable":
 			return `${failure.message}; fix the value before marking it verified`;
 	}

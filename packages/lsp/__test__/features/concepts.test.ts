@@ -57,12 +57,37 @@ describe("registerConcepts", () => {
 			assert.deepStrictEqual(
 				bundle.concepts.map((c) => [c.type, c.title, c.status, c.stale]),
 				[
-					["Decision", "Charlie", undefined, false],
-					["Module", "Alpha", undefined, true],
+					["Decision", "Charlie", "stable", false],
+					["Module", "Alpha", "stable", true],
 					["Module", "Bravo", "draft", false],
 				],
 			);
 			assert.strictEqual(bundle.concepts[1]!.uri, LspUri.fromPath(`${root}/a.md`, URI_OPTIONS));
+		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect("a status outside the vocabulary is unknown with its raw text; absent, null and empty are stable", () =>
+		Effect.gen(function* () {
+			const { call } = yield* setup({
+				"archived.md": concept("Archived", "status: archived\n"),
+				"number.md": concept("Number", "status: 5\n"),
+				"null.md": concept("Nulled", "status: null\n"),
+				"empty.md": concept("Empty", 'status: ""\n'),
+				"draft.md": concept("Draft", "status: draft\n"),
+				"absent.md": concept("Absent"),
+			});
+			const result = yield* call<Record<string, never>, ConceptsResult>("okfit/concepts", {});
+			const byTitle = Object.fromEntries(
+				result.bundles[0]!.concepts.map((c) => [c.title, { status: c.status, rawStatus: c.rawStatus }]),
+			);
+			assert.deepStrictEqual(byTitle, {
+				Archived: { status: "unknown", rawStatus: "archived" },
+				Number: { status: "unknown", rawStatus: "5" },
+				Nulled: { status: "stable", rawStatus: undefined },
+				Empty: { status: "stable", rawStatus: undefined },
+				Draft: { status: "draft", rawStatus: undefined },
+				Absent: { status: "stable", rawStatus: undefined },
+			});
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
 

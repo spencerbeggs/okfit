@@ -45,8 +45,10 @@ import type { OpenDocuments } from "../session/documents.js";
 import type { SessionRegistryShape } from "../session/registry.js";
 import type { EditFailure, EditTarget } from "./edits.js";
 import {
+	derivedStatusOf,
 	describeFailure,
 	editTarget,
+	rawStatusText,
 	resolveActor,
 	statusTextEdits,
 	verifiedStableTextEdits,
@@ -136,8 +138,14 @@ const handleMarkVerified = (
 	Effect.gen(function* () {
 		const [uri] = yield* decodeArgs(MarkVerifiedArgs, args, "okfit.lsp.markVerified expects [uri]");
 		const target = yield* targetFor(registry, documents, uri);
-		if (target.status === "draft") return yield* Effect.fail(toLspError({ _tag: "DraftCannotBeVerified" }));
-		if (target.status === "deprecated") return yield* Effect.fail(toLspError({ _tag: "DeprecatedCannotBeVerified" }));
+		const derived = derivedStatusOf(target.status);
+		if (derived === "draft") return yield* Effect.fail(toLspError({ _tag: "DraftCannotBeVerified" }));
+		if (derived === "deprecated") return yield* Effect.fail(toLspError({ _tag: "DeprecatedCannotBeVerified" }));
+		if (derived === "unknown") {
+			return yield* Effect.fail(
+				toLspError({ _tag: "UnknownStatusCannotBeVerified", status: rawStatusText(target.status) }),
+			);
+		}
 		const actor = yield* resolveActor(target.handle).pipe(Effect.mapError(toLspError));
 		const now = yield* DateTime.now;
 		const edits = yield* verifiedTextEdits(target, actor, now).pipe(Effect.mapError(toLspError));
@@ -153,7 +161,8 @@ const handleVerifyAndMarkStable = (
 	Effect.gen(function* () {
 		const [uri] = yield* decodeArgs(VerifyAndMarkStableArgs, args, "okfit.lsp.verifyAndMarkStable expects [uri]");
 		const target = yield* targetFor(registry, documents, uri);
-		if (target.status !== "draft") return yield* Effect.fail(toLspError({ _tag: "NotADraft" }));
+		const derived = derivedStatusOf(target.status);
+		if (derived !== "draft" && derived !== "unknown") return yield* Effect.fail(toLspError({ _tag: "NotADraft" }));
 		const actor = yield* resolveActor(target.handle).pipe(Effect.mapError(toLspError));
 		const now = yield* DateTime.now;
 		const edits = yield* verifiedStableTextEdits(target, actor, now).pipe(Effect.mapError(toLspError));

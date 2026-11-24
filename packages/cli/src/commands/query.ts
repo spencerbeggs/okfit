@@ -64,7 +64,7 @@ const tagFlag = Flag.String("tag").pipe(
 	Flag.withDescription("only concepts carrying this tag (repeatable; all must match)"),
 );
 
-const statusFlag = Flag.Literals("status", ["draft", "stable", "deprecated"] as const).pipe(
+const statusFlag = Flag.Literals("status", ["draft", "stable", "deprecated", "unknown"] as const).pipe(
 	Flag.atLeast(0),
 	Flag.withDescription("only concepts with this status (repeatable; any match)"),
 );

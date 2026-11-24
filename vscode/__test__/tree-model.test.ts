@@ -7,7 +7,8 @@ const c = (over: Partial<ConceptsResult["bundles"][number]["concepts"][number]>)
 	uri: "file:///w/okf/modules/a.md",
 	title: "A",
 	type: "Module",
-	status: undefined,
+	status: "stable" as "draft" | "stable" | "deprecated" | "unknown",
+	rawStatus: undefined as string | undefined,
 	stale: false,
 	tier: "unverified" as const,
 	integrity: "none" as const,
@@ -39,7 +40,7 @@ describe("buildTree", () => {
 		]);
 	});
 
-	it("an absent status renders as stable, the OKF default", () => {
+	it("a stable status renders as stable (the server derives an absent one)", () => {
 		const modules = buildTree(one)[1]!;
 		const a = modules.kind === "type" ? modules.children[0]! : null;
 		expect(a?.kind === "concept" && a.status).toBe("stable");
@@ -116,6 +117,18 @@ describe("drift", () => {
 		const dec = { badge: "!", tooltip: "Drifted: changed since a human verified it" };
 		expect(decorationFor(node({ integrity: "drifted", stale: true, status: "draft" }))).toEqual(dec);
 		expect(decorationFor(node({ integrity: "drifted", status: "deprecated" }))).toEqual(dec);
+	});
+
+	it("describes an unknown status as unknown(<raw>), drifted or not (OKF 0.3 5.4)", () => {
+		const archived = node({ status: "unknown", rawStatus: "archived" });
+		expect(archived.description).toBe("unknown(archived)");
+		expect(archived.status).toBe("unknown");
+		expect(node({ status: "unknown", rawStatus: "archived", integrity: "drifted" }).description).toBe(
+			"unknown(archived) \u00b7 drifted",
+		);
+		// controls: stable and a stable drifted concept keep their plain forms
+		expect(node({ status: "stable" }).description).toBe("stable");
+		expect(node({ status: "stable", integrity: "drifted" }).description).toBe("stable \u00b7 drifted");
 	});
 
 	it("describes a drifted concept as status plus drifted", () => {

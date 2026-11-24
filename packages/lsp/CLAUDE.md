@@ -178,7 +178,7 @@ src/
                        INITIALIZE_RESULT.capabilities, shared with the
                        features that implement them and copied into the VS
                        Code extension
-    edits.ts        -- EditFailure, EditTarget, editTarget, statusTextEdits,
+    edits.ts        -- EditFailure, EditTarget, editTarget, derivedStatusOf, statusTextEdits,
                        verifiedTextEdits, resolveActor, versionedEdit,
                        describeFailure: the edit machinery actions.ts and
                        commands.ts share -- one request's target (current
@@ -362,8 +362,8 @@ implementations. `INITIALIZE_RESULT.capabilities.experimental` advertises
   `"software-project"`, so an unset `profile` key never itself yields
   `undefined`), and one `ConceptSummary` per concept with a definition
   location (`definitionOf`, `features/locate.ts` -- same exclusion as
-  `workspace/symbol`). A concept's `status` is its raw frontmatter value,
-  `undefined` when absent (not `Derive.status`'s `"stable"` default); `stale`
+  `workspace/symbol`). A concept's `status` is `Derive.status` (absent, null, `""` and `[]`
+  are `stable`; a value outside the vocabulary is `unknown`, with its text in `rawStatus`); `stale`
   is `Derive.isStale` against `now` read once per request; `tier` and
   `integrity` come from the session's trust signals. Concepts are
   sorted by type, then title, then id; bundles by root.

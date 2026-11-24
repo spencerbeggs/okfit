@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
-import type { LoadedBundle, LoadedConcept } from "@okfit/core";
+import type { LoadedBundle } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Cause, Effect, Exit, Layer, Path } from "effect";
@@ -119,27 +119,50 @@ describe("ConceptQuery.list with an unknown status", () => {
 	const seed = {
 		[`${ROOT}/archived.md`]: "---\ntype: Decision\nstatus: archived\n---\n\n# Archived\n",
 		[`${ROOT}/live.md`]: "---\ntype: Decision\nstatus: stable\n---\n\n# Live\n",
+		[`${ROOT}/number.md`]: "---\ntype: Decision\nstatus: 5\n---\n\n# Number\n",
+		[`${ROOT}/empty.md`]: '---\ntype: Decision\nstatus: ""\n---\n\n# Empty\n',
+		[`${ROOT}/nulled.md`]: "---\ntype: Decision\nstatus: null\n---\n\n# Nulled\n",
+		[`${ROOT}/draft.md`]: "---\ntype: Decision\nstatus: draft\n---\n\n# Draft\n",
 	};
 	const memPlatform = Layer.mergeAll(MemoryFileSystem.layerWith(seed), Path.layer);
 	const unknownSignals: ReadonlyMap<string, ConceptSignal> = new Map<string, ConceptSignal>([
 		["archived", { tier: "unverified", integrity: "none", stale: false }],
 		["live", { tier: "unverified", integrity: "none", stale: false }],
+		["number", { tier: "unverified", integrity: "none", stale: false }],
+		["empty", { tier: "unverified", integrity: "none", stale: false }],
+		["nulled", { tier: "unverified", integrity: "none", stale: false }],
+		["draft", { tier: "unverified", integrity: "none", stale: false }],
 	]);
 
 	it.effect("filters statuses: [stable] to the stable concept and summarizes the archived one as unknown", () =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: ROOT });
+			// an absent, null or "" status is stable (section 11.2 rule 1), never unknown
 			assert.deepStrictEqual(ids(yield* ConceptQuery.list(bundle, config, { statuses: ["stable"] }, unknownSignals)), [
+				"empty",
 				"live",
+				"nulled",
+			]);
+			assert.deepStrictEqual(ids(yield* ConceptQuery.list(bundle, config, { statuses: ["unknown"] }, unknownSignals)), [
+				"archived",
+				"number",
 			]);
 			const all = yield* ConceptQuery.list(bundle, config, {}, unknownSignals);
-			assert.deepStrictEqual(ids(all), ["archived", "live"]);
-			const summary = toConceptSummary(all[0] as LoadedConcept, unknownSignals.get("archived") as ConceptSignal);
-			assert.strictEqual(summary.status, "unknown");
-			assert.strictEqual(
-				toConceptSummary(all[1] as LoadedConcept, unknownSignals.get("live") as ConceptSignal).status,
-				"stable",
+			assert.deepStrictEqual(ids(all), ["archived", "draft", "empty", "live", "nulled", "number"]);
+			const pick = Object.fromEntries(
+				all.map((concept) => {
+					const summary = toConceptSummary(concept, unknownSignals.get(concept.id) as ConceptSignal);
+					return [concept.id, { status: summary.status, raw_status: summary.raw_status }];
+				}),
 			);
+			assert.deepStrictEqual(pick, {
+				archived: { status: "unknown", raw_status: "archived" },
+				draft: { status: "draft", raw_status: null },
+				empty: { status: "stable", raw_status: null },
+				live: { status: "stable", raw_status: null },
+				nulled: { status: "stable", raw_status: null },
+				number: { status: "unknown", raw_status: "5" },
+			});
 		}).pipe(Effect.provide(memPlatform)),
 	);
 });

@@ -1,6 +1,6 @@
 import { ToolOutcome } from "@effected/mcp-kit";
 import { Derive } from "@okfit/core";
-import { ConceptQuery, signalFor, toTrustDrift } from "@okfit/engine";
+import { ConceptQuery, rawStatusOf, signalFor, toTrustDrift } from "@okfit/engine";
 import { DateTime, Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
@@ -59,6 +59,7 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			title: Derive.title(concept),
 			description: concept.frontmatter.description ?? null,
 			status: Derive.status(concept.frontmatter),
+			raw_status: rawStatusOf(concept),
 			tags: [...(concept.frontmatter.tags ?? [])],
 			path: concept.path,
 			frontmatter: concept.frontmatter.raw,

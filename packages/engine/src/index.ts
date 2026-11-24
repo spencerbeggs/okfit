@@ -86,6 +86,7 @@ export {
 	queryGetEnvelope,
 	queryListEnvelope,
 	queryNeighborsEnvelope,
+	rawStatusOf,
 	signalFor,
 	toConceptSummary,
 	toTrustDrift,
