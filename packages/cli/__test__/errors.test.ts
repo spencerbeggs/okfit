@@ -10,6 +10,7 @@ import {
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
 	VerifyConceptNotFoundError,
+	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
 import { Cause, Option, Result, Schema } from "effect";
@@ -114,6 +115,15 @@ describe("renderFailure for the verify errors", () => {
 		// prevent.
 		assert.isFalse(renderTyped(notFound)[0]?.includes("VerifyConceptNotFoundError"));
 		assert.isFalse(renderTyped(unsupported)[0]?.includes("VerifyUnsupportedFrontmatterError"));
+	});
+
+	it("renders VerifyStatusUnknownError as one error: line with no tag prefix", () => {
+		const error = new VerifyStatusUnknownError({ id: "metrics/margin", status: "bogus" });
+		const lines = renderTyped(error);
+		assert.deepStrictEqual(lines, [
+			'error: "metrics/margin" has status "bogus", which is not draft, stable or deprecated; fix the status (or pass --stable or --draft) before verifying',
+		]);
+		assert.isFalse(lines[0]?.includes("VerifyStatusUnknownError"));
 	});
 
 	it("renders DocumentPathError as one error line", () => {

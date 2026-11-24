@@ -1,4 +1,3 @@
-import { Status } from "@okfit/core";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
 import type { VerifyBatchSkipReason } from "../verify/select.js";
@@ -24,7 +23,9 @@ export const VerifyEnvelope = Schema.Struct({
 	path: Schema.String,
 	verified: Schema.Struct({ by: Schema.String, at: Schema.String }),
 	/** Issue #185: the status change `--stable`/`--draft` made; `null` when neither flag was given. */
-	status: Schema.NullOr(Schema.Struct({ from: Schema.NullOr(Status), to: Schema.Literals(["stable", "draft"]) })),
+	status: Schema.NullOr(
+		Schema.Struct({ from: Schema.NullOr(Schema.String), to: Schema.Literals(["stable", "draft"]) }),
+	),
 	/** Why the prior human verification no longer bound the concept; absent when it did not drift. */
 	prior_integrity: Schema.optionalKey(DriftReason),
 	dry_run: Schema.Boolean,
@@ -48,7 +49,7 @@ export const verifyEnvelope = (input: {
 	readonly by: string;
 	readonly at: string;
 	readonly dryRun: boolean;
-	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
+	readonly status: { readonly from: string | null; readonly to: "stable" | "draft" } | null;
 	/** The drift reason the prior verification had, when it had drifted. */
 	readonly priorIntegrity?: DriftReason | null;
 	readonly distribution?: Distribution;
@@ -85,7 +86,10 @@ export const VerifyBatchEnvelope = Schema.Struct({
 	verified_at: Schema.String,
 	concepts: Schema.Array(Schema.Struct({ id: Schema.String, path: Schema.String })),
 	skipped: Schema.Array(
-		Schema.Struct({ id: Schema.String, reason: Schema.Literals(["draft", "deprecated", "already-verified"]) }),
+		Schema.Struct({
+			id: Schema.String,
+			reason: Schema.Literals(["draft", "deprecated", "unknown-status", "already-verified"]),
+		}),
 	),
 	dry_run: Schema.Boolean,
 	exit_code: Schema.Literal(0),

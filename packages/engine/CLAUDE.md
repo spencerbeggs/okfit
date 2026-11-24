@@ -15,7 +15,7 @@ src/
   platform.ts           -- OKFIT_APP_NAMESPACE, OkfitPlatform: the one XDG/Node
                             platform layer both front ends provide
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
-                             VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError,
+                             VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/

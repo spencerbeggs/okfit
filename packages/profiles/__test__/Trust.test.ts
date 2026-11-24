@@ -46,10 +46,13 @@ const concept = (
 		...Object.entries(rawExtra).map(([key, value]) => `${key}: ${value.toString()}`),
 	].join("\n");
 	const source = `---\n${yaml}\n---${body}`;
+	// The loader keeps a status outside the vocabulary in `raw` only, never in the typed field (OKF 0.3 5.4).
+	const { status, ...rest } = fm;
+	const typed = status === "draft" || status === "stable" || status === "deprecated" ? { ...rest, status } : rest;
 	return LoadedConcept.make({
 		id: Option.getOrThrow(ConceptId.normalize(path)),
 		path,
-		frontmatter: decode({ ...fm, extensions: {}, raw: { ...fm, ...rawExtra } }),
+		frontmatter: decode({ ...typed, extensions: {}, raw: { ...fm, ...rawExtra } }),
 		document: Result.getOrThrow(MarkdownDocument.parseResult(source, FRONTMATTER_OPTIONS)),
 		computationBody: Option.none(),
 	});
@@ -251,6 +254,25 @@ describe("Trust.lint", () => {
 				assert.strictEqual((yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW)).integrity, "drifted");
 			}
 			assert.deepStrictEqual(yield* Trust.lint(bundleOf(draft, deprecated), OkfitConfig.DEFAULTS, NOW), []);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+	);
+
+	it.effect('a drifted concept with a status outside the vocabulary lints nothing; stable and "" still warn', () =>
+		Effect.gen(function* () {
+			const verified = [{ by: "human:spencer", at: AT }];
+			const archived = concept({ type: "Decision", status: "archived", verified }, BODY, "archived.md");
+			const numeric = concept({ type: "Decision", status: 5, verified }, BODY, "numeric.md");
+			const stable = concept({ type: "Decision", status: "stable", verified }, BODY, "stable.md");
+			const empty = concept({ type: "Decision", status: "", verified }, BODY, "empty.md");
+			for (const c of [archived, numeric]) {
+				assert.strictEqual((yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW)).integrity, "drifted");
+			}
+			assert.deepStrictEqual(yield* Trust.lint(bundleOf(archived, numeric), OkfitConfig.DEFAULTS, NOW), []);
+			const control = yield* Trust.lint(bundleOf(archived, numeric, stable, empty), OkfitConfig.DEFAULTS, NOW);
+			assert.deepStrictEqual(
+				control.map((diagnostic) => diagnostic.file),
+				["stable.md", "empty.md"],
+			);
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 

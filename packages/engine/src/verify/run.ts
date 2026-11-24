@@ -1,6 +1,6 @@
 import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
-import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
+import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -9,6 +9,7 @@ import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
 	VerifyNothingToRevokeError,
+	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "../errors.js";
 import type { ChangeSince } from "./diff.js";
@@ -70,7 +71,7 @@ export interface VerifyResult {
 	/** The exact bytes `splice`'s edit would insert, written or not. */
 	readonly fragment: string;
 	/** `null` when no status flag was given; `from` is the RAW frontmatter status. */
-	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
+	readonly status: { readonly from: string | null; readonly to: "stable" | "draft" } | null;
 	/** The exact status bytes spliced, or `null` when no status edit was made. */
 	readonly statusFragment: string | null;
 	/** The content digest `integrity.verified` was bound to; the digest of the file before AND after the edit. */
@@ -134,6 +135,14 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	// actor's existing entry's `at` rather than append a second entry.
 	staleAfter: string | undefined = undefined,
 ) {
+	// OKF 0.3 §5.4: a status outside the vocabulary is not stable, so it is never attested unless this same
+	// write replaces it (`--stable`/`--draft`, ruling R11).
+	if (status === undefined && Derive.status(concept.frontmatter) === "unknown") {
+		return yield* new VerifyStatusUnknownError({
+			id: concept.id,
+			status: Derive.rawStatus(concept.frontmatter) ?? "",
+		});
+	}
 	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
 	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source).pipe(
 		Effect.catchTag("ContentUnhashableError", (error) =>
@@ -297,7 +306,8 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		priorAt: prepared.priorAt,
 		dryRun: options.dryRun,
 		fragment: prepared.fragment,
-		status: options.status === undefined ? null : { from: concept.frontmatter.status ?? null, to: options.status },
+		status:
+			options.status === undefined ? null : { from: Derive.rawStatus(concept.frontmatter) ?? null, to: options.status },
 		statusFragment: prepared.statusFragment,
 		content: prepared.content,
 		priorDrift: prior.drift?.reason ?? null,
@@ -594,7 +604,7 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	for (const [id, concept] of concepts) {
-		const status = options.promote === true && concept.frontmatter.status === "draft" ? "stable" : undefined;
+		const status = options.promote === true && Derive.status(concept.frontmatter) === "draft" ? "stable" : undefined;
 		prepared.push({
 			id,
 			conceptPath: concept.path,

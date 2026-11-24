@@ -3,10 +3,11 @@ import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { ERROR_PROJECTS } from "../../../engine/__test__/fixtures/bundles.js";
 import { writeTwoDecisions } from "./utils/concepts.js";
 import { conceptDigest } from "./utils/digest.js";
 import type { Sandbox } from "./utils/fixtures.js";
-import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
+import { makeSandbox, removeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 import type { TestServices } from "./utils/platform.js";
 import { TestPlatform } from "./utils/platform.js";
@@ -791,6 +792,54 @@ describe("okfit verify (e2e)", () => {
 			const after = await readProject(cwd);
 			assert.include(after, "by: human:grace-h");
 			assert.notInclude(after, "@");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+});
+
+describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/R11)", () => {
+	const margin = (cwd: string): string => join(cwd, "okf", "metrics", "margin.md");
+
+	/** The `unknown-status` seed (`status: bogus` on metrics/margin) with the ada identity and the seed's own config kept. */
+	const seededUnknown = async () => {
+		const sandbox = await makeSandbox("okfit-verify-unknown-");
+		const home = sandbox.env.HOME;
+		if (home === undefined) throw new Error("expected a HOME in the sandbox env");
+		await writeFile(join(home, ".gitconfig"), "[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n", "utf8");
+		await writeSeedInto(sandbox.cwd, ERROR_PROJECTS["unknown-status"]);
+		await appendFile(join(sandbox.cwd, ".config", "okfit.toml"), '\n[actors]\nhumans = ["human:ada"]\n', "utf8");
+		return { sandbox, cwd: sandbox.cwd, env: baseEnv(sandbox.env) };
+	};
+
+	it("exits 3 naming bogus and writes nothing", async () => {
+		const { sandbox, cwd, env } = await seededUnknown();
+		try {
+			const before = await readFile(margin(cwd), "utf8");
+			const run = await withServices(runOkfit(["verify", "metrics/margin"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 3, run.stderr);
+			assert.include(
+				run.stderr,
+				'error: "metrics/margin" has status "bogus", which is not draft, stable or deprecated',
+			);
+			assert.include(run.stderr, "--stable or --draft");
+			assert.strictEqual(await readFile(margin(cwd), "utf8"), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--stable (control) exits 0 and the JSON reports the raw status it replaced", async () => {
+		const { sandbox, cwd, env } = await seededUnknown();
+		try {
+			const run = await withServices(
+				runOkfit(["verify", "metrics/margin", "--stable", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.deepStrictEqual(JSON.parse(run.stdout).status, { from: "bogus", to: "stable" });
+			const text = await readFile(margin(cwd), "utf8");
+			assert.include(text, "status: stable\n");
+			assert.notInclude(text, "bogus");
 		} finally {
 			await removeSandbox(sandbox);
 		}

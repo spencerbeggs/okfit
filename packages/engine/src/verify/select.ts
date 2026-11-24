@@ -1,16 +1,18 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig, StaleConcept } from "@okfit/core";
+import { Derive } from "@okfit/core";
 import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
 import { DateTime, Effect } from "effect";
 import { VerifySelectionError } from "../errors.js";
 
 /**
  * Why a candidate concept was skipped by batch selection: `"draft"` and
- * `"deprecated"` mirror `status`, `"already-verified"` means the actor's
+ * `"deprecated"` mirror `status`, `"unknown-status"` is a `status` outside the vocabulary (OKF 0.3 §5.4),
+ * `"already-verified"` means the actor's
  * `verified` entry is still bound to the concept's current content.
  *
  * @public
  */
-export type VerifyBatchSkipReason = "draft" | "deprecated" | "already-verified";
+export type VerifyBatchSkipReason = "draft" | "deprecated" | "unknown-status" | "already-verified";
 
 /**
  * The outcome of {@link selectAttestable}.
@@ -33,8 +35,8 @@ const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<
 
 /**
  * Issue #138/#143: which concepts of `types` the actor may attest in one
- * batch. A draft is unsettled and a deprecated concept is retired (#143), so
- * both are skipped before the already-verified check. A concept whose
+ * batch. A draft is unsettled, a deprecated concept is retired (#143) and an unknown status is not stable
+ * (OKF 0.3 §5.4), so all three are skipped before the already-verified check. A concept whose
  * verification has drifted, or is bound to another actor, is a candidate.
  * With `options.drifted`, a drifted concept of any type is considered too,
  * as the picker does: the `verified-drift` lint's remedy is `okfit verify`.
@@ -53,7 +55,11 @@ export const selectAttestable = (
 	for (const [id, concept] of bundle.concepts) {
 		const drifted = options.drifted === true && signals.get(id)?.integrity === "drifted";
 		if (!types.has(concept.frontmatter.type) && !drifted) continue;
-		const status = concept.frontmatter.status;
+		const status = Derive.status(concept.frontmatter);
+		if (status === "unknown") {
+			skipped.push({ id, reason: "unknown-status" });
+			continue;
+		}
 		if (status === "draft" || status === "deprecated") {
 			skipped.push({ id, reason: status });
 			continue;
@@ -108,7 +114,7 @@ const boundAtOf = (concept: LoadedConcept): string | null => {
  * attested, plus every drifted concept of any type (a human verified it once
  * and its content has changed since, so the `verified-drift` lint sends the
  * reader here): drafts included, deprecated concepts and the actor's own
- * still-bound attestations excluded (a drifted one is offered again). Sorted
+ * still-bound attestations excluded, unknown-status concepts too (a drifted one is offered again). Sorted
  * by type, then id; grouping is the caller's.
  *
  * @public
@@ -122,9 +128,10 @@ export const selectPickerCandidates = (
 	const types = requireVerifiedTypes(config);
 	const rows: Array<PickerCandidate> = [];
 	for (const [id, concept] of bundle.concepts) {
-		const { type, status, title, description } = concept.frontmatter;
+		const { type, title, description } = concept.frontmatter;
+		const status = Derive.status(concept.frontmatter);
 		const drifted = signals.get(id)?.integrity === "drifted";
-		if ((!types.has(type) && !drifted) || status === "deprecated") continue;
+		if ((!types.has(type) && !drifted) || status === "deprecated" || status === "unknown") continue;
 		const verified = concept.frontmatter.verified ?? [];
 		if (attestedBy(concept, actor, signals)) continue;
 		rows.push({
@@ -162,8 +169,9 @@ export const selectStaleCandidates = (
 	for (const item of items) {
 		const concept = bundle.concepts.get(item.id);
 		if (concept === undefined) continue;
-		const { type, status, title, description } = concept.frontmatter;
-		if (status === "deprecated") continue;
+		const { type, title, description } = concept.frontmatter;
+		const status = Derive.status(concept.frontmatter);
+		if (status === "deprecated" || status === "unknown") continue;
 		rows.push({
 			id: item.id,
 			type,

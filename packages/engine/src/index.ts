@@ -33,6 +33,7 @@ export {
 	VerifyContentUnhashableError,
 	VerifyNothingToRevokeError,
 	VerifySelectionError,
+	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
 export type { ExternalReferencesShape } from "./external/ExternalReferences.js";

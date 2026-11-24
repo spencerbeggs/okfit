@@ -202,9 +202,10 @@ const lint = Effect.fn("Trust.lint")(function* (
 	if (severity === "off") return [];
 	const diagnostics: Array<Diagnostic> = [];
 	for (const [id, concept] of bundle.concepts) {
-		// `okfit verify` refuses drafts and deprecated concepts, so a warning on one could never be cleared.
+		// `okfit verify` refuses drafts, deprecated concepts and an unknown status, so a warning on one could never
+		// be cleared (`value-unknown` already warns about the last).
 		const status = Derive.status(concept.frontmatter);
-		if (status === "draft" || status === "deprecated") continue;
+		if (status === "draft" || status === "deprecated" || status === "unknown") continue;
 		const result = given?.get(id) ?? (yield* signal(concept, config, now));
 		if (result.drift === undefined) continue;
 		const range = DiagnosticRange.forFrontmatterPath(concept.document, rangePath(concept, result.drift));

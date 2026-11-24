@@ -7,6 +7,7 @@ import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer } from "effect";
+import type { VerifyStatusUnknownError } from "../../src/errors.js";
 import { runVerify, runVerifyBatch } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
@@ -474,4 +475,98 @@ describe("runVerify binds integrity.verified", () => {
 			}),
 		);
 	});
+});
+
+describe("runVerify refuses a status outside the vocabulary (OKF 0.3 5.4, R7/R11)", () => {
+	const AT = DateTime.makeUnsafe("2026-11-23T12:00:00Z");
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: { require_verified: true } },
+		actors: { humans: ["human:ada" as ActorPattern] },
+		extensions: {},
+	});
+	const platform = Layer.mergeAll(Git.layerTest({ configGet: identityConfigGet }), TestPlatform);
+	const doc = (status: string): string => `---\ntype: Decision\ntitle: T\nstatus: ${status}\n---\n\n# T\n`;
+	const seed: Readonly<Record<string, string>> = {
+		archived: doc("archived"),
+		numeric: doc("5"),
+		empty: doc('""'),
+		nulled: doc("null"),
+	};
+
+	it.effect('refuses archived and 5, verifies "" and null, and a --stable write fixes archived', () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-unknown-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const [name, text] of Object.entries(seed)) {
+					yield* Effect.promise(() => writeFile(join(root, "decisions", `${name}.md`), text));
+				}
+				const base = { bundleRoot: root, projectRoot: root, config, at: AT, dryRun: false } as const;
+				for (const [name, raw] of [
+					["archived", "archived"],
+					["numeric", "5"],
+				] as const) {
+					const error = yield* Effect.flip(
+						runVerify({ ...base, id: `decisions/${name}` }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(error._tag, "VerifyStatusUnknownError", name);
+					assert.strictEqual((error as VerifyStatusUnknownError).status, raw);
+					assert.strictEqual(
+						error.message,
+						`"decisions/${name}" has status "${raw}", which is not draft, stable or deprecated; fix the status (or pass --stable or --draft) before verifying`,
+					);
+					const after = yield* Effect.promise(() => readFile(join(root, "decisions", `${name}.md`), "utf8"));
+					assert.strictEqual(after, seed[name], "nothing written");
+				}
+				// controls: an empty or null status reads stable (11.2 rule 1) and verifies
+				for (const name of ["empty", "nulled"]) {
+					const ok = yield* runVerify({ ...base, id: `decisions/${name}` }).pipe(Effect.provide(platform));
+					assert.strictEqual(ok.id, `decisions/${name}`);
+				}
+				// R11: the write that replaces the status is the way out
+				const fixed = yield* runVerify({ ...base, id: "decisions/archived", status: "stable" }).pipe(
+					Effect.provide(platform),
+				);
+				assert.deepStrictEqual(fixed.status, { from: "archived", to: "stable" });
+				const text = yield* Effect.promise(() => readFile(join(root, "decisions", "archived.md"), "utf8"));
+				assert.include(text, "status: stable\n");
+				const numeric = yield* runVerify({ ...base, id: "decisions/numeric", status: "draft", dryRun: true }).pipe(
+					Effect.provide(platform),
+				);
+				assert.deepStrictEqual(numeric.status, { from: "5", to: "draft" });
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("batch selection skips an unknown status as unknown-status and verifies the rest", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-unknown-batch-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const [name, text] of Object.entries(seed)) {
+					yield* Effect.promise(() => writeFile(join(root, "decisions", `${name}.md`), text));
+				}
+				const result = yield* runVerifyBatch({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: true,
+					types: [],
+				}).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "decisions/archived", reason: "unknown-status" },
+					{ id: "decisions/numeric", reason: "unknown-status" },
+				]);
+				assert.deepStrictEqual(
+					result.verified.map((entry) => entry.id),
+					["decisions/empty", "decisions/nulled"],
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
 });

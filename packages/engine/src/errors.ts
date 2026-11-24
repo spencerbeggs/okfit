@@ -111,6 +111,24 @@ export class VerifyContentUnhashableError extends Schema.TaggedError<VerifyConte
 }
 
 /**
+ * OKF 0.3 §5.4: a `status` outside `draft | stable | deprecated` is not stable, so `okfit verify`
+ * refuses to attest the concept. `status` is the value as written (`Derive.rawStatus`, so `5` reads
+ * `"5"`). Passing `--stable` or `--draft` is the fix, because that write replaces the status. Exit 3,
+ * like the other verify refusals.
+ *
+ * @public
+ */
+export class VerifyStatusUnknownError extends Schema.TaggedError<VerifyStatusUnknownError>()(
+	"VerifyStatusUnknownError",
+	{ id: Schema.String, status: Schema.String },
+) {
+	override readonly [Runtime.errorExitCode] = 3;
+	override get message(): string {
+		return `"${this.id}" has status "${this.status}", which is not draft, stable or deprecated; fix the status (or pass --stable or --draft) before verifying`;
+	}
+}
+
+/**
  * `okfit verify --revoke` found no `verified` entry by the resolved actor on
  * the concept, so there is nothing to remove. Exit 3, like any other verify
  * outcome that cannot proceed on the concept.
