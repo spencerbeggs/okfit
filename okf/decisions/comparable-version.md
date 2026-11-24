@@ -21,7 +21,7 @@ sources:
     resource: ../../packages/cli/src/internal/versionFormatter.ts
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T16:18:39Z
+  at: 2026-11-24T16:20:52Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -39,7 +39,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: bf959d00479fa809
+    body: f6ef57824870560a
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -54,8 +54,8 @@ okfit ships as six independently versioned things: the `okfit` CLI
 (`@okfit/cli`), the MCP server (`@okfit/mcp`), the meta-package that
 installs both bins (`@okfit/plugin`), the shared `@okfit/engine` that the
 CLI and the MCP server both run, the OKF spec version okfit implements
-(`OKF_SPEC_VERSION`, `0.3` since OKF v0.3 support), and the `major.minor` version of the config
-file's JSON Schema, `1.0`. The CLI and the MCP server cannot know
+(`OKF_SPEC_VERSION`, `0.3` since OKF v0.3 support), and the `major.minor`
+version of the config file's JSON Schema, `1.0`. The CLI and the MCP server cannot know
 each other's version — the dependency graph is acyclic and neither
 depends on the other — but they share the engine, and it is the engine
 that decides what a report says.

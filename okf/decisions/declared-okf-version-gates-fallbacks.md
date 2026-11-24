@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T16:18:39Z
+  at: 2026-11-24T16:20:52Z
 status: stable
 integrity:
   generated:
-    body: 2b9b94c00742b26a
+    body: 6b23e6200b970892
   verified:
     by: human:spencer
     at: 2026-11-24T14:56:24Z
@@ -36,8 +36,9 @@ verified:
 ## Context
 
 OKF v0.3 §6.2 resolves a bare path value (no `./`, `../` or `/`) from the
-file's own directory only. OKF v0.2 bundles, including this one until it declared 0.3, relied on a second try from the bundle root. §10.3 also changed how a
-computation is found: v0.3 names the first fenced code block of the
+file's own directory only. OKF v0.2 bundles, including this one until it
+declared 0.3, relied on a second try from the bundle root. §10.3 also changed
+how a computation is found: v0.3 names the first fenced code block of the
 `Computation` section, where v0.2 had no locator rule and okfit kept the
 whole depth-1 section body. Applying the v0.3 rules to every bundle would
 break bundles that okfit already accepted, so core needs to know which rules
