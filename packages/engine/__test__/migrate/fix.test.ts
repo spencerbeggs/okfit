@@ -173,6 +173,44 @@ describe("migration fixes", () => {
 		}).pipe(Effect.provide(on(ERROR_PROJECTS["unparsable-version"]))),
 	);
 
+	describe("a root index whose frontmatter does not parse (final-review finding 3)", () => {
+		const duplicate = '---\nokf_version: "0.2"\nokf_version: "0.1"\n---\n\n# B\n';
+		const malformed = '---\nokf_version: "0.2"\nbad: [\n---\n\n# B\n';
+		const REASON = /^the root index frontmatter does not parse \(.+\); fix it by hand$/;
+		// the root-relative fixes sit in the concept; the control is the same bundle with a valid root index
+		const scenario = (name: string, index: string) =>
+			it.effect(`${name}: the version fix is refused, nothing is written to the index, the rest still applies`, () =>
+				Effect.gen(function* () {
+					const first = yield* apply(yield* load);
+					assert.strictEqual(yield* read(INDEX), index);
+					assert.deepStrictEqual(
+						first.edits.map((e) => e.path),
+						["computations/revenue-ytd.md"],
+					);
+					assert.strictEqual(first.refused.length, 1);
+					assert.strictEqual(first.refused[0]?.file, "index.md");
+					assert.strictEqual(first.refused[0]?.code, "okf-version-undeclared");
+					assert.match(first.refused[0]?.reason ?? "", REASON);
+					assert.strictEqual(yield* read(COMPUTATION), V03_PROJECT[COMPUTATION]);
+					// a second run gives the same refusal, still writing nothing to the index
+					const second = yield* apply(yield* load);
+					assert.deepStrictEqual(second.edits, []);
+					assert.strictEqual(second.refused.length, 1);
+					assert.match(second.refused[0]?.reason ?? "", REASON);
+					assert.strictEqual(yield* read(INDEX), index);
+					// control: the same bundle with a valid root index gets its version fixed
+					const control = yield* planIn(V02_PROJECT);
+					assert.deepStrictEqual(control.refused, []);
+					assert.include(
+						control.edits.map((e) => e.path),
+						"index.md",
+					);
+				}).pipe(Effect.provide(on({ ...V02_PROJECT, [INDEX]: index }))),
+			);
+		scenario("a duplicate okf_version key", duplicate);
+		scenario("malformed YAML", malformed);
+	});
+
 	it.effect("dryRun returns the same plan and every file is byte-identical", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load;

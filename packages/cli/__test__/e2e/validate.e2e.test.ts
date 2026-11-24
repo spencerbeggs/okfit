@@ -1104,6 +1104,33 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	it.effect(
+		"--fix on a root index with malformed YAML refuses the version, fixes the rest and exits as validate does",
+		() =>
+			Effect.gen(function* () {
+				const broken = '---\nokf_version: "0.2"\nbad: [\n---\n\n# B\n';
+				const sandbox = yield* seed("okfit-validate-bad-index-", { ...V02_PROJECT, "okf/index.md": broken });
+				const plain = yield* runOkfit(["validate"], sandbox);
+				// the malformed index is a conformance error, so plain validate already exits non-zero
+				assert.notStrictEqual(plain.exitCode, 0);
+				const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+				assert.strictEqual(run.exitCode, plain.exitCode);
+				assert.notStrictEqual(run.exitCode, 3);
+				assert.match(
+					run.stdout,
+					/refused: index\.md: the root index frontmatter does not parse \(.+\); fix it by hand/,
+				);
+				assert.strictEqual(yield* read(sandbox, "okf/index.md"), broken);
+				// the root-relative fixes in the same plan are applied
+				assert.strictEqual(yield* read(sandbox, COMPUTATION), V03_PROJECT[COMPUTATION]);
+				// control: the same bundle with a valid root index has its version fixed
+				const good = yield* seed("okfit-validate-good-index-");
+				const fixed = yield* runOkfit(["validate", "--target", "0.3", "--fix"], good);
+				assert.strictEqual(fixed.exitCode, 0);
+				assert.notInclude(fixed.stdout, "refused:");
+			}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("a positional target narrows --fix: another file is refused, the computation alone changes", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* seed("okfit-validate-narrow-");

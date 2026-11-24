@@ -51,6 +51,18 @@ export interface MigrationFixPlan {
 	readonly drifts: ReadonlyArray<string>;
 }
 
+interface Refusal {
+	file: string;
+	code: MigrationCode;
+	reason: string;
+}
+
+/** The first line of a parser message, trimmed and capped, so a refusal reason stays one short line. */
+const shortDetail = (message: string): string => {
+	const first = (message.split("\n")[0] ?? "").trim().replace(/[.;]+$/, "");
+	return first.length > 80 ? `${first.slice(0, 77)}...` : first;
+};
+
 /** Splice the declaration into the root index's real text, or say why it cannot be done in place. */
 const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (source: string, target: string) {
 	const { text, bom } = stripBom(source);
@@ -118,7 +130,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	const allPathFindings = all.filter((finding) => finding.code === "root-relative-path").length;
 
 	const edits: Array<{ path: string; text: string; fixes: Array<MigrationFixKind> }> = [];
-	const refused: Array<{ file: string; code: MigrationCode; reason: string }> = [];
+	const refused: Array<Refusal> = [];
 	const drifts = new Set<string>();
 	// Findings this plan actually turns into an insert; a selected finding it cannot locate is refused, never counted.
 	let fixed = 0;
@@ -183,12 +195,23 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 				reason: `${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`,
 			});
 		} else {
-			// Decode the bytes myself: `readFileString` may drop a leading BOM, and the write must give it back.
-			const bytes = yield* fs.readFile(path.join(bundle.root, ROOT_INDEX));
-			const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
-			const declared = yield* declareVersion(source, target);
-			if ("reason" in declared) refused.push({ file: version.file, code: version.code, reason: declared.reason });
-			else edits.push({ path: ROOT_INDEX, text: declared.text, fixes: ["okf-version"] });
+			// A frontmatter the loader already could not read (malformed YAML, a duplicate key) is never edited: a splice
+			// would leave a file that still does not parse.
+			const loadError = bundle.diagnostics.find((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unparseable");
+			const unparseable = (detail: string) =>
+				`the root index frontmatter does not parse (${shortDetail(detail)}); fix it by hand`;
+			if (loadError !== undefined) {
+				refused.push({ file: version.file, code: version.code, reason: unparseable(loadError.message) });
+			} else {
+				// Decode the bytes myself: `readFileString` may drop a leading BOM, and the write must give it back.
+				const bytes = yield* fs.readFile(path.join(bundle.root, ROOT_INDEX));
+				const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
+				const declared = yield* declareVersion(source, target).pipe(
+					Effect.catchTag("YamlParseError", (error) => Effect.succeed({ reason: unparseable(error.message) })),
+				);
+				if ("reason" in declared) refused.push({ file: version.file, code: version.code, reason: declared.reason });
+				else edits.push({ path: ROOT_INDEX, text: declared.text, fixes: ["okf-version"] });
+			}
 		}
 	}
 
