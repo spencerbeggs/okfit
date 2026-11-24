@@ -14,11 +14,11 @@ sources:
     title: The only home of the old spellings, read by the sync migration.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-24T21:18:30Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 5e2419fc65450dea
+    body: 3789af554da46b3d
 ---
 
 # okfit's own frontmatter keys carry the x-okfit- prefix
@@ -61,16 +61,22 @@ nothing on a second run. Until it runs, an unmigrated bundle reads as
 unverified and its profile fields read as unknown extras.
 
 **When sync renames a profile key.** Only where the merged config declares the
-prefixed field for that concept's type and not the bare one. A custom type, a
-`profile = "none"` project and a user's own bare field are left alone, and
-config files are never edited. A concept carrying both spellings is skipped as
+prefixed field for that concept's type, does not declare the bare one, and the
+type's `required` list does not name the bare one. A custom type, a
+`profile = "none"` project and a user's own bare field (a
+`[types.<T>.fields.<k>]` table or a bare `<k>` in the `required` list) are left
+alone; the project updates its config by hand, then `okfit sync` renames the
+key. Config files are never edited. A concept carrying both spellings is skipped as
 `legacy-key-conflict` with nothing written. A legacy key sync cannot rename in
 place (a flow-style document, a flow or alias legacy block, an explicit `?`
 key, a duplicated key) is skipped as `legacy-key-unsupported`. A key supplied
 only through a YAML `<<` merge is not a key okfit reads, so it is left alone.
 A concept sync cannot stamp (uncommitted edits, untracked, no `generated`)
-still gets its keys renamed and is reported as both migrated and skipped; on
-`--staged` that restages the whole file, as a stamp does.
+still gets its keys renamed and is reported as both migrated and skipped. On
+`--staged`, a rename that is the only write to a concept restages the whole
+file, so the first commit that touches an unmigrated concept also commits any
+unstaged edits to it; run a plain `okfit sync` and commit the key move on its
+own before other work.
 
 **Verification stays refused on a legacy block.** `okfit verify`, the editor's
 verify action and the migration `--fix` refuse a concept that still carries

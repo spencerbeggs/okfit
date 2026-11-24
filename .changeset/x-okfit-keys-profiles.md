@@ -9,7 +9,7 @@ The built-in `software-project` profile fields move under the `x-okfit-` prefix.
 - The `required` lists of the built-in types name the prefixed fields, so a `software-project` bundle that has not been migrated reports `required-key-missing`. Run `okfit sync` to rename the keys.
 - `SurfaceTemplate.frontmatter` keys in the surface presets use the prefixed names.
 - `Canonical.EXCLUDED_KEYS` now excludes `x-okfit-integrity` and no longer excludes a bare `integrity`. Renaming `integrity` changes no content digest. Renaming a profile key does, so a verified concept that carries a profile field reads as `verified-drift` until a human re-runs `okfit verify`.
-- A user config that names a built-in field by its bare key (`required = ["kind"]`, or its own `[types.Module.fields.kind]` table) is not touched by `okfit sync` for that field; update it by hand.
+- A user config that names a built-in field by its bare key, in a `[types.<T>.fields.<k>]` table or in that type's `required` list, keeps `<k>` unrenamed for that type; update the config by hand, then run `okfit sync` to rename the key.
 
 ## Features
 

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-24T21:18:30Z
 tags:
   - architecture
 verified:
@@ -41,7 +41,7 @@ verified:
     at: 2026-11-24T14:56:24Z
 x-okfit-integrity:
   generated:
-    body: da0e3917fa0b40ee
+    body: 630b20196c5c56fc
   verified:
     by: human:spencer
     at: 2026-11-24T14:56:24Z
@@ -314,7 +314,12 @@ one-time migration moves a legacy `generated.body_sha256` to
 `x-okfit-renders[].body` (16 hex), and renames the old `integrity` key and the built-in profile
 fields to their `x-okfit-` spellings; the plan and the JSON/human output report them
 as `migrated`, and a concept that cannot be spliced safely is skipped as
-`integrity-unsupported` or `renders-unsupported`. The key names are explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). `generated.at` is the derived instant (the last
+`integrity-unsupported` or `renders-unsupported`. A concept that holds both
+spellings of a key is skipped as `legacy-key-conflict`, and one whose old key
+cannot be renamed in place (flow style, an alias or a `<<` merge in the old
+integrity block, a duplicated key, an explicit `?` key) as
+`legacy-key-unsupported`; an id in `migrated` may also appear in `skipped`, because
+a concept sync cannot stamp still has its keys renamed. The key names are explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). `generated.at` is the derived instant (the last
 body-changing commit's author date; under `--staged`, the hook's clock). When
 the concept's `x-okfit-integrity.verified` binds its latest human entry and covers
 exactly the current content, sync stamps `min(derived instant, binding.at)`
