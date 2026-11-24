@@ -225,7 +225,7 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
 				],
 			};
 		}
-		const parsed = MarkdownDocument.parseResult(text, OPTIONS);
+		const parsed = Bundle.parseDocument(text);
 		if (Result.isFailure(parsed)) {
 			const d = parsed.failure.diagnostic;
 			return {
@@ -277,6 +277,13 @@ const loadMarkdown = (file: string, text: string): Effect.Effect<FileOutcome> =>
  */
 export class Bundle {
 	private constructor() {}
+
+	/**
+	 * Parse Markdown text exactly as `Bundle.load` parses every bundle file (frontmatter on), so a tool that
+	 * scans a file the loader did not keep as a concept reads its body the way a concept's is read.
+	 */
+	static readonly parseDocument = (text: string): ReturnType<typeof MarkdownDocument.parseResult> =>
+		MarkdownDocument.parseResult(text, OPTIONS);
 
 	/**
 	 * Load the bundle at `options.root` (D-8, D-9, D-11 to D-14, D-21). Content never

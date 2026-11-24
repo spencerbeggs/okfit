@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import { MarkdownDocument, MarkdownEdit, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
+import { MarkdownEdit, YamlFrontmatter } from "@effected/markdown";
 import { relativeWithin } from "@effected/walker";
 import type { BundleLoadError, LoadedBundle, OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId } from "@okfit/core";
@@ -167,25 +167,34 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 		(file) =>
 			file.endsWith(".md") && !ConceptId.isReservedFile(file) && !bundle.concepts.has(file.slice(0, -3) as never),
 	);
+	const codesByFile = new Map<string, Set<string>>();
+	for (const { file, code } of bundle.diagnostics) {
+		const codes = codesByFile.get(file) ?? new Set<string>();
+		codes.add(code);
+		codesByFile.set(file, codes);
+	}
+	// An unclosed or unparseable block records only its own error, never one of the two skip warnings.
 	const unreadable = unloaded.filter((file) => {
-		const codes = bundle.diagnostics.filter((d) => d.file === file).map((d) => d.code);
-		const skipped = codes.some((code) => code === "frontmatter-missing" || code === "type-missing");
-		// An unclosed or unparseable block records only its own error, never one of the two skip warnings.
-		return !skipped;
+		const codes = codesByFile.get(file);
+		return codes === undefined || !(codes.has("frontmatter-missing") || codes.has("type-missing"));
 	});
 	if (unreadable.length > 0) return yield* new MoveError({ reason: "unloaded-files", detail: unreadable.join("\n") });
 	const nonConcepts: Array<ReferenceSource> = [];
 	for (const file of unloaded) {
 		const text = yield* fs.readFileString(path.join(bundle.root, file));
-		const parsed = MarkdownDocument.parseResult(text, MarkdownParseOptions.make({ frontmatter: true }));
-		const node = Result.isSuccess(parsed) ? Option.getOrUndefined(parsed.success.frontmatter) : undefined;
+		const parsed = Bundle.parseDocument(text);
 		if (!Result.isSuccess(parsed)) return yield* new MoveError({ reason: "unloaded-files", detail: file });
+		const node = Option.getOrUndefined(parsed.success.frontmatter);
 		let raw: Record<string, unknown> = {};
 		if (node !== undefined) {
 			const read = yield* Effect.result(YamlFrontmatter.decode(node));
-			if (Result.isFailure(read) || typeof read.success !== "object" || read.success === null)
-				return yield* new MoveError({ reason: "unloaded-files", detail: file });
-			raw = read.success as Record<string, unknown>;
+			if (Result.isFailure(read)) return yield* new MoveError({ reason: "unloaded-files", detail: file });
+			// An empty block decodes to null: core reports it `type-missing`, a non-concept with no fields.
+			if (read.success !== null && read.success !== undefined) {
+				if (typeof read.success !== "object" || Array.isArray(read.success))
+					return yield* new MoveError({ reason: "unloaded-files", detail: file });
+				raw = read.success as Record<string, unknown>;
+			}
 		}
 		nonConcepts.push({ path: file, document: parsed.success, frontmatter: { raw } });
 	}

@@ -124,7 +124,11 @@ const CORE_SCALAR_KEYS: ReadonlySet<string> = new Set(
 export interface ReferenceSource {
 	readonly path: string;
 	readonly document: MarkdownDocument;
-	readonly frontmatter: { readonly raw: Record<string, unknown>; readonly type?: string };
+	readonly frontmatter: {
+		readonly raw: Record<string, unknown>;
+		/** An undefined type skips the profile-declared path fields (a non-concept has none). */
+		readonly type?: string;
+	};
 }
 
 /** The frontmatter paths whose values are bundle paths, for this file. */
