@@ -335,7 +335,7 @@ const docsRepo = (options: {
 		[ProfileKeys.kind]: "repo",
 		[ProfileKeys.audience]: options.audience,
 		resource: options.resource,
-		...(options.linksTo === undefined ? {} : { links_to: options.linksTo }),
+		...(options.linksTo === undefined ? {} : { [ProfileKeys.links_to]: options.linksTo }),
 	},
 	body: body(
 		`# ${options.title1}`,

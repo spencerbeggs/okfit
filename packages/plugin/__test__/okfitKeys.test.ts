@@ -15,13 +15,38 @@ const ALLOWED: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * A quoted `integrity` or a quoted `integrity:` (the key line okfit writes), the frontmatter key itself. It does
- * not match the derived signal's display text such as `` `integrity: ${state}` `` or `"integrity: drifted"`
- * (`okfit query` prints that vocabulary: current, drifted, none), which has text after the colon.
+ * A quoted `integrity`, a quoted `integrity:` (the key line okfit writes, closed or followed by an escaped
+ * newline), or a template literal that opens with `integrity:` and an interpolation. It does not match the
+ * derived signal's display text such as `` `integrity: ${state}` `` or `"integrity: drifted"`, which has a
+ * space after the colon.
  */
-const INTEGRITY_LITERAL = /["'`]integrity(?:["'`]|:["'`])/;
-/** A quoted profile field name that the `integrity` pattern does not cover. */
-const FIELD_LITERAL = /["'](renders|surface|links_to)["']/;
+const INTEGRITY_LITERAL = /["'`]integrity(?:["'`]|:(?:["'`]|\\n|\$\{))/;
+
+/** The 18 built-in profile field names (`PROFILE_FIELD_NAMES`), split by how distinctive each is as a word. */
+const DISTINCTIVE = [
+	"links_to",
+	"renders",
+	"supersedes",
+	"justifies",
+	"runbooks",
+	"crosses",
+	"pins",
+	"bounds",
+	"occurred",
+	"audience",
+	"repository",
+] as const;
+/** Common words: scanned only in quoted form, since `kind: "path"` and `url` appear everywhere as other things. */
+const COMMON = ["kind", "layer", "gate", "guard", "url", "entry", "surface"] as const;
+
+const distinctive = DISTINCTIVE.join("|");
+const common = COMMON.join("|");
+/** A quoted field name; an unquoted object key; a member read. The first covers bracket reads too. */
+const FIELD_PATTERNS: ReadonlyArray<RegExp> = [
+	new RegExp(`["'\`](?:${distinctive}|${common})["'\`]`),
+	new RegExp(`(?<![.\\w])(?:${distinctive})\\s*:`),
+	new RegExp(`(?<!ProfileKeys)\\.(?:${distinctive})\\b`),
+];
 
 /** The text of `source` with line and block comments blanked; string, template and regex-free scanning. */
 const stripComments = (source: string): string => {
@@ -59,13 +84,68 @@ const stripComments = (source: string): string => {
 	return out;
 };
 
-const literalsIn = (source: string): ReadonlyArray<string> => {
-	const text = stripComments(source);
-	return [INTEGRITY_LITERAL, FIELD_LITERAL].flatMap((pattern) => {
-		const match = pattern.exec(text);
-		return match === null ? [] : [match[0]];
-	});
-};
+const PATTERNS: ReadonlyArray<RegExp> = [INTEGRITY_LITERAL, ...FIELD_PATTERNS];
+
+/** Each pattern's first match per line of `source` with comments removed. */
+const literalsIn = (source: string): ReadonlyArray<string> => hitsIn(source).map((hit) => hit.match);
+
+interface Hit {
+	readonly line: number;
+	readonly text: string;
+	readonly match: string;
+}
+
+const hitsIn = (source: string): ReadonlyArray<Hit> =>
+	stripComments(source)
+		.split("\n")
+		.flatMap((text, index) =>
+			PATTERNS.flatMap((pattern) => {
+				const match = pattern.exec(text);
+				return match === null ? [] : [{ line: index + 1, text, match: match[0] }];
+			}),
+		);
+
+/**
+ * A site that matches a pattern but is not a frontmatter key, scoped to a file and the line's text, with the
+ * reason it is not one. Everything else that matches is a real key literal and fails the scan.
+ */
+interface Allowed {
+	readonly file: string;
+	readonly line: RegExp;
+	readonly reason: string;
+}
+const NOT_A_KEY: ReadonlyArray<Allowed> = [
+	{ file: "packages/cli/src/render/verify.ts", line: /"entry"/, reason: "display word for one removed verification" },
+	{ file: "packages/core/src/Graph.ts", line: /_tag: "url"/, reason: "link-resolution tag" },
+	{ file: "packages/core/src/internal/links.ts", line: /_tag: "url"/, reason: "link-classification tag" },
+	{ file: "packages/engine/src/validate/repository.ts", line: /"repository"/, reason: "ResourceScope member" },
+	{ file: "packages/profiles/src/Canonical.ts", line: /\(renders: unknown\)/, reason: "a parameter name" },
+	{
+		file: "packages/profiles/src/SoftwareProject.ts",
+		line: /People changing this repository:/,
+		reason: "prose in a description",
+	},
+	{
+		file: "packages/profiles/src/SoftwareProject.ts",
+		line: /directory: "runbooks"/,
+		reason: "a layout directory, not a field",
+	},
+	{
+		file: "packages/profiles/src/presets/surfaces.ts",
+		line: /^\s*(?:readonly )?audience: /,
+		reason: "docsRepo's and the README presets' own option, copied into frontmatter under ProfileKeys.audience",
+	},
+	{
+		file: "packages/profiles/src/presets/surfaces.ts",
+		line: /options\.audience/,
+		reason: "reads docsRepo's own option, written under ProfileKeys.audience",
+	},
+	{
+		file: "packages/profiles/src/presets/surfaces.ts",
+		line: /placeholder `url`/,
+		reason: "prose in the preset body",
+	},
+];
 
 const walk = (dir: string, extensions: ReadonlyArray<string>): ReadonlyArray<string> =>
 	readdirSync(dir).flatMap((name) => {
@@ -100,6 +180,21 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 		expect(literalsIn('const url = "https://x.test"; const k = "links_to";')).toEqual(['"links_to"']);
 	});
 
+	it("catches the integrity key line in each way it is rendered", () => {
+		expect(literalsIn('const k = "integrity:\\n";')).toEqual(['"integrity:\\n']);
+		const interpolation = "$" + "{";
+		expect(literalsIn(`const k = \`integrity:${interpolation}nl}\`;`)).toEqual([`\`integrity:${interpolation}`]);
+	});
+
+	it("catches an unquoted key, a member read and a bracket read of a profile field", () => {
+		expect(literalsIn("const o = { links_to: options.linksTo };")).toEqual(["links_to:"]);
+		expect(literalsIn("const o = { ...(a ? {} : { links_to: b }) };")).toEqual(["links_to:"]);
+		expect(literalsIn("const v = raw.renders;")).toEqual([".renders"]);
+		expect(literalsIn('const v = raw["supersedes"];')).toEqual(['"supersedes"']);
+		expect(literalsIn("const v = raw.surface; const w = { kind: 1, url: 2 };")).toEqual([]);
+		expect(literalsIn("const v = ProfileKeys.renders;")).toEqual([]);
+	});
+
 	it("no source file outside the allowlist holds a quoted key literal, non-vacuously", () => {
 		const files = sourceFiles();
 		expect(files.length).toBeGreaterThan(100);
@@ -108,9 +203,13 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 			if (allowed.endsWith("legacyKeys.ts")) continue;
 			expect(files.map((file) => relative(ROOT, file))).toContain(allowed);
 		}
-		const offenders = files
-			.map((file) => ({ file: relative(ROOT, file), hits: literalsIn(readFileSync(file, "utf8")) }))
-			.filter(({ file, hits }) => !ALLOWED.has(file) && hits.length > 0);
+		const offenders = files.flatMap((file) => {
+			const name = relative(ROOT, file);
+			if (ALLOWED.has(name)) return [];
+			return hitsIn(readFileSync(file, "utf8"))
+				.filter((hit) => !NOT_A_KEY.some((site) => site.file === name && site.line.test(hit.text)))
+				.map((hit) => `${name}:${hit.line}: ${hit.text.trim()}`);
+		});
 		expect(offenders).toEqual([]);
 	});
 });
