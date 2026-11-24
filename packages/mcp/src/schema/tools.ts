@@ -57,6 +57,7 @@ export const ListConceptsParams = Schema.Struct({
 	verified: Schema.optionalKey(Schema.Boolean),
 	drifted: Schema.optionalKey(Schema.Boolean),
 	stale: Schema.optionalKey(Schema.Boolean),
+	current: Schema.optionalKey(Schema.Boolean),
 	now: Schema.optionalKey(Schema.String),
 	limit: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1000 }))),
 	offset: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
@@ -110,6 +111,7 @@ export const GetConceptFound = Schema.Struct({
 	integrity: Schema.Literals(["current", "drifted", "none"]),
 	stale: Schema.Boolean,
 	drift: Schema.NullOr(TrustDrift),
+	replacement: Schema.NullOr(Schema.String),
 });
 /** @public */
 export type GetConceptFound = typeof GetConceptFound.Type;

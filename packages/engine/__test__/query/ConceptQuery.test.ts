@@ -10,7 +10,8 @@ import type { ConceptSignal } from "@okfit/profiles";
 import { Cause, Effect, Exit, Layer, Path } from "effect";
 import { ConceptQuery } from "../../src/query/ConceptQuery.js";
 import { toConceptSummary } from "../../src/render/query.js";
-import { ROOT } from "../utils/bundle.js";
+import { ERROR_PROJECTS, V03_PROJECT } from "../fixtures/bundles.js";
+import { ROOT, projectPlatform } from "../utils/bundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 
@@ -185,6 +186,122 @@ describe("ConceptQuery.neighbors", () => {
 				assert.strictEqual(m.outgoing[0]?.concept, null);
 				const error = yield* ConceptQuery.neighbors(bundle, "").pipe(Effect.flip);
 				assert.strictEqual(error.reason, "empty-id");
+			}),
+		),
+	);
+});
+
+const currentConfig = {
+	...OkfitConfig.DEFAULTS,
+	types: { Metric: {}, Module: {}, Project: {}, "Attested Computation": {} },
+};
+const ARCHIVED = "---\ntype: Metric\ntitle: Archived\ndescription: Old.\nstatus: archived\n---\n\n# Archived\n\nOld.\n";
+const WITH_ARCHIVED = { ...V03_PROJECT, "okf/metrics/archived.md": ARCHIVED };
+const onProject = <A, E>(seed: Readonly<Record<string, string>>, body: (bundle: LoadedBundle) => Effect.Effect<A, E>) =>
+	Effect.flatMap(Bundle.load({ root: ROOT }), body).pipe(Effect.provide(projectPlatform(seed)));
+const noSignals: ReadonlyMap<string, ConceptSignal> = new Map();
+
+describe("ConceptQuery.list current (OKF 0.3 5.4)", () => {
+	it.effect("drops deprecated and unknown concepts and lists the replacement once", () =>
+		onProject(WITH_ARCHIVED, (bundle) =>
+			Effect.gen(function* () {
+				const all = ids(yield* ConceptQuery.list(bundle, currentConfig, {}, noSignals));
+				// control: without `current`, the deprecated and the unknown-status concepts are listed
+				assert.include(all, "metrics/margin-legacy");
+				assert.include(all, "metrics/archived");
+				const current = ids(yield* ConceptQuery.list(bundle, currentConfig, { current: true }, noSignals));
+				assert.notInclude(current, "metrics/margin-legacy");
+				assert.notInclude(current, "metrics/archived");
+				assert.strictEqual(current.filter((id) => id === "metrics/margin").length, 1);
+				assert.lengthOf(current, all.length - 2);
+			}),
+		),
+	);
+
+	it.effect("does not add a replacement that fails another filter", () =>
+		onProject(WITH_ARCHIVED, (bundle) =>
+			Effect.gen(function* () {
+				// control: the Metric type filter keeps the Metric replacement
+				const metrics = ids(
+					yield* ConceptQuery.list(bundle, currentConfig, { current: true, types: ["Metric"] }, noSignals),
+				);
+				assert.deepStrictEqual(metrics, ["metrics/margin", "metrics/revenue"]);
+				// the legacy Metric fails `types: ["Module"]`, so its replacement is not added either
+				const modules = ids(
+					yield* ConceptQuery.list(bundle, currentConfig, { current: true, types: ["Module"] }, noSignals),
+				);
+				assert.deepStrictEqual(modules, ["modules/widget"]);
+			}),
+		),
+	);
+
+	it.effect("lists a replacement reached through a deprecated chain once, in id order", () =>
+		onProject(
+			{
+				...V03_PROJECT,
+				"okf/metrics/margin-older.md":
+					"---\ntype: Metric\ntitle: Older\ndescription: Older.\nstatus: deprecated\nsuperseded_by: ./margin-legacy.md\n---\n\n# Older\n\nOlder.\n",
+			},
+			(bundle) =>
+				Effect.gen(function* () {
+					const current = ids(yield* ConceptQuery.list(bundle, currentConfig, { current: true }, noSignals));
+					// two deprecated concepts reach the same replacement through a chain; it appears once, in id order
+					assert.deepStrictEqual(current, [...new Set(current)].toSorted());
+					assert.strictEqual(current.filter((id) => id === "metrics/margin").length, 1);
+					assert.notInclude(current, "metrics/margin-older");
+				}),
+		),
+	);
+
+	it.effect("an explicit statuses filter still constrains the result: current + deprecated lists nothing", () =>
+		onProject(WITH_ARCHIVED, (bundle) =>
+			Effect.gen(function* () {
+				// control: the deprecated filter alone finds the legacy metric
+				assert.deepStrictEqual(
+					ids(yield* ConceptQuery.list(bundle, currentConfig, { statuses: ["deprecated"] }, noSignals)),
+					["metrics/margin-legacy"],
+				);
+				assert.deepStrictEqual(
+					yield* ConceptQuery.list(bundle, currentConfig, { current: true, statuses: ["deprecated"] }, noSignals),
+					[],
+				);
+				// stable + current keeps stable concepts, and the replacement (stable) too
+				const stable = ids(
+					yield* ConceptQuery.list(bundle, currentConfig, { current: true, statuses: ["stable"] }, noSignals),
+				);
+				assert.include(stable, "metrics/margin");
+				assert.notInclude(stable, "metrics/margin-legacy");
+			}),
+		),
+	);
+
+	it.effect("a replacement whose status is unknown is not added", () =>
+		onProject(ERROR_PROJECTS["unknown-status"], (bundle) =>
+			Effect.gen(function* () {
+				const current = ids(yield* ConceptQuery.list(bundle, currentConfig, { current: true }, noSignals));
+				// control: margin-legacy's replacement is margin (status: bogus), which is not current knowledge
+				assert.notInclude(current, "metrics/margin");
+				assert.notInclude(current, "metrics/margin-legacy");
+				assert.include(current, "metrics/revenue");
+			}),
+		),
+	);
+});
+
+describe("ConceptQuery.get replacement", () => {
+	it.effect("reports the replacement of a deprecated concept, and null otherwise", () =>
+		onProject(V03_PROJECT, (bundle) =>
+			Effect.gen(function* () {
+				assert.strictEqual((yield* ConceptQuery.get(bundle, "metrics/margin-legacy")).replacement, "metrics/margin");
+				assert.strictEqual((yield* ConceptQuery.get(bundle, "metrics/margin")).replacement, null);
+			}),
+		),
+	);
+
+	it.effect("is null when the replacement is not current knowledge", () =>
+		onProject(ERROR_PROJECTS["unknown-status"], (bundle) =>
+			Effect.gen(function* () {
+				assert.strictEqual((yield* ConceptQuery.get(bundle, "metrics/margin-legacy")).replacement, null);
 			}),
 		),
 	);

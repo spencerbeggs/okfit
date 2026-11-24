@@ -106,6 +106,8 @@ export const QueryGetEnvelope = Schema.Struct({
 	concept: Schema.Struct({
 		...ConceptSummary.fields,
 		drift: Schema.NullOr(TrustDrift),
+		/** The concept that replaces a deprecated one (OKF 0.3 section 5.4), or `null`. */
+		replacement: Schema.NullOr(Schema.String),
 		frontmatter: Schema.Record(Schema.String, Schema.Unknown),
 		links: Schema.Array(QueryLink),
 	}),
@@ -155,6 +157,8 @@ export const queryGetEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly concept: ConceptSummary;
 	readonly drift: TrustDrift | null;
+	/** The current replacement of a deprecated concept; omitted reads as `null`. */
+	readonly replacement?: string | null;
 	readonly frontmatter: Readonly<Record<string, unknown>>;
 	readonly links: ReadonlyArray<QueryLink>;
 	readonly distribution?: Distribution;
@@ -163,7 +167,13 @@ export const queryGetEnvelope = (input: {
 	okfit_version: input.okfitVersion,
 	engine_version: ENGINE_VERSION,
 	distribution: input.distribution ?? null,
-	concept: { ...input.concept, drift: input.drift, frontmatter: input.frontmatter, links: input.links },
+	concept: {
+		...input.concept,
+		drift: input.drift,
+		replacement: input.replacement ?? null,
+		frontmatter: input.frontmatter,
+		links: input.links,
+	},
 });
 
 /** Build the neighbors envelope. @public */

@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import type { ConceptSummary } from "../src/index.js";
-import { copyFixtureProject } from "./utils/fixtureProject.js";
+import { copyFixtureProject, copySupersededProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
 
 interface ListResult {
@@ -21,6 +21,26 @@ const ok = (result: { readonly isError?: boolean; readonly structuredContent?: u
 	assert.notOk(result.isError);
 	return result.structuredContent as ListResult;
 };
+
+describe("list_concepts current", () => {
+	it.effect("current: true drops the deprecated concept and lists its replacement (OKF 0.3 5.4)", () =>
+		Effect.gen(function* () {
+			const root = yield* copySupersededProject;
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			const all = ok(yield* harness.callTool("list_concepts", {}));
+			assert.ok(all.items.some((item) => item.id === "metrics/gross-margin-legacy"));
+			const current = ok(yield* harness.callTool("list_concepts", { current: true }));
+			assert.notOk(current.items.some((item) => item.id === "metrics/gross-margin-legacy"));
+			assert.strictEqual(current.items.filter((item) => item.id === "metrics/gross-margin").length, 1);
+			assert.strictEqual(current.total, all.total - 1);
+			// a type filter the replacement fails leaves it out
+			const policies = ok(yield* harness.callTool("list_concepts", { current: true, type: "Policy" }));
+			assert.notOk(policies.items.some((item) => item.id === "metrics/gross-margin"));
+			assert.ok(policies.total > 0);
+		}).pipe(Effect.scoped),
+	);
+});
 
 describe("list_concepts", () => {
 	it.effect("returns every concept with no filters and total equal to the bundle's concept count", () =>

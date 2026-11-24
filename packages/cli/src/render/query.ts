@@ -44,6 +44,8 @@ export const humanQueryGet = (input: {
 	readonly drift: TrustDrift | null;
 	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: typeof Timestamp.Type }>;
 	readonly links: ReadonlyArray<QueryLink>;
+	/** The current replacement of a deprecated concept; a `replacement:` line only when non-null. */
+	readonly replacement?: string | null;
 }): ReadonlyArray<string> => {
 	const { summary } = input;
 	return [
@@ -51,6 +53,7 @@ export const humanQueryGet = (input: {
 		`type: ${summary.type}`,
 		`title: ${summary.title}`,
 		`status: ${summary.status}`,
+		...(input.replacement === undefined || input.replacement === null ? [] : [`replacement: ${input.replacement}`]),
 		`tier: ${summary.tier}`,
 		integrityLine(summary, input.drift),
 		`stale: ${summary.stale ? "yes" : "no"}`,

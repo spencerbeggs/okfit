@@ -100,6 +100,16 @@ describe("humanQueryGet", () => {
 	});
 });
 
+describe("humanQueryGet replacement", () => {
+	it("adds a replacement line only when non-null", () => {
+		const input = { summary: summary("p"), drift: null, verified: [], links: [] };
+		const withIt = humanQueryGet({ ...input, replacement: "metrics/margin" });
+		assert.include(withIt, "replacement: metrics/margin");
+		assert.isFalse(humanQueryGet(input).some((l) => l.startsWith("replacement:")));
+		assert.isFalse(humanQueryGet({ ...input, replacement: null }).some((l) => l.startsWith("replacement:")));
+	});
+});
+
 describe("humanQueryGet trust lines", () => {
 	const lines = (over: Partial<ConceptSummary>, drift: TrustDrift | null = null) =>
 		humanQueryGet({ summary: summary("p", over), drift, verified: [], links: [] }).filter((l) =>

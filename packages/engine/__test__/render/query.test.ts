@@ -53,6 +53,14 @@ describe("query envelopes", () => {
 		);
 	});
 
+	it("get carries the replacement, null when none", () => {
+		const base = { okfitVersion: "1.2.3", concept: summary, drift: null, frontmatter: {}, links: [] };
+		const withIt = queryGetEnvelope({ ...base, replacement: "b" });
+		assert.strictEqual(withIt.concept.replacement, "b");
+		assert.strictEqual(Schema.encodeSync(QueryGetEnvelope)(withIt).concept.replacement, "b");
+		assert.strictEqual(queryGetEnvelope(base).concept.replacement, null);
+	});
+
 	it("neighbors round-trips", () => {
 		const envelope = queryNeighborsEnvelope({
 			okfitVersion: "1.2.3",

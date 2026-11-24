@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { copyFixtureProject } from "./utils/fixtureProject.js";
+import { copyFixtureProject, copySupersededProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
 import { assertConceptNotFound } from "./utils/notFound.js";
 
@@ -36,7 +36,29 @@ const get = (id: string) =>
 		return yield* harness.callTool("get_concept", { id });
 	});
 
+const getFrom = (project: typeof copyFixtureProject | typeof copySupersededProject, id: string) =>
+	Effect.gen(function* () {
+		const root = yield* project === copyFixtureProject ? copyFixtureProject("project") : copySupersededProject;
+		const harness = yield* makeHarness(root);
+		yield* harness.initialize;
+		return (yield* harness.callTool("get_concept", { id })).structuredContent as {
+			readonly replacement: string | null;
+		};
+	});
+
 describe("get_concept", () => {
+	it.effect("reports the replacement of a deprecated concept and null for a current one (OKF 0.3 5.4)", () =>
+		Effect.gen(function* () {
+			assert.strictEqual(
+				(yield* getFrom(copySupersededProject, "metrics/gross-margin-legacy")).replacement,
+				"metrics/gross-margin",
+			);
+			assert.strictEqual((yield* getFrom(copySupersededProject, "metrics/gross-margin")).replacement, null);
+			// control: the unmodified fixture's deprecated concept names no replacement
+			assert.strictEqual((yield* getFrom(copyFixtureProject, "metrics/gross-margin-legacy")).replacement, null);
+		}).pipe(Effect.scoped),
+	);
+
 	it.effect("returns frontmatter, raw text, path and links for a known id", () =>
 		Effect.gen(function* () {
 			const result = yield* get("metrics/revenue");

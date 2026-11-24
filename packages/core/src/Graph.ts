@@ -1,5 +1,7 @@
 import { Graph as EffectGraph, Option, Schema } from "effect";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
+import type { ConceptId } from "./ConceptId.js";
+import { Derive } from "./Derive.js";
 import { DiagnosticRange } from "./Diagnostic.js";
 import type { BundleIndex, LinkResolution as InternalLinkResolution } from "./internal/links.js";
 import { frontmatterFieldSpan, pathFieldsOf, resolvePathField, resolveTarget } from "./internal/links.js";
@@ -213,6 +215,38 @@ export class Graph {
 	static readonly resolve = (bundle: LoadedBundle, from: string, raw: string, field?: PathField): LinkResolution => {
 		const lookup = indexOf(bundle);
 		return field === undefined ? resolveTarget(from, raw, lookup) : resolvePathField(from, field, raw, lookup);
+	};
+
+	/**
+	 * Pure. The concept that replaces a deprecated concept (OKF 0.3 section 5.4): follow `superseded_by` from `id`
+	 * through deprecated concepts to the first concept whose derived status is neither `deprecated` nor `unknown`
+	 * (a `draft` or `stable` concept is current knowledge). `None` when `id` is not a deprecated concept, a link
+	 * resolves to a non-concept or a missing target, a deprecated concept has no `superseded_by`, the chain ends at
+	 * an `unknown`-status concept, or the chain revisits a concept (a cycle or a self-reference). Resolution is the
+	 * one {@link Graph.resolve} performs, so a bare value in a v0.2 bundle resolves through the root fallback.
+	 *
+	 * @public
+	 */
+	static readonly replacement = (bundle: LoadedBundle, id: ConceptId): Option.Option<ConceptId> => {
+		const visited = new Set<string>();
+		let current = bundle.concepts.get(id);
+		while (current !== undefined) {
+			const status = Derive.status(current.frontmatter);
+			if (status !== "deprecated") {
+				// The start is not deprecated (nothing to replace), or the chain reached its end.
+				return visited.size === 0 || status === "unknown" ? Option.none() : Option.some(current.id);
+			}
+			if (visited.has(current.id)) return Option.none();
+			visited.add(current.id);
+			const raw = current.frontmatter.superseded_by;
+			if (raw === undefined) return Option.none();
+			const resolved = Graph.resolve(bundle, current.path, raw, "superseded_by");
+			if (resolved._tag !== "node" || resolved.kind !== "concept") return Option.none();
+			const next = bundle.concepts.get(resolved.id as ConceptId);
+			if (next === undefined || visited.has(next.id)) return Option.none();
+			current = next;
+		}
+		return Option.none();
 	};
 
 	/**

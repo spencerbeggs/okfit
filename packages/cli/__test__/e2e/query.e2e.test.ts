@@ -3,8 +3,9 @@ import { dirname, join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
-import { makeSandbox, removeSandbox } from "./utils/fixtures.js";
+import { makeSandbox, removeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>): Promise<A> =>
@@ -330,5 +331,59 @@ describe("okfit query (e2e)", () => {
 				await removeSandbox(sandbox);
 			}
 		});
+	});
+});
+
+describe("okfit query --current and replacement (e2e, OKF 0.3 5.4)", () => {
+	const seedV03 = async () => {
+		const sandbox = await makeSandbox("okfit-query-current-");
+		await writeSeedInto(sandbox.cwd, V03_PROJECT);
+		return { sandbox, cwd: sandbox.cwd, env: baseEnv(sandbox.env) };
+	};
+	const listIds = (stdout: string): ReadonlyArray<string> =>
+		(JSON.parse(stdout) as { items: ReadonlyArray<{ id: string }> }).items.map((item) => item.id);
+
+	it("list --current lists five of the six concepts, all but the deprecated one", async () => {
+		const { sandbox, cwd, env } = await seedV03();
+		try {
+			const all = await run(["query", "list", "--format", "json"], cwd, env);
+			assert.strictEqual(all.exitCode, 0, all.stderr);
+			assert.include(listIds(all.stdout), "metrics/margin-legacy");
+			assert.lengthOf(listIds(all.stdout), 6);
+			const current = await run(["query", "list", "--current", "--format", "json"], cwd, env);
+			assert.strictEqual(current.exitCode, 0, current.stderr);
+			assert.deepStrictEqual(listIds(current.stdout), [
+				"computations/revenue-ytd",
+				"metrics/margin",
+				"metrics/revenue",
+				"modules/widget",
+				"project",
+			]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("get reports the replacement in text and JSON, and not for a current concept", async () => {
+		const { sandbox, cwd, env } = await seedV03();
+		try {
+			const text = await run(["query", "get", "metrics/margin-legacy"], cwd, env);
+			assert.strictEqual(text.exitCode, 0, text.stderr);
+			assert.include(text.stdout, "\nreplacement: metrics/margin\n");
+			const json = await run(["query", "get", "metrics/margin-legacy", "--format", "json"], cwd, env);
+			assert.strictEqual(
+				(JSON.parse(json.stdout) as { concept: { replacement: string } }).concept.replacement,
+				"metrics/margin",
+			);
+			const control = await run(["query", "get", "metrics/margin"], cwd, env);
+			assert.notInclude(control.stdout, "replacement:");
+			const controlJson = await run(["query", "get", "metrics/margin", "--format", "json"], cwd, env);
+			assert.strictEqual(
+				(JSON.parse(controlJson.stdout) as { concept: { replacement: null } }).concept.replacement,
+				null,
+			);
+		} finally {
+			await removeSandbox(sandbox);
+		}
 	});
 });

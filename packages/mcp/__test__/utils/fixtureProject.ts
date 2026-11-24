@@ -21,3 +21,19 @@ export const copyFixtureProject = (name: "project" | "broken-config" | "missing-
 		yield* fs.copy(path.join(FIXTURES, name), target);
 		return target;
 	}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+
+/**
+ * `copyFixtureProject("project")` with the deprecated `metrics/gross-margin-legacy` pointing at its replacement
+ * through `superseded_by` (the fixture predates OKF 0.3 and carries none).
+ */
+export const copySupersededProject = Effect.gen(function* () {
+	const fs = yield* FileSystem.FileSystem;
+	const root = yield* copyFixtureProject("project");
+	const file = `${root}/bundle/metrics/gross-margin-legacy.md`;
+	const text = yield* fs.readFileString(file);
+	yield* fs.writeFileString(
+		file,
+		text.replace("status: deprecated\n", "status: deprecated\nsuperseded_by: /metrics/gross-margin.md\n"),
+	);
+	return root;
+}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
