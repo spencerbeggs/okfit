@@ -15,6 +15,7 @@ import {
 	SyncPublicationConflictError,
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
+	VerifyNotCurrentError,
 	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
@@ -62,7 +63,7 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 4a. `InitBundleDirError` (`okfit init --bundle`, exit 64) renders as one
  *    `error: <message>` line.
  * 5. `VerifyConceptNotFoundError`, `VerifyUnsupportedFrontmatterError` and
- *    `VerifyContentUnhashableError` and `VerifyStatusUnknownError` each render as their own `error: <message>` line; each message
+ *    `VerifyContentUnhashableError`, `VerifyStatusUnknownError` and `VerifyNotCurrentError` each render as their own `error: <message>` line; each message
  *    already name the concept id and what to do about it, and neither
  *    carries a filesystem path needing K-51 relativisation.
  * 5b. `VerifySelectionError` (issue #138) renders the same way, one
@@ -106,6 +107,7 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
 	if (error instanceof VerifyContentUnhashableError) return [`error: ${error.message}`];
 	if (error instanceof VerifyStatusUnknownError) return [`error: ${error.message}`];
+	if (error instanceof VerifyNotCurrentError) return [`error: ${error.message}`];
 	if (error instanceof SyncPlanStaleError) return [`error: ${error.message}`];
 	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
 	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a

@@ -10,6 +10,7 @@ import {
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
 	VerifyConceptNotFoundError,
+	VerifyNotCurrentError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
@@ -124,6 +125,18 @@ describe("renderFailure for the verify errors", () => {
 			'error: "metrics/margin" has status "bogus", which is not draft, stable or deprecated; fix the status (or pass --stable or --draft) before verifying',
 		]);
 		assert.isFalse(lines[0]?.includes("VerifyStatusUnknownError"));
+	});
+
+	it("renders VerifyNotCurrentError as one error: line with no tag prefix", () => {
+		const error = new VerifyNotCurrentError({
+			id: "metrics/margin",
+			at: "2026-09-16T11:59:59Z",
+			generatedAt: "2026-09-16T12:00:00Z",
+		});
+		const lines = renderTyped(error);
+		assert.deepStrictEqual(lines, [`error: ${error.message}`]);
+		assert.isTrue(lines[0]?.includes("after the verification time 2026-09-16T11:59:59Z"));
+		assert.isFalse(lines[0]?.includes("VerifyNotCurrentError"));
 	});
 
 	it("renders DocumentPathError as one error line", () => {

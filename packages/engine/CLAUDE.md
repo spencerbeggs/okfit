@@ -16,6 +16,7 @@ src/
                             platform layer both front ends provide
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
+                             VerifyNotCurrentError (exit 3: a verification dated before generated.at, OKF 0.3 5.3, R33),
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
@@ -79,6 +80,10 @@ src/
                                   runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
                                   optional promote), loadPickerCandidates, loadStaleCandidates
                                   and loadPreviews (the picker's per-drifted-row changeSince)
+                                  The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
+                                  (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
+                                  concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
+                                  and writes nothing; batch and ids are all or nothing (OKF 0.3 5.3, R33)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated
     index.ts                   -- syncIndex

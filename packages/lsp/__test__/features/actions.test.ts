@@ -180,6 +180,26 @@ describe("registerCodeActions on a status outside the vocabulary (OKF 0.3 5.4, R
 	);
 });
 
+describe("registerCodeActions on a concept last changed in the future (OKF 0.3 5.3, R33)", () => {
+	it.live("offers no verify action, while a concept changed in the past still does (control)", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const stable = DRAFT_SOURCE.replace("status: draft", "status: stable").replaceAll("Draft", "Stable");
+			const future = yield* openConcept(
+				h,
+				"okf/modules/future.md",
+				stable.replace(/at: "[^"]*"/, 'at: "2999-01-01T00:00:00Z"'),
+			);
+			const refused = yield* requestCodeAction(h.client, future);
+			assert.isFalse(refused.some((action) => action.title.startsWith("Mark verified")));
+			assert.isTrue(refused.some((action) => action.title.startsWith("Set status")));
+			const past = yield* openConcept(h, "okf/modules/past.md", stable);
+			const offered = yield* requestCodeAction(h.client, past);
+			assert.isTrue(offered.some((action) => action.title === "Mark verified by human:fixture-author"));
+		}).pipe(Effect.scoped),
+	);
+});
+
 describe("registerCodeActions", () => {
 	it.live(
 		"a concept with no explicit status offers all three statuses and `Mark verified by <actor>`, each a versioned edit (positive control for the verify action)",

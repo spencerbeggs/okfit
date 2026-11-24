@@ -84,7 +84,7 @@ const configFlag = Flag.File("config").pipe(
 const atFlag = Flag.String("at").pipe(
 	Flag.optional,
 	Flag.withDescription(
-		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now",
+		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; must not be earlier than the concept's generated.at (OKF 0.3 5.3), which is refused",
 	),
 );
 

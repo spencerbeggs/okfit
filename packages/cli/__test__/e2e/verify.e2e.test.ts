@@ -341,6 +341,33 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
+	it("refuses an --at before generated.at (exit 3, file unchanged); --at equal to it exits 0 and writes", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const generated = "generated:\n  by: process:sync\n  at: 2026-09-07T12:00:00Z\n";
+			const original = await readProject(cwd);
+			assert.notInclude(original, "generated:");
+			await writeFile(projectPath(cwd), original.replace(/^---\n/, `---\n${generated}`), "utf8");
+			const before = await readProject(cwd);
+
+			const refused = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T11:59:59Z"], { cwd, env }));
+			assert.strictEqual(refused.exitCode, 3, refused.stderr);
+			assert.include(
+				refused.stderr,
+				"was last changed at 2026-09-07T12:00:00Z, after the verification time 2026-09-07T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3)",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+
+			const ok = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T12:00:00Z"], { cwd, env }));
+			assert.strictEqual(ok.exitCode, 0, ok.stderr);
+			const after = await readProject(cwd);
+			assert.notStrictEqual(after, before);
+			assert.include(after, "    at: 2026-09-07T12:00:00Z\n");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("--format json prints the success envelope and the K-22 error envelope", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
