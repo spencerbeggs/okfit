@@ -8,6 +8,7 @@ generated:
   by: human:spencer
   at: 2026-10-11T19:34:18Z
 status: deprecated
+superseded_by: /decisions/posttooluse-hook-scope.md
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:08Z

@@ -8,6 +8,7 @@ generated:
   by: okfit/claude-code
   at: 2026-10-11T20:51:30Z
 status: deprecated
+superseded_by: /decisions/integrity-family.md
 verified:
   - by: human:spencer
     at: 2026-09-09T23:08:38Z

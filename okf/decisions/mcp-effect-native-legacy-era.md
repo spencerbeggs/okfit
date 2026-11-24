@@ -8,6 +8,7 @@ generated:
   by: okfit/claude-code
   at: 2026-09-07T00:13:55Z
 status: deprecated
+superseded_by: /decisions/mcp-protocol-versions.md
 verified:
   - by: human:spencer
     at: 2026-09-07T20:49:07Z

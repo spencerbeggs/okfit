@@ -1,24 +1,25 @@
 ---
 type: Project
 title: okfit
-description: Node.js tooling for the Open Knowledge Format (OKF) v0.2, published under the @okfit npm scope.
+description: Node.js tooling for the Open Knowledge Format (OKF) v0.3, published under the @okfit npm scope.
 status: stable
 tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-06T04:20:11Z
+  at: 2026-11-24T16:18:39Z
 integrity:
   generated:
-    body: 92b88bc1800f05e0
+    body: a09a2c61dbc9efdc
 ---
 
 # okfit
 
 ## Purpose
 
-okfit is Node.js tooling for the Open Knowledge Format (OKF) v0.2, built on
-Effect, published under the `@okfit` npm scope (`README.md:1-3`). OKF itself
+okfit is Node.js tooling for the Open Knowledge Format (OKF) v0.3, built on
+Effect, published under the `@okfit` npm scope (`README.md:1-3`), and it still
+reads v0.2 bundles. OKF itself
 is a directory of markdown files with YAML frontmatter that captures what a
 project is and should be, with provenance, trust, and lifecycle as
 first-class fields (`README.md:5`). okfit has two roles: it is the successor

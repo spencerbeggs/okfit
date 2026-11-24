@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T16:18:39Z
 integrity:
   generated:
-    body: 268cacdc2dfa96c5
+    body: 50897ae1e08cea73
 ---
 
 # Core
@@ -212,9 +212,3 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
 - **One document parse.** `Bundle.parseDocument(text)` returns
   `Result<MarkdownDocument, MarkdownParseError>`; `Bundle.load` and `okfit mv`
   both parse through it, so the two cannot disagree about what a file is.
-
-### Not done yet
-
-- The bundle itself, this repository's `okf/`, still declares
-  `okf_version: '0.2'`, so prose elsewhere in it and the plugin skills still
-  describe the v0.2 rules.

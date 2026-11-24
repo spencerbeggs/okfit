@@ -7,7 +7,7 @@ license: MIT
 
 # Project
 
-* [okfit](project.md) - Node.js tooling for the Open Knowledge Format (OKF) v0.2, published under the @okfit npm scope.
+* [okfit](project.md) - Node.js tooling for the Open Knowledge Format (OKF) v0.3, published under the @okfit npm scope.
 
 # Subdirectories
 

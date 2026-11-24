@@ -21,7 +21,7 @@ sources:
     resource: ../../packages/cli/src/internal/versionFormatter.ts
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-24T16:18:39Z
 verified:
   - by: human:spencer
     at: 2026-09-24T16:07:36Z
@@ -39,7 +39,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: 0ca8a0cb40a3b677
+    body: bf959d00479fa809
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -53,8 +53,8 @@ integrity:
 okfit ships as six independently versioned things: the `okfit` CLI
 (`@okfit/cli`), the MCP server (`@okfit/mcp`), the meta-package that
 installs both bins (`@okfit/plugin`), the shared `@okfit/engine` that the
-CLI and the MCP server both run, the OKF spec version the whole project
-targets, fixed at `0.2`, and the `major.minor` version of the config
+CLI and the MCP server both run, the OKF spec version okfit implements
+(`OKF_SPEC_VERSION`, `0.3` since OKF v0.3 support), and the `major.minor` version of the config
 file's JSON Schema, `1.0`. The CLI and the MCP server cannot know
 each other's version — the dependency graph is acyclic and neither
 depends on the other — but they share the engine, and it is the engine
@@ -120,8 +120,8 @@ packaging.[^owner-ruling]
   producing front end and its version — and `schema` stays `1`; the
   change is additive.
 - `okfit --version` prints all four, and the distribution when there is
-  one: `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema 1.0)` from a
-  direct install, `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema
+  one: `okfit 0.5.4 (engine 0.6.0, okf 0.3, config-schema 1.0)` from a
+  direct install, `okfit 0.5.4 (engine 0.6.0, okf 0.3, config-schema
   1.0) via @okfit/plugin 0.3.7` from the meta-package. The label is
   `config-schema`, not `config-file`, because the TOML directive, the
   `schemas/1.0/` tree and the JSON field all say "schema", and
