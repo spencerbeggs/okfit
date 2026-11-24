@@ -74,9 +74,13 @@ okfit_stop() {
 
 # has_generated_by file — succeeds when the file's frontmatter block holds a
 # `generated:` mapping with a `by:` key (okfit #74). Shared by the Write/Edit
-# branch and the Bash branch.
+# branch and the Bash branch. Both awk helpers run under LC_ALL=C and strip a
+# trailing CR from every record and a UTF-8 BOM from record 1, so CRLF and BOM
+# frontmatter reads like LF (okfit #483).
 has_generated_by() {
-	awk '
+	LC_ALL=C awk '
+		{ sub(/\r$/, "") }
+		NR == 1 { sub(/^\xef\xbb\xbf/, "") }
 		NR == 1 && $0 != "---" { exit 1 }
 		NR > 1 && $0 == "---" { exit (found ? 0 : 1) }
 		NR > 1 && /^generated:[[:space:]]*$/ { in_generated = 1; next }
@@ -90,7 +94,9 @@ has_generated_by() {
 # holds a top-level `type:` key (a concept, OKF 0.3 section 3.2). A file with
 # no frontmatter, or none with a type, is not a concept (okfit #476).
 has_type() {
-	awk '
+	LC_ALL=C awk '
+		{ sub(/\r$/, "") }
+		NR == 1 { sub(/^\xef\xbb\xbf/, "") }
 		NR == 1 && $0 != "---" { exit 1 }
 		NR > 1 && $0 == "---" { exit (found ? 0 : 1) }
 		NR > 1 && /^type:[[:space:]]*[^[:space:]]/ { found = 1 }

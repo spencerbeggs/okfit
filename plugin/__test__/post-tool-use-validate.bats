@@ -388,6 +388,61 @@ generated:
 	done
 }
 
+# okfit #483: CRLF line endings and a UTF-8 BOM must not hide a concept's
+# frontmatter from the awk helpers. _crlf_proj writes the bytes with printf.
+
+# _crlf_proj frontmatter_printf_format [bom] — a fake project whose
+# okf/modules/core.md holds the CRLF frontmatter; echoes the project dir.
+_crlf_proj() {
+	local fm="$1" bom="${2:-}" proj="$BATS_TEST_TMPDIR/proj"
+	mkdir -p "$proj/okf/modules"
+	# shellcheck disable=SC2059
+	printf -- "${bom}---\r\n${fm}---\r\n\r\n# Body\r\n" >"$proj/okf/modules/core.md"
+	printf '%s' "$proj"
+}
+
+@test "blocks a Write of a CRLF concept with no generated.by, like its LF twin (#483)" {
+	local proj
+	proj=$(_crlf_proj 'type: Module\r\ntitle: Core\r\n')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/modules/core.md" "$proj")" "$proj"
+		assert_stop "$target" "modules/core.md: generated.by is missing"
+	done
+}
+
+@test "no-ops on a CRLF concept that carries generated.by (#483)" {
+	local proj
+	proj=$(_crlf_proj 'type: Module\r\ntitle: Core\r\ngenerated:\r\n  by: okfit/claude-code\r\n')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/modules/core.md" "$proj")" "$proj"
+		assert_hook_noop
+	done
+}
+
+@test "reads a concept that opens with a UTF-8 BOM as a concept (#483)" {
+	local proj
+	proj=$(_crlf_proj 'type: Module\r\ntitle: Core\r\n' '\xef\xbb\xbf')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/modules/core.md" "$proj")" "$proj"
+		assert_stop "$target" "modules/core.md: generated.by is missing"
+	done
+}
+
+@test "a Bash write of a CRLF typed concept never spawns validate (#483)" {
+	local proj
+	proj=$(_crlf_proj 'type: Module\r\ntitle: Core\r\n')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		rm -f "$STUB_DIR/validate-invoked"
+		_run "$target" "$(_bash_input "echo hi > okf/modules/core.md" "$proj")" "$proj"
+		assert_stop "$target" "modules/core.md: generated.by is missing"
+		[ ! -f "$STUB_DIR/validate-invoked" ]
+	done
+}
+
 @test "no-ops on a concept with no generated.by when actors.agent is unset (#74)" {
 	local proj
 	proj=$(_bundle_with modules/core.md 'type: Module
