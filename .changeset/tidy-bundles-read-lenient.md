@@ -13,7 +13,7 @@ Per OKF v0.3 §3.2, a `.md` file with no frontmatter or no `type` is no longer a
 - `null`, an empty string and an empty list read as absent.
 - A single item reads as a list of one for `tags`, `sources`, `verified` and `parameters`.
 - An entry is ignored only when it lacks a required key (`entry-ignored`); a malformed optional key is dropped alone (`value-malformed`); a value outside its vocabulary is kept (`value-unknown`, today `status`).
-- These are warnings, so a bundle whose only errors were `family-invalid` on spec-defined values now exits 0. `family-invalid` remains an error only for okfit's own `integrity` family.
+- These are warnings, so a bundle whose only errors were `family-invalid` on spec-defined values now exits 0. `family-invalid` remains an error only for okfit's own `x-okfit-integrity` family.
 
 ### Type-level breaks
 

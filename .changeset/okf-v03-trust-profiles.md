@@ -11,4 +11,4 @@ Verification integrity is now current only while its bound entry is itself curre
 ## Features
 
 - `verified-drift` no longer reports the `verified-before-change` reason; the core lint of that name is its single reporter.
-- `Trust.boundEntry` is now public. It returns the `integrity.verified` binding when it names the latest human entry, and ignores the `[actors].humans` allow-list and whether the entry is current.
+- `Trust.boundEntry` is now public. It returns the `x-okfit-integrity.verified` binding when it names the latest human entry, and ignores the `[actors].humans` allow-list and whether the entry is current.
