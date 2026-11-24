@@ -273,4 +273,32 @@ describe("jsonError", () => {
 			assert.isFalse(Object.hasOwn(plain.diagnostics[0] ?? {}, "fix"));
 		}),
 	);
+
+	it.effect("carries fixes only when given, and they round-trip through the schema", () =>
+		Effect.sync(() => {
+			const base = {
+				okfitVersion: "0.1.0",
+				producer: "okfit",
+				okfVersion: "0.2",
+				root: "/repo/okf",
+				profile: null,
+				exitCode: 0 as const,
+				concepts: 1,
+				target: "0.3",
+				diagnostics: [lintNoRange],
+			};
+			const fixes = {
+				applied: [{ path: "index.md", fixes: ["okf-version" as const] }],
+				refused: [{ file: "index.md", code: "okf-version-older" as const, reason: "edit it by hand" }],
+				drifts: ["metrics/revenue"],
+				dry_run: true,
+			};
+			const built = json({ ...base, fixes });
+			assert.deepStrictEqual(built.fixes, fixes);
+			const wire: unknown = JSON.parse(JSON.stringify(Schema.encodeSync(JsonEnvelope)(built)));
+			assert.deepStrictEqual(Schema.decodeUnknownSync(JsonEnvelope)(wire), built);
+			// control: no fixes input, no `fixes` key
+			assert.isFalse(Object.hasOwn(json(base), "fixes"));
+		}),
+	);
 });

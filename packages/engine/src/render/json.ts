@@ -1,7 +1,7 @@
 import { ErrorText } from "@effected/kit";
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import { Runtime, Schema } from "effect";
-import type { MigrationFixKind } from "../migrate/findings.js";
+import type { MigrationCode, MigrationFixKind } from "../migrate/findings.js";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
 import { DistributionField } from "./distribution.js";
@@ -38,6 +38,40 @@ export const JsonSummary = Schema.Struct({
 export type JsonSummary = typeof JsonSummary.Type;
 
 /**
+ * What `validate --target --fix` did: the files written (`applied`, each with the fix kinds it carried), each fix it
+ * refused with its reason, the ids whose integrity drifted, and whether nothing was written (`dry_run`).
+ *
+ * @public
+ */
+export const JsonFixes = Schema.Struct({
+	applied: Schema.Array(
+		Schema.Struct({
+			path: Schema.String,
+			fixes: Schema.Array(
+				Schema.Literals(["okf-version", "root-relative-path"] satisfies ReadonlyArray<MigrationFixKind>),
+			),
+		}),
+	),
+	refused: Schema.Array(
+		Schema.Struct({
+			file: Schema.String,
+			code: Schema.Literals([
+				"okf-version-undeclared",
+				"okf-version-older",
+				"okf-version-unparsable",
+				"root-relative-path",
+				"computation-locator",
+			] satisfies ReadonlyArray<MigrationCode>),
+			reason: Schema.String,
+		}),
+	),
+	drifts: Schema.Array(Schema.String),
+	dry_run: Schema.Boolean,
+});
+/** @public */
+export type JsonFixes = typeof JsonFixes.Type;
+
+/**
  * K-21's success envelope, snake_case. `exit_code` is `0 | 1 | 2` only: an
  * infrastructure failure never produces this envelope, it produces the
  * `JsonErrorEnvelope` (K-22). `okfit_version` and `producer` identify the
@@ -63,6 +97,7 @@ export const JsonEnvelope = Schema.Struct({
 	profile: Schema.NullOr(Schema.String),
 	exit_code: Schema.Literals([0, 1, 2]),
 	target: Schema.optionalKey(Schema.String),
+	fixes: Schema.optionalKey(JsonFixes),
 	summary: JsonSummary,
 	diagnostics: Schema.Array(JsonDiagnostic),
 });
@@ -122,6 +157,8 @@ export const json = (input: {
 	readonly distribution?: Distribution;
 	/** The `--target` version the report was read against; omitted from the envelope when absent. */
 	readonly target?: string;
+	/** What `--fix` did; omitted from the envelope when absent (no `--fix`). */
+	readonly fixes?: JsonFixes;
 }): JsonEnvelope => {
 	const t = tally(input.diagnostics);
 	return {
@@ -135,6 +172,7 @@ export const json = (input: {
 		profile: input.profile,
 		exit_code: input.exitCode,
 		...(input.target === undefined ? {} : { target: input.target }),
+		...(input.fixes === undefined ? {} : { fixes: input.fixes }),
 		summary: {
 			conformance_errors: t.conformanceErrors,
 			lint_errors: t.lintErrors,

@@ -2,7 +2,7 @@ import { CliExit, CliFormat } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { CurrentDistribution } from "@effected/kit";
 import { OKF_SPEC_VERSION, OkfVersion } from "@okfit/core";
-import type { MigrationFixKind } from "@okfit/engine";
+import type { JsonFixes, MigrationFixKind } from "@okfit/engine";
 import {
 	JsonEnvelope,
 	Now,
@@ -136,7 +136,6 @@ export const validateCommand = Command.make(
 	},
 	(input) =>
 		Effect.gen(function* () {
-			yield* checkUsage(input);
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
 			const now = yield* Now;
@@ -144,6 +143,8 @@ export const validateCommand = Command.make(
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
+				// Inside the wrapped body so a refusal under --format json also prints the K-22 error envelope.
+				yield* checkUsage(input);
 				const resolved = yield* resolveProjectConfig({
 					pathArg: input.root,
 					explicitConfigPath: input.config,
@@ -168,21 +169,7 @@ export const validateCommand = Command.make(
 				let result = yield* runOnce;
 
 				// R38: plan and apply, then reload and report what remains. Positional targets narrow the fixes too.
-				let fixes:
-					| {
-							readonly applied: ReadonlyArray<{
-								readonly path: string;
-								readonly fixes: ReadonlyArray<MigrationFixKind>;
-							}>;
-							readonly refused: ReadonlyArray<{
-								readonly file: string;
-								readonly code: string;
-								readonly reason: string;
-							}>;
-							readonly drifts: ReadonlyArray<string>;
-							readonly dry_run: boolean;
-					  }
-					| undefined;
+				let fixes: JsonFixes | undefined;
 				if (input.fix && target !== undefined) {
 					const files =
 						input.targets.length === 0
@@ -222,12 +209,10 @@ export const validateCommand = Command.make(
 						diagnostics,
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(target === undefined ? {} : { target }),
+						...(fixes === undefined ? {} : { fixes }),
 						...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 					});
-					yield* CliFormat.printJson(
-						{ ...Schema.encodeSync(JsonEnvelope)(envelope), ...(fixes === undefined ? {} : { fixes }) },
-						{ indent: 0 },
-					);
+					yield* CliFormat.printJson(Schema.encodeSync(JsonEnvelope)(envelope), { indent: 0 });
 				} else {
 					if (fixes !== undefined) {
 						const count = fixes.applied.reduce((sum, edit) => sum + edit.fixes.length, 0);

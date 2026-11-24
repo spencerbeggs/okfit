@@ -44,6 +44,12 @@ describe("okfit validate --help", () => {
 			assert.isTrue(stdout.includes("json"));
 		}),
 	);
+
+	it.effect("lists the migration flags --target, --fix, --only and --dry-run", () =>
+		withSandbox(["validate", "--help"], (stdout) => {
+			for (const flag of ["--target", "--fix", "--only", "--dry-run"]) assert.isTrue(stdout.includes(flag), flag);
+		}),
+	);
 });
 
 describe("okfit init --help", () => {

@@ -14,8 +14,9 @@ import { readdirSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
+import { Bundle, ConceptId } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
@@ -1043,5 +1044,136 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			assert.strictEqual(paths.exitCode, 0);
 			assert.strictEqual(yield* read(sandbox, COMPUTATION), V03_PROJECT[COMPUTATION]);
 		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a refused --target under --format json also prints the K-22 error envelope on stdout", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-usage-json-");
+			const run = yield* runOkfit(["validate", "--target", "0.2", "--format", "json"], sandbox);
+			assert.strictEqual(run.exitCode, 64);
+			const body = JSON.parse(run.stdout) as { exit_code: number; error: { tag: string; message: string } };
+			assert.strictEqual(body.exit_code, 64);
+			assert.strictEqual(body.error.tag, "ValidateUsageError");
+			assert.include(body.error.message, '--target accepts only "0.3"');
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--target abc and --only foo are usage errors (exit 64)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-bad-values-");
+			const abc = yield* runOkfit(["validate", "--target", "abc"], sandbox);
+			assert.strictEqual(abc.exitCode, 64);
+			assert.include(abc.stderr, '--target accepts only "0.3", the OKF version this okfit implements');
+			const foo = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--only", "foo"], sandbox);
+			assert.strictEqual(foo.exitCode, 64);
+			// control: a known kind is accepted
+			const ok = yield* runOkfit(
+				["validate", "--target", "0.3", "--fix", "--dry-run", "--only", "okf-version"],
+				sandbox,
+			);
+			assert.strictEqual(ok.exitCode, 0);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--fix on a real run prints Fixed <n> finding(s) in <m> file(s)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-fixed-line-");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "Fixed 3 finding(s) in 2 file(s)");
+			assert.notInclude(run.stdout, "Would fix");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a refused fix appears in the JSON fixes.refused array", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-refused-json-");
+			const run = yield* runOkfit(
+				["validate", "--target", "0.3", "--fix", "--only", "okf-version", "--format", "json"],
+				sandbox,
+			);
+			assert.strictEqual(run.exitCode, 0);
+			const body = JSON.parse(run.stdout) as {
+				fixes: { applied: unknown[]; refused: Array<{ file: string; code: string; reason: string }> };
+			};
+			assert.deepStrictEqual(body.fixes.applied, []);
+			assert.strictEqual(body.fixes.refused.length, 1);
+			assert.strictEqual(body.fixes.refused[0]?.file, "index.md");
+			assert.strictEqual(body.fixes.refused[0]?.code, "okf-version-older");
+			assert.include(body.fixes.refused[0]?.reason, "2 reference(s) still resolve only from the bundle root");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a positional target narrows --fix: another file is refused, the computation alone changes", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-narrow-");
+			const before = yield* read(sandbox, COMPUTATION);
+			const index = yield* read(sandbox, "okf/index.md");
+			const other = yield* runOkfit(["validate", "--target", "0.3", "--fix", "okf/index.md"], sandbox);
+			assert.strictEqual(other.exitCode, 0);
+			assert.include(other.stdout, "refused: index.md: 2 reference(s) still resolve only from the bundle root");
+			assert.strictEqual(yield* read(sandbox, "okf/index.md"), index);
+			assert.strictEqual(yield* read(sandbox, COMPUTATION), before);
+			// control: naming the computation writes it, and only it
+			const mine = yield* runOkfit(["validate", "--target", "0.3", "--fix", COMPUTATION], sandbox);
+			assert.strictEqual(mine.exitCode, 0);
+			assert.include(mine.stdout, "Fixed 2 finding(s) in 1 file(s)");
+			assert.strictEqual(yield* read(sandbox, COMPUTATION), V03_PROJECT[COMPUTATION]);
+			assert.strictEqual(yield* read(sandbox, "okf/index.md"), index);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a positional target that does not exist fails as it does without --fix, and writes nothing", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-missing-target-");
+			const before = yield* read(sandbox, COMPUTATION);
+			const plain = yield* runOkfit(["validate", "--target", "0.3", "okf/nope.md"], sandbox);
+			const fix = yield* runOkfit(["validate", "--target", "0.3", "--fix", "okf/nope.md"], sandbox);
+			assert.notStrictEqual(plain.exitCode, 0);
+			assert.strictEqual(fix.exitCode, plain.exitCode);
+			assert.strictEqual(yield* read(sandbox, COMPUTATION), before);
+			assert.strictEqual(yield* read(sandbox, "okf/index.md"), V02_PROJECT["okf/index.md"]);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect(
+		"lists a concept whose current human integrity the fix changed under Integrity drifted, and in JSON drifts",
+		() =>
+			Effect.gen(function* () {
+				const sandbox = yield* seed("okfit-validate-drift-");
+				// Build a digest-bound human verification without running okfit verify: probe the bundle for digests.
+				const trusted = (text: string, body: string, content: string) =>
+					text.replace(
+						"runtime: sql\n",
+						`runtime: sql\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nverified:\n  - by: human:a\n    at: 2026-03-01T00:00:00Z\n${
+							body === ""
+								? ""
+								: `integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:a\n    at: 2026-03-01T00:00:00Z\n    content: ${content}\n`
+						}`,
+					);
+				const file = join(sandbox.cwd, COMPUTATION);
+				const text = V02_PROJECT[COMPUTATION] as string;
+				yield* Effect.promise(() => writeFile(file, trusted(text, "", "")));
+				const bundle = yield* Bundle.load({ root: join(sandbox.cwd, "okf") });
+				const concept = bundle.concepts.get(Option.getOrThrow(ConceptId.fromPath("computations/revenue-ytd.md")));
+				if (concept === undefined) return yield* Effect.die("probe concept missing");
+				const body = yield* Derivation.bodyDigest(concept.document.source);
+				const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source);
+				yield* Effect.promise(() => writeFile(file, trusted(text, body, content)));
+
+				const human = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--dry-run"], sandbox);
+				assert.strictEqual(human.exitCode, 0);
+				assert.include(human.stdout, "Integrity drifted (re-verify with okfit verify): computations/revenue-ytd");
+				const jsonRun = yield* runOkfit(
+					["validate", "--target", "0.3", "--fix", "--dry-run", "--format", "json"],
+					sandbox,
+				);
+				const parsed = JSON.parse(jsonRun.stdout) as { fixes: { drifts: string[] } };
+				assert.deepStrictEqual(parsed.fixes.drifts, ["computations/revenue-ytd"]);
+				// control: a sandbox with no recorded verification lists no drift
+				const plain = yield* seed("okfit-validate-nodrift-");
+				const none = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--dry-run"], plain);
+				assert.notInclude(none.stdout, "Integrity drifted");
+			}).pipe(Effect.provide(TestPlatform)),
 	);
 });

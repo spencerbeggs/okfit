@@ -79,7 +79,15 @@ export {
 	GraphSummary,
 	graphEnvelope,
 } from "./render/graph.js";
-export { JsonDiagnostic, JsonEnvelope, JsonErrorEnvelope, JsonSummary, json, jsonError } from "./render/json.js";
+export {
+	JsonDiagnostic,
+	JsonEnvelope,
+	JsonErrorEnvelope,
+	JsonFixes,
+	JsonSummary,
+	json,
+	jsonError,
+} from "./render/json.js";
 export { MoveEnvelope, moveEnvelope } from "./render/move.js";
 export {
 	ConceptSummary,

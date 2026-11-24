@@ -475,8 +475,8 @@ nothing else (no summary line, no warnings — those still go to stderr):
 
 With `--target 0.3` the envelope also carries `target` and each `migrate`
 diagnostic may carry `fix` (`okf-version` or `root-relative-path`); with
-`--fix` it adds `fixes: { applied: [{ path, fixes }], refused: [{ file, code,
-reason }], drifts: [id], dry_run }`.
+`--fix` it adds `fixes` (the engine's `JsonFixes`): `{ applied: [{ path, fixes }],
+refused: [{ file, code, reason }], drifts: [id], dry_run }`.
 
 `engine_version` and `okf_version` are the pair to compare across reports:
 the MCP server's `validate_bundle` tool returns this same envelope with the
