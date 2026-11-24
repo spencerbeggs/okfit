@@ -294,12 +294,8 @@ describe("migrationFindings", () => {
 	);
 
 	describe("computation-locator line endings (#483)", () => {
-		const SPLIT = "---\n\n";
-		/** The same concept with its body (after the frontmatter) joined by CRLF instead of LF. */
-		const crlf = (text: string): string => {
-			const at = text.indexOf(SPLIT) + SPLIT.length;
-			return text.slice(0, at) + text.slice(at).replace(/\n/g, "\r\n");
-		};
+		/** The same concept as a real CRLF file: every line ending, frontmatter included, is CRLF. */
+		const crlf = (text: string): string => text.replace(/\n/g, "\r\n");
 		const locator = (text: string) =>
 			findingsOf({ ...V02_PROJECT, [COMPUTATION]: text }).pipe(
 				Effect.map(({ found }) => found.filter((f) => f.code === "computation-locator")),
