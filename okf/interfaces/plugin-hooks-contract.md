@@ -19,13 +19,15 @@ verified:
     at: 2026-10-11T22:01:13Z
   - by: human:spencer
     at: 2026-10-25T18:30:29Z
+  - by: human:spencer
+    at: 2026-11-24T14:56:24Z
 integrity:
   generated:
     body: 7b298745d87960df
   verified:
     by: human:spencer
-    at: 2026-10-25T18:30:29Z
-    content: abd9517665b19618
+    at: 2026-11-24T14:56:24Z
+    content: c6e5071afb965dc0
 ---
 
 # Agent plugin hooks contract
