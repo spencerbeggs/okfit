@@ -479,6 +479,8 @@ _crlf_proj() {
 	done
 }
 
+# Guards has_generated_by: it fails if only has_type is fixed (the hook would
+# then see a CRLF concept with no generated.by).
 @test "no-ops on a CRLF concept that carries generated.by (#483)" {
 	local proj
 	proj=$(_crlf_proj 'type: Module\r\ntitle: Core\r\ngenerated:\r\n  by: okfit/claude-code\r\n')
@@ -496,6 +498,16 @@ _crlf_proj() {
 	for target in $TARGETS; do
 		_run "$target" "$(_input Write "$proj/okf/modules/core.md" "$proj")" "$proj"
 		assert_stop "$target" "modules/core.md: generated.by is missing"
+	done
+}
+
+@test "does not block a BOM and CRLF concept that carries generated.by (#483)" {
+	local proj
+	proj=$(_crlf_proj 'type: Module\r\ntitle: Core\r\ngenerated:\r\n  by: okfit/claude-code\r\n' '\xef\xbb\xbf')
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/modules/core.md" "$proj")" "$proj"
+		assert_hook_noop
 	done
 }
 

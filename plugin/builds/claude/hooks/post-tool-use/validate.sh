@@ -75,12 +75,13 @@ okfit_stop() {
 # has_generated_by file — succeeds when the file's frontmatter block holds a
 # `generated:` mapping with a `by:` key (okfit #74). Shared by the Write/Edit
 # branch and the Bash branch. Both awk helpers run under LC_ALL=C and strip a
-# trailing CR from every record and a UTF-8 BOM from record 1, so CRLF and BOM
+# trailing CR from every record and a UTF-8 BOM (passed in as bytes from the
+# shell, never an awk escape, for mawk) from record 1, so CRLF and BOM
 # frontmatter reads like LF (okfit #483).
 has_generated_by() {
-	LC_ALL=C awk '
+	LC_ALL=C awk -v bom="$(printf '\357\273\277')" '
 		{ sub(/\r$/, "") }
-		NR == 1 { sub(/^\xef\xbb\xbf/, "") }
+		NR == 1 && index($0, bom) == 1 { $0 = substr($0, 4) }
 		NR == 1 && $0 != "---" { exit 1 }
 		NR > 1 && $0 == "---" { exit (found ? 0 : 1) }
 		NR > 1 && /^generated:[[:space:]]*$/ { in_generated = 1; next }
@@ -94,9 +95,9 @@ has_generated_by() {
 # holds a top-level `type:` key (a concept, OKF 0.3 section 3.2). A file with
 # no frontmatter, or none with a type, is not a concept (okfit #476).
 has_type() {
-	LC_ALL=C awk '
+	LC_ALL=C awk -v bom="$(printf '\357\273\277')" '
 		{ sub(/\r$/, "") }
-		NR == 1 { sub(/^\xef\xbb\xbf/, "") }
+		NR == 1 && index($0, bom) == 1 { $0 = substr($0, 4) }
 		NR == 1 && $0 != "---" { exit 1 }
 		NR > 1 && $0 == "---" { exit (found ? 0 : 1) }
 		NR > 1 && /^type:[[:space:]]*[^[:space:]]/ { found = 1 }
@@ -108,7 +109,7 @@ has_type() {
 # in a subshell), or the argument unchanged when it does not exist (okfit #486).
 physical_dir() {
 	local d
-	if d=$(cd "$1" 2>/dev/null && pwd -P); then
+	if d=$(CDPATH= cd -- "$1" >/dev/null 2>&1 && pwd -P); then
 		printf '%s' "$d"
 	else
 		printf '%s' "$1"
@@ -382,6 +383,8 @@ fi
 
 # An absolute path is compared in physical form (okfit #486); validate below
 # gets the physical path too.
+# A relative file_path is compared as given: it never matched the absolute
+# bundle root, so it stays a no-op.
 case "$file_path" in
 	/*) file_path=$(physical_path "$file_path") ;;
 esac
