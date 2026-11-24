@@ -66,6 +66,11 @@ src/
     findings.ts             -- MigrationCode, MigrationFixKind, MigrationFinding, migrationFindings: what reads
                                 differently under a target OKF version (pure); `validate --target` tags them
                                 `source: "migrate"`, and they never count toward an exit code (R50)
+    fix.ts                  -- MigrationFixOptions, MigrationFixPlan, planMigrationFixes, applyMigrationFixes: the two safe
+                                fixes (declare `okf_version`, root a root-fallback-only reference); plan reads the root
+                                `index.md` itself, writes nothing; apply writes atomically after the whole plan; the version
+                                fix is refused while any root-only reference stays (R41); re-records only
+                                `integrity.generated.body` (R44)
   move/
     references.ts           -- Reference, ReferenceSource, referencesOf, rewriteReference: find every reference in a
                                 concept or other parsed file (body links, images, definitions; path-valued

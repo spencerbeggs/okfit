@@ -46,6 +46,8 @@ export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
 export type { MigrationCode, MigrationFinding, MigrationFixKind } from "./migrate/findings.js";
 export { migrationFindings } from "./migrate/findings.js";
+export type { MigrationFixOptions, MigrationFixPlan } from "./migrate/fix.js";
+export { applyMigrationFixes, planMigrationFixes } from "./migrate/fix.js";
 export type { Reference, ReferenceSource, UnlocatableReference } from "./move/references.js";
 export { referencesOf, rewriteReference } from "./move/references.js";
 export type { MovePlan, PlanError, PlanMoveOptions, RunMoveOptions } from "./move/run.js";

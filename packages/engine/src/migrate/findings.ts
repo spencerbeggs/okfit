@@ -24,8 +24,11 @@ export type MigrationCode =
 export type MigrationFixKind = "okf-version" | "root-relative-path";
 
 /**
- * One thing that reads differently under the target version. `file` is bundle-relative (`""` for a
- * bundle-level finding), `range` is zero-based, and `fix` only names which fix kind would apply; it writes nothing.
+ * One thing that reads differently under the target version. `file` is bundle-relative (a bundle-level finding
+ * names the file it belongs in, `index.md` for the version), `range` is zero-based, and `fix` only names which fix
+ * kind would apply; it writes nothing. A version finding's `range.offset` is exact only for an LF root index
+ * without a BOM, because it is computed from the frontmatter text without the file's source; a fix must locate
+ * the `okf_version` scalar in the real file text instead of trusting it.
  *
  * @public
  */
@@ -61,7 +64,7 @@ const versionFindings = (bundle: LoadedBundle, target: string): ReadonlyArray<Mi
 	if (Option.isNone(declared)) {
 		return [
 			{
-				file: root === undefined ? "" : ROOT_INDEX,
+				file: ROOT_INDEX,
 				code: "okf-version-undeclared",
 				severity: "warning",
 				message:

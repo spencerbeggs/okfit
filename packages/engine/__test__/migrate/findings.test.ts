@@ -94,7 +94,7 @@ describe("migrationFindings", () => {
 			const { "okf/index.md": _index, ...noIndex } = V02_PROJECT;
 			const { found } = yield* findingsOf(noIndex);
 			const version = found.filter((f) => f.code.startsWith("okf-version"));
-			assert.deepStrictEqual(summarize(version), [["", "okf-version-undeclared", null, null]]);
+			assert.deepStrictEqual(summarize(version), [["index.md", "okf-version-undeclared", null, null]]);
 			// control: the root index is what makes the declaration fixable
 			assert.strictEqual(
 				(yield* findingsOf(UNDECLARED_PROJECT)).found.find((f) => f.code.startsWith("okf-version"))?.fix,
