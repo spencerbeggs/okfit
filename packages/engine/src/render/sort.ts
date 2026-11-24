@@ -1,8 +1,9 @@
 import type { Diagnostic, DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import type { ProfileDiagnostic } from "@okfit/profiles";
+import type { MigrationFinding, MigrationFixKind } from "../migrate/findings.js";
 
 /** Which producer a diagnostic came from; the JSON envelope's `source` (K-21). @public */
-export type DiagnosticSource = "core.conformance" | "core.lint" | "profile";
+export type DiagnosticSource = "core.conformance" | "core.lint" | "profile" | "migrate";
 
 /**
  * The one shape both renderers consume. `file` is the bundle-relative posix
@@ -22,6 +23,8 @@ export interface RenderedDiagnostic {
 	readonly code: string;
 	readonly severity: DiagnosticSeverity;
 	readonly message: string;
+	/** Set on a `migrate` entry a safe fix would apply to. */
+	readonly fix?: MigrationFixKind;
 }
 
 const toRendered =
@@ -32,6 +35,7 @@ const toRendered =
 		readonly code: string;
 		readonly severity: DiagnosticSeverity;
 		readonly message: string;
+		readonly fix?: MigrationFixKind;
 	}): RenderedDiagnostic => ({
 		source,
 		file: entry.file,
@@ -40,10 +44,11 @@ const toRendered =
 		message: entry.message,
 		// exactOptionalPropertyTypes: omit the key rather than set it to undefined (CORE/internal/lintRules.ts:40).
 		...(entry.range === undefined ? {} : { range: entry.range }),
+		...(entry.fix === undefined ? {} : { fix: entry.fix }),
 	});
 
 /**
- * Tag core's two arrays and profiles' one, in producer order. Not named
+ * Tag core's two arrays, profiles' one and, when given, the migration findings, in producer order. Not named
  * `merge`: `OkfitConfig.merge` already owns that word in this codebase.
  *
  * @public
@@ -52,10 +57,12 @@ export const collect = (
 	conformance: ReadonlyArray<Diagnostic>,
 	lint: ReadonlyArray<Diagnostic>,
 	profile: ReadonlyArray<ProfileDiagnostic>,
+	migration: ReadonlyArray<MigrationFinding> = [],
 ): ReadonlyArray<RenderedDiagnostic> => [
 	...conformance.map(toRendered("core.conformance")),
 	...lint.map(toRendered("core.lint")),
 	...profile.map(toRendered("profile")),
+	...migration.map(toRendered("migrate")),
 ];
 
 /** Range-less entries sort before ranged ones within the same file; ranged entries by `offset`. */

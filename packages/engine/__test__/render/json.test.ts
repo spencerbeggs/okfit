@@ -50,6 +50,7 @@ describe("json", () => {
 					lint_warnings: 1,
 					lint_info: 0,
 					profile_errors: 0,
+					migration_findings: 0,
 					concepts: 4,
 				},
 				// K-17: file "" leads, so lintNoRange (file "") sorts before conformance (file "a.md").
@@ -216,6 +217,60 @@ describe("jsonError", () => {
 			assert.deepStrictEqual(Schema.decodeUnknownSync(JsonEnvelope)(wire), none);
 			// control: a declared version is carried through unchanged
 			assert.strictEqual(json({ ...base, okfVersion: "0.3" }).okf_version, "0.3");
+		}),
+	);
+
+	it.effect("encodes a migrate entry with its fix, counts it in migration_findings, and carries the target", () =>
+		Effect.sync(() => {
+			const migrate: RenderedDiagnostic = {
+				source: "migrate",
+				file: "index.md",
+				code: "okf-version-older",
+				severity: "warning",
+				message: 'okf_version "0.2" is older than 0.3',
+				fix: "okf-version",
+			};
+			const built = json({
+				okfitVersion: "0.1.0",
+				producer: "okfit",
+				okfVersion: "0.2",
+				root: "/repo/okf",
+				profile: null,
+				exitCode: 0,
+				concepts: 1,
+				target: "0.3",
+				diagnostics: [migrate, lintNoRange],
+			});
+			assert.strictEqual(built.target, "0.3");
+			assert.strictEqual(built.summary.migration_findings, 1);
+			assert.strictEqual(built.summary.lint_warnings, 1);
+			assert.deepStrictEqual(
+				built.diagnostics.find((d) => d.source === "migrate"),
+				{
+					source: "migrate",
+					file: "index.md",
+					code: "okf-version-older",
+					severity: "warning",
+					message: 'okf_version "0.2" is older than 0.3',
+					fix: "okf-version",
+				},
+			);
+			const wire: unknown = JSON.parse(JSON.stringify(Schema.encodeSync(JsonEnvelope)(built)));
+			assert.deepStrictEqual(Schema.decodeUnknownSync(JsonEnvelope)(wire), built);
+			// control: without a target there is no `target` key, and the count is 0
+			const plain = json({
+				okfitVersion: "0.1.0",
+				producer: "okfit",
+				okfVersion: null,
+				root: "/repo/okf",
+				profile: null,
+				exitCode: 0,
+				concepts: 0,
+				diagnostics: [lintNoRange],
+			});
+			assert.isFalse(Object.hasOwn(plain, "target"));
+			assert.strictEqual(plain.summary.migration_findings, 0);
+			assert.isFalse(Object.hasOwn(plain.diagnostics[0] ?? {}, "fix"));
 		}),
 	);
 });

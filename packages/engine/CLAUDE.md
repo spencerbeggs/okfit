@@ -39,7 +39,8 @@ src/
     ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
                                  (phase 7 adds layerHttp)
   validate/
-    run.ts                 -- Now (Context.Service), RunOptions (projectRoot required), RunResult, run
+    run.ts                 -- Now (Context.Service), RunOptions (projectRoot required; optional `target`),
+                                RunResult (`migration`), run
     repository.ts           -- withinRoot, resourceCandidates, locateResource: a repository `resource` is
                                 checked only inside the project root (R1); resource-outside-project
     resources.ts / untracked.ts / surfaces.ts -- lintResources, lintUntrackedResources, lintSurfaces
@@ -61,6 +62,10 @@ src/
   targets/
     resolve.ts               -- Targets.resolve/suggest, ResolvedTarget: the shared concept-target resolver
                                 (absolute, cwd-relative, id; all or nothing)
+  migrate/
+    findings.ts             -- MigrationCode, MigrationFixKind, MigrationFinding, migrationFindings: what reads
+                                differently under a target OKF version (pure); `validate --target` tags them
+                                `source: "migrate"`, and they never count toward an exit code (R50)
   move/
     references.ts           -- Reference, ReferenceSource, referencesOf, rewriteReference: find every reference in a
                                 concept or other parsed file (body links, images, definitions; path-valued
@@ -101,8 +106,8 @@ src/
     context.ts                     -- ContextEnvelope/ContextType/ContextTag, contextEnvelope (envelope half)
     verify.ts                       -- VerifyEnvelope, verifyEnvelope (envelope half)
     query.ts                         -- ConceptSummary, toConceptSummary, Query{List,Get,Neighbors}Envelope + builders
-    sort.ts                          -- RenderedDiagnostic, DiagnosticSource, collect, sort (pure)
-    json.ts                           -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary, json, jsonError (pure)
+    sort.ts                          -- RenderedDiagnostic, DiagnosticSource (incl. "migrate"), collect, sort (pure)
+    json.ts                           -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary (`fix`, `target`, `migration_findings`), json, jsonError (pure)
     exit.ts                           -- Tally, tally, forDiagnostics (pure)
     move.ts                            -- MoveEnvelope, moveEnvelope (envelope half)
     sync.ts                            -- SyncEnvelope, SyncModeEnvelope, syncEnvelope (envelope half)

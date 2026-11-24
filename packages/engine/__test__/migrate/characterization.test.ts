@@ -30,24 +30,27 @@ describe("before phase 4 (characterization; later tasks flip the marked lines)",
 			// control: the rooted spelling lands through `rooted`, so `via` really tells the two apart
 			assert.deepStrictEqual(landing(Graph.resolve(bundle, FROM, `/${LINK}`)), ["concept", "rooted"]);
 
-			const result = yield* run({
+			const options = {
 				root: ROOT,
 				projectRoot: "/repo",
 				config: OkfitConfig.DEFAULTS,
 				profile: Option.none(),
 				now: DateTime.makeUnsafe("2026-11-24T00:00:00Z"),
 				skipProvenance: true,
-			});
-			const sources = new Set(
-				collect(result.report.conformance, result.report.lint, result.profileDiagnostics).map((d) => d.source),
-			);
+			} as const;
+			const sourcesOf = (result: Effect.Success<ReturnType<typeof run>>) =>
+				new Set(
+					collect(result.report.conformance, result.report.lint, result.profileDiagnostics, result.migration).map(
+						(d) => d.source,
+					),
+				);
+			const plain = sourcesOf(yield* run(options));
 			// control: the report is not empty (README.md has no frontmatter), so the source check is not vacuous
-			assert.isAbove(sources.size, 0);
-			// Task 3: --target adds the "migrate" source
-			assert.isFalse(
-				[...sources].some((source) => source !== "core.conformance" && source !== "core.lint" && source !== "profile"),
-			);
-			assert.isFalse((sources as ReadonlySet<string>).has("migrate"));
+			assert.isAbove(plain.size, 0);
+			// without `target` there is no migrate source
+			assert.isFalse(plain.has("migrate"));
+			// Task 3: with `target` the migrate source appears
+			assert.isTrue(sourcesOf(yield* run({ ...options, target: "0.3" })).has("migrate"));
 		}).pipe(Effect.provide(sessionPlatform(mountProject(V02_PROJECT)))),
 	);
 

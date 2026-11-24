@@ -1,6 +1,7 @@
 import { ErrorText } from "@effected/kit";
 import { DiagnosticRange, DiagnosticSeverity } from "@okfit/core";
 import { Runtime, Schema } from "effect";
+import type { MigrationFixKind } from "../migrate/findings.js";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
 import { DistributionField } from "./distribution.js";
@@ -10,12 +11,15 @@ import { sort } from "./sort.js";
 
 /** One entry of the `diagnostics` array (K-21). @public */
 export const JsonDiagnostic = Schema.Struct({
-	source: Schema.Literals(["core.conformance", "core.lint", "profile"]),
+	source: Schema.Literals(["core.conformance", "core.lint", "profile", "migrate"]),
 	file: Schema.String,
 	code: Schema.String,
 	severity: DiagnosticSeverity,
 	message: Schema.String,
 	range: Schema.optionalKey(DiagnosticRange),
+	fix: Schema.optionalKey(
+		Schema.Literals(["okf-version", "root-relative-path"] satisfies ReadonlyArray<MigrationFixKind>),
+	),
 });
 /** @public */
 export type JsonDiagnostic = typeof JsonDiagnostic.Type;
@@ -27,6 +31,7 @@ export const JsonSummary = Schema.Struct({
 	lint_warnings: Schema.Number,
 	lint_info: Schema.Number,
 	profile_errors: Schema.Number,
+	migration_findings: Schema.Number,
 	concepts: Schema.Number,
 });
 /** @public */
@@ -57,6 +62,7 @@ export const JsonEnvelope = Schema.Struct({
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
 	exit_code: Schema.Literals([0, 1, 2]),
+	target: Schema.optionalKey(Schema.String),
 	summary: JsonSummary,
 	diagnostics: Schema.Array(JsonDiagnostic),
 });
@@ -90,6 +96,7 @@ const toJsonDiagnostic = (d: RenderedDiagnostic): JsonDiagnostic => ({
 	message: d.message,
 	// exactOptionalPropertyTypes: omit the key rather than set it to undefined (CORE/internal/lintRules.ts:40).
 	...(d.range === undefined ? {} : { range: d.range }),
+	...(d.fix === undefined ? {} : { fix: d.fix }),
 });
 
 /**
@@ -113,6 +120,8 @@ export const json = (input: {
 	readonly concepts: number;
 	readonly diagnostics: ReadonlyArray<RenderedDiagnostic>;
 	readonly distribution?: Distribution;
+	/** The `--target` version the report was read against; omitted from the envelope when absent. */
+	readonly target?: string;
 }): JsonEnvelope => {
 	const t = tally(input.diagnostics);
 	return {
@@ -125,12 +134,14 @@ export const json = (input: {
 		root: input.root,
 		profile: input.profile,
 		exit_code: input.exitCode,
+		...(input.target === undefined ? {} : { target: input.target }),
 		summary: {
 			conformance_errors: t.conformanceErrors,
 			lint_errors: t.lintErrors,
 			lint_warnings: t.lintWarnings,
 			lint_info: t.lintInfo,
 			profile_errors: t.profileErrors,
+			migration_findings: input.diagnostics.filter((d) => d.source === "migrate").length,
 			concepts: input.concepts,
 		},
 		diagnostics: sort(input.diagnostics).map(toJsonDiagnostic),
