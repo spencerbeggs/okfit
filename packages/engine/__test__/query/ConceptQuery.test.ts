@@ -45,9 +45,18 @@ const withBundle = <A, E>(body: (bundle: LoadedBundle) => Effect.Effect<A, E>) =
 
 // Hand-built signals: no hashing, no clock. a is stale, b is current, m is drifted.
 const signals: ReadonlyMap<string, ConceptSignal> = new Map<string, ConceptSignal>([
-	["decisions/a", { tier: "unverified", integrity: "none", stale: true }],
-	["decisions/b", { tier: "human-reviewed", integrity: "current", stale: false }],
-	["m", { tier: "machine-confirmed", integrity: "drifted", stale: false, drift: { reason: "content-changed" } }],
+	["decisions/a", { tier: "unverified", integrity: "none", stale: true, staleness: "stale" }],
+	["decisions/b", { tier: "human-reviewed", integrity: "current", stale: false, staleness: "fresh" }],
+	[
+		"m",
+		{
+			tier: "machine-confirmed",
+			integrity: "drifted",
+			stale: false,
+			staleness: "fresh",
+			drift: { reason: "content-changed" },
+		},
+	],
 ]);
 
 const ids = (concepts: ReadonlyArray<{ readonly id: string }>) => concepts.map((c) => c.id);
@@ -126,12 +135,12 @@ describe("ConceptQuery.list with an unknown status", () => {
 	};
 	const memPlatform = Layer.mergeAll(MemoryFileSystem.layerWith(seed), Path.layer);
 	const unknownSignals: ReadonlyMap<string, ConceptSignal> = new Map<string, ConceptSignal>([
-		["archived", { tier: "unverified", integrity: "none", stale: false }],
-		["live", { tier: "unverified", integrity: "none", stale: false }],
-		["number", { tier: "unverified", integrity: "none", stale: false }],
-		["empty", { tier: "unverified", integrity: "none", stale: false }],
-		["nulled", { tier: "unverified", integrity: "none", stale: false }],
-		["draft", { tier: "unverified", integrity: "none", stale: false }],
+		["archived", { tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }],
+		["live", { tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }],
+		["number", { tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }],
+		["empty", { tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }],
+		["nulled", { tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }],
+		["draft", { tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }],
 	]);
 
 	it.effect("filters statuses: [stable] to the stable concept and summarizes the archived one as unknown", () =>

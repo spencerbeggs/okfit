@@ -28,6 +28,7 @@ const summary = (id: string, type: string, extra: Partial<ConceptSummary> = {}):
 	tier: "unverified",
 	integrity: "none",
 	stale: false,
+	staleness: "fresh",
 	...extra,
 });
 

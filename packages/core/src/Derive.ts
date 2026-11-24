@@ -35,6 +35,13 @@ export interface StaleConcept {
 	readonly daysPast: number;
 }
 
+/** One concept whose `stale_after` is present but unreadable (OKF 0.3 §5.5): its id and the value as written. @public */
+export interface MalformedStaleAfter {
+	readonly id: ConceptId;
+	/** The `stale_after` value as written: the string itself, `JSON.stringify` for any other value. */
+	readonly raw: string;
+}
+
 /** Options for {@link Derive.renderIndex}. @public */
 export interface RenderIndexOptions {
 	/**
@@ -58,6 +65,9 @@ export interface RenderIndexOptions {
 	readonly subdirectories?: ReadonlyArray<string>;
 }
 
+/** `stale_after` is present in `raw` (not `null`, `""` or `[]`) yet did not decode to an instant. */
+const isMalformedStaleAfter = (concept: Concept): boolean =>
+	concept.stale_after === undefined && !isAbsent(concept.raw.stale_after);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
 /** The bundle-relative directory of `path`; `""` for a file at the bundle root. */
@@ -102,10 +112,7 @@ export class Derive {
 	 * when `raw.stale_after` is present (not `null`, `""` or `[]`) but unreadable, so never fresh and never stale.
 	 */
 	static readonly staleness = (concept: Concept, now: DateTime.Utc): Staleness => {
-		if (concept.stale_after === undefined) {
-			const raw: unknown = concept.raw.stale_after;
-			return isAbsent(raw) ? "unknown" : "malformed";
-		}
+		if (concept.stale_after === undefined) return isMalformedStaleAfter(concept) ? "malformed" : "unknown";
 		return DateTime.toEpochMillis(now) >= DateTime.toEpochMillis(concept.stale_after) ? "stale" : "fresh";
 	};
 
@@ -126,6 +133,21 @@ export class Derive {
 			if (!Derive.isStale(concept.frontmatter, now)) continue;
 			const millisPast = DateTime.toEpochMillis(now) - DateTime.toEpochMillis(staleAfter);
 			out.push({ id, staleAfter, daysPast: Math.floor(millisPast / 86_400_000) });
+		}
+		return out.sort((a, b) => compare(a.id, b.id));
+	};
+
+	/**
+	 * Every concept in `bundle` whose {@link Derive.staleness} is `malformed` (OKF 0.3 §5.5: an unreadable
+	 * `stale_after` is never fresh), with the value as written, sorted by id ascending. `staleReport` never
+	 * lists these. A malformed value does not depend on the instant, so there is no `now` argument.
+	 */
+	static readonly malformedStaleAfter = (bundle: LoadedBundle): ReadonlyArray<MalformedStaleAfter> => {
+		const out: Array<MalformedStaleAfter> = [];
+		for (const [id, concept] of bundle.concepts) {
+			if (!isMalformedStaleAfter(concept.frontmatter)) continue;
+			const value: unknown = concept.frontmatter.raw.stale_after;
+			out.push({ id, raw: typeof value === "string" ? value : JSON.stringify(value) });
 		}
 		return out.sort((a, b) => compare(a.id, b.id));
 	};

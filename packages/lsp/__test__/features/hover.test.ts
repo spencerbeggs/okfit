@@ -157,6 +157,27 @@ describe("registerHover", () => {
 		}).pipe(Effect.provide(platform), Effect.scoped),
 	);
 
+	it.effect("a body link to a target with an unreadable stale_after renders `staleness: malformed`", () =>
+		Effect.gen(function* () {
+			const { registry, call, sourcePath, targetPath } = yield* setup();
+			const malformedTarget = TARGET.replace('stale_after: "1965-01-01T00:00:00Z"', "stale_after: next tuesday");
+			assert.notStrictEqual(malformedTarget, TARGET);
+			yield* openAndRevalidate(registry, targetPath, malformedTarget);
+			yield* openAndRevalidate(registry, sourcePath, SOURCE);
+
+			const position = positionOf(SOURCE, "[Target]");
+			const hover = yield* call<HoverParams, Hover | null>("textDocument/hover", {
+				textDocument: { uri: LspUri.fromPath(sourcePath, URI_OPTIONS) },
+				position: { line: position.line, character: position.character + 1 },
+			});
+
+			const { value } = contentsOf(hover);
+			assert.include(value, "- staleness: `malformed`");
+			// control: the readable past stale_after is `stale`, not `malformed` (previous test)
+			assert.notInclude(value, "`stale`");
+		}).pipe(Effect.provide(platform), Effect.scoped),
+	);
+
 	it.effect("a body link to a human-verified, unbound target renders `integrity: drifted (unbound)`", () =>
 		Effect.gen(function* () {
 			const { registry, call, sourcePath, targetPath } = yield* setup();

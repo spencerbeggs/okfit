@@ -23,6 +23,7 @@ const summary = {
 	tier: "human-reviewed" as const,
 	integrity: "drifted" as const,
 	stale: true,
+	staleness: "stale" as const,
 };
 
 describe("query envelopes", () => {
@@ -81,11 +82,12 @@ describe("query envelopes", () => {
 				tier: "human-reviewed",
 				integrity: "drifted",
 				stale: false,
+				staleness: "fresh",
 				drift: { reason: "unbound" },
 			}),
 			{ reason: "unbound", edited_by: null, edited_at: null },
 		);
-		assert.strictEqual(toTrustDrift({ tier: "unverified", integrity: "none", stale: false }), null);
+		assert.strictEqual(toTrustDrift({ tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }), null);
 	});
 });
 
@@ -104,7 +106,12 @@ describe("raw_status on the wire", () => {
 });
 
 describe("signalFor", () => {
-	const signal = { tier: "unverified" as const, integrity: "none" as const, stale: false };
+	const signal = {
+		tier: "unverified" as const,
+		integrity: "none" as const,
+		stale: false,
+		staleness: "fresh" as const,
+	};
 	it("returns the signal computed for the id", () => {
 		assert.strictEqual(signalFor(new Map([["a", signal]]), "a"), signal);
 	});

@@ -1,4 +1,4 @@
-import type { BundleLoadError, LoadedBundle, StaleConcept } from "@okfit/core";
+import type { BundleLoadError, LoadedBundle, MalformedStaleAfter, StaleConcept } from "@okfit/core";
 import { Bundle, Derive } from "@okfit/core";
 import type { DateTime, FileSystem, Path } from "effect";
 import { Effect } from "effect";
@@ -16,6 +16,8 @@ export interface StaleRunResult {
 	readonly bundle: LoadedBundle;
 	/** `Derive.staleReport`'s output verbatim: every stale concept, sorted by id. */
 	readonly items: ReadonlyArray<StaleConcept>;
+	/** `Derive.malformedStaleAfter`: concepts whose `stale_after` cannot be read (OKF 0.3 §5.5), never offered for re-verify. */
+	readonly malformed: ReadonlyArray<MalformedStaleAfter>;
 }
 
 /**
@@ -32,5 +34,5 @@ export const runStale = (
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.root });
 		const items = Derive.staleReport(bundle, options.now);
-		return { bundle, items };
+		return { bundle, items, malformed: Derive.malformedStaleAfter(bundle) };
 	});

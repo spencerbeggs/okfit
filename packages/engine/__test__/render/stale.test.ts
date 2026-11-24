@@ -23,6 +23,7 @@ describe("staleEnvelope", () => {
 				now,
 				concepts: 10,
 				items: [staleConcept("decisions/old", "2026-08-01T00:00:00Z", 43)],
+				malformed: [],
 			});
 			assert.deepStrictEqual(built, {
 				schema: 1,
@@ -34,8 +35,9 @@ describe("staleEnvelope", () => {
 				root: "/repo/okf",
 				profile: "software-project",
 				as_of: "2026-09-13T00:00:00.000Z",
-				summary: { concepts: 10, stale: 1 },
+				summary: { concepts: 10, stale: 1, malformed: 0 },
 				items: [{ id: "decisions/old", stale_after: "2026-08-01T00:00:00.000Z", days_past: 43 }],
+				malformed: [],
 			});
 		}),
 	);
@@ -52,6 +54,7 @@ describe("staleEnvelope", () => {
 				now,
 				concepts: 4,
 				items: [],
+				malformed: [],
 			});
 			assert.strictEqual(built.summary.stale, 0);
 			assert.deepStrictEqual(built.items, []);
@@ -71,6 +74,7 @@ describe("staleEnvelope", () => {
 				now,
 				concepts: 2,
 				items: [staleConcept("a", "2026-08-01T00:00:00Z", 1)],
+				malformed: [],
 			});
 			const encoded = Schema.encodeSync(StaleEnvelope)(built);
 			const decoded = Schema.decodeUnknownSync(StaleEnvelope)(encoded);
@@ -90,6 +94,7 @@ describe("staleEnvelope", () => {
 				now,
 				concepts: 0,
 				items: [],
+				malformed: [],
 				distribution: { name: "@okfit/plugin", version: "0.3.7" },
 			});
 			assert.strictEqual(built.engine_version, ENGINE_VERSION);
@@ -107,6 +112,7 @@ describe("staleEnvelope", () => {
 				now: DateTime.makeUnsafe("2026-09-13T00:00:00Z"),
 				concepts: 0,
 				items: [],
+				malformed: [],
 			} as const;
 			const none = staleEnvelope({ ...base, okfVersion: null });
 			assert.strictEqual(none.okf_version, null);
@@ -114,6 +120,40 @@ describe("staleEnvelope", () => {
 			assert.deepStrictEqual(Schema.decodeUnknownSync(StaleEnvelope)(wire), none);
 			// control: a declared version is carried through unchanged
 			assert.strictEqual(staleEnvelope({ ...base, okfVersion: "0.3" }).okf_version, "0.3");
+		}),
+	);
+
+	it.effect("lists malformed stale_after values apart from items, with the raw text, and counts them", () =>
+		Effect.sync(() => {
+			const base = {
+				okfitVersion: "1.2.3",
+				producer: "okfit",
+				okfVersion: "0.3",
+				root: "/repo/okf",
+				profile: null,
+				now: DateTime.makeUnsafe("2026-09-13T00:00:00Z"),
+				concepts: 3,
+				items: [staleConcept("a", "2026-08-01T00:00:00Z", 43)],
+			} as const;
+			const built = staleEnvelope({
+				...base,
+				malformed: [
+					{ id: "b" as ConceptId, raw: "next tuesday" },
+					{ id: "c" as ConceptId, raw: "90" },
+				],
+			});
+			assert.strictEqual(built.summary.malformed, 2);
+			assert.strictEqual(built.summary.stale, 1);
+			assert.deepStrictEqual(built.malformed, [
+				{ id: "b", stale_after: "next tuesday" },
+				{ id: "c", stale_after: "90" },
+			]);
+			assert.deepStrictEqual(built.items, [{ id: "a", stale_after: "2026-08-01T00:00:00.000Z", days_past: 43 }]);
+			assert.deepStrictEqual(Schema.decodeUnknownSync(StaleEnvelope)(Schema.encodeSync(StaleEnvelope)(built)), built);
+			// control: with none, the array is empty and the count zero
+			const none = staleEnvelope({ ...base, malformed: [] });
+			assert.deepStrictEqual(none.malformed, []);
+			assert.strictEqual(none.summary.malformed, 0);
 		}),
 	);
 });

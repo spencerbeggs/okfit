@@ -16,7 +16,7 @@ export type { Counts, HumanDocOptions, SeverityPaint } from "./render/human.js";
 export { annotationDir, human, humanDoc, line, summary } from "./render/human.js";
 export type { MoveLines } from "./render/move.js";
 export { humanMoveDoc } from "./render/move.js";
-export { humanStale, humanStaleDoc } from "./render/stale.js";
+export { humanMalformed, humanStale, humanStaleDoc } from "./render/stale.js";
 export type { RevokeLines, VerifyBatchLines, VerifyLines } from "./render/verify.js";
 export { humanRevoke, humanRevokeDoc, humanVerify, humanVerifyBatchDoc, humanVerifyDoc } from "./render/verify.js";
 export { CLI_VERSION } from "./version.js";

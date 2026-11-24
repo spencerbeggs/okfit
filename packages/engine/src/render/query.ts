@@ -1,5 +1,5 @@
 import type { LoadedConcept } from "@okfit/core";
-import { Derive, DerivedStatus, GraphNodeKind } from "@okfit/core";
+import { Derive, DerivedStatus, GraphNodeKind, Staleness } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
@@ -36,6 +36,8 @@ export const ConceptSummary = Schema.Struct({
 	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),
 	integrity: Schema.Literals(["current", "drifted", "none"]),
 	stale: Schema.Boolean,
+	/** `Derive.staleness`: `malformed` is an unreadable `stale_after`, never fresh and never stale (OKF 0.3 section 5.5). */
+	staleness: Staleness,
 });
 /** @public */
 export type ConceptSummary = typeof ConceptSummary.Type;
@@ -57,6 +59,7 @@ export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal):
 	tier: signal.tier,
 	integrity: signal.integrity,
 	stale: signal.stale,
+	staleness: signal.staleness,
 });
 
 /**

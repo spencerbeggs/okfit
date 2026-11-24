@@ -113,6 +113,48 @@ describe("Derive", () => {
 		}),
 	);
 
+	it.effect(
+		"malformedStaleAfter lists every unreadable stale_after as written, never the absent or readable ones (OKF 0.3 §5.5)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT });
+				const now = DateTime.makeUnsafe("2026-07-01T00:00:00Z");
+				assert.deepStrictEqual(
+					Derive.malformedStaleAfter(bundle).map((m) => ({ id: String(m.id), raw: m.raw })),
+					[
+						{ id: "bool", raw: "true" },
+						{ id: "impossible-day", raw: "2026-02-30" },
+						{ id: "list", raw: '["a"]' },
+						{ id: "mapping", raw: '{"a":1}' },
+						{ id: "number", raw: "90" },
+						{ id: "text", raw: "next tuesday" },
+					],
+				);
+				// Controls: a date-only value (valid since 0.3) is stale not malformed; null and "" are absent.
+				assert.deepStrictEqual(
+					Derive.staleReport(bundle, now).map((s) => s.id),
+					["date-only", "instant"],
+				);
+				const ids = new Set(Derive.malformedStaleAfter(bundle).map((m) => String(m.id)));
+				for (const id of ["date-only", "instant", "null", "empty"]) assert.isFalse(ids.has(id), id);
+			}).pipe(
+				Effect.provide(
+					memPlatform({
+						[`${MOUNT}/text.md`]: "---\ntype: Note\nstale_after: next tuesday\n---\n",
+						[`${MOUNT}/number.md`]: "---\ntype: Note\nstale_after: 90\n---\n",
+						[`${MOUNT}/bool.md`]: "---\ntype: Note\nstale_after: true\n---\n",
+						[`${MOUNT}/list.md`]: "---\ntype: Note\nstale_after:\n  - a\n---\n",
+						[`${MOUNT}/mapping.md`]: "---\ntype: Note\nstale_after:\n  a: 1\n---\n",
+						[`${MOUNT}/impossible-day.md`]: "---\ntype: Note\nstale_after: 2026-02-30\n---\n",
+						[`${MOUNT}/date-only.md`]: "---\ntype: Note\nstale_after: 2026-06-01\n---\n",
+						[`${MOUNT}/null.md`]: "---\ntype: Note\nstale_after:\n---\n",
+						[`${MOUNT}/empty.md`]: '---\ntype: Note\nstale_after: ""\n---\n',
+						[`${MOUNT}/instant.md`]: '---\ntype: Note\nstale_after: "2026-01-01T00:00:00Z"\n---\n',
+					}),
+				),
+			),
+	);
+
 	it.effect("title falls back to the file name", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadBundle;

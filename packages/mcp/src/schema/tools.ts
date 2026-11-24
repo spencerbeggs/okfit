@@ -1,5 +1,5 @@
 import { ToolOutcome } from "@effected/mcp-kit";
-import { DerivedStatus, GraphNodeKind } from "@okfit/core";
+import { DerivedStatus, GraphNodeKind, Staleness } from "@okfit/core";
 import { ContextTag, ContextType, TrustDrift } from "@okfit/engine";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
@@ -112,6 +112,8 @@ export const GetConceptFound = Schema.Struct({
 	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),
 	integrity: Schema.Literals(["current", "drifted", "none"]),
 	stale: Schema.Boolean,
+	/** `Derive.staleness`; `malformed` is an unreadable `stale_after` (OKF 0.3 section 5.5). */
+	staleness: Staleness,
 	drift: Schema.NullOr(TrustDrift),
 	replacement: Schema.NullOr(Schema.String),
 });
@@ -165,6 +167,8 @@ export const StaleReportSuccess = Schema.Struct({
 			days_past: Schema.Int,
 		}),
 	),
+	/** Concepts whose `stale_after` is present but unreadable, never fresh (OKF 0.3 section 5.5); apart from `items`. */
+	malformed: Schema.Array(Schema.Struct({ id: Schema.String, stale_after: Schema.String })),
 	drifted: Schema.Array(
 		Schema.Struct({
 			summary: ConceptSummary,

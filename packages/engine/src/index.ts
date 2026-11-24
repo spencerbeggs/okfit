@@ -93,7 +93,7 @@ export {
 } from "./render/query.js";
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
-export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
+export { MalformedStaleItem, StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { PublicationEnvelope, SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export {
 	RevokeEnvelope,

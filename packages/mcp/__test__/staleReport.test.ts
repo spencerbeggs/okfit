@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import type { ConceptSummary } from "../src/index.js";
-import { copyFixtureProject } from "./utils/fixtureProject.js";
+import { copyFixtureProject, copyMalformedStaleProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
 
 interface StaleItem {
@@ -19,6 +19,7 @@ interface DriftedItem {
 interface StaleResult {
 	readonly as_of: string;
 	readonly items: ReadonlyArray<StaleItem>;
+	readonly malformed: ReadonlyArray<{ readonly id: string; readonly stale_after: string }>;
 	readonly drifted: ReadonlyArray<DriftedItem>;
 }
 
@@ -108,6 +109,36 @@ describe("stale_report", () => {
 			assert.ok(result.isError);
 			const text = result.content[0]?.text ?? "";
 			assert.ok(text.includes("explicit offset"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("lists an unreadable stale_after in malformed, as written, never in items (OKF 0.3 section 5.5)", () =>
+		Effect.gen(function* () {
+			const root = yield* copyMalformedStaleProject;
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			const result = yield* harness.callTool("stale_report", { now: "2020-01-11T00:00:00Z" });
+			assert.notOk(result.isError);
+			const data = result.structuredContent as StaleResult;
+			assert.deepStrictEqual(data.malformed, [
+				{ id: "metrics/numbered", stale_after: "90" },
+				{ id: "metrics/vague", stale_after: "next tuesday" },
+			]);
+			// control: the readable stale concept is still in items, and neither malformed one is
+			assert.ok(data.items.some((item) => item.summary.id === "metrics/churn"));
+			assert.notOk(
+				data.items.some(
+					(item) => item.summary.id.startsWith("metrics/") && data.malformed.some((m) => m.id === item.summary.id),
+				),
+			);
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("control: a project with no unreadable stale_after has an empty malformed array", () =>
+		Effect.gen(function* () {
+			const data = (yield* report({ now: "2020-01-11T00:00:00Z" })).structuredContent as StaleResult;
+			assert.deepStrictEqual(data.malformed, []);
+			assert.isAbove(data.items.length, 0);
 		}).pipe(Effect.scoped),
 	);
 });

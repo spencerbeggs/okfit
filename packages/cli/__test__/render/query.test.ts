@@ -16,6 +16,7 @@ const summary = (id: string, over: Partial<ConceptSummary> = {}): ConceptSummary
 	tier: "unverified",
 	integrity: "none",
 	stale: false,
+	staleness: "fresh",
 	...over,
 });
 
@@ -62,7 +63,7 @@ describe("humanQueryList", () => {
 		assert.deepStrictEqual(
 			humanQueryList([
 				summary("a", { tier: "human-reviewed", stale: true }),
-				summary("b", { tier: "human-reviewed", integrity: "drifted", stale: true }),
+				summary("b", { tier: "human-reviewed", integrity: "drifted", stale: true, staleness: "stale" }),
 			]),
 			["a  draft  human-reviewed,stale  Decision  Title of a", "b  draft  drifted,stale  Decision  Title of b"],
 		);
@@ -156,7 +157,7 @@ describe("humanQueryGet trust lines", () => {
 	it("reports drift with its reason", () => {
 		assert.deepStrictEqual(
 			lines(
-				{ tier: "human-reviewed", integrity: "drifted", stale: true },
+				{ tier: "human-reviewed", integrity: "drifted", stale: true, staleness: "stale" },
 				{ reason: "unbound", edited_by: null, edited_at: null },
 			),
 			["tier: human-reviewed", "integrity: drifted (unbound)", "stale: yes"],

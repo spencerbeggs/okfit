@@ -1,4 +1,4 @@
-import type { Actor, LoadedBundle, LoadedConcept, TrustTier, Verification } from "@okfit/core";
+import type { Actor, LoadedBundle, LoadedConcept, Staleness, TrustTier, Verification } from "@okfit/core";
 import { Actor as ActorNS, Concept, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
 import { DateTime, Effect, Result, Schema } from "effect";
 import type { Digest } from "effect/crypto";
@@ -55,6 +55,8 @@ export interface ConceptSignal {
 		readonly unhashable?: { readonly detail: string; readonly path: ReadonlyArray<string | number> };
 	};
 	readonly stale: boolean;
+	/** `Derive.staleness`: `stale` is true only for `stale`; `malformed` is an unreadable `stale_after` (OKF 0.3 §5.5). */
+	readonly staleness: Staleness;
 }
 
 /** Only `human:` entries bind; machine entries neither bind nor break a binding. */
@@ -129,20 +131,22 @@ const evaluate = (
 
 const signal = Effect.fn("Trust.signal")(function* (concept: LoadedConcept, config: OkfitConfig, now: DateTime.Utc) {
 	const tier = Derive.trustTier(concept.frontmatter);
-	const stale = Derive.isStale(concept.frontmatter, now);
+	const staleness = Derive.staleness(concept.frontmatter, now);
+	const stale = staleness === "stale";
 	const input = inputOf(concept, config);
-	if (!needsDigest(input)) return { tier, stale, ...evaluate(input, undefined) } satisfies ConceptSignal;
+	if (!needsDigest(input)) return { tier, stale, staleness, ...evaluate(input, undefined) } satisfies ConceptSignal;
 	const content = yield* Effect.result(Derivation.contentDigest(concept.frontmatter.raw, concept.document.source));
 	if (Result.isFailure(content)) {
 		const { detail, path } = content.failure;
 		return {
 			tier,
 			stale,
+			staleness,
 			integrity: "drifted",
 			drift: { reason: "content-unhashable", unhashable: { detail, path } },
 		} satisfies ConceptSignal;
 	}
-	return { tier, stale, ...evaluate(input, content.success) } satisfies ConceptSignal;
+	return { tier, stale, staleness, ...evaluate(input, content.success) } satisfies ConceptSignal;
 });
 
 const signals = Effect.fn("Trust.signals")(function* (bundle: LoadedBundle, config: OkfitConfig, now: DateTime.Utc) {

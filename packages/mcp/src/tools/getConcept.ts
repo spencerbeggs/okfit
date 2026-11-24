@@ -68,6 +68,7 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			tier: signal.tier,
 			integrity: signal.integrity,
 			stale: signal.stale,
+			staleness: signal.staleness,
 			drift: toTrustDrift(signal),
 			replacement,
 		};

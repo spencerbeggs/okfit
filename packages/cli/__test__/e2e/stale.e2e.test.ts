@@ -13,7 +13,8 @@ import { join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
+import { ERROR_PROJECTS, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
+import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
 const PROFILES_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "profiles", "__test__", "fixtures");
@@ -89,8 +90,9 @@ describe("okfit stale --format json", () => {
 				root: bundleRoot,
 				profile: "software-project",
 				as_of: "2026-01-01T00:00:00.000Z",
-				summary: { concepts: 20, stale: 1 },
+				summary: { concepts: 20, stale: 1, malformed: 0 },
 				items: [{ id: "modules/core", stale_after: "2025-01-01T00:00:00.000Z", days_past: 365 }],
+				malformed: [],
 			});
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
@@ -151,6 +153,55 @@ describe("okfit stale --verify (issue #228)", () => {
 			assert.strictEqual(result.exitCode, 64);
 			assert.strictEqual(result.stdout, "");
 			assert.include(result.stderr, "--dry-run needs --verify");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit stale: malformed stale_after (OKF 0.3 section 5.5)", () => {
+	const env = (sandbox: { readonly env: Record<string, string | undefined> }) => ({
+		...sandbox.env,
+		OKFIT_NOW: "2026-01-01T00:00:00Z",
+	});
+
+	it.effect("lists the unreadable value as written in json and in text, exit 0, beside the stale items", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, ERROR_PROJECTS["malformed-stale-after"]));
+
+			const json = yield* runOkfit(["stale", "--format", "json"], { ...sandbox, env: env(sandbox) });
+			assert.strictEqual(json.exitCode, 0);
+			const envelope = JSON.parse(json.stdout) as {
+				readonly summary: { readonly stale: number; readonly malformed: number };
+				readonly items: ReadonlyArray<unknown>;
+				readonly malformed: ReadonlyArray<unknown>;
+			};
+			assert.deepStrictEqual(envelope.malformed, [{ id: "metrics/margin", stale_after: "not-a-date" }]);
+			assert.strictEqual(envelope.summary.malformed, 1);
+			// the malformed one is never listed as stale
+			assert.strictEqual(envelope.summary.stale, envelope.items.length);
+			assert.notInclude(JSON.stringify(envelope.items), "metrics/margin");
+
+			const text = yield* runOkfit(["stale"], { ...sandbox, env: env(sandbox) });
+			assert.strictEqual(text.exitCode, 0);
+			assert.include(text.stdout, "malformed stale_after:\nmetrics/margin  not-a-date\n");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+
+	it.effect("control: a bundle with no unreadable stale_after has an empty malformed array and no text block", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, V03_PROJECT));
+
+			const json = yield* runOkfit(["stale", "--format", "json"], { ...sandbox, env: env(sandbox) });
+			assert.strictEqual(json.exitCode, 0);
+			const envelope = JSON.parse(json.stdout) as {
+				readonly summary: { readonly malformed: number };
+				readonly malformed: ReadonlyArray<unknown>;
+			};
+			assert.deepStrictEqual(envelope.malformed, []);
+			assert.strictEqual(envelope.summary.malformed, 0);
+			const text = yield* runOkfit(["stale"], { ...sandbox, env: env(sandbox) });
+			assert.notInclude(text.stdout, "malformed stale_after");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

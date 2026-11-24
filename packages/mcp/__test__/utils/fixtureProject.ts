@@ -54,3 +54,20 @@ export const copyUnknownStatusProject = Effect.gen(function* () {
 	yield* write("blank", '""');
 	return root;
 }).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+
+/**
+ * `copyFixtureProject("project")` plus a Metric whose `stale_after` is `next tuesday` and one whose is the number
+ * `90`: both unreadable (OKF 0.3 section 5.5), so neither fresh nor stale.
+ */
+export const copyMalformedStaleProject = Effect.gen(function* () {
+	const fs = yield* FileSystem.FileSystem;
+	const root = yield* copyFixtureProject("project");
+	const write = (name: string, staleAfter: string) =>
+		fs.writeFileString(
+			`${root}/bundle/metrics/${name}.md`,
+			`---\ntype: Metric\ntitle: ${name}\ndescription: A metric.\nstale_after: ${staleAfter}\n---\n\n# ${name}\n\nBody.\n`,
+		);
+	yield* write("vague", "next tuesday");
+	yield* write("numbered", "90");
+	return root;
+}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
