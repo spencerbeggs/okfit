@@ -86,7 +86,7 @@ export const sessionPlatform = (
 
 /** memfs seeded with `seed` mounted at `/repo`, plus posix `Path`: what `Bundle.load` needs. */
 export const projectPlatform = (seed: ProjectSeed): Layer.Layer<FileSystem.FileSystem | Path.Path> =>
-	Layer.mergeAll(MemoryFileSystem.layerWith(mountProject(seed)), Path.layer);
+	seedPlatform(mountProject(seed));
 
 /**
  * memfs seeded with an arbitrary seed (symlinks, paths outside `/repo`), plus posix `Path`. `faults`, when

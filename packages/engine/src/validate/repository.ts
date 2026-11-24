@@ -1,6 +1,5 @@
 import type { DiagnosticSeverity, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Diagnostic, DiagnosticRange, OkfVersion } from "@okfit/core";
-import type { PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 
 /**
@@ -136,7 +135,7 @@ export const locateResource = (input: {
 	readonly concept: LoadedConcept;
 	readonly value: string;
 	readonly projectRoot: string;
-}): Effect.Effect<ResourceLocation, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> =>
+}): Effect.Effect<ResourceLocation, never, FileSystem.FileSystem | Path.Path> =>
 	Effect.gen(function* () {
 		const fs = yield* FileSystem.FileSystem;
 		const path = yield* Path.Path;

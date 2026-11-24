@@ -22,6 +22,7 @@
 import { LspUri } from "@effected/lsp";
 import type { DerivedStatus, LoadedBundle, TrustTier } from "@okfit/core";
 import { Derive } from "@okfit/core";
+import { rawStatusOf } from "@okfit/engine";
 import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
 import { DateTime, Effect, Option, Ref } from "effect";
 import { URI_OPTIONS } from "../convert/platform.js";
@@ -87,7 +88,7 @@ const summarise = (
 			title: Derive.title(concept),
 			type: concept.frontmatter.type,
 			status: Derive.status(concept.frontmatter),
-			rawStatus: Derive.status(concept.frontmatter) === "unknown" ? Derive.rawStatus(concept.frontmatter) : undefined,
+			rawStatus: rawStatusOf(concept) ?? undefined,
 			stale: Derive.isStale(concept.frontmatter, now),
 			tier: signals?.get(id)?.tier ?? Derive.trustTier(concept.frontmatter),
 			integrity: signals?.get(id)?.integrity ?? "none",
