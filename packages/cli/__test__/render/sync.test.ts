@@ -49,6 +49,23 @@ describe("humanSync", () => {
 		assert.isTrue(lines.some((l) => l.startsWith("wrote 1, migrated 2, unchanged")));
 	});
 
+	it("says a skipped concept's old keys were still renamed when it is also migrated", () => {
+		const lines = humanSync({
+			...baseResult,
+			generated: {
+				...EMPTY_MODE,
+				migrated: ["a"],
+				skipped: [
+					{ id: "a", reason: "dirty" },
+					{ id: "b", reason: "dirty" },
+				],
+			},
+		});
+		assert.include(lines, "  skipped a: has uncommitted changes (its old okfit keys are still renamed)");
+		assert.include(lines, "  skipped b: has uncommitted changes");
+		assert.isTrue(lines.some((l) => l.includes("migrated 1,") && l.includes("skipped 2")));
+	});
+
 	it("lists migrated ids", () => {
 		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["decisions/old"] } }).join("\n");
 		assert.isTrue(lines.includes("migrated decisions/old"));

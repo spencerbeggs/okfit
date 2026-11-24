@@ -21,6 +21,7 @@ import {
 import type { BodyProvenance } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result } from "effect";
+import type { GeneratedProvenance } from "../../src/sync/generated.js";
 import { syncGenerated } from "../../src/sync/generated.js";
 import { keyRenamesFor } from "../../src/sync/legacyKeys.js";
 import {
@@ -1285,11 +1286,11 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 			}).pipe(Effect.ensuring(Effect.promise(() => rm(root, { recursive: true, force: true }))));
 		}).pipe(Effect.provide(TestPlatform));
 
-	const run = (root: string, withProvenance = true) =>
+	const run = (root: string, withProvenance = true, provenanceOf: GeneratedProvenance = committed) =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root });
 			const provenance = withProvenance
-				? new Map([...bundle.concepts.keys()].map((id) => [id, committed] as const))
+				? new Map([...bundle.concepts.keys()].map((id) => [id, provenanceOf] as const))
 				: new Map();
 			return yield* syncGenerated(bundle, { provenance, renames: RENAMES, dryRun: false });
 		});
@@ -1317,7 +1318,7 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 	it.effect("chained: drifted body, legacy body_sha256 and a legacy block migrate in one write", () =>
 		Effect.gen(function* () {
 			const legacy = head(
-				`generated:\n  by: human:ada\n  at: ${OLD_AT}\n  body_sha256: ${"0".repeat(64)}\nintegrity:\n  generated:\n    body: 0000000000000000\n${VERIFIED_SLOT}`,
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\n  body_sha256: ${"0".repeat(64)}\nintegrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n${VERIFIED_SLOT}`,
 			);
 			yield* withPage(legacy, (root) =>
 				Effect.gen(function* () {
@@ -1418,6 +1419,87 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 					assert.include(out, "x-okfit-integrity:");
 					assert.notInclude(out, "body_sha256");
 					assert.include(out, "    body: abcdef0123456789\n");
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-2: an in-flight legacy verification clamps generated.at to binding.at, not the commit instant", () =>
+		Effect.gen(function* () {
+			const BOUND_AT = "2026-03-01T00:00:00Z";
+			const text = (content: string) =>
+				head(
+					`generated:\n  by: human:ada\n  at: ${OLD_AT}\nverified:\n  - by: human:ada\n    at: ${BOUND_AT}\nintegrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n  verified:\n    by: human:ada\n    at: ${BOUND_AT}\n    content: ${content}\n`,
+				);
+			yield* withPage(text("bbbbbbbbbbbbbbbb"), (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const concept = [...bundle.concepts.values()][0];
+					assert.isDefined(concept);
+					if (concept === undefined) return;
+					// What the old `verify` recorded: the content with the integrity block excluded.
+					const { integrity: _legacy, ...content } = concept.frontmatter.raw;
+					const digest = yield* Derivation.contentDigest(content, concept.document.source).pipe(
+						Effect.provide(TestPlatform),
+					);
+					yield* Effect.promise(() => writeFile(join(root, "page.md"), text(digest)));
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.written, ["page"]);
+					const out = yield* page(root);
+					assert.include(out, `  at: ${OLD_AT}`.replace(OLD_AT, BOUND_AT) + "\n");
+					assert.notInclude(out, "2026-06-01T08:00:00Z");
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: a dirty legacy concept gets a rename-only write and keeps its dirty skip", () =>
+		Effect.gen(function* () {
+			const legacy = head(
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\nverified:\n  - by: human:ada\n    at: 2026-02-02T02:02:02Z\nintegrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n${VERIFIED_SLOT}`,
+			);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					assert.deepStrictEqual(result.written, []);
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "dirty" }]);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+					const again = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+					assert.deepStrictEqual(again.migrated, []);
+					assert.deepStrictEqual(again.skipped, [{ id: "page", reason: "dirty" }]);
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: a verified legacy concept with no generated block is renamed and skipped generated-missing", () =>
+		Effect.gen(function* () {
+			const legacy = head(`integrity:\n${VERIFIED_SLOT}`);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "generated-missing" }]);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+					const again = yield* run(root);
+					assert.deepStrictEqual(again.migrated, []);
+					assert.deepStrictEqual(again.skipped, [{ id: "page", reason: "generated-missing" }]);
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: a conflict still writes nothing, even when the body is dirty", () =>
+		Effect.gen(function* () {
+			const text = head(
+				`${generatedHead}integrity:\n  generated:\n    body: 0000000000000000\nx-okfit-integrity:\n  generated:\n    body: 1111111111111111\n`,
+			);
+			yield* withPage(text, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "legacy-key-conflict" }]);
+					assert.strictEqual(yield* page(root), text);
 				}),
 			);
 		}),

@@ -26,7 +26,9 @@ const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<s
 	for (const id of mode.migrated) lines.push(`  migrated ${id}`);
 	for (const id of mode.unchanged) lines.push(`  unchanged ${id}`);
 	for (const entry of mode.skipped) {
-		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}`);
+		// A concept that could not be stamped still has its old okfit keys renamed: say so beside the reason.
+		const renamed = mode.migrated.includes(entry.id) ? " (its old okfit keys are still renamed)" : "";
+		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}${renamed}`);
 	}
 	return lines;
 };

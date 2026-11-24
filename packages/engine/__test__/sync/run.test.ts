@@ -402,6 +402,37 @@ describe("runSync --staged (issue #140)", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	it.effect("a dirty legacy concept: dry-run lists it migrated and skipped, the real run renames only the key", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const file = join(root, "okf", "dirty.md");
+				const legacy = yield* Effect.promise(() => legacyConcept(join(root, "okf"), "dirty.md", "Dirty"));
+				git(root, ["add", "-A"]);
+				git(root, ["commit", "-q", "-m", "seed"]);
+				const edited = `${legacy}\nAn uncommitted edit.\n`;
+				yield* Effect.promise(() => writeFile(file, edited));
+				const options = {
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated" as const]),
+				};
+				const dry = yield* runSync({ ...options, dryRun: true }).pipe(Effect.provide(live));
+				assert.deepStrictEqual(dry.generated.migrated, ["dirty"]);
+				assert.deepStrictEqual(dry.generated.written, []);
+				assert.deepStrictEqual(dry.generated.skipped, [{ id: "dirty", reason: "dirty" }]);
+				assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), edited);
+				yield* runSync({ ...options, dryRun: false }).pipe(Effect.provide(live));
+				assert.strictEqual(
+					yield* Effect.promise(() => readFile(file, "utf8")),
+					edited.replace("\nintegrity:", "\nx-okfit-integrity:"),
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("restages a migrate-only concept: its legacy digest moves to integrity and the file is re-added", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

@@ -9,12 +9,13 @@ import {
 	locateIntegrity,
 	locateLegacyBodySha256,
 	removeLine,
+	renameKey,
 	spliceIntegrity,
 	spliceIntegrityGenerated,
 } from "../verify/integrity.js";
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
-import type { KeyRenames } from "./legacyKeys.js";
+import type { KeyRenamePlan, KeyRenames } from "./legacyKeys.js";
 import { legacyIntegrity, planKeyRenames, recordedBodyForSync } from "./legacyKeys.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
@@ -60,6 +61,8 @@ export interface GeneratedSyncResult {
 }
 
 const encodeAt = Schema.encodeSync(Timestamp);
+
+const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
 
 /**
  * For a Publication whose `renders` still carries a legacy `body_sha256`: the
@@ -125,18 +128,28 @@ export interface SyncGeneratedOptions {
  * hand-written binding can name any actor), so gating on it would add a parameter and protect nothing.
  * `Trust.evaluate` still reports `actor-not-allowed` for such a binding.
  */
-const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc, legacy: Integrity | undefined) =>
+const stampInstant = (
+	concept: LoadedConcept,
+	derived: DateTime.Utc,
+	legacy: { readonly block: Integrity; readonly key: string } | undefined,
+) =>
 	Effect.gen(function* () {
 		const { frontmatter } = concept;
 		const binding = Trust.boundEntry({
 			verified: frontmatter.verified ?? [],
-			binding: (frontmatter.integrity ?? legacy)?.verified,
+			binding: (frontmatter.integrity ?? legacy?.block)?.verified,
 		});
 		if (binding === undefined) return derived;
 		if (!DateTime.isLessThan(binding.at, derived)) return derived;
 		const previous = frontmatter.generated?.at;
 		if (previous !== undefined && DateTime.isLessThan(binding.at, previous)) return derived;
-		const content = yield* Effect.result(Derivation.contentDigest(frontmatter.raw, concept.document.source));
+		// The legacy block is not content: it is the key the rename makes the excluded `x-okfit-integrity`, and the
+		// old `verify` hashed the document without it. Hashing it in would make the binding never match.
+		const raw =
+			legacy === undefined || frontmatter.integrity !== undefined
+				? frontmatter.raw
+				: Object.fromEntries(Object.entries(frontmatter.raw).filter(([key]) => key !== legacy.key));
+		const content = yield* Effect.result(Derivation.contentDigest(raw, concept.document.source));
 		return Result.isSuccess(content) && content.success === binding.content ? binding.at : derived;
 	});
 
@@ -210,6 +223,60 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			continue;
 		}
 
+		// The key rename is a pure token edit: it needs no provenance, no `generated` block and no body check.
+		// So it is planned first, and a concept that cannot be stamped still gets the rename-only write below.
+		const absolutePath = path.join(bundle.root, concept.path);
+		const source = keyCandidate ? yield* fs.readFileString(absolutePath) : undefined;
+		const keyPlan =
+			source === undefined
+				? NO_KEY_PLAN
+				: yield* planKeyRenames(stripBom(source).text, concept, renames).pipe(Effect.orDie);
+		// D4: both spellings, or a legacy key that cannot be renamed in place, skip the whole concept.
+		if (keyPlan._tag === "conflict") {
+			skipped.push({ id, reason: "legacy-key-conflict" });
+			continue;
+		}
+		if (keyPlan._tag === "unsupported") {
+			skipped.push({ id, reason: "legacy-key-unsupported" });
+			continue;
+		}
+		const legacyKey =
+			renames.integrity !== undefined &&
+			concept.frontmatter.integrity === undefined &&
+			Object.hasOwn(rawKeys, renames.integrity.from) &&
+			(rawKeys[renames.integrity.from] === null || legacyBlock !== undefined || keyPlan._tag === "edits")
+				? renames.integrity.from
+				: undefined;
+
+		/**
+		 * Skip the stamp for `reason`, but still move the old key tokens: a rename never re-attests, so it is
+		 * written whether or not the concept can be stamped. The id lands in both `migrated` and `skipped`.
+		 */
+		const skipKeepingRename = (reason: GeneratedSkipReason) =>
+			Effect.gen(function* () {
+				if (source !== undefined) {
+					const { text, bom } = stripBom(source);
+					const edits: Array<MarkdownEdit> = keyPlan._tag === "edits" ? [...keyPlan.edits] : [];
+					// An empty legacy block (`integrity:` or `~`) is not in the plan: its key token moves, its value stays.
+					if (legacyKey !== undefined && rawKeys[legacyKey] === null && renames.integrity !== undefined) {
+						const located = yield* locateIntegrity(text, { key: legacyKey }).pipe(Effect.orDie);
+						if (located._tag === "replace") edits.push(renameKey(located.keySpan, renames.integrity.to, text));
+					}
+					if (edits.length > 0) {
+						const finalText =
+							bom +
+							MarkdownEdit.applyAll(
+								text,
+								edits.toSorted((a, b) => a.offset - b.offset),
+							);
+						migrated.push(id);
+						if (!dryRun) yield* writeAtomic(absolutePath, finalText);
+						else pending?.push({ target: absolutePath, contents: finalText });
+					}
+				}
+				skipped.push({ id, reason });
+			});
+
 		// Step 3: every drifted concept needed a provenance entry from runSync --
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
@@ -221,56 +288,46 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			}
 			// Step 4: never substitutes `now`.
 			if (derived._tag === "uncommitted") {
-				skipped.push({ id, reason: derived.reason });
+				yield* skipKeepingRename(derived.reason);
 				continue;
 			}
-			encodedAt = encodeAt(yield* stampInstant(concept, derived.at, legacyBlock));
+			encodedAt = encodeAt(
+				yield* stampInstant(
+					concept,
+					derived.at,
+					legacyBlock === undefined || renames.integrity === undefined
+						? undefined
+						: { block: legacyBlock, key: renames.integrity.from },
+				),
+			);
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is
 		// nothing to attribute a stamp to, so the file is never even opened.
 		const creating = generated === undefined ? agent : undefined;
 		if (!matches && generated === undefined && creating === undefined) {
-			skipped.push({ id, reason: "generated-missing" });
+			yield* skipKeepingRename("generated-missing");
 			continue;
 		}
 
-		const absolutePath = path.join(bundle.root, concept.path);
-		const source = yield* fs.readFileString(absolutePath);
-		const { text, bom } = stripBom(source);
+		const fileSource = source ?? (yield* fs.readFileString(absolutePath));
+		const { text, bom } = stripBom(fileSource);
 		const newline = detectNewline(text);
 
-		// D4: both spellings, or a legacy key that cannot be renamed in place, skip the whole concept.
-		const keyPlan = yield* planKeyRenames(text, concept, renames).pipe(Effect.orDie);
-		if (keyPlan._tag === "conflict") {
-			skipped.push({ id, reason: "legacy-key-conflict" });
-			continue;
-		}
-		if (keyPlan._tag === "unsupported") {
-			skipped.push({ id, reason: "legacy-key-unsupported" });
-			continue;
-		}
 		// A legacy integrity block (D2, null included) is located under its old spelling; an empty one is
 		// then written whole under the new key rather than renamed.
-		const legacyKey =
-			renames.integrity !== undefined &&
-			concept.frontmatter.integrity === undefined &&
-			Object.hasOwn(rawKeys, renames.integrity.from) &&
-			(rawKeys[renames.integrity.from] === null || legacyBlock !== undefined || keyPlan._tag === "edits")
-				? renames.integrity.from
-				: undefined;
 		const integrityLocated = yield* locateIntegrity(
 			text,
 			legacyKey === undefined ? undefined : { key: legacyKey },
 		).pipe(Effect.orDie);
 		if (integrityLocated._tag === "unsupported") {
-			skipped.push({ id, reason: "integrity-unsupported" });
+			yield* skipKeepingRename("integrity-unsupported");
 			continue;
 		}
 		const legacy = yield* locateLegacyBodySha256(text).pipe(Effect.orDie);
 		if (hasLegacy && legacy._tag === "none") {
 			// The parsed concept carries a legacy digest we cannot locate as a plain line (flow style).
-			skipped.push({ id, reason: "generated-unsupported" });
+			yield* skipKeepingRename("generated-unsupported");
 			continue;
 		}
 
@@ -280,7 +337,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				// Step 5 continued: an agent IS configured -- create the whole mapping.
 				const located = yield* locateGeneratedBlock(text).pipe(Effect.orDie);
 				if (located._tag === "unsupported") {
-					skipped.push({ id, reason: "generated-unsupported" });
+					yield* skipKeepingRename("generated-unsupported");
 					continue;
 				}
 				edits.push(spliceGeneratedBlock(located, { by: creating, at: encodedAt }, newline));
@@ -288,7 +345,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				// Step 6: an existing block -- stamp `at` alone.
 				const atLocated = yield* locateGenerated(text).pipe(Effect.orDie);
 				if (atLocated._tag === "unsupported") {
-					skipped.push({ id, reason: "generated-unsupported" });
+					yield* skipKeepingRename("generated-unsupported");
 					continue;
 				}
 				edits.push(spliceGenerated(atLocated, encodedAt, newline, "at"));
@@ -301,7 +358,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				Effect.orDie,
 			);
 			if (renderEdits === undefined) {
-				skipped.push({ id, reason: "renders-unsupported" });
+				yield* skipKeepingRename("renders-unsupported");
 				continue;
 			}
 			edits.push(...renderEdits);
@@ -328,7 +385,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// A block the parsed concept could not decode (say a malformed `integrity.verified`) never
 		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
 		// not as a write that would recur on every run.
-		if (finalText === source) {
+		if (finalText === fileSource) {
 			unchanged.push(id);
 			continue;
 		}
