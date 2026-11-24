@@ -15,11 +15,11 @@ sources:
     title: The current filter and the replacement on get.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:09:56Z
+  at: 2026-11-24T20:33:07Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 0b679c0002cdd2ec
+    body: 1f824f6f088f3a6e
   verified:
     by: human:spencer
     at: 2026-11-24T03:27:42Z
@@ -73,7 +73,8 @@ with it.
   `superseded_by` field. It is a spec key that core already reads as a path
   field, and a declared path field with the same name would be listed twice
   by `mv`. The Decision guidance names `superseded_by` on the deprecated
-  Decision and `supersedes` on its successor instead.
+  Decision and `x-okfit-supersedes` on its successor instead (see
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)).
 
 ## Alternatives rejected
 

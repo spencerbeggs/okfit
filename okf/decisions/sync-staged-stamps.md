@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:30:42Z
+  at: 2026-11-24T20:33:07Z
 status: stable
 verified:
   - by: human:spencer
@@ -24,7 +24,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 x-okfit-integrity:
   generated:
-    body: 0040cf0d08265219
+    body: a6fd23ebca19fdfa
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -53,7 +53,7 @@ bound and `binding.at` is not earlier than the concept's existing
 `generated.at`, so a revert to earlier verified content never moves the stamp
 backwards (see [Every okfit digest lives in one integrity
 family](integrity-family.md)), and
-`integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
+`x-okfit-integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit. It never walks history.
 Its log mode (#295) writes the commit's own `log.md` entry from the same
 facts: the group date is the hook's instant, which is the author date a
@@ -77,9 +77,10 @@ does not set it, and `OKFIT_NOW` already provides a deterministic override.
 ## Consequences
 
 A concept still carrying the legacy `generated.body_sha256` is migrated to
-`integrity.generated.body` by the same staged run (see [integrity
-frontmatter](../interfaces/integrity-frontmatter.md)); the hook never
-writes `integrity.verified`.
+`x-okfit-integrity.generated.body` by the same staged run (see [integrity
+frontmatter](../interfaces/integrity-frontmatter.md) and
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)); the hook never
+writes `x-okfit-integrity.verified`.
 
 The digest guarantees a `--staged` stamp is never rewritten by a later
 walk. An aborted commit leaves a stamp, and a log entry, a few seconds early,

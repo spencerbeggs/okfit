@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 x-okfit-kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T20:33:07Z
 x-okfit-integrity:
   generated:
-    body: 81d227e5e156fed5
+    body: 292f6463c27c636c
 ---
 
 # MCP
@@ -24,7 +24,7 @@ x-okfit-integrity:
 structured access to an OKF bundle (`packages/mcp/README.md:3`). `describe_vocabulary` also returns the
 resolved profile's `docs_presets`. For the
 `generated-at-drift` lint's fallback tier (a concept with no recorded
-`integrity.generated.body` or a legacy `generated.body_sha256`), `validate_bundle` still spawns read-only `git
+`x-okfit-integrity.generated.body` or a legacy `generated.body_sha256`), `validate_bundle` still spawns read-only `git
 log`/`git show` through its `Git`/`GitHistory` dependencies — the server's
 "writes nothing, ever" promise stands, since a read is not a write. For a
 migrated concept the same lint now runs as pure content comparison
@@ -32,7 +32,7 @@ through `Digest.Digest`, also part of `validate_bundle`'s platform services,
 with no git call at all — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate_bundle` also reports
 the `verified-drift` lint, since it runs the same engine validation; the
-tools stay read-only and never write `integrity`. `list_concepts` filters by
+tools stay read-only and never write `x-okfit-integrity` (see [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md)). `list_concepts` filters by
 `verified` (`true` keeps a current, bound human verification; `false` keeps
 concepts with no current verification), `drifted`, `stale` and `current`, `get_concept` reports tier,
 integrity, stale, drift, `raw_status` and the `replacement` of a deprecated

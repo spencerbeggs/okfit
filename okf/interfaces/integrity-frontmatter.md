@@ -10,7 +10,7 @@ tags:
 status: draft
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-24T20:33:07Z
 sources:
   - id: integrity-ts
     resource: ../../packages/core/src/Integrity.ts
@@ -18,32 +18,33 @@ sources:
     resource: ../../packages/profiles/src/Canonical.ts
 x-okfit-integrity:
   generated:
-    body: 1284cdd5314515a8
+    body: 08c2613759f6b4c7
 ---
 
 # integrity frontmatter family
 
-`integrity` is an okfit-owned top-level key, the only place okfit stores
+`x-okfit-integrity` is an okfit-owned top-level key, the only place okfit stores
 digests. It is an OKF v0.3 section 4.1 extension key: other tools preserve
-it. The rationale is in [Every okfit digest lives in one integrity
+it, and it carries the `x-okfit-` prefix that section asks of a producer (see
+[okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md)). The rationale is in [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md).
 
 ```yaml
-integrity:
+x-okfit-integrity:
   generated: { body: 47fef58df84c6eb2 }
   verified: { by: human:spencer, at: 2026-10-10T18:00:00Z, content: 9a1c3f07b2e8d415 }
 ```
 
 ## Keys
 
-- `integrity.generated.body` is the digest of the normalised body as of
+- `x-okfit-integrity.generated.body` is the digest of the normalised body as of
   `generated.at`. `okfit sync` writes it, and the `generated-at-drift` lint
   and sync's `unchanged` check read it.
-- `integrity.verified` binds one `verified` entry to the content it covered.
+- `x-okfit-integrity.verified` binds one `verified` entry to the content it covered.
   `by` and `at` are the join key into `verified`; `content` is the content
   digest. `okfit verify` writes it in the same edit as the entry. Only a
   human run of `okfit verify` writes it.
-- Both keys are optional, and `integrity` is omitted when empty.
+- Both keys are optional, and `x-okfit-integrity` is omitted when empty.
 
 ## Digest format
 
@@ -54,8 +55,8 @@ otherwise read a number. Body input is the body with CRLF and lone CR
 folded to LF and trailing whitespace trimmed. Content input is canonical
 JSON of the normalised body and the parsed authored frontmatter, with keys
 sorted by code point and arrays kept in order, minus `generated`,
-`verified`, `integrity`, `stale_after`, `status`, legacy `timestamp` and
-each `renders[].body` (see [Verification binds the content it
+`verified`, `x-okfit-integrity`, `stale_after`, `status`, legacy `timestamp` and
+each `x-okfit-renders[].body` (see [Verification binds the content it
 covered](../decisions/verification-binds-content.md)).
 
 ## Currency
@@ -72,6 +73,6 @@ rule and which drift never changes.
 
 `generated.body_sha256` and Publication `renders[].body_sha256` are legacy.
 Core still decodes the former leniently as a migration fallback; `okfit
-sync` rewrites both and reports `migrated`. A malformed `integrity` block
-yields `family-invalid` for `integrity` only and leaves `generated` and
+sync` rewrites both and reports `migrated`. A bare `integrity` block is okfit's old spelling of the key: `okfit sync` renames it, and `okfit verify` refuses a concept that still carries it. A malformed `x-okfit-integrity` block
+yields `family-invalid` for `x-okfit-integrity` only and leaves `generated` and
 `verified` intact. A digest is a signal, not tamper resistance.

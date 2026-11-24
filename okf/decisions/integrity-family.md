@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T20:33:07Z
 status: stable
 x-okfit-supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,7 +15,7 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 x-okfit-integrity:
   generated:
-    body: d96fb1111c604cf9
+    body: be77564af93c0fa0
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -43,10 +43,11 @@ leave both spec families carrying tooling state.
 
 ## Decision
 
-okfit owns one top-level frontmatter key, `integrity`, and is the only
+okfit owns one top-level frontmatter key, `x-okfit-integrity` (see
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)), and is the only
 writer of digests into it. The contract is [integrity
-frontmatter](../interfaces/integrity-frontmatter.md): `integrity.generated.body`
-replaces `generated.body_sha256`, and `integrity.verified` binds one
+frontmatter](../interfaces/integrity-frontmatter.md): `x-okfit-integrity.generated.body`
+replaces `generated.body_sha256`, and `x-okfit-integrity.verified` binds one
 `verified` entry to a content digest. `generated` and `verified` return to
 pure spec shape; OKF v0.3 section 4.1 allows producers to add keys and asks
 consumers to preserve them, so the family is conformant.
@@ -55,15 +56,15 @@ A digest is the first 16 lowercase hex characters (64 bits) of SHA-256,
 computed through core's `Digest` service (`effect/crypto`). Core holds the schema and never
 hashes. The old keys, `generated.body_sha256` and Publication
 `renders[].body_sha256`, are legacy: `okfit sync` migrates them to
-`integrity.generated.body` and `renders[].body` and reports them as
+`x-okfit-integrity.generated.body` and `x-okfit-renders[].body` and reports them as
 `migrated`.
 
-`integrity` is a separate okfit signal beside the authoritative spec trust
+`x-okfit-integrity` is a separate okfit signal beside the authoritative spec trust
 tier, never a replacement for it: the tier comes from the spec's current
 verification events (OKF v0.3 section 5.3), integrity from the bound digest.
 `okfit sync` stamps `generated.at` as the derived instant (under `--staged`,
 the hook's clock), except that it
-stamps `min(derived instant, binding.at)` when `integrity.verified` binds the
+stamps `min(derived instant, binding.at)` when `x-okfit-integrity.verified` binds the
 latest human entry and covers exactly the current content. The binding proves
 that content existed at `binding.at`, which makes that instant the content's
 last meaningful change (section 5.2), and it keeps a verification current
@@ -86,9 +87,9 @@ never rewritten.
 ## Consequences
 
 The superseded Decision rejected a namespaced root because it split one
-concern across two places. A single `integrity` home for every okfit digest
+concern across two places. A single `x-okfit-integrity` home for every okfit digest
 removes that split, so the rejection no longer applies. A malformed
-`integrity` block fails only its own family, never `generated` or
+`x-okfit-integrity` block fails only its own family, never `generated` or
 `verified`. Existing `verified` entries have no binding until a human
 re-verifies them, so they report as drifted (see [Drift is a signal, not a
 gate](drift-is-a-signal.md)). Digests are written single-quoted when they

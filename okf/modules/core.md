@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T16:18:39Z
+  at: 2026-11-24T20:33:07Z
 x-okfit-integrity:
   generated:
-    body: 50897ae1e08cea73
+    body: c99b70965ac33bfb
 ---
 
 # Core
@@ -119,10 +119,10 @@ the surrounding quotes.
 
 `Integrity.ts` defines `Digest` (a 16-character lowercase hex string),
 `IntegrityGenerated { body }`, `IntegrityVerified { by, at, content }` and
-`Integrity`, and `Concept` carries an optional top-level `integrity`
+`Integrity`, and `Concept` carries an optional top-level `x-okfit-integrity`
 decoded as its own family, so a malformed block yields `family-invalid`
 (now the only family that does; every other family reads key by key, see
-"Reading OKF v0.3 bundles") for `integrity` only and never drops `generated`
+"Reading OKF v0.3 bundles") for `x-okfit-integrity` only and never drops `generated`
 or `verified`. Core only
 holds the shape; it never computes a digest, since that would need a
 hashing capability core's no-Node-imports rule keeps out of this package.
@@ -132,7 +132,8 @@ schema is gone from the barrel. `verified-drift` is a registered lint code
 (`verified_drift` in the `[lint]` table, default `warn`). See [Every okfit
 digest lives in one integrity family](../decisions/integrity-family.md) and
 the [integrity frontmatter](../interfaces/integrity-frontmatter.md)
-contract.
+contract; the key carries the prefix OKF v0.3 section 4.1 asks of a producer (see
+[okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md)).
 
 ## Reading OKF v0.3 bundles
 
@@ -149,7 +150,7 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   kept](../decisions/root-index-metadata-is-kept.md)).
 - **Tolerant reading.** Key-by-key decode with `entry-ignored`,
   `value-malformed` and `value-unknown`; `family-invalid` is only
-  `integrity`; `Concept.entries` (`EntryPaths`) and `Concept.entryPath` give
+  `x-okfit-integrity`; `Concept.entries` (`EntryPaths`) and `Concept.entryPath` give
   a kept entry's YAML path ([Loading never fails a concept for a bad
   family](../decisions/content-tolerant-loading.md)).
 - **Non-concept markdown.** `frontmatter-missing` and `type-missing` are

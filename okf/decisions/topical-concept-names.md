@@ -7,11 +7,11 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:18:01Z
+  at: 2026-11-24T20:33:07Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: d590024d84d9aa41
+    body: b166d77ae40d6f62
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -29,7 +29,7 @@ Concept file names drift into sentences: `interactive-prompts-gated-by-audience-
 
 ## Decision
 
-Name a concept file for its stable topic in two to four words, and put the claim in `title` and `description`. A concept's id stays its bundle-relative path. A separate `id:` frontmatter key would not spare a rename from rewriting links, because OKF links are paths (§6 of the spec); it would only add a second identity to keep in step with the first. Renames go through `okfit mv`, which rewrites every reference and never writes `verified` or `integrity`, so each rewritten file drifts by the ordinary rule and a human re-verifies it. See [the CLI commands interface](../interfaces/cli-commands.md).
+Name a concept file for its stable topic in two to four words, and put the claim in `title` and `description`. A concept's id stays its bundle-relative path. A separate `id:` frontmatter key would not spare a rename from rewriting links, because OKF links are paths (§6 of the spec); it would only add a second identity to keep in step with the first. Renames go through `okfit mv`, which rewrites every reference and never writes `verified` or `x-okfit-integrity` (see [okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)), so each rewritten file drifts by the ordinary rule and a human re-verifies it. See [the CLI commands interface](../interfaces/cli-commands.md).
 
 ## Rejected
 

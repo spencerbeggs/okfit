@@ -89,6 +89,7 @@
 * Updated okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
 * Updated process reads confined to the CLI's boundary files
 * Updated scratchpad
+* Added okfit's own frontmatter keys carry the x-okfit- prefix
 
 ## 2026-11-23
 

@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T14:44:29Z
+  at: 2026-11-24T20:33:07Z
 status: draft
 verified:
   - by: human:spencer
@@ -15,7 +15,7 @@ verified:
     at: 2026-10-11T22:01:13Z
 x-okfit-integrity:
   generated:
-    body: 9ede15aac44faab2
+    body: e34a5bec5290d5a8
   verified:
     by: human:spencer
     at: 2026-10-11T22:01:13Z
@@ -77,10 +77,11 @@ diagnostics already make.
 
 Every `verified` edit also binds the entry: `FrontmatterEdits.verified`
 and `verifiedWithStatus` take the content digest of the source as passed and
-splice `integrity.verified { by, at, content }` in the same ordered edit
+splice `x-okfit-integrity.verified { by, at, content }` in the same ordered edit
 set, through `verify/integrity.ts`'s `locateIntegrity` and
 `spliceIntegrityVerified`. A binding replaces any prior one, and only the
-`verified` slot of an existing `integrity` block is touched, so the
+`verified` slot of an existing `x-okfit-integrity` block is touched (see
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)), so the
 `generated` digest beside it survives. The binding is described by
 [integrity frontmatter](../interfaces/integrity-frontmatter.md) and the
 reason for it by [A verification is bound to the content it

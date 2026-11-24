@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T20:33:07Z
 x-okfit-integrity:
   generated:
-    body: 3044a082c753bf07
+    body: 3d010101a2ecbf6e
 ---
 
 # Profiles
@@ -76,7 +76,7 @@ imports `@effect/platform-node` or `node:child_process` directly. No
 
 `Provenance.lint(bundle, config)` runs the `generated-at-drift` lint,
 requiring `Git | GitHistory | FileSystem | Path | Digest.Digest`. The lint
-is two-tier: a concept carrying `integrity.generated.body` (or, as a
+is two-tier: a concept carrying `x-okfit-integrity.generated.body` (or, as a
 migration fallback, the 16-hex prefix of a legacy `generated.body_sha256`)
 is checked by pure content comparison against `Derivation.bodyDigest` of
 its current source, no git call at all; a concept without one falls back to
@@ -135,7 +135,8 @@ drift is a signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
 The software-project Decision guidance now tells authors to edit a Decision
 whose choice still stands and to deprecate and supersede it only when the
 choice changes, and names `superseded_by` (on the deprecated Decision) and
-`supersedes` (on its successor). The profile declares no `superseded_by` field:
+`x-okfit-supersedes` (on its successor), the profile's field keys carrying the `x-okfit-` prefix (see
+[okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md)). The profile declares no `superseded_by` field:
 it is a spec key that core already reads as a path field, and a declared path
 field of the same name would be listed twice by `okfit mv`.
 
@@ -150,12 +151,12 @@ anchors the same way, at the misplaced Project concept's `type` value;
 
 `Publications.lint(bundle, config)` runs the `publication-drift` and
 `publication-orphan` lints over concepts of type `Publication`, requiring
-`Digest.Digest`. A Publication whose `renders` entry carries a
+`Digest.Digest`. A Publication whose `x-okfit-renders` entry carries a
 `body` digest (16-hex) that no longer matches `Derivation.bodyDigest` of the rendered
-source concept reports drift. An orphan is reported for a `surface` that
+source concept reports drift. An orphan is reported for an `x-okfit-surface` that
 resolves to no bundle concept or to a concept whose type is not `Surface`
-(the message names the actual type), a `renders[].path` that resolves to
-nothing, an empty `renders` list, or a malformed one. An absent `surface` is
+(the message names the actual type), an `x-okfit-renders[].path` that resolves to
+nothing, an empty `x-okfit-renders` list, or a malformed one. An absent `x-okfit-surface` is
 skipped here and left to `required-key-missing`.
 `Publications.resolveRef(from, raw)` resolves a reference to a bundle-relative
 id: a leading `/` starts from the bundle root, anything else from the
