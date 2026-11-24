@@ -4,6 +4,7 @@ import type { LanguageClient } from "vscode-languageclient/node";
 import { finishEditCommand } from "./save-after-apply.js";
 import { conceptUriFrom, statusPicks } from "./status-picks.js";
 import type { Status } from "./tree/model.js";
+import { normalizeStatus } from "./tree/model.js";
 import type { ConceptsProvider } from "./tree/provider.js";
 
 /**
@@ -54,7 +55,8 @@ const statusOf = (provider: ConceptsProvider | undefined, uri: string): Status |
 	for (const bundle of provider?.current.bundles ?? []) {
 		for (const concept of bundle.concepts) {
 			if (vscode.Uri.parse(concept.uri).toString() === target) {
-				return concept.status === "unknown" ? undefined : concept.status;
+				const { status } = normalizeStatus(concept);
+				return status === "unknown" ? undefined : status;
 			}
 		}
 	}

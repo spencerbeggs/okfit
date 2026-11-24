@@ -233,6 +233,29 @@ describe("registerCommands", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.live("okfit.lsp.verifyAndMarkStable on a status outside the vocabulary is refused and sends nothing", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* Effect.promise(() =>
+				writeFile(
+					join(h.root, "okf", "modules", "archived.md"),
+					STABLE_SOURCE.replace("title:", "status: archived\ntitle:"),
+					"utf8",
+				),
+			);
+			yield* h.initialize;
+			yield* h.open("okf/modules/archived.md");
+			yield* h.nextPublish();
+
+			const failure = yield* executeCommandFailure(h.client, "okfit.lsp.verifyAndMarkStable", [
+				h.uriOf("okf/modules/archived.md"),
+			]);
+			assert.include(failure.message, '"archived"');
+			assert.include(failure.message, "set the status first");
+			assert.strictEqual(h.serverRequests.length, 0);
+		}).pipe(Effect.scoped),
+	);
+
 	it.live("okfit.lsp.verifyAndMarkStable on a draft already verified by the actor fails AlreadyVerified", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });

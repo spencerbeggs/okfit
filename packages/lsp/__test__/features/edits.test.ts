@@ -299,20 +299,32 @@ describe("verification on a status outside the vocabulary", () => {
 		}).pipe(Effect.provide(testPlatform())),
 	);
 
-	it.effect("verifiedStableTextEdits replaces an unknown status with stable, as okfit verify --stable does (R11)", () =>
-		Effect.gen(function* () {
-			const { registry, documents, path, disk } = yield* setup();
-			const now = yield* DateTime.now;
-			yield* documents.record(path, withStatus(disk, "status: archived"), 2);
-			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
-			const edits = yield* verifiedStableTextEdits(target, "human:fixture-author", now);
-			assert.isTrue(edits.some((edit) => edit.newText.includes("stable")));
-			// control: a stable concept is still refused, there is nothing to promote
-			yield* documents.record(path, withStatus(disk, "status: stable"), 3);
-			const stable = Option.getOrThrow(yield* editTarget(registry, documents, path));
-			assert.deepStrictEqual(yield* Effect.flip(verifiedStableTextEdits(stable, "human:fixture-author", now)), {
-				_tag: "NotADraft",
-			});
-		}).pipe(Effect.provide(testPlatform())),
+	it.effect(
+		"verifiedStableTextEdits refuses every unknown status; a draft succeeds, stable and deprecated fail NotADraft",
+		() =>
+			Effect.gen(function* () {
+				const { registry, documents, path, disk } = yield* setup();
+				const now = yield* DateTime.now;
+				const attempt = (line: string) =>
+					Effect.gen(function* () {
+						yield* documents.record(path, withStatus(disk, line), 2);
+						const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+						return yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", now));
+					});
+				for (const [line, raw] of [
+					["status: archived", "archived"],
+					["status: 5", "5"],
+					["status: [a]", '["a"]'],
+					["status: {a: 1}", '{"a":1}'],
+				] as const) {
+					assert.deepStrictEqual(yield* attempt(line), { _tag: "UnknownStatusCannotBeVerified", status: raw });
+				}
+				// controls: stable and deprecated keep failing NotADraft; a draft succeeds
+				assert.deepStrictEqual(yield* attempt("status: stable"), { _tag: "NotADraft" });
+				assert.deepStrictEqual(yield* attempt("status: deprecated"), { _tag: "NotADraft" });
+				yield* documents.record(path, withStatus(disk, "status: draft"), 3);
+				const draft = Option.getOrThrow(yield* editTarget(registry, documents, path));
+				assert.isAbove((yield* verifiedStableTextEdits(draft, "human:fixture-author", now)).length, 0);
+			}).pipe(Effect.provide(testPlatform())),
 	);
 });

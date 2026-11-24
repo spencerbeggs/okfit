@@ -492,7 +492,7 @@ naming it (`-32601`).
   current text, so a second quick Mark verified sees the first's entry once
   the client has applied it.
 - **`okfit.lsp.verifyAndMarkStable`** -- args `[uri]`. A draft's combined
-  verify-and-promote: `verifiedStableTextEdits(target, actor, now)` (wrapping
+  verify-and-promote: `verifiedStableTextEdits(target, actor, now)` (refuses an unknown status with `UnknownStatusCannotBeVerified`; wrapping
   `FrontmatterEdits.verifiedWithStatus`) sent as one versioned `applyEdit`,
   labeled "Mark verified and stable". Fails `NotADraft` for any other status
   and `AlreadyVerified` when the actor has already attested. The matching code

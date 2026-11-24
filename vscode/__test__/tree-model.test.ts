@@ -131,6 +131,20 @@ describe("drift", () => {
 		expect(node({ status: "stable", integrity: "drifted" }).description).toBe("stable \u00b7 drifted");
 	});
 
+	it("reads a summary from a server that predates the derived status (interop shim)", () => {
+		// an old server sends no status for a concept with no status line, and the raw string for anything else
+		const old = (status: string | undefined) => node({ status, rawStatus: undefined });
+		expect(old(undefined).description).toBe("stable");
+		expect(old(undefined).status).toBe("stable");
+		expect(old("archived").description).toBe("unknown(archived)");
+		expect(old("archived").status).toBe("unknown");
+		expect(old("draft").description).toBe("draft");
+		expect(old("deprecated").status).toBe("deprecated");
+		// control: a new server's unknown summary reads the same through rawStatus
+		const current = node({ status: "unknown", rawStatus: "archived" });
+		expect([current.description, current.status]).toEqual(["unknown(archived)", "unknown"]);
+	});
+
 	it("describes a drifted concept as status plus drifted", () => {
 		expect(node({ integrity: "drifted", status: "draft" }).description).toBe("draft \u00b7 drifted");
 		expect(node({ integrity: "current" }).description).toBe("stable");

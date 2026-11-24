@@ -162,7 +162,12 @@ const handleVerifyAndMarkStable = (
 		const [uri] = yield* decodeArgs(VerifyAndMarkStableArgs, args, "okfit.lsp.verifyAndMarkStable expects [uri]");
 		const target = yield* targetFor(registry, documents, uri);
 		const derived = derivedStatusOf(target.status);
-		if (derived !== "draft" && derived !== "unknown") return yield* Effect.fail(toLspError({ _tag: "NotADraft" }));
+		if (derived === "unknown") {
+			return yield* Effect.fail(
+				toLspError({ _tag: "UnknownStatusCannotBeVerified", status: rawStatusText(target.status) }),
+			);
+		}
+		if (derived !== "draft") return yield* Effect.fail(toLspError({ _tag: "NotADraft" }));
 		const actor = yield* resolveActor(target.handle).pipe(Effect.mapError(toLspError));
 		const now = yield* DateTime.now;
 		const edits = yield* verifiedStableTextEdits(target, actor, now).pipe(Effect.mapError(toLspError));

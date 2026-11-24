@@ -55,9 +55,24 @@ const ICONS: Readonly<Record<string, string>> = {
 
 export const iconFor = (type: string): string => ICONS[type] ?? "symbol-misc";
 
+/**
+ * The status and its display text for a summary off the wire. A current server sends the derived status
+ * (`unknown` with `rawStatus`). A workspace server that predates the field sends the raw frontmatter value
+ * instead: nothing for a concept with no status line, which is an interop shim read as `stable` (what that
+ * server's own consumers meant by an absent status), and a string outside the four known values, which is an
+ * `unknown` status whose raw text is that string.
+ */
+export const normalizeStatus = (
+	c: Pick<ConceptSummary, "status" | "rawStatus">,
+): { readonly status: DerivedStatus; readonly shown: string } => {
+	const raw = c.status;
+	if (raw === undefined) return { status: "stable", shown: "stable" };
+	if (raw === "draft" || raw === "stable" || raw === "deprecated") return { status: raw, shown: raw };
+	return { status: "unknown", shown: `unknown(${raw === "unknown" ? (c.rawStatus ?? "") : raw})` };
+};
+
 const conceptNode = (c: ConceptSummary): Extract<TreeNode, { kind: "concept" }> => {
-	const status = c.status;
-	const shown = status === "unknown" ? `unknown(${c.rawStatus ?? ""})` : status;
+	const { status, shown } = normalizeStatus(c);
 	return {
 		kind: "concept",
 		id: c.id,

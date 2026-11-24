@@ -304,8 +304,11 @@ export const verifiedTextEdits = (
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
  * `actor`, `at` the encoded `now`) AND set `status: stable` in one write --
  * `okfit verify --stable`'s combined edit. Fails `NotADraft` unless the
- * concept's status is `draft` or outside the vocabulary (the write replaces it with `stable`, as `okfit verify
- * --stable` does; a stable or deprecated concept takes the plain Mark verified or none), `AlreadyVerified` when `actor`'s verification still binds the
+ * concept's derived status is `draft` (a stable or deprecated concept takes
+ * the plain Mark verified, or none), `UnknownStatusCannotBeVerified` for a
+ * status outside the vocabulary (the editor never replaces one unseen; the user
+ * picks a `Set status` action first, unlike the CLI where the human names
+ * `--stable`), `AlreadyVerified` when `actor`'s verification still binds the
  * current content, or when a shape `FrontmatterEdits.verifiedWithStatus` cannot splice.
  *
  * @public
@@ -316,10 +319,14 @@ export const verifiedStableTextEdits = (
 	now: DateTime.Utc,
 ): Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest> =>
 	Effect.gen(function* () {
-		// An unknown status is promoted here too: this write replaces it with `stable`, the one case the engine's
-		// verify allows on a status outside the vocabulary (`--stable`, ruling R11).
 		const derived = derivedStatusOf(target.status);
-		if (derived !== "draft" && derived !== "unknown") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
+		if (derived === "unknown") {
+			return yield* Effect.fail<EditFailure>({
+				_tag: "UnknownStatusCannotBeVerified",
+				status: rawStatusText(target.status),
+			});
+		}
+		if (derived !== "draft") return yield* Effect.fail<EditFailure>({ _tag: "NotADraft" });
 		const content = yield* contentDigestOf(target.text);
 		if (alreadyBound(target, actor, content))
 			return yield* Effect.fail<EditFailure>({ _tag: "AlreadyVerified", by: actor });
@@ -379,7 +386,7 @@ export const describeFailure = (failure: EditFailure): string => {
 		case "UnknownStatusCannotBeVerified":
 			return `the status "${failure.status}" is not draft, stable or deprecated; set the status first, as okfit verify refuses it`;
 		case "NotADraft":
-			return "Mark verified and stable promotes a draft concept (or one whose status is unknown); use Mark verified for the others";
+			return "Mark verified and stable promotes a draft concept; use Mark verified for a concept that is not a draft";
 		case "Unhashable":
 			return `${failure.message}; fix the value before marking it verified`;
 	}
