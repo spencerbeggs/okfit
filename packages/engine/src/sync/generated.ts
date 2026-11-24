@@ -99,6 +99,10 @@ export interface SyncGeneratedOptions {
  * that; the commit instant is only when git learned of it. The stamp is then `min(derived, binding.at)`, which keeps
  * the edit, verify, commit sequence's verification current. Any other case, including content that cannot be hashed,
  * stamps `derived` unchanged.
+ *
+ * The `[actors].humans` allow-list does not gate the clamp: integrity is tamper-evident, not access control (a
+ * hand-written binding can name any actor), so gating on it would add a parameter and protect nothing.
+ * `Trust.evaluate` still reports `actor-not-allowed` for such a binding.
  */
 const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc) =>
 	Effect.gen(function* () {

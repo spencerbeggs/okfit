@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { NodeCrypto } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
-import type { Actor } from "@okfit/core";
+import type { Actor, ActorPattern } from "@okfit/core";
 import {
 	Bundle,
 	Concept,
@@ -15,9 +15,10 @@ import {
 	IntegrityGenerated,
 	LoadedBundle,
 	LoadedConcept,
+	OkfitConfig,
 } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
-import { Derivation } from "@okfit/profiles";
+import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncGenerated } from "../../src/sync/generated.js";
 import {
@@ -1122,6 +1123,18 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			};
 			const { stamped } = yield* run(files, T2);
 			assert.strictEqual(stamped["not-allowed"], V);
+			// Trust.evaluate still reports the actor as not allowed
+			const concept = (yield* Effect.provide(
+				Bundle.load({ root: ROOT }),
+				seedPlatform({ [`${ROOT}/not-allowed.md`]: files["not-allowed"] }),
+			)).concepts.get(ConceptId.make("not-allowed"));
+			if (concept === undefined) return assert.fail("not-allowed did not load");
+			const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+				actors: { humans: ["human:ada" as ActorPattern] },
+				extensions: {},
+			});
+			const signal = yield* Trust.signal(concept, config, T2).pipe(Effect.provide(NodeCrypto.layerDigest));
+			assert.strictEqual(signal.drift?.reason, "actor-not-allowed");
 		}),
 	);
 
