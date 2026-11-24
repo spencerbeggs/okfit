@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T10:37:49Z
 tags:
   - architecture
 verified:
@@ -39,7 +39,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 integrity:
   generated:
-    body: 0a6b534897fb6476
+    body: 4f959a7abccb1f6f
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -123,8 +123,9 @@ the positional targets narrow the files, and `--dry-run` (requires `--fix`)
 writes nothing. A fix re-records `integrity.generated.body` for a concept
 whose digest matched before the edit, so `sync` keeps `generated.at`; it
 never writes `generated.at`, `verified` or `integrity.verified`, and a
-concept with a current human verification that the fix changes is listed
-as drifted. The human run prints `Fixed <n> finding(s) in <m> file(s)` (or
+edited concept whose okfit integrity was current before the edit (a body-link
+edit counts too), or whose `integrity` block has a layout the fix will not
+edit, is listed as drifted. The human run prints `Fixed <n> finding(s) in <m> file(s)` (or
 `Would fix` under `--dry-run`), a `refused:` line per refusal and an
 `Integrity drifted` line. `--fix` without `--target`, `--only` or
 `--dry-run` without `--fix`, and `--fix` with `--document` are exit `64`

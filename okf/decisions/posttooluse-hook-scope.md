@@ -8,7 +8,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T10:37:49Z
 status: stable
 verified:
   - by: human:spencer
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-25T18:29:21Z
 integrity:
   generated:
-    body: 2e16855653f6298e
+    body: 25cdd3c5422dbea5
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -106,7 +106,9 @@ A third job was added later: the hook reads the `non-concept-unlisted` lint
 and blocks a `Write` (or a Bash authoring write) of an unlisted non-concept
 `.md`, and warns on an `Edit` (see [Markdown that is not a concept is
 skipped, not an error](non-concept-markdown-is-skipped.md)). It is the one
-lint the hook reads, because the language server cannot stop the write.
+lint the hook reads: like the conformance check it has to stop the write,
+and the language server only publishes diagnostics (see Alternatives
+rejected).
 
 ## Verification
 

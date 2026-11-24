@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T10:37:49Z
 status: stable
 integrity:
   generated:
-    body: 8bef682aa48a3696
+    body: f1d50aed2c0afdd4
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -104,7 +104,10 @@ a warning instead of failing validation, so a team that wants the old
 strictness raises `type_missing` to `error` in `[lint]`. On the
 software-project profile the guard catches the common case, an agent writing
 a typeless file that is not one of the four listed names; a bundle that sets
-`non_concepts = []` allows none, and a config without the key is unguarded.
+`non_concepts = []` allows none, and the lint is silent only when the merged
+config has no key, which is `profile = "none"` with no `non_concepts` of its
+own; the software-project profile, the default, always supplies the four
+globs.
 `non_concept_unlisted` is a public config key, so the lint keys number forty.
 
 `sync` never stamps or rewrites a concept file that is a link out of the

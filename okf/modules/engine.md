@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T10:37:49Z
 integrity:
   generated:
-    body: 564d9143a404ce15
+    body: 78c572fc02be62f4
 ---
 
 # Engine
@@ -163,7 +163,7 @@ forward](../decisions/stale-verify.md).
 
 ## Migration report and fixes
 
-`migrate/findings.ts` holds `migrationFindings(bundle, target)`: five codes
+`migrate/findings.ts` holds `migrationFindings(bundle, config, target)`: five codes
 (`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
 `root-relative-path`, `computation-locator`), found by resolving each
 reference under both fallback rules; `computation-locator` appears only while
@@ -174,7 +174,9 @@ write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
 version fix while a root-only reference remains, when `okf_version` cannot be
 edited in place or when the root index's opening fence is malformed,
 re-record `integrity.generated.body` for a concept whose digest matched
-before the edit, list `drifts`, and keep a BOM and the file's line endings.
+before the edit, list `drifts` (each edited concept whose integrity was
+current before the edit, and each whose `integrity` block the fix will not
+edit), and keep a BOM and the file's line endings.
 Both read and write the root index and concepts themselves, so they need
 `FileSystem`, `Path` and `Digest`. `validate/run.ts#run` takes a `target` and
 returns the findings as `migration`; they render as a fourth diagnostic
