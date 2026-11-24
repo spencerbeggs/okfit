@@ -71,7 +71,7 @@ export class FrontmatterEdits {
 		});
 
 	/**
-	 * Edits that append one verified entry and bind it with `integrity.verified`
+	 * Edits that append one verified entry and bind it with `x-okfit-integrity.verified`
 	 * (`content` is the content digest of the source as passed), the same splice
 	 * `okfit verify` performs. Only the `verified` slot of an existing `integrity`
 	 * block is rewritten.
@@ -98,7 +98,7 @@ export class FrontmatterEdits {
 		});
 
 	/**
-	 * Edits that append one verified entry, bind it with `integrity.verified` AND set top-level
+	 * Edits that append one verified entry, bind it with `x-okfit-integrity.verified` AND set top-level
 	 * `status`, the combined write `okfit verify --stable` performs. A `status` scalar already
 	 * equal to `status` makes no status edit, and equal-offset inserts are merged with `status:`
 	 * first, then `verified:`, then `integrity:`. Unlike the CLI, which reads the parsed status,

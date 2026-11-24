@@ -75,7 +75,7 @@ export interface VerifyResult {
 	readonly status: { readonly from: string | null; readonly to: "stable" | "draft" } | null;
 	/** The exact status bytes spliced, or `null` when no status edit was made. */
 	readonly statusFragment: string | null;
-	/** The content digest `integrity.verified` was bound to; the digest of the file before AND after the edit. */
+	/** The content digest `x-okfit-integrity.verified` was bound to; the digest of the file before AND after the edit. */
 	readonly content: string;
 	/** Why the concept's prior human verification no longer bound it, or `null` when it did not drift. */
 	readonly priorDrift: DriftReason | null;
@@ -371,7 +371,7 @@ export interface DriftInspection {
 	readonly absolutePath: string;
 	/** Why its human verification no longer binds, or `null` when it does not drift. */
 	readonly drift: DriftReason | null;
-	/** When `integrity.verified` was bound, the time the shown patch is measured from; absent when unbound. */
+	/** When `x-okfit-integrity.verified` was bound, the time the shown patch is measured from; absent when unbound. */
 	readonly boundAt?: DateTime.Utc;
 }
 
@@ -434,7 +434,7 @@ export interface RevokeResult {
 	readonly by: string;
 	/** The encoded `at` of every removed entry, in list order. */
 	readonly removed: ReadonlyArray<string>;
-	/** Whether `integrity.verified` (bound to this actor) was removed too. */
+	/** Whether `x-okfit-integrity.verified` (bound to this actor) was removed too. */
 	readonly bindingCleared: boolean;
 	readonly dryRun: boolean;
 }
@@ -498,7 +498,7 @@ const prepareRevoke = Effect.fn("okfit/verify/prepareRevoke")(function* (
 /**
  * `okfit verify --revoke`: removes every `verified` entry by the resolved
  * human actor (the same git identity `verify` records) and, when
- * `integrity.verified` is bound to that actor, that slot too, deleting the
+ * `x-okfit-integrity.verified` is bound to that actor, that slot too, deleting the
  * whole `integrity` block only when nothing else is left in it. Every cut is a
  * byte-precise splice; an unsupported `verified` or `integrity` shape fails
  * closed with the file untouched, and an actor with no entry fails

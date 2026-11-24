@@ -312,7 +312,7 @@ const spliceSlot = (
 };
 
 /**
- * The one edit that sets `integrity.generated.body` and leaves every other byte
+ * The one edit that sets `x-okfit-integrity.generated.body` and leaves every other byte
  * of the block (the `verified` slot, unknown keys, comments, quoting) as it was.
  * Inserts the whole block when absent or null; otherwise rewrites only the
  * `generated` slot's lines, or adds that slot first when missing. `text` is the
@@ -336,7 +336,7 @@ export const spliceIntegrityGenerated = (
 	);
 
 /**
- * The one edit that sets the `integrity.verified` binding and leaves every other
+ * The one edit that sets the `x-okfit-integrity.verified` binding and leaves every other
  * byte of the block (the `generated` slot, unknown keys, comments, quoting) as it
  * was; the mirror of {@link spliceIntegrityGenerated}. Inserts the whole block
  * when absent or null; otherwise rewrites only the `verified` slot's lines, or
@@ -368,7 +368,7 @@ export type IntegrityVerifiedRemoval =
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
 /**
- * The one edit that removes the `integrity.verified` slot and nothing else:
+ * The one edit that removes the `x-okfit-integrity.verified` slot and nothing else:
  * only that parsed item's lines go (however its key is quoted); every other
  * byte of the block (the `generated` slot, unknown keys, comments, quoting)
  * stays. When it is the block's only item, the whole block goes instead.

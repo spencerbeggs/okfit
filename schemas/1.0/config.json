@@ -446,7 +446,7 @@
 						"error"
 					],
 					"title": "actor-email",
-					"description": "An actor in generated.by, verified[].by, integrity.verified.by or [actors].humans contains \"@\", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default \"warn\".",
+					"description": "An actor in generated.by, verified[].by, x-okfit-integrity.verified.by or [actors].humans contains \"@\", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -468,7 +468,7 @@
 						"error"
 					],
 					"title": "verified-actor-unknown",
-					"description": "A human verified[].by or integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default \"warn\".",
+					"description": "A human verified[].by or x-okfit-integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -666,7 +666,7 @@
 						"error"
 					],
 					"title": "verified-drift",
-					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default \"warn\".",
+					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (x-okfit-integrity.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

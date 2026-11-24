@@ -28,7 +28,7 @@ for the simplicity of one agent running one skill straight through.
    different `okfit_version` between the tool and the CLI is each front
    end's own version, not a different engine.
 4. Run `okfit sync` (or `okfit sync --dry-run` first to inspect) to
-   regenerate `generated.at`, `integrity.generated.body`, `index.md`, and
+   regenerate `generated.at`, `x-okfit-integrity.generated.body`, `index.md`, and
    `log.md`. A concept whose recorded digest still matches its body is
    reported `unchanged` and keeps its existing `at`, so a squash-merged
    branch needs no restamp pass. All three are
@@ -43,7 +43,7 @@ for the simplicity of one agent running one skill straight through.
    `okfit sync --dry-run`, and make a stamp commit only if it reports
    writes. A pre-commit hook with the SAVVY-OKF section runs
    `okfit sync --staged`, which may already have stamped `generated.at` and
-   `integrity.generated.body` and the commit's own `log.md` entry into the
+   `x-okfit-integrity.generated.body` and the commit's own `log.md` entry into the
    commit, leaving nothing to stamp. When the hook narrowed to
    `--only generated` (unstaged work under the bundle), the follow-up sync
    may still write `index.md` or `log.md`; commit those as the second

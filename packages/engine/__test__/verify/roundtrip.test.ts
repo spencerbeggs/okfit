@@ -94,7 +94,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 				const legacy = `---\ntype: Decision\ntitle: T\ngenerated:\n  by: human:ada\n  at: ${COMMITTED}\n  body_sha256: ${fullDigest}\n---${BODY}`;
 				yield* Effect.promise(() => writeFile(file, legacy));
 
-				// 1. sync migrates the legacy digest into integrity.generated.body.
+				// 1. sync migrates the legacy digest into x-okfit-integrity.generated.body.
 				const migrated = yield* sync();
 				assert.deepStrictEqual(migrated.generated.migrated, ["decisions/a"]);
 				const afterMigrate = yield* read();
@@ -107,7 +107,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 				oneIntegrity(yield* read());
 				assert.strictEqual((yield* signal()).integrity, "current");
 
-				// 3. A stale integrity.generated.body with the body unchanged: sync re-stamps that slot only.
+				// 3. A stale x-okfit-integrity.generated.body with the body unchanged: sync re-stamps that slot only.
 				const afterVerify = yield* read();
 				const stale = afterVerify.replace(/( {4}body: )[^\n]+/u, "$1'0000000000000000'");
 				assert.notStrictEqual(stale, afterVerify);
@@ -127,7 +127,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 				assert.include(afterReverify, "    at: 2026-09-17T12:00:00Z\n");
 				assert.strictEqual((yield* signal()).integrity, "current");
 
-				// 5. revoke drops the actor's entries and the binding, keeping integrity.generated.
+				// 5. revoke drops the actor's entries and the binding, keeping x-okfit-integrity.generated.
 				const revoked = yield* runRevoke({
 					id: "decisions/a",
 					bundleRoot: root,

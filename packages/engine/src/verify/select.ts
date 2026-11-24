@@ -30,7 +30,7 @@ export interface AttestableSelection {
  * Whether `concept` is verified by `actor` AND that verification is held: the signal is `current` (okfit's integrity
  * rule: the bound entry is the latest human entry, its actor passes `[actors].humans`, it is a current event under
  * OKF 0.3 §5.3, and its binding covers the current content) and
- * `integrity.verified` names `actor`. A drifted concept (changed content, or verified before the last change), or
+ * `x-okfit-integrity.verified` names `actor`. A drifted concept (changed content, or verified before the last change), or
  * one whose current binding is another actor's, is not.
  */
 const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<string, ConceptSignal>): boolean =>
@@ -101,7 +101,7 @@ export interface PickerCandidate {
 	/** The concept file's bundle-relative path (`concept.path`); the loaders in `run.ts` make it absolute. */
 	readonly path: string;
 	/**
-	 * When `integrity.verified` was bound (ISO 8601), the time a drifted row's
+	 * When `x-okfit-integrity.verified` was bound (ISO 8601), the time a drifted row's
 	 * preview diff is measured from; `null` when nothing is bound.
 	 */
 	readonly boundAt: string | null;

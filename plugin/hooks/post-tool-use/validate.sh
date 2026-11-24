@@ -243,7 +243,7 @@ fi
 bundle_root=$(printf '%s' "$context_json" | jq -r '.bundle_root')
 project_root=$(printf '%s' "$context_json" | jq -r '.project_root')
 agent_actor=$(printf '%s' "$context_json" | jq -r '.actors.agent // ""')
-generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and integrity.generated.body later"
+generated_line="generated.by is missing: add \`generated:\` with \`by: ${agent_actor}\` to the frontmatter (okf-authoring rule 3); okfit sync fills in at and x-okfit-integrity.generated.body later"
 
 # The Bash branch (okfit #223, #476): the generated.by check, plus one validate
 # call for typeless authoring writes. Resolve each

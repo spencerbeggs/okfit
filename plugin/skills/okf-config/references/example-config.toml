@@ -24,9 +24,9 @@ humans = ["human:spencer"]
 [types.Module]
 description = "A unit of code with an owner and a boundary."
 guidance = "One per package; link to the Decisions and Conventions that shaped it."
-required = ["resource", "kind"]
+required = ["resource", "x-okfit-kind"]
 
-[types.Module.fields.kind]
+[types.Module.fields.x-okfit-kind]
 description = "What sort of unit this is; drives which conventions apply."
 values.workspace = "The monorepo root: tooling, CI, release, shared config."
 values.package = "A publishable npm package under packages/."

@@ -24,7 +24,7 @@ const baseEnv = (env: Readonly<Record<string, string>>): Record<string, string> 
 	GIT_CONFIG_SYSTEM: "/dev/null",
 });
 
-/** The `integrity.verified` block a run by ada at `at` writes for the content digest `content`. */
+/** The `x-okfit-integrity.verified` block a run by ada at `at` writes for the content digest `content`. */
 const binding = (content: string, at = "2026-09-07T00:00:00Z"): string =>
 	`x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: ${at}\n    content: ${content}\n`;
 

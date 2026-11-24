@@ -8,11 +8,11 @@ allowed-tools:
 
 # OKF Authoring
 
-## Never write verified or integrity
+## Never write verified or x-okfit-integrity
 
 Stated first, because it is the single highest-consequence rule: `verified`
 records third-party or human confirmation, never authorship (spec §5.2), and
-`integrity.verified` binds that confirmation to a digest of the concept as
+`x-okfit-integrity.verified` binds that confirmation to a digest of the concept as
 the human saw it. An authoring agent that writes either is asserting a
 confirmation it did not perform. This is the boundary `okfit:okf-docs`
 restates in its own "What this agent does NOT do" section, and the one this
@@ -24,9 +24,9 @@ not a gate), and only a human re-verifies. Do not avoid editing, and do not
 try to repair the drift yourself. `okfit query list --drifted` lists the drifted
 concepts, and the MCP `get_concept` reports each one's `integrity`
 (`current`, `drifted` or `none`) and, when drifted, why. Drift never changes
-the concept's trust tier; it is a signal beside it. The whole `integrity` family is okfit's:
+the concept's trust tier; it is a signal beside it. The whole `x-okfit-integrity` family is okfit's:
 never hand-edit any key of it, because `okfit sync` writes
-`integrity.generated` and `okfit verify` writes `integrity.verified`.
+`x-okfit-integrity.generated` and `okfit verify` writes `x-okfit-integrity.verified`.
 
 `okfit verify` is the one legitimate way these fields are ever written: a
 human runs it directly, from their own shell. Never run it yourself, even
@@ -44,11 +44,11 @@ for an agent, so suggest the human run it instead of attempting it.
 1. Only `type` is required; never invent required fields beyond what the
    active profile and config declare (`concepts.required` --
    `PROFILES/SoftwareProject.ts:16` sets `["title", "description"]`).
-2. Never add or edit `verified` or any `integrity` key; editing a verified
+2. Never add or edit `verified` or any `x-okfit-integrity` key; editing a verified
    concept is fine, and the edit surfaces as `verified-drift` for a human.
 3. Stamp `generated.by` on meaningful changes; never the legacy
    `timestamp`. `okfit sync` writes `generated.at` and
-   `integrity.generated.body`; never type either by hand.
+   `x-okfit-integrity.generated.body`; never type either by hand.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
 5. A timestamp is an RFC 3339 date-time with an offset (`2026-06-30T14:00:00Z`)
@@ -128,7 +128,7 @@ for an agent, so suggest the human run it instead of attempting it.
     A new concept is written with `status: draft`. An existing concept that has
     no `status` is left as it is and reported to the human; never add one (rule
     21).
-15. Never author `verified` or `integrity` at all (rule 2). If you must
+15. Never author `verified` or `x-okfit-integrity` at all (rule 2). If you must
     read or quote an existing `verified`, it is a list of `{by, at}`.
 16. Never delete an unrecognised frontmatter key -- extensions are legal
     (`CORE/OkfitConfig.ts:186-213` partitions unknown top-level *config*
@@ -193,28 +193,28 @@ for an agent, so suggest the human run it instead of attempting it.
     drops the concept's tier until that human verifies again
     (`verified-before-change`); do not try to repair it, and tell the human.
 
-## generated.at and integrity
+## generated.at and x-okfit-integrity
 
 Core treats `generated.at` as optional (`CORE/Generated.ts:29`); this
 skill instructs writers to leave it unset until `okfit sync` supplies the
 value rather than typing a guess (rule 3). `generated.by` stays required
 (`CORE/Generated.ts:28`) and is always hand-stamped.
 
-`integrity` is okfit's own top-level extension family, not part of OKF, and it holds every digest. `integrity.generated.body` is the first 16
+`x-okfit-integrity` is okfit's own top-level extension family, not part of OKF, and it holds every digest. `x-okfit-integrity.generated.body` is the first 16
 hex characters of a sha256 of the concept's normalized body, written by
 `okfit sync` beside `generated.at`. It is what lets the `generated-at-drift`
 lint survive a squash or rebase merge -- drift means the body changed after
 the stamp, never that a merge minted a new author date. It replaces the
 legacy `generated.body_sha256`, which `okfit sync` migrates away.
-`integrity.verified` (`{ by, at, content }`) is written by `okfit verify`:
+`x-okfit-integrity.verified` (`{ by, at, content }`) is written by `okfit verify`:
 `content` digests the body plus the authored frontmatter, so a later edit
-yields `verified-drift`. Never hand-write or hand-edit any `integrity` key:
+yields `verified-drift`. Never hand-write or hand-edit any `x-okfit-integrity` key:
 a digest that does not match reports as drift, and an edited-but-uncommitted
 body reports immediately rather than waiting for a commit. `okfit sync` is
 the command that writes `generated.at`, deriving it from git history -- never
 type it by hand, and never invent `generated.by` on its behalf (sync
 never writes that key: design §3 step 5). `okfit verify` is a different
-command -- it stamps `verified` and `integrity.verified`, a separate,
+command -- it stamps `verified` and `x-okfit-integrity.verified`, a separate,
 spec-independent family (spec §5.2).
 
 ## Actor prefixes
@@ -238,7 +238,7 @@ Never invent a tag `guidance` -- the field does not exist for tags.
 ```toml
 [types.Module]
 description = "A deployable unit of the repository."
-guidance = "Set kind and resource; link the concepts it depends on."
+guidance = "Set x-okfit-kind and resource; link the concepts it depends on."
 required = ["title", "description"]
 
 [tags.architecture]

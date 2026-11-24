@@ -69,7 +69,7 @@ config's own type and tag vocabulary — never inventing one of its own. It
 preloads the six `okf-*` skills above (`skills:`, not `Skill` in `tools:`, so their
 full content is injected rather than merely discoverable). See its own
 `## What this agent does NOT do` section for the boundary rather than a
-restatement here: in short, it never writes `verified` or `integrity`, never edits
+restatement here: in short, it never writes `verified` or `x-okfit-integrity`, never edits
 anything outside the bundle and CLAUDE.md files (published pages go to `okf-publisher`), and never
 commits, pushes, or writes a changeset.
 

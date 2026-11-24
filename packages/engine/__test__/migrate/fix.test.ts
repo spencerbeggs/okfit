@@ -264,7 +264,7 @@ describe("migration fixes", () => {
 			"](/metrics/revenue.md)",
 		);
 
-		it.effect("re-records only integrity.generated.body: sync reports unchanged and the tier holds", () =>
+		it.effect("re-records only x-okfit-integrity.generated.body: sync reports unchanged and the tier holds", () =>
 			Effect.gen(function* () {
 				const seed = yield* seedWith(V02_PROJECT[COMPUTATION] as string, true).pipe(Effect.provide(on(V02_PROJECT)));
 				yield* Effect.gen(function* () {

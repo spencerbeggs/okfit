@@ -32,7 +32,7 @@ export interface MigrationFixOptions {
  * new text and the fix kinds applied (one entry per fixed finding); `refused` lists a finding whose fix was not
  * planned, with the reason (including a selected reference the plan could not locate); `drifts` lists the sorted ids
  * whose human integrity was `current` and whose authored content changes, and the ids whose recorded
- * `integrity.generated.body` went stale because the `integrity` block has a layout the plan will not edit (never
+ * `x-okfit-integrity.generated.body` went stale because the `integrity` block has a layout the plan will not edit (never
  * repaired, only listed).
  *
  * @public
@@ -99,9 +99,9 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * (inserting `/` before its path part and changing nothing else), and declare `okf_version`. Writes nothing. The
  * version fix is refused, with its reason, while any root-only reference elsewhere in the bundle is not fixed by this
  * same plan (R41), so a narrowed run never flips a bundle to a version under which its links break. For an edited
- * concept whose recorded `integrity.generated.body` equalled its body digest before the edit, the plan re-records
+ * concept whose recorded `x-okfit-integrity.generated.body` equalled its body digest before the edit, the plan re-records
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
- * `integrity.verified`.
+ * `x-okfit-integrity.verified`.
  *
  * Unlike the brief's first sketch, this reads the root `index.md` itself (once, and only when the version fix is
  * planned), because `LoadedBundle` keeps only the frontmatter value of an index and the fix must locate `okf_version`

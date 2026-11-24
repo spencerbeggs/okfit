@@ -56,7 +56,7 @@ export interface GeneratedSyncResult {
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
 	/**
-	 * Ids whose legacy `generated.body_sha256` was moved to `integrity.generated.body`, or whose legacy key
+	 * Ids whose legacy `generated.body_sha256` was moved to `x-okfit-integrity.generated.body`, or whose legacy key
 	 * tokens were renamed. May overlap `written`, and may also appear in `skipped`: a concept sync cannot
 	 * stamp still has its old keys renamed.
 	 */
@@ -115,7 +115,7 @@ export interface SyncGeneratedOptions {
 }
 
 /**
- * OKF 0.3 5.2/5.3 (R30): the instant to stamp as `generated.at`. When the concept's `integrity.verified` binds its
+ * OKF 0.3 5.2/5.3 (R30): the instant to stamp as `generated.at`. When the concept's `x-okfit-integrity.verified` binds its
  * latest human entry and its content digest equals the digest of the concept as it
  * is now, the binding proves this content existed at `binding.at`, so its last meaningful change is no later than
  * that; the commit instant is only when git learned of it. The stamp is then `min(derived, binding.at)`, which keeps
@@ -171,13 +171,13 @@ const stampInstant = (
  * `runVerify`).
  *
  * Ordering (later tasks rely on it): (1) scope filter -> (2) digest match
- * against the recorded body digest (`integrity.generated.body`, else the
+ * against the recorded body digest (`x-okfit-integrity.generated.body`, else the
  * legacy `generated.body_sha256` prefix) => `unchanged` (or a migrate-only
  * write when a legacy line still exists), BEFORE any provenance lookup -> (3)
  * provenance absent => `Effect.die` (caller contract) -> (4) `uncommitted` =>
  * skipped with its reason -> (5) no `generated` block: `agent` unset =>
  * skipped `generated-missing`, else create -> (6) existing block: splice `at`.
- * Every write also sets `integrity.generated.body` (keeping `integrity.verified`)
+ * Every write also sets `x-okfit-integrity.generated.body` (keeping `x-okfit-integrity.verified`)
  * and removes a legacy `body_sha256` line.
  *
  * `locateGenerated`'s `YamlParseError` is folded into a defect here
@@ -390,7 +390,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		}
 
 		const finalText = bom + MarkdownEdit.applyAll(text, mergeSameOffset(edits.toSorted((a, b) => a.offset - b.offset)));
-		// A block the parsed concept could not decode (say a malformed `integrity.verified`) never
+		// A block the parsed concept could not decode (say a malformed `x-okfit-integrity.verified`) never
 		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
 		// not as a write that would recur on every run.
 		if (finalText === fileSource) {

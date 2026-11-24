@@ -127,7 +127,7 @@ export const verifyBatchEnvelope = (input: {
 /**
  * `okfit verify --revoke`'s success envelope, schema 1, snake_case. `removed`
  * lists the `at` of every verification entry taken out (in list order);
- * `binding_cleared` says whether `integrity.verified` went with them.
+ * `binding_cleared` says whether `x-okfit-integrity.verified` went with them.
  *
  * @public
  */

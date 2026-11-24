@@ -903,7 +903,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 		),
 	);
 
-	it.effect("keeps integrity.verified byte-identical across a drift re-stamp", () =>
+	it.effect("keeps x-okfit-integrity.verified byte-identical across a drift re-stamp", () =>
 		withFile(
 			`generated:\n  by: human:ada\n  at: ${OLD_AT}\n${VERIFIED.replace("x-okfit-integrity:\n", "x-okfit-integrity:\n  generated:\n    body: 0000000000000000\n")}`,
 			BODY,

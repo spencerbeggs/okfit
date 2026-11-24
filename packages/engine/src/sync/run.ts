@@ -64,7 +64,7 @@ export interface SyncModeResult {
 	/** Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	/** `generated` mode only: ids whose legacy body digest moved to `integrity.generated.body`; may also be in `written`. */
+	/** `generated` mode only: ids whose legacy body digest moved to `x-okfit-integrity.generated.body`; may also be in `written`. */
 	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: SkipReason }>;
 }

@@ -18,7 +18,7 @@ const encodeAt = Schema.encodeSync(Timestamp);
 /**
  * Whether a concept's human verification still covers its content: `none` (no
  * `human:` entry in `verified`), `current` (the latest human entry is bound by
- * `integrity.verified` and the content digest still matches), or `drifted`.
+ * `x-okfit-integrity.verified` and the content digest still matches), or `drifted`.
  *
  * @public
  */
@@ -26,7 +26,7 @@ export type IntegrityState = "current" | "drifted" | "none";
 
 /**
  * Why a human verification no longer binds: the content changed, the entry has
- * no `integrity.verified` binding, a later human entry is not the bound one, the
+ * no `x-okfit-integrity.verified` binding, a later human entry is not the bound one, the
  * bound actor fails a non-empty `[actors].humans` allow-list, the bound entry
  * was made before the last change to the content (`at` earlier than
  * `generated.at`, OKF 0.3 §5.3, so it is no longer a current event), or the
@@ -88,7 +88,7 @@ const latestHuman = (concept: LoadedConcept): Verification | undefined =>
 
 /**
  * What the integrity decision reads from a concept: its `verified` entries, the
- * `integrity.verified` binding, and `generated`. Built by {@link Trust.inputOf}.
+ * `x-okfit-integrity.verified` binding, and `generated`. Built by {@link Trust.inputOf}.
  *
  * @public
  */
@@ -280,10 +280,10 @@ export class Trust {
 		input: EvaluateInput,
 		content: string | undefined,
 	) => { readonly integrity: IntegrityState; readonly drift?: NonNullable<ConceptSignal["drift"]> } = evaluate;
-	/** True iff the latest human entry is bound by `integrity.verified` and its actor passes the allow-list, i.e. a digest is needed. */
+	/** True iff the latest human entry is bound by `x-okfit-integrity.verified` and its actor passes the allow-list, i.e. a digest is needed. */
 	static readonly needsDigest: (input: EvaluateInput) => boolean = needsDigest;
 	/**
-	 * The `integrity.verified` binding when it names the latest human entry (same actor, same instant); `undefined` when
+	 * The `x-okfit-integrity.verified` binding when it names the latest human entry (same actor, same instant); `undefined` when
 	 * there is no human entry, no binding, or the binding is superseded. It ignores the `[actors].humans` allow-list and
 	 * whether the entry is current, which are {@link Trust.evaluate}'s questions.
 	 *

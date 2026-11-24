@@ -19,7 +19,7 @@ const encodeAt = Schema.encodeSync(Timestamp);
  * are unchanged.
  *
  * Two tiers per concept (issue #19, body-digest design): when a body digest
- * is recorded (`integrity.generated.body`, else the 16-hex prefix of a legacy
+ * is recorded (`x-okfit-integrity.generated.body`, else the 16-hex prefix of a legacy
  * `generated.body_sha256`, via `Derivation.recordedBody`), drift is decided
  * ENTIRELY by comparing it to
  * `Derivation.bodyDigest` of the concept's current source -- no git call at

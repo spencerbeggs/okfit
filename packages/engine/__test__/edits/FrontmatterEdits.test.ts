@@ -103,7 +103,7 @@ describe("FrontmatterEdits.verified", () => {
 	const withBlock = (lines: ReadonlyArray<string>) =>
 		["---", "type: Module", ...lines, "---", "", "# B", ""].join("\n");
 
-	it.effect("writes verified then integrity.verified, byte-exact, when both are absent", () => {
+	it.effect("writes verified then x-okfit-integrity.verified, byte-exact, when both are absent", () => {
 		const source = withBlock(["title: A"]);
 		return Effect.map(FrontmatterEdits.verified(source, entry, CONTENT), (edits) => {
 			assert.strictEqual(edits.length, 1);
@@ -134,7 +134,7 @@ describe("FrontmatterEdits.verified", () => {
 		});
 	});
 
-	it.effect("replaces a malformed integrity.verified, leaving a single binding", () => {
+	it.effect("replaces a malformed x-okfit-integrity.verified, leaving a single binding", () => {
 		const source = withBlock(["title: A", "x-okfit-integrity:", "  verified:", "    by: nope"]);
 		return Effect.map(FrontmatterEdits.verified(source, entry, CONTENT), (edits) => {
 			const out = MarkdownEdit.applyAll(source, edits);

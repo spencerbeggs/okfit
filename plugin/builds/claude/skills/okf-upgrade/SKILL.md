@@ -60,7 +60,9 @@ okfit validate --target 0.3 --fix
 
 Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
 
-Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, and `Integrity drifted (re-verify with okfit verify): <ids>`. JSON carries `fixes: { applied, refused, drifts, dry_run }`. The fix never writes `verified`, `integrity.verified` or `generated.at`. When a concept's recorded `integrity.generated.body` matched its body before the edit, the fix re-records that digest. Otherwise the concept's body digest no longer matches, and the next `okfit sync` stamps a new `generated.at`, so an earlier human verification stops counting. Review the git diff.
+Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, and `Integrity drifted (re-verify with okfit verify): <ids>`. JSON carries `fixes: { applied, refused, drifts, dry_run }`. The fix never writes `verified`, `x-okfit-integrity.verified` or `generated.at`. When a concept's recorded `x-okfit-integrity.generated.body` matched its body before the edit, the fix re-records that digest. Otherwise the concept's body digest no longer matches, and the next `okfit sync` stamps a new `generated.at`, so an earlier human verification stops counting. Review the git diff.
+
+A bundle written by an older okfit keeps its old key names (`integrity`, and the `software-project` fields such as `kind`) until a plain `okfit sync` renames them in place and reports the ids as `migrated`. Until then its concepts read as unverified and a `software-project` bundle reports `required-key-missing`. `okfit sync --staged` only migrates the concepts being committed, so run a plain `okfit sync` once. Afterwards `verified-drift` may appear on concepts that were verified, and only a human re-verifies them. A project whose own config names a built-in field by its bare name keeps that config to update by hand.
 
 ## 5. Work through what is left
 
@@ -77,7 +79,7 @@ Tell the human that the edited concepts are stamped only once the change is comm
 
 ## 7. Stop and ask the human
 
-Stop and report, never work around it, when a step needs: a `verified`, `integrity`, `generated.at` or `status` change; `drifts` or a `verified-before-change` lint (only the human re-verifies, with `okfit verify`, which you never run); an unparsable version; or a computation whose meaning would change.
+Stop and report, never work around it, when a step needs: a `verified`, `x-okfit-integrity`, `generated.at` or `status` change; `drifts` or a `verified-before-change` lint (only the human re-verifies, with `okfit verify`, which you never run); an unparsable version; or a computation whose meaning would change.
 
 ## 8. Done
 

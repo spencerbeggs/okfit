@@ -307,7 +307,7 @@ export class Derivation {
 	static readonly bodyDigest: (source: string) => Effect.Effect<Digest, never, CoreDigest.Digest> = bodyDigest;
 
 	/**
-	 * The body digest recorded for a generated concept: `integrity.generated.body`, else the legacy
+	 * The body digest recorded for a generated concept: `x-okfit-integrity.generated.body`, else the legacy
 	 * `generated.body_sha256` cut to its first 16 hex characters. `undefined` when neither is present.
 	 * Pure; every "is the stamped body still current" comparison reads through this.
 	 */

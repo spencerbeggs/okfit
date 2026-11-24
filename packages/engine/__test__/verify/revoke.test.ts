@@ -252,7 +252,7 @@ describe("runRevoke", () => {
 		),
 	);
 
-	it.effect("keeps integrity.generated when it clears the binding", () => {
+	it.effect("keeps x-okfit-integrity.generated when it clears the binding", () => {
 		const generated = "x-okfit-integrity:\n  generated:\n    body: 0123456789abcdef\n";
 		return withConcept(
 			`${head}verified:\n${ada}${generated}  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n${tail}`,

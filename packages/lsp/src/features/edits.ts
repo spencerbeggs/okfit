@@ -104,7 +104,7 @@ export interface EditTarget {
 	readonly status: unknown;
 	/** The `verified[]` entries (`by`, decoded `at`) in order, decoded by core's `Verification.List`: one malformed entry voids the whole list (`[]`). */
 	readonly verified: ReadonlyArray<{ readonly by: string; readonly at: DateTime.Utc }>;
-	/** The recorded `integrity.verified` binding (`by`, `at`, `content`) when the frontmatter carries a well-formed one. */
+	/** The recorded `x-okfit-integrity.verified` binding (`by`, `at`, `content`) when the frontmatter carries a well-formed one. */
 	readonly binding: { readonly by: string; readonly at: DateTime.Utc; readonly content: string } | undefined;
 	/**
 	 * `generated.at` from the same text, decoded by core's `Generated` (OKF 0.3 5.2): `undefined` when the block is absent,
@@ -276,7 +276,7 @@ const trustInput = (target: EditTarget): EvaluateInput => ({
 /**
  * Whether `actor` already holds a still-current verification of `target`, by
  * the same decision `okfit validate` makes (`Trust.evaluate`): the latest human
- * entry is bound by `integrity.verified`, the binding names `actor`, and its
+ * entry is bound by `x-okfit-integrity.verified`, the binding names `actor`, and its
  * digest matches `content`. A later unbound human entry supersedes the binding.
  */
 const alreadyBound = (target: EditTarget, actor: string, content: string): boolean => {
@@ -297,7 +297,7 @@ const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefi
 
 /**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
- * `actor`, `at` the encoded `now`) and bind it with `integrity.verified`, or
+ * `actor`, `at` the encoded `now`) and bind it with `x-okfit-integrity.verified`, or
  * `EditFailure` when `now` is before `generated.at` (`NotCurrent`), the concept is a draft, is deprecated, or `actor`'s
  * verification still binds its current content (a drifted one is verified
  * again; the editor action otherwise follows `okfit verify --all`'s skip

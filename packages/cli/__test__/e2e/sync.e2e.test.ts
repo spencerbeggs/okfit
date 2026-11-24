@@ -1018,7 +1018,7 @@ const driftCount = async (cwd: string, env: Record<string, string>): Promise<num
 	return envelope.diagnostics.filter((d) => d.code === "publication-drift").length;
 };
 
-/** Append the canonical `integrity.generated.body` block as the last frontmatter key. */
+/** Append the canonical `x-okfit-integrity.generated.body` block as the last frontmatter key. */
 const stampIntegrity = (text: string, digest: string): string =>
 	text.replace("\n---\n", `\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n`);
 
@@ -1145,7 +1145,7 @@ describe("okfit sync --publication", () => {
 			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
 			await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			await commit(cwd, { message: "add publication", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
-			// Only the `x-okfit-renders:` block: the Publication's own `integrity.generated.body` is also `    body:`.
+			// Only the `x-okfit-renders:` block: the Publication's own `x-okfit-integrity.generated.body` is also `    body:`.
 			const rendersOf = (text: string) => {
 				const lines = text.split("\n");
 				const start = lines.indexOf("x-okfit-renders:");
