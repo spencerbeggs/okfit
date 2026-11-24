@@ -120,8 +120,7 @@ const editorOf = (input: EvaluateInput) =>
 
 /** OKF 0.3 §5.3: the bound entry is a current event only while its `at` is at or after `generated.at`. */
 const boundBeforeChange = (input: EvaluateInput, binding: NonNullable<EvaluateInput["binding"]>): boolean =>
-	// `Derive.isCurrent` reads only `generated`; the cast stands in for the concept it is not given here.
-	!Derive.isCurrent({ generated: input.generated } as unknown as ConceptSchema, binding.at);
+	!Derive.isCurrent({ generated: input.generated }, binding.at);
 
 const needsDigest = (input: EvaluateInput): boolean => {
 	const bound = boundEntry(input);
@@ -194,7 +193,13 @@ const messageFor = (concept: LoadedConcept, drift: NonNullable<ConceptSignal["dr
 	if (drift.reason === "actor-not-allowed") {
 		return `verified by ${binding?.by ?? by}, who is not in [actors].humans; a listed human re-runs okfit verify`;
 	}
-	return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}; re-run okfit verify`;
+	if (drift.reason === "verified-before-change") {
+		return `verified by ${binding?.by ?? by} at ${binding === undefined ? at : encodeAt(binding.at)}, before the last change at ${drift.editedAt ?? "an unknown time"}; re-run okfit verify`;
+	}
+	if (drift.reason === "content-changed") {
+		return `content changed since ${binding?.by ?? by} verified it at ${binding === undefined ? at : encodeAt(binding.at)}; re-run okfit verify`;
+	}
+	return drift.reason satisfies never;
 };
 
 /**

@@ -512,6 +512,23 @@ describe("Trust.evaluate (pure: no Digest provided)", () => {
 		assert.deepStrictEqual(Trust.evaluate(noAt, "aaaaaaaaaaaaaaaa"), { integrity: "current" });
 	});
 
+	it("actor-not-allowed and entry-superseded outrank verified-before-change when generated.at is later", () => {
+		const generated = { by: actor("agent:claude"), at: DateTime.makeUnsafe("2026-03-01T00:00:42Z") };
+		const plain = { ...base, binding: binding("abc"), generated };
+		// control: nothing else wrong, so the later generated.at decides
+		assert.strictEqual(Trust.evaluate(plain, undefined).drift?.reason, "verified-before-change");
+		const notAllowed = { ...plain, humans: ["human:ada"] };
+		assert.deepStrictEqual(Trust.evaluate(notAllowed, undefined), {
+			integrity: "drifted",
+			drift: { reason: "actor-not-allowed" },
+		});
+		const superseded = { ...plain, verified: [human("spencer", at), human("spencer", later)] };
+		assert.deepStrictEqual(Trust.evaluate(superseded, undefined), {
+			integrity: "drifted",
+			drift: { reason: "entry-superseded" },
+		});
+	});
+
 	it("a binding whose actor fails a non-empty allow-list -> drifted/actor-not-allowed, no digest needed", () => {
 		const input = { ...base, humans: ["human:ada"] };
 		assert.isFalse(Trust.needsDigest(input));

@@ -90,11 +90,15 @@ export class Derive {
 
 	/**
 	 * Whether a verification event at `at` is current for `concept` (OKF 0.3 §5.3): `at` is equal to or later than
-	 * `generated.at` by instant, or `generated` or `generated.at` is absent.
+	 * `generated.at` by instant, or `generated` or `generated.at` is absent. It reads only `generated`, so a caller holding
+	 * no whole concept passes `{ generated }`.
 	 *
 	 * @public
 	 */
-	static readonly isCurrent = (concept: Concept, at: DateTime.Utc): boolean => {
+	static readonly isCurrent = (
+		concept: { readonly generated?: { readonly at?: DateTime.Utc } | undefined },
+		at: DateTime.Utc,
+	): boolean => {
 		const generatedAt = concept.generated?.at;
 		return generatedAt === undefined || DateTime.toEpochMillis(at) >= DateTime.toEpochMillis(generatedAt);
 	};
