@@ -6,6 +6,7 @@ import { Git } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
 import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { DateTime, Effect, Exit, Layer } from "effect";
+import type { VerifyStatusUnknownError } from "../../src/errors.js";
 import { runVerifyIds } from "../../src/verify/run.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -309,6 +310,135 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 				assert.ok(Exit.isFailure(exit));
 				assert.strictEqual(yield* read(root, "decisions/a.md"), concept(staleLine));
 			}),
+		),
+	);
+});
+
+describe("runVerifyIds refuses a status outside the vocabulary (OKF 0.3 5.4)", () => {
+	const AT = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
+	const doc = (title: string, extra = ""): string =>
+		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
+	const staleLine = 'stale_after: "2026-01-01T00:00:00Z"\n';
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: { require_verified: true } },
+		actors: { humans: ["human:ada" as ActorPattern] },
+		extensions: {},
+	});
+	const platform = Layer.mergeAll(Git.layerTest({ configGet: identityConfigGet }), TestPlatform);
+
+	const withRoot = <A, E, R>(
+		files: ReadonlyArray<readonly [string, string]>,
+		body: (root: string) => Effect.Effect<A, E, R>,
+	) =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-unknown-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
+				return yield* body(root);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		});
+
+	const run = (
+		root: string,
+		ids: ReadonlyArray<string>,
+		extra: { promote?: boolean; refreshStaleAfter?: boolean; dryRun?: boolean } = {},
+	) =>
+		runVerifyIds({
+			bundleRoot: root,
+			projectRoot: root,
+			config,
+			at: AT,
+			dryRun: extra.dryRun ?? false,
+			ids,
+			...extra,
+		}).pipe(Effect.provide(platform));
+	const read = (root: string, file: string) => Effect.promise(() => readFile(join(root, file), "utf8"));
+	const fix = (root: string, file: string, from: string, to: string) =>
+		Effect.promise(async () => {
+			const text = await readFile(join(root, file), "utf8");
+			await writeFile(join(root, file), text.replace(from, to));
+		});
+
+	it.effect("fails the whole call with the good concept untouched; the same call passes once the status is fixed", () =>
+		withRoot(
+			[
+				["decisions/good.md", doc("Good")],
+				["decisions/archived.md", doc("Archived", "status: archived\n")],
+				["decisions/numeric.md", doc("Numeric", "status: 5\n")],
+			],
+			(root) =>
+				Effect.gen(function* () {
+					const before = yield* read(root, "decisions/good.md");
+					for (const [ids, raw] of [
+						[["decisions/good", "decisions/archived"], "archived"],
+						[["decisions/archived", "decisions/good"], "archived"],
+						[["decisions/good", "decisions/numeric"], "5"],
+					] as const) {
+						const error = yield* Effect.flip(run(root, ids));
+						assert.strictEqual(error._tag, "VerifyStatusUnknownError");
+						assert.strictEqual((error as VerifyStatusUnknownError).status, raw);
+						assert.strictEqual(yield* read(root, "decisions/good.md"), before);
+					}
+					// a dry run is refused too
+					const dry = yield* Effect.flip(run(root, ["decisions/archived"], { dryRun: true }));
+					assert.strictEqual(dry._tag, "VerifyStatusUnknownError");
+					// control: with the status fixed, the same call verifies both
+					yield* fix(root, "decisions/archived.md", "status: archived", "status: stable");
+					const ok = yield* run(root, ["decisions/good", "decisions/archived"]);
+					assert.deepStrictEqual(
+						ok.verified.map((entry) => entry.id),
+						["decisions/good", "decisions/archived"],
+					);
+					assert.notStrictEqual(yield* read(root, "decisions/good.md"), before);
+				}),
+		),
+	);
+
+	it.effect("promote does not rescue an unknown status; it still promotes a draft beside it once fixed", () =>
+		withRoot(
+			[
+				["decisions/draft.md", doc("Draft", "status: draft\n")],
+				["decisions/archived.md", doc("Archived", "status: archived\n")],
+			],
+			(root) =>
+				Effect.gen(function* () {
+					const draftBefore = yield* read(root, "decisions/draft.md");
+					const archivedBefore = yield* read(root, "decisions/archived.md");
+					const error = yield* Effect.flip(run(root, ["decisions/draft", "decisions/archived"], { promote: true }));
+					assert.strictEqual(error._tag, "VerifyStatusUnknownError");
+					assert.strictEqual(yield* read(root, "decisions/draft.md"), draftBefore);
+					assert.strictEqual(yield* read(root, "decisions/archived.md"), archivedBefore);
+					yield* fix(root, "decisions/archived.md", "status: archived", "status: deprecated");
+					yield* run(root, ["decisions/draft", "decisions/archived"], { promote: true });
+					assert.include(yield* read(root, "decisions/draft.md"), "status: stable\n");
+					assert.include(yield* read(root, "decisions/archived.md"), "status: deprecated\n");
+				}),
+		),
+	);
+
+	it.effect("refreshStaleAfter on an unknown status is refused and rolls nothing forward; fixed, it rolls", () =>
+		withRoot(
+			[
+				["decisions/ok.md", doc("Ok", staleLine)],
+				["decisions/archived.md", doc("Archived", `status: archived\n${staleLine}`)],
+			],
+			(root) =>
+				Effect.gen(function* () {
+					const okBefore = yield* read(root, "decisions/ok.md");
+					const archivedBefore = yield* read(root, "decisions/archived.md");
+					const error = yield* Effect.flip(
+						run(root, ["decisions/ok", "decisions/archived"], { refreshStaleAfter: true }),
+					);
+					assert.strictEqual(error._tag, "VerifyStatusUnknownError");
+					assert.strictEqual(yield* read(root, "decisions/ok.md"), okBefore);
+					assert.strictEqual(yield* read(root, "decisions/archived.md"), archivedBefore);
+					yield* fix(root, "decisions/archived.md", "status: archived", "status: stable");
+					yield* run(root, ["decisions/ok", "decisions/archived"], { refreshStaleAfter: true });
+					assert.include(yield* read(root, "decisions/archived.md"), 'stale_after: "2027-01-07T00:00:00Z"\n');
+				}),
 		),
 	);
 });

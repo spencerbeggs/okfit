@@ -341,6 +341,7 @@ export const verifyCommand = Command.make(
 					now: at,
 					noDiff: input.noDiff,
 					dryRun: input.dryRun,
+					...(status === undefined ? {} : { status }),
 				});
 				if (!proceed) {
 					yield* Console.log(`not re-verified: ${singleId}; nothing written`);

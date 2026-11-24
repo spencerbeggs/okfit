@@ -265,8 +265,10 @@ const resolveConcept = (bundle: LoadedBundle, rawId: string) =>
  * frontmatter and writes it back atomically.
  *
  * Nothing here reads `stale_after` or a type's `require_verified`; `status`
- * is read only to skip a no-op edit under `options.status` (#185). `verify`
- * is mechanical, not config-aware (V-4, V-5).
+ * is read to skip a no-op edit under `options.status` (#185) and to refuse a
+ * concept whose status is outside `draft | stable | deprecated` (OKF 0.3 5.4)
+ * with `VerifyStatusUnknownError`, unless `options.status` replaces it in the
+ * same write (R11). `verify` is mechanical, not config-aware (V-4, V-5).
  *
  * @internal
  */
@@ -325,6 +327,8 @@ export interface DriftInspection {
 	readonly absolutePath: string;
 	/** Why its human verification no longer binds, or `null` when it does not drift. */
 	readonly drift: DriftReason | null;
+	/** The `status` as written when it is outside the vocabulary (OKF 0.3 5.4), else `null`; `verify` refuses it. */
+	readonly unknownStatus: string | null;
 	/** When `integrity.verified` was bound, the time the shown patch is measured from; absent when unbound. */
 	readonly boundAt?: DateTime.Utc;
 }
@@ -351,6 +355,8 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 		id,
 		absolutePath: path.join(bundle.root, concept.path),
 		drift: signal.drift?.reason ?? null,
+		unknownStatus:
+			Derive.status(concept.frontmatter) === "unknown" ? (Derive.rawStatus(concept.frontmatter) ?? "") : null,
 		...(boundAt === undefined ? {} : { boundAt }),
 	} satisfies DriftInspection;
 });
@@ -574,9 +580,11 @@ export interface VerifyIdsOptions {
  * batch. Every id is resolved exactly as {@link runVerify} resolves it, and
  * every concept is located and spliced BEFORE any file is written, so one
  * unknown id, reserved file or unsupported `verified`/`status` shape fails the
- * whole call with the tree untouched. An explicit pick is never second-guessed:
- * drafts, deprecated and already-attested concepts are all attested, and
- * `skipped` is always empty. Duplicate ids (after normalisation) are written
+ * whole call with the tree untouched. An explicit pick is second-guessed in
+ * one way only: a concept whose status is outside `draft | stable | deprecated`
+ * (OKF 0.3 5.4) fails the whole call with `VerifyStatusUnknownError`, even under
+ * `promote` (which only promotes a draft). Drafts, deprecated and
+ * already-attested concepts are all attested, and `skipped` is always empty. Duplicate ids (after normalisation) are written
  * once. With `promote`, a draft's `status` becomes `stable` in the same write.
  *
  * @public

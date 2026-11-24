@@ -518,6 +518,11 @@ describe("runVerify refuses a status outside the vocabulary (OKF 0.3 5.4, R7/R11
 					const after = yield* Effect.promise(() => readFile(join(root, "decisions", `${name}.md`), "utf8"));
 					assert.strictEqual(after, seed[name], "nothing written");
 				}
+				// a plain dry run (no --stable/--draft) is refused too, and a fixing dry run is not
+				const dry = yield* Effect.flip(
+					runVerify({ ...base, id: "decisions/archived", dryRun: true }).pipe(Effect.provide(platform)),
+				);
+				assert.strictEqual(dry._tag, "VerifyStatusUnknownError");
 				// controls: an empty or null status reads stable (11.2 rule 1) and verifies
 				for (const name of ["empty", "nulled"]) {
 					const ok = yield* runVerify({ ...base, id: `decisions/${name}` }).pipe(Effect.provide(platform));
