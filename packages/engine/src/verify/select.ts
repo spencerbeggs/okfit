@@ -28,7 +28,8 @@ export interface AttestableSelection {
 
 /**
  * Whether `concept` is verified by `actor` AND that verification is held: the signal is `current` (okfit's integrity
- * rule: the bound entry covers the current content and is a current event under OKF 0.3 §5.3) and
+ * rule: the bound entry is the latest human entry, its actor passes `[actors].humans`, it is a current event under
+ * OKF 0.3 §5.3, and its binding covers the current content) and
  * `integrity.verified` names `actor`. A drifted concept (changed content, or verified before the last change), or
  * one whose current binding is another actor's, is not.
  */

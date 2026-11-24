@@ -290,7 +290,7 @@ const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefi
  * `actor`, `at` the encoded `now`) and bind it with `integrity.verified`, or
  * `EditFailure` when `now` is before `generated.at` (`NotCurrent`), the concept is a draft, is deprecated, or `actor`'s
  * verification still binds its current content (a drifted one is verified
- * again; the editor action otherwise follows `okfit verify --batch`'s skip
+ * again; the editor action otherwise follows `okfit verify --all`'s skip
  * rules, not the single-concept `okfit verify <id>`), or the `verified` or
  * `integrity` shape is one `FrontmatterEdits.verified` cannot splice.
  *
@@ -407,9 +407,9 @@ export const describeFailure = (failure: EditFailure): string => {
 		case "NotCurrent":
 			return `the concept was last changed at ${failure.generatedAt}, after now; a verification before the last change does not count (OKF 0.3 5.3), so check the clock`;
 		case "DraftCannotBeVerified":
-			return "the editor's Mark verified skips a draft concept, as okfit verify --batch does";
+			return "the editor's Mark verified skips a draft concept, as okfit verify --all does";
 		case "DeprecatedCannotBeVerified":
-			return "the editor's Mark verified skips a deprecated concept, as okfit verify --batch does";
+			return "the editor's Mark verified skips a deprecated concept, as okfit verify --all does";
 		case "UnknownStatusCannotBeVerified":
 			return `the status "${failure.status}" is not draft, stable or deprecated; set the status first, as okfit verify refuses it`;
 		case "NotADraft":

@@ -101,10 +101,11 @@ client from starting.
 - **`okfit.lsp.markVerified`** -- args `[uri]`. Computes the `TextEdit` that
   appends a `verified` entry (the resolved git identity, `Derivation.generatedBy`)
   to the concept at `uri`, sends it the same way, and answers the client's
-  result. Fails when the concept is a draft, already verified by that actor (a
-  binding that is current under OKF 0.3 §5.3 and covers the current content), or
-  no actor resolves, or the concept's `generated.at` is later than now (the entry
-  would not be current).
+  result. Fails when no actor resolves; the concept is a draft, deprecated or of
+  an unknown status; it is already verified by that actor (a binding that is
+  current under OKF 0.3 §5.3 and covers the current content); its `generated.at`
+  is later than now (the entry would not be current); its content cannot be
+  hashed; or its frontmatter shape cannot be edited.
 - **`okfit.lsp.verifyAndMarkStable`** -- args `[uri]`. For a draft concept,
   computes the edits that set `status: stable` and append a `verified` entry in
   one write (what `okfit verify --stable` does), and sends them the same way.

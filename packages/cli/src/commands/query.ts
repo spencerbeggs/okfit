@@ -76,7 +76,7 @@ const verifiedFlag = Flag.Boolean("verified").pipe(
 
 const unverifiedFlag = Flag.Boolean("unverified").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("only concepts with no verification (tier unverified)"),
+	Flag.withDescription("only concepts with no current verification (tier unverified)"),
 );
 
 const driftedFlag = Flag.Boolean("drifted").pipe(

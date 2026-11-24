@@ -414,7 +414,7 @@ below) also shares:
   deprecated concept, `NotCurrent` when `now` is before `generated.at` (OKF 0.3 5.3, R33: the entry would not count; the engine's
   `VerifyNotCurrentError` is the CLI's side of the same rule), and `AlreadyVerified` when
   `actor` already holds the CURRENT binding (`Trust.evaluate`, which sees `EditTarget.generated`; a drifted, superseded or
-  verified-before-change entry does not count, so such a concept can be re-verified) -- `okfit verify --batch`'s
+  verified-before-change entry does not count, so such a concept can be re-verified) -- `okfit verify --all`'s
   skip rules, not the single-concept `okfit verify <id>`'s.
 - `resolveActor(handle)` wraps `Derivation.verifier({ cwd: handle.folder,
   config })` (`handle.folder`, never `bundleRoot`: V-7's cwd) and fails

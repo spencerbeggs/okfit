@@ -216,7 +216,7 @@ tags:
 
 `okfit context --trust` also loads the bundle and adds a trust summary:
 how many concepts are drifted (edited since a human verified them), stale
-(past `stale_after`) or never verified, plus the first five drifted and
+(past `stale_after`) or without a current verification (tier `unverified`), plus the first five drifted and
 stale ids, sorted. In human output it is a `trust:` line; in JSON it is the
 `trust` object (`concepts`, `drifted`, `stale`, `unverified`, `drifted_ids`,
 `stale_ids`). Without the flag `context` never loads the bundle and `trust`
@@ -243,7 +243,8 @@ should look again, not a gate. A verification also stops counting when the
 concept changes after it: under OKF 0.3 §5.3 only a `verified` entry whose
 `at` is equal to or later than `generated.at` is current, and the
 `verified-before-change` lint (default `warn`) reports a concept whose trust
-tier dropped for that reason. `<id>` is a concept id with or
+tier dropped for that reason. The two lints do not overlap: `verified-drift`
+does not repeat a before-change verification. `<id>` is a concept id with or
 without a leading slash or trailing `.md`. The actor is always your own git
 identity, resolved from `git config okfit.actor` first, then `[actors].humans`,
 `user.email` and `user.name`; there is no `--by`. When `[actors].humans` is non-empty it is
@@ -251,9 +252,10 @@ an allow-list (exact ids or `*`/`?` globs, case-insensitive): an unlisted
 identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 `--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
-different instant, which must not be earlier than the concept's `generated.at`:
-okfit refuses a verification that would not be current (exit `3`), and an `at`
-equal to `generated.at` is accepted. `--dry-run` runs the same splice and prints the exact
+different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
+whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
+`generated.at` in the future also refuses; an instant equal to `generated.at`
+is accepted. `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
 
@@ -284,16 +286,18 @@ nothing to revoke on that concept; passing `--revoke` with `--all`, `--type`,
 `--all` and `--type <Type>` (repeatable) attest in batch: every concept whose
 type sets `require_verified`, plus every drifted concept of any type (or, with
 `--type`, only the named types) whose verification by you is not already held.
-A verification is held when it is bound to the concept's current content and is
-current under OKF 0.3 §5.3 (okfit's own integrity rule); one made before the
-concept's last change is not, so the concept is selected again. A batch skips a
+A verification is held when your entry is the latest human entry and is bound
+(`integrity.verified`), you pass `[actors].humans`, the entry is current under
+OKF 0.3 §5.3, and the binding covers the current content (okfit's own integrity
+rule); one made before the concept's last change is not, so the concept is
+selected again. A batch skips a
 concept and reports why: `draft`, `deprecated`, `unknown-status` or
 `already-verified`. A batch never re-attests a
 `deprecated` concept; verifying one by id is still allowed.
 
 Bare `okfit verify` in a terminal opens a picker: every concept of a
 `require_verified` type whose verification by you is not held (see above), plus every drifted concept of
-any type, drafts included and deprecated excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
+any type, drafts included and deprecated and unknown-status excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
 one all-or-nothing write. When a candidate is drifted, the picker shows a
@@ -315,7 +319,7 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
   description, status, tags, path, tier, integrity, stale). Filters: `--type <Type>` and
   `--tag <tag>` (repeatable, each must be declared in the config),
   `--status draft|stable|deprecated` (repeatable), `--verified` (a human's
-  verification is current), `--unverified` (never verified), `--drifted`
+  verification is current), `--unverified` (no current verification, tier `unverified`), `--drifted`
   (edited since a human verified it) and `--stale` (`stale_after` passed).
   Each line reads `id  status  trust  type  title`, where `trust` is
   `drifted` or the concept's trust tier, followed by `,stale` when stale.

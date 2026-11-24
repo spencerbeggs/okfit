@@ -11,7 +11,7 @@ import type { ListConceptsParams } from "../schema/tools.js";
 import { ListConceptsSuccess, ListConceptsParams as Params } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Lists concept summaries filtered by type, tags (all must match), status, verified (true: human-verified; false: never), drifted, stale, or current (true: keeps draft and stable only, dropping deprecated and unknown-status, so a replacement is listed only if it passes the other filters). now sets staleness. Pages by limit and offset, with total. Unknown type or tag fails with valid names.";
+	"Lists concept summaries by type, tags (all must match), status, verified (true: human verification current; false: none current), drifted, stale, or current (true: keeps draft and stable only, dropping deprecated and unknown-status, so a replacement is listed only if it passes the other filters). now sets staleness. Pages by limit/offset, with total. Unknown type or tag fails with valid names.";
 
 /**
  * No `dependencies`: since Effect 4.1 a declared dependency becomes a
