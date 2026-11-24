@@ -320,7 +320,7 @@ const docsRepo = (options: {
 	readonly file: string;
 	readonly title: string;
 	readonly description: string;
-	readonly audience: "users" | "contributors";
+	readonly readers: "users" | "contributors";
 	readonly resource: string;
 	readonly linksTo?: string;
 	readonly reader: string;
@@ -333,7 +333,7 @@ const docsRepo = (options: {
 		title: options.title,
 		description: options.description,
 		[ProfileKeys.kind]: "repo",
-		[ProfileKeys.audience]: options.audience,
+		[ProfileKeys.audience]: options.readers,
 		resource: options.resource,
 		...(options.linksTo === undefined ? {} : { [ProfileKeys.links_to]: options.linksTo }),
 	},
@@ -360,7 +360,7 @@ export const DOCS_PACKAGE: SurfaceTemplate = docsRepo({
 	title: "Repository docs folder",
 	title1: "Repository docs folder",
 	description: "Topical markdown pages in docs/, read in place on the forge and linked from the README.",
-	audience: "users",
+	readers: "users",
 	resource: "../../docs",
 	reader: USERS_DOCS_READER,
 });
@@ -372,7 +372,7 @@ export const DOCS_REPO: SurfaceTemplate = docsRepo({
 	title1: "Repository docs folder",
 	description:
 		"Shared contributor pages in the root docs/, read in place on the forge and linked from the root README.",
-	audience: "contributors",
+	readers: "contributors",
 	resource: "../../docs",
 	linksTo: "readme-root.md",
 	reader:
@@ -385,7 +385,7 @@ export const DOCS_PACKAGES: SurfaceTemplate = docsRepo({
 	title: "Sub-package docs folders",
 	title1: "Sub-package docs folders",
 	description: "Topical markdown pages in each package's docs/, read in place on the forge and linked from its README.",
-	audience: "users",
+	readers: "users",
 	resource: "../../packages/*/docs",
 	linksTo: "readme-packages.md",
 	reader: USERS_DOCS_READER,

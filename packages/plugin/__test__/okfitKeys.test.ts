@@ -35,16 +35,17 @@ const DISTINCTIVE = [
 	"occurred",
 	"audience",
 	"repository",
+	"surface",
 ] as const;
 /** Common words: scanned only in quoted form, since `kind: "path"` and `url` appear everywhere as other things. */
-const COMMON = ["kind", "layer", "gate", "guard", "url", "entry", "surface"] as const;
+const COMMON = ["kind", "layer", "gate", "guard", "url", "entry"] as const;
 
 const distinctive = DISTINCTIVE.join("|");
 const common = COMMON.join("|");
-/** A quoted field name; an unquoted object key; a member read. The first covers bracket reads too. */
+/** A quoted field name; an unquoted object key (at the start of a line or after `{`, `,` or `(`); a member read. The first covers bracket reads too. */
 const FIELD_PATTERNS: ReadonlyArray<RegExp> = [
 	new RegExp(`["'\`](?:${distinctive}|${common})["'\`]`),
-	new RegExp(`(?<![.\\w])(?:${distinctive})\\s*:`),
+	new RegExp(`(?<=(?:^|[{,(])\\s*)(?:${distinctive})\\s*:`),
 	new RegExp(`(?<!ProfileKeys)\\.(?:${distinctive})\\b`),
 ];
 
@@ -115,30 +116,28 @@ interface Allowed {
 	readonly reason: string;
 }
 const NOT_A_KEY: ReadonlyArray<Allowed> = [
-	{ file: "packages/cli/src/render/verify.ts", line: /"entry"/, reason: "display word for one removed verification" },
+	{
+		file: "packages/cli/src/render/verify.ts",
+		line: /"entry" : "entries"/,
+		reason: "display word for one removed verification",
+	},
 	{ file: "packages/core/src/Graph.ts", line: /_tag: "url"/, reason: "link-resolution tag" },
 	{ file: "packages/core/src/internal/links.ts", line: /_tag: "url"/, reason: "link-classification tag" },
-	{ file: "packages/engine/src/validate/repository.ts", line: /"repository"/, reason: "ResourceScope member" },
-	{ file: "packages/profiles/src/Canonical.ts", line: /\(renders: unknown\)/, reason: "a parameter name" },
 	{
-		file: "packages/profiles/src/SoftwareProject.ts",
-		line: /People changing this repository:/,
-		reason: "prose in a description",
+		file: "packages/engine/src/validate/repository.ts",
+		line: /^export type ResourceScope = /,
+		reason: "ResourceScope member",
 	},
+	{
+		file: "packages/engine/src/validate/repository.ts",
+		line: /candidates\.push\(\{ absolute, scope: "repository" \}\)/,
+		reason: "a ResourceScope value",
+	},
+	{ file: "packages/profiles/src/Canonical.ts", line: /\(renders: unknown\)/, reason: "a parameter name" },
 	{
 		file: "packages/profiles/src/SoftwareProject.ts",
 		line: /directory: "runbooks"/,
 		reason: "a layout directory, not a field",
-	},
-	{
-		file: "packages/profiles/src/presets/surfaces.ts",
-		line: /^\s*(?:readonly )?audience: /,
-		reason: "docsRepo's and the README presets' own option, copied into frontmatter under ProfileKeys.audience",
-	},
-	{
-		file: "packages/profiles/src/presets/surfaces.ts",
-		line: /options\.audience/,
-		reason: "reads docsRepo's own option, written under ProfileKeys.audience",
 	},
 	{
 		file: "packages/profiles/src/presets/surfaces.ts",
@@ -191,7 +190,8 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 		expect(literalsIn("const o = { ...(a ? {} : { links_to: b }) };")).toEqual(["links_to:"]);
 		expect(literalsIn("const v = raw.renders;")).toEqual([".renders"]);
 		expect(literalsIn('const v = raw["supersedes"];')).toEqual(['"supersedes"']);
-		expect(literalsIn("const v = raw.surface; const w = { kind: 1, url: 2 };")).toEqual([]);
+		expect(literalsIn("const v = raw.surface;")).toEqual([".surface"]);
+		expect(literalsIn("const w = { kind: 1, url: 2 }; const v = raw.kind;")).toEqual([]);
 		expect(literalsIn("const v = ProfileKeys.renders;")).toEqual([]);
 	});
 
@@ -211,5 +211,13 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 				.map((hit) => `${name}:${hit.line}: ${hit.text.trim()}`);
 		});
 		expect(offenders).toEqual([]);
+	});
+
+	it("every allowlisted site still matches a line, so a stale entry fails", () => {
+		const stale = NOT_A_KEY.filter((site) => {
+			const hits = hitsIn(readFileSync(join(ROOT, site.file), "utf8"));
+			return !hits.some((hit) => site.line.test(hit.text));
+		});
+		expect(stale.map((site) => `${site.file} ${site.line}`)).toEqual([]);
 	});
 });
