@@ -33,6 +33,7 @@ skills:
   - okf-config
   - okf-context
   - okf-finalize
+  - okf-upgrade
 model: inherit
 ---
 
@@ -40,7 +41,7 @@ model: inherit
 
 ## What this agent does
 
-Keeps this repository's OKF v0.2 knowledge bundle — the directory the
+Keeps this repository's OKF v0.3 knowledge bundle — the directory the
 resolved config's `[bundle].path` names, `okf/` by default — and the
 `CLAUDE.md` files that route into it current, using the vocabulary the
 repository's own config declares (the merged `[types.<Name>]` and
@@ -76,7 +77,7 @@ warns on an `Edit`, and a stamp added after the block is a wasted round
 trip. At
 the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
-`okf-authoring`'s twenty rules, run `okfit validate` and fix what it
+`okf-authoring`'s twenty-three rules, run `okfit validate` and fix what it
 reports, run `okfit sync` to regenerate `generated.at`,
 `integrity.generated.body`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what

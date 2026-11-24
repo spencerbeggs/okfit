@@ -1,164 +1,176 @@
 ---
 name: okf-spec
 description: >-
-  OKF v0.2 condensed reference: the conformance floor, the frontmatter field
-  table by family, reserved files, the actor convention, cross-linking rules,
-  and the v0.1-to-v0.2 changes. Use when authoring or reviewing an OKF concept
-  file, deciding which frontmatter fields to set, or checking whether a bundle
-  is conformant. Trigger phrases -- "what fields does OKF support", "is
-  verified required", "what changed from 0.1 to 0.2", "actor convention",
-  "frontmatter reference table", "is this concept conformant".
+  OKF v0.3 condensed reference: the conformance floor, which files are
+  concepts, the frontmatter field table by family, timestamps, the trust tier,
+  links and path fields, reserved files, tolerant reading, the computation
+  locator, and the changes from v0.2. Use when authoring or reviewing an OKF
+  concept file, deciding which frontmatter fields to set, or checking whether a
+  bundle is conformant. Trigger phrases -- "what fields does OKF 0.3 support",
+  "is verified required", "what changed in OKF 0.3", "actor convention",
+  "frontmatter reference table", "is this concept conformant", "how do OKF
+  links resolve".
 ---
 
 # OKF Spec
 
-## What OKF is
-
-An OKF bundle is a directory tree of UTF-8 markdown files, each an optional
-YAML frontmatter block (delimited by `---` lines) followed by a free-form
-markdown body. There is no central schema registry: producers organize
-concepts however suits the knowledge, and the layout is domain-independent
-(spec §3, **unverified against upstream** -- the upstream `SPEC.md` is not
-vendored in this repo; see `OKFSPEC-NOTE:404-405`). A bundle is distributable
-as a git repository (recommended, for history/attribution/diffs), a
-tarball/zip, or a subdirectory of a larger repository. Only `index.md` and
-`log.md` are reserved (see below); every other `.md` file is a concept
-document.
+OKF v0.3 is a directory tree of UTF-8 Markdown files: YAML frontmatter, then a
+free-form body. No registry, no required tooling (§1, §3). Section marks below
+are OKF v0.3 sections; "okfit" marks what okfit adds or chooses.
 
 ## Conformance floor
 
-Lead with this fact, because it is what stops an authoring agent from
-inventing required fields that do not exist: **a concept carrying only a
-non-empty `type` in its frontmatter is fully conformant** (spec §11,
-**unverified against upstream**, `OKFSPEC-NOTE:406-409`). Everything else in
-the table below is recommended or optional -- never treat it as required
-unless the active profile or config says so (see `okf-authoring` rule 1).
+A bundle is conformant when every frontmatter block parses as a YAML mapping
+and each reserved file (`index.md`, `log.md`) follows §8 and §9 (§11.1). A
+concept with only a non-empty `type` is fully conformant (§4.1). Never invent
+required fields beyond what the active profile or config declares (see
+`okf-authoring` rule 1).
 
-Spec §11 states this as three rules: (1) every non-reserved `.md` file has
-parseable YAML frontmatter, (2) every frontmatter block has a non-empty
-`type`, (3) reserved filenames follow the §8/§9 structure when present.
-Consumers MUST NOT reject a bundle for missing optional frontmatter, an
-unknown `type`, unknown extra keys, broken links, or a missing `index.md`.
+A `.md` file is a concept only when it is not reserved and has frontmatter with
+a non-empty `type`. A `.md` file with no frontmatter or no `type` is not a
+concept: consumers skip it, it does not affect conformance, and validators
+SHOULD warn (§3.2). Files that are not `.md` are assets. Dot-files and
+dot-directories are outside the bundle. Consumers do not follow symbolic links
+out of the bundle root (§3.2). Consumers MUST NOT reject a bundle for missing
+optional fields, unknown types, unknown keys, broken links or a missing
+`index.md` (§11.2).
+
+okfit adds an opinion on top: the lint `non-concept-unlisted` warns about a
+typeless `.md` the config's `[bundle] non_concepts` globs do not list
+(`okf-config`).
 
 ## Frontmatter reference table
 
-| Field | Family | Required | Notes | Spec § |
+| Field | Family | Required | Notes | § |
 | --- | --- | --- | --- | --- |
-| `type` | core | **yes** -- the only always-required key | Short string, not centrally registered; consumers MUST tolerate unknown types | §4.1 |
-| `title` | core | recommended | Else derive from the filename | §4.1 |
-| `description` | core | recommended | One sentence; used by index generators and search | §4.1 |
-| `resource` | core | recommended | Canonical URI of the underlying asset; absent for abstract concepts | §4.1 |
-| `tags` | core | recommended | YAML list of free strings | §4.1 |
-| `sources` | provenance | optional | List of provenance entries | §5.1 |
-| `sources[].resource` | provenance | **required within each entry** | A concrete artifact path or URL, or a scope descriptor | §5.1 |
-| `sources[].id` | provenance | optional | Stable footnote key; SHOULD be present when the body cites the source | §5.1 |
-| `sources[].title` | provenance | optional | -- | §5.1 |
-| `sources[].author` | provenance | optional | A credibility signal; an actor (§7) | §5.1 |
-| `sources[].usage_count` | provenance | optional | Coarse exercise count over `usage_window`; liveness only | §5.1 |
-| `sources[].last_modified` | provenance | optional | The source's own recency, distinct from `generated.at` | §5.1 |
-| `usage_window` | provenance | optional | `{from, to}`; frames every entry's `usage_count` unless the entry overrides it | §5.1 |
-| `generated.by` | trust | **required within `generated`** | An actor (§7). `CORE/Generated.ts:10` -- not `optionalKey` | §5.2 |
-| `generated.at` | trust | spec prose gives no explicit marker (ambiguous); **core treats it as optional** -- `CORE/Generated.ts:11` is `Schema.optionalKey(Timestamp)` | Content's last meaningful change | §5.2 |
-| `verified` | trust | optional | A **list** of `{by, at}`; a bare mapping is legal input and MUST be read as a one-element list | §5.2 |
-| `integrity.generated.body` | okfit extension | optional | **Not in OKF v0.2.** 16-hex sha256 prefix of the normalised body; `okfit sync` writes it, never an author. Replaces `generated.body_sha256` | okfit |
-| `integrity.verified` | okfit extension | optional | **Not in OKF v0.2.** `{by, at, content}`: `okfit verify` binds the latest human verification to a digest of body plus authored frontmatter. An edit afterwards is the `verified-drift` lint. Never hand-written | okfit |
-| `status` | lifecycle | optional | `draft \| stable \| deprecated`; absent means `stable` | §5.4 |
-| `stale_after` | lifecycle | optional | Absolute ISO 8601 instant; stale when `now >= stale_after` | §5.5 |
-| `runtime` | computation | spec prose says REQUIRED for an Attested Computation; **core demotes an absent value to lint `computation-runtime-missing`**, whose default severity is `error` (`CORE/OkfitConfig.ts:277`) but which is a lint, not a rejection (D-20) | e.g. `bigquery`, `postgres`, `dbt`, `python`, `Looker` | §10.2 |
-| `parameters` | computation | optional | List of `{name, type, required}` | §10.2 |
-| `computation` | computation | optional | A path; mutually exclusive with an inline `# Computation` body fence | §10.2, §10.3 |
-| `executor` | computation | optional | `{resource, receipt}` | §10.2 |
-| `attester` | computation | optional | `{resource}`; deterministic, non-LLM, run consumer-side | §10.2 |
+| `type` | core | **yes**, the only always-required key | Short string; consumers MUST accept unknown types | 4.1 |
+| `title` | core | optional | Else derive from the filename | 4.1 |
+| `description` | core | optional | One sentence | 4.1 |
+| `resource` | core | optional | URI of the underlying asset; absent for abstract concepts | 4.1 |
+| `tags` | core | optional | List of short strings; a scalar is one tag | 4.1, 11.2 |
+| `sources` | provenance | optional | List of entries | 5.1 |
+| `sources[].resource` | provenance | **required in each entry** | A followable URL or path, or a scope descriptor | 5.1 |
+| `sources[].id` | provenance | optional | Footnote key; SHOULD be set when the body cites the source | 5.1 |
+| `sources[].title`, `.author`, `.usage_count`, `.last_modified` | provenance | optional | `author` is an actor | 5.1 |
+| `usage_window` | provenance | optional | `{from, to}` for `usage_count` | 5.1 |
+| `generated.by` | trust | **required in `generated`** | An actor | 5.2 |
+| `generated.at` | trust | optional | Time of the last meaningful change | 5.2 |
+| `verified` | trust | optional | List of `{by, at}`, both required; a bare mapping is a one-item list | 5.2 |
+| `status` | lifecycle | optional | `draft`, `stable` or `deprecated`; absent means `stable`; any other value is not `stable` | 5.4 |
+| `superseded_by` | lifecycle | optional | One path to the replacement; meaningful only with `status: deprecated` | 5.4 |
+| `stale_after` | lifecycle | optional | Absolute instant; stale when `now >= stale_after`; an unparsable value is never fresh | 5.5 |
+| `runtime` | computation | required for an Attested Computation | `bigquery`, `dbt`, `python`... | 10.2 |
+| `parameters` | computation | optional | List of `{name, type, required}`; `name` and `type` required, `required` defaults to `false` | 10.2 |
+| `computation` | computation | optional | A path to the computation file | 10.2, 10.3 |
+| `executor`, `attester` | computation | optional | `{resource, receipt}` and `{resource}` | 10.2 |
+| `integrity` | okfit | optional | Not OKF. okfit's digests; never hand-written | -- |
 
-**Every timestamp field** (`generated.at`, `verified[].at`, `stale_after`,
-`sources[].last_modified`, `usage_window.{from,to}`) needs an explicit UTC
-offset. Core enforces it before parsing -- `CORE/Timestamp.ts:6` is
-`/(?:Z|[+-]\d{2}:\d{2})$/` and `:25-30` fails offset-less input with
-"Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or
--hh:mm)".
+Extension keys are legal at any level; never delete one you do not know
+(§4.1). Name your own `x-<producer>-<name>`.
 
-Where core is looser or stricter than the spec prose, this skill states
-**core's** behaviour as the operative rule and cites the lint code -- D-18 for
-actor prefixes, D-20 for `computation-runtime-missing`, D-33/D-34 for the
-severity split. It never leaves the reader to reconcile the two.
+Bundle-root `index.md` frontmatter may hold `okf_version` (a quoted string),
+`title`, `description` (a sentence on when to use the bundle) and `license` (an
+SPDX expression or a path), plus extension keys (§8.1). A subdirectory
+`index.md` has no frontmatter (§8). A producer that regenerates `index.md` MUST
+keep the root's frontmatter (§8.1). `log.md` has no frontmatter (§9).
+
+## Timestamps
+
+The timestamp keys are `generated.at`, `verified[].at`, `stale_after`,
+`sources[].last_modified`, `usage_window.from` and `usage_window.to`. A value is
+either an RFC 3339 date-time (`"2026-06-30T14:00:00Z"`) or a date only
+(`"2026-06-30"`, which means 00:00 UTC that day). A date-time without an offset
+is invalid. Write date-times for `generated.at` and `verified[].at`, because
+consumers compare those two (§5).
+
+## Trust tier
+
+A verification is **current** when its `at` is equal to or later than
+`generated.at`, or when `generated` is absent. The tier comes only from current
+events: none gives unverified, only non-`human:` actors gives machine-confirmed,
+a `human:<id>` gives human-reviewed. Earlier events stay as history (§5.3).
+A `team:` verifier is machine-confirmed, because a team name does not identify a
+person (§7). So a rewrite after a human review leaves the concept below
+human-reviewed until a human confirms again. okfit lints this as
+`verified-before-change` (`warn`).
+
+## Links and path fields
+
+One rule for body links and path fields (`resource`, `sources[].resource`,
+`computation`, `executor.resource`, `attester.resource`, `superseded_by`) (§6):
+
+1. A value with a URI scheme is an absolute URL.
+2. A value starting with `/` resolves from the bundle root.
+3. Any other value resolves from the directory of the file that holds it.
+
+Both in-bundle forms are valid and consumers MUST resolve both. A value that
+resolves outside the bundle root is external and is never read from disk.
+Targets are URI references: percent-encode spaces; paths are case-sensitive. A
+broken link is not malformed (§6.1). A `sources[].resource` may be a scope
+descriptor, not a path (§5.1).
+
+okfit treats a path field that resolves outside the bundle but inside the
+project root as a repository resource: it may check that the file exists and
+whether git tracks it (lints `resource-ignored`, `resource-untracked`). One
+outside the project root is never touched and is reported as
+`resource-outside-project` (`info`). The value is still file-relative, so a
+concept under `okf/modules/` writes `../../packages/x`.
 
 ## Reserved files
 
-`index.md` (a directory listing, §8) and `log.md` (an update history, §9) are
-reserved at any level of the hierarchy and MUST NOT be used as concept
-documents. `okf_version` is legal only in a bundle-root `index.md`'s
-frontmatter (`OKFSPEC-NOTE:416-417`) -- it is the sole permitted frontmatter
-key there, and no other `index.md` or any `log.md` carries frontmatter at
-all. An `index.md` body is one or more `# Section Heading` groups of `*
-[Title](url) - description` bullets; a `log.md` body is a flat list of `##
-YYYY-MM-DD` date-grouped entries, newest first.
+`index.md` and `log.md` are reserved at every level. Producers MUST NOT use
+them for concepts and consumers MUST NOT treat them as concepts, whatever they
+contain (§3.1). An `index.md` body is `# Section` groups of
+`* [Title](url) - description`; a `log.md` body is `## YYYY-MM-DD` entries,
+newest first (§8, §9). okfit derives both with `okfit sync`.
 
 ## Actor convention
 
-An actor string is one of three forms: `<producer>/<version>` (an agent or
-tool), `human:<id>` (a person), or `process:<id>` (an automated process).
+An actor is `<producer>/<version>` for an agent or tool, or `<scheme>:<id>`.
+Defined schemes: `human:`, `team:`, `process:`. Other schemes are legal and
+non-human (§7). Only `human:` gives the human-reviewed tier. okfit lints an
+unknown prefix as `actor-prefix-unknown` (`info`) and an `@` as `actor-email`;
+a person pins their id with `git config --global okfit.actor human:<id>`.
 
-Core's operative rule (D-18) is more permissive than a strict three-form
-reading: `CORE/Actor.ts:5` accepts any string matching
-`^(?:[^\s/:]+\/[^\s]+|[A-Za-z][A-Za-z0-9_-]*:[^\s]+)$`, and
-`CORE/Actor.ts:22-28`'s `form` classifies an unrecognised prefix as `"other"`,
-driving lint `actor-prefix-unknown` at severity `info`
-(`CORE/OkfitConfig.ts:280`) -- never a rejection.
+## Tolerant reading
 
-An actor containing `@` triggers the `actor-email` lint, and a person can pin
-their id with `git config --global okfit.actor human:<id>`.
+Absent, null, empty-string and empty-list values are the same as an absent key.
+A list field given one item is a list of one; a scalar `tags` is one tag and is
+never split at commas. An entry missing its required key is ignored (and
+SHOULD be warned about). A value outside a key's vocabulary is kept (§11.2).
 
-## Links
+## The computation locator
 
-A bundle-relative link (`/tables/customers.md`) is recommended: it stays
-stable when a file moves within a subdirectory. A relative link
-(`./other.md`) is also legal. A link asserts an untyped relationship; the
-kind (parent/child, joins-with, depends-on) is conveyed by surrounding prose,
-not the link itself. Consumers MUST tolerate broken links --
-(`OKFSPEC-NOTE:419-420`) a broken link may represent not-yet-written
-knowledge, not a defect.
+An Attested Computation gives its computation one of two ways (§10.3): set
+`computation` to a path, or put a fenced code block in the `Computation`
+section. A consumer takes `computation` when present; else the first fenced
+block in the section headed `Computation`, at any heading level, ending at the
+next heading of the same or higher level; else the computation is missing and
+the concept is not attestable. Write exactly one fence. An agent supplies
+parameter values only and never writes or edits the computation (§10.3).
+Never show a value as attested without `runtime` and `attester` (§10.2).
 
-The path-valued frontmatter fields (`resource`, `sources[].resource`,
-`computation`, `executor.resource`, `attester.resource`) each accept an
-absolute URL, a bundle-relative path, or a relative path;
-`sources[].resource` may instead be a scope descriptor rather than a path
-(§5.1). The `references/` directory name is a naming convention, not a
-requirement, for mirroring external material as first-class concepts that
-sources/executors/attesters commonly point into. A relative path-valued
-field resolves against the concept file's own directory, not the bundle
-root -- a `resource` under `okf/modules/` reaches repository code with
-`../../`.
+## Changes from v0.2
 
-## Changes from v0.1
+Two breaking changes (§13.1):
 
-Breaking: `timestamp` is superseded by `generated.at` (`generated: {by,
-at}`); consumers MAY fall back to a legacy `timestamp` when `generated` is
-absent. Core stamps `Generated.LEGACY_BY = "process:legacy-timestamp"`
-(`CORE/Generated.ts:14`) as the actor when a v0.1 `timestamp` is folded into
-`generated.at` (D-15) -- a v0.1 document has no actor of its own to credit.
+| Change | Fallback |
+| --- | --- |
+| A path field without a leading `/` resolves from its file's directory. v0.2 examples wrote bundle-root paths bare, and those no longer resolve. | A consumer MAY try the bundle root when the bundle declares `okf_version` 0.2 or earlier, or none (§6.2, §12.1). okfit does this; `okf-upgrade` moves a bundle off it. |
+| Only current verifications give the trust tier. | None needed: the tier can only go down. |
 
-Breaking: the body `# Citations` list is superseded by the `sources`
-frontmatter field; consumers SHOULD read `sources` and MAY still parse a
-legacy `# Citations` list for v0.1 documents.
+The computation locator also changes (§10.3): a v0.2 reader took the body of
+a depth-one `Computation` section; v0.3 takes the first fence at any level.
+okfit applies the old locator while a bundle declares 0.2 or earlier, or none. Additive: `superseded_by`, root `title`/`description`/`license`, the
+`team:` scheme, date-only timestamps, and non-concept `.md` files (§13.2,
+§13.3). `okf-upgrade` covers the move.
 
-An Attested Computation (§10.1) is used, informally, by: discover, load its
-contract and computation, parameterize, execute for a receipt, attest
-(re-derive and compare), gate (refuse display on a failing attestation or
-staleness) -- §10.5's narrative, informative only. `verified` (doc-level,
-confirms the definition matches policy) is distinct from an attestation
-(per-run, confirms one execution was produced the sanctioned way, and is
-never stored in the bundle) -- §10.6.
+A v0.1 bundle: a legacy `timestamp` stands in for `generated.at` when
+`generated` is absent (Appendix B); okfit lints it as `legacy-timestamp`.
 
 ## Where the exact codec lives
 
-The exact frontmatter codecs, no restatement here: `CORE/Concept.ts`,
-`CORE/Source.ts`, `CORE/Generated.ts`, `CORE/Verification.ts`,
-`CORE/Status.ts`, `CORE/AttestedComputation.ts`, `CORE/Timestamp.ts`.
-
-Conformant and non-conformant examples:
-`packages/core/__test__/fixtures/okf/` (the vendored `acme_retail`,
-`crypto_bitcoin`, `ga4`, and `stackoverflow` sample bundles -- test-only
-fixtures, never shipped) and `.../bad/` (22 entries -- counted this session,
-not 26) for the failure modes described above and more, e.g.
-`bare-verified`, `legacy-timestamp`, `computation-runtime-missing`,
-`broken-link`, `missing-type`.
+`CORE/Concept.ts`, `CORE/Source.ts`, `CORE/Generated.ts`,
+`CORE/Verification.ts`, `CORE/Status.ts`, `CORE/AttestedComputation.ts`,
+`CORE/Timestamp.ts`. Conformant and non-conformant examples:
+`packages/core/__test__/fixtures/okf/` and `.../bad/`.

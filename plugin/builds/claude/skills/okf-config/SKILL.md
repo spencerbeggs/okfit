@@ -38,9 +38,18 @@ validation on the file without any further setup.
 
 ## The TOML schema, table by table
 
-- `okf_version` -- a string. `DEFAULTS` sets `"0.2"`.
+- `okf_version` -- a string with no default. When set, it is the version
+  okfit writes into a bundle-root `index.md` that declares none (`okfit init`,
+  `okfit sync`); it never overrides what a bundle declares, and the
+  bundle's own declaration decides how it is read.
 - `[bundle]` -- `path` (default `"okf"`), `profile` (default
-  `"software-project"`).
+  `"software-project"`), and `non_concepts`, an array of globs naming the
+  typeless or frontmatter-less `.md` files the bundle allows (OKF 0.3 §3.2
+  lets such files exist; this is okfit's opinion). Core has no default; the
+  software-project profile sets `**/README.md`, `**/AGENTS.md`,
+  `**/CONTRIBUTING.md` and `**/SKILL.md`. A value in the config replaces
+  that list; `[]` allows none; an invalid glob fails config load. With no
+  key at all the lint `non_concept_unlisted` is silent.
 - `[concepts]` -- `required` (array of frontmatter keys every concept must
   carry) and `tags.required` (array of tags every concept must carry).
 - `[lifecycle]` -- `default_stale_after`, a `StaleAfterDuration`: either
@@ -57,7 +66,7 @@ validation on the file without any further setup.
   (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
   `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
-  snake_case keys. The D-34 default table, reproduced verbatim:
+  snake_case keys, forty in all. The defaults, in `DEFAULT_LINT` order:
 
   | Key | Default |
   | --- | --- |
@@ -67,28 +76,40 @@ validation on the file without any further setup.
   | `required_key_missing` | `error` |
   | `field_value_unknown` | `error` |
   | `require_verified_unmet` | `error` |
-  | `verified_drift` | `warn` |
-  | `actor_email` | `warn` |
-  | `verified_actor_unknown` | `warn` |
+  | `verified_before_change` | `warn` |
   | `family_invalid` | `error` |
-  | `generated_at_drift` | `warn` |
   | `computation_runtime_missing` | `error` |
   | `footnote_source_unknown` | `warn` |
   | `footnote_undefined` | `warn` |
   | `log_frontmatter` | `warn` |
   | `actor_prefix_unknown` | `info` |
+  | `actor_email` | `warn` |
+  | `verified_actor_unknown` | `warn` |
   | `legacy_timestamp` | `info` |
   | `config_unknown_key` | `warn` |
   | `stale` | `info` |
   | `walk_unreadable` | `warn` |
+  | `generated_at_drift` | `warn` |
+  | `verified_drift` | `warn` |
   | `status_missing` | `off` |
   | `source_resource_missing` | `warn` |
   | `resource_ignored` | `error` |
   | `resource_untracked` | `warn` |
+  | `resource_outside_project` | `info` |
+  | `superseded_by_orphan` | `warn` |
+  | `superseded_by_unresolved` | `warn` |
   | `generated_missing` | `warn` |
   | `publication_drift` | `warn` |
   | `publication_orphan` | `error` |
   | `surface_unmatched` | `warn` |
+  | `index_metadata_invalid` | `warn` |
+  | `entry_ignored` | `warn` |
+  | `value_malformed` | `warn` |
+  | `value_unknown` | `warn` |
+  | `frontmatter_missing` | `warn` |
+  | `type_missing` | `warn` |
+  | `symlink_escape` | `warn` |
+  | `non_concept_unlisted` | `warn` |
 
   Two extra facts worth stating: `unknown_type` is forced `off` when the
   merged config declares no types at all, and `status_missing` (a concept

@@ -1,7 +1,7 @@
 ---
 name: okf-authoring
 description: >-
-  Twenty imperative rules for writing and editing OKF concept files under a
+  Twenty-three imperative rules for writing and editing OKF concept files under a
   config: what is required, what to never touch, the actor and timestamp
   conventions, and where core's leniency differs from the spec's prose. Use
   when creating, editing, or reviewing a concept file's frontmatter or body
@@ -44,7 +44,7 @@ entries; both are theirs. The same holds for `okfit stale --verify`, which
 re-attests stale concepts and rolls their `stale_after` forward: it exits 64
 for an agent, so suggest the human run it instead of attempting it.
 
-## The twenty rules
+## The twenty-three rules
 
 1. Only `type` is required; never invent required fields beyond what the
    active profile and config declare (`concepts.required` --
@@ -56,7 +56,10 @@ for an agent, so suggest the human run it instead of attempting it.
    `integrity.generated.body`; never type either by hand.
 4. `generated.by` uses the actor convention (`okf-spec`'s actor-convention
    section).
-5. Every timestamp needs an explicit UTC offset (`CORE/Timestamp.ts:6`).
+5. A timestamp is an RFC 3339 date-time with an offset (`2026-06-30T14:00:00Z`)
+   or a date only (`2026-06-30`, read as 00:00 UTC); an offset-less
+   date-time is invalid (spec §5, `CORE/Timestamp.ts`). Write date-times
+   where two timestamps are compared (`generated.at`, `verified[].at`).
    That includes a concept's `stale_after`: on a concept it is an absolute
    ISO 8601 instant (`2026-12-11T00:00:00Z`), never the `90d` duration
    shorthand that the config's `[lifecycle].default_stale_after` takes.
@@ -97,16 +100,25 @@ for an agent, so suggest the human run it instead of attempting it.
    `okfit validate` reports `resource-ignored` (error) or
    `resource-untracked` (warn). Restate the reasoning in the concept
    instead.
-8. Prefer bundle-relative links; a broken link is tolerated, never "fixed"
-   by inventing a target. A `broken-links` anchor diagnostic ends with a
+8. A link or path field is either `/` from the bundle root or relative to the
+   file's own directory; both are valid (spec §6). Never write a bare
+   root-relative value (`metrics/revenue.md` from a file in another
+   directory): OKF v0.3 resolves it from the file's directory, where it
+   misses. okfit's guidance: use `/` for a path field the profile does not
+   point outside the bundle, and `../` for a repository resource. A broken
+   link is tolerated, never "fixed" by inventing a target. A `broken-links` anchor diagnostic ends with a
    hint (`did you mean "#slug"?`, or the target's headings), so repair a
    bad anchor from that hint rather than guessing. Anchors follow
    `github-slugger`: lowercase, punctuation dropped, each space one hyphen
    with no collapsing, so `## A — B` is `#a--b`.
 9. Only `index.md` and `log.md` are reserved, at any depth.
-10. `index.md` carries no frontmatter except an optional root-only
-    `okf_version`.
-11. `log.md` entries are `## YYYY-MM-DD`, newest first.
+10. A subdirectory `index.md` carries no frontmatter. The bundle-root
+    `index.md` may carry `okf_version`, `title`, `description` and `license`
+    (spec §8.1); `okfit sync` keeps them and `okfit init` writes `title` and
+    `description` only for a bundle at 0.3 or later. Leave the version to
+    `okf-upgrade`.
+11. `log.md` has no frontmatter; its entries are `## YYYY-MM-DD`, newest first
+    (spec §9).
 12. For an Attested Computation: never author or edit the computation body
     or file; only parameter values.
 13. Write `runtime` on an Attested Computation anyway -- core only lints its
@@ -163,6 +175,25 @@ for an agent, so suggest the human run it instead of attempting it.
     goes in `title` and `description`, which are what agents read. To
     rename, run `okfit mv <from> <to>` then `okfit sync`; never rename by
     hand, because `mv` rewrites every reference.
+21. When a concept is `deprecated` and has a replacement, add `superseded_by`
+    with the replacement's path (spec §5.4). It means nothing on a concept
+    that is not deprecated (`superseded-by-orphan`), and a target that is an
+    asset, an external value or the concept itself is
+    `superseded-by-unresolved`. Never change an existing concept's `status`
+    yourself, `deprecated` included: that is the human's call, so propose it.
+    To move a concept, the spec's way is a deprecated stub at the old path
+    with `superseded_by` set to the new one; leave that to `okfit mv` or ask.
+22. A `.md` file with no frontmatter or no `type` is not a concept (spec
+    §3.2). Write one into the bundle only where `[bundle] non_concepts` lists
+    it (`README.md`, `AGENTS.md`, `CONTRIBUTING.md` and `SKILL.md` in the
+    software-project profile). Elsewhere give it a `type` or move it out; the
+    hook blocks a `Write` of an unlisted one and warns on an `Edit`
+    (`non-concept-unlisted`).
+23. A verification counts toward the trust tier only when its `at` is equal to
+    or later than `generated.at` (spec §5.3), and only a `human:` verifier
+    gives human-reviewed. A content edit after a human verification therefore
+    drops the concept's tier until that human verifies again
+    (`verified-before-change`); do not try to repair it, and tell the human.
 
 ## generated.at and integrity
 
@@ -171,8 +202,7 @@ skill instructs writers to leave it unset until `okfit sync` supplies the
 value rather than typing a guess (rule 3). `generated.by` stays required
 (`CORE/Generated.ts:28`) and is always hand-stamped.
 
-`integrity` is okfit's own top-level extension family, not an OKF v0.2
-field, and it holds every digest. `integrity.generated.body` is the first 16
+`integrity` is okfit's own top-level extension family, not part of OKF, and it holds every digest. `integrity.generated.body` is the first 16
 hex characters of a sha256 of the concept's normalized body, written by
 `okfit sync` beside `generated.at`. It is what lets the `generated-at-drift`
 lint survive a squash or rebase merge -- drift means the body changed after

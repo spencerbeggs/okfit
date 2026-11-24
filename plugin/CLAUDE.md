@@ -27,7 +27,7 @@ plugin/
   min-cli.ts                           -- MIN_CLI_VERSION, injected as OKFIT_MIN_CLI_VERSION (bump only when a hook or skill needs a newer CLI)
   package.json                         -- its version is every built manifest's version
   CHANGELOG.md, README.md, CLAUDE.md   -- not shipped
-  skills/<name>/SKILL.md               -- ten skills; a `targets.copilot` block only where `Bash(...)` rules must collapse to `Bash`
+  skills/<name>/SKILL.md               -- eleven skills; a `targets.copilot` block only where `Bash(...)` rules must collapse to `Bash`
   agents/okf-docs.md, okf-publisher.md -- tool names and `{{tool …}}`/`{{agent …}}` body tokens render per host
   hooks/
     lib/okfit/okfit-cli.sh             -- okfit_cli (the plugin's own helper)

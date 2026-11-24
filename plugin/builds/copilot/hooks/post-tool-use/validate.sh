@@ -103,9 +103,14 @@ has_type() {
 # message (`... matches no [bundle] non_concepts glob (<globs>); add ...`), so
 # the hook never parses the config.
 unlisted_line() {
-	local globs
+	local globs globs_text
 	globs=$(printf '%s' "$2" | sed -n 's/.*non_concepts glob (\(.*\)); add frontmatter.*/\1/p')
-	printf '%s: not a concept: it has no frontmatter type, and this bundle allows non-concept Markdown only where [bundle] non_concepts says (%s). Give it frontmatter with a type (okf-authoring), move it out of the bundle, or ask the human to add it to non_concepts.' "$1" "$globs"
+	if [ -z "$globs" ]; then
+		globs_text="allows it"
+	else
+		globs_text="says ($globs)"
+	fi
+	printf '%s: not a concept: it has no frontmatter type, and this bundle allows non-concept Markdown only where [bundle] non_concepts %s. Give it frontmatter with a type (okf-authoring), move it out of the bundle, or ask the human to add it to non_concepts.' "$1" "$globs_text"
 }
 
 # bash_write_targets command — prints candidate write targets ending in .md,

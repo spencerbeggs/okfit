@@ -81,8 +81,8 @@ _field_value() {
 	}
 }
 
-@test "all five okf skill names are registered under skills:" {
-	local expected="okf-spec okf-authoring okf-config okf-context okf-finalize"
+@test "all six okf skill names are registered under skills:" {
+	local expected="okf-spec okf-authoring okf-config okf-context okf-finalize okf-upgrade"
 	for skill in $expected; do
 		_skills_block "$AGENTS/okf-docs.md" | grep -qx -- "$skill" || {
 			echo "okf-docs.md does not list $skill under skills:" >&2
@@ -198,12 +198,48 @@ _field_value() {
 	done
 }
 
-@test "the skill roster is the okf skills plus the five docs skills, with no npm-readme" {
+@test "the skill roster is the six okf skills plus the five docs skills, with no npm-readme" {
 	local found expected
 	found="$(cd "$PLUGIN_ROOT/skills" && ls -1 | sort | tr '\n' ' ')"
-	expected="docs-badges docs-detect-shape docs-humanize docs-render docs-templates okf-authoring okf-config okf-context okf-finalize okf-spec "
+	expected="docs-badges docs-detect-shape docs-humanize docs-render docs-templates okf-authoring okf-config okf-context okf-finalize okf-spec okf-upgrade "
 	[ "$found" = "$expected" ] || {
 		echo "skill roster is '$found', expected '$expected'" >&2
 		return 1
 	}
+}
+
+@test "okf-upgrade exists, and nothing in the plugin is named for migrate" {
+	[ -f "$PLUGIN_ROOT/skills/okf-upgrade/SKILL.md" ]
+	_skills_block "$AGENTS/okf-docs.md" | grep -qx -- "okf-upgrade"
+	# a user-level skill owns the "migrate" name and its triggers
+	local named
+	named="$(find "$PLUGIN_ROOT/skills" "$PLUGIN_ROOT/agents" -iname '*migrat*')"
+	[ -z "$named" ] || {
+		echo "a plugin skill or agent is named for migrate: $named" >&2
+		return 1
+	}
+	! grep -qi '^name:.*migrat' "$PLUGIN_ROOT"/skills/*/SKILL.md "$AGENTS"/*.md
+}
+
+# _outside_changes file — the file with the "Changes from v0.2" section removed.
+_outside_changes() {
+	awk '
+		/^## / { skip = ($0 ~ /^## Changes from v0\.2/) }
+		!skip { print }
+	' "$1"
+}
+
+@test "no skill or agent describes OKF v0.2 outside a Changes from v0.2 section" {
+	local checked=0 file
+	for file in "$PLUGIN_ROOT"/skills/*/SKILL.md "$AGENTS"/*.md; do
+		checked=$((checked + 1))
+		if _outside_changes "$file" | grep -q 'OKF v0\.2'; then
+			echo "$file mentions OKF v0.2 outside a 'Changes from v0.2' section" >&2
+			return 1
+		fi
+	done
+	[ "$checked" -gt 0 ]
+	# control: the section filter removes what it claims to, so the guard can fail
+	_outside_changes "$PLUGIN_ROOT/skills/okf-spec/SKILL.md" | grep -q 'Changes from v0.2' && return 1
+	grep -q '^## Changes from v0\.2' "$PLUGIN_ROOT/skills/okf-spec/SKILL.md"
 }

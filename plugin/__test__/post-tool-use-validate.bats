@@ -665,6 +665,18 @@ UNLISTED_REASON="notes.md: not a concept: it has no frontmatter type, and this b
 	done
 }
 
+@test "a Write of an unlisted okf/notes.md falls back to 'allows it' when the glob list is empty (R8)" {
+	local proj
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx_no_agent "$proj/okf" "$proj")" "$(_unlisted_json notes.md "")" 1
+	local reason="notes.md: not a concept: it has no frontmatter type, and this bundle allows non-concept Markdown only where [bundle] non_concepts allows it. Give it frontmatter with a type (okf-authoring), move it out of the bundle, or ask the human to add it to non_concepts."
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_stop "$target" "$reason"
+		[[ "$reason" != *"says ()"* ]]
+	done
+}
+
 @test "an Edit of a typeless okf/notes.md warns, never blocks (R8)" {
 	local proj
 	proj=$(_typeless_proj)
