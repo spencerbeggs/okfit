@@ -16,8 +16,10 @@
 - The stale envelope gains `malformed` and `summary.malformed`, listing unreadable `stale_after` values.
 - `mv` rewrites `computation`, `executor.resource`, `attester.resource`, `superseded_by` and a single-mapping `sources`. It now runs on a bundle that holds non-concept `.md` files and rewrites their links (`ReferenceSource` is exported).
 - `init` writes `title` and `description` into a new root index.
+- `escapesBundle` and `escapesRoot` are exported: whether a reserved `index.md` or `log.md` is a symlink out of the bundle (a dangling link counts), the one check `sync`, `context` and the MCP server share.
 
 ## Bug Fixes
 
 - `sync` skips an `index.md` or `log.md` that is a symlink out of the bundle (skip reason `symlink-escape`).
 - `sync` never stamps a version into a root index that declares none, unless the config names one.
+- `context` reports `index_exists: false` for a root `index.md` that is a symlink out of the bundle or dangling, and never stats its target. The session-start hook therefore no longer prints such a file.

@@ -13,6 +13,7 @@ export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
 export { buildConfigLayer, provideConfig } from "./config/layer.js";
 export type { ResolveProjectConfigInput, ResolvedProjectConfig } from "./config/resolve.js";
 export { DEFAULT_PROFILE_NAME, resolveProjectConfig } from "./config/resolve.js";
+export { escapesBundle, escapesRoot } from "./confinement.js";
 export type { ContextResult, ContextRunOptions } from "./context/run.js";
 export { runContext } from "./context/run.js";
 export { FrontmatterEdits, UnsupportedFrontmatterError } from "./edits/FrontmatterEdits.js";

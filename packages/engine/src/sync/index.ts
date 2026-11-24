@@ -1,7 +1,7 @@
-import { confineReal } from "@effected/walker";
 import type { LoadedBundle } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
+import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -13,27 +13,7 @@ export interface SyncIndexResult {
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" }>;
 }
 
-/**
- * OKF 0.3 section 3.2: a consumer does not follow a symbolic link out of the bundle. `Bundle.load` records
- * `symlink-escape` on a link that resolves outside the root and drops it, so a load diagnostic answers first.
- * The walker never lists a DANGLING link, so it has no diagnostic and no `files` entry; `lstat` plus `confineReal`
- * (the rule `Bundle.load` applies) decides every other case. A reserved `index.md` or `log.md` that escapes is
- * never read and never written, in any mode.
- *
- * @internal
- */
-export const escapesBundle = Effect.fn("okfit/sync/escapesBundle")(function* (bundle: LoadedBundle, relative: string) {
-	if (bundle.diagnostics.some((entry) => entry.code === "symlink-escape" && entry.file === relative)) return true;
-	const fs = yield* FileSystem.FileSystem;
-	const path = yield* Path.Path;
-	const target = path.join(bundle.root, relative);
-	const link = yield* fs.lstat(target).pipe(
-		Effect.map((info) => info as FileSystem.File.Info | undefined),
-		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-	);
-	if (link === undefined || link.type !== "SymbolicLink") return false;
-	return yield* confineReal(bundle.root, target).pipe(Effect.match({ onFailure: () => true, onSuccess: () => false }));
-});
+export { escapesBundle } from "../confinement.js";
 
 /**
  * Immediate child directories of `dir`, unioned from `bundle.directories`

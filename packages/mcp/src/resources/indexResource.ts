@@ -1,4 +1,5 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
+import { escapesBundle } from "@okfit/engine";
 import type { Context } from "effect";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
@@ -13,6 +14,10 @@ import { loadToolContext } from "../internal/toolContext.js";
  * markdown N-19 asks for. Reading the file also means a root `index.md`
  * that failed to parse is still served, which is the more useful
  * behaviour for an agent trying to fix it.
+ *
+ * A root `index.md` that is a symbolic link out of the bundle (or dangling)
+ * is refused and never read (OKF 0.3 section 3.2), through the engine's
+ * `escapesBundle`, the check `sync` applies to the same file.
  *
  * A missing `index.md` fails the read rather than returning placeholder
  * text (J-8): a resource that silently returns prose instead of the file
@@ -57,6 +62,8 @@ const indexResource = (
 			const fs = yield* FileSystem.FileSystem;
 			const path = yield* Path.Path;
 			const indexPath = path.join(ctx.bundleRoot, "index.md");
+			const escapes = yield* escapesBundle(ctx.bundle, "index.md").pipe(Effect.orElseSucceed(() => true));
+			if (escapes) return yield* new McpSchema.InternalError({ message: "index.md links out of the bundle" });
 			const text = yield* fs
 				.readFileString(indexPath)
 				.pipe(Effect.mapError(() => new McpSchema.InternalError({ message: `no readable index.md at ${indexPath}` })));

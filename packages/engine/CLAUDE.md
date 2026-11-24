@@ -22,8 +22,10 @@ src/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
+  confinement.ts           -- escapesRoot, escapesBundle: a reserved index.md/log.md symlinked out of the
+                               bundle (lstat + confineReal; a dangling link counts); shared by sync, context, MCP
   context/
-    run.ts                 -- runContext: index.md stat only, never Bundle.load
+    run.ts                 -- runContext: index.md lstat/stat only, never Bundle.load; an escaping index is absent
   trust/
     run.ts                 -- runContextTrust: the opt-in `context --trust` summary (loads the bundle; kept
                                out of context/ so run.ts stays bundle-free)
