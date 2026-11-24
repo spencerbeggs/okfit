@@ -1,5 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Runtime } from "effect";
+import { ConfigValidationError } from "@effected/config-file";
+import { OkfitConfig } from "@okfit/core";
+import { Effect, Option, Runtime, Schema } from "effect";
 import {
 	ConfigMalformedError,
 	ConfigPathNotFoundError,
@@ -37,6 +39,19 @@ describe("ConfigMalformedError", () => {
 		assert.strictEqual(error[Runtime.errorExitCode], 3);
 		assert.strictEqual(error.message, "malformed config /abs/ci-config.toml: toml parse failed");
 	});
+});
+
+describe("ConfigMalformedError with a validation cause", () => {
+	it.effect("names the failing key, not the generic validation text", () =>
+		Effect.gen(function* () {
+			const issue = (yield* Effect.flip(Schema.decodeUnknownEffect(OkfitConfig)({ lint: { missing_index: "loud" } })))
+				.issue;
+			const cause = new ConfigValidationError({ path: Option.some("/p/okfit.toml"), issue });
+			const error = new ConfigMalformedError({ path: "/p/okfit.toml", cause });
+			assert.isTrue(error.message.startsWith("malformed config /p/okfit.toml: lint.missing_index: "), error.message);
+			assert.notInclude(error.message, "Config validation failed");
+		}),
+	);
 });
 
 describe("VerifyConceptNotFoundError", () => {

@@ -1,6 +1,6 @@
-import { ErrorText } from "@effected/kit";
 import { INTEGRITY_KEY } from "@okfit/core";
 import { Runtime, Schema } from "effect";
+import { describeConfigCause } from "./config/issues.js";
 import { LEGACY_INTEGRITY_KEY } from "./sync/legacyKeys.js";
 
 /**
@@ -190,7 +190,7 @@ export class ConfigMalformedError extends Schema.TaggedError<ConfigMalformedErro
 }) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		return `malformed config ${this.path}: ${ErrorText.describe(this.cause)}`;
+		return `malformed config ${this.path}: ${describeConfigCause(this.cause)}`;
 	}
 }
 

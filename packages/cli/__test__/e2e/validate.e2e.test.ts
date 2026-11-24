@@ -490,11 +490,25 @@ describe("okfit validate: config discovery", () => {
 				// fixture: `ConfigValidationError`'s own message already embeds the
 				// path once; `ConfigMalformedError` prefixes it with `malformed
 				// config <path>: ` regardless, per the K-46 fix's single message shape.
-				assert.strictEqual(
-					result.stderr,
-					`error: malformed config ${configPath}: Config validation failed at "${configPath}"\n`,
-				);
+				assert.strictEqual(result.stderr, `error: malformed config ${configPath}: bundle.profile: Expected string\n`);
 			}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a bad lint level names the key in the error line and in the JSON envelope", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			const configPath = join(sandbox.cwd, "okfit.toml");
+			yield* Effect.promise(() => writeFileDeep(configPath, `[lint]\nmissing_index = "loud"\n`));
+
+			const human = yield* runOkfit(["validate"], sandbox);
+			assert.strictEqual(human.exitCode, 3);
+			assert.include(human.stderr, "lint.missing_index");
+
+			const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			assert.strictEqual(json.exitCode, 3);
+			const envelope = JSON.parse(json.stderr.length > 0 && json.stdout.length === 0 ? json.stderr : json.stdout);
+			assert.include(envelope.error.message, "lint.missing_index");
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("unknown profile: warning on stderr, continues with defaults (K-4)", () =>

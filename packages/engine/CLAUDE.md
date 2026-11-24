@@ -21,6 +21,8 @@ src/
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
+    issues.ts             -- describeConfigCause (internal): a ConfigValidationError reads `<key>: <reason>` (D8),
+                              so ConfigMalformedError.message names the failing key; effect/SchemaIssue only
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   confinement.ts           -- escapesRoot, escapesBundle: a reserved index.md/log.md symlinked out of the
