@@ -410,4 +410,44 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 			assert.deepStrictEqual(failure, { _tag: "AlreadyVerified", by: "human:ada" });
 		}).pipe(Effect.provide(testPlatform())),
 	);
+
+	it.effect(
+		"order: a status refusal wins over NotCurrent; a draft that is not current fails NotCurrent in the stable path",
+		() =>
+			Effect.gen(function* () {
+				const { registry, documents, path, disk } = yield* setup();
+				const future = withGeneratedAt(disk, GEN);
+				const actor = "human:fixture-author";
+				// unknown status AND not current: the status refusal comes first, in both entry points
+				yield* documents.record(path, future.replace(/^---\n/, "---\nstatus: bogus\n"), 2);
+				const unknown = Option.getOrThrow(yield* editTarget(registry, documents, path));
+				assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(unknown, actor, before)), {
+					_tag: "UnknownStatusCannotBeVerified",
+					status: "bogus",
+				});
+				assert.deepStrictEqual(yield* Effect.flip(verifiedStableTextEdits(unknown, actor, before)), {
+					_tag: "UnknownStatusCannotBeVerified",
+					status: "bogus",
+				});
+				// draft AND not current: verifiedTextEdits refuses the draft first; the stable path reaches NotCurrent
+				yield* documents.record(path, future.replace(/^---\n/, "---\nstatus: draft\n"), 3);
+				const draft = Option.getOrThrow(yield* editTarget(registry, documents, path));
+				assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(draft, actor, before)), {
+					_tag: "DraftCannotBeVerified",
+				});
+				assert.deepStrictEqual(yield* Effect.flip(verifiedStableTextEdits(draft, actor, before)), {
+					_tag: "NotCurrent",
+					generatedAt: GEN,
+				});
+				// not a draft AND not current in the stable path: NotADraft comes first
+				const plain = Option.getOrThrow(
+					yield* documents.record(path, future, 4).pipe(Effect.flatMap(() => editTarget(registry, documents, path))),
+				);
+				assert.deepStrictEqual(yield* Effect.flip(verifiedStableTextEdits(plain, actor, before)), {
+					_tag: "NotADraft",
+				});
+				// control: the plain concept at generated.at verifies
+				assert.isAbove((yield* verifiedTextEdits(plain, actor, equal)).length, 0);
+			}).pipe(Effect.provide(testPlatform())),
+	);
 });

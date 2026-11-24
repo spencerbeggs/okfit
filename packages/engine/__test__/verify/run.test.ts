@@ -717,4 +717,47 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 			}),
 		),
 	);
+
+	it.effect(
+		"a concept that is both an unknown status and not current fails the status refusal first (prepareVerify order)",
+		() =>
+			withRoot({ "decisions/a.md": doc("A", `status: bogus\n${generated}`) }, (root) =>
+				Effect.gen(function* () {
+					const early = base(root, "2026-09-16T11:59:59Z");
+					const both = yield* Effect.flip(runVerify({ ...early, id: "decisions/a" }).pipe(Effect.provide(platform)));
+					assert.strictEqual(both._tag, "VerifyStatusUnknownError");
+					const inspected = yield* Effect.flip(
+						inspectDrift({ id: "decisions/a", bundleRoot: root, config, now: early.at }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(inspected._tag, "VerifyStatusUnknownError");
+					// controls: --stable removes the status refusal, so the not-current one surfaces; at generated.at it writes
+					const stableEarly = yield* Effect.flip(
+						runVerify({ ...early, id: "decisions/a", status: "stable" }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(stableEarly._tag, "VerifyNotCurrentError");
+					const ok = yield* runVerify({ ...base(root, GENERATED), id: "decisions/a", status: "stable" }).pipe(
+						Effect.provide(platform),
+					);
+					assert.strictEqual(ok.at, GENERATED);
+				}),
+			),
+	);
+
+	it.effect(
+		"a date-only generated.at is the start of that day in UTC: an at at that instant succeeds, one second before refuses",
+		() =>
+			withRoot({ "decisions/a.md": doc("A", "generated:\n  by: process:sync\n  at: 2026-09-16\n") }, (root) =>
+				Effect.gen(function* () {
+					const error = yield* Effect.flip(
+						runVerify({ ...base(root, "2026-09-15T23:59:59Z"), id: "decisions/a" }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(error._tag, "VerifyNotCurrentError");
+					assert.strictEqual((error as VerifyNotCurrentError).generatedAt, "2026-09-16T00:00:00Z");
+					const ok = yield* runVerify({ ...base(root, "2026-09-16T00:00:00Z"), id: "decisions/a" }).pipe(
+						Effect.provide(platform),
+					);
+					assert.strictEqual(ok.at, "2026-09-16T00:00:00Z");
+				}),
+			),
+	);
 });
