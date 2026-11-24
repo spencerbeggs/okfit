@@ -241,7 +241,12 @@ Details that surprise:
   | runtime`); `Consumer` requires `repository` (free text, a URL or an
   owner/name pair, since it lives outside this repository); `Incident`
   requires `occurred` (free text, an ISO 8601 date -- core has no date
-  field kind) -- the other types have no `required` list at all.
+  field kind); `Reference` requires `sources`; `Fixture` requires
+  `resource`; `Surface` requires `kind`, `audience` and `resource`;
+  `Publication` requires `resource`, `surface` and `renders` -- the other types
+  (`Project`, `Decision`, `Convention`, `Runbook`, `Glossary`, `Limitation`,
+  `Gotcha`, `Roadmap`, `Measurement`, `Invariant`, `Flow`) have no `required`
+  list at all.
 - `Module` also declares two optional structured fields: `layer` (free
   text, the repository's own layering label such as `L2`) and `pins` (the
   sibling Module paths this one is exact-version-pinned with). `Roadmap`

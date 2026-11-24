@@ -55,7 +55,7 @@ okfit validate --target 0.3 --fix --dry-run   # says what would change, writes n
 okfit validate --target 0.3 --fix
 ```
 
-Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). With no root `index.md` there is nothing to fix for the version: run `okfit sync`, which writes the root index, then re-run step 2.
+Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
 
 Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, and `Integrity drifted (re-verify with okfit verify): <ids>`. JSON carries `fixes: { applied, refused, drifts, dry_run }`. The fix never writes `verified`, `integrity.verified` or `generated.at`. When a concept's recorded `integrity.generated.body` matched its body before the edit, the fix re-records that digest. Otherwise the concept's body digest no longer matches, and the next `okfit sync` stamps a new `generated.at`, so an earlier human verification stops counting. Review the git diff.
 
@@ -66,9 +66,11 @@ Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, an
 - **`frontmatter-missing`, `type-missing`, `non-concept-unlisted`**: give the file a `type`, move it out of the bundle, or ask the human to list it under `[bundle] non_concepts` (`okf-config`).
 - **A deprecated concept that has a replacement**: add `superseded_by` with the replacement's path (§5.4). Do not change any `status` yourself.
 
-## 6. Sync, then check trust
+## 6. Report trust effects, then sync
 
-Run `okfit sync`, then `okfit validate` again. Report to the human every concept named in `drifts` or `Integrity drifted`, and every new `verified-before-change` warning. Do not try to repair them: only the human re-verifies.
+Report the `drifts` list from the `--fix` output to the human now. Then run `okfit sync` and `okfit validate` to confirm the bundle is no worse. `okfit sync` skips a concept whose edit is uncommitted (it never substitutes the current time), so these runs will not yet show every effect; do not tell the human that nothing was affected.
+
+Tell the human that the edited concepts are stamped only once the change is committed (the `okfit sync` they run after committing, or a commit hook that runs it). After that, `okfit validate` may show `verified-before-change` on edited concepts that had no recorded body digest, and only the human re-verifies those. Do not commit unless the human asked you to, and never try to repair a verification.
 
 ## 7. Stop and ask the human
 
