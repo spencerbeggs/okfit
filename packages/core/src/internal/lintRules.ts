@@ -9,6 +9,7 @@ import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
+import type { Verification } from "../Verification.js";
 import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
 
@@ -115,6 +116,52 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 		? [{ message: `Type "${concept.frontmatter.type}" requires a verified entry`, path: ["status"] }]
 		: [],
 );
+
+const TIER_RANK = { unverified: 0, "machine-confirmed": 1, "human-reviewed": 2 } as const;
+
+/** `DateTime.formatIso` without a zero millisecond part, the form a verification is written in. */
+const instant = (at: DateTime.Utc): string => DateTime.formatIso(at).replace(".000Z", "Z");
+
+// OKF 0.3 §5.3 "verified before the last change". Reports one defect once (R32): `require-verified-unmet` still
+// means no entry at all. Fires only when the tier actually fell, naming the newest event that lost its weight.
+// Draft, deprecated and unknown-status concepts are exempt, as for `verified-drift`: `okfit verify` skips them.
+export const verifiedBeforeChange: LintRule = perConcept("verified-before-change", (concept) => {
+	const frontmatter = concept.frontmatter;
+	const generatedAt = frontmatter.generated?.at;
+	const status = Derive.status(frontmatter);
+	if (generatedAt === undefined || status === "draft" || status === "deprecated" || status === "unknown") return [];
+	const events = frontmatter.verified ?? [];
+	const tierOf = (entries: ReadonlyArray<Verification>) =>
+		entries.length === 0
+			? "unverified"
+			: entries.some((entry) => Actor.isHuman(entry.by))
+				? "human-reviewed"
+				: "machine-confirmed";
+	const all = tierOf(events);
+	const current = Derive.trustTier(frontmatter);
+	if (TIER_RANK[all] <= TIER_RANK[current]) return [];
+	const lost = events
+		.map((entry, index) => ({ entry, index }))
+		.filter(({ entry }) => !Derive.isCurrent(frontmatter, entry.at));
+	const newest = (items: typeof lost) =>
+		items.reduce<(typeof lost)[number] | undefined>(
+			(best, item) =>
+				best === undefined || DateTime.toEpochMillis(item.entry.at) > DateTime.toEpochMillis(best.entry.at)
+					? item
+					: best,
+			undefined,
+		);
+	const target =
+		(all === "human-reviewed" ? newest(lost.filter(({ entry }) => Actor.isHuman(entry.by))) : undefined) ??
+		newest(lost);
+	if (target === undefined) return [];
+	return [
+		{
+			message: `Verified by ${target.entry.by} at ${instant(target.entry.at)}, before the last change at ${instant(generatedAt)}; the trust tier is now ${current} (OKF 0.3 §5.3); re-run okfit verify`,
+			path: Concept.entryPath(frontmatter, "verified", target.index),
+		},
+	];
+});
 
 // Issue #110: `Derive.status` reads an absent `status` as `stable`, so a freshly
 // generated, never-verified concept looked settled to every consumer.
@@ -443,6 +490,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	requiredKeyMissing,
 	fieldValueUnknown,
 	requireVerifiedUnmet,
+	verifiedBeforeChange,
 	statusMissing,
 	generatedMissing,
 	actorPrefixUnknown,

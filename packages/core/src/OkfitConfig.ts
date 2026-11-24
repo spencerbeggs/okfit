@@ -235,6 +235,14 @@ export const LintTable = Schema.Struct({
 			default: "error",
 		}),
 	),
+	verified_before_change: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "verified-before-change",
+			description:
+				'A concept has verification events, but the ones at or after generated.at give a lower trust tier than all of them would: the content changed after it was verified (OKF 0.3 §5.3, "verified before the last change"). Draft, deprecated and unknown-status concepts are exempt. Default "warn".',
+			default: "warn",
+		}),
+	),
 	family_invalid: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "family-invalid",
@@ -728,6 +736,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"required-key-missing": "required_key_missing",
 	"field-value-unknown": "field_value_unknown",
 	"require-verified-unmet": "require_verified_unmet",
+	"verified-before-change": "verified_before_change",
 	"family-invalid": "family_invalid",
 	"computation-runtime-missing": "computation_runtime_missing",
 	"footnote-source-unknown": "footnote_source_unknown",
@@ -770,6 +779,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	required_key_missing: "error",
 	field_value_unknown: "error",
 	require_verified_unmet: "error",
+	verified_before_change: "warn",
 	family_invalid: "error",
 	computation_runtime_missing: "error",
 	footnote_source_unknown: "warn",

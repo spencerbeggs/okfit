@@ -28,6 +28,7 @@ export const LintCode = Schema.Literals([
 	"required-key-missing",
 	"field-value-unknown",
 	"require-verified-unmet",
+	"verified-before-change",
 	"family-invalid",
 	"computation-runtime-missing",
 	"footnote-source-unknown",

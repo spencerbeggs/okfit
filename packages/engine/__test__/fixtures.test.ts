@@ -125,6 +125,13 @@ describe("ERROR_PROJECTS: one defect each", () => {
 				assert.isUndefined(frontmatter?.raw.integrity);
 				const clean = yield* load(V03_PROJECT);
 				assert.isUndefined(clean.concepts.get(ConceptId.make("metrics/revenue"))?.frontmatter.generated);
+				// the lint fires once on the seed, at the one concept; the clean seed is the control
+				const found = (b: LoadedBundle) => lintOf(b).filter((d) => d.code === "verified-before-change");
+				assert.deepStrictEqual(
+					found(bundle).map((d) => d.file),
+					["metrics/revenue.md"],
+				);
+				assert.deepStrictEqual(found(clean), []);
 			}),
 	);
 	// Later tasks define the expectation for these; today each loads with only the README note.

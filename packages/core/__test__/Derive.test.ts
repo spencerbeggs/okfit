@@ -24,6 +24,11 @@ const decodeTimestamp = Schema.decodeUnknownSync(Timestamp);
 const platform = platformFor("lint/bundle", "/repo/bundle");
 const loadBundle = Effect.provide(Bundle.load({ root: "/repo/bundle" }), platform);
 
+const loadVerifiedBeforeChange = Effect.provide(
+	Bundle.load({ root: MOUNT }),
+	platformFor("lint/verified-before-change", MOUNT),
+);
+
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
 
 const staleConcept = (id: string, staleAfter?: string): LoadedConcept =>
@@ -151,6 +156,19 @@ describe("Derive", () => {
 			const event = verifiedBy("human:ada", "2026-06-01T00:00:00Z");
 			assert.strictEqual(Derive.trustTier(metric({ generated: legacy, verified: [event] })), "unverified");
 			assert.strictEqual(Derive.trustTier(metric({ verified: [event] })), "human-reviewed"); // control
+		}),
+	);
+
+	it.effect("an entry dropped by tolerant decoding counts for nothing; a valid entry beside it counts", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadVerifiedBeforeChange;
+			const tier = (path: string) => {
+				const concept = [...bundle.concepts.values()].find((c) => c.path === path)?.frontmatter;
+				return concept === undefined ? undefined : Derive.trustTier(concept);
+			};
+			// garbled.md: verified: [{ by: human:ada, at: "not-a-date" }] with a generated.at
+			assert.strictEqual(tier("garbled.md"), "unverified");
+			assert.strictEqual(tier("current.md"), "human-reviewed"); // control: a valid entry
 		}),
 	);
 
