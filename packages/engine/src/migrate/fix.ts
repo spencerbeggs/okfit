@@ -5,6 +5,7 @@ import { Derivation, Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import { keyRenamesFor, legacyIntegrity } from "../sync/legacyKeys.js";
 import { writeAtomic } from "../sync/write.js";
 import { locateIntegrity, spliceIntegrityGenerated } from "../verify/integrity.js";
 import { detectNewline, documentNewline, locateTopLevelScalar, stripBom } from "../verify/locate.js";
@@ -135,6 +136,9 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	// Findings this plan actually turns into an insert; a selected finding it cannot locate is refused, never counted.
 	let fixed = 0;
 
+	// Computed once: a concept still carrying okfit's pre-namespace integrity block is never edited here.
+	const renames = keyRenamesFor(config);
+
 	const byFile = new Map<string, Array<MigrationFinding & { readonly fix: MigrationFixKind }>>();
 	for (const finding of pathFixes) byFile.set(finding.file, [...(byFile.get(finding.file) ?? []), finding]);
 	for (const [file, found] of byFile) {
@@ -143,6 +147,17 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			refused.push({ file: finding.file, code: finding.code, reason });
 		if (concept === undefined) {
 			for (const finding of found) refuse(finding, "the concept is not loaded, so the reference cannot be rewritten");
+			continue;
+		}
+		if (legacyIntegrity(concept, renames) !== undefined) {
+			// An edit would leave the old block's body digest stale, and the next sync would read that as an authored
+			// change and re-stamp the concept; the key rename has to come first.
+			for (const finding of found) {
+				refuse(
+					finding,
+					"the concept still uses okfit's old key names, so its recorded digest cannot be kept current; run `okfit sync` first, then fix again",
+				);
+			}
 			continue;
 		}
 		const source = concept.document.source;

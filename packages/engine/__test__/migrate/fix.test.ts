@@ -302,6 +302,52 @@ describe("migration fixes", () => {
 			}),
 		);
 
+		/** The same seed with okfit's block under its pre-namespace key, as an unmigrated bundle has it. */
+		const legacyOf = (text: string) => text.replace("x-okfit-integrity:", "integrity:");
+		const SECOND = "okf/computations/second.md";
+		const NEEDS_SYNC = "okfit sync";
+
+		it.effect("a concept still on the old integrity key is refused and its file is byte-identical", () =>
+			Effect.gen(function* () {
+				const current = yield* seedWith(V02_PROJECT[COMPUTATION] as string, true).pipe(Effect.provide(on(V02_PROJECT)));
+				const legacyText = legacyOf(current[COMPUTATION] as string);
+				const seed = { ...current, [COMPUTATION]: legacyText } as ProjectSeed;
+				yield* Effect.gen(function* () {
+					const plan = yield* apply(yield* load, { only: ["root-relative-path"] });
+					assert.deepStrictEqual(plan.edits, []);
+					assert.isAbove(plan.refused.length, 0);
+					for (const refusal of plan.refused) {
+						assert.strictEqual(refusal.file, "computations/revenue-ytd.md");
+						assert.include(refusal.reason, NEEDS_SYNC);
+					}
+					assert.strictEqual(yield* read(COMPUTATION), legacyText);
+				}).pipe(Effect.provide(on(seed)));
+			}),
+		);
+
+		it.effect("a bundle mixing a legacy and a migrated concept edits only the migrated one", () =>
+			Effect.gen(function* () {
+				const current = yield* seedWith(V02_PROJECT[COMPUTATION] as string, true).pipe(Effect.provide(on(V02_PROJECT)));
+				const migrated = current[COMPUTATION] as string;
+				const legacyText = legacyOf(migrated);
+				const seed = { ...current, [COMPUTATION]: legacyText, [SECOND]: migrated } as ProjectSeed;
+				yield* Effect.gen(function* () {
+					const plan = yield* apply(yield* load, { only: ["root-relative-path"] });
+					assert.deepStrictEqual(
+						plan.edits.map((e) => e.path),
+						["computations/second.md"],
+					);
+					assert.isAbove(plan.refused.length, 0);
+					for (const refusal of plan.refused) {
+						assert.strictEqual(refusal.file, "computations/revenue-ytd.md");
+						assert.include(refusal.reason, NEEDS_SYNC);
+					}
+					assert.strictEqual(yield* read(COMPUTATION), legacyText);
+					assert.include(yield* read(SECOND), "](/metrics/revenue.md)");
+				}).pipe(Effect.provide(on(seed)));
+			}),
+		);
+
 		it.effect("without a recorded digest no integrity is written (control)", () =>
 			Effect.gen(function* () {
 				const seed = yield* seedWith(V02_PROJECT[COMPUTATION] as string, false).pipe(Effect.provide(on(V02_PROJECT)));
