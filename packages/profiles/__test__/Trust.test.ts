@@ -46,10 +46,13 @@ const concept = (
 		...Object.entries(rawExtra).map(([key, value]) => `${key}: ${value.toString()}`),
 	].join("\n");
 	const source = `---\n${yaml}\n---${body}`;
+	// The loader keeps a status outside the vocabulary in `raw` only, never in the typed field (OKF 0.3 5.4).
+	const { status, ...rest } = fm;
+	const typed = status === "draft" || status === "stable" || status === "deprecated" ? { ...rest, status } : rest;
 	return LoadedConcept.make({
 		id: Option.getOrThrow(ConceptId.normalize(path)),
 		path,
-		frontmatter: decode({ ...fm, extensions: {}, raw: { ...fm, ...rawExtra } }),
+		frontmatter: decode({ ...typed, extensions: {}, raw: { ...fm, ...rawExtra } }),
 		document: Result.getOrThrow(MarkdownDocument.parseResult(source, FRONTMATTER_OPTIONS)),
 		computationBody: Option.none(),
 	});
@@ -85,7 +88,12 @@ describe("Trust.signal", () => {
 		Effect.gen(function* () {
 			const c = concept({ type: "Decision", verified: [{ by: "process:nightly", at: AT }] });
 			const signal = yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW);
-			assert.deepStrictEqual(signal, { tier: "machine-confirmed", integrity: "none", stale: false });
+			assert.deepStrictEqual(signal, {
+				tier: "machine-confirmed",
+				integrity: "none",
+				stale: false,
+				staleness: "unknown",
+			});
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
@@ -96,7 +104,12 @@ describe("Trust.signal", () => {
 			const content = yield* Derivation.contentDigest(probe.frontmatter.raw, probe.document.source);
 			const boundConcept = concept({ ...base, integrity: { verified: { by: "human:spencer", at: AT, content } } });
 			const signal = yield* Trust.signal(boundConcept, OkfitConfig.DEFAULTS, NOW);
-			assert.deepStrictEqual(signal, { tier: "human-reviewed", integrity: "current", stale: false });
+			assert.deepStrictEqual(signal, {
+				tier: "human-reviewed",
+				integrity: "current",
+				stale: false,
+				staleness: "unknown",
+			});
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
@@ -109,6 +122,7 @@ describe("Trust.signal", () => {
 				integrity: "drifted",
 				drift: { reason: "unbound" },
 				stale: false,
+				staleness: "unknown",
 			});
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
@@ -130,6 +144,7 @@ describe("Trust.signal", () => {
 				integrity: "drifted",
 				drift: { reason: "content-changed", editedBy: "agent/x", editedAt: LATER },
 				stale: false,
+				staleness: "unknown",
 			});
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
@@ -195,6 +210,29 @@ describe("Trust.signal", () => {
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
+	it.effect("an unreadable stale_after is staleness malformed and never stale (OKF 0.3 section 5.5)", () =>
+		Effect.gen(function* () {
+			const base = concept({ type: "Note" });
+			const unreadable = LoadedConcept.make({
+				id: base.id,
+				path: base.path,
+				frontmatter: Concept.make({ type: "Note", extensions: {}, raw: { type: "Note", stale_after: "next tuesday" } }),
+				document: base.document,
+				computationBody: Option.none(),
+			});
+			const bad = yield* Trust.signal(unreadable, OkfitConfig.DEFAULTS, NOW);
+			assert.strictEqual(bad.staleness, "malformed");
+			assert.isFalse(bad.stale);
+			// control: a readable past stale_after is stale
+			const past = yield* Trust.signal(
+				concept({ type: "Note", stale_after: "2026-01-01T00:00:00Z" }),
+				OkfitConfig.DEFAULTS,
+				NOW,
+			);
+			assert.strictEqual(past.staleness, "stale");
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+	);
+
 	it.effect("stale flag follows stale_after vs now", () =>
 		Effect.gen(function* () {
 			const past = concept({ type: "Note", stale_after: "2026-01-01T00:00:00Z" });
@@ -251,6 +289,25 @@ describe("Trust.lint", () => {
 				assert.strictEqual((yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW)).integrity, "drifted");
 			}
 			assert.deepStrictEqual(yield* Trust.lint(bundleOf(draft, deprecated), OkfitConfig.DEFAULTS, NOW), []);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
+	);
+
+	it.effect('a drifted concept with a status outside the vocabulary lints nothing; stable and "" still warn', () =>
+		Effect.gen(function* () {
+			const verified = [{ by: "human:spencer", at: AT }];
+			const archived = concept({ type: "Decision", status: "archived", verified }, BODY, "archived.md");
+			const numeric = concept({ type: "Decision", status: 5, verified }, BODY, "numeric.md");
+			const stable = concept({ type: "Decision", status: "stable", verified }, BODY, "stable.md");
+			const empty = concept({ type: "Decision", status: "", verified }, BODY, "empty.md");
+			for (const c of [archived, numeric]) {
+				assert.strictEqual((yield* Trust.signal(c, OkfitConfig.DEFAULTS, NOW)).integrity, "drifted");
+			}
+			assert.deepStrictEqual(yield* Trust.lint(bundleOf(archived, numeric), OkfitConfig.DEFAULTS, NOW), []);
+			const control = yield* Trust.lint(bundleOf(archived, numeric, stable, empty), OkfitConfig.DEFAULTS, NOW);
+			assert.deepStrictEqual(
+				control.map((diagnostic) => diagnostic.file),
+				["stable.md", "empty.md"],
+			);
 		}).pipe(Effect.provide(NodeCrypto.layerDigest)),
 	);
 
@@ -471,7 +528,7 @@ describe("Trust.evaluate (pure: no Digest provided)", () => {
 });
 
 describe("Trust.signal parity with evaluate", () => {
-	it.effect("signal equals { tier, stale, ...evaluate(inputOf, digest) } for every fixture", () =>
+	it.effect("signal equals { tier, stale, staleness, ...evaluate(inputOf, digest) } for every fixture", () =>
 		Effect.gen(function* () {
 			const { concept: current } = yield* bound();
 			const fixtures = [
@@ -488,6 +545,7 @@ describe("Trust.signal parity with evaluate", () => {
 				const expected = {
 					tier: got.tier,
 					stale: got.stale,
+					staleness: got.staleness,
 					...Trust.evaluate(input, digest),
 				};
 				assert.deepStrictEqual<unknown>(got, expected);

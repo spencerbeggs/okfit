@@ -6,10 +6,9 @@
 		"okf_version": {
 			"type": "string",
 			"title": "OKF spec version",
-			"description": "The Open Knowledge Format spec version this bundle targets.",
-			"default": "0.2",
+			"description": "The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
 			"examples": [
-				"0.2"
+				"0.3"
 			]
 		},
 		"bundle": {
@@ -720,6 +719,72 @@
 					],
 					"title": "resource-untracked",
 					"description": "A resource or sources[].resource path names a file that exists locally but git does not track yet; not raised once the file is staged (issue #279). Skipped outside a git repository and under --skip-provenance. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"resource_outside_project": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "resource-outside-project",
+					"description": "A resource value resolves outside the project root, directly or through a symlink, so okfit never reads, stats or asks git about the target (okfit's repository check, not OKF). Default \"info\".",
+					"default": "info",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"superseded_by_orphan": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "superseded-by-orphan",
+					"description": "A concept carries superseded_by but its status is not deprecated; superseded_by has a meaning only with status: deprecated (OKF 0.3 §5.4). Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"superseded_by_unresolved": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "superseded-by-unresolved",
+					"description": "A deprecated concept's superseded_by resolves to an asset, an external value or the concept itself rather than a replacement concept (OKF 0.3 §5.4). A missing target is reported by broken-links. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

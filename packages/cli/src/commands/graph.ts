@@ -1,6 +1,6 @@
 import { CliFormat } from "@effected/cli-kit";
 import { CurrentDistribution } from "@effected/kit";
-import { OKF_SPEC_VERSION } from "@okfit/core";
+import { OkfVersion } from "@okfit/core";
 import { GraphEnvelope, graphEnvelope, jsonError, provideConfig, resolveProjectConfig, runGraph } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
@@ -48,7 +48,7 @@ export const graphCommand = Command.make("graph", { root: rootFlag, config: conf
 				explicitConfigPath: input.config,
 				cwd,
 			});
-			const { bundleRoot, config: merged, profile } = resolved;
+			const { bundleRoot, profile } = resolved;
 
 			const result = yield* runGraph({ root: bundleRoot });
 
@@ -56,7 +56,7 @@ export const graphCommand = Command.make("graph", { root: rootFlag, config: conf
 				const envelope = graphEnvelope({
 					okfitVersion: CLI_VERSION,
 					producer: "okfit",
-					okfVersion: merged.okf_version ?? OKF_SPEC_VERSION,
+					okfVersion: Option.getOrNull(OkfVersion.declared(result.bundle)),
 					root: bundleRoot,
 					profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),
 					nodes: result.graph.nodes,

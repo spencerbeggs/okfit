@@ -1,4 +1,4 @@
-import type { StaleConcept } from "@okfit/core";
+import type { MalformedStaleAfter, StaleConcept } from "@okfit/core";
 import { DateTime, Schema } from "effect";
 import { ENGINE_VERSION } from "../version.js";
 import type { Distribution } from "./distribution.js";
@@ -13,10 +13,20 @@ export const StaleItem = Schema.Struct({
 /** @public */
 export type StaleItem = typeof StaleItem.Type;
 
+/** One entry of the `malformed` array: a concept whose `stale_after` is present but unreadable (OKF 0.3 section 5.5). @public */
+export const MalformedStaleItem = Schema.Struct({
+	id: Schema.String,
+	/** The `stale_after` value as written. */
+	stale_after: Schema.String,
+});
+/** @public */
+export type MalformedStaleItem = typeof MalformedStaleItem.Type;
+
 /** @public */
 export const StaleSummary = Schema.Struct({
 	concepts: Schema.Number,
 	stale: Schema.Number,
+	malformed: Schema.Number,
 });
 /** @public */
 export type StaleSummary = typeof StaleSummary.Type;
@@ -36,12 +46,13 @@ export const StaleEnvelope = Schema.Struct({
 	engine_version: Schema.String,
 	producer: Schema.String,
 	distribution: DistributionField,
-	okf_version: Schema.String,
+	okf_version: Schema.NullOr(Schema.String),
 	root: Schema.String,
 	profile: Schema.NullOr(Schema.String),
 	as_of: Schema.String,
 	summary: StaleSummary,
 	items: Schema.Array(StaleItem),
+	malformed: Schema.Array(MalformedStaleItem),
 });
 /** @public */
 export type StaleEnvelope = typeof StaleEnvelope.Type;
@@ -56,12 +67,14 @@ export type StaleEnvelope = typeof StaleEnvelope.Type;
 export const staleEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly producer: string;
-	readonly okfVersion: string;
+	readonly okfVersion: string | null;
 	readonly root: string;
 	readonly profile: string | null;
 	readonly now: DateTime.Utc;
 	readonly concepts: number;
 	readonly items: ReadonlyArray<StaleConcept>;
+	/** `Derive.malformedStaleAfter`'s output, listed apart from `items` so every item keeps its shape. */
+	readonly malformed: ReadonlyArray<MalformedStaleAfter>;
 	readonly distribution?: Distribution;
 }): StaleEnvelope => ({
 	schema: 1,
@@ -73,10 +86,11 @@ export const staleEnvelope = (input: {
 	root: input.root,
 	profile: input.profile,
 	as_of: DateTime.formatIso(input.now),
-	summary: { concepts: input.concepts, stale: input.items.length },
+	summary: { concepts: input.concepts, stale: input.items.length, malformed: input.malformed.length },
 	items: input.items.map((item) => ({
 		id: item.id,
 		stale_after: DateTime.formatIso(item.staleAfter),
 		days_past: item.daysPast,
 	})),
+	malformed: input.malformed.map((entry) => ({ id: entry.id, stale_after: entry.raw })),
 });

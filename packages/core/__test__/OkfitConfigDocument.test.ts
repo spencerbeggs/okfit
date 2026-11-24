@@ -74,9 +74,12 @@ describe("okfitConfigDocumentFields", () => {
 	it("carries titles, descriptions, defaults and examples on the scalar fields", () => {
 		const okfVersion = properties().okf_version;
 		assert.strictEqual(okfVersion?.title, "OKF spec version");
-		assert.strictEqual(okfVersion?.description, "The Open Knowledge Format spec version this bundle targets.");
-		assert.strictEqual(okfVersion?.default, "0.2");
-		assert.deepStrictEqual(okfVersion?.examples, ["0.2"]);
+		assert.strictEqual(
+			okfVersion?.description,
+			"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+		);
+		assert.isFalse(Object.hasOwn(okfVersion ?? {}, "default"));
+		assert.deepStrictEqual(okfVersion?.examples, ["0.3"]);
 	});
 
 	it("annotates lifecycle.default_stale_after through the encoded side", () => {
@@ -93,7 +96,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the thirty-five lint keys its own rendered code as the title", () => {
+	it("gives each of the thirty-eight lint keys its own rendered code as the title", () => {
 		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value.title]),
@@ -125,6 +128,9 @@ describe("okfitConfigDocumentFields", () => {
 				["source_resource_missing", "source-resource-missing"],
 				["resource_ignored", "resource-ignored"],
 				["resource_untracked", "resource-untracked"],
+				["resource_outside_project", "resource-outside-project"],
+				["superseded_by_orphan", "superseded-by-orphan"],
+				["superseded_by_unresolved", "superseded-by-unresolved"],
 				["generated_missing", "generated-missing"],
 				["publication_drift", "publication-drift"],
 				["publication_orphan", "publication-orphan"],

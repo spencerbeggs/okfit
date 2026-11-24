@@ -1,7 +1,7 @@
 import { CliExit, CliFormat } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { CurrentDistribution } from "@effected/kit";
-import { OKF_SPEC_VERSION } from "@okfit/core";
+import { OkfVersion } from "@okfit/core";
 import {
 	JsonEnvelope,
 	Now,
@@ -85,6 +85,7 @@ export const lintCommand = Command.make(
 
 				const result = yield* run({
 					root: bundleRoot,
+					projectRoot: resolved.projectRoot,
 					config: merged,
 					profile,
 					now,
@@ -98,7 +99,7 @@ export const lintCommand = Command.make(
 					const envelope = json({
 						okfitVersion: CLI_VERSION,
 						producer: "okfit",
-						okfVersion: merged.okf_version ?? OKF_SPEC_VERSION,
+						okfVersion: Option.getOrNull(OkfVersion.declared(result.bundle)),
 						root: bundleRoot,
 						profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),
 						exitCode: code,

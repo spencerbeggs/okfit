@@ -30,9 +30,27 @@ export interface RendersEntry {
 	readonly body?: string;
 }
 
+const stripSuffixes = (raw: string): string => {
+	const hash = raw.indexOf("#");
+	const noFragment = hash < 0 ? raw : raw.slice(0, hash);
+	const query = noFragment.indexOf("?");
+	return query < 0 ? noFragment : noFragment.slice(0, query);
+};
+
+const percentDecode = (raw: string): string => {
+	try {
+		return decodeURIComponent(raw);
+	} catch {
+		return raw;
+	}
+};
+
+// OKF v0.3 section 6: a leading `/` resolves from the bundle root, anything else from the referencing file's directory.
+// The same rule core's link resolver applies (`internal/links.ts`), minus its existence lookups and v0.2 root fallback.
 const resolveRef = (from: string, raw: string): string => {
-	const segments = from.split("/").slice(0, -1);
-	for (const part of raw.replace(/\.md$/u, "").split("/")) {
+	const target = percentDecode(stripSuffixes(raw.trim()));
+	const segments = target.startsWith("/") ? [] : from.split("/").slice(0, -1);
+	for (const part of target.replace(/\.md$/u, "").split("/")) {
 		if (part === "" || part === ".") continue;
 		if (part === "..") {
 			if (segments.length === 0) return "";
@@ -74,7 +92,11 @@ const compare = (a: Diagnostic, b: Diagnostic): number =>
 export class Publications {
 	private constructor() {}
 
-	/** Resolves a raw reference against a bundle-relative concept path; `""` when it escapes the bundle. */
+	/**
+	 * Resolves a raw reference against a bundle-relative concept path (a leading `/` from the bundle root); `""` when it escapes the bundle.
+	 * Unlike core's resolver it does not treat a URL as external (a URL yields no concept and is reported as an orphan), and it knowingly
+	 * differs in having no legacy root fallback for a bare value, and in `/` alone and a climb above the root both yielding no concept.
+	 */
 	static readonly resolveRef: (from: string, raw: string) => string = resolveRef;
 
 	/** The `renders` entries of a Publication, or `undefined` when malformed. */

@@ -96,7 +96,7 @@ src/
     verify.ts                      -- VerifyLines, humanVerify / humanVerifyDoc / humanVerifyBatchDoc (human half
                                       of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print)
     move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
-    stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), staleSummary
+    stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), humanMalformed, staleSummary
   internal/
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)

@@ -35,6 +35,13 @@ export interface StaleConcept {
 	readonly daysPast: number;
 }
 
+/** One concept whose `stale_after` is present but unreadable (OKF 0.3 §5.5): its id and the value as written. @public */
+export interface MalformedStaleAfter {
+	readonly id: ConceptId;
+	/** The `stale_after` value as written: the string itself, `JSON.stringify` for any other value. */
+	readonly raw: string;
+}
+
 /** Options for {@link Derive.renderIndex}. @public */
 export interface RenderIndexOptions {
 	/**
@@ -47,10 +54,20 @@ export interface RenderIndexOptions {
 	 * title, description, license, version or extension key survives a re-render (D6). `""` is absent.
 	 */
 	readonly frontmatter?: string;
+	/**
+	 * The bundle's `title` and `description` (OKF 0.3 §8.1), written after `okf_version` in a new root block.
+	 * Ignored when `frontmatter` keeps an existing block: a kept block is never merged with it.
+	 *
+	 * @public
+	 */
+	readonly metadata?: { readonly title?: string; readonly description?: string };
 	/** Rendered as `* [name](name/index.md)` under a trailing `# Subdirectories` section. */
 	readonly subdirectories?: ReadonlyArray<string>;
 }
 
+/** `stale_after` is present in `raw` (not `null`, `""` or `[]`) yet did not decode to an instant. */
+const isMalformedStaleAfter = (concept: Concept): boolean =>
+	concept.stale_after === undefined && !isAbsent(concept.raw.stale_after);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
 /** The bundle-relative directory of `path`; `""` for a file at the bundle root. */
@@ -95,10 +112,7 @@ export class Derive {
 	 * when `raw.stale_after` is present (not `null`, `""` or `[]`) but unreadable, so never fresh and never stale.
 	 */
 	static readonly staleness = (concept: Concept, now: DateTime.Utc): Staleness => {
-		if (concept.stale_after === undefined) {
-			const raw: unknown = concept.raw.stale_after;
-			return isAbsent(raw) ? "unknown" : "malformed";
-		}
+		if (concept.stale_after === undefined) return isMalformedStaleAfter(concept) ? "malformed" : "unknown";
 		return DateTime.toEpochMillis(now) >= DateTime.toEpochMillis(concept.stale_after) ? "stale" : "fresh";
 	};
 
@@ -123,7 +137,22 @@ export class Derive {
 		return out.sort((a, b) => compare(a.id, b.id));
 	};
 
-	/** Frontmatter `title`, else the file name without `.md` (OKF 0.2 §4.1). */
+	/**
+	 * Every concept in `bundle` whose {@link Derive.staleness} is `malformed` (OKF 0.3 §5.5: an unreadable
+	 * `stale_after` is never fresh), with the value as written, sorted by id ascending. `staleReport` never
+	 * lists these. A malformed value does not depend on the instant, so there is no `now` argument.
+	 */
+	static readonly malformedStaleAfter = (bundle: LoadedBundle): ReadonlyArray<MalformedStaleAfter> => {
+		const out: Array<MalformedStaleAfter> = [];
+		for (const [id, concept] of bundle.concepts) {
+			if (!isMalformedStaleAfter(concept.frontmatter)) continue;
+			const value: unknown = concept.frontmatter.raw.stale_after;
+			out.push({ id, raw: typeof value === "string" ? value : JSON.stringify(value) });
+		}
+		return out.sort((a, b) => compare(a.id, b.id));
+	};
+
+	/** Frontmatter `title`, else the file name without `.md` (OKF 0.3 §4.1). */
 	static readonly title = (concept: LoadedConcept): string =>
 		concept.frontmatter.title ?? PosixPath.basename(concept.path).replace(/\.md$/, "");
 
@@ -158,6 +187,7 @@ export class Derive {
 		return indexDocument(sections, {
 			...(options.okfVersion === undefined ? {} : { okfVersion: options.okfVersion }),
 			...(options.frontmatter === undefined ? {} : { frontmatter: options.frontmatter }),
+			...(options.metadata === undefined ? {} : { metadata: options.metadata }),
 		});
 	};
 

@@ -11,6 +11,7 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"integrity-unsupported": "integrity is a shape sync cannot edit; edit it by hand",
 	"renders-unsupported": "renders is a shape sync cannot edit (flow style); edit it by hand",
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
+	"symlink-escape": "is a symbolic link that leaves the bundle, so it is not read or written",
 };
 
 const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<string> => {

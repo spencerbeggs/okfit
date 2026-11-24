@@ -64,7 +64,7 @@ const tagFlag = Flag.String("tag").pipe(
 	Flag.withDescription("only concepts carrying this tag (repeatable; all must match)"),
 );
 
-const statusFlag = Flag.Literals("status", ["draft", "stable", "deprecated"] as const).pipe(
+const statusFlag = Flag.Literals("status", ["draft", "stable", "deprecated", "unknown"] as const).pipe(
 	Flag.atLeast(0),
 	Flag.withDescription("only concepts with this status (repeatable; any match)"),
 );
@@ -87,6 +87,13 @@ const driftedFlag = Flag.Boolean("drifted").pipe(
 const staleFlag = Flag.Boolean("stale").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription("only concepts whose stale_after has passed"),
+);
+
+const currentFlag = Flag.Boolean("current").pipe(
+	Flag.withDefault(false),
+	Flag.withDescription(
+		"only draft and stable concepts; deprecated and unknown-status concepts are dropped, so a replacement is listed only if it passes the other filters",
+	),
 );
 
 /**
@@ -166,6 +173,7 @@ export const queryListCommand = Command.make(
 		unverified: unverifiedFlag,
 		drifted: driftedFlag,
 		stale: staleFlag,
+		current: currentFlag,
 		format: formatFlag,
 	},
 	(input) => {
@@ -177,6 +185,7 @@ export const queryListCommand = Command.make(
 			...(input.unverified ? { verified: "unverified" as const } : {}),
 			...(input.drifted ? { drifted: true } : {}),
 			...(input.stale ? { stale: true } : {}),
+			...(input.current ? { current: true } : {}),
 		};
 		return run(
 			input,
@@ -220,17 +229,18 @@ export const queryGetCommand = Command.make(
 				const resolved = yield* Targets.resolve(input.targets, bundle, process.cwd());
 				const found = [];
 				for (const target of resolved) found.push(yield* ConceptQuery.get(bundle, target.id as string));
-				const views = found.map(({ concept, links }) => {
+				const views = found.map(({ concept, links, replacement }) => {
 					const signal = signalFor(signals, concept.id);
-					return { concept, links, signal, summary: toConceptSummary(concept, signal) };
+					return { concept, links, replacement, signal, summary: toConceptSummary(concept, signal) };
 				});
 				if (input.format === "json") {
-					const encoded = views.map(({ concept, links, signal, summary }) =>
+					const encoded = views.map(({ concept, links, replacement, signal, summary }) =>
 						Schema.encodeSync(QueryGetEnvelope)(
 							queryGetEnvelope({
 								okfitVersion: CLI_VERSION,
 								concept: summary,
 								drift: toTrustDrift(signal),
+								replacement,
 								frontmatter: concept.frontmatter.raw,
 								links,
 								...distributionOf(distribution),
@@ -240,7 +250,7 @@ export const queryGetCommand = Command.make(
 					yield* CliFormat.printJson(encoded.length === 1 ? encoded[0] : encoded, { indent: 0 });
 				} else {
 					let first = true;
-					for (const { concept, links, signal, summary } of views) {
+					for (const { concept, links, replacement, signal, summary } of views) {
 						if (!first) yield* Console.log("");
 						first = false;
 						for (const line of humanQueryGet({
@@ -248,6 +258,7 @@ export const queryGetCommand = Command.make(
 							drift: toTrustDrift(signal),
 							verified: concept.frontmatter.verified ?? [],
 							links,
+							replacement,
 						})) {
 							yield* Console.log(line);
 						}

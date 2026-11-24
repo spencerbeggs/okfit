@@ -8,17 +8,19 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T20:51:30Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: 8f57f88dd1c91f3c
+    body: f4fa8a58826ee119
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: 3cfab1575b2a29e6
+    at: 2026-11-24T02:55:14Z
+    content: d9abe43abbb4401e
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does
@@ -49,6 +51,13 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   frontmatter](../interfaces/integrity-frontmatter.md)).
 - Candidates include a drifted concept even when this actor already has an
   entry, because "already verified" now means holding the current binding.
+- A concept whose `stale_after` cannot be read is never stale, so it is
+  never a candidate. `okfit stale` lists it apart, under `malformed
+  stale_after`, with the value as written, and the JSON envelope carries it in
+  a separate `malformed` list; `days_past` stays a number and `items` keep
+  their shape. Rolling a date forward over a value nobody can read would
+  replace it without anyone seeing what it said, so the author fixes it by
+  hand.
 - Plain `okfit verify` keeps its contract: it appends, and never touches
   `stale_after`.
 - The command is interactive-only. A non-interactive run is exit `64`,

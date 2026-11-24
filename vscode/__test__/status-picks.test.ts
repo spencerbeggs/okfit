@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { conceptUriFrom, statusPicks } from "../src/status-picks.js";
+import { writtenStatus } from "../src/tree/model.js";
 
 describe("statusPicks", () => {
 	it("offers draft and deprecated for a stable concept", () => {
@@ -36,5 +37,30 @@ describe("conceptUriFrom", () => {
 
 	it("is undefined with neither a tree node argument nor an active editor", () => {
 		expect(conceptUriFrom(undefined, undefined)).toBeUndefined();
+	});
+});
+
+describe("the Set status picks for a concept off the wire", () => {
+	const labelsFor = (c: Parameters<typeof writtenStatus>[0]) => statusPicks(writtenStatus(c)).map((p) => p.label);
+
+	it("offers all three on a concept with no status line, though the server derives stable", () => {
+		expect(labelsFor({ status: "stable", explicitStatus: false })).toEqual(["draft", "stable", "deprecated"]);
+	});
+
+	it("offers the other two on a concept that writes stable (control)", () => {
+		expect(labelsFor({ status: "stable", explicitStatus: true })).toEqual(["draft", "deprecated"]);
+	});
+
+	it("offers all three on an unknown status, which is not written as a known one", () => {
+		expect(labelsFor({ status: "unknown", rawStatus: "archived", explicitStatus: true })).toEqual([
+			"draft",
+			"stable",
+			"deprecated",
+		]);
+	});
+
+	it("reads a server that predates explicitStatus: no status sent means none written", () => {
+		expect(labelsFor({})).toEqual(["draft", "stable", "deprecated"]);
+		expect(labelsFor({ status: "stable" })).toEqual(["draft", "deprecated"]);
 	});
 });

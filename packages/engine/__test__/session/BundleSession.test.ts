@@ -9,7 +9,8 @@ import { ROOT, SEED, moduleConcept, sessionConfig, sessionPlatform, sourceOf } f
 const now = DateTime.makeUnsafe("2026-09-22T00:00:00Z");
 const edit: RevalidateOptions = { now, tier: "edit" };
 const full: RevalidateOptions = { now, tier: "full" };
-const make = (config = sessionConfig()) => BundleSession.make({ root: ROOT, config, profile: Option.none() });
+const make = (config = sessionConfig()) =>
+	BundleSession.make({ root: ROOT, projectRoot: "/repo", config, profile: Option.none() });
 const codesOf = (changed: ReadonlyMap<string, ReadonlyArray<{ readonly code: string }>>, file: string) =>
 	changed.get(file)?.map((d) => d.code);
 

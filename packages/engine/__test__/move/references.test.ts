@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
-import type { LoadedBundle, LoadedConcept } from "@okfit/core";
-import { Bundle, OkfitConfig } from "@okfit/core";
+import type { LoadedBundle, LoadedConcept, PathField } from "@okfit/core";
+import { Bundle, Graph, OkfitConfig } from "@okfit/core";
 import { Effect, Layer, Path } from "effect";
 import { referencesOf, rewriteReference } from "../../src/move/references.js";
 
@@ -237,6 +237,196 @@ describe("rewriteReference with whitespace", () => {
 				references.map((r) => r.angle === true),
 				[false, true, false],
 			);
+		}),
+	);
+});
+
+const V3 = "/repo/okf3";
+const computationDoc = (extra: string) =>
+	`---\ntype: Attested Computation\ntitle: Full\nruntime: bigquery\n${extra}---\n\n# Full\n`;
+const FULL =
+	"resource: ../references/check.py\ncomputation: ./q.sql\nexecutor:\n  resource: /references/run.md\n" +
+	"attester:\n  resource: ../references/check.py\nsources:\n  resource: ./a.md\nstatus: deprecated\nsuperseded_by: /m/margin.md\n";
+const v3Seed = {
+	[`${V3}/index.md`]: '---\nokf_version: "0.3"\n---\n\n# Bundle\n',
+	[`${V3}/m/full.md`]: computationDoc(FULL),
+	[`${V3}/m/a.md`]: doc("Convention", "A"),
+	[`${V3}/m/margin.md`]: doc("Convention", "Margin"),
+	[`${V3}/m/q.sql`]: "select 1\n",
+	[`${V3}/references/run.md`]: doc("Convention", "Run"),
+	[`${V3}/references/check.py`]: "print('ok')\n",
+	// The nested `attested` key does not exist in OKF 0.3: it must yield nothing.
+	[`${V3}/m/nested.md`]: computationDoc(
+		"attested:\n  computation: ./q.sql\n  attester:\n    resource: ../references/check.py\n",
+	),
+	[`${V3}/m/single.md`]: computationDoc("sources:\n  resource: ./a.md\n"),
+	[`${V3}/m/listed.md`]: computationDoc("sources:\n  - resource: ./a.md\n  - resource: ./margin.md\n"),
+	[`${V3}/m/custom.md`]: doc("Metric", "Custom", "owner: ./a.md\ncomputation: ./q.sql\nsuperseded_by: /m/margin.md\n"),
+};
+const loadV3 = Bundle.load({ root: V3 }).pipe(
+	Effect.provide(Layer.mergeAll(MemoryFileSystem.layerWith(v3Seed), Path.layer)),
+);
+const customConfig: OkfitConfig = {
+	...OkfitConfig.DEFAULTS,
+	types: {
+		Metric: {
+			fields: {
+				owner: { description: "Owner.", kind: "path" },
+				computation: { description: "Declared like a core field.", kind: "path" },
+				superseded_by: { description: "Declared like a core field.", kind: "path" },
+			},
+		},
+	},
+};
+
+describe("referencesOf, OKF 0.3 path fields", () => {
+	it.effect("lists every v0.3 path field, the computation keys at the top level included (OKF 0.3 6.2)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadV3;
+			const { references, unlocatable } = referencesOf(conceptAt(bundle, "m/full.md"), config);
+			assert.deepStrictEqual(unlocatable, []);
+			assert.deepStrictEqual(
+				references.map((r) => [r.field, r.raw]),
+				[
+					["resource", "../references/check.py"],
+					["sources.resource", "./a.md"],
+					["computation", "./q.sql"],
+					["executor.resource", "/references/run.md"],
+					["attester.resource", "../references/check.py"],
+					["superseded_by", "/m/margin.md"],
+				],
+			);
+			// Control: the nested `attested` key core never reads yields nothing.
+			const nested = referencesOf(conceptAt(bundle, "m/nested.md"), config);
+			assert.deepStrictEqual(nested.references, []);
+			assert.deepStrictEqual(nested.unlocatable, []);
+		}),
+	);
+
+	it.effect("rewrites a single-mapping and a list-valued `sources`", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadV3;
+			const single = referencesOf(conceptAt(bundle, "m/single.md"), config).references;
+			assert.deepStrictEqual(
+				single.map((r) => [r.field, r.raw]),
+				[["sources.resource", "./a.md"]],
+			);
+			const source = conceptAt(bundle, "m/single.md").document.source;
+			const at = single[0];
+			assert.strictEqual(source.slice(at?.offset, (at?.offset ?? 0) + (at?.length ?? 0)), "./a.md");
+			const listed = referencesOf(conceptAt(bundle, "m/listed.md"), config).references;
+			assert.deepStrictEqual(
+				listed.map((r) => r.raw),
+				["./a.md", "./margin.md"],
+			);
+		}),
+	);
+
+	it.effect("lists a declared field named like a core path field once", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadV3;
+			const { references } = referencesOf(conceptAt(bundle, "m/custom.md"), customConfig);
+			assert.deepStrictEqual(
+				references.map((r) => [r.field ?? "(declared)", r.raw]),
+				[
+					["computation", "./q.sql"],
+					["superseded_by", "/m/margin.md"],
+					["(declared)", "./a.md"],
+				],
+			);
+		}),
+	);
+
+	it.effect("lists exactly the path fields core reads, member for member", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadV3;
+			const mine = referencesOf(conceptAt(bundle, "m/full.md"), config).references.map((r) => String(r.field));
+			const core = Graph.fromBundle(bundle)
+				.edges.filter((e) => e.from === "m/full" && e.data.source === "frontmatter")
+				.map((e) => String(e.data.field));
+			// Control: core lists every field the fixture populates (FULL writes six), so two agreeing empty lists cannot pass.
+			assert.strictEqual(core.length, 6);
+			assert.deepStrictEqual([...mine].sort(), [...core].sort());
+		}),
+	);
+
+	it.effect("keeps a leading / rooted and a ./ or ../ value file-relative when the target moves", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadV3;
+			const move = (field: PathField, raw: string) =>
+				rewriteReference(raw, {
+					bundle,
+					fromOld: "m/full.md",
+					fromNew: "m/full.md",
+					movedFrom: "m/margin.md",
+					movedTo: "n/gross.md",
+					field,
+				});
+			assert.strictEqual(move("superseded_by", "/m/margin.md"), "/n/gross.md");
+			// A value that does not name the moved concept is left alone (the control).
+			assert.strictEqual(move("superseded_by", "/m/a.md"), undefined);
+			assert.strictEqual(move("sources.resource", "./margin.md"), "../n/gross.md");
+			// A ./ value on a concept that moves within its own directory stays ./-prefixed.
+			const within = (raw: string) =>
+				rewriteReference(raw, {
+					bundle,
+					fromOld: "m/full.md",
+					fromNew: "m/full.md",
+					movedFrom: "m/margin.md",
+					movedTo: "m/gross.md",
+					field: "sources.resource",
+				});
+			assert.strictEqual(within("./margin.md"), "./gross.md");
+			assert.strictEqual(within("./a.md"), undefined);
+		}),
+	);
+});
+
+describe("referencesOf, OKF 0.2 root fallback", () => {
+	it.effect("rewrites a bare value that resolved only through the root fallback to one that resolves", () =>
+		Effect.gen(function* () {
+			const root = "/repo/okf2";
+			const seed02 = {
+				[`${root}/index.md`]: '---\nokf_version: "0.2"\n---\n\n# Bundle\n',
+				[`${root}/computations/ytd.md`]: computationDoc(
+					"sources:\n  resource: metrics/margin.md\nsuperseded_by: metrics/margin.md\n",
+				),
+				[`${root}/metrics/margin.md`]: doc("Convention", "Margin"),
+			};
+			const bundle = yield* Bundle.load({ root }).pipe(
+				Effect.provide(Layer.mergeAll(MemoryFileSystem.layerWith(seed02), Path.layer)),
+			);
+			const refs = referencesOf(conceptAt(bundle, "computations/ytd.md"), config).references;
+			assert.deepStrictEqual(
+				refs.map((r) => [r.field, r.raw]),
+				[
+					["sources.resource", "metrics/margin.md"],
+					["superseded_by", "metrics/margin.md"],
+				],
+			);
+			// The same bundle after the move: the file under its new name.
+			const { [`${root}/metrics/margin.md`]: moved, ...rest } = seed02;
+			const afterMove = yield* Bundle.load({ root }).pipe(
+				Effect.provide(
+					Layer.mergeAll(MemoryFileSystem.layerWith({ ...rest, [`${root}/metrics/gross.md`]: moved }), Path.layer),
+				),
+			);
+			for (const ref of refs) {
+				const next = rewriteReference(ref.raw, {
+					bundle,
+					fromOld: "computations/ytd.md",
+					fromNew: "computations/ytd.md",
+					movedFrom: "metrics/margin.md",
+					movedTo: "metrics/gross.md",
+					...(ref.field === undefined ? {} : { field: ref.field }),
+				});
+				assert.strictEqual(next, "metrics/gross.md");
+				const after = Graph.resolve(afterMove, "computations/ytd.md", next ?? "", ref.field);
+				const kind = (r: ReturnType<typeof Graph.resolve>) => (r._tag === "node" ? r.kind : r._tag);
+				assert.strictEqual(kind(after), "concept");
+				// Control: the unrewritten value no longer resolves once the file has moved.
+				assert.notStrictEqual(kind(Graph.resolve(afterMove, "computations/ytd.md", ref.raw, ref.field)), "concept");
+			}
 		}),
 	);
 });

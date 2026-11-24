@@ -4,6 +4,7 @@ import type { LanguageClient } from "vscode-languageclient/node";
 import { finishEditCommand } from "./save-after-apply.js";
 import { conceptUriFrom, statusPicks } from "./status-picks.js";
 import type { Status } from "./tree/model.js";
+import { writtenStatus } from "./tree/model.js";
 import type { ConceptsProvider } from "./tree/provider.js";
 
 /**
@@ -53,7 +54,9 @@ const statusOf = (provider: ConceptsProvider | undefined, uri: string): Status |
 	const target = vscode.Uri.parse(uri).toString();
 	for (const bundle of provider?.current.bundles ?? []) {
 		for (const concept of bundle.concepts) {
-			if (vscode.Uri.parse(concept.uri).toString() === target) return concept.status;
+			if (vscode.Uri.parse(concept.uri).toString() === target) {
+				return writtenStatus(concept);
+			}
 		}
 	}
 	return undefined;

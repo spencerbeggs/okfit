@@ -1,6 +1,6 @@
 import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
-import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
+import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Bundle, ConceptId, Derive, Timestamp } from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -9,6 +9,7 @@ import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
 	VerifyNothingToRevokeError,
+	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "../errors.js";
 import type { ChangeSince } from "./diff.js";
@@ -70,7 +71,7 @@ export interface VerifyResult {
 	/** The exact bytes `splice`'s edit would insert, written or not. */
 	readonly fragment: string;
 	/** `null` when no status flag was given; `from` is the RAW frontmatter status. */
-	readonly status: { readonly from: Status | null; readonly to: "stable" | "draft" } | null;
+	readonly status: { readonly from: string | null; readonly to: "stable" | "draft" } | null;
 	/** The exact status bytes spliced, or `null` when no status edit was made. */
 	readonly statusFragment: string | null;
 	/** The content digest `integrity.verified` was bound to; the digest of the file before AND after the edit. */
@@ -122,6 +123,19 @@ interface PreparedVerify {
 	readonly content: string;
 }
 
+/**
+ * OKF 0.3 5.4: a status outside the vocabulary is not stable, so it is never attested unless the same
+ * write replaces it (`--stable`/`--draft`, ruling R11). The one place this rule is spelled: the write path
+ * (`prepareVerify`) and the prompt path (`inspectDrift`) both ask it.
+ */
+const unknownStatusRefusal = (
+	concept: LoadedConcept,
+	status: "stable" | "draft" | undefined,
+): VerifyStatusUnknownError | undefined =>
+	status === undefined && Derive.status(concept.frontmatter) === "unknown"
+		? new VerifyStatusUnknownError({ id: concept.id, status: Derive.rawStatus(concept.frontmatter) ?? "" })
+		: undefined;
+
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
 const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	bundle: LoadedBundle,
@@ -134,6 +148,8 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	// actor's existing entry's `at` rather than append a second entry.
 	staleAfter: string | undefined = undefined,
 ) {
+	const refusal = unknownStatusRefusal(concept, status);
+	if (refusal !== undefined) return yield* refusal;
 	// Every key verify writes is excluded from the digest, so this equals the digest of the written file.
 	const content = yield* Derivation.contentDigest(concept.frontmatter.raw, concept.document.source).pipe(
 		Effect.catchTag("ContentUnhashableError", (error) =>
@@ -256,8 +272,10 @@ const resolveConcept = (bundle: LoadedBundle, rawId: string) =>
  * frontmatter and writes it back atomically.
  *
  * Nothing here reads `stale_after` or a type's `require_verified`; `status`
- * is read only to skip a no-op edit under `options.status` (#185). `verify`
- * is mechanical, not config-aware (V-4, V-5).
+ * is read to skip a no-op edit under `options.status` (#185) and to refuse a
+ * concept whose status is outside `draft | stable | deprecated` (OKF 0.3 5.4)
+ * with `VerifyStatusUnknownError`, unless `options.status` replaces it in the
+ * same write (R11). `verify` is mechanical, not config-aware (V-4, V-5).
  *
  * @internal
  */
@@ -297,7 +315,8 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 		priorAt: prepared.priorAt,
 		dryRun: options.dryRun,
 		fragment: prepared.fragment,
-		status: options.status === undefined ? null : { from: concept.frontmatter.status ?? null, to: options.status },
+		status:
+			options.status === undefined ? null : { from: Derive.rawStatus(concept.frontmatter) ?? null, to: options.status },
 		statusFragment: prepared.statusFragment,
 		content: prepared.content,
 		priorDrift: prior.drift?.reason ?? null,
@@ -322,7 +341,8 @@ export interface DriftInspection {
 /**
  * Read-only: is the concept's prior human verification drifted, and if so from
  * when was it bound? The CLI asks this before `runVerify` so it can show what
- * changed. Writes nothing.
+ * changed. Writes nothing. Fails with `VerifyStatusUnknownError` exactly when the write would
+ * (a status outside the vocabulary and no `status` option), so a prompt is never shown for a refusal.
  *
  * @internal
  */
@@ -331,9 +351,13 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 	readonly bundleRoot: string;
 	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
+	/** The `--stable`/`--draft` the write will carry, if any. */
+	readonly status?: "stable" | "draft";
 }) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const { id, concept } = yield* resolveConcept(bundle, options.id);
+	const refusal = unknownStatusRefusal(concept, options.status);
+	if (refusal !== undefined) return yield* refusal;
 	const path = yield* Path.Path;
 	const signal = yield* Trust.signal(concept, options.config, options.now);
 	const boundAt = concept.frontmatter.integrity?.verified?.at;
@@ -564,9 +588,12 @@ export interface VerifyIdsOptions {
  * batch. Every id is resolved exactly as {@link runVerify} resolves it, and
  * every concept is located and spliced BEFORE any file is written, so one
  * unknown id, reserved file or unsupported `verified`/`status` shape fails the
- * whole call with the tree untouched. An explicit pick is never second-guessed:
- * drafts, deprecated and already-attested concepts are all attested, and
- * `skipped` is always empty. Duplicate ids (after normalisation) are written
+ * whole call with the tree untouched. An explicit pick is second-guessed in
+ * one way only: a concept whose status is outside `draft | stable | deprecated`
+ * (OKF 0.3 5.4) fails the whole call with `VerifyStatusUnknownError`, even under
+ * `promote` (which only promotes a draft). Drafts, deprecated and
+ * already-attested concepts are all attested, and `skipped` is always empty.
+ * Duplicate ids (after normalisation) are written
  * once. With `promote`, a draft's `status` becomes `stable` in the same write.
  *
  * @public
@@ -594,7 +621,7 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	for (const [id, concept] of concepts) {
-		const status = options.promote === true && concept.frontmatter.status === "draft" ? "stable" : undefined;
+		const status = options.promote === true && Derive.status(concept.frontmatter) === "draft" ? "stable" : undefined;
 		prepared.push({
 			id,
 			conceptPath: concept.path,

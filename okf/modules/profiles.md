@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:05:37Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: 908cd51e7cd29ce2
+    body: b4b18509d28b51af
 ---
 
 # Profiles
@@ -100,7 +100,13 @@ The `Trust` module derives a `ConceptSignal`: the spec trust tier
 (unchanged), `integrity` of `current`, `drifted` or `none`, a drift reason
 (`content-changed`, `unbound`, `entry-superseded`, `actor-not-allowed` or
 `content-unhashable`, with the editor named from `generated` when it is
-later than the bound `at`) and staleness. `content-unhashable` means a bound
+later than the bound `at`) and staleness. `ConceptSignal` carries both `stale`
+and a required `staleness` (`fresh`, `stale`, `unknown` or `malformed`), from one
+source so the two cannot disagree; a consumer that builds a `ConceptSignal`
+literal must supply it. A concept whose status is unknown is skipped by
+`verified-drift`, because `okfit verify` refuses it and the lint's remedy
+would be unreachable ([An unknown status is not current
+knowledge](../decisions/unknown-status-is-not-current.md)). `content-unhashable` means a bound
 concept's content cannot be canonicalized, so its binding cannot be checked;
 its `verified-drift` finding ranges at the offending value, and `okfit
 verify` refuses it (engine's `VerifyContentUnhashableError`). Its
@@ -115,7 +121,10 @@ covered](../decisions/verification-binds-content.md) and [Verification
 drift is a signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
 The software-project Decision guidance now tells authors to edit a Decision
 whose choice still stands and to deprecate and supersede it only when the
-choice changes.
+choice changes, and names `superseded_by` (on the deprecated Decision) and
+`supersedes` (on its successor). The profile declares no `superseded_by` field:
+it is a spec key that core already reads as a path field, and a declared path
+field of the same name would be listed twice by `okfit mv`.
 
 The `generated-at-drift` lint anchors its diagnostic at the `generated.at`
 value itself (`Provenance.ts`), through
@@ -135,6 +144,15 @@ resolves to no bundle concept or to a concept whose type is not `Surface`
 (the message names the actual type), a `renders[].path` that resolves to
 nothing, an empty `renders` list, or a malformed one. An absent `surface` is
 skipped here and left to `required-key-missing`.
+`Publications.resolveRef(from, raw)` resolves a reference to a bundle-relative
+id: a leading `/` starts from the bundle root, anything else from the
+referencing file's directory; a `#` or `?` suffix is stripped and the value is
+percent-decoded (a malformed escape is left as written). It returns `""` when
+the reference climbs above the bundle root. It knowingly differs from core's
+resolver in three ways, listed in its TSDoc: it does not treat a URL as
+external (a URL yields no concept and is reported as an orphan), it has no v0.2
+root fallback for a bare value, and `/` alone and a climb above the root both
+yield no concept.
 `@okfit/engine`'s `validate/run.ts#run` runs these lints only when the
 resolved profile is `software-project`, so a `profile = "none"` repository
 that declares its own `Publication` type gets none of them. It appends them to

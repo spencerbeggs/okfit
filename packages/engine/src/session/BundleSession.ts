@@ -28,6 +28,8 @@ import { withFallbackRange } from "./range.js";
  */
 export interface BundleSessionOptions {
 	readonly root: string;
+	/** Absolute project root: the only place a repository `resource` is ever checked. */
+	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly profile: Option.Option<Profile>;
 }
@@ -131,6 +133,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 			const underlying = yield* FileSystem.FileSystem;
 			const context = yield* Effect.context<BundleSessionServices>();
 			const root = path.resolve(options.root);
+			const projectRoot = path.resolve(options.projectRoot);
 			const overlay = OverlayDocuments.make();
 			const fileSystem = makeOverlayFileSystem(underlying, overlay);
 			const semaphore = yield* Semaphore.make(1);
@@ -140,6 +143,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 			const revalidateNow = Effect.fn("BundleSession.revalidate")(function* (revalidate: RevalidateOptions) {
 				const result = yield* run({
 					root,
+					projectRoot,
 					config: options.config,
 					profile: options.profile,
 					now: revalidate.now,

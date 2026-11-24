@@ -113,6 +113,48 @@ describe("Derive", () => {
 		}),
 	);
 
+	it.effect(
+		"malformedStaleAfter lists every unreadable stale_after as written, never the absent or readable ones (OKF 0.3 §5.5)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT });
+				const now = DateTime.makeUnsafe("2026-07-01T00:00:00Z");
+				assert.deepStrictEqual(
+					Derive.malformedStaleAfter(bundle).map((m) => ({ id: String(m.id), raw: m.raw })),
+					[
+						{ id: "bool", raw: "true" },
+						{ id: "impossible-day", raw: "2026-02-30" },
+						{ id: "list", raw: '["a"]' },
+						{ id: "mapping", raw: '{"a":1}' },
+						{ id: "number", raw: "90" },
+						{ id: "text", raw: "next tuesday" },
+					],
+				);
+				// Controls: a date-only value (valid since 0.3) is stale not malformed; null and "" are absent.
+				assert.deepStrictEqual(
+					Derive.staleReport(bundle, now).map((s) => s.id),
+					["date-only", "instant"],
+				);
+				const ids = new Set(Derive.malformedStaleAfter(bundle).map((m) => String(m.id)));
+				for (const id of ["date-only", "instant", "null", "empty"]) assert.isFalse(ids.has(id), id);
+			}).pipe(
+				Effect.provide(
+					memPlatform({
+						[`${MOUNT}/text.md`]: "---\ntype: Note\nstale_after: next tuesday\n---\n",
+						[`${MOUNT}/number.md`]: "---\ntype: Note\nstale_after: 90\n---\n",
+						[`${MOUNT}/bool.md`]: "---\ntype: Note\nstale_after: true\n---\n",
+						[`${MOUNT}/list.md`]: "---\ntype: Note\nstale_after:\n  - a\n---\n",
+						[`${MOUNT}/mapping.md`]: "---\ntype: Note\nstale_after:\n  a: 1\n---\n",
+						[`${MOUNT}/impossible-day.md`]: "---\ntype: Note\nstale_after: 2026-02-30\n---\n",
+						[`${MOUNT}/date-only.md`]: "---\ntype: Note\nstale_after: 2026-06-01\n---\n",
+						[`${MOUNT}/null.md`]: "---\ntype: Note\nstale_after:\n---\n",
+						[`${MOUNT}/empty.md`]: '---\ntype: Note\nstale_after: ""\n---\n',
+						[`${MOUNT}/instant.md`]: '---\ntype: Note\nstale_after: "2026-01-01T00:00:00Z"\n---\n',
+					}),
+				),
+			),
+	);
+
 	it.effect("title falls back to the file name", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadBundle;
@@ -178,6 +220,52 @@ describe("Derive", () => {
 					/^---\nokf_version: ['"]0\.2['"]\n---\n\n# /,
 				);
 			}),
+	);
+
+	it.effect("renderIndex writes bundle metadata after okf_version only when no block is kept (OKF 0.3 §8.1)", () =>
+		Effect.gen(function* () {
+			const revenue = LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("revenue")),
+				path: "revenue.md",
+				frontmatter: metric({ title: "Revenue" }),
+				document: emptyDocument,
+				computationBody: Option.none(),
+			});
+			const fresh = Derive.renderIndex("", [revenue], {
+				okfVersion: "0.3",
+				metadata: { title: "Acme: retail", description: "Tables." },
+			});
+			assert.match(
+				fresh,
+				/^---\nokf_version: ['"]0\.3['"]\ntitle: ['"]Acme: retail['"]\ndescription: Tables\.\n---\n\n# /,
+			);
+			const kept = Derive.renderIndex("", [revenue], { frontmatter: "title: Kept", metadata: { title: "Ignored" } });
+			assert.isTrue(kept.startsWith("---\ntitle: Kept\n---\n\n# "));
+			assert.notInclude(kept, "Ignored");
+			// title only: no description line; control: description present above
+			const titleOnly = Derive.renderIndex("", [revenue], { okfVersion: "0.3", metadata: { title: "T" } });
+			assert.match(titleOnly, /^---\nokf_version: ['"]0\.3['"]\ntitle: T\n---\n\n# /);
+			assert.notInclude(titleOnly, "description");
+			// empty and absent metadata render identically to today
+			const bare = Derive.renderIndex("", [revenue], { okfVersion: "0.3" });
+			assert.strictEqual(Derive.renderIndex("", [revenue], { okfVersion: "0.3", metadata: {} }), bare);
+			assert.match(bare, /^---\nokf_version: ['"]0\.3['"]\n---\n\n# /);
+			assert.strictEqual(Derive.renderIndex("", [revenue], { metadata: {} }), Derive.renderIndex("", [revenue]));
+			// awkward titles round-trip through the index decoder
+			for (const title of ["a: b", "# not a heading", "line one\nline two", "- dash"]) {
+				const text = Derive.renderIndex("", [revenue], { okfVersion: "0.3", metadata: { title, description: "D" } });
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						memPlatform({
+							[`${MOUNT}/index.md`]: text,
+							[`${MOUNT}/revenue.md`]: "---\ntype: Metric\ntitle: Revenue\n---\n\nB.\n",
+						}),
+					),
+				);
+				assert.strictEqual(bundle.indexes.get("")?.title, title);
+				assert.strictEqual(bundle.indexes.get("")?.description, "D");
+			}
+		}),
 	);
 
 	it.effect("renderIndex over a loaded root index keeps the source's text before its first heading (D6)", () =>

@@ -281,6 +281,7 @@ export const makeSessionRegistry = (
 				const scope = yield* Scope.make();
 				const session = yield* BundleSession.make({
 					root: config.bundleRoot,
+					projectRoot: config.projectRoot,
 					config: config.config,
 					profile: config.profile,
 				});

@@ -226,8 +226,12 @@ const decodeSingle = <A>(
 	issues: Array<FamilyIssue>,
 ): A | undefined => {
 	if (isAbsent(raw[key])) return undefined;
+	const before = issues.length;
 	const decoded = decodeMapping(cls.fields, required, raw[key], [key], family, issues);
-	return decoded === undefined ? undefined : build(cls, decoded, [key], family, issues);
+	if (decoded === undefined) return undefined;
+	// A mapping emptied by dropped keys reads as absent (R19); one written as `{}` has no dropped key and is kept.
+	if (Object.keys(decoded).length === 0 && issues.length > before) return undefined;
+	return build(cls, decoded, [key], family, issues);
 };
 
 /** Decode the computation keys independently (a bad `executor` no longer drops `runtime`). */

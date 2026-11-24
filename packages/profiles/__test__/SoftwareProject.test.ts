@@ -115,6 +115,16 @@ describe("softwareProject.config", () => {
 			}
 			assert.strictEqual(types.Decision?.require_verified, true);
 			assert.strictEqual(types.Decision?.fields?.supersedes?.kind, "path");
+			// superseded_by is a spec key core types (R12): the Decision guidance names it, no type declares it
+			const guidance = types.Decision?.guidance ?? "";
+			assert.include(guidance, "superseded_by");
+			assert.include(guidance, "supersedes");
+			assert.deepStrictEqual(
+				Object.entries(types).filter(([, type]) => type.fields !== undefined && "superseded_by" in type.fields),
+				[],
+			);
+			// control: the filter does see a declared field
+			assert.isTrue(Object.values(types).some((type) => type.fields !== undefined && "supersedes" in type.fields));
 			assert.strictEqual(types.Module?.fields?.resource?.kind, "path");
 			assert.strictEqual(types.Module?.fields?.pins?.kind, "path");
 			assert.isFalse("kind" in (types.Module?.fields?.layer ?? {}), "layer is free text, not an enum or a path");

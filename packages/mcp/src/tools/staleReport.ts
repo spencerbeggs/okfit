@@ -11,7 +11,7 @@ import type { StaleReportParams } from "../schema/tools.js";
 import { StaleReportParams as Params, StaleReportSuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Lists every stale or drifted concept. items: stale_after passed, each with its summary, the date and whole days past. drifted: human-verified concepts whose content changed since (or was never bound), with the reason and last editor. Uses the current time unless now is given (ISO-8601 with an explicit offset).";
+	"Lists every stale or drifted concept. items: stale_after passed, each with its summary, the date and whole days past. malformed: concepts whose stale_after cannot be read (never fresh), as written. drifted: human-verified concepts whose content changed since (or was never bound), with the reason and last editor. Uses the current time unless now is given (ISO-8601 with an explicit offset).";
 
 /**
  * No `dependencies`: since Effect 4.1 a declared dependency becomes a
@@ -64,5 +64,6 @@ export const handleStaleReport = (projectRoot: string, params: StaleReportParams
 						},
 					];
 		});
-		return { as_of: DateTime.formatIso(now), items, drifted };
+		const malformed = Derive.malformedStaleAfter(ctx.bundle).map((entry) => ({ id: entry.id, stale_after: entry.raw }));
+		return { as_of: DateTime.formatIso(now), items, malformed, drifted };
 	});

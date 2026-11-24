@@ -6,14 +6,14 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:47:57Z
+  at: 2026-11-24T02:05:35Z
 status: draft
 sources:
   - resource: https://github.com/spencerbeggs/okfit/issues/279
     title: "validate: error on references to untracked or gitignored files"
 integrity:
   generated:
-    body: 4b6e6e2bd852f6b4
+    body: e346ce58bf02376b
 ---
 
 # A cited file that other checkouts cannot see is a lint, split by whether it is ignored
@@ -46,7 +46,11 @@ submodule path itself counts as tracked. The lint is git-backed, so
 `--skip-provenance` (the PostToolUse hook path) skips it and so does the
 language server's session; CLI `validate` and the MCP `validate_bundle` run it.
 The git work is batched: one `ls-files` and at most one `check-ignore` per
-repository.
+repository. Both lints judge only a file that was located inside the project
+root: a value that resolves outside it, directly or through a symlink, is
+never statted or passed to git and is reported as `resource-outside-project`
+instead (see [Repository resources are classified by where they
+resolve](repository-resources.md)).
 
 ## Alternatives rejected
 

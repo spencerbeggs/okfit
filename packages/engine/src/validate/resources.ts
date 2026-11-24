@@ -1,7 +1,8 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Concept, Diagnostic, DiagnosticRange, OkfitConfig as OkfitConfigNS } from "@okfit/core";
-import type { PlatformError } from "effect";
-import { Effect, FileSystem, Path } from "effect";
+import type { FileSystem, Path, PlatformError } from "effect";
+import { Effect } from "effect";
+import { locateResource, outsideProjectDiagnostic } from "./repository.js";
 
 /** A `resource`/`sources[].resource` value that names a URL, not a bundle-relative path (D-24). */
 const SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
@@ -21,12 +22,6 @@ export const GLOB_RE = /[*?[{]|[@+!]\(/;
  */
 export const isDescriptor = (value: string): boolean =>
 	SCHEME_RE.test(value) || value.includes("://") || /\s/.test(value) || GLOB_RE.test(value);
-
-/** Strips a trailing `#fragment` or `?query` suffix before filesystem resolution. */
-export const stripSuffix = (value: string): string => {
-	const at = value.search(/[?#]/);
-	return at === -1 ? value : value.slice(0, at);
-};
 
 /** One `resource`/`sources[i].resource` value, paired with the frontmatter path that names it. */
 export interface ResourceValue {
@@ -49,70 +44,48 @@ export const resourceValuesOf = (concept: LoadedConcept): Array<ResourceValue> =
 };
 
 /**
- * The absolute filesystem candidates a literal `resource` value may resolve to,
- * in D-23 order: a leading `/` is bundle-root-relative; otherwise file-relative
- * first, then (for a bare path with no `./` or `../` prefix) bundle-root-relative.
- * The caller has already ruled out descriptors.
- */
-export const resourceCandidates = (
-	bundle: LoadedBundle,
-	concept: LoadedConcept,
-	value: string,
-	path: Path.Path,
-): ReadonlyArray<string> => {
-	const stripped = stripSuffix(value);
-	return stripped.startsWith("/")
-		? [path.join(bundle.root, stripped.slice(1))]
-		: [
-				path.resolve(bundle.root, path.dirname(concept.path), stripped),
-				...(stripped.startsWith("./") || stripped.startsWith("../") ? [] : [path.resolve(bundle.root, stripped)]),
-			];
-};
-
-/**
- * D-24's `resource`/`sources[].resource` value resolves to nothing in the
- * bundle for every non-descriptor value on every concept (issue #106). A
- * `resource` is a descriptor (a URL, a scope description, or a glob
- * pattern) or a literal path resolved in D-23 order: relative to the
- * concept's own directory, then (for a bare path) relative to the bundle
- * root, or with a leading `/` relative to the bundle root only; only the
- * latter is checked against the filesystem. Ranges at the offending value
- * (phase 4 decision 2, via `DiagnosticRange.forFrontmatterPath`) using the
- * `["resource"]` or `["sources", index, "resource"]` path the value came
- * from. Total over severity (mirrors `Provenance.lint`'s S-28 posture):
- * returns `[]`, touching neither `FileSystem` nor `Path`, the moment
- * `OkfitConfig.severityFor(config, "source-resource-missing")` is `"off"`.
+ * D-24's `resource`/`sources[].resource` value resolves to nothing for every
+ * non-descriptor value on every concept (issue #106). A `resource` is a
+ * descriptor (a URL, a scope description, or a glob pattern) or a literal path
+ * resolved in OKF 0.3 §6 order (see `resourceCandidates`). okfit checks a path
+ * only inside `projectRoot`: a value that resolves outside it, lexically or
+ * through a symlink, is never read, stat'ed or asked about, and is reported
+ * as `resource-outside-project` (okfit's repository check,
+ * not OKF); a value inside it that exists nowhere stays `source-resource-missing`.
+ * Ranges at the offending value via `DiagnosticRange.forFrontmatterPath`, using
+ * the `["resource"]` or `["sources", index, "resource"]` path the value came
+ * from. Total over severity: returns `[]`, touching neither `FileSystem` nor
+ * `Path`, only when both codes are `off`.
  *
  * @public
  */
 export const lintResources = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
+	projectRoot: string,
 ): Effect.Effect<ReadonlyArray<Diagnostic>, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> =>
 	Effect.gen(function* () {
-		const severity = OkfitConfigNS.severityFor(config, "source-resource-missing");
-		if (severity === "off") return [];
-		const fs = yield* FileSystem.FileSystem;
-		const path = yield* Path.Path;
+		const missingSeverity = OkfitConfigNS.severityFor(config, "source-resource-missing");
+		const outsideSeverity = OkfitConfigNS.severityFor(config, "resource-outside-project");
+		if (missingSeverity === "off" && outsideSeverity === "off") return [];
 		const diagnostics: Array<Diagnostic> = [];
 		for (const [, concept] of bundle.concepts) {
 			for (const { value, path: fieldPath } of resourceValuesOf(concept)) {
 				if (isDescriptor(value)) continue;
-				const candidates = resourceCandidates(bundle, concept, value, path);
-				let exists = false;
-				for (const candidate of candidates) {
-					if (yield* fs.exists(candidate)) {
-						exists = true;
-						break;
-					}
+				const location = yield* locateResource({ bundle, concept, value, projectRoot });
+				if (location._tag === "found") continue;
+				if (location._tag === "outside") {
+					if (outsideSeverity !== "off")
+						diagnostics.push(outsideProjectDiagnostic(concept, value, fieldPath, outsideSeverity));
+					continue;
 				}
-				if (exists) continue;
+				if (missingSeverity === "off") continue;
 				const range = DiagnosticRange.forFrontmatterPath(concept.document, fieldPath);
 				diagnostics.push(
 					Diagnostic.make({
 						file: concept.path,
 						code: "source-resource-missing",
-						severity,
+						severity: missingSeverity,
 						message: `Resource "${value}" does not exist relative to ${concept.path}`,
 						...(range === undefined ? {} : { range }),
 					}),

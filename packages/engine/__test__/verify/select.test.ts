@@ -4,12 +4,17 @@ import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Git, GitCommandError } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
-import { Bundle, OkfitConfig } from "@okfit/core";
+import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import { DateTime, Effect, Exit, Layer } from "effect";
 import { loadPreviews } from "../../src/verify/run.js";
 import type { PickerCandidate } from "../../src/verify/select.js";
-import { resolveBatchTypes, selectAttestable, selectPickerCandidates } from "../../src/verify/select.js";
+import {
+	resolveBatchTypes,
+	selectAttestable,
+	selectPickerCandidates,
+	selectStaleCandidates,
+} from "../../src/verify/select.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { commit, initRepo, withDir } from "../utils/git.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -343,6 +348,58 @@ describe("loadPreviews (verify picker diff preview)", () => {
 				candidate("a", "/nowhere/a.md", "drifted", "2026-09-05T00:00:00.000Z"),
 			]).pipe(Effect.provide(Layer.mergeAll(failing, TestPlatform)));
 			assert.deepStrictEqual(previews.get("a"), { _tag: "no-baseline", reason: "not-a-repository" });
+		}),
+	);
+});
+
+describe("an unknown status is never offered (OKF 0.3 5.4)", () => {
+	const doc = (name: string, extra: string): string =>
+		`---\ntype: Decision\ntitle: ${name}\n${extra}stale_after: "2026-01-01T00:00:00Z"\n---\n\n# ${name}\n`;
+
+	it.effect('batch, picker and stale selection skip archived and 5; "" is the offered control', () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-select-unknown-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const files: ReadonlyArray<readonly [string, string]> = [
+					["archived", doc("archived", "status: archived\n")],
+					["numeric", doc("numeric", "status: 5\n")],
+					["draft", doc("draft", "status: draft\n")],
+					["empty", doc("empty", 'status: ""\n')],
+				];
+				for (const [name, text] of files) {
+					yield* Effect.promise(() => writeFile(join(root, "decisions", `${name}.md`), text));
+				}
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: { Decision: { require_verified: true } },
+					extensions: {},
+				});
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+				const signals = yield* Trust.signals(bundle, config, NOW).pipe(Effect.provide(TestPlatform));
+				const selection = selectAttestable(bundle, new Set(["Decision"]), "human:ada", signals);
+				assert.deepStrictEqual(
+					selection.candidates.map((concept) => concept.id),
+					["decisions/empty"],
+				);
+				assert.deepStrictEqual(selection.skipped, [
+					{ id: "decisions/archived", reason: "unknown-status" },
+					{ id: "decisions/draft", reason: "draft" },
+					{ id: "decisions/numeric", reason: "unknown-status" },
+				]);
+				assert.deepStrictEqual(
+					selectPickerCandidates(bundle, config, "human:ada", signals).map((row) => [row.id, row.status]),
+					[
+						["decisions/draft", "draft"],
+						["decisions/empty", "stable"],
+					],
+				);
+				assert.deepStrictEqual(
+					selectStaleCandidates(bundle, Derive.staleReport(bundle, NOW), "human:ada", signals).map((row) => row.id),
+					["decisions/draft", "decisions/empty"],
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
 		}),
 	);
 });

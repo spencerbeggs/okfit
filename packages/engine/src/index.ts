@@ -13,6 +13,7 @@ export { resolveBundleRoot, resolveProjectRoot } from "./config/anchor.js";
 export { buildConfigLayer, provideConfig } from "./config/layer.js";
 export type { ResolveProjectConfigInput, ResolvedProjectConfig } from "./config/resolve.js";
 export { DEFAULT_PROFILE_NAME, resolveProjectConfig } from "./config/resolve.js";
+export { escapesBundle, escapesRoot } from "./confinement.js";
 export type { ContextResult, ContextRunOptions } from "./context/run.js";
 export { runContext } from "./context/run.js";
 export { FrontmatterEdits, UnsupportedFrontmatterError } from "./edits/FrontmatterEdits.js";
@@ -33,6 +34,7 @@ export {
 	VerifyContentUnhashableError,
 	VerifyNothingToRevokeError,
 	VerifySelectionError,
+	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "./errors.js";
 export type { ExternalReferencesShape } from "./external/ExternalReferences.js";
@@ -41,7 +43,7 @@ export type { GraphRunOptions, GraphRunResult } from "./graph/run.js";
 export { runGraph } from "./graph/run.js";
 export type { ScaffoldFile, ScaffoldOptions } from "./init/scaffold.js";
 export { CONFIG_RELATIVE_PATH, configValue, files, targetPaths } from "./init/scaffold.js";
-export type { Reference, UnlocatableReference } from "./move/references.js";
+export type { Reference, ReferenceSource, UnlocatableReference } from "./move/references.js";
 export { referencesOf, rewriteReference } from "./move/references.js";
 export type { MovePlan, PlanError, PlanMoveOptions, RunMoveOptions } from "./move/run.js";
 export { planMove, runMove } from "./move/run.js";
@@ -85,13 +87,14 @@ export {
 	queryGetEnvelope,
 	queryListEnvelope,
 	queryNeighborsEnvelope,
+	rawStatusOf,
 	signalFor,
 	toConceptSummary,
 	toTrustDrift,
 } from "./render/query.js";
 export type { DiagnosticSource, RenderedDiagnostic } from "./render/sort.js";
 export { collect, sort } from "./render/sort.js";
-export { StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
+export { MalformedStaleItem, StaleEnvelope, StaleItem, StaleSummary, staleEnvelope } from "./render/stale.js";
 export { PublicationEnvelope, SyncEnvelope, SyncModeEnvelope, syncEnvelope } from "./render/sync.js";
 export {
 	RevokeEnvelope,

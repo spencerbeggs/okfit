@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Core
-description: The no-internal-deps base package -- OKF v0.2 frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
+description: The no-internal-deps base package -- OKF frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
 status: stable
 resource: ../../packages/core
 kind: package
@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: 677b436b274fd04d
+    body: 7a1f05b697623322
 ---
 
 # Core
@@ -20,7 +20,7 @@ integrity:
 ## Purpose
 
 `@okfit/core` is the no-internal-deps base package; every other `@okfit/*`
-package depends on it (`packages/core/CLAUDE.md:1-5`). It owns OKF v0.2
+package depends on it (`packages/core/CLAUDE.md:1-5`). It owns OKF
 frontmatter schemas, bundle loading, the link graph, derivation (trust tier,
 staleness, index and log rendering), and conformance validation.
 
@@ -85,14 +85,15 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-thirty-five keys, including `generated_at_drift`, `generated_missing` and the
-seven added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
+thirty-eight keys, including `generated_at_drift`, `generated_missing` and the
+ten added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
 `value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,
-`symlink_escape`, all default `warn`), are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
+`symlink_escape`, `superseded_by_orphan` and `superseded_by_unresolved`, all
+default `warn`, and `resource_outside_project`, default `info`), are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
 (issue #73, `internal/lintRules.ts#generatedMissing`) fires only when
 `actors.agent` is set and a concept's frontmatter has no `generated` block
-at all -- surfacing the gap at validate time instead of leaving it to
-`okfit sync`'s post-commit `skipped` report.
+at all (or one written as null, `""` or `[]`) -- surfacing the gap at validate
+time instead of leaving it to `okfit sync`'s post-commit `skipped` report.
 
 ## Diagnostic ranges
 
@@ -157,33 +158,43 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
 - **Status and staleness.** `Derive.status` returns `DerivedStatus`
   (`draft`, `stable`, `deprecated`, `unknown`); `Derive.rawStatus` returns
   the value as written. `Staleness` gains `malformed`, for a `stale_after`
-  that cannot be read: never fresh, never stale. Timestamps accept a
-  date-only `YYYY-MM-DD` as the start of that day in UTC.
+  that cannot be read: never fresh, never stale.
+  `Derive.malformedStaleAfter(bundle)` lists those concepts (`MalformedStaleAfter`
+  `{ id, raw }`, sorted by id). Timestamps accept a date-only `YYYY-MM-DD` as
+  the start of that day in UTC.
 - **`superseded_by`.** A typed string field on `Concept`, a sixth path
   field (`PathField` `superseded_by`) and a graph edge, so `broken-links`
   reports a dangling one and the language server's document links and
-  definition follow it.
+  definition follow it. `superseded-by-orphan` fires on `superseded_by`
+  without `status: deprecated`; `superseded-by-unresolved` fires when a
+  deprecated concept's value resolves to an asset, an external value or the
+  concept itself. `Graph.replacement(bundle, id)` walks a deprecated concept's
+  chain through deprecated concepts and returns the first draft or stable
+  concept, or `None` for a cycle, a dead end, a missing or non-concept target,
+  or an end in an unknown status ([A deprecated concept's replacement is
+  followed](../decisions/superseded-by-is-followed.md)).
 - **Actors.** `team:` is a known scheme (`ActorForm` `team`);
   `actor-prefix-unknown` also checks `sources[].author`, and its message
   lists `human:`, `team:`, `process:` and the producer form.
 - **Computation.** `computationBody` follows the §10.3 locator for a bundle
-  declaring 0.3 or later; `executor.resource`, `executor.receipt` and
-  `attester.resource` are optional; `parameters` decode per entry.
+  declaring 0.3 or later, and finds a fence nested in a list item or block
+  quote; `executor.resource`, `executor.receipt` and `attester.resource` are
+  optional; `parameters` decode per entry. A single mapping whose every key
+  was dropped (`usage_window`, `executor`, `attester`) reads as absent; one
+  written as `{}` is kept. A source's own `usage_window` is decoded as one
+  value, so one bad key drops all of it.
+- **Empty values.** `required-key-missing` treats a key written as null,
+  `""` or `[]` as absent, with the message "is empty" (an unwritten key is "is
+  missing"); `field-value-unknown` and `generated-missing` use the same test,
+  so an empty value is absent for all three.
+- **One document parse.** `Bundle.parseDocument(text)` returns
+  `Result<MarkdownDocument, MarkdownParseError>`; `Bundle.load` and `okfit mv`
+  both parse through it, so the two cannot disagree about what a file is.
 
-### Not done in this phase
+### Not done yet
 
-- `OKF_SPEC_VERSION` is still `"0.2"`, and the config key `okf_version`
-  still only selects what `init` and `sync` write.
 - `Derive.trustTier` is unchanged: it counts every verification event, not
   only those at or after `generated.at` (OKF v0.3 §5.3).
-- Readers of the typed `status` outside core still treat an unknown status
-  as absent: engine `verify/select.ts`, the language server's concepts wire
-  (`features/concepts.ts`) and the VS Code tree show it as `stable`. Only
-  `Derive.status`, `ConceptQuery` and the MCP `get_concept` result report
-  `unknown`.
-- `okfit mv` does not rewrite `superseded_by`, and its computation
-  path-field lookup still reads an `attested` key that does not exist.
-- The engine's cited-resource check still tries the bundle root as a
-  candidate for every bundle, whatever it declares.
-- Prose elsewhere in the bundle and the plugin skills still describe the
-  v0.2 rules.
+- The bundle itself, this repository's `okf/`, still declares
+  `okf_version: '0.2'`, so prose elsewhere in it and the plugin skills still
+  describe the v0.2 rules.

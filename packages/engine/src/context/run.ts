@@ -1,4 +1,5 @@
 import { Effect, FileSystem, Path } from "effect";
+import { escapesRoot } from "../confinement.js";
 
 /** @public */
 export interface ContextRunOptions {
@@ -23,6 +24,12 @@ export interface ContextResult {
  * profile-less merge (`profile = "none"`) has no layout to read from at
  * all — `context` behaves identically with and without a profile.
  *
+ * A root `index.md` that is a symbolic link out of the bundle (or dangling)
+ * is reported absent (OKF 0.3 section 3.2): the answer is trusted by the
+ * session-start hook, which prints the file into an agent's context. The
+ * check is `escapesRoot`, an `lstat` plus a real-path confinement: still no
+ * bundle load, and an escaping link's target is never read (its real path may be resolved to decide containment).
+ *
  * `exists` is `(path) => Effect.Effect<boolean, PlatformError>`, so an
  * unreadable parent directory would otherwise fail the command; here it is
  * absorbed to `false`, because "the hook could not stat index.md" and
@@ -38,6 +45,7 @@ export const runContext = (
 		const path = yield* Path.Path;
 		const fs = yield* FileSystem.FileSystem;
 		const indexPath = path.join(options.bundleRoot, "index.md");
-		const indexExists = yield* fs.exists(indexPath).pipe(Effect.orElseSucceed(() => false));
+		const escapes = yield* escapesRoot(options.bundleRoot, "index.md").pipe(Effect.orElseSucceed(() => true));
+		const indexExists = escapes ? false : yield* fs.exists(indexPath).pipe(Effect.orElseSucceed(() => false));
 		return { indexPath, indexExists };
 	});

@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument } from "@effected/markdown";
+import type { MemoryFileSystemSeed } from "@effected/memfs";
+import { MemoryFileSystem } from "@effected/memfs";
 import {
+	Bundle,
 	Concept,
 	ConceptId,
 	DiagnosticRange,
@@ -15,9 +18,11 @@ import {
 	LogItem,
 } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
-import { DateTime, Effect, Layer, Option, Result } from "effect";
+import { DateTime, Effect, FileSystem, Layer, Option, Result } from "effect";
 import type { LogAddition } from "../../src/sync/log.js";
 import { logWindow, mergeLog, syncLog, wantsLogEntry } from "../../src/sync/log.js";
+import { V03_PROJECT } from "../fixtures/bundles.js";
+import { ROOT, denyAccess, mountProject, seedPlatform } from "../utils/bundle.js";
 
 /**
  * One `## <date>` group as it would come out of `Bundle.load`'s
@@ -422,5 +427,66 @@ describe("syncLog", () => {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
 		}).pipe(Effect.provide(platform)),
+	);
+});
+
+describe("syncLog: a log.md linked out of the bundle (OKF 0.3 section 3.2 rule 5)", () => {
+	const REVENUE = Option.getOrThrow(ConceptId.normalize("metrics/revenue.md"));
+	const provenance = new Map([
+		[REVENUE, { _tag: "committed", at: DateTime.makeUnsafe("2026-09-16T10:00:00Z"), creating: true } as const],
+	]);
+	const seedFor = (log: MemoryFileSystemSeed): MemoryFileSystemSeed => ({
+		...mountProject(V03_PROJECT),
+		"/outside/log.md": "# Outside log\n",
+		...log,
+	});
+	const links = {
+		escaping: { [`${ROOT}/log.md`]: MemoryFileSystem.symlink("/outside/log.md") },
+		dangling: { [`${ROOT}/log.md`]: MemoryFileSystem.symlink("/outside/missing-log.md") },
+	} as const;
+
+	for (const kind of ["escaping", "dangling"] as const) {
+		for (const dryRun of [false, true]) {
+			it.effect(`skips a ${kind} log.md and never touches the link (dryRun ${dryRun})`, () => {
+				const touched: Array<string> = [];
+				return Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					// Positive control: the guard is armed.
+					const probe = yield* Effect.flip(fs.readFileString("/outside/log.md"));
+					assert.strictEqual(probe._tag, "PlatformError");
+					assert.strictEqual(touched.length, 1);
+					touched.length = 0;
+					const bundle = yield* Bundle.load({ root: ROOT });
+					const pending: Array<{ target: string; contents: string }> = [];
+					const result = yield* syncLog(bundle, provenance, dryRun, undefined, pending);
+					assert.deepStrictEqual(result.skipped, [{ id: "log.md", reason: "symlink-escape" }]);
+					assert.deepStrictEqual(result.written, []);
+					assert.deepStrictEqual(result.unchanged, []);
+					assert.deepStrictEqual(pending, []);
+					assert.deepStrictEqual(touched, []);
+				}).pipe(Effect.provide(seedPlatform(seedFor(links[kind]), denyAccess(touched, [`${ROOT}/log.md`]))));
+			});
+		}
+	}
+
+	it.effect("leaves the file an escaping log.md points at unchanged", () =>
+		Effect.gen(function* () {
+			const fs = yield* FileSystem.FileSystem;
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const result = yield* syncLog(bundle, provenance, false);
+			assert.deepStrictEqual(result.skipped, [{ id: "log.md", reason: "symlink-escape" }]);
+			assert.strictEqual(yield* fs.readFileString("/outside/log.md"), "# Outside log\n");
+		}).pipe(Effect.provide(seedPlatform(seedFor(links.escaping)))),
+	);
+
+	it.effect("control: a plain log.md is merged", () =>
+		Effect.gen(function* () {
+			const fs = yield* FileSystem.FileSystem;
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const result = yield* syncLog(bundle, provenance, false);
+			assert.deepStrictEqual(result.written, ["log.md"]);
+			assert.deepStrictEqual(result.skipped, []);
+			assert.include(yield* fs.readFileString(`${ROOT}/log.md`), "Added Revenue");
+		}).pipe(Effect.provide(seedPlatform(seedFor({ [`${ROOT}/log.md`]: "# Log\n" })))),
 	);
 });

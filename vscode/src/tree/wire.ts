@@ -12,7 +12,20 @@ export interface ConceptSummary {
 	readonly uri: string;
 	readonly title: string;
 	readonly type: string;
-	readonly status: "draft" | "stable" | "deprecated" | undefined;
+	/**
+	 * The derived status (OKF 0.3 section 5.4): `draft`, `stable`, `deprecated`, or `unknown` for a `status`
+	 * outside the vocabulary. Typed as an optional string because a workspace server that predates the field sends
+	 * the raw frontmatter value (a string outside the four, or nothing when the concept has no status line);
+	 * `normalizeStatus` in `tree/model.ts` reads it.
+	 */
+	readonly status?: string | undefined;
+	/** The `status` as written, as text, when `status` is `unknown`. */
+	readonly rawStatus?: string | undefined;
+	/**
+	 * Whether the concept writes a `status`. Absent from a workspace server that predates it; `writtenStatus` in
+	 * `tree/model.ts` then falls back to whether `status` was sent at all.
+	 */
+	readonly explicitStatus?: boolean | undefined;
 	readonly stale: boolean;
 	/** The trust tier as of the last revalidate. */
 	readonly tier: "unverified" | "machine-confirmed" | "human-reviewed";

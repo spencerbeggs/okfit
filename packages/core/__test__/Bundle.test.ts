@@ -196,6 +196,101 @@ describe("Bundle.load", () => {
 				assert.strictEqual(bundle.concepts.get(id("both"))?.frontmatter.attested?.computation, "queries/q.sql");
 			}),
 	);
+	// OKF 0.3 10.3 says "the first fenced code block in the section". Where the text does not settle a case,
+	// the most literal reading is taken: a fenced code block (CommonMark: a code node opened by a fence, in any
+	// container) counts; an indented code block, an HTML block or comment, and prose do not; source order decides
+	// "first"; a deeper sub-heading does not end the section (sectionByHeading keeps its subsections).
+	const NESTED: Record<string, string> = {
+		listed: "# Computation\n\n- step one\n\n  ```sql\n  SELECT 4\n  ```\n",
+		quoted: "# Computation\n\n> ```sql\n> SELECT 5\n> ```\n",
+		deep: "# Computation\n\n> - step\n>\n>   ```sql\n>   SELECT 6\n>   ```\n",
+		listBody: "# Computation\n\n- step\n\n  ```sql\n  SELECT a\n    FROM t\n      WHERE x\n  ```\n",
+		quoteBody: "# Computation\n\n> ```sql\n> SELECT a\n>   FROM t\n>     WHERE x\n> ```\n",
+		nestedFirst: "# Computation\n\n- step\n\n  ```sql\n  SELECT 4\n  ```\n\n```sql\nSELECT 1\n```\n",
+		rootFirst: "# Computation\n\n```sql\nSELECT 1\n```\n\n- step\n\n  ```sql\n  SELECT 4\n  ```\n",
+		indentedNested: "# Computation\n\n- step\n\n      SELECT 9\n\n  ```sql\n  SELECT 4\n  ```\n",
+		indentedOnly: "# Computation\n\n- step\n\n      SELECT 9\n",
+		subheading: "# Computation\n\nprose\n\n## Query\n\n- step\n\n  ```sql\n  SELECT 4\n  ```\n",
+		tilde: "# Computation\n\n- step\n\n  ~~~sql\n  SELECT 4\n  ~~~\n",
+		attrs: "# Computation\n\n- step\n\n  ```sql {a=1} title=x\n  SELECT 4\n  ```\n",
+		empty: "# Computation\n\n- step\n\n  ```\n  ```\n",
+		html: "# Computation\n\n<div>\n\n```sql\nSELECT 7\n```\n\n</div>\n",
+		htmlOnly: "# Computation\n\n<!--\n```sql\nSELECT 7\n```\n-->\n",
+		htmlThenFence: "# Computation\n\n<!--\n```sql\nSELECT 7\n```\n-->\n\n- step\n\n  ```sql\n  SELECT 4\n  ```\n",
+		afterSection: "# Computation\n\nnone here\n\n# Next\n\n- step\n\n  ```sql\n  SELECT 3\n  ```\n",
+	};
+	const nestedFiles = (version: string) => ({
+		[`${MOUNT}/index.md`]: `---\nokf_version: "${version}"\n---\n\n# Index\n`,
+		...Object.fromEntries(
+			Object.entries(NESTED).map(([name, text]) => [
+				`${MOUNT}/${name}.md`,
+				`---\ntype: Attested Computation\nruntime: bigquery\n---\n\n${text}`,
+			]),
+		),
+	});
+	it.effect("0.3: a fence nested in a list item or block quote of the Computation section is found (R17)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(
+					platform({
+						...computations('okf_version: "0.3"'),
+						[`${MOUNT}/listed.md`]: `---\ntype: Attested Computation\nruntime: bigquery\n---\n\n${NESTED.listed}`,
+						[`${MOUNT}/quoted.md`]: `---\ntype: Attested Computation\nruntime: bigquery\n---\n\n${NESTED.quoted}`,
+					}),
+				),
+			);
+			assert.deepStrictEqual(body(bundle, "listed"), Option.some("SELECT 4"));
+			assert.deepStrictEqual(body(bundle, "quoted"), Option.some("SELECT 5"));
+			assert.deepStrictEqual(body(bundle, "h2"), Option.some("SELECT 1")); // control: phase 1's root-level case
+			assert.isTrue(Option.isNone(body(bundle, "after"))); // control: a fence after the section is not taken
+		}),
+	);
+	it.effect("0.3: nested fences, their text, and the cases the spec text leaves open (R17)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT }).pipe(Effect.provide(platform(nestedFiles("0.3"))));
+			const raw = (name: string) => Option.map(bundle.concepts.get(id(name))?.computationBody ?? Option.none(), String);
+			// two levels deep: a list inside a block quote
+			assert.deepStrictEqual(body(bundle, "deep"), Option.some("SELECT 6"));
+			// the body is the code as written: container indentation and `> ` removed, inner indentation kept
+			assert.deepStrictEqual(raw("listBody"), Option.some("SELECT a\n  FROM t\n    WHERE x\n"));
+			assert.deepStrictEqual(raw("quoteBody"), Option.some("SELECT a\n  FROM t\n    WHERE x\n"));
+			// source order decides "first": the nested fence precedes the root one, and the reverse (control)
+			assert.deepStrictEqual(body(bundle, "nestedFirst"), Option.some("SELECT 4"));
+			assert.deepStrictEqual(body(bundle, "rootFirst"), Option.some("SELECT 1"));
+			// an indented block (not fenced) before a real fence is skipped; alone it is no computation (control)
+			assert.deepStrictEqual(body(bundle, "indentedNested"), Option.some("SELECT 4"));
+			assert.isTrue(Option.isNone(body(bundle, "indentedOnly")));
+			// a deeper sub-heading does not end the section (phase 1's reading, kept)
+			assert.deepStrictEqual(body(bundle, "subheading"), Option.some("SELECT 4"));
+			// `~~~`, an info string with attributes, and an empty fence
+			assert.deepStrictEqual(body(bundle, "tilde"), Option.some("SELECT 4"));
+			assert.deepStrictEqual(body(bundle, "attrs"), Option.some("SELECT 4"));
+			assert.deepStrictEqual(body(bundle, "empty"), Option.some(""));
+			// a fence inside an HTML block or comment is not a fenced code block; a real fence after it is found
+			assert.isTrue(Option.isNone(body(bundle, "htmlOnly")));
+			assert.deepStrictEqual(body(bundle, "html"), Option.some("SELECT 7")); // control: the HTML block ends at the blank line
+			assert.deepStrictEqual(body(bundle, "htmlThenFence"), Option.some("SELECT 4"));
+			// a fence after the section ends is not taken
+			assert.isTrue(Option.isNone(body(bundle, "afterSection")));
+		}),
+	);
+	it.effect("0.2 and undeclared: the same nested cases read exactly as before (the depth-1 section body)", () =>
+		Effect.gen(function* () {
+			for (const files of [nestedFiles("0.2"), (({ [`${MOUNT}/index.md`]: _, ...rest }) => rest)(nestedFiles("0.2"))]) {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(Effect.provide(platform(files)));
+				const legacy = (name: string) => body(bundle, name);
+				assert.deepStrictEqual(legacy("listed"), Option.some("- step one\n\n  ```sql\n  SELECT 4\n  ```"));
+				assert.deepStrictEqual(legacy("quoted"), Option.some("> ```sql\n> SELECT 5\n> ```"));
+				assert.deepStrictEqual(legacy("deep"), Option.some("> - step\n>\n>   ```sql\n>   SELECT 6\n>   ```"));
+				assert.deepStrictEqual(
+					legacy("rootFirst"),
+					Option.some("```sql\nSELECT 1\n```\n\n- step\n\n  ```sql\n  SELECT 4\n  ```"),
+				);
+				assert.deepStrictEqual(legacy("indentedOnly"), Option.some("- step\n\n      SELECT 9"));
+				assert.deepStrictEqual(legacy("afterSection"), Option.some("none here"));
+			}
+		}),
+	);
 	it.effect("0.2 or undeclared: the depth-1 Computation section's body, as before (owner ruling 3)", () =>
 		Effect.gen(function* () {
 			for (const frontmatter of [undefined, 'okf_version: "0.2"']) {

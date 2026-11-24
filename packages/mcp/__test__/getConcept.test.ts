@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
+import type { Scope } from "effect";
 import { Effect } from "effect";
-import { copyFixtureProject } from "./utils/fixtureProject.js";
+import { copyFixtureProject, copySupersededProject, copyUnknownStatusProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
 import { assertConceptNotFound } from "./utils/notFound.js";
 
@@ -36,7 +37,70 @@ const get = (id: string) =>
 		return yield* harness.callTool("get_concept", { id });
 	});
 
+const getFrom = (project: Effect.Effect<string, never, Scope.Scope>, id: string) =>
+	Effect.gen(function* () {
+		const root = yield* project;
+		const harness = yield* makeHarness(root);
+		yield* harness.initialize;
+		return (yield* harness.callTool("get_concept", { id })).structuredContent as {
+			readonly replacement: string | null;
+		};
+	});
+
+describe("get_concept on a status outside the vocabulary (OKF 0.3 5.4)", () => {
+	const statusOf = (id: string) =>
+		Effect.gen(function* () {
+			const root = yield* copyUnknownStatusProject;
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			return (yield* harness.callTool("get_concept", { id })).structuredContent as {
+				readonly status: string;
+				readonly raw_status: string | null;
+			};
+		});
+
+	it.effect("reports status unknown with raw_status, and null raw_status for stable, blank and draft", () =>
+		Effect.gen(function* () {
+			const archived = yield* statusOf("metrics/archived");
+			assert.deepStrictEqual(
+				{ status: archived.status, raw_status: archived.raw_status },
+				{ status: "unknown", raw_status: "archived" },
+			);
+			const numbered = yield* statusOf("metrics/numbered");
+			assert.deepStrictEqual(
+				{ status: numbered.status, raw_status: numbered.raw_status },
+				{ status: "unknown", raw_status: "5" },
+			);
+			const blank = yield* statusOf("metrics/blank");
+			assert.deepStrictEqual(
+				{ status: blank.status, raw_status: blank.raw_status },
+				{ status: "stable", raw_status: null },
+			);
+			const draft = yield* statusOf("metrics/churn");
+			assert.deepStrictEqual(
+				{ status: draft.status, raw_status: draft.raw_status },
+				{ status: "draft", raw_status: null },
+			);
+		}).pipe(Effect.scoped),
+	);
+});
+
 describe("get_concept", () => {
+	it.effect("reports the replacement of a deprecated concept and null for a current one (OKF 0.3 5.4)", () =>
+		Effect.gen(function* () {
+			assert.strictEqual(
+				(yield* getFrom(copySupersededProject, "metrics/gross-margin-legacy")).replacement,
+				"metrics/gross-margin",
+			);
+			assert.strictEqual((yield* getFrom(copySupersededProject, "metrics/gross-margin")).replacement, null);
+			// control: the unmodified fixture's deprecated concept names no replacement
+			assert.strictEqual(
+				(yield* getFrom(copyFixtureProject("project"), "metrics/gross-margin-legacy")).replacement,
+				null,
+			);
+		}).pipe(Effect.scoped),
+	);
+
 	it.effect("returns frontmatter, raw text, path and links for a known id", () =>
 		Effect.gen(function* () {
 			const result = yield* get("metrics/revenue");

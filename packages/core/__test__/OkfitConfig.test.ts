@@ -86,16 +86,23 @@ describe("OkfitConfig", () => {
 			assert.throws(() => decodeConfig({ actors: { agent: "not an actor" } }));
 		}),
 	);
+	it("a file config okf_version still merges over DEFAULTS", () => {
+		const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, { okf_version: "0.3", extensions: {} });
+		assert.strictEqual(merged.okf_version, "0.3");
+		// control: without the file key nothing is merged in
+		assert.isUndefined(OkfitConfig.merge(OkfitConfig.DEFAULTS, { extensions: {} }).okf_version);
+	});
 	it("DEFAULTS carries the spec 4.2 and D-34 values", () => {
 		const d = OkfitConfig.DEFAULTS;
-		assert.strictEqual(d.okf_version, "0.2");
+		// R4: the bundle's own declaration decides how it is read, so no default is stamped on it
+		assert.isFalse("okf_version" in d);
 		assert.deepStrictEqual(d.bundle, { path: "okf", profile: "software-project" });
 		assert.deepStrictEqual(d.concepts, { required: [], tags: { required: [] } });
 		same(d.lifecycle!.default_stale_after!, Duration.days(90));
 		assert.deepStrictEqual([d.actors, d.types, d.tags, d.extensions], [{ humans: [] }, {}, {}, {}]);
 		assert.deepStrictEqual(
 			[d.lint!.broken_links, d.lint!.unknown_type, d.lint!.legacy_timestamp, Object.keys(d.lint!).length],
-			["warn", "error", "info", 35],
+			["warn", "error", "info", 38],
 		);
 	});
 	it("merge: DEFAULTS < profile < file, arrays replace, tables merge, inputs untouched", () => {

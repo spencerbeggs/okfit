@@ -9,6 +9,7 @@ import {
 	browserInit,
 	browserStep,
 	cycle,
+	detailHeader,
 	filterRows,
 	groupByType,
 	visibleRows,
@@ -21,11 +22,13 @@ const summary = (id: string, type: string, extra: Partial<ConceptSummary> = {}):
 	title: `Title ${id}`,
 	description: null,
 	status: "stable",
+	raw_status: null,
 	tags: [],
 	path: `${id}.md`,
 	tier: "unverified",
 	integrity: "none",
 	stale: false,
+	staleness: "fresh",
 	...extra,
 });
 
@@ -282,4 +285,20 @@ describe("browser screen", () => {
 			}),
 		),
 	);
+});
+
+describe("detailHeader status (OKF 0.3 5.4)", () => {
+	const header = (extra: Partial<ConceptSummary>): string =>
+		detailHeader({
+			summary: summary("a", "Decision", extra),
+			body: "",
+			verified: [],
+			outgoing: [],
+			incoming: [],
+		}).join("\n");
+
+	it("shows unknown(<raw>) for a status outside the vocabulary, the plain status otherwise", () => {
+		assert.include(header({ status: "unknown", raw_status: "archived" }), "status: unknown(archived)  tier:");
+		assert.include(header({ status: "draft" }), "status: draft  tier:");
+	});
 });

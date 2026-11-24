@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 import type { ConceptSummary } from "../src/index.js";
-import { copyFixtureProject } from "./utils/fixtureProject.js";
+import { copyFixtureProject, copySupersededProject, copyUnknownStatusProject } from "./utils/fixtureProject.js";
 import { makeHarness } from "./utils/harness.js";
 
 interface ListResult {
@@ -21,6 +21,63 @@ const ok = (result: { readonly isError?: boolean; readonly structuredContent?: u
 	assert.notOk(result.isError);
 	return result.structuredContent as ListResult;
 };
+
+describe("list_concepts current", () => {
+	it.effect("current: true drops the deprecated concept and lists its replacement (OKF 0.3 5.4)", () =>
+		Effect.gen(function* () {
+			const root = yield* copySupersededProject;
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			const all = ok(yield* harness.callTool("list_concepts", {}));
+			assert.ok(all.items.some((item) => item.id === "metrics/gross-margin-legacy"));
+			const current = ok(yield* harness.callTool("list_concepts", { current: true }));
+			assert.notOk(current.items.some((item) => item.id === "metrics/gross-margin-legacy"));
+			assert.strictEqual(current.items.filter((item) => item.id === "metrics/gross-margin").length, 1);
+			assert.strictEqual(current.total, all.total - 1);
+			// a type filter the replacement fails leaves it out
+			const policies = ok(yield* harness.callTool("list_concepts", { current: true, type: "Policy" }));
+			assert.notOk(policies.items.some((item) => item.id === "metrics/gross-margin"));
+			assert.ok(policies.total > 0);
+		}).pipe(Effect.scoped),
+	);
+});
+
+describe("list_concepts on a status outside the vocabulary (OKF 0.3 5.4)", () => {
+	it.effect("summaries carry raw_status for an unknown status and null otherwise", () =>
+		Effect.gen(function* () {
+			const root = yield* copyUnknownStatusProject;
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			const all = ok(yield* harness.callTool("list_concepts", {}));
+			const pick = (id: string) => {
+				const item = all.items.find((candidate) => candidate.id === id) as unknown as {
+					readonly status: string;
+					readonly raw_status: string | null;
+				};
+				return { status: item.status, raw_status: item.raw_status };
+			};
+			assert.deepStrictEqual(pick("metrics/archived"), { status: "unknown", raw_status: "archived" });
+			assert.deepStrictEqual(pick("metrics/numbered"), { status: "unknown", raw_status: "5" });
+			assert.deepStrictEqual(pick("metrics/blank"), { status: "stable", raw_status: null });
+			assert.deepStrictEqual(pick("metrics/churn"), { status: "draft", raw_status: null });
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("status: unknown lists only the unknown concepts; status: stable drops them", () =>
+		Effect.gen(function* () {
+			const root = yield* copyUnknownStatusProject;
+			const harness = yield* makeHarness(root);
+			yield* harness.initialize;
+			const unknown = ok(yield* harness.callTool("list_concepts", { status: "unknown" }));
+			assert.deepStrictEqual(unknown.items.map((item) => item.id).sort(), ["metrics/archived", "metrics/numbered"]);
+			const stable = ok(yield* harness.callTool("list_concepts", { status: "stable" }));
+			const ids = stable.items.map((item) => item.id);
+			assert.include(ids, "metrics/blank");
+			assert.notInclude(ids, "metrics/archived");
+			assert.notInclude(ids, "metrics/numbered");
+		}).pipe(Effect.scoped),
+	);
+});
 
 describe("list_concepts", () => {
 	it.effect("returns every concept with no filters and total equal to the bundle's concept count", () =>

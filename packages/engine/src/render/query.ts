@@ -1,5 +1,5 @@
 import type { LoadedConcept } from "@okfit/core";
-import { Derive, DerivedStatus, GraphNodeKind } from "@okfit/core";
+import { Derive, DerivedStatus, GraphNodeKind, Staleness } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { DriftReason } from "@okfit/profiles";
 import { Schema } from "effect";
@@ -22,21 +22,29 @@ export const TrustDrift = Schema.Struct({
 /** @public */
 export type TrustDrift = typeof TrustDrift.Type;
 
-/** The ten-field shape every list-like query result carries: identity plus the trust signal (N-16). @public */
+/** The eleven-field shape every list-like query result carries: identity plus the trust signal (N-16). @public */
 export const ConceptSummary = Schema.Struct({
 	id: Schema.String,
 	type: Schema.String,
 	title: Schema.String,
 	description: Schema.NullOr(Schema.String),
 	status: DerivedStatus,
+	/** The `status` as written, as text, when the derived status is `unknown` (OKF 0.3 section 5.4); `null` otherwise. */
+	raw_status: Schema.NullOr(Schema.String),
 	tags: Schema.Array(Schema.String),
 	path: Schema.String,
 	tier: Schema.Literals(["unverified", "machine-confirmed", "human-reviewed"]),
 	integrity: Schema.Literals(["current", "drifted", "none"]),
 	stale: Schema.Boolean,
+	/** `Derive.staleness`: `malformed` is an unreadable `stale_after`, never fresh and never stale (OKF 0.3 section 5.5). */
+	staleness: Staleness,
 });
 /** @public */
 export type ConceptSummary = typeof ConceptSummary.Type;
+
+/** `Derive.rawStatus` when the derived status is `unknown`, else `null` (OKF 0.3 section 5.4: show the raw value). @public */
+export const rawStatusOf = (concept: LoadedConcept): string | null =>
+	Derive.status(concept.frontmatter) === "unknown" ? (Derive.rawStatus(concept.frontmatter) ?? null) : null;
 
 /** Project one loaded concept and its trust signal into its summary. @public */
 export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal): ConceptSummary => ({
@@ -45,11 +53,13 @@ export const toConceptSummary = (concept: LoadedConcept, signal: ConceptSignal):
 	title: Derive.title(concept),
 	description: concept.frontmatter.description ?? null,
 	status: Derive.status(concept.frontmatter),
+	raw_status: rawStatusOf(concept),
 	tags: [...(concept.frontmatter.tags ?? [])],
 	path: concept.path,
 	tier: signal.tier,
 	integrity: signal.integrity,
 	stale: signal.stale,
+	staleness: signal.staleness,
 });
 
 /**
@@ -106,6 +116,8 @@ export const QueryGetEnvelope = Schema.Struct({
 	concept: Schema.Struct({
 		...ConceptSummary.fields,
 		drift: Schema.NullOr(TrustDrift),
+		/** The concept that replaces a deprecated one (OKF 0.3 section 5.4), or `null`. */
+		replacement: Schema.NullOr(Schema.String),
 		frontmatter: Schema.Record(Schema.String, Schema.Unknown),
 		links: Schema.Array(QueryLink),
 	}),
@@ -155,6 +167,8 @@ export const queryGetEnvelope = (input: {
 	readonly okfitVersion: string;
 	readonly concept: ConceptSummary;
 	readonly drift: TrustDrift | null;
+	/** The current replacement of a deprecated concept; omitted reads as `null`. */
+	readonly replacement?: string | null;
 	readonly frontmatter: Readonly<Record<string, unknown>>;
 	readonly links: ReadonlyArray<QueryLink>;
 	readonly distribution?: Distribution;
@@ -163,7 +177,13 @@ export const queryGetEnvelope = (input: {
 	okfit_version: input.okfitVersion,
 	engine_version: ENGINE_VERSION,
 	distribution: input.distribution ?? null,
-	concept: { ...input.concept, drift: input.drift, frontmatter: input.frontmatter, links: input.links },
+	concept: {
+		...input.concept,
+		drift: input.drift,
+		replacement: input.replacement ?? null,
+		frontmatter: input.frontmatter,
+		links: input.links,
+	},
 });
 
 /** Build the neighbors envelope. @public */

@@ -15,15 +15,17 @@ src/
   platform.ts           -- OKFIT_APP_NAMESPACE, OkfitPlatform: the one XDG/Node
                             platform layer both front ends provide
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
-                             VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError,
+                             VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
+  confinement.ts           -- escapesRoot, escapesBundle: a reserved index.md/log.md symlinked out of the
+                               bundle (lstat + confineReal; a dangling link counts); shared by sync, context, MCP
   context/
-    run.ts                 -- runContext: index.md stat only, never Bundle.load
+    run.ts                 -- runContext: index.md lstat/stat only, never Bundle.load; an escaping index is absent
   trust/
     run.ts                 -- runContextTrust: the opt-in `context --trust` summary (loads the bundle; kept
                                out of context/ so run.ts stays bundle-free)
@@ -36,7 +38,11 @@ src/
     ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
                                  (phase 7 adds layerHttp)
   validate/
-    run.ts                 -- Now (Context.Service), RunOptions, RunResult, run
+    run.ts                 -- Now (Context.Service), RunOptions (projectRoot required), RunResult, run
+    repository.ts           -- withinRoot, resourceCandidates, locateResource: a repository `resource` is
+                                checked only inside the project root (R1); resource-outside-project
+    resources.ts / untracked.ts / surfaces.ts -- lintResources, lintUntrackedResources, lintSurfaces
+                                (each takes projectRoot)
   query/
     ConceptQuery.ts          -- ConceptFilter, ConceptLink, ConceptNeighbor, ConceptQuery.list/get/neighbors
                                 (read-only bundle queries; the MCP tools and `okfit query` share them)
@@ -55,10 +61,12 @@ src/
     resolve.ts               -- Targets.resolve/suggest, ResolvedTarget: the shared concept-target resolver
                                 (absolute, cwd-relative, id; all or nothing)
   move/
-    references.ts           -- Reference, referencesOf, rewriteReference: find every reference in a concept
-                                (body links, images, definitions; path-valued frontmatter; renders[].path) and
-                                rewrite one keeping its spelling (pure)
-    run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing
+    references.ts           -- Reference, ReferenceSource, referencesOf, rewriteReference: find every reference in a
+                                concept or other parsed file (body links, images, definitions; path-valued
+                                frontmatter; renders[].path) and rewrite one keeping its spelling (pure)
+    run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing; also scans
+                                and rewrites links in `.md` files that are not concepts (no frontmatter or no
+                                `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter)
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)

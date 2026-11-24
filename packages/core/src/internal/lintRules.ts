@@ -7,7 +7,9 @@ import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { LinkGraph } from "../Graph.js";
+import { Graph } from "../Graph.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
+import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
 
 /** Everything one lint rule may read; built once per `Validate.lint` call. */
@@ -22,7 +24,8 @@ export interface LintContext {
 /** One function per lint code (D-34). */
 export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 
-const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && raw[key] !== null;
+/** OKF 0.3 §11.2 rule 1: a key holding null, the empty string or the empty list is absent. */
+const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && !isAbsent(raw[key]);
 
 const diagnostic = (
 	file: string,
@@ -75,7 +78,14 @@ export const unknownType: LintRule = perConcept("unknown-type", (concept, contex
 export const requiredKeyMissing: LintRule = perConcept("required-key-missing", (concept, context) => {
 	const declared = context.config.types?.[concept.frontmatter.type]?.required ?? [];
 	const keys = [...new Set([...(context.config.concepts?.required ?? []), ...declared])];
-	return keys.filter((key) => !present(concept.frontmatter.raw, key)).map((key) => `Required key "${key}" is missing`);
+	const raw = concept.frontmatter.raw;
+	// Empty and missing share one code (R16); only the wording differs, and the range sits on the key when it is written.
+	return keys
+		.filter((key) => !present(raw, key))
+		.map((key) => ({
+			message: `Required key "${key}" is ${Object.hasOwn(raw, key) ? "empty" : "missing"}`,
+			path: [key],
+		}));
 });
 
 export const fieldValueUnknown: LintRule = perConcept("field-value-unknown", (concept, context) => {
@@ -382,6 +392,41 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 	return [...dangling, ...anchors];
 });
 
+// OKF 0.3 5.4: `superseded_by` has a meaning only with `status: deprecated`. The derived status is read, so an
+// out-of-vocabulary status (`unknown`) is not deprecated; an absent, empty or non-string value is never typed here.
+export const supersededByOrphan: LintRule = perConcept("superseded-by-orphan", (concept) =>
+	concept.frontmatter.superseded_by !== undefined && Derive.status(concept.frontmatter) !== "deprecated"
+		? [
+				{
+					message: `superseded_by is set but status is not deprecated; it has a meaning only with status: deprecated`,
+					path: ["superseded_by"],
+				},
+			]
+		: [],
+);
+
+// OKF 0.3 5.4: a deprecated concept's replacement must be a concept. A missing target is `broken-links`' defect.
+export const supersededByUnresolved: LintRule = perConcept("superseded-by-unresolved", (concept, context) => {
+	const raw = concept.frontmatter.superseded_by;
+	if (raw === undefined || Derive.status(concept.frontmatter) !== "deprecated") return [];
+	const resolved = Graph.resolve(context.bundle, concept.path, raw, "superseded_by");
+	const reason =
+		resolved._tag === "node"
+			? resolved.kind === "missing"
+				? undefined
+				: resolved.kind === "file"
+					? "a file that is not a concept"
+					: resolved.id === (concept.id as string)
+						? "the concept itself"
+						: undefined
+			: resolved._tag === "self"
+				? "the concept itself"
+				: "an external value";
+	return reason === undefined
+		? []
+		: [{ message: `superseded_by "${raw}" resolves to ${reason}, not a replacement concept`, path: ["superseded_by"] }];
+});
+
 export const missingIndex: LintRule = rule("missing-index", (context, severity) =>
 	Derive.indexDirectories(context.bundle)
 		.filter((dir) => !context.bundle.indexes.has(dir))
@@ -406,6 +451,8 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	footnoteSourceUnknown,
 	footnoteUndefined,
 	brokenLinks,
+	supersededByOrphan,
+	supersededByUnresolved,
 	missingIndex,
 	stale,
 ];

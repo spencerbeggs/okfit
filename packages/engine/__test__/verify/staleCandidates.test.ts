@@ -24,6 +24,7 @@ describe("selectStaleCandidates (issue #228)", () => {
 					["decisions/old.md", doc("Decision", `${stale}status: deprecated\n`)],
 					["decisions/fresh.md", doc("Decision", 'stale_after: "2099-01-01T00:00:00Z"\n')],
 					["mod.md", doc("Module", stale)],
+					["bad.md", doc("Module", "stale_after: next tuesday\n")],
 				];
 				for (const [name, text] of files) yield* Effect.promise(() => writeFile(join(root, name), text));
 				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
@@ -36,6 +37,12 @@ describe("selectStaleCandidates (issue #228)", () => {
 						["mod", "Module", 0, "none"],
 					],
 				);
+				// an unreadable stale_after is reported as malformed and never offered for re-verify (OKF 0.3 section 5.5)
+				assert.deepStrictEqual(
+					Derive.malformedStaleAfter(bundle).map((m) => [m.id, m.raw]),
+					[["bad", "next tuesday"]],
+				);
+				assert.notOk(rows.some((row) => row.id === "bad"));
 				assert.deepStrictEqual(
 					rows.map((row) => [row.path, row.boundAt]),
 					[

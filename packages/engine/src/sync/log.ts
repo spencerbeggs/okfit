@@ -1,6 +1,7 @@
 import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import { DateTime, Effect, FileSystem, Path } from "effect";
+import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -174,7 +175,10 @@ export interface SyncLogResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "log-unparseable" | "dirty" }>;
+	readonly skipped: ReadonlyArray<{
+		readonly id: string;
+		readonly reason: "log-unparseable" | "dirty" | "symlink-escape";
+	}>;
 }
 
 /**
@@ -198,6 +202,16 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const logPath = path.join(bundle.root, "log.md");
+
+	// OKF 0.3 section 3.2: a log.md linked out of the bundle is never read and never written.
+	if (yield* escapesBundle(bundle, "log.md")) {
+		return {
+			selected: true,
+			written: [],
+			unchanged: [],
+			skipped: [{ id: "log.md", reason: "symlink-escape" as const }],
+		} satisfies SyncLogResult;
+	}
 
 	// Step 1: missing file -> undefined source (empty document, design §5 step 1).
 	const source = yield* fs.readFileString(logPath).pipe(

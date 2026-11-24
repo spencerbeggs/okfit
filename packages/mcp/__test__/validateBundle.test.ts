@@ -14,7 +14,7 @@ interface Envelope {
 	readonly engine_version: string;
 	readonly producer: string;
 	readonly distribution: { readonly name: string; readonly version: string } | null;
-	readonly okf_version: string;
+	readonly okf_version: string | null;
 	readonly root: string;
 	readonly profile: string | null;
 	readonly exit_code: 0 | 1 | 2;
@@ -120,6 +120,25 @@ describe("validate_bundle", () => {
 		Effect.gen(function* () {
 			const data = (yield* validate({})).structuredContent as Envelope;
 			assert.strictEqual(data.producer, "@okfit/mcp");
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("reports the bundle's own okf_version declaration, null when it declares none", () =>
+		Effect.gen(function* () {
+			// the fixture's root index declares no version
+			const undeclared = (yield* validate({})).structuredContent as Envelope;
+			assert.isNull(undeclared.okf_version);
+			// control: a declared version is reported as written
+			const declared = (yield* validate({}, (root) =>
+				Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const path = yield* Path.Path;
+					const index = path.join(root, "bundle", "index.md");
+					const text = yield* Effect.orDie(fs.readFileString(index));
+					yield* Effect.orDie(fs.writeFileString(index, `---\nokf_version: "0.3"\n---\n\n${text}`));
+				}),
+			)).structuredContent as Envelope;
+			assert.strictEqual(declared.okf_version, "0.3");
 		}).pipe(Effect.scoped),
 	);
 

@@ -1,6 +1,6 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
@@ -47,7 +47,13 @@ describe("run", () => {
 	it.effect("loads, runs both tiers and the profile check, and collects into one RunResult", () =>
 		Effect.gen(function* () {
 			const root = resolve(PROFILES_FIXTURES, "software-project", "okf");
-			const result = yield* run({ root, config: mergedNoDrift, profile: Option.some(profile), now });
+			const result = yield* run({
+				root,
+				projectRoot: dirname(root),
+				config: mergedNoDrift,
+				profile: Option.some(profile),
+				now,
+			});
 			assert.strictEqual(result.bundle.root, root);
 			assert.deepStrictEqual(result.report.conformance, []);
 			assert.deepStrictEqual(result.report.lint, []);
@@ -58,7 +64,13 @@ describe("run", () => {
 	it.effect("profile None yields an empty profileDiagnostics array without calling any check", () =>
 		Effect.gen(function* () {
 			const root = resolve(PROFILES_FIXTURES, "software-project", "okf");
-			const result = yield* run({ root, config: mergedNoDrift, profile: Option.none(), now });
+			const result = yield* run({
+				root,
+				projectRoot: dirname(root),
+				config: mergedNoDrift,
+				profile: Option.none(),
+				now,
+			});
 			assert.deepStrictEqual(result.profileDiagnostics, []);
 		}).pipe(Effect.provide(platform)),
 	);
@@ -66,7 +78,9 @@ describe("run", () => {
 	it.effect("a bundle root that does not exist fails with BundleRootNotFoundError before any profile check runs", () =>
 		Effect.gen(function* () {
 			const root = resolve(PROFILES_FIXTURES, "does-not-exist");
-			const error = yield* Effect.flip(run({ root, config: merged, profile: Option.some(profile), now }));
+			const error = yield* Effect.flip(
+				run({ root, projectRoot: dirname(root), config: merged, profile: Option.some(profile), now }),
+			);
 			if (!(error instanceof BundleRootNotFoundError)) return assert.fail("expected a BundleRootNotFoundError");
 			assert.strictEqual(error.root, root);
 		}).pipe(Effect.provide(platform)),
@@ -141,9 +155,13 @@ describe("run — generated-at-drift lint (scripted history)", () => {
 			try {
 				const text = fileText("2020-01-01T00:00:00Z"); // deliberately not AUTHORED_AT
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
-				const result = yield* run({ root, config: driftConfig, profile: Option.none(), now }).pipe(
-					Effect.provide(Layer.mergeAll(scriptedGit(root, text), scriptedHistory)),
-				);
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config: driftConfig,
+					profile: Option.none(),
+					now,
+				}).pipe(Effect.provide(Layer.mergeAll(scriptedGit(root, text), scriptedHistory)));
 				assert.strictEqual(result.report.lint.length, 1);
 				assert.strictEqual(result.report.lint[0]?.code, "generated-at-drift");
 				assert.strictEqual(result.report.lint[0]?.file, REL);
@@ -162,9 +180,13 @@ describe("run — generated-at-drift lint (scripted history)", () => {
 			try {
 				const text = fileText(AUTHORED_AT); // matches the scripted entry's authoredAt exactly
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
-				const result = yield* run({ root, config: driftConfig, profile: Option.none(), now }).pipe(
-					Effect.provide(Layer.mergeAll(scriptedGit(root, text), scriptedHistory)),
-				);
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config: driftConfig,
+					profile: Option.none(),
+					now,
+				}).pipe(Effect.provide(Layer.mergeAll(scriptedGit(root, text), scriptedHistory)));
 				assert.deepStrictEqual(result.report.lint, []);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
@@ -185,6 +207,7 @@ describe("run — generated-at-drift lint (scripted history)", () => {
 					yield* Effect.promise(() => writeFile(join(root, REL), text));
 					const result = yield* run({
 						root,
+						projectRoot: dirname(root),
 						config: driftConfig,
 						profile: Option.none(),
 						now,
@@ -221,6 +244,7 @@ describe("run — generated-at-drift lint, skipProvenance narrowed to tier 2 onl
 					yield* Effect.promise(() => writeFile(join(root, REL_LEGACY), legacyText));
 					const result = yield* run({
 						root,
+						projectRoot: dirname(root),
 						config: driftConfig,
 						profile: Option.none(),
 						now,
@@ -259,9 +283,13 @@ describe("run — source-resource-missing lint (issue #106)", () => {
 			try {
 				const text = "---\ntype: Module\nresource: ../nope.yml\n---\n\n# Thing\n\nBody text.\n";
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
-				const result = yield* run({ root, config: resourceConfig, profile: Option.none(), now }).pipe(
-					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
-				);
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config: resourceConfig,
+					profile: Option.none(),
+					now,
+				}).pipe(Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))));
 				assert.strictEqual(result.report.lint.length, 1);
 				assert.strictEqual(result.report.lint[0]?.code, "source-resource-missing");
 				assert.strictEqual(result.report.lint[0]?.file, REL);
@@ -280,6 +308,7 @@ describe("run — source-resource-missing lint (issue #106)", () => {
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
 				const result = yield* run({
 					root,
+					projectRoot: dirname(root),
 					config: resourceConfig,
 					profile: Option.none(),
 					now,
@@ -328,9 +357,13 @@ describe("run — publication-drift lint", () => {
 						surface_unmatched: "off",
 					},
 				};
-				const result = yield* run({ root, config, profile: Option.some(profile), now }).pipe(
-					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
-				);
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config,
+					profile: Option.some(profile),
+					now,
+				}).pipe(Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))));
 				assert.strictEqual(result.report.lint.length, 1);
 				assert.strictEqual(result.report.lint[0]?.code, "publication-drift");
 				assert.strictEqual(result.report.lint[0]?.file, "pub.md");
@@ -364,7 +397,7 @@ describe("run — publication-drift lint", () => {
 						surface_unmatched: "off",
 					},
 				};
-				const result = yield* run({ root, config, profile: Option.none(), now }).pipe(
+				const result = yield* run({ root, projectRoot: dirname(root), config, profile: Option.none(), now }).pipe(
 					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
 				);
 				assert.deepStrictEqual(result.report.lint, []);
@@ -390,7 +423,13 @@ describe("run — verified-drift lint (integrity)", () => {
 				const text =
 					"---\ntype: Module\nverified:\n  - by: human:okfit-test\n    at: 2026-01-05T12:00:00Z\n---\n\n# Thing\n\nBody text.\n";
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
-				const result = yield* run({ root, config: verifiedConfig, profile: Option.none(), now }).pipe(
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config: verifiedConfig,
+					profile: Option.none(),
+					now,
+				}).pipe(
 					// generated_at_drift is off, so neither double is ever called.
 					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
 				);
@@ -413,9 +452,13 @@ describe("run — verified-drift lint (integrity)", () => {
 					"---\ntype: Module\nverified:\n  - by: human:okfit-test\n    at: 2026-01-05T12:00:00Z\n---\n\n# Thing\n\nBody text.\n";
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
 				yield* Effect.promise(() => writeFile(join(root, "plain.md"), "---\ntype: Module\n---\n\n# Plain\n"));
-				const result = yield* run({ root, config: verifiedConfig, profile: Option.none(), now }).pipe(
-					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
-				);
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config: verifiedConfig,
+					profile: Option.none(),
+					now,
+				}).pipe(Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))));
 				assert.deepStrictEqual([...result.signals.keys()].sort(), ["plain", "project"]);
 				assert.strictEqual(result.signals.get("project")?.integrity, "drifted");
 				assert.strictEqual(result.signals.get("plain")?.integrity, "none");
@@ -436,7 +479,7 @@ describe("run — verified-drift lint (integrity)", () => {
 					...verifiedConfig,
 					actors: { humans: [Schema.decodeUnknownSync(ActorPattern)("human:ada")] },
 				};
-				const result = yield* run({ root, config, profile: Option.none(), now }).pipe(
+				const result = yield* run({ root, projectRoot: dirname(root), config, profile: Option.none(), now }).pipe(
 					Effect.provide(Layer.mergeAll(Git.layerTest({}), GitHistory.layerTest({}))),
 				);
 				const signal = result.signals.get("project");

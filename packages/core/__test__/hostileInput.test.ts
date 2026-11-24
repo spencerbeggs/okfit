@@ -9,6 +9,8 @@ const load = (frontmatter: string) =>
 		Effect.provide(platform({ [`${MOUNT}/c.md`]: `---\n${frontmatter}\n---\n\n# C\n` })),
 	);
 
+const concept = (bundle: Effect.Success<ReturnType<typeof load>>) => bundle.concepts.get("c" as ConceptId)?.frontmatter;
+
 const WRONG = ["5", "true", "null", "{ a: 1 }", "[1]", "yes", "2026-01-01x"];
 
 // One row per mapping class: the YAML head up to the key under test, the keys, and the base text for the mapping.
@@ -111,5 +113,59 @@ describe("Bundle.load on hostile optional keys", () => {
 			// positive control: the table does provoke warnings
 			assert.isAbove(reported, 0);
 		}),
+	);
+
+	it.effect(
+		"a mapping emptied by dropped keys reads as absent, never as {}; {} and a surviving key are kept (R19)",
+		() =>
+			Effect.gen(function* () {
+				const rows: ReadonlyArray<{
+					readonly cls: string;
+					readonly head: string;
+					readonly read: (frontmatter: NonNullable<ReturnType<typeof concept>>) => unknown;
+				}> = [
+					{ cls: "UsageWindow", head: "type: T\nusage_window", read: (f) => f.usage_window },
+					{
+						cls: "ComputationExecutor",
+						head: "type: Attested Computation\nruntime: sql\nexecutor",
+						read: (f) => f.attested?.executor,
+					},
+					{
+						cls: "ComputationAttester",
+						head: "type: Attested Computation\nruntime: sql\nattester",
+						read: (f) => f.attested?.attester,
+					},
+					{
+						cls: "Source.usage_window",
+						head: "type: T\nsources:\n  - resource: a.md\n    usage_window",
+						read: (f) => f.sources?.[0]?.usage_window,
+					},
+				];
+				const bad: Record<string, string> = {
+					UsageWindow: "to: [1]",
+					ComputationExecutor: "receipt: 5",
+					ComputationAttester: "resource: 5",
+					"Source.usage_window": "to: [1]",
+				};
+				for (const row of rows) {
+					const indent = row.cls === "Source.usage_window" ? "      " : "  ";
+					const loaded = yield* load(`${row.head}:\n${indent}${bad[row.cls]}`);
+					const found = concept(loaded);
+					assert.isDefined(found, row.cls);
+					assert.isUndefined(row.read(found!), `${row.cls}: all-dropped reads as absent`);
+					assert.strictEqual(loaded.diagnostics.filter((d) => d.code === "value-malformed").length, 1, row.cls);
+					// control: written `{}` is kept as written, with no warning
+					const empty = yield* load(`${row.head}: {}`);
+					assert.isDefined(row.read(concept(empty)!), `${row.cls}: {} is kept`);
+					assert.strictEqual(empty.diagnostics.length, 0, row.cls);
+				}
+				// control: one good key beside a dropped one is kept (the key families that decode per key)
+				const mixed = yield* load("type: T\nusage_window:\n  from: 2026-06-01T00:00:00Z\n  to: [1]");
+				assert.isDefined(concept(mixed)?.usage_window?.from);
+				const executor = yield* load(
+					"type: Attested Computation\nruntime: sql\nexecutor:\n  resource: run.md\n  receipt: 5",
+				);
+				assert.strictEqual(concept(executor)?.attested?.executor?.resource, "run.md");
+			}),
 	);
 });

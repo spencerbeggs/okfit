@@ -1,6 +1,6 @@
 import { ToolOutcome } from "@effected/mcp-kit";
 import { Derive } from "@okfit/core";
-import { ConceptQuery, signalFor, toTrustDrift } from "@okfit/engine";
+import { ConceptQuery, rawStatusOf, signalFor, toTrustDrift } from "@okfit/engine";
 import { DateTime, Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { McpToolError } from "../errors.js";
@@ -10,7 +10,7 @@ import { toolSignals } from "../internal/toolSignals.js";
 import { GetConceptSuccess } from "../schema/tools.js";
 
 const DESCRIPTION =
-	"Returns one concept by id: its decoded frontmatter, raw markdown, bundle-relative path, every outgoing link (with where it was written and whether the target is a concept, a file, or missing), and its okfit trust signal: tier, integrity, stale and drift. Accepts a tolerant id, with or without a leading slash or trailing .md.";
+	"Returns one concept by id: decoded frontmatter, raw markdown, bundle-relative path, every outgoing link (where written; target is a concept, file or missing), its trust signal (tier, integrity, stale, drift) and, when deprecated, the id of its current replacement or null. Accepts a tolerant id, with or without a leading slash or trailing .md.";
 
 /**
  * No `dependencies`: since Effect 4.1 a declared dependency becomes a
@@ -47,7 +47,7 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			ToolOutcome.catchAsEnvelope({ QueryConceptNotFoundError: (e) => conceptNotFound(params.id, e) }),
 		);
 		if (ToolOutcome.isFailure(found)) return found;
-		const { concept, links } = found;
+		const { concept, links, replacement } = found;
 
 		const signals = yield* toolSignals(ctx.bundle, ctx.config, yield* DateTime.now);
 		const signal = signalFor(signals, concept.id);
@@ -59,6 +59,7 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			title: Derive.title(concept),
 			description: concept.frontmatter.description ?? null,
 			status: Derive.status(concept.frontmatter),
+			raw_status: rawStatusOf(concept),
 			tags: [...(concept.frontmatter.tags ?? [])],
 			path: concept.path,
 			frontmatter: concept.frontmatter.raw,
@@ -67,6 +68,8 @@ export const handleGetConcept = (projectRoot: string, params: { readonly id: str
 			tier: signal.tier,
 			integrity: signal.integrity,
 			stale: signal.stale,
+			staleness: signal.staleness,
 			drift: toTrustDrift(signal),
+			replacement,
 		};
 	});

@@ -50,7 +50,11 @@ __test__/
   `import.meta.dirname` and copied through `e2e/utils/fixtures.ts`'s
   `copyFixtureInto`. Never run `okfit validate`/`okfit init` directly against
   a fixture source tree — `init` writes files, and a stray write would
-  corrupt the shared fixture for every other package's tests.
+  corrupt the shared fixture for every other package's tests. K-44 also allows
+  writing the in-memory seeds of `packages/engine/__test__/fixtures/bundles.ts`
+  (`V03_PROJECT` and friends) into a sandbox with `e2e/utils/fixtures.ts`'s
+  `writeSeedInto`; the CLI imports them by relative path, which is why
+  `tsconfig.json` sets `rootDir` to `..`.
 - **`OKFIT_NOW` is a test hook, not user-facing (K-47).** `bin.ts` reads it as
   an ISO-8601 timestamp and uses it in place of the wall clock for the whole
   command tree. Set it in an e2e test's `env` (through `e2e/utils/okfit.ts`'s

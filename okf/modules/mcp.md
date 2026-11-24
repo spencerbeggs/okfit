@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-11-02T19:16:31Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: aa7c91860423ecd9
+    body: ad7c98d9a33add01
 ---
 
 # MCP
@@ -33,8 +33,10 @@ with no git call at all — see [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate_bundle` also reports
 the `verified-drift` lint, since it runs the same engine validation; the
 tools stay read-only and never write `integrity`. `list_concepts` filters by
-`verified`, `drifted` and `stale`, `get_concept` reports tier, integrity,
-stale and drift, and `stale_report` lists the drifted concepts too; the
+`verified`, `drifted`, `stale` and `current`, `get_concept` reports tier,
+integrity, stale, drift, `raw_status` and the `replacement` of a deprecated
+concept, and `stale_report` lists the drifted concepts and the concepts whose
+`stale_after` is malformed too (see [okfit-mcp](../interfaces/okfit-mcp.md)); the
 trust signals come from [Profiles](profiles.md)' `Trust.evaluate` and are
 computed even when the `verified-drift` lint is off. The server
 instructions carry a trust paragraph, while the resource descriptions stay

@@ -65,8 +65,8 @@ const VALUES = [
 ] as const;
 
 describe("@okfit/core", () => {
-	it("targets OKF spec version 0.2", () => {
-		assert.strictEqual(Core.OKF_SPEC_VERSION, "0.2");
+	it("targets OKF spec version 0.3", () => {
+		assert.strictEqual(Core.OKF_SPEC_VERSION, "0.3");
 	});
 	it("declares the config schema's version as major.minor (okfit #137)", () => {
 		assert.match(Core.CONFIG_SCHEMA_VERSION, /^\d+\.\d+$/);

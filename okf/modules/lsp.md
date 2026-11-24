@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:20:06Z
+  at: 2026-11-24T02:05:35Z
 integrity:
   generated:
-    body: 48fc95ca600b369a
+    body: 20ddbfa42d7960c3
 ---
 
 # LSP
@@ -66,10 +66,11 @@ snapshot. On a `status-missing` diagnostic it offers `Set status: draft`
 (preferred) and `Set status: stable` as `quickfix` actions. When the request
 range touches the frontmatter block, or `context.only` names the kind, it
 also offers one `Set status: <status>` action (kind `okfit.status`) per
-status the raw frontmatter `status` is not already -- all three when there
-is no explicit status -- and one `Mark verified by <actor>` action (kind
+status the concept does not already have -- all three when there
+is no explicit status or the status is outside the vocabulary (choosing one
+fixes it) -- and one `Mark verified by <actor>` action (kind
 `okfit.verify`) when a human actor resolves and the concept is neither a
-draft, deprecated, nor already verified by that actor. On a draft the
+draft, deprecated, of unknown status, nor already verified by that actor. On a draft the
 same kind instead offers `Mark verified by <actor> and set status: stable`
 (#215), one edit equal to what `okfit verify --stable` writes, when that
 actor has not yet verified it; the actor is cached per session
@@ -81,9 +82,11 @@ handle. On a `verified-drift` diagnostic it offers a preferred `Re-verify as
 `okfit.lsp.setStatus [uri, status]`, `okfit.lsp.markVerified [uri]` and
 `okfit.lsp.verifyAndMarkStable [uri]` compute a `TextEdit` and send it to
 the client with `workspace/applyEdit`, answering the client's own result
-verbatim (`verifyAndMarkStable` fails `NotADraft` on a concept whose raw
+verbatim (`verifyAndMarkStable` fails `NotADraft` on a concept whose derived
 status is not `draft`, plus `AlreadyVerified`, `ActorUnresolved` and
-`Unsupported` like Mark verified); `okfit.lsp.revalidate
+`Unsupported` like Mark verified; `markVerified` and `verifyAndMarkStable`
+both fail `UnknownStatusCannotBeVerified` on a concept whose status is outside
+the vocabulary, and the editor has no exception like the CLI's `--stable`); `okfit.lsp.revalidate
 [rootUri?]` schedules a `full` revalidate on one named bundle root or every
 live session and answers the root URIs revalidated. Both features share
 `features/edits.ts`: `editTarget` reads the document's current text and
@@ -159,8 +162,10 @@ wires `registerConcepts`'s `forgetWarmup` into the session registry's
 `onDispose` callback, which fires on a config-change rebuild and when a
 root's last workspace folder goes away, so a fixed config or a re-added
 folder is retried on its next warm-up. It then answers from every live
-session's last-loaded bundle, each concept carrying its `tier`, `integrity`
-and `stale` alongside the status; `okfit/bundleChanged` is sent from the
+session's last-loaded bundle, each concept carrying its `tier`, `integrity`,
+`stale` and `staleness` alongside the derived `status` (`draft`, `stable`,
+`deprecated` or `unknown`) and, for an unknown status only, `rawStatus`, the
+value as written; `okfit/bundleChanged` is sent from the
 registry's own revalidate and dispose callbacks, after diagnostics for the
 same change have already published, so a client that re-fetches
 `okfit/concepts` on this notification never races the diagnostics it would
@@ -264,7 +269,7 @@ write) rather than exempting a file from every rule at once -- see
 [okfit's front ends build on @effected/{engine,cli,mcp} rather than
 hand-rolled equivalents](../decisions/effected-kit-adoption.md).
 
-The concepts wire (`features/concepts.ts`) still sends the typed `status`, which is absent for a `status` outside `draft`, `stable` and `deprecated`; core now derives `unknown` for that case (`Derive.status`), but this wire does not carry it yet, so clients read such a concept as `stable`. A `superseded_by` value is a path field in core, so document links and definition on it come from the shared graph with no server change.
+The concepts wire (`features/concepts.ts`) sends the derived status, so a concept whose `status` is outside `draft`, `stable` and `deprecated` arrives as `unknown` with its `rawStatus`, and an unknown status is nowhere read as `stable`. `features/edits.ts` holds raw YAML rather than a `Concept`, so `derivedStatusOf` mirrors `Derive.status` for it; a test runs both over one table of values so they cannot drift. A `superseded_by` value is a path field in core, so document links and definition on it come from the shared graph with no server change. The session registry passes the resolved `projectRoot` to the engine, so a `resource` that points outside the project is reported as `resource-outside-project` and never read.
 
 ## Links
 

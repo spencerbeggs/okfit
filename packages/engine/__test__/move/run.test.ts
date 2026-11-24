@@ -1,14 +1,18 @@
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { NodeCrypto } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
-import type { ActorPattern } from "@okfit/core";
-import { Bundle, OkfitConfig } from "@okfit/core";
+import type { ActorPattern, LoadedBundle } from "@okfit/core";
+import { Bundle, Graph, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
-import { DateTime, Effect, Exit } from "effect";
+import { DateTime, Effect, Exit, FileSystem, Layer } from "effect";
 import { MoveError } from "../../src/errors.js";
 import { planMove, runMove } from "../../src/move/run.js";
+import type { ProjectSeed } from "../fixtures/bundles.js";
+import { V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { projectPlatform } from "../utils/bundle.js";
 import type { TestServices } from "../utils/platform.js";
 import { TestPlatform } from "../utils/platform.js";
 
@@ -189,21 +193,55 @@ describe("runMove", () => {
 		),
 	);
 
-	it.effect("refuses to move while a bundle Markdown file is not a loaded concept, and writes nothing", () =>
+	it.effect(
+		"refuses while a bundle Markdown file cannot be read, and writes nothing; the same bundle without it moves",
+		() =>
+			Effect.gen(function* () {
+				yield* withBundle(
+					(_project, okf) =>
+						Effect.gen(function* () {
+							const before = yield* Effect.promise(() => snapshot(okf));
+							const error = yield* refusal(
+								runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false }),
+							);
+							assert.isTrue(error instanceof MoveError);
+							if (error instanceof MoveError) {
+								assert.strictEqual(error.reason, "unloaded-files");
+								assert.include(error.detail ?? "", "notes/broken.md");
+								assert.include(error.message, "okfit validate");
+							}
+							assert.deepStrictEqual(yield* Effect.promise(() => snapshot(okf)), before);
+						}),
+					{ "notes/broken.md": "---\ntype: Decision\ntitle: Broken\n\nSee [b](../decisions/b.md).\n" },
+				);
+				// Control: without the unreadable file the same move succeeds.
+				yield* withBundle((_project, okf) =>
+					Effect.gen(function* () {
+						yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+						const after = yield* Effect.promise(() => snapshot(okf));
+						assert.isDefined(after["decisions/beta.md"]);
+					}),
+				);
+			}),
+	);
+
+	it.effect("rewrites a link in a frontmatter-less Markdown file on disk, and leaves one without a link alone", () =>
 		withBundle(
 			(_project, okf) =>
 				Effect.gen(function* () {
 					const before = yield* Effect.promise(() => snapshot(okf));
-					const error = yield* refusal(runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false }));
-					assert.isTrue(error instanceof MoveError);
-					if (error instanceof MoveError) {
-						assert.strictEqual(error.reason, "unloaded-files");
-						assert.include(error.detail ?? "", "notes/untyped.md");
-						assert.include(error.message, "okfit validate");
-					}
-					assert.deepStrictEqual(yield* Effect.promise(() => snapshot(okf)), before);
+					yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					assert.strictEqual(
+						after["notes/untyped.md"],
+						before["notes/untyped.md"]?.replace("../decisions/b.md", "../decisions/beta.md"),
+					);
+					assert.strictEqual(after["notes/plain.md"], before["notes/plain.md"]);
 				}),
-			{ "notes/untyped.md": "# No frontmatter\n\nSee [b](../decisions/b.md).\n" },
+			{
+				"notes/untyped.md": "# No frontmatter\n\nSee [b](../decisions/b.md).\n",
+				"notes/plain.md": "# Plain\n\nSee [c](../conventions/c.md).\n",
+			},
 		),
 	);
 
@@ -393,6 +431,212 @@ describe("runMove", () => {
 				const nested = yield* planMove(base(okf, okf, "decisions/b", "/topics/walk2.md"));
 				assert.strictEqual(nested.to, "topics/walk2.md");
 			}),
+		),
+	);
+});
+
+describe("planMove over an OKF 0.3 bundle (memfs)", () => {
+	const base: ProjectSeed = V03_PROJECT;
+	const platform = Layer.mergeAll(projectPlatform(base), NodeCrypto.layerDigest);
+	const pathsConfig: OkfitConfig = { ...OkfitConfig.DEFAULTS, types: { Metric: {}, "Attested Computation": {} } };
+	const plan = (from: string, to: string, project: ProjectSeed = base) =>
+		planMove({ from, to, cwd: "/repo/okf", bundleRoot: "/repo/okf", config: pathsConfig, now: AT }).pipe(
+			Effect.provide(Layer.mergeAll(projectPlatform(project), NodeCrypto.layerDigest)),
+		);
+
+	it.effect("rewrites superseded_by, keeping its leading /", () =>
+		Effect.gen(function* () {
+			const result = yield* plan("metrics/margin", "metrics/gross-margin");
+			const legacy = result.edits.find((edit) => edit.path === "metrics/margin-legacy.md");
+			assert.isDefined(legacy);
+			assert.include(legacy?.text, "superseded_by: /metrics/gross-margin.md\n");
+			assert.notInclude(legacy?.text, "superseded_by: /metrics/margin.md");
+			// Control: a move that no concept's superseded_by names leaves margin-legacy.md untouched.
+			const other = yield* plan("metrics/revenue", "metrics/net-revenue");
+			assert.isUndefined(other.edits.find((edit) => edit.path === "metrics/margin-legacy.md"));
+			assert.isDefined(other.edits.find((edit) => edit.path === "computations/revenue-ytd.md"));
+		}).pipe(Effect.provide(platform)),
+	);
+
+	it.effect("rewrites the top-level computation, executor, attester and a single-mapping sources", () =>
+		Effect.gen(function* () {
+			const project: ProjectSeed = {
+				...base,
+				"okf/computations/revenue-ytd.md":
+					"---\ntype: Attested Computation\ntitle: Revenue year to date\ndescription: Sums revenue.\nstatus: stable\nruntime: sql\n" +
+					"computation: ../metrics/margin.md\nexecutor:\n  resource: /metrics/margin.md\nattester:\n  resource: ../metrics/margin.md\n" +
+					"sources:\n  resource: /metrics/margin.md\n---\n\n# Revenue year to date\n\nText.\n",
+			};
+			const result = yield* plan("metrics/margin", "metrics/gross-margin", project);
+			const text = result.edits.find((edit) => edit.path === "computations/revenue-ytd.md")?.text ?? "";
+			assert.include(text, "computation: ../metrics/gross-margin.md\n");
+			assert.include(text, "executor:\n  resource: /metrics/gross-margin.md\n");
+			assert.include(text, "attester:\n  resource: ../metrics/gross-margin.md\n");
+			assert.include(text, "sources:\n  resource: /metrics/gross-margin.md\n");
+			assert.notInclude(text, "/margin.md");
+		}).pipe(Effect.provide(platform)),
+	);
+});
+
+describe("planMove with non-concept Markdown (memfs)", () => {
+	const config2: OkfitConfig = { ...OkfitConfig.DEFAULTS, types: { Metric: {}, "Attested Computation": {} } };
+	const platformFor = (project: ProjectSeed) => Layer.mergeAll(projectPlatform(project), NodeCrypto.layerDigest);
+	const plan = (project: ProjectSeed, from = "metrics/margin", to = "metrics/gross-margin") =>
+		planMove({ from, to, cwd: "/repo/okf", bundleRoot: "/repo/okf", config: config2, now: AT }).pipe(
+			Effect.provide(platformFor(project)),
+		);
+	/** The bundle once the plan is applied: edited texts written, the moved file under its new name. */
+	const applied = (project: ProjectSeed, result: Effect.Success<ReturnType<typeof plan>>) =>
+		Effect.gen(function* () {
+			const next: Record<string, string> = { ...project };
+			delete next[`okf/${result.from}`];
+			for (const edit of result.edits) next[`okf/${edit.path}`] = edit.text;
+			return yield* Bundle.load({ root: "/repo/okf" }).pipe(Effect.provide(platformFor(next)));
+		});
+	const kind = (bundle: LoadedBundle, from: string, raw: string) => {
+		const resolved = Graph.resolve(bundle, from, raw);
+		return resolved._tag === "node" ? `${resolved.kind}:${resolved.id}` : resolved._tag;
+	};
+
+	it.effect("rewrites ./, ../, rooted and anchored links in typeless files; an unlinked one is byte-identical", () =>
+		Effect.gen(function* () {
+			const project: ProjectSeed = {
+				...V03_PROJECT,
+				"okf/README.md":
+					"# Notes\n\nSee [a](./metrics/margin.md), [b](/metrics/margin.md#why) and [c](./metrics/revenue.md).\n",
+				"okf/modules/notes.md": "# Notes\n\nSee [m](../metrics/margin.md).\n",
+				"okf/modules/unrelated.md": "# Unrelated\n\nSee [r](../metrics/revenue.md).\n",
+			};
+			const result = yield* plan(project);
+			const text = (path: string) => result.edits.find((edit) => edit.path === path)?.text;
+			assert.strictEqual(
+				text("README.md"),
+				"# Notes\n\nSee [a](./metrics/gross-margin.md), [b](/metrics/gross-margin.md#why) and [c](./metrics/revenue.md).\n",
+			);
+			assert.strictEqual(text("modules/notes.md"), "# Notes\n\nSee [m](../metrics/gross-margin.md).\n");
+			// Control: a typeless file with no link to the moved concept is not in the plan at all.
+			assert.isUndefined(text("modules/unrelated.md"));
+			const bundle = yield* applied(project, result);
+			assert.strictEqual(kind(bundle, "README.md", "./metrics/gross-margin.md"), "concept:metrics/gross-margin");
+			assert.strictEqual(kind(bundle, "README.md", "/metrics/gross-margin.md#why"), "concept:metrics/gross-margin");
+			assert.strictEqual(
+				kind(bundle, "modules/notes.md", "../metrics/gross-margin.md"),
+				"concept:metrics/gross-margin",
+			);
+			// Control: the old spelling no longer resolves.
+			assert.notStrictEqual(kind(bundle, "README.md", "./metrics/margin.md"), "concept:metrics/margin");
+		}),
+	);
+
+	it.effect("reads the core path fields of a typeless file that has a frontmatter block", () =>
+		Effect.gen(function* () {
+			const project: ProjectSeed = {
+				...V03_PROJECT,
+				"okf/notes/draft.md":
+					"---\ntitle: Draft\nresource: ../metrics/margin.md\nsuperseded_by: /metrics/margin.md\n---\n\n# Draft\n\nSee [m](../metrics/margin.md).\n",
+			};
+			const result = yield* plan(project);
+			assert.strictEqual(
+				result.edits.find((edit) => edit.path === "notes/draft.md")?.text,
+				"---\ntitle: Draft\nresource: ../metrics/gross-margin.md\nsuperseded_by: /metrics/gross-margin.md\n---\n\n# Draft\n\nSee [m](../metrics/gross-margin.md).\n",
+			);
+			// Control: a typeless file's drift is not tracked, so nothing is listed as drifted for it.
+			assert.notInclude(result.drifts, "notes/draft");
+		}),
+	);
+
+	it.effect("refuses an unclosed frontmatter fence; the same bundle without it moves", () =>
+		Effect.gen(function* () {
+			const broken: ProjectSeed = {
+				...V03_PROJECT,
+				"okf/notes/broken.md": "---\ntitle: Broken\n\nSee [m](../metrics/margin.md).\n",
+			};
+			const error = yield* Effect.flip(plan(broken));
+			assert.isTrue(error instanceof MoveError);
+			if (error instanceof MoveError) {
+				assert.strictEqual(error.reason, "unloaded-files");
+				assert.strictEqual(error.detail, "notes/broken.md");
+			}
+			const ok = yield* plan(V03_PROJECT);
+			assert.isDefined(ok.edits.find((edit) => edit.path === "metrics/margin-legacy.md"));
+		}),
+	);
+
+	it.effect("rewrites a bare link that resolved only through the v0.2 root fallback to one that resolves", () =>
+		Effect.gen(function* () {
+			const project: ProjectSeed = {
+				...V02_PROJECT,
+				"okf/notes/readme.md": "# Notes\n\nSee [m](metrics/margin.md).\n",
+			};
+			const before = yield* Bundle.load({ root: "/repo/okf" }).pipe(Effect.provide(platformFor(project)));
+			assert.strictEqual(kind(before, "notes/readme.md", "metrics/margin.md"), "concept:metrics/margin");
+			const result = yield* plan(project);
+			const edited = result.edits.find((edit) => edit.path === "notes/readme.md");
+			assert.isDefined(edited);
+			const bundle = yield* applied(project, result);
+			const raw = /\]\(([^)]*)\)/.exec(edited?.text ?? "")?.[1] ?? "";
+			assert.notStrictEqual(raw, "metrics/margin.md");
+			assert.strictEqual(kind(bundle, "notes/readme.md", raw), "concept:metrics/gross-margin");
+		}),
+	);
+
+	it.effect("a dry run lists the README among the rewritten files and writes nothing; a real run writes it", () =>
+		Effect.gen(function* () {
+			const run = (dryRun: boolean) =>
+				runMove({
+					from: "metrics/margin",
+					to: "metrics/gross-margin",
+					cwd: "/repo/okf",
+					bundleRoot: "/repo/okf",
+					config: config2,
+					now: AT,
+					dryRun,
+				});
+			const fs = yield* FileSystem.FileSystem;
+			const dry = yield* run(true);
+			assert.deepStrictEqual(
+				dry.plan.edits.filter((edit) => edit.path === "README.md").map((edit) => edit.count),
+				[1],
+			);
+			assert.strictEqual(yield* fs.readFileString("/repo/okf/README.md"), "# Notes\n\nSee [a](./metrics/margin.md).\n");
+			assert.isTrue(yield* fs.exists("/repo/okf/metrics/margin.md"));
+			// Control: the same move without --dry-run writes the README.
+			yield* run(false);
+			assert.strictEqual(
+				yield* fs.readFileString("/repo/okf/README.md"),
+				"# Notes\n\nSee [a](./metrics/gross-margin.md).\n",
+			);
+		}).pipe(
+			Effect.provide(platformFor({ ...V03_PROJECT, "okf/README.md": "# Notes\n\nSee [a](./metrics/margin.md).\n" })),
+		),
+	);
+});
+
+describe("mv and a BOM on a real disk (documents current behaviour)", () => {
+	it.effect("loads a BOM-prefixed concept and non-concept, and drops the BOM when it rewrites their links", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root: okf });
+					// Control: the BOM-prefixed concept loads with its frontmatter intact.
+					assert.isTrue(bundle.concepts.has("notes/bom-concept" as never));
+					assert.isTrue(
+						bundle.diagnostics.some((d) => d.file === "notes/bom-readme.md" && d.code === "frontmatter-missing"),
+					);
+					yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					// Current behaviour (a later fix flips this): the read strips the BOM, so the rewrite writes none,
+					// for a concept and a non-concept alike; the frontmatter and the link are correct.
+					assert.strictEqual(
+						after["notes/bom-concept.md"],
+						"---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/beta.md).\n",
+					);
+					assert.strictEqual(after["notes/bom-readme.md"], "# Readme\n\nSee [b](../decisions/beta.md).\n");
+				}),
+			{
+				"notes/bom-concept.md": "\uFEFF---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/b.md).\n",
+				"notes/bom-readme.md": "\uFEFF# Readme\n\nSee [b](../decisions/b.md).\n",
+			},
 		),
 	);
 });

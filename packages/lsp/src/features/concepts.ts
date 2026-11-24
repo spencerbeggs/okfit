@@ -20,8 +20,9 @@
  */
 
 import { LspUri } from "@effected/lsp";
-import type { LoadedBundle, Status, TrustTier } from "@okfit/core";
+import type { DerivedStatus, LoadedBundle, TrustTier } from "@okfit/core";
 import { Derive } from "@okfit/core";
+import { rawStatusOf } from "@okfit/engine";
 import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
 import { DateTime, Effect, Option, Ref } from "effect";
 import { URI_OPTIONS } from "../convert/platform.js";
@@ -35,7 +36,12 @@ export interface ConceptSummary {
 	readonly uri: string;
 	readonly title: string;
 	readonly type: string;
-	readonly status: Status | undefined;
+	/** `Derive.status`: an absent status is `stable`, one outside the vocabulary is `unknown` (OKF 0.3 section 5.4). */
+	readonly status: DerivedStatus;
+	/** The `status` as written, as text, when `status` is `unknown`; `undefined` otherwise. */
+	readonly rawStatus: string | undefined;
+	/** Whether the concept writes a `status` (not absent, `null`, `""` or `[]`), so an editor can offer `stable` on an implicit one. */
+	readonly explicitStatus: boolean;
 	readonly stale: boolean;
 	/** The trust tier as of the last revalidate. */
 	readonly tier: TrustTier;
@@ -83,7 +89,9 @@ const summarise = (
 			uri: location.value.uri,
 			title: Derive.title(concept),
 			type: concept.frontmatter.type,
-			status: concept.frontmatter.status,
+			status: Derive.status(concept.frontmatter),
+			rawStatus: rawStatusOf(concept) ?? undefined,
+			explicitStatus: Derive.rawStatus(concept.frontmatter) !== undefined,
 			stale: Derive.isStale(concept.frontmatter, now),
 			tier: signals?.get(id)?.tier ?? Derive.trustTier(concept.frontmatter),
 			integrity: signals?.get(id)?.integrity ?? "none",

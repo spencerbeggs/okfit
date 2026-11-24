@@ -95,6 +95,24 @@ describe("served schema", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	it.effect("describes the limit and now parameters in the input schema, not the tool description", () =>
+		Effect.gen(function* () {
+			const tools = yield* (yield* open()).listTools;
+			const propertyOf = (tool: string, name: string): { description?: string } | undefined => {
+				const schema = tools.find((t) => t.name === tool)?.inputSchema as Record<string, unknown> | undefined;
+				assert.isDefined(schema, tool);
+				const properties = (schema?.properties ?? {}) as Record<string, { description?: string }>;
+				return properties[name];
+			};
+			assert.include(propertyOf("list_concepts", "limit")?.description, "default 200");
+			for (const tool of ["list_concepts", "stale_report", "validate_bundle"]) {
+				assert.include(propertyOf(tool, "now")?.description, "date", tool);
+			}
+			// Control: a parameter without an annotation serves no description.
+			assert.isUndefined(propertyOf("list_concepts", "offset")?.description);
+		}).pipe(Effect.scoped),
+	);
+
 	it.effect("every tool is annotated readOnly, idempotent, and closed-world", () =>
 		Effect.gen(function* () {
 			const tools = yield* (yield* open()).listTools;

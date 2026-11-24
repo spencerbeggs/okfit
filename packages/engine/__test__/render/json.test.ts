@@ -198,4 +198,24 @@ describe("jsonError", () => {
 			assert.strictEqual(result.error.message, "plain string failure");
 		}),
 	);
+
+	it.effect("reports okf_version: null for a bundle that declares none, and the envelope still decodes", () =>
+		Effect.sync(() => {
+			const base = {
+				okfitVersion: "0.1.0",
+				producer: "okfit",
+				root: "/repo/okf",
+				profile: null,
+				exitCode: 0,
+				concepts: 0,
+				diagnostics: [],
+			} as const;
+			const none = json({ ...base, okfVersion: null });
+			assert.strictEqual(none.okf_version, null);
+			const wire: unknown = JSON.parse(JSON.stringify(Schema.encodeSync(JsonEnvelope)(none)));
+			assert.deepStrictEqual(Schema.decodeUnknownSync(JsonEnvelope)(wire), none);
+			// control: a declared version is carried through unchanged
+			assert.strictEqual(json({ ...base, okfVersion: "0.3" }).okf_version, "0.3");
+		}),
+	);
 });

@@ -135,6 +135,51 @@ const openConcept = (h: ServeHarness, relative: string, source: string) =>
 		return h.uriOf(relative);
 	});
 
+const ARCHIVED_SOURCE = DRAFT_SOURCE.replace("status: draft", "status: archived").replaceAll("Draft", "Archived");
+const NUMBER_SOURCE = DRAFT_SOURCE.replace("status: draft", "status: 5").replaceAll("Draft", "Number");
+
+describe("registerCodeActions on a status outside the vocabulary (OKF 0.3 5.4, R11)", () => {
+	it.live("offers exactly the three `Set status` actions and no verify action, for a string and a number", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			yield* h.initialize;
+			for (const [name, source] of [
+				["archived", ARCHIVED_SOURCE],
+				["number", NUMBER_SOURCE],
+			] as const) {
+				yield* Effect.promise(() => writeFile(join(h.root, `okf/modules/${name}.md`), source, "utf8"));
+			}
+			const uris: Array<string> = [];
+			for (const name of ["archived", "number"]) {
+				yield* h.open(`okf/modules/${name}.md`);
+				yield* h.nextPublish();
+				uris.push(h.uriOf(`okf/modules/${name}.md`));
+			}
+			for (const uri of uris) {
+				const actions = yield* requestCodeAction(h.client, uri);
+				assert.deepStrictEqual(actions.map(titleOf), [
+					"Set status: draft",
+					"Set status: stable",
+					"Set status: deprecated",
+				]);
+			}
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("control: a concept with status stable offers `Mark verified by <actor>`", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const uri = yield* openConcept(
+				h,
+				"okf/modules/stable.md",
+				DRAFT_SOURCE.replace("status: draft", "status: stable").replaceAll("Draft", "Stable"),
+			);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.isTrue(actions.some((action) => action.title === "Mark verified by human:fixture-author"));
+		}).pipe(Effect.scoped),
+	);
+});
+
 describe("registerCodeActions", () => {
 	it.live(
 		"a concept with no explicit status offers all three statuses and `Mark verified by <actor>`, each a versioned edit (positive control for the verify action)",

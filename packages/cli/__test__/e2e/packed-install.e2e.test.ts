@@ -77,7 +77,7 @@ describe.skipIf(!RUNNABLE)("packed install (@okfit/cli)", () => {
 						// Installed directly, not through the carrier: no `via` suffix.
 						assert.match(
 							version.stdout.trim(),
-							/^okfit \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.2, config-schema 1\.0\)$/,
+							/^okfit \d+\.\d+\.\d+ \(engine \d+\.\d+\.\d+, okf 0\.3, config-schema 1\.0\)$/,
 							label,
 						);
 						assert.strictEqual(version.stderr, "", label);

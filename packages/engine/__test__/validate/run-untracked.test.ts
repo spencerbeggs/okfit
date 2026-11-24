@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Git } from "@effected/git";
 import { OkfitConfig } from "@okfit/core";
@@ -65,7 +65,7 @@ describe("run — untracked resource lint wiring (issue #279)", () => {
 	it.effect("reports resource-ignored and resource-untracked in a real repository", () =>
 		withRepo((root) =>
 			Effect.gen(function* () {
-				const result = yield* run({ root, config, profile: Option.none(), now });
+				const result = yield* run({ root, projectRoot: dirname(root), config, profile: Option.none(), now });
 				assert.deepStrictEqual(codes(result.report.lint), ["resource-ignored", "resource-untracked"]);
 			}),
 		).pipe(Effect.provide(platform)),
@@ -74,7 +74,14 @@ describe("run — untracked resource lint wiring (issue #279)", () => {
 	it.effect("skipProvenance: true suppresses it", () =>
 		withRepo((root) =>
 			Effect.gen(function* () {
-				const result = yield* run({ root, config, profile: Option.none(), now, skipProvenance: true });
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config,
+					profile: Option.none(),
+					now,
+					skipProvenance: true,
+				});
 				assert.deepStrictEqual(codes(result.report.lint), []);
 			}),
 		).pipe(Effect.provide(platform)),
@@ -83,7 +90,14 @@ describe("run — untracked resource lint wiring (issue #279)", () => {
 	it.effect("skipUntracked: true suppresses it", () =>
 		withRepo((root) =>
 			Effect.gen(function* () {
-				const result = yield* run({ root, config, profile: Option.none(), now, skipUntracked: true });
+				const result = yield* run({
+					root,
+					projectRoot: dirname(root),
+					config,
+					profile: Option.none(),
+					now,
+					skipUntracked: true,
+				});
 				assert.deepStrictEqual(codes(result.report.lint), []);
 			}),
 		).pipe(Effect.provide(platform)),
@@ -92,14 +106,14 @@ describe("run — untracked resource lint wiring (issue #279)", () => {
 	it.effect("BundleSession does not run it, even on a full revalidate", () =>
 		withRepo((root) =>
 			Effect.gen(function* () {
-				const session = yield* BundleSession.make({ root, config, profile: Option.none() });
+				const session = yield* BundleSession.make({ root, projectRoot: dirname(root), config, profile: Option.none() });
 				const result = yield* session.revalidate({ now, tier: "full" });
 				assert.deepStrictEqual(
 					[...result.changed.values()].flat().map((d) => d.code),
 					[],
 				);
 				// Positive control: the same repo does report through run().
-				const direct = yield* run({ root, config, profile: Option.none(), now });
+				const direct = yield* run({ root, projectRoot: dirname(root), config, profile: Option.none(), now });
 				assert.isAbove(direct.report.lint.length, 0);
 			}),
 		).pipe(Effect.provide(platform)),

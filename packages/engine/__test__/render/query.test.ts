@@ -17,11 +17,13 @@ const summary = {
 	title: "A",
 	description: null,
 	status: "stable" as const,
+	raw_status: null,
 	tags: ["x"],
 	path: "a.md",
 	tier: "human-reviewed" as const,
 	integrity: "drifted" as const,
 	stale: true,
+	staleness: "stale" as const,
 };
 
 describe("query envelopes", () => {
@@ -53,6 +55,14 @@ describe("query envelopes", () => {
 		);
 	});
 
+	it("get carries the replacement, null when none", () => {
+		const base = { okfitVersion: "1.2.3", concept: summary, drift: null, frontmatter: {}, links: [] };
+		const withIt = queryGetEnvelope({ ...base, replacement: "b" });
+		assert.strictEqual(withIt.concept.replacement, "b");
+		assert.strictEqual(Schema.encodeSync(QueryGetEnvelope)(withIt).concept.replacement, "b");
+		assert.strictEqual(queryGetEnvelope(base).concept.replacement, null);
+	});
+
 	it("neighbors round-trips", () => {
 		const envelope = queryNeighborsEnvelope({
 			okfitVersion: "1.2.3",
@@ -72,16 +82,36 @@ describe("query envelopes", () => {
 				tier: "human-reviewed",
 				integrity: "drifted",
 				stale: false,
+				staleness: "fresh",
 				drift: { reason: "unbound" },
 			}),
 			{ reason: "unbound", edited_by: null, edited_at: null },
 		);
-		assert.strictEqual(toTrustDrift({ tier: "unverified", integrity: "none", stale: false }), null);
+		assert.strictEqual(toTrustDrift({ tier: "unverified", integrity: "none", stale: false, staleness: "fresh" }), null);
+	});
+});
+
+describe("raw_status on the wire", () => {
+	const unknown = { ...summary, status: "unknown" as const, raw_status: "archived" };
+	it("round-trips a string raw_status and rejects an absent one", () => {
+		const envelope = queryListEnvelope({ okfitVersion: "1.2.3", total: 2, items: [summary, unknown] });
+		const encoded = Schema.encodeSync(QueryListEnvelope)(envelope);
+		assert.deepStrictEqual(
+			encoded.items.map((item) => item.raw_status),
+			[null, "archived"],
+		);
+		const { raw_status: _dropped, ...withoutIt } = unknown;
+		assert.throws(() => Schema.decodeUnknownSync(QueryListEnvelope)({ ...encoded, items: [withoutIt] }));
 	});
 });
 
 describe("signalFor", () => {
-	const signal = { tier: "unverified" as const, integrity: "none" as const, stale: false };
+	const signal = {
+		tier: "unverified" as const,
+		integrity: "none" as const,
+		stale: false,
+		staleness: "fresh" as const,
+	};
 	it("returns the signal computed for the id", () => {
 		assert.strictEqual(signalFor(new Map([["a", signal]]), "a"), signal);
 	});

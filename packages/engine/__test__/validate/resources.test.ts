@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownParseOptions } from "@effected/markdown";
@@ -52,12 +52,12 @@ describe("validate/resources lintResources", () => {
 		Effect.gen(function* () {
 			const config: OkfitConfig = {
 				...OkfitConfig.DEFAULTS,
-				lint: { ...OkfitConfig.DEFAULTS.lint, source_resource_missing: "off" },
+				lint: { ...OkfitConfig.DEFAULTS.lint, source_resource_missing: "off", resource_outside_project: "off" },
 			};
 			// Deliberately nonexistent root: if lintResources touched the filesystem at all
 			// this would fail with a PlatformError instead of returning [].
 			const bundle = bundleOf("/does/not/exist", conceptAt("thing.md", { resource: "../nope.yml" }));
-			const diagnostics = yield* lintResources(bundle, config).pipe(Effect.provide(platform));
+			const diagnostics = yield* lintResources(bundle, config, dirname(bundle.root)).pipe(Effect.provide(platform));
 			assert.deepStrictEqual(diagnostics, []);
 		}),
 	);
@@ -72,7 +72,9 @@ describe("validate/resources lintResources", () => {
 					conceptAt("thing.md", { resource: "../nope.yml" }),
 					conceptAt("nested/other.md", { sources: [{ resource: "../package.json" }] }),
 				);
-				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+					Effect.provide(platform),
+				);
 				assert.strictEqual(diagnostics.length, 1);
 				assert.strictEqual(diagnostics[0]?.code, "source-resource-missing");
 				assert.strictEqual(diagnostics[0]?.file, "thing.md");
@@ -95,7 +97,9 @@ describe("validate/resources lintResources", () => {
 					conceptAt("thing.md", { resource: "../nope.yml" }, topLevelText),
 					conceptAt("other.md", { sources: [{ resource: "../nope2.yml" }] }, sourcedText),
 				);
-				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+					Effect.provide(platform),
+				);
 				assert.strictEqual(diagnostics.length, 2);
 				const byFile = new Map(diagnostics.map((d): [string, (typeof diagnostics)[number]] => [d.file, d]));
 				const top = byFile.get("thing.md");
@@ -119,7 +123,9 @@ describe("validate/resources lintResources", () => {
 	it.effect("falls back to no range at all when the concept has no frontmatter document (positive control above)", () =>
 		Effect.gen(function* () {
 			const bundle = bundleOf("/does/not/exist", conceptAt("thing.md", { resource: "../nope.yml" }));
-			const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+			const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+				Effect.provide(platform),
+			);
 			assert.strictEqual(diagnostics.length, 1);
 			assert.isUndefined(diagnostics[0]?.range);
 		}),
@@ -136,7 +142,9 @@ describe("validate/resources lintResources", () => {
 					conceptAt("computations/ytd.md", { sources: [{ resource: "policies/revenue.md" }] }),
 					conceptAt("computations/bad.md", { sources: [{ resource: "./policies/revenue.md" }] }),
 				);
-				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+					Effect.provide(platform),
+				);
 				assert.deepStrictEqual(
 					diagnostics.map((d) => d.file),
 					["computations/bad.md"],
@@ -158,7 +166,9 @@ describe("validate/resources lintResources", () => {
 					conceptAt("c.md", { sources: [{ resource: "the git history" }] }),
 					conceptAt("d.md", { resource: "@(.github|docs)" }),
 				);
-				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS).pipe(Effect.provide(platform));
+				const diagnostics = yield* lintResources(bundle, OkfitConfig.DEFAULTS, dirname(bundle.root)).pipe(
+					Effect.provide(platform),
+				);
 				assert.deepStrictEqual(diagnostics, []);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));

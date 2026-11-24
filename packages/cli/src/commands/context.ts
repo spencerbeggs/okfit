@@ -42,7 +42,7 @@ const trustFlag = Flag.Boolean("trust").pipe(
  * `@okfit/engine`'s `resolveProjectConfig` — A4) — stat `--config` (K-1) via
  * `provideConfig`, discover (`OkfitConfigFile.discover`), resolve the
  * profile with the K-4 warning, merge `DEFAULTS < profile < file` (D-28),
- * warn on an `okf_version` mismatch (K-15), resolve the project and bundle
+ * resolve the project and bundle
  * roots (K-12) — then it diverges: `runContext` (index.md stat only,
  * never `Bundle.load`), build the envelope, render, and always exit `0`
  * (there is no content tier: `context` never runs conformance or lint

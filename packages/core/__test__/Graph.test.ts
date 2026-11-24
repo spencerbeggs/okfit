@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
 import { Effect, Graph as EffectGraph, Layer, Option, Path } from "effect";
 import { Bundle } from "../src/Bundle.js";
+import type { ConceptId } from "../src/ConceptId.js";
 import type { GraphLink } from "../src/Graph.js";
 import { Graph } from "../src/Graph.js";
 import { MOUNT, platform } from "./utils/fixtures.js";
@@ -300,4 +301,111 @@ describe("Graph version-gated root fallback", () => {
 			}),
 		);
 	}
+});
+
+const dep = (target: string, extra = "") =>
+	`---\ntype: Note\nstatus: deprecated\nsuperseded_by: ${target}\n${extra}---\n`;
+const note = (status?: string) => `---\ntype: Note\n${status === undefined ? "" : `status: ${status}\n`}---\n`;
+
+describe("Graph.replacement", () => {
+	it.effect("follows deprecated chains and stops on cycles, self-links and non-concepts (OKF 0.3 5.4)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			const of = (id: string) => Graph.replacement(bundle, id as ConceptId);
+			assert.deepStrictEqual(of("a"), Option.some("c"));
+			assert.deepStrictEqual(of("b"), Option.some("c"));
+			for (const id of ["c", "loop-1", "self", "to-asset", "to-missing"]) assert.isTrue(Option.isNone(of(id)), id);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: dep("./b.md"),
+					[`${MOUNT}/b.md`]: dep("/c.md"),
+					[`${MOUNT}/c.md`]: note(),
+					[`${MOUNT}/loop-1.md`]: dep("./loop-2.md"),
+					[`${MOUNT}/loop-2.md`]: dep("./loop-1.md"),
+					[`${MOUNT}/self.md`]: dep("./self.md"),
+					[`${MOUNT}/to-asset.md`]: dep("./x.png"),
+					[`${MOUNT}/x.png`]: "",
+					[`${MOUNT}/to-missing.md`]: dep("./gone.md"),
+				}),
+			),
+		),
+	);
+
+	it.effect("follows a chain longer than two and a cycle entered from outside it", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			const of = (id: string) => Graph.replacement(bundle, id as ConceptId);
+			assert.deepStrictEqual(of("d1"), Option.some("end"));
+			assert.deepStrictEqual(of("d3"), Option.some("end"));
+			assert.isTrue(Option.isNone(of("x")));
+			assert.isTrue(Option.isNone(of("loop-3")));
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/d1.md`]: dep("./d2.md"),
+					[`${MOUNT}/d2.md`]: dep("./d3.md"),
+					[`${MOUNT}/d3.md`]: dep("./end.md"),
+					[`${MOUNT}/end.md`]: note("stable"),
+					[`${MOUNT}/x.md`]: dep("./loop-1.md"),
+					[`${MOUNT}/loop-1.md`]: dep("./loop-2.md"),
+					[`${MOUNT}/loop-2.md`]: dep("./loop-3.md"),
+					[`${MOUNT}/loop-3.md`]: dep("./loop-1.md"),
+				}),
+			),
+		),
+	);
+
+	it.effect("treats a draft as the replacement, an unknown status as none, and a missing superseded_by as none", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			const of = (id: string) => Graph.replacement(bundle, id as ConceptId);
+			assert.deepStrictEqual(of("to-draft"), Option.some("draft"));
+			assert.isTrue(Option.isNone(of("to-bogus")));
+			assert.isTrue(Option.isNone(of("bare-deprecated")));
+			assert.isTrue(Option.isNone(of("not-in-bundle")));
+			assert.isTrue(Option.isNone(of("draft")), "a current concept has no replacement");
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/to-draft.md`]: dep("./draft.md"),
+					[`${MOUNT}/draft.md`]: note("draft"),
+					[`${MOUNT}/to-bogus.md`]: dep("./bogus.md"),
+					[`${MOUNT}/bogus.md`]: note("bogus"),
+					[`${MOUNT}/bare-deprecated.md`]: note("deprecated"),
+				}),
+			),
+		),
+	);
+
+	it.effect("resolves a bare v0.2 value through the root fallback", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			// `sub/old.md` writes a bare `new.md`: file-relative would be `sub/new.md` (absent); only the root fallback finds `new`.
+			assert.deepStrictEqual(Graph.replacement(bundle, "sub/old" as ConceptId), Option.some("new"));
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/index.md`]: "---\nokf_version: '0.2'\n---\n",
+					[`${MOUNT}/sub/old.md`]: dep("new.md"),
+					[`${MOUNT}/new.md`]: note(),
+				}),
+			),
+		),
+	);
+
+	it.effect("control: the same bare value in a v0.3 bundle does not use the root fallback", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isTrue(Option.isNone(Graph.replacement(bundle, "sub/old" as ConceptId)));
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/index.md`]: "---\nokf_version: '0.3'\n---\n",
+					[`${MOUNT}/sub/old.md`]: dep("new.md"),
+					[`${MOUNT}/new.md`]: note(),
+				}),
+			),
+		),
+	);
 });

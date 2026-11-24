@@ -1,7 +1,7 @@
 import { CliExit, CliFormat } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { CurrentDistribution } from "@effected/kit";
-import { OKF_SPEC_VERSION } from "@okfit/core";
+import { OkfVersion } from "@okfit/core";
 import {
 	JsonEnvelope,
 	Now,
@@ -66,7 +66,7 @@ const documentFlag = Flag.String("document").pipe(
  * Handler order fixed by the contract (§2 `src/commands/validate.ts`):
  * stat `--config` (K-1) via `provideConfig`, discover (`OkfitConfigFile.discover`),
  * resolve the profile with the K-4 warning, merge `DEFAULTS < profile < file`
- * (D-28), warn on an `okf_version` mismatch (K-15), resolve the project and
+ * (D-28), resolve the project and
  * bundle roots (K-12), run (`@okfit/engine`'s `validate/run.ts#run`), collect and sort the
  * diagnostics, render per `--format` (K-18, K-20 to K-22), and set the exit
  * code without failing the Effect (K-7, K-8).
@@ -104,6 +104,7 @@ export const validateCommand = Command.make(
 					: [];
 				const result = yield* run({
 					root: bundleRoot,
+					projectRoot: resolved.projectRoot,
 					config: merged,
 					profile,
 					now,
@@ -117,7 +118,7 @@ export const validateCommand = Command.make(
 					const envelope = json({
 						okfitVersion: CLI_VERSION,
 						producer: "okfit",
-						okfVersion: merged.okf_version ?? OKF_SPEC_VERSION,
+						okfVersion: Option.getOrNull(OkfVersion.declared(result.bundle)),
 						root: bundleRoot,
 						profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),
 						exitCode: code,

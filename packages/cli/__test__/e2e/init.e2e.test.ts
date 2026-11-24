@@ -84,7 +84,9 @@ describe("okfit init", () => {
 			index,
 			[
 				"---",
-				"okf_version: '0.2'",
+				"okf_version: '0.3'",
+				`title: ${title}`,
+				"description: What this project is, how it is built, and why it is built that way.",
 				"---",
 				"",
 				"# Project",

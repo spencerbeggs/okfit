@@ -21,3 +21,52 @@ export const copyFixtureProject = (name: "project" | "broken-config" | "missing-
 		yield* fs.copy(path.join(FIXTURES, name), target);
 		return target;
 	}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+
+/** Writes `metrics/<name>.md`, a Metric whose frontmatter carries the one extra `field` line. */
+const writeMetric = (fs: FileSystem.FileSystem, root: string, name: string, field: string) =>
+	fs.writeFileString(
+		`${root}/bundle/metrics/${name}.md`,
+		`---\ntype: Metric\ntitle: ${name}\ndescription: A metric.\n${field}\n---\n\n# ${name}\n\nBody.\n`,
+	);
+
+/**
+ * `copyFixtureProject("project")` with the deprecated `metrics/gross-margin-legacy` pointing at its replacement
+ * through `superseded_by` (the fixture predates OKF 0.3 and carries none).
+ */
+export const copySupersededProject = Effect.gen(function* () {
+	const fs = yield* FileSystem.FileSystem;
+	const root = yield* copyFixtureProject("project");
+	const file = `${root}/bundle/metrics/gross-margin-legacy.md`;
+	const text = yield* fs.readFileString(file);
+	const edited = text.replace("status: deprecated\n", "status: deprecated\nsuperseded_by: /metrics/gross-margin.md\n");
+	if (edited === text) return yield* Effect.die(new Error(`fixture drift: no "status: deprecated" line in ${file}`));
+	yield* fs.writeFileString(file, edited);
+	return root;
+}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+
+/**
+ * `copyFixtureProject("project")` plus two Metrics whose `status` is outside the vocabulary (`archived`, and the
+ * number `5`) and one whose `status` is `""` (stable by OKF 0.3 section 11.2 rule 1).
+ */
+export const copyUnknownStatusProject = Effect.gen(function* () {
+	const fs = yield* FileSystem.FileSystem;
+	const root = yield* copyFixtureProject("project");
+	const write = (name: string, status: string) => writeMetric(fs, root, name, `status: ${status}`);
+	yield* write("archived", "archived");
+	yield* write("numbered", "5");
+	yield* write("blank", '""');
+	return root;
+}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+
+/**
+ * `copyFixtureProject("project")` plus a Metric whose `stale_after` is `next tuesday` and one whose is the number
+ * `90`: both unreadable (OKF 0.3 section 5.5), so neither fresh nor stale.
+ */
+export const copyMalformedStaleProject = Effect.gen(function* () {
+	const fs = yield* FileSystem.FileSystem;
+	const root = yield* copyFixtureProject("project");
+	const write = (name: string, staleAfter: string) => writeMetric(fs, root, name, `stale_after: ${staleAfter}`);
+	yield* write("vague", "next tuesday");
+	yield* write("numbered", "90");
+	return root;
+}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);

@@ -1,6 +1,6 @@
 # @okfit/cli
 
-The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md) v0.2 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, `okfit mv`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
+The `okfit` command line for [Open Knowledge Format (OKF)](https://github.com/open-knowledge-format/open-knowledge-format/blob/main/SPEC.md) v0.3 bundles: `okfit validate`, `okfit init`, `okfit context`, `okfit verify`, `okfit query`, `okfit mv`, and `okfit sync`. The full subcommand list is `okf/interfaces/cli-commands.md`'s to keep, not this sentence's to count.
 
 > **Part of the okfit kit.** Most users want **[@okfit/plugin](https://www.npmjs.com/package/@okfit/plugin)**, which pulls this package in automatically.
 
@@ -20,8 +20,8 @@ okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format huma
 ```
 
 `okfit --version` prints `okfit <cli> (engine <engine>, okf <okf>,
-config-schema <schema>)` — for example `okfit 0.5.4 (engine 0.6.0, okf 0.2,
-config-schema 1.0)`, or `okfit 0.5.4 (engine 0.6.0, okf 0.2, config-schema
+config-schema <schema>)` — for example `okfit 0.5.4 (engine 0.6.0, okf 0.3,
+config-schema 1.0)`, or `okfit 0.5.4 (engine 0.6.0, okf 0.3, config-schema
 1.0) via @okfit/plugin 0.3.7` when installed through the meta-package. The
 engine, OKF, and config-schema versions decide what a report says and what
 a config may contain; the CLI version is packaging.
@@ -229,8 +229,8 @@ example above reflects that, not a shortened path for readability.
 `--format json` uses its own envelope, `ContextEnvelope` (schema 1),
 documented in `## --format json` below — never `validate`'s `JsonEnvelope`.
 There is no `--profile` flag on `context`; that one belongs to `init`
-alone. Config discovery, the `--config` pre-flight, and the K-4/K-15
-warnings all behave exactly as `## Config discovery` describes below.
+alone. Config discovery, the `--config` pre-flight, and the K-4
+warning all behave exactly as `## Config discovery` describes below.
 
 ### `okfit verify`
 
@@ -371,8 +371,9 @@ $ echo $?
 3
 ```
 
-A config whose `okf_version` disagrees with the version this `okfit` speaks
-is a warning, not a failure; the run continues.
+A config's `okf_version` is only what `okfit init` and `okfit sync` write into a
+bundle-root `index.md` that declares none. The bundle's own declaration decides
+how it is read, and `--format json` reports it (`null` when the bundle declares none).
 
 ## Exit codes
 
@@ -403,7 +404,7 @@ nothing else (no summary line, no warnings — those still go to stderr):
  "engine_version": "0.6.0",
  "producer": "okfit",
  "distribution": null,
- "okf_version": "0.2",
+ "okf_version": "0.3",
  "root": "/abs/path/to/my-repo/okf",
  "profile": "software-project",
  "exit_code": 1,

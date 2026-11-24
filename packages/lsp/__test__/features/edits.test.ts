@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { assert, describe, it } from "@effect/vitest";
-import { Cause, DateTime, Effect, Exit, Option } from "effect";
+import { Concept, Derive, Status } from "@okfit/core";
+import { Cause, DateTime, Effect, Exit, Option, Schema } from "effect";
 import {
+	derivedStatusOf,
 	editTarget,
 	resolveActor,
 	statusTextEdits,
@@ -229,5 +231,100 @@ describe("verifiedTextEdits: already-verified agrees with Trust", () => {
 			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
 			assert.deepStrictEqual(target.verified, []);
 		}).pipe(Effect.provide(testPlatform())),
+	);
+});
+
+describe("derivedStatusOf agrees with Derive.status (OKF 0.3 5.4, 11.2 rule 1)", () => {
+	const table: ReadonlyArray<readonly [string, unknown, "draft" | "stable" | "deprecated" | "unknown"]> = [
+		["a vocabulary string", "deprecated", "deprecated"],
+		["draft", "draft", "draft"],
+		["another string", "archived", "unknown"],
+		["a number", 5, "unknown"],
+		["a boolean", true, "unknown"],
+		["a list", ["draft"], "unknown"],
+		["a mapping", { status: "draft" }, "unknown"],
+		["null", null, "stable"],
+		["the empty string", "", "stable"],
+		["an empty list", [], "stable"],
+		["absent", undefined, "stable"],
+	];
+	const conceptWith = (raw: unknown): Concept =>
+		Concept.make({
+			type: "Note",
+			extensions: {},
+			raw: { type: "Note", ...(raw === undefined ? {} : { status: raw }) },
+			...(Schema.is(Status)(raw) ? { status: raw } : {}),
+		});
+
+	for (const [name, raw, expected] of table) {
+		it(`${name}: the same answer as Derive.status`, () => {
+			assert.strictEqual(Derive.status(conceptWith(raw)), expected);
+			assert.strictEqual(derivedStatusOf(raw), expected);
+		});
+	}
+});
+
+describe("verification on a status outside the vocabulary", () => {
+	const withStatus = (disk: string, line: string): string => disk.replace(/^---\n/, `---\n${line}\n`);
+
+	it.effect("verifiedTextEdits fails UnknownStatusCannotBeVerified naming the raw text; stable succeeds", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const now = yield* DateTime.now;
+			for (const [line, raw] of [
+				["status: archived", "archived"],
+				["status: 5", "5"],
+			] as const) {
+				yield* documents.record(path, withStatus(disk, line), 2);
+				const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+				const failure = yield* Effect.flip(verifiedTextEdits(target, "human:fixture-author", now));
+				assert.deepStrictEqual(failure, { _tag: "UnknownStatusCannotBeVerified", status: raw });
+			}
+			yield* documents.record(path, withStatus(disk, "status: stable"), 3);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const edits = yield* verifiedTextEdits(target, "human:fixture-author", now);
+			assert.isAbove(edits.length, 0);
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("an absent, null or empty status verifies as stable, never as unknown", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const now = yield* DateTime.now;
+			for (const line of ["status: null", 'status: ""', "status: []"]) {
+				yield* documents.record(path, withStatus(disk, line), 2);
+				const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+				assert.isAbove((yield* verifiedTextEdits(target, "human:fixture-author", now)).length, 0);
+			}
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect(
+		"verifiedStableTextEdits refuses every unknown status; a draft succeeds, stable and deprecated fail NotADraft",
+		() =>
+			Effect.gen(function* () {
+				const { registry, documents, path, disk } = yield* setup();
+				const now = yield* DateTime.now;
+				const attempt = (line: string) =>
+					Effect.gen(function* () {
+						yield* documents.record(path, withStatus(disk, line), 2);
+						const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+						return yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", now));
+					});
+				for (const [line, raw] of [
+					["status: archived", "archived"],
+					["status: 5", "5"],
+					["status: [a]", '["a"]'],
+					["status: {a: 1}", '{"a":1}'],
+				] as const) {
+					assert.deepStrictEqual(yield* attempt(line), { _tag: "UnknownStatusCannotBeVerified", status: raw });
+				}
+				// controls: stable and deprecated keep failing NotADraft; a draft succeeds
+				assert.deepStrictEqual(yield* attempt("status: stable"), { _tag: "NotADraft" });
+				assert.deepStrictEqual(yield* attempt("status: deprecated"), { _tag: "NotADraft" });
+				yield* documents.record(path, withStatus(disk, "status: draft"), 3);
+				const draft = Option.getOrThrow(yield* editTarget(registry, documents, path));
+				assert.isAbove((yield* verifiedStableTextEdits(draft, "human:fixture-author", now)).length, 0);
+			}).pipe(Effect.provide(testPlatform())),
 	);
 });

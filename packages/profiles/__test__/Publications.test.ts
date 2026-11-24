@@ -72,6 +72,51 @@ describe("Publications.resolveRef", () => {
 	});
 });
 
+describe("Publications.resolveRef (OKF v0.3 section 6)", () => {
+	const from = "publications/docs/api.md";
+	const at = (raw: string) => Publications.resolveRef(from, raw);
+	it("reads a leading slash from the bundle root, beside a file-relative control", () => {
+		assert.strictEqual(at("/modules/core.md"), "modules/core");
+		assert.strictEqual(at("modules/core.md"), "publications/docs/modules/core");
+		assert.strictEqual(at("../../modules/core.md"), "modules/core");
+		assert.strictEqual(at("./x.md"), "publications/docs/x");
+		assert.strictEqual(at("../x"), "publications/x");
+	});
+	it("ignores an anchor or query and a missing .md alike", () => {
+		assert.strictEqual(at("/modules/core.md#top"), "modules/core");
+		assert.strictEqual(at("/modules/core?x=1"), "modules/core");
+		assert.strictEqual(at("/modules/core"), "modules/core");
+		assert.strictEqual(at("x.md#a"), "publications/docs/x");
+	});
+	it("decodes percent escapes before resolving, and survives a malformed escape", () => {
+		assert.strictEqual(at("/a%2Fb.md"), "a/b");
+		assert.strictEqual(at("/..%2F..%2Fx"), "");
+		assert.strictEqual(at("/%2e%2e/x"), "");
+		assert.strictEqual(at("x%2Emd"), "publications/docs/x");
+		assert.strictEqual(at("/%ZZ/x.md"), "%ZZ/x");
+	});
+	it("resolves a reference with a suffix as the same reference without it", () => {
+		assert.strictEqual(at("/modules/core.md#section"), at("/modules/core.md"));
+		assert.strictEqual(at("/modules/core.md?q=1"), at("/modules/core.md"));
+		assert.strictEqual(at("/modules/core.md?q=1#s"), "modules/core");
+		assert.notStrictEqual(at("/modules/core.md#section"), at("/modules/other.md"));
+	});
+	it("does not fall back to the bundle root for a bare reference, beside the slash form that reaches it", () => {
+		assert.notStrictEqual(at("modules/core.md"), "modules/core");
+		assert.strictEqual(at("/modules/core.md"), "modules/core");
+	});
+	it("treats a lone or doubled slash as the root", () => {
+		assert.strictEqual(at("/"), "");
+		assert.strictEqual(at("//x"), "x");
+	});
+	it("returns empty for a reference climbing above the bundle root, beside a staying-inside control", () => {
+		assert.strictEqual(at("/../x"), "");
+		assert.strictEqual(at("../../../x"), "");
+		assert.strictEqual(at("/a/../x"), "x");
+		assert.strictEqual(at("../../x"), "x");
+	});
+});
+
 describe("Publications.lint", () => {
 	const run = (bundle: LoadedBundle, config: OkfitConfig = OkfitConfig.DEFAULTS) =>
 		Publications.lint(bundle, config).pipe(Effect.provide(NodeCrypto.layerDigest));

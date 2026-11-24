@@ -3,6 +3,9 @@ import type { ConceptSummary, ConceptsResult } from "./wire.js";
 
 export type Status = "draft" | "stable" | "deprecated";
 
+/** What the server derives (OKF 0.3 section 5.4): `unknown` is a `status` outside the vocabulary. */
+export type DerivedStatus = Status | "unknown";
+
 export type TreeNode =
 	| {
 			readonly kind: "bundle";
@@ -28,7 +31,7 @@ export type TreeNode =
 			readonly type: string;
 			readonly stale: boolean;
 			readonly drifted: boolean;
-			readonly status: Status;
+			readonly status: DerivedStatus;
 	  };
 
 const ICONS: Readonly<Record<string, string>> = {
@@ -52,14 +55,43 @@ const ICONS: Readonly<Record<string, string>> = {
 
 export const iconFor = (type: string): string => ICONS[type] ?? "symbol-misc";
 
+/**
+ * The status and its display text for a summary off the wire. A current server sends the derived status
+ * (`unknown` with `rawStatus`). A workspace server that predates the field sends the raw frontmatter value
+ * instead: nothing for a concept with no status line, which is an interop shim read as `stable` (what that
+ * server's own consumers meant by an absent status), and a string outside the four known values, which is an
+ * `unknown` status whose raw text is that string.
+ */
+export const normalizeStatus = (
+	c: Pick<ConceptSummary, "status" | "rawStatus">,
+): { readonly status: DerivedStatus; readonly shown: string } => {
+	const raw = c.status;
+	if (raw === undefined) return { status: "stable", shown: "stable" };
+	if (raw === "draft" || raw === "stable" || raw === "deprecated") return { status: raw, shown: raw };
+	return { status: "unknown", shown: `unknown(${raw === "unknown" ? (c.rawStatus ?? "") : raw})` };
+};
+
+/**
+ * The status the concept's file writes, for the "Set status" picker: `undefined` when it writes none (so `stable`
+ * can still be offered, making an implicit stable explicit) or when it is outside the vocabulary. A server that
+ * predates `explicitStatus` sent no `status` for such a concept.
+ */
+export const writtenStatus = (
+	c: Pick<ConceptSummary, "status" | "rawStatus" | "explicitStatus">,
+): Status | undefined => {
+	if (!(c.explicitStatus ?? c.status !== undefined)) return undefined;
+	const { status } = normalizeStatus(c);
+	return status === "unknown" ? undefined : status;
+};
+
 const conceptNode = (c: ConceptSummary): Extract<TreeNode, { kind: "concept" }> => {
-	const status: Status = c.status ?? "stable";
+	const { status, shown } = normalizeStatus(c);
 	return {
 		kind: "concept",
 		id: c.id,
 		uri: c.uri,
 		label: c.title,
-		description: c.integrity === "drifted" ? `${status} \u00b7 drifted` : status,
+		description: c.integrity === "drifted" ? `${shown} \u00b7 drifted` : shown,
 		type: c.type,
 		stale: c.stale,
 		drifted: c.integrity === "drifted",

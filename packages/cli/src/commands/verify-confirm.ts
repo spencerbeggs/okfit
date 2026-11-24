@@ -30,6 +30,9 @@ const REASON_TEXT = {
  * before it gets here). A drifted concept in those runs still reports its
  * reason through `VerifyResult.priorDrift` (JSON `prior_integrity`).
  *
+ * A concept whose `status` is outside the vocabulary fails with `VerifyStatusUnknownError` before any
+ * patch or prompt, unless `status` (`--stable`/`--draft`) replaces it.
+ *
  * An unlisted human (`[actors].humans`) fails with `HumanActorNotAllowedError` before any
  * patch or prompt is shown.
  *
@@ -44,6 +47,8 @@ export const confirmReverify = (options: {
 	readonly now: DateTime.Utc;
 	readonly noDiff: boolean;
 	readonly dryRun: boolean;
+	/** `--stable` or `--draft`: the write replaces the status, so an unknown one is no reason to refuse. */
+	readonly status?: "stable" | "draft";
 }) =>
 	Effect.gen(function* () {
 		if (options.noDiff || options.dryRun || !(yield* CliInteractive)) return true;
@@ -54,6 +59,8 @@ export const confirmReverify = (options: {
 			bundleRoot: options.bundleRoot,
 			config: options.config,
 			now: options.now,
+			// OKF 0.3 5.4: inspectDrift refuses an unknown status exactly as the write would, before any diff or prompt.
+			...(options.status === undefined ? {} : { status: options.status }),
 		});
 		if (inspection.drift === null) return true;
 		const change: ChangeSince | undefined =

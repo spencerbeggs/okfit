@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Render } from "@effected/cli-kit";
 import { Option } from "effect";
-import { humanStale, humanStaleDoc } from "../../src/render/stale.js";
+import { humanStale, humanStaleDoc, staleSummary } from "../../src/render/stale.js";
 
 const items = [
 	{ id: "decisions/a", stale_after: "2026-01-01T00:00:00Z", days_past: 12 },
@@ -38,5 +38,13 @@ describe("humanStaleDoc at a finite width", () => {
 	it("keeps each stale item on one physical line", () => {
 		const out = Render.ansi(humanStaleDoc(items), Render.contextOf({ audience: "human", width: 20 }));
 		assert.strictEqual(out.split("\n").length, items.length);
+	});
+});
+
+describe("staleSummary", () => {
+	it("appends the malformed count only when there is one", () => {
+		assert.strictEqual(staleSummary(1, 6, "okf", 2), "1 stale concepts of 6 in okf, 2 malformed");
+		assert.strictEqual(staleSummary(1, 6, "okf", 0), "1 stale concepts of 6 in okf");
+		assert.strictEqual(staleSummary(1, 6, "okf"), "1 stale concepts of 6 in okf");
 	});
 });

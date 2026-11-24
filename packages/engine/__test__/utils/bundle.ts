@@ -6,13 +6,21 @@ import type { LoadedBundle } from "@okfit/core";
 import { ConceptId, OkfitConfig } from "@okfit/core";
 import { GitHistory } from "@okfit/profiles";
 import type { FileSystem } from "effect";
-import { Layer, Option, Path } from "effect";
+import { Effect, Layer, Option, Path, PlatformError } from "effect";
 import type { Digest } from "effect/crypto";
 import type { OverlayDocumentsShape } from "../../src/overlay/layer.js";
 import { OverlayDocuments, layerOverlayFileSystem } from "../../src/overlay/layer.js";
+import type { ProjectSeed } from "../fixtures/bundles.js";
 
 /** Absolute memfs mount point of every engine seam test bundle. */
 export const ROOT = "/repo/okf";
+
+/**
+ * Prefixes each project-relative key of a `ProjectSeed` with `at` (default `/repo`, so the
+ * bundle lands at `ROOT`), producing a memfs seed.
+ */
+export const mountProject = (seed: ProjectSeed, at = "/repo"): MemoryFileSystemSeed =>
+	Object.fromEntries(Object.entries(seed).map(([path, text]) => [`${at}/${path}`, text]));
 
 /** A minimal `Module` concept; `body` is the paragraph under the heading. */
 export const moduleConcept = (title: string, body = "Body."): string =>
@@ -75,3 +83,83 @@ export const sessionPlatform = (
 		Git.layerTest({}),
 		GitHistory.layerTest({}),
 	);
+
+/** memfs seeded with `seed` mounted at `/repo`, plus posix `Path`: what `Bundle.load` needs. */
+export const projectPlatform = (seed: ProjectSeed): Layer.Layer<FileSystem.FileSystem | Path.Path> =>
+	seedPlatform(mountProject(seed));
+
+/**
+ * memfs seeded with an arbitrary seed (symlinks, paths outside `/repo`), plus posix `Path`. `faults`, when
+ * given, is registered on the volume, so a test can fail any access under a path it must never touch.
+ */
+export const seedPlatform = (
+	seed: MemoryFileSystemSeed,
+	faults?: MemoryFileSystemFaults,
+): Layer.Layer<FileSystem.FileSystem | Path.Path> =>
+	Layer.mergeAll(MemoryFileSystem.layerWith(seed, { faults }), Path.layer);
+
+/** Members that read or change a file's content or name: denied on a linked path and on anything outside. */
+const CONTENT_METHODS = [
+	"readFile",
+	"readFileString",
+	"open",
+	"writeFile",
+	"writeFileString",
+	"rename",
+	"copyFile",
+	"truncate",
+	"remove",
+	"chmod",
+	"utimes",
+] as const;
+
+/** Members that only look: denied under `outside`, allowed on a linked path (`Bundle.load` lstat/realPaths it). */
+const PROBE_METHODS = ["stat", "exists", "access", "realPath", "readLink", "readDirectory"] as const;
+
+/**
+ * A memfs fault map that fails any content access to `linked` (the symlink paths a test must never read or write
+ * through) and any access at all to a path under `outside` (default `/outside`), so a test proves a file was never
+ * touched rather than only that its bytes are unchanged. Every denied call is recorded in `touched`, so a test can
+ * also assert the guard is armed.
+ */
+export const denyAccess = (
+	touched: Array<string>,
+	linked: ReadonlyArray<string>,
+	outside = "/outside",
+): MemoryFileSystemFaults => {
+	const under = (path: unknown): boolean =>
+		typeof path === "string" && (path === outside || path.startsWith(`${outside}/`));
+	const fault = (method: string, denied: (path: unknown) => boolean) => (path: unknown) => {
+		if (!denied(path)) return undefined;
+		touched.push(`${method} ${String(path)}`);
+		return Effect.fail(
+			PlatformError.systemError({
+				_tag: "PermissionDenied",
+				module: "FileSystem",
+				method,
+				pathOrDescriptor: String(path),
+			}),
+		);
+	};
+	return Object.fromEntries([
+		...CONTENT_METHODS.map((method) => [method, fault(method, (p) => under(p) || linked.includes(p as string))]),
+		...PROBE_METHODS.map((method) => [method, fault(method, under)]),
+	]) as MemoryFileSystemFaults;
+};
+
+/**
+ * A memfs fault map that denies nothing and records every access (`method path`, the path as the call received
+ * it) into `calls`, so a test can assert which paths a program asked the filesystem about. A call through a
+ * symlink carries the link's path, never its target's, so this is how a test sees an access `denyAccess`'s
+ * prefix match cannot.
+ */
+export const recordCalls = (calls: Array<string>): MemoryFileSystemFaults =>
+	Object.fromEntries(
+		[...CONTENT_METHODS, ...PROBE_METHODS, "lstat"].map((method) => [
+			method,
+			(path: unknown) => {
+				calls.push(`${method} ${String(path)}`);
+				return undefined;
+			},
+		]),
+	) as MemoryFileSystemFaults;

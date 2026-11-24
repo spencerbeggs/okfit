@@ -1,7 +1,7 @@
 import { CliFormat, CliInteractive, Doc } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { CurrentDistribution } from "@effected/kit";
-import { OKF_SPEC_VERSION } from "@okfit/core";
+import { OkfVersion } from "@okfit/core";
 import {
 	Now,
 	StaleEnvelope,
@@ -16,7 +16,7 @@ import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
-import { humanStaleDoc, staleSummary } from "../render/stale.js";
+import { humanMalformed, humanStaleDoc, staleSummary } from "../render/stale.js";
 import { CLI_VERSION } from "../version.js";
 import { reverifyStale } from "./stale-verify.js";
 
@@ -79,18 +79,19 @@ export const staleCommand = Command.make(
 					explicitConfigPath: input.config,
 					cwd,
 				});
-				const { bundleRoot, config: merged, profile } = resolved;
+				const { bundleRoot, profile } = resolved;
 
 				const result = yield* runStale({ root: bundleRoot, now });
 				const envelope = staleEnvelope({
 					okfitVersion: CLI_VERSION,
 					producer: "okfit",
-					okfVersion: merged.okf_version ?? OKF_SPEC_VERSION,
+					okfVersion: Option.getOrNull(OkfVersion.declared(result.bundle)),
 					root: bundleRoot,
 					profile: Option.match(profile, { onNone: () => null, onSome: (p) => p.name }),
 					now,
 					concepts: result.bundle.concepts.size,
 					items: result.items,
+					malformed: result.malformed,
 					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 					...(Option.isSome(distribution) ? { distribution: distribution.value } : {}),
 				});
@@ -99,8 +100,14 @@ export const staleCommand = Command.make(
 					yield* CliFormat.printJson(Schema.encodeSync(StaleEnvelope)(envelope), { indent: 0 });
 				} else {
 					yield* Doc.print(humanStaleDoc(envelope.items, { root: bundleRoot }));
+					for (const line of humanMalformed(envelope.malformed)) yield* Console.log(line);
 					yield* Console.error(
-						staleSummary(envelope.summary.stale, envelope.summary.concepts, displayRoot(cwd, bundleRoot, path)),
+						staleSummary(
+							envelope.summary.stale,
+							envelope.summary.concepts,
+							displayRoot(cwd, bundleRoot, path),
+							envelope.summary.malformed,
+						),
 					);
 					if (input.verify) {
 						yield* reverifyStale({

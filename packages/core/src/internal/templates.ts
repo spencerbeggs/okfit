@@ -43,6 +43,8 @@ export interface IndexDocumentOptions {
 	readonly okfVersion?: string;
 	/** The existing root block's YAML text, re-emitted verbatim; `""` is absent. */
 	readonly frontmatter?: string;
+	/** The bundle `title` and `description` written after `okf_version`; ignored when a block is kept. */
+	readonly metadata?: { readonly title?: string; readonly description?: string };
 }
 
 /** True when `text` parses to a mapping with no own `okf_version` key; a parse failure or non-mapping counts as declaring one. */
@@ -72,10 +74,15 @@ export const indexDocument = (
 	const { okfVersion } = options;
 	// The renderer writes LF everywhere, so a kept CRLF block is normalised to LF.
 	const frontmatter = options.frontmatter?.replace(/\r\n?/g, "\n");
+	const kept = frontmatter !== undefined && frontmatter !== "";
+	const metadata = kept ? undefined : options.metadata;
+	const fields = {
+		...(okfVersion === undefined ? {} : { okf_version: okfVersion }),
+		...(metadata?.title === undefined ? {} : { title: metadata.title }),
+		...(metadata?.description === undefined ? {} : { description: metadata.description }),
+	};
 	const versionLine =
-		okfVersion === undefined
-			? undefined
-			: Result.getOrThrow(Yaml.stringifyResult({ okf_version: okfVersion })).replace(/\n$/, "");
+		Object.keys(fields).length === 0 ? undefined : Result.getOrThrow(Yaml.stringifyResult(fields)).replace(/\n$/, "");
 	const value =
 		frontmatter === undefined || frontmatter === ""
 			? versionLine

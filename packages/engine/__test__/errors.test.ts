@@ -10,6 +10,7 @@ import {
 	TargetResolutionError,
 	VerifyConceptNotFoundError,
 	VerifySelectionError,
+	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "../src/errors.js";
 
@@ -165,6 +166,17 @@ describe("TargetResolutionError", () => {
 		assert.strictEqual(
 			error.message,
 			'"foo.md" is ambiguous: it names both decisions/foo.md and foo.md; pass an id or an absolute path',
+		);
+	});
+});
+
+describe("VerifyStatusUnknownError", () => {
+	it("carries exit code 3 and names the raw status and the way out", () => {
+		const error = new VerifyStatusUnknownError({ id: "metrics/margin", status: "bogus" });
+		assert.strictEqual(error[Runtime.errorExitCode], 3);
+		assert.strictEqual(
+			error.message,
+			'"metrics/margin" has status "bogus", which is not draft, stable or deprecated; fix the status (or pass --stable or --draft) before verifying',
 		);
 	});
 });

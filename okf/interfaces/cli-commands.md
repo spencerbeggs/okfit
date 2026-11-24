@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-21T01:59:33Z
+  at: 2026-11-24T02:36:26Z
 tags:
   - architecture
 verified:
@@ -33,13 +33,15 @@ verified:
     at: 2026-11-02T19:15:49Z
   - by: human:spencer
     at: 2026-11-23T22:13:15Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 integrity:
   generated:
-    body: 8c2656905076e420
+    body: b2eea4fbd1e20b55
   verified:
     by: human:spencer
-    at: 2026-11-23T22:13:15Z
-    content: 2ac2998bf5df11d8
+    at: 2026-11-24T02:55:14Z
+    content: b9fb13f0050aa6ed
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -89,7 +91,7 @@ pure content comparison, since that tier makes no git call. The
 PostToolUse hook passes it so an edit-time validate stays git-free for any
 un-migrated concept, while CI and the MCP `validate_bundle` tool keep the
 git tier too (ruling S-31). `--skip-provenance` also skips the git-backed
-`resource-ignored` and `resource-untracked` lints (issue #279). See [Every okfit digest lives in one integrity
+`resource-ignored` and `resource-untracked` lints (issue #279). A `resource` or `sources[].resource` value that resolves outside the project root, directly or through a symlink, is reported as `resource-outside-project` (default `info`, so it never changes the exit code); okfit may resolve a link's real path to decide containment but never reads, stats or asks git about the target. A value inside the project root but outside the bundle is a repository resource that okfit may stat and ask git about. See [Repository resources are classified by where they resolve](../decisions/repository-resources.md). See [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md). `validate` also reports the
 `verified-drift` lint (default `warn`) for a concept whose verification no
 longer matches its content.
@@ -110,7 +112,7 @@ scaffold that does not validate clean is treated as a defect. It never
 overwrites: if any target path already exists, nothing is written and it
 exits `3`. `--profile <name>` picks the profile to scaffold; an
 unrecognised name is a warning, not a failure, and `init` continues with
-the default profile (the `okfit init` section of `packages/cli/README.md`).
+the default profile (the `okfit init` section of `packages/cli/README.md`). The root `index.md` it writes declares `okf_version` (the config's key, or the spec constant `0.3` when the config sets none), a `title` that is the project directory name and a fixed `description`.
 `--bundle <dir>` sets the bundle directory (project-relative; default the
 resolved `bundle.path`, `okf`) and `--config-location
 <.config/okfit.toml|okfit.toml|.okfit.toml>` sets where the config file is
@@ -132,6 +134,10 @@ never runs conformance or lint checks (the `okfit context` section of
 
 Without `--trust`, `context` never loads the bundle and its `trust` field
 is `null`; that keeps it cheap enough for a hook that runs on every write.
+`index_exists` is `false` for a root `index.md` that is a symbolic link out of
+the bundle, or dangling (OKF 0.3 section 3.2), so the session-start hook never
+prints it; this is an `lstat` and a real-path check, still without loading the
+bundle.
 `okfit context --trust` loads the bundle and fills `trust` with the
 counts of `concepts`, `drifted`, `stale` and `unverified`, plus
 `drifted_ids` and `stale_ids` (the first five of each, sorted). The
@@ -156,13 +162,13 @@ drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
-is `draft`, `deprecated` or `already-verified`; the last now means you hold the current binding). The dry run prints one fragment per concept in write
+is `draft`, `deprecated`, `unknown-status` or `already-verified`; the last now means you hold the current binding). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type` or with more than one target, is exit `64`. The human line carries `; status A -> B`,
+`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, and an explicit id list that holds one fails whole and writes nothing for any id, while an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
 set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
@@ -205,8 +211,8 @@ when the actor has no entries to revoke, `64` when combined with `--all`,
 ## okfit query
 
 `okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status
-draft|stable|deprecated]... [--verified|--unverified] [--drifted]
-[--stale] [--config <file>] [--format human|json]`, `okfit query get <targets...> [--root <dir>]` and `okfit query
+draft|stable|deprecated|unknown]... [--verified|--unverified] [--drifted]
+[--stale] [--current] [--config <file>] [--format human|json]`, `okfit query get <targets...> [--root <dir>]` and `okfit query
 neighbors <target> [--root <dir>]` are read-only lookups over the bundle, backed by the
 engine's `ConceptQuery` layer that the MCP `list_concepts`, `get_concept` and
 `concept_neighbors` tools share. `okfit query browse [--root <dir>] [--config <file>]`
@@ -227,10 +233,18 @@ more than one, a bare object for one; `64` for an unknown target, an undeclared 
 `--verified` with `--unverified`. `--verified` keeps concepts whose verification is current, `--unverified`
 keeps those never verified, `--drifted` keeps those edited since their
 verification was bound, and `--stale` keeps those past `stale_after`; the
-filters combine with AND. A list line reads `id  status  trust  type
+filters combine with AND. `--current` keeps draft and stable concepts and
+drops deprecated and unknown-status ones; it is intersected with `--status`, so
+`--current --status deprecated` lists nothing. A list line reads `id  status  trust  type
 title`, and `query get` adds tier, integrity and stale lines (and a `drift`
-object with `reason`, `edited_by` and `edited_at` in JSON). A concept with
-no `status` reads as `stable`, so `query list --status stable` includes it.
+object with `reason`, `edited_by` and `edited_at` in JSON), plus a
+`replacement: <id>` line when the concept is deprecated and its `superseded_by`
+chain ends at a current concept (the JSON `replacement` is that id or `null`).
+A concept with no `status` reads as `stable`, so `query list --status stable`
+includes it. A concept whose `status` is outside the vocabulary has status
+`unknown`, printed `unknown(<raw>)` in text and carried in JSON as `status:
+"unknown"` with `raw_status` set to the value as written (`null` for every
+other concept); every JSON summary also carries `staleness`.
 The status list is `query list --status`;
 there is no `okfit status` command. `stale` and `graph` stay top-level.
 
@@ -291,7 +305,12 @@ listed until it is staged.
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,
 `exit_code`, `generated`, `index`, `log` — each of the latter three an
-object with `selected`, `written`, `unchanged`, `skipped`.
+object with `selected`, `written`, `unchanged`, `skipped`. A root or
+subdirectory `index.md`, or the root `log.md`, that is a symbolic link out of the
+bundle (a dangling link included) is never read or written: it is listed in
+`skipped` with the reason `symlink-escape`, and the exit code is unchanged. A
+root `index.md` that declares no `okf_version` is given the config's
+`okf_version` when the config sets one and is otherwise left undeclared.
 
 `--publication <id>` restamps one Publication's `renders` digests from the
 current bodies of its source concepts, after its page has been
@@ -353,7 +372,10 @@ validate`/`okfit lint`, is where staleness can fail a run (at whatever
 severity `[lint].stale` is configured). The human format prints one line
 per stale concept, `<id>  <stale_after ISO>  (<N> days past)`, to stdout,
 then a one-line summary, `<N> stale concepts of <M> in <root>`, to stderr.
-Each id links to its concept file for a human on a terminal.
+Each id links to its concept file for a human on a terminal. A concept whose
+`stale_after` cannot be read is never fresh and never stale: it is listed
+apart, after the stale lines, under a `malformed stale_after:` heading with
+the value as written, and is never offered for re-verification.
 
 `okfit stale --verify [--dry-run]` turns the report into a re-verification.
 Interactive only (a human audience with a terminal on stdin and stdout, not
@@ -374,8 +396,8 @@ forward](../decisions/stale-verify.md); like
 
 `okfit stale --format json` prints a `StaleEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `producer`, `distribution`,
-`okf_version`, `root`, `profile`, `as_of` (an ISO-8601 instant), `summary` (`concepts`, `stale`), `items` (`id`,
-`stale_after`, `days_past`).
+`okf_version`, `root`, `profile`, `as_of` (an ISO-8601 instant), `summary` (`concepts`, `stale`, `malformed`), `items` (`id`,
+`stale_after`, `days_past`; `days_past` stays a number) and `malformed` (`id`, `stale_after` as written).
 
 ## okfit mv
 
@@ -402,13 +424,18 @@ generated stamps; the order for this repository is bundle edit, commit,
 the bundle (a `..` that climbs out or a symlinked directory that leads out included),
 is a reserved file, contains whitespace or equals the source is exit `64` with nothing
 written, as is moving the bundle's project file (`project.md`), which must stay at the
-bundle root, and any Markdown file in the bundle that did not load as a concept (it is
-never scanned, so a link to the moved file inside it would go stale; `okfit validate`
+bundle root, and any Markdown file in the bundle whose frontmatter is unclosed or cannot be parsed (it cannot be scanned, so a link to the moved file inside it would go stale; `okfit validate`
 names it, fix it first), and a link that
 would need rewriting for this move and whose URL cannot be located (an unrelated
 link the locator cannot read does not block it). `--format json` prints a
 `MoveEnvelope` (schema 1): `from`, `to`, `path`, `dry_run`, `edits` (`path`,
-`count`), `drifts`. Why files are named for topics:
+`count`), `drifts`. A Markdown file that is not a concept (no frontmatter, or
+frontmatter with no `type`, such as a `README.md`) does not block a move: its body
+links, and any path fields of a typeless frontmatter block, are rewritten like a
+concept's, and it is listed in `edits` only when it changes. `mv` rewrites
+`resource`, `sources[].resource`, `computation`, `executor.resource`,
+`attester.resource` and `superseded_by`. A rewritten file loses a leading UTF-8
+byte-order mark; that is a known gap. Why files are named for topics:
 [concept files are named for their topic](../decisions/topical-concept-names.md).
 
 ## Config discovery
@@ -454,7 +481,7 @@ exit is always `0`, `1`, or one of the process-level codes above.
 
 Four of those fields are about versions, and only two of them are worth
 comparing. `engine_version` is the `@okfit/engine` that produced the
-report and `okf_version` is the OKF spec version the bundle targets;
+report and `okf_version` is the version the bundle's root `index.md` declares, or `null` when it declares none;
 the engine stamps `engine_version` itself, so no front end can omit or
 misreport it. `okfit_version` is the version of the front end that
 produced the report and `producer` names it (`okfit` here, `@okfit/mcp`

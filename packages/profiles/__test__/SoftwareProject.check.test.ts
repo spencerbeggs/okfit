@@ -41,7 +41,12 @@ const BAD_CASES: ReadonlyArray<BadCase> = [
 		message: /"sources"/,
 	},
 	{ name: "interface-no-kind", lint: [["required-key-missing", "interfaces/cli.md"]], check: [], message: /"kind"/ },
-	{ name: "reference-empty-sources", lint: [], check: [] },
+	{
+		name: "reference-empty-sources",
+		lint: [["required-key-missing", "references/okf-spec.md"]],
+		check: [],
+		message: /"sources" is empty/,
+	},
 	{
 		name: "two-projects",
 		lint: [],

@@ -1,6 +1,7 @@
 import type { LoadedBundle } from "@okfit/core";
-import { Derive, OKF_SPEC_VERSION } from "@okfit/core";
+import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
+import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -9,8 +10,10 @@ export interface SyncIndexResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: readonly [];
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" }>;
 }
+
+export { escapesBundle } from "../confinement.js";
 
 /**
  * Immediate child directories of `dir`, unioned from `bundle.directories`
@@ -62,7 +65,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 
 /**
  * Contract §7. The root index keeps its existing frontmatter verbatim (D6);
- * `OKF_SPEC_VERSION` only fills a root index that declares no `okf_version`.
+ * `okfVersion` (the config's `okf_version`) only fills a root index that declares none; absent, nothing is added.
  *
  * Directories: the bundle root plus every directory in
  * `Derive.indexDirectories` -- each directory holding a concept and its
@@ -79,32 +82,41 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	bundle: LoadedBundle,
 	dryRun: boolean,
 	pending?: Array<PendingWrite>,
+	okfVersion?: string,
 ) {
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
+	const skipped: Array<{ readonly id: string; readonly reason: "symlink-escape" }> = [];
 
 	// Step 1: the root.
-	const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
-	const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
-	const rootRendered = Derive.renderIndex("", rootConcepts, {
-		okfVersion: OKF_SPEC_VERSION,
-		...(rootFrontmatter === undefined ? {} : { frontmatter: rootFrontmatter }),
-		subdirectories: childDirectoriesOf(bundle, ""),
-	});
-	yield* writeOrCompare(
-		path.join(bundle.root, "index.md"),
-		"index.md",
-		rootRendered,
-		dryRun,
-		written,
-		unchanged,
-		pending,
-	);
+	if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
+	else {
+		const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
+		const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
+		const rootRendered = Derive.renderIndex("", rootConcepts, {
+			...(okfVersion === undefined ? {} : { okfVersion }),
+			...(rootFrontmatter === undefined ? {} : { frontmatter: rootFrontmatter }),
+			subdirectories: childDirectoriesOf(bundle, ""),
+		});
+		yield* writeOrCompare(
+			path.join(bundle.root, "index.md"),
+			"index.md",
+			rootRendered,
+			dryRun,
+			written,
+			unchanged,
+			pending,
+		);
+	}
 
 	// Step 2: every other directory.
 	for (const dir of Derive.indexDirectories(bundle)) {
 		if (dir === "") continue;
+		if (yield* escapesBundle(bundle, `${dir}/index.md`)) {
+			skipped.push({ id: `${dir}/index.md`, reason: "symlink-escape" });
+			continue;
+		}
 		const rendered = Derive.synthesizeIndex(bundle, dir);
 		yield* writeOrCompare(
 			path.join(bundle.root, dir, "index.md"),
@@ -120,5 +132,5 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	// Step 3 (dry-run) is folded into writeOrCompare above: the
 	// written/unchanged classification is identical either way, only the
 	// actual file write is skipped.
-	return { selected: true, written, unchanged, skipped: [] } satisfies SyncIndexResult;
+	return { selected: true, written, unchanged, skipped } satisfies SyncIndexResult;
 });

@@ -287,6 +287,113 @@ describe("Validate", () => {
 		}),
 	);
 
+	describe("a key written empty is absent (OKF 0.3 section 11.2 rule 1)", () => {
+		const titleTags: OkfitConfig = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+			concepts: { required: ["title", "tags"] },
+			extensions: {},
+		});
+		const requiredFound = (bundle: LoadedBundle, config: OkfitConfig) =>
+			Validate.lint(bundle, config).filter((d) => d.code === "required-key-missing");
+
+		it.effect("required-key-missing: empty keys read as empty, unwritten keys as missing, values pass", () =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"empty.md": '---\ntype: Note\ntitle: ""\ntags: []\n---\n',
+					"nulled.md": "---\ntype: Note\ntitle:\ntags: [a]\n---\n",
+					"gone.md": "---\ntype: Note\n---\n",
+					"full.md": "---\ntype: Note\ntitle: T\ntags: [a]\n---\n",
+				});
+				const found = requiredFound(bundle, titleTags);
+				assert.deepStrictEqual(
+					found.map((d) => [d.file, d.message]),
+					[
+						["empty.md", 'Required key "title" is empty'],
+						["empty.md", 'Required key "tags" is empty'],
+						["gone.md", 'Required key "title" is missing'],
+						["gone.md", 'Required key "tags" is missing'],
+						["nulled.md", 'Required key "title" is empty'],
+					],
+				);
+				assert.isTrue(found.every((d) => d.severity === "error"));
+				// The control: the concept with real values reports nothing, and the rule fired for the others.
+				assert.strictEqual(found.filter((d) => d.file === "full.md").length, 0);
+			}),
+		);
+
+		it.effect("required-key-missing: an empty key points at its own line; a missing key at the block", () =>
+			Effect.gen(function* () {
+				const bundle = yield* loadFromSources({
+					"empty.md": '---\ntype: Note\ntags: [a]\ntitle: ""\n---\n',
+					"gone.md": "---\ntype: Note\ntags: [a]\n---\n",
+				});
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["title"] }, extensions: {} });
+				const found = requiredFound(bundle, config);
+				const empty = found.find((d) => d.file === "empty.md");
+				const gone = found.find((d) => d.file === "gone.md");
+				assert.isDefined(empty);
+				assert.isDefined(gone);
+				const emptyDoc = [...bundle.concepts.values()].find((c) => c.path === "empty.md")?.document;
+				const goneDoc = [...bundle.concepts.values()].find((c) => c.path === "gone.md")?.document;
+				assert.isDefined(emptyDoc);
+				assert.isDefined(goneDoc);
+				if (emptyDoc === undefined || goneDoc === undefined) return;
+				assert.deepStrictEqual(empty?.range, frontmatterPathRange(emptyDoc, ["title"]));
+				assert.deepStrictEqual(gone?.range, frontmatterPathRange(goneDoc, []));
+				// `title:` is the fourth line of the file (zero-based line 3); the block starts on line 0.
+				assert.strictEqual(empty?.range?.line, 3);
+				assert.notStrictEqual(gone?.range?.line, 3);
+			}),
+		);
+
+		it.effect("required-key-missing: whitespace, 0, false and {} are present", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["k"] }, extensions: {} });
+				for (const value of ['"  "', "0", "false", "{}"]) {
+					const bundle = yield* loadFromSources({ "a.md": `---\ntype: Note\nk: ${value}\n---\n` });
+					assert.deepStrictEqual(requiredFound(bundle, config), [], value);
+				}
+				// The control: the same key written empty is reported.
+				const empty = yield* loadFromSources({ "a.md": '---\ntype: Note\nk: ""\n---\n' });
+				assert.strictEqual(requiredFound(empty, config).length, 1);
+			}),
+		);
+
+		it.effect("field-value-unknown: an empty value is absent (not checked); a real unknown value still is", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: { Module: { fields: { kind: { description: "Kind.", values: { package: "npm package" } } } } },
+					extensions: {},
+				});
+				const found = (kind: string) =>
+					loadFromSources({ "m.md": `---\ntype: Module\nkind: ${kind}\n---\n` }).pipe(
+						Effect.map((bundle) => Validate.lint(bundle, config).filter((d) => d.code === "field-value-unknown")),
+					);
+				assert.deepStrictEqual(yield* found('""'), []);
+				assert.deepStrictEqual(yield* found("[]"), []);
+				assert.deepStrictEqual(yield* found("package"), []);
+				assert.strictEqual((yield* found("bogus")).length, 1);
+			}),
+		);
+
+		it.effect("generated-missing: generated written null, empty string or empty list counts as no block", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					actors: { agent: "okfit/claude-code" as Actor, humans: [] },
+					extensions: {},
+				});
+				const hits = (generated: string) =>
+					loadFromSources({ "m.md": `---\ntype: Note\ngenerated: ${generated}\n---\n` }).pipe(
+						Effect.map((bundle) => Validate.lint(bundle, config).filter((d) => d.code === "generated-missing")),
+					);
+				assert.strictEqual((yield* hits('""')).length, 1);
+				assert.strictEqual((yield* hits("[]")).length, 1);
+				assert.strictEqual((yield* hits("null")).length, 1);
+				// The control: a real block is present.
+				assert.strictEqual((yield* hits("{ by: okfit/claude-code }")).length, 0);
+			}),
+		);
+	});
+
 	describe("generated-missing (issue #73)", () => {
 		const withAgent = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 			actors: { agent: "okfit/claude-code" as Actor, humans: [] },

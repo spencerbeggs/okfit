@@ -143,4 +143,26 @@ describe("syncEnvelope", () => {
 		};
 		assert.throws(() => Schema.decodeUnknownSync(SyncEnvelope)(tampered));
 	});
+
+	it.effect("round-trips reason symlink-escape through the envelope schema", () =>
+		Effect.sync(() => {
+			const skipped = [{ id: "index.md", reason: "symlink-escape" }] as const;
+			const result: SyncResult = {
+				...baseResult,
+				index: { ...EMPTY_MODE, skipped },
+				log: { ...EMPTY_MODE, skipped: [{ id: "log.md", reason: "symlink-escape" }] },
+			};
+			const built = syncEnvelope({ okfitVersion: "0.1.0", root: "okf", dryRun: false, result });
+			assert.deepStrictEqual(built.index.skipped, skipped);
+			assert.strictEqual(built.exit_code, 0);
+			const decoded = Schema.decodeUnknownSync(SyncEnvelope)(Schema.encodeSync(SyncEnvelope)(built));
+			assert.deepStrictEqual(decoded, built);
+			assert.throws(() =>
+				Schema.decodeUnknownSync(SyncEnvelope)({
+					...Schema.encodeSync(SyncEnvelope)(built),
+					index: { ...built.index, skipped: [{ id: "index.md", reason: "symlink-escapes" }] },
+				}),
+			);
+		}),
+	);
 });

@@ -1,5 +1,6 @@
 import { posix } from "node:path";
-import type { LoadedBundle, LoadedConcept, OkfitConfig, PathField } from "@okfit/core";
+import type { MarkdownDocument } from "@effected/markdown";
+import type { LoadedBundle, OkfitConfig, PathField } from "@okfit/core";
 import { DiagnosticRange, Graph } from "@okfit/core";
 
 /**
@@ -49,31 +50,98 @@ interface FieldPath {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** The frontmatter paths whose values are bundle paths, for this concept. */
-const fieldPaths = (concept: LoadedConcept, config: OkfitConfig): ReadonlyArray<FieldPath> => {
+interface CoreField {
+	/** The top-level frontmatter key the field lives under. */
+	readonly key: string;
+	/** Whether the key holds the path itself, so a declared extension field of that name would double it. */
+	readonly scalar: boolean;
+	/** The field's path values in this frontmatter. */
+	readonly read: (raw: Record<string, unknown>) => ReadonlyArray<Found>;
+}
+
+type Found = Omit<FieldPath, "field">;
+
+const scalarAt = (raw: Record<string, unknown>, key: string): ReadonlyArray<Found> => {
+	const value = raw[key];
+	return typeof value === "string" ? [{ path: [key], value }] : [];
+};
+
+const nestedAt = (raw: Record<string, unknown>, key: string, inner: string): ReadonlyArray<Found> => {
+	const holder = raw[key];
+	const value = isRecord(holder) ? holder[inner] : undefined;
+	return typeof value === "string" ? [{ path: [key, inner], value }] : [];
+};
+
+/**
+ * Every path field core reads (OKF 0.3 5.4, 6.2, 10.2, 11.2). Typed `Record<PathField, ...>` so a new
+ * member of core's `PathField` is a compile error here until `mv` handles it.
+ */
+const CORE_FIELDS: Record<PathField, CoreField> = {
+	resource: { key: "resource", scalar: true, read: (raw) => scalarAt(raw, "resource") },
+	"sources.resource": {
+		key: "sources",
+		scalar: false,
+		read: (raw) => {
+			const { sources } = raw;
+			// OKF 0.3 11.2 rule 2: a single mapping stands for a one-item list.
+			if (isRecord(sources)) return nestedAt(raw, "sources", "resource");
+			if (!Array.isArray(sources)) return [];
+			return sources.flatMap((entry, i) =>
+				isRecord(entry) && typeof entry.resource === "string"
+					? [{ path: ["sources", i, "resource"], value: entry.resource }]
+					: [],
+			);
+		},
+	},
+	// The Attested Computation keys sit at the frontmatter top level (OKF 0.3 10.2).
+	computation: { key: "computation", scalar: true, read: (raw) => scalarAt(raw, "computation") },
+	"executor.resource": {
+		key: "executor",
+		scalar: false,
+		read: (raw) => nestedAt(raw, "executor", "resource"),
+	},
+	"attester.resource": {
+		key: "attester",
+		scalar: false,
+		read: (raw) => nestedAt(raw, "attester", "resource"),
+	},
+	superseded_by: { key: "superseded_by", scalar: true, read: (raw) => scalarAt(raw, "superseded_by") },
+};
+
+/** Keys a declared `kind = "path"` extension field must not reuse: core already lists them. */
+const CORE_SCALAR_KEYS: ReadonlySet<string> = new Set(
+	Object.values(CORE_FIELDS)
+		.filter((field) => field.scalar)
+		.map((field) => field.key),
+);
+
+/**
+ * A parsed Markdown file {@link referencesOf} can scan: a loaded concept, or a file that is not a concept
+ * (no frontmatter, or no `type`) read by `okfit mv` itself, whose `frontmatter.raw` is `{}` without a block.
+ *
+ * @public
+ */
+export interface ReferenceSource {
+	readonly path: string;
+	readonly document: MarkdownDocument;
+	readonly frontmatter: {
+		readonly raw: Record<string, unknown>;
+		/** An undefined type skips the profile-declared path fields (a non-concept has none). */
+		readonly type?: string;
+	};
+}
+
+/** The frontmatter paths whose values are bundle paths, for this file. */
+const fieldPaths = (concept: ReferenceSource, config: OkfitConfig): ReadonlyArray<FieldPath> => {
 	const raw = concept.frontmatter.raw;
 	const out: Array<FieldPath> = [];
-	if (typeof raw.resource === "string") out.push({ path: ["resource"], value: raw.resource, field: "resource" });
-	if (Array.isArray(raw.sources)) {
-		raw.sources.forEach((entry, i) => {
-			if (isRecord(entry) && typeof entry.resource === "string")
-				out.push({ path: ["sources", i, "resource"], value: entry.resource, field: "sources.resource" });
-		});
+	for (const [field, core] of Object.entries(CORE_FIELDS) as Array<[PathField, CoreField]>) {
+		for (const found of core.read(raw)) out.push({ ...found, field });
 	}
-	const attested = raw.attested;
-	if (isRecord(attested)) {
-		if (typeof attested.computation === "string")
-			out.push({ path: ["attested", "computation"], value: attested.computation, field: "computation" });
-		const executor = attested.executor;
-		if (isRecord(executor) && typeof executor.resource === "string")
-			out.push({ path: ["attested", "executor", "resource"], value: executor.resource, field: "executor.resource" });
-		const attester = attested.attester;
-		if (isRecord(attester) && typeof attester.resource === "string")
-			out.push({ path: ["attested", "attester", "resource"], value: attester.resource, field: "attester.resource" });
-	}
-	const declared = config.types?.[concept.frontmatter.type]?.fields ?? {};
+	const type = concept.frontmatter.type;
+	const declared = (type === undefined ? undefined : config.types?.[type]?.fields) ?? {};
 	for (const [key, declaration] of Object.entries(declared)) {
-		if (declaration.kind !== "path" || key === "resource") continue;
+		if (declaration.kind !== "path" || CORE_SCALAR_KEYS.has(key)) continue;
 		const value = raw[key];
 		if (typeof value === "string") out.push({ path: [key], value });
 		else if (Array.isArray(value)) {
@@ -115,14 +183,14 @@ const locateDestination = (slice: string, url: string, type: "link" | "image" | 
 };
 
 /**
- * Every rewritable reference in a concept, plus the references that could not be located in their file
+ * Every rewritable reference in a concept (or other {@link ReferenceSource}), plus the references that could not be located in their file
  * (`unlocatable` as `file: value` lines, `unlocatableRefs` with the decoded value). Body links, images and definitions with a URL; the path-valued frontmatter fields;
  * every field the concept's type declares with `kind = "path"`; and `renders[].path`.
  *
  * @public
  */
 export const referencesOf = (
-	concept: LoadedConcept,
+	concept: ReferenceSource,
 	config: OkfitConfig,
 ): {
 	readonly references: ReadonlyArray<Reference>;

@@ -13,18 +13,20 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:45:40Z
+  at: 2026-11-24T02:05:35Z
 status: stable
 integrity:
   generated:
-    body: b114d078627aa76a
+    body: 4dd48327fb6d3eef
   verified:
     by: human:spencer
-    at: 2026-11-23T22:18:48Z
-    content: 43750283af39aeae
+    at: 2026-11-24T02:55:14Z
+    content: 7cd62c9294f77f0f
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:48Z
+  - by: human:spencer
+    at: 2026-11-24T02:55:14Z
 ---
 
 # Markdown that is not a concept is skipped, not an error
@@ -88,10 +90,13 @@ than before until the open question is settled.
 
 `sync` never stamps or rewrites a concept file that is a link out of the
 bundle, because `Bundle.load` drops it, and an engine test pins that. The
-reserved files differ. A root `index.md` that is a symlink out of the bundle
-is not loaded, so its metadata and declared version are not read and the
-bundle reads as legacy. `syncIndex` then renders a fresh root index from the
-concepts alone and `writeAtomic` writes it through the link, as it did
-before this work. A `log.md` in that state is read through the link by
-`syncLog`, finds no loaded log document, and is skipped with the reason
-`log-unparseable`, so it is never rewritten.
+reserved files differ in what core does with them. A root `index.md` that is
+a symlink out of the bundle is not loaded, so its metadata and declared
+version are not read and the bundle reads as legacy. `sync` does not write
+through such a link either: a root or subdirectory `index.md`, or the root
+`log.md`, that is a symlink out of the bundle (a dangling link included) is
+skipped with the reason `symlink-escape`, never read and never written, in
+plain, dry-run and `--staged` runs, and the exit code is unchanged. The check
+asks core's load diagnostics first and falls back to `lstat` plus
+`confineReal`, because the walker does not list a dangling link and so leaves
+no diagnostic.

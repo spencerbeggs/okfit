@@ -1,7 +1,7 @@
 import type { FrontmatterWriteError, MarkdownParseError } from "@effected/markdown";
 import { MarkdownDocument, MarkdownFrontmatter, MarkdownParseOptions, YamlFrontmatter } from "@effected/markdown";
 import type { OkfitConfig } from "@okfit/core";
-import { Concept, ConceptId, Derive, LoadedConcept, OKF_SPEC_VERSION } from "@okfit/core";
+import { Concept, ConceptId, Derive, LoadedConcept } from "@okfit/core";
 import type { Layout } from "@okfit/profiles";
 import { Effect, Option, Schema } from "effect";
 
@@ -33,6 +33,8 @@ export interface ScaffoldOptions {
 	readonly profileName: string;
 	/** `basename(projectRoot)` — `project.md`'s `title` (K-26). */
 	readonly projectTitle: string;
+	/** The `okf_version` written into the root `index.md`. */
+	readonly okfVersion: string;
 	/** `YYYY-MM-DD`, derived from the CLI's `now` (K-25, K-47). */
 	readonly today: string;
 }
@@ -103,6 +105,8 @@ const ProjectFrontmatter = Schema.Struct({
 	status: Schema.Literals(["draft", "stable", "deprecated"]),
 });
 
+const BUNDLE_DESCRIPTION = "What this project is, how it is built, and why it is built that way.";
+
 const PROJECT_DESCRIPTION = "What this project is, its boundaries, and its non-goals.";
 
 const capitalize = (name: string): string => `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
@@ -172,7 +176,8 @@ export const files = (
 
 		const subdirectories = layout.directories.map((directory) => directory.directory);
 		const rootIndexText = Derive.renderIndex("", [projectConcept], {
-			okfVersion: OKF_SPEC_VERSION,
+			okfVersion: options.okfVersion,
+			metadata: { title: projectTitle, description: BUNDLE_DESCRIPTION },
 			subdirectories,
 		});
 

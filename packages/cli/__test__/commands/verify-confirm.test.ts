@@ -5,6 +5,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import { Git } from "@effected/git";
 import { ActorPattern, OkfitConfig } from "@okfit/core";
+import { VerifyStatusUnknownError } from "@okfit/engine";
 import { HumanActorNotAllowedError } from "@okfit/profiles";
 import { DateTime, Effect, Fiber, Layer, Schema } from "effect";
 import { confirmReverify } from "../../src/commands/verify-confirm.js";
@@ -41,7 +42,7 @@ const NOW = DateTime.makeUnsafe("2026-10-10T00:00:00Z");
 const start = (
 	root: string,
 	interactive: boolean,
-	extra: { noDiff?: boolean; dryRun?: boolean; id?: string; config?: OkfitConfig } = {},
+	extra: { noDiff?: boolean; dryRun?: boolean; id?: string; config?: OkfitConfig; status?: "stable" | "draft" } = {},
 ) =>
 	Effect.gen(function* () {
 		const session = yield* CliUiTest.session({ interactive });
@@ -54,6 +55,7 @@ const start = (
 				now: NOW,
 				noDiff: extra.noDiff ?? false,
 				dryRun: extra.dryRun ?? false,
+				...(extra.status === undefined ? {} : { status: extra.status }),
 			}).pipe(Effect.provide(session.layer), Effect.provide(layer)),
 		);
 		return { session, fiber };
@@ -179,5 +181,66 @@ describe("confirmReverify", () => {
 				}),
 			),
 		),
+	);
+});
+
+describe("confirmReverify and a status outside the vocabulary (OKF 0.3 5.4)", () => {
+	/** `FILES` with `decisions/c` (drifted once edited) carrying `status`. */
+	const withStatus = (status: string): typeof FILES =>
+		FILES.map(([name, text]) =>
+			name === "decisions/c.md"
+				? [name, text.replace("title: Gamma\n", `title: Gamma\nstatus: ${status}\n`)]
+				: [name, text],
+		);
+
+	it.live("refuses before the diff and the prompt; --stable, and the same concept at status stable, still prompt", () =>
+		Effect.gen(function* () {
+			yield* withBundle(withStatus("archived"), (root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						yield* driftedRepo(root);
+						const { session, fiber } = yield* start(root, true);
+						const exit = yield* Fiber.await(fiber);
+						assert.isTrue(exit._tag === "Failure");
+						if (exit._tag === "Failure") {
+							const failure = exit.cause.reasons.find((reason) => reason._tag === "Fail");
+							const error = failure?._tag === "Fail" ? failure.error : undefined;
+							assert.instanceOf(error, VerifyStatusUnknownError);
+							assert.strictEqual((error as VerifyStatusUnknownError).status, "archived");
+						}
+						const out = yield* session.stdout;
+						assert.notInclude(out, "Re-verify");
+						assert.notInclude(out, "+A new sentence.");
+						assert.notInclude(out, "changed since");
+					}),
+				),
+			);
+			// control: --stable replaces the status, so the drifted concept is shown and asked about
+			yield* withBundle(withStatus("archived"), (root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						yield* driftedRepo(root);
+						const { session, fiber } = yield* start(root, true, { status: "stable" });
+						const confirm = yield* session.next({ contains: "Re-verify decisions/c?" });
+						yield* confirm.type("y");
+						yield* confirm.press("enter");
+						assert.isTrue(yield* Fiber.join(fiber));
+					}),
+				),
+			);
+			// control: the same concept once its status is stable
+			yield* withBundle(withStatus("stable"), (root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						yield* driftedRepo(root);
+						const { session, fiber } = yield* start(root, true);
+						const confirm = yield* session.next({ contains: "Re-verify decisions/c?" });
+						yield* confirm.type("y");
+						yield* confirm.press("enter");
+						assert.isTrue(yield* Fiber.join(fiber));
+					}),
+				),
+			);
+		}),
 	);
 });

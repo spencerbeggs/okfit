@@ -1,4 +1,4 @@
-import type { GraphNodeKind, LoadedBundle, LoadedConcept, OkfitConfig, Status } from "@okfit/core";
+import type { DerivedStatus, GraphNodeKind, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { ConceptId, Derive, Graph } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Effect, Option } from "effect";
@@ -15,14 +15,23 @@ export interface ConceptFilter {
 	readonly types?: ReadonlyArray<string>;
 	/** AND: every tag must be present. */
 	readonly tags?: ReadonlyArray<string>;
-	/** OR, compared against `Derive.status` (an absent status reads as stable). */
-	readonly statuses?: ReadonlyArray<Status>;
+	/** OR, compared against `Derive.status` (an absent status reads as stable; a status outside the vocabulary is `unknown`). */
+	readonly statuses?: ReadonlyArray<DerivedStatus>;
 	/** `"current"`: integrity current; `"unverified"`: tier unverified. */
 	readonly verified?: "current" | "unverified";
 	/** `true`: integrity drifted. */
 	readonly drifted?: boolean;
 	/** `true`: `stale_after` has passed. */
 	readonly stale?: boolean;
+	/**
+	 * `true`: current knowledge only (OKF 0.3 section 5.4). Keeps concepts whose derived status is `draft` or
+	 * `stable`; a `deprecated` or `unknown` concept is dropped. The replacement a deprecated concept points to
+	 * (`Graph.replacement`) is always draft or stable, so it is listed once, in id order, when it passes the other
+	 * filters; a replacement that fails one (a `types` filter, say) is not listed. An explicit `statuses` filter
+	 * still constrains the result and `current` never widens it, so `{ current: true, statuses: ["deprecated"] }`
+	 * lists nothing: a deprecated concept is not current knowledge.
+	 */
+	readonly current?: boolean;
 }
 
 /** One outgoing link of a concept. @public */
@@ -105,30 +114,31 @@ export const ConceptQuery = {
 					}
 				}
 			}
-			return (
-				[...bundle.concepts.values()]
-					.filter((concept) => {
-						if (types.length > 0 && !types.includes(concept.frontmatter.type)) return false;
-						const tags = concept.frontmatter.tags ?? [];
-						if (!requestedTags.every((tag) => tags.includes(tag))) return false;
-						if (statuses.length > 0) {
-							const status = Derive.status(concept.frontmatter);
-							if (!statuses.some((wanted) => wanted === status)) return false;
-						}
-						const signal = signals.get(concept.id);
-						if (signal !== undefined) {
-							if (filter.verified === "current" && signal.integrity !== "current") return false;
-							if (filter.verified === "unverified" && signal.tier !== "unverified") return false;
-							if (filter.drifted !== undefined && (signal.integrity === "drifted") !== filter.drifted) return false;
-							if (filter.stale !== undefined && signal.stale !== filter.stale) return false;
-						}
-						return true;
-					})
-					// Sort by id for a stable, deterministic order: ids are unique, so this
-					// needs no secondary key, and a plain compare avoids locale-sensitive
-					// collation across repeated calls.
-					.toSorted(byId)
-			);
+			const passesOthers = (concept: LoadedConcept): boolean => {
+				if (types.length > 0 && !types.includes(concept.frontmatter.type)) return false;
+				const tags = concept.frontmatter.tags ?? [];
+				if (!requestedTags.every((tag) => tags.includes(tag))) return false;
+				const signal = signals.get(concept.id);
+				if (signal !== undefined) {
+					if (filter.verified === "current" && signal.integrity !== "current") return false;
+					if (filter.verified === "unverified" && signal.tier !== "unverified") return false;
+					if (filter.drifted !== undefined && (signal.integrity === "drifted") !== filter.drifted) return false;
+					if (filter.stale !== undefined && signal.stale !== filter.stale) return false;
+				}
+				return true;
+			};
+			const passesStatus = (concept: LoadedConcept): boolean => {
+				const status = Derive.status(concept.frontmatter);
+				if (statuses.length > 0 && !statuses.some((wanted) => wanted === status)) return false;
+				return filter.current !== true || status === "draft" || status === "stable";
+			};
+			// A deprecated concept's replacement is always draft or stable (`Graph.replacement`), so under `current`
+			// the plain status test already lists it whenever it passes the other filters: nothing is added or deduplicated.
+			const found = [...bundle.concepts.values()].filter((concept) => passesOthers(concept) && passesStatus(concept));
+			// Sort by id for a stable, deterministic order: ids are unique, so this
+			// needs no secondary key, and a plain compare avoids locale-sensitive
+			// collation across repeated calls.
+			return found.toSorted(byId);
 		}),
 
 	/** One concept by tolerant id, with its outgoing links. */
@@ -136,7 +146,12 @@ export const ConceptQuery = {
 		bundle: LoadedBundle,
 		id: string,
 	): Effect.Effect<
-		{ readonly concept: LoadedConcept; readonly links: ReadonlyArray<ConceptLink> },
+		{
+			readonly concept: LoadedConcept;
+			readonly links: ReadonlyArray<ConceptLink>;
+			/** The current replacement of a deprecated concept (`Graph.replacement`); `null` when there is none. */
+			readonly replacement: ConceptId | null;
+		},
 		QueryConceptNotFoundError
 	> =>
 		Effect.gen(function* () {
@@ -155,7 +170,11 @@ export const ConceptQuery = {
 						...(edge.data.field === undefined ? {} : { field: edge.data.field }),
 					}),
 				);
-			return { concept: resolved.concept, links };
+			return {
+				concept: resolved.concept,
+				links,
+				replacement: Option.getOrNull(Graph.replacement(bundle, resolved.id)),
+			};
 		}),
 
 	/** Outgoing and incoming graph neighbours of one concept. */

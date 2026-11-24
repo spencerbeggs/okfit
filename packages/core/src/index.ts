@@ -24,7 +24,7 @@ export {
 export type { EntryFamily } from "./Concept.js";
 export { ATTESTED_COMPUTATION_TYPE, Concept, EntryPaths } from "./Concept.js";
 export { ConceptId } from "./ConceptId.js";
-export type { LogEntry, RenderIndexOptions, StaleConcept } from "./Derive.js";
+export type { LogEntry, MalformedStaleAfter, RenderIndexOptions, StaleConcept } from "./Derive.js";
 export { Derive, Staleness, TrustTier } from "./Derive.js";
 export {
 	ConformanceCode,
@@ -69,4 +69,4 @@ export { Verification } from "./Verification.js";
  *
  * @public
  */
-export const OKF_SPEC_VERSION = "0.2" as const;
+export const OKF_SPEC_VERSION = "0.3" as const;

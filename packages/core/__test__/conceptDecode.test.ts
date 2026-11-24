@@ -255,7 +255,7 @@ describe("decodeConcept", () => {
 		assert.deepStrictEqual(concept.entries?.parameters, [["parameters", 1]]);
 		assert.deepStrictEqual(shape(issues), [["entry-ignored", "attested", ["parameters", 0]]]);
 	});
-	it("a scalar receipt and a bad attester.resource are each dropped alone, keeping runtime and both objects", () => {
+	it("a scalar receipt and a bad attester.resource each empty their mapping: both read as absent, runtime stays (R19)", () => {
 		const { concept, issues } = decoded({
 			type: "Attested Computation",
 			runtime: "bigquery",
@@ -263,8 +263,8 @@ describe("decodeConcept", () => {
 			attester: { resource: 5 },
 		});
 		assert.strictEqual(concept.attested?.runtime, "bigquery");
-		assert.isFalse("receipt" in concept.attested!.executor!);
-		assert.isFalse("resource" in concept.attested!.attester!);
+		assert.isUndefined(concept.attested?.executor);
+		assert.isUndefined(concept.attested?.attester);
 		assert.deepStrictEqual(shape(issues), [
 			["value-malformed", "attested", ["executor", "receipt"]],
 			["value-malformed", "attested", ["attester", "resource"]],
@@ -387,5 +387,52 @@ describe("decodeConcept", () => {
 		const real = decoded({ type: "T", generated: { by: "human:a" }, timestamp: "2026-01-01T00:00:00Z" });
 		assert.strictEqual(real.concept.generated?.by, "human:a");
 		assert.deepStrictEqual(real.issues, []);
+	});
+
+	describe("a single mapping emptied by dropped keys reads as absent (OKF 0.3 11.2, ruling R19)", () => {
+		const COMPUTATION = { type: "Attested Computation", runtime: "bigquery" };
+		it("usage_window: every written key dropped is absent, the warning stays; {} and a surviving key are kept", () => {
+			const dropped = decoded({ type: "Note", usage_window: { to: [1] } });
+			assert.isFalse("usage_window" in dropped.concept);
+			assert.deepStrictEqual(shape(dropped.issues), [["value-malformed", "usage_window", ["usage_window", "to"]]]);
+			// controls: written `{}` is kept as written; one good key beside a dropped one is kept
+			const empty = decoded({ type: "Note", usage_window: {} });
+			assert.isTrue("usage_window" in empty.concept);
+			assert.deepStrictEqual(empty.issues, []);
+			const mixed = decoded({ type: "Note", usage_window: { from: "2026-06-01T00:00:00Z", to: [1] } });
+			assert.isDefined(mixed.concept.usage_window?.from);
+			assert.deepStrictEqual(shape(mixed.issues), [["value-malformed", "usage_window", ["usage_window", "to"]]]);
+		});
+		it("executor and attester: all-dropped is absent and keeps runtime; {} and a surviving key are kept", () => {
+			const executor = decoded({ ...COMPUTATION, executor: { receipt: 5 } });
+			assert.isUndefined(executor.concept.attested?.executor);
+			assert.strictEqual(executor.concept.attested?.runtime, "bigquery");
+			assert.deepStrictEqual(shape(executor.issues), [["value-malformed", "attested", ["executor", "receipt"]]]);
+			const attester = decoded({ ...COMPUTATION, attester: { resource: 5 } });
+			assert.isUndefined(attester.concept.attested?.attester);
+			assert.deepStrictEqual(shape(attester.issues), [["value-malformed", "attested", ["attester", "resource"]]]);
+			// controls
+			const emptyExecutor = decoded({ ...COMPUTATION, executor: {}, attester: {} });
+			assert.isDefined(emptyExecutor.concept.attested?.executor);
+			assert.isDefined(emptyExecutor.concept.attested?.attester);
+			assert.deepStrictEqual(emptyExecutor.issues, []);
+			const mixed = decoded({ ...COMPUTATION, executor: { resource: "run.md", receipt: 5 } });
+			assert.strictEqual(mixed.concept.attested?.executor?.resource, "run.md");
+			assert.lengthOf(mixed.issues, 1);
+		});
+		it("generated needs `by`, so a mapping with every key dropped is ignored whole, not kept empty", () => {
+			const { concept, issues } = decoded({ type: "Note", generated: { by: 5 } });
+			assert.isFalse("generated" in concept);
+			assert.deepStrictEqual(shape(issues), [["entry-ignored", "generated", ["generated"]]]);
+			assert.isTrue("generated" in decoded({ type: "Note", generated: { by: "human:a", at: [1] } }).concept);
+		});
+		it("a source's own usage_window is dropped whole when any key is bad, and {} is kept", () => {
+			const bad = decoded({ type: "Note", sources: [{ resource: "a.md", usage_window: { to: [1] } }] });
+			assert.isFalse("usage_window" in bad.concept.sources![0]!);
+			assert.deepStrictEqual(shape(bad.issues), [["value-malformed", "sources", ["sources", 0, "usage_window"]]]);
+			const empty = decoded({ type: "Note", sources: [{ resource: "a.md", usage_window: {} }] });
+			assert.isTrue("usage_window" in empty.concept.sources![0]!);
+			assert.deepStrictEqual(empty.issues, []);
+		});
 	});
 });
