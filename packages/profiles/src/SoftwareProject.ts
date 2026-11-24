@@ -4,10 +4,11 @@ import type { Layout, Profile, ProfileDiagnostic, ProfileDiagnosticCode } from "
 import { DOCS_PRESETS } from "./presets/index.js";
 
 /**
- * Hand-authored, typed `OkfitConfig` (P-25). Sets ONLY `concepts`, `types`,
+ * Hand-authored, typed `OkfitConfig` (P-25). Sets ONLY `bundle.non_concepts`
+ * (the four names OKF 0.3 §3.2 lists, each matched at any depth including the bundle root), `concepts`, `types`,
  * `tags`, `extensions: {}` and one `lint` opinion (`status_missing = "warn"`,
  * issue #110: a software project wants every concept's status written down
- * rather than read from silence); `okf_version`, `bundle`, `lifecycle`,
+ * rather than read from silence); `okf_version`, `bundle.path`, `bundle.profile`, `lifecycle`,
  * `actors` and the rest of `lint` are inherited from `OkfitConfig.DEFAULTS`
  * by whoever merges.
  * `actors.agent` is deliberately unset (P-17): which agent writes is a fact
@@ -19,6 +20,7 @@ import { DOCS_PRESETS } from "./presets/index.js";
  */
 const config: OkfitConfig = {
 	concepts: { required: ["title", "description"], tags: { required: [] } },
+	bundle: { non_concepts: ["**/README.md", "**/AGENTS.md", "**/CONTRIBUTING.md", "**/SKILL.md"] },
 	lint: { status_missing: "warn" },
 	types: {
 		Project: {

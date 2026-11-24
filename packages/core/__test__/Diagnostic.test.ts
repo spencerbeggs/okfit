@@ -65,6 +65,7 @@ describe("Diagnostic", () => {
 				"frontmatter-missing",
 				"type-missing",
 				"symlink-escape",
+				"non-concept-unlisted",
 			];
 			assert.deepStrictEqual([...codes].sort(), [...LintCode.literals].sort());
 			for (const code of codes) {

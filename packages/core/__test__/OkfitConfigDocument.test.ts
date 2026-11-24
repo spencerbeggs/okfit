@@ -96,7 +96,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the thirty-nine lint keys its own rendered code as the title", () => {
+	it("gives each of the forty lint keys its own rendered code as the title", () => {
 		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value.title]),
@@ -140,6 +140,7 @@ describe("okfitConfigDocumentFields", () => {
 				["entry_ignored", "entry-ignored"],
 				["value_malformed", "value-malformed"],
 				["value_unknown", "value-unknown"],
+				["non_concept_unlisted", "non-concept-unlisted"],
 			],
 		);
 		assert.strictEqual(

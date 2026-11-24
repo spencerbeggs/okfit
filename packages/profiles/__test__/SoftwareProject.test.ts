@@ -36,10 +36,21 @@ const guidanceStrings = (): { descriptions: ReadonlyArray<string>; guidances: Re
 };
 
 describe("softwareProject.config", () => {
-	it.effect("sets only concepts, lint, types, tags and extensions; actors stays unset (P-25, P-17)", () =>
+	it.effect("lists the four non-concept names OKF 0.3 section 3.2 names, each matching at any depth", () =>
+		Effect.sync(() => {
+			assert.deepStrictEqual(config.bundle?.non_concepts, [
+				"**/README.md",
+				"**/AGENTS.md",
+				"**/CONTRIBUTING.md",
+				"**/SKILL.md",
+			]);
+		}),
+	);
+
+	it.effect("sets only bundle, concepts, lint, types, tags and extensions; actors stays unset (P-25, P-17)", () =>
 		Effect.sync(() => {
 			assert.strictEqual(softwareProject.name, "software-project");
-			assert.deepStrictEqual(Object.keys(config).sort(), ["concepts", "extensions", "lint", "tags", "types"]);
+			assert.deepStrictEqual(Object.keys(config).sort(), ["bundle", "concepts", "extensions", "lint", "tags", "types"]);
 			assert.deepStrictEqual(config.lint, { status_missing: "warn" });
 			assert.isUndefined(config.actors);
 			assert.deepStrictEqual(config.extensions, {});
@@ -244,7 +255,11 @@ describe("OkfitConfig.merge(DEFAULTS, softwareProject.config)", () => {
 	it.effect("keeps DEFAULTS' lint, lifecycle and bundle while adopting the profile's vocabulary", () =>
 		Effect.sync(() => {
 			const merged = OkfitConfig.merge(OkfitConfig.DEFAULTS, config);
-			assert.deepStrictEqual(merged.bundle, { path: "okf", profile: "software-project" });
+			assert.deepStrictEqual(merged.bundle, {
+				path: "okf",
+				profile: "software-project",
+				non_concepts: ["**/README.md", "**/AGENTS.md", "**/CONTRIBUTING.md", "**/SKILL.md"],
+			});
 			assert.deepStrictEqual(merged.concepts, { required: ["title", "description"], tags: { required: [] } });
 			assert.strictEqual(Object.keys(merged.types ?? {}).length, 20); // (checked) strictEqual for a number
 			assert.strictEqual(OkfitConfig.severityFor(merged, "unknown-type"), "error");

@@ -6,9 +6,12 @@ Named configuration profiles for [okfit](https://github.com/spencerbeggs/okfit).
 
 ## The `software-project` profile
 
-`Profiles.softwareProject.config` is a hand-authored `OkfitConfig` (P-25) that sets only `concepts`, `types`, `tags`, `extensions: {}`, and one `lint` opinion (`status_missing = "warn"`, so a concept with neither `status` nor `verified` is reported instead of silently reading as stable); `okf_version`, `bundle`, `lifecycle`, `actors`, and every other `lint` severity are inherited from `OkfitConfig.DEFAULTS` by whoever merges it (the CLI applies `DEFAULTS < profile < file` with `OkfitConfig.merge`). `Profiles.get(name)` resolves a profile by its exact name and answers `Option.none` for `"none"` and unknown names. The TOML below decodes to the exact same value and is checked against the literal by `__test__/SoftwareProject.test.ts`:
+`Profiles.softwareProject.config` is a hand-authored `OkfitConfig` (P-25) that sets only `bundle.non_concepts` (the four names OKF 0.3 §3.2 lists), `concepts`, `types`, `tags`, `extensions: {}`, and one `lint` opinion (`status_missing = "warn"`, so a concept with neither `status` nor `verified` is reported instead of silently reading as stable); `okf_version`, `bundle.path` and `bundle.profile`, `lifecycle`, `actors`, and every other `lint` severity are inherited from `OkfitConfig.DEFAULTS` by whoever merges it (the CLI applies `DEFAULTS < profile < file` with `OkfitConfig.merge`). `Profiles.get(name)` resolves a profile by its exact name and answers `Option.none` for `"none"` and unknown names. The TOML below decodes to the exact same value and is checked against the literal by `__test__/SoftwareProject.test.ts`:
 
 ```toml
+[bundle]
+non_concepts = ["**/README.md", "**/AGENTS.md", "**/CONTRIBUTING.md", "**/SKILL.md"]
+
 [concepts]
 required = ["title", "description"]
 tags.required = []
