@@ -21,6 +21,10 @@
 * Updated okfit config file schema
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated stale --verify rolls stale_after forward, and plain verify never does
+* Updated A verification is bound to the content it covered
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated Verification drift is a signal to weigh, never a gate
+* Updated integrity frontmatter family
 
 ## 2026-11-23
 

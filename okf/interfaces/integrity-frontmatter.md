@@ -10,7 +10,7 @@ tags:
 status: draft
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:57:51Z
+  at: 2026-11-24T05:58:20Z
 sources:
   - id: integrity-ts
     resource: ../../packages/core/src/Integrity.ts
@@ -18,13 +18,13 @@ sources:
     resource: ../../packages/profiles/src/Canonical.ts
 integrity:
   generated:
-    body: 12b8c9c215ea2ac8
+    body: 1284cdd5314515a8
 ---
 
 # integrity frontmatter family
 
 `integrity` is an okfit-owned top-level key, the only place okfit stores
-digests. It is an OKF v0.2 section 4.1 extension key: other tools preserve
+digests. It is an OKF v0.3 section 4.1 extension key: other tools preserve
 it. The rationale is in [Every okfit digest lives in one integrity
 family](../decisions/integrity-family.md).
 
@@ -57,6 +57,16 @@ sorted by code point and arrays kept in order, minus `generated`,
 `verified`, `integrity`, `stale_after`, `status`, legacy `timestamp` and
 each `renders[].body` (see [Verification binds the content it
 covered](../decisions/verification-binds-content.md)).
+
+## Currency
+
+A binding reads `current` only while its bound entry is a current verification
+event under OKF v0.3 section 5.3: its `at` is equal to or later than
+`generated.at`, or the concept has no `generated.at`. Otherwise the drift
+reason is `verified-before-change`, evaluated after the `[actors].humans`
+allow-list and before the digests are compared. This is okfit's integrity
+signal beside the spec's trust tier, which counts current events by the same
+rule and which drift never changes.
 
 ## Legacy keys and failure behaviour
 

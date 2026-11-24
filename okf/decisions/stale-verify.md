@@ -8,10 +8,10 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T05:58:20Z
 integrity:
   generated:
-    body: f4fa8a58826ee119
+    body: a77fd85f1aa807c3
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -46,11 +46,20 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   safely fails the whole batch with nothing written.
 - A re-attest by the same actor overwrites that actor's own `verified[].at`
   instead of appending a second entry, so repeated stale cycles do not grow
-  the list. The same edit rewrites `integrity.verified` so its `at` and
+  the list. Section 5.3 says earlier events stay in the file as history, and
+  an overwrite replaces that actor's earlier `at`; this is okfit's named
+  variation from the spec, kept so repeated stale cycles stay bounded. The
+  same edit rewrites `integrity.verified` so its `at` and
   content digest agree with the refreshed entry (see [integrity
   frontmatter](../interfaces/integrity-frontmatter.md)).
 - Candidates include a drifted concept even when this actor already has an
-  entry, because "already verified" now means holding the current binding.
+  entry, because "already verified" now means holding the current binding,
+  and a binding is current only while its bound entry is a current event
+  under OKF v0.3 section 5.3 (not before `generated.at`). A concept verified
+  before its last change is therefore a candidate again.
+- A write whose attestation instant is before the concept's `generated.at`
+  is refused as `VerifyNotCurrentError` (exit `3`), as for every verify path,
+  and as a batch it fails whole with nothing written.
 - A concept whose `stale_after` cannot be read is never stale, so it is
   never a candidate. `okfit stale` lists it apart, under `malformed
   stale_after`, with the value as written, and the JSON envelope carries it in

@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:36:26Z
+  at: 2026-11-24T05:58:20Z
 tags:
   - architecture
 verified:
@@ -27,7 +27,7 @@ verified:
     at: 2026-11-24T02:55:14Z
 integrity:
   generated:
-    body: 4eda5685efd50cb4
+    body: 995c1f1334807d7b
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -41,8 +41,8 @@ integrity:
 | Tool | Returns | Key argument/filter | Primary failure mode |
 | --- | --- | --- | --- |
 | `describe_vocabulary` | The resolved project and bundle roots, active profile, configured agent actor, the config's declared type and tag vocabulary, and `docs_presets`. | none (`Tool.EmptyParams`) | a refusal when config resolution fails |
-| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status` (`draft`, `stable`, `deprecated` or `unknown`), `current` (`true` keeps draft and stable concepts and drops deprecated and unknown-status ones, intersected with `status`), `verified` (boolean: `true` is current, `false` is never verified), `drifted`, `stale` (with optional `now`), `limit`/`offset` | a refusal for an undeclared type or tag |
-| `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, trust `tier`, `integrity`, `stale`, `staleness`, `raw_status`, `drift` (`reason`, `edited_by`, `edited_at`) when drifted, every outgoing link, and `replacement`: for a deprecated concept, the id of the current concept its `superseded_by` chain ends at, otherwise `null`. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
+| `list_concepts` | Concept summaries, paged, with a total match count. | optional exact `type`, `tags` (AND), `status` (`draft`, `stable`, `deprecated` or `unknown`), `current` (`true` keeps draft and stable concepts and drops deprecated and unknown-status ones, intersected with `status`), `verified` (boolean: `true` is current, `false` is no current verification, tier unverified), `drifted`, `stale` (with optional `now`), `limit`/`offset` | a refusal for an undeclared type or tag |
+| `get_concept` | One concept's whole decoded frontmatter, raw markdown, bundle-relative path, trust `tier`, `integrity`, `stale`, `staleness`, `raw_status`, `drift` (`reason`, one of `content-changed`, `unbound`, `entry-superseded`, `actor-not-allowed`, `content-unhashable` or `verified-before-change`; `edited_by` and `edited_at` name the editor for `verified-before-change` and are `null` otherwise) when drifted, every outgoing link, and `replacement`: for a deprecated concept, the id of the current concept its `superseded_by` chain ends at, otherwise `null`. | `id` (tolerant: with or without a leading slash or trailing `.md`) | a refusal for an unknown or empty id |
 | `concept_neighbors` | A concept's graph neighbours — everything it links to and everything that links to it — each with node kind and, for a concept target, its full summary. | `id` | a refusal for an unknown or empty id |
 | `stale_report` | Every concept whose `stale_after` instant has passed, each with its summary and days past, plus a `malformed` list (`{ id, stale_after }`, the value as written) of concepts whose `stale_after` cannot be read, which are never stale and never offered for re-verification, and a `drifted` list of the concepts edited since their verification. | optional `now` (ISO-8601, explicit offset) | a refusal for an unparseable `now`, or when the config or bundle fails to load |
 | `validate_bundle` | The same conformance and lint report `okfit validate --format json` produces, unchanged (including the `verified-drift` lint at its configured severity): `engine_version` and `okf_version` match the CLI's over one bundle (`okf_version` is the version the bundle's root index declares, `null` when it declares none), while `okfit_version` is this package's own version, `producer` is `@okfit/mcp`, and `distribution` names the meta-package the server was launched through or is `null`. | optional `now`; optional `documents: [{ path, text }]` (bundle-relative posix `.md` paths) validated in place of disk, a not-yet-written file under an existing directory included, nothing written | `BundleNotFound`; `InvalidArgument` for a document path that is absolute, escapes the bundle, is not `.md`, repeats, or sits under a directory that does not exist |

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T05:58:20Z
 integrity:
   generated:
-    body: b4b18509d28b51af
+    body: bced9cbefc285042
 ---
 
 # Profiles
@@ -96,11 +96,18 @@ with `ContentUnhashableError`, naming the frontmatter path (okfit#327).
 
 ## Trust and drift
 
-The `Trust` module derives a `ConceptSignal`: the spec trust tier
-(unchanged), `integrity` of `current`, `drifted` or `none`, a drift reason
-(`content-changed`, `unbound`, `entry-superseded`, `actor-not-allowed` or
-`content-unhashable`, with the editor named from `generated` when it is
-later than the bound `at`) and staleness. `ConceptSignal` carries both `stale`
+The `Trust` module derives a `ConceptSignal`: the spec trust tier (from
+current verification events only, OKF v0.3 §5.3), `integrity` of `current`,
+`drifted` or `none`, a drift reason (`content-changed`, `unbound`,
+`entry-superseded`, `actor-not-allowed`, `verified-before-change` or
+`content-unhashable`) and staleness. `verified-before-change` means the bound
+entry's `at` is earlier than `generated.at`, so it is no longer a current
+event; it names the editor from `generated` (`edited_by`, `edited_at`), and
+`Trust.evaluate` checks it after the allow-list and before it compares
+digests. `verified-drift` stays silent on it, because core's
+`verified-before-change` lint is the one reporter of that defect.
+`Trust.boundEntry` is public: the binding when it names the latest human
+entry, ignoring the allow-list and whether the entry is current. `ConceptSignal` carries both `stale`
 and a required `staleness` (`fresh`, `stale`, `unknown` or `malformed`), from one
 source so the two cannot disagree; a consumer that builds a `ConceptSignal`
 literal must supply it. A concept whose status is unknown is skipped by

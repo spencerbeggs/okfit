@@ -1,20 +1,20 @@
 ---
 type: Decision
 title: A verification is bound to the content it covered
-description: okfit verify records a digest of the body plus authored frontmatter beside the verified entry, so a later edit is detectable as drift while the spec's trust tier stays unchanged.
+description: okfit verify records a digest of the body plus authored frontmatter beside the verified entry, so a later edit is detectable as drift; drift never changes the trust tier, which only the spec's current-event rule moves.
 tags:
   - architecture
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-10-11T03:59:59Z
+  at: 2026-11-24T05:58:20Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 integrity:
   generated:
-    body: 81d1f9bf84614fbf
+    body: 465023c7007d2635
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -48,14 +48,34 @@ arrays keep their order. The encoder lives in `@okfit/profiles`, not core,
 because binding content to verification is an okfit opinion the spec does
 not hold.
 
-Profiles derives whether a binding is still current from the spec trust
-tier (unchanged), the bound digest and the current content. Phase 1 reports
-drift with the reasons `content-changed`, `unbound` and `entry-superseded`,
-through the `verified-drift` lint and verify's results and envelope. A
-fourth reason, `actor-not-allowed`, is reserved for the later actors
-phase, and a fuller signal object on every surface is planned. Machine
-entries neither bind nor break a binding. Status changes do not void a
-verification.
+The trust tier is the spec's. Under OKF v0.3 section 5.3 only current
+verification events count: an event whose `at` is equal to or later than
+`generated.at` (any event when `generated` or `generated.at` is absent). An
+earlier event stays in the file as history and counts for nothing, so a
+concept edited after its verification reads as a lower tier. That is the
+spec's rule, applied to every bundle whatever it declares, and okfit's
+integrity signal does not alter it.
+
+Integrity is stricter than the tier. Profiles derives whether a binding is
+still current from the bound digest, the current content, and whether the
+bound entry is itself a current event by section 5.3. It reports drift with
+the reasons `content-changed`, `unbound`, `entry-superseded`,
+`actor-not-allowed` and `verified-before-change`, through the
+`verified-drift` lint and verify's results and envelope; a bound entry dated
+before the last change is `verified-before-change`, reported by core's lint
+of the same name and not repeated by `verified-drift`. Machine entries
+neither bind nor break a binding. Status changes do not void a verification.
+
+Because integrity reads `current` only for a current bound entry, the skip
+rule follows it: batch, the picker and the language server treat a
+concept as already verified only when its binding is current. `okfit verify`
+also refuses to write a verification that would not be current (`--at`
+before `generated.at`, or a `generated.at` in the future), exit `3`, so it
+never records an entry the next read would discard. `okfit sync` keeps the
+usual edit, verify, commit sequence current by never stamping a
+`generated.at` later than a human verification of exactly the current
+content (see [Every okfit digest lives in one integrity
+family](integrity-family.md)).
 
 ## Alternatives rejected
 
@@ -63,14 +83,15 @@ verification.
   without notice.
 - Hash the frontmatter source text. Reformatting would read as a content
   change.
-- Change the trust tier on drift. OKF section 11 says consumers derive
-  tiers only from the specified fields, so drift is reported beside the
-  tier.
+- Change the trust tier on drift. Drift is okfit's signal, so it never
+  moves the tier: the spec's own rule does, and only from the specified
+  fields (OKF section 11), so drift is reported beside the tier.
 
 ## Consequences
 
 Any concept can be edited by anyone; the edit shows as drift until a human
-re-runs `okfit verify`. Every entry written before the binding existed is
+re-runs `okfit verify`. A concept whose `generated.at` moved past its
+verification also falls a tier, as the spec requires. Every entry written before the binding existed is
 `unbound` drift, which surfaces a bundle-wide re-verify sweep. A human
 re-verifying a drifted concept on an interactive terminal sees the git diff
 since the bound verification first (`--no-diff` skips it), and `okfit verify
