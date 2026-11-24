@@ -17,7 +17,8 @@ export type ErrorCase =
 	| "resource-outside-project"
 	| "resource-missing-in-repository"
 	| "bare-path-under-0.3"
-	| "unparsable-version";
+	| "unparsable-version"
+	| "verified-before-change";
 
 const indexOf = (version: string | undefined): string =>
 	version === undefined
@@ -105,4 +106,11 @@ export const ERROR_PROJECTS: Readonly<Record<ErrorCase, ProjectSeed>> = {
 		"okf/index.md": indexOf('"0.3"'),
 	},
 	"unparsable-version": { ...V03_PROJECT, "okf/index.md": indexOf('"v0.3"') },
+	"verified-before-change": {
+		...V03_PROJECT,
+		"okf/metrics/revenue.md": REVENUE.replace(
+			"---\n\n# Revenue",
+			"generated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\n---\n\n# Revenue",
+		),
+	},
 };
