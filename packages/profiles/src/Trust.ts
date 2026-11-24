@@ -1,12 +1,4 @@
-import type {
-	Actor,
-	Concept as ConceptSchema,
-	LoadedBundle,
-	LoadedConcept,
-	Staleness,
-	TrustTier,
-	Verification,
-} from "@okfit/core";
+import type { Actor, LoadedBundle, LoadedConcept, Staleness, TrustTier, Verification } from "@okfit/core";
 import { Actor as ActorNS, Concept, Derive, Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
 import { DateTime, Effect, Result, Schema } from "effect";
 import type { Digest } from "effect/crypto";
@@ -278,6 +270,8 @@ export class Trust {
 	) => { readonly integrity: IntegrityState; readonly drift?: NonNullable<ConceptSignal["drift"]> } = evaluate;
 	/** True iff the latest human entry is bound by `integrity.verified` and its actor passes the allow-list, i.e. a digest is needed. */
 	static readonly needsDigest: (input: EvaluateInput) => boolean = needsDigest;
+	/** The `integrity.verified` binding when it names the latest human entry; `undefined` when none, unbound or superseded. Ignores the allow-list and the entry's currency. */
+	static readonly boundEntry: (input: EvaluateInput) => EvaluateInput["binding"] = boundEntry;
 	/** The {@link EvaluateInput} of a loaded concept. */
 	static readonly inputOf: (concept: LoadedConcept, config: OkfitConfig) => EvaluateInput = inputOf;
 	/**

@@ -218,6 +218,7 @@ export const planSync: (
 					dryRun: true,
 					pending,
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
+					...(options.config.actors?.humans === undefined ? {} : { humans: options.config.actors.humans }),
 					...(scope === undefined ? {} : { scope }),
 				})),
 			}

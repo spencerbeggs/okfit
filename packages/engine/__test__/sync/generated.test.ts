@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { NodeCrypto } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { MarkdownDocument, MarkdownEdit } from "@effected/markdown";
 import type { Actor } from "@okfit/core";
@@ -17,7 +18,7 @@ import {
 } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
 import { Derivation } from "@okfit/profiles";
-import { DateTime, Effect, FileSystem, Option, Path, Result } from "effect";
+import { DateTime, Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncGenerated } from "../../src/sync/generated.js";
 import {
 	detectNewline,
@@ -27,6 +28,7 @@ import {
 	stripBom,
 } from "../../src/verify/locate.js";
 import { spliceGenerated, spliceGeneratedBlock } from "../../src/verify/splice.js";
+import { ROOT, seedPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sync", "generated");
@@ -978,5 +980,169 @@ describe("syncGenerated: integrity and legacy migration", () => {
 					assert.strictEqual(yield* readPage(root), before);
 				}),
 		),
+	);
+});
+
+describe("syncGenerated: never stamps generated.at after a verification of the same content (R30)", () => {
+	const G0 = "2026-01-01T00:00:00Z";
+	const V = "2026-09-16T12:00:00Z";
+	const T1 = DateTime.makeUnsafe(V);
+	const T2 = DateTime.makeUnsafe("2026-09-16T12:00:42Z");
+	const T2_TEXT = "2026-09-16T12:00:42Z";
+	const LATE = "2026-09-16T12:05:00Z";
+	const committedAt = (at: DateTime.Utc): BodyProvenance => ({
+		_tag: "committed",
+		at,
+		sha: "0123456789abcdef0123456789abcdef01234567",
+		committedAt: at,
+		authorName: "Author",
+		authorEmail: "author@example.com",
+		creating: false,
+	});
+
+	interface Spec {
+		readonly body?: string;
+		/** The body the binding was computed over (defaults to `body`): differs when the body was edited after the verify. */
+		readonly verifiedBody?: string;
+		readonly binding?: { readonly by: string; readonly at: string };
+		readonly verified?: ReadonlyArray<{ readonly by: string; readonly at: string }>;
+		/** An extra frontmatter `note` scalar. */
+		readonly note?: string;
+		/** The `note` the binding was computed over (defaults to `note`). */
+		readonly verifiedNote?: string;
+	}
+
+	const textOf = (name: string, spec: Spec, content: string): string => {
+		const verified =
+			spec.verified === undefined
+				? ""
+				: `verified:\n${spec.verified.map((e) => `  - by: ${e.by}\n    at: ${e.at}\n`).join("")}`;
+		const binding =
+			spec.binding === undefined
+				? ""
+				: `integrity:\n  verified:\n    by: ${spec.binding.by}\n    at: ${spec.binding.at}\n    content: ${content}\n`;
+		return `---\ntype: Module\ntitle: ${name}\ngenerated:\n  by: human:ada\n  at: ${G0}\n${spec.note === undefined ? "" : `note: ${JSON.stringify(spec.note)}\n`}${verified}${binding}---\n\n${spec.body ?? "Body."}\n`;
+	};
+
+	/** A concept whose binding covers `verifiedBody` (the body the human saw). */
+	const build = (name: string, spec: Spec) =>
+		Effect.gen(function* () {
+			const seenBody = spec.verifiedBody ?? spec.body;
+			const seen: Spec = seenBody === undefined ? spec : { ...spec, body: seenBody };
+			const seenNote = spec.verifiedNote ?? spec.note;
+			const raw = { type: "Module", title: name, ...(seenNote === undefined ? {} : { note: seenNote }) };
+			const content = yield* Derivation.contentDigest(raw, textOf(name, seen, "0".repeat(16)));
+			return textOf(name, spec, content);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest));
+
+	const run = (files: Record<string, string>, commit: DateTime.Utc, humans?: ReadonlyArray<string>) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(commit)] as const));
+			const result = yield* syncGenerated(bundle, {
+				provenance,
+				dryRun: false,
+				...(humans === undefined ? {} : { humans }),
+			});
+			const fs = yield* FileSystem.FileSystem;
+			const stamped: Record<string, string | undefined> = {};
+			for (const name of Object.keys(files)) {
+				const text = yield* fs.readFileString(`${ROOT}/${name}.md`);
+				stamped[name] = /generated:\n {2}by: human:ada\n {2}at: (\S+)\n/.exec(text)?.[1];
+			}
+			return { result, stamped };
+		}).pipe(
+			Effect.provide(
+				Layer.mergeAll(
+					seedPlatform(Object.fromEntries(Object.entries(files).map(([name, text]) => [`${ROOT}/${name}.md`, text]))),
+					NodeCrypto.layerDigest,
+				),
+			),
+		);
+
+	const human = { by: "human:ada", at: V };
+
+	it.effect("stamps the binding instant, not the commit instant, when the binding covers the current content", () =>
+		Effect.gen(function* () {
+			const files = {
+				bound: yield* build("bound", { verified: [human], binding: human }),
+				"edited-after": yield* build("edited-after", {
+					verified: [human],
+					binding: human,
+					body: "New body.",
+					verifiedBody: "Old body.",
+				}),
+				machine: yield* build("machine", { verified: [{ by: "process:ci", at: V }] }),
+				unbound: yield* build("unbound", { verified: [human] }),
+				superseded: yield* build("superseded", {
+					verified: [{ by: "human:ada", at: "2026-09-16T11:00:00Z" }, human],
+					binding: { by: "human:ada", at: "2026-09-16T11:00:00Z" },
+				}),
+				"not-allowed": yield* build("not-allowed", {
+					verified: [{ by: "human:bob", at: V }],
+					binding: { by: "human:bob", at: V },
+				}),
+				later: yield* build("later", {
+					verified: [{ by: "human:ada", at: LATE }],
+					binding: { by: "human:ada", at: LATE },
+				}),
+				hashable: yield* build("hashable", { verified: [human], binding: human, note: "fine" }),
+				unhashable: yield* build("unhashable", {
+					verified: [human],
+					binding: human,
+					note: "\ud800",
+					verifiedNote: "fine",
+				}),
+			};
+			const { result, stamped } = yield* run(files, T2, ["human:ada"]);
+			assert.deepStrictEqual(result.written.toSorted(), Object.keys(files).toSorted());
+			assert.strictEqual(stamped.bound, V); // the binding covers the current content: min(T2, T1) = T1
+			assert.strictEqual(stamped["edited-after"], T2_TEXT); // body changed after the verify
+			assert.strictEqual(stamped.machine, T2_TEXT); // a process: event, no binding
+			assert.strictEqual(stamped.unbound, T2_TEXT); // human entry, no binding
+			assert.strictEqual(stamped.superseded, T2_TEXT); // binding is not on the latest human entry
+			assert.strictEqual(stamped["not-allowed"], T2_TEXT); // human:bob is not in [actors].humans
+			assert.strictEqual(stamped.later, T2_TEXT); // binding later than the commit: min keeps the commit instant
+			assert.strictEqual(stamped.hashable, V); // control: an extra scalar hashes and is clamped
+			assert.strictEqual(stamped.unhashable, T2_TEXT); // cannot be hashed: no clamp, no failure
+			const loaded = yield* Effect.provide(
+				Bundle.load({ root: ROOT }),
+				seedPlatform({ [`${ROOT}/unhashable.md`]: files.unhashable }),
+			);
+			const concept = loaded.concepts.get(ConceptId.make("unhashable"));
+			if (concept === undefined) return assert.fail("unhashable did not load");
+			const digest = yield* Effect.result(
+				Derivation.contentDigest(concept.frontmatter.raw, concept.document.source),
+			).pipe(Effect.provide(NodeCrypto.layerDigest));
+			assert.isTrue(Result.isFailure(digest)); // the precondition: it really is unhashable
+		}),
+	);
+
+	it.effect("control: with no allow-list the same binding by human:bob is clamped", () =>
+		Effect.gen(function* () {
+			const files = {
+				"not-allowed": yield* build("not-allowed", {
+					verified: [{ by: "human:bob", at: V }],
+					binding: { by: "human:bob", at: V },
+				}),
+			};
+			const { stamped } = yield* run(files, T2);
+			assert.strictEqual(stamped["not-allowed"], V);
+		}),
+	);
+
+	it.effect("never touches an unchanged concept whose generated.at is after its binding", () =>
+		Effect.gen(function* () {
+			const base = yield* build("same", { verified: [human], binding: human });
+			const digest = yield* Derivation.bodyDigest(base).pipe(Effect.provide(NodeCrypto.layerDigest));
+			const text = base
+				.replace(`at: ${G0}`, `at: ${T2_TEXT}`)
+				.replace("integrity:\n  verified:", `integrity:\n  generated:\n    body: ${digest}\n  verified:`);
+			const files = { same: text };
+			const { result, stamped } = yield* run(files, T1);
+			assert.deepStrictEqual(result.unchanged, ["same"]);
+			assert.deepStrictEqual(result.written, []);
+			assert.strictEqual(stamped.same, T2_TEXT);
+		}),
 	);
 });

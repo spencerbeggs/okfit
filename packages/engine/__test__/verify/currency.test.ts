@@ -11,8 +11,8 @@ import { ROOT, seedPlatform } from "../utils/bundle.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 
 /**
- * Characterization of today's edit, verify, commit sequence (phase 3, Task 1). It pins what the code
- * does BEFORE the trust tier reads current events only; the marked lines flip in the named tasks. The
+ * The edit, verify, commit sequence (phase 3, Tasks 1 and 7): sync stamps `min(commit instant, binding.at)` when the
+ * binding covers the current content, so the verification stays current (R30). The
  * edited body is on disk, the old body is what `HEAD` holds until the simulated commit.
  */
 const G0 = "2026-01-01T00:00:00Z";
@@ -114,9 +114,9 @@ const editVerifyCommit = (repo: Repo, mode: "walk" | "staged") =>
 		return yield* load;
 	});
 
-describe("verify then sync, as it behaves before phase 3 (characterization; Task 7 flips the marked lines)", () => {
+describe("verify then sync: the clamp keeps a verification of the same content current (R30)", () => {
 	for (const mode of ["walk", "staged"] as const) {
-		it.effect(`${mode}: the commit instant lands after the verification, and integrity reads drifted`, () =>
+		it.effect(`${mode}: sync stamps the verification instant, so the verification stays current`, () =>
 			Effect.gen(function* () {
 				const { repo, edited } = yield* arrange;
 				return yield* Effect.gen(function* () {
@@ -125,18 +125,16 @@ describe("verify then sync, as it behaves before phase 3 (characterization; Task
 					const v = concept.frontmatter.verified?.[0]?.at;
 					if (g === undefined || v === undefined) return assert.fail("generated.at and verified[0].at must be present");
 					assert.strictEqual(DateTime.formatIso(v), "2026-09-16T12:00:00.000Z");
-					assert.strictEqual(DateTime.formatIso(g), "2026-09-16T12:00:42.000Z"); // Task 7: becomes T1
-					assert.isTrue(DateTime.isGreaterThan(g, v)); // Task 7: false
-					assert.strictEqual(Derive.trustTier(concept.frontmatter), "unverified"); // Task 7: "human-reviewed" again
+					// the commit instant is T2 (staged.at in staged mode, never the git log's LOG); the binding is T1
+					assert.strictEqual(DateTime.formatIso(g), "2026-09-16T12:00:00.000Z");
+					assert.isFalse(DateTime.isGreaterThan(g, v));
+					assert.strictEqual(Derive.trustTier(concept.frontmatter), "human-reviewed");
 					const signal = yield* Trust.signal(concept, config, NOW);
-					assert.strictEqual(signal.integrity, "drifted"); // Task 7: current again, once the clamp removes the cause
-					assert.strictEqual(signal.drift?.reason, "verified-before-change");
+					assert.strictEqual(signal.integrity, "current");
+					assert.isUndefined(signal.drift);
 					const batch = yield* runVerifyBatch({ ...batchOptions, dryRun: true });
-					assert.deepStrictEqual(batch.skipped, []); // Task 7: skipped already-verified again
-					assert.deepStrictEqual(
-						batch.verified.map((entry) => entry.id),
-						["decisions/d"],
-					);
+					assert.deepStrictEqual(batch.skipped, [{ id: "decisions/d", reason: "already-verified" }]);
+					assert.deepStrictEqual(batch.verified, []);
 				}).pipe(Effect.provide(services(repo, edited)));
 			}),
 		);

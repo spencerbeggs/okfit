@@ -1,10 +1,9 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, LoadedBundle, LoadedConcept } from "@okfit/core";
-import { Timestamp } from "@okfit/core";
+import { Actor as ActorNS, Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
-import { Derivation, PUBLICATION_TYPE } from "@okfit/profiles";
-import type { DateTime } from "effect";
-import { Effect, FileSystem, Path, Schema } from "effect";
+import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
+import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import { locateIntegrity, locateLegacyBodySha256, removeLine, spliceIntegrityGenerated } from "../verify/integrity.js";
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
@@ -91,7 +90,32 @@ export interface SyncGeneratedOptions {
 	readonly agent?: Actor;
 	/** #140: when set, only these concepts are considered; every other id is absent from all three lists. */
 	readonly scope?: ReadonlySet<ConceptId>;
+	/** The `[actors].humans` allow-list (empty or absent allows anyone); a binding by an actor outside it never clamps. */
+	readonly humans?: ReadonlyArray<string>;
 }
+
+/**
+ * OKF 0.3 5.2/5.3 (R30): the instant to stamp as `generated.at`. When the concept's `integrity.verified` binds its
+ * latest human entry, its actor passes the allow-list, and its content digest equals the digest of the concept as it
+ * is now, the binding proves this content existed at `binding.at`, so its last meaningful change is no later than
+ * that; the commit instant is only when git learned of it. The stamp is then `min(derived, binding.at)`, which keeps
+ * the edit, verify, commit sequence's verification current. Any other case, including content that cannot be hashed,
+ * stamps `derived` unchanged.
+ */
+const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc, humans: ReadonlyArray<string>) =>
+	Effect.gen(function* () {
+		const { frontmatter } = concept;
+		const binding = Trust.boundEntry({
+			verified: frontmatter.verified ?? [],
+			binding: frontmatter.integrity?.verified,
+			generated: frontmatter.generated,
+			humans,
+		});
+		if (binding === undefined || !ActorNS.allowed(binding.by, humans)) return derived;
+		if (!DateTime.isLessThan(binding.at, derived)) return derived;
+		const content = yield* Effect.result(Derivation.contentDigest(frontmatter.raw, concept.document.source));
+		return Result.isSuccess(content) && content.success === binding.content ? binding.at : derived;
+	});
 
 /**
  * Contract §6.2's algorithm, run once per `bundle.concepts` entry (S-22:
@@ -132,7 +156,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 ) {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
-	const { provenance, dryRun, agent, scope, pending } = options;
+	const { provenance, dryRun, agent, scope, pending, humans = [] } = options;
 
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
@@ -170,7 +194,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				skipped.push({ id, reason: derived.reason });
 				continue;
 			}
-			encodedAt = encodeAt(derived.at);
+			encodedAt = encodeAt(yield* stampInstant(concept, derived.at, humans));
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is
