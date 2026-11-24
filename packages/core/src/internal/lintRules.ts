@@ -185,6 +185,7 @@ export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
 export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (context, severity) => {
 	const globs = context.config.bundle?.non_concepts;
 	if (globs === undefined) return [];
+	// The config schema rejects an uncompilable glob at load, so the empty branch is unreachable for a decoded config.
 	const patterns = globs.flatMap((glob) => {
 		const compiled = GlobPattern.compileResult(glob);
 		return Result.isSuccess(compiled) ? [compiled.success] : [];

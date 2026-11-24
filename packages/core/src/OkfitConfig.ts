@@ -1,9 +1,10 @@
 import type { ConfigReadError } from "@effected/config-file";
 import { ConfigFile, ConfigMerge } from "@effected/config-file";
 import { TomlCodec } from "@effected/config-file/toml";
+import { GlobPattern } from "@effected/glob";
 import { HostedSchema } from "@effected/schemastore";
 import type { FileSystem } from "effect";
-import { Duration, Effect, Option, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
+import { Duration, Effect, Option, Result, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
 import { Actor, ActorPattern } from "./Actor.js";
 import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
 
@@ -540,7 +541,14 @@ export const okfitConfigFields = Schema.Struct({
 				}),
 			),
 			non_concepts: Schema.optionalKey(
-				Schema.Array(Schema.String).annotate({
+				Schema.Array(
+					Schema.String.check(
+						Schema.makeFilter((value: string) => {
+							const compiled = GlobPattern.compileResult(value);
+							return Result.isSuccess(compiled) || `Expected a valid glob pattern, got ${JSON.stringify(value)}`;
+						}),
+					),
+				).annotate({
 					title: "Non-concept Markdown",
 					description:
 						"Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",

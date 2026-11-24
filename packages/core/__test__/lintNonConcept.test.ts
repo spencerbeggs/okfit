@@ -43,6 +43,15 @@ describe("non-concept-unlisted", () => {
 		}),
 	);
 
+	it.effect("profile none with no key fires nothing, while type-missing still loads on the same file", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(SOURCES);
+			const none = OkfitConfig.merge(OkfitConfig.DEFAULTS, { bundle: { profile: "none" }, extensions: {} });
+			assert.deepStrictEqual(unlisted(bundle, none), []);
+			assert.isTrue(bundle.diagnostics.some((d) => d.file === "typeless.md" && d.code === "type-missing"));
+		}),
+	);
+
 	it.effect("fires on every typeless file no glob matches, and an empty list allows none", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load(SOURCES);
@@ -85,6 +94,13 @@ describe("non-concept-unlisted", () => {
 			const off = withGlobs([], { non_concept_unlisted: "off" });
 			assert.deepStrictEqual(unlisted(bundle, off), []);
 			assert.isTrue(bundle.diagnostics.length > 0);
+			const stillThere = Validate.lint(bundle, off).map((d) => d.code);
+			assert.isFalse(stillThere.includes("non-concept-unlisted"));
+			assert.isTrue(stillThere.includes("type-missing") && stillThere.includes("frontmatter-missing"));
+			assert.isTrue(
+				Validate.lint(bundle, withGlobs([])).some((d) => d.code === "non-concept-unlisted"),
+				"control: the same bundle fires with the lint on",
+			);
 		}),
 	);
 

@@ -92,6 +92,15 @@ describe("OkfitConfig", () => {
 		// control: without the file key nothing is merged in
 		assert.isUndefined(OkfitConfig.merge(OkfitConfig.DEFAULTS, { extensions: {} }).okf_version);
 	});
+	it("rejects an uncompilable [bundle] non_concepts glob at decode, naming the key; a valid list decodes", () => {
+		assert.deepStrictEqual(decodeConfig({ bundle: { non_concepts: ["**/README.md"] } }).bundle?.non_concepts, [
+			"**/README.md",
+		]);
+		assert.throws(
+			() => decodeConfig({ bundle: { non_concepts: ["**/README.md", "[[:alpha:]]{0..99}{0..99}"] } }),
+			/valid glob pattern[\s\S]*\["non_concepts"\]/,
+		);
+	});
 	it("DEFAULTS carries the spec 4.2 and D-34 values", () => {
 		const d = OkfitConfig.DEFAULTS;
 		// R4: the bundle's own declaration decides how it is read, so no default is stamped on it
