@@ -42,11 +42,14 @@ okfit validate --target 0.3 --format json
 
 A diagnostic with a `fix` key can be fixed by `--fix`; one without can only be handled by hand. A value that misses under both rules is an ordinary `broken-links`, not a finding.
 
-## 3. Resolve `computation-locator` first
+## 3. Stop on a lost computation
 
-`computation-locator` is reported only while the bundle is undeclared or declares 0.2 or earlier. The version fix in step 4 declares 0.3, and from then on the report no longer shows it, so a computation could change meaning with nobody having looked. Work these through before any `--fix`.
+`computation-locator` is reported only while the bundle is undeclared or declares 0.2 or earlier. The version fix in step 4 declares 0.3, and from then on the report no longer shows it, so a computation could change meaning with nobody having looked. Read these findings before any `--fix`.
 
-Under 0.3 the computation is the first fenced block in the `Computation` section at any heading level (§10.3); okfit's 0.2 reading took the body of a depth-one section. For each finding, put the computation in exactly one fence under a `Computation` heading, or, if that would change what it means or it is unclear which block is the computation, stop and ask (step 7). Then re-run step 2 and confirm no `computation-locator` finding remains.
+Under 0.3 the computation is the first fenced block in the `Computation` section at any heading level (§10.3); okfit's 0.2 reading took the body of a depth-one section. A section that is exactly one fence under a depth-one heading reads the same under both and is not reported. You never edit a computation (`okf-authoring` rule 12): you only report.
+
+- A `warning` finding means the computation would be lost under 0.3 (the section has no fenced block). While any is listed, stop before `--fix`, report those concepts to the human, and continue only when the human has changed them or says to proceed.
+- An `info` finding does not block. Keep a list of them for the final report so the human can check that the 0.3 reading is what they meant.
 
 ## 4. Apply the safe fixes
 
@@ -78,4 +81,4 @@ Stop and report, never work around it, when a step needs: a `verified`, `integri
 
 ## 8. Done
 
-`okfit validate --target 0.3` reports no `migrate` finding (the `computation-locator` ones were resolved in step 3, before the version moved), and plain `okfit validate` is no worse than before you started. Report what the fixes changed, what you did by hand, and what waits for the human.
+`okfit validate --target 0.3` reports no `migrate` finding (the `computation-locator` ones went away only because the bundle now declares 0.3; step 3's `warning` ones were reported to the human before the version moved), and plain `okfit validate` is no worse than before you started. Report what the fixes changed, what you did by hand, the `info` computation findings from step 3 for the human to check, and what waits for the human.

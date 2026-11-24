@@ -215,10 +215,11 @@ describe("migrationFindings", () => {
 
 	it.effect("the computation-locator message and severity follow what the reading does", () =>
 		Effect.gen(function* () {
-			// depth-1 section with a fence: legacy reads the section, current reads the fence; both read, different text
+			// depth-1 section with prose before its fence: legacy reads the section, current reads the fence; both read,
+			// different text (a section that is only the fence reads the same and is not reported)
 			const both = yield* findingsOf({
 				...V02_PROJECT,
-				[COMPUTATION]: (V02_PROJECT[COMPUTATION] as string).replace("## Computation", "# Computation"),
+				[COMPUTATION]: (V02_PROJECT[COMPUTATION] as string).replace("## Computation\n", "# Computation\n\nRun it.\n"),
 			});
 			const bothFinding = both.found.find((f) => f.code === "computation-locator");
 			assert.strictEqual(bothFinding?.severity, "info");
@@ -241,6 +242,54 @@ describe("migrationFindings", () => {
 			);
 			// the heading's own line is the range
 			assert.strictEqual(lostFinding?.range?.line, 14);
+		}),
+	);
+
+	it.effect("a depth-1 Computation that is exactly one fence reads the same under both (controls still fire)", () =>
+		Effect.gen(function* () {
+			const computation = (replace: (text: string) => string) => ({
+				...V02_PROJECT,
+				[COMPUTATION]: replace(V02_PROJECT[COMPUTATION] as string),
+			});
+			const locator = (seed: ProjectSeed) =>
+				findingsOf(seed).pipe(Effect.map(({ found }) => found.filter((f) => f.code === "computation-locator")));
+			const same = yield* locator(computation((t) => t.replace("## Computation", "# Computation")));
+			assert.deepStrictEqual(same, []);
+			const trailing = yield* locator(
+				computation((t) => t.replace("## Computation\n", "# Computation   \n\n\n").replace(/\n$/, "\n\n\n")),
+			);
+			assert.deepStrictEqual(trailing, []);
+			// controls: each of these differs under 0.3
+			const deeper = yield* locator(computation((t) => t));
+			assert.deepStrictEqual(
+				deeper.map((f) => f.severity),
+				["info"],
+			);
+			const prose = yield* locator(
+				computation((t) =>
+					t.replace("## Computation\n", "# Computation\n\nRun it.\n\n").concat("\nThen:\n\n```sql\nSELECT 2\n```\n"),
+				),
+			);
+			assert.deepStrictEqual(
+				prose.map((f) => f.severity),
+				["info"],
+			);
+			const proseFirst = yield* locator(
+				computation((t) => t.replace("## Computation\n", "# Computation\n\nRun it.\n")),
+			);
+			assert.deepStrictEqual(
+				proseFirst.map((f) => f.severity),
+				["info"],
+			);
+			const proseOnly = yield* locator(
+				computation((t) =>
+					t.replace(/```sql\n[^`]*```\n/, "Run the query.\n").replace("## Computation", "# Computation"),
+				),
+			);
+			assert.deepStrictEqual(
+				proseOnly.map((f) => f.severity),
+				["warning"],
+			);
 		}),
 	);
 

@@ -136,6 +136,10 @@ const rootRelativeFindings = (
 	return found;
 };
 
+/** The inner text of `body` when it is exactly one fenced block and nothing else (blank lines and trailing space aside). */
+const soleFenceInner = (body: string): string | undefined =>
+	/^ {0,3}(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n {0,3}\1[`~]*[ \t]*$/.exec(body.trim())?.[2];
+
 const computationFinding = (concept: LoadedConcept, target: string): MigrationFinding | undefined => {
 	const attested = concept.frontmatter.attested;
 	if (attested?.runtime === undefined || attested.computation !== undefined) return undefined;
@@ -143,6 +147,13 @@ const computationFinding = (concept: LoadedConcept, target: string): MigrationFi
 	const current = Bundle.inlineComputation(concept.document, "current");
 	if (Option.isNone(legacy) && Option.isNone(current)) return undefined;
 	if (Option.isSome(legacy) && Option.isSome(current) && legacy.value === current.value) return undefined;
+	// A section that is exactly one fence reads the same under both: the legacy body is that fence, markers included.
+	if (
+		Option.isSome(legacy) &&
+		Option.isSome(current) &&
+		soleFenceInner(legacy.value) === current.value.replace(/\n$/, "")
+	)
+		return undefined;
 	const reading = Option.isNone(current)
 		? "no fenced block, so the computation is missing"
 		: Option.isNone(legacy)
