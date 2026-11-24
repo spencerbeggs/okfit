@@ -17,11 +17,13 @@ integrity:
     body: 4c6962ad47680337
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: a90f173dd44ecdc9
+    at: 2026-11-24T06:53:02Z
+    content: fad8a23f9b27441e
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T06:53:02Z
 ---
 
 # Verification drift is a signal to weigh, never a gate

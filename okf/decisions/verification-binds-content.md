@@ -17,11 +17,13 @@ integrity:
     body: a8636d4a90f99518
   verified:
     by: human:spencer
-    at: 2026-10-25T18:29:21Z
-    content: ca4e3d76881b58b9
+    at: 2026-11-24T06:53:02Z
+    content: b619841067e1352a
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
+  - by: human:spencer
+    at: 2026-11-24T06:53:02Z
 ---
 
 # A verification is bound to the content it covered
