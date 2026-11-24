@@ -41,7 +41,8 @@ export interface MigrationFinding {
 	readonly fix?: MigrationFixKind;
 }
 
-const ROOT_INDEX = "index.md";
+/** The bundle-relative path of the root index, where the version lives. */
+export const ROOT_INDEX = "index.md";
 
 /** The range of the `okf_version` value line inside the root index's frontmatter text, assuming `---` and LF. */
 const versionRange = (frontmatter: string | undefined): DiagnosticRange | undefined => {

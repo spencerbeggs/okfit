@@ -10,7 +10,7 @@ import { locateIntegrity, spliceIntegrityGenerated } from "../verify/integrity.j
 import { detectNewline, documentNewline, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { quoteLike } from "../verify/splice.js";
 import type { MigrationCode, MigrationFinding, MigrationFixKind } from "./findings.js";
-import { migrationFindings } from "./findings.js";
+import { ROOT_INDEX, migrationFindings } from "./findings.js";
 
 /**
  * What to fix and how far. `files` are bundle-relative paths already resolved by the caller (absent: the whole
@@ -50,8 +50,6 @@ export interface MigrationFixPlan {
 	}>;
 	readonly drifts: ReadonlyArray<string>;
 }
-
-const ROOT_INDEX = "index.md";
 
 /** Splice the declaration into the root index's real text, or say why it cannot be done in place. */
 const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (source: string, target: string) {
@@ -107,6 +105,8 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	FileSystem.FileSystem | Path.Path | Digest.Digest
 > {
 	const { bundle, config, target, files, only, now } = options;
+	const fs = yield* FileSystem.FileSystem;
+	const path = yield* Path.Path;
 	const all = migrationFindings(bundle, config, target);
 	const selected = all.filter(
 		(finding): finding is MigrationFinding & { readonly fix: MigrationFixKind } =>
@@ -166,8 +166,6 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			}
 		}
 		// The loader reads through `readFileString`, which drops a leading BOM; give it back on write.
-		const fs = yield* FileSystem.FileSystem;
-		const path = yield* Path.Path;
 		const head = yield* fs.readFile(path.join(bundle.root, file));
 		if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf && !text.startsWith("\uFEFF")) text = `\uFEFF${text}`;
 		edits.push({ path: file, text, fixes: applied });
@@ -185,8 +183,6 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 				reason: `${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`,
 			});
 		} else {
-			const fs = yield* FileSystem.FileSystem;
-			const path = yield* Path.Path;
 			// Decode the bytes myself: `readFileString` may drop a leading BOM, and the write must give it back.
 			const bytes = yield* fs.readFile(path.join(bundle.root, ROOT_INDEX));
 			const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);

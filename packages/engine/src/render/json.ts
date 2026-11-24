@@ -9,6 +9,8 @@ import { tally } from "./exit.js";
 import type { RenderedDiagnostic } from "./sort.js";
 import { sort } from "./sort.js";
 
+const FixKind = Schema.Literals(["okf-version", "root-relative-path"] satisfies ReadonlyArray<MigrationFixKind>);
+
 /** One entry of the `diagnostics` array (K-21). @public */
 export const JsonDiagnostic = Schema.Struct({
 	source: Schema.Literals(["core.conformance", "core.lint", "profile", "migrate"]),
@@ -17,9 +19,7 @@ export const JsonDiagnostic = Schema.Struct({
 	severity: DiagnosticSeverity,
 	message: Schema.String,
 	range: Schema.optionalKey(DiagnosticRange),
-	fix: Schema.optionalKey(
-		Schema.Literals(["okf-version", "root-relative-path"] satisfies ReadonlyArray<MigrationFixKind>),
-	),
+	fix: Schema.optionalKey(FixKind),
 });
 /** @public */
 export type JsonDiagnostic = typeof JsonDiagnostic.Type;
@@ -47,9 +47,7 @@ export const JsonFixes = Schema.Struct({
 	applied: Schema.Array(
 		Schema.Struct({
 			path: Schema.String,
-			fixes: Schema.Array(
-				Schema.Literals(["okf-version", "root-relative-path"] satisfies ReadonlyArray<MigrationFixKind>),
-			),
+			fixes: Schema.Array(FixKind),
 		}),
 	),
 	refused: Schema.Array(

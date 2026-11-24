@@ -1,42 +1,16 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import type { AppDirs as AppDirsType, Xdg as XdgType } from "@effected/xdg";
-import { AppDirs, Xdg, XdgPaths } from "@effected/xdg";
 import { Bundle, Validate } from "@okfit/core";
-import type { FileSystem, Path } from "effect";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 import { buildConfigLayer } from "../../src/config/layer.js";
 import { resolveProjectConfig } from "../../src/config/resolve.js";
-
-// Mirrors __test__/config/layer.test.ts's test environment exactly: Xdg's
-// own doc comment calls `layerFrom` "the test layer... it needs no
-// filesystem"; AppDirs.layer's own R is folded in with provideMerge per
-// Judge notes 4 (decision 2), never process.env (decision 2).
-const HOME = "/nonexistent/home";
-const testXdg = (): Layer.Layer<XdgType> =>
-	Xdg.layerFrom(
-		XdgPaths.make({
-			home: HOME,
-			configHome: `${HOME}/.config`,
-			dataHome: `${HOME}/.local/share`,
-			cacheHome: `${HOME}/.cache`,
-			stateHome: `${HOME}/.local/state`,
-			configDirs: [],
-			dataDirs: [],
-		}),
-	);
-
-const testEnv: Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.Path> = AppDirs.layer({
-	namespace: "okfit",
-}).pipe(Layer.provideMerge(testXdg()), Layer.provideMerge(NodeServices.layer));
-
-const makeTempDir = async (): Promise<string> => mkdtemp(join(tmpdir(), "okfit-cli-resolve-"));
-
 import { V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, projectPlatform } from "../utils/bundle.js";
+import { testEnv } from "../utils/configEnv.js";
+
+const makeTempDir = async (): Promise<string> => mkdtemp(join(tmpdir(), "okfit-cli-resolve-"));
 
 const resolveWith = (toml: string | undefined) =>
 	Effect.gen(function* () {
