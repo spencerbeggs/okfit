@@ -98,8 +98,11 @@ const inputOf = (concept: LoadedConcept, config: OkfitConfig): EvaluateInput => 
 	humans: config.actors?.humans ?? [],
 });
 
+/** What the bound-entry rule reads: the `verified` entries and the binding; no allow-list, no `generated`. */
+type BoundInput = Pick<EvaluateInput, "verified" | "binding">;
+
 /** The binding when it names the latest human entry; `undefined` when none, unbound or superseded. */
-const boundEntry = (input: EvaluateInput): NonNullable<EvaluateInput["binding"]> | undefined => {
+const boundEntry = (input: BoundInput): NonNullable<EvaluateInput["binding"]> | undefined => {
 	const latest = latestHumanOf(input.verified);
 	const binding = input.binding;
 	if (latest === undefined || binding === undefined) return undefined;
@@ -270,8 +273,15 @@ export class Trust {
 	) => { readonly integrity: IntegrityState; readonly drift?: NonNullable<ConceptSignal["drift"]> } = evaluate;
 	/** True iff the latest human entry is bound by `integrity.verified` and its actor passes the allow-list, i.e. a digest is needed. */
 	static readonly needsDigest: (input: EvaluateInput) => boolean = needsDigest;
-	/** The `integrity.verified` binding when it names the latest human entry; `undefined` when none, unbound or superseded. Ignores the allow-list and the entry's currency. */
-	static readonly boundEntry: (input: EvaluateInput) => EvaluateInput["binding"] = boundEntry;
+	/**
+	 * The `integrity.verified` binding when it names the latest human entry (same actor, same instant); `undefined` when
+	 * there is no human entry, no binding, or the binding is superseded. It ignores the `[actors].humans` allow-list and
+	 * whether the entry is current, which are {@link Trust.evaluate}'s questions.
+	 *
+	 * @public
+	 */
+	static readonly boundEntry: (input: Pick<EvaluateInput, "verified" | "binding">) => EvaluateInput["binding"] =
+		boundEntry;
 	/** The {@link EvaluateInput} of a loaded concept. */
 	static readonly inputOf: (concept: LoadedConcept, config: OkfitConfig) => EvaluateInput = inputOf;
 	/**

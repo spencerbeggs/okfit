@@ -1035,14 +1035,13 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			return textOf(name, spec, content);
 		}).pipe(Effect.provide(NodeCrypto.layerDigest));
 
-	const run = (files: Record<string, string>, commit: DateTime.Utc, humans?: ReadonlyArray<string>) =>
+	const run = (files: Record<string, string>, commit: DateTime.Utc) =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: ROOT });
 			const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(commit)] as const));
 			const result = yield* syncGenerated(bundle, {
 				provenance,
 				dryRun: false,
-				...(humans === undefined ? {} : { humans }),
 			});
 			const fs = yield* FileSystem.FileSystem;
 			const stamped: Record<string, string | undefined> = {};
@@ -1078,10 +1077,6 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 					verified: [{ by: "human:ada", at: "2026-09-16T11:00:00Z" }, human],
 					binding: { by: "human:ada", at: "2026-09-16T11:00:00Z" },
 				}),
-				"not-allowed": yield* build("not-allowed", {
-					verified: [{ by: "human:bob", at: V }],
-					binding: { by: "human:bob", at: V },
-				}),
 				later: yield* build("later", {
 					verified: [{ by: "human:ada", at: LATE }],
 					binding: { by: "human:ada", at: LATE },
@@ -1094,14 +1089,13 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 					verifiedNote: "fine",
 				}),
 			};
-			const { result, stamped } = yield* run(files, T2, ["human:ada"]);
+			const { result, stamped } = yield* run(files, T2);
 			assert.deepStrictEqual(result.written.toSorted(), Object.keys(files).toSorted());
 			assert.strictEqual(stamped.bound, V); // the binding covers the current content: min(T2, T1) = T1
 			assert.strictEqual(stamped["edited-after"], T2_TEXT); // body changed after the verify
 			assert.strictEqual(stamped.machine, T2_TEXT); // a process: event, no binding
 			assert.strictEqual(stamped.unbound, T2_TEXT); // human entry, no binding
 			assert.strictEqual(stamped.superseded, T2_TEXT); // binding is not on the latest human entry
-			assert.strictEqual(stamped["not-allowed"], T2_TEXT); // human:bob is not in [actors].humans
 			assert.strictEqual(stamped.later, T2_TEXT); // binding later than the commit: min keeps the commit instant
 			assert.strictEqual(stamped.hashable, V); // control: an extra scalar hashes and is clamped
 			assert.strictEqual(stamped.unhashable, T2_TEXT); // cannot be hashed: no clamp, no failure
@@ -1118,7 +1112,7 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 		}),
 	);
 
-	it.effect("control: with no allow-list the same binding by human:bob is clamped", () =>
+	it.effect("the allow-list does not gate the clamp: a binding by human:bob, outside [actors].humans, is clamped", () =>
 		Effect.gen(function* () {
 			const files = {
 				"not-allowed": yield* build("not-allowed", {
