@@ -7,23 +7,25 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:30:42Z
+  at: 2026-11-24T20:33:07Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
-integrity:
+x-okfit-integrity:
   generated:
-    body: a8636d4a90f99518
+    body: 8e969c1a97e56879
   verified:
     by: human:spencer
-    at: 2026-11-24T06:53:02Z
-    content: b619841067e1352a
+    at: 2026-11-24T22:21:07Z
+    content: 4d1f9f5c3c741ebb
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
   - by: human:spencer
     at: 2026-11-24T06:53:02Z
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
 ---
 
 # A verification is bound to the content it covered
@@ -40,11 +42,12 @@ a missing check.
 
 Every write of a `verified` entry (`okfit verify`, batch, picker, `stale
 --verify`, the language server's code action) also writes
-`integrity.verified { by, at, content }` in the same edit; `by` and `at`
+`x-okfit-integrity.verified { by, at, content }` in the same edit; `by` and `at`
 join to the entry. `content` is a 16-hex digest of canonical JSON over the
 normalised body and the parsed authored frontmatter, minus the bookkeeping
-keys `generated`, `verified`, `integrity`, `stale_after`, `status`, legacy
-`timestamp` and each `renders[].body`. Parsed rather than source
+keys `generated`, `verified`, `x-okfit-integrity`, `stale_after`, `status`, legacy
+`timestamp` and each `x-okfit-renders[].body` (see
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md)). Parsed rather than source
 frontmatter means quoting, key order and newline style never cause drift;
 arrays keep their order. The encoder lives in `@okfit/profiles`, not core,
 because binding content to verification is an okfit opinion the spec does

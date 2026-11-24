@@ -20,6 +20,19 @@ export const Digest = Schema.String.pipe(
 export type Digest = typeof Digest.Type;
 
 /**
+ * The prefix of every frontmatter key okfit owns (OKF v0.3 section 4.1 extension keys).
+ * @public
+ */
+export const OKFIT_KEY_PREFIX = "x-okfit-";
+
+/**
+ * The top-level frontmatter key that holds okfit's {@link Integrity} family.
+ * Every reader and writer of that key goes through this constant.
+ * @public
+ */
+export const INTEGRITY_KEY = `${OKFIT_KEY_PREFIX}integrity` as const;
+
+/**
  * The body digest as of `generated.at`.
  * @public
  */

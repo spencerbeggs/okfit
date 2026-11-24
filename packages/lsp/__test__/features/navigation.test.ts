@@ -70,7 +70,7 @@ type: Module
 title: Alpha
 description: A tiny synthetic concept used only by @okfit/lsp's own tests.
 resource: alpha.md
-kind: package
+x-okfit-kind: package
 sources:
   - resource: gamma.md
 generated:
@@ -121,7 +121,7 @@ type: Module
 title: Gamma
 description: A control concept used only by @okfit/lsp's own tests.
 resource: gamma.md
-kind: package
+x-okfit-kind: package
 status: stable
 generated:
   by: "human:fixture-author"
@@ -144,7 +144,7 @@ const BETA = `---
 type: Module
 title: Beta
 description: A tiny synthetic concept used only by @okfit/lsp's own tests.
-kind: package
+x-okfit-kind: package
 generated:
   by: "human:fixture-author"
   at: "2026-01-01T00:00:00Z"
@@ -160,7 +160,7 @@ const LONELY = `---
 type: Module
 title: Lonely
 description: A control concept used only by @okfit/lsp's own tests.
-kind: package
+x-okfit-kind: package
 status: stable
 generated:
   by: "human:fixture-author"

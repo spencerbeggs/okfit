@@ -3,16 +3,16 @@ type: Surface
 title: Sub-package READMEs
 description: A one-page README inside each monorepo package that routes readers to the documentation site.
 status: draft
-kind: readme
-audience: users
+x-okfit-kind: readme
+x-okfit-audience: users
 resource: ../../packages/*/README.md
-links_to: site.md
+x-okfit-links-to: site.md
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:23:03Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: 0f10afd7304dea57
 ---

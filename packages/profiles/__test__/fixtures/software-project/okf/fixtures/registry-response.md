@@ -4,7 +4,7 @@ status: stable
 title: Recorded registry response
 description: A saved npm registry response the resolver tests replay.
 resource: ../../vitest.config.ts
-runbooks: [../runbooks/release.md]
+x-okfit-runbooks: [../runbooks/release.md]
 stale_after: 2027-03-01T00:00:00Z
 ---
 

@@ -4,14 +4,14 @@ title: VS Code Extension
 description: The okfit VS Code extension -- a language client for @okfit/lsp plus a concept explorer, Language Status item and commands, publishable to the Marketplace and Open VSX (first release pending).
 status: draft
 resource: ../../vscode
-kind: plugin
+x-okfit-kind: plugin
 tags:
   - dx
   - release
 generated:
   by: okfit/claude-code
   at: 2026-11-24T02:05:35Z
-integrity:
+x-okfit-integrity:
   generated:
     body: 6c431162122183d3
 ---

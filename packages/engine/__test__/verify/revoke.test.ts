@@ -121,17 +121,17 @@ describe("removeIntegrityVerified", () => {
 	it.effect("keeps the generated slot, comments and quoting byte-identical", () =>
 		Effect.gen(function* () {
 			const generated = "  generated:\n    # stamped\n    body: '0123456789012345'\n";
-			const source = `${head}integrity:\n${generated}  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
+			const source = `${head}x-okfit-integrity:\n${generated}  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
 			const out = yield* removal(source);
 			assert.strictEqual(out._tag, "edit");
 			if (out._tag !== "edit") return;
-			assert.strictEqual(apply(source, out.edit), `${head}integrity:\n${generated}${tail}`);
+			assert.strictEqual(apply(source, out.edit), `${head}x-okfit-integrity:\n${generated}${tail}`);
 		}),
 	);
 
 	it.effect("deletes the whole block when generated is absent too", () =>
 		Effect.gen(function* () {
-			const source = `${head}integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
+			const source = `${head}x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
 			const out = yield* removal(source);
 			assert.strictEqual(out._tag, "edit");
 			if (out._tag !== "edit") return;
@@ -141,27 +141,27 @@ describe("removeIntegrityVerified", () => {
 
 	it.effect("keeps an unknown key and its block, removing only verified", () =>
 		Effect.gen(function* () {
-			const source = `${head}integrity:\n  note: keep\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
+			const source = `${head}x-okfit-integrity:\n  note: keep\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
 			const out = yield* removal(source);
 			assert.strictEqual(out._tag, "edit");
 			if (out._tag !== "edit") return;
-			assert.strictEqual(apply(source, out.edit), `${head}integrity:\n  note: keep\n${tail}`);
+			assert.strictEqual(apply(source, out.edit), `${head}x-okfit-integrity:\n  note: keep\n${tail}`);
 		}),
 	);
 
 	it.effect("removes a quoted verified key", () =>
 		Effect.gen(function* () {
 			const generated = "  generated:\n    body: abcdef0123456789\n";
-			const source = `${head}integrity:\n${generated}  'verified':\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
+			const source = `${head}x-okfit-integrity:\n${generated}  'verified':\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: abcdef0123456789\n${tail}`;
 			const out = yield* removal(source);
 			if (out._tag !== "edit") return assert.fail(`expected edit, got ${out._tag}`);
-			assert.strictEqual(apply(source, out.edit), `${head}integrity:\n${generated}${tail}`);
+			assert.strictEqual(apply(source, out.edit), `${head}x-okfit-integrity:\n${generated}${tail}`);
 		}),
 	);
 
 	it.effect("fails closed when there is no verified line to cut", () =>
 		Effect.gen(function* () {
-			const source = `${head}integrity:\n  generated:\n    body: abcdef0123456789\n${tail}`;
+			const source = `${head}x-okfit-integrity:\n  generated:\n    body: abcdef0123456789\n${tail}`;
 			assert.strictEqual((yield* removal(source))._tag, "unsupported");
 		}),
 	);
@@ -207,7 +207,7 @@ describe("runRevoke", () => {
 		}).pipe(Effect.provide(TestPlatform));
 
 	const binding = (by: string, at: string) =>
-		`integrity:\n  verified:\n    by: ${by}\n    at: ${at}\n    content: ${DIGEST}\n`;
+		`x-okfit-integrity:\n  verified:\n    by: ${by}\n    at: ${at}\n    content: ${DIGEST}\n`;
 
 	it.effect("removes the actor's entries and clears the binding; another actor's entry then reads unbound", () =>
 		withConcept(`${head}verified:\n${bob}${ada}${binding("human:ada", "2026-09-01T00:00:00Z")}${tail}`, (root, file) =>
@@ -231,7 +231,9 @@ describe("runRevoke", () => {
 				assert.isFalse(result.bindingCleared);
 				const after = yield* Effect.promise(() => readFile(file, "utf8"));
 				assert.ok(
-					after.includes("integrity:\n  verified:\n    by: human:bob\n    at: 2026-08-01T00:00:00Z\n    content: "),
+					after.includes(
+						"x-okfit-integrity:\n  verified:\n    by: human:bob\n    at: 2026-08-01T00:00:00Z\n    content: ",
+					),
 				);
 				assert.ok(!after.includes("human:ada"));
 				const signal = yield* signalOf(root);
@@ -250,8 +252,8 @@ describe("runRevoke", () => {
 		),
 	);
 
-	it.effect("keeps integrity.generated when it clears the binding", () => {
-		const generated = "integrity:\n  generated:\n    body: 0123456789abcdef\n";
+	it.effect("keeps x-okfit-integrity.generated when it clears the binding", () => {
+		const generated = "x-okfit-integrity:\n  generated:\n    body: 0123456789abcdef\n";
 		return withConcept(
 			`${head}verified:\n${ada}${generated}  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n${tail}`,
 			(root, file) =>
@@ -263,14 +265,14 @@ describe("runRevoke", () => {
 	});
 
 	it.effect("clears the actor's binding even when the integrity block does not decode as a whole", () => {
-		const source = `${head}verified:\n${ada}integrity:\n  generated: nope\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n${tail}`;
+		const source = `${head}verified:\n${ada}x-okfit-integrity:\n  generated: nope\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n${tail}`;
 		return withConcept(source, (root, file) =>
 			Effect.gen(function* () {
 				const result = yield* revoke(root);
 				assert.isTrue(result.bindingCleared);
 				assert.strictEqual(
 					yield* Effect.promise(() => readFile(file, "utf8")),
-					`${head}integrity:\n  generated: nope\n${tail}`,
+					`${head}x-okfit-integrity:\n  generated: nope\n${tail}`,
 				);
 			}),
 		);

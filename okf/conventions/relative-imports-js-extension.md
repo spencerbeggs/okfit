@@ -7,7 +7,7 @@ generated:
   by: human:spencer
   at: 2026-09-06T10:47:04Z
 stale_after: "2026-12-05T00:00:00Z"
-integrity:
+x-okfit-integrity:
   generated:
     body: c58164991f73965f
 ---

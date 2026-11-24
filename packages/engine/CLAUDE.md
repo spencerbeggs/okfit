@@ -70,11 +70,11 @@ src/
                                 fixes (declare `okf_version`, root a root-fallback-only reference); plan reads the root
                                 `index.md` itself, writes nothing; apply writes atomically after the whole plan; the version
                                 fix is refused while any root-only reference stays (R41); re-records only
-                                `integrity.generated.body` (R44)
+                                `x-okfit-integrity.generated.body` (R44)
   move/
     references.ts           -- Reference, ReferenceSource, referencesOf, rewriteReference: find every reference in a
                                 concept or other parsed file (body links, images, definitions; path-valued
-                                frontmatter; renders[].path) and rewrite one keeping its spelling (pure)
+                                frontmatter; x-okfit-renders[].path) and rewrite one keeping its spelling (pure)
     run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing; also scans
                                 and rewrites links in `.md` files that are not concepts (no frontmatter or no
                                 `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter)
@@ -96,7 +96,7 @@ src/
                                   and writes nothing; batch and ids are all or nothing (OKF 0.3 5.3, R33)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
-                                  min(commit instant, binding.at) when integrity.verified binds the latest human
+                                  min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human
                                   entry and covers the current content, unless binding.at is earlier than
                                   the concept's existing generated.at (OKF 0.3 5.2, R30)
     index.ts                   -- syncIndex

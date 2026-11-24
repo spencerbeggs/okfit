@@ -49,6 +49,41 @@ describe("humanSync", () => {
 		assert.isTrue(lines.some((l) => l.startsWith("wrote 1, migrated 2, unchanged")));
 	});
 
+	it("says a skipped concept's old keys were still renamed when it is also migrated", () => {
+		const lines = humanSync({
+			...baseResult,
+			generated: {
+				...EMPTY_MODE,
+				migrated: ["a"],
+				skipped: [
+					{ id: "a", reason: "dirty" },
+					{ id: "b", reason: "dirty" },
+				],
+			},
+		});
+		assert.include(lines, "  skipped a: has uncommitted changes (its old okfit keys are still renamed)");
+		assert.include(lines, "  skipped b: has uncommitted changes");
+		assert.isTrue(lines.some((l) => l.includes("migrated 1,") && l.includes("skipped 2")));
+	});
+
+	it("says would-be-renamed on a dry run", () => {
+		const lines = humanSync({
+			...baseResult,
+			dryRun: true,
+			generated: { ...EMPTY_MODE, migrated: ["a"], skipped: [{ id: "a", reason: "dirty" }] },
+		});
+		assert.include(lines, "  skipped a: has uncommitted changes (its old okfit keys would still be renamed)");
+	});
+
+	it("names what legacy-key-unsupported refuses, and not a top-level merge key", () => {
+		const lines = humanSync({
+			...baseResult,
+			generated: { ...EMPTY_MODE, skipped: [{ id: "a", reason: "legacy-key-unsupported" }] },
+		}).join("\n");
+		assert.include(lines, "an alias or a `<<` merge in the old block");
+		assert.notInclude(lines, "merge key");
+	});
+
 	it("lists migrated ids", () => {
 		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["decisions/old"] } }).join("\n");
 		assert.isTrue(lines.includes("migrated decisions/old"));

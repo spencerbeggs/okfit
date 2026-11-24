@@ -2,8 +2,8 @@
 type: Incident
 title: The 0.3.0 release died on an unprovided service
 description: The CLI shipped with a layer built but never merged into the runtime, so every command failed at startup for one day.
-occurred: 2026-09-02
-guard: ../../vitest.config.ts
+x-okfit-occurred: 2026-09-02
+x-okfit-guard: ../../vitest.config.ts
 tags: [release]
 ---
 

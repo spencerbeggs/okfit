@@ -9,7 +9,7 @@ generated:
 tags:
   - testing
 stale_after: "2026-12-05T00:00:00Z"
-integrity:
+x-okfit-integrity:
   generated:
     body: d952f7913f97cf8b
 ---

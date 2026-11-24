@@ -343,7 +343,7 @@ describe("run — publication-drift lint", () => {
 				yield* Effect.promise(() =>
 					writeFile(
 						join(root, "pub.md"),
-						`---\ntype: Publication\nsurface: surface\nrenders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
+						`---\ntype: Publication\nx-okfit-surface: surface\nx-okfit-renders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
 					),
 				);
 				const config: OkfitConfig = {
@@ -383,7 +383,7 @@ describe("run — publication-drift lint", () => {
 				yield* Effect.promise(() =>
 					writeFile(
 						join(root, "pub.md"),
-						`---\ntype: Publication\nsurface: nowhere\nrenders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
+						`---\ntype: Publication\nx-okfit-surface: nowhere\nx-okfit-renders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
 					),
 				);
 				const config: OkfitConfig = {
@@ -437,7 +437,7 @@ describe("run — verified-drift lint (integrity)", () => {
 				assert.strictEqual(result.report.lint[0]?.code, "verified-drift");
 				assert.strictEqual(result.report.lint[0]?.severity, "warning");
 				assert.strictEqual(result.report.lint[0]?.file, REL);
-				assert.include(result.report.lint[0]?.message ?? "", "no integrity.verified binding");
+				assert.include(result.report.lint[0]?.message ?? "", "no x-okfit-integrity.verified binding");
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
@@ -472,7 +472,7 @@ describe("run — verified-drift lint (integrity)", () => {
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-run-actors-")));
 			try {
-				const text = `---\ntype: Module\nverified:\n  - by: human:spencer\n    at: 2026-01-05T12:00:00Z\nintegrity:\n  verified:\n    by: human:spencer\n    at: 2026-01-05T12:00:00Z\n    content: ${DIGEST}\n---\n\n# Thing\n\nBody text.\n`;
+				const text = `---\ntype: Module\nverified:\n  - by: human:spencer\n    at: 2026-01-05T12:00:00Z\nx-okfit-integrity:\n  verified:\n    by: human:spencer\n    at: 2026-01-05T12:00:00Z\n    content: ${DIGEST}\n---\n\n# Thing\n\nBody text.\n`;
 				yield* Effect.promise(() => writeFile(join(root, REL), text));
 				yield* bindFixtures(root, [REL]);
 				const config: OkfitConfig = {

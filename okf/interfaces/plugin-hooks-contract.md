@@ -2,7 +2,7 @@
 type: Interface
 title: Agent plugin hooks contract
 description: The two agent plugin hooks (SessionStart, PostToolUse) declared in pluginfinity.config.ts and generated per host, their kill switches, and the CLI resolution order both share.
-kind: config
+x-okfit-kind: config
 resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
@@ -21,13 +21,15 @@ verified:
     at: 2026-10-25T18:30:29Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
-integrity:
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
+x-okfit-integrity:
   generated:
     body: 7b298745d87960df
   verified:
     by: human:spencer
-    at: 2026-11-24T14:56:24Z
-    content: c6e5071afb965dc0
+    at: 2026-11-24T22:21:07Z
+    content: f8baeff79a6c1f2b
 ---
 
 # Agent plugin hooks contract

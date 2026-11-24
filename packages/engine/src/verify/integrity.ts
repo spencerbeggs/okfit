@@ -1,10 +1,14 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { YamlDocument, YamlNode, YamlParseError } from "@effected/yaml";
 import { YamlAlias, YamlMap, YamlScalar, YamlSeq } from "@effected/yaml";
-import { Integrity } from "@okfit/core";
+import { INTEGRITY_KEY, Integrity } from "@okfit/core";
 import { Effect, Option, Schema } from "effect";
-import type { ParsedTopLevelMapping } from "./locate.js";
-import { hasMergeKey, parseTopLevelMapping } from "./locate.js";
+import { LEGACY_INTEGRITY_KEY } from "../sync/legacyKeys.js";
+import type { KeySpan, ParsedTopLevelMapping } from "./locate.js";
+import { classifyLegacyIntegrity, hasMergeKey, parseTopLevelMapping } from "./locate.js";
+
+export type { KeySpan } from "./locate.js";
+export { renameKey } from "./locate.js";
 
 /**
  * One item of a block-style `integrity` mapping: its key as parsed (so `'verified'`
@@ -46,6 +50,7 @@ export type IntegrityLocated =
 			readonly indent: string;
 			readonly boundBy: string | undefined;
 			readonly bareKey: boolean;
+			readonly keySpan: KeySpan;
 	  }
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
@@ -96,12 +101,26 @@ const lineSpan = (value: string, keyOffset: number, tail: number): { start: numb
 };
 
 /**
+ * Which spelling {@link locateIntegrity} looks for. `key` defaults to the current key; `legacyKey` (default:
+ * the legacy spelling) is refused as `unsupported`/`legacy-key` when `key` is absent and it holds okfit's
+ * legacy block (D6), so verify never writes a second block beside an unmigrated one. The refusal is off
+ * while the two spellings are equal.
+ *
+ * @internal
+ */
+export interface LocateIntegrityOptions {
+	readonly key?: string;
+	readonly legacyKey?: string;
+}
+
+/**
  * Locate the top-level `integrity` key. See {@link IntegrityLocated}.
  *
  * @internal
  */
 export const locateIntegrity = Effect.fn("okfit/verify/locateIntegrity")(function* (
 	source: string,
+	options?: LocateIntegrityOptions,
 ): Generator<
 	Effect.Effect<YamlDocument, YamlParseError> | Effect.Effect<ParsedTopLevelMapping, YamlParseError>,
 	IntegrityLocated
@@ -111,8 +130,16 @@ export const locateIntegrity = Effect.fn("okfit/verify/locateIntegrity")(functio
 	const { value, valueStart, contents } = parsed;
 	if (contents.style === "flow") return { _tag: "unsupported", shape: "flow-document" } as const;
 
-	const pair = contents.items.find(isKey("integrity"));
-	if (pair === undefined) return { _tag: "absent", insertAt: valueStart + value.length } as const;
+	const key = options?.key ?? INTEGRITY_KEY;
+	const legacyKey = options?.legacyKey ?? LEGACY_INTEGRITY_KEY;
+	const pair = contents.items.find(isKey(key));
+	if (pair === undefined) {
+		const legacy = legacyKey === key ? undefined : contents.items.find(isKey(legacyKey));
+		if (legacy !== undefined && classifyLegacyIntegrity(legacy.value) !== "foreign") {
+			return { _tag: "unsupported", shape: "legacy-key" } as const;
+		}
+		return { _tag: "absent", insertAt: valueStart + value.length } as const;
+	}
 
 	const node = pair.value;
 	const isNull =
@@ -177,6 +204,7 @@ export const locateIntegrity = Effect.fn("okfit/verify/locateIntegrity")(functio
 		indent,
 		boundBy: typeof boundByRaw === "string" ? boundByRaw : undefined,
 		bareKey,
+		keySpan: { offset: valueStart + pair.key.offset, length: pair.key.length },
 	} as const;
 });
 
@@ -215,7 +243,7 @@ export const renderIntegrity = (fields: IntegrityFields, newline: "\n" | "\r\n")
 			`    content: ${formatDigest(fields.verified.content)}`,
 		);
 	}
-	return lines.length === 0 ? "" : ["integrity:", ...lines].map((line) => `${line}${newline}`).join("");
+	return lines.length === 0 ? "" : [`${INTEGRITY_KEY}:`, ...lines].map((line) => `${line}${newline}`).join("");
 };
 
 /**
@@ -284,7 +312,7 @@ const spliceSlot = (
 };
 
 /**
- * The one edit that sets `integrity.generated.body` and leaves every other byte
+ * The one edit that sets `x-okfit-integrity.generated.body` and leaves every other byte
  * of the block (the `verified` slot, unknown keys, comments, quoting) as it was.
  * Inserts the whole block when absent or null; otherwise rewrites only the
  * `generated` slot's lines, or adds that slot first when missing. `text` is the
@@ -308,7 +336,7 @@ export const spliceIntegrityGenerated = (
 	);
 
 /**
- * The one edit that sets the `integrity.verified` binding and leaves every other
+ * The one edit that sets the `x-okfit-integrity.verified` binding and leaves every other
  * byte of the block (the `generated` slot, unknown keys, comments, quoting) as it
  * was; the mirror of {@link spliceIntegrityGenerated}. Inserts the whole block
  * when absent or null; otherwise rewrites only the `verified` slot's lines, or
@@ -340,7 +368,7 @@ export type IntegrityVerifiedRemoval =
 	| { readonly _tag: "unsupported"; readonly shape: string };
 
 /**
- * The one edit that removes the `integrity.verified` slot and nothing else:
+ * The one edit that removes the `x-okfit-integrity.verified` slot and nothing else:
  * only that parsed item's lines go (however its key is quoted); every other
  * byte of the block (the `generated` slot, unknown keys, comments, quoting)
  * stays. When it is the block's only item, the whole block goes instead.

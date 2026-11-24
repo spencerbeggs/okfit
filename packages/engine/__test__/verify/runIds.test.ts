@@ -79,7 +79,7 @@ describe("runVerifyIds (issue #214)", () => {
 						assert.ok(text.includes("by: human:ada\n    at: 2026-09-16T12:00:00Z\n"), name);
 					}
 					const a = yield* read(root, "decisions/a.md");
-					// once as the `verified` entry, once as the `integrity.verified` binding
+					// once as the `verified` entry, once as the `x-okfit-integrity.verified` binding
 					assert.strictEqual(a.split("2026-09-16T12:00:00Z").length - 1, 2);
 					assert.ok(a.includes("status: draft"));
 				}),
@@ -252,7 +252,9 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 					assert.ok(text.includes("by: human:ada\n    at: 2026-10-09T00:00:00Z\n"), text);
 					// the binding carries the overwritten `at`, so it still joins the one entry
 					assert.ok(
-						text.includes("integrity:\n  verified:\n    by: human:ada\n    at: 2026-10-09T00:00:00Z\n    content: "),
+						text.includes(
+							"x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-10-09T00:00:00Z\n    content: ",
+						),
 						text,
 					);
 					assert.ok(text.includes("by: human:bob\n    at: 2026-01-02T00:00:00Z\n"), text);

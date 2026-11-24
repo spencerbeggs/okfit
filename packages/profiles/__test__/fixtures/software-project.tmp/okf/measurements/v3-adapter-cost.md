@@ -2,7 +2,7 @@
 type: Measurement
 title: Cost of an Effect v3 adapter layer
 description: A v3 compatibility adapter doubled the test matrix and added no consumer, measured before the v4-only decision.
-justifies: ../decisions/effect-v4.md
+x-okfit-justifies: ../decisions/effect-v4.md
 stale_after: 2027-03-01T00:00:00Z
 tags: [testing]
 ---

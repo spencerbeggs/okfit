@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T11:25:42Z
+  at: 2026-11-24T20:41:11Z
 status: draft
-integrity:
+x-okfit-integrity:
   generated:
-    body: 563be0b091aadecf
+    body: 975ab66042827eb8
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -88,16 +88,17 @@ before `--fix` and reports it to the human.
 
 **A link repair keeps the stamp.** OKF v0.3 §5.2 says a link repair does
 not change `generated.at`. When a fixed concept's recorded
-`integrity.generated.body` matched its body before the edit, the fix
+`x-okfit-integrity.generated.body` matched its body before the edit, the fix
 re-records that one digest for the fixed body, so the next `sync` keeps
 `generated.at`; the trust tier, which counts only verification events at or
 after `generated.at` (§5.3), is therefore not lowered by the edit. The fix
-never writes `generated.at`, `verified` or `integrity.verified`. okfit's own
+never writes `generated.at`, `verified` or `x-okfit-integrity.verified`. The key's prefix is explained in
+[okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md). okfit's own
 verification integrity is a separate signal and can still drift, because its
 content digest covers the body and the authored frontmatter, so any edit
 moves it. `drifts` lists every edited concept whose integrity was current
 before the edit (a body-link edit counts as well as a path-field edit), plus
-any edited concept whose `integrity` block has a layout the fix will not
+any edited concept whose `x-okfit-integrity` block has a layout the fix will not
 edit, so its body digest could not be re-recorded. The human re-verifies
 those; the CLI prints `Integrity drifted (re-verify with okfit verify):
 <ids>`. `okfit mv` does not yet follow this rule: it writes
@@ -128,7 +129,7 @@ a one-character change.
 Migrating a bundle is: run the report, `--fix` the two safe kinds, work
 through what is listed, then re-verify the concepts reported as drifted,
 which is a human act. okfit writes one digest outside `sync`, the generated
-body digest (`integrity.generated.body`), a derived value and never an
+body digest (`x-okfit-integrity.generated.body`), a derived value and never an
 attestation. The editor does not run `--target`, and there is no language
 server action or MCP input for it yet. `okfit mv` does not follow the
 link-repair rule today, so a move restamps; aligning it is an open follow-up.

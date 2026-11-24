@@ -62,7 +62,7 @@ status: stable
 verified:
   - by: "${FIXTURE_ACTOR}"
     at: "2026-01-01T00:00:00Z"
-integrity:
+x-okfit-integrity:
   verified:
     by: "${FIXTURE_ACTOR}"
     at: "2026-01-01T00:00:00Z"
@@ -336,14 +336,14 @@ describe("registerCodeActions", () => {
 	it.live("a drifted verification (no binding) is offered `Mark verified` again", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness({ platform: identityPlatform });
-			const unbound = ALREADY_VERIFIED_SOURCE.replace(/integrity:\n {2}verified:\n(?: {4}.*\n){3}/u, "");
-			assert.notInclude(unbound, "integrity:");
+			const unbound = ALREADY_VERIFIED_SOURCE.replace(/x-okfit-integrity:\n {2}verified:\n(?: {4}.*\n){3}/u, "");
+			assert.notInclude(unbound, "x-okfit-integrity:");
 			const uri = yield* openConcept(h, "okf/modules/verified.md", unbound);
 			const actions = yield* requestCodeAction(h.client, uri);
 			assert.include(actions.map(titleOf), `Mark verified by ${FIXTURE_ACTOR}`);
 			const verify = actions.find((action) => action.title.startsWith("Mark verified"));
 			const out = applyDocumentEdits(unbound, (verify as CodeAction).edit, uri);
-			assert.include(out, `integrity:\n  verified:\n    by: ${FIXTURE_ACTOR}\n`);
+			assert.include(out, `x-okfit-integrity:\n  verified:\n    by: ${FIXTURE_ACTOR}\n`);
 		}).pipe(Effect.scoped),
 	);
 

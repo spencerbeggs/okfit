@@ -49,7 +49,7 @@ Gotchas:
 - **A `site` variant replaces the base preset's file of the same name.** When you add `site` to a base preset, write the `site` preset's `readme-package.md`, `readme-root.md` or `readme-packages.md` in place of the base preset's file of that name, never alongside it.
 - Write each preset template's `frontmatter` and `body` to `okf/surfaces/<file>` as given. Apply the user's resource and URL answers.
 
-File recipe for each Surface: a `---` frontmatter block, a blank line, then the body. Emit the frontmatter fields in this order, omitting the optional ones the template lacks: `type`, `status`, `title`, `description`, `kind`, `audience`, `resource`, `links_to`, `url`. Keep `status: draft`; never set `verified`. Write `generated.by` only (the agent actor string, per `okf-authoring`'s actor convention); leave `generated.at` and every other `generated` key out, because `okfit sync` completes them.
+File recipe for each Surface: a `---` frontmatter block, a blank line, then the body. Emit the frontmatter fields in this order, omitting the optional ones the template lacks: `type`, `status`, `title`, `description`, `x-okfit-kind`, `x-okfit-audience`, `resource`, `x-okfit-links-to`, `x-okfit-url`. Keep `status: draft`; never set `verified`. Write `generated.by` only (the agent actor string, per `okf-authoring`'s actor convention); leave `generated.at` and every other `generated` key out, because `okfit sync` completes them.
 
 ## 5. Validate
 

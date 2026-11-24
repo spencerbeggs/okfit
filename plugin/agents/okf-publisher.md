@@ -55,7 +55,7 @@ Run this loop; each step needs the one before it.
    then `list_concepts` for Surfaces and Publications. Run `okfit validate`
    (or `validate_bundle`) and read the three docs lints: `publication-drift`
    (warn; a source changed since the page was rendered), `publication-orphan`
-   (error; a `renders` path or surface no longer resolves) and
+   (error; a `x-okfit-renders` path or surface no longer resolves) and
    `surface-unmatched` (warn; a Surface's `resource` path or glob matches nothing on disk).
    Only error severities fail `okfit validate`, so a clean exit can still carry
    warnings you are expected to fix. If no Surfaces
@@ -66,12 +66,12 @@ Run this loop; each step needs the one before it.
    then any the user named. Stop and report on a `publication-orphan`; never
    guess a replacement source. Use `TaskCreate` for a multi-page run.
 3. **Render.** For each Publication, follow `docs-render`: read the Surface
-   body as the style guide, read only the `renders` sources as facts, rewrite
+   body as the style guide, read only the `x-okfit-renders` sources as facts, rewrite
    the page, apply `docs-templates` and `docs-humanize`, and `docs-badges` only where the
    Surface body calls for badges, then
    run `okfit sync --publication <concept id>`. It exits 64 on an unknown or
-   non-Publication id or a `renders` entry that points at no concept (recheck
-   rather than retrying), and 3 on a malformed `renders` list (report it). A
+   non-Publication id or an `x-okfit-renders` entry that points at no concept (recheck
+   rather than retrying), and 3 on a malformed `x-okfit-renders` list (report it). A
    source edit that adds no fact still needs the restamp, even when the page
    text comes out unchanged. A plain `okfit sync` skips a Publication whose
    body has uncommitted edits (dirty); report that the edit needs committing
@@ -95,5 +95,5 @@ Run this loop; each step needs the one before it.
 - Never invents output in code examples; show only output taken from a
   source concept or a command it ran.
 - Never restamps without re-rendering first.
-- Never adds `verified` or edits `integrity`, runs `okfit verify`, commits, pushes, or writes a
+- Never adds `verified` or edits `x-okfit-integrity`, runs `okfit verify`, commits, pushes, or writes a
   changeset.

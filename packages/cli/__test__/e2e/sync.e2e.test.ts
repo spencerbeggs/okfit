@@ -499,7 +499,7 @@ describe("okfit sync (e2e)", () => {
 			const digest = await digestOf(project);
 			assert.match(
 				project,
-				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\nintegrity:\n {2}generated:\n {4}body: [\da-f]{16}\n---\n/,
+				/\ngenerated:\n {2}by: okfit\/claude-code\n {2}at: 2026-09-01T00:00:00Z\nx-okfit-integrity:\n {2}generated:\n {4}body: [\da-f]{16}\n---\n/,
 			);
 			assert.ok(project.includes(`    body: ${digest}\n`));
 			assert.notInclude(project, "body_sha256");
@@ -903,7 +903,7 @@ describe("okfit sync (e2e)", () => {
 			const text = await readDecision(cwd, "staged");
 			assert.match(
 				text,
-				/\n {2}at: 2026-09-16T10:00:00Z\nstatus: draft\nintegrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/,
+				/\n {2}at: 2026-09-16T10:00:00Z\nstatus: draft\nx-okfit-integrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/,
 			);
 
 			// Prove `--staged` re-added the stamp itself, BEFORE `commit()` runs
@@ -973,8 +973,8 @@ const SURFACE = [
 	"type: Surface",
 	"title: Docs",
 	"description: The docs site.",
-	"kind: site",
-	"audience: users",
+	"x-okfit-kind: site",
+	"x-okfit-audience: users",
 	"resource: ../README.md",
 	"---",
 	"",
@@ -990,8 +990,8 @@ const PUBLICATION = [
 	"title: PR",
 	"description: The page.",
 	"resource: ../README.md",
-	"surface: ../surfaces/docs.md",
-	"renders:",
+	"x-okfit-surface: ../surfaces/docs.md",
+	"x-okfit-renders:",
 	"  - path: ../modules/x.md",
 	"---",
 	"",
@@ -1018,9 +1018,9 @@ const driftCount = async (cwd: string, env: Record<string, string>): Promise<num
 	return envelope.diagnostics.filter((d) => d.code === "publication-drift").length;
 };
 
-/** Append the canonical `integrity.generated.body` block as the last frontmatter key. */
+/** Append the canonical `x-okfit-integrity.generated.body` block as the last frontmatter key. */
 const stampIntegrity = (text: string, digest: string): string =>
-	text.replace("\n---\n", `\nintegrity:\n  generated:\n    body: ${digest}\n---\n`);
+	text.replace("\n---\n", `\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n`);
 
 describe("okfit sync --publication", () => {
 	it("restamps one Publication, after which validate reports no drift", async () => {
@@ -1048,12 +1048,15 @@ describe("okfit sync --publication", () => {
 	it("exits 3 for a malformed renders list (UnsupportedFrontmatterError), writing nothing", async () => {
 		const { sandbox, cwd, env, pubPath } = await seededPublication();
 		try {
-			const malformed = PUBLICATION.replace("renders:\n  - path: ../modules/x.md", "renders: not-a-list");
+			const malformed = PUBLICATION.replace(
+				"x-okfit-renders:\n  - path: ../modules/x.md",
+				"x-okfit-renders: not-a-list",
+			);
 			assert.notStrictEqual(malformed, PUBLICATION);
 			await writeFile(pubPath, malformed, "utf8");
 			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 3, run.stderr);
-			assert.match(run.stderr, /renders/);
+			assert.match(run.stderr, /x-okfit-renders/);
 			assert.strictEqual(await readFile(pubPath, "utf8"), malformed);
 		} finally {
 			await removeSandbox(sandbox);
@@ -1142,10 +1145,10 @@ describe("okfit sync --publication", () => {
 			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
 			await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			await commit(cwd, { message: "add publication", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
-			// Only the `renders:` block: the Publication's own `integrity.generated.body` is also `    body:`.
+			// Only the `x-okfit-renders:` block: the Publication's own `x-okfit-integrity.generated.body` is also `    body:`.
 			const rendersOf = (text: string) => {
 				const lines = text.split("\n");
-				const start = lines.indexOf("renders:");
+				const start = lines.indexOf("x-okfit-renders:");
 				const tail = lines.slice(start + 1);
 				const length = tail.findIndex((l) => !l.startsWith(" "));
 				return [lines[start], ...tail.slice(0, length === -1 ? tail.length : length)];

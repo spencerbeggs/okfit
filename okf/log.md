@@ -41,6 +41,55 @@
 * Updated The MCP server is Effect-native and speaks the legacy protocol era
 * Updated The validate hook fires PostToolUse, not PreToolUse
 * Updated okfit
+* Updated A concept outside the repository is a typed failure
+* Updated A documentation site at okfit.dev
+* Updated A non-empty actors list is an allow-list and okfit never stores emails
+* Updated A walk past maxDepth fails typed, never silently truncates
+* Updated An @okfit/lsp language server and a VS Code extension over the shared engine
+* Updated Bundle, Graph, Derive, and Validate are static facades, not services
+* Updated Commits are conventional, DCO signed, never on main
+* Updated Concept files are named for their topic; ids stay paths
+* Updated Config discovery is assembled through AppConfig.layer, not a hand-rolled resolver chain
+* Updated Contributor guide -- making a pull request
+* Updated Contributor guides
+* Updated Documentation site
+* Updated Effect v4 pinned to catalog:effected
+* Updated Exactly one Project concept, at the bundle root
+* Updated Exit codes are a fixed six-value total order
+* Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
+* Updated Ghost workspace
+* Updated Heading anchors match github-slugger, through the kit's slugger
+* Updated Human actor ids resolve through a five-step fallback order
+* Updated Interactive prompts are gated by audience and terminal, and the audience never refuses a command
+* Updated Never flip private in a source package.json
+* Updated No process.cwd() or environment reads in profiles
+* Updated One engine query layer serves the MCP tools, the CLI and the verify picker
+* Updated Plugin
+* Updated Publish the VS Code extension
+* Updated Relative imports use .js extensions
+* Updated Repository README
+* Updated Sub-package READMEs
+* Updated Tests live in __test__/, never in src/
+* Updated The VS Code extension lives at vscode/, not under plugins/ or packages/
+* Updated The carrier keeps its front ends' bin names, proven under allowSharedBins
+* Updated The language server runs the reference vscode-languageserver library behind an Effect transport seam
+* Updated The plugin declares a minimum CLI version and the context envelope reports the CLI's
+* Updated The software-project vocabulary grows a fourth time from open migration findings
+* Updated The software-project vocabulary grows a second time from the effected and tsdoctor migrations
+* Updated The software-project vocabulary grows a third time from the silk action migrations
+* Updated The software-project vocabulary grows from what migrations could not express
+* Updated Time is an explicit argument, never a Clock service
+* Updated Tool packages pin the kit exactly; libraries keep carets and peers
+* Updated Two narrow interrupt windows in the LSP session registry are documented, not closed
+* Updated Uncommitted provenance is the caller's to interpret
+* Updated User docs live under /docs; package hierarchies live at the site root beside their generated API
+* Updated Website
+* Updated Workspace
+* Updated okfit sync is the one command that regenerates every derived-content family
+* Updated okfit sync's log mode appends into the newest logged day and dedupes on its own spellings
+* Updated process reads confined to the CLI's boundary files
+* Updated scratchpad
+* Added okfit's own frontmatter keys carry the x-okfit- prefix
 
 ## 2026-11-23
 

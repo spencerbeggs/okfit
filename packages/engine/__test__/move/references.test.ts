@@ -14,7 +14,7 @@ const seed = {
 	[`${ROOT}/decisions/b.md`]: doc("Decision", "B"),
 	[`${ROOT}/conventions/c.md`]: doc("Convention", "C"),
 	[`${ROOT}/conventions/index.md`]: "# Conventions\n",
-	[`${ROOT}/publications/p.md`]: doc("Publication", "P", "renders:\n  - path: ../decisions/b.md\n"),
+	[`${ROOT}/publications/p.md`]: doc("Publication", "P", "x-okfit-renders:\n  - path: ../decisions/b.md\n"),
 	[`${ROOT}/topics/rich.md`]: doc(
 		"Decision",
 		"Rich",

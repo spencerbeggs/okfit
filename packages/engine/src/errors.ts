@@ -1,5 +1,7 @@
 import { ErrorText } from "@effected/kit";
+import { INTEGRITY_KEY } from "@okfit/core";
 import { Runtime, Schema } from "effect";
+import { LEGACY_INTEGRITY_KEY } from "./sync/legacyKeys.js";
 
 /**
  * `--config <path>` named a path that does not exist. Every `ConfigResolver`
@@ -78,11 +80,14 @@ export class VerifyUnsupportedFrontmatterError extends Schema.TaggedError<Verify
 	{
 		id: Schema.String,
 		shape: Schema.String,
-		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after", "integrity"])),
+		key: Schema.optionalKey(Schema.Literals(["verified", "status", "stale_after", INTEGRITY_KEY])),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
+		if (this.shape === "legacy-key") {
+			return `"${this.id}" still carries okfit's old \`${LEGACY_INTEGRITY_KEY}\` block; run okfit sync to rename it to \`${INTEGRITY_KEY}\`, then verify again`;
+		}
 		return `"${this.id}"'s ${this.key ?? "verified"} value is a shape okfit verify cannot edit (${this.shape}); edit it by hand`;
 	}
 }

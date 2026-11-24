@@ -12,7 +12,7 @@ import {
 import type { EntryFamily } from "../Concept.js";
 import { ATTESTED_COMPUTATION_TYPE, Concept, EntryPaths } from "../Concept.js";
 import { Generated } from "../Generated.js";
-import { Integrity } from "../Integrity.js";
+import { INTEGRITY_KEY, Integrity } from "../Integrity.js";
 import { Source, UsageWindow } from "../Source.js";
 import { Status } from "../Status.js";
 import { Timestamp } from "../Timestamp.js";
@@ -293,7 +293,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 		"usage_window",
 		"generated",
 		"verified",
-		"integrity",
+		INTEGRITY_KEY,
 		...(isComputation ? COMPUTATION_KEYS : []),
 	]);
 	const extensions = Object.fromEntries(Object.entries(raw).filter(([key]) => !known.has(key)));
@@ -364,8 +364,15 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 	scalar("stale_after");
 	scalar("superseded_by");
 
-	if (present("integrity")) {
-		const integrity = decodeFamily(Integrity, "integrity", ["integrity"], raw.integrity, issues, "family-invalid");
+	if (present(INTEGRITY_KEY)) {
+		const integrity = decodeFamily(
+			Integrity,
+			INTEGRITY_KEY,
+			[INTEGRITY_KEY],
+			raw[INTEGRITY_KEY],
+			issues,
+			"family-invalid",
+		);
 		if (integrity !== undefined) out.integrity = integrity;
 	}
 

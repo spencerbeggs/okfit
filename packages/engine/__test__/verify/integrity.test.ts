@@ -1,10 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
-import { FrontmatterSource, MarkdownEdit } from "@effected/markdown";
-import { YamlDocument } from "@effected/yaml";
-import { Concept } from "@okfit/core";
-import { Effect, Schema } from "effect";
+import { MarkdownEdit } from "@effected/markdown";
+import { Effect } from "effect";
 import type { IntegrityFields } from "../../src/verify/integrity.js";
 import {
 	formatDigest,
@@ -16,10 +14,11 @@ import {
 	spliceIntegrityGenerated,
 	spliceIntegrityVerified,
 } from "../../src/verify/integrity.js";
-import { documentNewline, stripBom } from "../../src/verify/locate.js";
+import { documentNewline, renameKey, stripBom } from "../../src/verify/locate.js";
 import { countLines, decodeFrontmatter } from "../utils/frontmatter.js";
 
 const DIR = join(import.meta.dirname, "..", "fixtures", "verify", "integrity");
+const LEGACY_DIR = join(import.meta.dirname, "..", "fixtures", "sync", "legacy-keys");
 const read = (name: string): string => readFileSync(join(DIR, name), "utf8");
 const expected = (name: string): string => readFileSync(join(DIR, "expected", name), "utf8");
 
@@ -105,7 +104,7 @@ describe("integrity splice", () => {
 		assert.strictEqual(renderIntegrity({}, "\n"), "");
 		assert.strictEqual(
 			renderIntegrity({ verified: VERIFIED }, "\r\n"),
-			"integrity:\r\n  verified:\r\n    by: human:spencer\r\n    at: 2026-10-10T18:00:00Z\r\n    content: 9a1c3f07b2e8d415\r\n",
+			"x-okfit-integrity:\r\n  verified:\r\n    by: human:spencer\r\n    at: 2026-10-10T18:00:00Z\r\n    content: 9a1c3f07b2e8d415\r\n",
 		);
 	});
 });
@@ -150,10 +149,7 @@ describe("digest quoting", () => {
 			if (located._tag !== "replace") return assert.fail("expected replace");
 			assert.strictEqual(located.current?.generated?.body, "1234567890123456");
 			assert.strictEqual(located.current?.verified?.content, "1234e56789012345");
-			const block = FrontmatterSource.split(out).frontmatter;
-			const doc = yield* YamlDocument.parse(block?.value ?? "");
-			const raw = doc.contents?.toValue() as Record<string, unknown>;
-			const concept = yield* Schema.decodeUnknownEffect(Concept)({ ...raw, extensions: {}, raw });
+			const concept = yield* decodeFrontmatter(out);
 			assert.isDefined(concept.integrity);
 		}),
 	);
@@ -175,7 +171,7 @@ describe("slot splices follow the parsed block", () => {
 
 	it.effect("a quoted verified key is replaced in place, never duplicated", () =>
 		Effect.gen(function* () {
-			const source = `${HEAD}integrity:\n  generated:\n    body: 0123456789abcdef\n  'verified':\n    by: human:old\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n${TAIL}`;
+			const source = `${HEAD}x-okfit-integrity:\n  generated:\n    body: 0123456789abcdef\n  'verified':\n    by: human:old\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n${TAIL}`;
 			const out = yield* slot(source, "verified");
 			assert.strictEqual(countLines(out, /verified['"]?:/u), 1);
 			const concept = yield* decodeFrontmatter(out);
@@ -186,7 +182,7 @@ describe("slot splices follow the parsed block", () => {
 
 	it.effect("a double-quoted generated key is replaced in place, never duplicated", () =>
 		Effect.gen(function* () {
-			const source = `${HEAD}integrity:\n  "generated":\n    body: 0123456789abcdef\n${TAIL}`;
+			const source = `${HEAD}x-okfit-integrity:\n  "generated":\n    body: 0123456789abcdef\n${TAIL}`;
 			const out = yield* slot(source, "generated");
 			assert.strictEqual(countLines(out, /generated['"]?:/u), 1);
 			assert.strictEqual((yield* decodeFrontmatter(out)).integrity?.generated?.body, GENERATED.body);
@@ -196,11 +192,11 @@ describe("slot splices follow the parsed block", () => {
 	it.effect("a comment on the integrity key line survives a slot rewrite, as does the other slot", () =>
 		Effect.gen(function* () {
 			const verified = "  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n";
-			const source = `${HEAD}integrity:  # okfit owns this\n  generated:\n    body: 0123456789abcdef\n${verified}${TAIL}`;
+			const source = `${HEAD}x-okfit-integrity:  # okfit owns this\n  generated:\n    body: 0123456789abcdef\n${verified}${TAIL}`;
 			const out = yield* slot(source, "generated");
 			assert.strictEqual(
 				out,
-				`${HEAD}integrity:  # okfit owns this\n  generated:\n    body: ${GENERATED.body}\n${verified}${TAIL}`,
+				`${HEAD}x-okfit-integrity:  # okfit owns this\n  generated:\n    body: ${GENERATED.body}\n${verified}${TAIL}`,
 			);
 		}),
 	);
@@ -208,18 +204,18 @@ describe("slot splices follow the parsed block", () => {
 	it.effect("a block that does not decode as a whole keeps its valid slot when the other is rewritten", () =>
 		Effect.gen(function* () {
 			const verified = "  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n";
-			const source = `${HEAD}integrity:  # note\n  generated: nope\n${verified}${TAIL}`;
+			const source = `${HEAD}x-okfit-integrity:  # note\n  generated: nope\n${verified}${TAIL}`;
 			const out = yield* slot(source, "generated");
 			assert.strictEqual(
 				out,
-				`${HEAD}integrity:  # note\n  generated:\n    body: ${GENERATED.body}\n${verified}${TAIL}`,
+				`${HEAD}x-okfit-integrity:  # note\n  generated:\n    body: ${GENERATED.body}\n${verified}${TAIL}`,
 			);
 		}),
 	);
 
 	it.effect("a block with content the editor cannot map is unsupported, never silently rewritten", () =>
 		Effect.gen(function* () {
-			const source = `${HEAD}integrity:\n  ? [complex]\n  : 1\n  verified:\n    by: human:ada\n${TAIL}`;
+			const source = `${HEAD}x-okfit-integrity:\n  ? [complex]\n  : 1\n  verified:\n    by: human:ada\n${TAIL}`;
 			const located = yield* locateIntegrity(source);
 			assert.deepStrictEqual(located, { _tag: "unsupported", shape: "integrity-layout" });
 		}),
@@ -227,11 +223,68 @@ describe("slot splices follow the parsed block", () => {
 
 	it.effect("exposes the bound actor even when the block does not decode", () =>
 		Effect.gen(function* () {
-			const source = `${HEAD}integrity:\n  generated: nope\n  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n${TAIL}`;
+			const source = `${HEAD}x-okfit-integrity:\n  generated: nope\n  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: abcdef0123456789\n${TAIL}`;
 			const located = yield* locateIntegrity(source);
 			if (located._tag !== "replace") return assert.fail("expected replace");
 			assert.isUndefined(located.current);
 			assert.strictEqual(located.boundBy, "human:ada");
 		}),
 	);
+});
+
+describe("locateIntegrity key options", () => {
+	it.effect("locates a named key and reports its token span", () =>
+		Effect.gen(function* () {
+			const { text } = stripBom(readFileSync(join(LEGACY_DIR, "block-both.md"), "utf8"));
+			const located = yield* locateIntegrity(text, { key: "integrity" });
+			if (located._tag !== "replace") throw new Error(located._tag);
+			assert.strictEqual(
+				text.slice(located.keySpan.offset, located.keySpan.offset + located.keySpan.length),
+				"integrity",
+			);
+		}),
+	);
+
+	it.effect("locates the current key with no options while the spellings are equal", () =>
+		Effect.gen(function* () {
+			const { text } = stripBom(read("replace-both.md"));
+			assert.strictEqual((yield* locateIntegrity(text))._tag, "replace");
+		}),
+	);
+
+	it.effect("refuses a legacy block when the current key is absent (D6)", () =>
+		Effect.gen(function* () {
+			const { text } = stripBom(readFileSync(join(LEGACY_DIR, "block-both.md"), "utf8"));
+			assert.deepStrictEqual(yield* locateIntegrity(text, { key: "x-okfit-integrity", legacyKey: "integrity" }), {
+				_tag: "unsupported",
+				shape: "legacy-key",
+			});
+		}),
+	);
+
+	it.effect("refuses a null legacy block too (D6)", () =>
+		Effect.gen(function* () {
+			const text = "---\ntype: T\nintegrity:\n---\n";
+			assert.deepStrictEqual(yield* locateIntegrity(text, { key: "x-okfit-integrity", legacyKey: "integrity" }), {
+				_tag: "unsupported",
+				shape: "legacy-key",
+			});
+		}),
+	);
+
+	it.effect("refuses a legacy block behind a merge key (D6)", () =>
+		Effect.gen(function* () {
+			const text = "---\ntype: T\nintegrity:\n  <<: {generated: {body: abc}}\n---\n";
+			const located = yield* locateIntegrity(text, { key: "x-okfit-integrity", legacyKey: "integrity" });
+			assert.deepStrictEqual(located, { _tag: "unsupported", shape: "legacy-key" });
+		}),
+	);
+
+	it("renameKey keeps a double-quoted token's quotes", () => {
+		const text = '"kind": x\n';
+		assert.strictEqual(
+			MarkdownEdit.applyAll(text, [renameKey({ offset: 0, length: 6 }, "x-okfit-kind", text)]),
+			'"x-okfit-kind": x\n',
+		);
+	});
 });

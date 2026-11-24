@@ -4,15 +4,15 @@ title: Engine
 description: The shared okfit engine -- platform layer, config discovery, and the validate/verify/sync/init/context programs both the CLI and the MCP server depend on directly.
 status: stable
 resource: ../../packages/engine
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T11:25:42Z
-integrity:
+  at: 2026-11-24T20:33:07Z
+x-okfit-integrity:
   generated:
-    body: 71231c044f7857d2
+    body: 16dd2c4909246ba4
 ---
 
 # Engine
@@ -72,8 +72,8 @@ free wherever `OkfitPlatform` already runs -- it merges
 carries crypto -- since `@okfit/profiles`'
 `Provenance.lint`, `Derivation.bodyDigest` and the `verified-drift` lint
 need it. `verify/integrity.ts` locates and splices the top-level
-`integrity` block (`locateIntegrity`, `spliceIntegrityVerified`, plus the
-`integrity.generated.body` splice sync uses), failing closed on aliases,
+`x-okfit-integrity` block (`locateIntegrity`, `spliceIntegrityVerified`, plus the
+`x-okfit-integrity.generated.body` splice sync uses), failing closed on aliases,
 merge keys and flow mappings, and its zero-length inserts join
 `orderVerifyEdits`/`mergeSameOffset` so edits at one offset merge into one
 — two zero-length inserts at one offset are the "overlapping edits" case
@@ -90,7 +90,7 @@ and agent surfaces need them. `ConceptSummary` carries `tier`, `integrity`
 lives in one integrity family](../decisions/integrity-family.md).
 
 Every `verified` write (`runVerify`, `runVerifyBatch`, `runVerifyIds`)
-also binds `integrity.verified`; the refresh path rewrites the binding in
+also binds `x-okfit-integrity.verified`; the refresh path rewrites the binding in
 the same edit. Candidate selection counts an actor as already verified only
 when it holds the current binding, and a binding is current only while its
 bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-offer drifted concepts, a concept verified before
@@ -100,7 +100,7 @@ alone (`selectStaleCandidates` never consults integrity). A write that would not
 `VerifyNotCurrentError` (exit `3`) in `runVerify`, `runVerifyBatch` and
 `runVerifyIds` alike, and a batch fails whole with nothing written. `verify/revoke.ts` implements
 `--revoke`: it removes the current actor's own `verified` entries, clears
-`integrity.verified` when it was bound to one of them (and `integrity`
+`x-okfit-integrity.verified` when it was bound to one of them (and `x-okfit-integrity`
 when empty), removes the `verified` key when its list empties, and reports
 `removed`, `binding_cleared` and `revoked_by`; it fails with a typed error
 when there is nothing to revoke. `verify/diff.ts` builds the git diff from
@@ -108,11 +108,14 @@ the last commit at or before the bound `at` to the working tree, and the
 verify envelope gains an optional `prior_integrity`.
 
 `runSync` migrates legacy digests: `generated.body_sha256` becomes
-`integrity.generated.body` and a Publication's `renders[].body_sha256`
-becomes `renders[].body`, both cut to 16 hex. The plan and output report
+`x-okfit-integrity.generated.body` and a Publication's `renders[].body_sha256`
+becomes `x-okfit-renders[].body`, both cut to 16 hex. The plan and output report
 `migrated`, and the skip reasons gain `integrity-unsupported` and
 `renders-unsupported`. Migration never touches `verified` and never writes
-`integrity.verified`.
+`x-okfit-integrity.verified`. The same pass renames the old `integrity` key and the built-in
+profile fields to their `x-okfit-` spellings, skipping a concept with both spellings
+(`legacy-key-conflict`) or a key it cannot rename in place (`legacy-key-unsupported`); see
+[okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md).
 
 `verify/run.ts#runVerifyBatch` attests a whole selection at once --
 `--all`, narrowed or replaced by `--type <T>` -- instead of one id at a
@@ -174,9 +177,9 @@ write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
 version fix while a root-only reference remains, when `okf_version` cannot be
 edited in place, when the root index's opening fence is malformed or its
 frontmatter does not parse (the run continues),
-re-record `integrity.generated.body` for a concept whose digest matched
+re-record `x-okfit-integrity.generated.body` for a concept whose digest matched
 before the edit, list `drifts` (each edited concept whose integrity was
-current before the edit, and each whose `integrity` block the fix will not
+current before the edit, and each whose `x-okfit-integrity` block the fix will not
 edit), and keep a BOM and the file's line endings.
 Both read and write the root index and concepts themselves, so they need
 `FileSystem`, `Path` and `Digest`. `validate/run.ts#run` takes a `target` and
@@ -210,7 +213,7 @@ changed, so a file edited between plan and confirm is never overwritten.
 `runSync` composes the two and behaves as before.
 
 `sync/run.ts#planSync` walks git lazily now: a concept whose recorded
-body digest (`integrity.generated.body`, or a legacy `generated.body_sha256`)
+body digest (`x-okfit-integrity.generated.body`, or a legacy `generated.body_sha256`)
 still matches its current body, and that log mode
 does not need for its date window, is never read through git at all --
 only unstamped concepts, or stamped ones the log window still wants,
@@ -225,12 +228,12 @@ spellings](../decisions/sync-log-days.md), which
 supersedes the strictly-after rule. `--since <YYYY-MM-DD>` widens that
 floor on request. A `staged` mode (`sync/run.ts`) selects only the git
 index, stamps `generated.at` with `now` (truncated to seconds) and
-`integrity.generated.body` with the body's digest, writes, and re-adds what
+`x-okfit-integrity.generated.body` with the body's digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit -- meant for a pre-commit
 hook only, never for an ordinary run; see [okfit sync --staged stamps the
 git index with now, the one place a wall-clock stamp is
 honest](../decisions/sync-staged-stamps.md). In both modes the stamp is
-`min(derived instant, binding.at)` when the concept's `integrity.verified`
+`min(derived instant, binding.at)` when the concept's `x-okfit-integrity.verified`
 binds its latest human entry and covers exactly the current content
 (`sync/generated.ts#stampInstant`), so an edit, verify, commit sequence keeps
 the verification current under OKF v0.3 §5.3; the `[actors].humans`

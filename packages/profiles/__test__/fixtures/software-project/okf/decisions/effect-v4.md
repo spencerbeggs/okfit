@@ -6,7 +6,7 @@ status: stable
 verified:
   by: human:spencer
   at: 2026-09-05T00:00:00Z
-integrity:
+x-okfit-integrity:
   verified:
     by: human:spencer
     at: 2026-09-05T00:00:00Z

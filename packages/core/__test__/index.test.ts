@@ -10,6 +10,8 @@ const VALUES = [
 	"UsageWindow",
 	"Generated",
 	"Digest",
+	"INTEGRITY_KEY",
+	"OKFIT_KEY_PREFIX",
 	"Integrity",
 	"IntegrityGenerated",
 	"IntegrityVerified",

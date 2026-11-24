@@ -12,7 +12,7 @@ status: stable
 sources:
   - id: trust-ts
     resource: ../../packages/profiles/src/Trust.ts
-integrity:
+x-okfit-integrity:
   generated:
     body: 4c6962ad47680337
   verified:

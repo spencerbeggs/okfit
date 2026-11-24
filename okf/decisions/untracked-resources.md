@@ -11,7 +11,7 @@ status: draft
 sources:
   - resource: https://github.com/spencerbeggs/okfit/issues/279
     title: "validate: error on references to untracked or gitignored files"
-integrity:
+x-okfit-integrity:
   generated:
     body: e346ce58bf02376b
 ---

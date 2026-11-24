@@ -5,6 +5,7 @@ import { Derivation, Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import { keyRenamesFor, legacyIntegrity } from "../sync/legacyKeys.js";
 import { writeAtomic } from "../sync/write.js";
 import { locateIntegrity, spliceIntegrityGenerated } from "../verify/integrity.js";
 import { detectNewline, documentNewline, locateTopLevelScalar, stripBom } from "../verify/locate.js";
@@ -32,7 +33,7 @@ export interface MigrationFixOptions {
  * new text and the fix kinds applied (one entry per fixed finding); `refused` lists a finding whose fix was not
  * planned, with the reason (including a selected reference the plan could not locate); `drifts` lists the sorted ids
  * whose human integrity was `current` and whose authored content changes, and the ids whose recorded
- * `integrity.generated.body` went stale because the `integrity` block has a layout the plan will not edit (never
+ * `x-okfit-integrity.generated.body` went stale because the `integrity` block has a layout the plan will not edit (never
  * repaired, only listed).
  *
  * @public
@@ -99,9 +100,9 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * (inserting `/` before its path part and changing nothing else), and declare `okf_version`. Writes nothing. The
  * version fix is refused, with its reason, while any root-only reference elsewhere in the bundle is not fixed by this
  * same plan (R41), so a narrowed run never flips a bundle to a version under which its links break. For an edited
- * concept whose recorded `integrity.generated.body` equalled its body digest before the edit, the plan re-records
+ * concept whose recorded `x-okfit-integrity.generated.body` equalled its body digest before the edit, the plan re-records
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
- * `integrity.verified`.
+ * `x-okfit-integrity.verified`.
  *
  * Unlike the brief's first sketch, this reads the root `index.md` itself (once, and only when the version fix is
  * planned), because `LoadedBundle` keeps only the frontmatter value of an index and the fix must locate `okf_version`
@@ -135,6 +136,9 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	// Findings this plan actually turns into an insert; a selected finding it cannot locate is refused, never counted.
 	let fixed = 0;
 
+	// Computed once: a concept still carrying okfit's pre-namespace integrity block is never edited here.
+	const renames = keyRenamesFor(config);
+
 	const byFile = new Map<string, Array<MigrationFinding & { readonly fix: MigrationFixKind }>>();
 	for (const finding of pathFixes) byFile.set(finding.file, [...(byFile.get(finding.file) ?? []), finding]);
 	for (const [file, found] of byFile) {
@@ -143,6 +147,17 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			refused.push({ file: finding.file, code: finding.code, reason });
 		if (concept === undefined) {
 			for (const finding of found) refuse(finding, "the concept is not loaded, so the reference cannot be rewritten");
+			continue;
+		}
+		if (legacyIntegrity(concept, renames) !== undefined) {
+			// An edit would leave the old block's body digest stale, and the next sync would read that as an authored
+			// change and re-stamp the concept; the key rename has to come first.
+			for (const finding of found) {
+				refuse(
+					finding,
+					"the concept still uses okfit's old key names, so its recorded digest cannot be kept current; run `okfit sync` first, then fix again",
+				);
+			}
 			continue;
 		}
 		const source = concept.document.source;

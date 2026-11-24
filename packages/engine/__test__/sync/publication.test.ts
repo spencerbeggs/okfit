@@ -30,11 +30,22 @@ const withBundle = <A, E>(
 const MOD_A = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
 const MOD_B = "---\ntype: Module\ntitle: B\n---\n\n# B\n";
 const pubFile = (renders: string): string =>
-	`---\ntype: Publication\nresource: page.md\nsurface: surfaces/s\nrenders:\n${renders}\n---\n\nNotes.\n`;
+	`---\ntype: Publication\nresource: page.md\nx-okfit-surface: surfaces/s\nx-okfit-renders:\n${renders}\n---\n\nNotes.\n`;
 const PUB = pubFile("  - path: ../modules/a.md\n  - path: ../modules/b.md");
 const files = { "modules/a.md": MOD_A, "modules/b.md": MOD_B, "publications/p.md": PUB };
 
 describe("stampPublication", () => {
+	it.effect("keeps a leading BOM on the Publication it rewrites", () =>
+		withBundle({ ...files, "publications/p.md": `\uFEFF${PUB}` }, (root) =>
+			Effect.gen(function* () {
+				const result = yield* stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false });
+				assert.isTrue(result.written);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "publications/p.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			}),
+		),
+	);
+
 	it.effect("stamps every entry, then is a no-op on the second run", () =>
 		withBundle(files, (root) =>
 			Effect.gen(function* () {
@@ -87,12 +98,13 @@ describe("stampPublication", () => {
 	);
 
 	it.effect("fails UnsupportedFrontmatterError (shape malformed) for a non-list renders, writing nothing", () => {
-		const bad = "---\ntype: Publication\nresource: page.md\nsurface: surfaces/s\nrenders: nope\n---\n\nNotes.\n";
+		const bad =
+			"---\ntype: Publication\nresource: page.md\nx-okfit-surface: surfaces/s\nx-okfit-renders: nope\n---\n\nNotes.\n";
 		return withBundle({ ...files, "publications/p.md": bad }, (root) =>
 			Effect.gen(function* () {
 				const e = yield* Effect.flip(stampPublication({ bundleRoot: root, id: "publications/p", dryRun: false }));
 				assert.ok(e instanceof UnsupportedFrontmatterError);
-				assert.strictEqual(e.key, "renders");
+				assert.strictEqual(e.key, "x-okfit-renders");
 				assert.strictEqual(e.shape, "malformed");
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "publications/p.md"), "utf8")), bad);
 			}),

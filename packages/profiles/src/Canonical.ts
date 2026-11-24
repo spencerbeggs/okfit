@@ -1,12 +1,14 @@
 import { JsoncCanonicalizeOptions, JsoncFingerprint } from "@effected/jsonc";
+import { INTEGRITY_KEY } from "@okfit/core";
 import { Result, Schema } from "effect";
 import { body } from "./internal/body.js";
+import { ProfileKeys } from "./ProfileKeys.js";
 
 /** Top-level keys that are bookkeeping, not authored content (spec section 4). */
 const EXCLUDED_KEYS: ReadonlySet<string> = new Set([
 	"generated",
 	"verified",
-	"integrity",
+	INTEGRITY_KEY,
 	"stale_after",
 	"status",
 	"timestamp",
@@ -65,7 +67,7 @@ const stripRendersDigests = (renders: unknown): unknown =>
 
 /**
  * The exact string a content digest hashes, or why there is none: canonical JSON of the authored frontmatter
- * (`raw` minus `Canonical.EXCLUDED_KEYS` and every `renders[].body`) and the
+ * (`raw` minus `Canonical.EXCLUDED_KEYS` and every `x-okfit-renders[].body`) and the
  * normalised body. `raw` is the parsed mapping (YAML 1.2 Core Schema: timestamps are
  * strings), so quoting, flow vs block style, key order and CRLF never change it.
  */
@@ -76,7 +78,7 @@ const contentInput = (
 	const frontmatter = Object.fromEntries(
 		Object.entries(raw)
 			.filter(([key]) => !EXCLUDED_KEYS.has(key))
-			.map(([key, value]) => [key, key === "renders" ? stripRendersDigests(value) : value]),
+			.map(([key, value]) => [key, key === ProfileKeys.renders ? stripRendersDigests(value) : value]),
 	);
 	return Result.mapError(
 		JsoncFingerprint.canonicalizeResult({ body: body(source), frontmatter }, CANONICALIZE),

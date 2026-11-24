@@ -314,7 +314,7 @@
 						"error"
 					],
 					"title": "family-invalid",
-					"description": "okfit's own integrity family does not match its shape. Default \"error\".",
+					"description": "okfit's own x-okfit-integrity family does not match its shape. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {
@@ -446,7 +446,7 @@
 						"error"
 					],
 					"title": "actor-email",
-					"description": "An actor in generated.by, verified[].by, integrity.verified.by or [actors].humans contains \"@\", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default \"warn\".",
+					"description": "An actor in generated.by, verified[].by, x-okfit-integrity.verified.by or [actors].humans contains \"@\", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -468,7 +468,7 @@
 						"error"
 					],
 					"title": "verified-actor-unknown",
-					"description": "A human verified[].by or integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default \"warn\".",
+					"description": "A human verified[].by or x-okfit-integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -666,7 +666,7 @@
 						"error"
 					],
 					"title": "verified-drift",
-					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default \"warn\".",
+					"description": "A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (x-okfit-integrity.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -864,7 +864,7 @@
 						"error"
 					],
 					"title": "publication-drift",
-					"description": "A Publication's renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
+					"description": "A Publication's x-okfit-renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -886,7 +886,7 @@
 						"error"
 					],
 					"title": "publication-orphan",
-					"description": "A Publication's surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body } entries. Default \"error\".",
+					"description": "A Publication's x-okfit-surface or x-okfit-renders[].path does not resolve to a concept, or x-okfit-renders is not a list of { path, body } entries. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {

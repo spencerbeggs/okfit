@@ -4,16 +4,16 @@ title: LSP
 description: The okfit-lsp language server, publishing engine diagnostics for a discovered bundle over stdio to Claude Code and any LSP client.
 status: stable
 resource: ../../packages/lsp
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
-integrity:
+  at: 2026-11-24T20:41:11Z
+x-okfit-integrity:
   generated:
-    body: 0e52d64658c9a347
+    body: 76bf0de3c188a8b8
 ---
 
 # LSP
@@ -98,9 +98,9 @@ version from the diagnostics feature's open-document memory (else the file
 as loaded, version `null`), `statusTextEdits`/`verifiedTextEdits`/`verifiedStableTextEdits` wrap
 [Engine](engine.md)'s `FrontmatterEdits.status`/`.verified`/
 `.verifiedWithStatus` over that text (each `verified` edit also binds
-`integrity.verified`, with the content digest computed through `Digest`),
+`x-okfit-integrity.verified`, with the content digest computed through `Digest`),
 and `versionedEdit` sends the result as `documentChanges` carrying the
-version. A command's edit goes over `workspace/applyEdit`, so a client
+version. The key's prefix is explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). A command's edit goes over `workspace/applyEdit`, so a client
 whose buffer has moved on refuses a stale one; a code action's edit carries
 no version on the client side (`vscode-languageclient` and VS Code both
 drop it), so it stays safe only because it is computed from the current

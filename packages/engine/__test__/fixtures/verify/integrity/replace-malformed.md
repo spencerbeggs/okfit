@@ -2,7 +2,7 @@
 type: Decision
 title: T
 status: stable
-integrity:
+x-okfit-integrity:
   generated: nope
   extra: 1
 owner: x

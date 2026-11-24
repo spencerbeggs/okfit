@@ -3,16 +3,16 @@ type: Surface
 title: Contributor guides
 description: Numbered markdown guides in docs/, read in place on the forge, for people changing okfit itself.
 status: draft
-kind: repo
-audience: contributors
+x-okfit-kind: repo
+x-okfit-audience: contributors
 resource: ../../docs
-links_to: readme-root.md
+x-okfit-links-to: readme-root.md
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:23:03Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: 097d873032e7ab2c
 ---

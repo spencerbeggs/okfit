@@ -188,9 +188,9 @@ from outside the repository (a GitHub platform behaviour, a consumer's
 bundler) omits `resource` and names the outside system in the body rather
 than pointing `resource` at a directory that merely sits nearby. A Flow
 is one runtime sequence across several Modules, with its failure modes in
-the body (`entry`, `crosses` in order, optional `resource`); a Module owns
+the body (`x-okfit-entry`, `x-okfit-crosses` in order, optional `resource`); a Module owns
 one boundary, an Interface is a promise to consumers, and a Runbook is
-followed by a person. A Fixture (`resource` required, optional `runbooks`
+followed by a person. A Fixture (`resource` required, optional `x-okfit-runbooks`
 that refresh it) has a staleness window, 90 days by default, because it
 drifts from the thing it imitates.
 
@@ -233,27 +233,27 @@ concepts should add the tag then, not tag by hand afterwards.
 
 Details that surprise:
 
-- `Module` requires `resource` and `kind` (`workspace | package | website |
+- `Module` requires `resource` and `x-okfit-kind` (`workspace | package | website |
   plugin | action | worker | harness | config-dependency`; `worker` is a
   detached sidecar or worker bundle another module spawns, with its own
   lifecycle, that is not itself a package or action); `DataModel` requires
-  `resource`; `Interface` requires `kind` (`api | cli | config | wire | mcp
-  | runtime`); `Consumer` requires `repository` (free text, a URL or an
+  `resource`; `Interface` requires `x-okfit-kind` (`api | cli | config | wire | mcp
+  | runtime`); `Consumer` requires `x-okfit-repository` (free text, a URL or an
   owner/name pair, since it lives outside this repository); `Incident`
-  requires `occurred` (free text, an ISO 8601 date -- core has no date
+  requires `x-okfit-occurred` (free text, an ISO 8601 date -- core has no date
   field kind); `Reference` requires `sources`; `Fixture` requires
-  `resource`; `Surface` requires `kind`, `audience` and `resource`;
-  `Publication` requires `resource`, `surface` and `renders` -- the other types
+  `resource`; `Surface` requires `x-okfit-kind`, `x-okfit-audience` and `resource`;
+  `Publication` requires `resource`, `x-okfit-surface` and `x-okfit-renders` -- the other types
   (`Project`, `Decision`, `Convention`, `Runbook`, `Glossary`, `Limitation`,
   `Gotcha`, `Roadmap`, `Measurement`, `Invariant`, `Flow`) have no `required`
   list at all.
-- `Module` also declares two optional structured fields: `layer` (free
-  text, the repository's own layering label such as `L2`) and `pins` (the
+- `Module` also declares two optional structured fields: `x-okfit-layer` (free
+  text, the repository's own layering label such as `L2`) and `x-okfit-pins` (the
   sibling Module paths this one is exact-version-pinned with). `Roadmap`
-  declares an optional free-text `gate`; `Measurement` an optional
-  path-kind `justifies` (the Decisions it supports). `Invariant` declares
+  declares an optional free-text `x-okfit-gate`; `Measurement` an optional
+  path-kind `x-okfit-justifies` (the Decisions it supports). `Invariant` declares
   an optional path-kind `resource` (the type or test that enforces it);
-  `Incident` an optional path-kind `guard` (what now stops the failure).
+  `Incident` an optional path-kind `x-okfit-guard` (what now stops the failure).
 - `Decision` sets `require_verified = true` -- a Decision is not settled
   until a human verifies it. That is exactly the field `okf-authoring`'s
   rule 2 forbids the agent from writing. A Decision with `status: draft`

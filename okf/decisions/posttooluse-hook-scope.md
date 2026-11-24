@@ -2,7 +2,7 @@
 type: Decision
 title: The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings
 description: LSP phase 4 shrinks the Claude Code plugin's PostToolUse hook to two jobs, blocking on a core.conformance diagnostic and the Write-time generated.by check, because the registered language server now delivers core.lint and profile findings with precise ranges directly in the editor.
-supersedes: plugin-posttooluse-not-pretooluse.md
+x-okfit-supersedes: plugin-posttooluse-not-pretooluse.md
 tags:
   - architecture
   - dx
@@ -21,13 +21,15 @@ verified:
     at: 2026-10-25T18:29:21Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
-integrity:
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
+x-okfit-integrity:
   generated:
     body: c872fe2f261088f9
   verified:
     by: human:spencer
-    at: 2026-11-24T14:56:24Z
-    content: e55526db26edb09b
+    at: 2026-11-24T22:21:07Z
+    content: 80fe0bfc9a5f3ad5
 ---
 
 # The PostToolUse hook keeps only conformance blocking and the generated.by check, once the language server delivers lint and profile findings

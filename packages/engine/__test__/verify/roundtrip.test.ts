@@ -16,7 +16,7 @@ import { TestPlatform } from "../utils/platform.js";
 /**
  * The cross-task round trip (final review item 4): one legacy concept through every
  * writer of the integrity family, asserting after each step that the file still parses,
- * carries exactly one `integrity:` key, and reads the signal the step should leave.
+ * carries exactly one `x-okfit-integrity:` key, and reads the signal the step should leave.
  */
 describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () => {
 	const COMMITTED = "2026-06-01T08:00:00Z";
@@ -82,7 +82,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 						return yield* Trust.signal(concept, OkfitConfig.DEFAULTS, NOW);
 					}).pipe(Effect.provide(TestPlatform));
 				const oneIntegrity = (text: string) => {
-					assert.strictEqual(countLines(text, /^integrity:/u), 1);
+					assert.strictEqual(countLines(text, /^x-okfit-integrity:/u), 1);
 					assert.isAtMost(countLines(text, /^ {2}verified:/u), 1);
 					assert.isAtMost(countLines(text, /^ {2}generated:/u), 1);
 				};
@@ -94,7 +94,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 				const legacy = `---\ntype: Decision\ntitle: T\ngenerated:\n  by: human:ada\n  at: ${COMMITTED}\n  body_sha256: ${fullDigest}\n---${BODY}`;
 				yield* Effect.promise(() => writeFile(file, legacy));
 
-				// 1. sync migrates the legacy digest into integrity.generated.body.
+				// 1. sync migrates the legacy digest into x-okfit-integrity.generated.body.
 				const migrated = yield* sync();
 				assert.deepStrictEqual(migrated.generated.migrated, ["decisions/a"]);
 				const afterMigrate = yield* read();
@@ -107,7 +107,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 				oneIntegrity(yield* read());
 				assert.strictEqual((yield* signal()).integrity, "current");
 
-				// 3. A stale integrity.generated.body with the body unchanged: sync re-stamps that slot only.
+				// 3. A stale x-okfit-integrity.generated.body with the body unchanged: sync re-stamps that slot only.
 				const afterVerify = yield* read();
 				const stale = afterVerify.replace(/( {4}body: )[^\n]+/u, "$1'0000000000000000'");
 				assert.notStrictEqual(stale, afterVerify);
@@ -127,7 +127,7 @@ describe("integrity round trip: sync, verify, re-stamp, re-verify, revoke", () =
 				assert.include(afterReverify, "    at: 2026-09-17T12:00:00Z\n");
 				assert.strictEqual((yield* signal()).integrity, "current");
 
-				// 5. revoke drops the actor's entries and the binding, keeping integrity.generated.
+				// 5. revoke drops the actor's entries and the binding, keeping x-okfit-integrity.generated.
 				const revoked = yield* runRevoke({
 					id: "decisions/a",
 					bundleRoot: root,

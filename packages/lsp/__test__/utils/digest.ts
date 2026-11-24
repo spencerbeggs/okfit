@@ -25,11 +25,11 @@ export const loadedContentDigest = (text: string): Effect.Effect<string, never, 
 	}).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layerDigest)), Effect.orDie);
 
 /**
- * `text` with an `integrity.verified` binding of `by` at `at` appended before
+ * `text` with an `x-okfit-integrity.verified` binding of `by` at `at` appended before
  * the closing fence, bound to the digest of `text` itself. Test-only.
  */
 export const withBinding = (text: string, by: string, at: string): Effect.Effect<string, never, Scope.Scope> =>
 	Effect.map(loadedContentDigest(text), (content) => {
 		const close = text.indexOf("\n---\n", 4) + 1;
-		return `${text.slice(0, close)}integrity:\n  verified:\n    by: "${by}"\n    at: "${at}"\n    content: ${content}\n${text.slice(close)}`;
+		return `${text.slice(0, close)}x-okfit-integrity:\n  verified:\n    by: "${by}"\n    at: "${at}"\n    content: ${content}\n${text.slice(close)}`;
 	});

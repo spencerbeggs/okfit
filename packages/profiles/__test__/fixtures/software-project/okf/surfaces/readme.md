@@ -3,8 +3,8 @@ type: Surface
 status: stable
 title: Repository README
 description: The root README, read on the forge by people deciding whether to install the tool.
-kind: readme
-audience: users
+x-okfit-kind: readme
+x-okfit-audience: users
 resource: ../../README.md
 ---
 

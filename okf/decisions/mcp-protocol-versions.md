@@ -8,7 +8,7 @@ generated:
   by: okfit/claude-code
   at: 2026-11-02T19:16:31Z
 status: stable
-supersedes: mcp-effect-native-legacy-era.md
+x-okfit-supersedes: mcp-effect-native-legacy-era.md
 sources:
   - id: server-ts
     resource: ../../packages/mcp/src/server.ts
@@ -35,13 +35,15 @@ verified:
     at: 2026-11-02T19:15:49Z
   - by: human:spencer
     at: 2026-11-24T06:53:02Z
-integrity:
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
+x-okfit-integrity:
   generated:
     body: 2c321e613b67747f
   verified:
     by: human:spencer
-    at: 2026-11-24T06:53:02Z
-    content: 3cf434bbcbedbc88
+    at: 2026-11-24T22:21:07Z
+    content: 2db20460ccec0fa5
 ---
 
 # The MCP server is Effect-native and lists the stateless 2026-07-28 adapter first

@@ -63,7 +63,7 @@ typeless `.md` the config's `[bundle] non_concepts` globs do not list
 | `parameters` | computation | optional | List of `{name, type, required}`; `name` and `type` required, `required` defaults to `false` | 10.2 |
 | `computation` | computation | optional | A path to the computation file | 10.2, 10.3 |
 | `executor`, `attester` | computation | optional | `{resource, receipt}` and `{resource}` | 10.2 |
-| `integrity` | okfit | optional | Not OKF. okfit's digests; never hand-written | -- |
+| `x-okfit-integrity` | okfit | optional | Not OKF. okfit's digests; never hand-written | -- |
 
 Extension keys are legal at any level; never delete one you do not know
 (§4.1). Name your own `x-<producer>-<name>`.

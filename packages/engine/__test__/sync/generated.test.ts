@@ -19,9 +19,11 @@ import {
 	OkfitConfig,
 } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
-import { Derivation, Trust } from "@okfit/profiles";
+import { Derivation, ProfileKeys, Profiles, Publications, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result } from "effect";
+import type { GeneratedProvenance } from "../../src/sync/generated.js";
 import { syncGenerated } from "../../src/sync/generated.js";
+import { keyRenamesFor } from "../../src/sync/legacyKeys.js";
 import {
 	detectNewline,
 	documentNewline,
@@ -32,6 +34,10 @@ import {
 import { spliceGenerated, spliceGeneratedBlock } from "../../src/verify/splice.js";
 import { ROOT, seedPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
+
+const RENAMES = keyRenamesFor(OkfitConfig.DEFAULTS);
+/** The renames the real merged config (software-project profile) licenses: the profile fields as well as the integrity key. */
+const FIELD_RENAMES = keyRenamesFor(OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config));
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sync", "generated");
 
@@ -466,6 +472,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const bundle = bundleWith(concept, "/repo");
 			const result = yield* syncGenerated(bundle, {
 				provenance: new Map([[concept.id, committed]]),
+				renames: RENAMES,
 				dryRun: false,
 			}).pipe(
 				// Fails any file read/write (the noop is last, so it shadows NodeServices' FileSystem): proves the unchanged branch never reaches step 7 at all.
@@ -497,6 +504,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					const bundle = bundleWith(concept, dir);
 					const result = yield* syncGenerated(bundle, {
 						provenance: new Map([[concept.id, committed]]),
+						renames: RENAMES,
 						dryRun: false,
 					}).pipe(Effect.provide(TestPlatform));
 					assert.deepStrictEqual(result.written, [concept.id]);
@@ -505,7 +513,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					assert.include(written, `at: ${ENCODED_DERIVED_AT}`);
 					const currentDigest = yield* digestOf(OTHER_SOURCE);
 					assert.notInclude(written, "body_sha256");
-					assert.include(written, `integrity:\n  generated:\n    body: ${currentDigest}\n`);
+					assert.include(written, `x-okfit-integrity:\n  generated:\n    body: ${currentDigest}\n`);
 				} finally {
 					yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 				}
@@ -521,7 +529,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				// yet the file already holds the stamp and digest sync would write.
 				const text = SOURCE.replace(
 					"title: Digested",
-					`title: Digested\ngenerated:\n  by: human:okfit-test\n  at: ${ENCODED_DERIVED_AT}\nintegrity:\n  generated:\n    body: ${digest}\n  verified: nope`,
+					`title: Digested\ngenerated:\n  by: human:okfit-test\n  at: ${ENCODED_DERIVED_AT}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified: nope`,
 				);
 				const file = join(dir, "module.md");
 				yield* Effect.promise(() => writeFile(file, text));
@@ -529,6 +537,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				const pending: Array<{ readonly target: string; readonly contents: string }> = [];
 				const dry = yield* syncGenerated(bundleWith(concept, dir), {
 					provenance: new Map([[concept.id, committed]]),
+					renames: RENAMES,
 					dryRun: true,
 					pending,
 				}).pipe(Effect.provide(TestPlatform));
@@ -537,6 +546,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				assert.deepStrictEqual(pending, []);
 				const result = yield* syncGenerated(bundleWith(concept, dir), {
 					provenance: new Map([[concept.id, committed]]),
+					renames: RENAMES,
 					dryRun: false,
 				}).pipe(Effect.provide(TestPlatform));
 				assert.deepStrictEqual(result.written, []);
@@ -572,13 +582,14 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				const bundle = bundleWith(concept, dir);
 				const result = yield* syncGenerated(bundle, {
 					provenance: new Map([[concept.id, committed]]),
+					renames: RENAMES,
 					dryRun: false,
 				}).pipe(Effect.provide(TestPlatform));
 				assert.deepStrictEqual(result.written, [concept.id]);
 				const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 				assert.include(written, `at: '${ENCODED_DERIVED_AT}'`); // single-quote style preserved
 				const currentDigest = yield* digestOf(SOURCE);
-				assert.include(written, `integrity:\n  generated:\n    body: ${currentDigest}\n`);
+				assert.include(written, `x-okfit-integrity:\n  generated:\n    body: ${currentDigest}\n`);
 				assert.notInclude(written, "\r\n"); // LF document stays LF
 			} finally {
 				yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
@@ -610,13 +621,14 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					const bundle = bundleWith(concept, dir);
 					const result = yield* syncGenerated(bundle, {
 						provenance: new Map([[concept.id, committed]]),
+						renames: RENAMES,
 						dryRun: false,
 					}).pipe(Effect.provide(TestPlatform));
 					assert.deepStrictEqual(result.written, [concept.id]);
 					const written = yield* Effect.promise(() => readFile(join(dir, "module.md"), "utf8"));
 					assert.include(written, `    at: ${ENCODED_DERIVED_AT}`);
 					const currentDigest = yield* digestOf(SOURCE);
-					assert.include(written, `integrity:\n  generated:\n    body: ${currentDigest}\n`);
+					assert.include(written, `x-okfit-integrity:\n  generated:\n    body: ${currentDigest}\n`);
 				} finally {
 					yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
 				}
@@ -638,6 +650,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				const bundle = bundleWith(concept, root);
 				const result = yield* syncGenerated(bundle, {
 					provenance: new Map([[concept.id, committed]]),
+					renames: RENAMES,
 					dryRun: false,
 					agent: "okfit/claude-code" as Actor,
 				});
@@ -653,7 +666,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 						"generated:",
 						"  by: okfit/claude-code",
 						`  at: ${ENCODED_DERIVED_AT}`,
-						"integrity:",
+						"x-okfit-integrity:",
 						"  generated:",
 						`    body: ${digest}`,
 						"---",
@@ -686,6 +699,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 					});
 					const result = yield* syncGenerated(bundleWith(concept, root), {
 						provenance: new Map([[concept.id, committed]]),
+						renames: RENAMES,
 						dryRun: false,
 						agent: "okfit/claude-code" as Actor,
 					});
@@ -702,7 +716,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 							"  by: okfit/claude-code",
 							`  at: ${ENCODED_DERIVED_AT}`,
 							"title: Digested",
-							"integrity:",
+							"x-okfit-integrity:",
 							"  generated:",
 							`    body: ${digest}`,
 							"---",
@@ -731,6 +745,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			});
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map([[concept.id, committed]]),
+				renames: RENAMES,
 				dryRun: false,
 			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result.skipped, [{ id: concept.id, reason: "generated-missing" }]);
@@ -747,6 +762,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			);
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map(),
+				renames: RENAMES,
 				dryRun: false,
 			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
 			assert.deepStrictEqual(result.unchanged, [concept.id]);
@@ -758,6 +774,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 			const concept = conceptWith(SOURCE, Generated.make({ by: "human:okfit-test" }));
 			const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
 				provenance: new Map([[concept.id, committed]]),
+				renames: RENAMES,
 				dryRun: true,
 				scope: new Set(),
 			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
@@ -780,7 +797,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 	const BODY = "\n# Page\n\nBody text.\n";
 	const OLD_AT = "2020-01-01T00:00:00Z";
 	const VERIFIED =
-		"integrity:\n  verified:\n    by: human:ada\n    at: 2026-02-02T02:02:02Z\n    content: bbbbbbbbbbbbbbbb\n";
+		"x-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-02-02T02:02:02Z\n    content: bbbbbbbbbbbbbbbb\n";
 
 	/** A one-concept bundle on disk; `frontmatter` is the text between the `type:` line and the closing fence. */
 	const withFile = <A, E, R>(frontmatter: string, body: string, use: (root: string) => Effect.Effect<A, E, R>) =>
@@ -798,6 +815,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 			const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committed] as const));
 			return yield* syncGenerated(bundle, {
 				provenance,
+				renames: RENAMES,
 				dryRun: false,
 				...(agent === undefined ? {} : { agent }),
 			});
@@ -821,7 +839,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 				assert.deepStrictEqual(result.unchanged, []);
 				assert.strictEqual(
 					yield* readPage(root),
-					`---\ntype: Module\ngenerated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity:\n  generated:\n    body: ${digest}\n---${BODY}`,
+					`---\ntype: Module\ngenerated:\n  by: human:ada\n  at: ${OLD_AT}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${BODY}`,
 				);
 			}),
 		),
@@ -879,15 +897,15 @@ describe("syncGenerated: integrity and legacy migration", () => {
 				const digest = yield* digestOfBody("");
 				assert.strictEqual(
 					yield* readPage(root),
-					`---\ntype: Module\ngenerated:\n  by: okfit/claude-code\n  at: 2026-06-01T08:00:00Z\nintegrity:\n  generated:\n    body: ${digest}\n---${BODY}`,
+					`---\ntype: Module\ngenerated:\n  by: okfit/claude-code\n  at: 2026-06-01T08:00:00Z\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${BODY}`,
 				);
 			}),
 		),
 	);
 
-	it.effect("keeps integrity.verified byte-identical across a drift re-stamp", () =>
+	it.effect("keeps x-okfit-integrity.verified byte-identical across a drift re-stamp", () =>
 		withFile(
-			`generated:\n  by: human:ada\n  at: ${OLD_AT}\n${VERIFIED.replace("integrity:\n", "integrity:\n  generated:\n    body: 0000000000000000\n")}`,
+			`generated:\n  by: human:ada\n  at: ${OLD_AT}\n${VERIFIED.replace("x-okfit-integrity:\n", "x-okfit-integrity:\n  generated:\n    body: 0000000000000000\n")}`,
 			BODY,
 			(root) =>
 				Effect.gen(function* () {
@@ -911,7 +929,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 			const slot =
 				"  note: keep me\n  verified:\n    by: human:ada\n    at: 2026-10-10T20:00:00+02:00\n    content: 'bbbbbbbbbbbbbbbb'\n";
 			return withFile(
-				`generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity:\n  generated:\n    body: 0000000000000000\n${slot}`,
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\nx-okfit-integrity:\n  generated:\n    body: 0000000000000000\n${slot}`,
 				BODY,
 				(root) =>
 					Effect.gen(function* () {
@@ -920,7 +938,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 						const out = yield* readPage(root);
 						assert.include(out, slot);
 						const digest = yield* digestOfBody("");
-						assert.include(out, `integrity:\n  generated:\n    body: ${digest}\n${slot}`);
+						assert.include(out, `x-okfit-integrity:\n  generated:\n    body: ${digest}\n${slot}`);
 					}),
 			);
 		},
@@ -932,7 +950,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 				yield* run(root);
 				const digest = yield* digestOfBody("");
 				const out = yield* readPage(root);
-				assert.include(out, `integrity:\n  generated:\n    body: ${digest}\n  verified:\n    by: human:ada\n`);
+				assert.include(out, `x-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified:\n    by: human:ada\n`);
 			}),
 		),
 	);
@@ -941,14 +959,15 @@ describe("syncGenerated: integrity and legacy migration", () => {
 		"migrates legacy renders[].body_sha256 of a Publication whose body is unchanged, then is idempotent",
 		() => {
 			const LEGACY = "abcdef0123456789".repeat(4);
-			const renders = (entries: string) => `type: Publication\nresource: page.md\nsurface: s\nrenders:\n${entries}`;
+			const renders = (entries: string) =>
+				`type: Publication\nresource: page.md\nx-okfit-surface: s\nx-okfit-renders:\n${entries}`;
 			const legacyRenders = `  - path: a.md\n    body_sha256: ${LEGACY}\n  - path: b.md\n    body: 1111111111111f11\n    body_sha256: ${LEGACY}\n`;
 			return Effect.gen(function* () {
 				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-renders-")));
 				try {
 					const plain = `---\n${renders(legacyRenders)}---${BODY}`;
 					const digest = yield* Derivation.bodyDigest(plain);
-					const text = `---\n${renders(legacyRenders)}generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity:\n  generated:\n    body: ${digest}\n---${BODY}`;
+					const text = `---\n${renders(legacyRenders)}generated:\n  by: human:ada\n  at: ${OLD_AT}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${BODY}`;
 					yield* Effect.promise(() => writeFile(join(root, "page.md"), text));
 					const first = yield* run(root);
 					assert.deepStrictEqual(first.migrated, ["page"]);
@@ -971,7 +990,7 @@ describe("syncGenerated: integrity and legacy migration", () => {
 
 	it.effect("skips a flow-style integrity with integrity-unsupported and leaves the file untouched", () =>
 		withFile(
-			`generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity: { generated: { body: 0000000000000000 } }\n`,
+			`generated:\n  by: human:ada\n  at: ${OLD_AT}\nx-okfit-integrity: { generated: { body: 0000000000000000 } }\n`,
 			BODY,
 			(root) =>
 				Effect.gen(function* () {
@@ -1022,7 +1041,7 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 		const binding =
 			spec.binding === undefined
 				? ""
-				: `integrity:\n  verified:\n    by: ${spec.binding.by}\n    at: ${spec.binding.at}\n    content: ${content}\n`;
+				: `x-okfit-integrity:\n  verified:\n    by: ${spec.binding.by}\n    at: ${spec.binding.at}\n    content: ${content}\n`;
 		return `---\ntype: Module\ntitle: ${name}\ngenerated:\n  by: human:ada\n  at: ${G0}\n${spec.note === undefined ? "" : `note: ${JSON.stringify(spec.note)}\n`}${verified}${binding}---\n\n${spec.body ?? "Body."}\n`;
 	};
 
@@ -1043,6 +1062,7 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(commit)] as const));
 			const result = yield* syncGenerated(bundle, {
 				provenance,
+				renames: RENAMES,
 				dryRun: false,
 			});
 			const fs = yield* FileSystem.FileSystem;
@@ -1155,7 +1175,7 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 				const sync = Effect.gen(function* () {
 					const bundle = yield* Bundle.load({ root: ROOT });
 					const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(T2)] as const));
-					return yield* syncGenerated(bundle, { provenance, dryRun: false });
+					return yield* syncGenerated(bundle, { provenance, renames: RENAMES, dryRun: false });
 				});
 				const fs = yield* FileSystem.FileSystem;
 				const first = yield* sync;
@@ -1208,7 +1228,7 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			const out = yield* Effect.gen(function* () {
 				const bundle = yield* Bundle.load({ root: ROOT });
 				const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(T2)] as const));
-				yield* syncGenerated(bundle, { provenance, dryRun: false, agent: "human:ada" as Actor });
+				yield* syncGenerated(bundle, { provenance, renames: RENAMES, dryRun: false, agent: "human:ada" as Actor });
 				const fs = yield* FileSystem.FileSystem;
 				return yield* fs.readFileString(`${ROOT}/fresh.md`);
 			}).pipe(
@@ -1228,7 +1248,10 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			const digest = yield* Derivation.bodyDigest(base).pipe(Effect.provide(NodeCrypto.layerDigest));
 			const text = base
 				.replace(`at: ${G0}`, `at: ${T2_TEXT}`)
-				.replace("integrity:\n  verified:", `integrity:\n  generated:\n    body: ${digest}\n  verified:`);
+				.replace(
+					"x-okfit-integrity:\n  verified:",
+					`x-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified:`,
+				);
 			const files = { same: text };
 			const { result, stamped } = yield* run(files, T1);
 			assert.deepStrictEqual(result.unchanged, ["same"]);
@@ -1236,4 +1259,424 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			assert.strictEqual(stamped.same, T2_TEXT);
 		}),
 	);
+});
+
+describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
+	const DERIVED_AT = DateTime.makeUnsafe("2026-06-01T08:00:00Z");
+	const committed: BodyProvenance = {
+		_tag: "committed",
+		at: DERIVED_AT,
+		sha: "0123456789abcdef0123456789abcdef01234567",
+		committedAt: DERIVED_AT,
+		authorName: "Author",
+		authorEmail: "author@example.com",
+		creating: false,
+	};
+	const BODY = "\n# Page\n\nBody text.\n";
+	const OLD_AT = "2020-01-01T00:00:00Z";
+	const VERIFIED_SLOT = "  verified:\n    by: human:ada\n    at: 2026-02-02T02:02:02Z\n    content: bbbbbbbbbbbbbbbb\n";
+
+	const head = (frontmatter: string) => `---\ntype: Module\n${frontmatter}---${BODY}`;
+	const digestOf = (frontmatter: string) => Derivation.bodyDigest(head(frontmatter)).pipe(Effect.provide(TestPlatform));
+	const generatedHead = `generated:\n  by: human:ada\n  at: ${OLD_AT}\n`;
+
+	const withPage = <A, E, R>(text: string, use: (root: string) => Effect.Effect<A, E, R>) =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-x-okfit-")));
+			return yield* Effect.gen(function* () {
+				yield* Effect.promise(() => writeFile(join(root, "page.md"), text));
+				return yield* use(root);
+			}).pipe(Effect.ensuring(Effect.promise(() => rm(root, { recursive: true, force: true }))));
+		}).pipe(Effect.provide(TestPlatform));
+
+	const run = (root: string, withProvenance = true, provenanceOf: GeneratedProvenance = committed) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root });
+			const provenance = withProvenance
+				? new Map([...bundle.concepts.keys()].map((id) => [id, provenanceOf] as const))
+				: new Map();
+			return yield* syncGenerated(bundle, { provenance, renames: FIELD_RENAMES, dryRun: false });
+		});
+	const page = (root: string) => Effect.promise(() => readFile(join(root, "page.md"), "utf8"));
+
+	it.effect("migrate-only: a verified, current legacy block moves its key and nothing else (empty provenance)", () =>
+		Effect.gen(function* () {
+			const digest = yield* digestOf(generatedHead);
+			const legacy = head(`${generatedHead}integrity:\n  generated:\n    body: ${digest}\n${VERIFIED_SLOT}`);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root, false);
+					assert.deepStrictEqual(result.written, []);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					assert.deepStrictEqual(result.unchanged, []);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+					const again = yield* run(root, false);
+					assert.deepStrictEqual(again.migrated, []);
+					assert.deepStrictEqual(again.unchanged, ["page"]);
+				}),
+			);
+		}),
+	);
+
+	it.effect("chained: drifted body, legacy body_sha256 and a legacy block migrate in one write", () =>
+		Effect.gen(function* () {
+			const legacy = head(
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\n  body_sha256: ${"0".repeat(64)}\nintegrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n${VERIFIED_SLOT}`,
+			);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.written, ["page"]);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					const out = yield* page(root);
+					const digest = yield* digestOf(`generated:\n  by: human:ada\n  at: ${OLD_AT}\n`);
+					assert.notInclude(out, "body_sha256");
+					assert.notInclude(out, "\nintegrity:");
+					assert.include(out, "  at: 2026-06-01T08:00:00Z\n");
+					assert.include(out, `x-okfit-integrity:\n  generated:\n    body: ${digest}\n${VERIFIED_SLOT}`);
+					assert.strictEqual((yield* run(root, false)).migrated.length, 0);
+				}),
+			);
+		}),
+	);
+
+	it.effect(
+		"a foreign integrity mapping plus a bare kind: only the kind token moves, the foreign block is untouched",
+		() => {
+			const foreign = "integrity:\n  sha: abc\n  owner: someone-else\n";
+			const text = head(`kind: package\n${generatedHead}${foreign}`);
+			return withPage(text, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					const out = yield* page(root);
+					assert.include(out, foreign);
+					assert.notInclude(out, "sha: abc\n  generated");
+					assert.include(out, "x-okfit-kind: package\n");
+					const stamped = out.replace(/x-okfit-integrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/u, "");
+					assert.notStrictEqual(stamped, out); // a separate x-okfit-integrity block was added
+					assert.strictEqual(
+						stamped,
+						text.replace("kind:", "x-okfit-kind:").replace(`at: ${OLD_AT}`, "at: 2026-06-01T08:00:00Z"),
+					);
+				}),
+			);
+		},
+	);
+
+	it.effect("a foreign scalar integrity plus a bare kind: kind renamed, the scalar untouched, no skip", () => {
+		const text = head(`kind: package\n${generatedHead}integrity: high\n`);
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				const result = yield* run(root);
+				assert.deepStrictEqual(result.skipped, []);
+				const out = yield* page(root);
+				assert.include(out, "\nintegrity: high\n");
+				assert.include(out, "x-okfit-kind: package\n");
+				assert.match(out, /x-okfit-integrity:\n {2}generated:\n {4}body: [0-9a-f]{16}\n/u);
+			}),
+		);
+	});
+
+	it.effect("a leading BOM survives a migration read through the production read path", () => {
+		const text = `\uFEFF${head(`kind: package\n${generatedHead}integrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n`)}`;
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				yield* run(root);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "page.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.notInclude(bytes.toString("utf8"), "\nkind:");
+			}),
+		);
+	});
+
+	it.effect("a BOM concept that only needs a rename keeps its BOM", () => {
+		const text = `\uFEFF${head(`kind: package\n`)}`;
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+				assert.deepStrictEqual(result.migrated, ["page"]);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "page.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			}),
+		);
+	});
+
+	it.effect("an unmigrated, unedited concept keeps generated.at (the sync trap)", () =>
+		Effect.gen(function* () {
+			const digest = yield* digestOf(generatedHead);
+			const legacy = head(`${generatedHead}integrity:\n  generated:\n    body: ${digest}\n`);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.written, []);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+				}),
+			);
+		}),
+	);
+
+	for (const [name, block] of [
+		["integrity: ~", "integrity: ~\n"],
+		["a bare integrity:", "integrity:\n"],
+	] as const) {
+		it.effect(`${name} becomes exactly one well-formed x-okfit-integrity block`, () =>
+			withPage(head(`${generatedHead}${block}`), (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					const out = yield* page(root);
+					const digest = yield* digestOf(generatedHead);
+					assert.strictEqual(out.split("x-okfit-integrity:").length, 2);
+					assert.notInclude(out, "\nintegrity:");
+					assert.include(out, `x-okfit-integrity:\n  generated:\n    body: ${digest}\n`);
+					const bundle = yield* Bundle.load({ root });
+					assert.strictEqual([...bundle.concepts.values()][0]?.frontmatter.integrity?.generated?.body, digest);
+				}),
+			),
+		);
+	}
+
+	it.effect("both spellings: skipped legacy-key-conflict, file byte-identical", () => {
+		const text = head(
+			`${generatedHead}integrity:\n  generated:\n    body: 0000000000000000\nx-okfit-integrity:\n  generated:\n    body: 1111111111111111\n`,
+		);
+		return withPage(text, (root) =>
+			Effect.gen(function* () {
+				const result = yield* run(root);
+				assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "legacy-key-conflict" }]);
+				assert.deepStrictEqual(result.migrated, []);
+				assert.strictEqual(yield* page(root), text);
+			}),
+		);
+	});
+
+	for (const [name, block] of [
+		["a flow-mapping legacy block", "integrity: { generated: { body: 0000000000000000 } }\n"],
+		["a legacy block that merges another mapping in", "integrity:\n  <<: { generated: { body: 0000000000000000 } }\n"],
+	] as const) {
+		it.effect(`${name}: skipped legacy-key-unsupported, file byte-identical (verify refuses it too)`, () => {
+			const text = head(`${generatedHead}${block}`);
+			return withPage(text, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "legacy-key-unsupported" }]);
+					assert.strictEqual(yield* page(root), text);
+				}),
+			);
+		});
+	}
+
+	it.effect("a legacy block plus a legacy Publication renders digest migrate in one write", () =>
+		Effect.gen(function* () {
+			const LEGACY = "abcdef0123456789".repeat(4);
+			const renders = `resource: page.md\nsurface: s\nrenders:\n  - path: a.md\n    body_sha256: ${LEGACY}\n`;
+			const front = (tail: string) => `---\ntype: Publication\n${renders}${tail}---${BODY}`;
+			const digest = yield* Derivation.bodyDigest(front("")).pipe(Effect.provide(TestPlatform));
+			const text = front(
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\nintegrity:\n  generated:\n    body: ${digest}\n`,
+			);
+			yield* withPage(text, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root, false);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					const out = yield* page(root);
+					assert.include(out, "x-okfit-integrity:");
+					assert.include(out, "\nx-okfit-surface: s\nx-okfit-renders:\n");
+					assert.notInclude(out, "\nrenders:");
+					assert.notInclude(out, "body_sha256");
+					assert.include(out, "    body: abcdef0123456789\n");
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-2: an in-flight legacy verification clamps generated.at to binding.at, not the commit instant", () =>
+		Effect.gen(function* () {
+			const BOUND_AT = "2026-03-01T00:00:00Z";
+			const text = (content: string) =>
+				head(
+					`generated:\n  by: human:ada\n  at: ${OLD_AT}\nverified:\n  - by: human:ada\n    at: ${BOUND_AT}\nintegrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n  verified:\n    by: human:ada\n    at: ${BOUND_AT}\n    content: ${content}\n`,
+				);
+			yield* withPage(text("bbbbbbbbbbbbbbbb"), (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const concept = [...bundle.concepts.values()][0];
+					assert.isDefined(concept);
+					if (concept === undefined) return;
+					// What the old `verify` recorded: the content with the integrity block excluded.
+					const { integrity: _legacy, ...content } = concept.frontmatter.raw;
+					const digest = yield* Derivation.contentDigest(content, concept.document.source).pipe(
+						Effect.provide(TestPlatform),
+					);
+					yield* Effect.promise(() => writeFile(join(root, "page.md"), text(digest)));
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.written, ["page"]);
+					const out = yield* page(root);
+					assert.include(out, `generated:\n  by: human:ada\n  at: ${BOUND_AT}\n`);
+					assert.notInclude(out, "2026-06-01T08:00:00Z");
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: a dirty legacy concept gets a rename-only write and keeps its dirty skip", () =>
+		Effect.gen(function* () {
+			const legacy = head(
+				`generated:\n  by: human:ada\n  at: ${OLD_AT}\nverified:\n  - by: human:ada\n    at: 2026-02-02T02:02:02Z\nintegrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n${VERIFIED_SLOT}`,
+			);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					assert.deepStrictEqual(result.written, []);
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "dirty" }]);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+					const again = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+					assert.deepStrictEqual(again.migrated, []);
+					assert.deepStrictEqual(again.skipped, [{ id: "page", reason: "dirty" }]);
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: a verified legacy concept with no generated block is renamed and skipped generated-missing", () =>
+		Effect.gen(function* () {
+			const legacy = head(`integrity:\n${VERIFIED_SLOT}`);
+			yield* withPage(legacy, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.migrated, ["page"]);
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "generated-missing" }]);
+					assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+					const again = yield* run(root);
+					assert.deepStrictEqual(again.migrated, []);
+					assert.deepStrictEqual(again.skipped, [{ id: "page", reason: "generated-missing" }]);
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: a conflict still writes nothing, even when the body is dirty", () =>
+		Effect.gen(function* () {
+			const text = head(
+				`${generatedHead}integrity:\n  generated:\n    body: 0000000000000000\nx-okfit-integrity:\n  generated:\n    body: 1111111111111111\n`,
+			);
+			yield* withPage(text, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+					assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "legacy-key-conflict" }]);
+					assert.strictEqual(yield* page(root), text);
+				}),
+			);
+		}),
+	);
+
+	it.effect("I-1: an empty legacy block on a concept sync cannot stamp is renamed and skipped", () =>
+		Effect.gen(function* () {
+			for (const empty of ["integrity:\n", "integrity: ~\n"]) {
+				const legacy = head(`${generatedHead}${empty}`);
+				yield* withPage(legacy, (root) =>
+					Effect.gen(function* () {
+						const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+						assert.deepStrictEqual(result.migrated, ["page"]);
+						assert.deepStrictEqual(result.written, []);
+						assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "dirty" }]);
+						assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+						const again = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+						assert.deepStrictEqual(again.migrated, []);
+					}),
+				);
+			}
+		}),
+	);
+
+	describe("profile fields", () => {
+		/** A recorded, current body digest, so the concept needs no provenance: only the key tokens can change. */
+		const current = Effect.map(
+			digestOf(""),
+			(digest) => `${generatedHead}x-okfit-integrity:\n  generated:\n    body: ${digest}\n`,
+		);
+		const surface = `type: Surface\n${"kind"}: site\n# a comment\naudience: users\nlinks_to: other.md\nresource: page.md\n`;
+
+		it.effect("a Surface's kind, audience and links_to are renamed, with values and order kept", () =>
+			Effect.gen(function* () {
+				const tail = yield* current;
+				const legacy = head(`${surface.replace("type: Surface\n", "")}${tail}`).replace(
+					"type: Module",
+					"type: Surface",
+				);
+				yield* withPage(legacy, (root) =>
+					Effect.gen(function* () {
+						const result = yield* run(root, false);
+						assert.deepStrictEqual(result.migrated, ["page"]);
+						assert.deepStrictEqual(result.written, []);
+						assert.strictEqual(
+							yield* page(root),
+							head(
+								`${ProfileKeys.kind}: site\n# a comment\n${ProfileKeys.audience}: users\n${ProfileKeys.links_to}: other.md\nresource: page.md\n${tail}`,
+							).replace("type: Module", "type: Surface"),
+						);
+						assert.strictEqual(ProfileKeys.links_to, "x-okfit-links-to");
+						const again = yield* run(root, false);
+						assert.deepStrictEqual(again.migrated, []);
+					}),
+				);
+			}),
+		);
+
+		it.effect("a Module whose project config declares its own kind keeps it (D3)", () =>
+			Effect.gen(function* () {
+				const own = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: { Module: { description: "m", fields: { kind: { description: "my own kind" } } } },
+					extensions: {},
+				});
+				const text = head(`kind: package\n${yield* current}`);
+				yield* withPage(text, (root) =>
+					Effect.gen(function* () {
+						const bundle = yield* Bundle.load({ root });
+						const result = yield* syncGenerated(bundle, {
+							provenance: new Map(),
+							renames: keyRenamesFor(own),
+							dryRun: false,
+						});
+						assert.deepStrictEqual(result.migrated, []);
+						assert.strictEqual(yield* page(root), text);
+					}),
+				);
+			}),
+		);
+
+		it.effect(
+			"a legacy Publication becomes x-okfit-surface/x-okfit-renders, nested keys unchanged, with no drift",
+			() =>
+				Effect.gen(function* () {
+					const source = "---\ntype: Module\n---\n\n# A\n";
+					const sourceDigest = yield* Derivation.bodyDigest(source).pipe(Effect.provide(TestPlatform));
+					const entries = `  - path: a.md\n    body: ${sourceDigest}\n`;
+					const tail = yield* current;
+					const legacy = `---\ntype: Publication\nresource: page.md\nsurface: s\nrenders:\n${entries}${tail}---${BODY}`;
+					yield* withPage(legacy, (root) =>
+						Effect.gen(function* () {
+							yield* Effect.promise(() => writeFile(join(root, "a.md"), source));
+							const result = yield* run(root);
+							assert.deepStrictEqual(result.migrated, ["page"]);
+							assert.strictEqual(
+								yield* page(root),
+								`---\ntype: Publication\nresource: page.md\n${ProfileKeys.surface}: s\n${ProfileKeys.renders}:\n${entries}${tail}---${BODY}`,
+							);
+							const bundle = yield* Bundle.load({ root });
+							const found = yield* Publications.lint(bundle, OkfitConfig.DEFAULTS);
+							assert.notInclude(
+								found.map((d) => d.code),
+								"publication-drift",
+							);
+							assert.isDefined(
+								Publications.rendersOf([...bundle.concepts.values()].find((c) => c.path === "page.md")!),
+							);
+						}),
+					);
+				}),
+		);
+	});
 });

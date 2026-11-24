@@ -16,6 +16,7 @@ okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|-
 okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
 okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]
 okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
+okfit sync [--root <dir>] [--config <file>] [--only generated|index|log]... [--since <ref>] [--staged] [--publication <id>] [--dry-run] [--yes] [--format human|json] [--help]
 okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```
 
@@ -67,7 +68,7 @@ ranged, then by offset, then by code.
 `--skip-provenance` skips the `generated-at-drift` lint's git tier for
 this one invocation, without touching the project's `[lint]` table. That
 is `Provenance.lint`'s tier 2 only — the git-derived date comparison used
-for a concept stamped before `integrity.generated.body` existed. The digest
+for a concept stamped before `x-okfit-integrity.generated.body` existed. The digest
 tier still runs: it compares the recorded digest against the body already
 in memory, so it spawns nothing and still reports a body edited without a
 re-stamp. The Claude Code plugin's PostToolUse hook passes the flag on
@@ -98,7 +99,8 @@ fixes: it declares `okf_version` and roots a reference that resolves only from
 the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
 (repeatable; requires `--fix`) narrows by kind, positional targets narrow by
 file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
-refused while any root-only reference remains unfixed. Output opens with
+refused while any root-only reference remains unfixed, and a concept still
+using okfit's old key names is refused until `okfit sync` renames them. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted
 (re-verify with okfit verify): <ids>` when a fix changed content whose human
@@ -258,7 +260,7 @@ warning all behave exactly as `## Config discovery` describes below.
 
 Appends one attestation, `{ by: human:<id>, at: <now> }`, to a concept's
 `verified` list and writes the file back. It also binds the attestation in
-`integrity.verified` (`{ by, at, content }`), where `content` is a 16-hex
+`x-okfit-integrity.verified` (`{ by, at, content }`), where `content` is a 16-hex
 digest of the body plus the authored frontmatter. A later edit to the concept
 reports as the `verified-drift` lint (default `warn`): a signal that a human
 should look again, not a gate. A verification also stops counting when the
@@ -285,6 +287,10 @@ The write goes through a temp file and an atomic rename, and the target's
 mode is preserved on the replacement. A concept without write permission is
 refused and left untouched, exiting `3`.
 
+`verify` also refuses, exiting `3`, a concept that still carries the old
+`integrity` block from an older okfit and says to run `okfit sync` first. The
+editor's verify action does the same.
+
 `--stable` or `--draft` sets the concept's `status` in the same write as the
 attestation, so settling a reviewed draft is one command:
 `okfit verify <id> --stable`. Passing both is a usage error (exit `64`), as
@@ -300,7 +306,7 @@ no writes nothing. `--no-diff` skips the diff. Without a terminal the confirm
 cannot be asked, so the verification proceeds as it always did.
 
 `okfit verify --revoke <id>` removes the current actor's own `verified`
-entries and clears the `integrity.verified` binding when that actor held it.
+entries and clears the `x-okfit-integrity.verified` binding when that actor held it.
 It never touches another person's entries. Exit `3` when the actor has
 nothing to revoke on that concept; passing `--revoke` with `--all`, `--type`,
 `--stable` or `--draft` is a usage error (exit `64`).
@@ -309,7 +315,7 @@ nothing to revoke on that concept; passing `--revoke` with `--all`, `--type`,
 type sets `require_verified`, plus every drifted concept of any type (or, with
 `--type`, only the named types) whose verification by you is not already held.
 A verification is held when your entry is the latest human entry and is bound
-(`integrity.verified`), you pass `[actors].humans`, the entry is current under
+(`x-okfit-integrity.verified`), you pass `[actors].humans`, the entry is current under
 OKF 0.3 §5.3, and the binding covers the current content (okfit's own integrity
 rule); one made before the concept's last change is not, so the concept is
 selected again. A batch skips a
@@ -355,11 +361,42 @@ layer (the same one the MCP `list_concepts`, `get_concept` and
 Exit `0` on success, `3` for an unknown id, `64` for an undeclared type or
 tag or for `--verified` together with `--unverified`.
 
+### `okfit sync`
+
+A bundle written by an older okfit keeps its old key names until `okfit sync`
+runs: `integrity` is now `x-okfit-integrity`, and each `software-project` field
+is now `x-okfit-<field>` (`links_to` is `x-okfit-links-to`). Until then okfit does not see the old
+block, so earlier verifications report as no longer current (`verified-drift`),
+and a `software-project` bundle also reports `required-key-missing` errors for
+the prefixed fields. One plain `okfit sync` renames the keys in
+place and reports the ids as `migrated`.
+
+`okfit sync --staged` (the pre-commit hook) only migrates the concepts being
+committed, so run a plain `okfit sync` once to move the whole bundle. A concept
+sync cannot stamp (uncommitted edits, untracked, no `generated` block) still has
+its keys renamed and is reported as both migrated and skipped. On a `--staged`
+run, a rename that is the only write to a concept restages the whole file, so
+the first commit that touches an unmigrated concept also commits any unstaged
+edits to it. Run a plain `okfit sync` once and commit the key move on its own
+before other work. A project whose own config names a built-in field by its bare
+name, in a `[types.<T>.fields.<k>]` table or in that type's `required` list, keeps
+`<k>` unrenamed for that type: update that config by hand, then run `okfit sync`
+to rename the key.
+
+Sync skips a concept and renames nothing in two cases: `legacy-key-conflict`
+(it holds both the old and the new spelling of a key; remove one by hand and run
+sync again) and `legacy-key-unsupported` (sync cannot rename the key in that
+shape; rename it by hand).
+
+After the move, concepts that carry a profile field and were verified show
+`verified-drift`, and a human re-runs `okfit verify` on them. Renaming
+`integrity` alone does not affect any verification.
+
 ### `okfit mv`
 
 `okfit mv <from> <to>` moves a concept to a new path inside the bundle and
-rewrites every reference to it (body links, path fields, `supersedes`,
-Publication `renders`), keeping each reference's spelling. `<to>` is an id or a
+rewrites every reference to it (body links, path fields, `x-okfit-supersedes`,
+Publication `x-okfit-renders`), keeping each reference's spelling. `<to>` is an id or a
 path; `.md` is added when missing. `--dry-run` prints the plan and writes
 nothing. Every file whose text changes drifts and needs a human to re-verify
 it; run `okfit sync` afterwards. Refusals (destination exists, outside the
@@ -504,7 +541,7 @@ envelope to stdout and exits `3`:
 `--type` it prints `VerifyBatchEnvelope`, whose `skipped[].reason` is one of
 `draft`, `deprecated`, `unknown-status` or `already-verified`.
 With `--revoke` it prints a revoke envelope carrying `removed` (how many of the
-actor's entries were removed), `binding_cleared` (whether `integrity.verified`
+actor's entries were removed), `binding_cleared` (whether `x-okfit-integrity.verified`
 was cleared) and `revoked_by` (the actor).
 
 `okfit query list --format json` prints `QueryListEnvelope` (`total`, `items`);

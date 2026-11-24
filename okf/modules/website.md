@@ -4,14 +4,14 @@ title: Website
 description: The okfit documentation site -- an RSPress 2 workspace member at website/ that serves user docs under /docs and a technical page hierarchy per package beside each package's generated API reference.
 status: draft
 resource: ../../website
-kind: website
+x-okfit-kind: website
 tags:
   - docs
   - dx
 generated:
   by: okfit/claude-code
   at: 2026-11-09T17:30:04Z
-integrity:
+x-okfit-integrity:
   generated:
     body: 160b20b1e1a079fa
 ---

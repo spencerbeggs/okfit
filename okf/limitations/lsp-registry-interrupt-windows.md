@@ -2,7 +2,7 @@
 type: Limitation
 title: Two narrow interrupt windows in the LSP session registry are documented, not closed
 description: An interrupt landing in one of two narrow windows inside the session registry's rebuild and folder-build paths either skips a session's dispose or leaks its scope; both windows need a fiber interrupted at a point only shutdown or transport scope close can reach, and phase 4's final review accepted them as documented edges rather than fixed.
-bounds: ../modules/lsp.md
+x-okfit-bounds: ../modules/lsp.md
 tags:
   - architecture
 sources:
@@ -12,7 +12,7 @@ generated:
   by: okfit/claude-code
   at: 2026-09-23T08:34:50Z
 status: draft
-integrity:
+x-okfit-integrity:
   generated:
     body: a6428a6dcc4c02f7
 ---

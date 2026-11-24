@@ -3,7 +3,7 @@ type: Module
 title: Example Module
 description: A tiny synthetic concept used only by this plugin's own tests.
 resource: example.md
-kind: plugin
+x-okfit-kind: plugin
 generated:
   by: "human:fixture-author"
   at: "2026-01-01T00:00:00Z"

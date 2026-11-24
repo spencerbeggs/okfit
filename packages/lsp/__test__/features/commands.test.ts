@@ -339,7 +339,7 @@ describe("registerCommands", () => {
 				const afterVerify = applyTextEdit(afterStatus, verifyChange.edit);
 				assert.match(
 					afterVerify,
-					/\nstatus: stable\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\nintegrity:\n {2}verified:\n {4}by: human:fixture-author\n {4}at: \S+\n {4}content: [0-9a-f]{16}\n---\n/,
+					/\nstatus: stable\n[\s\S]*\nverified:\n {2}- by: human:fixture-author\n {4}at: \S+\nx-okfit-integrity:\n {2}verified:\n {4}by: human:fixture-author\n {4}at: \S+\n {4}content: [0-9a-f]{16}\n---\n/,
 				);
 				yield* h.change("okf/modules/stable.md", afterVerify, 3);
 				yield* Effect.sleep("50 millis");

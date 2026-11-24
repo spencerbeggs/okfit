@@ -4,8 +4,8 @@ title: Contributor guide -- making a pull request
 description: The docs/01-making-a-pull-request.md contributor guide, rendered from the commit, test-location and import conventions.
 status: draft
 resource: ../../docs/01-making-a-pull-request.md
-surface: ../surfaces/contributor-guides.md
-renders:
+x-okfit-surface: ../surfaces/contributor-guides.md
+x-okfit-renders:
   - path: ../conventions/commit-rules.md
     body: 20e6953f2dd97ce0
   - path: ../conventions/test-location.md
@@ -17,7 +17,7 @@ generated:
   at: 2026-10-03T00:23:40Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: dbd60423fcd79163
 ---

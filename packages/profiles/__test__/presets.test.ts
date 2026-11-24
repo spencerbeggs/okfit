@@ -6,6 +6,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { Bundle, OkfitConfig, Validate } from "@okfit/core";
 import { Effect, Layer } from "effect";
 import type { DocsPreset, SurfaceTemplate } from "../src/Profile.js";
+import { ProfileKeys } from "../src/ProfileKeys.js";
 import { Profiles } from "../src/Profiles.js";
 
 const profile = Profiles.softwareProject;
@@ -57,7 +58,9 @@ describe("softwareProject.docsPresets", () => {
 		const shape = (name: string) =>
 			presets
 				.find((p) => p.name === name)
-				?.surfaces.map((x) => `${x.file}:${x.frontmatter.audience}:${x.frontmatter.links_to ?? ""}`)
+				?.surfaces.map(
+					(x) => `${x.file}:${x.frontmatter[ProfileKeys.audience]}:${x.frontmatter[ProfileKeys.links_to] ?? ""}`,
+				)
 				.sort();
 		assert.deepStrictEqual(shape("npm-package"), [
 			"surfaces/docs-repo.md:users:",
@@ -75,10 +78,10 @@ describe("softwareProject.docsPresets", () => {
 			"surfaces/readme-root.md:contributors:",
 		]);
 		const site = presets.find((p) => p.name === "site")?.surfaces ?? [];
-		assert.strictEqual(site.find((x) => x.file === "surfaces/site.md")?.frontmatter.audience, "users");
-		assert.isString(site.find((x) => x.file === "surfaces/site.md")?.frontmatter.url);
-		for (const x of site.filter((y) => y.frontmatter.kind === "readme")) {
-			assert.strictEqual(x.frontmatter.links_to, "site.md");
+		assert.strictEqual(site.find((x) => x.file === "surfaces/site.md")?.frontmatter[ProfileKeys.audience], "users");
+		assert.isString(site.find((x) => x.file === "surfaces/site.md")?.frontmatter[ProfileKeys.url]);
+		for (const x of site.filter((y) => y.frontmatter[ProfileKeys.kind] === "readme")) {
+			assert.strictEqual(x.frontmatter[ProfileKeys.links_to], "site.md");
 		}
 	});
 

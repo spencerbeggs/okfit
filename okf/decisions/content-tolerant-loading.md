@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-24T20:41:11Z
 status: stable
 verified:
   - by: human:spencer
@@ -17,13 +17,15 @@ verified:
     at: 2026-11-23T22:13:15Z
   - by: human:spencer
     at: 2026-11-24T02:55:14Z
-integrity:
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
+x-okfit-integrity:
   generated:
-    body: 5737eb70be0f412c
+    body: 04ff96882fc335a2
   verified:
     by: human:spencer
-    at: 2026-11-24T02:55:14Z
-    content: 2509dad262017567
+    at: 2026-11-24T22:21:07Z
+    content: 26501615068f6a1d
 ---
 
 # Loading never fails a concept for a bad family
@@ -100,8 +102,8 @@ key says "is missing", ranged at the key's own line. The same test decides
 `generated-missing` (a `generated` written as null, `""` or `[]` counts as no
 block).
 
-`family-invalid` is narrowed to okfit's own `integrity` family, which still
-decodes whole. `frontmatter-missing` and `type-missing` left the conformance
+`family-invalid` is narrowed to okfit's own `x-okfit-integrity` family, which still
+decodes whole. See [okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md) for the name. `frontmatter-missing` and `type-missing` left the conformance
 tier (see the non-concept-markdown Decision); a frontmatter block that is
 not a mapping is the conformance error `frontmatter-unparseable`.
 

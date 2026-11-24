@@ -1,4 +1,6 @@
+import { INTEGRITY_KEY } from "@okfit/core";
 import type { PublicationEnvelope, SkipReason, SyncResult } from "@okfit/engine";
+import { ProfileKeys } from "@okfit/profiles";
 
 /** Contract §9.2's fixed reason-sentence table, closed over `SkipReason`. */
 const REASON_SENTENCE: Record<SkipReason, string> = {
@@ -8,20 +10,28 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"generated-missing":
 		"has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent",
 	"generated-unsupported": "generated.at is a shape sync cannot edit; edit it by hand",
-	"integrity-unsupported": "integrity is a shape sync cannot edit; edit it by hand",
-	"renders-unsupported": "renders is a shape sync cannot edit (flow style); edit it by hand",
+	"integrity-unsupported": `${INTEGRITY_KEY} is a shape sync cannot edit; edit it by hand`,
+	"renders-unsupported": `${ProfileKeys.renders} is a shape sync cannot edit (flow style); edit it by hand`,
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
+	"legacy-key-conflict":
+		"carries both the old and the new spelling of an okfit key; keep the new one, move any value you need into it, delete the old one, then run okfit sync again",
+	"legacy-key-unsupported":
+		"has an old okfit key that sync cannot rename in place (flow style, an alias or a `<<` merge in the old block, a duplicate or an explicit `?` key); rename it by hand to the new spelling",
 	"symlink-escape": "is a symbolic link that leaves the bundle, so it is not read or written",
 };
 
-const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<string> => {
+const humanMode = (name: string, mode: SyncResult["generated"], dryRun: boolean): ReadonlyArray<string> => {
 	if (!mode.selected) return [`${name}: not selected`];
 	const lines: Array<string> = [`${name}:`];
 	for (const id of mode.written) lines.push(`  wrote ${id}`);
 	for (const id of mode.migrated) lines.push(`  migrated ${id}`);
 	for (const id of mode.unchanged) lines.push(`  unchanged ${id}`);
 	for (const entry of mode.skipped) {
-		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}`);
+		// A concept that could not be stamped still has its old okfit keys renamed: say so beside the reason.
+		const renamed = mode.migrated.includes(entry.id)
+			? ` (its old okfit keys ${dryRun ? "would still be" : "are still"} renamed)`
+			: "";
+		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}${renamed}`);
 	}
 	return lines;
 };
@@ -36,9 +46,9 @@ const humanMode = (name: string, mode: SyncResult["generated"]): ReadonlyArray<s
  */
 export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 	const lines: Array<string> = [
-		...humanMode("generated", result.generated),
-		...humanMode("index", result.index),
-		...humanMode("log", result.log),
+		...humanMode("generated", result.generated, result.dryRun),
+		...humanMode("index", result.index, result.dryRun),
+		...humanMode("log", result.log, result.dryRun),
 	];
 	const totalWritten = result.generated.written.length + result.index.written.length + result.log.written.length;
 	const totalMigrated = result.generated.migrated.length + result.index.migrated.length + result.log.migrated.length;

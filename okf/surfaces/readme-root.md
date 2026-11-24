@@ -3,15 +3,15 @@ type: Surface
 title: Repository README
 description: "The monorepo root README: a hub that explains the packages and how they relate."
 status: draft
-kind: readme
-audience: contributors
+x-okfit-kind: readme
+x-okfit-audience: contributors
 resource: ../../README.md
 generated:
   by: okfit/claude-code
   at: 2026-10-06T04:20:11Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: 36ecd1744128122b
 ---

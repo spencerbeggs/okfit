@@ -10,6 +10,7 @@ import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { escapesBundle, syncIndex } from "./index.js";
+import { keyRenamesFor, recordedBodyForSync } from "./legacyKeys.js";
 import type { LogProvenance, SyncLogResult } from "./log.js";
 import { logWindow, syncLog, wantsLogEntry } from "./log.js";
 import { committedView } from "./staged.js";
@@ -36,6 +37,8 @@ export const SkipReason = Schema.Literals([
 	"renders-unsupported",
 	"log-unparseable",
 	"symlink-escape",
+	"legacy-key-conflict",
+	"legacy-key-unsupported",
 ]);
 /** @public */
 export type SkipReason = typeof SkipReason.Type;
@@ -61,7 +64,10 @@ export interface SyncModeResult {
 	/** Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	/** `generated` mode only: ids whose legacy body digest moved to `integrity.generated.body`; may also be in `written`. */
+	/**
+	 * `generated` mode only: ids whose legacy body digest moved to `x-okfit-integrity.generated.body` or whose legacy
+	 * key tokens were renamed; may also be in `written` or `skipped`.
+	 */
 	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: SkipReason }>;
 }
@@ -137,6 +143,8 @@ export const planSync: (
 	let logDirty = false;
 	// #142: index mode under --staged lists the index's concepts, not the working tree's.
 	let indexView: LoadedBundle = bundle;
+	// The key renames the config licenses, computed once and shared by the walk test and syncGenerated.
+	const renames = keyRenamesFor(options.config);
 
 	if (options.staged !== undefined) {
 		// Issue #140: the pre-commit shape. Inside a hook, `now` is the commit's
@@ -199,7 +207,7 @@ export const planSync: (
 		for (const [id, concept] of bundle.concepts) {
 			const generated = concept.frontmatter.generated;
 			const digest = yield* Derivation.bodyDigest(concept.document.source);
-			const stampedAt = Derivation.recordedBody(concept) === digest ? generated?.at : undefined;
+			const stampedAt = recordedBodyForSync(concept, renames) === digest ? generated?.at : undefined;
 			const wanted =
 				stampedAt === undefined ||
 				(options.modes.has("log") && wantsLogEntry(window, DateTime.formatIsoDate(stampedAt), Derive.title(concept)));
@@ -216,6 +224,7 @@ export const planSync: (
 				...(yield* syncGenerated(bundle, {
 					provenance: staged ?? walked,
 					dryRun: true,
+					renames,
 					pending,
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
 					...(scope === undefined ? {} : { scope }),

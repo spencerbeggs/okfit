@@ -2,12 +2,12 @@
 type: Interface
 title: okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 description: The okfit command line's subcommands, their flags, exit codes, and JSON envelopes.
-kind: cli
+x-okfit-kind: cli
 resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T11:25:42Z
+  at: 2026-11-24T21:18:30Z
 tags:
   - architecture
 verified:
@@ -39,13 +39,15 @@ verified:
     at: 2026-11-24T06:53:02Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
-integrity:
+  - by: human:spencer
+    at: 2026-11-24T22:21:07Z
+x-okfit-integrity:
   generated:
-    body: ebbd4ad1372ec0f1
+    body: 630b20196c5c56fc
   verified:
     by: human:spencer
-    at: 2026-11-24T14:56:24Z
-    content: c04d8b5ad469e615
+    at: 2026-11-24T22:21:07Z
+    content: 82a6d69d5dba6f2a
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -89,7 +91,7 @@ headings: #a, #b, … (+N more)` (up to five), or `; it has no headings` when
 the target has none.
 `--skip-provenance` skips only the fallback, git-derived tier of
 `generated-at-drift` — the comparison used for a concept with no recorded
-`integrity.generated.body` (or a legacy `generated.body_sha256`) — for that invocation, without changing the
+`x-okfit-integrity.generated.body` (or a legacy `generated.body_sha256`) — for that invocation, without changing the
 project's `[lint]` table; a concept carrying a digest is still checked by
 pure content comparison, since that tier makes no git call. The
 PostToolUse hook passes it so an edit-time validate stays git-free for any
@@ -126,11 +128,11 @@ does not parse (malformed YAML, a duplicate key); the rest of the plan still
 applies. `--only okf-version` and
 `--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
 the positional targets narrow the files, and `--dry-run` (requires `--fix`)
-writes nothing. A fix re-records `integrity.generated.body` for a concept
+writes nothing. A fix re-records `x-okfit-integrity.generated.body` for a concept
 whose digest matched before the edit, so `sync` keeps `generated.at`; it
-never writes `generated.at`, `verified` or `integrity.verified`, and an
+never writes `generated.at`, `verified` or `x-okfit-integrity.verified`, and an
 edited concept whose okfit integrity was current before the edit (a body-link
-edit counts too), or whose `integrity` block has a layout the fix will not
+edit counts too), or whose `x-okfit-integrity` block has a layout the fix will not
 edit, is listed as drifted. The human run prints `Fixed <n> finding(s) in <m> file(s)` (or
 `Would fix` under `--dry-run`), a `refused:` line per refusal and an
 `Integrity drifted` line. `--fix` without `--target`, `--only` or
@@ -186,8 +188,8 @@ anything drifted.
 `okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
 [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--revoke] [--format human|json]` appends one attestation, `{
 by: human:<id>, at: <now> }`, to a concept's `verified` list and writes the
-file back, binding it in the same write with `integrity.verified { by, at,
-content }` (see [integrity frontmatter](integrity-frontmatter.md)). A `<target>` is a concept id (a leading slash and a trailing `.md` are tolerated) or a path to a concept file, absolute or relative to the working directory; ids and paths mix freely and flags may follow them (`okfit verify decisions/a okf/decisions/b.md --dry-run`). Every target resolves before anything runs: one bad target means every bad one is listed, nothing is written, and the exit is `64`. One target keeps the single-concept behaviour (drift diff and confirm, `--stable`/`--draft`, the `VerifyEnvelope`); two or more are verified as one all-or-nothing batch with no prompt and a `VerifyBatchEnvelope`. To re-verify everything drifted: `okfit verify $(okfit query list --drifted | cut -d' ' -f1)`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
+file back, binding it in the same write with `x-okfit-integrity.verified { by, at,
+content }` (see [integrity frontmatter](integrity-frontmatter.md)). A concept still carrying the old `integrity` block is refused with a pointer to `okfit sync`. A `<target>` is a concept id (a leading slash and a trailing `.md` are tolerated) or a path to a concept file, absolute or relative to the working directory; ids and paths mix freely and flags may follow them (`okfit verify decisions/a okf/decisions/b.md --dry-run`). Every target resolves before anything runs: one bad target means every bad one is listed, nothing is written, and the exit is `64`. One target keeps the single-concept behaviour (drift diff and confirm, `--stable`/`--draft`, the `VerifyEnvelope`); two or more are verified as one all-or-nothing batch with no prompt and a `VerifyBatchEnvelope`. To re-verify everything drifted: `okfit verify $(okfit query list --drifted | cut -d' ' -f1)`. The actor is always your own git identity, resolved from `git config okfit.actor` first, then `[actors].humans`, the email local part and the `user.name` slug; there is no
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
@@ -241,8 +243,8 @@ the single-concept envelope gains an optional `prior_integrity`.
 
 `okfit verify --revoke <target>...` removes every `verified` entry by the resolved
 current actor, so it can never remove someone else's attestation. When the
-bound entry is among them it clears `integrity.verified` too (and
-`integrity` when empty); remaining human entries become `unbound`. The JSON
+bound entry is among them it clears `x-okfit-integrity.verified` too (and
+`x-okfit-integrity` when empty); remaining human entries become `unbound`. The JSON
 envelope carries `removed`, `binding_cleared` and `revoked_by`; several targets print an array of those envelopes, and the revoke is all or nothing (one target with nothing to revoke writes none). Exit `3`
 when the actor has no entries to revoke, `64` when combined with `--all`,
 `--type`, `--stable`, `--draft` or `--at`, or when no target is given. An unknown or reserved target is `64` too.
@@ -292,7 +294,7 @@ there is no `okfit status` command. `stale` and `graph` stay top-level.
 
 `okfit sync [--root <dir>] [--config <file>] [--only <mode>]... [--dry-run]
 [--format human|json] [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--yes]` is the one command that regenerates every
-derived-content family: `generated.at` and `integrity.generated.body` (per
+derived-content family: `generated.at` and `x-okfit-integrity.generated.body` (per
 concept, the digest always accompanying the date), `index.md` (every
 directory that holds a concept, whether or not the profile layout names
 it -- a custom type's directory is indexed the same way), and `log.md` (the root log, curated prose
@@ -305,22 +307,28 @@ date, appending into that day's group unless it already names the concept
 `--since` replaces that floor. A malformed `--since` is a usage error,
 exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
-concept's recorded `integrity.generated.body` still matches its current body, the
+concept's recorded `x-okfit-integrity.generated.body` still matches its current body, the
 concept is reported `unchanged` and neither key is touched, even though a
 fresh git walk would compute a different `at` — see [Every okfit digest
 lives in one integrity family](../decisions/integrity-family.md). A
 one-time migration moves a legacy `generated.body_sha256` to
-`integrity.generated.body` and a Publication's `renders[].body_sha256` to
-`renders[].body` (16 hex); the plan and the JSON/human output report them
+`x-okfit-integrity.generated.body` and a Publication's `renders[].body_sha256` to
+`x-okfit-renders[].body` (16 hex), and renames the old `integrity` key and the built-in profile
+fields to their `x-okfit-` spellings; the plan and the JSON/human output report them
 as `migrated`, and a concept that cannot be spliced safely is skipped as
-`integrity-unsupported` or `renders-unsupported`. `generated.at` is the derived instant (the last
+`integrity-unsupported` or `renders-unsupported`. A concept that holds both
+spellings of a key is skipped as `legacy-key-conflict`, and one whose old key
+cannot be renamed in place (flow style, an alias or a `<<` merge in the old
+integrity block, a duplicated key, an explicit `?` key) as
+`legacy-key-unsupported`; an id in `migrated` may also appear in `skipped`, because
+a concept sync cannot stamp still has its keys renamed. The key names are explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). `generated.at` is the derived instant (the last
 body-changing commit's author date; under `--staged`, the hook's clock). When
-the concept's `integrity.verified` binds its latest human entry and covers
+the concept's `x-okfit-integrity.verified` binds its latest human entry and covers
 exactly the current content, sync stamps `min(derived instant, binding.at)`
 instead, so the
 edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
 §5.3); the `[actors].humans` allow-list does not gate this. It never
-touches `verified` and never writes `integrity.verified` and takes no clock — the same `now`-as-argument
+touches `verified` and never writes `x-okfit-integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
 malformed `--since`; there is no `1`/`2` content tier, since `sync` never
@@ -358,13 +366,13 @@ bundle (a dangling link included) is never read or written: it is listed in
 root `index.md` that declares no `okf_version` is given the config's
 `okf_version` when the config sets one and is otherwise left undeclared.
 
-`--publication <id>` restamps one Publication's `renders` digests from the
+`--publication <id>` restamps one Publication's `x-okfit-renders` digests from the
 current bodies of its source concepts, after its page has been
 re-rendered, and runs nothing else (`--dry-run` and `--format` still
 apply). Combining it with `--only`, `--staged` or `--since` is a usage
 error, exit `64`; so is an unknown id, a concept that is not a Publication,
-or a `renders` entry that points at no concept, each with nothing written
-and a hint to run `okfit query list --type Publication`. A `renders` value that
+or an `x-okfit-renders` entry that points at no concept, each with nothing written
+and a hint to run `okfit query list --type Publication`. An `x-okfit-renders` value that
 is not a block-style list of entries fails exit `3`, like any other
 unsupported frontmatter shape. Success exits `0`. Plain `okfit sync` never
 restamps Publications. In the JSON envelope the three modes are all
@@ -456,13 +464,13 @@ naming an existing bundle directory, or ending in `/`, moves the concept into th
 directory keeping its file name, as shell `mv` does. A `<to>` containing whitespace
 is refused. Rewritten
 kinds: body links and reference definitions, path-kind frontmatter fields,
-`supersedes` and Publication `renders[].path`; each keeps its spelling (rooted,
+`x-okfit-supersedes` and Publication `x-okfit-renders[].path`; each keeps its spelling (rooted,
 bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's own
 outbound relative links are recomputed, including angle-bracketed body links whose
 path holds a space.
 
 Every file whose text changes drifts by the ordinary rule: `mv` never writes
-`verified` or `integrity`, and the plan lists the concepts whose current human
+`verified` or `x-okfit-integrity`, and the plan lists the concepts whose current human
 verification it voids. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,

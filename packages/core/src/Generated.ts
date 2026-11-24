@@ -12,7 +12,7 @@ export class Generated extends Schema.Class<Generated>("Generated")({
 	/**
 	 * Legacy (pre-integrity) body digest, read only as a migration fallback and never
 	 * written. Lenient on purpose: a malformed legacy value must never fail the
-	 * `generated` family and drop `by`/`at`. `okfit sync` moves it to `integrity.generated.body`.
+	 * `generated` family and drop `by`/`at`. `okfit sync` moves it to `x-okfit-integrity.generated.body`.
 	 */
 	body_sha256: Schema.optionalKey(Schema.String),
 }) {

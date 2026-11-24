@@ -12,7 +12,7 @@ import {
 	stampPublication,
 	syncEnvelope,
 } from "@okfit/engine";
-import { GitHistory } from "@okfit/profiles";
+import { GitHistory, ProfileKeys } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { rootFlag } from "../internal/root.js";
@@ -90,7 +90,9 @@ const stagedFlag = Flag.Boolean("staged").pipe(
 
 const publicationFlag = Flag.String("publication").pipe(
 	Flag.optional,
-	Flag.withDescription("restamp one Publication's renders digests after re-rendering its page; runs nothing else"),
+	Flag.withDescription(
+		`restamp one Publication's ${ProfileKeys.renders} digests after re-rendering its page; runs nothing else`,
+	),
 );
 
 /**

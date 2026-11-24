@@ -2,7 +2,7 @@
 type: Interface
 title: okfit CLI
 description: The okfit command-line interface, its commands and exit codes.
-kind: cli
+x-okfit-kind: cli
 resource: ../../packages/cli
 ---
 

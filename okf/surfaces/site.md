@@ -3,16 +3,16 @@ type: Surface
 title: Documentation site
 description: "The published documentation website: guides, reference and tutorials for people using the project."
 status: draft
-kind: site
-audience: users
+x-okfit-kind: site
+x-okfit-audience: users
 resource: ../../website/content
-url: "https://okfit.dev"
+x-okfit-url: "https://okfit.dev"
 generated:
   by: okfit/claude-code
   at: 2026-10-03T00:39:07Z
 tags:
   - docs
-integrity:
+x-okfit-integrity:
   generated:
     body: e6bc7f653954bcea
 ---

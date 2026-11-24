@@ -9,6 +9,7 @@ import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
+import { INTEGRITY_KEY } from "../Integrity.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
 import { Timestamp } from "../Timestamp.js";
 import { isAbsent } from "./conceptDecode.js";
@@ -256,7 +257,7 @@ const actorsOf = (
 			? []
 			: [{ by: concept.frontmatter.generated.by, path: ["generated", "by"] }]),
 		...(concept.frontmatter.verified ?? []).map((entry, index) => ({ by: entry.by, path: verifiedPath(index) })),
-		...(binding === undefined ? [] : [{ by: binding.by, path: ["integrity", "verified", "by"] }]),
+		...(binding === undefined ? [] : [{ by: binding.by, path: [INTEGRITY_KEY, "verified", "by"] }]),
 	];
 };
 

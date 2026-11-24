@@ -7,6 +7,7 @@ import type { FileSystem } from "effect";
 import { Duration, Effect, Option, Result, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
 import { Actor, ActorPattern } from "./Actor.js";
 import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
+import { INTEGRITY_KEY, OKFIT_KEY_PREFIX } from "./Integrity.js";
 
 /**
  * Severity a lint rule is configured to. `"info"` extends spec 4.2's
@@ -247,7 +248,7 @@ export const LintTable = Schema.Struct({
 	family_invalid: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "family-invalid",
-			description: 'okfit\'s own integrity family does not match its shape. Default "error".',
+			description: `okfit's own ${INTEGRITY_KEY} family does not match its shape. Default "error".`,
 			default: "error",
 		}),
 	),
@@ -290,16 +291,14 @@ export const LintTable = Schema.Struct({
 	actor_email: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "actor-email",
-			description:
-				'An actor in generated.by, verified[].by, integrity.verified.by or [actors].humans contains "@", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default "warn".',
+			description: `An actor in generated.by, verified[].by, ${INTEGRITY_KEY}.verified.by or [actors].humans contains "@", so an email address or domain is stored in the bundle or its config. Use a human:<id> without the domain. Default "warn".`,
 			default: "warn",
 		}),
 	),
 	verified_actor_unknown: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "verified-actor-unknown",
-			description:
-				'A human verified[].by or integrity.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default "warn".',
+			description: `A human verified[].by or ${INTEGRITY_KEY}.verified.by matches no entry of a non-empty [actors].humans. Silent when the list is empty. Default "warn".`,
 			default: "warn",
 		}),
 	),
@@ -366,8 +365,7 @@ export const LintTable = Schema.Struct({
 	verified_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "verified-drift",
-			description:
-				'A concept\'s latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (integrity.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default "warn".',
+			description: `A concept's latest human verification no longer covers its current content: the body or authored frontmatter changed since, the binding (${INTEGRITY_KEY}.verified) is missing, a later human entry is unbound, or the bound verifier is not in a non-empty [actors].humans. Draft and deprecated concepts are exempt, since okfit verify refuses them. A signal to re-verify, not a gate. Default "warn".`,
 			default: "warn",
 		}),
 	),
@@ -438,16 +436,14 @@ export const LintTable = Schema.Struct({
 	publication_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-drift",
-			description:
-				'A Publication\'s renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".',
+			description: `A Publication's ${OKFIT_KEY_PREFIX}renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".`,
 			default: "warn",
 		}),
 	),
 	publication_orphan: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-orphan",
-			description:
-				'A Publication\'s surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body } entries. Default "error".',
+			description: `A Publication's ${OKFIT_KEY_PREFIX}surface or ${OKFIT_KEY_PREFIX}renders[].path does not resolve to a concept, or ${OKFIT_KEY_PREFIX}renders is not a list of { path, body } entries. Default "error".`,
 			default: "error",
 		}),
 	),

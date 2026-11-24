@@ -4,15 +4,15 @@ title: AI Plugins
 description: The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.3 and keep a repository's okf bundle current.
 status: stable
 resource: ../../plugin
-kind: plugin
+x-okfit-kind: plugin
 tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
-integrity:
+  at: 2026-11-24T20:41:11Z
+x-okfit-integrity:
   generated:
-    body: e63014b36a4c95c3
+    body: 7bc15f671aa78845
 ---
 
 # AI Plugins
@@ -95,14 +95,15 @@ runs `okfit validate` with `--skip-provenance`: the git-derived fallback
 tier of `generated-at-drift` costs a git walk per concept, measured
 taking validate from about 0.5 s to 1.7 s on this bundle, so the
 edit-time hook skips that tier while CI and the MCP `validate_bundle`
-tool keep it. A migrated concept (one carrying `integrity.generated.body`)
+tool keep it. A migrated concept (one carrying `x-okfit-integrity.generated.body`)
 is unaffected by the flag and is still checked, cheaply, by content
 comparison even at edit time — see [Every okfit digest lives in one
 integrity family](../decisions/integrity-family.md). The plugin's prose now
 says editing a verified concept is fine and shows as drift to a human to
-re-verify; agents still never write `verified` or `integrity`, and never run
+re-verify; agents still never write `verified` or `x-okfit-integrity`, and never run
 `okfit verify` (see [Verification drift is a signal to weigh, never a
-gate](../decisions/drift-is-a-signal.md)).
+gate](../decisions/drift-is-a-signal.md)). The key's prefix is explained in
+[okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md).
 On Copilot, which honours no `PostToolUse` block, the same reason arrives as
 `additionalContext` instead (`plugin/CLAUDE.md:72-74`). Kill switches: `OKFIT_HOOKS=off`
 disables both; `OKFIT_SESSION_HOOK=off` and `OKFIT_VALIDATE_HOOK=off`

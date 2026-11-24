@@ -125,8 +125,11 @@ describe("Publications.lint", () => {
 		Effect.gen(function* () {
 			const a = yield* digestOf(sourceA);
 			const pub = publication(
-				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
-				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+				{
+					"x-okfit-surface": "../surfaces/readme.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: a }],
+				},
+				`x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
 			);
 			assert.deepStrictEqual(yield* run(bundleOf(sourceA, surface, pub)), []);
 		}),
@@ -139,20 +142,26 @@ describe("Publications.lint", () => {
 				Effect.provide(NodeCrypto.layerDigest),
 			);
 			const fresh = publication(
-				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body: a }] },
-				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body: ${a}\n`,
+				{ "x-okfit-surface": "../surfaces/readme.md", "x-okfit-renders": [{ path: "../interfaces/a.md", body: a }] },
+				`x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body: ${a}\n`,
 			);
 			assert.deepStrictEqual(yield* run(bundleOf(sourceA, surface, fresh)), []);
 			const legacy = publication(
-				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body_sha256: full }] },
-				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${full}\n`,
+				{
+					"x-okfit-surface": "../surfaces/readme.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: full }],
+				},
+				`x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${full}\n`,
 			);
 			assert.deepStrictEqual(yield* run(bundleOf(sourceA, surface, legacy)), []);
 			const entries = Publications.rendersOf(fresh);
 			assert.strictEqual(entries?.[0]?.body, a);
 			const stale = publication(
-				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md", body: "0".repeat(16) }] },
-				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body: ${"0".repeat(16)}\n`,
+				{
+					"x-okfit-surface": "../surfaces/readme.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body: "0".repeat(16) }],
+				},
+				`x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body: ${"0".repeat(16)}\n`,
 			);
 			const result = yield* run(bundleOf(sourceA, surface, stale));
 			assert.strictEqual(result.length, 1);
@@ -164,13 +173,13 @@ describe("Publications.lint", () => {
 		Effect.gen(function* () {
 			const pub = publication(
 				{
-					surface: "../surfaces/readme.md",
-					renders: [
+					"x-okfit-surface": "../surfaces/readme.md",
+					"x-okfit-renders": [
 						{ path: "../interfaces/a.md", body_sha256: STALE },
 						{ path: "../interfaces/b.md", body_sha256: STALE },
 					],
 				},
-				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n  - path: ../interfaces/b.md\n    body_sha256: ${STALE}\n`,
+				`x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n  - path: ../interfaces/b.md\n    body_sha256: ${STALE}\n`,
 			);
 			const result = yield* run(bundleOf(sourceA, sourceB, surface, pub));
 			assert.strictEqual(result.length, 1);
@@ -187,8 +196,8 @@ describe("Publications.lint", () => {
 	it.effect("reports never-stamped entries as drift, not orphan", () =>
 		Effect.gen(function* () {
 			const pub = publication(
-				{ surface: "../surfaces/readme.md", renders: [{ path: "../interfaces/a.md" }] },
-				"surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n",
+				{ "x-okfit-surface": "../surfaces/readme.md", "x-okfit-renders": [{ path: "../interfaces/a.md" }] },
+				"x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n",
 			);
 			const result = yield* run(bundleOf(sourceA, surface, pub));
 			assert.strictEqual(result.length, 1);
@@ -201,8 +210,11 @@ describe("Publications.lint", () => {
 		Effect.gen(function* () {
 			const a = yield* digestOf(sourceA);
 			const pub = publication(
-				{ surface: "../surfaces/missing.md", renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
-				`surface: ../surfaces/missing.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+				{
+					"x-okfit-surface": "../surfaces/missing.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: a }],
+				},
+				`x-okfit-surface: ../surfaces/missing.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
 			);
 			const result = yield* run(bundleOf(sourceA, pub));
 			assert.strictEqual(result.length, 1);
@@ -221,14 +233,14 @@ describe("Publications.lint", () => {
 			const a = yield* digestOf(sourceA);
 			const pub = publication(
 				{
-					surface: "../surfaces/readme.md",
-					renders: [
+					"x-okfit-surface": "../surfaces/readme.md",
+					"x-okfit-renders": [
 						{ path: "../interfaces/a.md", body_sha256: a },
 						{ path: "../interfaces/gone.md", body_sha256: a },
 						{ path: "../../escape.md", body_sha256: a },
 					],
 				},
-				`surface: ../surfaces/readme.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n  - path: ../interfaces/gone.md\n    body_sha256: ${a}\n  - path: ../../escape.md\n    body_sha256: ${a}\n`,
+				`x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n  - path: ../interfaces/gone.md\n    body_sha256: ${a}\n  - path: ../../escape.md\n    body_sha256: ${a}\n`,
 			);
 			const result = yield* run(bundleOf(sourceA, surface, pub));
 			assert.deepStrictEqual(
@@ -245,8 +257,8 @@ describe("Publications.lint", () => {
 	it.effect("publication-orphan when renders is not a list of { path }", () =>
 		Effect.gen(function* () {
 			const pub = publication(
-				{ surface: "../surfaces/readme.md", renders: "x" },
-				"surface: ../surfaces/readme.md\nrenders: x\n",
+				{ "x-okfit-surface": "../surfaces/readme.md", "x-okfit-renders": "x" },
+				"x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders: x\n",
 			);
 			const result = yield* run(bundleOf(surface, pub));
 			assert.strictEqual(result.length, 1);
@@ -260,8 +272,8 @@ describe("Publications.lint", () => {
 	it.effect("publication-orphan when renders is an empty list", () =>
 		Effect.gen(function* () {
 			const pub = publication(
-				{ surface: "../surfaces/readme.md", renders: [] },
-				"surface: ../surfaces/readme.md\nrenders: []\n",
+				{ "x-okfit-surface": "../surfaces/readme.md", "x-okfit-renders": [] },
+				"x-okfit-surface: ../surfaces/readme.md\nx-okfit-renders: []\n",
 			);
 			const result = yield* run(bundleOf(surface, pub));
 			assert.strictEqual(result.length, 1);
@@ -275,8 +287,11 @@ describe("Publications.lint", () => {
 		Effect.gen(function* () {
 			const a = yield* digestOf(sourceA);
 			const pub = publication(
-				{ surface: "../interfaces/b.md", renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
-				`surface: ../interfaces/b.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+				{
+					"x-okfit-surface": "../interfaces/b.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: a }],
+				},
+				`x-okfit-surface: ../interfaces/b.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
 			);
 			const result = yield* run(bundleOf(sourceA, sourceB, pub));
 			assert.strictEqual(result.length, 1);
@@ -290,8 +305,8 @@ describe("Publications.lint", () => {
 		Effect.gen(function* () {
 			const a = yield* digestOf(sourceA);
 			const pub = publication(
-				{ renders: [{ path: "../interfaces/a.md", body_sha256: a }] },
-				`renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
+				{ "x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: a }] },
+				`x-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${a}\n`,
 			);
 			assert.deepStrictEqual(yield* run(bundleOf(sourceA, pub)), []);
 		}),
@@ -301,8 +316,11 @@ describe("Publications.lint", () => {
 		// One stale source (drift) plus an unresolvable surface (orphan).
 		const both = () =>
 			publication(
-				{ surface: "../surfaces/missing.md", renders: [{ path: "../interfaces/a.md", body_sha256: STALE }] },
-				`surface: ../surfaces/missing.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n`,
+				{
+					"x-okfit-surface": "../surfaces/missing.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: STALE }],
+				},
+				`x-okfit-surface: ../surfaces/missing.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n`,
 			);
 		const withLint = (lint: Partial<OkfitConfig["lint"]>): OkfitConfig => ({
 			...OkfitConfig.DEFAULTS,
@@ -362,8 +380,11 @@ describe("Publications.lint", () => {
 	it.effect("returns [] for both codes when both are off", () =>
 		Effect.gen(function* () {
 			const pub = publication(
-				{ surface: "../surfaces/missing.md", renders: [{ path: "../interfaces/a.md", body_sha256: STALE }] },
-				`surface: ../surfaces/missing.md\nrenders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n`,
+				{
+					"x-okfit-surface": "../surfaces/missing.md",
+					"x-okfit-renders": [{ path: "../interfaces/a.md", body_sha256: STALE }],
+				},
+				`x-okfit-surface: ../surfaces/missing.md\nx-okfit-renders:\n  - path: ../interfaces/a.md\n    body_sha256: ${STALE}\n`,
 			);
 			const config: OkfitConfig = {
 				...OkfitConfig.DEFAULTS,
@@ -388,8 +409,8 @@ describe("Publications.lint", () => {
 			const module = conceptAt(
 				"modules/m.md",
 				"Module",
-				{ type: "Module", renders: "x", surface: "../nope.md" },
-				"---\ntype: Module\nrenders: x\nsurface: ../nope.md\n---\n\n# M\n",
+				{ type: "Module", "x-okfit-renders": "x", "x-okfit-surface": "../nope.md" },
+				"---\ntype: Module\nx-okfit-renders: x\nsurface: ../nope.md\n---\n\n# M\n",
 			);
 			assert.deepStrictEqual(yield* run(bundleOf(module)), []);
 		}),

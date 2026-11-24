@@ -33,4 +33,4 @@ The root README is a developer-facing hub, not an npm page. It carries no badge 
 [<license>](LICENSE)
 ```
 
-Link each package row to its directory. Detail belongs in the package README or on the site, as the Surface's `links_to` says.
+Link each package row to its directory. Detail belongs in the package README or on the site, as the Surface's `x-okfit-links-to` says.

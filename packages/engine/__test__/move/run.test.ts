@@ -27,7 +27,7 @@ const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 	extensions: {},
 });
 
-const verified = `verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nintegrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
+const verified = `verified:\n  - by: human:ada\n    at: 2026-09-01T00:00:00Z\nx-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-09-01T00:00:00Z\n    content: ${DIGEST}\n`;
 const decision = (title: string, extra: string, body: string) =>
 	`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n\n${body}\n`;
 
@@ -39,7 +39,7 @@ const files: Record<string, string> = {
 	"decisions/d.md": decision("D", "supersedes: b.md\n", "Replaces b."),
 	"decisions/f.md": decision("F", 'supersedes: "b.md"\n', 'See [x][d].\n\n[d]: ../decisions/b.md "b.md here"'),
 	"conventions/c.md": "---\ntype: Convention\ntitle: C\n---\n\n# C\n\nSee [x](../decisions/b.md).\n",
-	"publications/p.md": "---\ntype: Publication\ntitle: P\nrenders:\n  - path: ../decisions/b.md\n---\n\n# P\n",
+	"publications/p.md": "---\ntype: Publication\ntitle: P\nx-okfit-renders:\n  - path: ../decisions/b.md\n---\n\n# P\n",
 };
 
 const snapshot = async (dir: string, base = dir): Promise<Record<string, string>> => {

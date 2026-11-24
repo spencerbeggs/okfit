@@ -68,7 +68,7 @@ field is each front end's own version and the two version independently.
 Names each new concept file for its stable topic in two to four words, never its
 conclusion (the claim goes in `title`), and renames with `okfit mv` then
 `okfit sync`; `okfit mv` is allowed for agents because it never writes
-`verified` or `integrity` (`okf-authoring` rule 20). Writes
+`verified` or `x-okfit-integrity` (`okf-authoring` rule 20). Writes
 `status` explicitly on every concept (`draft` when unreviewed, `stable` when
 settled, always `draft` for a Decision; see `okf-authoring` rule 14). Stamps
 `generated.by` with the configured agent actor on every concept it writes
@@ -79,7 +79,7 @@ the end of a branch of bundle work, runs the `okf-finalize` procedure —
 list the concepts the branch's diff touches, reconcile each against
 `okf-authoring`'s twenty-three rules, run `okfit validate` and fix what it
 reports, run `okfit sync` to regenerate `generated.at`,
-`integrity.generated.body`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
+`x-okfit-integrity.generated.body`, `index.md`, and `log.md` and report what it wrote, left unchanged, or skipped, check
 `okf-context`'s CLAUDE.md-to-`index.md` pointer coverage, and report what
 changed — sequentially, in this one context. In the report, tell the human
 how to stamp after they commit: run `okfit sync --dry-run` and commit only
@@ -89,7 +89,7 @@ their `log.md` entries, leaving the follow-up sync nothing to write.
 
 ## What this agent does NOT do
 
-- Never adds or edits `verified` or any `integrity` key — they record
+- Never adds or edits `verified` or any `x-okfit-integrity` key — they record
   third-party or human confirmation and the digests that bind it, and only
   a human (through `okfit verify`) and `okfit sync` write them. Editing a
   verified or stable concept is fine: the edit shows as `verified-drift`,

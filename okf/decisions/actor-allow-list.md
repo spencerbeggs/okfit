@@ -11,7 +11,7 @@ status: stable
 sources:
   - id: derivation-ts
     resource: ../../packages/profiles/src/Derivation.ts
-integrity:
+x-okfit-integrity:
   generated:
     body: 49cf4e05418e7493
   verified:

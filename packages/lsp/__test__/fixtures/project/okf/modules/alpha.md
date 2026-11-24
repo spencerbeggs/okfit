@@ -3,7 +3,7 @@ type: Module
 title: Alpha
 description: A tiny synthetic concept used only by @okfit/lsp's own tests.
 resource: alpha.md
-kind: package
+x-okfit-kind: package
 generated:
   by: "human:fixture-author"
   at: "2026-01-01T00:00:00Z"

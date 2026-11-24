@@ -148,7 +148,7 @@ describe("Provenance.lint", () => {
 				}).pipe(Effect.provide(noGit)), // dies on any Git/GitHistory/FileSystem call, proving tier 1 never touches them
 		);
 
-		it.effect("reads integrity.generated.body: silent when current, no legacy digest needed", () =>
+		it.effect("reads x-okfit-integrity.generated.body: silent when current, no legacy digest needed", () =>
 			Effect.gen(function* () {
 				const digest = yield* digestOf(SOURCE);
 				const generated = Generated.make({ by: actor("human:okfit-test") });
@@ -171,18 +171,20 @@ describe("Provenance.lint", () => {
 			}).pipe(Effect.provide(noGit)),
 		);
 
-		it.effect("a mismatched integrity.generated.body reports one drift naming integrity.generated.body", () =>
-			Effect.gen(function* () {
-				const staleDigest = yield* digestOf(SOURCE);
-				const generated = Generated.make({ by: actor("human:okfit-test") });
-				const integrity = Integrity.make({ generated: { body: staleDigest } });
-				const result = yield* Provenance.lint(
-					bundleOf(conceptWith(generated, OTHER_SOURCE, integrity)),
-					OkfitConfig.DEFAULTS,
-				);
-				assert.strictEqual(result.length, 1);
-				assert.include(result[0]?.message ?? "", `integrity.generated.body is ${staleDigest}`);
-			}).pipe(Effect.provide(noGit)),
+		it.effect(
+			"a mismatched x-okfit-integrity.generated.body reports one drift naming x-okfit-integrity.generated.body",
+			() =>
+				Effect.gen(function* () {
+					const staleDigest = yield* digestOf(SOURCE);
+					const generated = Generated.make({ by: actor("human:okfit-test") });
+					const integrity = Integrity.make({ generated: { body: staleDigest } });
+					const result = yield* Provenance.lint(
+						bundleOf(conceptWith(generated, OTHER_SOURCE, integrity)),
+						OkfitConfig.DEFAULTS,
+					);
+					assert.strictEqual(result.length, 1);
+					assert.include(result[0]?.message ?? "", `x-okfit-integrity.generated.body is ${staleDigest}`);
+				}).pipe(Effect.provide(noGit)),
 		);
 
 		it.effect("reports when the digest no longer matches the current body", () =>
@@ -196,7 +198,7 @@ describe("Provenance.lint", () => {
 				assert.include(result[0]?.message ?? "", "the body has changed since generated.at was last stamped");
 				// The recorded value came from the legacy field, so the message names that field.
 				assert.include(result[0]?.message ?? "", `generated.body_sha256 is ${staleDigest}`);
-				assert.notInclude(result[0]?.message ?? "", "integrity.generated.body");
+				assert.notInclude(result[0]?.message ?? "", "x-okfit-integrity.generated.body");
 				assert.include(result[0]?.message ?? "", staleDigest);
 				assert.include(result[0]?.message ?? "", currentDigest);
 			}).pipe(Effect.provide(noGit)),

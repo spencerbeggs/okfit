@@ -54,7 +54,7 @@ export interface RunOptions {
 	/**
 	 * S-31: skip `Provenance.lint`'s git TIER (tier 2, the git-derived date
 	 * comparison for concepts with no recorded body digest: neither
-	 * `integrity.generated.body` nor a legacy `generated.body_sha256`)
+	 * `x-okfit-integrity.generated.body` nor a legacy `generated.body_sha256`)
 	 * for this one invocation, without touching the project's `[lint]`
 	 * table. `commands/validate.ts` threads `--skip-provenance` here; the
 	 * PostToolUse hook passes the flag so an edit-time `validate` stays
