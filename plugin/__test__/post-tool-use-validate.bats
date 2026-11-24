@@ -762,3 +762,54 @@ UNLISTED_REASON="notes.md: not a concept: it has no frontmatter type, and this b
 	assert_hook_noop
 	[ ! -f "$STUB_DIR/validate-invoked" ]
 }
+
+# A listed non-concept is not a concept: with actors.agent set the hook never asks it for generated.by
+# (final-review finding 2). Controls: a typed concept without generated.by still blocks.
+
+@test "a Write of a listed README.md is clean when actors.agent is set, a typed concept without generated.by blocks" {
+	local proj
+	proj=$(_typeless_proj)
+	mkdir -p "$proj/okf/a/b"
+	printf '# Readme\n' >"$proj/okf/README.md"
+	printf '# Nested\n' >"$proj/okf/a/b/README.md"
+	printf -- '---\ntype: Module\ntitle: T\n---\n' >"$proj/okf/typed.md"
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		_run "$target" "$(_input Write "$proj/okf/a/b/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		# control: the same context blocks a typed concept that lacks generated.by
+		_run "$target" "$(_input Write "$proj/okf/typed.md" "$proj")" "$proj"
+		assert_stop "$target" "typed.md: generated.by is missing"
+	done
+}
+
+@test "a Bash write of a listed README.md, or an append to a typeless file, gets no generated.by advice when actors.agent is set" {
+	local proj
+	proj=$(_typeless_proj)
+	printf '# Readme\n' >"$proj/okf/README.md"
+	printf -- '---\ntype: Module\ntitle: T\n---\n' >"$proj/okf/typed.md"
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$CLEAN"
+	for target in $TARGETS; do
+		_run "$target" "$(_bash_input "cp /tmp/src.md okf/README.md" "$proj")" "$proj"
+		assert_hook_noop
+		_run "$target" "$(_bash_input "printf 'more\n' >> okf/notes.md" "$proj")" "$proj"
+		assert_hook_noop
+		# control: an appended write to a typed concept without generated.by is still told to stamp it
+		_run "$target" "$(_bash_input "printf 'more\n' >> okf/typed.md" "$proj")" "$proj"
+		[[ "$(context_text)" == *"generated.by is missing"* ]]
+	done
+}
+
+@test "an unlisted typeless Write blocks with the non-concept reason only when actors.agent is set" {
+	local proj text
+	proj=$(_typeless_proj)
+	_stub_cli "$(_ctx "$proj/okf" "$proj")" "$(_unlisted_json notes.md "$PROFILE_GLOBS")" 1
+	for target in $TARGETS; do
+		_run "$target" "$(_input Write "$proj/okf/notes.md" "$proj")" "$proj"
+		assert_stop "$target" "$UNLISTED_REASON"
+		if [ "$target" = claude ]; then text=$(printf '%s' "$output" | jq -r '.reason'); else text=$(context_text); fi
+		[[ "$text" != *"generated.by"* ]]
+	done
+}

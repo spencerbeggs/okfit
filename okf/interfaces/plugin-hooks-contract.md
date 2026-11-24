@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-24T11:15:03Z
 tags:
   - architecture
 verified:
@@ -21,7 +21,7 @@ verified:
     at: 2026-10-25T18:30:29Z
 integrity:
   generated:
-    body: f022c9213976ce7a
+    body: 7b298745d87960df
   verified:
     by: human:spencer
     at: 2026-10-25T18:30:29Z
@@ -79,7 +79,8 @@ for a `Write` or `Edit` it runs the same scoped validate, and a
 [Markdown that is not a concept is skipped, not an
 error](../decisions/non-concept-markdown-is-skipped.md)). One check reads the
 written file itself: when the config sets `actors.agent`, a concept file
-(never `index.md` or `log.md`) whose frontmatter has no `generated.by`
+(frontmatter with a top-level `type:`; never `index.md` or `log.md`, and never a typeless file such as a listed
+`README.md`) whose frontmatter has no `generated.by`
 blocks on `Write` and warns on `Edit`, with the exact `by:` value to add
 in the message ([#74](https://github.com/spencerbeggs/okfit/issues/74):
 the okf-authoring rule alone reached 109 of 268 concepts under one

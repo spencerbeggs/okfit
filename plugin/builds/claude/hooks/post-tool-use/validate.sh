@@ -290,7 +290,9 @@ if [ -n "$bash_command" ]; then
 			typeless_targets+=("$target")
 			typeless_rels="$typeless_rels$rel "
 		fi
-		if [ -n "$agent_actor" ] && ! has_generated_by "$target"; then
+		# Only a concept (frontmatter with a top-level `type:`) carries generated.by;
+		# a typeless file is judged by the non-concept-unlisted lint alone.
+		if [ -n "$agent_actor" ] && has_type "$target" && ! has_generated_by "$target"; then
 			gen_offenders="${gen_offenders}${kind}"$'\t'"${rel}"$'\n'
 		fi
 	done <<<"$bash_targets"
@@ -436,7 +438,8 @@ fi
 # frontmatter block for a `generated:` mapping with a `by:` key. Only when
 # the config sets actors.agent (an unset agent means the repo has not asked
 # for attribution), only for a concept file (index.md and log.md are
-# reserved and never carry generated), and only when the file exists (the
+# reserved and never carry generated; a file with no frontmatter `type:` is
+# not a concept), and only when the file exists (the
 # fixtures dispatch paths that were never written). The verdict joins the
 # validate branches below: a Write authored the whole file and blocks
 # until stamped; an Edit warns, since rule 3 says "meaningful changes" and
@@ -445,7 +448,9 @@ missing_generated_by=0
 case "$bundle_relative" in
 	index.md | */index.md | log.md | */log.md) ;;
 	*.md)
-		if [ -n "$agent_actor" ] && [ -f "$file_path" ]; then
+		# A typeless file is not a concept (a listed README.md, an unlisted
+		# stray): it is judged by the non-concept-unlisted lint, never here.
+		if [ -n "$agent_actor" ] && [ -f "$file_path" ] && has_type "$file_path"; then
 			if ! has_generated_by "$file_path"; then
 				missing_generated_by=1
 			fi

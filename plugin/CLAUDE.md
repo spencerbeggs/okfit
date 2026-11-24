@@ -72,7 +72,8 @@ the time `PostToolUse` fires, so a block from that hook is a stop-and-fix
 signal, not a prevention. The hook keeps three jobs (LSP phase 4,
 decision 8, plus #476): it blocks on a `core.conformance` diagnostic for the edited
 file, and it reads the written file to block a `Write` (warn an `Edit`) of a
-concept with no `generated.by` when the config sets `actors.agent`. A third
+concept with no `generated.by` when the config sets `actors.agent`
+(a file with no frontmatter `type:` is not a concept and is judged by the lint alone). A third
 check, from the `core.lint` code `non-concept-unlisted`
 ([#476](https://github.com/spencerbeggs/okfit/issues/476), OKF 0.3 R8), stops
 a typeless `.md` the config does not list under `[bundle] non_concepts`: a
