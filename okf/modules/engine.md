@@ -4,7 +4,7 @@ title: Engine
 description: The shared okfit engine -- platform layer, config discovery, and the validate/verify/sync/init/context programs both the CLI and the MCP server depend on directly.
 status: stable
 resource: ../../packages/engine
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
 generated:

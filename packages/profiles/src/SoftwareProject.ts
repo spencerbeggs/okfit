@@ -215,8 +215,7 @@ const config: OkfitConfig = {
 		Incident: {
 			description:
 				"A dated production failure: what shipped broken, what it looked like to the consumer, the root cause, and the guard that now stops it.",
-			guidance:
-				"Keep the whole narrative in one record rather than splitting the misleading signal into a Gotcha and the guard into a Decision, and link both where they exist. Set occurred to the date it happened so a reader can weigh how far the code has moved since.",
+			guidance: `Keep the whole narrative in one record rather than splitting the misleading signal into a Gotcha and the guard into a Decision, and link both where they exist. Set ${ProfileKeys.occurred} to the date it happened so a reader can weigh how far the code has moved since.`,
 			required: [ProfileKeys.occurred],
 			fields: {
 				[ProfileKeys.occurred]: {
@@ -232,8 +231,7 @@ const config: OkfitConfig = {
 		Surface: {
 			description:
 				"A documentation surface: where one kind of published docs lives, who reads it, and how it is written.",
-			guidance:
-				"Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point links_to at the Surface this one routes readers to.",
+			guidance: `Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point ${ProfileKeys.links_to} at the Surface this one routes readers to.`,
 			required: [ProfileKeys.kind, ProfileKeys.audience, "resource"],
 			fields: {
 				[ProfileKeys.kind]: {

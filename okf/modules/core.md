@@ -4,7 +4,7 @@ title: Core
 description: The no-internal-deps base package -- OKF frontmatter schemas, bundle loading, the link graph, derivation, and validation, with no opinions about bundle content.
 status: stable
 resource: ../../packages/core
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
 generated:

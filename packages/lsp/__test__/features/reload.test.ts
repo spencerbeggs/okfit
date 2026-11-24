@@ -95,7 +95,7 @@ describe("config reload and dropped-session cleanup", () => {
 				// gamma.md exists only in the overlay, with an explicit status, so status_missing never
 				// flags it under either config: it is the "never touched" control.
 				const gammaText =
-					"---\ntype: Module\ntitle: Gamma\ndescription: A control concept that never has a diagnostic.\nresource: gamma.md\nkind: package\nstatus: stable\n---\n\n# Gamma\n";
+					"---\ntype: Module\ntitle: Gamma\ndescription: A control concept that never has a diagnostic.\nresource: gamma.md\nx-okfit-kind: package\nstatus: stable\n---\n\n# Gamma\n";
 
 				yield* feature.onDocumentEvent({
 					kind: "open",

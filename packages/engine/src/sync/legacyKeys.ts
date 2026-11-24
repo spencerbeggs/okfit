@@ -71,6 +71,26 @@ export const keyRenamesFor = (
 	return { integrity, fields };
 };
 
+/** The spelling of the Publication `renders` field before it moved under the `x-okfit-` namespace. @internal */
+export const LEGACY_RENDERS_KEY = "renders";
+
+/**
+ * The key under which `concept` holds its Publication renders list: the current spelling when it is there,
+ * else the legacy one while this run is licensed to rename it (D3). `undefined` when neither is present.
+ * The legacy digest migration (`renders[].body_sha256` to `body`) runs under whichever spelling the file
+ * has, in the same pass as the key rename; their edits are disjoint (the key token versus the entries).
+ *
+ * @internal
+ */
+export const rendersKeyFor = (concept: LoadedConcept, renames: KeyRenames): string | undefined => {
+	const raw = concept.frontmatter.raw;
+	if (Object.hasOwn(raw, ProfileKeys.renders)) return ProfileKeys.renders;
+	const licensed = (renames.fields.get(concept.frontmatter.type) ?? []).some(
+		(rename) => rename.from === LEGACY_RENDERS_KEY,
+	);
+	return licensed && Object.hasOwn(raw, LEGACY_RENDERS_KEY) ? LEGACY_RENDERS_KEY : undefined;
+};
+
 /**
  * D2 plus a `<<` merge key: a legacy block that merges another mapping in is still okfit's legacy block as
  * far as verify is concerned (it refuses it), so sync must see it too and skip it as unsupported.

@@ -2,7 +2,7 @@
 type: Consumer
 title: effect-playground
 description: A scratch repository that consumes every published package and exercises the CLI end to end.
-repository: spencerbeggs/effect-playground
+x-okfit-repository: spencerbeggs/effect-playground
 tags: [dx]
 ---
 

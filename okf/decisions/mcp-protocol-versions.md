@@ -8,7 +8,7 @@ generated:
   by: okfit/claude-code
   at: 2026-11-02T19:16:31Z
 status: stable
-supersedes: mcp-effect-native-legacy-era.md
+x-okfit-supersedes: mcp-effect-native-legacy-era.md
 sources:
   - id: server-ts
     resource: ../../packages/mcp/src/server.ts

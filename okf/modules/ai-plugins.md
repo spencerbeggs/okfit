@@ -4,7 +4,7 @@ title: AI Plugins
 description: The pluginfinity source of the okfit agent plugin, built into a Claude Code plugin and a GitHub Copilot plugin that teach agents OKF v0.3 and keep a repository's okf bundle current.
 status: stable
 resource: ../../plugin
-kind: plugin
+x-okfit-kind: plugin
 tags:
   - architecture
 generated:

@@ -26,9 +26,9 @@ guidance = "Exactly one Project exists and it lives at the bundle root as the pr
 [types.Module]
 description = "A unit of code with an owner and a boundary."
 guidance = "One per workspace package, plugin, website, action, worker, test harness, or config dependency. Link to the Decisions that shaped it and the Conventions it is bound by."
-required = ["resource", "kind"]
+required = ["resource", "x-okfit-kind"]
 
-[types.Module.fields.kind]
+[types.Module.fields.x-okfit-kind]
 description = "What sort of unit this is; drives which conventions apply."
 values.workspace = "The monorepo root: tooling, CI, release, shared config."
 values.package = "A publishable npm package under packages/."
@@ -43,10 +43,10 @@ values.config-dependency = "A package consumed through pnpm configDependencies r
 description = "A path relative to this concept file, normally escaping the bundle, for example ../../packages/core."
 kind = "path"
 
-[types.Module.fields.layer]
+[types.Module.fields.x-okfit-layer]
 description = "The dependency layer this module sits in under the repository's own layering scheme, for example L2, so a reader can query every module at one layer."
 
-[types.Module.fields.pins]
+[types.Module.fields.x-okfit-pins]
 description = "Paths to the sibling Module concepts this module is exact-version-pinned alongside, one entry per sibling."
 kind = "path"
 
@@ -55,7 +55,7 @@ description = "A choice made, the alternatives rejected, and why."
 guidance = "Edit a Decision when the choice still stands and its text has drifted or is incomplete, which voids its verification until a human verifies it again; deprecate it and write a successor only when the choice itself changes and its history matters: set superseded_by on the deprecated Decision to the successor, and supersedes on the successor to the Decision it replaces. Name the file for the topic in two to four words, not the conclusion, which goes in the title."
 require_verified = true
 
-[types.Decision.fields.supersedes]
+[types.Decision.fields.x-okfit-supersedes]
 description = "The Decision this one replaces."
 kind = "path"
 
@@ -66,9 +66,9 @@ guidance = "State the rule as an instruction rather than a description of curren
 [types.Interface]
 description = "A contract others depend on."
 guidance = "Document the contract from the consumer's side: what stays stable, not how it is built. Point resource at the file, endpoint, or schema the promise lives in."
-required = ["kind"]
+required = ["x-okfit-kind"]
 
-[types.Interface.fields.kind]
+[types.Interface.fields.x-okfit-kind]
 description = "What kind of contract this is."
 values.api = "A programmatic library surface: exported functions, classes, and types."
 values.cli = "A command-line interface: commands, flags, and exit codes."
@@ -102,7 +102,7 @@ guidance = "Define the term as this repository means it, not as the wider ecosys
 description = "A known edge of a contract: something that does not work, and why that is acceptable."
 guidance = "State the condition that triggers it and the observable symptom, not just the cause, and name the Interface or Module whose promise it bounds. If it is fixable and merely unfixed, say what the fix would take."
 
-[types.Limitation.fields.bounds]
+[types.Limitation.fields.x-okfit-bounds]
 description = "The Interface or Module concept whose promise this limitation bounds."
 kind = "path"
 
@@ -126,23 +126,23 @@ kind = "path"
 [types.Consumer]
 description = "An external application that consumes this repository and thereby scopes it."
 guidance = "Name the surfaces it exercises, where the edge between the two repositories sits, and the open questions it raises, so the boundary of this repository is read from its consumers rather than inferred. Deprecate it when the consumer stops consuming."
-required = ["repository"]
+required = ["x-okfit-repository"]
 
-[types.Consumer.fields.repository]
+[types.Consumer.fields.x-okfit-repository]
 description = "Where the consumer lives, as a URL or an owner/name pair, since it is outside this repository."
 
 [types.Roadmap]
 description = "A gate and the forward-looking work behind it, held as intent rather than as a Decision."
 guidance = "List the phases and what remains in each, and give it a staleness window so queued work is re-examined instead of read as settled. Deprecate it when the gate holds and write the Decisions the work produced; a known bug with nobody queued to fix it is a Gotcha, not a Roadmap."
 
-[types.Roadmap.fields.gate]
+[types.Roadmap.fields.x-okfit-gate]
 description = "The observable condition that closes this roadmap, for example a release shipped or a benchmark met."
 
 [types.Measurement]
 description = "A dated empirical result: what was measured, how, and what the numbers ruled in or out."
 guidance = "Record the inputs, the method, and the numbers so a reader can judge whether they still hold, and give it a staleness window because numbers rot. A Decision links to the Measurement that justified it instead of embedding the result in its body."
 
-[types.Measurement.fields.justifies]
+[types.Measurement.fields.x-okfit-justifies]
 description = "Paths to the Decisions this measurement supports, one entry per Decision."
 kind = "path"
 
@@ -156,33 +156,33 @@ kind = "path"
 
 [types.Incident]
 description = "A dated production failure: what shipped broken, what it looked like to the consumer, the root cause, and the guard that now stops it."
-guidance = "Keep the whole narrative in one record rather than splitting the misleading signal into a Gotcha and the guard into a Decision, and link both where they exist. Set occurred to the date it happened so a reader can weigh how far the code has moved since."
-required = ["occurred"]
+guidance = "Keep the whole narrative in one record rather than splitting the misleading signal into a Gotcha and the guard into a Decision, and link both where they exist. Set x-okfit-occurred to the date it happened so a reader can weigh how far the code has moved since."
+required = ["x-okfit-occurred"]
 
-[types.Incident.fields.occurred]
+[types.Incident.fields.x-okfit-occurred]
 description = "The ISO 8601 date the failure happened or was first observed."
 
-[types.Incident.fields.guard]
+[types.Incident.fields.x-okfit-guard]
 description = "A path relative to this concept file to the test, check, or config that now stops the failure recurring."
 kind = "path"
 
 [types.Surface]
 description = "A documentation surface: where one kind of published docs lives, who reads it, and how it is written."
-guidance = "Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point links_to at the Surface this one routes readers to."
-required = ["kind", "audience", "resource"]
+guidance = "Write the body as instructions to the author of a page on this surface: tone, structure, required and forbidden sections, and what belongs on another surface instead. Keep one Surface per audience and location, and point x-okfit-links-to at the Surface this one routes readers to."
+required = ["x-okfit-kind", "x-okfit-audience", "resource"]
 
-[types.Surface.fields.kind]
+[types.Surface.fields.x-okfit-kind]
 description = "How the surface is published."
 
-[types.Surface.fields.kind.values]
+[types.Surface.fields.x-okfit-kind.values]
 site = "A built website workspace, such as an RSPress site, published at a URL."
 repo = "Markdown read in place on the forge, such as a docs/ directory on GitHub."
 readme = "README files: the repository root's, each package's, or both."
 
-[types.Surface.fields.audience]
+[types.Surface.fields.x-okfit-audience]
 description = "Who the surface is written for."
 
-[types.Surface.fields.audience.values]
+[types.Surface.fields.x-okfit-audience.values]
 users = "People installing or calling what this repository ships."
 contributors = "People changing this repository: setup, workflow, and internals."
 agents = "Coding agents working in this repository."
@@ -191,38 +191,38 @@ agents = "Coding agents working in this repository."
 description = "A path relative to this concept file to the surface root, or a glob pattern when the surface spans many directories, such as every package directory."
 kind = "path"
 
-[types.Surface.fields.url]
+[types.Surface.fields.x-okfit-url]
 description = "Where a site surface is published, as an absolute URL."
 
-[types.Surface.fields.links_to]
+[types.Surface.fields.x-okfit-links-to]
 description = "The Surface this one routes readers to, such as a one-page README pointing at the site."
 kind = "path"
 
 [types.Publication]
 description = "A published page that restates facts this bundle owns, and the concepts it was rendered from."
 guidance = "Create one only for a page whose content comes from bundle concepts; the bundle is the source of truth and the page is re-rendered when a source changes. Use the body for rendering notes: what is audience-specific, what is deliberately left out, and what a re-render must keep."
-required = ["resource", "surface", "renders"]
+required = ["resource", "x-okfit-surface", "x-okfit-renders"]
 
 [types.Publication.fields.resource]
 description = "A path relative to this concept file to the published page."
 kind = "path"
 
-[types.Publication.fields.surface]
+[types.Publication.fields.x-okfit-surface]
 description = "The Surface concept this page is published on."
 kind = "path"
 
-[types.Publication.fields.renders]
+[types.Publication.fields.x-okfit-renders]
 description = "The source concepts as a list of entries that each hold a path and a body digest; okfit sync --publication stamps each digest."
 
 [types.Flow]
 description = "A named runtime sequence that crosses several modules: where it starts, which modules it passes through in order, and how it fails."
 guidance = "Write the steps in the order they happen and put the failure modes in the body, naming what a reader observes at each point it breaks. Distinct from Interface, which is a promise to consumers, from Runbook, which a person follows, and from Module, which owns one boundary rather than a sequence across several."
 
-[types.Flow.fields.entry]
+[types.Flow.fields.x-okfit-entry]
 description = "A path relative to this concept file to the code or config where the sequence starts."
 kind = "path"
 
-[types.Flow.fields.crosses]
+[types.Flow.fields.x-okfit-crosses]
 description = "The Module concepts the sequence passes through, as paths, in the order it reaches them."
 kind = "path"
 
@@ -239,7 +239,7 @@ required = ["resource"]
 description = "A path relative to this concept file to the external thing the fixture stands in for, or to the fixture itself when it lives in this repository."
 kind = "path"
 
-[types.Fixture.fields.runbooks]
+[types.Fixture.fields.x-okfit-runbooks]
 description = "The Runbook concepts that regenerate, refresh, or verify the fixture, as paths."
 kind = "path"
 

@@ -83,10 +83,14 @@ describe("Canonical.contentInput", () => {
 			verified: [{ by: "human:x", at: "2026-01-01T00:00:00Z" }],
 			"x-okfit-integrity": { generated: { body: "0123456789abcdef" } },
 			timestamp: "2026-01-01T00:00:00Z",
-			renders: [{ path: "a.md", body: "0123456789abcdef", body_sha256: "a".repeat(64) }],
+			"x-okfit-renders": [{ path: "a.md", body: "0123456789abcdef", body_sha256: "a".repeat(64) }],
 		};
 		const input = JSON.parse(Result.getOrThrow(Canonical.contentInput(raw, src("type: Publication"))));
-		assert.deepStrictEqual(input.frontmatter, { renders: [{ path: "a.md" }], title: "T", type: "Publication" });
+		assert.deepStrictEqual(input.frontmatter, {
+			"x-okfit-renders": [{ path: "a.md" }],
+			title: "T",
+			type: "Publication",
+		});
 		assert.strictEqual(input.body, "# Title\n\nText.");
 	});
 

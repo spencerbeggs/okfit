@@ -88,7 +88,21 @@ const stripComments = (source: string): string => {
 /** The new key's spelling, in any code position: only `core/src/Integrity.ts` (which builds it from the prefix) owns it. */
 const NEW_INTEGRITY_LITERAL = /x-okfit-integrity/;
 
-const PATTERNS: ReadonlyArray<RegExp> = [INTEGRITY_LITERAL, NEW_INTEGRITY_LITERAL, ...FIELD_PATTERNS];
+/**
+ * A profile field's new spelling in any code position (`x-okfit-kind`, `x-okfit-links-to`): only
+ * `profiles/src/ProfileKeys.ts`, which builds it from the prefix, owns it. Prose that names a key
+ * interpolates `ProfileKeys` instead.
+ */
+const NEW_FIELD_LITERAL = new RegExp(
+	`x-okfit-(?:${[...DISTINCTIVE, ...COMMON].map((name) => name.replaceAll("_", "-")).join("|")})\\b`,
+);
+
+const PATTERNS: ReadonlyArray<RegExp> = [
+	INTEGRITY_LITERAL,
+	NEW_INTEGRITY_LITERAL,
+	NEW_FIELD_LITERAL,
+	...FIELD_PATTERNS,
+];
 
 /** Each pattern's first match per line of `source` with comments removed. */
 const literalsIn = (source: string): ReadonlyArray<string> => hitsIn(source).map((hit) => hit.match);
@@ -186,6 +200,14 @@ describe("okfit's frontmatter keys are spelled in one place per package", () => 
 		expect(literalsIn('const k = "x-okfit-integrity";')).toEqual(["x-okfit-integrity"]);
 		expect(literalsIn("const k = `x-okfit-integrity:\\n`;")).toEqual(["x-okfit-integrity"]);
 		expect(literalsIn("// x-okfit-integrity\nconst k = 1;")).toEqual([]);
+	});
+
+	it("catches a literal x-okfit-<field> in code, kebab case included, not in a comment (positive control)", () => {
+		expect(literalsIn('const k = "x-okfit-kind";')).toEqual(["x-okfit-kind"]);
+		expect(literalsIn("const k = `point x-okfit-links-to at the Surface`;")).toEqual(["x-okfit-links-to"]);
+		expect(literalsIn("const o = { [`x-okfit-renders`]: 1 };")).toEqual(["x-okfit-renders"]);
+		expect(literalsIn("// x-okfit-kind\nconst k = 1;")).toEqual([]);
+		expect(literalsIn("const k = ProfileKeys.kind;")).toEqual([]);
 	});
 
 	it("catches the integrity key line in each way it is rendered", () => {

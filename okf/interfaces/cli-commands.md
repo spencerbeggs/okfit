@@ -2,7 +2,7 @@
 type: Interface
 title: okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 description: The okfit command line's subcommands, their flags, exit codes, and JSON envelopes.
-kind: cli
+x-okfit-kind: cli
 resource: ../../packages/cli/README.md
 status: stable
 generated:

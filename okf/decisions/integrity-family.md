@@ -9,7 +9,7 @@ generated:
   by: okfit/claude-code
   at: 2026-11-24T06:04:04Z
 status: stable
-supersedes: profiles-body-sha256-detects-real-drift.md
+x-okfit-supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
   - id: integrity-ts
     resource: ../../packages/core/src/Integrity.ts

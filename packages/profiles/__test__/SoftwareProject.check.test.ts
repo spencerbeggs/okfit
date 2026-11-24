@@ -26,7 +26,7 @@ interface BadCase {
 
 /** P-37's eight cases, the P-23 positive control, and the both-defects case (decision 8). */
 const BAD_CASES: ReadonlyArray<BadCase> = [
-	{ name: "module-no-kind", lint: [["required-key-missing", "modules/core.md"]], check: [], message: /"kind"/ },
+	{ name: "module-no-kind", lint: [["required-key-missing", "modules/core.md"]], check: [], message: /"x-okfit-kind"/ },
 	{
 		name: "module-kind-unknown",
 		lint: [["field-value-unknown", "modules/core.md"]],
@@ -40,7 +40,12 @@ const BAD_CASES: ReadonlyArray<BadCase> = [
 		check: [],
 		message: /"sources"/,
 	},
-	{ name: "interface-no-kind", lint: [["required-key-missing", "interfaces/cli.md"]], check: [], message: /"kind"/ },
+	{
+		name: "interface-no-kind",
+		lint: [["required-key-missing", "interfaces/cli.md"]],
+		check: [],
+		message: /"x-okfit-kind"/,
+	},
 	{
 		name: "reference-empty-sources",
 		lint: [["required-key-missing", "references/okf-spec.md"]],
@@ -56,6 +61,16 @@ const BAD_CASES: ReadonlyArray<BadCase> = [
 		],
 	},
 	{ name: "project-in-subdir", lint: [], check: [["project-not-at-root", "modules/project.md"]] },
+	{
+		// Positive control for the breaking rename: the pre-x-okfit spellings are unknown extras, so the required keys read as missing.
+		name: "publication-legacy-keys",
+		lint: [
+			["required-key-missing", "publications/readme.md"],
+			["required-key-missing", "publications/readme.md"],
+		],
+		check: [],
+		message: /"x-okfit-(surface|renders)"/,
+	},
 	{ name: "no-project", lint: [], check: [["project-missing", ""]] },
 	{
 		name: "project-multiple-nested",

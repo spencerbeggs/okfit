@@ -2,7 +2,7 @@
 type: Module
 title: Core
 description: The spec-level OKF library with no opinions and no Node-only imports.
-kind: package
+x-okfit-kind: package
 resource: ../../packages/core
 tags: [architecture]
 ---

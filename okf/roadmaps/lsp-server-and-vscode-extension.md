@@ -3,7 +3,7 @@ type: Roadmap
 title: An @okfit/lsp language server and a VS Code extension over the shared engine
 description: "Seven phases that give agents and editors background diagnostics from the engine that already serves the CLI and MCP: a stdio language server first, registered through the Claude Code plugin, then a VS Code extension, then external-reference checks and an exploratory Effect-native transport."
 status: stable
-gate: "@okfit/lsp has shipped with diagnostics, navigation and status code actions; the Claude Code plugin registers it; the VS Code extension is published to the Marketplace and Open VSX; the okfit repository dogfoods both."
+x-okfit-gate: "@okfit/lsp has shipped with diagnostics, navigation and status code actions; the Claude Code plugin registers it; the VS Code extension is published to the Marketplace and Open VSX; the okfit repository dogfoods both."
 stale_after: 2026-12-21T00:00:00Z
 tags:
   - architecture

@@ -1,5 +1,6 @@
 import { INTEGRITY_KEY } from "@okfit/core";
 import type { PublicationEnvelope, SkipReason, SyncResult } from "@okfit/engine";
+import { ProfileKeys } from "@okfit/profiles";
 
 /** Contract §9.2's fixed reason-sentence table, closed over `SkipReason`. */
 const REASON_SENTENCE: Record<SkipReason, string> = {
@@ -10,7 +11,7 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 		"has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent",
 	"generated-unsupported": "generated.at is a shape sync cannot edit; edit it by hand",
 	"integrity-unsupported": `${INTEGRITY_KEY} is a shape sync cannot edit; edit it by hand`,
-	"renders-unsupported": "renders is a shape sync cannot edit (flow style); edit it by hand",
+	"renders-unsupported": `${ProfileKeys.renders} is a shape sync cannot edit (flow style); edit it by hand`,
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
 	"legacy-key-conflict":
 		"carries both the old and the new spelling of an okfit key; keep the new one, move any value you need into it, delete the old one, then run okfit sync again",

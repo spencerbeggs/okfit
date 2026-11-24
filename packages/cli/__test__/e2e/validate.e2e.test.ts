@@ -237,7 +237,7 @@ describe("okfit validate --format json", () => {
 						file: "modules/core.md",
 						code: "required-key-missing",
 						severity: "error",
-						message: 'Required key "kind" is missing',
+						message: 'Required key "x-okfit-kind" is missing',
 						range: { offset: 0, length: 127, line: 0, character: 0 },
 					},
 				],

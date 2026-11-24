@@ -343,7 +343,7 @@ describe("run — publication-drift lint", () => {
 				yield* Effect.promise(() =>
 					writeFile(
 						join(root, "pub.md"),
-						`---\ntype: Publication\nsurface: surface\nrenders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
+						`---\ntype: Publication\nx-okfit-surface: surface\nx-okfit-renders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
 					),
 				);
 				const config: OkfitConfig = {
@@ -383,7 +383,7 @@ describe("run — publication-drift lint", () => {
 				yield* Effect.promise(() =>
 					writeFile(
 						join(root, "pub.md"),
-						`---\ntype: Publication\nsurface: nowhere\nrenders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
+						`---\ntype: Publication\nx-okfit-surface: nowhere\nx-okfit-renders:\n  - path: source\n    body_sha256: "${"0".repeat(64)}"\n---\n\n# Pub\n`,
 					),
 				);
 				const config: OkfitConfig = {

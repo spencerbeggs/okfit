@@ -4,6 +4,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { Toml } from "@effected/toml";
 import { OkfitConfig } from "@okfit/core";
 import { Effect, Schema } from "effect";
+import { ProfileKeys } from "../src/ProfileKeys.js";
 import { softwareProject } from "../src/SoftwareProject.js";
 
 const { config, layout } = softwareProject;
@@ -99,19 +100,23 @@ describe("softwareProject.config", () => {
 				"Surface",
 			]);
 			assert.isFalse("required" in (types.Project ?? {}));
-			assert.deepStrictEqual(types.Module?.required, ["resource", "kind"]);
-			assert.deepStrictEqual(types.Interface?.required, ["kind"]);
+			assert.deepStrictEqual(types.Module?.required, ["resource", ProfileKeys.kind]);
+			assert.deepStrictEqual(types.Interface?.required, [ProfileKeys.kind]);
 			assert.deepStrictEqual(types.Reference?.required, ["sources"]);
 			assert.deepStrictEqual(types.DataModel?.required, ["resource"]);
-			assert.deepStrictEqual(types.Consumer?.required, ["repository"]);
+			assert.deepStrictEqual(types.Consumer?.required, [ProfileKeys.repository]);
 			assert.deepStrictEqual(types.Fixture?.required, ["resource"]);
 			assert.strictEqual(types.Fixture?.fields?.resource?.kind, "path");
-			assert.strictEqual(types.Fixture?.fields?.runbooks?.kind, "path");
-			assert.deepStrictEqual(Object.keys(types.Flow?.fields ?? {}), ["entry", "crosses", "resource"]);
-			for (const name of ["entry", "crosses", "resource"]) {
+			assert.strictEqual(types.Fixture?.fields?.[ProfileKeys.runbooks]?.kind, "path");
+			assert.deepStrictEqual(Object.keys(types.Flow?.fields ?? {}), [
+				ProfileKeys.entry,
+				ProfileKeys.crosses,
+				"resource",
+			]);
+			for (const name of [ProfileKeys.entry, ProfileKeys.crosses, "resource"]) {
 				assert.strictEqual(types.Flow?.fields?.[name]?.kind, "path");
 			}
-			assert.deepStrictEqual(types.Incident?.required, ["occurred"]);
+			assert.deepStrictEqual(types.Incident?.required, [ProfileKeys.occurred]);
 			for (const name of [
 				"Runbook",
 				"Glossary",
@@ -125,7 +130,7 @@ describe("softwareProject.config", () => {
 				assert.isFalse("required" in (types[name] ?? {}), `${name} must not require anything beyond concepts.required`);
 			}
 			assert.strictEqual(types.Decision?.require_verified, true);
-			assert.strictEqual(types.Decision?.fields?.supersedes?.kind, "path");
+			assert.strictEqual(types.Decision?.fields?.[ProfileKeys.supersedes]?.kind, "path");
 			// superseded_by is a spec key core types (R12): the Decision guidance names it, no type declares it
 			const guidance = types.Decision?.guidance ?? "";
 			assert.include(guidance, "superseded_by");
@@ -135,29 +140,46 @@ describe("softwareProject.config", () => {
 				[],
 			);
 			// control: the filter does see a declared field
-			assert.isTrue(Object.values(types).some((type) => type.fields !== undefined && "supersedes" in type.fields));
+			assert.isTrue(
+				Object.values(types).some((type) => type.fields !== undefined && ProfileKeys.supersedes in type.fields),
+			);
 			assert.strictEqual(types.Module?.fields?.resource?.kind, "path");
-			assert.strictEqual(types.Module?.fields?.pins?.kind, "path");
-			assert.isFalse("kind" in (types.Module?.fields?.layer ?? {}), "layer is free text, not an enum or a path");
-			assert.isFalse("values" in (types.Module?.fields?.layer ?? {}), "layer is free text, not an enum or a path");
+			assert.strictEqual(types.Module?.fields?.[ProfileKeys.pins]?.kind, "path");
+			assert.isFalse(
+				"kind" in (types.Module?.fields?.[ProfileKeys.layer] ?? {}),
+				"layer is free text, not an enum or a path",
+			);
+			assert.isFalse(
+				"values" in (types.Module?.fields?.[ProfileKeys.layer] ?? {}),
+				"layer is free text, not an enum or a path",
+			);
 			assert.strictEqual(types.Interface?.fields?.resource?.kind, "path");
 			assert.strictEqual(types.Runbook?.fields?.resource?.kind, "path");
-			assert.strictEqual(types.Limitation?.fields?.bounds?.kind, "path");
+			assert.strictEqual(types.Limitation?.fields?.[ProfileKeys.bounds]?.kind, "path");
 			assert.strictEqual(types.DataModel?.fields?.resource?.kind, "path");
 			assert.strictEqual(types.Gotcha?.fields?.resource?.kind, "path");
-			assert.strictEqual(types.Measurement?.fields?.justifies?.kind, "path");
+			assert.strictEqual(types.Measurement?.fields?.[ProfileKeys.justifies]?.kind, "path");
 			assert.strictEqual(types.Invariant?.fields?.resource?.kind, "path");
-			assert.strictEqual(types.Incident?.fields?.guard?.kind, "path");
-			assert.isFalse("kind" in (types.Incident?.fields?.occurred ?? {}), "occurred is free text, not a path");
-			for (const name of ["repository"]) {
+			assert.strictEqual(types.Incident?.fields?.[ProfileKeys.guard]?.kind, "path");
+			assert.isFalse(
+				"kind" in (types.Incident?.fields?.[ProfileKeys.occurred] ?? {}),
+				"occurred is free text, not a path",
+			);
+			for (const name of [ProfileKeys.repository]) {
 				assert.isFalse("kind" in (types.Consumer?.fields?.[name] ?? {}), `${name} is free text, not a path`);
 			}
-			assert.isFalse("kind" in (types.Roadmap?.fields?.gate ?? {}), "gate is free text, not an enum or a path");
-			assert.isFalse("values" in (types.Roadmap?.fields?.gate ?? {}), "gate is free text, not an enum or a path");
+			assert.isFalse(
+				"kind" in (types.Roadmap?.fields?.[ProfileKeys.gate] ?? {}),
+				"gate is free text, not an enum or a path",
+			);
+			assert.isFalse(
+				"values" in (types.Roadmap?.fields?.[ProfileKeys.gate] ?? {}),
+				"gate is free text, not an enum or a path",
+			);
 			for (const [name, type] of Object.entries(types)) {
 				assert.notDeepEqual(type.required, [], `${name} must not declare an explicit empty required`);
 			}
-			assert.deepStrictEqual(Object.keys(types.Module?.fields?.kind?.values ?? {}), [
+			assert.deepStrictEqual(Object.keys(types.Module?.fields?.[ProfileKeys.kind]?.values ?? {}), [
 				"workspace",
 				"package",
 				"website",
@@ -167,7 +189,7 @@ describe("softwareProject.config", () => {
 				"harness",
 				"config-dependency",
 			]);
-			assert.deepStrictEqual(Object.keys(types.Interface?.fields?.kind?.values ?? {}), [
+			assert.deepStrictEqual(Object.keys(types.Interface?.fields?.[ProfileKeys.kind]?.values ?? {}), [
 				"api",
 				"cli",
 				"config",

@@ -148,7 +148,7 @@ describe("serve", () => {
 				assert.deepStrictEqual(yield* h.drainPublished, []);
 				yield* h.open(
 					"okf/modules/beta.md",
-					"---\ntype: Module\ntitle: Beta\nresource: beta.md\nkind: package\n---\n\n# Beta\n\nSee [nowhere](nowhere.md).\n",
+					"---\ntype: Module\ntitle: Beta\nresource: beta.md\nx-okfit-kind: package\n---\n\n# Beta\n\nSee [nowhere](nowhere.md).\n",
 				);
 				const published = yield* h.drainUntil((p) => p.uri === h.uriOf("okf/modules/beta.md"));
 				assert.ok(published.diagnostics.some((d) => d.code === "broken-links"));
@@ -297,7 +297,7 @@ describe("serve", () => {
 			// Remove the Project concept from the overlay: software-project's "exactly one Project" is bundle-level.
 			yield* h.open(
 				"okf/project.md",
-				"---\ntype: Module\ntitle: Was Project\nresource: project.md\nkind: package\n---\n\n# Was Project\n",
+				"---\ntype: Module\ntitle: Was Project\nresource: project.md\nx-okfit-kind: package\n---\n\n# Was Project\n",
 			);
 			const published = yield* h.drainUntil((p) => p.uri === h.uriOf("okf/index.md"));
 			assert.ok(published.diagnostics.length > 0);

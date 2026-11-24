@@ -4,7 +4,7 @@ title: MCP
 description: The okfit-mcp Model Context Protocol server, exposing six read-only tools and static concept resources over stdio.
 status: stable
 resource: ../../packages/mcp
-kind: package
+x-okfit-kind: package
 generated:
   by: okfit/claude-code
   at: 2026-11-24T05:58:20Z

@@ -4,7 +4,7 @@ title: Plugin
 description: The meta-package a consuming repository installs to get the okfit CLI, okfit-mcp, and okfit-lsp bins on PATH.
 status: stable
 resource: ../../packages/plugin
-kind: package
+x-okfit-kind: package
 generated:
   by: okfit/claude-code
   at: 2026-11-13T16:43:01Z

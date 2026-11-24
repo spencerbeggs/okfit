@@ -3,7 +3,7 @@ type: Module
 title: scratchpad
 description: A committed but never-published pnpm workspace member that lets agents write typed probes fast against the kit's own @okfit packages and the catalog effect prerelease.
 status: stable
-kind: harness
+x-okfit-kind: harness
 resource: ../../scratchpad
 tags:
   - dx

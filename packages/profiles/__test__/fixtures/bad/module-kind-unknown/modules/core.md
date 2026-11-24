@@ -3,7 +3,7 @@ type: Module
 status: stable
 title: Core
 description: A Module whose kind is outside the declared values.
-kind: library
+x-okfit-kind: library
 resource: ../project.md
 ---
 

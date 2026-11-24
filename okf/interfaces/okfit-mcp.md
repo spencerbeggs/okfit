@@ -2,7 +2,7 @@
 type: Interface
 title: okfit-mcp — MCP tool and resource contract
 description: The okfit-mcp server's six read-only tools, its two resource kinds, and the McpToolError union every tool declares.
-kind: mcp
+x-okfit-kind: mcp
 resource: ../../packages/mcp/src
 status: stable
 generated:

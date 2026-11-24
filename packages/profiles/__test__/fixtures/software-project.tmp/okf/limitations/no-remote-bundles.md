@@ -2,7 +2,7 @@
 type: Limitation
 title: Bundles must be local
 description: The CLI cannot load a bundle from a URL or a package.
-bounds: ../interfaces/cli.md
+x-okfit-bounds: ../interfaces/cli.md
 ---
 
 # Bundles must be local

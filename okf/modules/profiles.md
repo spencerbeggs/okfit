@@ -4,7 +4,7 @@ title: Profiles
 description: The opinionated layer over core -- named okfit config profiles plus derivation rules for generated.at and generated.by.
 status: stable
 resource: ../../packages/profiles
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
 generated:

@@ -53,7 +53,7 @@ describe("okfit lint: a lint error", () => {
 			assert.strictEqual(result.exitCode, 1);
 			assert.strictEqual(
 				result.stdout,
-				'modules/core.md:1:1 error required-key-missing Required key "kind" is missing\n',
+				'modules/core.md:1:1 error required-key-missing Required key "x-okfit-kind" is missing\n',
 			);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
@@ -73,7 +73,7 @@ describe("okfit lint: GitHub Actions annotations", () => {
 			assert.strictEqual(result.exitCode, 1);
 			assert.strictEqual(
 				result.stdout,
-				'modules/core.md:1:1 error required-key-missing Required key "kind" is missing\n::error file=okf/modules/core.md,line=1,col=1::required-key-missing Required key "kind" is missing\n',
+				'modules/core.md:1:1 error required-key-missing Required key "x-okfit-kind" is missing\n::error file=okf/modules/core.md,line=1,col=1::required-key-missing Required key "x-okfit-kind" is missing\n',
 			);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
@@ -88,7 +88,10 @@ describe("okfit lint: GitHub Actions annotations", () => {
 				env: { ...sandbox.env, GITHUB_ACTIONS: "true", GITHUB_WORKSPACE: join(sandbox.cwd, "okf", "modules") },
 			});
 
-			assert.include(result.stdout, '::error line=1,col=1::required-key-missing Required key "kind" is missing');
+			assert.include(
+				result.stdout,
+				'::error line=1,col=1::required-key-missing Required key "x-okfit-kind" is missing',
+			);
 			assert.notInclude(result.stdout, "file=");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
@@ -158,7 +161,7 @@ describe("okfit lint --format json", () => {
 						file: "modules/core.md",
 						code: "required-key-missing",
 						severity: "error",
-						message: 'Required key "kind" is missing',
+						message: 'Required key "x-okfit-kind" is missing',
 						range: { offset: 0, length: 127, line: 0, character: 0 },
 					},
 				],

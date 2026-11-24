@@ -2,7 +2,7 @@ import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, Integrity, LoadedBundle, LoadedConcept } from "@okfit/core";
 import { Timestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
-import { Derivation, PUBLICATION_TYPE, ProfileKeys, Trust } from "@okfit/profiles";
+import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import {
@@ -16,7 +16,7 @@ import {
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
 import type { KeyRenamePlan, KeyRenames } from "./legacyKeys.js";
-import { legacyIntegrity, planKeyRenames, recordedBodyForSync } from "./legacyKeys.js";
+import { legacyIntegrity, planKeyRenames, recordedBodyForSync, rendersKeyFor } from "./legacyKeys.js";
 import type { PendingWrite } from "./write.js";
 import { writeAtomic } from "./write.js";
 
@@ -55,7 +55,11 @@ export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;
 export interface GeneratedSyncResult {
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	/** Ids whose legacy `generated.body_sha256` was moved to `integrity.generated.body`; may overlap `written`. */
+	/**
+	 * Ids whose legacy `generated.body_sha256` was moved to `integrity.generated.body`, or whose legacy key
+	 * tokens were renamed. May overlap `written`, and may also appear in `skipped`: a concept sync cannot
+	 * stamp still has its old keys renamed.
+	 */
 	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: GeneratedSkipReason }>;
 }
@@ -70,9 +74,12 @@ const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
  * prefix), `undefined` for an entry with no legacy key. `undefined` overall when
  * there is nothing to migrate.
  */
-const legacyRendersDigests = (concept: LoadedConcept): ReadonlyArray<string | undefined> | undefined => {
-	if (concept.frontmatter.type !== PUBLICATION_TYPE) return undefined;
-	const renders = concept.frontmatter.raw[ProfileKeys.renders];
+const legacyRendersDigests = (
+	concept: LoadedConcept,
+	rendersKey: string | undefined,
+): ReadonlyArray<string | undefined> | undefined => {
+	if (concept.frontmatter.type !== PUBLICATION_TYPE || rendersKey === undefined) return undefined;
+	const renders = concept.frontmatter.raw[rendersKey];
 	if (!Array.isArray(renders)) return undefined;
 	const digests = renders.map((entry: unknown) => {
 		if (typeof entry !== "object" || entry === null) return undefined;
@@ -212,7 +219,8 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// re-stamp `generated.at`, which voids every verification.
 		const matches = recordedBodyForSync(concept, renames) === currentDigest;
 		const hasLegacy = generated?.body_sha256 !== undefined;
-		const legacyRenders = legacyRendersDigests(concept);
+		const rendersKey = rendersKeyFor(concept, renames);
+		const legacyRenders = legacyRendersDigests(concept, rendersKey);
 		const legacyBlock = legacyIntegrity(concept, renames);
 		const rawKeys = concept.frontmatter.raw;
 		const keyCandidate =
@@ -353,7 +361,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		}
 		if (legacy._tag === "line") edits.push(removeLine(legacy));
 		if (legacyRenders !== undefined) {
-			const renderEdits = yield* FrontmatterEdits.rendersDigests(text, legacyRenders).pipe(
+			const renderEdits = yield* FrontmatterEdits.rendersDigests(text, legacyRenders, rendersKey).pipe(
 				Effect.catchTags({ UnsupportedFrontmatterError: () => Effect.succeed(undefined) }),
 				Effect.orDie,
 			);

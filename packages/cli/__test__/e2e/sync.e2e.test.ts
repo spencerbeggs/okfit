@@ -973,8 +973,8 @@ const SURFACE = [
 	"type: Surface",
 	"title: Docs",
 	"description: The docs site.",
-	"kind: site",
-	"audience: users",
+	"x-okfit-kind: site",
+	"x-okfit-audience: users",
 	"resource: ../README.md",
 	"---",
 	"",
@@ -990,8 +990,8 @@ const PUBLICATION = [
 	"title: PR",
 	"description: The page.",
 	"resource: ../README.md",
-	"surface: ../surfaces/docs.md",
-	"renders:",
+	"x-okfit-surface: ../surfaces/docs.md",
+	"x-okfit-renders:",
 	"  - path: ../modules/x.md",
 	"---",
 	"",
@@ -1048,12 +1048,15 @@ describe("okfit sync --publication", () => {
 	it("exits 3 for a malformed renders list (UnsupportedFrontmatterError), writing nothing", async () => {
 		const { sandbox, cwd, env, pubPath } = await seededPublication();
 		try {
-			const malformed = PUBLICATION.replace("renders:\n  - path: ../modules/x.md", "renders: not-a-list");
+			const malformed = PUBLICATION.replace(
+				"x-okfit-renders:\n  - path: ../modules/x.md",
+				"x-okfit-renders: not-a-list",
+			);
 			assert.notStrictEqual(malformed, PUBLICATION);
 			await writeFile(pubPath, malformed, "utf8");
 			const run = await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 3, run.stderr);
-			assert.match(run.stderr, /renders/);
+			assert.match(run.stderr, /x-okfit-renders/);
 			assert.strictEqual(await readFile(pubPath, "utf8"), malformed);
 		} finally {
 			await removeSandbox(sandbox);
@@ -1142,10 +1145,10 @@ describe("okfit sync --publication", () => {
 			await writeFile(configPath, `${config}\n[actors]\nagent = "okfit/claude-code"\n`, "utf8");
 			await withServices(runOkfit(["sync", "--publication", "publications/pr"], { cwd, env }));
 			await commit(cwd, { message: "add publication", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
-			// Only the `renders:` block: the Publication's own `integrity.generated.body` is also `    body:`.
+			// Only the `x-okfit-renders:` block: the Publication's own `integrity.generated.body` is also `    body:`.
 			const rendersOf = (text: string) => {
 				const lines = text.split("\n");
-				const start = lines.indexOf("renders:");
+				const start = lines.indexOf("x-okfit-renders:");
 				const tail = lines.slice(start + 1);
 				const length = tail.findIndex((l) => !l.startsWith(" "));
 				return [lines[start], ...tail.slice(0, length === -1 ? tail.length : length)];

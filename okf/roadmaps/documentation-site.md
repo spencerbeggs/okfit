@@ -3,7 +3,7 @@ type: Roadmap
 title: A documentation site at okfit.dev
 description: "Five phases that take the RSPress site from a bootstrapped workspace to okfit.dev serving filled user docs, per-package pages and a generated API reference: bootstrap, hosting and deploy, user docs, package pages, polish."
 status: draft
-gate: "okfit.dev serves a filled /docs hierarchy, a Getting Started and Advanced page for each package, and every package's generated API reference, built and deployed by CI."
+x-okfit-gate: "okfit.dev serves a filled /docs hierarchy, a Getting Started and Advanced page for each package, and every package's generated API reference, built and deployed by CI."
 stale_after: 2026-12-28T00:00:00Z
 tags:
   - docs

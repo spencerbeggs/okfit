@@ -4,7 +4,7 @@ title: LSP
 description: The okfit-lsp language server, publishing engine diagnostics for a discovered bundle over stdio to Claude Code and any LSP client.
 status: stable
 resource: ../../packages/lsp
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
   - dx

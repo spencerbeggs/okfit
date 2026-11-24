@@ -3,8 +3,8 @@ type: Flow
 status: stable
 title: Config resolution
 description: How a config file is found, merged, and handed to a command.
-entry: ../../src/Config.ts
-crosses: [../modules/core.md]
+x-okfit-entry: ../../src/Config.ts
+x-okfit-crosses: [../modules/core.md]
 resource: ../../src/Config.ts
 tags: [config]
 ---

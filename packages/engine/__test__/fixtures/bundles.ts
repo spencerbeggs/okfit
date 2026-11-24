@@ -37,7 +37,7 @@ const computation = (link: string, attester: string, extra = ""): string =>
 	`---\ntype: Attested Computation\ntitle: Revenue year to date\ndescription: Sums revenue.\nstatus: stable\nruntime: sql\n${extra}attester:\n  resource: ${attester}\n---\n\n` +
 	`# Revenue year to date\n\nSums [revenue](${link}).\n\n## Computation\n\n\`\`\`sql\nSELECT SUM(amount) FROM sales\n\`\`\`\n`;
 
-const WIDGET = (resource: string): string => `---\ntype: Module\ntitle: Widget\ndescription: The widget package.\nstatus: stable\nkind: package\nresource: ${resource}\n---\n\n# Widget\n\nThe widget package.\n`;
+const WIDGET = (resource: string): string => `---\ntype: Module\ntitle: Widget\ndescription: The widget package.\nstatus: stable\nx-okfit-kind: package\nresource: ${resource}\n---\n\n# Widget\n\nThe widget package.\n`;
 
 const CONFIG = '[types.Metric]\n\n[types."Attested Computation"]\n';
 const indexFor = (title: string, entry: string, file: string): string => `# ${title}\n\n* [${entry}](${file})\n`;

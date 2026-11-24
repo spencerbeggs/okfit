@@ -181,7 +181,7 @@ const pub = (renders: string, nl = "\n"): string =>
 		"type: Publication",
 		"resource: page.md",
 		"surface: s",
-		"renders:",
+		"x-okfit-renders:",
 		...renders.split("\n"),
 		"---",
 		"",
@@ -260,10 +260,12 @@ describe("FrontmatterEdits.rendersDigests", () => {
 
 	it.effect("fails typed on flow-style renders", () =>
 		Effect.map(
-			Effect.flip(FrontmatterEdits.rendersDigests("---\ntype: Publication\nrenders: [{path: a.md}]\n---\n", [D1])),
+			Effect.flip(
+				FrontmatterEdits.rendersDigests("---\ntype: Publication\nx-okfit-renders: [{path: a.md}]\n---\n", [D1]),
+			),
 			(error) => {
 				assert.ok(error instanceof UnsupportedFrontmatterError);
-				assert.strictEqual(error.key, "renders");
+				assert.strictEqual(error.key, "x-okfit-renders");
 			},
 		),
 	);
@@ -280,10 +282,12 @@ describe("FrontmatterEdits.rendersDigests", () => {
 	// input cannot reach; invalid YAML surfaces as another typed shape instead.
 	it.effect("fails typed, never crashes, when the frontmatter is not valid YAML", () =>
 		Effect.map(
-			Effect.flip(FrontmatterEdits.rendersDigests("---\ntype: Publication\nrenders: [unclosed\n---\n\nBody.\n", [D1])),
+			Effect.flip(
+				FrontmatterEdits.rendersDigests("---\ntype: Publication\nx-okfit-renders: [unclosed\n---\n\nBody.\n", [D1]),
+			),
 			(error) => {
 				assert.ok(error instanceof UnsupportedFrontmatterError);
-				assert.strictEqual(error.key, "renders");
+				assert.strictEqual(error.key, "x-okfit-renders");
 			},
 		),
 	);
@@ -291,9 +295,19 @@ describe("FrontmatterEdits.rendersDigests", () => {
 	it.effect("fails typed on a document with no frontmatter", () =>
 		Effect.map(Effect.flip(FrontmatterEdits.rendersDigests("no frontmatter\n", [D1])), (error) => {
 			assert.ok(error instanceof UnsupportedFrontmatterError);
-			assert.strictEqual(error.key, "renders");
+			assert.strictEqual(error.key, "x-okfit-renders");
 		}),
 	);
+
+	it.effect("stamps under the legacy spelling when asked, so sync can migrate a file it has not renamed yet", () => {
+		const legacy = "---\ntype: Publication\nrenders:\n  - path: a.md\n    body_sha256: " + "f".repeat(64) + "\n---\n";
+		return Effect.map(FrontmatterEdits.rendersDigests(legacy, [D1], "renders"), (edits) => {
+			const out = MarkdownEdit.applyAll(legacy, edits);
+			assert.include(out, `    body: ${D1}`);
+			assert.notInclude(out, "body_sha256");
+			assert.include(out, "\nrenders:\n");
+		});
+	});
 });
 
 describe("FrontmatterEdits.verifiedWithStatus", () => {

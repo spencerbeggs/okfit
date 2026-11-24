@@ -4,7 +4,7 @@ title: CLI
 description: The okfit command line -- validate, init, context, verify, query, and sync, built on effect/cli and @effected/cli-kit, with audience flags and interactive prompts.
 status: stable
 resource: ../../packages/cli
-kind: package
+x-okfit-kind: package
 tags:
   - architecture
 generated:

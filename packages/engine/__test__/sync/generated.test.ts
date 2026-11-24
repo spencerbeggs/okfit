@@ -19,7 +19,7 @@ import {
 	OkfitConfig,
 } from "@okfit/core";
 import type { BodyProvenance } from "@okfit/profiles";
-import { Derivation, Trust } from "@okfit/profiles";
+import { Derivation, ProfileKeys, Profiles, Publications, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import type { GeneratedProvenance } from "../../src/sync/generated.js";
 import { syncGenerated } from "../../src/sync/generated.js";
@@ -36,6 +36,8 @@ import { ROOT, seedPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
 const RENAMES = keyRenamesFor(OkfitConfig.DEFAULTS);
+/** The renames the real merged config (software-project profile) licenses: the profile fields as well as the integrity key. */
+const FIELD_RENAMES = keyRenamesFor(OkfitConfig.merge(OkfitConfig.DEFAULTS, Profiles.softwareProject.config));
 
 const FIXTURES = join(import.meta.dirname, "..", "fixtures", "sync", "generated");
 
@@ -957,7 +959,8 @@ describe("syncGenerated: integrity and legacy migration", () => {
 		"migrates legacy renders[].body_sha256 of a Publication whose body is unchanged, then is idempotent",
 		() => {
 			const LEGACY = "abcdef0123456789".repeat(4);
-			const renders = (entries: string) => `type: Publication\nresource: page.md\nsurface: s\nrenders:\n${entries}`;
+			const renders = (entries: string) =>
+				`type: Publication\nresource: page.md\nx-okfit-surface: s\nx-okfit-renders:\n${entries}`;
 			const legacyRenders = `  - path: a.md\n    body_sha256: ${LEGACY}\n  - path: b.md\n    body: 1111111111111f11\n    body_sha256: ${LEGACY}\n`;
 			return Effect.gen(function* () {
 				const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-renders-")));
@@ -1292,7 +1295,7 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 			const provenance = withProvenance
 				? new Map([...bundle.concepts.keys()].map((id) => [id, provenanceOf] as const))
 				: new Map();
-			return yield* syncGenerated(bundle, { provenance, renames: RENAMES, dryRun: false });
+			return yield* syncGenerated(bundle, { provenance, renames: FIELD_RENAMES, dryRun: false });
 		});
 	const page = (root: string) => Effect.promise(() => readFile(join(root, "page.md"), "utf8"));
 
@@ -1417,6 +1420,8 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 					assert.deepStrictEqual(result.migrated, ["page"]);
 					const out = yield* page(root);
 					assert.include(out, "x-okfit-integrity:");
+					assert.include(out, "\nx-okfit-surface: s\nx-okfit-renders:\n");
+					assert.notInclude(out, "\nrenders:");
 					assert.notInclude(out, "body_sha256");
 					assert.include(out, "    body: abcdef0123456789\n");
 				}),
@@ -1446,7 +1451,7 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 					const result = yield* run(root);
 					assert.deepStrictEqual(result.written, ["page"]);
 					const out = yield* page(root);
-					assert.include(out, `  at: ${OLD_AT}`.replace(OLD_AT, BOUND_AT) + "\n");
+					assert.include(out, `generated:\n  by: human:ada\n  at: ${BOUND_AT}\n`);
 					assert.notInclude(out, "2026-06-01T08:00:00Z");
 				}),
 			);
@@ -1504,4 +1509,112 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 			);
 		}),
 	);
+
+	it.effect("I-1: an empty legacy block on a concept sync cannot stamp is renamed and skipped", () =>
+		Effect.gen(function* () {
+			for (const empty of ["integrity:\n", "integrity: ~\n"]) {
+				const legacy = head(`${generatedHead}${empty}`);
+				yield* withPage(legacy, (root) =>
+					Effect.gen(function* () {
+						const result = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+						assert.deepStrictEqual(result.migrated, ["page"]);
+						assert.deepStrictEqual(result.written, []);
+						assert.deepStrictEqual(result.skipped, [{ id: "page", reason: "dirty" }]);
+						assert.strictEqual(yield* page(root), legacy.replace("\nintegrity:", "\nx-okfit-integrity:"));
+						const again = yield* run(root, true, { _tag: "uncommitted", reason: "dirty" });
+						assert.deepStrictEqual(again.migrated, []);
+					}),
+				);
+			}
+		}),
+	);
+
+	describe("profile fields", () => {
+		/** A recorded, current body digest, so the concept needs no provenance: only the key tokens can change. */
+		const current = Effect.map(
+			digestOf(""),
+			(digest) => `${generatedHead}x-okfit-integrity:\n  generated:\n    body: ${digest}\n`,
+		);
+		const surface = `type: Surface\n${"kind"}: site\n# a comment\naudience: users\nlinks_to: other.md\nresource: page.md\n`;
+
+		it.effect("a Surface's kind, audience and links_to are renamed, with values and order kept", () =>
+			Effect.gen(function* () {
+				const tail = yield* current;
+				const legacy = head(`${surface.replace("type: Surface\n", "")}${tail}`).replace(
+					"type: Module",
+					"type: Surface",
+				);
+				yield* withPage(legacy, (root) =>
+					Effect.gen(function* () {
+						const result = yield* run(root, false);
+						assert.deepStrictEqual(result.migrated, ["page"]);
+						assert.deepStrictEqual(result.written, []);
+						assert.strictEqual(
+							yield* page(root),
+							head(
+								`${ProfileKeys.kind}: site\n# a comment\n${ProfileKeys.audience}: users\n${ProfileKeys.links_to}: other.md\nresource: page.md\n${tail}`,
+							).replace("type: Module", "type: Surface"),
+						);
+						assert.strictEqual(ProfileKeys.links_to, "x-okfit-links-to");
+						const again = yield* run(root, false);
+						assert.deepStrictEqual(again.migrated, []);
+					}),
+				);
+			}),
+		);
+
+		it.effect("a Module whose project config declares its own kind keeps it (D3)", () =>
+			Effect.gen(function* () {
+				const own = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: { Module: { description: "m", fields: { kind: { description: "my own kind" } } } },
+					extensions: {},
+				});
+				const text = head(`kind: package\n${yield* current}`);
+				yield* withPage(text, (root) =>
+					Effect.gen(function* () {
+						const bundle = yield* Bundle.load({ root });
+						const result = yield* syncGenerated(bundle, {
+							provenance: new Map(),
+							renames: keyRenamesFor(own),
+							dryRun: false,
+						});
+						assert.deepStrictEqual(result.migrated, []);
+						assert.strictEqual(yield* page(root), text);
+					}),
+				);
+			}),
+		);
+
+		it.effect(
+			"a legacy Publication becomes x-okfit-surface/x-okfit-renders, nested keys unchanged, with no drift",
+			() =>
+				Effect.gen(function* () {
+					const source = "---\ntype: Module\n---\n\n# A\n";
+					const sourceDigest = yield* Derivation.bodyDigest(source).pipe(Effect.provide(TestPlatform));
+					const entries = `  - path: a.md\n    body: ${sourceDigest}\n`;
+					const tail = yield* current;
+					const legacy = `---\ntype: Publication\nresource: page.md\nsurface: s\nrenders:\n${entries}${tail}---${BODY}`;
+					yield* withPage(legacy, (root) =>
+						Effect.gen(function* () {
+							yield* Effect.promise(() => writeFile(join(root, "a.md"), source));
+							const result = yield* run(root);
+							assert.deepStrictEqual(result.migrated, ["page"]);
+							assert.strictEqual(
+								yield* page(root),
+								`---\ntype: Publication\nresource: page.md\n${ProfileKeys.surface}: s\n${ProfileKeys.renders}:\n${entries}${tail}---${BODY}`,
+							);
+							const bundle = yield* Bundle.load({ root });
+							const found = yield* Publications.lint(bundle, OkfitConfig.DEFAULTS);
+							assert.notInclude(
+								found.map((d) => d.code),
+								"publication-drift",
+							);
+							assert.isDefined(
+								Publications.rendersOf([...bundle.concepts.values()].find((c) => c.path === "page.md")!),
+							);
+						}),
+					);
+				}),
+		);
+	});
 });

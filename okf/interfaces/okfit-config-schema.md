@@ -2,7 +2,7 @@
 type: Interface
 title: okfit config file schema
 description: The .config/okfit.toml schema, its discovery order, and the defaults every key falls back to when unset.
-kind: config
+x-okfit-kind: config
 resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:

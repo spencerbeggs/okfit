@@ -9,6 +9,7 @@ import {
 	resolveProjectConfig,
 	runMove,
 } from "@okfit/engine";
+import { ProfileKeys } from "@okfit/profiles";
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { rootFlag } from "../internal/root.js";
@@ -104,7 +105,7 @@ export const mvCommand = Command.make(
 ).pipe(
 	Command.withDescription(
 		"Move a concept to a new path and rewrite every reference to it across the bundle (body links, " +
-			"path fields including superseded_by, supersedes, Publication renders, and links in Markdown files that are not concepts). Every rewritten file drifts and needs a human to re-verify it; " +
+			`path fields including superseded_by, ${ProfileKeys.supersedes}, Publication ${ProfileKeys.renders}, and links in Markdown files that are not concepts). Every rewritten file drifts and needs a human to re-verify it; ` +
 			"run okfit sync afterwards to regenerate index.md and the generated stamps.",
 	),
 );
