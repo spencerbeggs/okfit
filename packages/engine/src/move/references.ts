@@ -187,7 +187,7 @@ const locateDestination = (slice: string, url: string, type: "link" | "image" | 
 /**
  * Every rewritable reference in a concept (or other {@link ReferenceSource}), plus the references that could not be located in their file
  * (`unlocatable` as `file: value` lines, `unlocatableRefs` with the decoded value). Body links, images and definitions with a URL; the path-valued frontmatter fields;
- * every field the concept's type declares with `kind = "path"`; and `renders[].path`.
+ * every field the concept's type declares with `kind = "path"`; and `x-okfit-renders[].path`.
  *
  * @public
  */

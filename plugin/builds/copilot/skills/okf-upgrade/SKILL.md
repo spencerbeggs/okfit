@@ -10,7 +10,7 @@ allowed-tools:
 
 # okf-upgrade
 
-Moves a bundle declared at 0.2 or earlier (or at no version) up to OKF v0.3. okfit reports everything that reads differently, fixes the two things that are safe to fix, and lists the rest for you or the human. Never run `okfit verify`, and never write `verified`, `integrity`, `generated.at` or an existing concept's `status`: those are the human's (step 7).
+Moves a bundle declared at 0.2 or earlier (or at no version) up to OKF v0.3. okfit reports everything that reads differently, fixes the two things that are safe to fix, and lists the rest for you or the human. Never run `okfit verify`, and never write `verified`, `x-okfit-integrity`, `generated.at` or an existing concept's `status`: those are the human's (step 7).
 
 ## Changes from v0.2
 
@@ -66,7 +66,7 @@ Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `o
 
 Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, and `Integrity drifted (re-verify with okfit verify): <ids>`. JSON carries `fixes: { applied, refused, drifts, dry_run }`. The fix never writes `verified`, `x-okfit-integrity.verified` or `generated.at`. When a concept's recorded `x-okfit-integrity.generated.body` matched its body before the edit, the fix re-records that digest. Otherwise the concept's body digest no longer matches, and the next `okfit sync` stamps a new `generated.at`, so an earlier human verification stops counting. Review the git diff.
 
-A bundle written by an older okfit keeps its old key names (`integrity`, and the `software-project` fields such as `kind`) until a plain `okfit sync` renames them in place and reports the ids as `migrated`. Until then its concepts read as unverified and a `software-project` bundle reports `required-key-missing`. `okfit sync --staged` only migrates the concepts being committed, so run a plain `okfit sync` once. Afterwards `verified-drift` may appear on concepts that were verified, and only a human re-verifies them. A project whose own config names a built-in field by its bare name keeps that config to update by hand.
+A bundle written by an older okfit keeps its old key names (`integrity`, and the `software-project` fields such as `kind`) until a plain `okfit sync` renames them in place and reports the ids as `migrated`. Until then okfit does not see the old block, so earlier verifications report as no longer current (`verified-drift`) and a `software-project` bundle reports `required-key-missing`. `okfit sync --staged` only migrates the concepts being committed, so run a plain `okfit sync` once. Afterwards `verified-drift` may appear on concepts that were verified, and only a human re-verifies them. A project whose own config names a built-in field by its bare name keeps that config to update by hand.
 
 ## 5. Work through what is left
 

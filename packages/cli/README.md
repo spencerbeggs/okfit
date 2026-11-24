@@ -16,6 +16,7 @@ okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|-
 okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
 okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]
 okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
+okfit sync [--root <dir>] [--config <file>] [--only generated|index|log]... [--since <ref>] [--staged] [--publication <id>] [--dry-run] [--yes] [--format human|json] [--help]
 okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```
 
@@ -363,9 +364,10 @@ tag or for `--verified` together with `--unverified`.
 
 A bundle written by an older okfit keeps its old key names until `okfit sync`
 runs: `integrity` is now `x-okfit-integrity`, and each `software-project` field
-is now `x-okfit-<field>` (`links_to` is `x-okfit-links-to`). Until then its
-concepts read as unverified, and the bundle reports `required-key-missing`
-errors for the prefixed fields. One plain `okfit sync` renames the keys in
+is now `x-okfit-<field>` (`links_to` is `x-okfit-links-to`). Until then okfit does not see the old
+block, so earlier verifications report as no longer current (`verified-drift`),
+and a `software-project` bundle also reports `required-key-missing` errors for
+the prefixed fields. One plain `okfit sync` renames the keys in
 place and reports the ids as `migrated`.
 
 `okfit sync --staged` (the pre-commit hook) only migrates the concepts being
@@ -376,6 +378,11 @@ run that rename restages the whole file, as a stamp does. A project whose own
 config names a built-in field by its bare name (a `required = ["kind"]` list, or
 its own `[types.Module.fields.kind]` table) is left alone for that field: update
 that config by hand.
+
+Sync skips a concept and renames nothing in two cases: `legacy-key-conflict`
+(it holds both the old and the new spelling of a key; remove one by hand and run
+sync again) and `legacy-key-unsupported` (sync cannot rename the key in that
+shape; rename it by hand).
 
 After the move, concepts that carry a profile field and were verified show
 `verified-drift`, and a human re-runs `okfit verify` on them. Renaming

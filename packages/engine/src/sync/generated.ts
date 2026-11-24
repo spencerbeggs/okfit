@@ -70,7 +70,7 @@ const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
 
 /**
  * For a Publication whose `renders` still carries a legacy `body_sha256`: the
- * per-entry `renders[].body` to write (existing `body`, else the legacy 16-hex
+ * per-entry `x-okfit-renders[].body` to write (existing `body`, else the legacy 16-hex
  * prefix), `undefined` for an entry with no legacy key. `undefined` overall when
  * there is nothing to migrate.
  */

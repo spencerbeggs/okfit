@@ -7,7 +7,7 @@ import type { FileSystem } from "effect";
 import { Duration, Effect, Option, Result, Schema, SchemaGetter, SchemaIssue, SchemaTransformation } from "effect";
 import { Actor, ActorPattern } from "./Actor.js";
 import type { DiagnosticSeverity, LintCode } from "./Diagnostic.js";
-import { INTEGRITY_KEY } from "./Integrity.js";
+import { INTEGRITY_KEY, OKFIT_KEY_PREFIX } from "./Integrity.js";
 
 /**
  * Severity a lint rule is configured to. `"info"` extends spec 4.2's
@@ -248,7 +248,7 @@ export const LintTable = Schema.Struct({
 	family_invalid: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "family-invalid",
-			description: 'okfit\'s own integrity family does not match its shape. Default "error".',
+			description: `okfit's own ${INTEGRITY_KEY} family does not match its shape. Default "error".`,
 			default: "error",
 		}),
 	),
@@ -436,16 +436,14 @@ export const LintTable = Schema.Struct({
 	publication_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-drift",
-			description:
-				'A Publication\'s renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".',
+			description: `A Publication's ${OKFIT_KEY_PREFIX}renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default "warn".`,
 			default: "warn",
 		}),
 	),
 	publication_orphan: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-orphan",
-			description:
-				'A Publication\'s surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body } entries. Default "error".',
+			description: `A Publication's ${OKFIT_KEY_PREFIX}surface or ${OKFIT_KEY_PREFIX}renders[].path does not resolve to a concept, or ${OKFIT_KEY_PREFIX}renders is not a list of { path, body } entries. Default "error".`,
 			default: "error",
 		}),
 	),

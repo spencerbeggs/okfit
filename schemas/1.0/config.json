@@ -314,7 +314,7 @@
 						"error"
 					],
 					"title": "family-invalid",
-					"description": "okfit's own integrity family does not match its shape. Default \"error\".",
+					"description": "okfit's own x-okfit-integrity family does not match its shape. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {
@@ -864,7 +864,7 @@
 						"error"
 					],
 					"title": "publication-drift",
-					"description": "A Publication's renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
+					"description": "A Publication's x-okfit-renders[].body is missing or no longer matches the current body of the concept it names, so the published page may restate stale facts. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {
@@ -886,7 +886,7 @@
 						"error"
 					],
 					"title": "publication-orphan",
-					"description": "A Publication's surface or renders[].path does not resolve to a concept, or renders is not a list of { path, body } entries. Default \"error\".",
+					"description": "A Publication's x-okfit-surface or x-okfit-renders[].path does not resolve to a concept, or x-okfit-renders is not a list of { path, body } entries. Default \"error\".",
 					"default": "error",
 					"x-taplo": {
 						"docs": {

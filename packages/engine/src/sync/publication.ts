@@ -44,7 +44,7 @@ export class NotAPublicationError extends Schema.TaggedError<NotAPublicationErro
 }
 
 /**
- * Restamps one Publication's `renders[].body` digests from the current
+ * Restamps one Publication's `x-okfit-renders[].body` digests from the current
  * body of each rendered source concept, writing the Publication file
  * atomically unless `dryRun`. `written` is whether the text changed (so a
  * `dryRun` that would change the file reports `true` without writing).

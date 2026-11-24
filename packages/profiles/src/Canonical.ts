@@ -67,7 +67,7 @@ const stripRendersDigests = (renders: unknown): unknown =>
 
 /**
  * The exact string a content digest hashes, or why there is none: canonical JSON of the authored frontmatter
- * (`raw` minus `Canonical.EXCLUDED_KEYS` and every `renders[].body`) and the
+ * (`raw` minus `Canonical.EXCLUDED_KEYS` and every `x-okfit-renders[].body`) and the
  * normalised body. `raw` is the parsed mapping (YAML 1.2 Core Schema: timestamps are
  * strings), so quoting, flow vs block style, key order and CRLF never change it.
  */

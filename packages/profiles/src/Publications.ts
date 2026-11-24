@@ -83,9 +83,9 @@ const compare = (a: Diagnostic, b: Diagnostic): number =>
 
 /**
  * A profiles-owned lint over Publication concepts: `publication-orphan` when a
- * `surface` or `renders[].path` does not resolve to a bundle concept (or
+ * `x-okfit-surface` or `x-okfit-renders[].path` does not resolve to a bundle concept (or
  * `renders` is malformed), and `publication-drift` when a rendered source's
- * body digest no longer matches the stamped `renders[].body`. Total over
+ * body digest no longer matches the stamped `x-okfit-renders[].body`. Total over
  * severity: returns `[]` before any digest work when both codes are `"off"`.
  *
  * @public

@@ -1,6 +1,6 @@
 import type { Git, GitCommandError, UnknownRefError } from "@effected/git";
 import type { LoadedBundle } from "@okfit/core";
-import { Diagnostic, DiagnosticRange, OkfitConfig, Timestamp } from "@okfit/core";
+import { Diagnostic, DiagnosticRange, INTEGRITY_KEY, OkfitConfig, Timestamp } from "@okfit/core";
 import type { FileSystem, PlatformError } from "effect";
 import { DateTime, Effect, Path, Schema } from "effect";
 import type { Digest } from "effect/crypto";
@@ -110,7 +110,7 @@ export class Provenance {
 				const recordedAs =
 					concept.frontmatter.integrity?.generated?.body === undefined && legacy !== undefined
 						? `generated.body_sha256 is ${legacy}`
-						: `integrity.generated.body is ${recordedDigest}`;
+						: `${INTEGRITY_KEY}.generated.body is ${recordedDigest}`;
 				pushDrift(
 					concept.path,
 					`the body has changed since generated.at was last stamped: ${recordedAs}, the current body hashes to ${currentDigest}`,
