@@ -145,7 +145,7 @@ const unknownStatusRefusal = (
  */
 const notCurrentRefusal = (concept: LoadedConcept, at: DateTime.Utc): VerifyNotCurrentError | undefined => {
 	const generatedAt = concept.frontmatter.generated?.at;
-	return generatedAt === undefined || Derive.isCurrent({ generated: concept.frontmatter.generated }, at)
+	return generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)
 		? undefined
 		: new VerifyNotCurrentError({
 				id: concept.id,

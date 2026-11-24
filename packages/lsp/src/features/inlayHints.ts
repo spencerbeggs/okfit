@@ -48,7 +48,7 @@ const STATUS_PATH: InlayHintPath = ["status"];
 const TYPE_PATH: InlayHintPath = ["type"];
 const GENERATED_AT_PATH: InlayHintPath = ["generated", "at"];
 
-/** `human-reviewed by <by>` for the newest current (OKF 0.3 §5.3) `verified[]` entry whose `by` starts with `human:` (greatest `at`). */
+/** `human-reviewed by <by>` for the newest current (OKF 0.3 §5.3) `human:` `verified[]` entry (greatest `at`). */
 const newestHumanBy = (concept: Concept): string => {
 	const humans = Derive.currentVerifications(concept).filter((entry) => Actor.isHuman(entry.by));
 	const [first, ...rest] = humans;

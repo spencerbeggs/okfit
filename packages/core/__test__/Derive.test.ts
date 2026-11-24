@@ -142,7 +142,7 @@ describe("Derive", () => {
 				Derive.currentVerifications(c).map((entry) => entry.by),
 				["human:a", "process:b"],
 			);
-			assert.deepStrictEqual(Derive.currentVerifications(metric({ verified: [a, early, b] })).length, 3); // control
+			assert.strictEqual(Derive.currentVerifications(metric({ verified: [a, early, b] })).length, 3); // control
 			assert.deepStrictEqual(Derive.currentVerifications(metric({ generated })), []);
 			assert.isTrue(Derive.isCurrent(c, DateTime.makeUnsafe("2026-06-02T00:00:00Z")));
 			assert.isFalse(Derive.isCurrent(c, DateTime.makeUnsafe("2026-06-01T23:59:59Z")));

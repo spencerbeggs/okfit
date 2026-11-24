@@ -1,5 +1,5 @@
 import { EditDistance } from "@effected/source";
-import { DateTime } from "effect";
+import { DateTime, Schema } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
 import { Concept } from "../Concept.js";
@@ -9,9 +9,10 @@ import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
-import type { Verification } from "../Verification.js";
+import { Timestamp } from "../Timestamp.js";
 import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
+import { tierOf } from "./tier.js";
 
 /** Everything one lint rule may read; built once per `Validate.lint` call. */
 export interface LintContext {
@@ -128,8 +129,7 @@ export const requireVerifiedUnmet: LintRule = perConcept("require-verified-unmet
 
 const TIER_RANK = { unverified: 0, "machine-confirmed": 1, "human-reviewed": 2 } as const;
 
-/** `DateTime.formatIso` without a zero millisecond part, the form a verification is written in. */
-const instant = (at: DateTime.Utc): string => DateTime.formatIso(at).replace(".000Z", "Z");
+const instant = Schema.encodeSync(Timestamp);
 
 // OKF 0.3 §5.3 "verified before the last change". Reports one defect once (R32): `require-verified-unmet` still
 // means no entry at all. Fires only when the tier actually fell, naming the newest event that lost its weight.
@@ -140,12 +140,6 @@ export const verifiedBeforeChange: LintRule = perConcept("verified-before-change
 	const status = Derive.status(frontmatter);
 	if (generatedAt === undefined || status === "draft" || status === "deprecated" || status === "unknown") return [];
 	const events = frontmatter.verified ?? [];
-	const tierOf = (entries: ReadonlyArray<Verification>) =>
-		entries.length === 0
-			? "unverified"
-			: entries.some((entry) => Actor.isHuman(entry.by))
-				? "human-reviewed"
-				: "machine-confirmed";
 	const all = tierOf(events);
 	const current = Derive.trustTier(frontmatter);
 	if (TIER_RANK[all] <= TIER_RANK[current]) return [];

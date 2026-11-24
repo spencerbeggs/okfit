@@ -1,12 +1,12 @@
 import { PosixPath } from "@effected/walker";
 import { DateTime, Schema } from "effect";
-import { Actor } from "./Actor.js";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
 import type { Concept } from "./Concept.js";
 import type { ConceptId } from "./ConceptId.js";
 import { isAbsent } from "./internal/conceptDecode.js";
 import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
 import { indexDocument, logEntry } from "./internal/templates.js";
+import { tierOf } from "./internal/tier.js";
 import type { DerivedStatus } from "./Status.js";
 import type { Verification } from "./Verification.js";
 
@@ -119,11 +119,7 @@ export class Derive {
 	 * @public
 	 */
 	static readonly trustTier = (concept: Concept): TrustTier => {
-		const current = Derive.currentVerifications(concept);
-		if (current.length === 0) {
-			return "unverified";
-		}
-		return current.some((entry) => Actor.isHuman(entry.by)) ? "human-reviewed" : "machine-confirmed";
+		return tierOf(Derive.currentVerifications(concept));
 	};
 
 	/**
