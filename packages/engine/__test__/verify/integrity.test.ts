@@ -16,7 +16,7 @@ import {
 	spliceIntegrityGenerated,
 	spliceIntegrityVerified,
 } from "../../src/verify/integrity.js";
-import { documentNewline, stripBom } from "../../src/verify/locate.js";
+import { documentNewline, renameKey, stripBom } from "../../src/verify/locate.js";
 import { countLines, decodeFrontmatter } from "../utils/frontmatter.js";
 
 const DIR = join(import.meta.dirname, "..", "fixtures", "verify", "integrity");
@@ -234,4 +234,43 @@ describe("slot splices follow the parsed block", () => {
 			assert.strictEqual(located.boundBy, "human:ada");
 		}),
 	);
+});
+
+describe("locateIntegrity key options", () => {
+	it.effect("locates a named key and reports its token span", () =>
+		Effect.gen(function* () {
+			const { text } = stripBom(read("replace-both.md"));
+			const located = yield* locateIntegrity(text, { key: "integrity" });
+			if (located._tag !== "replace") throw new Error(located._tag);
+			assert.strictEqual(
+				text.slice(located.keySpan.offset, located.keySpan.offset + located.keySpan.length),
+				"integrity",
+			);
+		}),
+	);
+
+	it.effect("locates the current key with no options while the spellings are equal", () =>
+		Effect.gen(function* () {
+			const { text } = stripBom(read("replace-both.md"));
+			assert.strictEqual((yield* locateIntegrity(text))._tag, "replace");
+		}),
+	);
+
+	it.effect("refuses a legacy block when the current key is absent (D6)", () =>
+		Effect.gen(function* () {
+			const { text } = stripBom(read("replace-both.md"));
+			assert.deepStrictEqual(yield* locateIntegrity(text, { key: "x-okfit-integrity", legacyKey: "integrity" }), {
+				_tag: "unsupported",
+				shape: "legacy-key",
+			});
+		}),
+	);
+
+	it("renameKey keeps a double-quoted token's quotes", () => {
+		const text = '"kind": x\n';
+		assert.strictEqual(
+			MarkdownEdit.applyAll(text, [renameKey({ offset: 0, length: 6 }, "x-okfit-kind", text)]),
+			'"x-okfit-kind": x\n',
+		);
+	});
 });

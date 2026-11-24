@@ -31,6 +31,8 @@ export const GeneratedSkipReason = Schema.Literals([
 	"generated-unsupported",
 	"integrity-unsupported",
 	"renders-unsupported",
+	"legacy-key-conflict",
+	"legacy-key-unsupported",
 ]);
 /** @internal */
 export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;

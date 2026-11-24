@@ -36,6 +36,8 @@ export const SkipReason = Schema.Literals([
 	"renders-unsupported",
 	"log-unparseable",
 	"symlink-escape",
+	"legacy-key-conflict",
+	"legacy-key-unsupported",
 ]);
 /** @public */
 export type SkipReason = typeof SkipReason.Type;

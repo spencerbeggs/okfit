@@ -1,4 +1,4 @@
-import { FrontmatterSource } from "@effected/markdown";
+import { FrontmatterSource, MarkdownEdit } from "@effected/markdown";
 import type { YamlNode, YamlParseError } from "@effected/yaml";
 import { YamlAlias, YamlDocument, YamlMap, YamlScalar, YamlSeq } from "@effected/yaml";
 import { Effect } from "effect";
@@ -93,6 +93,61 @@ export const hasMergeKey = (node: YamlNode): boolean => {
 		return node.items.some((item) => item instanceof YamlMap && hasMergeKey(item));
 	}
 	return false;
+};
+
+/**
+ * The whole-file span of one key token, quotes included: a quoted key's `offset`/`length` cover its
+ * opening and closing quote, as the YAML parser reports them.
+ *
+ * @internal
+ */
+export interface KeySpan {
+	readonly offset: number;
+	readonly length: number;
+}
+
+/**
+ * The one edit that renames a key: it replaces the token's span with `to`, written in the same quote
+ * style the token had in `source` (plain stays plain, `'kind'` becomes `'x-okfit-kind'`). Nothing else
+ * changes: the value, an anchor, a comment and the order stay. `to` must be a plain-safe key.
+ *
+ * @internal
+ */
+export const renameKey = (span: KeySpan, to: string, source: string): MarkdownEdit => {
+	const first = source.charAt(span.offset);
+	const quote = first === "'" || first === '"' ? first : "";
+	return MarkdownEdit.make({ offset: span.offset, length: span.length, content: `${quote}${to}${quote}` });
+};
+
+/**
+ * How a top-level value reads as okfit's legacy `integrity` block (D2). `empty` is null or bare, `block`
+ * and `flow` are mappings whose keys are a subset of `{generated, verified}`, `opaque` is an alias or a
+ * mapping with a `<<` key (it cannot be judged), and `foreign` is anything else, which is someone else's.
+ *
+ * @internal
+ */
+export type LegacyIntegrityShape = "foreign" | "empty" | "block" | "flow" | "opaque";
+
+const LEGACY_SLOTS: ReadonlySet<string> = new Set(["generated", "verified"]);
+
+/** Classify the value of a top-level legacy `integrity` pair. See {@link LegacyIntegrityShape}. @internal */
+export const classifyLegacyIntegrity = (node: YamlNode | null): LegacyIntegrityShape => {
+	if (
+		node === null ||
+		(node instanceof YamlScalar &&
+			node.style === "plain" &&
+			node.value === null &&
+			node.tag === undefined &&
+			node.anchor === undefined)
+	) {
+		return "empty";
+	}
+	if (node instanceof YamlAlias) return "opaque";
+	if (!(node instanceof YamlMap)) return "foreign";
+	if (hasMergeKey(node)) return "opaque";
+	const subset = node.items.every((item) => item.key instanceof YamlScalar && LEGACY_SLOTS.has(String(item.key.value)));
+	if (!subset) return "foreign";
+	return node.style === "flow" ? "flow" : "block";
 };
 
 /** {@link parseTopLevelMapping}'s result: the parsed mapping, or the `unsupported` shape it failed at. @internal */
