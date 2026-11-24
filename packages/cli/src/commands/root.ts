@@ -31,7 +31,7 @@ import { verifyCommand } from "./verify.js";
  * @public
  */
 export const rootCommand = Command.make("okfit", {}).pipe(
-	Command.withDescription("Open Knowledge Format (OKF) v0.2 tooling: validate and scaffold bundles."),
+	Command.withDescription("Open Knowledge Format (OKF) v0.3 tooling: validate and scaffold bundles."),
 	// #217: `--audience <human|agent|ci>`, `--human`, `--agent`, `--ci`, valid
 	// on every subcommand. `CliAudience.run` in `main.ts` resolves them before
 	// core parses; more than one is a usage error (exit 64).

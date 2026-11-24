@@ -152,7 +152,7 @@ export class Derive {
 		return out.sort((a, b) => compare(a.id, b.id));
 	};
 
-	/** Frontmatter `title`, else the file name without `.md` (OKF 0.2 §4.1). */
+	/** Frontmatter `title`, else the file name without `.md` (OKF 0.3 §4.1). */
 	static readonly title = (concept: LoadedConcept): string =>
 		concept.frontmatter.title ?? PosixPath.basename(concept.path).replace(/\.md$/, "");
 

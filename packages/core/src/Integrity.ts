@@ -39,7 +39,7 @@ export class IntegrityVerified extends Schema.Class<IntegrityVerified>("Integrit
 
 /**
  * okfit's own top-level frontmatter family, the only place okfit stores digests
- * (OKF v0.2 section 4.1 extension key). Spec families such as `generated` and
+ * (OKF v0.3 section 4.1 extension key). Spec families such as `generated` and
  * `verified` stay exactly as the spec defines them.
  * @public
  */
