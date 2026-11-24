@@ -89,6 +89,40 @@ describe("keyRenamesFor", () => {
 	});
 });
 
+describe("kebab-case targets", () => {
+	const LINKS: KeyRenames = {
+		integrity: undefined,
+		fields: new Map([["Surface", [{ from: "links_to", to: "x-okfit-links-to" }]]]),
+	};
+	const planLinks = (name: string) =>
+		Effect.gen(function* () {
+			const text = read(name);
+			return { text, plan: yield* planKeyRenames(text, yield* conceptOf(text), LINKS) };
+		});
+
+	it("takes the target from the name mapping, not prefix plus legacy name", () => {
+		const out = keyRenamesFor(config({ Surface: { fields: { "x-okfit-links-to": field } } }), {
+			...ProfileKeys,
+			links_to: "x-okfit-links-to",
+		});
+		assert.deepStrictEqual(out.fields.get("Surface"), [{ from: "links_to", to: "x-okfit-links-to" }]);
+	});
+
+	it.effect("renames links_to to x-okfit-links-to", () =>
+		Effect.gen(function* () {
+			const { text, plan } = yield* planLinks("links-to.md");
+			if (plan._tag !== "edits") throw new Error(plan._tag);
+			assert.strictEqual(MarkdownEdit.applyAll(text, plan.edits), text.replace("links_to:", "x-okfit-links-to:"));
+		}),
+	);
+
+	it.effect("reports links_to beside x-okfit-links-to as a conflict", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual((yield* planLinks("links-to-conflict.md")).plan, { _tag: "conflict", keys: ["links_to"] });
+		}),
+	);
+});
+
 describe("planKeyRenames", () => {
 	it.effect("renames a plain key", () =>
 		Effect.gen(function* () {
