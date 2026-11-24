@@ -108,12 +108,16 @@ export interface EditTarget {
 	readonly binding: { readonly by: string; readonly at: DateTime.Utc; readonly content: string } | undefined;
 	/**
 	 * `generated.at` from the same text, decoded by core's `Generated` (OKF 0.3 5.2): `undefined` when the block is absent,
-	 * malformed, or has no `at`. A verification before it would not be current (5.3), so no verify edit is offered.
+	 * malformed, or has no `at`; with no `generated` at all, a legacy top-level `timestamp` stands in, as core folds it (D-15). A verification before it would not be current (5.3), so no verify edit is offered.
 	 */
 	readonly generated: { readonly by: Actor; readonly at: DateTime.Utc } | undefined;
 	/** The frontmatter block, opening fence through closing fence, as an LSP range over `text`. */
 	readonly frontmatter: Range;
 }
+
+/** OKF 0.3 11.2 rule 1, as core's decode applies it: `null`, an empty string and an empty list read as absent. */
+const isAbsentValue = (value: unknown): boolean =>
+	value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 
 /**
  * The status `Derive.status` derives from a raw frontmatter `status` value: a vocabulary string is itself, an
@@ -178,14 +182,20 @@ export const editTarget = (
 		const bindingBy = field(verifiedBinding, "by");
 		const bindingContent = field(verifiedBinding, "content");
 		const bindingAt = decodeAt(field(verifiedBinding, "at"));
-		const generatedBlock = Schema.decodeUnknownOption(Generated)(field(data, "generated"));
+		const generatedRaw = field(data, "generated");
+		const generatedBlock = Schema.decodeUnknownOption(Generated)(generatedRaw);
 		const generatedAt = Option.isSome(generatedBlock) ? generatedBlock.value.at : undefined;
+		// Core folds a legacy top-level `timestamp` into `generated.at` only when `generated` is absent (D-15); its
+		// decode is internal to `@okfit/core`, so this mirrors that one rule with the public `Generated.LEGACY_BY`.
+		const legacyAt = isAbsentValue(generatedRaw) ? decodeAt(field(data, "timestamp")) : Option.none();
 		return Option.some({
 			handle: owner.value,
 			generated:
 				Option.isSome(generatedBlock) && generatedAt !== undefined
 					? { by: generatedBlock.value.by, at: generatedAt }
-					: undefined,
+					: Option.isSome(legacyAt)
+						? { by: Generated.LEGACY_BY, at: legacyAt.value }
+						: undefined,
 			binding:
 				typeof bindingBy === "string" && typeof bindingContent === "string" && Option.isSome(bindingAt)
 					? { by: bindingBy, at: bindingAt.value, content: bindingContent }

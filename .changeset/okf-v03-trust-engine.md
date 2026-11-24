@@ -10,4 +10,4 @@
 
 ## Features
 
-`sync` now stamps `generated.at` as the earlier of the derived instant and a human verification binding that covers exactly the current content. Content that was verified and then committed keeps its verification current instead of being outdated by the commit time.
+`sync` now stamps `generated.at` as the earlier of the derived instant and a human verification binding that covers exactly the current content. Content that was verified and then committed keeps its verification current instead of being outdated by the commit time. The clamp never moves `generated.at` backwards: when the binding is earlier than the concept's existing `generated.at` (a revert to previously verified content, or a hand-written binding), `sync` stamps the derived instant, and a concept with no `generated.at` is still clamped.

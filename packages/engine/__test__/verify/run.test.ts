@@ -657,6 +657,7 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				);
 				assert.strictEqual(error._tag, "VerifyNotCurrentError");
 				assert.strictEqual((error as VerifyNotCurrentError).generatedAt, "2030-01-01T00:00:00Z");
+				assert.notInclude(error.message, "Nothing was written"); // control: the single-concept wording is unchanged
 			}),
 		),
 	);
@@ -686,6 +687,7 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				);
 				assert.strictEqual(error._tag, "VerifyNotCurrentError");
 				assert.strictEqual((error as VerifyNotCurrentError).id, "decisions/s");
+				assert.include(error.message, "Nothing was written"); // a batch is all or nothing, and says so
 				assert.strictEqual(yield* read(root, "decisions/f.md"), fine);
 				assert.strictEqual(yield* read(root, "decisions/s.md"), stale);
 				const ok = yield* runVerifyBatch({ ...base(root, GENERATED), types: [] }).pipe(Effect.provide(platform));

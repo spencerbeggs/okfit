@@ -183,6 +183,14 @@ describe("VerifyStatusUnknownError", () => {
 });
 
 describe("VerifyNotCurrentError", () => {
+	it("a batch refusal says nothing was written; the single-concept message does not", () => {
+		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2026-09-16T12:00:00Z" };
+		const single = new VerifyNotCurrentError(fields).message;
+		const batch = new VerifyNotCurrentError({ ...fields, batch: true }).message;
+		assert.notInclude(single, "Nothing was written");
+		assert.strictEqual(batch, `${single}. Nothing was written, for this concept or any other in the selection`);
+	});
+
 	it("carries exit code 3 and names both instants and the fix", () => {
 		const error = new VerifyNotCurrentError({
 			id: "metrics/margin",

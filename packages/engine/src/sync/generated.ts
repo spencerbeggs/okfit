@@ -100,6 +100,12 @@ export interface SyncGeneratedOptions {
  * the edit, verify, commit sequence's verification current. Any other case, including content that cannot be hashed,
  * stamps `derived` unchanged.
  *
+ * The clamp applies only when `binding.at` is not earlier than the concept's existing `generated.at`. It exists for
+ * edit, verify, commit, where the verification is at or after the previous stamp (`verify` refuses otherwise). A
+ * binding older than the previous stamp means the content was reverted to something verified earlier, or the binding
+ * was written by hand; the last meaningful change is then the new commit, so `derived` is stamped and `generated.at`
+ * never moves backwards. A concept with no `generated.at` has no floor, and the clamp applies.
+ *
  * Clamping to an earlier instant can make another verification event dated between `binding.at` and the commit
  * instant current; that is what OKF 0.3 5.3 prescribes for content that already existed at `binding.at`.
  *
@@ -116,6 +122,8 @@ const stampInstant = (concept: LoadedConcept, derived: DateTime.Utc) =>
 		});
 		if (binding === undefined) return derived;
 		if (!DateTime.isLessThan(binding.at, derived)) return derived;
+		const previous = frontmatter.generated?.at;
+		if (previous !== undefined && DateTime.isLessThan(binding.at, previous)) return derived;
 		const content = yield* Effect.result(Derivation.contentDigest(frontmatter.raw, concept.document.source));
 		return Result.isSuccess(content) && content.success === binding.content ? binding.at : derived;
 	});

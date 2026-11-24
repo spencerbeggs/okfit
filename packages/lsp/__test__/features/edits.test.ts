@@ -411,6 +411,59 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 		}).pipe(Effect.provide(testPlatform())),
 	);
 
+	it.effect("a legacy top-level `timestamp` reads as generated.at, as core folds it (D-15)", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const LATER = "2026-06-02T00:00:00Z";
+			const bare = disk.replace(/generated:\n {2}by: .*\n {2}at: ".*"\n/, "");
+			const verified = (text: string) =>
+				withBinding(
+					text.replace(/^---\n/, `---\n${entry("human:ada", "2026-06-01T00:00:00Z")}`),
+					"human:ada",
+					"2026-06-01T00:00:00Z",
+				);
+			const legacy = yield* verified(bare.replace(/^---\n/, `---\ntimestamp: "${LATER}"\n`));
+			const real = yield* verified(bare.replace(/^---\n/, `---\ngenerated:\n  by: human:ada\n  at: "${LATER}"\n`));
+			const control = yield* verified(
+				bare.replace(/^---\n/, '---\ngenerated:\n  by: human:ada\n  at: "2026-06-01T00:00:00Z"\n'),
+			);
+			const now = DateTime.makeUnsafe("2026-06-10T00:00:00Z");
+			const early = DateTime.makeUnsafe("2026-06-01T12:00:00Z");
+			const targetOf = (text: string, version: number) =>
+				Effect.gen(function* () {
+					yield* documents.record(path, text, version);
+					return Option.getOrThrow(yield* editTarget(registry, documents, path));
+				});
+			const legacyTarget = yield* targetOf(legacy, 2);
+			assert.strictEqual(
+				legacyTarget.generated === undefined ? "" : DateTime.formatIso(legacyTarget.generated.at),
+				LATER.replace("Z", ".000Z"),
+			);
+			// positive control: a verification at generated.at is AlreadyVerified
+			const controlTarget = yield* targetOf(control, 3);
+			assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(controlTarget, "human:ada", now)), {
+				_tag: "AlreadyVerified",
+				by: "human:ada",
+			});
+			// the legacy timestamp is later than the binding: not AlreadyVerified, and a verify before it is NotCurrent
+			assert.isAbove((yield* verifiedTextEdits(legacyTarget, "human:ada", now)).length, 0);
+			assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(legacyTarget, "human:ada", early)), {
+				_tag: "NotCurrent",
+				generatedAt: LATER,
+			});
+			// a real `generated` block wins over a legacy timestamp, as in core
+			const both = yield* targetOf(control.replace(/^---\n/, `---\ntimestamp: "${LATER}"\n`), 4);
+			assert.strictEqual(both.generated?.by, "human:ada");
+			// control: the same outcomes with a real generated.at
+			const realTarget = yield* targetOf(real, 5);
+			assert.isAbove((yield* verifiedTextEdits(realTarget, "human:ada", now)).length, 0);
+			assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(realTarget, "human:ada", early)), {
+				_tag: "NotCurrent",
+				generatedAt: LATER,
+			});
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
 	it.effect(
 		"order: a status refusal wins over NotCurrent; a draft that is not current fails NotCurrent in the stable path",
 		() =>

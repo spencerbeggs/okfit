@@ -7,14 +7,14 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T06:30:42Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 integrity:
   generated:
-    body: b283a2e7b8d43c7a
+    body: a8636d4a90f99518
   verified:
     by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -64,7 +64,10 @@ the reasons `content-changed`, `unbound`, `entry-superseded`,
 `actor-not-allowed`, `verified-before-change` and `content-unhashable`, through the
 `verified-drift` lint and verify's results and envelope; a bound entry dated
 before the last change is `verified-before-change`, reported by core's lint
-of the same name and not repeated by `verified-drift`. Machine entries
+of the same name and not repeated by `verified-drift`. A body edit committed after a verification now reads as
+`verified-before-change`, not `content-changed`, because `sync` stamps a later
+`generated.at`; `content-changed` therefore covers content that changed while
+`generated.at` is still not after the binding, that is, without a later stamp. Machine entries
 neither bind nor break a binding. Status changes do not void a verification.
 
 Because integrity reads `current` only for a current bound entry, the skip
@@ -75,7 +78,9 @@ before `generated.at`, or a `generated.at` in the future), exit `3`, so it
 never records an entry the next read would discard. `okfit sync` keeps the
 usual edit, verify, commit sequence current by never stamping a
 `generated.at` later than a human verification of exactly the current
-content (see [Every okfit digest lives in one integrity
+content, unless that verification is older than the concept's existing
+`generated.at`, as after a revert, in which case it stamps the commit and the
+stamp never moves backwards (see [Every okfit digest lives in one integrity
 family](integrity-family.md)).
 
 ## Alternatives rejected

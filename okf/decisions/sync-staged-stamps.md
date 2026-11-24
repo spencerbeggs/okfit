@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-24T06:30:42Z
 status: stable
 verified:
   - by: human:spencer
@@ -22,7 +22,7 @@ verified:
     at: 2026-11-23T22:13:15Z
 integrity:
   generated:
-    body: c05db58fd3986677
+    body: 0040cf0d08265219
   verified:
     by: human:spencer
     at: 2026-11-23T22:13:15Z
@@ -47,7 +47,9 @@ for an ordinary run: a file staged today may be committed next week.
 a change to it. It selects only the concepts in the git index, stamps
 `generated.at` with the current instant (truncated to seconds), or the earlier
 `binding.at` when a human verification of exactly the current content is
-bound (see [Every okfit digest lives in one integrity
+bound and `binding.at` is not earlier than the concept's existing
+`generated.at`, so a revert to earlier verified content never moves the stamp
+backwards (see [Every okfit digest lives in one integrity
 family](integrity-family.md)), and
 `integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
 it wrote so the stamp lands in the same commit. It never walks history.

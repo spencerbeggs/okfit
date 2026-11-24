@@ -473,6 +473,7 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 				};
 				const error = yield* Effect.flip(runVerifyIds(args).pipe(Effect.provide(platform)));
 				assert.strictEqual(error._tag, "VerifyNotCurrentError");
+				assert.include(error.message, "Nothing was written"); // an id list is all or nothing, and says so
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/f.md"), "utf8")), fine);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 				// control: at equal to the later generated.at succeeds and changes both files

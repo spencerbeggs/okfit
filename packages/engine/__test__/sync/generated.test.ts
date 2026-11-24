@@ -10,6 +10,7 @@ import {
 	Bundle,
 	Concept,
 	ConceptId,
+	Derive,
 	Generated,
 	Integrity,
 	IntegrityGenerated,
@@ -1046,11 +1047,13 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 			});
 			const fs = yield* FileSystem.FileSystem;
 			const stamped: Record<string, string | undefined> = {};
+			const texts: Record<string, string> = {};
 			for (const name of Object.keys(files)) {
 				const text = yield* fs.readFileString(`${ROOT}/${name}.md`);
+				texts[name] = text;
 				stamped[name] = /generated:\n {2}by: human:ada\n {2}at: (\S+)\n/.exec(text)?.[1];
 			}
-			return { result, stamped };
+			return { result, stamped, texts };
 		}).pipe(
 			Effect.provide(
 				Layer.mergeAll(
@@ -1165,6 +1168,57 @@ describe("syncGenerated: never stamps generated.at after a verification of the s
 				assert.include(afterFirst, `at: ${V}\n`);
 				assert.notInclude(afterFirst, T2_TEXT);
 			}).pipe(Effect.provide(Layer.mergeAll(seedPlatform({ [`${ROOT}/bound.md`]: text }), NodeCrypto.layerDigest)));
+		}),
+	);
+
+	/** The same concept with its existing `generated.at` moved to `at`. */
+	const withGeneratedAt = (text: string, at: string) => text.replace(`at: ${G0}`, `at: ${at}`);
+
+	it.effect("never moves generated.at backwards: a revert to verified content stamps the commit instant", () =>
+		Effect.gen(function* () {
+			// Verified at V (09-16); edited and stamped 10-01; reverted to the verified body and committed 11-01.
+			const REV = "2026-11-01T00:00:00Z";
+			const MID = "2026-10-01T00:00:00Z";
+			const reverted = withGeneratedAt(yield* build("reverted", { verified: [human], binding: human }), MID);
+			const boundary = withGeneratedAt(yield* build("boundary", { verified: [human], binding: human }), V);
+			const files = { reverted, boundary };
+			const { stamped, texts } = yield* run(files, DateTime.makeUnsafe(REV));
+			assert.strictEqual(stamped.reverted, REV); // binding V is earlier than the existing stamp MID: not clamped
+			assert.strictEqual(stamped.boundary, V); // control: binding.at equal to the existing stamp IS clamped
+			// the tier after the revert: the verification is older than the stamp, so it does not count
+			const tierOf = (name: string) =>
+				Effect.gen(function* () {
+					const loaded = yield* Bundle.load({ root: ROOT });
+					const concept = loaded.concepts.get(ConceptId.make(name));
+					if (concept === undefined) return assert.fail(`${name} did not load`);
+					return Derive.trustTier(concept.frontmatter);
+				}).pipe(Effect.provide(seedPlatform({ [`${ROOT}/${name}.md`]: texts[name] ?? "" })));
+			assert.strictEqual(yield* tierOf("reverted"), "unverified");
+			assert.strictEqual(yield* tierOf("boundary"), "human-reviewed"); // control
+		}),
+	);
+
+	it.effect("clamps a concept with no generated block when a binding covers the current content", () =>
+		Effect.gen(function* () {
+			const text = (yield* build("fresh", { verified: [human], binding: human })).replace(
+				`generated:\n  by: human:ada\n  at: ${G0}\n`,
+				"",
+			);
+			const bundleText = { fresh: text };
+			const out = yield* Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: ROOT });
+				const provenance = new Map([...bundle.concepts.keys()].map((id) => [id, committedAt(T2)] as const));
+				yield* syncGenerated(bundle, { provenance, dryRun: false, agent: "human:ada" as Actor });
+				const fs = yield* FileSystem.FileSystem;
+				return yield* fs.readFileString(`${ROOT}/fresh.md`);
+			}).pipe(
+				Effect.provide(
+					Layer.mergeAll(seedPlatform({ [`${ROOT}/fresh.md`]: bundleText.fresh }), NodeCrypto.layerDigest),
+				),
+			);
+			assert.notInclude(text, "generated:"); // precondition: no block before
+			assert.include(out, `at: ${V}\n`);
+			assert.notInclude(out, T2_TEXT);
 		}),
 	);
 

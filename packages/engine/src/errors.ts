@@ -140,10 +140,15 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 	id: Schema.String,
 	at: Schema.String,
 	generatedAt: Schema.String,
+	/** Set when the refusal stopped a batch, an id list or a picker selection, all of which are all-or-nothing. */
+	batch: Schema.optionalKey(Schema.Boolean),
 }) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		return `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or check the clock`;
+		const single = `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or check the clock`;
+		return this.batch === true
+			? `${single}. Nothing was written, for this concept or any other in the selection`
+			: single;
 	}
 }
 

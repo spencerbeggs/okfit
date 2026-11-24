@@ -154,6 +154,22 @@ const notCurrentRefusal = (concept: LoadedConcept, at: DateTime.Utc): VerifyNotC
 			});
 };
 
+/**
+ * A batch, an id list or a picker selection is all or nothing, so a not-current refusal there also says nothing was
+ * written (message only: the refusal and its exit code are unchanged).
+ */
+const inBatch = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+	Effect.mapError(effect, (error) =>
+		error instanceof VerifyNotCurrentError
+			? (new VerifyNotCurrentError({
+					id: error.id,
+					at: error.at,
+					generatedAt: error.generatedAt,
+					batch: true,
+				}) as typeof error)
+			: error,
+	);
+
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
 const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	bundle: LoadedBundle,
@@ -563,7 +579,7 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 		prepared.push({
 			id: concept.id,
 			conceptPath: concept.path,
-			...(yield* prepareVerify(bundle, concept, actor, options.at, undefined)),
+			...(yield* inBatch(prepareVerify(bundle, concept, actor, options.at, undefined))),
 		});
 	}
 
@@ -648,7 +664,7 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 		prepared.push({
 			id,
 			conceptPath: concept.path,
-			...(yield* prepareVerify(bundle, concept, actor, options.at, status, staleAfter)),
+			...(yield* inBatch(prepareVerify(bundle, concept, actor, options.at, status, staleAfter))),
 		});
 	}
 
