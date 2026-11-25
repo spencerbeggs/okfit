@@ -9,7 +9,7 @@ import { StreamMessageReader, StreamMessageWriter, createMessageConnection } fro
 import { URI_OPTIONS } from "../../src/convert/platform.js";
 import type { ListenOutcome, LspTransportShape } from "../../src/protocol/LspTransport.js";
 import { makeReferenceTransport } from "../../src/protocol/reference.js";
-import type { InitializeResult } from "../../src/protocol/types.js";
+import type { ClientCapabilities, InitializeResult } from "../../src/protocol/types.js";
 import type { ServeServices } from "../../src/server.js";
 import { serve } from "../../src/server.js";
 import { copyFixtureProject } from "./fixture.js";
@@ -199,6 +199,8 @@ export interface ServeHarnessOptions {
 	 * identity, say) passes its own layer here instead.
 	 */
 	readonly platform?: Layer.Layer<ServeServices>;
+	/** The client capabilities `initialize` sends; defaults to `{}` (a client that supports nothing optional). */
+	readonly clientCapabilities?: ClientCapabilities;
 }
 
 /** Copies the fixture, builds a transport pair, and forks `serve` with `delay` (10 ms by default) under `options.platform` (`testPlatform()` by default). */
@@ -217,7 +219,7 @@ export const makeServeHarness = (options: ServeHarnessOptions = {}): Effect.Effe
 			const result = yield* request<InitializeResult>(harness.client, "initialize", {
 				processId: null,
 				rootUri: LspUri.fromPath(root, URI_OPTIONS),
-				capabilities: {},
+				capabilities: options.clientCapabilities ?? {},
 				workspaceFolders: [{ uri: LspUri.fromPath(root, URI_OPTIONS), name: "project" }],
 				initializationOptions: {},
 			});

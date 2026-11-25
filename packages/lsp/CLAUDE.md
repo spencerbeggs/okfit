@@ -188,8 +188,9 @@ src/
                        (@internal, not in the barrel), the registry ->
                        {concept, config, projectRoot} lookup inlayHints.ts
                        draws on (see Code actions below)
-    actions.ts      -- registerCodeActions(transport, registry, documents):
-                       textDocument/codeAction (see Code actions below)
+    actions.ts      -- registerCodeActions(transport, registry, documents, options?):
+                       textDocument/codeAction; CodeActionOptions
+                       { disabledSupport? } (see Code actions below)
     commands.ts     -- registerCommands(transport, registry, documents): workspace/
                        executeCommand, RevalidateResult (see Commands below)
     inlayHints.ts   -- registerInlayHints(transport, registry):
@@ -448,6 +449,18 @@ The action set, in order:
 - **Verify action** (kind `okfit.verify`): `Mark verified by <actor>` when
   the actor resolves and `verifiedTextEdits` succeeds (never on a draft or
   deprecated concept, nor one whose `generated.at` is after now).
+- **Disabled verify action** (kind `okfit.verify`, no `edit`, no `command`):
+  only when the client sent `textDocument.codeAction.disabledSupport: true`.
+  `serve` reads it once in `onInitialize` into `capabilityBox` and passes
+  `{ disabledSupport: () => capabilityBox.disabledSupport }` as
+  `registerCodeActions`'s `CodeActionOptions` (`@public`, barrel). With the
+  actor resolved, the `okfit.verify` kind offered and no Re-verify quick fix
+  offered, an unknown status (`UnknownStatusCannotBeVerified`)
+  or a `NotCurrent` failure from `verifiedTextEdits` (stable) or
+  `verifiedStableTextEdits` (draft, the combined title) returns the action
+  with the same title and `disabled.reason` = `describeFailure(failure)`.
+  Any other failure still omits it; without `disabledSupport` the set is
+  exactly the one above.
 
 The status and verify actions are offered only when `params.range`
 intersects the frontmatter block (opening fence through closing fence) or

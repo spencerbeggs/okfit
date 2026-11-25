@@ -1,7 +1,7 @@
 import type { Document } from "@effected/cli-kit";
 import { Doc } from "@effected/cli-kit";
 import { INTEGRITY_KEY } from "@okfit/core";
-import type { VerifyBatchSkipReason } from "@okfit/engine";
+import type { NotCurrentDetail, VerifySkip } from "@okfit/engine";
 /** @public */
 export interface VerifyLines {
 	readonly id: string;
@@ -81,15 +81,40 @@ export interface VerifyBatchLines {
 	readonly at: string;
 	readonly dryRun: boolean;
 	readonly verified: ReadonlyArray<{ readonly id: string; readonly fragment: string }>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: VerifyBatchSkipReason }>;
+	readonly skipped: ReadonlyArray<VerifySkip>;
 }
 
-const skippedLine = (entry: { readonly id: string; readonly reason: string }, input: VerifyBatchLines): string =>
+/**
+ * What to do about a concept a verification at the given time would not count for, by kind: the same step
+ * `okfit verify <id>` names when it refuses that concept alone (#504).
+ *
+ * @public
+ */
+export const notCurrentReason = (detail: NotCurrentDetail): string => {
+	const g = detail.generatedAt;
+	switch (detail.kind) {
+		case "future":
+			return `generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`;
+		case "near-future":
+			return `generated.at ${g} is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after ${g}`;
+		case "blocked":
+			return `generated.at ${g} is later than now, and okfit sync will not re-stamp it, because the verification dated ${detail.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
+		default:
+			return `generated.at ${g} is later than the verification time ${detail.at}, so a verification then would not count; verify it at or after ${g}, or omit --at to verify now`;
+	}
+};
+
+const skippedReason = (entry: VerifySkip, input: VerifyBatchLines): string =>
 	entry.reason === "already-verified"
-		? `skipped ${entry.id}: already verified by ${input.by}`
-		: entry.reason === "not-current"
-			? `skipped ${entry.id}: generated.at is later than ${input.at}, so a verification then would not count`
-			: `skipped ${entry.id}: ${entry.reason}`;
+		? `already verified by ${input.by}`
+		: entry.reason === "unknown-status" && entry.status !== undefined
+			? `status "${entry.status}" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify ${entry.id} --stable or --draft`
+			: entry.reason === "not-current" && entry.notCurrent !== undefined
+				? notCurrentReason(entry.notCurrent)
+				: entry.reason;
+
+const skippedLine = (entry: VerifySkip, input: VerifyBatchLines): string =>
+	`skipped ${entry.id}: ${skippedReason(entry, input)}`;
 
 /**
  * V-11-at-batch-scale (#138): one line per skipped candidate, then one line

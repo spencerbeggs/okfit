@@ -12,6 +12,8 @@ export type {
 	/** @public */
 	ApplyWorkspaceEditResult,
 	/** @public */
+	ClientCapabilities,
+	/** @public */
 	CodeAction,
 	/** @public */
 	CodeActionContext,

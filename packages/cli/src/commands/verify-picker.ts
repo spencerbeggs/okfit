@@ -5,6 +5,7 @@ import type { PickerCandidate } from "@okfit/engine";
 import { loadPickerCandidates, loadPreviews } from "@okfit/engine";
 import type { DateTime } from "effect";
 import { Console, Effect } from "effect";
+import { notCurrentReason } from "../render/verify.js";
 
 /** What the picker decided: attest exactly these ids, and settle drafts when `promote`. */
 export interface PickedConcepts {
@@ -101,6 +102,8 @@ export const pickConcepts = (
 		readonly config: OkfitConfig;
 		/** The verification time; a concept whose `generated.at` is later than it is left out (#470). */
 		readonly at?: DateTime.Utc;
+		/** The CLI's clock, which a left-out row's not-current kind is judged against. */
+		readonly now?: DateTime.Utc;
 	},
 	// Issue #228: `okfit stale --verify` swaps in the stale set, its own empty
 	// line and its own title; bare `verify` passes nothing and is unchanged.
@@ -112,16 +115,15 @@ export const pickConcepts = (
 ) =>
 	Effect.gen(function* () {
 		const { by, candidates, leftOut } = yield* source.load;
-		if (leftOut.length > 0) {
-			yield* Console.log(
-				`left out ${leftOut.length} concept(s) whose generated.at is later than the verification time: ${leftOut.join(", ")}`,
-			);
+		for (const entry of leftOut) {
+			const why = entry.notCurrent === undefined ? entry.reason : notCurrentReason(entry.notCurrent);
+			yield* Console.log(`left out ${entry.id}: ${why}`);
 		}
 		if (candidates.length === 0) {
 			// Rows that exist but were all left out: the source's "nothing to do" wording would be false.
 			yield* Console.log(
 				leftOut.length > 0
-					? "nothing to verify now: every candidate has a generated.at later than the verification time"
+					? "nothing to verify now: every candidate was left out, for the reason on its line above"
 					: source.empty(by),
 			);
 			return undefined;

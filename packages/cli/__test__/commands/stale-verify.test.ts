@@ -125,7 +125,7 @@ describe("reverifyStale", () => {
 						assert.strictEqual(yield* session.mounts, 0);
 						assert.strictEqual(
 							yield* session.stdout,
-							"left out 1 concept(s) whose generated.at is later than the verification time: decisions/old\nnothing to verify now: every candidate has a generated.at later than the verification time\n",
+							"left out decisions/old: generated.at 2026-10-10T00:00:00Z is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again\nnothing to verify now: every candidate was left out, for the reason on its line above\n",
 						);
 					}),
 				),

@@ -235,6 +235,7 @@ export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
 export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (context, severity) => {
 	const globs = context.config.bundle?.non_concepts;
 	if (globs === undefined) return [];
+	const why = (code: string) => (code === "frontmatter-missing" ? "no frontmatter" : "no type");
 	// The config schema rejects an uncompilable glob at load, so the empty branch is unreachable for a decoded config.
 	const patterns = globs.flatMap((glob) => {
 		const compiled = GlobPattern.compileResult(glob);
@@ -251,7 +252,9 @@ export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (contex
 				d.file,
 				"non-concept-unlisted",
 				severity,
-				`${d.file} is not a concept (${d.code === "frontmatter-missing" ? "no frontmatter" : "no type"}) and matches no [bundle] non_concepts glob (${globs.join(", ")}); add frontmatter with a type, move it out of the bundle, or list it in non_concepts`,
+				globs.length === 0
+					? `${d.file} is not a concept (${why(d.code)}) and [bundle] non_concepts is empty, so it allows no non-concept file; add frontmatter with a type, move it out of the bundle, or add a glob that matches it to non_concepts`
+					: `${d.file} is not a concept (${why(d.code)}) and matches no [bundle] non_concepts glob (${globs.join(", ")}); add frontmatter with a type, move it out of the bundle, or list it in non_concepts`,
 				d.range,
 			),
 		);
@@ -293,16 +296,22 @@ export const computationMissing: LintRule = rule("computation-missing", (context
 					node.position.end.offset - node.position.start.offset,
 				),
 		});
+		const legacy = OkfVersion.legacyFallbacks(context.bundle);
 		// Under the 0.2 reading only a depth-1 Computation section counts, so a deeper-only heading is a different defect.
 		const nestedOnly =
-			OkfVersion.legacyFallbacks(context.bundle) &&
-			Option.isSome(heading) &&
-			Option.isNone(concept.document.sectionByHeading("Computation", { depth: 1 }));
+			legacy && Option.isSome(heading) && Option.isNone(concept.document.sectionByHeading("Computation", { depth: 1 }));
 		const message = nestedOnly
 			? "This Attested Computation has no computation: under OKF 0.2 the Computation section must be a top-level heading, and this one is not, so it is not attestable; make it a top-level heading, or declare okf_version 0.3 and put the computation in one fenced block"
 			: Option.isSome(heading)
-				? "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
-				: "This Attested Computation has no computation: it has no Computation section and no computation key (OKF 0.3 §10.3), so it is not attestable";
+				? legacy
+					? "This Attested Computation has no computation: its top-level Computation section is empty, so it is not attestable; write the computation under it, or set computation to a file"
+					: // Under the 0.3 reading a present body is the first fence's code, and here it is blank.
+						Option.isSome(body)
+						? "This Attested Computation has no computation: the first fenced code block in its Computation section is empty (OKF 0.3 §10.3), so it is not attestable; put the computation in that block, or set computation to a file"
+						: "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
+				: legacy
+					? "This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a top-level Computation section that holds the computation, or set computation to a file"
+					: "This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a Computation section with the computation in one fenced block, or set computation to a file";
 		return [diagnostic(concept.path, "computation-missing", severity, message, range)];
 	}),
 );

@@ -1,7 +1,7 @@
 import type { LoadedBundle, LoadedConcept, OkfitConfig, StaleConcept } from "@okfit/core";
-import { Derive } from "@okfit/core";
+import { Derive, Timestamp, generatedAtIsFuture, verificationBlockingRestamp } from "@okfit/core";
 import type { ConceptSignal, IntegrityState } from "@okfit/profiles";
-import { DateTime, Effect } from "effect";
+import { DateTime, Effect, Option, Schema } from "effect";
 import { VerifySelectionError } from "../errors.js";
 
 /**
@@ -17,6 +17,47 @@ import { VerifySelectionError } from "../errors.js";
 export type VerifyBatchSkipReason = "draft" | "deprecated" | "unknown-status" | "already-verified" | "not-current";
 
 /**
+ * Why a verification at `at` would not count for a concept (OKF 0.3 5.3), as encoded timestamps. `kind` compares
+ * `generatedAt` to now when now is known: `"blocked"` (more than the 5-minute tolerance later, and a verification dated
+ * between now and the stamp, `blockedBy`, would start to count if sync re-stamped it), `"future"` (more than the
+ * tolerance later) or `"near-future"` (later, within it); absent when now is unknown or `generatedAt` is not later than
+ * now, so only the verification time is to blame.
+ *
+ * @public
+ */
+export interface NotCurrentDetail {
+	readonly at: string;
+	readonly generatedAt: string;
+	readonly kind?: "blocked" | "future" | "near-future";
+	readonly blockedBy?: string;
+}
+
+/**
+ * One concept a batch, an id list or a picker passed over, and why. A `not-current` skip carries its
+ * {@link NotCurrentDetail}; an `unknown-status` skip carries the raw `status`.
+ *
+ * @public
+ */
+export interface VerifySkip {
+	readonly id: string;
+	readonly reason: VerifyBatchSkipReason;
+	readonly notCurrent?: NotCurrentDetail;
+	/** On an `unknown-status` skip: the raw `status` as written (`Derive.rawStatus`), `""` when it has no text form. */
+	readonly status?: string;
+}
+
+/**
+ * The `unknown-status` skip for a concept, carrying its raw `status`.
+ *
+ * @internal
+ */
+export const unknownStatusSkip = (id: string, concept: LoadedConcept): VerifySkip => ({
+	id,
+	reason: "unknown-status",
+	status: Derive.rawStatus(concept.frontmatter) ?? "",
+});
+
+/**
  * The outcome of {@link selectAttestable}.
  *
  * @public
@@ -24,7 +65,7 @@ export type VerifyBatchSkipReason = "draft" | "deprecated" | "unknown-status" | 
 export interface AttestableSelection {
 	/** In bundle iteration order. */
 	readonly candidates: ReadonlyArray<LoadedConcept>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: VerifyBatchSkipReason }>;
+	readonly skipped: ReadonlyArray<VerifySkip>;
 }
 
 /**
@@ -44,7 +85,49 @@ const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<
  * @public
  */
 export const notCurrentAt = (concept: LoadedConcept, at: DateTime.Utc): boolean =>
-	concept.frontmatter.generated?.at !== undefined && !Derive.isCurrent(concept.frontmatter, at);
+	notCurrentDetail(concept, at) !== undefined;
+
+/**
+ * Why a verification made at `at` would not count for `concept`, or `undefined` when it would (OKF 0.3 5.3, ruling
+ * R33). The one place the rule and its kinds are spelled: the single-id refusal, the id list, the batch and both
+ * pickers all read it. `now`, when known, tells a `generated.at` later than now from one later than only `at`.
+ *
+ * @public
+ */
+export const notCurrentDetail = (
+	concept: LoadedConcept,
+	at: DateTime.Utc,
+	now?: DateTime.Utc,
+): NotCurrentDetail | undefined => {
+	const generatedAt = concept.frontmatter.generated?.at;
+	if (generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)) return undefined;
+	// How far ahead of now the stamp is, when now is known; the engine never claims "later than now" without it.
+	const future = now !== undefined && DateTime.isGreaterThan(generatedAt, now);
+	// A future stamp sync would skip: a verification dated between now and it would start to count if it were lowered.
+	const blockedBy =
+		future && generatedAtIsFuture(generatedAt, now)
+			? Option.getOrUndefined(
+					verificationBlockingRestamp(
+						(concept.frontmatter.verified ?? []).map((entry) => entry.at),
+						generatedAt,
+						now,
+					),
+				)
+			: undefined;
+	const kind = !future
+		? undefined
+		: blockedBy !== undefined
+			? ("blocked" as const)
+			: generatedAtIsFuture(generatedAt, now)
+				? ("future" as const)
+				: ("near-future" as const);
+	return {
+		at: Schema.encodeSync(Timestamp)(at),
+		generatedAt: Schema.encodeSync(Timestamp)(generatedAt),
+		...(kind === undefined ? {} : { kind }),
+		...(blockedBy === undefined ? {} : { blockedBy: Schema.encodeSync(Timestamp)(blockedBy) }),
+	};
+};
 
 /**
  * Issue #138/#143: which concepts of `types` the actor may attest in one
@@ -61,16 +144,16 @@ export const selectAttestable = (
 	types: ReadonlySet<string>,
 	actor: string,
 	signals: ReadonlyMap<string, ConceptSignal>,
-	options: { readonly drifted?: boolean; readonly at?: DateTime.Utc } = {},
+	options: { readonly drifted?: boolean; readonly at?: DateTime.Utc; readonly now?: DateTime.Utc } = {},
 ): AttestableSelection => {
 	const candidates: Array<LoadedConcept> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: VerifyBatchSkipReason }> = [];
+	const skipped: Array<VerifySkip> = [];
 	for (const [id, concept] of bundle.concepts) {
 		const drifted = options.drifted === true && signals.get(id)?.integrity === "drifted";
 		if (!types.has(concept.frontmatter.type) && !drifted) continue;
 		const status = Derive.status(concept.frontmatter);
 		if (status === "unknown") {
-			skipped.push({ id, reason: "unknown-status" });
+			skipped.push(unknownStatusSkip(id, concept));
 			continue;
 		}
 		if (status === "draft" || status === "deprecated") {
@@ -81,8 +164,9 @@ export const selectAttestable = (
 			skipped.push({ id, reason: "already-verified" });
 			continue;
 		}
-		if (options.at !== undefined && notCurrentAt(concept, options.at)) {
-			skipped.push({ id, reason: "not-current" });
+		const notCurrent = options.at === undefined ? undefined : notCurrentDetail(concept, options.at, options.now);
+		if (notCurrent !== undefined) {
+			skipped.push({ id, reason: "not-current", notCurrent });
 			continue;
 		}
 		candidates.push(concept);

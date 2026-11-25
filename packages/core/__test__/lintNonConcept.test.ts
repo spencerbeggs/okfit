@@ -65,6 +65,19 @@ describe("non-concept-unlisted", () => {
 		}),
 	);
 
+	it.effect("an empty non_concepts allows none, and the message says so (#482)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load({ "README.md": "# Readme\n" });
+			const found = Validate.lint(bundle, withGlobs([])).filter((d) => d.code === "non-concept-unlisted");
+			assert.strictEqual(
+				found[0]?.message,
+				"README.md is not a concept (no frontmatter) and [bundle] non_concepts is empty, so it allows no non-concept file; add frontmatter with a type, move it out of the bundle, or add a glob that matches it to non_concepts",
+			);
+			// control: a glob that matches silences it
+			assert.deepStrictEqual(unlisted(bundle, withGlobs(["README.md"])), []);
+		}),
+	);
+
 	it.effect("words the reason by the load diagnostic and keeps type-missing and frontmatter-missing unchanged", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load(SOURCES);

@@ -95,7 +95,8 @@ src/
     sync.ts                       -- humanSync (human half of @okfit/engine's SyncEnvelope)
     query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
     verify.ts                      -- VerifyLines, humanVerify / humanVerifyDoc / humanVerifyBatchDoc (human half
-                                      of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print)
+                                      of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print),
+                                      notCurrentReason (the next step a skip or left-out line names, per kind)
     move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
     stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), humanMalformed, staleSummary
   internal/

@@ -6,7 +6,6 @@ import { Git } from "@effected/git";
 import type { ActorPattern } from "@okfit/core";
 import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { DateTime, Effect, Exit, Layer } from "effect";
-import type { VerifyStatusUnknownError } from "../../src/errors.js";
 import { runVerifyIds } from "../../src/verify/run.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -234,6 +233,18 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 		),
 	);
 
+	it.effect("runVerifyIds with refreshStaleAfter keeps a BOM (stale --verify's path)", () =>
+		withRoot([["decisions/a.md", `\uFEFF${concept(staleLine)}`]], (root) =>
+			Effect.gen(function* () {
+				yield* run(root, ["decisions/a"], true);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "decisions/a.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+				assert.ok(bytes.toString("utf8").includes('stale_after: "2027-01-07T00:00:00Z"\n'));
+			}),
+		),
+	);
+
 	it.effect("updates the actor's existing entry instead of appending a duplicate", () =>
 		withRoot(
 			[
@@ -316,7 +327,7 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 	);
 });
 
-describe("runVerifyIds refuses a status outside the vocabulary (OKF 0.3 5.4)", () => {
+describe("runVerifyIds skips a status outside the vocabulary (OKF 0.3 5.4, #507)", () => {
 	const AT = DateTime.makeUnsafe("2026-10-09T00:00:00Z");
 	const doc = (title: string, extra = ""): string =>
 		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
@@ -358,48 +369,72 @@ describe("runVerifyIds refuses a status outside the vocabulary (OKF 0.3 5.4)", (
 			...extra,
 		}).pipe(Effect.provide(platform));
 	const read = (root: string, file: string) => Effect.promise(() => readFile(join(root, file), "utf8"));
-	const fix = (root: string, file: string, from: string, to: string) =>
-		Effect.promise(async () => {
-			const text = await readFile(join(root, file), "utf8");
-			await writeFile(join(root, file), text.replace(from, to));
-		});
 
-	it.effect("fails the whole call with the good concept untouched; the same call passes once the status is fixed", () =>
+	it.effect("runVerifyIds skips an unknown status and verifies the rest (#507)", () =>
 		withRoot(
 			[
-				["decisions/good.md", doc("Good")],
-				["decisions/archived.md", doc("Archived", "status: archived\n")],
+				["decisions/wip.md", doc("Wip", "status: wip\n")],
+				["decisions/stable.md", doc("Stable")],
 				["decisions/numeric.md", doc("Numeric", "status: 5\n")],
 			],
 			(root) =>
 				Effect.gen(function* () {
-					const before = yield* read(root, "decisions/good.md");
-					for (const [ids, raw] of [
-						[["decisions/good", "decisions/archived"], "archived"],
-						[["decisions/archived", "decisions/good"], "archived"],
-						[["decisions/good", "decisions/numeric"], "5"],
-					] as const) {
-						const error = yield* Effect.flip(run(root, ids));
-						assert.strictEqual(error._tag, "VerifyStatusUnknownError");
-						assert.strictEqual((error as VerifyStatusUnknownError).status, raw);
-						assert.strictEqual(yield* read(root, "decisions/good.md"), before);
-					}
-					// a dry run is refused too
-					const dry = yield* Effect.flip(run(root, ["decisions/archived"], { dryRun: true }));
-					assert.strictEqual(dry._tag, "VerifyStatusUnknownError");
-					// control: with the status fixed, the same call verifies both
-					yield* fix(root, "decisions/archived.md", "status: archived", "status: stable");
-					const ok = yield* run(root, ["decisions/good", "decisions/archived"]);
+					const stableBefore = yield* read(root, "decisions/stable.md");
+					const wipBefore = yield* read(root, "decisions/wip.md");
+					const numericBefore = yield* read(root, "decisions/numeric.md");
+					const result = yield* run(root, ["decisions/wip", "decisions/stable", "decisions/numeric"]);
+					assert.deepStrictEqual(result.skipped, [
+						{ id: "decisions/wip", reason: "unknown-status", status: "wip" },
+						{ id: "decisions/numeric", reason: "unknown-status", status: "5" },
+					]);
 					assert.deepStrictEqual(
-						ok.verified.map((entry) => entry.id),
-						["decisions/good", "decisions/archived"],
+						result.verified.map((entry) => entry.id),
+						["decisions/stable"],
 					);
-					assert.notStrictEqual(yield* read(root, "decisions/good.md"), before);
+					assert.notStrictEqual(yield* read(root, "decisions/stable.md"), stableBefore);
+					assert.strictEqual(yield* read(root, "decisions/wip.md"), wipBefore);
+					assert.strictEqual(yield* read(root, "decisions/numeric.md"), numericBefore);
+					// control: one id alone is still refused through runVerify's path, not here (the CLI routes it)
 				}),
 		),
 	);
 
-	it.effect("promote does not rescue an unknown status; it still promotes a draft beside it once fixed", () =>
+	it.effect("an id that is both unknown-status and not current is skipped as unknown-status", () =>
+		withRoot(
+			[["decisions/both.md", doc("Both", "status: wip\ngenerated:\n  by: process:sync\n  at: 2026-10-09T00:00:01Z\n")]],
+			(root) =>
+				Effect.gen(function* () {
+					const before = yield* read(root, "decisions/both.md");
+					const result = yield* run(root, ["decisions/both"]);
+					assert.deepStrictEqual(result.skipped, [{ id: "decisions/both", reason: "unknown-status", status: "wip" }]);
+					assert.strictEqual(yield* read(root, "decisions/both.md"), before);
+				}),
+		),
+	);
+
+	it.effect("every id unknown: nothing is written and the call succeeds, under promote and refreshStaleAfter too", () =>
+		withRoot(
+			[
+				["decisions/a.md", doc("A", `status: archived\n${staleLine}`)],
+				["decisions/b.md", doc("B", "status: wip\n")],
+			],
+			(root) =>
+				Effect.gen(function* () {
+					const before = [yield* read(root, "decisions/a.md"), yield* read(root, "decisions/b.md")];
+					for (const extra of [{}, { promote: true }, { refreshStaleAfter: true }]) {
+						const result = yield* run(root, ["decisions/b", "decisions/a"], extra);
+						assert.deepStrictEqual(result.verified, []);
+						assert.deepStrictEqual(
+							result.skipped.map((entry) => entry.id),
+							["decisions/b", "decisions/a"],
+						);
+					}
+					assert.deepStrictEqual([yield* read(root, "decisions/a.md"), yield* read(root, "decisions/b.md")], before);
+				}),
+		),
+	);
+
+	it.effect("promote does not rescue an unknown status; it still promotes a draft beside it", () =>
 		withRoot(
 			[
 				["decisions/draft.md", doc("Draft", "status: draft\n")],
@@ -407,21 +442,18 @@ describe("runVerifyIds refuses a status outside the vocabulary (OKF 0.3 5.4)", (
 			],
 			(root) =>
 				Effect.gen(function* () {
-					const draftBefore = yield* read(root, "decisions/draft.md");
 					const archivedBefore = yield* read(root, "decisions/archived.md");
-					const error = yield* Effect.flip(run(root, ["decisions/draft", "decisions/archived"], { promote: true }));
-					assert.strictEqual(error._tag, "VerifyStatusUnknownError");
-					assert.strictEqual(yield* read(root, "decisions/draft.md"), draftBefore);
-					assert.strictEqual(yield* read(root, "decisions/archived.md"), archivedBefore);
-					yield* fix(root, "decisions/archived.md", "status: archived", "status: deprecated");
-					yield* run(root, ["decisions/draft", "decisions/archived"], { promote: true });
+					const result = yield* run(root, ["decisions/draft", "decisions/archived"], { promote: true });
+					assert.deepStrictEqual(result.skipped, [
+						{ id: "decisions/archived", reason: "unknown-status", status: "archived" },
+					]);
 					assert.include(yield* read(root, "decisions/draft.md"), "status: stable\n");
-					assert.include(yield* read(root, "decisions/archived.md"), "status: deprecated\n");
+					assert.strictEqual(yield* read(root, "decisions/archived.md"), archivedBefore);
 				}),
 		),
 	);
 
-	it.effect("refreshStaleAfter on an unknown status is refused and rolls nothing forward; fixed, it rolls", () =>
+	it.effect("refreshStaleAfter skips an unknown status and rolls only the verified one", () =>
 		withRoot(
 			[
 				["decisions/ok.md", doc("Ok", staleLine)],
@@ -429,17 +461,10 @@ describe("runVerifyIds refuses a status outside the vocabulary (OKF 0.3 5.4)", (
 			],
 			(root) =>
 				Effect.gen(function* () {
-					const okBefore = yield* read(root, "decisions/ok.md");
 					const archivedBefore = yield* read(root, "decisions/archived.md");
-					const error = yield* Effect.flip(
-						run(root, ["decisions/ok", "decisions/archived"], { refreshStaleAfter: true }),
-					);
-					assert.strictEqual(error._tag, "VerifyStatusUnknownError");
-					assert.strictEqual(yield* read(root, "decisions/ok.md"), okBefore);
-					assert.strictEqual(yield* read(root, "decisions/archived.md"), archivedBefore);
-					yield* fix(root, "decisions/archived.md", "status: archived", "status: stable");
 					yield* run(root, ["decisions/ok", "decisions/archived"], { refreshStaleAfter: true });
-					assert.include(yield* read(root, "decisions/archived.md"), 'stale_after: "2027-01-07T00:00:00Z"\n');
+					assert.include(yield* read(root, "decisions/ok.md"), 'stale_after: "2027-01-07T00:00:00Z"\n');
+					assert.strictEqual(yield* read(root, "decisions/archived.md"), archivedBefore);
 				}),
 		),
 	);
@@ -478,7 +503,13 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 					result.verified.map((entry) => entry.id),
 					["decisions/f"],
 				);
-				assert.deepStrictEqual(result.skipped, [{ id: "decisions/l", reason: "not-current" }]);
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/l",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-16T12:00:01Z" },
+					},
+				]);
 				assert.notStrictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/f.md"), "utf8")), fine);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 				// control: at equal to the later generated.at verifies both, so the skip was the not-current rule
@@ -513,8 +544,16 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 				}).pipe(Effect.provide(platform));
 				assert.deepStrictEqual(result.verified, []);
 				assert.deepStrictEqual(result.skipped, [
-					{ id: "decisions/l", reason: "not-current" },
-					{ id: "decisions/m", reason: "not-current" },
+					{
+						id: "decisions/l",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-16T12:00:01Z" },
+					},
+					{
+						id: "decisions/m",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-17T00:00:00Z" },
+					},
 				]);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/m.md"), "utf8")), later);
@@ -555,33 +594,6 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 		}),
 	);
 
-	it.effect("an unknown status in an id list still fails the whole list, even beside a not-current id", () =>
-		Effect.gen(function* () {
-			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
-			try {
-				yield* Effect.promise(() => mkdir(join(root, "decisions")));
-				const late = doc("L", "generated:\n  by: process:sync\n  at: 2026-09-16T12:00:01Z\n");
-				const odd = doc("O", "status: bogus\n");
-				yield* Effect.promise(() => writeFile(join(root, "decisions/l.md"), late));
-				yield* Effect.promise(() => writeFile(join(root, "decisions/o.md"), odd));
-				const error = yield* Effect.flip(
-					runVerifyIds({
-						bundleRoot: root,
-						projectRoot: root,
-						config,
-						at: AT,
-						dryRun: false,
-						ids: ["decisions/l", "decisions/o"],
-					}).pipe(Effect.provide(platform)),
-				);
-				assert.strictEqual(error._tag, "VerifyStatusUnknownError");
-				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
-			} finally {
-				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
-			}
-		}),
-	);
-
 	it.effect("stale --verify (refreshStaleAfter) skips a not-current id the same way", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
@@ -598,8 +610,50 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 					ids: ["decisions/l"],
 					refreshStaleAfter: true,
 				}).pipe(Effect.provide(platform));
-				assert.deepStrictEqual(result.skipped, [{ id: "decisions/l", reason: "not-current" }]);
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/l",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-17T00:00:00Z" },
+					},
+				]);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("each not-current skip carries its detail, with the kind when now is given (#504)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-detail-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const stamp = (at: string) => doc("T", `generated:\n  by: process:sync\n  at: ${at}\n`);
+				yield* Effect.promise(() => writeFile(join(root, "decisions/far.md"), stamp("2027-09-16T12:00:00Z")));
+				yield* Effect.promise(() => writeFile(join(root, "decisions/near.md"), stamp("2026-09-16T12:02:00Z")));
+				const args = {
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					now: AT,
+					dryRun: true,
+					ids: ["decisions/far", "decisions/near"],
+				};
+				const result = yield* runVerifyIds(args).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/far",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2027-09-16T12:00:00Z", kind: "future" },
+					},
+					{
+						id: "decisions/near",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-16T12:02:00Z", kind: "near-future" },
+					},
+				]);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}

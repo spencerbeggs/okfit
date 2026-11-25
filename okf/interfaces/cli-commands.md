@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T05:03:51Z
+  at: 2026-11-25T16:52:41Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 437e7dab81fa2d50
+    body: e2541177696d5844
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -203,10 +203,10 @@ content }` (see [integrity frontmatter](integrity-frontmatter.md)). A concept st
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
-instant, but never one before the concept's `generated.at`: OKF v0.3 §5.3
+instant, but never one more than five minutes later than now (exactly five minutes is accepted): that is a `VerifySelectionError`, exit `64`, raised before anything is loaded for a write and before any picker opens, with `--dry-run` and in `--format json` too, while a malformed `--at` stays exit `3`. Nor one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
-skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. Both pickers leave such a concept out and print one `left out <n> concept(s) ...` line, and when every row is left out they print `nothing to verify now: every candidate has a generated.at later than the verification time`. `--dry-run` prints what would be written and writes nothing.
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
@@ -218,7 +218,7 @@ unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, and an explicit id list that holds one fails whole and writes nothing for any id, while an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
+`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, while an explicit id list of two or more or an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest, printing `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`; a skipped concept is never written, and a list of only such concepts writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
 set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
@@ -477,9 +477,19 @@ bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's 
 outbound relative links are recomputed, including angle-bracketed body links whose
 path holds a space.
 
-Every file whose text changes drifts by the ordinary rule: `mv` never writes
-`verified` or `x-okfit-integrity`, and the plan lists the concepts whose current human
-verification it voids. `--dry-run` prints the plan and writes nothing. `mv` never
+A rewritten concept that a human had verified drifts by the ordinary rule: `mv` never writes
+`verified`, `x-okfit-integrity.verified` or `generated.at`, and the plan lists the concepts whose current human
+verification it voids. `mv` keeps a file's leading UTF-8 byte-order mark, and for a
+concept whose links it rewrites it re-records `x-okfit-integrity.generated.body` only when that
+digest matched the body before the move, so the next `sync` keeps `generated.at`. A concept whose
+digest was already stale, has no recorded `x-okfit-integrity.generated.body` (one that records only
+`generated.body_sha256` included) or is still on okfit's old key names (a legacy `integrity:` block)
+is re-linked but not re-recorded, and the next `sync` then re-stamps its `generated.at`. A concept
+that carries both key spellings, has an old okfit key that `sync` cannot rename in place, or has an
+integrity block in a layout `mv` will not edit, is not re-recorded either, and `sync` reports it as
+skipped (`legacy-key-conflict`, `legacy-key-unsupported`, `integrity-unsupported`) instead of
+re-stamping it. A concept whose `x-okfit-integrity` block has such a layout, and whose recorded digest
+matched before the move, is listed in the plan's `drifts`, even if no human had verified it. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,
 `pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside
@@ -496,8 +506,8 @@ frontmatter with no `type`, such as a `README.md`) does not block a move: its bo
 links, and any path fields of a typeless frontmatter block, are rewritten like a
 concept's, and it is listed in `edits` only when it changes. `mv` rewrites
 `resource`, `sources[].resource`, `computation`, `executor.resource`,
-`attester.resource` and `superseded_by`. A rewritten file loses a leading UTF-8
-byte-order mark; that is a known gap. Why files are named for topics:
+`attester.resource` and `superseded_by`. A rewritten file keeps the leading UTF-8
+byte-order mark it had and never gains one. Why files are named for topics:
 [concept files are named for their topic](../decisions/topical-concept-names.md).
 
 ## Config discovery

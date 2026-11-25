@@ -8,6 +8,7 @@
 export { SEVERITY, sourceTextOf, toLspDiagnostic } from "./convert/diagnostic.js";
 export { toLspLocation, toLspRange } from "./convert/range.js";
 export { LspError } from "./errors.js";
+export type { CodeActionOptions } from "./features/actions.js";
 export { registerCodeActions } from "./features/actions.js";
 export type { RevalidateResult } from "./features/commands.js";
 export { registerCommands } from "./features/commands.js";

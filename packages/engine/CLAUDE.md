@@ -17,6 +17,7 @@ src/
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
                              VerifyNotCurrentError (exit 3: a verification dated before generated.at, OKF 0.3 5.3, R33),
+                             VerifySelectionError (exit 64; reason `at-future`: an `--at` more than 5 minutes later than now),
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
@@ -37,6 +38,9 @@ src/
                                MarkdownEdits for a concept's top-level `status` scalar and its
                                `verified` list, whole-file offsets into the source as passed (BOM
                                included), over the verify/locate.ts and verify/splice.ts machinery
+    bodyDigest.ts           -- rerecordBodyDigest (internal): re-record `x-okfit-integrity.generated.body` after a
+                               writer changed the body, only when it matched the text before; an integrity block it
+                               cannot edit is `unrecordable`, never forged
   external/
     ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
                                  (phase 7 adds layerHttp)
@@ -80,21 +84,26 @@ src/
                                 frontmatter; x-okfit-renders[].path) and rewrite one keeping its spelling (pure)
     run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing; also scans
                                 and rewrites links in `.md` files that are not concepts (no frontmatter or no
-                                `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter)
+                                `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter); keeps a
+                                file's BOM and, when a concept's recorded body digest matched before the move,
+                                re-records it (so `sync` keeps `generated.at`); a stale, absent or old-key-name
+                                digest is not re-recorded (`sync` then re-stamps it, or reports a concept it cannot edit)
     sources.ts               -- MarkdownSources, readMarkdownSources: the `.md` files that are not loaded concepts,
                                 parsed for scanning (`reserved: true` adds each index.md and log.md with `raw: {}`),
                                 plus the ones that cannot be read; shared by `okfit mv` and the migration report/fix
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
-    select.ts                -- VerifyBatchSkipReason, AttestableSelection, notCurrentAt, selectAttestable,
+    select.ts                -- VerifyBatchSkipReason, NotCurrentDetail, VerifySkip, AttestableSelection, notCurrentAt, notCurrentDetail, selectAttestable,
                                  PickerCandidate, selectPickerCandidates (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
                                  (pure, never a YAML serialiser)
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically; also
                                   runVerifyBatch, runVerifyIds (explicit ids, optional promote),
-                                  loadPickerCandidates, loadStaleCandidates (both also return `leftOut`)
+                                  futureAtRefusal (pure; `runVerify`, `runVerifyBatch` and `runVerifyIds` call it first when
+                                  `now` is set, the CLI right after decoding `--at`),
+                                  loadPickerCandidates, loadStaleCandidates (both also return `leftOut`, a `VerifySkip` per concept)
                                   and loadPreviews (the picker's per-drifted-row changeSince)
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
@@ -102,8 +111,9 @@ src/
                                   (`kind` is `blocked` beyond the 5-minute tolerance when a verification dated between now and the stamp (`blockedBy`) would count
                                   if sync re-stamped it, so sync skips it; else `future` beyond the tolerance, `near-future` within it, absent
                                   when `now` is unknown or `generated.at` is not later than `now`, so only the verification time is early) and writes nothing; a batch, an id list and both
-                                  pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
-                                  OKF 0.3 5.3, R33)
+                                  pickers instead skip such a concept (`not-current`, carrying `notCurrentDetail`) and verify the rest (#470;
+                                  OKF 0.3 5.3, R33); `runVerifyIds` also skips an unknown status (`unknown-status`, with the raw `status`, checked before
+                                  `not-current`) and verifies the rest instead of failing (#507)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
                                   min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human
@@ -118,7 +128,7 @@ src/
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
-    write.ts                     -- writeAtomic
+    write.ts                     -- writeAtomic, bomOf (the BOM a file carries, for writers that edit loader-read text)
     run.ts                        -- SkipReason, SyncMode/Options/Result, runSync
   init/
     scaffold.ts                   -- CONFIG_RELATIVE_PATH, ScaffoldOptions, ScaffoldFile,

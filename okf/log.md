@@ -19,6 +19,7 @@
 * Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
 * Updated okfit's own frontmatter keys carry the x-okfit- prefix
 * Updated stale --verify rolls stale_after forward, and plain verify never does
+* Updated An unknown status is not current knowledge
 
 ## 2026-11-24
 

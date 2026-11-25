@@ -96,6 +96,18 @@ describe("migrationFindings", () => {
 		}),
 	);
 
+	it.effect("an unclosed root index frontmatter carries the version fix (#482)", () =>
+		Effect.gen(function* () {
+			const { found } = yield* findingsOf({ ...V02_PROJECT, "okf/index.md": "---\ntitle: x\n\n# X\n" });
+			const version = found.filter((f) => f.code === "okf-version-undeclared");
+			assert.deepStrictEqual(summarize(version), [["index.md", "okf-version-undeclared", "okf-version", null]]);
+			// control: no root index at all offers no fix (R42)
+			const { "okf/index.md": _index, ...noIndex } = V02_PROJECT;
+			const control = (yield* findingsOf(noIndex)).found.find((f) => f.code === "okf-version-undeclared");
+			assert.strictEqual(control?.fix, undefined);
+		}),
+	);
+
 	it.effect("a bundle with no root index yields okf-version-undeclared with no fix (R42)", () =>
 		Effect.gen(function* () {
 			const { "okf/index.md": _index, ...noIndex } = V02_PROJECT;

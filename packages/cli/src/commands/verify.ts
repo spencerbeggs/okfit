@@ -9,6 +9,7 @@ import {
 	VerifyBatchEnvelope,
 	VerifyEnvelope,
 	VerifySelectionError,
+	futureAtRefusal,
 	jsonError,
 	provideConfig,
 	resolveProjectConfig,
@@ -84,7 +85,7 @@ const configFlag = Flag.File("config").pipe(
 const atFlag = Flag.String("at").pipe(
 	Flag.optional,
 	Flag.withDescription(
-		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; must not be earlier than the concept's generated.at (OKF 0.3 5.3), which is refused",
+		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; must not be more than 5 minutes later than now, nor earlier than the concept's generated.at (OKF 0.3 5.3); either is refused",
 	),
 );
 
@@ -242,6 +243,12 @@ export const verifyCommand = Command.make(
 				const at = Option.isNone(input.at)
 					? DateTime.startOf(now, "second")
 					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
+				// An --at more than five minutes later than now is a usage error (#503): refused before anything is
+				// loaded for a write and before any picker mounts. The default (now) is never ahead of itself.
+				if (Option.isSome(input.at)) {
+					const future = futureAtRefusal(at, now);
+					if (future !== undefined) return yield* future;
+				}
 
 				const status = input.stable ? "stable" : input.draft ? "draft" : undefined;
 
@@ -257,6 +264,7 @@ export const verifyCommand = Command.make(
 						projectRoot: resolved.projectRoot,
 						config: resolved.config,
 						at,
+						now,
 					}).pipe(
 						Effect.catchTag("NotInteractive", () => Effect.fail(new VerifySelectionError({ reason: "no-selection" }))),
 					);

@@ -8,7 +8,7 @@ runPty([], {
 	// `-e` keeps node alive forever; the bin path after it is only an argv entry.
 	nodeArgs: ["-e", "setInterval(() => {}, 1000)"],
 	steps: [{ waitFor: "text that never appears", send: "x" }],
-	timeoutMs: 120_000,
+	startupTimeoutMs: 120_000,
 	onSpawn: (pid) => console.log(`PGID:${pid}`),
 }).catch(() => {
 	// unreachable in the test: the driver is killed first

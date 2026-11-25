@@ -7,6 +7,7 @@ import {
 	humanVerifyBatch,
 	humanVerifyBatchDoc,
 	humanVerifyDoc,
+	notCurrentReason,
 } from "../../src/render/verify.js";
 
 describe("humanVerify", () => {
@@ -122,6 +123,20 @@ describe("humanVerifyBatch", () => {
 			"    - by: human:ada",
 			"      at: 2026-09-16T12:00:00Z",
 			"would verify 1, skipped 1 (dry run, nothing written)",
+		]);
+	});
+
+	it("renders an unknown-status skip with the step that works (#507)", () => {
+		const lines = humanVerifyBatch({
+			by: "human:ada",
+			at: "2026-09-16T12:00:00Z",
+			dryRun: false,
+			verified: [],
+			skipped: [{ id: "decisions/wip", reason: "unknown-status", status: "wip" }],
+		});
+		assert.deepStrictEqual(lines, [
+			'skipped decisions/wip: status "wip" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify decisions/wip --stable or --draft',
+			"verified 0, skipped 1",
 		]);
 	});
 
@@ -274,5 +289,42 @@ describe("humanRevoke", () => {
 			Render.contextOf({ audience: "human", width: 80 }),
 		);
 		assert.strictEqual(out, humanRevoke({ ...base, dryRun: false }).join("\n"));
+	});
+});
+
+describe("notCurrentReason (#504)", () => {
+	const at = "2026-11-25T12:00:00Z";
+	const g = "2027-11-25T12:00:00Z";
+	it("names the step for each kind", () => {
+		assert.strictEqual(
+			notCurrentReason({ at, generatedAt: g, kind: "future" }),
+			`generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`,
+		);
+		assert.strictEqual(
+			notCurrentReason({ at, generatedAt: g, kind: "near-future" }),
+			`generated.at ${g} is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after ${g}`,
+		);
+		assert.strictEqual(
+			notCurrentReason({ at, generatedAt: g, kind: "blocked", blockedBy: "2026-12-25T00:00:00Z" }),
+			`generated.at ${g} is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification`,
+		);
+		assert.strictEqual(
+			notCurrentReason({ at, generatedAt: g }),
+			`generated.at ${g} is later than the verification time ${at}, so a verification then would not count; verify it at or after ${g}, or omit --at to verify now`,
+		);
+	});
+
+	it("humanVerifyBatch prints the reason of each not-current skip", () => {
+		const lines = humanVerifyBatch({
+			by: "human:ada",
+			at,
+			dryRun: false,
+			verified: [],
+			skipped: [{ id: "decisions/x", reason: "not-current", notCurrent: { at, generatedAt: g, kind: "future" } }],
+		});
+		assert.deepStrictEqual(lines, [
+			`skipped decisions/x: generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`,
+			"verified 0, skipped 1",
+		]);
 	});
 });

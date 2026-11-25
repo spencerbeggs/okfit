@@ -161,6 +161,7 @@ export type {
 	VerifyResult,
 } from "./verify/run.js";
 export {
+	futureAtRefusal,
 	inspectDrift,
 	loadPickerCandidates,
 	loadPreviews,
@@ -171,9 +172,10 @@ export {
 	runVerifyBatch,
 	runVerifyIds,
 } from "./verify/run.js";
-export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
+export type { AttestableSelection, NotCurrentDetail, PickerCandidate, VerifySkip } from "./verify/select.js";
 export {
 	notCurrentAt,
+	notCurrentDetail,
 	resolveBatchTypes,
 	selectAttestable,
 	selectPickerCandidates,

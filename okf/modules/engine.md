@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T05:03:51Z
+  at: 2026-11-25T16:59:01Z
 x-okfit-integrity:
   generated:
-    body: 5b099b5676071821
+    body: f7068fae92eec31d
 ---
 
 # Engine
@@ -97,7 +97,7 @@ bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-off
 its last change included. `stale --verify`'s candidates come from staleness
 alone (`selectStaleCandidates` never consults integrity). `runVerify` refuses a write that would not be current: `--at` before
 `generated.at`, or a `generated.at` in the future, fails with
-`VerifyNotCurrentError` (exit `3`); its `kind` is `blocked` (with `blockedBy`, the earliest verification dated between `now` and the stamp) when `generated.at` is more than five minutes later than the run's `now` and sync would skip the re-stamp, `future` when it is more than five minutes later and sync re-stamps it, `near-future` when it is later by less than that, and absent when `now` is not given or `generated.at` is not later than `now` (only `--at` is early), and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentAt` skips it with the reason `not-current` (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return its id in `leftOut`, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
+`VerifyNotCurrentError` (exit `3`); its `kind` is `blocked` (with `blockedBy`, the earliest verification dated between `now` and the stamp) when `generated.at` is more than five minutes later than the run's `now` and sync would skip the re-stamp, `future` when it is more than five minutes later and sync re-stamps it, `near-future` when it is later by less than that, and absent when `now` is not given or `generated.at` is not later than `now` (only `--at` is early), and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentDetail` (which `runVerify`'s refusal also reads, so the `kind` and `blockedBy` are computed once) skips it with the reason `not-current` and a `notCurrent` detail (`VerifySkip`) (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return it in `leftOut` as a `VerifySkip` (`id`, `reason`, `notCurrent`), sorted by id, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
 `--revoke`: it removes the current actor's own `verified` entries, clears
 `x-okfit-integrity.verified` when it was bound to one of them (and `x-okfit-integrity`
 when empty), removes the `verified` key when its list empties, and reports
@@ -137,8 +137,9 @@ through `FrontmatterEdits.status`; the envelope's `status` field reports
 mark.
 
 `verify/run.ts#runVerifyIds` is the explicit-id sibling of
-`runVerifyBatch` (issue 214): it attests exactly the ids it is given,
-all-or-nothing, with an optional promote-drafts step that sets `status:
+`runVerifyBatch` (issue 214): it attests the ids it is given,
+skipping an unknown status or a not-current concept (each with its reason) and
+writing the rest all-or-nothing, with an optional promote-drafts step that sets `status:
 stable` in the same write. `verify/select.ts#selectPickerCandidates` and
 `verify/run.ts#loadPickerCandidates` list what the interactive `okfit
 verify` picker offers: concepts of a `require_verified` type the caller has
@@ -318,9 +319,10 @@ concept at the end of a deprecated concept's `superseded_by` chain, or `null`.
 `verify` refuses a concept whose status is unknown: `prepareVerify` fails with
 `VerifyStatusUnknownError` (exit `3`) unless the call also sets the status
 (`--stable` or `--draft`), because that write repairs the status; the check
-runs before the drift diff and the confirm prompt, and `runVerifyIds` applies
-it to every id before writing any, so a refused id leaves the others
-untouched. `VerifyResult.status.from` is the raw string or `null`. See
+runs before the drift diff and the confirm prompt. `runVerifyIds` does not
+refuse: it skips such an id as `unknown-status` (carrying the raw `status`,
+checked before `not-current`) and verifies the rest, and never writes the
+skipped file (#507). `VerifyResult.status.from` is the raw string or `null`. See
 [An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md).
 
 `move/references.ts` lists the path-valued frontmatter fields `okfit mv`
@@ -334,8 +336,13 @@ frontmatter or no `type` is parsed through `Bundle.parseDocument` (the parse
 the loader uses) and scanned like a concept body, its links and its core path
 fields rewritten, and it appears in the plan's edits only when it changes. A
 file with an unclosed or unparseable frontmatter block still refuses with
-`MoveError` `unloaded-files`. `mv` writes a rewritten file back without a
-leading UTF-8 byte-order mark; that is a known gap, not a decision.
+`MoveError` `unloaded-files`. `mv` writes a rewritten file back with the
+leading UTF-8 byte-order mark it had (`bomOf`), and re-records a concept's body
+digest (`rerecordBodyDigest`) only when it matched the body before the move, so the next `sync` keeps
+`generated.at`; a stale or absent digest and a concept on old key names are not re-recorded (once the move is
+committed, the next `sync` re-stamps them, or reports a concept it cannot edit: both key spellings, an old key it cannot rename in place, or an
+uneditable integrity layout; `mv` also lists a concept whose `x-okfit-integrity` block has such a layout in `drifts`
+when its digest matched before the move).
 
 ## Editor seams
 

@@ -25,6 +25,7 @@ const VALUES = [
 	"humanVerifyBatchDoc",
 	"humanVerifyDoc",
 	"line",
+	"notCurrentReason",
 	"renderFailure",
 	"rootCommand",
 	"summary",

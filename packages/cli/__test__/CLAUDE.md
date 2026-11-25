@@ -86,6 +86,30 @@ __test__/
   exit, because `detached: true` cuts them off from the terminal's SIGINT
   (#270); `e2e/pty-cleanup.e2e.test.ts` proves it through
   `e2e/utils/pty-hang-driver.ts`.
+  The helper has two timeouts and no retry (#457). `startupTimeoutMs`
+  (default 30000) bounds the first wait from the spawn: step 1's text, or
+  the exit when there are no steps. `timeoutMs` (default 10000) bounds each
+  later wait, and the exit after the last step, from the previous match.
+  `limitPtyWaits(ms)` also ends every wait within `ms` of the call, across
+  all the runs that follow; `pty.e2e.test.ts` and `pty-cleanup.e2e.test.ts`
+  call it in `beforeEach` with 5 s less than their test timeout, so a hung
+  pty run is reported by the helper before vitest's timeout. A new pty test
+  file must call it too. A wait it cuts short says so after its `M ms`.
+  Each failure message below is followed by `--- output so far ---` and the
+  stripped terminal output, which is the evidence to read first:
+  - `exited before step N (text) (exit C)`: the bin ended with code C
+    before step N matched. For step 1 the text never appeared. For a later
+    step it can be in the output, when the bin ended inside the 200 ms wait
+    after the previous match, or when the text arrived before that match was
+    made (a match discards everything read so far).
+  - `timed out waiting for <text, or the process to exit> after M ms`: that
+    wait ran out and the helper killed the process group.
+  - `no exit sentinel in pty output`: the pipeline closed without printing
+    `__PTY_EXIT__:`, so there is no exit code.
+
+  `e2e/pty-cleanup.e2e.test.ts` also pins the first two messages, the budget
+  cut, and which timeout applies to the first step, a later step, the exit
+  after the last step and the exit of a run with no steps.
 - **E2E is hermetic.** Every e2e test that touches config discovery or XDG
   paths uses `e2e/utils/fixtures.ts`'s `makeSandbox()` for a fresh `HOME`,
   `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, and

@@ -377,6 +377,25 @@ describe("migration fixes", () => {
 		scenario("malformed YAML", malformed);
 	});
 
+	it.effect("refuses the version for an unclosed root index, with the reason", () =>
+		Effect.gen(function* () {
+			const plan = yield* apply(yield* load);
+			assert.deepStrictEqual(plan.refused, [
+				{
+					file: "index.md",
+					code: "okf-version-undeclared",
+					reason:
+						"the root index frontmatter opens with --- but never closes; add the closing --- by hand, then fix again",
+				},
+			]);
+			assert.notInclude(
+				plan.edits.map((e) => e.path),
+				"index.md",
+			);
+			assert.strictEqual(yield* read(INDEX), "---\ntitle: x\n\n# X\n");
+		}).pipe(Effect.provide(on({ ...V02_PROJECT, [INDEX]: "---\ntitle: x\n\n# X\n" }))),
+	);
+
 	it.effect("dryRun returns the same plan and every file is byte-identical", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load;

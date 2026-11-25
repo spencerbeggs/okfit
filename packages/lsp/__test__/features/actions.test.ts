@@ -2,6 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { describeFailure } from "../../src/features/edits.js";
 import type { CodeAction, CodeActionParams, LspDiagnostic, Range } from "../../src/protocol/types.js";
 import { withBinding } from "../utils/digest.js";
 import type { ServeHarness } from "../utils/harness.js";
@@ -596,6 +597,180 @@ describe("registerCodeActions", () => {
 			} as unknown as LspDiagnostic;
 			const actions = yield* requestCodeAction(h.client, uri, { diagnostics: [fake] });
 			assert.isFalse(actions.some((action) => action.title.startsWith("Re-verify")));
+		}).pipe(Effect.scoped),
+	);
+});
+
+describe("registerCodeActions says why it offers no verify action (#473)", () => {
+	const DISABLED_SUPPORT = { textDocument: { codeAction: { disabledSupport: true } } } as const;
+	const FUTURE_AT = "2999-01-01T00:00:00Z";
+	const futureReason = describeFailure({ _tag: "NotCurrent", generatedAt: FUTURE_AT, kind: "future" });
+	const stableSource = DRAFT_SOURCE.replace("status: draft", "status: stable").replaceAll("Draft", "Stable");
+	const inFuture = (source: string) => source.replace(/at: "[^"]*"/, `at: "${FUTURE_AT}"`);
+
+	it.live("an unknown status gets a disabled Mark verified that says why (#473)", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/archived.md", ARCHIVED_SOURCE);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.deepStrictEqual(actions.map(titleOf), [
+				"Set status: draft",
+				"Set status: stable",
+				"Set status: deprecated",
+				"Mark verified by human:fixture-author",
+			]);
+			const disabled = actions.filter((action) => action.disabled !== undefined);
+			assert.strictEqual(disabled.length, 1);
+			assert.deepStrictEqual(disabled[0], {
+				title: "Mark verified by human:fixture-author",
+				kind: "okfit.verify",
+				disabled: {
+					reason:
+						'the status "archived" is not draft, stable or deprecated; set the status first, as okfit verify refuses it',
+				},
+			});
+			assert.isUndefined(disabled[0]?.edit);
+			assert.isUndefined(disabled[0]?.command);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a future generated.at gets a disabled Mark verified that names okfit sync", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/future.md", inFuture(stableSource));
+			const actions = yield* requestCodeAction(h.client, uri);
+			const verify = actions.filter((action) => action.kind === "okfit.verify");
+			assert.deepStrictEqual(verify, [
+				{ title: "Mark verified by human:fixture-author", kind: "okfit.verify", disabled: { reason: futureReason } },
+			]);
+			assert.include(futureReason, "okfit sync");
+			assert.include(futureReason, FUTURE_AT);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a draft with a future stamp gets the disabled combined action", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/futuredraft.md", inFuture(DRAFT_SOURCE));
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.deepStrictEqual(
+				actions.filter((action) => action.kind === "okfit.verify"),
+				[
+					{
+						title: "Mark verified by human:fixture-author and set status: stable",
+						kind: "okfit.verify",
+						disabled: { reason: futureReason },
+					},
+				],
+			);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("control: a past stamp is offered enabled, with an edit and no disabled", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/past.md", stableSource);
+			const actions = yield* requestCodeAction(h.client, uri);
+			const verify = actions.filter((action) => action.kind === "okfit.verify");
+			assert.strictEqual(verify.length, 1);
+			assert.isDefined(verify[0]?.edit);
+			assert.isUndefined(verify[0]?.disabled);
+			assert.isTrue(actions.every((action) => action.disabled === undefined));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("an already-verified concept still omits the action with disabledSupport (no enabled, no disabled)", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/verified.md", ALREADY_VERIFIED_SOURCE);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.isFalse(actions.some((action) => action.kind === "okfit.verify"));
+			assert.isTrue(actions.every((action) => action.disabled === undefined));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a stamp less than five minutes ahead gets a disabled action with the near-future text", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const soon = new Date(Date.now() + 120_000).toISOString().replace(/\.\d+Z$/, "Z");
+			const uri = yield* openConcept(h, "okf/modules/soon.md", stableSource.replace(/at: "[^"]*"/, `at: "${soon}"`));
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.deepStrictEqual(
+				actions.filter((action) => action.kind === "okfit.verify"),
+				[
+					{
+						title: "Mark verified by human:fixture-author",
+						kind: "okfit.verify",
+						disabled: { reason: describeFailure({ _tag: "NotCurrent", generatedAt: soon, kind: "near-future" }) },
+					},
+				],
+			);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("a future stamp with a verification dated in between gets a disabled action with the blocked text", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const between = "2998-01-01T00:00:00Z";
+			const source = inFuture(stableSource).replace(
+				"status: stable\n",
+				`status: stable\nverified:\n  - by: "human:someone-else"\n    at: "${between}"\n`,
+			);
+			const uri = yield* openConcept(h, "okf/modules/blocked.md", source);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.deepStrictEqual(
+				actions.filter((action) => action.kind === "okfit.verify"),
+				[
+					{
+						title: "Mark verified by human:fixture-author",
+						kind: "okfit.verify",
+						disabled: {
+							reason: describeFailure({
+								_tag: "NotCurrent",
+								generatedAt: FUTURE_AT,
+								kind: "blocked",
+								blockedBy: between,
+							}),
+						},
+					},
+				],
+			);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("context.only filters a disabled action like an enabled one", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/archived.md", ARCHIVED_SOURCE);
+			const statusOnly = yield* requestCodeAction(h.client, uri, { only: ["okfit.status"] });
+			assert.isFalse(statusOnly.some((action) => action.kind === "okfit.verify"));
+			const verifyOnly = yield* requestCodeAction(h.client, uri, { only: ["okfit.verify"] });
+			assert.deepStrictEqual(verifyOnly.map(titleOf), ["Mark verified by human:fixture-author"]);
+			assert.isDefined(verifyOnly[0]?.disabled);
+			const inBody = yield* requestCodeAction(h.client, uri, { range: BODY });
+			assert.isFalse(inBody.some((action) => action.kind === "okfit.verify"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("an actor that cannot resolve still omits the action, disabledSupport or not", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: noIdentityPlatform, clientCapabilities: DISABLED_SUPPORT });
+			const uri = yield* openConcept(h, "okf/modules/archived.md", ARCHIVED_SOURCE);
+			const actions = yield* requestCodeAction(h.client, uri);
+			assert.isFalse(actions.some((action) => action.kind === "okfit.verify"));
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("without disabledSupport the set is today's: no disabled action for an unknown or future stamp", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ platform: identityPlatform });
+			const archived = yield* openConcept(h, "okf/modules/archived.md", ARCHIVED_SOURCE);
+			const future = yield* openConcept(h, "okf/modules/future.md", inFuture(stableSource));
+			for (const uri of [archived, future]) {
+				const actions = yield* requestCodeAction(h.client, uri);
+				assert.isFalse(actions.some((action) => action.kind === "okfit.verify"));
+				assert.isTrue(actions.every((action) => action.disabled === undefined));
+			}
 		}).pipe(Effect.scoped),
 	);
 });

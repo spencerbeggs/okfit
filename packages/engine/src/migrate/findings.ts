@@ -60,9 +60,18 @@ const versionRange = (frontmatter: string | undefined): DiagnosticRange | undefi
 	return DiagnosticRange.make({ offset, length: value.trim().length, line: at + 1, character });
 };
 
+/**
+ * Whether the root index opens a frontmatter block that never closes; the loader then does not load it, though it exists.
+ *
+ * @internal
+ */
+export const rootIndexUnclosed = (bundle: LoadedBundle): boolean =>
+	bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed");
+
 const versionFindings = (bundle: LoadedBundle, target: string): ReadonlyArray<MigrationFinding> => {
 	const root = bundle.indexes.get("");
 	const declared = OkfVersion.declared(bundle);
+	const unclosedRoot = rootIndexUnclosed(bundle);
 	if (Option.isNone(declared)) {
 		return [
 			{
@@ -71,8 +80,9 @@ const versionFindings = (bundle: LoadedBundle, target: string): ReadonlyArray<Mi
 				severity: "warning",
 				message:
 					"okf_version is not declared; OKF 0.3 §8.1 asks a bundle to declare it, and okfit reads an undeclared bundle with the v0.2 fallbacks",
-				// R42: with no root index there is nowhere to write the declaration.
-				...(root === undefined ? {} : { fix: "okf-version" as const }),
+				// R42: with no root index there is nowhere to write the declaration. An unclosed root index is not loaded
+				// either, but it exists: the fix is offered and `planMigrationFixes` refuses it with the reason (#482).
+				...(root === undefined && !unclosedRoot ? {} : { fix: "okf-version" as const }),
 			},
 		];
 	}

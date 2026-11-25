@@ -8,10 +8,10 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:25:12Z
+  at: 2026-11-25T15:08:01Z
 x-okfit-integrity:
   generated:
-    body: 6e03c356487696ef
+    body: 396488d1f7cfe25d
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:00Z
@@ -66,7 +66,7 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   candidates, however, are chosen by staleness alone
   (`selectStaleCandidates` never consults integrity); the picker then leaves out
   a concept whose `generated.at` is later than the attestation instant and says
-  how many it left out (#470).
+  which one it left out and what to do about it, one line per concept (#470, #504).
 - A concept whose `generated.at` is later than the attestation instant is
   skipped as `not-current` and the rest are attested, so one such concept does
   not fail the batch; if every picked concept is skipped nothing is written

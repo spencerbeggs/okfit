@@ -17,7 +17,12 @@ export interface PtyOptions {
 	readonly steps?: ReadonlyArray<PtyStep>;
 	/** Extra `node` arguments placed before the bin (e.g. `--import <tracer>`). */
 	readonly nodeArgs?: ReadonlyArray<string>;
-	/** Per-wait and overall timeout in ms. Default 20000. */
+	/**
+	 * Timeout in ms for the first wait, measured from the spawn: step 1's text, or the exit when there
+	 * are no steps. Default 30000, because it includes loading the bin.
+	 */
+	readonly startupTimeoutMs?: number;
+	/** Timeout in ms for each later wait (steps 2 onward, then the exit), from the previous match. Default 10000. */
 	readonly timeoutMs?: number;
 	/** Redirect the bin's stderr to this file, leaving stdout on the pty. */
 	readonly stderrFile?: string;
@@ -80,15 +85,35 @@ const installHandlers = (): void => {
 const SETTLE_MS = 200;
 const SENTINEL = "__PTY_EXIT__:";
 
+/** The time past which no pty wait runs; a test file has its own copy and runs its tests one at a time. */
+let budgetEnd = Number.POSITIVE_INFINITY;
+
+/**
+ * Ends every later `runPty` wait no more than `budgetMs` from now, however many runs share that time.
+ * Call it in `beforeEach` with less than the test's vitest timeout, so a hang is reported by the
+ * helper, with its output, and not by vitest.
+ */
+export const limitPtyWaits = (budgetMs: number): void => {
+	budgetEnd = Date.now() + budgetMs;
+};
+
 /**
  * Runs the built bin under a real pty via the system `script`. The inner shell
  * sets the window size, runs the bin, and echoes an exit sentinel so the exit
  * code does not depend on either platform's `script` status propagation.
+ *
+ * A spawn error rejects as it is. Otherwise a failed run rejects with one of three messages, each
+ * followed by the terminal output so far:
+ * `exited before step N (text) (exit C)` when the bin ended with code C before step N matched;
+ * `timed out waiting for <text, or the process to exit> after M ms` when a wait ran out and the
+ * process group was killed; `no exit sentinel in pty output` when the pipeline closed without
+ * reporting an exit code. A wait cut short by `limitPtyWaits` says so after its `M ms`.
  */
 export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promise<PtyResult> => {
 	const cols = options.cols ?? 100;
 	const rows = options.rows ?? 30;
 	const timeoutMs = options.timeoutMs ?? 10_000;
+	const startupTimeoutMs = options.startupTimeoutMs ?? 30_000;
 	const redirect = options.stderrFile === undefined ? "" : ` 2>${quote(options.stderrFile)}`;
 	const inner = `stty cols ${cols} rows ${rows}; ${[process.execPath, ...TSX_IMPORT, ...(options.nodeArgs ?? []), BIN, ...args].map(quote).join(" ")}${redirect}; echo ${SENTINEL}$?`;
 	const scriptCommand =
@@ -121,8 +146,18 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 		let done = false;
 		const steps = options.steps ?? [];
 		let pendingUntil = 0;
-		// One deadline: each wait gets timeoutMs, and so does the exit after the last send.
-		let deadline = Date.now() + timeoutMs;
+		// One deadline at a time: the first wait gets startupTimeoutMs from the spawn; each later wait,
+		// and the exit after the last send, gets timeoutMs from the previous match. None runs past the
+		// budget `limitPtyWaits` set.
+		let deadline = 0;
+		let waited = "";
+		const arm = (wantMs: number): void => {
+			const now = Date.now();
+			const left = Math.max(0, budgetEnd - now);
+			deadline = now + Math.min(wantMs, left);
+			waited = left < wantMs ? `${left} ms, all that was left of the test's pty budget` : `${wantMs} ms`;
+		};
+		arm(startupTimeoutMs);
 		const sends = new Set<NodeJS.Timeout>();
 
 		const killGroup = (): void => {
@@ -147,7 +182,7 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 		const advance = (): void => {
 			if (done) return;
 			if (next >= steps.length) {
-				if (Date.now() > deadline) failWith("timed out waiting for the process to exit");
+				if (Date.now() > deadline) failWith(`timed out waiting for the process to exit after ${waited}`);
 				return;
 			}
 			if (Date.now() < pendingUntil) return;
@@ -157,12 +192,12 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 			const fresh = stripAnsi(raw.slice(rawOffset));
 			const hit = typeof step.waitFor === "string" ? fresh.includes(step.waitFor) : step.waitFor.test(fresh);
 			if (!hit) {
-				if (Date.now() > deadline) failWith(`timed out waiting for ${String(step.waitFor)}`);
+				if (Date.now() > deadline) failWith(`timed out waiting for ${String(step.waitFor)} after ${waited}`);
 				return;
 			}
 			rawOffset = raw.length;
 			next += 1;
-			deadline = Date.now() + timeoutMs;
+			arm(timeoutMs);
 			// Ink paints a screen before it attaches its key handler; a key sent in that gap is lost.
 			pendingUntil = Date.now() + SETTLE_MS;
 			const send = step.send;
@@ -194,11 +229,12 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 				const text = stripAnsi(raw);
 				const match = new RegExp(`${SENTINEL}(\\d+)`).exec(text);
 				if (match === null) {
-					reject(new Error(`no exit sentinel in pty output\n${text}`));
+					reject(new Error(`no exit sentinel in pty output\n--- output so far ---\n${text}`));
 					return;
 				}
 				if (next < steps.length) {
-					reject(new Error(`exited before step ${next + 1} (${String(steps[next]?.waitFor)})\n${text}`));
+					const where = `exited before step ${next + 1} (${String(steps[next]?.waitFor)}) (exit ${match[1]})`;
+					reject(new Error(`${where}\n--- output so far ---\n${text}`));
 					return;
 				}
 				resolve({ output: text.replace(new RegExp(`${SENTINEL}\\d+\\n?`), ""), raw, exitCode: Number(match[1]) });

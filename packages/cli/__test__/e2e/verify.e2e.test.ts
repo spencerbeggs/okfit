@@ -341,6 +341,80 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
+	it("refuses an --at more than 5 minutes later than now, exit 64, nothing written (#503)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const before = await readProject(cwd);
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+
+			const run = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T12:05:01Z"], { cwd, env: now }),
+			);
+
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			assert.include(
+				run.stderr,
+				"--at 2026-09-07T12:05:01Z is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+
+			// control: a malformed --at keeps its own exit 3
+			const malformed = await withServices(runOkfit(["verify", "project", "--at", "tomorrow"], { cwd, env: now }));
+			assert.strictEqual(malformed.exitCode, 3, malformed.stderr);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("accepts an --at exactly 5 minutes ahead, refuses one second more (#503)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+			const before = await readProject(cwd);
+
+			const edge = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T12:05:00Z", "--dry-run"], { cwd, env: now }),
+			);
+			assert.strictEqual(edge.exitCode, 0, edge.stderr);
+			assert.include(edge.stdout, "2026-09-07T12:05:00Z");
+
+			const over = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T12:05:01Z", "--dry-run"], { cwd, env: now }),
+			);
+			assert.strictEqual(over.exitCode, 64, over.stderr);
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("the refusal comes before a batch and in JSON (#503)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const before = await readProject(cwd);
+			const run = await withServices(
+				runOkfit(["verify", "--all", "--at", "2099-01-01T00:00:00Z", "--format", "json"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" },
+				}),
+			);
+
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			const lines = run.stdout.split("\n").filter((line) => line !== "");
+			assert.strictEqual(lines.length, 1);
+			const envelope = JSON.parse(lines[0] ?? "") as { exit_code: number; error: { tag: string; message: string } };
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "VerifySelectionError");
+			assert.strictEqual(
+				envelope.error.message,
+				"--at 2099-01-01T00:00:00Z is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("refuses an --at before generated.at (exit 3, file unchanged); --at equal to it exits 0 and writes", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
@@ -408,11 +482,78 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(run.exitCode, 0, run.stderr);
 			assert.include(
 				run.stdout,
-				"skipped decisions/b: generated.at is later than 2026-09-16T12:00:00Z, so a verification then would not count\n",
+				"skipped decisions/b: generated.at 2026-09-16T12:00:01Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-09-16T12:00:01Z\n",
 			);
 			assert.include(run.stdout, "verified 1, skipped 1");
 			assert.strictEqual(await readFile(late, "utf8"), lateText);
 			assert.include(await readFile(join(cwd, "okf", "decisions", "a.md"), "utf8"), "by: human:ada");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("an id list names the step per kind, matching the single-id refusal (#504)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const stamp = (title: string, at: string, extra = ""): string =>
+				`---\ntype: Decision\ntitle: ${title}\ndescription: A decision.\nstatus: stable\n${extra}generated:\n  by: process:sync\n  at: ${at}\n---\n\n# ${title}\n`;
+			const files = {
+				future: stamp("Future", "2027-11-25T12:00:00Z"),
+				near: stamp("Near", "2026-11-25T12:02:00Z"),
+				blocked: stamp(
+					"Blocked",
+					"2027-11-25T12:00:00Z",
+					"verified:\n  - by: human:ada\n    at: 2026-12-25T00:00:00Z\n",
+				),
+				absent: stamp("Absent", "2026-11-25T11:59:30Z"),
+			};
+			for (const [name, text] of Object.entries(files)) {
+				await writeFile(join(cwd, "okf", "decisions", `${name}.md`), text, "utf8");
+			}
+			const runEnv = { ...env, OKFIT_NOW: "2026-11-25T12:00:00Z" };
+			const at = ["--at", "2026-11-25T11:59:00Z"];
+			const ids = ["decisions/a", "decisions/future", "decisions/near", "decisions/blocked", "decisions/absent"];
+			const run = await withServices(runOkfit(["verify", ...ids, ...at], { cwd, env: runEnv }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(
+				run.stdout,
+				[
+					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again",
+					"skipped decisions/near: generated.at 2026-11-25T12:02:00Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-11-25T12:02:00Z",
+					"skipped decisions/blocked: generated.at 2027-11-25T12:00:00Z is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
+					"skipped decisions/absent: generated.at 2026-11-25T11:59:30Z is later than the verification time 2026-11-25T11:59:00Z, so a verification then would not count; verify it at or after 2026-11-25T11:59:30Z, or omit --at to verify now",
+					"",
+				].join("\n"),
+			);
+			assert.include(run.stdout, "verified 1, skipped 4");
+			// the JSON envelope's skipped entries stay {id, reason}: the next-step detail is for people only
+			await writeFile(
+				join(cwd, "okf", "decisions", "wip.md"),
+				stamp("Wip", "2026-11-25T11:00:00Z").replace("status: stable", "status: wip"),
+				"utf8",
+			);
+			const json = await withServices(
+				runOkfit(["verify", ...ids, "decisions/wip", ...at, "--dry-run", "--format", "json"], { cwd, env: runEnv }),
+			);
+			assert.strictEqual(json.exitCode, 0, json.stderr);
+			const { skipped } = JSON.parse(json.stdout) as { skipped: Array<{ id: string; reason: string }> };
+			for (const entry of skipped) assert.deepStrictEqual(Object.keys(entry), ["id", "reason"], entry.id);
+			const reasons = new Map(skipped.map((entry) => [entry.id, entry.reason]));
+			assert.strictEqual(reasons.get("decisions/blocked"), "not-current");
+			assert.strictEqual(reasons.get("decisions/wip"), "unknown-status");
+			// each skipped id, alone, names the same step
+			const steps: ReadonlyArray<readonly [string, string]> = [
+				["decisions/future", "run okfit sync"],
+				["decisions/near", "check the clock"],
+				["decisions/blocked", "a human must correct generated.at or that verification"],
+				["decisions/absent", "omit --at to verify now"],
+			];
+			for (const [id, step] of steps) {
+				const alone = await withServices(runOkfit(["verify", id, ...at], { cwd, env: runEnv }));
+				assert.strictEqual(alone.exitCode, 3, `${id}: ${alone.stderr}`);
+				assert.include(alone.stderr.toLowerCase(), step, id);
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -927,6 +1068,66 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 				'error: "metrics/margin" has status "bogus", which is not draft, stable or deprecated',
 			);
 			assert.include(run.stderr, "--stable or --draft");
+			assert.strictEqual(await readFile(margin(cwd), "utf8"), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	const LINE =
+		'skipped decisions/wip: status "wip" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify decisions/wip --stable or --draft\n';
+
+	it("an id list skips an unknown status with a line whose command works, and verifies the rest (#507)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const wip = join(cwd, "okf", "decisions", "wip.md");
+			await writeFile(
+				wip,
+				"---\ntype: Decision\ntitle: Wip\ndescription: A decision.\nstatus: wip\n---\n\n# Wip\n",
+				"utf8",
+			);
+			const wipBefore = await readFile(wip, "utf8");
+			const run = await withServices(runOkfit(["verify", "decisions/wip", "decisions/b"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, LINE);
+			assert.include(run.stdout, "verified decisions/b by human:ada");
+			assert.include(run.stdout, "verified 1, skipped 1");
+			assert.strictEqual(await readFile(wip, "utf8"), wipBefore);
+			assert.include(await readFile(join(cwd, "okf", "decisions", "b.md"), "utf8"), "by: human:ada");
+			// the line's suggested command is accepted and works
+			const suggested = await withServices(
+				runOkfit(["verify", "decisions/wip", "--stable", "--dry-run", "--no-diff"], { cwd, env }),
+			);
+			assert.strictEqual(suggested.exitCode, 0, suggested.stderr);
+			assert.strictEqual(await readFile(wip, "utf8"), wipBefore);
+			// control: a missing id still fails the whole list at target resolution (the all-unknown list is the next test)
+			const all = await withServices(runOkfit(["verify", "decisions/wip", "decisions/wip2"], { cwd, env }));
+			assert.notStrictEqual(all.exitCode, 0);
+			// JSON keeps { id, reason }
+			const json = await withServices(
+				runOkfit(["verify", "decisions/wip", "decisions/a", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(json.exitCode, 0, json.stderr);
+			assert.deepStrictEqual(JSON.parse(json.stdout).skipped, [{ id: "decisions/wip", reason: "unknown-status" }]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("an id list of only unknown statuses writes nothing and exits 0 (#507)", async () => {
+		const { sandbox, cwd, env } = await seededUnknown();
+		try {
+			const before = await readFile(margin(cwd), "utf8");
+			await writeFile(
+				join(cwd, "okf", "metrics", "other.md"),
+				before.replace("margin", "other").replace("Margin", "Other"),
+				"utf8",
+			);
+			const run = await withServices(runOkfit(["verify", "metrics/margin", "metrics/other"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, 'skipped metrics/margin: status "bogus" is not draft, stable or deprecated');
+			assert.include(run.stdout, "verified 0, skipped 2");
 			assert.strictEqual(await readFile(margin(cwd), "utf8"), before);
 		} finally {
 			await removeSandbox(sandbox);

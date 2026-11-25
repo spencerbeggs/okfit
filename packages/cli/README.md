@@ -106,11 +106,13 @@ file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
 refused while any root-only reference remains unfixed, while any
 Attested Computation would have no computation under 0.3 (a `warning`
 `computation-locator`), and while a Markdown file has unclosed or unparseable
-frontmatter, so its links could not be checked (one `refused:` line per cause), and a concept still
+frontmatter, so its links could not be checked, and while the root `index.md`
+frontmatter never closes or does not parse (one `refused:` line per cause), and a concept still
 using okfit's old key names is refused until `okfit sync` renames them.
 An empty `Computation` section is not a finding, so it never holds the version fix back.
 To keep a prose-only `Computation` section, set `okf_version: "0.3"` in `index.md` by hand. Output opens with
-`Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
+`Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), one
+indented `<file>: <fix kinds>` line per changed file (a kind that repeats reads `root-relative-path (2)`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted
 (re-verify with okfit verify): <ids>` when a fix changed content whose human
 verification was current; then the diagnostics that remain, from a reload.
@@ -285,19 +287,24 @@ an allow-list (exact ids or `*`/`?` globs, case-insensitive): an unlisted
 identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 `--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
-different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
+different instant. An `--at` more than 5 minutes later than now is a usage error (exit `64`, also with `--dry-run`
+and `--format json`), refused before anything is loaded for a write and before any picker opens; exactly 5 minutes ahead is accepted, and a
+malformed `--at` stays exit `3`. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
-(`skipped <id>: generated.at is later than <at>, ...`) and verify the rest; both pickers leave it out and print one
-`left out ...` line naming it. A `generated.at` later than now by less than 5 minutes is refused with a message to check
+(`skipped <id>: generated.at <stamp> is later than ...`, ending in the step to take) and verify the rest; both pickers leave it out and print one
+`left out <id>: ...` line per concept with the same step: `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
 the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
-file. Exit `0` on success (a dry run included), `3` on any failure.
+file. Exit `0` on success (a dry run included), `3` on a verification failure, `64` on a usage error (an unknown target,
+a contradictory selection, an `--at` more than 5 minutes ahead).
 
 The write goes through a temp file and an atomic rename, and the target's
 mode is preserved on the replacement. A concept without write permission is
 refused and left untouched, exiting `3`.
+
+A concept whose `status` is outside `draft`, `stable` and `deprecated` cannot be attested as it stands. `okfit verify <id>` with one id refuses it (exit `3`) unless `--stable` or `--draft` is given, which sets the status and verifies in the same write. A list of several ids, and an `--all`/`--type` batch, skip it, before the not-current check, with `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`, and verify the rest; a skipped concept is never written, and a list where every id is skipped writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do.
 
 `verify` also refuses, exiting `3`, a concept that still carries the old
 `integrity` block from an older okfit and says to run `okfit sync` first. The
@@ -340,7 +347,7 @@ Bare `okfit verify` in a terminal opens a picker: every concept of a
 any type, drafts included and deprecated and unknown-status excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
-one all-or-nothing write; a concept whose `generated.at` is later than the verification time is left out, and one line names it. When a candidate is drifted, the picker shows a
+one all-or-nothing write; a concept whose `generated.at` is later than the verification time is left out, and one `left out <id>: ...` line per concept names it and the next step. When a candidate is drifted, the picker shows a
 two-pane screen that previews its diff since the last verification (or why
 there is no baseline to diff against). Esc, `q`, Ctrl-C or answering no exits `130` with
 nothing written. Without a terminal (a pipe, an agent or CI audience, or
@@ -435,8 +442,12 @@ code. Under `--staged` only staged concepts are re-stamped; run a plain
 rewrites every reference to it (body links, path fields, `x-okfit-supersedes`,
 Publication `x-okfit-renders`), keeping each reference's spelling. `<to>` is an id or a
 path; `.md` is added when missing. `--dry-run` prints the plan and writes
-nothing. Every file whose text changes drifts and needs a human to re-verify
-it; run `okfit sync` afterwards. Refusals (destination exists, outside the
+nothing. A rewritten concept that a human had verified drifts and needs re-verifying (`okfit verify`); run `okfit sync` afterwards to regenerate index.md and the generated stamps. `mv` keeps a file's UTF-8 byte-order mark and,
+when a concept's recorded `x-okfit-integrity.generated.body` matched its body before the move,
+re-records it, so `sync` keeps that concept's `generated.at`; a concept whose digest was
+already stale, was never recorded, or is still on okfit's old key names is re-linked
+but not re-recorded; once the move is committed, the next `okfit sync` re-stamps its `generated.at`, or reports the concept when it cannot edit
+its frontmatter (both key spellings present, an old key that `sync` cannot rename in place, or an integrity block in a layout okfit does not edit). Refusals (destination exists, outside the
 bundle, a reserved file, an unlocatable link) are exit `64` with nothing
 written.
 
