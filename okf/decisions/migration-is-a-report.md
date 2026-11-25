@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:26:45Z
+  at: 2026-11-25T14:37:06Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 80b05cba2bd79e46
+    body: 1605569e3280ed7c
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -85,7 +85,7 @@ file target cannot flip a bundle to 0.3 with broken links. It is also
 refused while an Attested Computation would lose its computation, while a
 Markdown file could not be read to check its links, when `okf_version` cannot be edited in place, and when the root
 index's opening fence is not exactly `---`, and when the root index frontmatter
-does not parse (malformed YAML, a duplicate key), each with its reason; the rest
+does not parse (malformed YAML, a duplicate key) or never closes, each with its reason; the rest
 of the plan still applies. Refusals are listed, not errors, and the lost-computation refusal says that the human who wants to keep a prose-only section can set `okf_version` in the root index by hand; the human run's summary counts a finding whose fix would be refused apart (`<r> refused by --fix`) and leaves it out of `fixable`, and the exit code does not change. One cost is known:
 a `warning` `computation-locator` finding (a computation that 0.3 would not
 find) stops being reported once the bundle declares 0.3, so the version fix

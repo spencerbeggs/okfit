@@ -1291,8 +1291,11 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 
 	it.effect("--fix prints a refused: line for a lost computation and keeps okf_version", () =>
 		Effect.gen(function* () {
+			// Only the index and the two concepts: the shared project's own computation would add findings of its own.
 			const seeded = {
-				...UNDECLARED_PROJECT,
+				...Object.fromEntries(
+					Object.entries(UNDECLARED_PROJECT).filter(([path]) => !path.startsWith("okf/") || path === "okf/index.md"),
+				),
 				"okf/computations/revenue-ytd.md": V03_PROJECT[COMPUTATION] as string,
 				"okf/computations/prose.md": (V03_PROJECT[COMPUTATION] as string)
 					.replace(/```sql\n[^`]*```\n/, "Run the query.\n")
@@ -1352,6 +1355,54 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 				assert.strictEqual(fixed.exitCode, 0);
 				assert.notInclude(fixed.stdout, "refused:");
 			}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--fix --dry-run names each file and its fixes (#482)", () =>
+		Effect.gen(function* () {
+			// Only the index and the two concepts: the shared project's own computation would add findings of its own.
+			const seeded = {
+				...Object.fromEntries(
+					Object.entries(UNDECLARED_PROJECT).filter(([path]) => !path.startsWith("okf/") || path === "okf/index.md"),
+				),
+				"okf/decisions/q.md": "---\ntype: Decision\n---\n\n# Q\n\n[a](decisions/q.md) and [b](notes/r.md)\n",
+				"okf/notes/r.md": "---\ntype: Note\n---\n\n# R\n\n[a](decisions/q.md)\n",
+			};
+			const sandbox = yield* seed("okfit-validate-fix-lines-", seeded);
+			const before = yield* read(sandbox, "okf/decisions/q.md");
+			const dry = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--dry-run"], sandbox);
+			const lines = (stdout: string) =>
+				stdout.split("\n").filter((l) => l.startsWith("  ") || /^(Would fix|Fixed) \d/.test(l));
+			assert.deepStrictEqual(lines(dry.stdout), [
+				"Would fix 4 finding(s) in 3 file(s)",
+				"  decisions/q.md: root-relative-path (2)",
+				"  index.md: okf-version",
+				"  notes/r.md: root-relative-path",
+			]);
+			assert.strictEqual(yield* read(sandbox, "okf/decisions/q.md"), before);
+			const real = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.deepStrictEqual(lines(real.stdout), [
+				"Fixed 4 finding(s) in 3 file(s)",
+				"  decisions/q.md: root-relative-path (2)",
+				"  index.md: okf-version",
+				"  notes/r.md: root-relative-path",
+			]);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("an unclosed root index is refused with its reason", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-unclosed-index-", {
+				...V02_PROJECT,
+				"okf/index.md": "---\ntitle: x\n\n# X\n",
+			});
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(
+				run.stdout,
+				"refused: index.md: the root index frontmatter opens with --- but never closes; add the closing --- by hand, then fix again",
+			);
+			const summary = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(summary.stderr, "1 refused by --fix");
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("a positional target narrows --fix: another file is refused, the computation alone changes", () =>

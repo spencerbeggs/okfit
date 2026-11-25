@@ -106,11 +106,13 @@ file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
 refused while any root-only reference remains unfixed, while any
 Attested Computation would have no computation under 0.3 (a `warning`
 `computation-locator`), and while a Markdown file has unclosed or unparseable
-frontmatter, so its links could not be checked (one `refused:` line per cause), and a concept still
+frontmatter, so its links could not be checked, and while the root `index.md`
+frontmatter never closes or does not parse (one `refused:` line per cause), and a concept still
 using okfit's old key names is refused until `okfit sync` renames them.
 An empty `Computation` section is not a finding, so it never holds the version fix back.
 To keep a prose-only `Computation` section, set `okf_version: "0.3"` in `index.md` by hand. Output opens with
-`Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
+`Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), one
+`<file>: <fix kinds>` line per changed file (a kind that repeats reads `root-relative-path (2)`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted
 (re-verify with okfit verify): <ids>` when a fix changed content whose human
 verification was current; then the diagnostics that remain, from a reload.

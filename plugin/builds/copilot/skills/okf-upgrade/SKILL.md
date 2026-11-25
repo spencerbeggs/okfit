@@ -38,13 +38,13 @@ okfit validate --target 0.3 --format json
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
-| `okf-version-undeclared` | the root `index.md` declares no `okf_version` | `okf-version`, only when a root `index.md` exists |
+| `okf-version-undeclared` | the root `index.md` declares no `okf_version` | `okf-version`, only when a root `index.md` exists (an unclosed one counts; `--fix` then refuses it) |
 | `okf-version-older` | it declares an older, parsable version | `okf-version` |
 | `okf-version-unparsable` | the declared value is not a quoted `<major>.<minor>` | none |
 | `root-relative-path` | a link or path field, in any Markdown file in the bundle (concepts, indexes, logs, other files), resolves only from the bundle root | `root-relative-path` |
 | `computation-locator` | the `Computation` section reads differently under 0.3 | none |
 
-A diagnostic with a `fix` key can be fixed by `--fix`; one without can only be handled by hand. A value that misses under both rules is an ordinary `broken-links`, not a finding.
+A diagnostic with a `fix` key names the fix `--fix` would make. `--fix` may still refuse it: the run then prints `refused: <file>: <reason>`, which says what to do first (a root `index.md` whose frontmatter does not parse, or is never closed, is one: it is fixed by hand). A diagnostic without a `fix` key can only be handled by hand. A value that misses under both rules is an ordinary `broken-links`, not a finding.
 
 ## 3. Stop on a lost computation
 
@@ -70,7 +70,7 @@ okfit validate --target 0.3 --fix --dry-run   # says what would change, writes n
 okfit validate --target 0.3 --fix
 ```
 
-Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. It refuses a concept that still uses okfit's old key names (`refused: <file>: ...`); run `okfit sync` first, then fix again. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). It is also refused while any `warning` `computation-locator` stands, wherever it is (step 3), and while a Markdown file has unclosed or unparseable frontmatter, so its links could not be scanned; each cause prints its own `refused:` line, and `okfit validate --target 0.3` counts such findings in its summary as `<r> refused by --fix` instead of `fixable`; a refused fix does not change the exit code. With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
+Fix the whole bundle. After the count line (`Would fix`/`Fixed <n> finding(s) in <m> file(s)`), `--fix` prints one `  <file>: <fix kinds>` line per file it changes (`root-relative-path (2)` when a kind repeats), then any `refused:` lines. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. It refuses a concept that still uses okfit's old key names (`refused: <file>: ...`); run `okfit sync` first, then fix again. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). It is also refused while any `warning` `computation-locator` stands, wherever it is (step 3), while a Markdown file has unclosed or unparseable frontmatter, so its links could not be scanned, and while the root `index.md` frontmatter never closes or does not parse; each cause prints its own `refused:` line, and `okfit validate --target 0.3` counts such findings in its summary as `<r> refused by --fix` instead of `fixable`; a refused fix does not change the exit code. With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
 
 If the project config sets `okf_version`, the version fix leaves it as it was, and the next `okfit validate` reports it as `config-okf-version-stale`: remove `okf_version` from the config or set it to the target, by hand or by asking the human. okfit never edits the config.
 

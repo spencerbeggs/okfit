@@ -110,6 +110,11 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
  * `x-okfit-integrity.verified`.
  *
+ * A root index whose frontmatter opens with `---` but never closes is refused with its own reason, before the file is
+ * read (a version splice has no closing fence to anchor on), as is one that does not parse (`frontmatter-unparseable`);
+ * both are fixed by hand. The version finding carries its `okf-version` fix for an unclosed root index so this refusal
+ * is reachable (#482); with no root `index.md` at all it carries none (R42).
+ *
  * A refusal for lost computations also names the way out that is the author's: setting `okf_version` in `index.md` by
  * hand, after which the lint `computation-missing` reports each prose-only section. This plan never makes that edit.
  *
@@ -224,6 +229,9 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			),
 		].sort();
 		// Each cause refuses on its own, so one run names every reason the version cannot be declared yet.
+		// An unclosed root index has no closing fence to splice before, so it gets its own reason instead of the generic one.
+		const unclosedRoot = bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed");
+		const unreadableHere = unclosedRoot ? unreadable.filter((file) => file !== ROOT_INDEX) : unreadable;
 		const causes = [
 			remaining > 0
 				? `${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`
@@ -232,8 +240,11 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 				? `${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again. To keep a prose-only Computation section anyway, set okf_version: "${target}" in index.md by hand; the lint computation-missing then reports each one`
 				: undefined,
 			// A Markdown file whose links could not be scanned may hold a root-only link the report never saw.
-			unreadable.length > 0
-				? `${unreadable.length} Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): ${unreadable.join(", ")}; fix them first`
+			unreadableHere.length > 0
+				? `${unreadableHere.length} Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): ${unreadableHere.join(", ")}; fix them first`
+				: undefined,
+			unclosedRoot
+				? "the root index frontmatter opens with --- but never closes; add the closing --- by hand, then fix again"
 				: undefined,
 		].filter((cause) => cause !== undefined);
 		for (const cause of causes) refuseVersion(cause);

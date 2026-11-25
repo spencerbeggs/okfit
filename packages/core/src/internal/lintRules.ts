@@ -235,6 +235,7 @@ export const statusMissing: LintRule = perConcept("status-missing", (concept) =>
 export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (context, severity) => {
 	const globs = context.config.bundle?.non_concepts;
 	if (globs === undefined) return [];
+	const why = (code: string) => (code === "frontmatter-missing" ? "no frontmatter" : "no type");
 	// The config schema rejects an uncompilable glob at load, so the empty branch is unreachable for a decoded config.
 	const patterns = globs.flatMap((glob) => {
 		const compiled = GlobPattern.compileResult(glob);
@@ -251,7 +252,9 @@ export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (contex
 				d.file,
 				"non-concept-unlisted",
 				severity,
-				`${d.file} is not a concept (${d.code === "frontmatter-missing" ? "no frontmatter" : "no type"}) and matches no [bundle] non_concepts glob (${globs.join(", ")}); add frontmatter with a type, move it out of the bundle, or list it in non_concepts`,
+				globs.length === 0
+					? `${d.file} is not a concept (${why(d.code)}) and [bundle] non_concepts is empty, so it allows no non-concept file; add frontmatter with a type, move it out of the bundle, or add a glob that matches it to non_concepts`
+					: `${d.file} is not a concept (${why(d.code)}) and matches no [bundle] non_concepts glob (${globs.join(", ")}); add frontmatter with a type, move it out of the bundle, or list it in non_concepts`,
 				d.range,
 			),
 		);

@@ -221,6 +221,13 @@ export const validateCommand = Command.make(
 						yield* Console.log(
 							`${fixes.dry_run ? "Would fix" : "Fixed"} ${count} finding(s) in ${fixes.applied.length} file(s)`,
 						);
+						for (const edit of fixes.applied) {
+							// One line per file: each fix kind in first-appearance order, with a count when it repeats (#482).
+							const counts = new Map<string, number>();
+							for (const kind of edit.fixes) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+							const parts = [...counts].map(([kind, n]) => (n > 1 ? `${kind} (${n})` : kind));
+							yield* Console.log(`  ${edit.path}: ${parts.join(", ")}`);
+						}
 						for (const refusal of fixes.refused) yield* Console.log(`refused: ${refusal.file}: ${refusal.reason}`);
 						if (fixes.drifts.length > 0) {
 							yield* Console.log(`Integrity drifted (re-verify with okfit verify): ${fixes.drifts.join(", ")}`);
