@@ -2,8 +2,9 @@ import type { LoadedBundle } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
+import { stripBom } from "../verify/locate.js";
 import type { PendingWrite } from "./write.js";
-import { writeAtomic } from "./write.js";
+import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
@@ -46,20 +47,22 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	pending?: Array<PendingWrite>,
 ) {
 	const fs = yield* FileSystem.FileSystem;
-	const onDisk = yield* fs.readFileString(targetPath).pipe(
+	const source = yield* readSourceKeepingBom(fs, targetPath).pipe(
 		Effect.map((text) => text as string | undefined),
 		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
 	);
+	// A leading BOM is kept (#492, D8): compare on the stripped text, write `bom + rendered`.
+	const { text: onDisk, bom } = source === undefined ? { text: undefined, bom: "" } : stripBom(source);
 	if (onDisk === rendered) {
 		unchanged.push(relativeId);
 		return;
 	}
 	if (dryRun) {
-		pending?.push({ target: targetPath, contents: rendered });
+		pending?.push({ target: targetPath, contents: bom + rendered });
 		written.push(relativeId);
 		return;
 	}
-	yield* writeAtomic(targetPath, rendered);
+	yield* writeAtomic(targetPath, bom + rendered);
 	written.push(relativeId);
 });
 

@@ -1,9 +1,10 @@
 import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import { DateTime, Effect, FileSystem, Path } from "effect";
+import { stripBom } from "../verify/locate.js";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
-import { writeAtomic } from "./write.js";
+import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -214,10 +215,12 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	}
 
 	// Step 1: missing file -> undefined source (empty document, design §5 step 1).
-	const source = yield* fs.readFileString(logPath).pipe(
+	// The BOM is kept (#492, D8): merge and compare on the stripped text, write `bom + merged`.
+	const raw = yield* readSourceKeepingBom(fs, logPath).pipe(
 		Effect.map((text) => text as string | undefined),
 		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
 	);
+	const { text: source, bom } = raw === undefined ? { text: undefined, bom: "" } : stripBom(raw);
 
 	// Step 2.
 	const existingDoc = bundle.logs.get("");
@@ -261,12 +264,12 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		return { selected: true, written: [], unchanged: ["log.md"], skipped: [] } satisfies SyncLogResult;
 	}
 	if (dryRun) {
-		pending?.push({ target: logPath, contents: merged });
+		pending?.push({ target: logPath, contents: bom + merged });
 		return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 	}
 
 	// Step 8: one shared atomic writer across all three sync modes (S-33).
-	yield* writeAtomic(logPath, merged);
+	yield* writeAtomic(logPath, bom + merged);
 
 	return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 });

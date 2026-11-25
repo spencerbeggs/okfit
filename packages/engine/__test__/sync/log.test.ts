@@ -23,6 +23,7 @@ import type { LogAddition } from "../../src/sync/log.js";
 import { logWindow, mergeLog, syncLog, wantsLogEntry } from "../../src/sync/log.js";
 import { V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, seedPlatform } from "../utils/bundle.js";
+import { withRealBundle } from "../utils/realBundle.js";
 
 /**
  * One `## <date>` group as it would come out of `Bundle.load`'s
@@ -488,5 +489,40 @@ describe("syncLog: a log.md linked out of the bundle (OKF 0.3 section 3.2 rule 5
 			assert.deepStrictEqual(result.skipped, []);
 			assert.include(yield* fs.readFileString(`${ROOT}/log.md`), "Added Revenue");
 		}).pipe(Effect.provide(seedPlatform(seedFor({ [`${ROOT}/log.md`]: "# Log\n" })))),
+	);
+});
+
+describe("syncLog byte-order mark (#492)", () => {
+	const OLD = "# Log\n\n## 2026-08-01\n\n* Added Old\n";
+	const MOD = (title: string) => `---\ntype: Module\ntitle: ${title}\n---\n\n# ${title}\n`;
+	const files = { "old.md": MOD("Old"), "new.md": MOD("Fresh"), "log.md": `\uFEFF${OLD}` };
+
+	it.effect("keeps a leading BOM when it rewrites log.md (#492)", () =>
+		withRealBundle(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const id = Option.getOrThrow(ConceptId.normalize("new.md"));
+				const provenance = new Map([[id, committed("2026-09-01T00:00:00Z", true)]]);
+				const result = yield* syncLog(bundle, provenance, false);
+				assert.deepStrictEqual(result.written, ["log.md"]);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "log.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				const text = bytes.subarray(3).toString("utf8");
+				assert.isTrue(text.includes("* Added Fresh"));
+				assert.isTrue(text.endsWith(OLD.slice("# Log\n\n".length)));
+			}),
+		),
+	);
+
+	it.effect("a BOM log.md that already matches the merge is unchanged", () =>
+		withRealBundle(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const before = yield* Effect.promise(() => readFile(join(root, "log.md")));
+				const result = yield* syncLog(bundle, new Map(), false);
+				assert.deepStrictEqual(result.unchanged, ["log.md"]);
+				assert.isTrue(before.equals(yield* Effect.promise(() => readFile(join(root, "log.md")))));
+			}),
+		),
 	);
 });

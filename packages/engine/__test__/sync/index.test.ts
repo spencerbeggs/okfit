@@ -20,6 +20,7 @@ import { Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
 import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, projectPlatform, seedPlatform } from "../utils/bundle.js";
+import { withRealBundle } from "../utils/realBundle.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -304,5 +305,68 @@ describe("syncIndex: a reserved index.md linked out of the bundle (OKF 0.3 secti
 			// Control: the same call writes the indexes that do not link out.
 			assert.isTrue(result.written.includes("modules/index.md") || result.unchanged.includes("modules/index.md"));
 		}).pipe(Effect.provide(seedPlatform(seedFor("escaping")))),
+	);
+});
+
+describe("syncIndex byte-order mark (#492)", () => {
+	const BOM = "\uFEFF";
+	const MOD = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
+	const STALE = "# Stale\n";
+	const readBytes = (root: string, name: string) => Effect.promise(() => readFile(join(root, name)));
+
+	it.effect("keeps a leading BOM when it rewrites a stale index.md (#492)", () =>
+		Effect.gen(function* () {
+			const twin = yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": STALE }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					yield* syncIndex(bundle, false);
+					return (yield* readBytes(root, "modules/index.md")).toString("utf8");
+				}),
+			);
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": `${BOM}${STALE}` }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.written.includes("modules/index.md"));
+					const bytes = yield* readBytes(root, "modules/index.md");
+					assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+					assert.strictEqual(bytes.subarray(3).toString("utf8"), twin);
+				}),
+			);
+		}),
+	);
+
+	it.effect("a BOM index.md that already matches the render is unchanged", () =>
+		Effect.gen(function* () {
+			const rendered = yield* withRealBundle({ "modules/a.md": MOD }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					yield* syncIndex(bundle, false);
+					return (yield* readBytes(root, "modules/index.md")).toString("utf8");
+				}),
+			);
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": `${BOM}${rendered}` }, (root) =>
+				Effect.gen(function* () {
+					const before = yield* readBytes(root, "modules/index.md");
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.unchanged.includes("modules/index.md"));
+					assert.isFalse(result.written.includes("modules/index.md"));
+					assert.isTrue(before.equals(yield* readBytes(root, "modules/index.md")));
+				}),
+			);
+		}),
+	);
+
+	it.effect("a new index.md gets no BOM", () =>
+		withRealBundle({ "modules/a.md": MOD }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const result = yield* syncIndex(bundle, false);
+				assert.isTrue(result.written.includes("modules/index.md"));
+				const bytes = yield* readBytes(root, "modules/index.md");
+				assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+			}),
+		),
 	);
 });
