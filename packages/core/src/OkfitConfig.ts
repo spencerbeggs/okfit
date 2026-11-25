@@ -433,6 +433,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	computation_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "computation-missing",
+			description:
+				'An Attested Computation has no computation: no computation key, and no fenced code block in its Computation section (OKF 0.3 §10.3), so it is not attestable. Default "warn".',
+			default: "warn",
+		}),
+	),
 	publication_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-drift",
@@ -779,6 +787,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"superseded-by-orphan": "superseded_by_orphan",
 	"superseded-by-unresolved": "superseded_by_unresolved",
 	"generated-missing": "generated_missing",
+	"computation-missing": "computation_missing",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
@@ -823,6 +832,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	superseded_by_orphan: "warn",
 	superseded_by_unresolved: "warn",
 	generated_missing: "warn",
+	computation_missing: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",
 	surface_unmatched: "warn",

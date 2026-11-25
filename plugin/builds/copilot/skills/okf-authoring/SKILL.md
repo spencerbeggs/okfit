@@ -118,6 +118,8 @@ for an agent, so suggest the human run it instead of attempting it.
     or file; only parameter values.
 13. Write `runtime` on an Attested Computation anyway -- core only lints its
     absence (D-20); do not lean on that leniency.
+    A computation with no fenced block and no `computation` file draws
+    `computation-missing`.
 14. Always write `status` explicitly, never leave it absent: `draft` when the
     concept is unreviewed, `stable` when it is settled. A Decision follows its
     verified rule instead: write a new one `draft` and leave settling it to

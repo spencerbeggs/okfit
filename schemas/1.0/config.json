@@ -855,6 +855,28 @@
 						}
 					}
 				},
+				"computation_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "computation-missing",
+					"description": "An Attested Computation has no computation: no computation key, and no fenced code block in its Computation section (OKF 0.3 §10.3), so it is not attestable. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"publication_drift": {
 					"type": "string",
 					"enum": [

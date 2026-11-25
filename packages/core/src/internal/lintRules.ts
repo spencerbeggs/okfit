@@ -1,6 +1,6 @@
 import { GlobPattern } from "@effected/glob";
 import { EditDistance } from "@effected/source";
-import { DateTime, Result, Schema } from "effect";
+import { DateTime, Option, Result, Schema } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
 import { Concept } from "../Concept.js";
@@ -218,6 +218,37 @@ export const generatedMissing: LintRule = perConcept("generated-missing", (conce
 				`Concept has no generated block; okfit sync will create it from actors.agent (${context.config.actors.agent}) once the body is committed, or set generated.by by hand`,
 			]
 		: [],
+);
+
+/**
+ * OKF 0.3 §10.3: an Attested Computation with neither a `computation` key nor an inline computation is not
+ * attestable. `computationBody` is already the bundle's declared reading (fenced block under 0.3, the depth-1
+ * section under 0.2), so a missing or blank body is the one condition. `runtime` is not required here:
+ * `computation-runtime-missing` reports that separately.
+ */
+export const computationMissing: LintRule = rule("computation-missing", (context, severity) =>
+	[...context.bundle.concepts.values()].flatMap((concept) => {
+		const attested = concept.frontmatter.attested;
+		if (attested === undefined || attested.computation !== undefined) return [];
+		const body = concept.computationBody;
+		if (Option.isSome(body) && body.value.trim() !== "") return [];
+		const heading = Option.orElse(concept.document.sectionByHeading("Computation", { depth: 1 }), () =>
+			concept.document.sectionByHeading("Computation"),
+		);
+		const range = Option.match(heading, {
+			onNone: () => frontmatterPathRange(concept.document, []),
+			onSome: ({ heading: node }) =>
+				DiagnosticRange.fromOffset(
+					concept.document.source,
+					node.position.start.offset,
+					node.position.end.offset - node.position.start.offset,
+				),
+		});
+		const message = Option.isSome(heading)
+			? "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
+			: "This Attested Computation has no computation: it has no Computation section and no computation key (OKF 0.3 §10.3), so it is not attestable";
+		return [diagnostic(concept.path, "computation-missing", severity, message, range)];
+	}),
 );
 
 export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (concept) => {
@@ -529,6 +560,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	statusMissing,
 	nonConceptUnlisted,
 	generatedMissing,
+	computationMissing,
 	actorPrefixUnknown,
 	actorEmail,
 	verifiedActorUnknown,

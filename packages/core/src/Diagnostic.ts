@@ -62,6 +62,7 @@ export const LintCode = Schema.Literals([
 	"type-missing",
 	"symlink-escape",
 	"non-concept-unlisted",
+	"computation-missing",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;
