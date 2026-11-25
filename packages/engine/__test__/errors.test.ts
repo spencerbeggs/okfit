@@ -215,7 +215,11 @@ describe("VerifyNotCurrentError", () => {
 		);
 		assert.strictEqual(
 			new VerifyNotCurrentError({ ...fields, kind: "near-future" }).message,
-			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again after 2030-01-01T00:00:00Z',
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after 2030-01-01T00:00:00Z',
+		);
+		assert.strictEqual(
+			new VerifyNotCurrentError({ ...fields, kind: "blocked", blockedBy: "2029-01-01T00:00:00Z" }).message,
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated 2029-01-01T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification',
 		);
 		assert.strictEqual(
 			new VerifyNotCurrentError(fields).message,

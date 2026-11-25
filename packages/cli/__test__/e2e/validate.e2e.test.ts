@@ -1109,6 +1109,7 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 				...sandbox,
 				stdin: V03_PROJECT[COMPUTATION] as string,
 			});
+			assert.include(overlaid.stderr, "OKF 0.3:"); // the summary is there, so "no refused" is not vacuous
 			assert.notInclude(overlaid.stderr, "refused");
 			assert.strictEqual(yield* read(sandbox, PROSE), proseOnly, "the file on disk is untouched");
 		}).pipe(Effect.provide(TestPlatform)),
@@ -1137,7 +1138,8 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
 			assert.strictEqual(run.exitCode, 0);
 			assert.include(run.stdout, "refused: index.md:");
-			assert.include(run.stderr, "1 refused by --fix (run with --fix --dry-run to see why)");
+			assert.include(run.stderr, "1 refused by --fix");
+			assert.notInclude(run.stderr, "to see why"); // the refusals are printed right there
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 

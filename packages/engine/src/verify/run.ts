@@ -1,7 +1,15 @@
 import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Bundle, ConceptId, Derive, INTEGRITY_KEY, Timestamp, generatedAtIsFuture } from "@okfit/core";
+import {
+	Bundle,
+	ConceptId,
+	Derive,
+	INTEGRITY_KEY,
+	Timestamp,
+	generatedAtIsFuture,
+	verificationBlockingRestamp,
+} from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
@@ -161,9 +169,22 @@ const notCurrentRefusal = (
 	const generatedAt = concept.frontmatter.generated?.at;
 	if (generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)) return undefined;
 	// How far ahead of now the stamp is, when now is known; the engine never claims "later than now" without it.
-	const kind =
-		now === undefined || !DateTime.isGreaterThan(generatedAt, now)
-			? undefined
+	const future = now !== undefined && DateTime.isGreaterThan(generatedAt, now);
+	// A future stamp sync would skip: a verification dated between now and it would start to count if it were lowered.
+	const blockedBy =
+		future && generatedAtIsFuture(generatedAt, now)
+			? Option.getOrUndefined(
+					verificationBlockingRestamp(
+						(concept.frontmatter.verified ?? []).map((entry) => entry.at),
+						generatedAt,
+						now,
+					),
+				)
+			: undefined;
+	const kind = !future
+		? undefined
+		: blockedBy !== undefined
+			? ("blocked" as const)
 			: generatedAtIsFuture(generatedAt, now)
 				? ("future" as const)
 				: ("near-future" as const);
@@ -172,6 +193,7 @@ const notCurrentRefusal = (
 		at: Schema.encodeSync(Timestamp)(at),
 		generatedAt: Schema.encodeSync(Timestamp)(generatedAt),
 		...(kind === undefined ? {} : { kind }),
+		...(blockedBy === undefined ? {} : { blockedBy: Schema.encodeSync(Timestamp)(blockedBy) }),
 	});
 };
 

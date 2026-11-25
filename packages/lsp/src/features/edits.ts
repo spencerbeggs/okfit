@@ -34,6 +34,7 @@ import {
 	Timestamp,
 	Verification,
 	generatedAtIsFuture,
+	verificationBlockingRestamp,
 } from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
@@ -60,7 +61,12 @@ export type EditFailure =
 	| { readonly _tag: "Unsupported"; readonly key: string; readonly shape: string }
 	| { readonly _tag: "ActorUnresolved"; readonly message: string }
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
-	| { readonly _tag: "NotCurrent"; readonly generatedAt: string; readonly kind: "future" | "near-future" }
+	| {
+			readonly _tag: "NotCurrent";
+			readonly generatedAt: string;
+			readonly kind: "blocked" | "future" | "near-future";
+			readonly blockedBy?: string;
+	  }
 	| { readonly _tag: "DraftCannotBeVerified" }
 	| { readonly _tag: "DeprecatedCannotBeVerified" }
 	| { readonly _tag: "UnknownStatusCannotBeVerified"; readonly status: string }
@@ -300,14 +306,20 @@ const alreadyBound = (target: EditTarget, actor: string, content: string): boole
  * count; `kind` is `"future"` when the stamp is more than core's tolerance ahead of `now` (`okfit sync` re-stamps it)
  * and `"near-future"` within it. The editor's side of the engine's `VerifyNotCurrentError`; both ask core's `Derive.isCurrent`.
  */
-const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefined =>
-	target.generated === undefined || Derive.isCurrent({ generated: target.generated }, now)
-		? undefined
-		: {
-				_tag: "NotCurrent",
-				generatedAt: Schema.encodeSync(Timestamp)(target.generated.at),
-				kind: generatedAtIsFuture(target.generated.at, now) ? "future" : "near-future",
-			};
+const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefined => {
+	if (target.generated === undefined || Derive.isCurrent({ generated: target.generated }, now)) return undefined;
+	const generatedAt = Schema.encodeSync(Timestamp)(target.generated.at);
+	if (!generatedAtIsFuture(target.generated.at, now)) return { _tag: "NotCurrent", generatedAt, kind: "near-future" };
+	// More than the tolerance ahead: sync re-stamps it, unless a verification dated in between would then count.
+	const blocking = verificationBlockingRestamp(
+		target.verified.map((entry) => entry.at),
+		target.generated.at,
+		now,
+	);
+	return Option.isSome(blocking)
+		? { _tag: "NotCurrent", generatedAt, kind: "blocked", blockedBy: Schema.encodeSync(Timestamp)(blocking.value) }
+		: { _tag: "NotCurrent", generatedAt, kind: "future" };
+};
 
 /**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
@@ -412,6 +424,18 @@ export const versionedEdit = (uri: string, target: EditTarget, edits: ReadonlyAr
 	documentChanges: [{ textDocument: { uri, version: target.version }, edits: [...edits] }],
 });
 
+/** The `NotCurrent` message for each `kind`: blocked, future and near-future each name a different next step. */
+const describeNotCurrent = (failure: Extract<EditFailure, { readonly _tag: "NotCurrent" }>): string => {
+	switch (failure.kind) {
+		case "blocked":
+			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); okfit sync will not re-stamp it, because the verification dated ${failure.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
+		case "future":
+			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again`;
+		case "near-future":
+			return `the concept's generated.at (${failure.generatedAt}) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after ${failure.generatedAt}`;
+	}
+};
+
 /**
  * `failure` as a short human-readable message, for a command handler
  * surfacing why an edit could not be computed.
@@ -429,9 +453,7 @@ export const describeFailure = (failure: EditFailure): string => {
 		case "AlreadyVerified":
 			return `already verified by ${failure.by}`;
 		case "NotCurrent":
-			return failure.kind === "future"
-				? `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again`
-				: `the concept's generated.at (${failure.generatedAt}) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again after ${failure.generatedAt}`;
+			return describeNotCurrent(failure);
 		case "DraftCannotBeVerified":
 			return "the editor's Mark verified skips a draft concept, as okfit verify --all does";
 		case "DeprecatedCannotBeVerified":

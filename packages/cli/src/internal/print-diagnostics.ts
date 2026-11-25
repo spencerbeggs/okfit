@@ -23,6 +23,8 @@ export const printDiagnostics = Effect.fn("okfit/cli/printDiagnostics")(function
 	readonly target?: string;
 	/** The `file` and `code` of each fix an un-narrowed `--fix` would refuse; those findings are not "fixable". */
 	readonly refused?: ReadonlyArray<{ readonly file: string; readonly code: string }>;
+	/** `--fix` was given: the refusals are printed above the summary, so it does not point at `--fix --dry-run`. */
+	readonly fix?: boolean;
 }) {
 	const { diagnostics, cwd, bundleRoot, path } = options;
 	const migrate = diagnostics.filter((d) => d.source === "migrate");
@@ -47,7 +49,10 @@ export const printDiagnostics = Effect.fn("okfit/cli/printDiagnostics")(function
 		const refusals = options.refused ?? [];
 		const withFix = migrate.filter((d) => d.fix !== undefined);
 		const refused = withFix.filter((d) => refusals.some((r) => r.file === d.file && r.code === d.code)).length;
-		const refusedPart = refused > 0 ? `, ${refused} refused by --fix (run with --fix --dry-run to see why)` : "";
+		const refusedPart =
+			refused > 0
+				? `, ${refused} refused by --fix${options.fix === true ? "" : " (run with --fix --dry-run to see why)"}`
+				: "";
 		yield* Console.error(
 			`OKF ${options.target}: ${migrate.length} finding(s), ${withFix.length - refused} fixable with --fix${refusedPart}`,
 		);

@@ -378,12 +378,21 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			);
 			// #471: never write a stamp later than now (a skewed author clock), unless lowering it would make a
 			// verification dated in between count (R2): then the unclamped stamp stands and the lint reports it.
-			encodedAt = encodeAt(
+			const candidate =
 				nowStamp !== undefined &&
-					DateTime.isGreaterThan(stamped, nowStamp) &&
-					earliestVerificationBetween(concept, nowStamp, stamped) === undefined
+				DateTime.isGreaterThan(stamped, nowStamp) &&
+				earliestVerificationBetween(concept, nowStamp, stamped) === undefined
 					? nowStamp
-					: stamped,
+					: stamped;
+			// R2 against the stamp being replaced: a stamp is never moved back below a verification. The binding clamp
+			// in `stampInstant` never goes below the existing stamp, so it is unaffected; the final candidate is judged last.
+			const previous = generated?.at;
+			encodedAt = encodeAt(
+				previous !== undefined &&
+					DateTime.isLessThan(candidate, previous) &&
+					earliestVerificationBetween(concept, candidate, previous) !== undefined
+					? previous
+					: candidate,
 			);
 		}
 

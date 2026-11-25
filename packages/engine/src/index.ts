@@ -172,5 +172,11 @@ export {
 	runVerifyIds,
 } from "./verify/run.js";
 export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
-export { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./verify/select.js";
+export {
+	notCurrentAt,
+	resolveBatchTypes,
+	selectAttestable,
+	selectPickerCandidates,
+	selectStaleCandidates,
+} from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

@@ -788,6 +788,37 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 			),
 	);
 
+	it.effect(
+		"a future generated.at with a verification between now and it is kind blocked, with that verification",
+		() => {
+			const future = "generated:\n  by: process:sync\n  at: 2030-06-01T00:00:00Z\n";
+			const verified = "verified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\n";
+			const refusal = (extra: string) =>
+				withRoot({ "decisions/a.md": doc("A", future + extra) }, (root) =>
+					Effect.gen(function* () {
+						const error = yield* Effect.flip(
+							runVerify({
+								...base(root, "2026-11-24T00:00:00Z"),
+								now: DateTime.makeUnsafe("2026-11-24T00:00:00Z"),
+								id: "decisions/a",
+							}).pipe(Effect.provide(platform)),
+						);
+						assert.strictEqual(error._tag, "VerifyNotCurrentError");
+						return error as VerifyNotCurrentError;
+					}),
+				);
+			return Effect.gen(function* () {
+				const blocked = yield* refusal(verified);
+				assert.strictEqual(blocked.kind, "blocked");
+				assert.strictEqual(blocked.blockedBy, "2029-01-01T00:00:00Z");
+				// control: the same concept without the verification is plain future
+				const plain = yield* refusal("");
+				assert.strictEqual(plain.kind, "future");
+				assert.isUndefined(plain.blockedBy);
+			});
+		},
+	);
+
 	it.effect("inspectDrift refuses for the same reason, before a prompt could be shown", () =>
 		withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
 			Effect.gen(function* () {

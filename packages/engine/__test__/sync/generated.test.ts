@@ -1867,6 +1867,63 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		}),
 	);
 
+	describe("a changed concept never has its stamp moved back below a verification", () => {
+		const V2029 = "2029-01-01T00:00:00Z";
+		const AUTHORED = DateTime.makeUnsafe("2026-11-10T00:00:00Z");
+		const VERIFIED_2029 = "verified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\n";
+		const BINDING_2029 =
+			"  verified:\n    by: human:ada\n    at: 2029-01-01T00:00:00Z\n    content: cccccccccccccccc\n";
+
+		it.effect("a changed concept keeps its stamp when the new one would fall below a verification", () =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run({ a: drifted("a", FUTURE, V2029) }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.written, ["a"]);
+				assert.deepStrictEqual(result.skipped, []);
+				const out = pending[0]?.contents ?? "";
+				assert.include(out, `generated:\n  by: human:ada\n  at: ${FUTURE}\n`);
+				assert.notInclude(out, "body: 0000000000000000");
+				assert.include(out, VERIFIED_2029);
+				assert.include(out, BINDING_2029);
+			}),
+		);
+
+		it.effect("the same through --staged: the stamp would be now", () =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run({ a: drifted("a", FUTURE, V2029) }, { now: NOW, provenance: NOW });
+				assert.deepStrictEqual(result.written, ["a"]);
+				const out = pending[0]?.contents ?? "";
+				assert.include(out, `  at: ${FUTURE}\n`);
+				assert.notInclude(out, "body: 0000000000000000");
+				assert.include(out, VERIFIED_2029);
+				assert.include(out, BINDING_2029);
+			}),
+		);
+
+		it.effect("a changed concept is stamped earlier when no verification falls in between", () =>
+			Effect.gen(function* () {
+				const { pending } = yield* run(
+					{ a: drifted("a", FUTURE, "2026-01-02T00:00:00Z") },
+					{ now: NOW, provenance: AUTHORED },
+				);
+				assert.include(pending[0]?.contents ?? "", "  at: 2026-11-10T00:00:00Z\n");
+			}),
+		);
+
+		it.effect(
+			"a stamp that is not in the future is kept too: G 2026-11-20, verified 2026-11-15, authored 2026-11-10",
+			() =>
+				Effect.gen(function* () {
+					const { pending } = yield* run(
+						{ a: drifted("a", "2026-11-20T00:00:00Z", "2026-11-15T00:00:00Z") },
+						{ now: NOW, provenance: AUTHORED },
+					);
+					const out = pending[0]?.contents ?? "";
+					assert.include(out, "  at: 2026-11-20T00:00:00Z\n");
+					assert.notInclude(out, "body: 0000000000000000");
+				}),
+		);
+	});
+
 	it.effect("running the repair twice writes once", () =>
 		Effect.gen(function* () {
 			const first = yield* run({ a: yield* matching("a", FUTURE) }, { now: NOW });

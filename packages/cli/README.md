@@ -287,11 +287,11 @@ identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 run appends, including a repeat by the same person. `--at <iso>` records a
 different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
-`generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead); an instant
+`generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
 (`skipped <id>: generated.at is later than <at>, ...`) and verify the rest; both pickers leave it out and print one
 `left out ...` line naming it. A `generated.at` later than now by less than 5 minutes is refused with a message to check
-the clock (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
+the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
 
@@ -413,12 +413,21 @@ A stamp within five minutes of now, or earlier, is never re-stamped.
 When a verification dated between now and the stamp would then count, sync skips the re-stamp and says so, and the lint names that verification instead of promising a repair.
 The repair leaves `verified`, `x-okfit-integrity.verified` and `status` alone,
 so a human verification made before it stays not current until the human runs
-`okfit verify` again. Sync never lowers a stamp when that would make a
-verification count that did not before: such a concept is reported as `skipped`
-(`verified-after-now`, with the stamp and the verification's date), a drifted
-concept keeps its author-date stamp (it is not clamped, nothing is reported as skipped on that run, and the lint reports it once it is more than five minutes ahead), and a human has to correct `generated.at`
-or that verification. A skip does not change the exit code. Under `--staged`
-only staged concepts are re-stamped; run a plain `okfit sync` for the rest.
+`okfit verify` again.
+
+Sync guards two paths against making a verification count that did not before.
+A re-stamp of a future `generated.at` to now is skipped (`verified-after-now`,
+with the stamp and the verification's date) when a verification dated between now
+and the stamp would then count. A changed concept's new stamp (the author date,
+or the staged instant under `--staged`) is capped at now unless a verification
+dated between now and it would then count, and is never moved back below the
+stamp it replaces when a verification falls between the two: the existing
+`generated.at` stays, the body digest is still re-recorded, and nothing is
+reported as skipped. A stamp lowered to the verification of the content being
+stamped (the edit, verify, commit sequence) is unaffected. A human has to
+correct `generated.at` or that verification; a skip does not change the exit
+code. Under `--staged` only staged concepts are re-stamped; run a plain
+`okfit sync` for the rest.
 
 ### `okfit mv`
 

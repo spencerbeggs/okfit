@@ -686,6 +686,34 @@ describe("runSync --staged (issue #140)", () => {
 			}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	it.effect("a staged edit does not lower a future stamp below a verification; the digest is re-recorded (#471)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const body = "\n# A\n\nEdited.\n";
+				const file = join(root, "okf", "a.md");
+				const text = `---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n  at: 2030-06-01T00:00:00Z\nverified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\nx-okfit-integrity:\n  generated:\n    body: 0000000000000000\n---${body}`;
+				yield* Effect.promise(() => writeFile(file, text));
+				git(root, ["add", "okf/a.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: DateTime.makeUnsafe("2026-09-16T10:00:07.400Z") },
+					now: DateTime.makeUnsafe("2026-09-16T10:00:07.400Z"),
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["a"]);
+				const out = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.include(out, "  at: 2030-06-01T00:00:00Z\n");
+				assert.notInclude(out, "body: 0000000000000000");
+				assert.include(out, "verified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\n");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("stages a nested sub-index at its repo path from a linked worktree's hook environment (#315)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

@@ -248,6 +248,7 @@ export const validateCommand = Command.make(
 						path,
 						concepts: result.bundle.concepts.size,
 						refused,
+						fix: input.fix,
 						...(target === undefined ? {} : { target }),
 					});
 					// #493: a hint, once per run, on stderr; not a finding, so it never changes the exit code.

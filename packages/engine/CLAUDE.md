@@ -99,7 +99,8 @@ src/
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
                                   concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
-                                  (`kind` is `future` beyond the 5-minute tolerance, `near-future` within it, absent
+                                  (`kind` is `blocked` beyond the 5-minute tolerance when a verification dated between now and the stamp (`blockedBy`) would count
+                                  if sync re-stamped it, so sync skips it; else `future` beyond the tolerance, `near-future` within it, absent
                                   when `now` is unknown or `generated.at` is not later than `now`, so only the verification time is early) and writes nothing; a batch, an id list and both
                                   pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
                                   OKF 0.3 5.3, R33)
@@ -111,7 +112,9 @@ src/
                                   generated.at more than 5 minutes later than now is re-stamped to now even behind a
                                   matching digest, and a drifted concept's stamp is clamped to now; sync skips the re-stamp
                                   (`verified-after-now`) when it would make a verification count, and leaves the
-                                  clamp off (the derived stamp stands, the lint reports it) when the clamp would
+                                  clamp off (the derived stamp stands, the lint reports it) when the clamp would make a verification count; a changed
+                                  concept's stamp is also never moved back below the stamp it replaces when a verification falls
+                                  between the two (the existing stamp is kept, the digest is re-recorded, nothing is skipped)
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog

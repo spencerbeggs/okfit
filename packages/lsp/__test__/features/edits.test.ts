@@ -516,9 +516,41 @@ describe("describeFailure for NotCurrent (#470)", () => {
 		);
 		assert.strictEqual(
 			describeFailure({ _tag: "NotCurrent", generatedAt: "2030-01-01T00:00:00Z", kind: "near-future" }),
-			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again after 2030-01-01T00:00:00Z",
+			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after 2030-01-01T00:00:00Z",
 		);
 	});
+
+	it("a blocked stamp says sync will not re-stamp it and names the verification", () => {
+		assert.strictEqual(
+			describeFailure({
+				_tag: "NotCurrent",
+				generatedAt: "2030-06-01T00:00:00Z",
+				kind: "blocked",
+				blockedBy: "2029-01-01T00:00:00Z",
+			}),
+			"the concept's generated.at (2030-06-01T00:00:00Z) is later than now, so a verification now would not count (OKF 0.3 5.3); okfit sync will not re-stamp it, because the verification dated 2029-01-01T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
+		);
+	});
+
+	it.effect("verifiedTextEdits tags NotCurrent blocked when a verification falls between now and a future stamp", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const text = disk
+				.replace(/(generated:\n {2}by: .*\n {2}at: )".*"/, '$1"2030-06-01T00:00:00Z"')
+				.replace(/^---\n/, "---\nverified:\n  - by: human:other\n    at: 2029-01-01T00:00:00Z\n");
+			yield* documents.record(path, text, 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const failure = yield* Effect.flip(
+				verifiedTextEdits(target, "human:fixture-author", DateTime.makeUnsafe("2026-11-24T00:00:00Z")),
+			);
+			assert.deepStrictEqual(failure, {
+				_tag: "NotCurrent",
+				generatedAt: "2030-06-01T00:00:00Z",
+				kind: "blocked",
+				blockedBy: "2029-01-01T00:00:00Z",
+			});
+		}).pipe(Effect.provide(testPlatform())),
+	);
 
 	it.effect("verifiedTextEdits tags NotCurrent near-future up to 5 minutes ahead and future beyond", () =>
 		Effect.gen(function* () {
