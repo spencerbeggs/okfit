@@ -8,7 +8,7 @@
 
 ## Features
 
-- `okfit sync` re-stamps a `generated.at` more than 5 minutes later than now, and stamps a changed concept no later than now. It never lowers a stamp when that would make a verification count: the re-stamp is skipped with the reason `verified-after-now`. `SyncSkip` is exported.
+- `okfit sync` re-stamps a `generated.at` more than 5 minutes later than now, and caps a changed concept's new stamp at now. It never lowers a stamp when that would make a verification count: the re-stamp is skipped with the reason `verified-after-now`, and the cap is not applied. `SyncSkip` is exported.
 - Verify skips a concept that cannot be verified at the verification time, with the skip reason `not-current`, in a batch or an id list. The picker loaders leave such rows out and return the ids as `leftOut`.
 - `VerifyBatchSkipReason` gains `not-current`. `VerifyOptions`, `VerifyBatchOptions` and `VerifyIdsOptions` take an optional `now`.
 - `RunOptions.configPath` and `RunResult.legacyKeys` are new. `RevalidateResult.current` and the type `DiagnosticsByFile` are exported.
