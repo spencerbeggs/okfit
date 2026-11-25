@@ -14,7 +14,8 @@ const fact = (text: string) => Doc.line(text, { wrap: false });
 
 /**
  * `okfit mv`'s human output: a headline, one line per rewritten file, the concepts the move
- * leaves drifted (re-verify what a human had verified; `sync` re-stamps a digest that could not be kept), and the next step.
+ * leaves drifted (a human re-verifies those that were verified; `sync` reports one whose integrity block it cannot edit),
+ * and the next step.
  *
  * @public
  */
@@ -27,7 +28,7 @@ export const humanMoveDoc = (input: MoveLines): Document => {
 		),
 		...(input.drifts.length > 0
 			? [
-					`will drift (re-verify any a human had verified; sync re-stamps one whose digest could not be kept): ${input.drifts.join(", ")}`,
+					`will drift (a human re-verifies any that were verified; okfit sync reports any whose integrity block it cannot edit): ${input.drifts.join(", ")}`,
 				]
 			: []),
 		"next: okfit sync",

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:42:38Z
+  at: 2026-11-25T14:49:26Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: a0516f1401414754
+    body: cd293a501fd224d7
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -484,9 +484,10 @@ concept whose links it rewrites it re-records `x-okfit-integrity.generated.body`
 digest matched the body before the move, so the next `sync` keeps `generated.at`. A concept whose
 digest was already stale, has no recorded `x-okfit-integrity.generated.body` (one that records only
 `generated.body_sha256` included) or is still on okfit's old key names (a legacy `integrity:` block)
-is re-linked but not re-recorded, and the next `sync` re-stamps it. A concept whose integrity block
-has a layout `mv` will not edit is not re-recorded either and is listed in the plan's `drifts`, even if
-no human had verified it. `--dry-run` prints the plan and writes nothing. `mv` never
+is re-linked but not re-recorded, and the next `sync` then re-stamps its `generated.at`. A concept
+that carries both key spellings, or whose integrity block has a layout `mv` will not edit, is not
+re-recorded either, and `sync` reports it as skipped (`legacy-key-conflict`, `integrity-unsupported`) instead of
+re-stamping it; the second kind is listed in the plan's `drifts`, even if no human had verified it. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,
 `pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside

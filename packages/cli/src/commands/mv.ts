@@ -105,7 +105,7 @@ export const mvCommand = Command.make(
 ).pipe(
 	Command.withDescription(
 		"Move a concept to a new path and rewrite every reference to it across the bundle (body links, " +
-			`path fields including superseded_by, ${ProfileKeys.supersedes}, Publication ${ProfileKeys.renders}, and links in Markdown files that are not concepts). Every rewritten file drifts and needs a human to re-verify it; ` +
-			"run okfit sync afterwards to regenerate index.md and the generated stamps.",
+			`path fields including superseded_by, ${ProfileKeys.supersedes}, Publication ${ProfileKeys.renders}, and links in Markdown files that are not concepts). ` +
+			"A rewritten concept that a human had verified drifts and needs re-verifying (okfit verify); run okfit sync afterwards to regenerate index.md and the generated stamps.",
 	),
 );

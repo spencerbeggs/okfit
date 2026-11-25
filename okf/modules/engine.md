@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:42:38Z
+  at: 2026-11-25T14:49:26Z
 x-okfit-integrity:
   generated:
-    body: 6b93cc83c2a325cb
+    body: a604788d5f102393
 ---
 
 # Engine
@@ -337,8 +337,9 @@ file with an unclosed or unparseable frontmatter block still refuses with
 `MoveError` `unloaded-files`. `mv` writes a rewritten file back with the
 leading UTF-8 byte-order mark it had (`bomOf`), and re-records a concept's body
 digest (`rerecordBodyDigest`) only when it matched the body before the move, so the next `sync` keeps
-`generated.at`; a stale or absent digest and a concept on old key names are not re-recorded (`sync` re-stamps
-them), and a concept whose integrity block cannot be edited is listed in `drifts`.
+`generated.at`; a stale or absent digest and a concept on old key names are not re-recorded (`sync` then re-stamps
+them, or reports a concept it cannot edit: both key spellings, or an uneditable integrity layout, which `mv` also
+lists in `drifts`).
 
 ## Editor seams
 
