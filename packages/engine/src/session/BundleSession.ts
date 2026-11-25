@@ -32,6 +32,8 @@ export interface BundleSessionOptions {
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly profile: Option.Option<Profile>;
+	/** The config file the project resolved, named in messages about it; omit when none was found. */
+	readonly configPath?: string;
 }
 
 /**
@@ -56,6 +58,12 @@ export interface RevalidateResult {
 	 * empty maps to `[]`. Includes files that are not open.
 	 */
 	readonly changed: ReadonlyMap<string, ReadonlyArray<RenderedDiagnostic>>;
+	/**
+	 * Every file's current diagnostic list, changed or not, keyed like `changed` (`""` for
+	 * bundle-level). A file with no diagnostics is absent. A publisher that must send a
+	 * URI's whole set (two keys sharing one document) reads the unchanged key from here.
+	 */
+	readonly current: DiagnosticsByFile;
 	readonly bundle: LoadedBundle;
 }
 
@@ -146,6 +154,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					projectRoot,
 					config: options.config,
 					profile: options.profile,
+					...(options.configPath === undefined ? {} : { configPath: options.configPath }),
 					now: revalidate.now,
 					skipProvenance: revalidate.tier === "edit",
 					skipUntracked: true,
@@ -163,7 +172,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					loaded,
 					Option.some({ bundle: result.bundle, graph: Graph.fromBundle(result.bundle), signals: result.signals }),
 				);
-				return { changed, bundle: result.bundle };
+				return { changed, current: next, bundle: result.bundle };
 			});
 
 			return BundleSession.of({

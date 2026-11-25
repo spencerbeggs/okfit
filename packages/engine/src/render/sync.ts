@@ -11,7 +11,16 @@ export const SyncModeEnvelope = Schema.Struct({
 	written: Schema.Array(Schema.String),
 	unchanged: Schema.Array(Schema.String),
 	migrated: Schema.Array(Schema.String),
-	skipped: Schema.Array(Schema.Struct({ id: Schema.String, reason: SkipReason })),
+	skipped: Schema.Array(
+		Schema.Struct({
+			id: Schema.String,
+			reason: SkipReason,
+			/** Only `verified-after-now`: the `generated.at` left in place. */
+			generated_at: Schema.optionalKey(Schema.String),
+			/** Only `verified-after-now`: the earliest verification a re-stamp would have made current. */
+			verified_at: Schema.optionalKey(Schema.String),
+		}),
+	),
 });
 /** @public */
 export type SyncModeEnvelope = typeof SyncModeEnvelope.Type;
@@ -65,7 +74,12 @@ const toModeEnvelope = (mode: SyncResult["generated"]): SyncModeEnvelope => ({
 	written: [...mode.written],
 	unchanged: [...mode.unchanged],
 	migrated: [...mode.migrated],
-	skipped: mode.skipped.map((entry) => ({ id: entry.id, reason: entry.reason })),
+	skipped: mode.skipped.map((entry) => ({
+		id: entry.id,
+		reason: entry.reason,
+		...(entry.generatedAt === undefined ? {} : { generated_at: entry.generatedAt }),
+		...(entry.verifiedAt === undefined ? {} : { verified_at: entry.verifiedAt }),
+	})),
 });
 
 /**

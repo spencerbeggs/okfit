@@ -456,7 +456,7 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 	const doc = (title: string, extra: string): string =>
 		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
 
-	it.effect("two ids, one not current: the whole call fails and neither file changes; at generated.at both write", () =>
+	it.effect("runVerifyIds skips a not-current id and verifies the rest (#470)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
 			try {
@@ -473,17 +473,20 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 					dryRun: false,
 					ids: ["decisions/f", "decisions/l"],
 				};
-				const error = yield* Effect.flip(runVerifyIds(args).pipe(Effect.provide(platform)));
-				assert.strictEqual(error._tag, "VerifyNotCurrentError");
-				assert.include(error.message, "Nothing was written"); // an id list is all or nothing, and says so
-				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/f.md"), "utf8")), fine);
+				const result = yield* runVerifyIds(args).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(
+					result.verified.map((entry) => entry.id),
+					["decisions/f"],
+				);
+				assert.deepStrictEqual(result.skipped, [{ id: "decisions/l", reason: "not-current" }]);
+				assert.notStrictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/f.md"), "utf8")), fine);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
-				// control: at equal to the later generated.at succeeds and changes both files
+				// control: at equal to the later generated.at verifies both, so the skip was the not-current rule
 				const ok = yield* runVerifyIds({ ...args, at: DateTime.makeUnsafe("2026-09-16T12:00:01Z") }).pipe(
 					Effect.provide(platform),
 				);
 				assert.strictEqual(ok.verified.length, 2);
-				assert.notStrictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/f.md"), "utf8")), fine);
+				assert.deepStrictEqual(ok.skipped, []);
 				assert.notStrictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
@@ -491,13 +494,76 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 		}),
 	);
 
-	it.effect("stale --verify (refreshStaleAfter) is refused the same way", () =>
+	it.effect("an explicit id list whose every id is not current writes nothing and does not fail (#470)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
 			try {
 				yield* Effect.promise(() => mkdir(join(root, "decisions")));
-				const late = doc("L", "generated:\n  by: process:sync\n  at: 2026-09-17T00:00:00Z\n");
+				const late = doc("L", "generated:\n  by: process:sync\n  at: 2026-09-16T12:00:01Z\n");
+				const later = doc("M", "generated:\n  by: process:sync\n  at: 2026-09-17T00:00:00Z\n");
 				yield* Effect.promise(() => writeFile(join(root, "decisions/l.md"), late));
+				yield* Effect.promise(() => writeFile(join(root, "decisions/m.md"), later));
+				const result = yield* runVerifyIds({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: false,
+					ids: ["decisions/l", "decisions/m"],
+				}).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(result.verified, []);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "decisions/l", reason: "not-current" },
+					{ id: "decisions/m", reason: "not-current" },
+				]);
+				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
+				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/m.md"), "utf8")), later);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("skipped follows the order the ids were given, not sorted order", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const name of ["a", "b", "c"]) {
+					yield* Effect.promise(() =>
+						writeFile(
+							join(root, `decisions/${name}.md`),
+							doc(name, "generated:\n  by: process:sync\n  at: 2026-09-17T00:00:00Z\n"),
+						),
+					);
+				}
+				const result = yield* runVerifyIds({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: false,
+					ids: ["decisions/c", "decisions/a", "decisions/b"],
+				}).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(
+					result.skipped.map((entry) => entry.id),
+					["decisions/c", "decisions/a", "decisions/b"],
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("an unknown status in an id list still fails the whole list, even beside a not-current id", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const late = doc("L", "generated:\n  by: process:sync\n  at: 2026-09-16T12:00:01Z\n");
+				const odd = doc("O", "status: bogus\n");
+				yield* Effect.promise(() => writeFile(join(root, "decisions/l.md"), late));
+				yield* Effect.promise(() => writeFile(join(root, "decisions/o.md"), odd));
 				const error = yield* Effect.flip(
 					runVerifyIds({
 						bundleRoot: root,
@@ -505,11 +571,34 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 						config,
 						at: AT,
 						dryRun: false,
-						ids: ["decisions/l"],
-						refreshStaleAfter: true,
+						ids: ["decisions/l", "decisions/o"],
 					}).pipe(Effect.provide(platform)),
 				);
-				assert.strictEqual(error._tag, "VerifyNotCurrentError");
+				assert.strictEqual(error._tag, "VerifyStatusUnknownError");
+				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("stale --verify (refreshStaleAfter) skips a not-current id the same way", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const late = doc("L", "generated:\n  by: process:sync\n  at: 2026-09-17T00:00:00Z\n");
+				yield* Effect.promise(() => writeFile(join(root, "decisions/l.md"), late));
+				const result = yield* runVerifyIds({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: false,
+					ids: ["decisions/l"],
+					refreshStaleAfter: true,
+				}).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(result.skipped, [{ id: "decisions/l", reason: "not-current" }]);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));

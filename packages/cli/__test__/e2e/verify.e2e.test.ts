@@ -392,6 +392,32 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
+	it("verify --all prints the not-current skip line and exits 0", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const late = join(cwd, "okf", "decisions", "b.md");
+			const lateText = (await readFile(late, "utf8")).replace(
+				/^---\n/,
+				"---\ngenerated:\n  by: process:sync\n  at: 2026-09-16T12:00:01Z\n",
+			);
+			await writeFile(late, lateText, "utf8");
+			const run = await withServices(
+				runOkfit(["verify", "--all"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(
+				run.stdout,
+				"skipped decisions/b: generated.at is later than 2026-09-16T12:00:00Z, so a verification then would not count\n",
+			);
+			assert.include(run.stdout, "verified 1, skipped 1");
+			assert.strictEqual(await readFile(late, "utf8"), lateText);
+			assert.include(await readFile(join(cwd, "okf", "decisions", "a.md"), "utf8"), "by: human:ada");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("--format json reports VerifyNotCurrentError in the error envelope, exit 3, nothing written", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
@@ -411,7 +437,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(envelope.error.tag, "VerifyNotCurrentError");
 			assert.strictEqual(
 				envelope.error.message,
-				'"project" was last changed at 2026-09-07T12:00:00Z, after the verification time 2026-09-07T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-09-07T12:00:00Z, or check the clock',
+				'"project" was last changed at 2026-09-07T12:00:00Z, after the verification time 2026-09-07T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-09-07T12:00:00Z, or omit --at to verify now',
 			);
 			assert.strictEqual(await readProject(cwd), before);
 		} finally {

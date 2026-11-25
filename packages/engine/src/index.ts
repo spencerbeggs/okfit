@@ -131,11 +131,12 @@ export type {
 } from "./session/BundleSession.js";
 export { BundleSession } from "./session/BundleSession.js";
 export { conceptFor } from "./session/concept.js";
+export type { DiagnosticsByFile } from "./session/diff.js";
 export { withFallbackRange } from "./session/range.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
 export { NotAPublicationError, PublicationNotFoundError, stampPublication } from "./sync/publication.js";
-export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult } from "./sync/run.js";
+export type { SyncMode, SyncModeResult, SyncOptions, SyncPlan, SyncResult, SyncSkip } from "./sync/run.js";
 export { SkipReason, applySyncPlan, planSync, runSync } from "./sync/run.js";
 export type { PendingWrite } from "./sync/write.js";
 export type { ResolvedTarget } from "./targets/resolve.js";
@@ -171,5 +172,11 @@ export {
 	runVerifyIds,
 } from "./verify/run.js";
 export type { AttestableSelection, PickerCandidate } from "./verify/select.js";
-export { resolveBatchTypes, selectAttestable, selectPickerCandidates, selectStaleCandidates } from "./verify/select.js";
+export {
+	notCurrentAt,
+	resolveBatchTypes,
+	selectAttestable,
+	selectPickerCandidates,
+	selectStaleCandidates,
+} from "./verify/select.js";
 export { ENGINE_VERSION } from "./version.js";

@@ -10,6 +10,8 @@ import { OkfitConfig } from "./OkfitConfig.js";
 /** Options for {@link Validate.lint}; `stale` fires only when `now` is supplied (D-34). @public */
 export interface ValidateOptions {
 	readonly now?: DateTime.Utc;
+	/** The config file's path, printed in messages that name it; core reads nothing from it. */
+	readonly configPath?: string;
 }
 
 /** Both tiers. Non-empty `conformance` means CLI exit 2; any `error` in `lint` means exit 1 (spec 3.4). @public */
@@ -46,7 +48,14 @@ export class Validate {
 			}
 			loadTime.push(resolved === entry.severity ? entry : Diagnostic.make({ ...entry, severity: resolved }));
 		}
-		const context: LintContext = { bundle, config, graph: Graph.fromBundle(bundle), now: options.now, severity };
+		const context: LintContext = {
+			bundle,
+			config,
+			graph: Graph.fromBundle(bundle),
+			now: options.now,
+			configPath: options.configPath,
+			severity,
+		};
 		return [...loadTime, ...LINT_RULES.flatMap((rule) => rule(context))];
 	};
 

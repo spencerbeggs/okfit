@@ -39,6 +39,7 @@ export const SkipReason = Schema.Literals([
 	"symlink-escape",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",
+	"verified-after-now",
 ]);
 /** @public */
 export type SkipReason = typeof SkipReason.Type;
@@ -56,6 +57,27 @@ export interface SyncOptions {
 	readonly logSince?: string;
 	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history. Issue #295: log mode dates their entries with the same instant. */
 	readonly staged?: { readonly at: DateTime.Utc };
+	/**
+	 * Issue #471: the run's clock. A `generated.at` more than five minutes later than it is re-stamped to it (whole
+	 * seconds), unless that would make a verification dated in between count: then the concept is skipped
+	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception. A changed
+	 * concept's stamp is never moved back below a verification: when the new stamp is earlier than the existing
+	 * `generated.at` and a verification falls in between, the existing stamp is kept. Absent: none of this applies.
+	 */
+	readonly now?: DateTime.Utc;
+}
+
+/**
+ * One concept a mode declined to write. `generatedAt` and `verifiedAt` (encoded timestamps) accompany only
+ * `verified-after-now`: the stamp left in place and the earliest verification a re-stamp would have made current.
+ *
+ * @public
+ */
+export interface SyncSkip {
+	readonly id: string;
+	readonly reason: SkipReason;
+	readonly generatedAt?: string;
+	readonly verifiedAt?: string;
 }
 
 /** @public */
@@ -69,7 +91,7 @@ export interface SyncModeResult {
 	 * key tokens were renamed; may also be in `written` or `skipped`.
 	 */
 	readonly migrated: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: SkipReason }>;
+	readonly skipped: ReadonlyArray<SyncSkip>;
 }
 
 /** @public */
@@ -226,6 +248,7 @@ export const planSync: (
 					dryRun: true,
 					renames,
 					pending,
+					...(options.now === undefined ? {} : { now: options.now }),
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
 					...(scope === undefined ? {} : { scope }),
 				})),

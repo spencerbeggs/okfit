@@ -13,15 +13,15 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:27:40Z
+  at: 2026-11-25T04:35:04Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: b0c1d062847e6afb
+    body: def482847051a22e
   verified:
     by: human:spencer
-    at: 2026-11-25T02:05:49Z
-    content: 911983f133379980
+    at: 2026-11-25T13:30:00Z
+    content: a73bc8f98c46d7a7
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:48Z
@@ -31,6 +31,8 @@ verified:
     at: 2026-11-24T14:56:24Z
   - by: human:spencer
     at: 2026-11-25T02:05:49Z
+  - by: human:spencer
+    at: 2026-11-25T13:30:00Z
 ---
 
 # Markdown that is not a concept is skipped, not an error
@@ -112,7 +114,7 @@ a typeless file that is not one of the four listed names; a bundle that sets
 config has no key, which is `profile = "none"` with no `non_concepts` of its
 own; the software-project profile, the default, always supplies the four
 globs.
-`non_concept_unlisted` is a public config key, so the lint keys number forty-two.
+`non_concept_unlisted` is a public config key, one of the forty-three lint keys.
 
 `sync` never stamps or rewrites a concept file that is a link out of the
 bundle, because `Bundle.load` drops it, and an engine test pins that. The

@@ -16,6 +16,7 @@ import type { Digest } from "effect/crypto";
 import type { MigrationFinding } from "../migrate/findings.js";
 import { migrationFindings } from "../migrate/findings.js";
 import { readMarkdownSources } from "../move/sources.js";
+import { hasLegacyKeyNames, keyRenamesFor } from "../sync/legacyKeys.js";
 import { lintResources } from "./resources.js";
 import { lintSurfaces } from "./surfaces.js";
 import { lintUntrackedResources } from "./untracked.js";
@@ -52,6 +53,8 @@ export interface RunOptions {
 	readonly profile: Option.Option<Profile>;
 	/** `OKFIT_NOW` or `DateTime.now`, from `bin.ts` (K-47); enables the `stale` rule (D-34). */
 	readonly now: DateTime.Utc;
+	/** The config file the run read, named in messages about it (`config-okf-version-stale`); omit when none was found. */
+	readonly configPath?: string;
 	/**
 	 * S-31: skip `Provenance.lint`'s git TIER (tier 2, the git-derived date
 	 * comparison for concepts with no recorded body digest: neither
@@ -90,6 +93,12 @@ export interface RunResult {
 	readonly signals: ReadonlyMap<string, ConceptSignal>;
 	/** What reads differently under `RunOptions.target`; `[]` without a target. Never counted in an exit code (R50). */
 	readonly migration: ReadonlyArray<MigrationFinding>;
+	/**
+	 * Sorted ids of the concepts that still use okfit's old frontmatter key names (`okfit sync` renames them).
+	 * Always the whole bundle, even when a caller narrows the report to some targets, because sync renames across
+	 * the whole bundle. Advisory: not a finding and not part of any JSON contract.
+	 */
+	readonly legacyKeys: ReadonlyArray<string>;
 }
 
 /**
@@ -136,7 +145,10 @@ export const run = (
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.root });
-		const report = Validate.all(bundle, options.config, { now: options.now });
+		const report = Validate.all(bundle, options.config, {
+			now: options.now,
+			...(options.configPath === undefined ? {} : { configPath: options.configPath }),
+		});
 		const profileDiagnostics = Option.match(options.profile, {
 			onNone: (): ReadonlyArray<ProfileDiagnostic> => [],
 			onSome: (profile) => profile.check(bundle),
@@ -161,8 +173,14 @@ export const run = (
 			: [];
 		const surfaces = yield* lintSurfaces(bundle, options.config, options.projectRoot);
 		const others = options.target === undefined ? [] : (yield* readMarkdownSources(bundle, { reserved: true })).sources;
+		const renames = keyRenamesFor(options.config);
+		const legacyKeys = [...bundle.concepts]
+			.filter(([, concept]) => hasLegacyKeyNames(concept, renames))
+			.map(([id]) => id as string)
+			.sort();
 		return {
 			bundle,
+			legacyKeys,
 			report: {
 				...report,
 				lint: [...report.lint, ...provenance, ...drift, ...resources, ...untracked, ...publications, ...surfaces],

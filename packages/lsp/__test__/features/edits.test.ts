@@ -363,7 +363,7 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 			yield* documents.record(path, withGeneratedAt(disk, GEN), 2);
 			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
 			const failure = yield* Effect.flip(verifiedTextEdits(target, "human:fixture-author", before));
-			assert.deepStrictEqual(failure, { _tag: "NotCurrent", generatedAt: GEN });
+			assert.deepStrictEqual(failure, { _tag: "NotCurrent", generatedAt: GEN, kind: "near-future" });
 			assert.strictEqual(describeFailure(failure).includes(GEN), true);
 			const ok = yield* verifiedTextEdits(target, "human:fixture-author", equal);
 			assert.isTrue(ok.some((edit) => edit.newText.includes(`at: ${GEN}`)));
@@ -377,7 +377,7 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 			yield* documents.record(path, draft, 2);
 			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
 			const failure = yield* Effect.flip(verifiedStableTextEdits(target, "human:fixture-author", before));
-			assert.deepStrictEqual(failure, { _tag: "NotCurrent", generatedAt: GEN });
+			assert.deepStrictEqual(failure, { _tag: "NotCurrent", generatedAt: GEN, kind: "near-future" });
 			const ok = yield* verifiedStableTextEdits(target, "human:fixture-author", equal);
 			assert.isAbove(ok.length, 0);
 			// control: no generated block at all accepts any now
@@ -450,6 +450,7 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 			assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(legacyTarget, "human:ada", early)), {
 				_tag: "NotCurrent",
 				generatedAt: LATER,
+				kind: "future",
 			});
 			// a real `generated` block wins over a legacy timestamp, as in core
 			const both = yield* targetOf(control.replace(/^---\n/, `---\ntimestamp: "${LATER}"\n`), 4);
@@ -460,6 +461,7 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 			assert.deepStrictEqual(yield* Effect.flip(verifiedTextEdits(realTarget, "human:ada", early)), {
 				_tag: "NotCurrent",
 				generatedAt: LATER,
+				kind: "future",
 			});
 		}).pipe(Effect.provide(testPlatform())),
 	);
@@ -491,6 +493,7 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 				assert.deepStrictEqual(yield* Effect.flip(verifiedStableTextEdits(draft, actor, before)), {
 					_tag: "NotCurrent",
 					generatedAt: GEN,
+					kind: "near-future",
 				});
 				// not a draft AND not current in the stable path: NotADraft comes first
 				const plain = Option.getOrThrow(
@@ -502,5 +505,66 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 				// control: the plain concept at generated.at verifies
 				assert.isAbove((yield* verifiedTextEdits(plain, actor, equal)).length, 0);
 			}).pipe(Effect.provide(testPlatform())),
+	);
+});
+
+describe("describeFailure for NotCurrent (#470)", () => {
+	it("beyond the tolerance names okfit sync; within it says to check the clock", () => {
+		assert.strictEqual(
+			describeFailure({ _tag: "NotCurrent", generatedAt: "2030-01-01T00:00:00Z", kind: "future" }),
+			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again",
+		);
+		assert.strictEqual(
+			describeFailure({ _tag: "NotCurrent", generatedAt: "2030-01-01T00:00:00Z", kind: "near-future" }),
+			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after 2030-01-01T00:00:00Z",
+		);
+	});
+
+	it("a blocked stamp says sync will not re-stamp it and names the verification", () => {
+		assert.strictEqual(
+			describeFailure({
+				_tag: "NotCurrent",
+				generatedAt: "2030-06-01T00:00:00Z",
+				kind: "blocked",
+				blockedBy: "2029-01-01T00:00:00Z",
+			}),
+			"the concept's generated.at (2030-06-01T00:00:00Z) is later than now, so a verification now would not count (OKF 0.3 5.3); okfit sync will not re-stamp it, because the verification dated 2029-01-01T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
+		);
+	});
+
+	it.effect("verifiedTextEdits tags NotCurrent blocked when a verification falls between now and a future stamp", () =>
+		Effect.gen(function* () {
+			const { registry, documents, path, disk } = yield* setup();
+			const text = disk
+				.replace(/(generated:\n {2}by: .*\n {2}at: )".*"/, '$1"2030-06-01T00:00:00Z"')
+				.replace(/^---\n/, "---\nverified:\n  - by: human:other\n    at: 2029-01-01T00:00:00Z\n");
+			yield* documents.record(path, text, 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const failure = yield* Effect.flip(
+				verifiedTextEdits(target, "human:fixture-author", DateTime.makeUnsafe("2026-11-24T00:00:00Z")),
+			);
+			assert.deepStrictEqual(failure, {
+				_tag: "NotCurrent",
+				generatedAt: "2030-06-01T00:00:00Z",
+				kind: "blocked",
+				blockedBy: "2029-01-01T00:00:00Z",
+			});
+		}).pipe(Effect.provide(testPlatform())),
+	);
+
+	it.effect("verifiedTextEdits tags NotCurrent near-future up to 5 minutes ahead and future beyond", () =>
+		Effect.gen(function* () {
+			const GEN = "2026-02-01T00:00:00Z";
+			const { registry, documents, path, disk } = yield* setup();
+			yield* documents.record(path, disk.replace(/(generated:\n {2}by: .*\n {2}at: )".*"/, `$1"${GEN}"`), 2);
+			const target = Option.getOrThrow(yield* editTarget(registry, documents, path));
+			const kindAt = (now: string) =>
+				Effect.map(
+					Effect.flip(verifiedTextEdits(target, "human:fixture-author", DateTime.makeUnsafe(now))),
+					(failure) => (failure._tag === "NotCurrent" ? failure.kind : failure._tag),
+				);
+			assert.strictEqual(yield* kindAt("2026-01-31T23:55:00Z"), "near-future");
+			assert.strictEqual(yield* kindAt("2026-01-31T23:54:59Z"), "future");
+		}).pipe(Effect.provide(testPlatform())),
 	);
 });

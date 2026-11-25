@@ -11,8 +11,9 @@ import { dirname, join, resolve } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { V02_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
-import { copyFixtureInto, makeSandbox } from "./utils/fixtures.js";
+import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 
 const CORE_FIXTURES = resolve(import.meta.dirname, "..", "..", "..", "core", "__test__", "fixtures");
@@ -240,6 +241,22 @@ describe("okfit lint: targets scope the reported diagnostics", () => {
 			const sandbox = yield* Effect.promise(seed);
 			const run = yield* runOkfit(["lint", "glossary/zzz"], sandbox);
 			assert.strictEqual(run.exitCode, 64);
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});
+
+describe("okfit lint: the stale-version warning names the config file (#499)", () => {
+	it.effect("the discovered okfit.toml's absolute path is in the message", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-lint-stale-path-"));
+			yield* Effect.promise(() =>
+				writeSeedInto(sandbox.cwd, {
+					...V02_PROJECT,
+					"okfit.toml": 'okf_version = "0.3"\n\n[types.Metric]\n\n[types."Attested Computation"]\n',
+				}),
+			);
+			const result = yield* runOkfit(["lint"], sandbox);
+			assert.include(result.stdout, `okf_version in ${join(sandbox.cwd, "okfit.toml")} is "0.3"`);
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

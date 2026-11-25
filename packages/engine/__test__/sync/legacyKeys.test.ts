@@ -8,6 +8,7 @@ import { Effect, Option, Result } from "effect";
 import type { KeyRenames } from "../../src/sync/legacyKeys.js";
 import {
 	LEGACY_INTEGRITY_KEY,
+	hasLegacyKeyNames,
 	keyRenamesFor,
 	legacyIntegrity,
 	planKeyRenames,
@@ -342,4 +343,20 @@ describe("recordedBodyForSync", () => {
 		const concept = withRaw({ integrity: { generated: { body: "47fef58df84c6eb2" } } });
 		assert.strictEqual(recordedBodyForSync(concept, { integrity: undefined, fields: new Map() }), undefined);
 	});
+});
+
+describe("hasLegacyKeyNames", () => {
+	it.effect("hasLegacyKeyNames is true for an old integrity block or an old profile field, false otherwise", () =>
+		Effect.gen(function* () {
+			const open = "---\ntype: Module\ntitle: T\n";
+			const texts = [
+				`${open}integrity:\n  generated:\n    body: 47fef58df84c6eb2\n---\n\nBody\n`,
+				`${open}kind: package\n---\n\nBody\n`,
+				`${open}x-okfit-kind: package\n---\n\nBody\n`,
+			];
+			const results: Array<boolean> = [];
+			for (const text of texts) results.push(hasLegacyKeyNames(yield* conceptOf(text), RENAMES));
+			assert.deepStrictEqual(results, [true, true, false]);
+		}),
+	);
 });

@@ -58,6 +58,7 @@ export const buildConfigLayer = (options: {
 				schema: OkfitConfig,
 				codec: TomlCodec,
 				strategy: MergeStrategy.firstMatch(),
+				parseOptions: { errors: "all" },
 				resolvers: [ConfigResolver.explicitPath(options.explicitConfigPath.value)],
 				xdg: false,
 			})
@@ -66,6 +67,7 @@ export const buildConfigLayer = (options: {
 				schema: OkfitConfig,
 				codec: TomlCodec,
 				strategy: MergeStrategy.firstMatch(),
+				parseOptions: { errors: "all" },
 				resolvers: [
 					ConfigResolver.upwardWalk({
 						filenames: [".okfit.toml", "okfit.toml", ".config/okfit.toml"],

@@ -449,6 +449,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	generated_at_future: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "generated-at-future",
+			description:
+				'A concept\'s generated.at is more than 5 minutes later than now, so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses it; okfit sync re-stamps it. Default "warn".',
+			default: "warn",
+		}),
+	),
 	publication_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-drift",
@@ -844,6 +852,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"superseded-by-unresolved": "superseded_by_unresolved",
 	"generated-missing": "generated_missing",
 	"computation-missing": "computation_missing",
+	"generated-at-future": "generated_at_future",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
@@ -890,6 +899,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	superseded_by_unresolved: "warn",
 	generated_missing: "warn",
 	computation_missing: "warn",
+	generated_at_future: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",
 	surface_unmatched: "warn",
@@ -936,10 +946,10 @@ const DEFAULTS: OkfitConfig = deepFreeze({
 });
 
 // One-shot read for tooling with a path in hand (D-29). ConfigFile.read needs
-// FileSystem only (ConfigFile.ts:653-656); no parseOptions, the wire codec
-// already preserves unknown keys (contract deviation 4).
+// FileSystem only (ConfigFile.ts:653-656); the wire codec already preserves
+// unknown keys (contract deviation 4). errors: "all" reports every bad key (#501).
 const read = (path: string): Effect.Effect<OkfitConfig, ConfigReadError, FileSystem.FileSystem> =>
-	ConfigFile.read(path, { schema: OkfitConfigWire, codec: TomlCodec }).pipe(
+	ConfigFile.read(path, { schema: OkfitConfigWire, codec: TomlCodec, parseOptions: { errors: "all" } }).pipe(
 		Effect.withSpan("OkfitConfig.read", { attributes: { path } }),
 	);
 

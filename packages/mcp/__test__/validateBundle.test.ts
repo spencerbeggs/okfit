@@ -49,7 +49,8 @@ const validate = (
 describe("validate_bundle", () => {
 	it.effect("returns exit_code 0 and the fixture's known diagnostics for the clean bundle", () =>
 		Effect.gen(function* () {
-			const result = yield* validate({});
+			// A fixed now: the harness clock is the TestClock (1970), which would make every stamp read as later than now.
+			const result = yield* validate({ now: "2026-10-01T00:00:00Z" });
 			assert.notOk(result.isError);
 			const data = result.structuredContent as Envelope;
 			assert.strictEqual(data.exit_code, 0);
@@ -222,6 +223,32 @@ describe("validate_bundle documents", () => {
 			const text = result.content[0]?.text ?? "";
 			assert.include(text, 'document path "../outside.md" resolves outside the bundle root');
 			assert.include(text, "relative to the bundle root");
+		}).pipe(Effect.scoped),
+	);
+});
+
+describe("validate_bundle: the stale-version warning names the config file (#499)", () => {
+	it.effect("config-okf-version-stale carries the discovered config's absolute path", () =>
+		Effect.gen(function* () {
+			let configPath = "";
+			const result = yield* validate({}, (root) =>
+				Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const path = yield* Path.Path;
+					const index = path.join(root, "bundle", "index.md");
+					const text = yield* Effect.orDie(fs.readFileString(index));
+					yield* Effect.orDie(fs.writeFileString(index, `---\nokf_version: "0.3"\n---\n\n${text}`));
+					configPath = path.join(root, ".config", "okfit.toml");
+					const config = yield* Effect.orDie(fs.readFileString(configPath));
+					yield* Effect.orDie(fs.writeFileString(configPath, `okf_version = "0.2"\n\n${config}`));
+				}),
+			);
+			const data = result.structuredContent as {
+				readonly diagnostics: ReadonlyArray<{ readonly code: string; readonly message: string }>;
+			};
+			const stale = data.diagnostics.find((d) => d.code === "config-okf-version-stale");
+			assert.isDefined(stale);
+			assert.include(stale?.message, `okf_version in ${configPath} is "0.2"`);
 		}).pipe(Effect.scoped),
 	);
 });

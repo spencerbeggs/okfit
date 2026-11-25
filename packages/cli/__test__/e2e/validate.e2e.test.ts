@@ -103,6 +103,86 @@ describe("okfit validate: the declared OKF version", () => {
 	);
 });
 
+describe("okfit validate: the old key names hint (#493)", () => {
+	const HINT = "hint: 2 concept(s) still use okfit's old frontmatter key names; run okfit sync to rename them";
+	/** Gives a concept okfit's old `integrity:` block, written after its other keys. */
+	const unmigrated = (text: string | undefined): string => {
+		const old = (text ?? "").replace("\n---\n\n", "\nintegrity:\n  generated:\n    body: 47fef58df84c6eb2\n---\n\n");
+		// a no-op replace would make every hint test below vacuous
+		assert.notStrictEqual(old, text);
+		return old;
+	};
+	const oldOf = (base: typeof V03_PROJECT): typeof V03_PROJECT => ({
+		...base,
+		"okf/metrics/revenue.md": unmigrated(base["okf/metrics/revenue.md"]),
+		"okf/metrics/margin.md": unmigrated(base["okf/metrics/margin.md"]),
+	});
+	const OLD = oldOf(V03_PROJECT);
+	const count = (text: string): number => text.split("hint:").length - 1;
+	const runIn = (seed: typeof V03_PROJECT, args: ReadonlyArray<string>) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, seed));
+			return yield* runOkfit(["validate", ...args], sandbox);
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("validate prints the sync hint once for an unmigrated bundle (#493)", () =>
+		Effect.gen(function* () {
+			const human = yield* runIn(OLD, []);
+			assert.strictEqual(human.stderr.split(HINT).length - 1, 1, human.stderr);
+			assert.notInclude(human.stdout, "hint:");
+			// the old integrity block is no conformance error of its own, so the exit codes are comparable
+			assert.strictEqual(human.exitCode, (yield* runIn(V03_PROJECT, [])).exitCode);
+			const json = yield* runIn(OLD, ["--format", "json"]);
+			const envelope = JSON.parse(json.stdout) as { readonly exit_code: number };
+			assert.strictEqual(human.exitCode, envelope.exit_code);
+		}),
+	);
+
+	it.effect("the hint counts the whole bundle when a positional target narrows the run", () =>
+		Effect.gen(function* () {
+			const result = yield* runIn(OLD, ["okf/modules/widget.md"]);
+			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			assert.include(result.stderr, HINT);
+		}),
+	);
+
+	it.effect("the hint prints with --target 0.3, after the summary line", () =>
+		Effect.gen(function* () {
+			const result = yield* runIn(OLD, ["--target", "0.3"]);
+			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			const summary = result.stderr.indexOf("OKF 0.3:");
+			assert.isAbove(summary, -1, result.stderr);
+			assert.isAbove(result.stderr.indexOf(HINT), summary);
+		}),
+	);
+
+	it.effect("the hint prints exactly once through a --fix re-run", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, oldOf(V02_PROJECT)));
+			const before = yield* Effect.promise(() => readFile(join(sandbox.cwd, "okf/index.md"), "utf8"));
+			const result = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(result.stderr, "OKF 0.3:");
+			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			assert.include(result.stderr, HINT);
+			assert.include(result.stdout, "Fixed");
+			const after = yield* Effect.promise(() => readFile(join(sandbox.cwd, "okf/index.md"), "utf8"));
+			assert.notStrictEqual(after, before, "the fix changed index.md on disk");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("no hint on a migrated bundle, and none under --format json", () =>
+		Effect.gen(function* () {
+			const migrated = yield* runIn(V03_PROJECT, []);
+			assert.notInclude(migrated.stderr, "hint:");
+			const json = yield* runIn(OLD, ["--format", "json"]);
+			assert.notInclude(json.stdout, "hint:");
+			assert.notInclude(json.stderr, "hint:");
+		}),
+	);
+});
+
 describe("okfit validate: profile-tier error", () => {
 	it.effect("a missing Project concept is a profile error: exit 1, exact human line", () =>
 		Effect.gen(function* () {
@@ -569,21 +649,21 @@ describe("okfit validate: OKFIT_NOW", () => {
 			yield* Effect.promise(() =>
 				writeFile(
 					concept,
-					original.replace("tags: [architecture]\n---", "tags: [architecture]\nstale_after: 2025-01-01T00:00:00Z\n---"),
+					original.replace("tags: [architecture]\n---", "tags: [architecture]\nstale_after: 2026-10-01T00:00:00Z\n---"),
 					"utf8",
 				),
 			);
 
 			const before = yield* runOkfit(["validate"], {
 				...sandbox,
-				env: { ...sandbox.env, OKFIT_NOW: "2024-01-01T00:00:00Z" },
+				env: { ...sandbox.env, OKFIT_NOW: "2026-09-10T00:00:00Z" },
 			});
 			assert.strictEqual(before.exitCode, 0);
 			assert.strictEqual(before.stdout, "");
 
 			const after = yield* runOkfit(["validate"], {
 				...sandbox,
-				env: { ...sandbox.env, OKFIT_NOW: "2026-01-01T00:00:00Z" },
+				env: { ...sandbox.env, OKFIT_NOW: "2026-11-01T00:00:00Z" },
 			});
 			assert.strictEqual(after.exitCode, 0);
 			// Captured this session: severity "info" (DEFAULT_LINT's stale: "info"),
@@ -593,7 +673,7 @@ describe("okfit validate: OKFIT_NOW", () => {
 			// inserted `stale_after:` line), column 14 (the value, past the key).
 			assert.strictEqual(
 				after.stdout,
-				"modules/core.md:9:14 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
+				"modules/core.md:9:14 info stale Concept is stale since 2026-10-01T00:00:00.000Z\n",
 			);
 			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 20 concepts (okf)\n");
 		}).pipe(Effect.provide(TestPlatform)),
@@ -997,6 +1077,111 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	const PROSE = "okf/computations/prose.md";
+	const proseOnly = (V03_PROJECT[COMPUTATION] as string)
+		.replace(/```sql\n[^`]*```\n/, "Run the query.\n")
+		.replace("## Computation", "# Computation");
+	/** Undeclared with one prose-only computation: the only refusal is the lost computation. */
+	const { [COMPUTATION]: _revenue, ...undeclaredWithout } = UNDECLARED_PROJECT;
+	const refusedSeed = { ...undeclaredWithout, [PROSE]: proseOnly };
+
+	it.effect("the summary counts a refused version fix apart (#498)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-refused-", refusedSeed);
+			const run = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(
+				run.stderr,
+				"OKF 0.3: 2 finding(s), 0 fixable with --fix, 1 refused by --fix (run with --fix --dry-run to see why)",
+			);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--document with --target counts refusals over the overlaid bundle", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-overlay-", refusedSeed);
+			const refused = "1 refused by --fix";
+			// control: on disk the prose-only computation is refused
+			const disk = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(disk.stderr, refused);
+			// the overlay restores the computation, so the cause of the refusal is gone from the bundle being checked
+			const overlaid = yield* runOkfit(["validate", "--target", "0.3", "--document", "computations/prose.md"], {
+				...sandbox,
+				stdin: V03_PROJECT[COMPUTATION] as string,
+			});
+			assert.include(overlaid.stderr, "OKF 0.3:"); // the summary is there, so "no refused" is not vacuous
+			assert.notInclude(overlaid.stderr, "refused");
+			assert.strictEqual(yield* read(sandbox, PROSE), proseOnly, "the file on disk is untouched");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("the summary has no refused part when every fix applies", () =>
+		Effect.gen(function* () {
+			const files = {
+				...UNDECLARED_PROJECT,
+				[COMPUTATION]: (V03_PROJECT[COMPUTATION] as string)
+					.replace("type: Attested Computation", "type: Metric")
+					.replace("runtime: sql\n", "")
+					.replace("attester:\n  resource: /references/attesters/check.py\n", "")
+					.replace("(/metrics/revenue.md)", "(metrics/revenue.md)"),
+			};
+			const sandbox = yield* seed("okfit-validate-notrefused-", files);
+			const run = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(run.stderr, "OKF 0.3: 2 finding(s), 2 fixable with --fix");
+			assert.notInclude(run.stderr, "refused");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("after a refused --fix the re-run summary still says refused, and exit stays 0", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-refused-fix-", refusedSeed);
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "refused: index.md:");
+			assert.include(run.stderr, "1 refused by --fix");
+			assert.notInclude(run.stderr, "to see why"); // the refusals are printed right there
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("after a successful --fix the re-run summary has no refused part", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-fixed-");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stderr, "OKF 0.3: 0 finding(s), 0 fixable with --fix");
+			assert.notInclude(run.stderr, "refused");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("with a positional target, fixable plus refused equals the displayed findings with a fix", () =>
+		Effect.gen(function* () {
+			// Undeclared (a version fix the prose-only concept refuses) plus one root-only link in a concept.
+			const files = {
+				...refusedSeed,
+				[COMPUTATION]: (V03_PROJECT[COMPUTATION] as string)
+					.replace("type: Attested Computation", "type: Metric")
+					.replace("runtime: sql\n", "")
+					.replace("attester:\n  resource: /references/attesters/check.py\n", "")
+					.replace("(/metrics/revenue.md)", "(metrics/revenue.md)"),
+			};
+			const sandbox = yield* seed("okfit-validate-positional-", files);
+			const all = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(
+				all.stderr,
+				"OKF 0.3: 3 finding(s), 1 fixable with --fix, 1 refused by --fix (run with --fix --dry-run to see why)",
+			);
+			const narrowed = yield* runOkfit(["validate", "--target", "0.3", COMPUTATION], sandbox);
+			assert.strictEqual(narrowed.exitCode, 0);
+			assert.include(narrowed.stderr, "OKF 0.3: 1 finding(s), 1 fixable with --fix");
+			assert.notInclude(narrowed.stderr, "refused");
+			const index = yield* runOkfit(["validate", "--target", "0.3", "okf/index.md"], sandbox);
+			assert.include(
+				index.stderr,
+				"OKF 0.3: 1 finding(s), 0 fixable with --fix, 1 refused by --fix (run with --fix --dry-run to see why)",
+			);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("rejects every other --target and every flag combination the brief refuses, with exit 64", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* seed("okfit-validate-usage-");
@@ -1257,7 +1442,10 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			assert.include(yield* read(sandbox, ".config/okfit.toml"), 'okf_version = "0.2"');
 			const after = yield* runOkfit(["validate"], sandbox);
 			assert.include(after.stdout, "config-okf-version-stale");
-			assert.include(after.stdout, 'okf_version in the config is "0.2", but the bundle-root index.md declares "0.3"');
+			assert.include(
+				after.stdout,
+				`okf_version in ${join(sandbox.cwd, ".config", "okfit.toml")} is "0.2", but the bundle-root index.md declares "0.3"`,
+			);
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
@@ -1318,5 +1506,56 @@ describe("okfit validate: a parse-time usage error under --format json (#485)", 
 			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly tag: string } };
 			assert.strictEqual(envelope.error.tag, "UnrecognizedOption");
 		}),
+	);
+});
+
+describe("okfit validate: config messages (#499, #501)", () => {
+	const BAD_CONFIG =
+		'[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n';
+
+	it.effect("--format json carries every bad key in one error.message (#501)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-bad-keys-"));
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V02_PROJECT, "okfit.toml": BAD_CONFIG }));
+			const result = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			assert.strictEqual(result.exitCode, 3);
+			assert.strictEqual(result.stdout.trimEnd().split("\n").length, 1);
+			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly message: string } };
+			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
+				assert.include(envelope.error.message, key);
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("the stale-version warning names the discovered file, and --config names that file (#499)", () =>
+		Effect.gen(function* () {
+			const config = 'okf_version = "0.3"\n\n[types.Metric]\n\n[types."Attested Computation"]\n';
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-stale-path-"));
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V02_PROJECT, "okfit.toml": config }));
+			const discovered = join(sandbox.cwd, "okfit.toml");
+			const first = yield* runOkfit(["validate"], sandbox);
+			assert.include(first.stdout, `okf_version in ${discovered} is "0.3"`);
+			yield* Effect.promise(() => writeFile(join(sandbox.cwd, "other.toml"), config, "utf8"));
+			const other = join(sandbox.cwd, "other.toml");
+			const second = yield* runOkfit(["validate", "--config", other], sandbox);
+			assert.include(second.stdout, `okf_version in ${other} is "0.3"`);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: the human error line carries every bad key (#501)", () => {
+	it.effect("stderr names all three keys on one line", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-bad-keys-human-"));
+			const bad = '[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n';
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V02_PROJECT, "okfit.toml": bad }));
+			const result = yield* runOkfit(["validate"], sandbox);
+			assert.strictEqual(result.exitCode, 3);
+			const lines = result.stderr.split("\n").filter((l) => l.startsWith("error:"));
+			assert.strictEqual(lines.length, 1);
+			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
+				assert.include(lines[0], key);
+			}
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

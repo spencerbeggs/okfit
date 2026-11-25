@@ -26,9 +26,9 @@ export const reverifyStale = (options: {
 	Effect.gen(function* () {
 		const { bundleRoot, projectRoot, config } = options;
 		const picked = yield* pickConcepts(
-			{ bundleRoot, projectRoot, config },
+			{ bundleRoot, projectRoot, config, at: options.at },
 			{
-				load: loadStaleCandidates({ bundleRoot, projectRoot, config, now: options.now }),
+				load: loadStaleCandidates({ bundleRoot, projectRoot, config, now: options.now, at: options.at }),
 				empty: () => "nothing to re-verify: no stale concepts",
 				message: "Re-verify which stale concepts?",
 			},
@@ -39,6 +39,7 @@ export const reverifyStale = (options: {
 			projectRoot,
 			config,
 			at: options.at,
+			now: options.now,
 			dryRun: options.dryRun,
 			ids: picked.ids,
 			promote: picked.promote,

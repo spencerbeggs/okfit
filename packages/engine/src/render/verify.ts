@@ -88,7 +88,7 @@ export const VerifyBatchEnvelope = Schema.Struct({
 	skipped: Schema.Array(
 		Schema.Struct({
 			id: Schema.String,
-			reason: Schema.Literals(["draft", "deprecated", "unknown-status", "already-verified"]),
+			reason: Schema.Literals(["draft", "deprecated", "unknown-status", "already-verified", "not-current"]),
 		}),
 	),
 	dry_run: Schema.Boolean,

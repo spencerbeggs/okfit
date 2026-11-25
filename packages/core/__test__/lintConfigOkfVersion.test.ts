@@ -8,6 +8,12 @@ import { Validate } from "../src/Validate.js";
 const message = (configured: string, declared: string) =>
 	`okf_version in the config is "${configured}", but the bundle-root index.md declares "${declared}"; okfit reads the bundle as "${declared}" and uses the config value only for a root index that declares none. Set okf_version = "${declared}" in the config, or remove it`;
 
+const messageAt = (where: string, configured: string, declared: string) =>
+	`okf_version ${where} is "${configured}", but the bundle-root index.md declares "${declared}"; okfit reads the bundle as "${declared}" and uses the config value only for a root index that declares none. Set okf_version = "${declared}" ${where}, or remove it`;
+
+const unparsableMessage = (where: string, configured: string, declared: string) =>
+	`okf_version ${where} is "${configured}", but the bundle-root index.md declares "${declared}", which is not a <major>.<minor> version; correct the declaration in index.md, then set okf_version ${where} to the same value, or remove it`;
+
 const index = (declared: string | undefined) =>
 	declared === undefined ? "# Index\n" : `---\nokf_version: ${declared}\n---\n\n# Index\n`;
 
@@ -19,8 +25,10 @@ const load = (rootIndex: string) => {
 	);
 };
 
-const stale = (bundle: Parameters<typeof Validate.lint>[0], config: OkfitConfig) =>
-	Validate.lint(bundle, config).filter((d) => d.code === "config-okf-version-stale");
+const stale = (bundle: Parameters<typeof Validate.lint>[0], config: OkfitConfig, configPath?: string) =>
+	Validate.lint(bundle, config, configPath === undefined ? {} : { configPath }).filter(
+		(d) => d.code === "config-okf-version-stale",
+	);
 
 const withVersion = (okf_version: string | undefined, lint?: OkfitConfig["lint"]): OkfitConfig => ({
 	...OkfitConfig.DEFAULTS,
@@ -97,7 +105,7 @@ describe("config-okf-version-stale", () => {
 			const bundle = yield* load(index('"v0.3"'));
 			const found = stale(bundle, withVersion("0.3"));
 			assert.strictEqual(found.length, 1);
-			assert.strictEqual(found[0]?.message, message("0.3", "v0.3"));
+			assert.strictEqual(found[0]?.message, unparsableMessage("in the config", "0.3", "v0.3"));
 			assert.deepStrictEqual(stale(bundle, withVersion("v0.3")), [], "control: equal strings are silent");
 		}),
 	);
@@ -107,6 +115,37 @@ describe("config-okf-version-stale", () => {
 			const bundle = yield* load(index('"0.3"'));
 			assert.deepStrictEqual(stale(bundle, withVersion("0.2", { config_okf_version_stale: "off" })), []);
 			assert.strictEqual(stale(bundle, withVersion("0.2")).length, 1, "control: the default fires");
+		}),
+	);
+
+	it.effect("names the config file when the path is known (#499)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(index('"0.3"'));
+			const found = stale(bundle, withVersion("0.2"), "/p/okfit.toml");
+			assert.strictEqual(found[0]?.message, messageAt("in /p/okfit.toml", "0.2", "0.3"));
+		}),
+	);
+
+	it.effect("keeps 'in the config' without a path", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(index('"0.3"'));
+			assert.strictEqual(stale(bundle, withVersion("0.2"))[0]?.message, messageAt("in the config", "0.2", "0.3"));
+		}),
+	);
+
+	it.effect("never offers an unparsable declaration as the value to set (#499)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(index('"0.3.0"'));
+			const found = stale(bundle, withVersion("0.3"), "/p/okfit.toml");
+			assert.strictEqual(found[0]?.message, unparsableMessage("in /p/okfit.toml", "0.3", "0.3.0"));
+			assert.isFalse(found[0]?.message.includes('Set okf_version = "0.3.0"'));
+		}),
+	);
+
+	it.effect("a declaration of 9.9 parses, so the first form applies", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(index('"9.9"'));
+			assert.strictEqual(stale(bundle, withVersion("0.3"))[0]?.message, messageAt("in the config", "0.3", "9.9"));
 		}),
 	);
 });

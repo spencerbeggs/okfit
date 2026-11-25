@@ -53,6 +53,22 @@ describe("BundleSession", () => {
 		}).pipe(Effect.provide(sessionPlatform(SEED))),
 	);
 
+	it.effect("revalidate returns current alongside changed", () =>
+		Effect.gen(function* () {
+			const session = yield* make();
+			yield* session.revalidate(edit);
+			yield* session.open(`${ROOT}/a.md`, moduleConcept("A", "See [C](c.md)."));
+			yield* session.revalidate(edit);
+			yield* session.open(`${ROOT}/b.md`, moduleConcept("B", "See [Z](z.md)."));
+			const second = yield* session.revalidate(edit);
+			// Only b.md changed this time, but current holds every file's list, a.md's unchanged one included.
+			assert.deepStrictEqual([...second.changed.keys()], ["b.md"]);
+			assert.deepStrictEqual(codesOf(second.current, "a.md"), ["broken-links"]);
+			assert.deepStrictEqual(codesOf(second.current, "b.md"), ["broken-links"]);
+			assert.isFalse(second.current.has("c.md"));
+		}).pipe(Effect.provide(sessionPlatform(SEED))),
+	);
+
 	it.effect("a harmless change to B reports nothing, while a breaking change to B reports B (positive control)", () =>
 		Effect.gen(function* () {
 			const session = yield* make();
@@ -156,4 +172,43 @@ describe("BundleSession", () => {
 			}).pipe(Effect.provide(sessionPlatform(seed))),
 		);
 	});
+});
+
+describe("BundleSession configPath (#499)", () => {
+	const staleSeed = {
+		...SEED,
+		[`${ROOT}/index.md`]: '---\nokf_version: "0.3"\n---\n\n# Index\n\n- [A](a.md)\n- [B](b.md)\n',
+	};
+	const staleMessage = (session: BundleSession["Service"]) =>
+		session
+			.revalidate(edit)
+			.pipe(
+				Effect.map((result) => result.current.get("")?.find((d) => d.code === "config-okf-version-stale")?.message),
+			);
+
+	it.effect("names the config file the session was given", () =>
+		Effect.gen(function* () {
+			const session = yield* BundleSession.make({
+				root: ROOT,
+				projectRoot: "/repo",
+				config: { ...sessionConfig(), okf_version: "0.2" },
+				profile: Option.none(),
+				configPath: "/repo/okfit.toml",
+			});
+			const message = yield* staleMessage(session);
+			assert.include(message, 'okf_version in /repo/okfit.toml is "0.2"');
+		}).pipe(Effect.provide(sessionPlatform(staleSeed))),
+	);
+
+	it.effect("without a configPath the message reads 'in the config' (control)", () =>
+		Effect.gen(function* () {
+			const session = yield* BundleSession.make({
+				root: ROOT,
+				projectRoot: "/repo",
+				config: { ...sessionConfig(), okf_version: "0.2" },
+				profile: Option.none(),
+			});
+			assert.include(yield* staleMessage(session), 'okf_version in the config is "0.2"');
+		}).pipe(Effect.provide(sessionPlatform(staleSeed))),
+	);
 });

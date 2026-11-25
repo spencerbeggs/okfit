@@ -2,6 +2,8 @@
 # Keeps every git call out of the tests: run() skips the whole provenance
 # tier when this is off, so Git.layerTest/GitHistory.layerTest can die-by-default.
 generated_at_drift = "off"
+# The tests run on TestClock (1970), so every fixture stamp would read as later than now.
+generated_at_future = "off"
 # software-project turns status-missing on; off keeps the fixture diagnostic-free,
 # so a server test sees only the diagnostics its own edit causes.
 status_missing = "off"

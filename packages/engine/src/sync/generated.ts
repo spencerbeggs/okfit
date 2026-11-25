@@ -1,9 +1,9 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, Integrity, LoadedBundle, LoadedConcept } from "@okfit/core";
-import { Timestamp } from "@okfit/core";
+import { Timestamp, generatedAtIsFuture, verificationBlockingRestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
 import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
-import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
+import { DateTime, Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import {
 	locateIntegrity,
@@ -16,7 +16,13 @@ import {
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
 import type { KeyRenamePlan, KeyRenames } from "./legacyKeys.js";
-import { isLegacyBlock, legacyIntegrity, planKeyRenames, recordedBodyForSync, rendersKeyFor } from "./legacyKeys.js";
+import {
+	hasLegacyKeyNames,
+	legacyIntegrity,
+	planKeyRenames,
+	recordedBodyForSync,
+	rendersKeyFor,
+} from "./legacyKeys.js";
 import type { PendingWrite } from "./write.js";
 import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
@@ -42,6 +48,7 @@ export const GeneratedSkipReason = Schema.Literals([
 	"renders-unsupported",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",
+	"verified-after-now",
 ]);
 /** @internal */
 export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;
@@ -61,10 +68,40 @@ export interface GeneratedSyncResult {
 	 * stamp still has its old keys renamed.
 	 */
 	readonly migrated: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: GeneratedSkipReason }>;
+	readonly skipped: ReadonlyArray<GeneratedSkip>;
+}
+
+/**
+ * One concept sync declined to stamp. `verified-after-now` also names the two instants the human renderer quotes:
+ * the `generated.at` left in place and the earliest verification the repair would have made current.
+ *
+ * @internal
+ */
+export interface GeneratedSkip {
+	readonly id: string;
+	readonly reason: GeneratedSkipReason;
+	readonly generatedAt?: string;
+	readonly verifiedAt?: string;
 }
 
 const encodeAt = Schema.encodeSync(Timestamp);
+
+/**
+ * R2 (#471): the earliest `verified[].at` with `from <= at < to`, the entries that lowering a stamp from `to` to
+ * `from` would turn from not current into current. Sync never does that: it would raise the trust tier without a human.
+ */
+const earliestVerificationBetween = (
+	concept: LoadedConcept,
+	from: DateTime.Utc,
+	to: DateTime.Utc,
+): DateTime.Utc | undefined =>
+	Option.getOrUndefined(
+		verificationBlockingRestamp(
+			(concept.frontmatter.verified ?? []).map((entry) => entry.at),
+			to,
+			from,
+		),
+	);
 
 const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
 
@@ -112,6 +149,12 @@ export interface SyncGeneratedOptions {
 	readonly agent?: Actor;
 	/** #140: when set, only these concepts are considered; every other id is absent from all three lists. */
 	readonly scope?: ReadonlySet<ConceptId>;
+	/**
+	 * #471: the run's clock. With it set, a stamp sync writes is never later than `startOf(now, "second")`, and a
+	 * concept whose recorded digest matches but whose `generated.at` is later than `now` is re-stamped to that instant.
+	 * Absent: neither applies.
+	 */
+	readonly now?: DateTime.Utc;
 }
 
 /**
@@ -200,11 +243,12 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const { provenance, dryRun, agent, scope, pending, renames } = options;
+	const nowStamp = options.now === undefined ? undefined : DateTime.startOf(options.now, "second");
 
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
 	const migrated: Array<string> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: GeneratedSkipReason }> = [];
+	const skipped: Array<GeneratedSkip> = [];
 
 	for (const [id, concept] of bundle.concepts) {
 		// Step 1 (#140): a scoped run considers only the caller's set.
@@ -223,14 +267,31 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const legacyRenders = legacyRendersDigests(concept, rendersKey);
 		const legacyBlock = legacyIntegrity(concept, renames);
 		const rawKeys = concept.frontmatter.raw;
-		const keyCandidate =
-			(renames.integrity !== undefined &&
-				Object.hasOwn(rawKeys, renames.integrity.from) &&
-				// A foreign `integrity` value is not a candidate: the planner would skip it every run.
-				(rawKeys[renames.integrity.from] === null || isLegacyBlock(rawKeys[renames.integrity.from]))) ||
-			(renames.fields.get(concept.frontmatter.type) ?? []).some((rename) => Object.hasOwn(rawKeys, rename.from));
-		if (matches && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
-			unchanged.push(id);
+		const keyCandidate = hasLegacyKeyNames(concept, renames);
+		// #471: a stamp later than now behind a matching digest is not authoritative; one at or before now never is touched.
+		const overdueAt =
+			matches &&
+			options.now !== undefined &&
+			generated?.at !== undefined &&
+			generatedAtIsFuture(generated.at, options.now)
+				? generated.at
+				: undefined;
+		// R2: re-stamping lowers `generated.at`; it must not make a verification count that did not before.
+		const reviving =
+			overdueAt !== undefined && nowStamp !== undefined
+				? earliestVerificationBetween(concept, nowStamp, overdueAt)
+				: undefined;
+		const future = overdueAt !== undefined && reviving === undefined;
+		if (overdueAt !== undefined && reviving !== undefined) {
+			skipped.push({
+				id,
+				reason: "verified-after-now",
+				generatedAt: encodeAt(overdueAt),
+				verifiedAt: encodeAt(reviving),
+			});
+		}
+		if (matches && !future && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
+			if (reviving === undefined) unchanged.push(id);
 			continue;
 		}
 
@@ -295,7 +356,10 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
 		let encodedAt: string | undefined;
-		if (!matches) {
+		// `future` implies `now` was given; the `nowStamp` test only narrows its type.
+		if (future && nowStamp !== undefined) {
+			encodedAt = encodeAt(nowStamp);
+		} else if (!matches) {
 			const derived = provenance.get(id);
 			if (derived === undefined) {
 				return yield* Effect.die(new Error(`syncGenerated: no provenance computed for concept ${id}`));
@@ -305,14 +369,30 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				yield* skipKeepingRename(derived.reason);
 				continue;
 			}
+			const stamped = yield* stampInstant(
+				concept,
+				derived.at,
+				legacyBlock === undefined || renames.integrity === undefined
+					? undefined
+					: { block: legacyBlock, key: renames.integrity.from },
+			);
+			// #471: never write a stamp later than now (a skewed author clock), unless lowering it would make a
+			// verification dated in between count (R2): then the unclamped stamp stands and the lint reports it.
+			const candidate =
+				nowStamp !== undefined &&
+				DateTime.isGreaterThan(stamped, nowStamp) &&
+				earliestVerificationBetween(concept, nowStamp, stamped) === undefined
+					? nowStamp
+					: stamped;
+			// R2 against the stamp being replaced: a stamp is never moved back below a verification. The binding clamp
+			// in `stampInstant` never goes below the existing stamp, so it is unaffected; the final candidate is judged last.
+			const previous = generated?.at;
 			encodedAt = encodeAt(
-				yield* stampInstant(
-					concept,
-					derived.at,
-					legacyBlock === undefined || renames.integrity === undefined
-						? undefined
-						: { block: legacyBlock, key: renames.integrity.from },
-				),
+				previous !== undefined &&
+					DateTime.isLessThan(candidate, previous) &&
+					earliestVerificationBetween(concept, candidate, previous) !== undefined
+					? previous
+					: candidate,
 			);
 		}
 
@@ -400,7 +480,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
 		// not as a write that would recur on every run.
 		if (finalText === fileSource) {
-			unchanged.push(id);
+			if (reviving === undefined) unchanged.push(id);
 			continue;
 		}
 		if (legacy._tag === "line" || legacyRenders !== undefined || keyPlan._tag === "edits" || legacyKey !== undefined) {
@@ -411,7 +491,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		} else {
 			pending?.push({ target: absolutePath, contents: finalText });
 		}
-		if (!matches) written.push(id);
+		if (!matches || future) written.push(id);
 	}
 
 	return { written, unchanged, migrated, skipped } satisfies GeneratedSyncResult;

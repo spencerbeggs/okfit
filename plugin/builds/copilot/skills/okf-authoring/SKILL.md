@@ -215,7 +215,7 @@ yields `verified-drift`. Never hand-write or hand-edit any `x-okfit-integrity` k
 a digest that does not match reports as drift, and an edited-but-uncommitted
 body reports immediately rather than waiting for a commit. `okfit sync` is
 the command that writes `generated.at`, deriving it from git history -- never
-type it by hand, and never invent `generated.by` on its behalf (sync
+type it by hand (a `generated.at` more than five minutes later than now is the lint `generated-at-future`, and `okfit sync` re-stamps it, unless a verification dated between now and the stamp would then count; sync skips that one and says so, and it never moves a changed concept's stamp back below a verification either), and never invent `generated.by` on its behalf (sync
 never writes that key: design §3 step 5). `okfit verify` is a different
 command -- it stamps `verified` and `x-okfit-integrity.verified`, a separate,
 spec-independent family (spec §5.2).

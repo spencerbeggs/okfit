@@ -207,12 +207,24 @@ describe("VerifyStatusUnknownError", () => {
 });
 
 describe("VerifyNotCurrentError", () => {
-	it("a batch refusal says nothing was written; the single-concept message does not", () => {
-		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2026-09-16T12:00:00Z" };
-		const single = new VerifyNotCurrentError(fields).message;
-		const batch = new VerifyNotCurrentError({ ...fields, batch: true }).message;
-		assert.notInclude(single, "Nothing was written");
-		assert.strictEqual(batch, `${single}. Nothing was written, for this concept or any other in the selection`);
+	it("words the refusal by how far ahead the stamp is: future, near-future, or a backdated verification time", () => {
+		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2030-01-01T00:00:00Z" };
+		assert.strictEqual(
+			new VerifyNotCurrentError({ ...fields, kind: "future" }).message,
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again',
+		);
+		assert.strictEqual(
+			new VerifyNotCurrentError({ ...fields, kind: "near-future" }).message,
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after 2030-01-01T00:00:00Z',
+		);
+		assert.strictEqual(
+			new VerifyNotCurrentError({ ...fields, kind: "blocked", blockedBy: "2029-01-01T00:00:00Z" }).message,
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated 2029-01-01T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification',
+		);
+		assert.strictEqual(
+			new VerifyNotCurrentError(fields).message,
+			'"metrics/margin" was last changed at 2030-01-01T00:00:00Z, after the verification time 2026-09-16T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2030-01-01T00:00:00Z, or omit --at to verify now',
+		);
 	});
 
 	it("carries exit code 3 and names both instants and the fix", () => {
@@ -224,7 +236,7 @@ describe("VerifyNotCurrentError", () => {
 		assert.strictEqual(error[Runtime.errorExitCode], 3);
 		assert.strictEqual(
 			error.message,
-			'"metrics/margin" was last changed at 2026-09-16T12:00:00Z, after the verification time 2026-09-16T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-09-16T12:00:00Z, or check the clock',
+			'"metrics/margin" was last changed at 2026-09-16T12:00:00Z, after the verification time 2026-09-16T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-09-16T12:00:00Z, or omit --at to verify now',
 		);
 	});
 });

@@ -7,6 +7,7 @@ import { Concept } from "../Concept.js";
 import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
+import { generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import { INTEGRITY_KEY } from "../Integrity.js";
@@ -23,6 +24,8 @@ export interface LintContext {
 	readonly config: OkfitConfig;
 	readonly graph: LinkGraph;
 	readonly now: DateTime.Utc | undefined;
+	/** A label for messages that name the config file; `undefined` when no file is known. */
+	readonly configPath: string | undefined;
 	readonly severity: (code: LintCode) => DiagnosticSeverity | "off";
 }
 
@@ -87,14 +90,35 @@ export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", 
 		onSome: ([a, b]) => OkfVersion.compare(a, b) === 0,
 	});
 	if (same) return [];
+	const where = context.configPath === undefined ? "in the config" : `in ${context.configPath}`;
+	const head = `okf_version ${where} is "${configured}", but the bundle-root index.md declares "${declared.value}"`;
+	const message = Option.isSome(OkfVersion.parse(declared.value))
+		? `${head}; okfit reads the bundle as "${declared.value}" and uses the config value only for a root index that declares none. Set okf_version = "${declared.value}" ${where}, or remove it`
+		: `${head}, which is not a <major>.<minor> version; correct the declaration in index.md, then set okf_version ${where} to the same value, or remove it`;
+	return [diagnostic("", "config-okf-version-stale", severity, message, undefined)];
+});
+
+/**
+ * #471: a `generated.at` later than now counts for no verification (OKF 0.3 §5.3) and `okfit verify` refuses it;
+ * `okfit sync` re-stamps it, except when a verification would then count (`verificationBlockingRestamp`).
+ */
+export const generatedAtFuture: LintRule = perConcept("generated-at-future", (concept, context) => {
+	const at = concept.frontmatter.generated?.at;
+	const { now } = context;
+	if (at === undefined || now === undefined || !generatedAtIsFuture(at, now)) return [];
+	const head = `generated.at ${instant(at)} is more than 5 minutes later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept`;
+	const blocking = verificationBlockingRestamp(
+		(concept.frontmatter.verified ?? []).map((entry) => entry.at),
+		at,
+		now,
+	);
 	return [
-		diagnostic(
-			"",
-			"config-okf-version-stale",
-			severity,
-			`okf_version in the config is "${configured}", but the bundle-root index.md declares "${declared.value}"; okfit reads the bundle as "${declared.value}" and uses the config value only for a root index that declares none. Set okf_version = "${declared.value}" in the config, or remove it`,
-			undefined,
-		),
+		{
+			message: Option.isSome(blocking)
+				? `${head}; okfit sync will not re-stamp it, because the verification dated ${instant(blocking.value)} would then count without a re-verification; a human must correct generated.at or that verification`
+				: `${head}; run okfit sync, which re-stamps it`,
+			path: ["generated", "at"],
+		},
 	];
 });
 
@@ -594,6 +618,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	nonConceptUnlisted,
 	generatedMissing,
 	computationMissing,
+	generatedAtFuture,
 	actorPrefixUnknown,
 	actorEmail,
 	verifiedActorUnknown,

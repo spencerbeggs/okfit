@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-25T04:25:12Z
 x-okfit-integrity:
   generated:
-    body: 76bf0de3c188a8b8
+    body: b6f8bf3b71c4edd6
 ---
 
 # LSP
@@ -73,7 +73,7 @@ fixes it) -- and one `Mark verified by <actor>` action (kind
 draft, deprecated, of unknown status, nor already verified by that actor,
 and `now` is not before its `generated.at`: an action that would write a
 verification before the last change is omitted (OKF v0.3 §5.3;
-`EditTarget.generated`, `EditFailure` `NotCurrent`). On a draft the
+`EditTarget.generated`, `EditFailure` `NotCurrent`, whose message says to run `okfit sync` when the stamp is more than five minutes ahead and to check the clock when it is closer). On a draft the
 same kind instead offers `Mark verified by <actor> and set status: stable`
 (#215), one edit equal to what `okfit verify --stable` writes, when that
 actor has not yet verified it; the actor is cached per session
@@ -227,12 +227,14 @@ seam](../decisions/lsp-reference-transport.md).
   The transport's own liveness signal is the input stream closing; the
   reference library's node entry separately polls that process and
   exits with code 1 if it disappears first.
-- One `textDocument/publishDiagnostics` per file in the engine's `changed`
-  map, and nothing else: an unchanged file is not republished, an
-  emptied file publishes `[]`, and a file that is not open in the editor
-  still publishes.
+- One `textDocument/publishDiagnostics` per document URI that has a key in the
+  engine's `changed` map, and nothing else: an unchanged URI is not republished, an
+  emptied one publishes `[]`, and a file that is not open in the editor
+  still publishes. The list sent is that URI's whole current set, read from
+  `RevalidateResult.current`.
 - A bundle-level diagnostic (engine file `""`) publishes against the
-  bundle root's `index.md`.
+  bundle root's `index.md`, together with that file's own diagnostics in one
+  notification: either changing resends both.
 - A revalidate that fails logs one warning naming the bundle root and
   publishes nothing.
 - A non-`file:` URI, and any document outside every discovered bundle

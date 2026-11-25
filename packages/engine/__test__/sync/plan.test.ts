@@ -107,4 +107,32 @@ describe("planSync / applySyncPlan", () => {
 			}
 		}),
 	);
+
+	it.effect("planSync then applySyncPlan keeps one BOM on a rewritten index.md and log.md (#492)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-plan-bom-")));
+			try {
+				yield* Effect.promise(async () => {
+					await writeFile(join(root, "a.md"), "---\ntype: Module\ntitle: A\n---\n\n# A\n");
+					await writeFile(join(root, "index.md"), "\uFEFF# Stale\n");
+					await writeFile(join(root, "log.md"), "\uFEFF# Log\n\n## 2026-05-01\n\n* Added Old\n");
+				});
+				const opts = { ...options(root, false), modes: new Set(["index", "log"] as const) };
+				const plan = yield* planSync(opts).pipe(Effect.provide(fakes(root)));
+				assert.deepStrictEqual(plan.result.index.written, ["index.md"]);
+				assert.deepStrictEqual(plan.result.log.written, ["log.md"]);
+				const applied = yield* applySyncPlan(plan).pipe(Effect.provide(fakes(root)));
+				assert.isFalse(applied.dryRun);
+				for (const name of ["index.md", "log.md"]) {
+					const bytes = yield* Effect.promise(() => readFile(join(root, name)));
+					assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], name);
+					assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf], `${name} doubled BOM`);
+				}
+				const log = yield* Effect.promise(() => readFile(join(root, "log.md"), "utf8"));
+				assert.isTrue(log.startsWith("\uFEFF# Log\n"));
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
 });

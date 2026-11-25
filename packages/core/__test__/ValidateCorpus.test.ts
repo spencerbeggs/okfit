@@ -45,9 +45,12 @@ describe("Validate over the upstream bundles", () => {
 			assert.deepStrictEqual(report.conformance, []);
 			assert.deepStrictEqual(codes(withoutActorEmail(report.lint)), ["log-frontmatter log.md"]);
 			assert.strictEqual(report.lint.filter((d) => d.code === "actor-email").length, 12);
-			assert.deepStrictEqual(codes(withoutActorEmail(Validate.lint(bundle, OkfitConfig.DEFAULTS, { now: past }))), [
+			// At year 2000 every fixture stamp is later than now, so generated-at-future (#471) is the one extra code.
+			const inThePast = withoutActorEmail(Validate.lint(bundle, OkfitConfig.DEFAULTS, { now: past }));
+			assert.deepStrictEqual(codes(inThePast.filter((d) => d.code !== "generated-at-future")), [
 				"log-frontmatter log.md",
 			]);
+			assert.isTrue(inThePast.some((d) => d.code === "generated-at-future"));
 			const stale = Validate.lint(bundle, OkfitConfig.DEFAULTS, { now: future }).filter((d) => d.code === "stale");
 			assert.strictEqual(stale.length, 7);
 			assert.isTrue(stale.every((d) => d.severity === "info" && d.message.includes("2026-12-31T00:00:00")));

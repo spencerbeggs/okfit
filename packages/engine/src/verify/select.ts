@@ -9,11 +9,12 @@ import { VerifySelectionError } from "../errors.js";
  * `"deprecated"` mirror `status`, `"unknown-status"` is a `status` outside the vocabulary (OKF 0.3 §5.4),
  * `"already-verified"` means the actor's
  * `verified` entry is bound, current by OKF 0.3 §5.3 (its `at` is not before `generated.at`), and covering the
- * concept's current content.
+ * concept's current content, and `"not-current"` means the concept's `generated.at` is later than the verification
+ * time, so a verification made then would not count (OKF 0.3 §5.3).
  *
  * @public
  */
-export type VerifyBatchSkipReason = "draft" | "deprecated" | "unknown-status" | "already-verified";
+export type VerifyBatchSkipReason = "draft" | "deprecated" | "unknown-status" | "already-verified" | "not-current";
 
 /**
  * The outcome of {@link selectAttestable}.
@@ -37,11 +38,20 @@ const attestedBy = (concept: LoadedConcept, actor: string, signals: ReadonlyMap<
 	signals.get(concept.id)?.integrity === "current" && concept.frontmatter.integrity?.verified?.by === actor;
 
 /**
+ * Whether a verification made at `at` would not count for `concept`: its `generated.at` is set and later than `at`
+ * (OKF 0.3 §5.3). The one test the batch, the id list and both pickers share.
+ *
+ * @public
+ */
+export const notCurrentAt = (concept: LoadedConcept, at: DateTime.Utc): boolean =>
+	concept.frontmatter.generated?.at !== undefined && !Derive.isCurrent(concept.frontmatter, at);
+
+/**
  * Issue #138/#143: which concepts of `types` the actor may attest in one
  * batch. A draft is unsettled, a deprecated concept is retired (#143) and an unknown status is not stable
  * (OKF 0.3 §5.4), so all three are skipped before the already-verified check. A concept whose
  * verification has drifted (including one made before `generated.at`), or is bound to another actor, is a candidate.
- * With `options.drifted`, a drifted concept of any type is considered too,
+ * With `options.at`, a concept whose `generated.at` is later than `at` is skipped as `not-current`. With `options.drifted`, a drifted concept of any type is considered too,
  * as the picker does: the `verified-drift` lint's remedy is `okfit verify`.
  *
  * @public
@@ -51,7 +61,7 @@ export const selectAttestable = (
 	types: ReadonlySet<string>,
 	actor: string,
 	signals: ReadonlyMap<string, ConceptSignal>,
-	options: { readonly drifted?: boolean } = {},
+	options: { readonly drifted?: boolean; readonly at?: DateTime.Utc } = {},
 ): AttestableSelection => {
 	const candidates: Array<LoadedConcept> = [];
 	const skipped: Array<{ readonly id: string; readonly reason: VerifyBatchSkipReason }> = [];
@@ -69,6 +79,10 @@ export const selectAttestable = (
 		}
 		if (attestedBy(concept, actor, signals)) {
 			skipped.push({ id, reason: "already-verified" });
+			continue;
+		}
+		if (options.at !== undefined && notCurrentAt(concept, options.at)) {
+			skipped.push({ id, reason: "not-current" });
 			continue;
 		}
 		candidates.push(concept);

@@ -1,7 +1,7 @@
 /**
  * Diagnostics publishing: document events and watched-file changes schedule a
  * debounced whole-bundle revalidate, and each revalidate publishes one
- * `textDocument/publishDiagnostics` per file whose diagnostics changed.
+ * `textDocument/publishDiagnostics` per document URI whose diagnostics changed, carrying that URI's whole current set.
  *
  * @packageDocumentation
  */
@@ -44,8 +44,8 @@ export interface DiagnosticsFeature {
 }
 
 /**
- * The registry's scheduler callback: read now, revalidate, publish every
- * changed file.
+ * The registry's scheduler callback: read now, revalidate, publish once per
+ * document URI whose diagnostics changed.
  *
  * @public
  */
@@ -70,8 +70,9 @@ export interface DiagnosticsPublisher {
  * session root, remembers the URIs last published non-empty -- added when a
  * publish's diagnostics are non-empty, dropped when they are `[]` -- so
  * `clear` knows exactly what to take back. A bundle-level diagnostic
- * (engine file `""`) publishes against the bundle root's `index.md` and is
- * remembered under that URI like any other. A failed revalidate logs a
+ * (engine file `""`) publishes against the bundle root's `index.md`, together
+ * with that file's own diagnostics in one notification, and is remembered
+ * under that URI like any other. A failed revalidate logs a
  * warning and publishes nothing. Built before the registry, since the
  * registry needs `publish`/`clear` as constructor options and `clear` must
  * already exist for the registry's `onDispose` to close over.
@@ -105,26 +106,36 @@ export const makeRevalidatePublisher = (
 					);
 					return;
 				}
-				const { changed, bundle } = result.success;
+				const { changed, current, bundle } = result.success;
+				// publishDiagnostics replaces a URI's whole set, so each URI is sent once with the union of
+				// every engine key that lands on it: a bundle-level diagnostic ("") shares the root
+				// index.md's URI with that file's own, and either one changing must resend both.
+				const rootIndex = path.join(handle.bundleRoot, "index.md");
+				const targets = new Map<string, { readonly uri: string; readonly keys: ReadonlyArray<string> }>();
+				for (const file of changed.keys()) {
+					const target = file === "" ? rootIndex : path.join(handle.bundleRoot, file);
+					targets.set(target, {
+						uri: LspUri.fromPath(target, URI_OPTIONS),
+						keys: target === rootIndex ? ["index.md", ""] : [file],
+					});
+				}
 				yield* Effect.forEach(
-					changed,
-					([file, diagnostics]) => {
-						const target = file === "" ? path.join(handle.bundleRoot, "index.md") : path.join(handle.bundleRoot, file);
-						const uri = LspUri.fromPath(target, URI_OPTIONS);
-						const text = sourceTextOf(bundle, file);
+					targets.values(),
+					({ uri, keys }) => {
+						const diagnostics = keys.flatMap((key) => {
+							const text = sourceTextOf(bundle, key);
+							return (current.get(key) ?? []).map((diagnostic) => toLspDiagnostic(diagnostic, text));
+						});
 						const isEmpty = diagnostics.length === 0;
 						// Uninterruptible as one unit: the send must land before `remember` is updated, or a
 						// `Scope.close` (a rebuild/dispose) interrupting this fiber between the two could delete a
 						// URI from the remembered set without the client ever having received the `[]` that
 						// justified the deletion -- `clear` would then never re-send it, leaving the client with a
 						// stale diagnostic forever. `Effect.uninterruptible` defers that interrupt until this
-						// per-file step (send, then remember) has completed.
+						// per-URI step (send, then remember) has completed.
 						return Effect.uninterruptible(
 							Effect.gen(function* () {
-								yield* transport.sendNotification("textDocument/publishDiagnostics", {
-									uri,
-									diagnostics: diagnostics.map((diagnostic) => toLspDiagnostic(diagnostic, text)),
-								});
+								yield* transport.sendNotification("textDocument/publishDiagnostics", { uri, diagnostics });
 								remember(handle.bundleRoot, uri, isEmpty);
 							}),
 						);

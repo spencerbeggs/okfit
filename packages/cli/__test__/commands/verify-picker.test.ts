@@ -3,7 +3,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import type { Actor } from "@okfit/core";
 import { loadStaleCandidates, runVerifyIds } from "@okfit/engine";
-import { Effect, Exit, Fiber, Option } from "effect";
+import { DateTime, Effect, Exit, Fiber, Option } from "effect";
 import type { PickerSource } from "../../src/commands/verify-picker.js";
 import { pickConcepts, pickerLabel } from "../../src/commands/verify-picker.js";
 import {
@@ -18,14 +18,19 @@ import {
 	withDriftedRepoBundle,
 } from "../utils/picker.js";
 
-const options = (root: string) => ({ bundleRoot: root, projectRoot: root, config });
+const options = (root: string, at?: DateTime.Utc) => ({
+	bundleRoot: root,
+	projectRoot: root,
+	config,
+	...(at === undefined ? {} : { at }),
+});
 
 /** Fork `pickConcepts` on a fresh session; the caller drives the screens and joins. */
-const start = (root: string, interactive = true) =>
+const start = (root: string, interactive = true, at?: DateTime.Utc) =>
 	Effect.gen(function* () {
 		const session = yield* CliUiTest.session({ interactive });
 		const fiber = yield* Effect.forkScoped(
-			pickConcepts(options(root)).pipe(Effect.provide(session.layer), Effect.provide(platform)),
+			pickConcepts(options(root, at)).pipe(Effect.provide(session.layer), Effect.provide(platform)),
 		);
 		return { session, fiber };
 	});
@@ -205,6 +210,78 @@ describe("pickConcepts", () => {
 					assert.strictEqual(yield* session.stdout, "nothing selected; nothing written\n");
 				}),
 			),
+		),
+	);
+
+	it.effect("the picker prints the left-out line before the list, with `at` before the stamp (#470)", () =>
+		withBundle(
+			[
+				...FILES,
+				[
+					"decisions/late.md",
+					"---\ntype: Decision\ntitle: Late\ngenerated:\n  by: process:sync\n  at: 2026-09-20T00:00:00Z\n---\n\n# Late\n",
+				],
+			],
+			(root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(root, true, DateTime.makeUnsafe("2026-09-19T00:00:00Z"));
+						const list = yield* session.next({ contains: "Attest which concepts?" });
+						assert.notInclude(yield* list.plainFrame, "decisions/late");
+						yield* list.press("enter");
+						assert.isUndefined(yield* Fiber.join(fiber));
+						assert.strictEqual(
+							yield* session.stdout,
+							"left out 1 concept(s) whose generated.at is later than the verification time: decisions/late\nnothing selected; nothing written\n",
+						);
+					}),
+				),
+		),
+	);
+
+	it.effect("with `at` after the stamp the row is listed and no left-out line is printed (#470)", () =>
+		withBundle(
+			[
+				...FILES,
+				[
+					"decisions/late.md",
+					"---\ntype: Decision\ntitle: Late\ngenerated:\n  by: process:sync\n  at: 2026-09-20T00:00:00Z\n---\n\n# Late\n",
+				],
+			],
+			(root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(root, true, DateTime.makeUnsafe("2026-09-21T00:00:00Z"));
+						const list = yield* session.next({ contains: "Attest which concepts?" });
+						assert.include(yield* list.plainFrame, "decisions/late");
+						yield* list.press("enter");
+						yield* Fiber.join(fiber);
+						assert.notInclude(yield* session.stdout, "left out");
+					}),
+				),
+		),
+	);
+
+	it.effect("when every row is left out it prints the left-out line then a true empty line (#470)", () =>
+		withBundle(
+			[
+				[
+					"decisions/late.md",
+					"---\ntype: Decision\ntitle: Late\ngenerated:\n  by: process:sync\n  at: 2026-09-20T00:00:00Z\n---\n\n# Late\n",
+				],
+			],
+			(root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(root, true, DateTime.makeUnsafe("2026-09-19T00:00:00Z"));
+						assert.isUndefined(yield* Fiber.join(fiber));
+						assert.strictEqual(yield* session.mounts, 0);
+						assert.strictEqual(
+							yield* session.stdout,
+							"left out 1 concept(s) whose generated.at is later than the verification time: decisions/late\nnothing to verify now: every candidate has a generated.at later than the verification time\n",
+						);
+					}),
+				),
 		),
 	);
 

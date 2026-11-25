@@ -26,6 +26,9 @@ merges across levels.
 `--config <file>` bypasses all of it: no upward walk, no XDG probe happens
 once it is given.
 
+A malformed config fails with one error that lists every bad key at once, so
+fix them all in one pass; a TOML syntax error still reports the parse failure.
+
 The upward walk never stops at `$HOME`, so `~/.config/okfit.toml` and
 `~/okfit.toml` are project-tier files that shadow the XDG tier and anchor
 the project root at `$HOME` -- personal defaults belong at
@@ -68,7 +71,7 @@ validation on the file without any further setup.
   (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
   `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
-  snake_case keys, forty-two in all. The defaults, in `DEFAULT_LINT` order:
+  snake_case keys, forty-three in all. The defaults, in `DEFAULT_LINT` order:
 
   | Key | Default |
   | --- | --- |
@@ -103,6 +106,7 @@ validation on the file without any further setup.
   | `superseded_by_unresolved` | `warn` |
   | `generated_missing` | `warn` |
   | `computation_missing` | `warn` |
+  | `generated_at_future` | `warn` |
   | `publication_drift` | `warn` |
   | `publication_orphan` | `error` |
   | `surface_unmatched` | `warn` |

@@ -18,6 +18,8 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"legacy-key-unsupported":
 		"has an old okfit key that sync cannot rename in place (flow style, an alias or a `<<` merge in the old block, a duplicate or an explicit `?` key); rename it by hand to the new spelling",
 	"symlink-escape": "is a symbolic link that leaves the bundle, so it is not read or written",
+	"verified-after-now":
+		"has a verification that a re-stamp would make current; a human must correct generated.at or that verification",
 };
 
 const humanMode = (name: string, mode: SyncResult["generated"], dryRun: boolean): ReadonlyArray<string> => {
@@ -31,7 +33,11 @@ const humanMode = (name: string, mode: SyncResult["generated"], dryRun: boolean)
 		const renamed = mode.migrated.includes(entry.id)
 			? ` (its old okfit keys ${dryRun ? "would still be" : "are still"} renamed)`
 			: "";
-		lines.push(`  skipped ${entry.id}: ${REASON_SENTENCE[entry.reason]}${renamed}`);
+		const sentence =
+			entry.reason === "verified-after-now" && entry.generatedAt !== undefined && entry.verifiedAt !== undefined
+				? `generated.at ${entry.generatedAt} is later than now, but re-stamping it would make the verification dated ${entry.verifiedAt} count without a re-verification; a human must correct generated.at or that verification`
+				: REASON_SENTENCE[entry.reason];
+		lines.push(`  skipped ${entry.id}: ${sentence}${renamed}`);
 	}
 	return lines;
 };

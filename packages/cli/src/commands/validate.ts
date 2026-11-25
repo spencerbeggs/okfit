@@ -12,6 +12,7 @@ import {
 	forDiagnostics,
 	json,
 	jsonError,
+	planMigrationFixes,
 	provideConfig,
 	provideDocuments,
 	resolveProjectConfig,
@@ -162,6 +163,7 @@ export const validateCommand = Command.make(
 					config: merged,
 					profile,
 					now,
+					...(Option.isSome(resolved.discovered) ? { configPath: resolved.discovered.value.path } : {}),
 					skipProvenance: input.skipProvenance,
 					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 					...(target === undefined ? {} : { target }),
@@ -224,14 +226,37 @@ export const validateCommand = Command.make(
 							yield* Console.log(`Integrity drifted (re-verify with okfit verify): ${fixes.drifts.join(", ")}`);
 						}
 					}
+					// The summary counts what an un-narrowed --fix would refuse, planned over the final bundle and the same
+					// overlay the findings came from (#498). A report never fails because this plan did: it falls back to no refusals.
+					const refused =
+						target === undefined
+							? []
+							: Option.match(
+									yield* planMigrationFixes({ bundle: result.bundle, config: merged, target, now }).pipe(
+										provideDocuments(bundleRoot, documents),
+										Effect.option,
+									),
+									{
+										onNone: () => [],
+										onSome: (plan) => plan.refused.map(({ file, code }) => ({ file, code })),
+									},
+								);
 					yield* printDiagnostics({
 						diagnostics,
 						cwd,
 						bundleRoot,
 						path,
 						concepts: result.bundle.concepts.size,
+						refused,
+						fix: input.fix,
 						...(target === undefined ? {} : { target }),
 					});
+					// #493: a hint, once per run, on stderr; not a finding, so it never changes the exit code.
+					if (result.legacyKeys.length > 0) {
+						yield* Console.error(
+							`hint: ${result.legacyKeys.length} concept(s) still use okfit's old frontmatter key names; run okfit sync to rename them`,
+						);
+					}
 				}
 
 				yield* CliExit.set(code);

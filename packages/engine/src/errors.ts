@@ -136,8 +136,13 @@ export class VerifyStatusUnknownError extends Schema.TaggedError<VerifyStatusUnk
 /**
  * OKF 0.3 §5.3: a verification made before the concept's last change (`generated.at`) does not count, so
  * `okfit verify` refuses to write one, whether `at` came from `--at` or the clock is behind a `generated.at`
- * in the future (ruling R33). `at` and `generatedAt` are the encoded instants. Verifying at or after
- * `generatedAt` is the fix. Exit 3, like the other verify refusals.
+ * in the future (ruling R33). `at` and `generatedAt` are the encoded instants. `kind` says how the stamp relates
+ * to now when now is known: `"blocked"` (more than the tolerance later, and a verification dated between now and the
+ * stamp, `blockedBy`, would start to count if sync re-stamped it, so sync skips it and a human must correct the stamp
+ * or that verification), `"future"` (more than the tolerance later, which `okfit sync` re-stamps) or
+ * `"near-future"` (later, but within the tolerance, so only the clock or waiting helps); absent when `generatedAt`
+ * is not later than now, so only the verification time is to blame (verify at or after it, or omit `--at`).
+ * Exit 3, like the other verify refusals. A batch, an id list and the pickers skip such a concept instead of failing.
  *
  * @public
  */
@@ -145,15 +150,21 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 	id: Schema.String,
 	at: Schema.String,
 	generatedAt: Schema.String,
-	/** Set when the refusal stopped a batch, an id list or a picker selection, all of which are all-or-nothing. */
-	batch: Schema.optionalKey(Schema.Boolean),
+	kind: Schema.optionalKey(Schema.Literals(["blocked", "future", "near-future"])),
+	blockedBy: Schema.optionalKey(Schema.String),
 }) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		const single = `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or check the clock`;
-		return this.batch === true
-			? `${single}. Nothing was written, for this concept or any other in the selection`
-			: single;
+		switch (this.kind) {
+			case "blocked":
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated ${this.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
+			case "future":
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again`;
+			case "near-future":
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after ${this.generatedAt}`;
+			default:
+				return `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or omit --at to verify now`;
+		}
 	}
 }
 

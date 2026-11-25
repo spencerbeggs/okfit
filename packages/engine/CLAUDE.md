@@ -57,7 +57,8 @@ src/
                                combinator the CLI --document flag and MCP documents input share
   session/
     BundleSession.ts        -- BundleSession (Context.Service): overlay + whole-bundle revalidate
-                                with per-file diagnostic diffs; no debounce (the LSP server schedules)
+                                with per-file diagnostic diffs (`changed`) and every file's current
+                                list (`current`); no debounce (the LSP server schedules)
     concept.ts                -- conceptFor: the loaded concept at an absolute path under bundle.root
     diff.ts                  -- groupByFile, diffDiagnostics (pure, engine-internal)
     range.ts                  -- withFallbackRange: range-less finding -> frontmatter block
@@ -86,24 +87,34 @@ src/
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
-    select.ts                -- VerifyBatchSkipReason, AttestableSelection, selectAttestable,
+    select.ts                -- VerifyBatchSkipReason, AttestableSelection, notCurrentAt, selectAttestable,
                                  PickerCandidate, selectPickerCandidates (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
                                  (pure, never a YAML serialiser)
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically; also
-                                  runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
-                                  optional promote), loadPickerCandidates, loadStaleCandidates
+                                  runVerifyBatch, runVerifyIds (explicit ids, optional promote),
+                                  loadPickerCandidates, loadStaleCandidates (both also return `leftOut`)
                                   and loadPreviews (the picker's per-drifted-row changeSince)
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
                                   concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
-                                  and writes nothing; batch and ids are all or nothing (OKF 0.3 5.3, R33)
+                                  (`kind` is `blocked` beyond the 5-minute tolerance when a verification dated between now and the stamp (`blockedBy`) would count
+                                  if sync re-stamped it, so sync skips it; else `future` beyond the tolerance, `near-future` within it, absent
+                                  when `now` is unknown or `generated.at` is not later than `now`, so only the verification time is early) and writes nothing; a batch, an id list and both
+                                  pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
+                                  OKF 0.3 5.3, R33)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
                                   min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human
                                   entry and covers the current content, unless binding.at is earlier than
-                                  the concept's existing generated.at (OKF 0.3 5.2, R30)
+                                  the concept's existing generated.at (OKF 0.3 5.2, R30); with `now` set (#471) a
+                                  generated.at more than 5 minutes later than now is re-stamped to now even behind a
+                                  matching digest, and a drifted concept's stamp is clamped to now; sync skips the re-stamp
+                                  (`verified-after-now`) when it would make a verification count, and leaves the
+                                  clamp off (the derived stamp stands, the lint reports it) when the clamp would make a verification count; a changed
+                                  concept's stamp is also never moved back below the stamp it replaces when a verification falls
+                                  between the two (the existing stamp is kept, the digest is re-recorded, nothing is skipped)
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog

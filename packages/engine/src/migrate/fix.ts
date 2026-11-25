@@ -110,6 +110,9 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
  * `x-okfit-integrity.verified`.
  *
+ * A refusal for lost computations also names the way out that is the author's: setting `okf_version` in `index.md` by
+ * hand, after which the lint `computation-missing` reports each prose-only section. This plan never makes that edit.
+ *
  * It reads files itself rather than trusting `LoadedBundle` alone: every non-concept Markdown file (indexes, logs and
  * typeless files, through `readMarkdownSources`) so their links are scanned, and the root `index.md` (only when the
  * version fix is planned), because `LoadedBundle` keeps only the frontmatter value of an index and the fix must locate
@@ -231,7 +234,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 				? `${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`
 				: undefined,
 			lost.length > 0
-				? `${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again`
+				? `${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again. To keep a prose-only Computation section anyway, set okf_version: "${target}" in index.md by hand; the lint computation-missing then reports each one`
 				: undefined,
 			// A Markdown file whose links could not be scanned may hold a root-only link the report never saw.
 			unreadable.length > 0

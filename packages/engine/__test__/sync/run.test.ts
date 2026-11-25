@@ -597,6 +597,123 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
+	it.effect("sync --staged re-stamps a staged future-stamped concept and leaves an unstaged one (#471)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const FUTURE = "2030-01-01T00:00:00Z";
+				// c.md is staged and drifted: it takes the hook's instant (`staged.at`), not `now`.
+				yield* Effect.promise(() =>
+					writeFile(
+						join(root, "okf", "c.md"),
+						"---\ntype: Module\ntitle: C\ngenerated:\n  by: human:ada\n---\n\n# C\n",
+					),
+				);
+				for (const [name, title] of [
+					["a.md", "A"],
+					["b.md", "B"],
+				] as const) {
+					const body = `\n# ${title}\n\nBody.\n`;
+					const digest = yield* Derivation.bodyDigest(`---\ntype: Module\ntitle: ${title}\n---${body}`);
+					yield* Effect.promise(() =>
+						writeFile(
+							join(root, "okf", name),
+							`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${body}`,
+						),
+					);
+				}
+				git(root, ["add", "okf/a.md", "okf/c.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: STAMP },
+					now: DateTime.makeUnsafe("2026-09-16T10:00:07.400Z"),
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual([...result.generated.written].sort(), ["a", "c"]);
+				const c = yield* Effect.promise(() => readFile(join(root, "okf", "c.md"), "utf8"));
+				assert.include(c, "  at: 2026-09-16T10:00:00Z\n", "a drifted staged concept takes staged.at");
+				const a = yield* Effect.promise(() => readFile(join(root, "okf", "a.md"), "utf8"));
+				const b = yield* Effect.promise(() => readFile(join(root, "okf", "b.md"), "utf8"));
+				assert.include(a, "  at: 2026-09-16T10:00:07Z\n", "a repaired stamp is now, whole seconds");
+				assert.notInclude(a, FUTURE);
+				assert.include(b, `  at: ${FUTURE}\n`);
+				assert.strictEqual(git(root, ["show", ":okf/a.md"]), a);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect(
+		"a repair that would make a verification count is a skip, not a write, in a dry run and a real run (#471)",
+		() =>
+			Effect.gen(function* () {
+				const root = yield* Effect.promise(repo);
+				try {
+					const body = "\n# A\n\nBody.\n";
+					const text = (digest: string) =>
+						`---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n  at: 2030-06-01T00:00:00Z\nverified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${body}`;
+					const digest = yield* Derivation.bodyDigest(text("0".repeat(16)));
+					const file = join(root, "okf", "a.md");
+					yield* Effect.promise(() => writeFile(file, text(digest)));
+					git(root, ["add", "okf/a.md"]);
+					const before = yield* Effect.promise(() => readFile(file, "utf8"));
+					for (const dryRun of [true, false]) {
+						const result = yield* runSync({
+							bundleRoot: join(root, "okf"),
+							config: OkfitConfig.DEFAULTS,
+							modes: new Set(["generated"]),
+							dryRun,
+							staged: { at: STAMP },
+							now: DateTime.makeUnsafe("2026-09-16T10:00:07.400Z"),
+						}).pipe(Effect.provide(live));
+						assert.deepStrictEqual(result.generated.written, []);
+						assert.deepStrictEqual(result.generated.skipped, [
+							{
+								id: "a",
+								reason: "verified-after-now",
+								generatedAt: "2030-06-01T00:00:00Z",
+								verifiedAt: "2029-01-01T00:00:00Z",
+							},
+						]);
+						assert.strictEqual(yield* Effect.promise(() => readFile(file, "utf8")), before);
+					}
+				} finally {
+					yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+				}
+			}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a staged edit does not lower a future stamp below a verification; the digest is re-recorded (#471)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const body = "\n# A\n\nEdited.\n";
+				const file = join(root, "okf", "a.md");
+				const text = `---\ntype: Module\ntitle: A\ngenerated:\n  by: human:ada\n  at: 2030-06-01T00:00:00Z\nverified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\nx-okfit-integrity:\n  generated:\n    body: 0000000000000000\n---${body}`;
+				yield* Effect.promise(() => writeFile(file, text));
+				git(root, ["add", "okf/a.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: DateTime.makeUnsafe("2026-09-16T10:00:07.400Z") },
+					now: DateTime.makeUnsafe("2026-09-16T10:00:07.400Z"),
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["a"]);
+				const out = yield* Effect.promise(() => readFile(file, "utf8"));
+				assert.include(out, "  at: 2030-06-01T00:00:00Z\n");
+				assert.notInclude(out, "body: 0000000000000000");
+				assert.include(out, "verified:\n  - by: human:ada\n    at: 2029-01-01T00:00:00Z\n");
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("stages a nested sub-index at its repo path from a linked worktree's hook environment (#315)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

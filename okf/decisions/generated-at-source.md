@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-24T06:04:04Z
+  at: 2026-11-25T05:03:51Z
 status: stable
 verified:
   - by: human:spencer
@@ -15,13 +15,15 @@ verified:
     at: 2026-10-11T14:21:44Z
   - by: human:spencer
     at: 2026-11-24T06:53:02Z
+  - by: human:spencer
+    at: 2026-11-25T13:29:38Z
 x-okfit-integrity:
   generated:
-    body: 211ce0705a6d3b90
+    body: e69318e06a54bbc3
   verified:
     by: human:spencer
-    at: 2026-11-24T06:53:02Z
-    content: f1e9e8b04efae606
+    at: 2026-11-25T13:29:38Z
+    content: 208a23c5f8a7cc48
 ---
 
 # Generated.at is the author date of the last commit that changed the body
@@ -49,6 +51,23 @@ That is the derived instant. `okfit sync` stamps it as `generated.at`, except
 that it stamps the earlier `binding.at` when a human verification of exactly
 the current content is bound (see [Every okfit digest lives in one integrity
 family](integrity-family.md)).
+
+`okfit sync` also re-stamps a `generated.at` that is more than five minutes later than
+now to now (whole seconds), even behind a matching digest, and clamps a drifted
+concept's new stamp to now when the commit's author date is later than now (#471). That is the one exception to an authoritative stamp never
+being rewritten: a stamp that far ahead comes from a skewed clock or a hand edit, no
+verification can count against it (OKF v0.3 §5.3), and five minutes is the allowance
+for ordinary clock skew. Sync never makes a verification count. When the re-stamp would make a verification
+dated between now and the stamp current, sync leaves the stamp, reports the concept
+as skipped (`verified-after-now`) and a human corrects `generated.at` or that
+verification. When the clamp would, sync writes the derived stamp unclamped and
+reports nothing on that run; the lint `generated-at-future` reports it once it is
+more than five minutes ahead, and a later sync then skips it as `verified-after-now`. A drifted
+concept's new stamp is also never moved back below the stamp it replaces when a verification falls
+between the two: the existing stamp is kept, the body digest is still re-recorded, and nothing is
+reported as skipped. The
+owner accepted the cost: a concept whose repair is blocked has no okfit repair and
+needs a human.
 
 ## Alternatives rejected
 

@@ -67,6 +67,7 @@ describe("Diagnostic", () => {
 				"symlink-escape",
 				"non-concept-unlisted",
 				"computation-missing",
+				"generated-at-future",
 				"config-okf-version-stale",
 			];
 			assert.deepStrictEqual([...codes].sort(), [...LintCode.literals].sort());

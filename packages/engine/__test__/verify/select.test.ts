@@ -10,6 +10,7 @@ import { DateTime, Effect, Exit, Layer } from "effect";
 import { loadPreviews } from "../../src/verify/run.js";
 import type { PickerCandidate } from "../../src/verify/select.js";
 import {
+	notCurrentAt,
 	resolveBatchTypes,
 	selectAttestable,
 	selectPickerCandidates,
@@ -443,6 +444,55 @@ describe("an unknown status is never offered (OKF 0.3 5.4)", () => {
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
+		}),
+	);
+});
+
+describe("selectAttestable at the verification time (#470)", () => {
+	const doc = (title: string, extra: string): string =>
+		`---\ntype: Decision\ntitle: ${title}\n${extra}---\n\n# ${title}\n`;
+	const generated = "generated:\n  by: process:sync\n  at: 2026-09-16T12:00:00Z\n";
+	const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+		types: { Decision: { require_verified: true } },
+		extensions: {},
+	});
+
+	const select = (at: DateTime.Utc) =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-select-at-")));
+			try {
+				yield* Effect.promise(() => writeFile(join(root, "a.md"), doc("A", generated)));
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+				const signals = yield* Trust.signals(bundle, config, at).pipe(Effect.provide(TestPlatform));
+				const concept = bundle.concepts.get("a" as never);
+				if (concept === undefined) return yield* Effect.die("fixture concept a missing");
+				return {
+					selection: selectAttestable(bundle, new Set(["Decision"]), "human:ada", signals, { at }),
+					notCurrent: notCurrentAt(concept, at),
+				};
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		});
+
+	it.effect("selectAttestable skips a concept whose generated.at is later than at, with not-current (#470)", () =>
+		Effect.gen(function* () {
+			const { selection, notCurrent } = yield* select(DateTime.makeUnsafe("2026-09-16T11:59:59Z"));
+			assert.deepStrictEqual(selection.skipped, [{ id: "a", reason: "not-current" }]);
+			assert.deepStrictEqual(selection.candidates, []);
+			assert.isTrue(notCurrent);
+		}),
+	);
+
+	it.effect("a concept whose generated.at equals at is a candidate", () =>
+		Effect.gen(function* () {
+			const { selection, notCurrent } = yield* select(DateTime.makeUnsafe("2026-09-16T12:00:00Z"));
+			assert.deepStrictEqual(selection.skipped, []);
+			assert.deepStrictEqual(
+				selection.candidates.map((concept) => concept.id),
+				["a"],
+			);
+			assert.isFalse(notCurrent);
 		}),
 	);
 });
