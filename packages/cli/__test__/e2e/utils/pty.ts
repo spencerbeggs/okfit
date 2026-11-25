@@ -85,6 +85,18 @@ const installHandlers = (): void => {
 const SETTLE_MS = 200;
 const SENTINEL = "__PTY_EXIT__:";
 
+/** The time past which no pty wait runs; a test file has its own copy and runs its tests one at a time. */
+let budgetEnd = Number.POSITIVE_INFINITY;
+
+/**
+ * Ends every later `runPty` wait no more than `budgetMs` from now, however many runs share that time.
+ * Call it in `beforeEach` with less than the test's vitest timeout, so a hang is reported by the
+ * helper, with its output, and not by vitest.
+ */
+export const limitPtyWaits = (budgetMs: number): void => {
+	budgetEnd = Date.now() + budgetMs;
+};
+
 /**
  * Runs the built bin under a real pty via the system `script`. The inner shell
  * sets the window size, runs the bin, and echoes an exit sentinel so the exit
@@ -95,7 +107,7 @@ const SENTINEL = "__PTY_EXIT__:";
  * `exited before step N (text) (exit C)` when the bin ended with code C before step N matched;
  * `timed out waiting for <text, or the process to exit> after M ms` when a wait ran out and the
  * process group was killed; `no exit sentinel in pty output` when the pipeline closed without
- * reporting an exit code.
+ * reporting an exit code. A wait cut short by `limitPtyWaits` says so after its `M ms`.
  */
 export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promise<PtyResult> => {
 	const cols = options.cols ?? 100;
@@ -135,9 +147,17 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 		const steps = options.steps ?? [];
 		let pendingUntil = 0;
 		// One deadline at a time: the first wait gets startupTimeoutMs from the spawn; each later wait,
-		// and the exit after the last send, gets timeoutMs from the previous match.
-		let waitMs = startupTimeoutMs;
-		let deadline = Date.now() + waitMs;
+		// and the exit after the last send, gets timeoutMs from the previous match. None runs past the
+		// budget `limitPtyWaits` set.
+		let deadline = 0;
+		let waited = "";
+		const arm = (wantMs: number): void => {
+			const now = Date.now();
+			const left = Math.max(0, budgetEnd - now);
+			deadline = now + Math.min(wantMs, left);
+			waited = left < wantMs ? `${left} ms, all that was left of the test's pty budget` : `${wantMs} ms`;
+		};
+		arm(startupTimeoutMs);
 		const sends = new Set<NodeJS.Timeout>();
 
 		const killGroup = (): void => {
@@ -162,7 +182,7 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 		const advance = (): void => {
 			if (done) return;
 			if (next >= steps.length) {
-				if (Date.now() > deadline) failWith(`timed out waiting for the process to exit after ${waitMs} ms`);
+				if (Date.now() > deadline) failWith(`timed out waiting for the process to exit after ${waited}`);
 				return;
 			}
 			if (Date.now() < pendingUntil) return;
@@ -172,13 +192,12 @@ export const runPty = (args: ReadonlyArray<string>, options: PtyOptions): Promis
 			const fresh = stripAnsi(raw.slice(rawOffset));
 			const hit = typeof step.waitFor === "string" ? fresh.includes(step.waitFor) : step.waitFor.test(fresh);
 			if (!hit) {
-				if (Date.now() > deadline) failWith(`timed out waiting for ${String(step.waitFor)} after ${waitMs} ms`);
+				if (Date.now() > deadline) failWith(`timed out waiting for ${String(step.waitFor)} after ${waited}`);
 				return;
 			}
 			rawOffset = raw.length;
 			next += 1;
-			waitMs = timeoutMs;
-			deadline = Date.now() + waitMs;
+			arm(timeoutMs);
 			// Ink paints a screen before it attaches its key handler; a key sent in that gap is lost.
 			pendingUntil = Date.now() + SETTLE_MS;
 			const send = step.send;

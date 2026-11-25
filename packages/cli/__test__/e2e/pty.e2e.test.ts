@@ -7,11 +7,11 @@ import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { assert, describe, it } from "@effect/vitest";
+import { assert, beforeEach, describe, it } from "@effect/vitest";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox, removeSandbox } from "./utils/fixtures.js";
 import { BIN, TSX_IMPORT } from "./utils/okfit.js";
-import { KEYS, ptyAvailable, runPty } from "./utils/pty.js";
+import { KEYS, limitPtyWaits, ptyAvailable, runPty } from "./utils/pty.js";
 import { commit, initRepo } from "./utils/repo.js";
 
 const execFileAsync = promisify(execFile);
@@ -19,6 +19,9 @@ const TRACER = resolve(import.meta.dirname, "utils", "resolve-tracer.mjs");
 const CLI_ROOT = resolve(import.meta.dirname, "..", "..");
 const CLEAN_FIXTURE = resolve(CLI_ROOT, "..", "profiles", "__test__", "fixtures", "software-project");
 const TIMEOUT = 60_000;
+
+// Several tests spawn up to five times; their pty waits together end 5 s before vitest's timeout.
+beforeEach(() => limitPtyWaits(TIMEOUT - 5_000));
 
 /** The sandbox env plus a hermetic git identity (the verify actor comes from git). */
 const ptyEnv = (sandbox: Sandbox): Record<string, string> => ({
