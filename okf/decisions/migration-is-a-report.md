@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:25:12Z
+  at: 2026-11-25T14:26:45Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: f5a877dd2b5f0be2
+    body: 80b05cba2bd79e46
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -108,8 +108,9 @@ before the edit (a body-link edit counts as well as a path-field edit), plus
 any edited concept whose `x-okfit-integrity` block has a layout the fix will not
 edit, so its body digest could not be re-recorded. The human re-verifies
 those; the CLI prints `Integrity drifted (re-verify with okfit verify):
-<ids>`. `okfit mv` does not yet follow this rule: it writes
-only the changed text, so the next `sync` restamps the concept.
+<ids>`. `okfit mv` follows the same rule: when it only re-links a concept
+it re-records the body digest if it matched the text before, and it lists the
+concept in `drifts` when the integrity block has a layout it will not edit.
 
 **The report is not a gate.** A `migrate` entry never changes the exit code;
 the JSON summary carries `migration_findings` and the envelope carries
@@ -127,7 +128,7 @@ any CI run of a bundle that has not moved yet, this repository's own bundle
 included, when the report is advice about a decision. Fixing only path
 fields would leave every bare body link broken the moment the version is
 raised, and the refusal rule would then block the version fix for good.
-Writing only the changed text, as `okfit mv` does, would let the next `sync`
+Writing only the changed text would let the next `sync`
 restamp `generated.at` and so lower the trust tier of every fixed concept for
 a one-character change.
 
@@ -138,5 +139,4 @@ through what is listed, then re-verify the concepts reported as drifted,
 which is a human act. okfit writes one digest outside `sync`, the generated
 body digest (`x-okfit-integrity.generated.body`), a derived value and never an
 attestation. The editor does not run `--target`, and there is no language
-server action or MCP input for it yet. `okfit mv` does not follow the
-link-repair rule today, so a move restamps; aligning it is an open follow-up.
+server action or MCP input for it yet.

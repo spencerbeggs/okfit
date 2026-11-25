@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T05:03:51Z
+  at: 2026-11-25T14:26:45Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 437e7dab81fa2d50
+    body: 17c5ab41dc496c5c
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -478,8 +478,11 @@ outbound relative links are recomputed, including angle-bracketed body links who
 path holds a space.
 
 Every file whose text changes drifts by the ordinary rule: `mv` never writes
-`verified` or `x-okfit-integrity`, and the plan lists the concepts whose current human
-verification it voids. `--dry-run` prints the plan and writes nothing. `mv` never
+`verified`, `x-okfit-integrity.verified` or `generated.at`, and the plan lists the concepts whose current human
+verification it voids. `mv` keeps a file's leading UTF-8 byte-order mark, and for a
+concept it only re-links it re-records `x-okfit-integrity.generated.body` when that
+digest matched the text before, so the next `sync` keeps `generated.at`; a concept whose
+integrity block it cannot edit is listed in the plan's drifts instead. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,
 `pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T05:03:51Z
+  at: 2026-11-25T14:26:45Z
 x-okfit-integrity:
   generated:
-    body: 5b099b5676071821
+    body: 2d4c61a364a9a32c
 ---
 
 # Engine
@@ -334,8 +334,11 @@ frontmatter or no `type` is parsed through `Bundle.parseDocument` (the parse
 the loader uses) and scanned like a concept body, its links and its core path
 fields rewritten, and it appears in the plan's edits only when it changes. A
 file with an unclosed or unparseable frontmatter block still refuses with
-`MoveError` `unloaded-files`. `mv` writes a rewritten file back without a
-leading UTF-8 byte-order mark; that is a known gap, not a decision.
+`MoveError` `unloaded-files`. `mv` writes a rewritten file back with the
+leading UTF-8 byte-order mark it had (`bomOf`), and re-records the body digest
+of a concept it only re-links (`rerecordBodyDigest`), so the next `sync` keeps
+`generated.at`; a concept on old key names is left to `sync`, and one whose
+integrity block cannot be edited is listed in `drifts`.
 
 ## Editor seams
 

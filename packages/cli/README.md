@@ -436,7 +436,9 @@ rewrites every reference to it (body links, path fields, `x-okfit-supersedes`,
 Publication `x-okfit-renders`), keeping each reference's spelling. `<to>` is an id or a
 path; `.md` is added when missing. `--dry-run` prints the plan and writes
 nothing. Every file whose text changes drifts and needs a human to re-verify
-it; run `okfit sync` afterwards. Refusals (destination exists, outside the
+it; run `okfit sync` afterwards. `mv` keeps a file's UTF-8 byte-order mark and
+re-records the body digest of a concept it only re-links, so `sync` keeps its
+`generated.at`. Refusals (destination exists, outside the
 bundle, a reserved file, an unlocatable link) are exit `64` with nothing
 written.
 

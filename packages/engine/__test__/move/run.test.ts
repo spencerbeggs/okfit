@@ -9,9 +9,11 @@ import { Trust } from "@okfit/profiles";
 import { DateTime, Effect, Exit, FileSystem, Layer } from "effect";
 import { MoveError } from "../../src/errors.js";
 import { planMove, runMove } from "../../src/move/run.js";
+import { syncGenerated } from "../../src/sync/generated.js";
+import { keyRenamesFor } from "../../src/sync/legacyKeys.js";
 import type { ProjectSeed } from "../fixtures/bundles.js";
 import { V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
-import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { BODY, DIGEST, bindBodies, bindFixtures } from "../utils/binding.js";
 import { projectPlatform } from "../utils/bundle.js";
 import type { TestServices } from "../utils/platform.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -612,8 +614,8 @@ describe("planMove with non-concept Markdown (memfs)", () => {
 	);
 });
 
-describe("mv and a BOM on a real disk (documents current behaviour)", () => {
-	it.effect("loads a BOM-prefixed concept and non-concept, and drops the BOM when it rewrites their links", () =>
+describe("mv and a BOM on a real disk (#456)", () => {
+	it.effect("keeps the BOM of a concept, a non-concept and the moved file when it rewrites their links", () =>
 		withBundle(
 			(_project, okf) =>
 				Effect.gen(function* () {
@@ -625,18 +627,166 @@ describe("mv and a BOM on a real disk (documents current behaviour)", () => {
 					);
 					yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
 					const after = yield* Effect.promise(() => snapshot(okf));
-					// Current behaviour (a later fix flips this): the read strips the BOM, so the rewrite writes none,
-					// for a concept and a non-concept alike; the frontmatter and the link are correct.
+					// The read strips the BOM, so the plan puts back the one each file had: exactly one, never doubled.
 					assert.strictEqual(
 						after["notes/bom-concept.md"],
-						"---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/beta.md).\n",
+						"\uFEFF---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/beta.md).\n",
 					);
-					assert.strictEqual(after["notes/bom-readme.md"], "# Readme\n\nSee [b](../decisions/beta.md).\n");
+					assert.strictEqual(after["notes/bom-readme.md"], "\uFEFF# Readme\n\nSee [b](../decisions/beta.md).\n");
+					// The moved file had a BOM and keeps it (it is written once, at its old path, then renamed).
+					assert.isTrue(after["decisions/beta.md"]?.startsWith("\uFEFF---"));
+					assert.isFalse(after["decisions/beta.md"]?.startsWith("\uFEFF\uFEFF"));
 				}),
 			{
 				"notes/bom-concept.md": "\uFEFF---\ntype: Convention\ntitle: Bom\n---\n\nSee [b](../decisions/b.md).\n",
 				"notes/bom-readme.md": "\uFEFF# Readme\n\nSee [b](../decisions/b.md).\n",
+				"decisions/b.md": `\uFEFF${files["decisions/b.md"]}`,
 			},
+		),
+	);
+});
+
+describe("mv keeps a BOM only on the files that had one (#456)", () => {
+	const bom = "\uFEFF";
+	it.effect("a plain file referring to a BOM file gains no BOM; a BOM file edited twice keeps exactly one", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					// decisions/b.md carries a BOM and is edited as the moved file (its own link to c.md is recomputed);
+					// a.md and c.md are plain and refer to it; bom-ref.md carries a BOM and refers to it.
+					yield* runMove({ ...base(okf, okf, "decisions/b", "topics/deep/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					const beta = after["topics/deep/beta.md"] ?? "";
+					assert.isTrue(beta.startsWith(`${bom}---`));
+					assert.include(beta, "(../../conventions/c.md)");
+					assert.isFalse(beta.startsWith(bom + bom));
+					assert.include(after["decisions/a.md"], "(../topics/deep/beta.md)");
+					assert.include(after["conventions/c.md"], "(../topics/deep/beta.md)");
+					assert.isFalse((after["decisions/a.md"] ?? "").startsWith(bom));
+					assert.isFalse((after["conventions/c.md"] ?? "").startsWith(bom));
+					assert.isTrue((after["notes/bom-ref.md"] ?? "").startsWith(`${bom}---`));
+					assert.isFalse((after["notes/bom-ref.md"] ?? "").startsWith(bom + bom));
+					assert.include(after["notes/bom-ref.md"], "(../topics/deep/beta.md)");
+				}),
+			{
+				"decisions/b.md": `${bom}${files["decisions/b.md"]}`,
+				"notes/bom-ref.md": `${bom}---\ntype: Convention\ntitle: R\n---\n\nSee [b](../decisions/b.md).\n`,
+			},
+		),
+	);
+});
+
+describe("mv re-records the body digest of a concept it only re-links (#488)", () => {
+	const concept = (integrity: string) =>
+		`---\ntype: Convention\ntitle: Ref\ngenerated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\nverified:\n  - by: human:ada\n    at: 2026-03-01T00:00:00Z\n${integrity}---\n\nSee [b](../decisions/b.md).\n`;
+	const block = (body: string) =>
+		`x-okfit-integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:ada\n    at: 2026-03-01T00:00:00Z\n    content: ${DIGEST}\n`;
+	const REF = "notes/ref.md";
+	const bodyLine = /body: ([0-9a-f]{16})/;
+
+	it.effect("a link-only rewrite re-records the body digest and keeps generated.at through the next sync (#488)", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					yield* bindFixtures(okf, [REF]);
+					yield* bindBodies(okf, [REF]);
+					const before = yield* Effect.promise(() => snapshot(okf));
+					const { plan } = yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					const was = before[REF] ?? "";
+					const now = after[REF] ?? "";
+					const oldBody = bodyLine.exec(was)?.[1] as string;
+					const newBody = bodyLine.exec(now)?.[1] as string;
+					assert.notStrictEqual(newBody, oldBody);
+					// Only the body: line and the link text changed; generated, verified and the binding are byte-identical.
+					assert.strictEqual(
+						now,
+						was.replace(oldBody, newBody).replace("(../decisions/b.md)", "(../decisions/beta.md)"),
+					);
+					const frontmatter = (text: string) => text.slice(0, text.indexOf("\n---\n", 4));
+					assert.strictEqual(frontmatter(now).replace(newBody, oldBody), frontmatter(was));
+					assert.include(now, "generated:\n  by: okfit/test\n  at: 2026-02-01T00:00:00Z\n");
+					assert.include(now, "verified:\n  - by: human:ada\n    at: 2026-03-01T00:00:00Z\n");
+					assert.include(now, "  verified:\n    by: human:ada\n    at: 2026-03-01T00:00:00Z\n    content: ");
+					assert.include(plan.drifts, "notes/ref");
+					// The next sync (committed provenance) reads the digest as current and leaves generated.at alone.
+					const bundle = yield* Bundle.load({ root: okf });
+					const id = "notes/ref" as never;
+					const synced = yield* syncGenerated(bundle, {
+						provenance: new Map([[id, { _tag: "committed", at: DateTime.makeUnsafe("2026-11-25T00:00:00Z") }]]),
+						renames: keyRenamesFor(config),
+						dryRun: true,
+						scope: new Set([id]),
+					});
+					assert.deepStrictEqual(synced.unchanged, ["notes/ref"]);
+					assert.deepStrictEqual(synced.written, []);
+					assert.deepStrictEqual(
+						bundle.concepts.get(id)?.frontmatter.generated?.at,
+						DateTime.makeUnsafe("2026-02-01T00:00:00Z"),
+					);
+				}),
+			{ [REF]: concept(block(BODY)) },
+		),
+	);
+
+	it.effect("a digest already stale before the move is left stale", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					yield* bindFixtures(okf, [REF]);
+					const before = yield* Effect.promise(() => snapshot(okf));
+					yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					assert.strictEqual(after[REF], before[REF]?.replace("(../decisions/b.md)", "(../decisions/beta.md)"));
+					assert.include(after[REF], "body: 0123456789abcdef\n");
+				}),
+			{ [REF]: concept(block("0123456789abcdef")) },
+		),
+	);
+
+	it.effect("an integrity block mv cannot edit is listed in drifts and left unedited", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					yield* bindBodies(okf, [REF]);
+					const before = yield* Effect.promise(() => snapshot(okf));
+					const { plan } = yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					// The flow-style block cannot be spliced: only the link changes, and the concept is listed.
+					assert.strictEqual(after[REF], before[REF]?.replace("(../decisions/b.md)", "(../decisions/beta.md)"));
+					assert.include(plan.drifts, "notes/ref");
+				}),
+			{ [REF]: concept(`x-okfit-integrity: { generated: { body: ${BODY} } }\n`) },
+		),
+	);
+
+	it.effect("a concept on old key names is not re-recorded", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					yield* bindBodies(okf, [REF]);
+					const before = yield* Effect.promise(() => snapshot(okf));
+					const { plan } = yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					assert.strictEqual(after[REF], before[REF]?.replace("(../decisions/b.md)", "(../decisions/beta.md)"));
+					// Skipped before any splice is tried, so the legacy layout is not listed as unrecordable either.
+					assert.notInclude(plan.drifts, "notes/ref");
+				}),
+			{ [REF]: concept(`integrity:\n  generated:\n    body: ${BODY}\n`) },
+		),
+	);
+	it.effect("a concept carrying both key spellings is not re-recorded (the rename comes first)", () =>
+		withBundle(
+			(_project, okf) =>
+				Effect.gen(function* () {
+					yield* bindFixtures(okf, [REF]);
+					yield* bindBodies(okf, [REF]);
+					const before = yield* Effect.promise(() => snapshot(okf));
+					yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
+					const after = yield* Effect.promise(() => snapshot(okf));
+					assert.strictEqual(after[REF], before[REF]?.replace("(../decisions/b.md)", "(../decisions/beta.md)"));
+				}),
+			{ [REF]: concept(`integrity:\n  generated:\n    body: ${BODY}\n${block(BODY)}`) },
 		),
 	);
 });

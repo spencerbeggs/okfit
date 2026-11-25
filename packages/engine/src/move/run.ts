@@ -7,9 +7,11 @@ import { Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import { rerecordBodyDigest } from "../edits/bodyDigest.js";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
-import { writeAtomic } from "../sync/write.js";
+import { keyRenamesFor, legacyIntegrity } from "../sync/legacyKeys.js";
+import { bomOf, writeAtomic } from "../sync/write.js";
 import { Targets } from "../targets/resolve.js";
 import { referencesOf, rewriteReference } from "./references.js";
 import { readMarkdownSources } from "./sources.js";
@@ -18,7 +20,10 @@ import { readMarkdownSources } from "./sources.js";
  * What `okfit mv` will do. `from` and `to` are bundle-relative `.md` paths, `fromPath` and `toPath`
  * their absolute forms. `edits` holds the post-move path, the edit count and the full new text of
  * every file that changes, the moved file always among them (`count` may be 0). `drifts` lists the
- * ids (the moved file by its old id) whose human verification is `current` now and whose text changes.
+ * ids (the moved file by its old id) whose human verification is `current` now and whose text changes, plus an
+ * edited concept whose recorded body digest could not be re-recorded (its integrity block has a layout that is never
+ * edited). Each `text` is the exact bytes written, a leading byte-order mark the file had included; an edited concept's
+ * `x-okfit-integrity.generated.body` is re-recorded when it matched the text before, so the next sync keeps `generated.at`.
  *
  * @public
  */
@@ -168,10 +173,10 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 	const found = [
 		...[...bundle.concepts.values()].map((concept) => ({
 			concept,
-			isConcept: true,
+			isConcept: true as const,
 			...referencesOf(concept, options.config),
 		})),
-		...nonConcepts.map((concept) => ({ concept, isConcept: false, ...referencesOf(concept, options.config) })),
+		...nonConcepts.map((concept) => ({ concept, isConcept: false as const, ...referencesOf(concept, options.config) })),
 	];
 	// Only a reference that would need rewriting (it sits in the moved file, or resolves to it) can
 	// block the move; an unrelated link the locator cannot read is left alone.
@@ -211,7 +216,8 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 
 	const signals = yield* Trust.signals(bundle, options.config, options.now);
 	const edits: Array<{ path: string; count: number; text: string }> = [];
-	const drifts: Array<string> = [];
+	const drifts = new Set<string>();
+	const renames = keyRenamesFor(options.config);
 	for (const { concept, isConcept, references } of found) {
 		const isMoved = concept.path === source.path;
 		const fromNew = isMoved ? destination : concept.path;
@@ -230,21 +236,33 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 				pending.push(MarkdownEdit.make({ offset: reference.offset, length: reference.length, content: next }));
 		}
 		if (pending.length === 0 && !isMoved) continue;
-		const text =
-			pending.length === 0 ? concept.document.source : MarkdownEdit.applyAll(concept.document.source, pending);
-		edits.push({ path: fromNew, count: pending.length, text });
-		if (isConcept && pending.length > 0 && signals.get(concept.path.slice(0, -3))?.integrity === "current")
-			drifts.push(concept.path.slice(0, -3));
+		let text = pending.length === 0 ? concept.document.source : MarkdownEdit.applyAll(concept.document.source, pending);
+		const id = concept.path.slice(0, -3);
+		// A link-only edit leaves the recorded body digest stale, and the next sync would read that as an authored
+		// change and re-stamp `generated.at`: re-record it when it matched. A concept on old key names is left to
+		// sync (it renames the keys first); a layout that cannot be edited is listed instead.
+		if (isConcept && pending.length > 0 && legacyIntegrity(concept, renames) === undefined) {
+			const kept = yield* rerecordBodyDigest({
+				recorded: concept.frontmatter.integrity?.generated?.body,
+				before: concept.document.source,
+				after: text,
+			});
+			text = kept.text;
+			if (kept.outcome === "unrecordable") drifts.add(id);
+		}
+		// The loader reads through `readFileString`, which drops a leading BOM; give back the one the file had.
+		const bom = yield* bomOf(fs, path.join(bundle.root, concept.path));
+		edits.push({ path: fromNew, count: pending.length, text: bom + text });
+		if (isConcept && pending.length > 0 && signals.get(id)?.integrity === "current") drifts.add(id);
 	}
 	edits.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-	drifts.sort();
 	return {
 		from: source.path,
 		to: destination,
 		fromPath: path.join(bundle.root, source.path),
 		toPath: toAbsolute,
 		edits,
-		drifts,
+		drifts: [...drifts].sort(),
 	};
 });
 

@@ -71,7 +71,7 @@ const ROWS: ReadonlyArray<Row> = [
 		crlf: true,
 	},
 	{
-		name: "BOM: dropped on rewrite, for a concept and a non-concept alike (current behaviour)",
+		name: "BOM: kept on rewrite, for a concept and a non-concept alike (#456)",
 		dir: "notes",
 		body: "# T\n\n[x]({M})\n",
 		expected: "# T\n\n[x]({G})\n",
@@ -105,11 +105,8 @@ describe("mv over a non-concept file agrees with the same body in a concept", ()
 				};
 				const result = yield* plan(mountProject(project));
 				const text = (path: string) => result.edits.find((edit) => edit.path === path)?.text;
-				// Known gap, current behaviour: the filesystem read hands back the text without its BOM (on the Node
-				// platform too: see the real-disk test in run.test.ts), so a rewritten file loses it. A concept and a
-				// non-concept agree; a later fix flips these expectations.
-				assert.strictEqual(text(plainPath), fill(row.dir, row.expected));
-				assert.strictEqual(text(twinPath), front + fill(row.dir, row.expected));
+				assert.strictEqual(text(plainPath), bom + fill(row.dir, row.expected));
+				assert.strictEqual(text(twinPath), bom + front + fill(row.dir, row.expected));
 				// Control: the move really rewrote something in this bundle.
 				assert.isDefined(text("metrics/margin-legacy.md"));
 			}),

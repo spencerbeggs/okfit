@@ -22,3 +22,22 @@ export const bindFixtures = (root: string, names: ReadonlyArray<string>) =>
 			yield* Effect.promise(() => writeFile(join(root, name), text.replaceAll(DIGEST, digest)));
 		}
 	});
+
+/** The placeholder a fixture puts where a recorded body digest belongs. */
+export const BODY = "__BODY__";
+
+/**
+ * Replaces {@link BODY} in the named bundle files with each concept's real body digest (the current one, so the
+ * record matches the file as written). Test-only.
+ */
+export const bindBodies = (root: string, names: ReadonlyArray<string>) =>
+	Effect.gen(function* () {
+		const bundle = yield* Bundle.load({ root });
+		for (const name of names) {
+			const concept = [...bundle.concepts.values()].find((entry) => entry.path === name);
+			if (concept === undefined) return yield* Effect.die(new Error(`no concept ${name}`));
+			const digest = yield* Derivation.bodyDigest(concept.document.source);
+			const text = yield* Effect.promise(() => readFile(join(root, name), "utf8"));
+			yield* Effect.promise(() => writeFile(join(root, name), text.replaceAll(BODY, digest)));
+		}
+	});
