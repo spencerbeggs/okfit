@@ -20,8 +20,8 @@ x-okfit-integrity:
     body: b0c1d062847e6afb
   verified:
     by: human:spencer
-    at: 2026-11-24T14:56:24Z
-    content: 4d6ee394b08a9bf4
+    at: 2026-11-25T02:05:49Z
+    content: 911983f133379980
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:48Z
@@ -29,6 +29,8 @@ verified:
     at: 2026-11-24T02:55:14Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
+  - by: human:spencer
+    at: 2026-11-25T02:05:49Z
 ---
 
 # Markdown that is not a concept is skipped, not an error
