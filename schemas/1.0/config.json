@@ -36,7 +36,7 @@
 				"non_concepts": {
 					"type": "array",
 					"title": "Non-concept Markdown",
-					"description": "Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
+					"description": "Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). A `[` or `{` that never closes is rejected; escape it as `\\[` to match the character itself. When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
 					"examples": [
 						[
 							"**/README.md",

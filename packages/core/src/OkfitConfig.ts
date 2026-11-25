@@ -516,6 +516,36 @@ export const LintTable = Schema.Struct({
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
 });
 
+/**
+ * Scan a glob once, left to right, for a `[` or `{` that never closes; the
+ * message names the opener, or `undefined` when none is left open. A backslash
+ * escapes the next character; a class closes at the first `]` after at least
+ * one member (POSIX, so `[]a]` is one class); a `{` inside a class is literal;
+ * braces are counted by depth. A stray `]` or `}` is literal text.
+ */
+const unclosedGlobOpener = (glob: string): string | undefined => {
+	let depth = 0;
+	let classStart = -1;
+	for (let i = 0; i < glob.length; i++) {
+		const ch = glob[i];
+		if (ch === "\\") {
+			i++;
+		} else if (classStart >= 0) {
+			if (ch === "]" && i > classStart + 1) classStart = -1;
+		} else if (ch === "[") {
+			classStart = i;
+		} else if (ch === "{") {
+			depth++;
+		} else if (ch === "}" && depth > 0) {
+			depth--;
+		}
+	}
+	if (classStart >= 0) {
+		return '"[" opens a character class that never closes; write "\\[" to match a literal bracket';
+	}
+	return depth > 0 ? '"{" opens a brace group that never closes; write "\\{" to match a literal brace' : undefined;
+};
+
 type LintTableKey = keyof typeof LintTable.fields;
 
 /**
@@ -556,6 +586,10 @@ export const okfitConfigFields = Schema.Struct({
 				Schema.Array(
 					Schema.String.check(
 						Schema.makeFilter((value: string) => {
+							const unclosed = unclosedGlobOpener(value);
+							if (unclosed !== undefined) {
+								return `Expected a valid glob pattern, got ${JSON.stringify(value)}: ${unclosed}`;
+							}
 							const compiled = GlobPattern.compileResult(value);
 							return Result.isSuccess(compiled) || `Expected a valid glob pattern, got ${JSON.stringify(value)}`;
 						}),
@@ -563,7 +597,7 @@ export const okfitConfigFields = Schema.Struct({
 				).annotate({
 					title: "Non-concept Markdown",
 					description:
-						"Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
+						"Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). A `[` or `{` that never closes is rejected; escape it as `\\[` to match the character itself. When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
 					examples: [["**/README.md", "**/AGENTS.md"]],
 				}),
 			),

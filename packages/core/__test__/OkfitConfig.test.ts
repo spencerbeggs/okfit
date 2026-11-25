@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Toml } from "@effected/toml";
-import { Duration, Effect, Schema } from "effect";
+import { Duration, Effect, Schema, SchemaIssue } from "effect";
 import { LintLevel, OkfitConfig, StaleAfterDuration } from "../src/OkfitConfig.js";
 import { specExampleToml } from "./utils/configFixtures.js";
 
@@ -202,5 +202,56 @@ describe("OkfitConfig", () => {
 	it("actors.humans accepts globs", () => {
 		const config = Schema.decodeUnknownSync(OkfitConfig)({ actors: { humans: ["human:spencer", "human:team-*"] } });
 		assert.deepStrictEqual<ReadonlyArray<string> | undefined>(config.actors?.humans, ["human:spencer", "human:team-*"]);
+	});
+});
+
+describe("[bundle] non_concepts glob strictness (#485)", () => {
+	const formatIssues = SchemaIssue.makeFormatterStandardSchemaV1();
+	const decodeIssues = (glob: string) => {
+		const result = Schema.decodeUnknownResult(OkfitConfig)({ bundle: { non_concepts: [glob] } });
+		assert.isTrue(result._tag === "Failure", `expected ${JSON.stringify(glob)} to be rejected`);
+		return result._tag === "Failure" ? formatIssues(result.failure.issue).issues : [];
+	};
+	const globsOf = (...globs: string[]) => decodeConfig({ bundle: { non_concepts: globs } }).bundle?.non_concepts;
+
+	it("[a- is rejected", () => {
+		const [issue] = decodeIssues("[a-");
+		assert.deepStrictEqual(issue?.path, ["bundle", "non_concepts", 0]);
+		assert.strictEqual(
+			issue?.message,
+			'Expected a valid glob pattern, got "[a-": "[" opens a character class that never closes; write "\\[" to match a literal bracket',
+		);
+	});
+	it("{x is rejected", () => {
+		const [issue] = decodeIssues("{x");
+		assert.deepStrictEqual(issue?.path, ["bundle", "non_concepts", 0]);
+		assert.strictEqual(
+			issue?.message,
+			'Expected a valid glob pattern, got "{x": "{" opens a brace group that never closes; write "\\{" to match a literal brace',
+		);
+	});
+	it("a nested group missing its outer close is rejected", () => {
+		assert.lengthOf(decodeIssues("{a,{b,c}"), 1);
+	});
+	it("a/[ab]/*.md and **/{README,AGENTS}.md decode", () => {
+		assert.deepStrictEqual(globsOf("a/[ab]/*.md", "**/{README,AGENTS}.md"), ["a/[ab]/*.md", "**/{README,AGENTS}.md"]);
+	});
+	it("a nested {a,{b,c}} decodes", () => {
+		assert.deepStrictEqual(globsOf("{a,{b,c}}"), ["{a,{b,c}}"]);
+	});
+	it("an escaped \\[ decodes", () => {
+		assert.deepStrictEqual(globsOf("\\[a-", "\\{x"), ["\\[a-", "\\{x"]);
+	});
+	it("a ] or } with no opener decodes", () => {
+		assert.deepStrictEqual(globsOf("a]b", "a}b"), ["a]b", "a}b"]);
+	});
+	it("a [ inside a closed class, [[], decodes", () => {
+		assert.deepStrictEqual(globsOf("[[]"), ["[[]"]);
+	});
+	it("a { inside a closed class, [{], decodes", () => {
+		assert.deepStrictEqual(globsOf("[{]"), ["[{]"]);
+	});
+	it("a ] first in a class is a member: []a] decodes", () => {
+		assert.deepStrictEqual(globsOf("[]a]"), ["[]a]"]);
 	});
 });
