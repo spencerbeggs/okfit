@@ -358,14 +358,30 @@ describe("syncIndex byte-order mark (#492)", () => {
 		}),
 	);
 
+	it.effect("keeps the BOM on a CRLF index.md", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": `${BOM}# Stale\r\n\r\nold\r\n` }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const result = yield* syncIndex(bundle, false);
+				assert.isTrue(result.written.includes("modules/index.md"));
+				const bytes = yield* readBytes(root, "modules/index.md");
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+			}),
+		),
+	);
+
 	it.effect("a new index.md gets no BOM", () =>
 		withRealBundle({ "modules/a.md": MOD }, (root) =>
 			Effect.gen(function* () {
 				const bundle = yield* Bundle.load({ root });
 				const result = yield* syncIndex(bundle, false);
 				assert.isTrue(result.written.includes("modules/index.md"));
-				const bytes = yield* readBytes(root, "modules/index.md");
-				assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.isTrue(result.written.includes("index.md"));
+				for (const name of ["modules/index.md", "index.md"]) {
+					const bytes = yield* readBytes(root, name);
+					assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], name);
+				}
 			}),
 		),
 	);

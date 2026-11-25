@@ -508,6 +508,7 @@ describe("syncLog byte-order mark (#492)", () => {
 				const bytes = yield* Effect.promise(() => readFile(join(root, "log.md")));
 				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
 				const text = bytes.subarray(3).toString("utf8");
+				assert.isTrue(text.startsWith("# Log\n"), "exactly one BOM, then the heading");
 				assert.isTrue(text.includes("* Added Fresh"));
 				assert.isTrue(text.endsWith(OLD.slice("# Log\n\n".length)));
 			}),
