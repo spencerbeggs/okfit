@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:08:01Z
+  at: 2026-11-25T15:25:17Z
 x-okfit-integrity:
   generated:
-    body: 37d57a94013b4a11
+    body: ddda7db04f279a3c
 ---
 
 # CLI
@@ -78,7 +78,7 @@ stdout, and not `--format json`.
 
 Four commands prompt, only when interactive: bare `okfit verify` opens a
 picker (`commands/verify-picker.ts`: a MultiSelect by type, then a Confirm
-with a promote-drafts toggle, then one all-or-nothing `runVerifyIds` in
+with a promote-drafts toggle, then one `runVerifyIds` (all-or-nothing writes; an unknown status or a not-current concept is skipped with its reason) in
 [Engine](engine.md); when any row is drifted the list is
 `commands/verify-preview.tsx`: the same selection keys beside a two-pane
 preview of the highlighted row's diff since its verification was bound);

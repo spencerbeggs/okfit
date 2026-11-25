@@ -1086,9 +1086,9 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 			);
 			assert.strictEqual(suggested.exitCode, 0, suggested.stderr);
 			assert.strictEqual(await readFile(wip, "utf8"), wipBefore);
-			// every id unknown: nothing written, exit 0
+			// control: a missing id still fails the whole list at target resolution (the all-unknown list is the next test)
 			const all = await withServices(runOkfit(["verify", "decisions/wip", "decisions/wip2"], { cwd, env }));
-			assert.notStrictEqual(all.exitCode, 0); // control: a missing id still fails the list
+			assert.notStrictEqual(all.exitCode, 0);
 			// JSON keeps { id, reason }
 			const json = await withServices(
 				runOkfit(["verify", "decisions/wip", "decisions/a", "--format", "json"], { cwd, env }),

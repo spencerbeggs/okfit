@@ -304,7 +304,7 @@ The write goes through a temp file and an atomic rename, and the target's
 mode is preserved on the replacement. A concept without write permission is
 refused and left untouched, exiting `3`.
 
-A concept whose `status` is outside `draft`, `stable` and `deprecated` cannot be verified. `okfit verify <id>` with one id refuses it (exit `3`); a list of several ids skips it, before the not-current check, with `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`, and verifies the rest. It is never written; a list where every id is skipped writes nothing and exits `0`.
+A concept whose `status` is outside `draft`, `stable` and `deprecated` cannot be attested as it stands. `okfit verify <id>` with one id refuses it (exit `3`) unless `--stable` or `--draft` is given, which sets the status and verifies in the same write. A list of several ids, and an `--all`/`--type` batch, skip it, before the not-current check, with `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`, and verify the rest; a skipped concept is never written, and a list where every id is skipped writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do.
 
 `verify` also refuses, exiting `3`, a concept that still carries the old
 `integrity` block from an older okfit and says to run `okfit sync` first. The

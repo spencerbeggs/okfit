@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:19:00Z
+  at: 2026-11-25T15:25:17Z
 x-okfit-integrity:
   generated:
-    body: 6a7816feb9eccc7d
+    body: d4a9e0848395d1ff
 ---
 
 # Engine
@@ -137,8 +137,9 @@ through `FrontmatterEdits.status`; the envelope's `status` field reports
 mark.
 
 `verify/run.ts#runVerifyIds` is the explicit-id sibling of
-`runVerifyBatch` (issue 214): it attests exactly the ids it is given,
-all-or-nothing, with an optional promote-drafts step that sets `status:
+`runVerifyBatch` (issue 214): it attests the ids it is given,
+skipping an unknown status or a not-current concept (each with its reason) and
+writing the rest all-or-nothing, with an optional promote-drafts step that sets `status:
 stable` in the same write. `verify/select.ts#selectPickerCandidates` and
 `verify/run.ts#loadPickerCandidates` list what the interactive `okfit
 verify` picker offers: concepts of a `require_verified` type the caller has

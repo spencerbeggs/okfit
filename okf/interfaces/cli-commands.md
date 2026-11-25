@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:19:00Z
+  at: 2026-11-25T15:25:17Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: f89d1cb05609181e
+    body: af9b7f3b8b9f1a19
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -218,7 +218,7 @@ unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, while an explicit id list of two or more or an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest; an id list prints `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`, and a list of only such concepts writes nothing and exits `0`. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
+`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, while an explicit id list of two or more or an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest, printing `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`; a skipped concept is never written, and a list of only such concepts writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
 set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
