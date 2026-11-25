@@ -1,7 +1,7 @@
 import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Bundle, ConceptId, Derive, INTEGRITY_KEY, Timestamp } from "@okfit/core";
+import { Bundle, ConceptId, Derive, INTEGRITY_KEY, Timestamp, generatedAtIsFuture } from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
@@ -56,7 +56,7 @@ export interface VerifyOptions {
 	readonly config: OkfitConfig;
 	/** `--at` when given, else the `Now` service (K-47/K-49). */
 	readonly at: DateTime.Utc;
-	/** The clock, to tell a `generated.at` later than now from one later than `--at`; absent: `at`. */
+	/** The clock, to tell a `generated.at` later than now from one later than `--at`; absent: no refusal says "later than now". */
 	readonly now?: DateTime.Utc;
 	readonly dryRun: boolean;
 	/** Issue #185: also set the concept's `status` in the same write. */
@@ -101,7 +101,7 @@ export interface VerifyBatchOptions {
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly at: DateTime.Utc;
-	/** The clock; absent: `at`. */
+	/** The clock; absent: no refusal says "later than now". */
 	readonly now?: DateTime.Utc;
 	readonly dryRun: boolean;
 	/** Restrict to these types; empty = every type with `require_verified = true`. */
@@ -156,17 +156,23 @@ const unknownStatusRefusal = (
 const notCurrentRefusal = (
 	concept: LoadedConcept,
 	at: DateTime.Utc,
-	now: DateTime.Utc = at,
+	now?: DateTime.Utc,
 ): VerifyNotCurrentError | undefined => {
 	const generatedAt = concept.frontmatter.generated?.at;
-	return generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)
-		? undefined
-		: new VerifyNotCurrentError({
-				id: concept.id,
-				at: Schema.encodeSync(Timestamp)(at),
-				generatedAt: Schema.encodeSync(Timestamp)(generatedAt),
-				...(DateTime.isGreaterThan(generatedAt, now) ? { future: true } : {}),
-			});
+	if (generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)) return undefined;
+	// How far ahead of now the stamp is, when now is known; the engine never claims "later than now" without it.
+	const kind =
+		now === undefined || !DateTime.isGreaterThan(generatedAt, now)
+			? undefined
+			: generatedAtIsFuture(generatedAt, now)
+				? ("future" as const)
+				: ("near-future" as const);
+	return new VerifyNotCurrentError({
+		id: concept.id,
+		at: Schema.encodeSync(Timestamp)(at),
+		generatedAt: Schema.encodeSync(Timestamp)(generatedAt),
+		...(kind === undefined ? {} : { kind }),
+	});
 };
 
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
@@ -176,7 +182,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	actor: Actor,
 	when: DateTime.Utc,
 	status: "stable" | "draft" | undefined,
-	now: DateTime.Utc,
+	now: DateTime.Utc | undefined,
 	// Issue #228: the encoded new `stale_after`; set only by `runVerifyIds`'
 	// `refreshStaleAfter`. Also switches a re-attestation to overwrite the
 	// actor's existing entry's `at` rather than append a second entry.
@@ -336,7 +342,7 @@ export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options:
 	// like a real run would (I3): there is no cheaper preview path that skips
 	// classification, and the edit itself is computed unconditionally so a
 	// dry run reports the exact fragment it would write.
-	const prepared = yield* prepareVerify(bundle, concept, actor, options.at, options.status, options.now ?? options.at);
+	const prepared = yield* prepareVerify(bundle, concept, actor, options.at, options.status, options.now);
 	const prior = yield* Trust.signal(concept, options.config, options.at);
 
 	// Step 15 (I4/V-16): a temp file beside the real target, then a rename
@@ -388,7 +394,7 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 	readonly bundleRoot: string;
 	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
-	/** The clock, when `now` is a backdated `--at`: tells a `generated.at` later than now from one later than `now`. */
+	/** The clock, when `now` is a backdated `--at`; absent: no refusal says "later than now". */
 	readonly clock?: DateTime.Utc;
 	/** The `--stable`/`--draft` the write will carry, if any. */
 	readonly status?: "stable" | "draft";
@@ -397,7 +403,7 @@ export const inspectDrift = Effect.fn("okfit/verify/inspectDrift")(function* (op
 	const { id, concept } = yield* resolveConcept(bundle, options.id);
 	const refusal = unknownStatusRefusal(concept, options.status);
 	if (refusal !== undefined) return yield* refusal;
-	const stale = notCurrentRefusal(concept, options.now, options.clock ?? options.now);
+	const stale = notCurrentRefusal(concept, options.now, options.clock);
 	if (stale !== undefined) return yield* stale;
 	const path = yield* Path.Path;
 	const signal = yield* Trust.signal(concept, options.config, options.now);
@@ -584,7 +590,7 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 		prepared.push({
 			id: concept.id,
 			conceptPath: concept.path,
-			...(yield* prepareVerify(bundle, concept, actor, options.at, undefined, options.now ?? options.at)),
+			...(yield* prepareVerify(bundle, concept, actor, options.at, undefined, options.now)),
 		});
 	}
 
@@ -612,7 +618,7 @@ export interface VerifyIdsOptions {
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly at: DateTime.Utc;
-	/** The clock; absent: `at`. */
+	/** The clock; absent: no refusal says "later than now". */
 	readonly now?: DateTime.Utc;
 	readonly dryRun: boolean;
 	/** Concept ids, resolved as `runVerify` resolves one (tolerant: leading slash, trailing `.md`). */
@@ -639,7 +645,7 @@ export interface VerifyIdsOptions {
  * (OKF 0.3 5.4) fails the whole call with `VerifyStatusUnknownError`, even under
  * `promote` (which only promotes a draft). Drafts, deprecated and
  * already-attested concepts are all attested. A concept whose `generated.at` is later than `at` is skipped with the
- * reason `not-current` and the rest are verified; when every id is not current nothing is written and the call succeeds.
+ * reason `not-current` (`skipped` is in the order the ids were given) and the rest are verified; when every id is not current nothing is written and the call succeeds.
  * Duplicate ids (after normalisation) are written
  * once. With `promote`, a draft's `status` becomes `stable` in the same write.
  *
@@ -679,7 +685,7 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 		prepared.push({
 			id,
 			conceptPath: concept.path,
-			...(yield* prepareVerify(bundle, concept, actor, options.at, status, options.now ?? options.at, staleAfter)),
+			...(yield* prepareVerify(bundle, concept, actor, options.at, status, options.now, staleAfter)),
 		});
 	}
 

@@ -288,8 +288,10 @@ run appends, including a repeat by the same person. `--at <iso>` records a
 different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (run `okfit sync`, which re-stamps it); an instant
-equal to `generated.at` is accepted. A batch (`--all`, `--type`), a list of several targets and
-both pickers skip such a concept (`skipped <id>: generated.at is later than <at>, ...`) and verify the rest. `--dry-run` runs the same splice and prints the exact
+equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
+(`skipped <id>: generated.at is later than <at>, ...`) and verify the rest; both pickers leave it out and print one
+`left out ...` line naming it. A `generated.at` later than now by less than 5 minutes is refused with a message to check
+the clock (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
 

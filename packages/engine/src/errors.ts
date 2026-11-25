@@ -136,9 +136,11 @@ export class VerifyStatusUnknownError extends Schema.TaggedError<VerifyStatusUnk
 /**
  * OKF 0.3 §5.3: a verification made before the concept's last change (`generated.at`) does not count, so
  * `okfit verify` refuses to write one, whether `at` came from `--at` or the clock is behind a `generated.at`
- * in the future (ruling R33). `at` and `generatedAt` are the encoded instants; `future` is set when
- * `generatedAt` is later than now, whose repair is `okfit sync`. Exit 3, like the other verify refusals. A batch,
- * an id list and the pickers skip such a concept instead of failing.
+ * in the future (ruling R33). `at` and `generatedAt` are the encoded instants. `kind` says how the stamp relates
+ * to now when now is known: `"future"` (more than the tolerance later, which `okfit sync` re-stamps) or
+ * `"near-future"` (later, but within the tolerance, so only the clock or waiting helps); absent when `generatedAt`
+ * is not later than now, so only the verification time is to blame (verify at or after it, or omit `--at`).
+ * Exit 3, like the other verify refusals. A batch, an id list and the pickers skip such a concept instead of failing.
  *
  * @public
  */
@@ -146,14 +148,18 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 	id: Schema.String,
 	at: Schema.String,
 	generatedAt: Schema.String,
-	/** Set when `generatedAt` is later than now (not only later than `--at`). */
-	future: Schema.optionalKey(Schema.Boolean),
+	kind: Schema.optionalKey(Schema.Literals(["future", "near-future"])),
 }) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		return this.future === true
-			? `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at later than now, then verify again`
-			: `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or omit --at to verify now`;
+		switch (this.kind) {
+			case "future":
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again`;
+			case "near-future":
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again after ${this.generatedAt}`;
+			default:
+				return `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or omit --at to verify now`;
+		}
 	}
 }
 

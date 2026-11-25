@@ -25,7 +25,16 @@ import { FrontmatterSource, MarkdownDocument, MarkdownParseOptions, YamlFrontmat
 import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import type { Actor, DerivedStatus, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Derive, DiagnosticRange, Generated, INTEGRITY_KEY, Status, Timestamp, Verification } from "@okfit/core";
+import {
+	Derive,
+	DiagnosticRange,
+	Generated,
+	INTEGRITY_KEY,
+	Status,
+	Timestamp,
+	Verification,
+	generatedAtIsFuture,
+} from "@okfit/core";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "@okfit/engine";
 import type { EvaluateInput } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
@@ -51,7 +60,7 @@ export type EditFailure =
 	| { readonly _tag: "Unsupported"; readonly key: string; readonly shape: string }
 	| { readonly _tag: "ActorUnresolved"; readonly message: string }
 	| { readonly _tag: "AlreadyVerified"; readonly by: string }
-	| { readonly _tag: "NotCurrent"; readonly generatedAt: string }
+	| { readonly _tag: "NotCurrent"; readonly generatedAt: string; readonly kind: "future" | "near-future" }
 	| { readonly _tag: "DraftCannotBeVerified" }
 	| { readonly _tag: "DeprecatedCannotBeVerified" }
 	| { readonly _tag: "UnknownStatusCannotBeVerified"; readonly status: string }
@@ -288,12 +297,17 @@ const alreadyBound = (target: EditTarget, actor: string, content: string): boole
 
 /**
  * OKF 0.3 5.3 (R33): `NotCurrent` when `now` is before `generated.at`, since the entry the edit would write would not
- * count. The editor's side of the engine's `VerifyNotCurrentError`; both ask core's `Derive.isCurrent`.
+ * count; `kind` is `"future"` when the stamp is more than core's tolerance ahead of `now` (`okfit sync` re-stamps it)
+ * and `"near-future"` within it. The editor's side of the engine's `VerifyNotCurrentError`; both ask core's `Derive.isCurrent`.
  */
 const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefined =>
 	target.generated === undefined || Derive.isCurrent({ generated: target.generated }, now)
 		? undefined
-		: { _tag: "NotCurrent", generatedAt: Schema.encodeSync(Timestamp)(target.generated.at) };
+		: {
+				_tag: "NotCurrent",
+				generatedAt: Schema.encodeSync(Timestamp)(target.generated.at),
+				kind: generatedAtIsFuture(target.generated.at, now) ? "future" : "near-future",
+			};
 
 /**
  * `TextEdit`s over `target.text` that append one `verified` entry (`by`
@@ -415,7 +429,9 @@ export const describeFailure = (failure: EditFailure): string => {
 		case "AlreadyVerified":
 			return `already verified by ${failure.by}`;
 		case "NotCurrent":
-			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again`;
+			return failure.kind === "future"
+				? `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again`
+				: `the concept's generated.at (${failure.generatedAt}) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again after ${failure.generatedAt}`;
 		case "DraftCannotBeVerified":
 			return "the editor's Mark verified skips a draft concept, as okfit verify --all does";
 		case "DeprecatedCannotBeVerified":

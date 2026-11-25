@@ -7,6 +7,7 @@ import type { ActorPattern, ConceptId } from "@okfit/core";
 import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer } from "effect";
+import { TestClock } from "effect/testing";
 import type { VerifyNotCurrentError, VerifyStatusUnknownError } from "../../src/errors.js";
 import {
 	inspectDrift,
@@ -754,32 +755,37 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 		);
 	});
 
-	it.effect("runVerify on one not-current id still fails VerifyNotCurrentError, future only when now precedes it", () =>
-		withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
-			Effect.gen(function* () {
-				const early = DateTime.makeUnsafe("2026-09-16T11:59:59Z");
-				const clockAhead = yield* Effect.flip(
-					runVerify({ ...base(root, "2026-09-16T11:59:59Z"), now: early, id: "decisions/a" }).pipe(
-						Effect.provide(platform),
-					),
-				);
-				assert.strictEqual(clockAhead._tag, "VerifyNotCurrentError");
-				assert.strictEqual((clockAhead as VerifyNotCurrentError).future, true);
-				assert.include(clockAhead.message, "Run okfit sync");
-				// --at earlier, but now is after generated.at: only `at` is the cause
-				const backdated = yield* Effect.flip(
-					runVerify({
-						...base(root, "2026-09-16T11:59:59Z"),
-						now: DateTime.makeUnsafe("2026-09-17T00:00:00Z"),
-						id: "decisions/a",
-					}).pipe(Effect.provide(platform)),
-				);
-				assert.strictEqual(backdated._tag, "VerifyNotCurrentError");
-				assert.strictEqual((backdated as VerifyNotCurrentError).future, undefined);
-				assert.include(backdated.message, "omit --at to verify now");
-				assert.notInclude(backdated.message, "okfit sync");
-			}),
-		),
+	it.effect(
+		"runVerify on one not-current id still fails VerifyNotCurrentError; the kind follows how far ahead it is",
+		() =>
+			withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
+				Effect.gen(function* () {
+					const kindAt = (at: string, now: string | undefined) =>
+						Effect.map(
+							Effect.flip(
+								runVerify({
+									...base(root, at),
+									...(now === undefined ? {} : { now: DateTime.makeUnsafe(now) }),
+									id: "decisions/a",
+								}).pipe(Effect.provide(platform)),
+							),
+							(error) => {
+								assert.strictEqual(error._tag, "VerifyNotCurrentError");
+								return (error as VerifyNotCurrentError).kind;
+							},
+						);
+					// GENERATED is 2026-09-16T12:00:00Z; the tolerance is 5 minutes
+					assert.strictEqual(yield* kindAt("2026-09-16T11:00:00Z", "2026-09-16T11:00:00Z"), "future");
+					assert.strictEqual(yield* kindAt("2026-09-16T11:00:00Z", "2026-09-16T11:54:59Z"), "future");
+					assert.strictEqual(yield* kindAt("2026-09-16T11:00:00Z", "2026-09-16T11:55:00Z"), "near-future");
+					assert.strictEqual(yield* kindAt("2026-09-16T11:00:00Z", "2026-09-16T11:59:59Z"), "near-future");
+					// now is not before generated.at: only the verification time is, so there is no kind
+					assert.strictEqual(yield* kindAt("2026-09-16T11:59:59Z", "2026-09-17T00:00:00Z"), undefined);
+					assert.strictEqual(yield* kindAt("2026-09-16T11:59:59Z", "2026-09-16T12:00:00Z"), undefined);
+					// now omitted: the engine never claims "later than now" without knowing now
+					assert.strictEqual(yield* kindAt("2026-09-16T11:59:59Z", undefined), undefined);
+				}),
+			),
 	);
 
 	it.effect("inspectDrift refuses for the same reason, before a prompt could be shown", () =>
@@ -803,6 +809,32 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				assert.strictEqual(ok.id, "decisions/a");
 			}),
 		),
+	);
+
+	it.effect(
+		"inspectDrift: a backdated --at with the clock after generated.at has no kind; a clock before it does",
+		() =>
+			withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
+				Effect.gen(function* () {
+					const inspect = (clock: string | undefined) =>
+						Effect.flip(
+							inspectDrift({
+								id: "decisions/a",
+								bundleRoot: root,
+								config,
+								now: DateTime.makeUnsafe("2026-09-16T11:59:59Z"),
+								...(clock === undefined ? {} : { clock: DateTime.makeUnsafe(clock) }),
+							}).pipe(Effect.provide(platform)),
+						);
+					const backdated = yield* inspect("2026-09-17T00:00:00Z");
+					assert.strictEqual(backdated._tag, "VerifyNotCurrentError");
+					assert.strictEqual((backdated as VerifyNotCurrentError).kind, undefined);
+					assert.include(backdated.message, "omit --at to verify now");
+					const ahead = yield* inspect("2026-09-16T11:00:00Z");
+					assert.strictEqual((ahead as VerifyNotCurrentError).kind, "future");
+					assert.strictEqual(((yield* inspect(undefined)) as VerifyNotCurrentError).kind, undefined);
+				}),
+			),
 	);
 
 	it.effect(
@@ -848,30 +880,37 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 			),
 	);
 
-	it.effect("loadPickerCandidates leaves out a not-current row and names it in leftOut (#470)", () =>
+	it.effect("loadPickerCandidates leaves out a row whose generated.at is later than at, and names it (#470)", () =>
 		withRoot(
 			{
 				"decisions/f.md": doc("F", ""),
-				"decisions/l.md": doc("L", "generated:\n  by: process:sync\n  at: 2030-01-01T00:00:00Z\n"),
+				"decisions/l.md": doc("L", "generated:\n  by: process:sync\n  at: 2026-09-10T00:00:00Z\n"),
 			},
 			(root) =>
 				Effect.gen(function* () {
 					const args = { bundleRoot: root, projectRoot: root, config };
-					const picked = yield* loadPickerCandidates(args).pipe(Effect.provide(platform));
-					assert.deepStrictEqual(
-						picked.candidates.map((row) => row.id),
-						["decisions/f"],
-					);
-					assert.deepStrictEqual(picked.leftOut, ["decisions/l"]);
-					// control: a verification time after the stamp keeps the row, so the omission was the not-current rule
-					const later = yield* loadPickerCandidates({ ...args, at: DateTime.makeUnsafe("2031-01-01T00:00:00Z") }).pipe(
+					const before = yield* loadPickerCandidates({ ...args, at: DateTime.makeUnsafe("2026-09-09T00:00:00Z") }).pipe(
 						Effect.provide(platform),
 					);
 					assert.deepStrictEqual(
-						later.candidates.map((row) => row.id),
+						before.candidates.map((row) => row.id),
+						["decisions/f"],
+					);
+					assert.deepStrictEqual(before.leftOut, ["decisions/l"]);
+					// control: at after the stamp keeps the row, so the omission was the not-current rule
+					const after = yield* loadPickerCandidates({ ...args, at: DateTime.makeUnsafe("2026-09-11T00:00:00Z") }).pipe(
+						Effect.provide(platform),
+					);
+					assert.deepStrictEqual(
+						after.candidates.map((row) => row.id),
 						["decisions/f", "decisions/l"],
 					);
-					assert.deepStrictEqual(later.leftOut, []);
+					assert.deepStrictEqual(after.leftOut, []);
+					// at omitted: the loader's clock decides, and a stamp before it is verifiable
+					yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-09-20T00:00:00Z")));
+					const omitted = yield* loadPickerCandidates(args).pipe(Effect.provide(platform));
+					assert.deepStrictEqual(omitted.leftOut, []);
+					assert.strictEqual(omitted.candidates.length, 2);
 				}),
 		),
 	);
@@ -904,6 +943,11 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 					}).pipe(Effect.provide(platform));
 					assert.deepStrictEqual(backdated.candidates, []);
 					assert.deepStrictEqual(backdated.leftOut, ["decisions/s"]);
+					const after = yield* loadStaleCandidates({ ...args, at: DateTime.makeUnsafe("2026-09-20T00:00:00Z") }).pipe(
+						Effect.provide(platform),
+					);
+					assert.deepStrictEqual(after.leftOut, []);
+					assert.strictEqual(after.candidates.length, 1);
 				}),
 		),
 	);

@@ -524,6 +524,37 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 		}),
 	);
 
+	it.effect("skipped follows the order the ids were given, not sorted order", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				for (const name of ["a", "b", "c"]) {
+					yield* Effect.promise(() =>
+						writeFile(
+							join(root, `decisions/${name}.md`),
+							doc(name, "generated:\n  by: process:sync\n  at: 2026-09-17T00:00:00Z\n"),
+						),
+					);
+				}
+				const result = yield* runVerifyIds({
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					dryRun: false,
+					ids: ["decisions/c", "decisions/a", "decisions/b"],
+				}).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(
+					result.skipped.map((entry) => entry.id),
+					["decisions/c", "decisions/a", "decisions/b"],
+				);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
 	it.effect("an unknown status in an id list still fails the whole list, even beside a not-current id", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-current-")));

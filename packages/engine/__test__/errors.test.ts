@@ -207,13 +207,20 @@ describe("VerifyStatusUnknownError", () => {
 });
 
 describe("VerifyNotCurrentError", () => {
-	it("a future generated.at names okfit sync, a step that works; the other message names --at", () => {
+	it("words the refusal by how far ahead the stamp is: future, near-future, or a backdated verification time", () => {
 		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2030-01-01T00:00:00Z" };
 		assert.strictEqual(
-			new VerifyNotCurrentError({ ...fields, future: true }).message,
-			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at later than now, then verify again',
+			new VerifyNotCurrentError({ ...fields, kind: "future" }).message,
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again',
 		);
-		assert.notInclude(new VerifyNotCurrentError(fields).message, "okfit sync");
+		assert.strictEqual(
+			new VerifyNotCurrentError({ ...fields, kind: "near-future" }).message,
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again after 2030-01-01T00:00:00Z',
+		);
+		assert.strictEqual(
+			new VerifyNotCurrentError(fields).message,
+			'"metrics/margin" was last changed at 2030-01-01T00:00:00Z, after the verification time 2026-09-16T11:59:59Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2030-01-01T00:00:00Z, or omit --at to verify now',
+		);
 	});
 
 	it("carries exit code 3 and names both instants and the fix", () => {

@@ -118,7 +118,12 @@ export const pickConcepts = (
 			);
 		}
 		if (candidates.length === 0) {
-			yield* Console.log(source.empty(by));
+			// Rows that exist but were all left out: the source's "nothing to do" wording would be false.
+			yield* Console.log(
+				leftOut.length > 0
+					? "nothing to verify now: every candidate has a generated.at later than the verification time"
+					: source.empty(by),
+			);
 			return undefined;
 		}
 		const sections = pickerSections(candidates);

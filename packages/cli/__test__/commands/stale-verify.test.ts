@@ -113,4 +113,22 @@ describe("reverifyStale", () => {
 			),
 		),
 	);
+
+	it.effect("when every stale row is left out it prints the left-out line then a true empty line (#470)", () =>
+		withBundle(
+			[["decisions/old.md", stale("Old", "generated:\n  by: process:sync\n  at: 2026-10-10T00:00:00Z\n")]],
+			(root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(root);
+						yield* Fiber.join(fiber);
+						assert.strictEqual(yield* session.mounts, 0);
+						assert.strictEqual(
+							yield* session.stdout,
+							"left out 1 concept(s) whose generated.at is later than the verification time: decisions/old\nnothing to verify now: every candidate has a generated.at later than the verification time\n",
+						);
+					}),
+				),
+		),
+	);
 });
