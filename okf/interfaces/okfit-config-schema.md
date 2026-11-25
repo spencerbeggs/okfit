@@ -33,13 +33,15 @@ verified:
     at: 2026-11-24T22:21:07Z
   - by: human:spencer
     at: 2026-11-25T02:05:49Z
+  - by: human:spencer
+    at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
     body: 3272a14f35322c71
   verified:
     by: human:spencer
-    at: 2026-11-25T02:05:49Z
-    content: 27bbbdd3b903d2de
+    at: 2026-11-25T13:30:01Z
+    content: e10dc2d349646273
 ---
 
 # okfit config file schema

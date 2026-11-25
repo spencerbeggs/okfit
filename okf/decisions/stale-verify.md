@@ -14,8 +14,8 @@ x-okfit-integrity:
     body: 6e03c356487696ef
   verified:
     by: human:spencer
-    at: 2026-11-24T22:21:07Z
-    content: f8e1754df2745dd0
+    at: 2026-11-25T13:30:00Z
+    content: 50fef59cfe2d105b
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -25,6 +25,8 @@ verified:
     at: 2026-11-24T06:53:02Z
   - by: human:spencer
     at: 2026-11-24T22:21:07Z
+  - by: human:spencer
+    at: 2026-11-25T13:30:00Z
 ---
 
 # stale --verify rolls stale_after forward, and plain verify never does

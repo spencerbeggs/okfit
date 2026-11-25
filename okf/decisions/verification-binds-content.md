@@ -17,8 +17,8 @@ x-okfit-integrity:
     body: 54cd8451203faa80
   verified:
     by: human:spencer
-    at: 2026-11-24T22:21:07Z
-    content: 4d1f9f5c3c741ebb
+    at: 2026-11-25T13:30:01Z
+    content: 01adb777983525e6
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -26,6 +26,8 @@ verified:
     at: 2026-11-24T06:53:02Z
   - by: human:spencer
     at: 2026-11-24T22:21:07Z
+  - by: human:spencer
+    at: 2026-11-25T13:30:01Z
 ---
 
 # A verification is bound to the content it covered

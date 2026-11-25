@@ -20,11 +20,13 @@ x-okfit-integrity:
     body: 4b5a18f74a362c17
   verified:
     by: human:spencer
-    at: 2026-11-24T03:27:57Z
-    content: b771f6ce4beb7aae
+    at: 2026-11-25T13:30:00Z
+    content: c289dd79cb6467f9
 verified:
   - by: human:spencer
     at: 2026-11-24T03:27:57Z
+  - by: human:spencer
+    at: 2026-11-25T13:30:00Z
 ---
 
 # Repository resources are classified by where they resolve
