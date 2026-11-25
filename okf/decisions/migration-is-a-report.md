@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:55:51Z
+  at: 2026-11-25T02:03:21Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 7cd90f1491bb237a
+    body: 5cee0251f93cb072
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -69,8 +69,8 @@ index, inserting the key or replacing the old scalar and keeping a BOM and
 the file's line endings. The report and the fixes cover every Markdown file in
 the bundle that is not a concept (index files, `log.md`, typeless and
 frontmatter-less files), so a root-only link in an index file or `log.md` is
-rooted like any other; only the version fix itself (the root index's `okf_version`)
-can be held back. Three `migrate` findings are listed with no fix and left to a human or to
+rooted like any other, with no integrity re-record, since only a concept
+carries one. Three `migrate` findings are listed with no fix and left to a human or to
 the `okf-upgrade` skill: an unparsable version, the computation locator, and
 an undeclared version when there is no root index. The existing core lints
 that bear on a migration (`verified-before-change`, `legacy-timestamp`,
