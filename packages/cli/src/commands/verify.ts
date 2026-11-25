@@ -264,6 +264,7 @@ export const verifyCommand = Command.make(
 						projectRoot: resolved.projectRoot,
 						config: resolved.config,
 						at,
+						now,
 					}).pipe(
 						Effect.catchTag("NotInteractive", () => Effect.fail(new VerifySelectionError({ reason: "no-selection" }))),
 					);

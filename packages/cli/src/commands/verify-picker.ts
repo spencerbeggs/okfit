@@ -102,6 +102,8 @@ export const pickConcepts = (
 		readonly config: OkfitConfig;
 		/** The verification time; a concept whose `generated.at` is later than it is left out (#470). */
 		readonly at?: DateTime.Utc;
+		/** The CLI's clock, which a left-out row's not-current kind is judged against. */
+		readonly now?: DateTime.Utc;
 	},
 	// Issue #228: `okfit stale --verify` swaps in the stale set, its own empty
 	// line and its own title; bare `verify` passes nothing and is unchanged.

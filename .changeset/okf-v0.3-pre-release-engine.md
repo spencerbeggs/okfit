@@ -9,6 +9,7 @@
 ## Features
 
 - New exports `futureAtRefusal`, `notCurrentDetail`, `NotCurrentDetail` and `VerifySkip`.
+- `loadPickerCandidates` accepts `now`, the instant a left-out row's not-current kind is judged against. It defaults to the clock.
 - The `skipped` entries of a batch, an id list and `selectAttestable` are `VerifySkip`. A `not-current` skip carries `notCurrent`, and an `unknown-status` skip carries the raw `status`.
 - `VerifySelectionError` gains the reason `at-future`. `runVerify`, `runVerifyBatch` and `runVerifyIds` refuse with it when given `now` and an `at` more than 5 minutes later than it.
 - `runVerifyIds` skips a concept with an unknown status, with the reason `unknown-status`, and verifies the rest. It used to fail the whole call.

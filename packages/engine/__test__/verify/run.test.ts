@@ -1013,6 +1013,38 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 		),
 	);
 
+	it.effect("loadPickerCandidates judges a left-out row's kind against now when given, not the clock", () =>
+		withRoot(
+			{
+				"decisions/blocked.md": doc(
+					"B",
+					"verified:\n  - by: human:bob\n    at: 2026-09-10T00:00:00Z\ngenerated:\n  by: process:sync\n  at: 2026-09-11T00:00:00Z\n",
+				),
+				"decisions/near.md": doc("N", "generated:\n  by: process:sync\n  at: 2026-09-09T00:02:00Z\n"),
+			},
+			(root) =>
+				Effect.gen(function* () {
+					// The clock is past both stamps, so judged against it neither row would have a kind.
+					yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-09-20T00:00:00Z")));
+					const now = DateTime.makeUnsafe("2026-09-09T00:00:00Z");
+					const rows = yield* loadPickerCandidates({
+						bundleRoot: root,
+						projectRoot: root,
+						config,
+						at: now,
+						now,
+					}).pipe(Effect.provide(platform));
+					assert.deepStrictEqual(
+						rows.leftOut.map((entry) => [entry.id, entry.notCurrent?.kind]),
+						[
+							["decisions/blocked", "blocked"],
+							["decisions/near", "near-future"],
+						],
+					);
+				}),
+		),
+	);
+
 	it.effect("loadStaleCandidates leaves out a not-current row and names it in leftOut (#470)", () =>
 		withRoot(
 			{

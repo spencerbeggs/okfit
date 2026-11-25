@@ -732,8 +732,10 @@ export interface PickerCandidatesOptions {
 	readonly bundleRoot: string;
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
-	/** The verification time a row's `generated.at` is checked against; absent: now. */
+	/** The verification time a row's `generated.at` is checked against; absent: `now`. */
 	readonly at?: DateTime.Utc;
+	/** The instant a left-out row's not-current kind is judged against; absent: the clock. */
+	readonly now?: DateTime.Utc;
 }
 
 /** The loaders' result: rows a verification at the verification time would count for, and the ids left out. */
@@ -782,7 +784,7 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 ) {
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const by = yield* Derivation.verifier({ cwd: options.projectRoot, config: options.config });
-	const now = yield* DateTime.now;
+	const now = options.now ?? (yield* DateTime.now);
 	const signals = yield* Trust.signals(bundle, options.config, now);
 	const path = yield* Path.Path;
 	const kept = leaveOutNotCurrent(

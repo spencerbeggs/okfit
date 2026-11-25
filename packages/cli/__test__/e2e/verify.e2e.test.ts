@@ -527,6 +527,21 @@ describe("okfit verify (e2e)", () => {
 				].join("\n"),
 			);
 			assert.include(run.stdout, "verified 1, skipped 4");
+			// the JSON envelope's skipped entries stay {id, reason}: the next-step detail is for people only
+			await writeFile(
+				join(cwd, "okf", "decisions", "wip.md"),
+				stamp("Wip", "2026-11-25T11:00:00Z").replace("status: stable", "status: wip"),
+				"utf8",
+			);
+			const json = await withServices(
+				runOkfit(["verify", ...ids, "decisions/wip", ...at, "--dry-run", "--format", "json"], { cwd, env: runEnv }),
+			);
+			assert.strictEqual(json.exitCode, 0, json.stderr);
+			const { skipped } = JSON.parse(json.stdout) as { skipped: Array<{ id: string; reason: string }> };
+			for (const entry of skipped) assert.deepStrictEqual(Object.keys(entry), ["id", "reason"], entry.id);
+			const reasons = new Map(skipped.map((entry) => [entry.id, entry.reason]));
+			assert.strictEqual(reasons.get("decisions/blocked"), "not-current");
+			assert.strictEqual(reasons.get("decisions/wip"), "unknown-status");
 			// each skipped id, alone, names the same step
 			const steps: ReadonlyArray<readonly [string, string]> = [
 				["decisions/future", "run okfit sync"],

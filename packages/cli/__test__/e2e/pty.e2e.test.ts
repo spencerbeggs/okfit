@@ -332,6 +332,34 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 
 	it(
+		"the picker judges a left-out row's kind against OKFIT_NOW, not the wall clock",
+		async () => {
+			const { sandbox, env } = await verifyFixture();
+			try {
+				// Stamped after OKFIT_NOW (2026-10-09T12:00:00Z), with a verification between the two.
+				await writeFile(
+					join(sandbox.cwd, "okf", "decisions", "blocked.md"),
+					"---\ntype: Decision\ntitle: Blocked\ndescription: Blocked.\nverified:\n  - by: human:bob\n    at: 2026-10-09T18:00:00Z\ngenerated:\n  by: process:sync\n  at: 2026-10-10T00:00:00Z\n---\n\n# Blocked\n",
+					"utf8",
+				);
+				const run = await runPty(["verify", "--human", "--dry-run"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: "Attest which concepts?", send: KEYS.esc }],
+				});
+				assert.strictEqual(run.exitCode, 130, run.output);
+				assert.include(
+					run.output,
+					"left out decisions/blocked: generated.at 2026-10-10T00:00:00Z is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-10-09T18:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
+				);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
 		"verify <id> on a drifted concept with --at more than 5 minutes ahead is refused (64) with no diff and no prompt (#503)",
 		async () => {
 			const { sandbox, env, files } = await verifyFixture();
