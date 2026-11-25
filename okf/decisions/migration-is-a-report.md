@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T16:52:41Z
+  at: 2026-11-25T16:59:01Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 89167a5238378629
+    body: 40feef7ed97412f9
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -113,7 +113,8 @@ concept's links it re-records the body digest only if it matched the body before
 concept in `drifts` when a matching digest cannot be re-recorded because the integrity block has a layout it
 will not edit. `mv` does not re-record the digest
 when it was already stale, when the concept records none (only `generated.body_sha256` included), or when the
-concept is still on okfit's old key names; the next `okfit sync` then re-stamps `generated.at`, or reports the
+concept is still on okfit's old key names; once the move is committed, the next `okfit sync` re-stamps
+`generated.at`, or reports the
 concept when it cannot edit its frontmatter (both key spellings present, an old key that `sync` cannot rename
 in place, or an integrity block in a layout okfit does not edit).
 
