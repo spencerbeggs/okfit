@@ -1,12 +1,14 @@
-// pty teardown (#270): a worker killed by SIGINT or SIGTERM must not leave its detached
-// cat/script/node process group behind.
+// The pty helper itself. Teardown (#270): a worker killed by SIGINT or SIGTERM must not leave its
+// detached cat/script/node process group behind. Failures (#457): each message says what happened.
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, assert, describe, it } from "@effect/vitest";
 import { TSX_IMPORT } from "./utils/okfit.js";
-import { ptyAvailable } from "./utils/pty.js";
+import type { PtyOptions, PtyResult } from "./utils/pty.js";
+import { ptyAvailable, runPty } from "./utils/pty.js";
 
 const DRIVER = resolve(import.meta.dirname, "utils", "pty-hang-driver.ts");
 const TIMEOUT = 30_000;
@@ -78,4 +80,94 @@ describe.skipIf(!ptyAvailable)("pty helper teardown", () => {
 			TIMEOUT,
 		);
 	}
+});
+
+/** Runs `node -e <script>` under the pty (the bin path after it is only an argv entry). */
+const runScript = (
+	script: string,
+	options: Pick<PtyOptions, "steps" | "timeoutMs" | "startupTimeoutMs">,
+): Promise<PtyResult> =>
+	runPty([], {
+		cwd: tmpdir(),
+		env: { PATH: process.env.PATH ?? "" },
+		nodeArgs: ["-e", script],
+		...options,
+	});
+
+/** The message `run` rejects with; fails the test when it resolves. */
+const failureOf = (run: Promise<PtyResult>): Promise<string> =>
+	run.then(
+		(result) => assert.fail(`expected a failure, got exit ${result.exitCode}: ${result.output}`),
+		(error: Error) => error.message,
+	);
+
+const HANG = "setInterval(() => {}, 1000)";
+
+describe.skipIf(!ptyAvailable)("pty helper failure messages", () => {
+	it(
+		"an exit before a step names the step, its text and the exit code",
+		async () => {
+			for (const code of [0, 3]) {
+				const message = await failureOf(
+					runScript(`process.exit(${code})`, { steps: [{ waitFor: "never printed", send: "x" }] }),
+				);
+				assert.include(message, `exited before step 1 (never printed) (exit ${code})`);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"a first step that never appears times out after startupTimeoutMs, not timeoutMs",
+		async () => {
+			const message = await failureOf(
+				runScript(HANG, {
+					steps: [{ waitFor: "never printed", send: "x" }],
+					startupTimeoutMs: 500,
+					timeoutMs: 20_000,
+				}),
+			);
+			assert.include(message, "timed out waiting for never printed after 500 ms");
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"a later step times out after timeoutMs, not startupTimeoutMs",
+		async () => {
+			const message = await failureOf(
+				runScript(`console.log("ready"); ${HANG}`, {
+					steps: [
+						{ waitFor: "ready", send: "x" },
+						{ waitFor: "never printed", send: "x" },
+					],
+					startupTimeoutMs: 20_000,
+					timeoutMs: 500,
+				}),
+			);
+			assert.include(message, "timed out waiting for never printed after 500 ms");
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"a run with no steps gets startupTimeoutMs to exit",
+		async () => {
+			const message = await failureOf(runScript(HANG, { startupTimeoutMs: 500, timeoutMs: 20_000 }));
+			assert.include(message, "timed out waiting for the process to exit after 500 ms");
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"a first step slower than timeoutMs passes within startupTimeoutMs",
+		async () => {
+			const result = await runScript('setTimeout(() => console.log("ready"), 3000)', {
+				steps: [{ waitFor: "ready", send: "x" }],
+				timeoutMs: 2_000,
+			});
+			assert.strictEqual(result.exitCode, 0, result.output);
+		},
+		TIMEOUT,
+	);
 });
