@@ -1115,6 +1115,37 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 		}
 	});
 
+	it("the single-id unknown-status refusal prints the status as the skip line does (#511)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const c = join(cwd, "okf", "decisions", "c.md");
+			// YAML double-quoted escapes: an SGR sequence, a BEL, a CR and an LF that would forge a second line
+			await writeFile(
+				c,
+				'---\ntype: Decision\ntitle: C\ndescription: A decision.\nstatus: "w\\e[31mip\\a\\rX\\nerror: forged"\n---\n\n# C\n',
+				"utf8",
+			);
+			const run = await withServices(runOkfit(["verify", "decisions/c"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 3, run.stderr);
+			const lines = run.stderr.split("\n").filter((line) => line !== "");
+			assert.strictEqual(lines.length, 1, run.stderr);
+			assert.isTrue(lines[0]?.startsWith('error: "decisions/c" has status "wip X error: forged"'), run.stderr);
+			for (const control of ["\u001b", "\u0007", "\r"]) assert.notInclude(run.stderr, control);
+			// the batch skip line, through Doc, gives the same text
+			const list = await withServices(
+				runOkfit(["verify", "decisions/c", "decisions/a", "--dry-run", "--no-diff"], { cwd, env }),
+			);
+			assert.strictEqual(list.exitCode, 0, list.stderr);
+			assert.include(
+				list.stdout,
+				'skipped decisions/c: status "wip X error: forged" is not draft, stable or deprecated',
+			);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("an id list of only unknown statuses writes nothing and exits 0 (#507)", async () => {
 		const { sandbox, cwd, env } = await seededUnknown();
 		try {

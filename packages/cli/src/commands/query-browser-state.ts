@@ -1,6 +1,7 @@
 import { Fmt } from "@effected/cli-kit";
 import type { ConceptSummary } from "@okfit/engine";
 import { statusText } from "../render/query.js";
+import { oneLine } from "../render/text.js";
 
 /** One concept a concept links to or is linked from; `title` is `null` when the target is not a concept in the bundle. */
 export interface BrowserNeighbor {
@@ -203,9 +204,6 @@ export const browserStep = (state: BrowserState, action: BrowserAction): Browser
 		}
 	}
 };
-
-/** Data drawn on one line: escapes and controls removed, line breaks folded to spaces. */
-export const oneLine = (text: string): string => Fmt.sanitize(text).replace(/[\r\n]+/g, " ");
 
 /**
  * The body as display lines at most `width` cells wide: each source line
