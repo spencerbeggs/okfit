@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-25T05:03:51Z
 status: stable
 verified:
   - by: human:spencer
@@ -17,7 +17,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 x-okfit-integrity:
   generated:
-    body: 5c12229db244cf90
+    body: e69318e06a54bbc3
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -60,7 +60,10 @@ dated between now and the stamp current, sync leaves the stamp, reports the conc
 as skipped (`verified-after-now`) and a human corrects `generated.at` or that
 verification. When the clamp would, sync writes the derived stamp unclamped and
 reports nothing on that run; the lint `generated-at-future` reports it once it is
-more than five minutes ahead, and a later sync then skips it as `verified-after-now`. The
+more than five minutes ahead, and a later sync then skips it as `verified-after-now`. A drifted
+concept's new stamp is also never moved back below the stamp it replaces when a verification falls
+between the two: the existing stamp is kept, the body digest is still re-recorded, and nothing is
+reported as skipped. The
 owner accepted the cost: a concept whose repair is blocked has no okfit repair and
 needs a human.
 

@@ -7,14 +7,14 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-25T05:03:51Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 x-okfit-integrity:
   generated:
-    body: fce4797026746516
+    body: 54cd8451203faa80
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -80,7 +80,7 @@ rule follows it: batch, the picker and the language server treat a
 concept as already verified only when its binding is current. `okfit verify <id>`
 also refuses to write a verification that would not be current (`--at`
 before `generated.at`, or a `generated.at` in the future), exit `3`, so it
-never records an entry the next read would discard. When `generated.at` is more than five minutes ahead the message names `okfit sync`, which re-stamps it unless that would make a verification count; within five minutes it says to check the clock. A selection (a batch, an id list, a picker, `stale --verify`) does not fail on such a concept: it skips it with the reason `not-current` and verifies the rest, so one bad stamp does not block the others, and the pickers leave it out and say how many they left out (#470). `okfit sync` keeps the
+never records an entry the next read would discard. When `generated.at` is more than five minutes ahead the message names `okfit sync`, which re-stamps it unless a verification dated between now and the stamp would then count, in which case the message says sync will not re-stamp it, names that verification and says a human must correct `generated.at` or it; within five minutes it says to check the clock. A selection (a batch, an id list, a picker, `stale --verify`) does not fail on such a concept: it skips it with the reason `not-current` and verifies the rest, so one bad stamp does not block the others, and the pickers leave it out and say how many they left out (#470). `okfit sync` keeps the
 usual edit, verify, commit sequence current by never stamping a
 `generated.at` later than a human verification of exactly the current
 content, unless that verification is older than the concept's existing

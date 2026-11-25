@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-25T05:03:51Z
 tags:
   - architecture
 verified:
@@ -35,7 +35,7 @@ verified:
     at: 2026-11-25T02:05:49Z
 x-okfit-integrity:
   generated:
-    body: 9a20bb9dd9c8748c
+    body: 3272a14f35322c71
   verified:
     by: human:spencer
     at: 2026-11-25T02:05:49Z
@@ -106,7 +106,7 @@ error](../decisions/non-concept-markdown-is-skipped.md).
 
 A config that fails decode is reported as `malformed config <path>: <key>:
 <reason>` (for example `lint.missing_index: Expected "off" | "info" | "warn" |
-"error"`): it names every failing key when it fails schema decode (a TOML syntax error keeps the parser's message) (`bundle.non_concepts[0]` for a list entry) and its reason, one entry per key, separated by `;`, so one run lists all of them.
+"error"`): it names every failing key (`bundle.non_concepts[0]` for a list entry) when it fails schema decode (a TOML syntax error keeps the parser's message) and its reason, one entry per key, separated by `;`, so one run lists all of them.
 
 ## Lint severities
 

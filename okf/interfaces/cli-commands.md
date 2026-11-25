@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-25T05:03:51Z
 tags:
   - architecture
 verified:
@@ -45,7 +45,7 @@ verified:
     at: 2026-11-25T02:05:49Z
 x-okfit-integrity:
   generated:
-    body: 12dad1d0797ec00c
+    body: 437e7dab81fa2d50
   verified:
     by: human:spencer
     at: 2026-11-25T02:05:49Z
@@ -204,7 +204,7 @@ own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant, but never one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
-skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. Both pickers leave such a concept out and print one `left out <n> concept(s) ...` line, and when every row is left out they print `nothing to verify now: every candidate has a generated.at later than the verification time`. `--dry-run` prints what would be written and writes nothing.
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. Both pickers leave such a concept out and print one `left out <n> concept(s) ...` line, and when every row is left out they print `nothing to verify now: every candidate has a generated.at later than the verification time`. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
@@ -333,7 +333,7 @@ the concept's `x-okfit-integrity.verified` binds its latest human entry and cove
 exactly the current content, sync stamps `min(derived instant, binding.at)`
 instead, so the
 edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
-§5.3); the `[actors].humans` allow-list does not gate this. Sync re-stamps a `generated.at` more than five minutes later than now to now (whole seconds), even when the recorded digest matches (the one case where an authoritative stamp is rewritten), and clamps a drifted concept's new stamp to now (#471). It skips the re-stamp when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. When the clamp would make one count, sync writes the derived stamp unclamped, reports no skip on that run, and the lint `generated-at-future` reports it once it is more than five minutes ahead; a later sync then skips it. It never
+§5.3); the `[actors].humans` allow-list does not gate this. Sync re-stamps a `generated.at` more than five minutes later than now to now (whole seconds), even when the recorded digest matches (the one case where an authoritative stamp is rewritten), and clamps a drifted concept's new stamp to now (#471). It skips the re-stamp when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. When the clamp would make one count, sync writes the derived stamp unclamped, reports no skip on that run, and the lint `generated-at-future` reports it once it is more than five minutes ahead; a later sync then skips it. A drifted concept's new stamp is never moved back below the stamp it replaces when a verification falls between the two: the existing stamp stays, the digest is re-recorded, no skip is reported. It never
 touches `verified` and never writes `x-okfit-integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
