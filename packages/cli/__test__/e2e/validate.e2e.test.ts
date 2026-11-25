@@ -1252,6 +1252,7 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			assert.notInclude(before.stdout, "config-okf-version-stale");
 			const fixed = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
 			assert.include(fixed.stdout, "Fixed");
+			assert.include(fixed.stdout, "config-okf-version-stale");
 			assert.match(yield* read(sandbox, "okf/index.md"), /okf_version: ["']0\.3["']/);
 			assert.include(yield* read(sandbox, ".config/okfit.toml"), 'okf_version = "0.2"');
 			const after = yield* runOkfit(["validate"], sandbox);

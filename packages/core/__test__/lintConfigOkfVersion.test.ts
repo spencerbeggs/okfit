@@ -74,6 +74,24 @@ describe("config-okf-version-stale", () => {
 		}),
 	);
 
+	it.effect("0.3 and 0.03 parse equal (numeric compare), 0.3 and 0.30 do not", () =>
+		Effect.gen(function* () {
+			const padded = yield* load(index('"0.03"'));
+			assert.deepStrictEqual(stale(padded, withVersion("0.3")), [], "equal numerically, different strings: silent");
+			const wider = yield* load(index('"0.30"'));
+			assert.strictEqual(stale(wider, withVersion("0.3")).length, 1, "0.30 is minor 30, not 3: fires");
+		}),
+	);
+
+	it.effect("silent when the root index has frontmatter but no okf_version", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load("---\ntitle: Notes\n---\n\n# Index\n");
+			assert.deepStrictEqual(stale(bundle, withVersion("0.3")), []);
+			const control = yield* load(index('"0.2"'));
+			assert.strictEqual(stale(control, withVersion("0.3")).length, 1, "control: a declared version fires");
+		}),
+	);
+
 	it.effect("an unparsable declaration is compared as a string", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load(index('"v0.3"'));
