@@ -1059,6 +1059,66 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 		}
 	});
 
+	const LINE =
+		'skipped decisions/wip: status "wip" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify decisions/wip --stable or --draft\n';
+
+	it("an id list skips an unknown status with a line whose command works, and verifies the rest (#507)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const wip = join(cwd, "okf", "decisions", "wip.md");
+			await writeFile(
+				wip,
+				"---\ntype: Decision\ntitle: Wip\ndescription: A decision.\nstatus: wip\n---\n\n# Wip\n",
+				"utf8",
+			);
+			const wipBefore = await readFile(wip, "utf8");
+			const run = await withServices(runOkfit(["verify", "decisions/wip", "decisions/b"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, LINE);
+			assert.include(run.stdout, "verified decisions/b by human:ada");
+			assert.include(run.stdout, "verified 1, skipped 1");
+			assert.strictEqual(await readFile(wip, "utf8"), wipBefore);
+			assert.include(await readFile(join(cwd, "okf", "decisions", "b.md"), "utf8"), "by: human:ada");
+			// the line's suggested command is accepted and works
+			const suggested = await withServices(
+				runOkfit(["verify", "decisions/wip", "--stable", "--dry-run", "--no-diff"], { cwd, env }),
+			);
+			assert.strictEqual(suggested.exitCode, 0, suggested.stderr);
+			assert.strictEqual(await readFile(wip, "utf8"), wipBefore);
+			// every id unknown: nothing written, exit 0
+			const all = await withServices(runOkfit(["verify", "decisions/wip", "decisions/wip2"], { cwd, env }));
+			assert.notStrictEqual(all.exitCode, 0); // control: a missing id still fails the list
+			// JSON keeps { id, reason }
+			const json = await withServices(
+				runOkfit(["verify", "decisions/wip", "decisions/a", "--format", "json"], { cwd, env }),
+			);
+			assert.strictEqual(json.exitCode, 0, json.stderr);
+			assert.deepStrictEqual(JSON.parse(json.stdout).skipped, [{ id: "decisions/wip", reason: "unknown-status" }]);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("an id list of only unknown statuses writes nothing and exits 0 (#507)", async () => {
+		const { sandbox, cwd, env } = await seededUnknown();
+		try {
+			const before = await readFile(margin(cwd), "utf8");
+			await writeFile(
+				join(cwd, "okf", "metrics", "other.md"),
+				before.replace("margin", "other").replace("Margin", "Other"),
+				"utf8",
+			);
+			const run = await withServices(runOkfit(["verify", "metrics/margin", "metrics/other"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, 'skipped metrics/margin: status "bogus" is not draft, stable or deprecated');
+			assert.include(run.stdout, "verified 0, skipped 2");
+			assert.strictEqual(await readFile(margin(cwd), "utf8"), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("--stable (control) exits 0 and the JSON reports the raw status it replaced", async () => {
 		const { sandbox, cwd, env } = await seededUnknown();
 		try {

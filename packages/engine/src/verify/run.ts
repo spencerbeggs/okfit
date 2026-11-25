@@ -652,11 +652,12 @@ export interface VerifyIdsOptions {
  * every concept is located and spliced BEFORE any file is written, so one
  * unknown id, reserved file or unsupported `verified`/`status` shape fails the
  * whole call with the tree untouched. An explicit pick is second-guessed in
- * one way only: a concept whose status is outside `draft | stable | deprecated`
- * (OKF 0.3 5.4) fails the whole call with `VerifyStatusUnknownError`, even under
- * `promote` (which only promotes a draft). Drafts, deprecated and
- * already-attested concepts are all attested. A concept whose `generated.at` is later than `at` is skipped with the
- * reason `not-current` (`skipped` is in the order the ids were given) and the rest are verified; when every id is not current nothing is written and the call succeeds.
+ * two ways. A concept whose status is outside `draft | stable | deprecated`
+ * (OKF 0.3 5.4) is skipped with the reason `unknown-status` and its raw `status` (#507), even under
+ * `promote` (which only promotes a draft); it is never verified or written, and is checked before the next rule.
+ * A concept whose `generated.at` is later than `at` is skipped with the reason `not-current`.
+ * Drafts, deprecated and already-attested concepts are all attested. `skipped` is in the order the ids were given and
+ * the rest are verified; when every id is skipped nothing is written and the call succeeds.
  * Duplicate ids (after normalisation) are written
  * once. With `promote`, a draft's `status` becomes `stable` in the same write.
  *
@@ -687,10 +688,15 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	const skipped: Array<VerifySkip> = [];
 	for (const [id, concept] of concepts) {
+		// An unknown status is never verified here: skip it (#507), before the not-current check, so it is never
+		// written. `okfit verify <one id>` still refuses it, through `runVerify`.
+		if (Derive.status(concept.frontmatter) === "unknown") {
+			skipped.push({ id, reason: "unknown-status", status: Derive.rawStatus(concept.frontmatter) ?? "" });
+			continue;
+		}
 		// A concept whose `generated.at` is later than `at` cannot be verified now: skip it, verify the rest.
-		// An unknown status is checked first so it still fails the whole list.
 		const notCurrent = notCurrentDetail(concept, options.at, options.now);
-		if (unknownStatusRefusal(concept, undefined) === undefined && notCurrent !== undefined) {
+		if (notCurrent !== undefined) {
 			skipped.push({ id, reason: "not-current", notCurrent });
 			continue;
 		}

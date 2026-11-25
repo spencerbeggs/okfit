@@ -112,7 +112,8 @@ src/
                                   if sync re-stamped it, so sync skips it; else `future` beyond the tolerance, `near-future` within it, absent
                                   when `now` is unknown or `generated.at` is not later than `now`, so only the verification time is early) and writes nothing; a batch, an id list and both
                                   pickers instead skip such a concept (`not-current`, carrying `notCurrentDetail`) and verify the rest (#470;
-                                  OKF 0.3 5.3, R33)
+                                  OKF 0.3 5.3, R33); `runVerifyIds` also skips an unknown status (`unknown-status`, with the raw `status`, checked before
+                                  `not-current`) and verifies the rest instead of failing (#507)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
                                   min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human

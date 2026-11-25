@@ -34,7 +34,7 @@ export interface NotCurrentDetail {
 
 /**
  * One concept a batch, an id list or a picker passed over, and why. A `not-current` skip carries its
- * {@link NotCurrentDetail}.
+ * {@link NotCurrentDetail}; an `unknown-status` skip carries the raw `status`.
  *
  * @public
  */
@@ -42,6 +42,8 @@ export interface VerifySkip {
 	readonly id: string;
 	readonly reason: VerifyBatchSkipReason;
 	readonly notCurrent?: NotCurrentDetail;
+	/** On an `unknown-status` skip: the raw `status` as written (`Derive.rawStatus`), `""` when it has no text form. */
+	readonly status?: string;
 }
 
 /**
@@ -140,7 +142,7 @@ export const selectAttestable = (
 		if (!types.has(concept.frontmatter.type) && !drifted) continue;
 		const status = Derive.status(concept.frontmatter);
 		if (status === "unknown") {
-			skipped.push({ id, reason: "unknown-status" });
+			skipped.push({ id, reason: "unknown-status", status: Derive.rawStatus(concept.frontmatter) ?? "" });
 			continue;
 		}
 		if (status === "draft" || status === "deprecated") {

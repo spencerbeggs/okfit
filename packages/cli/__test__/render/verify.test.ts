@@ -126,6 +126,20 @@ describe("humanVerifyBatch", () => {
 		]);
 	});
 
+	it("renders an unknown-status skip with the step that works (#507)", () => {
+		const lines = humanVerifyBatch({
+			by: "human:ada",
+			at: "2026-09-16T12:00:00Z",
+			dryRun: false,
+			verified: [],
+			skipped: [{ id: "decisions/wip", reason: "unknown-status", status: "wip" }],
+		});
+		assert.deepStrictEqual(lines, [
+			'skipped decisions/wip: status "wip" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify decisions/wip --stable or --draft',
+			"verified 0, skipped 1",
+		]);
+	});
+
 	it("renders already-verified skips and the real-run tally when not a dry run", () => {
 		const lines = humanVerifyBatch({
 			by: "human:ada",

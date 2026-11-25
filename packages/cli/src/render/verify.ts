@@ -107,9 +107,11 @@ export const notCurrentReason = (detail: NotCurrentDetail): string => {
 const skippedLine = (entry: VerifySkip, input: VerifyBatchLines): string =>
 	entry.reason === "already-verified"
 		? `skipped ${entry.id}: already verified by ${input.by}`
-		: entry.reason === "not-current" && entry.notCurrent !== undefined
-			? `skipped ${entry.id}: ${notCurrentReason(entry.notCurrent)}`
-			: `skipped ${entry.id}: ${entry.reason}`;
+		: entry.reason === "unknown-status" && entry.status !== undefined
+			? `skipped ${entry.id}: status "${entry.status}" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify ${entry.id} --stable or --draft`
+			: entry.reason === "not-current" && entry.notCurrent !== undefined
+				? `skipped ${entry.id}: ${notCurrentReason(entry.notCurrent)}`
+				: `skipped ${entry.id}: ${entry.reason}`;
 
 /**
  * V-11-at-batch-scale (#138): one line per skipped candidate, then one line

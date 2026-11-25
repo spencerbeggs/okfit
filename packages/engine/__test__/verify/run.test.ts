@@ -601,8 +601,8 @@ describe("runVerify refuses a status outside the vocabulary (OKF 0.3 5.4, R7/R11
 					types: [],
 				}).pipe(Effect.provide(platform));
 				assert.deepStrictEqual(result.skipped, [
-					{ id: "decisions/archived", reason: "unknown-status" },
-					{ id: "decisions/numeric", reason: "unknown-status" },
+					{ id: "decisions/archived", reason: "unknown-status", status: "archived" },
+					{ id: "decisions/numeric", reason: "unknown-status", status: "5" },
 				]);
 				assert.deepStrictEqual(
 					result.verified.map((entry) => entry.id),

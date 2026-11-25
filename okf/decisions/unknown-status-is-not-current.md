@@ -15,11 +15,11 @@ sources:
     title: The editor's derived status and its refusal.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-25T15:19:00Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 0eefa7ff670f68dd
+    body: 3a11c640ca6775dd
   verified:
     by: human:spencer
     at: 2026-11-24T03:27:27Z
@@ -64,7 +64,9 @@ An unknown status is not current knowledge, and no surface reads it as
   `prepareVerify` fails with `VerifyStatusUnknownError` (exit `3`) before the
   drift diff and the confirm prompt. Batch selection, the picker and `stale
   --verify` skip such a concept (`unknown-status` is a batch skip reason), and
-  an id list that holds one writes nothing for any id.
+  so does an id list that holds one: it is skipped, checked before the
+  not-current rule, and never verified or written, while the rest are verified.
+  Only `okfit verify <one id>` refuses it with the error.
 - **One exception.** `okfit verify <id> --stable` or `--draft` proceeds,
   because the same write replaces the status, so the human who names the flag
   is repairing the concept, not attesting an unknown state.

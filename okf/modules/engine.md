@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:08:01Z
+  at: 2026-11-25T15:19:00Z
 x-okfit-integrity:
   generated:
-    body: 1b01afbf078f6e28
+    body: 6a7816feb9eccc7d
 ---
 
 # Engine
@@ -318,9 +318,10 @@ concept at the end of a deprecated concept's `superseded_by` chain, or `null`.
 `verify` refuses a concept whose status is unknown: `prepareVerify` fails with
 `VerifyStatusUnknownError` (exit `3`) unless the call also sets the status
 (`--stable` or `--draft`), because that write repairs the status; the check
-runs before the drift diff and the confirm prompt, and `runVerifyIds` applies
-it to every id before writing any, so a refused id leaves the others
-untouched. `VerifyResult.status.from` is the raw string or `null`. See
+runs before the drift diff and the confirm prompt. `runVerifyIds` does not
+refuse: it skips such an id as `unknown-status` (carrying the raw `status`,
+checked before `not-current`) and verifies the rest, and never writes the
+skipped file (#507). `VerifyResult.status.from` is the raw string or `null`. See
 [An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md).
 
 `move/references.ts` lists the path-valued frontmatter fields `okfit mv`

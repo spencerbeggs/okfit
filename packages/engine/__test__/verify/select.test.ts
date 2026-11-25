@@ -426,9 +426,9 @@ describe("an unknown status is never offered (OKF 0.3 5.4)", () => {
 					["decisions/empty"],
 				);
 				assert.deepStrictEqual(selection.skipped, [
-					{ id: "decisions/archived", reason: "unknown-status" },
+					{ id: "decisions/archived", reason: "unknown-status", status: "archived" },
 					{ id: "decisions/draft", reason: "draft" },
-					{ id: "decisions/numeric", reason: "unknown-status" },
+					{ id: "decisions/numeric", reason: "unknown-status", status: "5" },
 				]);
 				assert.deepStrictEqual(
 					selectPickerCandidates(bundle, config, "human:ada", signals).map((row) => [row.id, row.status]),
