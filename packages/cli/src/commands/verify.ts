@@ -238,8 +238,9 @@ export const verifyCommand = Command.make(
 				// recorded attestation matches every documented example
 				// (README, cli-commands.md). `--at` is never truncated — it is
 				// recorded exactly as the caller gave it.
+				const now = yield* Now;
 				const at = Option.isNone(input.at)
-					? DateTime.startOf(yield* Now, "second")
+					? DateTime.startOf(now, "second")
 					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
 
 				const status = input.stable ? "stable" : input.draft ? "draft" : undefined;
@@ -255,6 +256,7 @@ export const verifyCommand = Command.make(
 						bundleRoot: resolved.bundleRoot,
 						projectRoot: resolved.projectRoot,
 						config: resolved.config,
+						at,
 					}).pipe(
 						Effect.catchTag("NotInteractive", () => Effect.fail(new VerifySelectionError({ reason: "no-selection" }))),
 					);
@@ -264,6 +266,7 @@ export const verifyCommand = Command.make(
 						projectRoot: resolved.projectRoot,
 						config: resolved.config,
 						at,
+						now,
 						dryRun: input.dryRun,
 						ids: picked.ids,
 						promote: picked.promote,
@@ -289,6 +292,7 @@ export const verifyCommand = Command.make(
 									projectRoot: resolved.projectRoot,
 									config: resolved.config,
 									at,
+									now,
 									dryRun: input.dryRun,
 									ids,
 								})
@@ -297,6 +301,7 @@ export const verifyCommand = Command.make(
 									projectRoot: resolved.projectRoot,
 									config: resolved.config,
 									at,
+									now,
 									dryRun: input.dryRun,
 									types: input.type,
 								});
@@ -339,6 +344,7 @@ export const verifyCommand = Command.make(
 					projectRoot: resolved.projectRoot,
 					config: resolved.config,
 					now: at,
+					clock: now,
 					noDiff: input.noDiff,
 					dryRun: input.dryRun,
 					...(status === undefined ? {} : { status }),
@@ -354,6 +360,7 @@ export const verifyCommand = Command.make(
 					projectRoot: resolved.projectRoot,
 					config: resolved.config,
 					at,
+					now,
 					dryRun: input.dryRun,
 					...(status === undefined ? {} : { status }),
 				});

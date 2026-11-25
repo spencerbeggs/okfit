@@ -87,19 +87,21 @@ src/
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
-    select.ts                -- VerifyBatchSkipReason, AttestableSelection, selectAttestable,
+    select.ts                -- VerifyBatchSkipReason, AttestableSelection, notCurrentAt, selectAttestable,
                                  PickerCandidate, selectPickerCandidates (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
                                  (pure, never a YAML serialiser)
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically; also
-                                  runVerifyBatch, runVerifyIds (explicit ids, all-or-nothing,
-                                  optional promote), loadPickerCandidates, loadStaleCandidates
+                                  runVerifyBatch, runVerifyIds (explicit ids, optional promote),
+                                  loadPickerCandidates, loadStaleCandidates (both also return `leftOut`)
                                   and loadPreviews (the picker's per-drifted-row changeSince)
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
                                   concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
-                                  and writes nothing; batch and ids are all or nothing (OKF 0.3 5.3, R33)
+                                  (`future` set when it is later than `now`) and writes nothing; a batch, an id list and both
+                                  pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
+                                  OKF 0.3 5.3, R33)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
                                   min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human

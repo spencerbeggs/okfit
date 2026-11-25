@@ -287,8 +287,9 @@ identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 run appends, including a repeat by the same person. `--at <iso>` records a
 different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
-`generated.at` in the future also refuses; an instant equal to `generated.at`
-is accepted. `--dry-run` runs the same splice and prints the exact
+`generated.at` in the future also refuses (run `okfit sync`, which re-stamps it); an instant
+equal to `generated.at` is accepted. A batch (`--all`, `--type`), a list of several targets and
+both pickers skip such a concept (`skipped <id>: generated.at is later than <at>, ...`) and verify the rest. `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
 
@@ -328,8 +329,8 @@ A verification is held when your entry is the latest human entry and is bound
 OKF 0.3 §5.3, and the binding covers the current content (okfit's own integrity
 rule); one made before the concept's last change is not, so the concept is
 selected again. A batch skips a
-concept and reports why: `draft`, `deprecated`, `unknown-status` or
-`already-verified`. A batch never re-attests a
+concept and reports why: `draft`, `deprecated`, `unknown-status`, `already-verified` or
+`not-current` (its `generated.at` is later than the verification time). A batch never re-attests a
 `deprecated` concept; verifying one by id is still allowed.
 
 Bare `okfit verify` in a terminal opens a picker: every concept of a
@@ -337,7 +338,7 @@ Bare `okfit verify` in a terminal opens a picker: every concept of a
 any type, drafts included and deprecated and unknown-status excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
-one all-or-nothing write. When a candidate is drifted, the picker shows a
+one all-or-nothing write; a concept whose `generated.at` is later than the verification time is left out, and one line names it. When a candidate is drifted, the picker shows a
 two-pane screen that previews its diff since the last verification (or why
 there is no baseline to diff against). Esc, `q`, Ctrl-C or answering no exits `130` with
 nothing written. Without a terminal (a pipe, an agent or CI audience, or
@@ -567,7 +568,7 @@ envelope to stdout and exits `3`:
 `dry_run`, `exit_code`, and `prior_integrity` when the concept was drifted and the diff was shown), where `status` is `{ "from": ..., "to": ... }` when
 `--stable` or `--draft` was given and `null` otherwise. With `--all` or
 `--type` it prints `VerifyBatchEnvelope`, whose `skipped[].reason` is one of
-`draft`, `deprecated`, `unknown-status` or `already-verified`.
+`draft`, `deprecated`, `unknown-status`, `already-verified` or `not-current`.
 With `--revoke` it prints a revoke envelope carrying `removed` (how many of the
 actor's entries were removed), `binding_cleared` (whether `x-okfit-integrity.verified`
 was cleared) and `revoked_by` (the actor).

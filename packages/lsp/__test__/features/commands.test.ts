@@ -298,7 +298,7 @@ describe("registerCommands", () => {
 					h.uriOf("okf/modules/draft.md"),
 				]);
 				assert.include(failure.message, "2999-01-01T00:00:00Z");
-				assert.include(failure.message, "does not count");
+				assert.include(failure.message, "would not count");
 				assert.strictEqual(h.serverRequests.length, 0);
 			}).pipe(Effect.scoped),
 	);

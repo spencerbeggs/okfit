@@ -208,6 +208,32 @@ describe("pickConcepts", () => {
 		),
 	);
 
+	it.effect("the picker prints the left-out line before the list (#470)", () =>
+		withBundle(
+			[
+				...FILES,
+				[
+					"decisions/late.md",
+					"---\ntype: Decision\ntitle: Late\ngenerated:\n  by: process:sync\n  at: 2030-01-01T00:00:00Z\n---\n\n# Late\n",
+				],
+			],
+			(root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const { session, fiber } = yield* start(root);
+						const list = yield* session.next({ contains: "Attest which concepts?" });
+						assert.notInclude(yield* list.plainFrame, "decisions/late");
+						yield* list.press("enter");
+						assert.isUndefined(yield* Fiber.join(fiber));
+						assert.strictEqual(
+							yield* session.stdout,
+							"left out 1 concept(s) whose generated.at is later than the verification time: decisions/late\nnothing selected; nothing written\n",
+						);
+					}),
+				),
+		),
+	);
+
 	it.effect("confirming no fails Cancelled(escape)", () =>
 		withBundle(FILES, (root) =>
 			Effect.scoped(

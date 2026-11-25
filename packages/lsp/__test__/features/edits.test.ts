@@ -504,3 +504,12 @@ describe("verified edits read `generated` (OKF 0.3 5.3, R33)", () => {
 			}).pipe(Effect.provide(testPlatform())),
 	);
 });
+
+describe("describeFailure for NotCurrent (#470)", () => {
+	it("describeFailure names okfit sync for NotCurrent", () => {
+		assert.strictEqual(
+			describeFailure({ _tag: "NotCurrent", generatedAt: "2030-01-01T00:00:00Z" }),
+			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again",
+		);
+	});
+});

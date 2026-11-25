@@ -84,6 +84,13 @@ export interface VerifyBatchLines {
 	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: VerifyBatchSkipReason }>;
 }
 
+const skippedLine = (entry: { readonly id: string; readonly reason: string }, input: VerifyBatchLines): string =>
+	entry.reason === "already-verified"
+		? `skipped ${entry.id}: already verified by ${input.by}`
+		: entry.reason === "not-current"
+			? `skipped ${entry.id}: generated.at is later than ${input.at}, so a verification then would not count`
+			: `skipped ${entry.id}: ${entry.reason}`;
+
 /**
  * V-11-at-batch-scale (#138): one line per skipped candidate, then one line
  * (or, under `--dry-run`, three) per verified concept, then a trailing tally.
@@ -91,11 +98,7 @@ export interface VerifyBatchLines {
  * @public
  */
 export const humanVerifyBatch = (input: VerifyBatchLines): ReadonlyArray<string> => [
-	...input.skipped.map((entry) =>
-		entry.reason === "already-verified"
-			? `skipped ${entry.id}: already verified by ${input.by}`
-			: `skipped ${entry.id}: ${entry.reason}`,
-	),
+	...input.skipped.map((entry) => skippedLine(entry, input)),
 	...input.verified.flatMap((entry) =>
 		input.dryRun
 			? [`would verify ${entry.id} by ${input.by} at ${input.at}`, "would write:", ...indentFragment(entry.fragment)]
@@ -139,13 +142,7 @@ export const humanVerifyDoc = (input: VerifyLines): Document => [
  * @public
  */
 export const humanVerifyBatchDoc = (input: VerifyBatchLines): Document => [
-	...paragraphs(
-		input.skipped.map((entry) =>
-			entry.reason === "already-verified"
-				? `skipped ${entry.id}: already verified by ${input.by}`
-				: `skipped ${entry.id}: ${entry.reason}`,
-		),
-	),
+	...paragraphs(input.skipped.map((entry) => skippedLine(entry, input))),
 	...input.verified.flatMap((entry) =>
 		input.dryRun
 			? [

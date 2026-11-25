@@ -8,7 +8,13 @@ import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer } from "effect";
 import type { VerifyNotCurrentError, VerifyStatusUnknownError } from "../../src/errors.js";
-import { inspectDrift, runVerify, runVerifyBatch } from "../../src/verify/run.js";
+import {
+	inspectDrift,
+	loadPickerCandidates,
+	loadStaleCandidates,
+	runVerify,
+	runVerifyBatch,
+} from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -702,25 +708,79 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 		),
 	);
 
-	it.effect("a batch with one non-current concept fails whole and writes nothing; the control batch writes", () => {
+	it.effect("runVerifyBatch verifies the rest and reports the not-current concept as skipped (#470)", () => {
 		const stale = doc("S", generated);
 		const fine = doc("F", "");
 		return withRoot({ "decisions/f.md": fine, "decisions/s.md": stale }, (root) =>
 			Effect.gen(function* () {
-				const error = yield* Effect.flip(
-					runVerifyBatch({ ...base(root, "2026-09-16T11:00:00Z"), types: [] }).pipe(Effect.provide(platform)),
+				const result = yield* runVerifyBatch({ ...base(root, "2026-09-16T11:00:00Z"), types: [] }).pipe(
+					Effect.provide(platform),
 				);
-				assert.strictEqual(error._tag, "VerifyNotCurrentError");
-				assert.strictEqual((error as VerifyNotCurrentError).id, "decisions/s");
-				assert.include(error.message, "Nothing was written"); // a batch is all or nothing, and says so
-				assert.strictEqual(yield* read(root, "decisions/f.md"), fine);
-				assert.strictEqual(yield* read(root, "decisions/s.md"), stale);
-				const ok = yield* runVerifyBatch({ ...base(root, GENERATED), types: [] }).pipe(Effect.provide(platform));
-				assert.deepStrictEqual(ok.verified.map((entry) => entry.id).toSorted(), ["decisions/f", "decisions/s"]);
+				assert.deepStrictEqual(
+					result.verified.map((entry) => entry.id),
+					["decisions/f"],
+				);
+				assert.deepStrictEqual(result.skipped, [{ id: "decisions/s", reason: "not-current" }]);
 				assert.notStrictEqual(yield* read(root, "decisions/f.md"), fine);
+				assert.strictEqual(yield* read(root, "decisions/s.md"), stale);
+				// control: at generated.at the same concept is a candidate
+				const ok = yield* runVerifyBatch({ ...base(root, GENERATED), types: [] }).pipe(Effect.provide(platform));
+				assert.include(
+					ok.verified.map((entry) => entry.id),
+					"decisions/s",
+				);
+				assert.notStrictEqual(yield* read(root, "decisions/s.md"), stale);
 			}),
 		);
 	});
+
+	it.effect("a backdated at is not-current for a concept changed after it (#470)", () => {
+		const past = doc("P", "generated:\n  by: process:sync\n  at: 2026-09-10T00:00:00Z\n");
+		return withRoot({ "decisions/p.md": past }, (root) =>
+			Effect.gen(function* () {
+				const backdated = yield* runVerifyBatch({ ...base(root, "2026-09-09T00:00:00Z"), types: [] }).pipe(
+					Effect.provide(platform),
+				);
+				assert.deepStrictEqual(backdated.skipped, [{ id: "decisions/p", reason: "not-current" }]);
+				assert.deepStrictEqual(backdated.verified, []);
+				assert.strictEqual(yield* read(root, "decisions/p.md"), past);
+				// control: a past stamp is verifiable with at after it
+				const now = yield* runVerifyBatch({ ...base(root, "2026-09-16T00:00:00Z"), types: [] }).pipe(
+					Effect.provide(platform),
+				);
+				assert.deepStrictEqual(now.skipped, []);
+				assert.strictEqual(now.verified.length, 1);
+			}),
+		);
+	});
+
+	it.effect("runVerify on one not-current id still fails VerifyNotCurrentError, future only when now precedes it", () =>
+		withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
+			Effect.gen(function* () {
+				const early = DateTime.makeUnsafe("2026-09-16T11:59:59Z");
+				const clockAhead = yield* Effect.flip(
+					runVerify({ ...base(root, "2026-09-16T11:59:59Z"), now: early, id: "decisions/a" }).pipe(
+						Effect.provide(platform),
+					),
+				);
+				assert.strictEqual(clockAhead._tag, "VerifyNotCurrentError");
+				assert.strictEqual((clockAhead as VerifyNotCurrentError).future, true);
+				assert.include(clockAhead.message, "Run okfit sync");
+				// --at earlier, but now is after generated.at: only `at` is the cause
+				const backdated = yield* Effect.flip(
+					runVerify({
+						...base(root, "2026-09-16T11:59:59Z"),
+						now: DateTime.makeUnsafe("2026-09-17T00:00:00Z"),
+						id: "decisions/a",
+					}).pipe(Effect.provide(platform)),
+				);
+				assert.strictEqual(backdated._tag, "VerifyNotCurrentError");
+				assert.strictEqual((backdated as VerifyNotCurrentError).future, undefined);
+				assert.include(backdated.message, "omit --at to verify now");
+				assert.notInclude(backdated.message, "okfit sync");
+			}),
+		),
+	);
 
 	it.effect("inspectDrift refuses for the same reason, before a prompt could be shown", () =>
 		withRoot({ "decisions/a.md": doc("A", generated) }, (root) =>
@@ -786,5 +846,65 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 					assert.strictEqual(ok.at, "2026-09-16T00:00:00Z");
 				}),
 			),
+	);
+
+	it.effect("loadPickerCandidates leaves out a not-current row and names it in leftOut (#470)", () =>
+		withRoot(
+			{
+				"decisions/f.md": doc("F", ""),
+				"decisions/l.md": doc("L", "generated:\n  by: process:sync\n  at: 2030-01-01T00:00:00Z\n"),
+			},
+			(root) =>
+				Effect.gen(function* () {
+					const args = { bundleRoot: root, projectRoot: root, config };
+					const picked = yield* loadPickerCandidates(args).pipe(Effect.provide(platform));
+					assert.deepStrictEqual(
+						picked.candidates.map((row) => row.id),
+						["decisions/f"],
+					);
+					assert.deepStrictEqual(picked.leftOut, ["decisions/l"]);
+					// control: a verification time after the stamp keeps the row, so the omission was the not-current rule
+					const later = yield* loadPickerCandidates({ ...args, at: DateTime.makeUnsafe("2031-01-01T00:00:00Z") }).pipe(
+						Effect.provide(platform),
+					);
+					assert.deepStrictEqual(
+						later.candidates.map((row) => row.id),
+						["decisions/f", "decisions/l"],
+					);
+					assert.deepStrictEqual(later.leftOut, []);
+				}),
+		),
+	);
+
+	it.effect("loadStaleCandidates leaves out a not-current row and names it in leftOut (#470)", () =>
+		withRoot(
+			{
+				"decisions/s.md": doc(
+					"S",
+					'stale_after: "2026-01-01T00:00:00Z"\ngenerated:\n  by: process:sync\n  at: 2026-09-16T12:00:00Z\n',
+				),
+			},
+			(root) =>
+				Effect.gen(function* () {
+					const args = {
+						bundleRoot: root,
+						projectRoot: root,
+						config,
+						now: DateTime.makeUnsafe("2026-10-01T00:00:00Z"),
+					};
+					const kept = yield* loadStaleCandidates(args).pipe(Effect.provide(platform));
+					assert.deepStrictEqual(
+						kept.candidates.map((row) => row.id),
+						["decisions/s"],
+					);
+					assert.deepStrictEqual(kept.leftOut, []);
+					const backdated = yield* loadStaleCandidates({
+						...args,
+						at: DateTime.makeUnsafe("2026-09-01T00:00:00Z"),
+					}).pipe(Effect.provide(platform));
+					assert.deepStrictEqual(backdated.candidates, []);
+					assert.deepStrictEqual(backdated.leftOut, ["decisions/s"]);
+				}),
+		),
 	);
 });

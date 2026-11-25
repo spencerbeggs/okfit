@@ -3,6 +3,7 @@ import { CliUi, Confirm, MultiSelect } from "@effected/cli-kit/ui";
 import type { OkfitConfig } from "@okfit/core";
 import type { PickerCandidate } from "@okfit/engine";
 import { loadPickerCandidates, loadPreviews } from "@okfit/engine";
+import type { DateTime } from "effect";
 import { Console, Effect } from "effect";
 
 /** What the picker decided: attest exactly these ids, and settle drafts when `promote`. */
@@ -98,6 +99,8 @@ export const pickConcepts = (
 		readonly bundleRoot: string;
 		readonly projectRoot: string;
 		readonly config: OkfitConfig;
+		/** The verification time; a concept whose `generated.at` is later than it is left out (#470). */
+		readonly at?: DateTime.Utc;
 	},
 	// Issue #228: `okfit stale --verify` swaps in the stale set, its own empty
 	// line and its own title; bare `verify` passes nothing and is unchanged.
@@ -108,7 +111,12 @@ export const pickConcepts = (
 	},
 ) =>
 	Effect.gen(function* () {
-		const { by, candidates } = yield* source.load;
+		const { by, candidates, leftOut } = yield* source.load;
+		if (leftOut.length > 0) {
+			yield* Console.log(
+				`left out ${leftOut.length} concept(s) whose generated.at is later than the verification time: ${leftOut.join(", ")}`,
+			);
+		}
 		if (candidates.length === 0) {
 			yield* Console.log(source.empty(by));
 			return undefined;

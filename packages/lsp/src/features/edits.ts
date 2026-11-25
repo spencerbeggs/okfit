@@ -415,7 +415,7 @@ export const describeFailure = (failure: EditFailure): string => {
 		case "AlreadyVerified":
 			return `already verified by ${failure.by}`;
 		case "NotCurrent":
-			return `the concept was last changed at ${failure.generatedAt}, after now; a verification before the last change does not count (OKF 0.3 5.3), so check the clock`;
+			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it, then mark verified again`;
 		case "DraftCannotBeVerified":
 			return "the editor's Mark verified skips a draft concept, as okfit verify --all does";
 		case "DeprecatedCannotBeVerified":

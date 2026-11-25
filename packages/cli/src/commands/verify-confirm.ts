@@ -46,6 +46,8 @@ export const confirmReverify = (options: {
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly now: DateTime.Utc;
+	/** The clock when `now` is a backdated `--at`; tells a future `generated.at` from one only later than `--at`. */
+	readonly clock?: DateTime.Utc;
 	readonly noDiff: boolean;
 	readonly dryRun: boolean;
 	/** `--stable` or `--draft`: the write replaces the status, so an unknown one is no reason to refuse. */
@@ -60,6 +62,7 @@ export const confirmReverify = (options: {
 			bundleRoot: options.bundleRoot,
 			config: options.config,
 			now: options.now,
+			...(options.clock === undefined ? {} : { clock: options.clock }),
 			// OKF 0.3 5.4: inspectDrift refuses an unknown status exactly as the write would, before any diff or prompt.
 			...(options.status === undefined ? {} : { status: options.status }),
 		});
