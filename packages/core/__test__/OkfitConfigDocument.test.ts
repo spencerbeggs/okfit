@@ -76,7 +76,7 @@ describe("okfitConfigDocumentFields", () => {
 		assert.strictEqual(okfVersion?.title, "OKF spec version");
 		assert.strictEqual(
 			okfVersion?.description,
-			"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+			"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read. When the root index.md declares a different version, the lint config-okf-version-stale reports this value as stale.",
 		);
 		assert.isFalse(Object.hasOwn(okfVersion ?? {}, "default"));
 		assert.deepStrictEqual(okfVersion?.examples, ["0.3"]);
@@ -96,7 +96,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 	});
 
-	it("gives each of the forty lint keys its own rendered code as the title", () => {
+	it("gives each of the forty-two lint keys its own rendered code as the title", () => {
 		const lint = properties().lint?.properties as Record<string, Record<string, unknown>>;
 		assert.deepStrictEqual(
 			Object.entries(lint).map(([key, value]) => [key, value.title]),
@@ -118,6 +118,7 @@ describe("okfitConfigDocumentFields", () => {
 				["verified_actor_unknown", "verified-actor-unknown"],
 				["legacy_timestamp", "legacy-timestamp"],
 				["config_unknown_key", "config-unknown-key"],
+				["config_okf_version_stale", "config-okf-version-stale"],
 				["stale", "stale"],
 				["walk_unreadable", "walk-unreadable"],
 				["frontmatter_missing", "frontmatter-missing"],
@@ -133,6 +134,7 @@ describe("okfitConfigDocumentFields", () => {
 				["superseded_by_orphan", "superseded-by-orphan"],
 				["superseded_by_unresolved", "superseded-by-unresolved"],
 				["generated_missing", "generated-missing"],
+				["computation_missing", "computation-missing"],
 				["publication_drift", "publication-drift"],
 				["publication_orphan", "publication-orphan"],
 				["surface_unmatched", "surface-unmatched"],

@@ -316,6 +316,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	config_okf_version_stale: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "config-okf-version-stale",
+			description:
+				'The config sets okf_version and the bundle-root index.md declares a different one; the index decides how the bundle reads, so the config value is stale. Default "warn".',
+			default: "warn",
+		}),
+	),
 	stale: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "stale",
@@ -433,6 +441,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	computation_missing: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "computation-missing",
+			description:
+				'An Attested Computation has no computation: no computation key, and no fenced code block in its Computation section (OKF 0.3 §10.3), so it is not attestable. Default "warn".',
+			default: "warn",
+		}),
+	),
 	publication_drift: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "publication-drift",
@@ -500,6 +516,49 @@ export const LintTable = Schema.Struct({
 	description: "Per-code severity overrides. Any key omitted keeps its default.",
 });
 
+/**
+ * Scan a glob once, left to right, for a `[` or `{` that never closes; the
+ * result is the rejection message tail naming the opener, or `undefined` when
+ * none is left open. A backslash escapes the next character; a class closes at
+ * the first `]` after at least one member, where a leading `!` or `^` is not a
+ * member (so `[]a]` and `[!]a]` are classes but `[]` and `[!]` are not) and a
+ * POSIX `[:name:]` inside it is one unit; a `{` inside a class is literal;
+ * braces are counted by depth. A stray `]` or `}` is literal text.
+ */
+const unclosedGlobMessage = (glob: string): string | undefined => {
+	let depth = 0; // open `{` groups outside any class
+	let classStart = -1; // index of the open `[`, or -1 when not inside a class
+	let firstMember = -1; // index of the class's first member: a `]` before it is a member, not the close
+	for (let i = 0; i < glob.length; i++) {
+		const ch = glob[i];
+		if (ch === "\\") {
+			i++;
+		} else if (classStart >= 0) {
+			if (ch === "[" && glob[i + 1] === ":") {
+				// `[:name:]` is one unit: skip past its closing `:]` when it is well formed.
+				let j = i + 2;
+				while (j < glob.length && /[a-z]/.test(glob[j] ?? "")) j++;
+				if (j > i + 2 && glob[j] === ":" && glob[j + 1] === "]") i = j + 1;
+			} else if (ch === "]" && i > firstMember) {
+				classStart = -1;
+			}
+		} else if (ch === "[") {
+			classStart = i;
+			firstMember = glob[i + 1] === "!" || glob[i + 1] === "^" ? i + 2 : i + 1;
+		} else if (ch === "{") {
+			depth++;
+		} else if (ch === "}" && depth > 0) {
+			depth--;
+		}
+	}
+	if (classStart >= 0) {
+		return `"[" opens a character class that never closes; to match a literal bracket write '\\[' in single quotes or "\\\\[" in double quotes`;
+	}
+	return depth > 0
+		? `"{" opens a brace group that never closes; to match a literal brace write '\\{' in single quotes or "\\\\{" in double quotes`
+		: undefined;
+};
+
 type LintTableKey = keyof typeof LintTable.fields;
 
 /**
@@ -513,7 +572,7 @@ export const okfitConfigFields = Schema.Struct({
 		Schema.String.annotate({
 			title: "OKF spec version",
 			description:
-				"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+				"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read. When the root index.md declares a different version, the lint config-okf-version-stale reports this value as stale.",
 			examples: ["0.3"],
 		}),
 	),
@@ -540,6 +599,10 @@ export const okfitConfigFields = Schema.Struct({
 				Schema.Array(
 					Schema.String.check(
 						Schema.makeFilter((value: string) => {
+							const unclosed = unclosedGlobMessage(value);
+							if (unclosed !== undefined) {
+								return `Expected a valid glob pattern, got ${JSON.stringify(value)}: ${unclosed}`;
+							}
 							const compiled = GlobPattern.compileResult(value);
 							return Result.isSuccess(compiled) || `Expected a valid glob pattern, got ${JSON.stringify(value)}`;
 						}),
@@ -547,7 +610,7 @@ export const okfitConfigFields = Schema.Struct({
 				).annotate({
 					title: "Non-concept Markdown",
 					description:
-						"Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
+						"Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). A `[` or `{` that never closes is rejected; to match the character itself write '\\[' in single quotes or \"\\\\[\" in double quotes. When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
 					examples: [["**/README.md", "**/AGENTS.md"]],
 				}),
 			),
@@ -767,6 +830,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"verified-actor-unknown": "verified_actor_unknown",
 	"legacy-timestamp": "legacy_timestamp",
 	"config-unknown-key": "config_unknown_key",
+	"config-okf-version-stale": "config_okf_version_stale",
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
 	"generated-at-drift": "generated_at_drift",
@@ -779,6 +843,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"superseded-by-orphan": "superseded_by_orphan",
 	"superseded-by-unresolved": "superseded_by_unresolved",
 	"generated-missing": "generated_missing",
+	"computation-missing": "computation_missing",
 	"publication-drift": "publication_drift",
 	"publication-orphan": "publication_orphan",
 	"surface-unmatched": "surface_unmatched",
@@ -811,6 +876,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	verified_actor_unknown: "warn",
 	legacy_timestamp: "info",
 	config_unknown_key: "warn",
+	config_okf_version_stale: "warn",
 	stale: "info",
 	walk_unreadable: "warn",
 	generated_at_drift: "warn",
@@ -823,6 +889,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	superseded_by_orphan: "warn",
 	superseded_by_unresolved: "warn",
 	generated_missing: "warn",
+	computation_missing: "warn",
 	publication_drift: "warn",
 	publication_orphan: "error",
 	surface_unmatched: "warn",

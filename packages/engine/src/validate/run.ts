@@ -15,6 +15,7 @@ import { Context, Effect, Option } from "effect";
 import type { Digest } from "effect/crypto";
 import type { MigrationFinding } from "../migrate/findings.js";
 import { migrationFindings } from "../migrate/findings.js";
+import { readMarkdownSources } from "../move/sources.js";
 import { lintResources } from "./resources.js";
 import { lintSurfaces } from "./surfaces.js";
 import { lintUntrackedResources } from "./untracked.js";
@@ -159,6 +160,7 @@ export const run = (
 			? yield* Publications.lint(bundle, options.config)
 			: [];
 		const surfaces = yield* lintSurfaces(bundle, options.config, options.projectRoot);
+		const others = options.target === undefined ? [] : (yield* readMarkdownSources(bundle, { reserved: true })).sources;
 		return {
 			bundle,
 			report: {
@@ -167,6 +169,6 @@ export const run = (
 			},
 			profileDiagnostics,
 			signals,
-			migration: options.target === undefined ? [] : migrationFindings(bundle, options.config, options.target),
+			migration: options.target === undefined ? [] : migrationFindings(bundle, options.config, options.target, others),
 		};
 	});

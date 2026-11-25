@@ -86,8 +86,8 @@ and a terminal stdin, are usage errors (exit `64`). The MCP
 
 `--target 0.3` reports, as `migrate` diagnostics with ranges, everything in
 the bundle that reads differently under OKF 0.3: an undeclared, older or
-unparsable `okf_version`, references that resolve only from the bundle root
-(`root-relative-path`) and a Computation section read by a different rule
+unparsable `okf_version`, references that resolve only from the bundle root, in any Markdown file of
+the bundle (`root-relative-path`) and a Computation section read by a different rule
 (`computation-locator`). Only `"0.3"`, the version this okfit implements, is
 accepted; any other value is a usage error (exit `64`). The findings print in
 the normal per-file list, stderr ends with `OKF 0.3: <n> finding(s), <k>
@@ -99,7 +99,10 @@ fixes: it declares `okf_version` and roots a reference that resolves only from
 the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
 (repeatable; requires `--fix`) narrows by kind, positional targets narrow by
 file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
-refused while any root-only reference remains unfixed, and a concept still
+refused while any root-only reference remains unfixed, while any
+Attested Computation would have no computation under 0.3 (a `warning`
+`computation-locator`), and while a Markdown file has unclosed or unparseable
+frontmatter, so its links could not be checked (one `refused:` line per cause), and a concept still
 using okfit's old key names is refused until `okfit sync` renames them. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted
@@ -453,7 +456,7 @@ how it is read, and `--format json` reports it (`null` when the bundle declares 
 | Code | Meaning |
 | --- | --- |
 | `130` | Interrupted (Ctrl-C) |
-| `64` | Usage error: an unknown flag or subcommand |
+| `64` | Usage error: an unknown flag, subcommand, or flag value |
 | `3` | Infrastructure failure: bad `--config` path, malformed or unreadable config, unset `HOME`, unreadable bundle root, or `init`'s overwrite refusal |
 | `2` | One or more conformance diagnostics of severity error |
 | `1` | One or more lint or profile diagnostics of severity error |
@@ -461,6 +464,14 @@ how it is read, and `--format json` reports it (`null` when the bundle declares 
 
 Higher wins when several apply. Warnings and info never change the exit
 code.
+
+A usage error the argument parser rejects (`okfit validate --only bogus`) prints
+help and the error on stderr and leaves stdout empty. When the arguments ask for
+`--format json` (a `--format json` pair or a `--format=json` token), stdout
+carries one error envelope instead: `exit_code` `64`, `error.tag` the first
+parse error's tag (`InvalidValue`, `UnrecognizedOption`, ...), and `error.message`
+the errors' messages joined with a semicolon and a space. An explicit `--help` prints help on
+stdout and no envelope.
 
 `okfit context` never produces `1` or `2`: it prints orientation data and
 never runs conformance or lint checks.

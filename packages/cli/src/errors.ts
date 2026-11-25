@@ -52,7 +52,8 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    `InitOverwriteError` renders as the K-51 header, one two-space-indented
  *    relativised path per conflict, and the literal `Nothing was written.`.
  * 3. `ConfigMalformedError` renders as its own `error: <message>` line —
- *    `error: malformed config <path>: <cause message>` — since it already
+ *    `error: malformed config <path>: <cause message>` — a schema failure names
+ *    the failing key, `<path>: <key>: <reason>` — since it already
  *    carries the offending path (`config/layer.ts#provideConfig` wraps a
  *    `ConfigCodecError`/`ConfigValidationError` into this the moment the
  *    path is known).

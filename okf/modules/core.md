@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-25T01:55:51Z
 x-okfit-integrity:
   generated:
-    body: 1eaceb69f92b041b
+    body: 88f0b1efd4940b29
 ---
 
 # Core
@@ -85,12 +85,12 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-forty keys, including `generated_at_drift`, `generated_missing`,
+forty-two keys, including `generated_at_drift`, `generated_missing`,
 `verified_before_change` (default `warn`) and the
 ten added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
 `value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,
 `symlink_escape`, `superseded_by_orphan` and `superseded_by_unresolved`, all
-default `warn`, and `resource_outside_project`, default `info`), and `non_concept_unlisted` (default `warn`, silent unless `[bundle] non_concepts` is set), are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
+default `warn`, and `resource_outside_project`, default `info`), and `non_concept_unlisted` (default `warn`, silent unless `[bundle] non_concepts` is set); two more, `computation_missing` (an Attested Computation with no computation; no `runtime` needed) and `config_okf_version_stale` (the config's `okf_version` differs from the root index's; `--fix` never edits the config), both default `warn`. All are enumerated in `okf/interfaces/okfit-config-schema.md`. `generated-missing`
 (issue #73, `internal/lintRules.ts#generatedMissing`) fires only when
 `actors.agent` is set and a concept's frontmatter has no `generated` block
 at all (or one written as null, `""` or `[]`) -- surfacing the gap at validate

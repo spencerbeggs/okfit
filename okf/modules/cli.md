@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:28:07Z
+  at: 2026-11-25T01:33:06Z
 x-okfit-integrity:
   generated:
-    body: a472690bf59cac01
+    body: df79676445676ef7
 ---
 
 # CLI
@@ -38,7 +38,7 @@ stale and unverified counts) -- cheap enough for a Claude Code
 hook to call on every session and every in-bundle write. `validate` also
 takes `--target 0.3`, `--fix`, `--only` and `--dry-run` (engine's
 `applyMigrationFixes`; only `0.3` is accepted, and a refused combination is a
-`ValidateUsageError`, exit `64`), documented in
+`ValidateUsageError`, exit `64`; under `--format json` a usage error the argument parser raises also prints one error envelope on stdout), documented in
 `okf/interfaces/cli-commands.md`. `verify` also
 takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
 at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, filtered by `--verified`, `--unverified`, `--drifted`, `--stale` and `--current` (draft and stable only), with `--status unknown` selecting concepts whose `status` is outside the vocabulary (printed `unknown(<raw>)`; `query get` also prints a deprecated concept's `replacement`), and `sync` also takes `--since

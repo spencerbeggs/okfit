@@ -21,6 +21,8 @@ src/
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
     anchor.ts             -- resolveProjectRoot, resolveBundleRoot (pure)
+    issues.ts             -- describeConfigCause (internal): a ConfigValidationError reads `<key>: <reason>` (D8),
+                              so ConfigMalformedError.message names the failing key; effect/SchemaIssue only
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
   confinement.ts           -- escapesRoot, escapesBundle: a reserved index.md/log.md symlinked out of the
@@ -68,7 +70,7 @@ src/
                                 `source: "migrate"`, and they never count toward an exit code (R50)
     fix.ts                  -- MigrationFixOptions, MigrationFixPlan, planMigrationFixes, applyMigrationFixes: the two safe
                                 fixes (declare `okf_version`, root a root-fallback-only reference); plan reads the root
-                                `index.md` itself, writes nothing; apply writes atomically after the whole plan; the version
+                                `index.md` itself and the non-concept Markdown (`readMarkdownSources`), writes nothing; apply writes atomically after the whole plan; the version
                                 fix is refused while any root-only reference stays (R41); re-records only
                                 `x-okfit-integrity.generated.body` (R44)
   move/
@@ -78,6 +80,9 @@ src/
     run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing; also scans
                                 and rewrites links in `.md` files that are not concepts (no frontmatter or no
                                 `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter)
+    sources.ts               -- MarkdownSources, readMarkdownSources: the `.md` files that are not loaded concepts,
+                                parsed for scanning (`reserved: true` adds each index.md and log.md with `raw: {}`),
+                                plus the ones that cannot be read; shared by `okfit mv` and the migration report/fix
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)

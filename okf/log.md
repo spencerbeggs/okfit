@@ -1,5 +1,17 @@
 # Log
 
+## 2026-11-25
+
+* Updated AI Plugins
+* Updated Agent plugin hooks contract
+* Updated CLI
+* Updated Core
+* Updated Engine
+* Updated Markdown that is not a concept is skipped, not an error
+* Updated Migration to a newer OKF version is a report on validate, with two safe fixes
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated okfit config file schema
+
 ## 2026-11-24
 
 * Updated A cited file that other checkouts cannot see is a lint, split by whether it is ignored

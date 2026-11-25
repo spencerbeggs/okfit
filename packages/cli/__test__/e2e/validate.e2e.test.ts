@@ -17,7 +17,12 @@ import { assert, describe, it } from "@effect/vitest";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
 import { Effect, Option } from "effect";
-import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
+import {
+	NON_CONCEPT_LINKS_PROJECT,
+	UNDECLARED_PROJECT,
+	V02_PROJECT,
+	V03_PROJECT,
+} from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
@@ -490,11 +495,25 @@ describe("okfit validate: config discovery", () => {
 				// fixture: `ConfigValidationError`'s own message already embeds the
 				// path once; `ConfigMalformedError` prefixes it with `malformed
 				// config <path>: ` regardless, per the K-46 fix's single message shape.
-				assert.strictEqual(
-					result.stderr,
-					`error: malformed config ${configPath}: Config validation failed at "${configPath}"\n`,
-				);
+				assert.strictEqual(result.stderr, `error: malformed config ${configPath}: bundle.profile: Expected string\n`);
 			}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("a bad lint level names the key in the error line and in the JSON envelope", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			const configPath = join(sandbox.cwd, "okfit.toml");
+			yield* Effect.promise(() => writeFileDeep(configPath, `[lint]\nmissing_index = "loud"\n`));
+
+			const human = yield* runOkfit(["validate"], sandbox);
+			assert.strictEqual(human.exitCode, 3);
+			assert.include(human.stderr, "lint.missing_index");
+
+			const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			assert.strictEqual(json.exitCode, 3);
+			const envelope = JSON.parse(json.stderr.length > 0 && json.stdout.length === 0 ? json.stderr : json.stdout);
+			assert.include(envelope.error.message, "lint.missing_index");
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("unknown profile: warning on stderr, continues with defaults (K-4)", () =>
@@ -1085,6 +1104,25 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	it.effect("--fix prints a refused: line for a lost computation and keeps okf_version", () =>
+		Effect.gen(function* () {
+			const seeded = {
+				...UNDECLARED_PROJECT,
+				"okf/computations/revenue-ytd.md": V03_PROJECT[COMPUTATION] as string,
+				"okf/computations/prose.md": (V03_PROJECT[COMPUTATION] as string)
+					.replace(/```sql\n[^`]*```\n/, "Run the query.\n")
+					.replace("## Computation", "# Computation"),
+			};
+			const sandbox = yield* seed("okfit-validate-lost-computation-", seeded);
+			const index = yield* read(sandbox, "okf/index.md");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(run.stdout, "refused: index.md: 1 Attested Computation(s) would have no computation");
+			const after = yield* read(sandbox, "okf/index.md");
+			assert.strictEqual(after, index);
+			assert.notInclude(after, "okf_version");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("a refused fix appears in the JSON fixes.refused array", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* seed("okfit-validate-refused-json-");
@@ -1202,5 +1240,83 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 				const none = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--dry-run"], plain);
 				assert.notInclude(none.stdout, "Integrity drifted");
 			}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--fix on a bundle whose config says 0.2 shows config-okf-version-stale after the fix", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-config-version-stale-", {
+				...V02_PROJECT,
+				".config/okfit.toml": 'okf_version = "0.2"\n\n[types.Metric]\n\n[types."Attested Computation"]\n',
+			});
+			const before = yield* runOkfit(["validate"], sandbox);
+			assert.notInclude(before.stdout, "config-okf-version-stale");
+			const fixed = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(fixed.stdout, "Fixed");
+			assert.include(fixed.stdout, "config-okf-version-stale");
+			assert.match(yield* read(sandbox, "okf/index.md"), /okf_version: ["']0\.3["']/);
+			assert.include(yield* read(sandbox, ".config/okfit.toml"), 'okf_version = "0.2"');
+			const after = yield* runOkfit(["validate"], sandbox);
+			assert.include(after.stdout, "config-okf-version-stale");
+			assert.include(after.stdout, 'okf_version in the config is "0.2", but the bundle-root index.md declares "0.3"');
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--target 0.3 lists a README link and --fix roots it", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-readme-", NON_CONCEPT_LINKS_PROJECT);
+			const listed = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(listed.stdout, "sub/README.md");
+			assert.include(listed.stdout, "sub/log.md");
+			assert.include(listed.stdout, "sub/index.md");
+			const fixed = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(fixed.stdout, "Fixed 5 finding(s) in 5 file(s)");
+			assert.include(yield* read(sandbox, "okf/sub/README.md"), "[a](/a.md)");
+			assert.include(yield* read(sandbox, "okf/sub/log.md"), "[a](/a.md)");
+			assert.include(yield* read(sandbox, "okf/index.md"), 'okf_version: "0.3"');
+			const after = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(after.stderr, "OKF 0.3: 0 finding(s)");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: a parse-time usage error under --format json (#485)", () => {
+	const usage = (args: ReadonlyArray<string>) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			return yield* runOkfit(args, sandbox);
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("--only bogus --format json prints one error envelope on stdout and exits 64", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--only", "bogus", "--format", "json"]);
+			assert.strictEqual(result.exitCode, 64);
+			assert.strictEqual(result.stdout.trimEnd().split("\n").length, 1);
+			const envelope = JSON.parse(result.stdout) as {
+				readonly exit_code: number;
+				readonly error: { readonly tag: string; readonly message: string };
+			};
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "InvalidValue");
+			assert.include(envelope.error.message, "--only");
+			assert.include(result.stderr, "Invalid value for flag --only");
+		}),
+	);
+
+	it.effect("--only bogus without --format json leaves stdout empty", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--only", "bogus"]);
+			assert.strictEqual(result.exitCode, 64);
+			assert.strictEqual(result.stdout, "");
+			assert.include(result.stderr, "Invalid value for flag --only");
+		}),
+	);
+
+	it.effect("an unknown flag under --format json gets the envelope too", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--bogus", "--format", "json"]);
+			assert.strictEqual(result.exitCode, 64);
+			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly tag: string } };
+			assert.strictEqual(envelope.error.tag, "UnrecognizedOption");
+		}),
 	);
 });

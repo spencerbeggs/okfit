@@ -1,6 +1,7 @@
 import type { DiagnosticSeverity, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Bundle, DiagnosticRange, Graph, OkfVersion } from "@okfit/core";
 import { Option } from "effect";
+import type { ReferenceSource } from "../move/references.js";
 import { referencesOf } from "../move/references.js";
 
 /**
@@ -110,9 +111,10 @@ const rootRelativeFindings = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
 	target: string,
+	others: ReadonlyArray<ReferenceSource>,
 ): ReadonlyArray<MigrationFinding> => {
 	const found: Array<MigrationFinding> = [];
-	for (const concept of bundle.concepts.values()) {
+	for (const concept of [...bundle.concepts.values(), ...others]) {
 		const source = concept.document.source;
 		for (const reference of referencesOf(concept, config).references) {
 			const raw = reference.raw.trim();
@@ -142,16 +144,18 @@ const soleFenceInner = (body: string): string | undefined =>
 
 const computationFinding = (concept: LoadedConcept, target: string): MigrationFinding | undefined => {
 	const attested = concept.frontmatter.attested;
-	if (attested?.runtime === undefined || attested.computation !== undefined) return undefined;
+	if (attested === undefined || attested.computation !== undefined) return undefined;
 	const legacy = Bundle.inlineComputation(concept.document, "legacy");
 	const current = Bundle.inlineComputation(concept.document, "current");
 	if (Option.isNone(legacy) && Option.isNone(current)) return undefined;
-	if (Option.isSome(legacy) && Option.isSome(current) && legacy.value === current.value) return undefined;
+	// Line endings are not content: compare the legacy body with CRLF and lone CR read as LF.
+	const legacyText = Option.map(legacy, (value) => value.replace(/\r\n?/g, "\n"));
+	if (Option.isSome(legacyText) && Option.isSome(current) && legacyText.value === current.value) return undefined;
 	// A section that is exactly one fence reads the same under both: the legacy body is that fence, markers included.
 	if (
-		Option.isSome(legacy) &&
+		Option.isSome(legacyText) &&
 		Option.isSome(current) &&
-		soleFenceInner(legacy.value) === current.value.replace(/\n$/, "")
+		soleFenceInner(legacyText.value) === current.value.replace(/\n$/, "")
 	)
 		return undefined;
 	const reading = Option.isNone(current)
@@ -197,6 +201,8 @@ const compare = (a: MigrationFinding, b: MigrationFinding): number => {
  * reference is `root-relative-path` when it lands only through the v0.2 root fallback (whatever the bundle
  * declares), so a value that misses under both rules is not reported; the Computation locator is reported only
  * while the bundle still reads with the legacy locator, since raising the version would change nothing else.
+ * `others` are Markdown files that are not concepts (see `readMarkdownSources`); each is scanned like a concept for
+ * `root-relative-path`.
  *
  * @public
  */
@@ -204,6 +210,7 @@ export const migrationFindings = (
 	bundle: LoadedBundle,
 	config: OkfitConfig,
 	target: string,
+	others: ReadonlyArray<ReferenceSource> = [],
 ): ReadonlyArray<MigrationFinding> => {
 	const legacy = OkfVersion.legacyFallbacks(bundle);
 	const computations = legacy
@@ -211,7 +218,7 @@ export const migrationFindings = (
 		: [];
 	return [
 		...versionFindings(bundle, target),
-		...rootRelativeFindings(bundle, config, target),
+		...rootRelativeFindings(bundle, config, target, others),
 		...computations,
 	].toSorted(compare);
 };

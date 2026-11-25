@@ -1,6 +1,6 @@
 import { GlobPattern } from "@effected/glob";
 import { EditDistance } from "@effected/source";
-import { DateTime, Result, Schema } from "effect";
+import { DateTime, Option, Result, Schema } from "effect";
 import { Actor } from "../Actor.js";
 import type { LoadedBundle, LoadedConcept } from "../Bundle.js";
 import { Concept } from "../Concept.js";
@@ -11,6 +11,7 @@ import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import { INTEGRITY_KEY } from "../Integrity.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
+import { OkfVersion } from "../OkfVersion.js";
 import { Timestamp } from "../Timestamp.js";
 import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
@@ -72,6 +73,30 @@ export const configUnknownKey: LintRule = rule("config-unknown-key", (context, s
 		diagnostic("", "config-unknown-key", severity, `Unknown config key "${key}"`, undefined),
 	),
 );
+
+/**
+ * The config's `okf_version` only fills a root index that declares none; once the index declares a different
+ * version the config value is stale. Both sides compare through `OkfVersion` when they parse, as raw strings otherwise.
+ */
+export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", (context, severity) => {
+	const configured = context.config.okf_version;
+	const declared = OkfVersion.declared(context.bundle);
+	if (configured === undefined || Option.isNone(declared)) return [];
+	const same = Option.match(Option.all([OkfVersion.parse(configured), OkfVersion.parse(declared.value)]), {
+		onNone: () => configured === declared.value,
+		onSome: ([a, b]) => OkfVersion.compare(a, b) === 0,
+	});
+	if (same) return [];
+	return [
+		diagnostic(
+			"",
+			"config-okf-version-stale",
+			severity,
+			`okf_version in the config is "${configured}", but the bundle-root index.md declares "${declared.value}"; okfit reads the bundle as "${declared.value}" and uses the config value only for a root index that declares none. Set okf_version = "${declared.value}" in the config, or remove it`,
+			undefined,
+		),
+	];
+});
 
 export const unknownType: LintRule = perConcept("unknown-type", (concept, context) =>
 	Object.hasOwn(context.config.types ?? {}, concept.frontmatter.type)
@@ -218,6 +243,44 @@ export const generatedMissing: LintRule = perConcept("generated-missing", (conce
 				`Concept has no generated block; okfit sync will create it from actors.agent (${context.config.actors.agent}) once the body is committed, or set generated.by by hand`,
 			]
 		: [],
+);
+
+/**
+ * OKF 0.3 §10.3: an Attested Computation with neither a `computation` key nor an inline computation is not
+ * attestable. `computationBody` is already the bundle's declared reading (fenced block under 0.3, the depth-1
+ * section under 0.2), so a missing or blank body is the one condition. `runtime` is not required here:
+ * `computation-runtime-missing` reports that separately.
+ */
+export const computationMissing: LintRule = rule("computation-missing", (context, severity) =>
+	[...context.bundle.concepts.values()].flatMap((concept) => {
+		const attested = concept.frontmatter.attested;
+		if (attested === undefined || attested.computation !== undefined) return [];
+		const body = concept.computationBody;
+		if (Option.isSome(body) && body.value.trim() !== "") return [];
+		const heading = Option.orElse(concept.document.sectionByHeading("Computation", { depth: 1 }), () =>
+			concept.document.sectionByHeading("Computation"),
+		);
+		const range = Option.match(heading, {
+			onNone: () => frontmatterPathRange(concept.document, []),
+			onSome: ({ heading: node }) =>
+				DiagnosticRange.fromOffset(
+					concept.document.source,
+					node.position.start.offset,
+					node.position.end.offset - node.position.start.offset,
+				),
+		});
+		// Under the 0.2 reading only a depth-1 Computation section counts, so a deeper-only heading is a different defect.
+		const nestedOnly =
+			OkfVersion.legacyFallbacks(context.bundle) &&
+			Option.isSome(heading) &&
+			Option.isNone(concept.document.sectionByHeading("Computation", { depth: 1 }));
+		const message = nestedOnly
+			? "This Attested Computation has no computation: under OKF 0.2 the Computation section must be a top-level heading, and this one is not, so it is not attestable; make it a top-level heading, or declare okf_version 0.3 and put the computation in one fenced block"
+			: Option.isSome(heading)
+				? "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
+				: "This Attested Computation has no computation: it has no Computation section and no computation key (OKF 0.3 §10.3), so it is not attestable";
+		return [diagnostic(concept.path, "computation-missing", severity, message, range)];
+	}),
 );
 
 export const actorPrefixUnknown: LintRule = perConcept("actor-prefix-unknown", (concept) => {
@@ -521,6 +584,7 @@ export const missingIndex: LintRule = rule("missing-index", (context, severity) 
 /** Fixed rule order (task-group decision 9). */
 export const LINT_RULES: ReadonlyArray<LintRule> = [
 	configUnknownKey,
+	configOkfVersionStale,
 	unknownType,
 	requiredKeyMissing,
 	fieldValueUnknown,
@@ -529,6 +593,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	statusMissing,
 	nonConceptUnlisted,
 	generatedMissing,
+	computationMissing,
 	actorPrefixUnknown,
 	actorEmail,
 	verifiedActorUnknown,

@@ -14,7 +14,7 @@ import {
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
-import { Cause, Option, Result, Schema } from "effect";
+import { Cause, Option, Result, Schema, SchemaIssue } from "effect";
 import { renderFailure } from "../src/errors.js";
 import { detailsOf, renderDefect, renderTyped } from "./utils/failureDetails.js";
 
@@ -35,6 +35,18 @@ describe("renderFailure", () => {
 	it("renders ConfigMalformedError as one error line naming the path and the cause (K-46)", () => {
 		const error = new ConfigMalformedError({ path: "/abs/ci-config.toml", cause: new Error("toml parse failed") });
 		assert.deepStrictEqual(renderTyped(error), ["error: malformed config /abs/ci-config.toml: toml parse failed"]);
+	});
+
+	it("renders a ConfigMalformedError with a validation cause as one line naming the key", () => {
+		const issue = new SchemaIssue.Pointer(
+			["lint", "missing_index"],
+			new SchemaIssue.InvalidValue({ message: "bad level" }),
+		);
+		const cause = new ConfigValidationError({ path: Option.none(), issue });
+		const error = new ConfigMalformedError({ path: "/abs/okfit.toml", cause });
+		assert.deepStrictEqual(renderTyped(error), [
+			"error: malformed config /abs/okfit.toml: lint.missing_index: bad level",
+		]);
 	});
 
 	it("renders InitOverwriteError as the header, one indented path per conflict, and the footer, relativised to cwd", () => {

@@ -106,7 +106,10 @@ when the config sets `actors.agent`, a concept file with no `generated.by`
 in its frontmatter blocks on `Write` and warns on `Edit`, naming the exact
 `by:` value to add — `index.md` and `log.md` are exempt, and a repo that
 leaves `actors.agent` unset is never checked. A path outside the bundle
-root is never even passed to `okfit validate`. `--skip-provenance` skips
+root is never even passed to `okfit validate`. Paths are compared in
+physical form (`pwd -P` of the directory), so a symlinked path form from the
+host still reaches its checks, and `okfit validate` receives the physical
+path. `--skip-provenance` skips
 the `generated-at-drift` lint's git tier for this edit-time call — without
 it, every single `Write`/`Edit` would pay for a `repoRoot` + `show HEAD` +
 `log --follow` + N `show` subprocess burst per concept; CI and the MCP

@@ -114,3 +114,20 @@ export const ERROR_PROJECTS: Readonly<Record<ErrorCase, ProjectSeed>> = {
 		),
 	},
 };
+
+const subConcept = (title: string, body: string): string =>
+	`---\ntype: Metric\ntitle: ${title}\ndescription: ${title}.\nstatus: stable\n---\n\n# ${title}\n\n${body}\n`;
+
+/**
+ * Undeclared bundle whose root-only links sit outside concepts: `sub/index.md`, `sub/README.md` (a typeless file),
+ * `sub/log.md` and the concept `sub/b.md` each link `a.md`, which resolves only through the v0.2 root fallback.
+ */
+export const NON_CONCEPT_LINKS_PROJECT: ProjectSeed = {
+	".config/okfit.toml": CONFIG,
+	"okf/index.md": "# Root\n\n* [A](a.md)\n",
+	"okf/a.md": subConcept("A", "The a metric."),
+	"okf/sub/b.md": subConcept("B", "See [a](a.md)."),
+	"okf/sub/index.md": "# Sub\n\n* [A](a.md)\n",
+	"okf/sub/README.md": "# Notes\n\nSee [a](a.md).\n",
+	"okf/sub/log.md": "# Log\n\n## 2026-01-01\n\n* Linked [a](a.md).\n",
+};

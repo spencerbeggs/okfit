@@ -12,6 +12,8 @@ const platform = configPlatform({
 	[CONFIG_PATH]: specExampleToml,
 	"/repo/broken.toml": "[bundle\npath = 1\n",
 	"/repo/bad-duration.toml": '[lifecycle]\ndefault_stale_after = "soon"\n',
+	"/repo/literal-escape.toml": "[bundle]\nnon_concepts = ['\\[x']\n",
+	"/repo/basic-escape.toml": '[bundle]\nnon_concepts = ["\\\\[x"]\n',
 	"/repo/extra.toml": 'okf_version = "0.2"\n\n[mystery]\nlevel = 3\n',
 });
 
@@ -22,6 +24,13 @@ describe("OkfitConfig.read", () => {
 			const expected = Schema.decodeUnknownSync(OkfitConfig)(yield* Toml.parse(specExampleToml));
 			assert.deepStrictEqual(config, expected);
 			assert.isTrue(Duration.equals(config.lifecycle!.default_stale_after!, Duration.days(90)));
+		}).pipe(Effect.provide(platform)),
+	);
+	it.effect("reads the escape the unclosed-bracket message advises, in single and in double quotes", () =>
+		Effect.gen(function* () {
+			for (const path of ["/repo/literal-escape.toml", "/repo/basic-escape.toml"]) {
+				assert.deepStrictEqual(yield* Effect.map(OkfitConfig.read(path), (c) => c.bundle?.non_concepts), ["\\[x"]);
+			}
 		}).pipe(Effect.provide(platform)),
 	);
 	it.effect("keeps an unknown top-level table in extensions at warning severity", () =>

@@ -99,6 +99,8 @@ src/
     move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
     stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), humanMalformed, staleSummary
   internal/
+    usageEnvelope.ts              -- wantsJson (argv asks for --format json, before any --) and usageEnvelope (the
+                                      exit-64 JsonErrorEnvelope main.ts prints for a parse-time ShowHelp with errors)
     validate-usage.ts             -- ValidateUsageError (exit 64): a refused --target or --fix/--only/--dry-run combination
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)

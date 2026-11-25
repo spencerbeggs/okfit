@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T21:18:30Z
+  at: 2026-11-25T01:55:51Z
 tags:
   - architecture
 verified:
@@ -41,13 +41,15 @@ verified:
     at: 2026-11-24T14:56:24Z
   - by: human:spencer
     at: 2026-11-24T22:21:07Z
+  - by: human:spencer
+    at: 2026-11-25T02:05:49Z
 x-okfit-integrity:
   generated:
-    body: 630b20196c5c56fc
+    body: 242ae93f96296d3f
   verified:
     by: human:spencer
-    at: 2026-11-24T22:21:07Z
-    content: 82a6d69d5dba6f2a
+    at: 2026-11-25T02:05:49Z
+    content: 28acd6b83c11a5a2
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -121,11 +123,17 @@ a human run prints one extra stderr line, `OKF 0.3: <n> finding(s), <k>
 fixable with --fix`. `--fix` (requires `--target`) writes the two safe
 fixes: it prefixes `/` to a body link, image, definition or path field that
 resolves only from the bundle root, and it declares `okf_version: "0.3"` in
-the root index. The version fix is refused, with its reason, while a root-only
-reference remains, when `okf_version` cannot be edited in place, when the
-root index's opening fence is malformed, or when the root index frontmatter
-does not parse (malformed YAML, a duplicate key); the rest of the plan still
-applies. `--only okf-version` and
+the root index. The report and the fixes cover every Markdown file in the bundle
+that is not a concept (index files, `log.md`, typeless and frontmatter-less
+files); a root-only link in an index file or `log.md` is rooted like any other,
+and a held-back version fix leaves the root index's `okf_version` unwritten.
+The version fix is refused, with
+its reason, while a root-only reference remains, when an Attested Computation
+would lose its computation (a `warning` `computation-locator` finding), when a
+Markdown file could not be read to check its links, when `okf_version` cannot be
+edited in place, when the root index's opening fence is malformed, or when the
+root index frontmatter does not parse (malformed YAML, a duplicate key); the
+rest of the plan still applies. `--only okf-version` and
 `--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
 the positional targets narrow the files, and `--dry-run` (requires `--fix`)
 writes nothing. A fix re-records `x-okfit-integrity.generated.body` for a concept
@@ -517,7 +525,11 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 | `0` | Otherwise |
 
 A usage error (`64`) prints its help and parse errors on stderr and leaves
-stdout empty, so a hook that parses stdout as JSON never sees help text; an
+stdout empty, so a hook that parses stdout as JSON never sees help text;
+when the arguments hold `--format json` or `--format=json` before any `--`, a usage error the argument parser raises (an unknown
+flag or subcommand, a bad or missing flag value) also prints one error
+envelope on stdout (`exit_code` `64`, `error.tag` the first parse error's tag,
+the messages joined with a semicolon and a space), with help still on stderr; an
 explicit `--help` and a bare command group print help on stdout and exit `0`.
 
 Higher wins when several apply; warnings and info never change the exit
@@ -596,8 +608,9 @@ with `schema`, `okfit_version`, `engine_version`, `producer`,
 `engine_version`, `distribution`, `exit_code`, `error` — and nothing
 else on stdout. `exit_code` is `3` for most errors, or `64` when the
 underlying typed error is one of the usage-tier errors that carries its
-own `[Runtime.errorExitCode]` (`SyncStagedLogError`, `VerifySelectionError`)
-— it always matches the process's own exit code.
+own `[Runtime.errorExitCode]` (`SyncStagedLogError`, `VerifySelectionError`); a usage error the argument
+parser raises prints the same envelope with `exit_code` `64` and the parser's
+error tag — it always matches the process's own exit code.
 
 ## Message conventions
 

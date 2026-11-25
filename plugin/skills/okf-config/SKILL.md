@@ -41,14 +41,16 @@ validation on the file without any further setup.
 - `okf_version` -- a string with no default. When set, it is the version
   okfit writes into a bundle-root `index.md` that declares none (`okfit init`,
   `okfit sync`); it never overrides what a bundle declares, and the
-  bundle's own declaration decides how it is read.
+  bundle's own declaration decides how it is read. When the root index
+  declares a different version, the lint `config-okf-version-stale` reports
+  the config value as stale; okfit never edits the config file.
 - `[bundle]` -- `path` (default `"okf"`), `profile` (default
   `"software-project"`), and `non_concepts`, an array of globs naming the
   typeless or frontmatter-less `.md` files the bundle allows (OKF 0.3 §3.2
   lets such files exist; this is okfit's opinion). Core has no default; the
   software-project profile sets `**/README.md`, `**/AGENTS.md`,
   `**/CONTRIBUTING.md` and `**/SKILL.md`. A value in the config replaces
-  that list; `[]` allows none; an invalid glob fails config load. With no
+  that list; `[]` allows none; an invalid glob, or one with a `[` or `{` that never closes (to match the character write '\[' in single quotes or "\\[" in double quotes), fails config load. With no
   key at all the lint `non_concept_unlisted` is silent.
 - `[concepts]` -- `required` (array of frontmatter keys every concept must
   carry) and `tags.required` (array of tags every concept must carry).
@@ -66,7 +68,7 @@ validation on the file without any further setup.
   (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
   `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
-  snake_case keys, forty in all. The defaults, in `DEFAULT_LINT` order:
+  snake_case keys, forty-two in all. The defaults, in `DEFAULT_LINT` order:
 
   | Key | Default |
   | --- | --- |
@@ -87,6 +89,7 @@ validation on the file without any further setup.
   | `verified_actor_unknown` | `warn` |
   | `legacy_timestamp` | `info` |
   | `config_unknown_key` | `warn` |
+  | `config_okf_version_stale` | `warn` |
   | `stale` | `info` |
   | `walk_unreadable` | `warn` |
   | `generated_at_drift` | `warn` |
@@ -99,6 +102,7 @@ validation on the file without any further setup.
   | `superseded_by_orphan` | `warn` |
   | `superseded_by_unresolved` | `warn` |
   | `generated_missing` | `warn` |
+  | `computation_missing` | `warn` |
   | `publication_drift` | `warn` |
   | `publication_orphan` | `error` |
   | `surface_unmatched` | `warn` |

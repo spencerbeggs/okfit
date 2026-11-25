@@ -6,7 +6,7 @@
 		"okf_version": {
 			"type": "string",
 			"title": "OKF spec version",
-			"description": "The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+			"description": "The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read. When the root index.md declares a different version, the lint config-okf-version-stale reports this value as stale.",
 			"examples": [
 				"0.3"
 			]
@@ -36,7 +36,7 @@
 				"non_concepts": {
 					"type": "array",
 					"title": "Non-concept Markdown",
-					"description": "Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
+					"description": "Globs, relative to the bundle root, of .md files that may have no frontmatter or no type (OKF 0.3 §3.2 lets a bundle hold README.md, AGENTS.md, CONTRIBUTING.md and SKILL.md). A `[` or `{` that never closes is rejected; to match the character itself write '\\[' in single quotes or \"\\\\[\" in double quotes. When set, any other typeless .md is the lint non-concept-unlisted, and the okfit plugin's hook stops an agent writing one. Absent: no restriction.",
 					"examples": [
 						[
 							"**/README.md",
@@ -525,6 +525,28 @@
 						}
 					}
 				},
+				"config_okf_version_stale": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "config-okf-version-stale",
+					"description": "The config sets okf_version and the bundle-root index.md declares a different one; the index decides how the bundle reads, so the config value is stale. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
 				"stale": {
 					"type": "string",
 					"enum": [
@@ -843,6 +865,28 @@
 					],
 					"title": "generated-missing",
 					"description": "A concept has no generated block while actors.agent is configured, so okfit sync cannot stamp generated.at until the block exists (issue #73). Default \"warn\"; silent when actors.agent is unset.",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"computation_missing": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "computation-missing",
+					"description": "An Attested Computation has no computation: no computation key, and no fenced code block in its Computation section (OKF 0.3 §10.3), so it is not attestable. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

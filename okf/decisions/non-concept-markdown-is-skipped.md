@@ -13,15 +13,15 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T10:37:49Z
+  at: 2026-11-25T01:27:40Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: f1d50aed2c0afdd4
+    body: b0c1d062847e6afb
   verified:
     by: human:spencer
-    at: 2026-11-24T14:56:24Z
-    content: 4d6ee394b08a9bf4
+    at: 2026-11-25T02:05:49Z
+    content: 911983f133379980
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:48Z
@@ -29,6 +29,8 @@ verified:
     at: 2026-11-24T02:55:14Z
   - by: human:spencer
     at: 2026-11-24T14:56:24Z
+  - by: human:spencer
+    at: 2026-11-25T02:05:49Z
 ---
 
 # Markdown that is not a concept is skipped, not an error
@@ -71,7 +73,7 @@ stays free of any default:
 
 - `[bundle] non_concepts` is a list of globs, relative to the bundle root,
   of the `.md` files allowed to have no frontmatter or no `type`. It has no
-  core default. A glob that does not compile fails config decode. The
+  core default. A glob that does not compile, or whose `[` or `{` never closes, fails config decode. The
   software-project profile sets it to `**/README.md`, `**/AGENTS.md`,
   `**/CONTRIBUTING.md` and `**/SKILL.md`, the four names §3.2 lists.
 - The lint `non-concept-unlisted` (key `non_concept_unlisted`, default
@@ -110,7 +112,7 @@ a typeless file that is not one of the four listed names; a bundle that sets
 config has no key, which is `profile = "none"` with no `non_concepts` of its
 own; the software-project profile, the default, always supplies the four
 globs.
-`non_concept_unlisted` is a public config key, so the lint keys number forty.
+`non_concept_unlisted` is a public config key, so the lint keys number forty-two.
 
 `sync` never stamps or rewrites a concept file that is a link out of the
 bundle, because `Bundle.load` drops it, and an engine test pins that. The

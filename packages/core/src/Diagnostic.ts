@@ -37,6 +37,7 @@ export const LintCode = Schema.Literals([
 	"actor-prefix-unknown",
 	"legacy-timestamp",
 	"config-unknown-key",
+	"config-okf-version-stale",
 	"stale",
 	"walk-unreadable",
 	"generated-at-drift",
@@ -62,6 +63,7 @@ export const LintCode = Schema.Literals([
 	"type-missing",
 	"symlink-escape",
 	"non-concept-unlisted",
+	"computation-missing",
 ]);
 /** @public */
 export type LintCode = typeof LintCode.Type;

@@ -8,7 +8,9 @@ import { ActorPattern, BundleRootNotFoundError, OkfitConfig } from "@okfit/core"
 import { GitHistory, PathHistoryEntry, Profiles } from "@okfit/profiles";
 import { DateTime, Effect, Layer, Option, Schema } from "effect";
 import { Now, run } from "../../src/validate/run.js";
+import { V03_PROJECT } from "../fixtures/bundles.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
+import { ROOT, mountProject, recordCalls, sessionPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
 // K-44: no CLI-owned fixtures. Profiles' clean bundle is read IN PLACE, by
@@ -492,5 +494,29 @@ describe("run — verified-drift lint (integrity)", () => {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
 		}).pipe(Effect.provide(nodePlatform)),
+	);
+
+	it.effect("validate without target does not read the non-concept sources", () =>
+		Effect.gen(function* () {
+			const READMES = "/repo/okf/README.md";
+			const reads = (target: string | undefined) => {
+				const calls: Array<string> = [];
+				return run({
+					root: ROOT,
+					projectRoot: "/repo",
+					config: OkfitConfig.DEFAULTS,
+					profile: Option.none(),
+					now,
+					skipProvenance: true,
+					...(target === undefined ? {} : { target }),
+				}).pipe(
+					Effect.provide(sessionPlatform(mountProject(V03_PROJECT), recordCalls(calls))),
+					Effect.map(() => calls.filter((call) => call === `readFileString ${READMES}`).length),
+				);
+			};
+			// The loader reads the README once; --target reads it a second time for its links (positive control).
+			assert.strictEqual(yield* reads(undefined), 1);
+			assert.strictEqual(yield* reads("0.3"), 2);
+		}),
 	);
 });

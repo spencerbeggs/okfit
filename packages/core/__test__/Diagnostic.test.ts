@@ -66,6 +66,8 @@ describe("Diagnostic", () => {
 				"type-missing",
 				"symlink-escape",
 				"non-concept-unlisted",
+				"computation-missing",
+				"config-okf-version-stale",
 			];
 			assert.deepStrictEqual([...codes].sort(), [...LintCode.literals].sort());
 			for (const code of codes) {

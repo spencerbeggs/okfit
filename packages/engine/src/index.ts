@@ -52,6 +52,8 @@ export type { Reference, ReferenceSource, UnlocatableReference } from "./move/re
 export { referencesOf, rewriteReference } from "./move/references.js";
 export type { MovePlan, PlanError, PlanMoveOptions, RunMoveOptions } from "./move/run.js";
 export { planMove, runMove } from "./move/run.js";
+export type { MarkdownSources } from "./move/sources.js";
+export { readMarkdownSources } from "./move/sources.js";
 export type { DocumentInput } from "./overlay/documents.js";
 export { provideDocuments, resolveDocumentPath } from "./overlay/documents.js";
 export type { OverlayDocument, OverlayDocumentsShape } from "./overlay/layer.js";
