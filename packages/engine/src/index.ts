@@ -131,6 +131,7 @@ export type {
 } from "./session/BundleSession.js";
 export { BundleSession } from "./session/BundleSession.js";
 export { conceptFor } from "./session/concept.js";
+export type { DiagnosticsByFile } from "./session/diff.js";
 export { withFallbackRange } from "./session/range.js";
 export type { StaleRunOptions, StaleRunResult } from "./stale/run.js";
 export { runStale } from "./stale/run.js";
