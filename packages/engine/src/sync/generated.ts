@@ -269,22 +269,24 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const rawKeys = concept.frontmatter.raw;
 		const keyCandidate = hasLegacyKeyNames(concept, renames);
 		// #471: a stamp later than now behind a matching digest is not authoritative; one at or before now never is touched.
-		const overdue =
+		const overdueAt =
 			matches &&
 			options.now !== undefined &&
 			generated?.at !== undefined &&
-			generatedAtIsFuture(generated.at, options.now);
+			generatedAtIsFuture(generated.at, options.now)
+				? generated.at
+				: undefined;
 		// R2: re-stamping lowers `generated.at`; it must not make a verification count that did not before.
 		const reviving =
-			overdue && nowStamp !== undefined && generated?.at !== undefined
-				? earliestVerificationBetween(concept, nowStamp, generated.at)
+			overdueAt !== undefined && nowStamp !== undefined
+				? earliestVerificationBetween(concept, nowStamp, overdueAt)
 				: undefined;
-		const future = overdue && reviving === undefined;
-		if (reviving !== undefined && generated?.at !== undefined) {
+		const future = overdueAt !== undefined && reviving === undefined;
+		if (overdueAt !== undefined && reviving !== undefined) {
 			skipped.push({
 				id,
 				reason: "verified-after-now",
-				generatedAt: encodeAt(generated.at),
+				generatedAt: encodeAt(overdueAt),
 				verifiedAt: encodeAt(reviving),
 			});
 		}
@@ -354,6 +356,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
 		let encodedAt: string | undefined;
+		// `future` implies `now` was given; the `nowStamp` test only narrows its type.
 		if (future && nowStamp !== undefined) {
 			encodedAt = encodeAt(nowStamp);
 		} else if (!matches) {

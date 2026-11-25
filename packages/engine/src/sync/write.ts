@@ -1,6 +1,7 @@
 import { AtomicFile } from "@effected/files";
 import type { FileSystem } from "effect";
 import { Effect } from "effect";
+import { stripBom } from "../verify/locate.js";
 
 /**
  * S-33: the one atomic write every sync mode shares, over the kit's
@@ -25,6 +26,19 @@ export const writeAtomic = Effect.fn("okfit/sync/writeAtomic")(function* (target
  */
 export const readSourceKeepingBom = (fs: FileSystem.FileSystem, target: string) =>
 	fs.readFile(target).pipe(Effect.map((bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes)));
+
+/**
+ * {@link readSourceKeepingBom} for a file that may not exist yet: `text` is the content without its leading BOM
+ * (`undefined` when the file is absent) and `bom` the BOM that was stripped (`""` when none), so a writer can compare on
+ * `text` and write `bom + contents`.
+ *
+ * @internal
+ */
+export const readOptionalSplittingBom = (fs: FileSystem.FileSystem, target: string) =>
+	readSourceKeepingBom(fs, target).pipe(
+		Effect.map((raw): { readonly text: string | undefined; readonly bom: string } => stripBom(raw)),
+		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed({ text: undefined, bom: "" })),
+	);
 
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is

@@ -1,10 +1,9 @@
 import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
 import { DateTime, Effect, FileSystem, Path } from "effect";
-import { stripBom } from "../verify/locate.js";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
-import { readSourceKeepingBom, writeAtomic } from "./write.js";
+import { readOptionalSplittingBom, writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -216,11 +215,7 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 
 	// Step 1: missing file -> undefined source (empty document, design §5 step 1).
 	// The BOM is kept (#492, D8): merge and compare on the stripped text, write `bom + merged`.
-	const raw = yield* readSourceKeepingBom(fs, logPath).pipe(
-		Effect.map((text) => text as string | undefined),
-		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-	);
-	const { text: source, bom } = raw === undefined ? { text: undefined, bom: "" } : stripBom(raw);
+	const { text: source, bom } = yield* readOptionalSplittingBom(fs, logPath);
 
 	// Step 2.
 	const existingDoc = bundle.logs.get("");
