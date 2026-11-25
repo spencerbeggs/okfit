@@ -16,7 +16,13 @@ import {
 import { detectNewline, locateGenerated, locateGeneratedBlock, stripBom } from "../verify/locate.js";
 import { mergeSameOffset, spliceGenerated, spliceGeneratedBlock } from "../verify/splice.js";
 import type { KeyRenamePlan, KeyRenames } from "./legacyKeys.js";
-import { isLegacyBlock, legacyIntegrity, planKeyRenames, recordedBodyForSync, rendersKeyFor } from "./legacyKeys.js";
+import {
+	hasLegacyKeyNames,
+	legacyIntegrity,
+	planKeyRenames,
+	recordedBodyForSync,
+	rendersKeyFor,
+} from "./legacyKeys.js";
 import type { PendingWrite } from "./write.js";
 import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
@@ -223,12 +229,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const legacyRenders = legacyRendersDigests(concept, rendersKey);
 		const legacyBlock = legacyIntegrity(concept, renames);
 		const rawKeys = concept.frontmatter.raw;
-		const keyCandidate =
-			(renames.integrity !== undefined &&
-				Object.hasOwn(rawKeys, renames.integrity.from) &&
-				// A foreign `integrity` value is not a candidate: the planner would skip it every run.
-				(rawKeys[renames.integrity.from] === null || isLegacyBlock(rawKeys[renames.integrity.from]))) ||
-			(renames.fields.get(concept.frontmatter.type) ?? []).some((rename) => Object.hasOwn(rawKeys, rename.from));
+		const keyCandidate = hasLegacyKeyNames(concept, renames);
 		if (matches && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
 			unchanged.push(id);
 			continue;

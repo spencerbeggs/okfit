@@ -189,6 +189,21 @@ describe("containment edges (fix round 1)", () => {
 		}),
 	);
 
+	it.effect("a dangling link whose target is outside the project stays source-resource-missing (#462)", () =>
+		Effect.gen(function* () {
+			const dangling = yield* widgetCodes("../../dangle", {
+				"/repo/dangle": MemoryFileSystem.symlink("/elsewhere/nope"),
+			});
+			assert.deepStrictEqual(dangling.codes, ["source-resource-missing"]);
+			// control: once the target exists, the same link leaves the project
+			const resolved = yield* widgetCodes("../../dangle", {
+				"/repo/dangle": MemoryFileSystem.symlink("/elsewhere/nope"),
+				"/elsewhere/nope": "x",
+			});
+			assert.deepStrictEqual(resolved.codes, ["resource-outside-project"]);
+		}),
+	);
+
 	it.effect("a project root reached through a symlink still classifies what is inside as inside", () =>
 		Effect.gen(function* () {
 			const seed = (resource: string) => ({

@@ -250,6 +250,12 @@ export const validateCommand = Command.make(
 						refused,
 						...(target === undefined ? {} : { target }),
 					});
+					// #493: a hint, once per run, on stderr; not a finding, so it never changes the exit code.
+					if (result.legacyKeys.length > 0) {
+						yield* Console.error(
+							`hint: ${result.legacyKeys.length} concept(s) still use okfit's old frontmatter key names; run okfit sync to rename them`,
+						);
+					}
 				}
 
 				yield* CliExit.set(code);

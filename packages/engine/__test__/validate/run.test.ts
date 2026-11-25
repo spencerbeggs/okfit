@@ -520,3 +520,30 @@ describe("run — verified-drift lint (integrity)", () => {
 		}),
 	);
 });
+
+describe("run — legacy key names (#493)", () => {
+	it.effect("run lists the concepts that still use old key names (#493)", () =>
+		Effect.gen(function* () {
+			const old = (text: string | undefined): string =>
+				(text ?? "").replace("\n---\n\n", "\nintegrity:\n  generated:\n    body: 47fef58df84c6eb2\n---\n\n");
+			const seed = {
+				...V03_PROJECT,
+				"okf/metrics/revenue.md": old(V03_PROJECT["okf/metrics/revenue.md"]),
+				"okf/metrics/margin.md": old(V03_PROJECT["okf/metrics/margin.md"]),
+			};
+			const options = {
+				root: ROOT,
+				projectRoot: "/repo",
+				config: OkfitConfig.DEFAULTS,
+				profile: Option.none(),
+				now,
+				skipProvenance: true,
+			};
+			const result = yield* run(options).pipe(Effect.provide(sessionPlatform(mountProject(seed))));
+			assert.deepStrictEqual(result.legacyKeys, ["metrics/margin", "metrics/revenue"]);
+			// control: the migrated seed lists none
+			const clean = yield* run(options).pipe(Effect.provide(sessionPlatform(mountProject(V03_PROJECT))));
+			assert.deepStrictEqual(clean.legacyKeys, []);
+		}),
+	);
+});

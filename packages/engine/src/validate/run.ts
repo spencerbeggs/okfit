@@ -16,6 +16,7 @@ import type { Digest } from "effect/crypto";
 import type { MigrationFinding } from "../migrate/findings.js";
 import { migrationFindings } from "../migrate/findings.js";
 import { readMarkdownSources } from "../move/sources.js";
+import { hasLegacyKeyNames, keyRenamesFor } from "../sync/legacyKeys.js";
 import { lintResources } from "./resources.js";
 import { lintSurfaces } from "./surfaces.js";
 import { lintUntrackedResources } from "./untracked.js";
@@ -92,6 +93,8 @@ export interface RunResult {
 	readonly signals: ReadonlyMap<string, ConceptSignal>;
 	/** What reads differently under `RunOptions.target`; `[]` without a target. Never counted in an exit code (R50). */
 	readonly migration: ReadonlyArray<MigrationFinding>;
+	/** Sorted ids of the concepts that still use okfit's old frontmatter key names (`okfit sync` renames them). */
+	readonly legacyKeys: ReadonlyArray<string>;
 }
 
 /**
@@ -166,8 +169,14 @@ export const run = (
 			: [];
 		const surfaces = yield* lintSurfaces(bundle, options.config, options.projectRoot);
 		const others = options.target === undefined ? [] : (yield* readMarkdownSources(bundle, { reserved: true })).sources;
+		const renames = keyRenamesFor(options.config);
+		const legacyKeys = [...bundle.concepts]
+			.filter(([, concept]) => hasLegacyKeyNames(concept, renames))
+			.map(([id]) => id as string)
+			.sort();
 		return {
 			bundle,
+			legacyKeys,
 			report: {
 				...report,
 				lint: [...report.lint, ...provenance, ...drift, ...resources, ...untracked, ...publications, ...surfaces],

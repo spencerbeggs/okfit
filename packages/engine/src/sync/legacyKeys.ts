@@ -77,6 +77,23 @@ export const keyRenamesFor = (
 	return { integrity, fields };
 };
 
+/**
+ * Whether `concept` still carries okfit's old key names: the legacy integrity key holding `null` or a legacy
+ * block, or a profile field rename's `from` key present for the concept's type. A foreign `integrity` value
+ * is not a candidate (the planner would skip it every run).
+ *
+ * @internal
+ */
+export const hasLegacyKeyNames = (concept: LoadedConcept, renames: KeyRenames): boolean => {
+	const raw = concept.frontmatter.raw;
+	return (
+		(renames.integrity !== undefined &&
+			Object.hasOwn(raw, renames.integrity.from) &&
+			(raw[renames.integrity.from] === null || isLegacyBlock(raw[renames.integrity.from]))) ||
+		(renames.fields.get(concept.frontmatter.type) ?? []).some((rename) => Object.hasOwn(raw, rename.from))
+	);
+};
+
 /** The spelling of the Publication `renders` field before it moved under the `x-okfit-` namespace. @internal */
 export const LEGACY_RENDERS_KEY = "renders";
 

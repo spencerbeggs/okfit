@@ -103,6 +103,44 @@ describe("okfit validate: the declared OKF version", () => {
 	);
 });
 
+describe("okfit validate: the old key names hint (#493)", () => {
+	const HINT = "hint: 2 concept(s) still use okfit's old frontmatter key names; run okfit sync to rename them";
+	/** Gives a concept okfit's old `integrity:` block, written after its other keys. */
+	const unmigrated = (text: string | undefined): string =>
+		(text ?? "").replace("\n---\n\n", "\nintegrity:\n  generated:\n    body: 47fef58df84c6eb2\n---\n\n");
+	const OLD: typeof V03_PROJECT = {
+		...V03_PROJECT,
+		"okf/metrics/revenue.md": unmigrated(V03_PROJECT["okf/metrics/revenue.md"]),
+		"okf/metrics/margin.md": unmigrated(V03_PROJECT["okf/metrics/margin.md"]),
+	};
+	const runIn = (seed: typeof V03_PROJECT, args: ReadonlyArray<string>) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, seed));
+			return yield* runOkfit(["validate", ...args], sandbox);
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("validate prints the sync hint once for an unmigrated bundle (#493)", () =>
+		Effect.gen(function* () {
+			const human = yield* runIn(OLD, []);
+			assert.strictEqual(human.stderr.split(HINT).length - 1, 1, human.stderr);
+			const json = yield* runIn(OLD, ["--format", "json"]);
+			const envelope = JSON.parse(json.stdout) as { readonly exit_code: number };
+			assert.strictEqual(human.exitCode, envelope.exit_code);
+		}),
+	);
+
+	it.effect("no hint on a migrated bundle, and none under --format json", () =>
+		Effect.gen(function* () {
+			const migrated = yield* runIn(V03_PROJECT, []);
+			assert.notInclude(migrated.stderr, "hint:");
+			const json = yield* runIn(OLD, ["--format", "json"]);
+			assert.notInclude(json.stdout, "hint:");
+			assert.notInclude(json.stderr, "hint:");
+		}),
+	);
+});
+
 describe("okfit validate: profile-tier error", () => {
 	it.effect("a missing Project concept is a profile error: exit 1, exact human line", () =>
 		Effect.gen(function* () {
