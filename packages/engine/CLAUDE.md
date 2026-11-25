@@ -99,7 +99,8 @@ src/
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
                                   concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
-                                  (`future` set when it is later than `now`) and writes nothing; a batch, an id list and both
+                                  (`kind` is `future` beyond the 5-minute tolerance, `near-future` within it, absent
+                                  when `now` is unknown or `at` was backdated) and writes nothing; a batch, an id list and both
                                   pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
                                   OKF 0.3 5.3, R33)
   sync/
@@ -107,8 +108,9 @@ src/
                                   min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human
                                   entry and covers the current content, unless binding.at is earlier than
                                   the concept's existing generated.at (OKF 0.3 5.2, R30); with `now` set (#471) a
-                                  generated.at later than now is re-stamped to now even behind a matching digest,
-                                  and no stamp it writes is later than now
+                                  generated.at more than 5 minutes later than now is re-stamped to now even behind a
+                                  matching digest, and no stamp it writes is later than now, except that sync skips
+                                  (`verified-after-now`) a re-stamp or clamp that would make a verification count
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog

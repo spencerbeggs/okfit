@@ -47,12 +47,12 @@ disappears first.
 - A folder whose config fails to load is logged once and retried on the
   next `didOpen` or `didSave` under it, so fixing the config and saving
   a document recovers it.
-- Exactly one `textDocument/publishDiagnostics` per file whose diagnostic
-  set changed: an unchanged file is not republished, an emptied file
+- Exactly one `textDocument/publishDiagnostics` per document URI whose
+  diagnostic set changed: an unchanged file is not republished, an emptied file
   publishes `[]`, and a file not open in the editor still publishes when
   its diagnostics change.
 - A bundle-level diagnostic publishes against the bundle root's
-  `index.md`.
+  `index.md`, together with that file's own diagnostics in one notification.
 - A non-`file:` URI, and any document outside every discovered bundle
   root, is ignored.
 - Diagnostics for several files can arrive together in one client

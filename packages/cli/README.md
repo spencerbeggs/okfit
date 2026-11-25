@@ -287,7 +287,7 @@ identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 run appends, including a repeat by the same person. `--at <iso>` records a
 different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
-`generated.at` in the future also refuses (run `okfit sync`, which re-stamps it); an instant
+`generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
 (`skipped <id>: generated.at is later than <at>, ...`) and verify the rest; both pickers leave it out and print one
 `left out ...` line naming it. A `generated.at` later than now by less than 5 minutes is refused with a message to check
