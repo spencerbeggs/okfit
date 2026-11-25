@@ -100,7 +100,7 @@ src/
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
                                   concept's `generated.at` (`--at`, or a `generated.at` in the future) fails `VerifyNotCurrentError`
                                   (`kind` is `future` beyond the 5-minute tolerance, `near-future` within it, absent
-                                  when `now` is unknown or `at` was backdated) and writes nothing; a batch, an id list and both
+                                  when `now` is unknown or `generated.at` is not later than `now`, so only the verification time is early) and writes nothing; a batch, an id list and both
                                   pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
                                   OKF 0.3 5.3, R33)
   sync/
@@ -109,8 +109,9 @@ src/
                                   entry and covers the current content, unless binding.at is earlier than
                                   the concept's existing generated.at (OKF 0.3 5.2, R30); with `now` set (#471) a
                                   generated.at more than 5 minutes later than now is re-stamped to now even behind a
-                                  matching digest, and no stamp it writes is later than now, except that sync skips
-                                  (`verified-after-now`) a re-stamp or clamp that would make a verification count
+                                  matching digest, and a drifted concept's stamp is clamped to now; sync skips the re-stamp
+                                  (`verified-after-now`) when it would make a verification count, and leaves the
+                                  clamp off (the derived stamp stands, the lint reports it) when the clamp would
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
