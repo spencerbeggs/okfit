@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:22:41Z
+  at: 2026-11-25T15:27:48Z
 x-okfit-integrity:
   generated:
-    body: d125549de8d16a22
+    body: aa5cf87e9ffcf924
 ---
 
 # LSP
@@ -74,6 +74,14 @@ draft, deprecated, of unknown status, nor already verified by that actor,
 and `now` is not before its `generated.at`: an action that would write a
 verification before the last change is omitted (OKF v0.3 §5.3;
 `EditTarget.generated`, `EditFailure` `NotCurrent`, whose message says to run `okfit sync` when the stamp is more than five minutes ahead and to check the clock when it is closer).
+On a draft the
+same kind instead offers `Mark verified by <actor> and set status: stable`
+(#215), one edit equal to what `okfit verify --stable` writes, when that
+actor has not yet verified it; the actor is cached per session
+handle. On a `verified-drift` diagnostic it offers a preferred `Re-verify as
+<actor>` quick fix. The already-verified check uses the profiles package's
+`Trust.evaluate` (given the concept's `generated`, so a binding older than the
+last change is not already verified), and the Re-verify quick fix needs the `verified-drift` diagnostic, so with that lint off only `Mark verified` is offered.
 A client that sent `textDocument.codeAction.disabledSupport: true` in
 `initialize` gets, in place of the omitted action, a disabled one for exactly
 two failures: an unknown status, and a `generated.at` the entry would not
@@ -83,14 +91,7 @@ count against (`NotCurrent`). It has the same title and kind, no `edit` and no
 stable` action). Every other failure still omits the action, and a client
 without `disabledSupport` gets the set above unchanged. The server only sends
 the disabled action; what a client then shows for it is the client's choice
-(`CodeActionOptions`, `serve` reads the capability once in `onInitialize`). On a draft the
-same kind instead offers `Mark verified by <actor> and set status: stable`
-(#215), one edit equal to what `okfit verify --stable` writes, when that
-actor has not yet verified it; the actor is cached per session
-handle. On a `verified-drift` diagnostic it offers a preferred `Re-verify as
-<actor>` quick fix. The already-verified check uses the profiles package's
-`Trust.evaluate` (given the concept's `generated`, so a binding older than the
-last change is not already verified), and the Re-verify quick fix needs the `verified-drift` diagnostic, so with that lint off only `Mark verified` is offered. The buffer's `verified` is decoded through core's
+(`CodeActionOptions`; `serve` reads the capability once, in `onInitialize`). The buffer's `verified` is decoded through core's
 `Verification.List`, which accepts a bare mapping. `registerCommands` (`src/features/commands.ts`) answers
 `workspace/executeCommand` for the four `OKFIT_COMMANDS`:
 `okfit.lsp.setStatus [uri, status]`, `okfit.lsp.markVerified [uri]` and

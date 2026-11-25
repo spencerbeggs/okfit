@@ -181,7 +181,8 @@ export const registerCodeActions = (
 				const found = yield* editTarget(registry, documents, path.value);
 				if (Option.isNone(found)) return [];
 				const target = found.value;
-				// The derived status: an unknown one offers every Set status (choosing one fixes it) and no verify action.
+				// The derived status: an unknown one offers every Set status (choosing one fixes it) and no enabled verify action
+				// (only a disabled one, when the client supports it).
 				const derived = derivedStatusOf(target.status);
 				const only = params.context.only;
 				const inFrontmatter = intersects(params.range, target.frontmatter);

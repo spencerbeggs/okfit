@@ -450,11 +450,12 @@ The action set, in order:
   the actor resolves and `verifiedTextEdits` succeeds (never on a draft or
   deprecated concept, nor one whose `generated.at` is after now).
 - **Disabled verify action** (kind `okfit.verify`, no `edit`, no `command`):
-  only when the client sent `textDocument.codeAction.disabledSupport: true`,
-  `serve` reads it once in `onInitialize` into a box and passes
-  `{ disabledSupport: () => box.value }` as `registerCodeActions`'s
-  `CodeActionOptions` (`@public`, barrel). With the actor resolved and
-  the `okfit.verify` kind offered, an unknown status (`UnknownStatusCannotBeVerified`)
+  only when the client sent `textDocument.codeAction.disabledSupport: true`.
+  `serve` reads it once in `onInitialize` into `capabilityBox` and passes
+  `{ disabledSupport: () => capabilityBox.disabledSupport }` as
+  `registerCodeActions`'s `CodeActionOptions` (`@public`, barrel). With the
+  actor resolved, the `okfit.verify` kind offered and no Re-verify quick fix
+  offered, an unknown status (`UnknownStatusCannotBeVerified`)
   or a `NotCurrent` failure from `verifiedTextEdits` (stable) or
   `verifiedStableTextEdits` (draft, the combined title) returns the action
   with the same title and `disabled.reason` = `describeFailure(failure)`.
