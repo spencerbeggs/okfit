@@ -1278,3 +1278,45 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
+
+describe("okfit validate: a parse-time usage error under --format json (#485)", () => {
+	const usage = (args: ReadonlyArray<string>) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			return yield* runOkfit(args, sandbox);
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("--only bogus --format json prints one error envelope on stdout and exits 64", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--only", "bogus", "--format", "json"]);
+			assert.strictEqual(result.exitCode, 64);
+			assert.strictEqual(result.stdout.trimEnd().split("\n").length, 1);
+			const envelope = JSON.parse(result.stdout) as {
+				readonly exit_code: number;
+				readonly error: { readonly tag: string; readonly message: string };
+			};
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "InvalidValue");
+			assert.include(envelope.error.message, "--only");
+			assert.include(result.stderr, "Invalid value for flag --only");
+		}),
+	);
+
+	it.effect("--only bogus without --format json leaves stdout empty", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--only", "bogus"]);
+			assert.strictEqual(result.exitCode, 64);
+			assert.strictEqual(result.stdout, "");
+			assert.include(result.stderr, "Invalid value for flag --only");
+		}),
+	);
+
+	it.effect("an unknown flag under --format json gets the envelope too", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--bogus", "--format", "json"]);
+			assert.strictEqual(result.exitCode, 64);
+			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly tag: string } };
+			assert.strictEqual(envelope.error.tag, "UnrecognizedOption");
+		}),
+	);
+});

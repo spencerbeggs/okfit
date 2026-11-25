@@ -5,12 +5,14 @@
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import { CliAudience, CliRuntime } from "@effected/cli-kit";
+import { CliAudience, CliFormat, CliRuntime } from "@effected/cli-kit";
 import type { Distribution } from "@effected/kit";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
+import { CliError } from "effect/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
+import { usageEnvelope, wantsJson } from "./internal/usageEnvelope.js";
 import { versionFormatter } from "./internal/versionFormatter.js";
 import { CLI_VERSION } from "./version.js";
 
@@ -60,8 +62,24 @@ export const main = (options: MainOptions = {}): void => {
 		return yield* CliAudience.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
 	});
 
+	// #485: a parse-time usage error (a `ShowHelp` carrying `errors`) is raised by
+	// the argument parser before any handler runs, so no command prints its JSON
+	// error envelope. When the raw arguments ask for JSON, print one here, then
+	// re-fail unchanged: the kit still prints help on stderr and exits 64. A bare
+	// `--help` (`errors` empty) prints nothing extra.
+	const argv = process.argv.slice(2);
+	const withUsageEnvelope = wantsJson(argv)
+		? program.pipe(
+				Effect.tapError((error) =>
+					CliError.isCliError(error) && error._tag === "ShowHelp" && error.errors.length > 0
+						? CliFormat.printJson(usageEnvelope(error.errors, CLI_VERSION, options.distribution), { indent: 0 })
+						: Effect.void,
+				),
+			)
+		: program;
+
 	NodeRuntime.runMain(
-		CliRuntime.main(program, {
+		CliRuntime.main(withUsageEnvelope, {
 			// Provided INSIDE failure reporting, so a failure while building
 			// `OkfitPlatform` (an `XdgEnvError` from an unset `HOME`, K-13) is
 			// itself rendered and mapped to `exitCode: 3`, rather than escaping to

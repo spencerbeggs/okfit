@@ -456,7 +456,7 @@ how it is read, and `--format json` reports it (`null` when the bundle declares 
 | Code | Meaning |
 | --- | --- |
 | `130` | Interrupted (Ctrl-C) |
-| `64` | Usage error: an unknown flag or subcommand |
+| `64` | Usage error: an unknown flag, subcommand, or flag value |
 | `3` | Infrastructure failure: bad `--config` path, malformed or unreadable config, unset `HOME`, unreadable bundle root, or `init`'s overwrite refusal |
 | `2` | One or more conformance diagnostics of severity error |
 | `1` | One or more lint or profile diagnostics of severity error |
@@ -464,6 +464,14 @@ how it is read, and `--format json` reports it (`null` when the bundle declares 
 
 Higher wins when several apply. Warnings and info never change the exit
 code.
+
+A usage error the argument parser rejects (`okfit validate --only bogus`) prints
+help and the error on stderr and leaves stdout empty. When the arguments ask for
+`--format json` (a `--format json` pair or a `--format=json` token), stdout
+carries one error envelope instead: `exit_code` `64`, `error.tag` the first
+parse error's tag (`InvalidValue`, `UnrecognizedOption`, ...), and `error.message`
+the errors' messages joined with `;`. An explicit `--help` prints help on
+stdout and no envelope.
 
 `okfit context` never produces `1` or `2`: it prints orientation data and
 never runs conformance or lint checks.

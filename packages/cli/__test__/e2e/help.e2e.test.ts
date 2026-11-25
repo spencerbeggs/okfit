@@ -88,3 +88,12 @@ describe("okfit sync --help", () => {
 		}),
 	);
 });
+
+describe("okfit --help --format json", () => {
+	it.effect("prints help on stdout and no envelope", () =>
+		withSandbox(["validate", "--help", "--format", "json"], (stdout) => {
+			assert.isTrue(stdout.includes("--format"));
+			assert.isFalse(stdout.includes('"exit_code"'));
+		}),
+	);
+});
