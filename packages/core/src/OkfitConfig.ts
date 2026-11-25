@@ -936,10 +936,10 @@ const DEFAULTS: OkfitConfig = deepFreeze({
 });
 
 // One-shot read for tooling with a path in hand (D-29). ConfigFile.read needs
-// FileSystem only (ConfigFile.ts:653-656); no parseOptions, the wire codec
-// already preserves unknown keys (contract deviation 4).
+// FileSystem only (ConfigFile.ts:653-656); the wire codec already preserves
+// unknown keys (contract deviation 4). errors: "all" reports every bad key (#501).
 const read = (path: string): Effect.Effect<OkfitConfig, ConfigReadError, FileSystem.FileSystem> =>
-	ConfigFile.read(path, { schema: OkfitConfigWire, codec: TomlCodec }).pipe(
+	ConfigFile.read(path, { schema: OkfitConfigWire, codec: TomlCodec, parseOptions: { errors: "all" } }).pipe(
 		Effect.withSpan("OkfitConfig.read", { attributes: { path } }),
 	);
 

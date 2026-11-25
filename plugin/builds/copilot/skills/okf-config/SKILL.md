@@ -21,6 +21,9 @@ merges across levels.
 `--config <file>` bypasses all of it: no upward walk, no XDG probe happens
 once it is given.
 
+A malformed config fails with one error that lists every bad key at once, so
+fix them all in one pass; a TOML syntax error still reports the parse failure.
+
 The upward walk never stops at `$HOME`, so `~/.config/okfit.toml` and
 `~/okfit.toml` are project-tier files that shadow the XDG tier and anchor
 the project root at `$HOME` -- personal defaults belong at

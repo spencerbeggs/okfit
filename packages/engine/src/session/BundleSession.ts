@@ -32,6 +32,8 @@ export interface BundleSessionOptions {
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly profile: Option.Option<Profile>;
+	/** The config file the project resolved, named in messages about it; omit when none was found. */
+	readonly configPath?: string;
 }
 
 /**
@@ -146,6 +148,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					projectRoot,
 					config: options.config,
 					profile: options.profile,
+					...(options.configPath === undefined ? {} : { configPath: options.configPath }),
 					now: revalidate.now,
 					skipProvenance: revalidate.tier === "edit",
 					skipUntracked: true,

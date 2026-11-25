@@ -393,6 +393,48 @@ describe("provideConfig", () => {
 			}).pipe(Effect.scoped),
 	);
 
+	it.effect("a config with three invalid values reports all three keys (#501)", () =>
+		Effect.gen(function* () {
+			const dir = yield* acquireTempDir();
+			const path = join(dir, "bad.toml");
+			yield* Effect.promise(() =>
+				writeFile(
+					path,
+					'[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n',
+					"utf8",
+				),
+			);
+			const program = Effect.gen(function* () {
+				const configFile = yield* OkfitConfigFile;
+				return yield* configFile.discover;
+			});
+			const result = yield* program
+				.pipe(provideConfig({ explicitConfigPath: Option.some(path), discoveryCwd: dir }))
+				.pipe(Effect.provide(testEnv), Effect.flip);
+			assert.isTrue(result instanceof ConfigMalformedError);
+			const message = (result as ConfigMalformedError).message;
+			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
+				assert.include(message, key);
+			}
+		}).pipe(Effect.scoped),
+	);
+
+	it.effect("a TOML syntax error reads as before", () =>
+		Effect.gen(function* () {
+			const dir = yield* acquireTempDir();
+			const path = join(dir, "syntax.toml");
+			yield* Effect.promise(() => writeFile(path, "[bundle\npath = 'okf'\n", "utf8"));
+			const program = Effect.gen(function* () {
+				const configFile = yield* OkfitConfigFile;
+				return yield* configFile.discover;
+			});
+			const result = yield* program
+				.pipe(provideConfig({ explicitConfigPath: Option.some(path), discoveryCwd: dir }))
+				.pipe(Effect.provide(testEnv), Effect.flip);
+			assert.strictEqual((result as ConfigMalformedError).message, `malformed config ${path}: toml parse failed`);
+		}).pipe(Effect.scoped),
+	);
+
 	it.effect("provides OkfitConfigFile and succeeds when --config exists", () =>
 		Effect.gen(function* () {
 			const dir = yield* acquireTempDir();

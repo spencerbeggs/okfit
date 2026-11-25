@@ -23,6 +23,8 @@ export interface LintContext {
 	readonly config: OkfitConfig;
 	readonly graph: LinkGraph;
 	readonly now: DateTime.Utc | undefined;
+	/** A label for messages that name the config file; `undefined` when no file is known. */
+	readonly configPath: string | undefined;
 	readonly severity: (code: LintCode) => DiagnosticSeverity | "off";
 }
 
@@ -87,15 +89,12 @@ export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", 
 		onSome: ([a, b]) => OkfVersion.compare(a, b) === 0,
 	});
 	if (same) return [];
-	return [
-		diagnostic(
-			"",
-			"config-okf-version-stale",
-			severity,
-			`okf_version in the config is "${configured}", but the bundle-root index.md declares "${declared.value}"; okfit reads the bundle as "${declared.value}" and uses the config value only for a root index that declares none. Set okf_version = "${declared.value}" in the config, or remove it`,
-			undefined,
-		),
-	];
+	const where = context.configPath === undefined ? "in the config" : `in ${context.configPath}`;
+	const head = `okf_version ${where} is "${configured}", but the bundle-root index.md declares "${declared.value}"`;
+	const message = Option.isSome(OkfVersion.parse(declared.value))
+		? `${head}; okfit reads the bundle as "${declared.value}" and uses the config value only for a root index that declares none. Set okf_version = "${declared.value}" ${where}, or remove it`
+		: `${head}, which is not a <major>.<minor> version; correct the declaration in index.md, then set okf_version ${where} to the same value, or remove it`;
+	return [diagnostic("", "config-okf-version-stale", severity, message, undefined)];
 });
 
 export const unknownType: LintRule = perConcept("unknown-type", (concept, context) =>

@@ -284,6 +284,7 @@ export const makeSessionRegistry = (
 					projectRoot: config.projectRoot,
 					config: config.config,
 					profile: config.profile,
+					...(Option.isSome(config.discovered) ? { configPath: config.discovered.value.path } : {}),
 				});
 				// `handleBox` breaks the circular reference between the scheduler's
 				// `run` callback (needs the handle it is part of) and the handle

@@ -1343,7 +1343,10 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			assert.include(yield* read(sandbox, ".config/okfit.toml"), 'okf_version = "0.2"');
 			const after = yield* runOkfit(["validate"], sandbox);
 			assert.include(after.stdout, "config-okf-version-stale");
-			assert.include(after.stdout, 'okf_version in the config is "0.2", but the bundle-root index.md declares "0.3"');
+			assert.include(
+				after.stdout,
+				`okf_version in ${join(sandbox.cwd, ".config", "okfit.toml")} is "0.2", but the bundle-root index.md declares "0.3"`,
+			);
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
@@ -1404,5 +1407,39 @@ describe("okfit validate: a parse-time usage error under --format json (#485)", 
 			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly tag: string } };
 			assert.strictEqual(envelope.error.tag, "UnrecognizedOption");
 		}),
+	);
+});
+
+describe("okfit validate: config messages (#499, #501)", () => {
+	const BAD_CONFIG =
+		'[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n';
+
+	it.effect("--format json carries every bad key in one error.message (#501)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-bad-keys-"));
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V02_PROJECT, "okfit.toml": BAD_CONFIG }));
+			const result = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			assert.strictEqual(result.exitCode, 3);
+			assert.strictEqual(result.stdout.trimEnd().split("\n").length, 1);
+			const envelope = JSON.parse(result.stdout) as { readonly error: { readonly message: string } };
+			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
+				assert.include(envelope.error.message, key);
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("the stale-version warning names the discovered file, and --config names that file (#499)", () =>
+		Effect.gen(function* () {
+			const config = 'okf_version = "0.3"\n\n[types.Metric]\n\n[types."Attested Computation"]\n';
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-stale-path-"));
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V02_PROJECT, "okfit.toml": config }));
+			const discovered = join(sandbox.cwd, "okfit.toml");
+			const first = yield* runOkfit(["validate"], sandbox);
+			assert.include(first.stdout, `okf_version in ${discovered} is "0.3"`);
+			yield* Effect.promise(() => writeFile(join(sandbox.cwd, "other.toml"), config, "utf8"));
+			const other = join(sandbox.cwd, "other.toml");
+			const second = yield* runOkfit(["validate", "--config", other], sandbox);
+			assert.include(second.stdout, `okf_version in ${other} is "0.3"`);
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
