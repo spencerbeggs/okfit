@@ -39,6 +39,7 @@ jobs:
       artifact-metadata: write
     with:
       dry-run: ${{ inputs.dry_run || false }}
+      auto-merge: "squash"
       skip-claude-review: false
       # Fork PRs wait on this environment's required reviewer before any run
       # touches secrets. The environment exists in repo settings; the
