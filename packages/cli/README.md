@@ -447,7 +447,7 @@ when a concept's recorded `x-okfit-integrity.generated.body` matched its body be
 re-records it, so `sync` keeps that concept's `generated.at`; a concept whose digest was
 already stale, was never recorded, or is still on okfit's old key names is re-linked
 but not re-recorded; `okfit sync` then re-stamps its `generated.at`, or reports the concept when it cannot edit
-its frontmatter (both key spellings present, or an integrity block in a layout okfit does not edit). Refusals (destination exists, outside the
+its frontmatter (both key spellings present, an old key that `sync` cannot rename in place, or an integrity block in a layout okfit does not edit). Refusals (destination exists, outside the
 bundle, a reserved file, an unlocatable link) are exit `64` with nothing
 written.
 

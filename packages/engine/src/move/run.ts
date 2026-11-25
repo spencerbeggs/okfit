@@ -21,13 +21,14 @@ import { readMarkdownSources } from "./sources.js";
  * their absolute forms. `edits` holds the post-move path, the edit count and the full new text of
  * every file that changes, the moved file always among them (`count` may be 0). `drifts` lists the
  * ids (the moved file by its old id) whose human verification is `current` now and whose text changes, plus an
- * edited concept whose recorded body digest could not be re-recorded (its integrity block has a layout that is never
- * edited), even when no human verified it. Each `text` is the exact bytes written, a leading byte-order mark the file had
+ * edited concept whose recorded body digest matched before the move but could not be re-recorded (its integrity block
+ * has a layout that is never edited), even when no human verified it. Each `text` is the exact bytes written, a leading byte-order mark the file had
  * included; an edited concept's `x-okfit-integrity.generated.body` is re-recorded only when it matched the body before the
  * move, so the next sync keeps `generated.at`. A digest already stale, an absent one (a concept that records only
  * `generated.body_sha256` included) and a concept still on old key names are not re-recorded: the next sync then re-stamps `generated.at`, or reports the
- * concept when it cannot edit its frontmatter (both key spellings present, or an integrity block in a layout it does not
- * edit; `sync` skips those as `legacy-key-conflict` and `integrity-unsupported`).
+ * concept when it cannot edit its frontmatter (both key spellings present, an old key it cannot rename in place, or an
+ * integrity block in a layout it does not edit; `sync` skips those as `legacy-key-conflict`, `legacy-key-unsupported`
+ * and `integrity-unsupported`).
  *
  * @public
  */

@@ -7,14 +7,14 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:08:01Z
+  at: 2026-11-25T16:52:41Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 x-okfit-integrity:
   generated:
-    body: 40a45778ff99ed86
+    body: 5eefe60180d2759b
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -76,6 +76,14 @@ of the same name and not repeated by `verified-drift`. A body edit committed aft
 `generated.at`; `content-changed` therefore covers content that changed while
 `generated.at` is still not after the binding, that is, without a later stamp. Machine entries
 neither bind nor break a binding. Status changes do not void a verification.
+
+The binding is to content, not to a record of the edits made since, so a concept
+put back to exactly the bytes a human verified reads as current again without a
+new verification. Moving a concept away and back with `okfit mv` can do this to
+a concept that links to it, because `mv` keeps `generated.at` and re-records a
+body digest that matched. This is the binding working as intended, since the
+human verified exactly those bytes; neither `okfit mv` nor `okfit sync` writes a
+verification in either direction.
 
 Because integrity reads `current` only for a current bound entry, the skip
 rule follows it: batch, the picker and the language server treat a

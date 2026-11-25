@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:25:17Z
+  at: 2026-11-25T16:52:41Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: af9b7f3b8b9f1a19
+    body: e2541177696d5844
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -477,7 +477,7 @@ bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's 
 outbound relative links are recomputed, including angle-bracketed body links whose
 path holds a space.
 
-Every file whose text changes drifts by the ordinary rule: `mv` never writes
+A rewritten concept that a human had verified drifts by the ordinary rule: `mv` never writes
 `verified`, `x-okfit-integrity.verified` or `generated.at`, and the plan lists the concepts whose current human
 verification it voids. `mv` keeps a file's leading UTF-8 byte-order mark, and for a
 concept whose links it rewrites it re-records `x-okfit-integrity.generated.body` only when that
@@ -485,9 +485,11 @@ digest matched the body before the move, so the next `sync` keeps `generated.at`
 digest was already stale, has no recorded `x-okfit-integrity.generated.body` (one that records only
 `generated.body_sha256` included) or is still on okfit's old key names (a legacy `integrity:` block)
 is re-linked but not re-recorded, and the next `sync` then re-stamps its `generated.at`. A concept
-that carries both key spellings, or whose integrity block has a layout `mv` will not edit, is not
-re-recorded either, and `sync` reports it as skipped (`legacy-key-conflict`, `integrity-unsupported`) instead of
-re-stamping it; the second kind is listed in the plan's `drifts`, even if no human had verified it. `--dry-run` prints the plan and writes nothing. `mv` never
+that carries both key spellings, has an old okfit key that `sync` cannot rename in place, or has an
+integrity block in a layout `mv` will not edit, is not re-recorded either, and `sync` reports it as
+skipped (`legacy-key-conflict`, `legacy-key-unsupported`, `integrity-unsupported`) instead of
+re-stamping it. A concept whose `x-okfit-integrity` block has such a layout, and whose recorded digest
+matched before the move, is listed in the plan's `drifts`, even if no human had verified it. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,
 `pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside

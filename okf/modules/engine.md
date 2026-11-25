@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:25:17Z
+  at: 2026-11-25T16:52:41Z
 x-okfit-integrity:
   generated:
-    body: d4a9e0848395d1ff
+    body: 924d92ef428bb5ad
 ---
 
 # Engine
@@ -340,8 +340,9 @@ file with an unclosed or unparseable frontmatter block still refuses with
 leading UTF-8 byte-order mark it had (`bomOf`), and re-records a concept's body
 digest (`rerecordBodyDigest`) only when it matched the body before the move, so the next `sync` keeps
 `generated.at`; a stale or absent digest and a concept on old key names are not re-recorded (`sync` then re-stamps
-them, or reports a concept it cannot edit: both key spellings, or an uneditable integrity layout, which `mv` also
-lists in `drifts`).
+them, or reports a concept it cannot edit: both key spellings, an old key it cannot rename in place, or an
+uneditable integrity layout; `mv` also lists a concept whose `x-okfit-integrity` block has such a layout in `drifts`
+when its digest matched before the move).
 
 ## Editor seams
 
