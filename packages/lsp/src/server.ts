@@ -151,8 +151,13 @@ export const serve = (
 		);
 		const enqueue = (effect: Effect.Effect<void>): Effect.Effect<void> => Effect.asVoid(Queue.offer(work, effect));
 
+		// Whether the client declared `textDocument.codeAction.disabledSupport`; set in `onInitialize`, read per request.
+		const capabilityBox = { disabledSupport: false };
 		yield* transport.onInitialize((params) =>
-			Effect.as(registry.setFolders(initialFolders(params)), INITIALIZE_RESULT),
+			Effect.suspend(() => {
+				capabilityBox.disabledSupport = params.capabilities.textDocument?.codeAction?.disabledSupport === true;
+				return Effect.as(registry.setFolders(initialFolders(params)), INITIALIZE_RESULT);
+			}),
 		);
 		yield* transport.onInitialized(() =>
 			Effect.logInfo(
@@ -180,7 +185,9 @@ export const serve = (
 		yield* registerWorkspaceSymbols(transport, registry);
 		const conceptsFeature = yield* registerConcepts(transport, registry);
 		conceptsBox.forgetWarmup = conceptsFeature.forgetWarmup;
-		yield* registerCodeActions(transport, registry, feature.documents);
+		yield* registerCodeActions(transport, registry, feature.documents, {
+			disabledSupport: () => capabilityBox.disabledSupport,
+		});
 		yield* registerCommands(transport, registry, feature.documents);
 		yield* registerInlayHints(transport, registry);
 		yield* transport.onShutdown(() =>

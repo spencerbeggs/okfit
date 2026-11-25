@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:25:12Z
+  at: 2026-11-25T15:22:41Z
 x-okfit-integrity:
   generated:
-    body: b6f8bf3b71c4edd6
+    body: d125549de8d16a22
 ---
 
 # LSP
@@ -73,7 +73,17 @@ fixes it) -- and one `Mark verified by <actor>` action (kind
 draft, deprecated, of unknown status, nor already verified by that actor,
 and `now` is not before its `generated.at`: an action that would write a
 verification before the last change is omitted (OKF v0.3 §5.3;
-`EditTarget.generated`, `EditFailure` `NotCurrent`, whose message says to run `okfit sync` when the stamp is more than five minutes ahead and to check the clock when it is closer). On a draft the
+`EditTarget.generated`, `EditFailure` `NotCurrent`, whose message says to run `okfit sync` when the stamp is more than five minutes ahead and to check the clock when it is closer).
+A client that sent `textDocument.codeAction.disabledSupport: true` in
+`initialize` gets, in place of the omitted action, a disabled one for exactly
+two failures: an unknown status, and a `generated.at` the entry would not
+count against (`NotCurrent`). It has the same title and kind, no `edit` and no
+`command`, and `disabled.reason` is `describeFailure`'s text for that failure
+(on a draft it is the combined `Mark verified by <actor> and set status:
+stable` action). Every other failure still omits the action, and a client
+without `disabledSupport` gets the set above unchanged. The server only sends
+the disabled action; what a client then shows for it is the client's choice
+(`CodeActionOptions`, `serve` reads the capability once in `onInitialize`). On a draft the
 same kind instead offers `Mark verified by <actor> and set status: stable`
 (#215), one edit equal to what `okfit verify --stable` writes, when that
 actor has not yet verified it; the actor is cached per session

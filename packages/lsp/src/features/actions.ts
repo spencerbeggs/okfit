@@ -28,6 +28,14 @@
  *   write `okfit verify --stable` performs) when that actor has not yet
  *   verified it.
  *
+ * When the client sent `textDocument.codeAction.disabledSupport: true`
+ * ({@link CodeActionOptions.disabledSupport}), a verify action that would be
+ * offered but for an unknown status or a `generated.at` the entry would not
+ * count against (`NotCurrent`) is instead returned as a disabled action: the
+ * same title and kind, no `edit` and no `command`, and `disabled.reason` the
+ * text `describeFailure` gives that failure. Every other failure still omits
+ * the action, and a client without `disabledSupport` gets exactly the set above.
+ *
  * The status and verify actions are offered only when the request range
  * intersects the frontmatter block, or `context.only` names their kind; the
  * quick fixes only when `context.only` is absent or names `quickfix`. The
@@ -49,7 +57,7 @@ import type { CodeAction, CodeActionParams, Position, Range } from "../protocol/
 import { CODE_ACTION_KIND_QUICKFIX } from "../protocol/types.js";
 import type { OpenDocuments } from "../session/documents.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
-import type { EditTarget } from "./edits.js";
+import type { EditFailure, EditTarget } from "./edits.js";
 import {
 	derivedStatusOf,
 	describeFailure,
@@ -91,6 +99,20 @@ const intersects = (request: Range, block: Range): boolean =>
 	before(request.start, block.end) && !before(request.end, block.start);
 
 /**
+ * Options for {@link registerCodeActions}.
+ *
+ * @public
+ */
+export interface CodeActionOptions {
+	/**
+	 * Whether the client declared `textDocument.codeAction.disabledSupport`,
+	 * read on every request (the capability arrives in `initialize`, after the
+	 * feature is registered). Absent means `false`: no disabled action is sent.
+	 */
+	readonly disabledSupport?: () => boolean;
+}
+
+/**
  * Wires `textDocument/codeAction` onto `transport`, answering from the
  * concept's current text (`documents`' open buffer, else `registry`'s
  * last-loaded snapshot). A missing session, an unloaded bundle, a non-`file:`
@@ -103,6 +125,7 @@ export const registerCodeActions = (
 	transport: LspTransportShape,
 	registry: SessionRegistryShape,
 	documents: OpenDocuments,
+	options?: CodeActionOptions,
 ): Effect.Effect<void, never, Git | Digest.Digest> =>
 	Effect.gen(function* () {
 		const context = yield* Effect.context<Git | Digest.Digest>();
@@ -140,6 +163,16 @@ export const registerCodeActions = (
 				})),
 			);
 
+		/** A verify action that cannot be offered, with `failure`'s own text as the reason; no `edit`, no `command`. */
+		const disabledVerify = (title: string, failure: EditFailure): CodeAction => ({
+			title,
+			kind: "okfit.verify",
+			disabled: { reason: describeFailure(failure) },
+		});
+		/** Whether a failure is one the editor can explain: an unknown status or a `generated.at` the entry would not count against. */
+		const explainable = (failure: EditFailure): boolean =>
+			failure._tag === "UnknownStatusCannotBeVerified" || failure._tag === "NotCurrent";
+
 		yield* transport.onRequest<CodeActionParams, ReadonlyArray<CodeAction>>("textDocument/codeAction", (params) =>
 			Effect.gen(function* () {
 				const uri = params.textDocument.uri;
@@ -154,6 +187,7 @@ export const registerCodeActions = (
 				const inFrontmatter = intersects(params.range, target.frontmatter);
 				const offer = (kind: string): boolean => (only === undefined ? inFrontmatter : named(only, kind));
 
+				const disabledSupport = options?.disabledSupport?.() === true;
 				const actions: Array<CodeAction> = [];
 				const statusMissing = diagnosticWith(params.context.diagnostics, "status-missing");
 				const quickFixes =
@@ -204,29 +238,32 @@ export const registerCodeActions = (
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;
-						const edits = yield* Effect.option(verifiedStableTextEdits(target, actor.value, now));
-						if (Option.isSome(edits)) {
-							actions.push({
-								title: `Mark verified by ${actor.value} and set status: stable`,
-								kind: "okfit.verify",
-								edit: versionedEdit(uri, target, edits.value),
-							});
+						const title = `Mark verified by ${actor.value} and set status: stable`;
+						const edits = yield* Effect.result(verifiedStableTextEdits(target, actor.value, now));
+						if (Result.isSuccess(edits)) {
+							actions.push({ title, kind: "okfit.verify", edit: versionedEdit(uri, target, edits.success) });
+						} else if (disabledSupport && explainable(edits.failure)) {
+							actions.push(disabledVerify(title, edits.failure));
 						}
 					}
 				}
 
 				// The Re-verify quick fix carries the identical edit, so it replaces Mark verified.
-				if (offer("okfit.verify") && !reverifyOffered && derived === "stable") {
+				// An unknown status has no verify branch of its own: it is offered only as a disabled action.
+				if (
+					offer("okfit.verify") &&
+					!reverifyOffered &&
+					(derived === "stable" || (derived === "unknown" && disabledSupport))
+				) {
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;
-						const edits = yield* Effect.option(verifiedTextEdits(target, actor.value, now));
-						if (Option.isSome(edits)) {
-							actions.push({
-								title: `Mark verified by ${actor.value}`,
-								kind: "okfit.verify",
-								edit: versionedEdit(uri, target, edits.value),
-							});
+						const title = `Mark verified by ${actor.value}`;
+						const edits = yield* Effect.result(verifiedTextEdits(target, actor.value, now));
+						if (Result.isSuccess(edits)) {
+							actions.push({ title, kind: "okfit.verify", edit: versionedEdit(uri, target, edits.success) });
+						} else if (disabledSupport && explainable(edits.failure)) {
+							actions.push(disabledVerify(title, edits.failure));
 						}
 					}
 				}
