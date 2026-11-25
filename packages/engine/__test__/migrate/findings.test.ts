@@ -4,10 +4,17 @@ import { Bundle, OkfitConfig } from "@okfit/core";
 import { DateTime, Effect, Option } from "effect";
 import type { MigrationFinding } from "../../src/migrate/findings.js";
 import { migrationFindings } from "../../src/migrate/findings.js";
+import { readMarkdownSources } from "../../src/move/sources.js";
 import { collect, sort } from "../../src/render/sort.js";
 import { run } from "../../src/validate/run.js";
 import type { ProjectSeed } from "../fixtures/bundles.js";
-import { ERROR_PROJECTS, UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
+import {
+	ERROR_PROJECTS,
+	NON_CONCEPT_LINKS_PROJECT,
+	UNDECLARED_PROJECT,
+	V02_PROJECT,
+	V03_PROJECT,
+} from "../fixtures/bundles.js";
 import { ROOT, mountProject, projectPlatform, sessionPlatform, sourceOf } from "../utils/bundle.js";
 
 const CONFIG = OkfitConfig.DEFAULTS;
@@ -418,4 +425,54 @@ describe("run with a target", () => {
 			);
 		}).pipe(Effect.provide(sessionPlatform(mountProject(V02_PROJECT)))),
 	);
+
+	describe("Markdown that is not a concept (#480)", () => {
+		const withOthers = (seed: ProjectSeed) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: ROOT });
+				const { sources } = yield* readMarkdownSources(bundle, { reserved: true });
+				return { sources, found: migrationFindings(bundle, CONFIG, "0.3", sources) };
+			}).pipe(Effect.provide(projectPlatform(seed)));
+
+		it.effect(
+			"reports a root-only link in a subdirectory index entry, a README body and a log.md, beside a concept reference",
+			() =>
+				Effect.gen(function* () {
+					const { sources, found } = yield* withOthers(NON_CONCEPT_LINKS_PROJECT);
+					const roots = rootRelative(found);
+					assert.deepStrictEqual(
+						roots.map((f) => f.file),
+						["sub/README.md", "sub/b.md", "sub/index.md", "sub/log.md"],
+					);
+					for (const finding of roots) {
+						assert.strictEqual(finding.fix, "root-relative-path");
+						const text =
+							sources.find((s) => s.path === finding.file)?.document.source ??
+							NON_CONCEPT_LINKS_PROJECT[`okf/${finding.file}`];
+						const range = finding.range;
+						assert.isDefined(range);
+						assert.strictEqual(text?.slice(range?.offset, (range?.offset ?? 0) + (range?.length ?? 0)), "a.md");
+					}
+					// Without `others` only the concept is reported (control).
+					const bundle = yield* Bundle.load({ root: ROOT });
+					assert.deepStrictEqual(
+						rootRelative(migrationFindings(bundle, CONFIG, "0.3")).map((f) => f.file),
+						["sub/b.md"],
+					);
+				}).pipe(Effect.provide(projectPlatform(NON_CONCEPT_LINKS_PROJECT))),
+		);
+
+		it.effect("a file-relative index entry is not reported", () =>
+			Effect.gen(function* () {
+				const { found } = yield* withOthers({
+					...NON_CONCEPT_LINKS_PROJECT,
+					"okf/sub/index.md": "# Sub\n\n* [B](b.md)\n",
+					"okf/sub/README.md": "# Notes\n\nSee [b](b.md).\n",
+					"okf/sub/log.md": "# Log\n\n## 2026-01-01\n\n* Linked [b](b.md).\n",
+					"okf/sub/b.md": (NON_CONCEPT_LINKS_PROJECT["okf/sub/b.md"] as string).replace("(a.md)", "(../a.md)"),
+				});
+				assert.deepStrictEqual(rootRelative(found), []);
+			}),
+		);
+	});
 });

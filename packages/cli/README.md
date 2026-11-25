@@ -86,8 +86,8 @@ and a terminal stdin, are usage errors (exit `64`). The MCP
 
 `--target 0.3` reports, as `migrate` diagnostics with ranges, everything in
 the bundle that reads differently under OKF 0.3: an undeclared, older or
-unparsable `okf_version`, references that resolve only from the bundle root
-(`root-relative-path`) and a Computation section read by a different rule
+unparsable `okf_version`, references that resolve only from the bundle root, in any Markdown file of
+the bundle (`root-relative-path`) and a Computation section read by a different rule
 (`computation-locator`). Only `"0.3"`, the version this okfit implements, is
 accepted; any other value is a usage error (exit `64`). The findings print in
 the normal per-file list, stderr ends with `OKF 0.3: <n> finding(s), <k>
@@ -99,9 +99,10 @@ fixes: it declares `okf_version` and roots a reference that resolves only from
 the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
 (repeatable; requires `--fix`) narrows by kind, positional targets narrow by
 file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
-refused while any root-only reference remains unfixed and while any
+refused while any root-only reference remains unfixed, while any
 Attested Computation would have no computation under 0.3 (a `warning`
-`computation-locator`; one `refused:` line per cause), and a concept still
+`computation-locator`), and while a Markdown file has unclosed or unparseable
+frontmatter, so its links could not be checked (one `refused:` line per cause), and a concept still
 using okfit's old key names is refused until `okfit sync` renames them. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted

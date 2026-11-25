@@ -5,6 +5,8 @@ import { Derivation, Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import type { ReferenceSource } from "../move/references.js";
+import { readMarkdownSources } from "../move/sources.js";
 import { keyRenamesFor, legacyIntegrity } from "../sync/legacyKeys.js";
 import { writeAtomic } from "../sync/write.js";
 import { locateIntegrity, spliceIntegrityGenerated } from "../verify/integrity.js";
@@ -101,7 +103,9 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * version fix is refused, with its reason, while any root-only reference elsewhere in the bundle is not fixed by this
  * same plan (R41), so a narrowed run never flips a bundle to a version under which its links break. It is also refused
  * while any `computation-locator` warning stands (an Attested Computation the target would read as having no
- * computation, §10.3), wherever it is and whatever `files`/`only` select. Each cause gets its own refusal. For an edited
+ * computation, §10.3), wherever it is and whatever `files`/`only` select, and while a Markdown file's links could not be
+ * scanned (unclosed or unparseable frontmatter). Each cause gets its own refusal. A root-only link in a non-concept
+ * Markdown file (an index, a log, a typeless file) is rooted like a concept's, with no integrity re-record. For an edited
  * concept whose recorded `x-okfit-integrity.generated.body` equalled its body digest before the edit, the plan re-records
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
  * `x-okfit-integrity.verified`.
@@ -122,7 +126,8 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	const { bundle, config, target, files, only, now } = options;
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
-	const all = migrationFindings(bundle, config, target);
+	const { sources, unreadable } = yield* readMarkdownSources(bundle, { reserved: true });
+	const all = migrationFindings(bundle, config, target, sources);
 	const selected = all.filter(
 		(finding): finding is MigrationFinding & { readonly fix: MigrationFixKind } =>
 			finding.fix !== undefined &&
@@ -145,13 +150,14 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	for (const finding of pathFixes) byFile.set(finding.file, [...(byFile.get(finding.file) ?? []), finding]);
 	for (const [file, found] of byFile) {
 		const concept: LoadedConcept | undefined = [...bundle.concepts.values()].find((c) => c.path === file);
+		const other = concept === undefined ? sources.find((candidate) => candidate.path === file) : undefined;
 		const refuse = (finding: MigrationFinding, reason: string) =>
 			refused.push({ file: finding.file, code: finding.code, reason });
-		if (concept === undefined) {
+		if (concept === undefined && other === undefined) {
 			for (const finding of found) refuse(finding, "the concept is not loaded, so the reference cannot be rewritten");
 			continue;
 		}
-		if (legacyIntegrity(concept, renames) !== undefined) {
+		if (concept !== undefined && legacyIntegrity(concept, renames) !== undefined) {
 			// An edit would leave the old block's body digest stale, and the next sync would read that as an authored
 			// change and re-stamp the concept; the key rename has to come first.
 			for (const finding of found) {
@@ -162,7 +168,8 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			}
 			continue;
 		}
-		const source = concept.document.source;
+		const document = (concept ?? (other as ReferenceSource)).document;
+		const source = document.source;
 		const inserts: Array<MarkdownEdit> = [];
 		const applied: Array<MigrationFixKind> = [];
 		for (const finding of found) {
@@ -179,8 +186,8 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 		if (inserts.length === 0) continue;
 		fixed += inserts.length;
 		let text = MarkdownEdit.applyAll(source, inserts);
-		const recorded = concept.frontmatter.integrity?.generated?.body;
-		if (recorded !== undefined && recorded === (yield* Derivation.bodyDigest(source))) {
+		const recorded = concept?.frontmatter.integrity?.generated?.body;
+		if (concept !== undefined && recorded !== undefined && recorded === (yield* Derivation.bodyDigest(source))) {
 			const next = yield* Derivation.bodyDigest(text);
 			if (next !== recorded) {
 				const { text: plain, bom } = stripBom(text);
@@ -198,8 +205,10 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 		const head = yield* fs.readFile(path.join(bundle.root, file));
 		if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf && !text.startsWith("\uFEFF")) text = `\uFEFF${text}`;
 		edits.push({ path: file, text, fixes: applied });
-		const signal = yield* Trust.signal(concept, config, now);
-		if (signal.integrity === "current") drifts.add(concept.path.slice(0, -3));
+		if (concept !== undefined) {
+			const signal = yield* Trust.signal(concept, config, now);
+			if (signal.integrity === "current") drifts.add(concept.path.slice(0, -3));
+		}
 	}
 	const remaining = allPathFindings - fixed;
 
@@ -225,7 +234,13 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 				`${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again`,
 			);
 		}
-		if (remaining === 0 && lost.length === 0) {
+		// A Markdown file whose links could not be scanned may hold a root-only link the report never saw.
+		if (unreadable.length > 0) {
+			refuseVersion(
+				`${unreadable.length} Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): ${unreadable.join(", ")}; fix them first`,
+			);
+		}
+		if (remaining === 0 && lost.length === 0 && unreadable.length === 0) {
 			// A frontmatter the loader already could not read (malformed YAML, a duplicate key) is never edited: a splice
 			// would leave a file that still does not parse.
 			const loadError = bundle.diagnostics.find((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unparseable");

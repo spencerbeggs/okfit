@@ -17,7 +17,12 @@ import { assert, describe, it } from "@effect/vitest";
 import { Bundle, ConceptId } from "@okfit/core";
 import { Derivation } from "@okfit/profiles";
 import { Effect, Option } from "effect";
-import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../../../engine/__test__/fixtures/bundles.js";
+import {
+	NON_CONCEPT_LINKS_PROJECT,
+	UNDECLARED_PROJECT,
+	V02_PROJECT,
+	V03_PROJECT,
+} from "../../../engine/__test__/fixtures/bundles.js";
 import type { Sandbox } from "./utils/fixtures.js";
 import { copyFixtureInto, makeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
@@ -1235,5 +1240,22 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 				const none = yield* runOkfit(["validate", "--target", "0.3", "--fix", "--dry-run"], plain);
 				assert.notInclude(none.stdout, "Integrity drifted");
 			}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--target 0.3 lists a README link and --fix roots it", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-readme-", NON_CONCEPT_LINKS_PROJECT);
+			const listed = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(listed.stdout, "sub/README.md");
+			assert.include(listed.stdout, "sub/log.md");
+			assert.include(listed.stdout, "sub/index.md");
+			const fixed = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(fixed.stdout, "Fixed 5 finding(s) in 5 file(s)");
+			assert.include(yield* read(sandbox, "okf/sub/README.md"), "[a](/a.md)");
+			assert.include(yield* read(sandbox, "okf/sub/log.md"), "[a](/a.md)");
+			assert.include(yield* read(sandbox, "okf/index.md"), 'okf_version: "0.3"');
+			const after = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(after.stderr, "OKF 0.3: 0 finding(s)");
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

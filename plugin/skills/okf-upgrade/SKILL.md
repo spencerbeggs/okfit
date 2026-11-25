@@ -45,7 +45,7 @@ okfit validate --target 0.3 --format json
 | `okf-version-undeclared` | the root `index.md` declares no `okf_version` | `okf-version`, only when a root `index.md` exists |
 | `okf-version-older` | it declares an older, parsable version | `okf-version` |
 | `okf-version-unparsable` | the declared value is not a quoted `<major>.<minor>` | none |
-| `root-relative-path` | a link or path field resolves only from the bundle root | `root-relative-path` |
+| `root-relative-path` | a link or path field, in any Markdown file in the bundle (concepts, indexes, logs, other files), resolves only from the bundle root | `root-relative-path` |
 | `computation-locator` | the `Computation` section reads differently under 0.3 | none |
 
 A diagnostic with a `fix` key can be fixed by `--fix`; one without can only be handled by hand. A value that misses under both rules is an ordinary `broken-links`, not a finding.

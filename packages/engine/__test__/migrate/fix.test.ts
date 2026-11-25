@@ -10,13 +10,20 @@ import type { MigrationFixKind } from "../../src/migrate/findings.js";
 import { migrationFindings } from "../../src/migrate/findings.js";
 import type { MigrationFixOptions } from "../../src/migrate/fix.js";
 import { applyMigrationFixes, planMigrationFixes } from "../../src/migrate/fix.js";
+import { readMarkdownSources } from "../../src/move/sources.js";
 import { tally } from "../../src/render/exit.js";
 import { collect } from "../../src/render/sort.js";
 import { syncGenerated } from "../../src/sync/generated.js";
 import { keyRenamesFor } from "../../src/sync/legacyKeys.js";
 import { run } from "../../src/validate/run.js";
 import type { ProjectSeed } from "../fixtures/bundles.js";
-import { ERROR_PROJECTS, UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
+import {
+	ERROR_PROJECTS,
+	NON_CONCEPT_LINKS_PROJECT,
+	UNDECLARED_PROJECT,
+	V02_PROJECT,
+	V03_PROJECT,
+} from "../fixtures/bundles.js";
 import { ROOT, mountProject, sessionPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
@@ -629,4 +636,102 @@ describe("migration fixes", () => {
 			assert.strictEqual(bytes.toString("utf8"), `\uFEFF${V03_PROJECT[COMPUTATION] as string}`);
 		}).pipe(Effect.scoped, Effect.provide(TestPlatform)),
 	);
+
+	describe("Markdown that is not a concept (#480)", () => {
+		const LINKED = ["sub/README.md", "sub/b.md", "sub/index.md", "sub/log.md"];
+		const seed = NON_CONCEPT_LINKS_PROJECT;
+		const remaining = Effect.gen(function* () {
+			const bundle = yield* load;
+			const { sources } = yield* readMarkdownSources(bundle, { reserved: true });
+			return migrationFindings(bundle, CONFIG, "0.3", sources);
+		});
+
+		it.effect("roots the non-concept links and the concept link, then declares the version", () =>
+			Effect.gen(function* () {
+				const plan = yield* apply(yield* load);
+				assert.deepStrictEqual(plan.refused, []);
+				assert.deepStrictEqual(
+					plan.edits.map((e) => [e.path, e.fixes]),
+					[
+						["index.md", ["okf-version"]],
+						["sub/README.md", ["root-relative-path"]],
+						["sub/b.md", ["root-relative-path"]],
+						["sub/index.md", ["root-relative-path"]],
+						["sub/log.md", ["root-relative-path"]],
+					],
+				);
+				for (const file of LINKED) {
+					assert.strictEqual(yield* read(`okf/${file}`), (seed[`okf/${file}`] as string).replace("(a.md)", "(/a.md)"));
+				}
+				assert.isTrue((yield* read(INDEX)).includes('okf_version: "0.3"'));
+				assert.deepStrictEqual(yield* remaining, []);
+			}).pipe(Effect.provide(on(seed))),
+		);
+
+		it.effect("--only okf-version is refused while a README link stays root-only", () =>
+			Effect.gen(function* () {
+				const readme = {
+					...seed,
+					"okf/sub/b.md": (seed["okf/sub/b.md"] as string).replace("(a.md)", "(../a.md)"),
+					"okf/sub/index.md": "# Sub\n\n* [B](b.md)\n",
+					"okf/sub/log.md": "# Log\n\n## 2026-01-01\n\n* Linked [b](b.md).\n",
+				};
+				const plan = yield* Effect.gen(function* () {
+					return yield* apply(yield* load, { only: ["okf-version"] });
+				}).pipe(Effect.provide(on(readme)));
+				assert.deepStrictEqual(plan.edits, []);
+				assert.deepStrictEqual(
+					plan.refused.map((r) => [r.file, r.reason]),
+					[
+						[
+							"index.md",
+							"1 reference(s) still resolve only from the bundle root; fix them first or run without --only/targets",
+						],
+					],
+				);
+			}),
+		);
+
+		it.effect("refuses the version fix while a Markdown file cannot be read", () =>
+			Effect.gen(function* () {
+				const plan = yield* apply(yield* load);
+				assert.deepStrictEqual(
+					plan.refused.map((r) => [r.file, r.code, r.reason]),
+					[
+						[
+							"index.md",
+							"okf-version-undeclared",
+							"1 Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): bad.md; fix them first",
+						],
+					],
+				);
+				assert.notInclude(
+					plan.edits.map((e) => e.path),
+					"index.md",
+				);
+				assert.strictEqual(yield* read(INDEX), seed[INDEX]);
+			}).pipe(Effect.provide(on({ ...seed, "okf/bad.md": "---\ntitle: never closed\n\nbody\n" }))),
+		);
+
+		it.effect("a BOM on a README survives the fix", () =>
+			Effect.gen(function* () {
+				const dir = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-fix-")));
+				yield* Effect.addFinalizer(() => Effect.promise(() => rm(dir, { recursive: true, force: true })));
+				const original = `\uFEFF${seed["okf/sub/README.md"] as string}`;
+				for (const [file, text] of Object.entries({ ...seed, "okf/sub/README.md": original })) {
+					yield* Effect.promise(async () => {
+						await mkdir(dirname(join(dir, file)), { recursive: true });
+						await writeFile(join(dir, file), text);
+					});
+				}
+				const bundle = yield* Bundle.load({ root: join(dir, "okf") });
+				const plan = yield* applyMigrationFixes({ ...optionsFor(bundle), dryRun: false });
+				assert.deepStrictEqual(plan.refused, []);
+				const bytes = yield* Effect.promise(() => readFile(join(dir, "okf/sub/README.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+				assert.strictEqual(bytes.toString("utf8"), original.replace("(a.md)", "(/a.md)"));
+			}).pipe(Effect.scoped, Effect.provide(TestPlatform)),
+		);
+	});
 });
