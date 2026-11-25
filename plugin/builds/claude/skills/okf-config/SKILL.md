@@ -41,7 +41,9 @@ validation on the file without any further setup.
 - `okf_version` -- a string with no default. When set, it is the version
   okfit writes into a bundle-root `index.md` that declares none (`okfit init`,
   `okfit sync`); it never overrides what a bundle declares, and the
-  bundle's own declaration decides how it is read.
+  bundle's own declaration decides how it is read. When the root index
+  declares a different version, the lint `config_okf_version_stale` reports
+  the config value as stale; okfit never edits the config file.
 - `[bundle]` -- `path` (default `"okf"`), `profile` (default
   `"software-project"`), and `non_concepts`, an array of globs naming the
   typeless or frontmatter-less `.md` files the bundle allows (OKF 0.3 §3.2
@@ -66,7 +68,7 @@ validation on the file without any further setup.
   (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
   `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
-  snake_case keys, forty-one in all. The defaults, in `DEFAULT_LINT` order:
+  snake_case keys, forty-two in all. The defaults, in `DEFAULT_LINT` order:
 
   | Key | Default |
   | --- | --- |
@@ -87,6 +89,7 @@ validation on the file without any further setup.
   | `verified_actor_unknown` | `warn` |
   | `legacy_timestamp` | `info` |
   | `config_unknown_key` | `warn` |
+  | `config_okf_version_stale` | `warn` |
   | `stale` | `info` |
   | `walk_unreadable` | `warn` |
   | `generated_at_drift` | `warn` |

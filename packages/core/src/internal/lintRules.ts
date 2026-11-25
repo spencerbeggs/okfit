@@ -74,6 +74,30 @@ export const configUnknownKey: LintRule = rule("config-unknown-key", (context, s
 	),
 );
 
+/**
+ * The config's `okf_version` only fills a root index that declares none; once the index declares a different
+ * version the config value is stale. Both sides compare through `OkfVersion` when they parse, as raw strings otherwise.
+ */
+export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", (context, severity) => {
+	const configured = context.config.okf_version;
+	const declared = OkfVersion.declared(context.bundle);
+	if (configured === undefined || Option.isNone(declared)) return [];
+	const same = Option.match(Option.all([OkfVersion.parse(configured), OkfVersion.parse(declared.value)]), {
+		onNone: () => configured === declared.value,
+		onSome: ([a, b]) => OkfVersion.compare(a, b) === 0,
+	});
+	if (same) return [];
+	return [
+		diagnostic(
+			"",
+			"config-okf-version-stale",
+			severity,
+			`okf_version in the config is "${configured}", but the bundle-root index.md declares "${declared.value}"; okfit reads the bundle as "${declared.value}" and uses the config value only for a root index that declares none. Set okf_version = "${declared.value}" in the config, or remove it`,
+			undefined,
+		),
+	];
+});
+
 export const unknownType: LintRule = perConcept("unknown-type", (concept, context) =>
 	Object.hasOwn(context.config.types ?? {}, concept.frontmatter.type)
 		? []
@@ -560,6 +584,7 @@ export const missingIndex: LintRule = rule("missing-index", (context, severity) 
 /** Fixed rule order (task-group decision 9). */
 export const LINT_RULES: ReadonlyArray<LintRule> = [
 	configUnknownKey,
+	configOkfVersionStale,
 	unknownType,
 	requiredKeyMissing,
 	fieldValueUnknown,

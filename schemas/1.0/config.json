@@ -6,7 +6,7 @@
 		"okf_version": {
 			"type": "string",
 			"title": "OKF spec version",
-			"description": "The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+			"description": "The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read. When the root index.md declares a different version, the lint config-okf-version-stale reports this value as stale.",
 			"examples": [
 				"0.3"
 			]
@@ -513,6 +513,28 @@
 					],
 					"title": "config-unknown-key",
 					"description": "The config file declares a top-level key the schema does not recognize. Default \"warn\".",
+					"default": "warn",
+					"x-taplo": {
+						"docs": {
+							"enumValues": [
+								"Never reported.",
+								"Reported as information.",
+								"Reported as a warning.",
+								"Reported as an error."
+							]
+						}
+					}
+				},
+				"config_okf_version_stale": {
+					"type": "string",
+					"enum": [
+						"off",
+						"info",
+						"warn",
+						"error"
+					],
+					"title": "config-okf-version-stale",
+					"description": "The config sets okf_version and the bundle-root index.md declares a different one; the index decides how the bundle reads, so the config value is stale. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

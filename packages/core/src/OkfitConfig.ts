@@ -316,6 +316,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	config_okf_version_stale: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "config-okf-version-stale",
+			description:
+				'The config sets okf_version and the bundle-root index.md declares a different one; the index decides how the bundle reads, so the config value is stale. Default "warn".',
+			default: "warn",
+		}),
+	),
 	stale: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "stale",
@@ -521,7 +529,7 @@ export const okfitConfigFields = Schema.Struct({
 		Schema.String.annotate({
 			title: "OKF spec version",
 			description:
-				"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read.",
+				"The okf_version okfit writes into a bundle-root index.md that declares none (okfit init, okfit sync). The bundle's own declaration decides how it is read. When the root index.md declares a different version, the lint config-okf-version-stale reports this value as stale.",
 			examples: ["0.3"],
 		}),
 	),
@@ -775,6 +783,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"verified-actor-unknown": "verified_actor_unknown",
 	"legacy-timestamp": "legacy_timestamp",
 	"config-unknown-key": "config_unknown_key",
+	"config-okf-version-stale": "config_okf_version_stale",
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
 	"generated-at-drift": "generated_at_drift",
@@ -820,6 +829,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	verified_actor_unknown: "warn",
 	legacy_timestamp: "info",
 	config_unknown_key: "warn",
+	config_okf_version_stale: "warn",
 	stale: "info",
 	walk_unreadable: "warn",
 	generated_at_drift: "warn",

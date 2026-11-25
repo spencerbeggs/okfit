@@ -37,6 +37,7 @@ export const LintCode = Schema.Literals([
 	"actor-prefix-unknown",
 	"legacy-timestamp",
 	"config-unknown-key",
+	"config-okf-version-stale",
 	"stale",
 	"walk-unreadable",
 	"generated-at-drift",

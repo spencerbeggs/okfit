@@ -1242,6 +1242,24 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	it.effect("--fix on a bundle whose config says 0.2 shows config-okf-version-stale after the fix", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-config-version-stale-", {
+				...V02_PROJECT,
+				".config/okfit.toml": 'okf_version = "0.2"\n\n[types.Metric]\n\n[types."Attested Computation"]\n',
+			});
+			const before = yield* runOkfit(["validate"], sandbox);
+			assert.notInclude(before.stdout, "config-okf-version-stale");
+			const fixed = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(fixed.stdout, "Fixed");
+			assert.match(yield* read(sandbox, "okf/index.md"), /okf_version: ["']0\.3["']/);
+			assert.include(yield* read(sandbox, ".config/okfit.toml"), 'okf_version = "0.2"');
+			const after = yield* runOkfit(["validate"], sandbox);
+			assert.include(after.stdout, "config-okf-version-stale");
+			assert.include(after.stdout, 'okf_version in the config is "0.2", but the bundle-root index.md declares "0.3"');
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("--target 0.3 lists a README link and --fix roots it", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* seed("okfit-validate-readme-", NON_CONCEPT_LINKS_PROJECT);
