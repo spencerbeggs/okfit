@@ -18,6 +18,7 @@ import {
 	runVerifyBatch,
 	runVerifyIds,
 } from "../../src/verify/run.js";
+import { notCurrentDetail } from "../../src/verify/select.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
 import { TestPlatform } from "../utils/platform.js";
@@ -723,7 +724,13 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 					result.verified.map((entry) => entry.id),
 					["decisions/f"],
 				);
-				assert.deepStrictEqual(result.skipped, [{ id: "decisions/s", reason: "not-current" }]);
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/s",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T11:00:00Z", generatedAt: GENERATED },
+					},
+				]);
 				assert.notStrictEqual(yield* read(root, "decisions/f.md"), fine);
 				assert.strictEqual(yield* read(root, "decisions/s.md"), stale);
 				// control: at generated.at the same concept is a candidate
@@ -744,7 +751,13 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				const backdated = yield* runVerifyBatch({ ...base(root, "2026-09-09T00:00:00Z"), types: [] }).pipe(
 					Effect.provide(platform),
 				);
-				assert.deepStrictEqual(backdated.skipped, [{ id: "decisions/p", reason: "not-current" }]);
+				assert.deepStrictEqual(backdated.skipped, [
+					{
+						id: "decisions/p",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-09T00:00:00Z", generatedAt: "2026-09-10T00:00:00Z" },
+					},
+				]);
 				assert.deepStrictEqual(backdated.verified, []);
 				assert.strictEqual(yield* read(root, "decisions/p.md"), past);
 				// control: a past stamp is verifiable with at after it
@@ -970,7 +983,13 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 						before.candidates.map((row) => row.id),
 						["decisions/f"],
 					);
-					assert.deepStrictEqual(before.leftOut, ["decisions/l"]);
+					assert.deepStrictEqual(before.leftOut, [
+						{
+							id: "decisions/l",
+							reason: "not-current",
+							notCurrent: { at: "2026-09-09T00:00:00Z", generatedAt: "2026-09-10T00:00:00Z", kind: "future" },
+						},
+					]);
 					// control: at after the stamp keeps the row, so the omission was the not-current rule
 					const after = yield* loadPickerCandidates({ ...args, at: DateTime.makeUnsafe("2026-09-11T00:00:00Z") }).pipe(
 						Effect.provide(platform),
@@ -1016,7 +1035,13 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 						at: DateTime.makeUnsafe("2026-09-01T00:00:00Z"),
 					}).pipe(Effect.provide(platform));
 					assert.deepStrictEqual(backdated.candidates, []);
-					assert.deepStrictEqual(backdated.leftOut, ["decisions/s"]);
+					assert.deepStrictEqual(backdated.leftOut, [
+						{
+							id: "decisions/s",
+							reason: "not-current",
+							notCurrent: { at: "2026-09-01T00:00:00Z", generatedAt: "2026-09-16T12:00:00Z" },
+						},
+					]);
 					const after = yield* loadStaleCandidates({ ...args, at: DateTime.makeUnsafe("2026-09-20T00:00:00Z") }).pipe(
 						Effect.provide(platform),
 					);
@@ -1025,4 +1050,72 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				}),
 		),
 	);
+
+	it.effect("notCurrentDetail gives the same kind and blockedBy the refusal gives (#504)", () => {
+		const now = DateTime.makeUnsafe("2026-11-25T12:00:00Z");
+		const stamp = (at: string, extra = "") => doc("T", `${extra}generated:\n  by: process:sync\n  at: ${at}\n`);
+		const files = {
+			"decisions/future.md": stamp("2027-11-25T12:00:00Z"),
+			"decisions/near.md": stamp("2026-11-25T12:02:00Z"),
+			"decisions/blocked.md": stamp(
+				"2027-11-25T12:00:00Z",
+				"verified:\n  - by: human:ada\n    at: 2026-12-25T00:00:00Z\n",
+			),
+			"decisions/absent.md": stamp("2026-11-25T11:59:30Z"),
+		};
+		const cases = [
+			{
+				id: "decisions/future",
+				at: "2026-11-25T12:00:00Z",
+				detail: { at: "2026-11-25T12:00:00Z", generatedAt: "2027-11-25T12:00:00Z", kind: "future" },
+				message:
+					'"decisions/future" has generated.at 2027-11-25T12:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again',
+			},
+			{
+				id: "decisions/near",
+				at: "2026-11-25T12:00:00Z",
+				detail: { at: "2026-11-25T12:00:00Z", generatedAt: "2026-11-25T12:02:00Z", kind: "near-future" },
+				message:
+					'"decisions/near" has generated.at 2026-11-25T12:02:00Z, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after 2026-11-25T12:02:00Z',
+			},
+			{
+				id: "decisions/blocked",
+				at: "2026-11-25T12:00:00Z",
+				detail: {
+					at: "2026-11-25T12:00:00Z",
+					generatedAt: "2027-11-25T12:00:00Z",
+					kind: "blocked",
+					blockedBy: "2026-12-25T00:00:00Z",
+				},
+				message:
+					'"decisions/blocked" has generated.at 2027-11-25T12:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification',
+			},
+			{
+				id: "decisions/absent",
+				at: "2026-11-25T11:59:00Z",
+				detail: { at: "2026-11-25T11:59:00Z", generatedAt: "2026-11-25T11:59:30Z" },
+				message:
+					'"decisions/absent" was last changed at 2026-11-25T11:59:30Z, after the verification time 2026-11-25T11:59:00Z; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after 2026-11-25T11:59:30Z, or omit --at to verify now',
+			},
+		] as const;
+		return withRoot(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root }).pipe(Effect.provide(TestPlatform));
+				for (const entry of cases) {
+					const concept = bundle.concepts.get(entry.id as ConceptId);
+					if (concept === undefined) return yield* Effect.die(`fixture ${entry.id} missing`);
+					assert.deepStrictEqual(notCurrentDetail(concept, DateTime.makeUnsafe(entry.at), now), entry.detail, entry.id);
+					const error = yield* Effect.flip(
+						runVerify({ ...base(root, entry.at), now, id: entry.id }).pipe(Effect.provide(platform)),
+					);
+					assert.strictEqual(error._tag, "VerifyNotCurrentError");
+					assert.strictEqual(error.message, entry.message);
+				}
+				// control: at the stamp the absent concept is current, so the detail is the rule, not a default
+				const absent = bundle.concepts.get("decisions/absent" as ConceptId);
+				if (absent === undefined) return yield* Effect.die("fixture missing");
+				assert.isUndefined(notCurrentDetail(absent, DateTime.makeUnsafe("2026-11-25T11:59:30Z"), now));
+			}),
+		);
+	});
 });

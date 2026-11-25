@@ -7,14 +7,14 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:58:59Z
+  at: 2026-11-25T15:08:01Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 x-okfit-integrity:
   generated:
-    body: ea0c84bf3a6682f1
+    body: 40a45778ff99ed86
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -82,7 +82,7 @@ rule follows it: batch, the picker and the language server treat a
 concept as already verified only when its binding is current. `okfit verify <id>`
 also refuses to write a verification that would not be current (`--at`
 before `generated.at`, or a `generated.at` in the future), exit `3`, so it
-never records an entry the next read would discard. When `generated.at` is more than five minutes ahead the message names `okfit sync`, which re-stamps it unless a verification dated between now and the stamp would then count, in which case the message says sync will not re-stamp it, names that verification and says a human must correct `generated.at` or it; within five minutes it says to check the clock. A selection (a batch, an id list, a picker, `stale --verify`) does not fail on such a concept: it skips it with the reason `not-current` and verifies the rest, so one bad stamp does not block the others, and the pickers leave it out and say how many they left out (#470). The other end of `--at` is refused too: an `--at` more than five minutes later than now (the tolerance core already uses for a future `generated.at`; exactly five minutes is accepted) fails with `VerifySelectionError`, exit `64`, before anything is loaded for a write and before any picker opens, because a verification records when the review happened and one dated ahead of the clock is how the future-stamp states above arise. A malformed `--at` stays exit `3`. `okfit sync` keeps the
+never records an entry the next read would discard. When `generated.at` is more than five minutes ahead the message names `okfit sync`, which re-stamps it unless a verification dated between now and the stamp would then count, in which case the message says sync will not re-stamp it, names that verification and says a human must correct `generated.at` or it; within five minutes it says to check the clock. A selection (a batch, an id list, a picker, `stale --verify`) does not fail on such a concept: it skips it with the reason `not-current` and verifies the rest, so one bad stamp does not block the others, and the pickers leave it out and print one `left out <id>: ...` line per concept (#470); that line, and the `skipped <id>: ...` line of a batch or id list, name the same next step the single-id refusal names for that concept (#504), as human output only (`VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`). The other end of `--at` is refused too: an `--at` more than five minutes later than now (the tolerance core already uses for a future `generated.at`; exactly five minutes is accepted) fails with `VerifySelectionError`, exit `64`, before anything is loaded for a write and before any picker opens, because a verification records when the review happened and one dated ahead of the clock is how the future-stamp states above arise. A malformed `--at` stays exit `3`. `okfit sync` keeps the
 usual edit, verify, commit sequence current by never stamping a
 `generated.at` later than a human verification of exactly the current
 content, unless that verification is older than the concept's existing

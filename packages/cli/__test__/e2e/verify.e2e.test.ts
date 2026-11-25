@@ -482,11 +482,63 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(run.exitCode, 0, run.stderr);
 			assert.include(
 				run.stdout,
-				"skipped decisions/b: generated.at is later than 2026-09-16T12:00:00Z, so a verification then would not count\n",
+				"skipped decisions/b: generated.at 2026-09-16T12:00:01Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-09-16T12:00:01Z\n",
 			);
 			assert.include(run.stdout, "verified 1, skipped 1");
 			assert.strictEqual(await readFile(late, "utf8"), lateText);
 			assert.include(await readFile(join(cwd, "okf", "decisions", "a.md"), "utf8"), "by: human:ada");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("an id list names the step per kind, matching the single-id refusal (#504)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const stamp = (title: string, at: string, extra = ""): string =>
+				`---\ntype: Decision\ntitle: ${title}\ndescription: A decision.\nstatus: stable\n${extra}generated:\n  by: process:sync\n  at: ${at}\n---\n\n# ${title}\n`;
+			const files = {
+				future: stamp("Future", "2027-11-25T12:00:00Z"),
+				near: stamp("Near", "2026-11-25T12:02:00Z"),
+				blocked: stamp(
+					"Blocked",
+					"2027-11-25T12:00:00Z",
+					"verified:\n  - by: human:ada\n    at: 2026-12-25T00:00:00Z\n",
+				),
+				absent: stamp("Absent", "2026-11-25T11:59:30Z"),
+			};
+			for (const [name, text] of Object.entries(files)) {
+				await writeFile(join(cwd, "okf", "decisions", `${name}.md`), text, "utf8");
+			}
+			const runEnv = { ...env, OKFIT_NOW: "2026-11-25T12:00:00Z" };
+			const at = ["--at", "2026-11-25T11:59:00Z"];
+			const ids = ["decisions/a", "decisions/future", "decisions/near", "decisions/blocked", "decisions/absent"];
+			const run = await withServices(runOkfit(["verify", ...ids, ...at], { cwd, env: runEnv }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(
+				run.stdout,
+				[
+					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again",
+					"skipped decisions/near: generated.at 2026-11-25T12:02:00Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-11-25T12:02:00Z",
+					"skipped decisions/blocked: generated.at 2027-11-25T12:00:00Z is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
+					"skipped decisions/absent: generated.at 2026-11-25T11:59:30Z is later than the verification time 2026-11-25T11:59:00Z, so a verification then would not count; verify it at or after 2026-11-25T11:59:30Z, or omit --at to verify now",
+					"",
+				].join("\n"),
+			);
+			assert.include(run.stdout, "verified 1, skipped 4");
+			// each skipped id, alone, names the same step
+			const steps: ReadonlyArray<readonly [string, string]> = [
+				["decisions/future", "run okfit sync"],
+				["decisions/near", "check the clock"],
+				["decisions/blocked", "a human must correct generated.at or that verification"],
+				["decisions/absent", "omit --at to verify now"],
+			];
+			for (const [id, step] of steps) {
+				const alone = await withServices(runOkfit(["verify", id, ...at], { cwd, env: runEnv }));
+				assert.strictEqual(alone.exitCode, 3, `${id}: ${alone.stderr}`);
+				assert.include(alone.stderr.toLowerCase(), step, id);
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}

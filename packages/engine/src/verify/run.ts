@@ -1,15 +1,7 @@
 import { AtomicFile } from "@effected/files";
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import {
-	Bundle,
-	ConceptId,
-	Derive,
-	INTEGRITY_KEY,
-	Timestamp,
-	generatedAtIsFuture,
-	verificationBlockingRestamp,
-} from "@okfit/core";
+import { Bundle, ConceptId, Derive, INTEGRITY_KEY, Timestamp, generatedAtIsFuture } from "@okfit/core";
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
@@ -28,9 +20,9 @@ import { changeSince } from "./diff.js";
 import { locateIntegrity, removeIntegrityVerified, spliceIntegrityVerified } from "./integrity.js";
 import { documentNewline, locate, locateTopLevelScalar, locateVerifiedAt, stripBom } from "./locate.js";
 import { locateVerifiedEntries } from "./revoke.js";
-import type { PickerCandidate, VerifyBatchSkipReason } from "./select.js";
+import type { PickerCandidate, VerifySkip } from "./select.js";
 import {
-	notCurrentAt,
+	notCurrentDetail,
 	resolveBatchTypes,
 	selectAttestable,
 	selectPickerCandidates,
@@ -132,7 +124,7 @@ export interface VerifyBatchResult {
 	readonly dryRun: boolean;
 	/** In bundle iteration order; each carries the exact fragment written (or that would be). */
 	readonly verified: ReadonlyArray<{ readonly id: string; readonly conceptPath: string; readonly fragment: string }>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: VerifyBatchSkipReason }>;
+	readonly skipped: ReadonlyArray<VerifySkip>;
 }
 
 interface PreparedVerify {
@@ -187,35 +179,8 @@ const notCurrentRefusal = (
 	at: DateTime.Utc,
 	now?: DateTime.Utc,
 ): VerifyNotCurrentError | undefined => {
-	const generatedAt = concept.frontmatter.generated?.at;
-	if (generatedAt === undefined || Derive.isCurrent(concept.frontmatter, at)) return undefined;
-	// How far ahead of now the stamp is, when now is known; the engine never claims "later than now" without it.
-	const future = now !== undefined && DateTime.isGreaterThan(generatedAt, now);
-	// A future stamp sync would skip: a verification dated between now and it would start to count if it were lowered.
-	const blockedBy =
-		future && generatedAtIsFuture(generatedAt, now)
-			? Option.getOrUndefined(
-					verificationBlockingRestamp(
-						(concept.frontmatter.verified ?? []).map((entry) => entry.at),
-						generatedAt,
-						now,
-					),
-				)
-			: undefined;
-	const kind = !future
-		? undefined
-		: blockedBy !== undefined
-			? ("blocked" as const)
-			: generatedAtIsFuture(generatedAt, now)
-				? ("future" as const)
-				: ("near-future" as const);
-	return new VerifyNotCurrentError({
-		id: concept.id,
-		at: Schema.encodeSync(Timestamp)(at),
-		generatedAt: Schema.encodeSync(Timestamp)(generatedAt),
-		...(kind === undefined ? {} : { kind }),
-		...(blockedBy === undefined ? {} : { blockedBy: Schema.encodeSync(Timestamp)(blockedBy) }),
-	});
+	const detail = notCurrentDetail(concept, at, now);
+	return detail === undefined ? undefined : new VerifyNotCurrentError({ id: concept.id, ...detail });
 };
 
 /** Steps 9-14 of runVerify: read, locate (fail closed), splice; no write. */
@@ -627,6 +592,7 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 	const selection = selectAttestable(bundle, types, actor, signals, {
 		drifted: options.types.length === 0,
 		at: options.at,
+		...(options.now === undefined ? {} : { now: options.now }),
 	});
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
 	// Every concept is located before any is written: one unsupported
@@ -719,12 +685,13 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 	}
 
 	const prepared: Array<{ readonly id: string; readonly conceptPath: string } & PreparedVerify> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: VerifyBatchSkipReason }> = [];
+	const skipped: Array<VerifySkip> = [];
 	for (const [id, concept] of concepts) {
 		// A concept whose `generated.at` is later than `at` cannot be verified now: skip it, verify the rest.
 		// An unknown status is checked first so it still fails the whole list.
-		if (unknownStatusRefusal(concept, undefined) === undefined && notCurrentAt(concept, options.at)) {
-			skipped.push({ id, reason: "not-current" });
+		const notCurrent = notCurrentDetail(concept, options.at, options.now);
+		if (unknownStatusRefusal(concept, undefined) === undefined && notCurrent !== undefined) {
+			skipped.push({ id, reason: "not-current", notCurrent });
 			continue;
 		}
 		const status = options.promote === true && Derive.status(concept.frontmatter) === "draft" ? "stable" : undefined;
@@ -766,25 +733,27 @@ export interface PickerCandidatesOptions {
 interface PickerRows {
 	readonly by: string;
 	readonly candidates: ReadonlyArray<PickerCandidate>;
-	/** Sorted ids of the concepts left out because their `generated.at` is later than the verification time. */
-	readonly leftOut: ReadonlyArray<string>;
+	/** The concepts left out because their `generated.at` is later than the verification time, sorted by id. */
+	readonly leftOut: ReadonlyArray<VerifySkip>;
 }
 
-/** Drops the rows whose concept is not current at `at`, naming them (sorted) in `leftOut`. */
+/** Drops the rows whose concept is not current at `at`, recording each (sorted by id) with its detail in `leftOut`. */
 const leaveOutNotCurrent = (
 	bundle: LoadedBundle,
 	rows: ReadonlyArray<PickerCandidate>,
 	at: DateTime.Utc,
-): { readonly candidates: ReadonlyArray<PickerCandidate>; readonly leftOut: ReadonlyArray<string> } => {
+	now: DateTime.Utc,
+): { readonly candidates: ReadonlyArray<PickerCandidate>; readonly leftOut: ReadonlyArray<VerifySkip> } => {
 	const keep: Array<PickerCandidate> = [];
-	const leftOut: Array<string> = [];
+	const leftOut: Array<VerifySkip> = [];
 	const byId = new Map<string, LoadedConcept>(bundle.concepts);
 	for (const row of rows) {
 		const concept = byId.get(row.id);
-		if (concept !== undefined && notCurrentAt(concept, at)) leftOut.push(row.id);
+		const notCurrent = concept === undefined ? undefined : notCurrentDetail(concept, at, now);
+		if (notCurrent !== undefined) leftOut.push({ id: row.id, reason: "not-current", notCurrent });
 		else keep.push(row);
 	}
-	return { candidates: keep, leftOut: leftOut.toSorted() };
+	return { candidates: keep, leftOut: leftOut.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) };
 };
 
 /** The rows with `path` joined onto the bundle root, so the picker's callers get absolute file paths. */
@@ -813,6 +782,7 @@ export const loadPickerCandidates = Effect.fn("okfit/verify/loadPickerCandidates
 		bundle,
 		selectPickerCandidates(bundle, options.config, by, signals),
 		options.at ?? now,
+		now,
 	);
 	return {
 		by,
@@ -839,6 +809,7 @@ export const loadStaleCandidates = Effect.fn("okfit/verify/loadStaleCandidates")
 		bundle,
 		selectStaleCandidates(bundle, Derive.staleReport(bundle, options.now), by, signals),
 		options.at ?? options.now,
+		options.now,
 	);
 	return {
 		by,

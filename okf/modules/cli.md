@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:25:12Z
+  at: 2026-11-25T15:08:01Z
 x-okfit-integrity:
   generated:
-    body: cb94c2968bd34f85
+    body: 37d57a94013b4a11
 ---
 
 # CLI
@@ -58,7 +58,7 @@ nothing to revoke and `64` on a usage conflict (with `--all`, `--type`,
 `--stable`, `--draft`, `--at`, or no id). A single-id verify that would write an entry
 before the concept's `generated.at` (`--at` earlier, or a `generated.at` in
 the future) exits `3` with `VerifyNotCurrentError`, because OKF v0.3 §5.3
-stops counting such an entry; a batch, an id list and both pickers skip the concept as `not-current` instead, and `commands/verify-picker.ts` prints one `left out` line naming the rows it dropped (#470); the confirm prose names a drift of
+stops counting such an entry; a batch, an id list and both pickers skip the concept as `not-current` instead, and `commands/verify-picker.ts` prints one `left out <id>: ...` line per row it dropped, each naming the next step (`render/verify.ts#notCurrentReason`, the same step as the single-id refusal; #470, #504); the confirm prose names a drift of
 `verified-before-change` as "verified before its last change". See
 [A verification is bound to the content it
 covered](../decisions/verification-binds-content.md).

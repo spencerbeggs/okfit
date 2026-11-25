@@ -293,8 +293,8 @@ malformed `--at` stays exit `3`. okfit refuses (exit `3`, with `--dry-run` too) 
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
-(`skipped <id>: generated.at is later than <at>, ...`) and verify the rest; both pickers leave it out and print one
-`left out ...` line naming it. A `generated.at` later than now by less than 5 minutes is refused with a message to check
+(`skipped <id>: generated.at <stamp> is later than ...`, ending in the step to take) and verify the rest; both pickers leave it out and print one
+`left out <id>: ...` line per concept with the same step: `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
 the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on any failure.
@@ -344,7 +344,7 @@ Bare `okfit verify` in a terminal opens a picker: every concept of a
 any type, drafts included and deprecated and unknown-status excluded, grouped by type (↑/↓ move, space toggles, `a` toggles a
 section, Enter continues). A confirm step follows, with a "promote K drafts
 to stable" toggle that is on by default. The picked concepts are attested in
-one all-or-nothing write; a concept whose `generated.at` is later than the verification time is left out, and one line names it. When a candidate is drifted, the picker shows a
+one all-or-nothing write; a concept whose `generated.at` is later than the verification time is left out, and one `left out <id>: ...` line per concept names it and the next step. When a candidate is drifted, the picker shows a
 two-pane screen that previews its diff since the last verification (or why
 there is no baseline to diff against). Esc, `q`, Ctrl-C or answering no exits `130` with
 nothing written. Without a terminal (a pipe, an agent or CI audience, or

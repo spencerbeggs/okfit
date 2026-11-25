@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:58:59Z
+  at: 2026-11-25T15:08:01Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 2a5759ef111d077d
+    body: 25142e0aa3ac11bb
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -206,7 +206,7 @@ own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant, but never one more than five minutes later than now (exactly five minutes is accepted): that is a `VerifySelectionError`, exit `64`, raised before anything is loaded for a write and before any picker opens, with `--dry-run` and in `--format json` too, while a malformed `--at` stays exit `3`. Nor one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
-skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. Both pickers leave such a concept out and print one `left out <n> concept(s) ...` line, and when every row is left out they print `nothing to verify now: every candidate has a generated.at later than the verification time`. `--dry-run` prints what would be written and writes nothing.
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or

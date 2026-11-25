@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:49:26Z
+  at: 2026-11-25T15:08:01Z
 x-okfit-integrity:
   generated:
-    body: a604788d5f102393
+    body: 1b01afbf078f6e28
 ---
 
 # Engine
@@ -97,7 +97,7 @@ bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-off
 its last change included. `stale --verify`'s candidates come from staleness
 alone (`selectStaleCandidates` never consults integrity). `runVerify` refuses a write that would not be current: `--at` before
 `generated.at`, or a `generated.at` in the future, fails with
-`VerifyNotCurrentError` (exit `3`); its `kind` is `blocked` (with `blockedBy`, the earliest verification dated between `now` and the stamp) when `generated.at` is more than five minutes later than the run's `now` and sync would skip the re-stamp, `future` when it is more than five minutes later and sync re-stamps it, `near-future` when it is later by less than that, and absent when `now` is not given or `generated.at` is not later than `now` (only `--at` is early), and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentAt` skips it with the reason `not-current` (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return its id in `leftOut`, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
+`VerifyNotCurrentError` (exit `3`); its `kind` is `blocked` (with `blockedBy`, the earliest verification dated between `now` and the stamp) when `generated.at` is more than five minutes later than the run's `now` and sync would skip the re-stamp, `future` when it is more than five minutes later and sync re-stamps it, `near-future` when it is later by less than that, and absent when `now` is not given or `generated.at` is not later than `now` (only `--at` is early), and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentDetail` (which `runVerify`'s refusal also reads, so the `kind` and `blockedBy` are computed once) skips it with the reason `not-current` and a `notCurrent` detail (`VerifySkip`) (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return it in `leftOut` as a `VerifySkip` (`id`, `reason`, `notCurrent`), sorted by id, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
 `--revoke`: it removes the current actor's own `verified` entries, clears
 `x-okfit-integrity.verified` when it was bound to one of them (and `x-okfit-integrity`
 when empty), removes the `verified` key when its list empties, and reports

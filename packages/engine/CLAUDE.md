@@ -94,7 +94,7 @@ src/
   verify/
     locate.ts               -- Located, locate, stripBom, documentNewline, TopLevelScalarLocated,
                                 locateTopLevelScalar (pure)
-    select.ts                -- VerifyBatchSkipReason, AttestableSelection, notCurrentAt, selectAttestable,
+    select.ts                -- VerifyBatchSkipReason, NotCurrentDetail, VerifySkip, AttestableSelection, notCurrentAt, notCurrentDetail, selectAttestable,
                                  PickerCandidate, selectPickerCandidates (pure)
     splice.ts                -- SpliceTarget, VerifyEntry, splice, spliceTopLevelScalar
                                  (pure, never a YAML serialiser)
@@ -103,7 +103,7 @@ src/
                                   runVerifyBatch, runVerifyIds (explicit ids, optional promote),
                                   futureAtRefusal (pure; `runVerify`, `runVerifyBatch` and `runVerifyIds` call it first when
                                   `now` is set, the CLI right after decoding `--at`),
-                                  loadPickerCandidates, loadStaleCandidates (both also return `leftOut`)
+                                  loadPickerCandidates, loadStaleCandidates (both also return `leftOut`, a `VerifySkip` per concept)
                                   and loadPreviews (the picker's per-drifted-row changeSince)
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
                                   (`inspectDrift`) both ask `notCurrentRefusal` after `unknownStatusRefusal`: an `at` before the
@@ -111,7 +111,7 @@ src/
                                   (`kind` is `blocked` beyond the 5-minute tolerance when a verification dated between now and the stamp (`blockedBy`) would count
                                   if sync re-stamped it, so sync skips it; else `future` beyond the tolerance, `near-future` within it, absent
                                   when `now` is unknown or `generated.at` is not later than `now`, so only the verification time is early) and writes nothing; a batch, an id list and both
-                                  pickers instead skip such a concept (`not-current`, `notCurrentAt`) and verify the rest (#470;
+                                  pickers instead skip such a concept (`not-current`, carrying `notCurrentDetail`) and verify the rest (#470;
                                   OKF 0.3 5.3, R33)
   sync/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps

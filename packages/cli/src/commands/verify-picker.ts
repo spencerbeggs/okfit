@@ -5,6 +5,7 @@ import type { PickerCandidate } from "@okfit/engine";
 import { loadPickerCandidates, loadPreviews } from "@okfit/engine";
 import type { DateTime } from "effect";
 import { Console, Effect } from "effect";
+import { notCurrentReason } from "../render/verify.js";
 
 /** What the picker decided: attest exactly these ids, and settle drafts when `promote`. */
 export interface PickedConcepts {
@@ -112,16 +113,18 @@ export const pickConcepts = (
 ) =>
 	Effect.gen(function* () {
 		const { by, candidates, leftOut } = yield* source.load;
-		if (leftOut.length > 0) {
+		for (const entry of leftOut) {
 			yield* Console.log(
-				`left out ${leftOut.length} concept(s) whose generated.at is later than the verification time: ${leftOut.join(", ")}`,
+				entry.notCurrent === undefined
+					? `left out ${entry.id}: ${entry.reason}`
+					: `left out ${entry.id}: ${notCurrentReason(entry.notCurrent)}`,
 			);
 		}
 		if (candidates.length === 0) {
 			// Rows that exist but were all left out: the source's "nothing to do" wording would be false.
 			yield* Console.log(
 				leftOut.length > 0
-					? "nothing to verify now: every candidate has a generated.at later than the verification time"
+					? "nothing to verify now: every candidate was left out, for the reason on its line above"
 					: source.empty(by),
 			);
 			return undefined;

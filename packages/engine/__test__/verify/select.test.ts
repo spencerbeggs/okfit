@@ -478,7 +478,13 @@ describe("selectAttestable at the verification time (#470)", () => {
 	it.effect("selectAttestable skips a concept whose generated.at is later than at, with not-current (#470)", () =>
 		Effect.gen(function* () {
 			const { selection, notCurrent } = yield* select(DateTime.makeUnsafe("2026-09-16T11:59:59Z"));
-			assert.deepStrictEqual(selection.skipped, [{ id: "a", reason: "not-current" }]);
+			assert.deepStrictEqual(selection.skipped, [
+				{
+					id: "a",
+					reason: "not-current",
+					notCurrent: { at: "2026-09-16T11:59:59Z", generatedAt: "2026-09-16T12:00:00Z" },
+				},
+			]);
 			assert.deepStrictEqual(selection.candidates, []);
 			assert.isTrue(notCurrent);
 		}),

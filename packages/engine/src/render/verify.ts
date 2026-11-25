@@ -119,7 +119,7 @@ export const verifyBatchEnvelope = (input: {
 	verified_by: input.by,
 	verified_at: input.at,
 	concepts: input.concepts,
-	skipped: input.skipped,
+	skipped: input.skipped.map(({ id, reason }) => ({ id, reason })),
 	dry_run: input.dryRun,
 	exit_code: 0,
 });

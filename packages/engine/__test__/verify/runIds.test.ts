@@ -490,7 +490,13 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 					result.verified.map((entry) => entry.id),
 					["decisions/f"],
 				);
-				assert.deepStrictEqual(result.skipped, [{ id: "decisions/l", reason: "not-current" }]);
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/l",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-16T12:00:01Z" },
+					},
+				]);
 				assert.notStrictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/f.md"), "utf8")), fine);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 				// control: at equal to the later generated.at verifies both, so the skip was the not-current rule
@@ -525,8 +531,16 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 				}).pipe(Effect.provide(platform));
 				assert.deepStrictEqual(result.verified, []);
 				assert.deepStrictEqual(result.skipped, [
-					{ id: "decisions/l", reason: "not-current" },
-					{ id: "decisions/m", reason: "not-current" },
+					{
+						id: "decisions/l",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-16T12:00:01Z" },
+					},
+					{
+						id: "decisions/m",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-17T00:00:00Z" },
+					},
 				]);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/m.md"), "utf8")), later);
@@ -610,8 +624,50 @@ describe("runVerifyIds refuses a verification that would not be current (OKF 0.3
 					ids: ["decisions/l"],
 					refreshStaleAfter: true,
 				}).pipe(Effect.provide(platform));
-				assert.deepStrictEqual(result.skipped, [{ id: "decisions/l", reason: "not-current" }]);
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/l",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-17T00:00:00Z" },
+					},
+				]);
 				assert.strictEqual(yield* Effect.promise(() => readFile(join(root, "decisions/l.md"), "utf8")), late);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("each not-current skip carries its detail, with the kind when now is given (#504)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-verify-ids-detail-")));
+			try {
+				yield* Effect.promise(() => mkdir(join(root, "decisions")));
+				const stamp = (at: string) => doc("T", `generated:\n  by: process:sync\n  at: ${at}\n`);
+				yield* Effect.promise(() => writeFile(join(root, "decisions/far.md"), stamp("2027-09-16T12:00:00Z")));
+				yield* Effect.promise(() => writeFile(join(root, "decisions/near.md"), stamp("2026-09-16T12:02:00Z")));
+				const args = {
+					bundleRoot: root,
+					projectRoot: root,
+					config,
+					at: AT,
+					now: AT,
+					dryRun: true,
+					ids: ["decisions/far", "decisions/near"],
+				};
+				const result = yield* runVerifyIds(args).pipe(Effect.provide(platform));
+				assert.deepStrictEqual(result.skipped, [
+					{
+						id: "decisions/far",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2027-09-16T12:00:00Z", kind: "future" },
+					},
+					{
+						id: "decisions/near",
+						reason: "not-current",
+						notCurrent: { at: "2026-09-16T12:00:00Z", generatedAt: "2026-09-16T12:02:00Z", kind: "near-future" },
+					},
+				]);
 			} finally {
 				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
 			}
