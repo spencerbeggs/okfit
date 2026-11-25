@@ -173,3 +173,42 @@ describe("BundleSession", () => {
 		);
 	});
 });
+
+describe("BundleSession configPath (#499)", () => {
+	const staleSeed = {
+		...SEED,
+		[`${ROOT}/index.md`]: '---\nokf_version: "0.3"\n---\n\n# Index\n\n- [A](a.md)\n- [B](b.md)\n',
+	};
+	const staleMessage = (session: BundleSession["Service"]) =>
+		session
+			.revalidate(edit)
+			.pipe(
+				Effect.map((result) => result.current.get("")?.find((d) => d.code === "config-okf-version-stale")?.message),
+			);
+
+	it.effect("names the config file the session was given", () =>
+		Effect.gen(function* () {
+			const session = yield* BundleSession.make({
+				root: ROOT,
+				projectRoot: "/repo",
+				config: { ...sessionConfig(), okf_version: "0.2" },
+				profile: Option.none(),
+				configPath: "/repo/okfit.toml",
+			});
+			const message = yield* staleMessage(session);
+			assert.include(message, 'okf_version in /repo/okfit.toml is "0.2"');
+		}).pipe(Effect.provide(sessionPlatform(staleSeed))),
+	);
+
+	it.effect("without a configPath the message reads 'in the config' (control)", () =>
+		Effect.gen(function* () {
+			const session = yield* BundleSession.make({
+				root: ROOT,
+				projectRoot: "/repo",
+				config: { ...sessionConfig(), okf_version: "0.2" },
+				profile: Option.none(),
+			});
+			assert.include(yield* staleMessage(session), 'okf_version in the config is "0.2"');
+		}).pipe(Effect.provide(sessionPlatform(staleSeed))),
+	);
+});

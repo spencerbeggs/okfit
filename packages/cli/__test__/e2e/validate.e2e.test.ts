@@ -1443,3 +1443,20 @@ describe("okfit validate: config messages (#499, #501)", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
+
+describe("okfit validate: the human error line carries every bad key (#501)", () => {
+	it.effect("stderr names all three keys on one line", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-bad-keys-human-"));
+			const bad = '[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n';
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V02_PROJECT, "okfit.toml": bad }));
+			const result = yield* runOkfit(["validate"], sandbox);
+			assert.strictEqual(result.exitCode, 3);
+			const lines = result.stderr.split("\n").filter((l) => l.startsWith("error:"));
+			assert.strictEqual(lines.length, 1);
+			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
+				assert.include(lines[0], key);
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});

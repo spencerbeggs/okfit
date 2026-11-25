@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ConfigFile, MergeStrategy } from "@effected/config-file";
+import { ConfigFile, ConfigValidationError, MergeStrategy } from "@effected/config-file";
 import { TomlCodec } from "@effected/config-file/toml";
 import { Toml } from "@effected/toml";
-import { Duration, Effect, Schema } from "effect";
+import { Duration, Effect, Schema, SchemaIssue } from "effect";
 import { OkfitConfig, OkfitConfigFile } from "../src/OkfitConfig.js";
 import { configPlatform, specExampleToml } from "./utils/configFixtures.js";
 
@@ -11,6 +11,8 @@ const CONFIG_PATH = "/repo/.config/okfit.toml";
 const platform = configPlatform({
 	[CONFIG_PATH]: specExampleToml,
 	"/repo/broken.toml": "[bundle\npath = 1\n",
+	"/repo/three-bad.toml":
+		'[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n',
 	"/repo/bad-duration.toml": '[lifecycle]\ndefault_stale_after = "soon"\n',
 	"/repo/literal-escape.toml": "[bundle]\nnon_concepts = ['\\[x']\n",
 	"/repo/basic-escape.toml": '[bundle]\nnon_concepts = ["\\\\[x"]\n',
@@ -38,6 +40,18 @@ describe("OkfitConfig.read", () => {
 			const config = yield* OkfitConfig.read("/repo/extra.toml");
 			assert.deepStrictEqual({ ...config.extensions }, { mystery: { level: 3 } });
 			assert.strictEqual(OkfitConfig.severityFor(config, "config-unknown-key"), "warning");
+		}).pipe(Effect.provide(platform)),
+	);
+	it.effect("reports every invalid key, not only the first (#501)", () =>
+		Effect.gen(function* () {
+			const error = yield* Effect.flip(OkfitConfig.read("/repo/three-bad.toml"));
+			if (!(error instanceof ConfigValidationError)) return assert.fail("expected a ConfigValidationError");
+			const issue = error.issue;
+			if (!SchemaIssue.isIssue(issue)) return assert.fail("expected a schema issue");
+			const paths = SchemaIssue.makeFormatterStandardSchemaV1()(issue).issues.map((entry) =>
+				(entry.path ?? []).map((segment) => String(typeof segment === "object" ? segment.key : segment)).join("."),
+			);
+			assert.deepStrictEqual([...paths].sort(), ["bundle.path", "lifecycle.default_stale_after", "lint.missing_index"]);
 		}).pipe(Effect.provide(platform)),
 	);
 	it.effect("fails typed: missing path, malformed TOML, bad value", () =>

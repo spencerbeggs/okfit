@@ -1,7 +1,7 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Logger, Option } from "effect";
+import { DateTime, Effect, Logger, Option } from "effect";
 import { makeSessionRegistry } from "../../src/session/registry.js";
 import { copyFixtureProject } from "../utils/fixture.js";
 import { testPlatform } from "../utils/platform.js";
@@ -273,4 +273,50 @@ describe("SessionRegistry", () => {
 			assert.deepStrictEqual(yield* registry.folders, [b.root]);
 		}).pipe(Effect.scoped, Effect.provide(platform)),
 	);
+});
+
+describe("SessionRegistry config details (#499, #501)", () => {
+	it.effect("a session built from a discovered config names that file in the stale-version message", () =>
+		Effect.gen(function* () {
+			const { root } = yield* copyFixtureProject();
+			const configPath = join(root, ".okfit.toml");
+			const config = yield* Effect.promise(() => readFile(configPath, "utf8"));
+			yield* Effect.promise(() => writeFile(configPath, `okf_version = "0.3"\n${config}`, "utf8"));
+			const registry = yield* make();
+			yield* registry.setFolders([root]);
+			const handle = Option.getOrThrow(yield* registry.sessionFor(join(root, "okf", "modules", "alpha.md")));
+			const result = yield* handle.session.revalidate({
+				now: DateTime.makeUnsafe("2026-09-22T00:00:00Z"),
+				tier: "edit",
+			});
+			const stale = result.current.get("")?.find((d) => d.code === "config-okf-version-stale");
+			assert.isDefined(stale);
+			assert.include(stale?.message, `okf_version in ${configPath} is "0.3"`);
+		}).pipe(Effect.scoped, Effect.provide(platform)),
+	);
+
+	it.effect("the config warning carries every bad key", () => {
+		const entries: Array<CapturedLog> = [];
+		const capturingLogger = Logger.make<unknown, void>((options) => {
+			entries.push({ level: options.logLevel, message: options.message as ReadonlyArray<unknown> });
+		});
+		return Effect.gen(function* () {
+			const { root } = yield* copyFixtureProject();
+			yield* Effect.promise(() =>
+				writeFile(
+					join(root, ".okfit.toml"),
+					'[lint]\nmissing_index = "loud"\n\n[bundle]\npath = 3\n\n[lifecycle]\ndefault_stale_after = "soon"\n',
+					"utf8",
+				),
+			);
+			const registry = yield* make();
+			yield* registry.setFolders([root]);
+			yield* registry.sessionFor(join(root, "okf", "modules", "alpha.md"));
+			const warnings = entries.filter((e) => e.level === "Warn").map((e) => e.message.map(String).join(" "));
+			assert.strictEqual(warnings.length, 1);
+			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
+				assert.include(warnings[0], key);
+			}
+		}).pipe(Effect.scoped, Effect.provide(platform), Effect.provide(Logger.layer([capturingLogger])));
+	});
 });

@@ -225,3 +225,29 @@ describe("validate_bundle documents", () => {
 		}).pipe(Effect.scoped),
 	);
 });
+
+describe("validate_bundle: the stale-version warning names the config file (#499)", () => {
+	it.effect("config-okf-version-stale carries the discovered config's absolute path", () =>
+		Effect.gen(function* () {
+			let configPath = "";
+			const result = yield* validate({}, (root) =>
+				Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const path = yield* Path.Path;
+					const index = path.join(root, "bundle", "index.md");
+					const text = yield* Effect.orDie(fs.readFileString(index));
+					yield* Effect.orDie(fs.writeFileString(index, `---\nokf_version: "0.3"\n---\n\n${text}`));
+					configPath = path.join(root, ".config", "okfit.toml");
+					const config = yield* Effect.orDie(fs.readFileString(configPath));
+					yield* Effect.orDie(fs.writeFileString(configPath, `okf_version = "0.2"\n\n${config}`));
+				}),
+			);
+			const data = result.structuredContent as {
+				readonly diagnostics: ReadonlyArray<{ readonly code: string; readonly message: string }>;
+			};
+			const stale = data.diagnostics.find((d) => d.code === "config-okf-version-stale");
+			assert.isDefined(stale);
+			assert.include(stale?.message, `okf_version in ${configPath} is "0.2"`);
+		}).pipe(Effect.scoped),
+	);
+});
