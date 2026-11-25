@@ -4,13 +4,13 @@
 
 ## Breaking Changes
 
-`VerifyNotCurrentError` no longer has the optional `batch` field. A batch, an id list and the pickers now skip a concept that cannot be verified, so a concept that is not current no longer stops a whole selection. The error gains an optional `kind` (`"future"` or `"near-future"`) and its message is reworded. Drop any read of `batch`; read `kind` to tell how far ahead the `generated.at` is.
+`VerifyNotCurrentError` no longer has the optional `batch` field. A batch, an id list and the pickers now skip a concept that cannot be verified, so a concept that is not current no longer stops a whole selection. The error gains an optional `kind` (`"blocked"`, `"future"` or `"near-future"`) and, for `"blocked"`, an optional `blockedBy` (the verification that stops sync re-stamping the concept), and its message is reworded. Drop any read of `batch`; read `kind` to tell how far ahead the `generated.at` is.
 
 ## Features
 
-- `okfit sync` re-stamps a `generated.at` more than 5 minutes later than now, and caps a changed concept's new stamp at now. It never lowers a stamp when that would make a verification count: the re-stamp is skipped with the reason `verified-after-now`, and the cap is not applied. `SyncSkip` is exported.
+- `okfit sync` re-stamps a `generated.at` more than 5 minutes later than now, and caps a changed concept's new stamp at now. It never lowers a stamp when that would make a verification count: the re-stamp is skipped with the reason `verified-after-now`, the cap is not applied, and a changed concept's stamp is never moved back below the stamp it replaces when a verification falls between the two. `SyncSkip` is exported, and `SkipReason` gains `verified-after-now`.
 - Verify skips a concept that cannot be verified at the verification time, with the skip reason `not-current`, in a batch or an id list. The picker loaders leave such rows out and return the ids as `leftOut`.
-- `VerifyBatchSkipReason` gains `not-current`. `VerifyOptions`, `VerifyBatchOptions` and `VerifyIdsOptions` take an optional `now`.
+- `VerifyBatchSkipReason` gains `not-current`, and `notCurrentAt` is a new export. `VerifyOptions`, `VerifyBatchOptions` and `VerifyIdsOptions` take an optional `now`.
 - `RunOptions.configPath` and `RunResult.legacyKeys` are new. `RevalidateResult.current` and the type `DiagnosticsByFile` are exported.
 
 ## Bug Fixes
