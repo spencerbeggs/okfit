@@ -110,9 +110,10 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
  * `x-okfit-integrity.verified`.
  *
- * Unlike the brief's first sketch, this reads the root `index.md` itself (once, and only when the version fix is
- * planned), because `LoadedBundle` keeps only the frontmatter value of an index and the fix must locate `okf_version`
- * in the real text, BOM and CRLF included. So it requires the file system as well as `Digest`.
+ * It reads files itself rather than trusting `LoadedBundle` alone: every non-concept Markdown file (indexes, logs and
+ * typeless files, through `readMarkdownSources`) so their links are scanned, and the root `index.md` (only when the
+ * version fix is planned), because `LoadedBundle` keeps only the frontmatter value of an index and the fix must locate
+ * `okf_version` in the real text, BOM and CRLF included. So it requires the file system as well as `Digest`.
  *
  * @public
  */

@@ -175,6 +175,52 @@ describe("migration fixes", () => {
 			}).pipe(Effect.provide(on(lostSeed))),
 		);
 
+		it.effect("a root-only link, a lost computation and an unreadable file give three refusals", () =>
+			Effect.gen(function* () {
+				const seed: ProjectSeed = {
+					...UNDECLARED_PROJECT,
+					[PROSE]: lostSeed[PROSE] as string,
+					"okf/bad.md": "---\ntitle: never closed\n\nbody\n",
+				};
+				yield* Effect.gen(function* () {
+					const plan = yield* apply(yield* load, { only: ["okf-version"] });
+					assert.strictEqual(plan.refused.length, 3);
+					for (const refusal of plan.refused) {
+						assert.strictEqual(refusal.file, "index.md");
+						assert.strictEqual(refusal.code, "okf-version-undeclared");
+					}
+					assert.isTrue(plan.refused.some((r) => r.reason.includes("still resolve only from the bundle root")));
+					assert.isTrue(plan.refused.some((r) => r.reason.startsWith(REASON)));
+					assert.isTrue(plan.refused.some((r) => r.reason.includes("Markdown file(s) could not be read")));
+					assert.strictEqual(yield* read(INDEX), UNDECLARED_PROJECT[INDEX]);
+				}).pipe(Effect.provide(on(seed)));
+			}),
+		);
+
+		it.effect("an unreadable index.md in a subdirectory holds the version fix back", () =>
+			Effect.gen(function* () {
+				// D3: a reserved file the loader could not read counts as unreadable, like any other Markdown file.
+				const seed: ProjectSeed = {
+					...UNDECLARED_PROJECT,
+					"okf/computations/revenue-ytd.md": V03_PROJECT[COMPUTATION] as string,
+					"okf/metrics/index.md": "---\ntitle: never closed\n\n* [Revenue](revenue.md)\n",
+				};
+				const plan = yield* Effect.gen(function* () {
+					return yield* apply(yield* load);
+				}).pipe(Effect.provide(on(seed)));
+				assert.deepStrictEqual(
+					plan.refused.map((r) => [r.file, r.reason]),
+					[
+						[
+							"index.md",
+							"1 Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): metrics/index.md; fix them first",
+						],
+					],
+				);
+				assert.isFalse(plan.edits.some((e) => e.path === "index.md"));
+			}),
+		);
+
 		it.effect("a root-only reference and a lost computation give two refusals", () =>
 			Effect.gen(function* () {
 				const seed: ProjectSeed = { ...UNDECLARED_PROJECT, [PROSE]: lostSeed[PROSE] as string };
