@@ -1,9 +1,9 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, Integrity, LoadedBundle, LoadedConcept } from "@okfit/core";
-import { Timestamp, generatedAtIsFuture } from "@okfit/core";
+import { Timestamp, generatedAtIsFuture, verificationBlockingRestamp } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
 import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
-import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
+import { DateTime, Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { FrontmatterEdits } from "../edits/FrontmatterEdits.js";
 import {
 	locateIntegrity,
@@ -95,13 +95,13 @@ const earliestVerificationBetween = (
 	from: DateTime.Utc,
 	to: DateTime.Utc,
 ): DateTime.Utc | undefined =>
-	(concept.frontmatter.verified ?? [])
-		.map((entry) => entry.at)
-		.filter((at) => !DateTime.isLessThan(at, from) && DateTime.isLessThan(at, to))
-		.reduce<DateTime.Utc | undefined>(
-			(earliest, at) => (earliest === undefined || DateTime.isLessThan(at, earliest) ? at : earliest),
-			undefined,
-		);
+	Option.getOrUndefined(
+		verificationBlockingRestamp(
+			(concept.frontmatter.verified ?? []).map((entry) => entry.at),
+			to,
+			from,
+		),
+	);
 
 const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
 
@@ -468,7 +468,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
 		// not as a write that would recur on every run.
 		if (finalText === fileSource) {
-			unchanged.push(id);
+			if (reviving === undefined) unchanged.push(id);
 			continue;
 		}
 		if (legacy._tag === "line" || legacyRenders !== undefined || keyPlan._tag === "edits" || legacyKey !== undefined) {

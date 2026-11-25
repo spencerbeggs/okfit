@@ -1,4 +1,4 @@
-import { DateTime, Duration } from "effect";
+import { DateTime, Duration, Option } from "effect";
 
 /**
  * How far past now a `generated.at` may sit before okfit treats it as a future stamp: five minutes, the allowance for
@@ -17,3 +17,27 @@ export const GENERATED_AT_TOLERANCE: Duration.Duration = Duration.minutes(5);
  */
 export const generatedAtIsFuture = (generatedAt: DateTime.Utc, now: DateTime.Utc): boolean =>
 	DateTime.isGreaterThan(generatedAt, DateTime.addDuration(now, GENERATED_AT_TOLERANCE));
+
+/**
+ * The earliest verification time `V` with `startOf(now, "second") <= V < generatedAt`, the verifications that
+ * re-stamping `generatedAt` down to now would turn from not current into current (OKF 0.3 §5.3). `okfit sync` skips
+ * such a re-stamp; the lint `generated-at-future` names the verification instead of promising the repair. `now` is
+ * truncated to the whole second because stamps are written in whole seconds. None when no verification falls in the
+ * window.
+ *
+ * @public
+ */
+export const verificationBlockingRestamp = (
+	verifiedAts: ReadonlyArray<DateTime.Utc>,
+	generatedAt: DateTime.Utc,
+	now: DateTime.Utc,
+): Option.Option<DateTime.Utc> => {
+	const from = DateTime.startOf(now, "second");
+	return verifiedAts
+		.filter((at) => !DateTime.isLessThan(at, from) && DateTime.isLessThan(at, generatedAt))
+		.reduce<Option.Option<DateTime.Utc>>(
+			(earliest, at) =>
+				Option.isSome(earliest) && !DateTime.isLessThan(at, earliest.value) ? earliest : Option.some(at),
+			Option.none(),
+		);
+};

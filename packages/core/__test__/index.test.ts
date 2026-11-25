@@ -7,6 +7,7 @@ const VALUES = [
 	"Timestamp",
 	"GENERATED_AT_TOLERANCE",
 	"generatedAtIsFuture",
+	"verificationBlockingRestamp",
 	"Source",
 	"EntryPaths",
 	"UsageWindow",

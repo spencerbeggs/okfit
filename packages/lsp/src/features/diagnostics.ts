@@ -1,7 +1,7 @@
 /**
  * Diagnostics publishing: document events and watched-file changes schedule a
  * debounced whole-bundle revalidate, and each revalidate publishes one
- * `textDocument/publishDiagnostics` per file whose diagnostics changed.
+ * `textDocument/publishDiagnostics` per document URI whose diagnostics changed, carrying that URI's whole current set.
  *
  * @packageDocumentation
  */
@@ -44,8 +44,8 @@ export interface DiagnosticsFeature {
 }
 
 /**
- * The registry's scheduler callback: read now, revalidate, publish every
- * changed file.
+ * The registry's scheduler callback: read now, revalidate, publish once per
+ * document URI whose diagnostics changed.
  *
  * @public
  */

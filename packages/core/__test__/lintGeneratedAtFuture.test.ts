@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
 import { DateTime, Effect, Layer, Path } from "effect";
 import { Bundle } from "../src/Bundle.js";
+import { verificationBlockingRestamp } from "../src/GeneratedAtFuture.js";
 import { OkfitConfig } from "../src/OkfitConfig.js";
 import { Validate } from "../src/Validate.js";
 
@@ -9,8 +10,10 @@ const NOW = DateTime.makeUnsafe("2026-11-24T10:00:00Z");
 const MESSAGE =
 	"generated.at 2030-01-01T00:00:00Z is more than 5 minutes later than now (2026-11-24T10:00:00Z), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it";
 
-const concept = (at: string, status = "") =>
-	`---\ntype: Module\n${status}generated:\n  by: human:ada\n  at: ${at}\n---\n\n# A\n`;
+const concept = (at: string, status = "", verifiedAt?: string) =>
+	`---\ntype: Module\n${status}generated:\n  by: human:ada\n  at: ${at}\n${
+		verifiedAt === undefined ? "" : `verified:\n  - by: human:ada\n    at: ${verifiedAt}\n`
+	}---\n\n# A\n`;
 
 const load = (source: string) => {
 	const mount = "/repo/generated-at-future";
@@ -75,4 +78,58 @@ describe("generated-at-future", () => {
 			assert.strictEqual(found(bundle, OkfitConfig.DEFAULTS, NOW).length, 1);
 		}),
 	);
+});
+
+describe("generated-at-future when a verification blocks the re-stamp", () => {
+	it.effect("says sync will not re-stamp when a verification falls between now and generated.at", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(concept("2030-06-01T00:00:00Z", "", "2029-01-01T00:00:00Z"));
+			const out = found(bundle, OkfitConfig.DEFAULTS, DateTime.makeUnsafe("2026-11-24T00:00:00Z"));
+			assert.strictEqual(out.length, 1);
+			assert.strictEqual(
+				out[0]?.message,
+				"generated.at 2030-06-01T00:00:00Z is more than 5 minutes later than now (2026-11-24T00:00:00Z), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; okfit sync will not re-stamp it, because the verification dated 2029-01-01T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
+			);
+		}),
+	);
+
+	it.effect("keeps the sync advice when every verification is before now", () =>
+		Effect.gen(function* () {
+			const bundle = yield* load(concept("2030-01-01T00:00:00Z", "", "2026-01-01T00:00:00Z"));
+			const out = found(bundle, OkfitConfig.DEFAULTS, NOW);
+			assert.strictEqual(out[0]?.message, MESSAGE);
+		}),
+	);
+});
+
+describe("verificationBlockingRestamp", () => {
+	const at = (s: string) => DateTime.makeUnsafe(s);
+	const G = at("2030-06-01T00:00:00Z");
+	const now = at("2026-11-24T10:00:00Z");
+
+	it("is blocking for a verification equal to the whole-second now", () => {
+		const result = verificationBlockingRestamp([at("2026-11-24T10:00:00Z")], G, now);
+		assert.deepStrictEqual(result._tag, "Some");
+	});
+
+	it("is not blocking for a verification equal to generated.at", () => {
+		assert.deepStrictEqual(verificationBlockingRestamp([G], G, now)._tag, "None");
+	});
+
+	it("is blocking for a whole-second verification in the same second as a sub-second now", () => {
+		const subSecond = at("2026-11-24T10:00:00.700Z");
+		assert.deepStrictEqual(verificationBlockingRestamp([at("2026-11-24T10:00:00Z")], G, subSecond)._tag, "Some");
+	});
+
+	it("is not blocking for a verification before the whole-second now", () => {
+		assert.deepStrictEqual(verificationBlockingRestamp([at("2026-11-24T09:59:59Z")], G, now)._tag, "None");
+	});
+
+	it("returns the earliest blocking verification", () => {
+		const result = verificationBlockingRestamp([at("2029-01-01T00:00:00Z"), at("2028-01-01T00:00:00Z")], G, now);
+		assert.deepStrictEqual(
+			result._tag === "Some" ? DateTime.formatIso(result.value) : undefined,
+			"2028-01-01T00:00:00.000Z",
+		);
+	});
 });

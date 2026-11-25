@@ -236,7 +236,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   `changed` map, and nothing else: a URI whose set did not change is not
   republished, one whose set became empty publishes `[]`, and a file
   that is not open publishes like one that is (a cross-file break). The
-  list sent is the URI's whole current set, read from `RevalidateResult.current`.
+  list sent is the URI's whole current set, read from the engine's `RevalidateResult.current`.
 - A bundle-level diagnostic (engine file `""`, for example
   software-project's `project-missing`) publishes against the bundle
   root's `index.md`, together with that file's own diagnostics in one

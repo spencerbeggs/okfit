@@ -159,11 +159,17 @@ describe("okfit validate: the old key names hint (#493)", () => {
 
 	it.effect("the hint prints exactly once through a --fix re-run", () =>
 		Effect.gen(function* () {
-			const result = yield* runIn(oldOf(V02_PROJECT), ["--target", "0.3", "--fix"]);
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, oldOf(V02_PROJECT)));
+			const before = yield* Effect.promise(() => readFile(join(sandbox.cwd, "okf/index.md"), "utf8"));
+			const result = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
 			assert.include(result.stderr, "OKF 0.3:");
 			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			assert.include(result.stderr, HINT);
 			assert.include(result.stdout, "Fixed");
-		}),
+			const after = yield* Effect.promise(() => readFile(join(sandbox.cwd, "okf/index.md"), "utf8"));
+			assert.notStrictEqual(after, before, "the fix changed index.md on disk");
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 
 	it.effect("no hint on a migrated bundle, and none under --format json", () =>
@@ -1088,6 +1094,23 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 				run.stderr,
 				"OKF 0.3: 2 finding(s), 0 fixable with --fix, 1 refused by --fix (run with --fix --dry-run to see why)",
 			);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("--document with --target counts refusals over the overlaid bundle", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-overlay-", refusedSeed);
+			const refused = "1 refused by --fix";
+			// control: on disk the prose-only computation is refused
+			const disk = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(disk.stderr, refused);
+			// the overlay restores the computation, so the cause of the refusal is gone from the bundle being checked
+			const overlaid = yield* runOkfit(["validate", "--target", "0.3", "--document", "computations/prose.md"], {
+				...sandbox,
+				stdin: V03_PROJECT[COMPUTATION] as string,
+			});
+			assert.notInclude(overlaid.stderr, "refused");
+			assert.strictEqual(yield* read(sandbox, PROSE), proseOnly, "the file on disk is untouched");
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 

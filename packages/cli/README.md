@@ -410,6 +410,7 @@ a hand edit) makes a verification unable to count (OKF 0.3 §5.3), and
 `okfit sync` repairs it: it re-stamps such a concept to now (whole seconds) even
 when the recorded body digest matches, and never writes a `generated.at` later
 than now. A stamp within five minutes of now, or earlier, is never rewritten.
+When a verification dated between now and the stamp would then count, sync skips the re-stamp and says so, and the lint names that verification instead of promising a repair.
 The repair leaves `verified`, `x-okfit-integrity.verified` and `status` alone,
 so a human verification made before it stays not current until the human runs
 `okfit verify` again. Sync never lowers a stamp when that would make a
