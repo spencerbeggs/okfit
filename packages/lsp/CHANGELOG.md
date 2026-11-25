@@ -1,5 +1,47 @@
 # @okfit/lsp
 
+## 0.7.0
+
+### Breaking Changes
+
+- The `status` of a concept on the `okfit/concepts` wire changed meaning. It was the typed `Status`, `undefined` when the concept wrote none or a value outside the vocabulary. It is now the derived status (OKF 0.3 section 5.4): `"stable"` for an absent, `null` or empty status, and the new `"unknown"` for a value outside the vocabulary (the text is in `rawStatus`). A client built against the previous server that reads an absent `status` as "none written" must use `explicitStatus` instead; `ConceptSummary.status` is typed `DerivedStatus` rather than `Status | undefined`.
+
+* Trust tiers now follow OKF 0.3 §5.3: only verification events dated at or after a concept's last change count. A concept verified before its last change used to read `human-reviewed` or `machine-confirmed` and now reads `unverified`, in hover, in the inlay hint and on the `okfit/concepts` wire. The inlay hint names the newest current human verifier. Re-verify such concepts with `okfit verify`.
+* The verify code action and command are no longer offered, and are refused, when they would write a verification dated before the concept's `generated.at`; the refusal message says to check the clock.
+
+- The verify action reads the `x-okfit-integrity.verified` binding and refuses a concept that still carries the old `integrity` block, with a message to run `okfit sync`.
+
+- Hover on a profile field key shows the description of the `x-okfit-` prefixed field.
+
+- Run `okfit sync` once per bundle; until then the old block is not seen and earlier verifications show as drifted.
+
+### Features
+
+- When a concept has an unknown status or is not current, the server returns the verify code action as disabled, with the reason. This applies only to a client that advertises `disabledSupport`; other clients still get no action.
+- New export `CodeActionOptions`, an optional argument of `registerCodeActions`.
+
+* An unknown status is shown with its raw value; verify actions and the verify-and-mark-stable command refuse it.
+* Concept summaries carry a derived `status` and `rawStatus`, and `explicitStatus`, whether the concept writes a `status` at all.
+* Repository resources are bounded by the project root; a value outside it is shown as an `info` diagnostic.
+
+- The "already verified" check now reads `generated`, so a concept verified before its last change is offered the verify action again.
+
+### Bug Fixes
+
+- A bundle-level diagnostic and the root `index.md`'s own are published together, so one no longer replaces the other.
+- The stale-version warning names the config file.
+- The "not current" message for Mark verified says how far ahead the `generated.at` is, and what to do about it.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/glob | dependency | updated | 0.23.0 | 0.23.1 |
+| @effected/markdown | dependency | updated | 0.29.0 | 0.30.0 |
+| @okfit/core | dependency | updated | 0.14.0 | 0.15.0 |
+| @okfit/engine | dependency | updated | 0.21.2 | 0.22.0 |
+| @okfit/profiles | dependency | updated | 0.15.2 | 0.16.0 |
+
 ## 0.6.13
 
 ### Dependencies

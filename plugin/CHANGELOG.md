@@ -1,5 +1,40 @@
 # @okfit/ai-plugins
 
+## 0.13.0
+
+### Breaking Changes
+
+- The skills, agents and the post-edit validate hook teach and report okfit's prefixed frontmatter keys (`x-okfit-integrity` and the `x-okfit-` profile fields). The upgrade skill now runs `okfit sync` before `okfit validate --fix`, since the migration fix refuses a concept still on the old keys. Pair the plugin with an okfit CLI that understands the prefixed keys.
+
+### Features
+
+- The `okf-upgrade`, `okf-config` and `okf-authoring` skills cover the final OKF v0.3 batch: the `generated-at-future` lint, the skipped re-stamp, and verify skipping a concept that cannot be verified now.
+
+* The `okf-upgrade`, `okf-config` and `okf-authoring` skills cover the new `computation-missing` and `config-okf-version-stale` lints and the `--fix` refusals.
+
+#### Skills teach OKF v0.3
+
+- `okf-spec` and `okf-authoring` are rewritten for OKF v0.3.
+- `okf-config` documents all forty lint keys and `[bundle] non_concepts`.
+
+#### New `okf-upgrade` skill
+
+- `okf-upgrade` walks an agent through upgrading a bundle to OKF 0.3: run `okfit validate --target 0.3`, apply the safe fixes, and hand what remains to a human. It needs an `@okfit/cli` that supports `validate --target`, and the skill checks for the flag first.
+
+#### Hook blocks unlisted non-concept Markdown
+
+- The PostToolUse hook now stops an agent that writes a non-concept Markdown file the bundle does not list. A `Write` or shell write that creates one is blocked with a message saying how to fix it (add a frontmatter `type`, move the file out of the bundle, or ask a human to list it in `[bundle] non_concepts`). An `Edit` of such a file gets a warning. The hook does nothing when the bundle has no `non_concepts` list or the installed CLI predates the `non-concept-unlisted` lint.
+
+### Bug Fixes
+
+- The PostToolUse hook reads CRLF and BOM frontmatter.
+- The PostToolUse hook compares physical paths, so a symlinked path form no longer skips its checks.
+
+### Documentation
+
+- The `okf-upgrade` skill describes the per-file lines that `--fix` prints.
+- It also says that a diagnostic with a `fix` can still be refused, including for a root `index.md` whose frontmatter does not parse or is never closed.
+
 ## 0.12.0
 
 ### Features

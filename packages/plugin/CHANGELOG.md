@@ -1,5 +1,20 @@
 # @okfit/plugin
 
+## 0.6.0
+
+### Tests
+
+- The workspace tests follow OKF v0.3 support across the packages.
+- A scan test fails when one of okfit's own frontmatter keys is spelled literally in a package's source outside its single source of truth.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/cli | dependency | updated | 0.17.2 | 0.18.0 |
+| @okfit/lsp | dependency | updated | 0.6.13 | 0.7.0 |
+| @okfit/mcp | dependency | updated | 0.12.10 | 0.13.0 |
+
 ## 0.5.40
 
 ### Dependencies

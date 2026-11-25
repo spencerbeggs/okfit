@@ -1,5 +1,70 @@
 # @okfit/profiles
 
+## 0.16.0
+
+### Breaking Changes
+
+- The software-project profile now sets `[bundle] non_concepts` to `**/README.md`, `**/AGENTS.md`, `**/CONTRIBUTING.md` and `**/SKILL.md`, the four names OKF 0.3 §3.2 lists. A bundle on this profile that holds any other `.md` file without frontmatter or without a `type` now gets a `non-concept-unlisted` warning from `okfit validate`, with no change on your side.
+
+- To clear the warning, do one of these:
+
+- Give the file frontmatter with a `type`.
+
+- Move the file out of the bundle.
+
+- Set `[bundle] non_concepts` in your project config. A value you set replaces the profile's list, so repeat any of the four names you still need.
+
+- Set the lint to `off`.
+
+```toml
+[bundle]
+non_concepts = ["**/README.md", "**/SKILL.md", "docs/notes/**"]
+
+[lint]
+non_concept_unlisted = "off"
+```
+
+- The warning does not change the exit code of `okfit validate`.
+
+* `ConceptSignal` gains a required `staleness` field. Code that constructs a `ConceptSignal` must now supply it.
+
+- `DriftReason` gains the literal `verified-before-change`. A consumer that holds an exhaustive `Record<DriftReason, ...>` or switches over every reason must add it.
+
+- Verification integrity is now current only while its bound entry is itself current under OKF 0.3 §5.3: a binding dated before the concept's `generated.at` evaluates as drifted with reason `verified-before-change`, and its drift detail carries the editor and time of the last change. Such a concept needs `okfit verify` run again.
+
+* The built-in `software-project` profile fields move under the `x-okfit-` prefix. `kind`, `layer`, `pins`, `supersedes`, `bounds`, `repository`, `gate`, `justifies`, `occurred`, `guard`, `audience`, `url`, `surface`, `renders`, `entry`, `crosses` and `runbooks` become `x-okfit-<field>`, and `links_to` becomes `x-okfit-links-to`. Keys nested inside an okfit mapping take no prefix (`x-okfit-renders[].body`). OKF's own keys, and fields a project declares in its own config, do not move.
+
+* The `required` lists of the built-in types name the prefixed fields, so a `software-project` bundle that has not been migrated reports `required-key-missing`. Run `okfit sync` to rename the keys.
+
+* `SurfaceTemplate.frontmatter` keys in the surface presets use the prefixed names.
+
+* `Canonical.EXCLUDED_KEYS` now excludes `x-okfit-integrity` and no longer excludes a bare `integrity`. Renaming `integrity` changes no content digest. Renaming a profile key does, so a verified concept that carries a profile field reads as `verified-drift` until a human re-runs `okfit verify`.
+
+* A user config that names a built-in field by its bare key, in a `[types.<T>.fields.<k>]` table or in that type's `required` list, keeps `<k>` unrenamed for that type; update the config by hand, then run `okfit sync` to rename the key.
+
+### Features
+
+- `Publications.resolveRef` resolves a leading `/` from the bundle root, strips `#` and `?` suffixes and percent-decodes the reference.
+- The Decision type's guidance names `superseded_by` and `supersedes`.
+
+* `verified-drift` no longer reports the `verified-before-change` reason; the core lint of that name is its single reporter.
+* `Trust.boundEntry` is now public. It returns the `x-okfit-integrity.verified` binding when it names the latest human entry, and ignores the `[actors].humans` allow-list and whether the entry is current.
+
+- New exports `ProfileKeys` (field name to key spelling), `PROFILE_FIELD_NAMES`, and the types `ProfileFieldName` and `ProfileKey`, so code builds a profile key from a name instead of writing the literal.
+
+### Bug Fixes
+
+- `verified-drift` skips a concept whose status is outside the vocabulary.
+
+* The `verified-drift` range is correct after an ignored `verified` entry.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @okfit/core | dependency | updated | 0.14.0 | 0.15.0 |
+| @effected/markdown | peerDependency | updated | ^0.29.0 | ^0.30.0 |
+
 ## 0.15.2
 
 ### Dependencies

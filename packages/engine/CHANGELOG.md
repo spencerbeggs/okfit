@@ -1,5 +1,115 @@
 # @okfit/engine
 
+## 0.22.0
+
+### Breaking Changes
+
+- `VerifyNotCurrentError` no longer has the optional `batch` field. A batch, an id list and the pickers now skip a concept that cannot be verified, so a concept that is not current no longer stops a whole selection. The error gains an optional `kind` (`"blocked"`, `"future"` or `"near-future"`) and, for `"blocked"`, an optional `blockedBy` (the verification that stops sync re-stamping the concept), and its message is reworded. Drop any read of `batch`; read `kind` to tell how far ahead the `generated.at` is.
+
+* `loadPickerCandidates` and `loadStaleCandidates` now return `leftOut` as `ReadonlyArray<VerifySkip>`, sorted by id, instead of a sorted `ReadonlyArray<string>` of ids. Read `leftOut.map((entry) => entry.id)` to get the ids.
+
+- `RunOptions.projectRoot` and `BundleSessionOptions.projectRoot` are now required.
+- The JSON, graph and stale envelopes' `okf_version` is `string | null` and reports the bundle's own declaration.
+- Verifying a concept whose status is outside the vocabulary fails with `VerifyStatusUnknownError` unless the same write sets the status. Batch verify skips such a concept with reason `unknown-status`. `VerifyResult.status.from` is the raw status text.
+- The version-mismatch warning is removed.
+- `ScaffoldOptions.okfVersion` is now required: `init`'s scaffold writes that version into the root index instead of the spec constant, so a caller building `ScaffoldOptions` must pass it.
+- `StaleEnvelope` gains a required `malformed` array and `summary.malformed`, and the input of `staleEnvelope` requires `malformed`. `ConceptSummary` gains required `raw_status` and `staleness`, and `QueryGetEnvelope`'s concept gains a required `replacement` (`string | null`). Decoding an envelope written by an older engine with these schemas now fails.
+- The output unions widened: `SkipReason` gains `symlink-escape`; `VerifyBatchSkipReason` and `VerifyBatchEnvelope.skipped[].reason` gain `unknown-status`. An exhaustive `switch` over either must handle the new literal.
+- `VerifyEnvelope.status.from` is widened from `Status | null` to `string | null`, because the status being replaced may be outside the vocabulary.
+
+* New `VerifyNotCurrentError` (exit code 3). `verify` now refuses to write a verification dated before the concept's `generated.at`, since OKF 0.3 §5.3 would not count it. This applies on every write path, including `stale --verify`, whether the early time came from `--at` or from a clock behind a future `generated.at`. A batch fails whole. Callers that handle verify failures exhaustively must handle the new error; the fix is to verify at or after `generated.at`.
+* "Already verified" now requires a current binding, so batch verify and the interactive picker no longer skip a concept that was verified before its last change; it is selected again.
+* The drift reason in verify, query and stale envelopes may now be `verified-before-change`. An exhaustive `switch` over drift reasons must handle it.
+
+- okfit's frontmatter keys now carry the `x-okfit-` prefix, and the engine moves old bundles forward.
+
+- `sync` renames the old keys in place: the `integrity` block becomes `x-okfit-integrity`, and each built-in profile field becomes its prefixed key, but only where the merged config declares the prefixed field for that concept's type, not the bare one, and the type's `required` list does not name the bare one. Quote style, values, comments and order are kept, the ids are reported as `migrated`, and a second run changes nothing.
+
+- A concept that sync cannot stamp (uncommitted edits, untracked, no `generated` block) is still renamed, so an id can appear in both `migrated` and `skipped`.
+
+- `SkipReason` gains `legacy-key-conflict` (a concept has both spellings of a key; nothing is written) and `legacy-key-unsupported` (the key cannot be renamed in place: a flow-style document, an alias or a `<<` merge in the old integrity block, a duplicated key or an explicit `?` key). An exhaustive `switch` over skip reasons must handle both.
+
+- `VerifyUnsupportedFrontmatterError.key` is now `"x-okfit-integrity"` rather than `"integrity"`, and its `shape` gains `legacy-key`, raised when verify meets a concept that still carries the old block.
+
+- `FrontmatterEdits.rendersDigests` takes the key spelling to edit, defaulting to `x-okfit-renders`.
+
+- The migration fix refuses a concept that still uses the old keys and says to run `okfit sync` first; the other fixes still apply.
+
+- Run `okfit sync` once per bundle. The content digest now excludes `x-okfit-integrity`, so renaming `integrity` loses no verification; renaming a profile key changes the digest, so a verified concept with a profile field needs `okfit verify` again.
+
+### Features
+
+- `okfit sync` keeps a root `index.md`'s existing frontmatter and only writes `okf_version` when the block declares none.
+- `ConceptSummary.status` may be `unknown` for a concept whose status is outside the known vocabulary.
+
+* `okfit sync` re-stamps a `generated.at` more than 5 minutes later than now, and caps a changed concept's new stamp at now. It never lowers a stamp when that would make a verification count: the re-stamp is skipped with the reason `verified-after-now`, the cap is not applied, and a changed concept's stamp is never moved back below the stamp it replaces when a verification falls between the two. `SyncSkip` is exported, and `SkipReason` gains `verified-after-now`.
+* Verify skips a concept that cannot be verified at the verification time, with the skip reason `not-current`, in a batch or an id list. The picker loaders leave such rows out and return the ids as `leftOut`.
+* `VerifyBatchSkipReason` gains `not-current`, and `notCurrentAt` is a new export. `VerifyOptions`, `VerifyBatchOptions` and `VerifyIdsOptions` take an optional `now`.
+* `RunOptions.configPath` and `RunResult.legacyKeys` are new. `RevalidateResult.current` and the type `DiagnosticsByFile` are exported.
+
+- `validate --target 0.3` and its `--fix` cover root-relative links in every Markdown file of the bundle (index files, `log.md`, typeless and frontmatter-less files), not only concepts.
+- `--fix` holds the version change back, with one refusal per cause, while a reference still resolves only from the bundle root, while an Attested Computation would lose its computation, or while a Markdown file cannot be read.
+- A malformed config error names the failing key and the reason, for example `malformed config <path>: lint.missing_index: Expected ...`.
+- New export `readMarkdownSources` and its `MarkdownSources` type. `migrationFindings` takes an optional list of extra sources to scan for root-relative links.
+
+* New exports `futureAtRefusal`, `notCurrentDetail`, `NotCurrentDetail` and `VerifySkip`.
+* `loadPickerCandidates` accepts `now`, the instant a left-out row's not-current kind is judged against. It defaults to the clock.
+* The `skipped` entries of a batch, an id list and `selectAttestable` are `VerifySkip`. A `not-current` skip carries `notCurrent`, and an `unknown-status` skip carries the raw `status`.
+* `VerifySelectionError` gains the reason `at-future`. `runVerify`, `runVerifyBatch` and `runVerifyIds` refuse with it when given `now` and an `at` more than 5 minutes later than it.
+* `runVerifyIds` skips a concept with an unknown status, with the reason `unknown-status`, and verifies the rest. It used to fail the whole call.
+
+- Repository resources are checked only inside the project root. A value outside it is reported as `resource-outside-project` and is never read, stat'ed or passed to git.
+- `ConceptSummary` gains `raw_status` and `staleness`; `ConceptFilter` gains `current` and accepts the `unknown` status; `ConceptQuery.get` gains `replacement`; `rawStatusOf` is exported.
+- The stale envelope gains `malformed` and `summary.malformed`, listing unreadable `stale_after` values.
+- `mv` rewrites `computation`, `executor.resource`, `attester.resource`, `superseded_by` and a single-mapping `sources`. It now runs on a bundle that holds non-concept `.md` files and rewrites their links (`ReferenceSource` is exported).
+- `init` writes `title` and `description` into a new root index.
+- `escapesBundle` and `escapesRoot` are exported: whether a reserved `index.md` or `log.md` is a symlink out of the bundle (a dangling link counts), the one check `sync`, `context` and the MCP server share.
+
+#### Migration findings and safe fixes
+
+- `migrationFindings(bundle, config, target)` reports what in a bundle reads differently under a target OKF version. Each `MigrationFinding` carries one of five `MigrationCode`s: `okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`, `root-relative-path` and `computation-locator`. A `computation-locator` finding is reported only when the Computation section reads differently under the target: a depth-one section that is exactly one fenced block reads the same and is not reported. A finding that has a safe fix names its `MigrationFixKind` (`okf-version` or `root-relative-path`).
+- `planMigrationFixes` and `applyMigrationFixes` (options `MigrationFixOptions`, result `MigrationFixPlan`) carry out the two safe fixes: declaring `okf_version`, and rooting a bare reference that resolves only from the bundle root. Every edit is planned before any file is written, so a failure while planning writes nothing. `refused` lists a fix that was not planned, with the reason, and the other fixes still apply: the version fix is refused while a root-only reference remains, and when the root index frontmatter does not parse (malformed YAML or a duplicate key), in which case no `YamlParseError` escapes and the file is left as it was. `drifts` lists each edited concept whose okfit verification integrity was current before the edit, and each edited concept whose recorded body digest could not be re-recorded. A fix that repairs a link re-records the concept's generated body digest, so `generated.at` is kept. A fix never writes a verification.
+
+#### `run` and the JSON report
+
+- `run` accepts `target` and returns `migration`, the findings for that target (an empty list without one).
+- Diagnostics have a fourth source, `"migrate"`. A migrate diagnostic never affects the exit code.
+- The JSON envelope gains optional `target` and `fixes` (type `JsonFixes`: `applied`, `refused`, `drifts`, `dry_run`), and a diagnostic may carry `fix`.
+- `summary.migration_findings` is a new field in JSON output. It is always present, and is `0` when no target was given. Code that validates the envelope against a closed shape must allow it.
+
+* `sync` now stamps `generated.at` as the earlier of the derived instant and a human verification binding that covers exactly the current content. Content that was verified and then committed keeps its verification current instead of being outdated by the commit time. The clamp never moves `generated.at` backwards: when the binding is earlier than the concept's existing `generated.at` (a revert to previously verified content, or a hand-written binding), `sync` stamps the derived instant, and a concept with no `generated.at` is still clamped.
+
+### Bug Fixes
+
+- Resource findings are ranged correctly after an ignored `sources` entry.
+
+* The 0.3 migration no longer reports an empty Computation section, and its refusal names the hand edit.
+* A malformed config reports every invalid key, not only the first.
+* Sync keeps a byte-order mark on `index.md` and `log.md`.
+
+- `computation-locator` no longer requires `runtime`, and judges a CRLF Computation section the same as its LF twin.
+
+* The move planner keeps a UTF-8 byte-order mark on the files it rewrites.
+* When a move repairs links in a concept whose recorded body digest matched before, the digest is re-recorded, so the next sync keeps `generated.at`. A stale or missing digest, and a concept still on old key names, are not re-recorded.
+* If a matching digest cannot be re-recorded because of the integrity block's layout, the concept is listed in `drifts`, even if no human verified it.
+* For a root `index.md` whose frontmatter is never closed, `okf-version-undeclared` now carries a `fix`, and the migration refuses that fix with the reason.
+
+- `sync` skips an `index.md` or `log.md` that is a symlink out of the bundle (skip reason `symlink-escape`).
+- `sync` never stamps a version into a root index that declares none, unless the config names one.
+- `context` reports `index_exists: false` for a root `index.md` that is a symlink out of the bundle or dangling, and never reads its target (it may resolve the link's real path to decide containment). The session-start hook therefore no longer prints such a file.
+- A Surface `resource` glob with a leading `/` resolves from the bundle root, not from the Surface's directory.
+
+* `init` no longer writes root `title` and `description` into a bundle that declares OKF 0.2 or earlier, where a strict reader rejects them (#468).
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/glob | dependency | updated | 0.23.0 | 0.23.1 |
+| @effected/markdown | dependency | updated | 0.29.0 | 0.30.0 |
+| @okfit/core | dependency | updated | 0.14.0 | 0.15.0 |
+| @okfit/profiles | dependency | updated | 0.15.2 | 0.16.0 |
+
 ## 0.21.2
 
 ### Dependencies

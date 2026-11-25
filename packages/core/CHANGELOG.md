@@ -1,5 +1,117 @@
 # @okfit/core
 
+## 0.15.0
+
+### Breaking Changes
+
+- `[bundle] non_concepts` now rejects a glob whose `[` or `{` never closes. A config such as `non_concepts = ["[a-"]` that loaded before now fails to load. To match the character itself, write `'\['` in single quotes or `"\\["` in double quotes.
+
+* `OKF_SPEC_VERSION` is now `"0.3"`, and `OkfitConfig.DEFAULTS` no longer carries `okf_version`. The `okf_version` config key now only fills a root `index.md` that declares no version; a bundle's own declaration is never overwritten.
+
+* Required keys are judged more strictly: a required key written as null, an empty string or an empty list is reported by `required-key-missing` with the message "is empty". By the same alignment, `field-value-unknown` no longer fires on an empty value, and `generated-missing` now fires on `generated: ""` or `[]`. A single-mapping frontmatter family whose every key was dropped as malformed now reads as absent instead of an empty object.
+
+* `LintCode` gains the literals `resource-outside-project`, `superseded-by-orphan` and `superseded-by-unresolved`. A consumer that holds an exhaustive `Record<LintCode, ...>` or switches over every code must add them.
+
+- `Derive.trustTier` now follows OKF 0.3 §5.3: it counts only current verification events, for every bundle whatever `okf_version` it declares. An event is current when it is dated at or after the concept's `generated.at`, or when `generated` or `generated.at` is absent. Earlier events stay in the file as history and count for nothing, so a concept's tier can drop after its content changes. Re-run `okfit verify` on concepts that now report a lower tier or the new `verified-before-change` warning.
+
+#### Markdown without frontmatter or `type` is skipped, not an error
+
+- Per OKF v0.3 §3.2, a `.md` file with no frontmatter or no `type` is no longer a conformance error. It is skipped with a warning: `frontmatter-missing` or `type-missing` (default `warn`; configure with the `frontmatter_missing` and `type_missing` keys). A bundle that holds a README no longer exits 2. A frontmatter block that is a YAML list or scalar is still a conformance error, now reported as `frontmatter-unparseable`.
+
+#### Tolerant reading of values (OKF v0.3 §11.2)
+
+- `null`, an empty string and an empty list read as absent.
+- A single item reads as a list of one for `tags`, `sources`, `verified` and `parameters`.
+- An entry is ignored only when it lacks a required key (`entry-ignored`); a malformed optional key is dropped alone (`value-malformed`); a value outside its vocabulary is kept (`value-unknown`, today `status`).
+- These are warnings, so a bundle whose only errors were `family-invalid` on spec-defined values now exits 0. `family-invalid` remains an error only for okfit's own `x-okfit-integrity` family.
+
+#### Type-level breaks
+
+- `ConformanceCode` loses `frontmatter-missing` and `type-missing`; both are now `LintCode` members.
+- `Derive.status` returns `DerivedStatus`, which adds `unknown`. `Staleness` gains `malformed`. `PathField` gains `superseded_by`.
+- `Timestamp` accepts a date-only value (`YYYY-MM-DD`, read as midnight UTC) everywhere it is used.
+- `superseded_by` moves out of `Concept.extensions` into a typed field. A bundle that already used it as an extension key now gets a graph edge, and a `broken-links` warning when its target is missing.
+
+#### Tolerant reading can raise a trust tier
+
+- A `verified` list with one good and one bad entry used to be dropped whole, so the concept read as unverified. It now keeps the good entry and warns about the bad one, so the concept can reach a higher trust tier than before.
+
+#### Other behavior changes
+
+- A symbolic link that resolves outside the bundle root is not listed or read (`symlink-escape`, warn).
+- `UsageWindow.from` and `to`, `ComputationExecutor.resource` and `receipt`, and `ComputationAttester.resource` are now optional.
+- `LoadedConcept.computationBody` is, for a bundle that declares OKF 0.3 or later, the code of the first fenced block in the `Computation` section at any heading level. For 0.2 or undeclared bundles it is unchanged.
+- A bare link or path-field value falls back to the bundle root only for a bundle that declares 0.2 or earlier, or nothing.
+
+* okfit's integrity block moves under the OKF v0.3 producer prefix: the frontmatter key is now `x-okfit-integrity` (same shape: `generated.body`, `verified.{by,at,content}`). A concept that still carries a bare `integrity` block no longer decodes into `Concept.integrity`, so okfit does not see its recorded digests or verifications. `Concept.integrity` and the `Integrity` classes keep their names.
+
+* Run `okfit sync` once per bundle to rename the key in place. Until then, earlier verifications report as no longer current.
+
+### Features
+
+- New lint `generated-at-future` (config key `[lint] generated_at_future`, default `warn`). It fires on a `generated.at` more than 5 minutes later than now. A second message says when `okfit sync` will not re-stamp it, because re-stamping would make a verification count.
+- `LintCode` gains `generated-at-future`; an exhaustive `Record<LintCode, ...>` needs the new member.
+- New exports `GENERATED_AT_TOLERANCE`, `generatedAtIsFuture` and `verificationBlockingRestamp`.
+- `ValidateOptions` takes a `configPath`, which messages that name the config file print.
+- `OkfitConfig.read` reports every invalid key in one error, not only the first.
+
+* New lint `computation-missing` (config key `[lint] computation_missing`, default `warn`). It fires on an Attested Computation that has no `computation` key and no computation under the bundle's declared reading.
+* New lint `config-okf-version-stale` (config key `[lint] config_okf_version_stale`, default `warn`). It fires when the config sets `okf_version` and the bundle-root `index.md` declares a different one.
+
+- Three new lint codes: `resource-outside-project` (default `info`), `superseded-by-orphan` and `superseded-by-unresolved` (default `warn`). The config schema document gains their keys (thirty-eight in all); the schema version stays `1.0`.
+- New public API: `Graph.replacement`, `Derive.malformedStaleAfter` with the `MalformedStaleAfter` type, `RenderIndexOptions.metadata`, and `Bundle.parseDocument`, which returns a `Result` of `@effected/markdown`'s `MarkdownDocument` or `MarkdownParseError`.
+- For a bundle that declares 0.3, a computation fence nested in a list item or block quote is found.
+
+#### Non-concept Markdown lint
+
+- OKF 0.3 §3.2 allows Markdown files in a bundle that are not concepts, such as a `README.md`. okfit now lets a project say which ones.
+
+- New config key `[bundle] non_concepts`: a list of globs, relative to the bundle root, naming the `.md` files that may be non-concepts. core sets no default. An invalid glob fails config validation.
+
+- New lint `non-concept-unlisted` (config key `non_concept_unlisted`, default `warn`). It fires on a `.md` file that has no frontmatter or no `type` and matches no `non_concepts` glob. It stays silent when `non_concepts` is absent, so a project that does not opt in sees no change. `type-missing` and `frontmatter-missing` are unchanged. There are now forty lint keys.
+
+```toml
+[bundle]
+non_concepts = ["**/README.md", "docs/notes/**"]
+```
+
+#### Reading a bundle as another OKF version would
+
+- `Graph.resolve` takes an optional fifth argument, a `FallbackRule` (`"declared" | "legacy" | "current"`, now an exported type), to resolve a reference as an OKF 0.2 or 0.3 reader would, whatever the bundle declares. The default is unchanged.
+- `Bundle.inlineComputation(document, reading)` reads an inline computation with the v0.2 or the v0.3 locator.
+
+* New `Derive.isCurrent(concept, at)`, which answers whether a verification event at `at` is current. It reads only `generated`, so a caller without a whole concept can pass `{ generated }`.
+* New `Derive.currentVerifications(concept)`, which returns the current `verified` entries in list order.
+* New lint `verified-before-change` (default `warn`, config key `verified_before_change`; the config schema document now has thirty-nine keys, and the schema version stays `1.0`). It fires when events dated before the last change would have given a higher tier than the current ones, and names the newest event that lost its weight. Draft, deprecated and unknown-status concepts are exempt.
+
+- New `OkfVersion` module: parse, compare, read a bundle's declared version, and the legacy gate.
+- The root `index.md` may carry `title`, `description`, `license` and extension keys. `IndexDocument` exposes them and the raw frontmatter; the `index-metadata-invalid` lint checks them.
+- `Derive.renderIndex` keeps existing root frontmatter (`RenderIndexOptions.frontmatter`).
+- Date-only timestamps read as the start of that day in UTC.
+- `superseded_by` is a typed field, a path field and a graph edge.
+- `DerivedStatus` adds `unknown`, and `Derive.rawStatus` returns the raw value. `Staleness` adds `malformed`.
+- `team:` is a known actor scheme, and `actor-prefix-unknown` also checks `sources[].author`.
+- `EntryPaths` and `Concept.entryPath` give the YAML position of each kept list entry.
+- `computation-runtime-missing` also fires when `runtime` is present but unreadable.
+
+* New exports `INTEGRITY_KEY` (`"x-okfit-integrity"`) and `OKFIT_KEY_PREFIX` (`"x-okfit-"`), the single source for every reader and writer of okfit's keys.
+* Lint rule descriptions name `x-okfit-integrity` and `x-okfit-renders` in place of the old spellings.
+
+### Bug Fixes
+
+- The `config-okf-version-stale` message names the config file. It no longer offers an unparsable version as the value to set.
+
+* `require-verified-unmet` on a concept with an unknown status now names a way out (set the status first, or verify with `okfit verify --stable` or `--draft`) instead of the bare "requires a verified entry" message.
+
+- The `computation-missing` messages now match how the bundle is read, as OKF 0.2 or 0.3. The description of its config key says the same.
+- When `non_concepts` is empty, the `non-concept-unlisted` message says the list allows no non-concept file.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/markdown | peerDependency | updated | ^0.29.0 | ^0.30.0 |
+
 ## 0.14.0
 
 ### Features

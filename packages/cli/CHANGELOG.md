@@ -1,5 +1,104 @@
 # @okfit/cli
 
+## 0.18.0
+
+### Breaking Changes
+
+- Trust tiers, `--unverified` and the `verify` skip rule now follow OKF 0.3 §5.3. Only verification events dated at or after a concept's last change count, so concepts you changed after verifying them now report a lower tier, show up under `--unverified`, and are picked up again by `okfit verify --all`, `--type` and the batch commands. `okfit verify --at <time>` earlier than the concept's `generated.at` is refused with exit code 3. Re-run `okfit verify` on concepts that now warn.
+
+* okfit's own frontmatter keys now carry the `x-okfit-` prefix: `integrity` is `x-okfit-integrity`, and the built-in `software-project` profile fields are prefixed the same way.
+
+* `okfit sync` moves an old bundle: it renames the old keys in place and reports the concepts as migrated. A concept it cannot stamp is still renamed and listed as skipped with a note that its keys were renamed. Two new skip reasons are printed: a concept with both spellings of a key, and a key that cannot be renamed in place (flow style, an alias or a `<<` merge in the old integrity block, a duplicated key or an explicit `?` key).
+
+* `okfit verify` and `okfit validate … --fix` refuse a concept that still carries the old `integrity` block and say to run `okfit sync` first.
+
+* Until a plain `okfit sync` runs, okfit does not see the old block: earlier verifications report as no longer current (`verified-drift`), and a `software-project` bundle reports `required-key-missing` for the prefixed fields. Renaming a profile key changes the content digest, so a verified concept that carries one needs `okfit verify` again.
+
+* The pre-commit hook's `sync --staged` migrates only the concepts being committed, so run a plain `okfit sync` once per bundle. On `--staged`, a rename that is the only write to a concept restages the whole file, so the first commit that touches an unmigrated concept also commits any unstaged edits to it; run a plain `okfit sync` and commit the key move on its own before other work.
+
+* A project config that names a built-in field by its bare name, in a `[types.<T>.fields.<k>]` table or in that type's `required` list, keeps `<k>` unrenamed for that type. Update the config by hand, then run `okfit sync` to rename the key.
+
+* The derived `integrity: current|drifted|none` signal keeps its name.
+
+### Features
+
+- `okfit validate --target` counts refused fixes apart in its summary.
+- `okfit validate` points at `okfit sync` when a bundle uses old key names.
+- `okfit verify` prints a `skipped` line for each concept a batch or id list skips because its `generated.at` is later than the verification time.
+- The `okfit verify` and `okfit stale --verify` pickers print one `left out` line naming the concepts they leave out, and "nothing to verify now" when that leaves nothing.
+- `okfit sync` prints the re-stamp it skipped, and why.
+
+* Under `--format json`, a flag the parser rejects prints one JSON error envelope on stdout with `exit_code` 64. Help still goes to stderr, and stdout stays empty without `--format json`.
+* `okfit validate --target 0.3 --fix` now covers root-relative links in every Markdown file of the bundle. It lists one refusal line per cause when it holds the version change back: a link that still resolves only from the bundle root, an Attested Computation that would lose its computation, or a Markdown file that cannot be read.
+* A malformed config error names the failing key and the reason.
+
+- `okfit verify --at` with a time more than 5 minutes later than now is a usage error (exit `64`), also under `--dry-run`. It is refused before a picker opens or anything is written.
+- A `skipped` line for a concept that is not current or has an unknown status now names what to do next.
+- The pickers print one `left out` line per concept, with the next step, instead of one line listing them all.
+- `okfit verify` with several targets skips a concept with an unknown status and verifies the rest. It used to fail the whole list.
+- `okfit validate --target 0.3 --fix` prints one line per changed file naming its fixes, also under `--dry-run`.
+- New export `notCurrentReason`.
+
+* `okfit validate` and `okfit lint` report `resource-outside-project`; JSON envelopes may carry `okf_version: null`.
+* `okfit query list` accepts `--status unknown` and `--current`; `okfit query get` shows the replacement of a deprecated concept and its `raw_status`.
+* `okfit stale` lists unreadable `stale_after` values, and `--verify` never offers one.
+* `okfit init` writes the bundle `title` and `description`, and `--version` reports `okf 0.3`.
+
+#### `okfit validate --target 0.3`
+
+- `okfit validate --target 0.3` reports what in a bundle reads differently under OKF 0.3, and `--fix` applies the safe fixes: declaring `okf_version`, and rooting a bare reference that resolves only from the bundle root.
+
+```bash
+okfit validate --target 0.3                    # report findings
+okfit validate --target 0.3 --fix --dry-run    # show what would change
+okfit validate --target 0.3 --fix              # apply, then report what remains
+okfit validate --target 0.3 --fix --only root-relative-path okf/notes/a.md
+```
+
+- `--target` accepts only `0.3`.
+- `--fix` requires `--target` and cannot be combined with `--document`.
+- `--only okf-version|root-relative-path` (repeatable) narrows the fixes by kind and requires `--fix`.
+- `--dry-run` writes nothing and requires `--fix`.
+- Positional targets narrow both the report and the fixes.
+- A refused flag combination exits with code 64 (and prints the error envelope under `--format json`).
+- Findings never change the exit code. The human output adds a line such as `OKF 0.3: 4 finding(s), 3 fixable with --fix`, and migration findings are left out of the error, warning and info counts.
+- Every edit is planned before any file is written, so a failure while planning writes nothing. A fix that cannot be applied safely is refused on its own, listed with its reason, and the other fixes still apply; a root index whose frontmatter does not parse gets its version fix refused this way. `Integrity drifted` lists each edited concept whose okfit verification integrity was current before the edit, and each edited concept whose recorded body digest could not be re-recorded; re-verify them with `okfit verify`.
+- With `--format json`, the report gains `target`, `fixes` and a `fix` field on fixable diagnostics, and `summary.migration_findings` is a new always-present count (`0` without a target).
+
+* `okfit validate` and `okfit lint` report the new `verified-before-change` lint, which names the verifier, the verification time and the later change.
+* The `verify` confirm prompt explains a verification made before the last change.
+* Help text for `--all`, `--type`, `--at` and `--unverified` describes the current-verification rule.
+
+### Bug Fixes
+
+- A malformed config error lists every bad key, not only the first.
+- The stale-version warning names the config file.
+
+* `okfit mv` keeps a UTF-8 byte-order mark. It also re-records a body digest that matched before the move, so the next `okfit sync` keeps `generated.at`.
+* The `okfit mv` help text and drift line no longer say that every rewritten file needs a human to re-verify it.
+
+- `okfit verify` refuses a concept with an out-of-vocabulary status (exit 3) unless `--stable` or `--draft` is passed, and refuses before the re-verify prompt.
+- `okfit mv` works on a bundle that has non-concept markdown such as a `README.md`.
+- The `okfit stale` stderr summary appends `, K malformed` when any `stale_after` value is unreadable; `staleSummary` takes an optional fourth argument for it.
+
+* `okfit init` no longer writes root `title` and `description` into a bundle that declares OKF 0.2 or earlier (#468).
+
+- `verify --at` accepts a date (`YYYY-MM-DD`, read as midnight UTC) as well as a timestamp with an explicit offset, and its help text says so.
+- `validate` and `lint` no longer exit 2 for a bundle that holds a README, which is now skipped with a warning. A bundle whose only errors were `family-invalid` on spec-defined values now exits 0.
+- `query --format json` may report a `status` of `unknown` for a concept whose status is outside the known vocabulary.
+- A concept file that is a symbolic link resolving outside the bundle is no longer loaded or verifiable.
+- `sync` keeps the root `index.md` frontmatter.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/glob | dependency | updated | 0.23.0 | 0.23.1 |
+| @effected/markdown | dependency | updated | 0.29.0 | 0.30.0 |
+| @okfit/core | dependency | updated | 0.14.0 | 0.15.0 |
+| @okfit/engine | dependency | updated | 0.21.2 | 0.22.0 |
+| @okfit/profiles | dependency | updated | 0.15.2 | 0.16.0 |
+
 ## 0.17.2
 
 ### Dependencies
