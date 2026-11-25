@@ -1,5 +1,49 @@
 # @okfit/mcp
 
+## 0.13.0
+
+### Breaking Changes
+
+- Trust tiers now follow OKF 0.3 §5.3: only verification events dated at or after a concept's last change count. A concept that was verified before its last change used to report `human-reviewed` or `machine-confirmed` and now reports `unverified`, in tool results and in the `list_concepts` `verified` filter. A client that relied on the old tier must re-verify those concepts (`okfit verify`) or handle the lower tier.
+
+* `describe_vocabulary` preset frontmatter keys use the prefixed names for the built-in profile fields.
+
+* `get_concept.frontmatter` passes the file's frontmatter through, so it carries `x-okfit-integrity` and the prefixed profile keys; a bundle that has not been migrated shows the old keys until `okfit sync` runs.
+
+* The derived `integrity: current|drifted|none` signal keeps its name.
+
+### Features
+
+- `list_concepts` accepts `current` and the `unknown` status.
+- `get_concept` returns `raw_status`, `staleness` and `replacement`.
+- `stale_report` returns `malformed`, listing unreadable `stale_after` values.
+- The `limit` and `now` parameters of `list_concepts`, `stale_report` and `validate_bundle` carry their own descriptions (the default page size 200; an ISO-8601 instant or a date), and the `now` refusal hint names the date form.
+- `validate_bundle` may return `okf_version: null` for a bundle that declares no version.
+
+* `drift.reason` may now be `verified-before-change`.
+* The `list_concepts` `verified` filter description changed: `true` matches a current, bound human verification, and `false` matches concepts with no current verification (tier unverified).
+
+- `validate_bundle`'s result gains `summary.migration_findings`, always present. It is `0` because the tool has no `target` input. A client that checks the report against a closed shape must allow the new field.
+- `validate_bundle` reports the new `non-concept-unlisted` lint, which flags a Markdown file with no frontmatter or no `type` that matches no `[bundle] non_concepts` glob. It is silent unless the project sets `non_concepts`.
+
+### Bug Fixes
+
+- `okf://index` refuses a root `index.md` that is a symlink out of the bundle or dangling (`index.md links out of the bundle`) instead of serving the outside file.
+
+* `get_concept`'s `status` may be `unknown` for a concept whose status is outside the known vocabulary.
+
+- `validate_bundle`'s stale-version warning names the config file.
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effected/glob | dependency | updated | 0.23.0 | 0.23.1 |
+| @effected/markdown | dependency | updated | 0.29.0 | 0.30.0 |
+| @okfit/core | dependency | updated | 0.14.0 | 0.15.0 |
+| @okfit/engine | dependency | updated | 0.21.2 | 0.22.0 |
+| @okfit/profiles | dependency | updated | 0.15.2 | 0.16.0 |
+
 ## 0.12.10
 
 ### Dependencies
