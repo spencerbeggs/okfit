@@ -908,7 +908,7 @@
 						"error"
 					],
 					"title": "generated-at-future",
-					"description": "A concept's generated.at is later than now, so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses it; okfit sync re-stamps it. Default \"warn\".",
+					"description": "A concept's generated.at is more than 5 minutes later than now, so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses it; okfit sync re-stamps it. Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

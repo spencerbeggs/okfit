@@ -1693,17 +1693,17 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		"  verified:\n    by: human:ada\n    at: 2026-01-02T00:00:00Z\n    content: cccccccccccccccc\n",
 	];
 
-	const textOf = (name: string, at: string, digest: string) =>
-		`---\ntype: Module\ntitle: ${name}\ngenerated:\n  by: human:ada\n  at: ${at}\nverified:\n  - by: human:ada\n    at: 2026-01-02T00:00:00Z\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified:\n    by: human:ada\n    at: 2026-01-02T00:00:00Z\n    content: cccccccccccccccc\n---\n${BODY}`;
+	const textOf = (name: string, at: string, digest: string, verifiedAt = "2026-01-02T00:00:00Z") =>
+		`---\ntype: Module\ntitle: ${name}\ngenerated:\n  by: human:ada\n  at: ${at}\nverified:\n  - by: human:ada\n    at: ${verifiedAt}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified:\n    by: human:ada\n    at: ${verifiedAt}\n    content: cccccccccccccccc\n---\n${BODY}`;
 
 	/** A concept whose recorded body digest matches its body, stamped at `at`. */
-	const matching = (name: string, at: string) =>
+	const matching = (name: string, at: string, verifiedAt?: string) =>
 		Effect.gen(function* () {
-			const digest = yield* Derivation.bodyDigest(textOf(name, at, "0".repeat(16)));
-			return textOf(name, at, digest);
+			const digest = yield* Derivation.bodyDigest(textOf(name, at, "0".repeat(16), verifiedAt));
+			return textOf(name, at, digest, verifiedAt);
 		}).pipe(Effect.provide(NodeCrypto.layerDigest));
 
-	const drifted = (name: string, at: string) => textOf(name, at, "0".repeat(16));
+	const drifted = (name: string, at: string, verifiedAt?: string) => textOf(name, at, "0".repeat(16), verifiedAt);
 
 	const run = (
 		files: Record<string, string>,
@@ -1786,6 +1786,79 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			assert.deepStrictEqual(result.written, ["a"]);
 			assert.include(pending[0]?.contents ?? "", `  at: ${NOW_STAMP}\n`);
 			assert.notInclude(pending[0]?.contents ?? "", "2030-01-01");
+		}),
+	);
+
+	it.effect("a stamp within the tolerance is left alone", () =>
+		Effect.gen(function* () {
+			const { result, pending } = yield* run({ a: yield* matching("a", "2026-11-24T10:02:00Z") }, { now: NOW });
+			assert.deepStrictEqual(result.unchanged, ["a"]);
+			assert.strictEqual(pending.length, 0);
+		}),
+	);
+
+	it.effect("a clock that is behind does not re-stamp a recent stamp", () =>
+		Effect.gen(function* () {
+			const behind = DateTime.makeUnsafe("2026-11-24T09:58:00Z");
+			const { result, pending } = yield* run({ a: yield* matching("a", "2026-11-24T10:00:00Z") }, { now: behind });
+			assert.deepStrictEqual(result.unchanged, ["a"]);
+			assert.strictEqual(pending.length, 0);
+		}),
+	);
+
+	it.effect("the repair is skipped when it would make a verification count", () =>
+		Effect.gen(function* () {
+			const input = yield* matching("a", "2030-06-01T00:00:00Z", "2029-01-01T00:00:00Z");
+			const { result, pending } = yield* run({ a: input }, { now: NOW });
+			assert.deepStrictEqual(result.written, []);
+			assert.deepStrictEqual(result.unchanged, []);
+			assert.deepStrictEqual(result.skipped, [
+				{
+					id: "a",
+					reason: "verified-after-now",
+					generatedAt: "2030-06-01T00:00:00Z",
+					verifiedAt: "2029-01-01T00:00:00Z",
+				},
+			]);
+			assert.strictEqual(pending.length, 0, "no write, so the file bytes are the input's");
+		}),
+	);
+
+	it.effect("the repair still runs when every verification is before now", () =>
+		Effect.gen(function* () {
+			const input = yield* matching("a", "2030-06-01T00:00:00Z", "2026-01-01T00:00:00Z");
+			const { result, pending } = yield* run({ a: input }, { now: NOW });
+			assert.deepStrictEqual(result.written, ["a"]);
+			assert.deepStrictEqual(result.skipped, []);
+			const out = pending[0]?.contents ?? "";
+			assert.include(out, `  at: ${NOW_STAMP}\n`);
+			assert.include(out, "verified:\n  - by: human:ada\n    at: 2026-01-01T00:00:00Z\n");
+			assert.include(
+				out,
+				"  verified:\n    by: human:ada\n    at: 2026-01-01T00:00:00Z\n    content: cccccccccccccccc\n",
+			);
+		}),
+	);
+
+	it.effect("the clamp is not applied when it would make a verification count", () =>
+		Effect.gen(function* () {
+			const { result, pending } = yield* run(
+				{ a: drifted("a", "2026-01-01T00:00:00Z", "2029-01-01T00:00:00Z") },
+				{ now: NOW, provenance: DateTime.makeUnsafe("2030-01-01T00:00:00Z") },
+			);
+			assert.deepStrictEqual(result.written, ["a"]);
+			assert.include(pending[0]?.contents ?? "", "  at: 2030-01-01T00:00:00Z\n");
+		}),
+	);
+
+	it.effect("running the repair twice writes once", () =>
+		Effect.gen(function* () {
+			const first = yield* run({ a: yield* matching("a", FUTURE) }, { now: NOW });
+			assert.deepStrictEqual(first.result.written, ["a"]);
+			const repaired = first.pending[0]?.contents ?? "";
+			const second = yield* run({ a: repaired }, { now: DateTime.makeUnsafe("2026-11-24T10:01:00Z") });
+			assert.deepStrictEqual(second.result.unchanged, ["a"]);
+			assert.strictEqual(second.pending.length, 0);
 		}),
 	);
 });

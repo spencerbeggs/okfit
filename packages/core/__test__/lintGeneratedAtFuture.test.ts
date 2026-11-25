@@ -7,7 +7,7 @@ import { Validate } from "../src/Validate.js";
 
 const NOW = DateTime.makeUnsafe("2026-11-24T10:00:00Z");
 const MESSAGE =
-	"generated.at 2030-01-01T00:00:00Z is later than now (2026-11-24T10:00:00Z), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it";
+	"generated.at 2030-01-01T00:00:00Z is more than 5 minutes later than now (2026-11-24T10:00:00Z), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it";
 
 const concept = (at: string, status = "") =>
 	`---\ntype: Module\n${status}generated:\n  by: human:ada\n  at: ${at}\n---\n\n# A\n`;
@@ -49,6 +49,15 @@ describe("generated-at-future", () => {
 			const future = yield* load(concept("2030-01-01T00:00:00Z"));
 			assert.deepStrictEqual(found(future, OkfitConfig.DEFAULTS), []);
 			assert.strictEqual(found(future, OkfitConfig.DEFAULTS, NOW).length, 1, "control: it fires with now");
+		}),
+	);
+
+	it.effect("is silent within the five-minute tolerance", () =>
+		Effect.gen(function* () {
+			const edge = yield* load(concept("2026-11-24T10:05:00Z"));
+			assert.deepStrictEqual(found(edge, OkfitConfig.DEFAULTS, NOW), []);
+			const over = yield* load(concept("2026-11-24T10:05:01Z"));
+			assert.strictEqual(found(over, OkfitConfig.DEFAULTS, NOW).length, 1);
 		}),
 	);
 

@@ -39,6 +39,7 @@ export const SkipReason = Schema.Literals([
 	"symlink-escape",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",
+	"verified-after-now",
 ]);
 /** @public */
 export type SkipReason = typeof SkipReason.Type;
@@ -60,6 +61,19 @@ export interface SyncOptions {
 	readonly now?: DateTime.Utc;
 }
 
+/**
+ * One concept a mode declined to write. `generatedAt` and `verifiedAt` (encoded timestamps) accompany only
+ * `verified-after-now`: the stamp left in place and the earliest verification a re-stamp would have made current.
+ *
+ * @public
+ */
+export interface SyncSkip {
+	readonly id: string;
+	readonly reason: SkipReason;
+	readonly generatedAt?: string;
+	readonly verifiedAt?: string;
+}
+
 /** @public */
 export interface SyncModeResult {
 	readonly selected: boolean;
@@ -71,7 +85,7 @@ export interface SyncModeResult {
 	 * key tokens were renamed; may also be in `written` or `skipped`.
 	 */
 	readonly migrated: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: SkipReason }>;
+	readonly skipped: ReadonlyArray<SyncSkip>;
 }
 
 /** @public */

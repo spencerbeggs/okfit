@@ -1,6 +1,6 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { Actor, ConceptId, Integrity, LoadedBundle, LoadedConcept } from "@okfit/core";
-import { Timestamp } from "@okfit/core";
+import { Timestamp, generatedAtIsFuture } from "@okfit/core";
 import type { UncommittedReason } from "@okfit/profiles";
 import { Derivation, PUBLICATION_TYPE, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Path, Result, Schema } from "effect";
@@ -48,6 +48,7 @@ export const GeneratedSkipReason = Schema.Literals([
 	"renders-unsupported",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",
+	"verified-after-now",
 ]);
 /** @internal */
 export type GeneratedSkipReason = typeof GeneratedSkipReason.Type;
@@ -67,10 +68,40 @@ export interface GeneratedSyncResult {
 	 * stamp still has its old keys renamed.
 	 */
 	readonly migrated: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: GeneratedSkipReason }>;
+	readonly skipped: ReadonlyArray<GeneratedSkip>;
+}
+
+/**
+ * One concept sync declined to stamp. `verified-after-now` also names the two instants the human renderer quotes:
+ * the `generated.at` left in place and the earliest verification the repair would have made current.
+ *
+ * @internal
+ */
+export interface GeneratedSkip {
+	readonly id: string;
+	readonly reason: GeneratedSkipReason;
+	readonly generatedAt?: string;
+	readonly verifiedAt?: string;
 }
 
 const encodeAt = Schema.encodeSync(Timestamp);
+
+/**
+ * R2 (#471): the earliest `verified[].at` with `from <= at < to`, the entries that lowering a stamp from `to` to
+ * `from` would turn from not current into current. Sync never does that: it would raise the trust tier without a human.
+ */
+const earliestVerificationBetween = (
+	concept: LoadedConcept,
+	from: DateTime.Utc,
+	to: DateTime.Utc,
+): DateTime.Utc | undefined =>
+	(concept.frontmatter.verified ?? [])
+		.map((entry) => entry.at)
+		.filter((at) => !DateTime.isLessThan(at, from) && DateTime.isLessThan(at, to))
+		.reduce<DateTime.Utc | undefined>(
+			(earliest, at) => (earliest === undefined || DateTime.isLessThan(at, earliest) ? at : earliest),
+			undefined,
+		);
 
 const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
 
@@ -217,7 +248,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
 	const migrated: Array<string> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: GeneratedSkipReason }> = [];
+	const skipped: Array<GeneratedSkip> = [];
 
 	for (const [id, concept] of bundle.concepts) {
 		// Step 1 (#140): a scoped run considers only the caller's set.
@@ -238,13 +269,27 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const rawKeys = concept.frontmatter.raw;
 		const keyCandidate = hasLegacyKeyNames(concept, renames);
 		// #471: a stamp later than now behind a matching digest is not authoritative; one at or before now never is touched.
-		const future =
+		const overdue =
 			matches &&
 			options.now !== undefined &&
 			generated?.at !== undefined &&
-			DateTime.isGreaterThan(generated.at, options.now);
+			generatedAtIsFuture(generated.at, options.now);
+		// R2: re-stamping lowers `generated.at`; it must not make a verification count that did not before.
+		const reviving =
+			overdue && nowStamp !== undefined && generated?.at !== undefined
+				? earliestVerificationBetween(concept, nowStamp, generated.at)
+				: undefined;
+		const future = overdue && reviving === undefined;
+		if (reviving !== undefined && generated?.at !== undefined) {
+			skipped.push({
+				id,
+				reason: "verified-after-now",
+				generatedAt: encodeAt(generated.at),
+				verifiedAt: encodeAt(reviving),
+			});
+		}
 		if (matches && !future && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
-			unchanged.push(id);
+			if (reviving === undefined) unchanged.push(id);
 			continue;
 		}
 
@@ -328,8 +373,15 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 					? undefined
 					: { block: legacyBlock, key: renames.integrity.from },
 			);
-			// #471: never write a stamp later than now (a skewed author clock).
-			encodedAt = encodeAt(nowStamp !== undefined && DateTime.isGreaterThan(stamped, nowStamp) ? nowStamp : stamped);
+			// #471: never write a stamp later than now (a skewed author clock), unless lowering it would make a
+			// verification dated in between count (R2): then the unclamped stamp stands and the lint reports it.
+			encodedAt = encodeAt(
+				nowStamp !== undefined &&
+					DateTime.isGreaterThan(stamped, nowStamp) &&
+					earliestVerificationBetween(concept, nowStamp, stamped) === undefined
+					? nowStamp
+					: stamped,
+			);
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is

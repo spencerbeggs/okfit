@@ -44,6 +44,27 @@ describe("humanSync", () => {
 		assert.isTrue(lines.includes("log.md could not be parsed; see okfit validate"));
 	});
 
+	it("names the two instants of a skipped repair that would revive a verification (#471)", () => {
+		const lines = humanSync({
+			...baseResult,
+			generated: {
+				...EMPTY_MODE,
+				skipped: [
+					{
+						id: "a",
+						reason: "verified-after-now",
+						generatedAt: "2030-06-01T00:00:00Z",
+						verifiedAt: "2029-01-01T00:00:00Z",
+					},
+				],
+			},
+		});
+		assert.include(
+			lines,
+			"  skipped a: generated.at 2030-06-01T00:00:00Z is later than now, but re-stamping it would make the verification dated 2029-01-01T00:00:00Z count without a re-verification; a human must correct generated.at or that verification",
+		);
+	});
+
 	it("summarizes a separate migrated total", () => {
 		const lines = humanSync({ ...baseResult, generated: { ...EMPTY_MODE, migrated: ["a", "b"] } });
 		assert.isTrue(lines.some((l) => l.startsWith("wrote 1, migrated 2, unchanged")));

@@ -7,6 +7,7 @@ import { Concept } from "../Concept.js";
 import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
+import { generatedAtIsFuture } from "../GeneratedAtFuture.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import { INTEGRITY_KEY } from "../Integrity.js";
@@ -101,10 +102,10 @@ export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", 
 export const generatedAtFuture: LintRule = perConcept("generated-at-future", (concept, context) => {
 	const at = concept.frontmatter.generated?.at;
 	const { now } = context;
-	if (at === undefined || now === undefined || !DateTime.isGreaterThan(at, now)) return [];
+	if (at === undefined || now === undefined || !generatedAtIsFuture(at, now)) return [];
 	return [
 		{
-			message: `generated.at ${instant(at)} is later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it`,
+			message: `generated.at ${instant(at)} is more than 5 minutes later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it`,
 			path: ["generated", "at"],
 		},
 	];

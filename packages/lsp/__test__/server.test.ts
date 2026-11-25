@@ -290,6 +290,24 @@ describe("serve", () => {
 			}).pipe(Effect.scoped),
 	);
 
+	it.live("publishes generated-at-future for a concept stamped far in the future (#471)", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			// The fixture config turns the lint off (its tests run on TestClock); turn it back on for this one.
+			const config = yield* readFixture(h.root, ".okfit.toml");
+			yield* writeFixture(
+				h.root,
+				".okfit.toml",
+				config.replace('generated_at_future = "off"', 'generated_at_future = "warn"'),
+			);
+			yield* h.initialize;
+			const alpha = yield* readFixture(h.root, "okf/modules/alpha.md");
+			yield* h.open("okf/modules/alpha.md", alpha.replace("2026-01-01T00:00:00Z", "2099-01-01T00:00:00Z"));
+			const published = yield* h.drainUntil((p) => p.uri === h.uriOf("okf/modules/alpha.md"));
+			assert.ok(published.diagnostics.some((d) => d.code === "generated-at-future"));
+		}).pipe(Effect.scoped),
+	);
+
 	it.live("a bundle-level diagnostic publishes against the bundle's index.md", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness();

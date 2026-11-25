@@ -402,16 +402,20 @@ After the move, concepts that carry a profile field and were verified show
 `verified-drift`, and a human re-runs `okfit verify` on them. Renaming
 `integrity` alone does not affect any verification.
 
-A `generated.at` later than now (a skewed author clock, a hand edit) makes a
-verification unable to count (OKF 0.3 §5.3), and `okfit validate` reports it as
-the lint `generated-at-future` (default `warn`). `okfit sync` repairs it: it
-re-stamps such a concept to now (whole seconds) even when the recorded body
-digest matches, and never writes a `generated.at` later than now. A stamp at or
-before now is never rewritten. The repair leaves `verified`,
-`x-okfit-integrity.verified` and `status` alone, so a human verification made
-before it stays not current until the human runs `okfit verify` again. Under
-`--staged` only staged concepts are re-stamped; run a plain `okfit sync` for the
-rest.
+A `generated.at` more than five minutes later than now (a skewed author clock,
+a hand edit) makes a verification unable to count (OKF 0.3 §5.3), and
+`okfit validate` reports it as the lint `generated-at-future` (default `warn`).
+`okfit sync` repairs it: it re-stamps such a concept to now (whole seconds) even
+when the recorded body digest matches, and never writes a `generated.at` later
+than now. A stamp within five minutes of now, or earlier, is never rewritten.
+The repair leaves `verified`, `x-okfit-integrity.verified` and `status` alone,
+so a human verification made before it stays not current until the human runs
+`okfit verify` again. Sync never lowers a stamp when that would make a
+verification count that did not before: such a concept is reported as `skipped`
+(`verified-after-now`, with the stamp and the verification's date), a drifted
+concept keeps its author-date stamp, and a human has to correct `generated.at`
+or that verification. A skip does not change the exit code. Under `--staged`
+only staged concepts are re-stamped; run a plain `okfit sync` for the rest.
 
 ### `okfit mv`
 

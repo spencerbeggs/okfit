@@ -5,6 +5,8 @@ const VALUES = [
 	"Actor",
 	"ActorPattern",
 	"Timestamp",
+	"GENERATED_AT_TOLERANCE",
+	"generatedAtIsFuture",
 	"Source",
 	"EntryPaths",
 	"UsageWindow",
