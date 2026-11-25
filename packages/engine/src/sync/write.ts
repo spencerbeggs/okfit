@@ -28,6 +28,22 @@ export const readSourceKeepingBom = (fs: FileSystem.FileSystem, target: string) 
 	fs.readFile(target).pipe(Effect.map((bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes)));
 
 /**
+ * The leading UTF-8 BOM an existing file carries: `"\uFEFF"` when its first three bytes are `EF BB BF`, otherwise
+ * `""`. A writer that edits a loader-read (BOM-stripped) text prepends this to what it writes, once, so a BOM that was
+ * there is kept and one that was not is never added.
+ *
+ * @internal
+ */
+export const bomOf = (fs: FileSystem.FileSystem, absolutePath: string) =>
+	fs
+		.readFile(absolutePath)
+		.pipe(
+			Effect.map((bytes): "" | "\uFEFF" =>
+				bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? "\uFEFF" : "",
+			),
+		);
+
+/**
  * {@link readSourceKeepingBom} for a file that may not exist yet: `text` is the content without its leading BOM
  * (`undefined` when the file is absent) and `bom` the BOM that was stripped (`""` when none), so a writer can compare on
  * `text` and write `bom + contents`.

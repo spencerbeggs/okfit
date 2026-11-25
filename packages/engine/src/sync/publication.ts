@@ -8,7 +8,7 @@ import { Effect, FileSystem, Option, Path, Runtime, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "../edits/FrontmatterEdits.js";
 import type { PublicationEnvelope } from "../render/sync.js";
-import { readSourceKeepingBom, writeAtomic } from "./write.js";
+import { bomOf, writeAtomic } from "./write.js";
 
 /**
  * No concept answers to `id` -- or one of a Publication's `renders` paths
@@ -103,7 +103,7 @@ export const stampPublication = (options: {
 			const fs = yield* FileSystem.FileSystem;
 			const target = path.join(bundle.root, concept.path);
 			// The loader's source has no BOM (`readFileString` drops it); give it back on write.
-			const bom = (yield* readSourceKeepingBom(fs, target)).startsWith("\uFEFF") ? "\uFEFF" : "";
+			const bom = yield* bomOf(fs, target);
 			yield* writeAtomic(target, bom + next);
 		}
 		return { id, written: true, digests };

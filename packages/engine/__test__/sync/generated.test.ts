@@ -1390,6 +1390,34 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 		);
 	});
 
+	describe("a plain re-stamp of an edited concept on a real disk (#484)", () => {
+		const edited = head(`${generatedHead}x-okfit-integrity:\n  generated:\n    body: aaaaaaaaaaaaaaaa\n`);
+		const firstBytes = (root: string) =>
+			Effect.promise(() => readFile(join(root, "page.md"))).pipe(Effect.map((bytes) => [...bytes.subarray(0, 6)]));
+
+		it.effect("a plain re-stamp of an edited concept keeps its BOM on a real disk (#484)", () =>
+			withPage(`\uFEFF${edited}`, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.written, ["page"]);
+					const bytes = yield* firstBytes(root);
+					assert.deepStrictEqual(bytes.slice(0, 3), [0xef, 0xbb, 0xbf]);
+					assert.notDeepEqual(bytes.slice(3, 6), [0xef, 0xbb, 0xbf]);
+				}),
+			),
+		);
+
+		it.effect("control: a plain concept gets no BOM", () =>
+			withPage(edited, (root) =>
+				Effect.gen(function* () {
+					const result = yield* run(root);
+					assert.deepStrictEqual(result.written, ["page"]);
+					assert.strictEqual((yield* firstBytes(root))[0], 0x2d);
+				}),
+			),
+		);
+	});
+
 	it.effect("a BOM concept that only needs a rename keeps its BOM", () => {
 		const text = `\uFEFF${head(`kind: package\n`)}`;
 		return withPage(text, (root) =>

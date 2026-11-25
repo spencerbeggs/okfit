@@ -1,15 +1,15 @@
 import { FrontmatterSource, MarkdownEdit } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
-import { Derivation, Trust } from "@okfit/profiles";
+import { Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import { rerecordBodyDigest } from "../edits/bodyDigest.js";
 import type { ReferenceSource } from "../move/references.js";
 import { readMarkdownSources } from "../move/sources.js";
 import { keyRenamesFor, legacyIntegrity } from "../sync/legacyKeys.js";
-import { writeAtomic } from "../sync/write.js";
-import { locateIntegrity, spliceIntegrityGenerated } from "../verify/integrity.js";
+import { bomOf, writeAtomic } from "../sync/write.js";
 import { detectNewline, documentNewline, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { quoteLike } from "../verify/splice.js";
 import type { MigrationCode, MigrationFinding, MigrationFixKind } from "./findings.js";
@@ -190,24 +190,19 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 		if (inserts.length === 0) continue;
 		fixed += inserts.length;
 		let text = MarkdownEdit.applyAll(source, inserts);
-		const recorded = concept?.frontmatter.integrity?.generated?.body;
-		if (concept !== undefined && recorded !== undefined && recorded === (yield* Derivation.bodyDigest(source))) {
-			const next = yield* Derivation.bodyDigest(text);
-			if (next !== recorded) {
-				const { text: plain, bom } = stripBom(text);
-				const located = yield* locateIntegrity(plain);
-				if (located._tag === "unsupported") {
-					// Never forge a digest: the body changed and the record is left stale, so list the concept.
-					drifts.add(concept.path.slice(0, -3));
-				} else {
-					text =
-						bom + MarkdownEdit.applyAll(plain, [spliceIntegrityGenerated(located, plain, next, detectNewline(plain))]);
-				}
-			}
+		if (concept !== undefined) {
+			const kept = yield* rerecordBodyDigest({
+				recorded: concept.frontmatter.integrity?.generated?.body,
+				before: source,
+				after: text,
+			});
+			text = kept.text;
+			// Never forge a digest: the body changed and the record is left stale, so list the concept.
+			if (kept.outcome === "unrecordable") drifts.add(concept.path.slice(0, -3));
 		}
 		// The loader reads through `readFileString`, which drops a leading BOM; give it back on write.
-		const head = yield* fs.readFile(path.join(bundle.root, file));
-		if (head[0] === 0xef && head[1] === 0xbb && head[2] === 0xbf && !text.startsWith("\uFEFF")) text = `\uFEFF${text}`;
+		const bom = yield* bomOf(fs, path.join(bundle.root, file));
+		if (!text.startsWith("\uFEFF")) text = bom + text;
 		edits.push({ path: file, text, fixes: applied });
 		if (concept !== undefined) {
 			const signal = yield* Trust.signal(concept, config, now);

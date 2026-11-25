@@ -224,6 +224,20 @@ describe("runRevoke", () => {
 		),
 	);
 
+	it.effect("runRevoke keeps a BOM", () =>
+		withConcept(
+			`\uFEFF${head}verified:\n${bob}${ada}${binding("human:ada", "2026-09-01T00:00:00Z")}${tail}`,
+			(root, file) =>
+				Effect.gen(function* () {
+					yield* revoke(root);
+					const bytes = yield* Effect.promise(() => readFile(file));
+					assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+					assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+					assert.strictEqual(bytes.toString("utf8"), `\uFEFF${head}verified:\n${bob}${tail}`);
+				}),
+		),
+	);
+
 	it.effect("leaves a binding to another actor alone: stale at is entry-superseded", () =>
 		withConcept(`${head}verified:\n${bob}${ada}${binding("human:bob", "2026-08-01T00:00:00Z")}${tail}`, (root, file) =>
 			Effect.gen(function* () {

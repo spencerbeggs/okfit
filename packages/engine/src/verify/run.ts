@@ -21,6 +21,7 @@ import {
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "../errors.js";
+import { readSourceKeepingBom } from "../sync/write.js";
 import type { ChangeSince } from "./diff.js";
 import { changeSince } from "./diff.js";
 import { locateIntegrity, removeIntegrityVerified, spliceIntegrityVerified } from "./integrity.js";
@@ -226,7 +227,7 @@ const prepareVerify = Effect.fn("okfit/verify/prepareVerify")(function* (
 	const absolutePath = path.join(bundle.root, concept.path);
 	// `readFileString` decodes with a BOM-stripping `TextDecoder`, which would
 	// make `stripBom` a no-op and silently drop the BOM on write-back.
-	const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(yield* fs.readFile(absolutePath));
+	const source = yield* readSourceKeepingBom(fs, absolutePath);
 	const { text, bom } = stripBom(source);
 	const located = yield* locate(text);
 	if (located._tag === "unsupported") {
@@ -479,7 +480,7 @@ const prepareRevoke = Effect.fn("okfit/verify/prepareRevoke")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const absolutePath = path.join(bundle.root, concept.path);
-	const source = new TextDecoder("utf-8", { ignoreBOM: true }).decode(yield* fs.readFile(absolutePath));
+	const source = yield* readSourceKeepingBom(fs, absolutePath);
 	const { text, bom } = stripBom(source);
 
 	const entries = yield* locateVerifiedEntries(text, actor);

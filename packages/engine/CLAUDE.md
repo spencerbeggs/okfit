@@ -37,6 +37,9 @@ src/
                                MarkdownEdits for a concept's top-level `status` scalar and its
                                `verified` list, whole-file offsets into the source as passed (BOM
                                included), over the verify/locate.ts and verify/splice.ts machinery
+    bodyDigest.ts           -- rerecordBodyDigest (internal): re-record `x-okfit-integrity.generated.body` after a
+                               writer changed the body, only when it matched the text before; an integrity block it
+                               cannot edit is `unrecordable`, never forged
   external/
     ExternalReferences.ts    -- ReferenceState, ReferenceCheck, ExternalReferences.layerNoop
                                  (phase 7 adds layerHttp)
@@ -118,7 +121,7 @@ src/
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
-    write.ts                     -- writeAtomic
+    write.ts                     -- writeAtomic, bomOf (the BOM a file carries, for writers that edit loader-read text)
     run.ts                        -- SkipReason, SyncMode/Options/Result, runSync
   init/
     scaffold.ts                   -- CONFIG_RELATIVE_PATH, ScaffoldOptions, ScaffoldFile,

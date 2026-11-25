@@ -234,6 +234,18 @@ describe("runVerifyIds refreshStaleAfter (issue #228)", () => {
 		),
 	);
 
+	it.effect("runVerifyIds with refreshStaleAfter keeps a BOM (stale --verify's path)", () =>
+		withRoot([["decisions/a.md", `\uFEFF${concept(staleLine)}`]], (root) =>
+			Effect.gen(function* () {
+				yield* run(root, ["decisions/a"], true);
+				const bytes = yield* Effect.promise(() => readFile(join(root, "decisions/a.md")));
+				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+				assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+				assert.ok(bytes.toString("utf8").includes('stale_after: "2027-01-07T00:00:00Z"\n'));
+			}),
+		),
+	);
+
 	it.effect("updates the actor's existing entry instead of appending a duplicate", () =>
 		withRoot(
 			[
