@@ -37,7 +37,7 @@ validation on the file without any further setup.
   okfit writes into a bundle-root `index.md` that declares none (`okfit init`,
   `okfit sync`); it never overrides what a bundle declares, and the
   bundle's own declaration decides how it is read. When the root index
-  declares a different version, the lint `config_okf_version_stale` reports
+  declares a different version, the lint `config-okf-version-stale` reports
   the config value as stale; okfit never edits the config file.
 - `[bundle]` -- `path` (default `"okf"`), `profile` (default
   `"software-project"`), and `non_concepts`, an array of globs naming the
