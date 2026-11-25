@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:27:40Z
+  at: 2026-11-25T01:33:06Z
 tags:
   - architecture
 verified:
@@ -25,7 +25,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 9b870524a448d41a
+    body: e418bac69ee91347
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -103,7 +103,7 @@ heuristic: exotic writes slip through, which is acceptable because
 `okfit sync` backfills `generated` from `actors.agent`. Copilot's shell
 tool name `bash` is accepted beside `Bash`. A path outside the bundle root never reaches `okfit validate` at
 all: the test compares physical paths (an absolute path's directory is
-resolved, the file itself is not, and a relative path is compared as given),
+resolved, the file itself is not, and a relative `file_path` is compared as given, while a relative `Bash` write target is resolved against the project directory first),
 and `okfit validate` receives the physical path (`plugin/README.md:88-112`, `plugin/CLAUDE.md:64-76`). On Copilot, which
 honours no `PostToolUse` block, the same reason is sent as
 `additionalContext` (`plugin/CLAUDE.md:72-74`). The drift lint costs a git walk

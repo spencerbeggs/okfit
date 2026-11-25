@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:27:40Z
+  at: 2026-11-25T01:33:06Z
 x-okfit-integrity:
   generated:
-    body: c2a38d7f7a93c2b6
+    body: 36c7bf24d8a52bad
 ---
 
 # Engine
@@ -44,7 +44,7 @@ layer, rather than by two independently maintained copies agreeing
 `config/layer.ts#buildConfigLayer` builds the two-branch `AppConfig.layer`
 call (`--config <file>` given vs. the upward-walk-plus-XDG chain) that
 `okfit-config-schema.md` and `okf/decisions/cli-config-discovery-*.md`
-describe from the consumer's side; a config that fails decode surfaces as `malformed config <path>: <key>: <reason>`, naming the first failing key without echoing its value. `validate/run.ts`, `verify/{locate,
+describe from the consumer's side; a config that fails decode surfaces as `malformed config <path>: <key>: <reason>`, naming the first failing key and the reason. `validate/run.ts`, `verify/{locate,
 splice,run}.ts`, `sync/{generated,index,log,write,run}.ts`, and
 `init/scaffold.ts` are the five programs; `render/*.ts` holds the
 envelope half of each JSON contract (`ContextEnvelope`, `VerifyEnvelope`,
@@ -166,7 +166,7 @@ forward](../decisions/stale-verify.md).
 
 ## Migration report and fixes
 
-`migrate/findings.ts` holds `migrationFindings(bundle, config, target)`: five codes
+`migrate/findings.ts` holds `migrationFindings(bundle, config, target, others)`, where `others` are the bundle's non-concept Markdown sources: five codes
 (`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
 `root-relative-path`, `computation-locator`), found by resolving each
 reference under both fallback rules, in every Markdown file of the bundle that is not a concept; `computation-locator` appears only while
@@ -183,7 +183,7 @@ re-record `x-okfit-integrity.generated.body` for a concept whose digest matched
 before the edit, list `drifts` (each edited concept whose integrity was
 current before the edit, and each whose `x-okfit-integrity` block the fix will not
 edit), and keep a BOM and the file's line endings.
-Both read and write the root index and concepts themselves, so they need
+Both read and write the root index, the concepts and the non-concept Markdown themselves, so they need
 `FileSystem`, `Path` and `Digest`. `validate/run.ts#run` takes a `target` and
 returns the findings as `migration`; they render as a fourth diagnostic
 source, `"migrate"`, which `render/exit.ts` never counts toward the exit

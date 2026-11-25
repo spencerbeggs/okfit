@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:27:40Z
+  at: 2026-11-25T01:33:06Z
 tags:
   - architecture
 verified:
@@ -43,7 +43,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: c4625e747b7908be
+    body: bcf8a52bac34f503
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -123,7 +123,9 @@ fixes: it prefixes `/` to a body link, image, definition or path field that
 resolves only from the bundle root, and it declares `okf_version: "0.3"` in
 the root index. The report and the fixes cover every Markdown file in the bundle
 that is not a concept (index files, `log.md`, typeless and frontmatter-less
-files), and `index.md` is left byte-identical. The version fix is refused, with
+files); a root-only link in an index file or `log.md` is rooted like any other,
+and a held-back version fix leaves the root index's `okf_version` unwritten.
+The version fix is refused, with
 its reason, while a root-only reference remains, when an Attested Computation
 would lose its computation (a `warning` `computation-locator` finding), when a
 Markdown file could not be read to check its links, when `okf_version` cannot be
@@ -522,7 +524,8 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 
 A usage error (`64`) prints its help and parse errors on stderr and leaves
 stdout empty, so a hook that parses stdout as JSON never sees help text;
-under `--format json` a flag the parser rejects also prints one error
+under `--format json` a usage error the argument parser raises (an unknown
+flag or subcommand, a bad or missing flag value) also prints one error
 envelope on stdout (`exit_code` `64`, `error.tag` the first parse error's tag,
 the messages joined with `;`), with help still on stderr; an
 explicit `--help` and a bare command group print help on stdout and exit `0`.
@@ -603,8 +606,9 @@ with `schema`, `okfit_version`, `engine_version`, `producer`,
 `engine_version`, `distribution`, `exit_code`, `error` — and nothing
 else on stdout. `exit_code` is `3` for most errors, or `64` when the
 underlying typed error is one of the usage-tier errors that carries its
-own `[Runtime.errorExitCode]` (`SyncStagedLogError`, `VerifySelectionError`)
-— it always matches the process's own exit code.
+own `[Runtime.errorExitCode]` (`SyncStagedLogError`, `VerifySelectionError`); a usage error the argument
+parser raises prints the same envelope with `exit_code` `64` and the parser's
+error tag — it always matches the process's own exit code.
 
 ## Message conventions
 

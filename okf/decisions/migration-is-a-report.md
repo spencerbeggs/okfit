@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:27:40Z
+  at: 2026-11-25T01:33:06Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: cbf070087fe6943c
+    body: 4ca9390a14b8f0a4
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -68,7 +68,9 @@ reference stops landing), and it declares `okf_version: "0.3"` in the root
 index, inserting the key or replacing the old scalar and keeping a BOM and
 the file's line endings. The report and the fixes cover every Markdown file in
 the bundle that is not a concept (index files, `log.md`, typeless and
-frontmatter-less files), and `index.md` is left byte-identical. Three `migrate` findings are listed with no fix and left to a human or to
+frontmatter-less files), so a root-only link in an index file or `log.md` is
+rooted like any other; only the root index's `okf_version` is held back with
+the version fix. Three `migrate` findings are listed with no fix and left to a human or to
 the `okf-upgrade` skill: an unparsable version, the computation locator, and
 an undeclared version when there is no root index. The existing core lints
 that bear on a migration (`verified-before-change`, `legacy-timestamp`,
@@ -87,9 +89,9 @@ does not parse (malformed YAML, a duplicate key), each with its reason; the rest
 of the plan still applies. Refusals are listed, not errors. One cost is known:
 a `warning` `computation-locator` finding (a computation that 0.3 would not
 find) stops being reported once the bundle declares 0.3, so the version fix
-is refused while one exists, and `okf-upgrade` reports it to the human. After
-the bundle declares 0.3, the `computation-missing` lint reports an Attested
-Computation with no computation.
+is refused while one exists, and `okf-upgrade` reports it to the human. The
+`computation-missing` lint reports an Attested Computation with no
+computation, so a lost one shows up after the version moves.
 
 **A link repair keeps the stamp.** OKF v0.3 §5.2 says a link repair does
 not change `generated.at`. When a fixed concept's recorded
