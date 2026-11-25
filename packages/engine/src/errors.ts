@@ -252,6 +252,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		"dry-run-needs-verify",
 		"revoke-needs-id",
 		"revoke-conflict",
+		"at-future",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -263,6 +264,9 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		if (this.reason === "revoke-needs-id") return "--revoke needs at least one concept target";
 		if (this.reason === "revoke-conflict") {
 			return `--revoke removes your own verification of the named concepts; it cannot combine with ${this.detail ?? "other selectors"}`;
+		}
+		if (this.reason === "at-future") {
+			return `--at ${this.detail ?? ""} is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now`;
 		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";

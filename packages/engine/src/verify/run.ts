@@ -18,6 +18,7 @@ import {
 	VerifyContentUnhashableError,
 	VerifyNotCurrentError,
 	VerifyNothingToRevokeError,
+	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "../errors.js";
@@ -142,6 +143,25 @@ interface PreparedVerify {
 	readonly priorAt: ReadonlyArray<string>;
 	readonly content: string;
 }
+
+/**
+ * Refuses a verification time (`--at`) more than the five-minute clock-skew tolerance later than `now`: a verification
+ * records when the review happened, and one dated in the future would put the concept in the states the stamp guard
+ * exists to prevent. Exactly `now` plus the tolerance is accepted. Pure; the CLI calls it right after decoding `--at`,
+ * and `runVerify`, `runVerifyBatch` and `runVerifyIds` call it first when given `now`.
+ *
+ * @public
+ */
+export const futureAtRefusal = (at: DateTime.Utc, now: DateTime.Utc): VerifySelectionError | undefined =>
+	generatedAtIsFuture(at, now)
+		? new VerifySelectionError({ reason: "at-future", detail: Schema.encodeSync(Timestamp)(at) })
+		: undefined;
+
+/** Fails with the `at-future` refusal when `now` is known and `at` is too far ahead of it; else does nothing. */
+const failIfAtFuture = (at: DateTime.Utc, now: DateTime.Utc | undefined): Effect.Effect<void, VerifySelectionError> => {
+	const refusal = now === undefined ? undefined : futureAtRefusal(at, now);
+	return refusal === undefined ? Effect.void : Effect.fail(refusal);
+};
 
 /**
  * OKF 0.3 5.4: a status outside the vocabulary is not stable, so it is never attested unless the same
@@ -346,6 +366,7 @@ const resolveConcept = (bundle: LoadedBundle, rawId: string) =>
  * @internal
  */
 export const runVerify = Effect.fn("okfit/verify/runVerify")(function* (options: VerifyOptions) {
+	yield* failIfAtFuture(options.at, options.now);
 	// Step 6 (V-10): Bundle.load only — no validate pass, no single-concept
 	// core path. Its diagnostics feed the `undecodable` reason below.
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
@@ -593,6 +614,7 @@ export const runRevokeIds = Effect.fn("okfit/verify/runRevokeIds")(function* (op
  * @public
  */
 export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function* (options: VerifyBatchOptions) {
+	yield* failIfAtFuture(options.at, options.now);
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const types = yield* resolveBatchTypes(options.config, options.types);
 
@@ -675,6 +697,7 @@ export interface VerifyIdsOptions {
  * @public
  */
 export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (options: VerifyIdsOptions) {
+	yield* failIfAtFuture(options.at, options.now);
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
 	const actor = yield* Derivation.verifier({ cwd: options.projectRoot, config: options.config });
 	const at = Schema.encodeSync(Timestamp)(options.at);

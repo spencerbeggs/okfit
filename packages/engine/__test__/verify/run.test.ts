@@ -8,13 +8,15 @@ import { Bundle, Derive, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, Layer } from "effect";
 import { TestClock } from "effect/testing";
-import type { VerifyNotCurrentError, VerifyStatusUnknownError } from "../../src/errors.js";
+import type { VerifyNotCurrentError, VerifySelectionError, VerifyStatusUnknownError } from "../../src/errors.js";
 import {
+	futureAtRefusal,
 	inspectDrift,
 	loadPickerCandidates,
 	loadStaleCandidates,
 	runVerify,
 	runVerifyBatch,
+	runVerifyIds,
 } from "../../src/verify/run.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
 import { identityConfigGet } from "../utils/gitIdentity.js";
@@ -753,6 +755,47 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				assert.strictEqual(now.verified.length, 1);
 			}),
 		);
+	});
+
+	it.effect("runVerify refuses a future at when now is given, and not without now (#503)", () =>
+		withRoot({ "decisions/a.md": doc("A", "") }, (root) =>
+			Effect.gen(function* () {
+				const before = yield* read(root, "decisions/a.md");
+				const now = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
+				const call = (at: string, withNow: boolean) =>
+					runVerify({ ...base(root, at), ...(withNow ? { now } : {}), id: "decisions/a" }).pipe(
+						Effect.provide(platform),
+					);
+				// the boundary: exactly now + 5 minutes writes, one second more is refused
+				const refused = yield* Effect.flip(call("2026-09-16T12:05:01Z", true));
+				assert.strictEqual(refused._tag, "VerifySelectionError");
+				assert.strictEqual((refused as VerifySelectionError).reason, "at-future");
+				assert.strictEqual((refused as VerifySelectionError).detail, "2026-09-16T12:05:01Z");
+				assert.strictEqual(yield* read(root, "decisions/a.md"), before);
+				// the batch and id-list entry points refuse the same way, before loading anything
+				const batch = yield* Effect.flip(
+					runVerifyBatch({ ...base(root, "2026-09-16T12:05:01Z"), now, types: [] }).pipe(Effect.provide(platform)),
+				);
+				assert.strictEqual((batch as VerifySelectionError).reason, "at-future");
+				const ids = yield* Effect.flip(
+					runVerifyIds({ ...base(root, "2026-09-16T12:05:01Z"), now, ids: ["decisions/a"] }).pipe(
+						Effect.provide(platform),
+					),
+				);
+				assert.strictEqual((ids as VerifySelectionError).reason, "at-future");
+				assert.strictEqual(yield* read(root, "decisions/a.md"), before);
+				// without now the same call succeeds (library compatibility)
+				yield* call("2026-09-16T12:05:01Z", false);
+				assert.notStrictEqual(yield* read(root, "decisions/a.md"), before);
+			}),
+		),
+	);
+
+	it("futureAtRefusal: exactly now + 5 minutes passes, one second more refuses (#503)", () => {
+		const now = DateTime.makeUnsafe("2026-09-16T12:00:00Z");
+		assert.isUndefined(futureAtRefusal(DateTime.makeUnsafe("2026-09-16T12:05:00Z"), now));
+		assert.isUndefined(futureAtRefusal(DateTime.makeUnsafe("2026-09-16T11:00:00Z"), now));
+		assert.strictEqual(futureAtRefusal(DateTime.makeUnsafe("2026-09-16T12:05:01Z"), now)?.reason, "at-future");
 	});
 
 	it.effect(

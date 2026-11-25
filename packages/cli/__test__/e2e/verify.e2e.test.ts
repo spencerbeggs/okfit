@@ -341,6 +341,80 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
+	it("refuses an --at more than 5 minutes later than now, exit 64, nothing written (#503)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const before = await readProject(cwd);
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+
+			const run = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T12:05:01Z"], { cwd, env: now }),
+			);
+
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			assert.include(
+				run.stderr,
+				"--at 2026-09-07T12:05:01Z is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+
+			// control: a malformed --at keeps its own exit 3
+			const malformed = await withServices(runOkfit(["verify", "project", "--at", "tomorrow"], { cwd, env: now }));
+			assert.strictEqual(malformed.exitCode, 3, malformed.stderr);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("accepts an --at exactly 5 minutes ahead, refuses one second more (#503)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+			const before = await readProject(cwd);
+
+			const edge = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T12:05:00Z", "--dry-run"], { cwd, env: now }),
+			);
+			assert.strictEqual(edge.exitCode, 0, edge.stderr);
+			assert.include(edge.stdout, "2026-09-07T12:05:00Z");
+
+			const over = await withServices(
+				runOkfit(["verify", "project", "--at", "2026-09-07T12:05:01Z", "--dry-run"], { cwd, env: now }),
+			);
+			assert.strictEqual(over.exitCode, 64, over.stderr);
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("the refusal comes before a batch and in JSON (#503)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const before = await readProject(cwd);
+			const run = await withServices(
+				runOkfit(["verify", "--all", "--at", "2099-01-01T00:00:00Z", "--format", "json"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" },
+				}),
+			);
+
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			const lines = run.stdout.split("\n").filter((line) => line !== "");
+			assert.strictEqual(lines.length, 1);
+			const envelope = JSON.parse(lines[0] ?? "") as { exit_code: number; error: { tag: string; message: string } };
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "VerifySelectionError");
+			assert.strictEqual(
+				envelope.error.message,
+				"--at 2099-01-01T00:00:00Z is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("refuses an --at before generated.at (exit 3, file unchanged); --at equal to it exits 0 and writes", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {

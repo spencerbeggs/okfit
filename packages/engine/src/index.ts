@@ -161,6 +161,7 @@ export type {
 	VerifyResult,
 } from "./verify/run.js";
 export {
+	futureAtRefusal,
 	inspectDrift,
 	loadPickerCandidates,
 	loadPreviews,

@@ -287,7 +287,9 @@ an allow-list (exact ids or `*`/`?` globs, case-insensitive): an unlisted
 identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 `--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
-different instant. okfit refuses (exit `3`, with `--dry-run` too) a verification
+different instant. An `--at` more than 5 minutes later than now is a usage error (exit `64`, also with `--dry-run`
+and `--format json`), refused before anything is loaded or any picker opens; exactly 5 minutes ahead is accepted, and a
+malformed `--at` stays exit `3`. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept

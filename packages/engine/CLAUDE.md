@@ -17,6 +17,7 @@ src/
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
                              VerifyNotCurrentError (exit 3: a verification dated before generated.at, OKF 0.3 5.3, R33),
+                             VerifySelectionError (exit 64; reason `at-future`: an `--at` more than 5 minutes later than now),
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
@@ -100,6 +101,8 @@ src/
     run.ts                    -- VerifyOptions, VerifyResult, runVerify: loads the bundle,
                                   resolves the actor, splices, and writes atomically; also
                                   runVerifyBatch, runVerifyIds (explicit ids, optional promote),
+                                  futureAtRefusal (pure; `runVerify`, `runVerifyBatch` and `runVerifyIds` call it first when
+                                  `now` is set, the CLI right after decoding `--at`),
                                   loadPickerCandidates, loadStaleCandidates (both also return `leftOut`)
                                   and loadPreviews (the picker's per-drifted-row changeSince)
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path
