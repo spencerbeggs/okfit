@@ -305,7 +305,10 @@ export const computationMissing: LintRule = rule("computation-missing", (context
 			: Option.isSome(heading)
 				? legacy
 					? "This Attested Computation has no computation: its top-level Computation section is empty, so it is not attestable; write the computation under it, or set computation to a file"
-					: "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
+					: // Under the 0.3 reading a present body is the first fence's code, and here it is blank.
+						Option.isSome(body)
+						? "This Attested Computation has no computation: the first fenced code block in its Computation section is empty (OKF 0.3 §10.3), so it is not attestable; put the computation in that block, or set computation to a file"
+						: "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
 				: legacy
 					? "This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a top-level Computation section that holds the computation, or set computation to a file"
 					: "This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a Computation section with the computation in one fenced block, or set computation to a file";

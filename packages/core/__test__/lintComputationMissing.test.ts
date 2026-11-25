@@ -7,6 +7,8 @@ import { Validate } from "../src/Validate.js";
 
 const SECTION_MESSAGE =
 	"This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file";
+const EMPTY_FENCE_MESSAGE =
+	"This Attested Computation has no computation: the first fenced code block in its Computation section is empty (OKF 0.3 §10.3), so it is not attestable; put the computation in that block, or set computation to a file";
 const NO_SECTION_MESSAGE =
 	"This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a Computation section with the computation in one fenced block, or set computation to a file";
 const LEGACY_EMPTY_MESSAGE =
@@ -185,6 +187,25 @@ describe("computation-missing", () => {
 			assert.deepStrictEqual(
 				empty.map((d) => d.code),
 				["computation-missing"],
+			);
+		}),
+	);
+
+	it.effect("a 0.3 bundle: an empty or whitespace-only first fence is called empty, not missing (#508)", () =>
+		Effect.gen(function* () {
+			for (const fence of ["```sql\n```\n", "```sql\n   \n\t\n```\n", "```\n```\n\n```sql\nSELECT 1\n```\n"]) {
+				const bundle = yield* load({ "index.md": V03, "a.md": concept(`# Computation\n\n${fence}`) });
+				assert.deepStrictEqual(
+					missing(bundle).map((d) => d.message),
+					[EMPTY_FENCE_MESSAGE],
+					JSON.stringify(fence),
+				);
+			}
+			const control = yield* load({ "index.md": V03, "b.md": concept("# Computation\n\nprose\n") });
+			assert.deepStrictEqual(
+				missing(control).map((d) => d.message),
+				[SECTION_MESSAGE],
+				"control: no fence at all keeps its own message",
 			);
 		}),
 	);
