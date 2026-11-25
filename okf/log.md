@@ -11,6 +11,14 @@
 * Updated Migration to a newer OKF version is a report on validate, with two safe fixes
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 * Updated okfit config file schema
+* Updated A verification is bound to the content it covered
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated Generated.at is the author date of the last commit that changed the body
+* Updated LSP
+* Updated Repository resources are classified by where they resolve
+* Updated okfit sync --staged stamps the git index with now, the one place a wall-clock stamp is honest
+* Updated okfit's own frontmatter keys carry the x-okfit- prefix
+* Updated stale --verify rolls stale_after forward, and plain verify never does
 
 ## 2026-11-24
 

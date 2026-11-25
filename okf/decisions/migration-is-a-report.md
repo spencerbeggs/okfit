@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T02:03:21Z
+  at: 2026-11-25T04:25:12Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 5cee0251f93cb072
+    body: f5a877dd2b5f0be2
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -57,7 +57,7 @@ both is a `broken-links` problem and not a finding. This works on a bundle
 that already declares 0.3. `computation-locator` is reported only while the
 bundle reads with the legacy locator, because raising the version is what
 changes the reading, and only when the two readings differ (a depth-one
-section that is exactly one fence reads the same and is not reported); it is `warning` when the concept would lose its
+section that is exactly one fence reads the same and is not reported, and an empty section holds no computation under either reading, so it is not reported either); it is `warning` when the concept would lose its
 computation and `info` otherwise. A bundle with no root `index.md` gets
 `okf-version-undeclared` with file `index.md` and no fix, since the root
 index body is `okfit sync`'s to write.
@@ -86,7 +86,7 @@ refused while an Attested Computation would lose its computation, while a
 Markdown file could not be read to check its links, when `okf_version` cannot be edited in place, and when the root
 index's opening fence is not exactly `---`, and when the root index frontmatter
 does not parse (malformed YAML, a duplicate key), each with its reason; the rest
-of the plan still applies. Refusals are listed, not errors. One cost is known:
+of the plan still applies. Refusals are listed, not errors, and the lost-computation refusal says that the human who wants to keep a prose-only section can set `okf_version` in the root index by hand; the human run's summary counts a finding whose fix would be refused apart (`<r> refused by --fix`) and leaves it out of `fixable`, and the exit code does not change. One cost is known:
 a `warning` `computation-locator` finding (a computation that 0.3 would not
 find) stops being reported once the bundle declares 0.3, so the version fix
 is refused while one exists, and `okf-upgrade` reports it to the human. The

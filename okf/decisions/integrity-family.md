@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-25T04:25:12Z
 status: stable
 x-okfit-supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,7 +15,7 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 x-okfit-integrity:
   generated:
-    body: 1908c94d7d0e7eb9
+    body: 5fe762220d8a4e91
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -72,7 +72,9 @@ that content existed at `binding.at`, which makes that instant the content's
 last meaningful change (section 5.2), and it keeps a verification current
 across the edit, verify, commit sequence. The `[actors].humans` allow-list
 does not gate the clamp, and a concept whose body digest is unchanged is
-never rewritten.
+never rewritten, except that a `generated.at` more than five minutes later than
+now is re-stamped to now (see [Generated.at is the author date of the last commit
+that changed the body](generated-at-source.md)).
 
 ## Alternatives rejected
 

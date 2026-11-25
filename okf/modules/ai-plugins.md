@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:55:51Z
+  at: 2026-11-25T04:25:12Z
 x-okfit-integrity:
   generated:
-    body: 4c49b9345eb839ac
+    body: 0fab2cb65a62c894
 ---
 
 # AI Plugins
@@ -45,14 +45,14 @@ through the `spencerbeggs/bot` marketplace, not yet listed
 
 Eleven skills (`okf-spec`, `okf-authoring`, `okf-config`, `okf-context`,
 `okf-finalize`, `okf-upgrade` (migrating a bundle to OKF v0.3 with `okfit
-validate --target 0.3`), and the docs set `docs-detect-shape`, `docs-templates`,
+validate --target 0.3`; it tells the agent that an empty `Computation` section is not a finding, that a human may keep a prose-only one by setting `okf_version` by hand, that the summary counts refused fixes apart and that `validate` prints a `hint:` for old key names), and the docs set `docs-detect-shape`, `docs-templates`,
 `docs-badges`, `docs-humanize`, `docs-render`) and two agents, split by write
 direction: `okf-docs` writes the bundle (and `CLAUDE.md` pointers) and
 preloads the six `okf-*` skills; `okf-publisher` writes the published pages
 outside `okf/` (READMEs, `docs/`) from Surface and Publication concepts,
 preloads the five `docs-*` skills, and touches the bundle only through
 `okfit sync --publication` (`plugin/CLAUDE.md:20-42`; the skills table at
-`plugin/README.md:41-58`). Skill and agent bodies name tools and agents with
+`plugin/README.md:41-58`). `okf-config` lists the lint key `generated_at_future` and says a malformed config reports every bad key at once, and `okf-authoring` says a `generated.at` more than five minutes ahead is that lint and that `okfit sync` skips the re-stamp when it would make a verification count. Skill and agent bodies name tools and agents with
 `{{tool ...}}` and `{{agent ...}}` tokens that render per host
 (`plugin/CLAUDE.md:78-86`). Two hooks
 (`hooks/session-start/orientation.sh`, `hooks/post-tool-use/validate.sh`)

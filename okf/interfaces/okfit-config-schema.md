@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:55:51Z
+  at: 2026-11-25T04:25:12Z
 tags:
   - architecture
 verified:
@@ -35,7 +35,7 @@ verified:
     at: 2026-11-25T02:05:49Z
 x-okfit-integrity:
   generated:
-    body: 1d94dd56dcc51e75
+    body: ab316e48c91f6f00
   verified:
     by: human:spencer
     at: 2026-11-25T02:05:49Z
@@ -106,11 +106,11 @@ error](../decisions/non-concept-markdown-is-skipped.md).
 
 A config that fails decode is reported as `malformed config <path>: <key>:
 <reason>` (for example `lint.missing_index: Expected "off" | "info" | "warn" |
-"error"`): it names the first failing key (`bundle.non_concepts[0]` for a list entry) and the reason.
+"error"`): it names every failing key (`bundle.non_concepts[0]` for a list entry) and its reason, one entry per key, separated by `;`, so one run lists all of them.
 
 ## Lint severities
 
-The forty-two default lint codes (the twenty-nine below, the ten that OKF v0.3 support added, listed after them, `non_concept_unlisted`, and the two described after it): `broken_links`, `missing_index`,
+The forty-three default lint codes (the twenty-nine below, the ten that OKF v0.3 support added, listed after them, `non_concept_unlisted`, and the three described after it): `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
 `walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
 `publication_drift`, `surface_unmatched`, `verified_before_change` and `verified_drift` default `warn`;
@@ -121,7 +121,7 @@ see below); `unknown_type`, `required_key_missing` (a key written as null, `""` 
 `actor_email` (an actor contains `@`) and `verified_actor_unknown` (a verifier matches no entry of a non-empty `[actors].humans`) default `warn`, as does `verified_drift` when the bound verifier has left the list;
 The ten codes added for OKF v0.3 default `warn`, except `resource_outside_project`, which is `info`: `index_metadata_invalid` (the root `index.md` carries an `okf_version` that is not a quoted `<major>.<minor>` string, or a non-string `title`, `description` or `license`), `entry_ignored` (a `sources`, `verified`, `generated` or `parameters` entry lacks a required key or has one okfit cannot read, so the entry is ignored), `value_malformed` (a defined value cannot be read in its shape and is read as absent; a malformed `stale_after` reads as `malformed`), `value_unknown` (a `status` outside `draft`, `stable` and `deprecated` is kept and the concept is not read as current knowledge), `frontmatter_missing` and `type_missing` (the `.md` file is not a concept and is skipped; they were conformance errors in OKF v0.2), and `symlink_escape` (a bundle file is a symbolic link out of the bundle root and is not read). The other three are `resource_outside_project` (default `info`, described below), `superseded_by_orphan` (a concept carries `superseded_by` but its status is not `deprecated`) and `superseded_by_unresolved` (a deprecated concept's `superseded_by` resolves to an asset, an external value or the concept itself; a missing target stays `broken_links`). `actor_prefix_unknown` accepts `team:` and also checks `sources[].author`. The config schema label stays `1.0`; the keys are additive and the document has not been catalogued.
 `non_concept_unlisted` (default `warn`) is an okfit opinion, not OKF conformance (§3.2 allows such files): it reports a `.md` file that `frontmatter_missing` or `type_missing` skipped and that no glob of `[bundle] non_concepts` matches. It is silent while `non_concepts` is absent.
-`computation_missing` (default `warn`) reports an Attested Computation concept with no computation: no `computation` value (an empty or null `computation:` counts as absent) and no computation in the body under the bundle's declared reading (under 0.3 a fenced block in the `Computation` section at any heading level; under 0.2 a non-empty depth-one `Computation` section). `config_okf_version_stale` (default `warn`, bundle-level) fires when the config sets `okf_version` and the root index declares a different one, compared as versions when both parse and as strings otherwise; `--fix` never edits the config.
+`computation_missing` (default `warn`) reports an Attested Computation concept with no computation: no `computation` value (an empty or null `computation:` counts as absent) and no computation in the body under the bundle's declared reading (under 0.3 a fenced block in the `Computation` section at any heading level; under 0.2 a non-empty depth-one `Computation` section). `config_okf_version_stale` (default `warn`, bundle-level) fires when the config sets `okf_version` and the root index declares a different one, compared as versions when both parse and as strings otherwise; its message names the config file that sets `okf_version`, or says "the config" when no file is known, and `--fix` never edits the config. `generated_at_future` (default `warn`) fires on a concept whose `generated.at` is more than five minutes later than now, because no verification can count against it (OKF 0.3 §5.3) and `okfit verify` refuses it; the message says `okfit sync` re-stamps it, or, when a verification dated between now and the stamp would then count, that sync will not and a human must correct `generated.at` or that verification.
 `status_missing` defaults `off`, because the spec reads an absent `status`
 as `stable` and core keeps no opinion about it -- the software-project
 profile is the layer that raises it to `warn` (issue #110), the one lint

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:55:51Z
+  at: 2026-11-25T04:25:12Z
 x-okfit-integrity:
   generated:
-    body: df06b51283f0d507
+    body: 5c77c3a290771e04
 ---
 
 # Engine
@@ -44,7 +44,7 @@ layer, rather than by two independently maintained copies agreeing
 `config/layer.ts#buildConfigLayer` builds the two-branch `AppConfig.layer`
 call (`--config <file>` given vs. the upward-walk-plus-XDG chain) that
 `okfit-config-schema.md` and `okf/decisions/cli-config-discovery-*.md`
-describe from the consumer's side; a config that fails decode surfaces as `malformed config <path>: <key>: <reason>`, naming the first failing key and the reason. `validate/run.ts`, `verify/{locate,
+describe from the consumer's side; a config that fails decode surfaces as `malformed config <path>: <key>: <reason>`, naming every failing key and its reason (the layer and `OkfitConfig.read` decode with `errors: "all"`). `validate/run.ts`, `verify/{locate,
 splice,run}.ts`, `sync/{generated,index,log,write,run}.ts`, and
 `init/scaffold.ts` are the five programs; `render/*.ts` holds the
 envelope half of each JSON contract (`ContextEnvelope`, `VerifyEnvelope`,
@@ -95,10 +95,9 @@ the same edit. Candidate selection counts an actor as already verified only
 when it holds the current binding, and a binding is current only while its
 bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-offer drifted concepts, a concept verified before
 its last change included. `stale --verify`'s candidates come from staleness
-alone (`selectStaleCandidates` never consults integrity). A write that would not be current is refused: `--at` before
+alone (`selectStaleCandidates` never consults integrity). `runVerify` refuses a write that would not be current: `--at` before
 `generated.at`, or a `generated.at` in the future, fails with
-`VerifyNotCurrentError` (exit `3`) in `runVerify`, `runVerifyBatch` and
-`runVerifyIds` alike, and a batch fails whole with nothing written. `verify/revoke.ts` implements
+`VerifyNotCurrentError` (exit `3`); its `kind` is `future` when `generated.at` is more than five minutes later than the run's `now`, `near-future` when it is later by less than that, and absent when `now` is not given or `--at` was backdated, and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentAt` skips it with the reason `not-current` (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return its id in `leftOut`, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
 `--revoke`: it removes the current actor's own `verified` entries, clears
 `x-okfit-integrity.verified` when it was bound to one of them (and `x-okfit-integrity`
 when empty), removes the `verified` key when its list empties, and reports
@@ -188,7 +187,7 @@ Both read and write the root index, the concepts and the non-concept Markdown th
 returns the findings as `migration`; they render as a fourth diagnostic
 source, `"migrate"`, which `render/exit.ts` never counts toward the exit
 code. The JSON envelope gains `target`, `fixes` (the named `JsonFixes`) and
-`summary.migration_findings`. `init` omits the root `title` and `description`
+`summary.migration_findings`. `RunResult.legacyKeys` lists the ids of the concepts that still use okfit's old key names, over the whole bundle even when a caller narrows the report, so a front end can point at `okfit sync`; it is advisory and not a finding. `RunOptions.configPath` names the config file in `config-okf-version-stale`. An empty `Computation` section is not a `computation-locator` finding. `init` omits the root `title` and `description`
 for a bundle that declares 0.2 or earlier (#468). See [Migration to a newer
 OKF version is a report on validate, with two safe
 fixes](../decisions/migration-is-a-report.md).
@@ -240,7 +239,12 @@ binds its latest human entry and covers exactly the current content
 (`sync/generated.ts#stampInstant`), so an edit, verify, commit sequence keeps
 the verification current under OKF v0.3 §5.3; the `[actors].humans`
 allow-list does not gate it, and a concept whose body digest is unchanged is
-never rewritten. Staged mode never
+never rewritten, except for a `generated.at` more than five minutes later than the
+run's `now`, which `SyncOptions.now` makes sync re-stamp to now (#471). No stamp sync
+writes is later than `now`, and it declines a re-stamp or a clamp that would make a
+verification count, reporting the concept in `skipped` as `verified-after-now` with
+the stamp and that verification's date. Sync keeps a leading byte-order mark when it
+rewrites `index.md` or `log.md`. Staged mode never
 walks history: its log mode reads the staged concepts' provenance from
 the index (the stamp instant; `Added` when `git show HEAD:<path>` finds
 nothing) and skips a `log.md` with unstaged edits as `dirty`. It takes the
@@ -348,7 +352,7 @@ share; `DocumentPathError` (exit `64`) owns the path rules.
 `session/BundleSession.ts` holds one bundle root's overlay, last bundle,
 graph and per-file diagnostics, and its `revalidate({ now, tier })`
 re-runs `validate/run.ts#run` under the overlay and returns only the
-files whose diagnostics changed, including files not open; `tier: "edit"`
+files whose diagnostics changed, including files not open, and `RevalidateResult.current`, every file's current set, so a publisher can resend a URI's whole set when two keys share it; `tier: "edit"`
 skips the git tier. Debounce is the caller's: the language server
 schedules, the session serializes overlapping calls. A range-less
 finding is anchored on the concept's frontmatter block

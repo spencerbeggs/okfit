@@ -13,11 +13,11 @@ sources:
     title: The git-backed lints that judge only a located file.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:36:26Z
+  at: 2026-11-25T04:25:12Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 31426d143208dafc
+    body: 547113b9c68b9716
   verified:
     by: human:spencer
     at: 2026-11-24T03:27:57Z
@@ -70,7 +70,7 @@ leaves the project root and the bundle root is also `outside`. Resolving a
 link's real path is the one permitted disk access that decides containment;
 nothing else may reach the target. A path whose real path cannot be resolved
 at all, including a dangling link, counts as missing, so it keeps
-`source-resource-missing`.
+`source-resource-missing`, whatever the link points at, a target outside the project included (#462).
 
 `resource-outside-project` is an `info` lint because a path outside the
 project is not an error in the bundle: the author may mean it, and other
@@ -95,7 +95,10 @@ is what the lints did before, and it lets a symlink inside the project lead
 anywhere; resolving each candidate's real path costs one call per candidate
 and closes it. Making the outside case an error would fail bundles whose
 cited files simply live elsewhere, and silence would hide that the check did
-not run, so the lint is `info`. Reading the target to see whether it exists,
+not run, so the lint is `info`. Reading a dangling link's text with `readLink` to report
+`resource-outside-project` for a target outside the project was considered and
+rejected: both reports are accurate, and the author reaches
+`resource-outside-project` once the target exists. Reading the target to see whether it exists,
 and then reporting it, would defeat the point of the boundary.
 
 ## Consequences

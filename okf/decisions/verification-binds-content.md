@@ -7,14 +7,14 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-25T04:25:12Z
 status: stable
 sources:
   - id: canonical-ts
     resource: ../../packages/profiles/src/Canonical.ts
 x-okfit-integrity:
   generated:
-    body: 8e969c1a97e56879
+    body: 9b6ae28ee8034bbe
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -77,10 +77,10 @@ neither bind nor break a binding. Status changes do not void a verification.
 
 Because integrity reads `current` only for a current bound entry, the skip
 rule follows it: batch, the picker and the language server treat a
-concept as already verified only when its binding is current. `okfit verify`
+concept as already verified only when its binding is current. `okfit verify <id>`
 also refuses to write a verification that would not be current (`--at`
 before `generated.at`, or a `generated.at` in the future), exit `3`, so it
-never records an entry the next read would discard. `okfit sync` keeps the
+never records an entry the next read would discard. When `generated.at` is more than five minutes ahead the message names `okfit sync`, which re-stamps it; within five minutes it says to check the clock. A selection (a batch, an id list, a picker, `stale --verify`) does not fail on such a concept: it skips it with the reason `not-current` and verifies the rest, so one bad stamp does not block the others, and the pickers leave it out and say how many they left out (#470). `okfit sync` keeps the
 usual edit, verify, commit sequence current by never stamping a
 `generated.at` later than a human verification of exactly the current
 content, unless that verification is older than the concept's existing

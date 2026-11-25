@@ -14,11 +14,11 @@ sources:
     title: The only home of the old spellings, read by the sync migration.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T21:18:30Z
+  at: 2026-11-25T04:25:12Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 3789af554da46b3d
+    body: c69c32f33593a9a4
 ---
 
 # okfit's own frontmatter keys carry the x-okfit- prefix
@@ -77,6 +77,8 @@ still gets its keys renamed and is reported as both migrated and skipped. On
 file, so the first commit that touches an unmigrated concept also commits any
 unstaged edits to it; run a plain `okfit sync` and commit the key move on its
 own before other work.
+
+**validate points at sync.** `okfit validate` prints one `hint:` line on stderr (human format only) when any concept still carries an old key name, counted over the whole bundle even when positional targets narrow the report, because sync renames across the whole bundle. It is not a lint and not a finding, so it never changes the exit code.
 
 **Verification stays refused on a legacy block.** `okfit verify`, the editor's
 verify action and the migration `--fix` refuse a concept that still carries

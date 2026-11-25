@@ -8,10 +8,10 @@ tags:
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-25T04:25:12Z
 x-okfit-integrity:
   generated:
-    body: 9916ac9acc436793
+    body: 6e03c356487696ef
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -62,11 +62,14 @@ hand. Issue #228 asked for a re-verify path from the stale report itself.
   and a binding is current only while its bound entry is a current event
   under OKF v0.3 section 5.3 (not before `generated.at`). The stale picker's
   candidates, however, are chosen by staleness alone
-  (`selectStaleCandidates` never consults integrity); the only currency check
-  on this path is the refusal at write time.
-- A write whose attestation instant is before the concept's `generated.at`
-  is refused as `VerifyNotCurrentError` (exit `3`), as for every verify path,
-  and as a batch it fails whole with nothing written.
+  (`selectStaleCandidates` never consults integrity); the picker then leaves out
+  a concept whose `generated.at` is later than the attestation instant and says
+  how many it left out (#470).
+- A concept whose `generated.at` is later than the attestation instant is
+  skipped as `not-current` and the rest are attested, so one such concept does
+  not fail the batch; if every picked concept is skipped nothing is written
+  (#470). Only a single `okfit verify <id>` still refuses it, as
+  `VerifyNotCurrentError` (exit `3`).
 - A concept whose `stale_after` cannot be read is never stale, so it is
   never a candidate. `okfit stale` lists it apart, under `malformed
   stale_after`, with the value as written, and the JSON envelope carries it in

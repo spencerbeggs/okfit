@@ -7,7 +7,7 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-25T04:25:12Z
 status: stable
 verified:
   - by: human:spencer
@@ -26,7 +26,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: a6fd23ebca19fdfa
+    body: d385a617f9f08a15
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -56,7 +56,10 @@ bound and `binding.at` is not earlier than the concept's existing
 backwards (see [Every okfit digest lives in one integrity
 family](integrity-family.md)), and
 `x-okfit-integrity.generated.body` with the body's 16-hex digest, writes, and re-adds what
-it wrote so the stamp lands in the same commit. It never walks history.
+it wrote so the stamp lands in the same commit. It never walks history. A staged concept whose `generated.at` is more than five
+minutes later than now is re-stamped to the hook's instant even when its digest
+matches, and an unstaged one is left alone (#471, see [Generated.at is the author
+date of the last commit that changed the body](generated-at-source.md)).
 Its log mode (#295) writes the commit's own `log.md` entry from the same
 facts: the group date is the hook's instant, which is the author date a
 post-commit walk would derive a moment later. It equals the `generated.at`

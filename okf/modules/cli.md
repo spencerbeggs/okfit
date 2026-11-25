@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:33:06Z
+  at: 2026-11-25T04:25:12Z
 x-okfit-integrity:
   generated:
-    body: df79676445676ef7
+    body: cb94c2968bd34f85
 ---
 
 # CLI
@@ -39,7 +39,7 @@ hook to call on every session and every in-bundle write. `validate` also
 takes `--target 0.3`, `--fix`, `--only` and `--dry-run` (engine's
 `applyMigrationFixes`; only `0.3` is accepted, and a refused combination is a
 `ValidateUsageError`, exit `64`; under `--format json` a usage error the argument parser raises also prints one error envelope on stdout), documented in
-`okf/interfaces/cli-commands.md`. `verify` also
+`okf/interfaces/cli-commands.md`. A human `validate` run counts a finding that `--fix` would refuse apart in the `OKF 0.3:` summary (`commands/validate.ts` plans the fixes over the final bundle for that) and prints one `hint:` line when `RunResult.legacyKeys` is not empty (#493, #498); `validate`, `lint` and the MCP `validate_bundle` pass the discovered config path through. `verify` also
 takes `--all` and `--type <Type>` (repeatable) to attest a whole selection
 at once instead of one id at a time (and `--stable`/`--draft` to set `status` in the same write as the attestation), `query list|get|neighbors` renders the engine's `ConceptQuery` results as a human table or a `Query*Envelope`, filtered by `--verified`, `--unverified`, `--drifted`, `--stale` and `--current` (draft and stable only), with `--status unknown` selecting concepts whose `status` is outside the vocabulary (printed `unknown(<raw>)`; `query get` also prints a deprecated concept's `replacement`), and `sync` also takes `--since
 <YYYY-MM-DD>` (widens the log floor) and `--staged` (the pre-commit
@@ -55,10 +55,10 @@ asks to confirm (`commands/verify-confirm.ts`); `--no-diff` skips it, and
 JSON carries only an optional `prior_integrity`. `okfit verify --revoke
 <id>` removes the current actor's own entries, exits `3` when there is
 nothing to revoke and `64` on a usage conflict (with `--all`, `--type`,
-`--stable`, `--draft`, `--at`, or no id). A verify that would write an entry
+`--stable`, `--draft`, `--at`, or no id). A single-id verify that would write an entry
 before the concept's `generated.at` (`--at` earlier, or a `generated.at` in
 the future) exits `3` with `VerifyNotCurrentError`, because OKF v0.3 §5.3
-stops counting such an entry; the confirm prose names a drift of
+stops counting such an entry; a batch, an id list and both pickers skip the concept as `not-current` instead, and `commands/verify-picker.ts` prints one `left out` line naming the rows it dropped (#470); the confirm prose names a drift of
 `verified-before-change` as "verified before its last change". See
 [A verification is bound to the content it
 covered](../decisions/verification-binds-content.md).

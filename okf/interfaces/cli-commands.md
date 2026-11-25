@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:55:51Z
+  at: 2026-11-25T04:25:12Z
 tags:
   - architecture
 verified:
@@ -45,7 +45,7 @@ verified:
     at: 2026-11-25T02:05:49Z
 x-okfit-integrity:
   generated:
-    body: 242ae93f96296d3f
+    body: '5880e95344910844'
   verified:
     by: human:spencer
     at: 2026-11-25T02:05:49Z
@@ -117,10 +117,10 @@ and a terminal stdin, are usage errors (exit `64`). The MCP
 `okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
 `root-relative-path`, `computation-locator`; the last only when the
 `Computation` section reads differently under 0.3, so a depth-one section that
-is exactly one fence is not reported). Only `0.3` is accepted; any
+is exactly one fence is not reported, and neither is an empty `Computation` section, which holds no computation under either reading). Only `0.3` is accepted; any
 other value is exit `64`. A `migrate` entry never changes the exit code, and
 a human run prints one extra stderr line, `OKF 0.3: <n> finding(s), <k>
-fixable with --fix`. `--fix` (requires `--target`) writes the two safe
+fixable with --fix`. A finding with a fix that an un-narrowed `--fix` would refuse is counted apart: `<k>` leaves it out and the line ends with `, <r> refused by --fix (run with --fix --dry-run to see why)`; the exit code is unchanged. `--fix` (requires `--target`) writes the two safe
 fixes: it prefixes `/` to a body link, image, definition or path field that
 resolves only from the bundle root, and it declares `okf_version: "0.3"` in
 the root index. The report and the fixes cover every Markdown file in the bundle
@@ -129,7 +129,7 @@ files); a root-only link in an index file or `log.md` is rooted like any other,
 and a held-back version fix leaves the root index's `okf_version` unwritten.
 The version fix is refused, with
 its reason, while a root-only reference remains, when an Attested Computation
-would lose its computation (a `warning` `computation-locator` finding), when a
+would lose its computation (a `warning` `computation-locator` finding; the refusal tells a human who wants to keep a prose-only section to set `okf_version: "0.3"` in the root index by hand), when a
 Markdown file could not be read to check its links, when `okf_version` cannot be
 edited in place, when the root index's opening fence is malformed, or when the
 root index frontmatter does not parse (malformed YAML, a duplicate key); the
@@ -143,7 +143,7 @@ edited concept whose okfit integrity was current before the edit (a body-link
 edit counts too), or whose `x-okfit-integrity` block has a layout the fix will not
 edit, is listed as drifted. The human run prints `Fixed <n> finding(s) in <m> file(s)` (or
 `Would fix` under `--dry-run`), a `refused:` line per refusal and an
-`Integrity drifted` line. `--fix` without `--target`, `--only` or
+`Integrity drifted` line. A human `validate` run also prints one `hint:` line on stderr when any concept still uses okfit's old frontmatter key names, pointing at `okfit sync`; it counts the whole bundle even when positional targets narrow the report, and it is not a finding and never changes the exit code. `--fix` without `--target`, `--only` or
 `--dry-run` without `--fix`, and `--fix` with `--document` are exit `64`
 (under `--format json` they also print the error envelope). See [Migration
 to a newer OKF version is a report on validate, with two safe
@@ -204,15 +204,13 @@ own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant, but never one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
-skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix. That holds
-for every write path (single id, targets, `--all`, the picker and `okfit stale
---verify`), and a batch fails whole with nothing written. `--dry-run` prints what would be written and writes nothing.
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync`, within five minutes it says to check the clock, and a backdated `--at` says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. Both pickers leave such a concept out and print one `left out <n> concept(s) ...` line, and when every row is left out they print `nothing to verify now: every candidate has a generated.at later than the verification time`. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
-is `draft`, `deprecated`, `unknown-status` or `already-verified`; the last now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
+is `draft`, `deprecated`, `unknown-status`, `already-verified` or `not-current`; `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
@@ -335,7 +333,7 @@ the concept's `x-okfit-integrity.verified` binds its latest human entry and cove
 exactly the current content, sync stamps `min(derived instant, binding.at)`
 instead, so the
 edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
-§5.3); the `[actors].humans` allow-list does not gate this. It never
+§5.3); the `[actors].humans` allow-list does not gate this. Sync never writes a `generated.at` later than now, and it re-stamps one more than five minutes later than now to now (whole seconds), even when the recorded digest matches: the one case where an authoritative stamp is rewritten (#471). It skips that re-stamp, and the clamp of a drifted concept's stamp, when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. It never
 touches `verified` and never writes `x-okfit-integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
