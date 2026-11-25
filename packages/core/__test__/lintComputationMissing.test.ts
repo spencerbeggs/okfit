@@ -91,6 +91,8 @@ describe("computation-missing", () => {
 				b.map((d) => [d.code, d.message]),
 				a.map((d) => [d.code, d.message]),
 			);
+			assert.strictEqual(textAt(lf, a[0]?.range), "# Computation");
+			assert.strictEqual(textAt(crlf, b[0]?.range), "# Computation");
 		}),
 	);
 
@@ -139,6 +141,45 @@ describe("computation-missing", () => {
 			assert.deepStrictEqual(missing(bundle), []);
 			const control = yield* load({ "index.md": V03, "b.md": concept("# Computation\n\nprose\n") });
 			assert.strictEqual(missing(control).length, 1, "control: the same body on an Attested Computation fires");
+		}),
+	);
+
+	it.effect("a 0.2 bundle: a Computation section deeper than depth 1 gets its own message at the heading", () =>
+		Effect.gen(function* () {
+			const source = concept("# Revenue\n\n## Computation\n\n```sql\nSELECT 1\n```\n");
+			const found = missing(yield* load({ "index.md": V02, "a.md": source }));
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(
+				found[0]?.message,
+				"This Attested Computation has no computation: under OKF 0.2 the Computation section must be a top-level heading, and this one is not, so it is not attestable; make it a top-level heading, or declare okf_version 0.3 and put the computation in one fenced block",
+			);
+			assert.strictEqual(textAt(source, found[0]?.range), "## Computation");
+			const control = missing(yield* load({ "index.md": V03, "b.md": source }));
+			assert.deepStrictEqual(control, [], "control: the same file under 0.3 is silent");
+		}),
+	);
+
+	it.effect("a 0.3 CRLF fenced computation is silent, and an empty fence fires", () =>
+		Effect.gen(function* () {
+			const fenced = concept("# Computation\n\n```sql\nSELECT 1\n```\n").replace(/\n/g, "\r\n");
+			assert.deepStrictEqual(missing(yield* load({ "index.md": V03, "a.md": fenced })), []);
+			const empty = missing(yield* load({ "index.md": V03, "b.md": concept("# Computation\n\n```sql\n```\n") }));
+			assert.deepStrictEqual(
+				empty.map((d) => d.code),
+				["computation-missing"],
+			);
+		}),
+	);
+
+	it.effect("an empty or null computation key is absent (OKF 0.3 §11.2 rule 1), so the rule fires", () =>
+		Effect.gen(function* () {
+			for (const value of ['""', "null"]) {
+				const bundle = yield* load({
+					"index.md": V03,
+					"a.md": concept("# Revenue\n", `runtime: bigquery\ncomputation: ${value}\n`),
+				});
+				assert.strictEqual(missing(bundle).length, 1, `computation: ${value}`);
+			}
 		}),
 	);
 });

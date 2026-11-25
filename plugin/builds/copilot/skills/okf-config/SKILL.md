@@ -61,7 +61,7 @@ validation on the file without any further setup.
   (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
   `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
-  snake_case keys, forty in all. The defaults, in `DEFAULT_LINT` order:
+  snake_case keys, forty-one in all. The defaults, in `DEFAULT_LINT` order:
 
   | Key | Default |
   | --- | --- |
@@ -94,6 +94,7 @@ validation on the file without any further setup.
   | `superseded_by_orphan` | `warn` |
   | `superseded_by_unresolved` | `warn` |
   | `generated_missing` | `warn` |
+  | `computation_missing` | `warn` |
   | `publication_drift` | `warn` |
   | `publication_orphan` | `error` |
   | `surface_unmatched` | `warn` |

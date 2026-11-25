@@ -11,6 +11,7 @@ import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import { INTEGRITY_KEY } from "../Integrity.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
+import { OkfVersion } from "../OkfVersion.js";
 import { Timestamp } from "../Timestamp.js";
 import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
@@ -244,9 +245,16 @@ export const computationMissing: LintRule = rule("computation-missing", (context
 					node.position.end.offset - node.position.start.offset,
 				),
 		});
-		const message = Option.isSome(heading)
-			? "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
-			: "This Attested Computation has no computation: it has no Computation section and no computation key (OKF 0.3 §10.3), so it is not attestable";
+		// Under the 0.2 reading only a depth-1 Computation section counts, so a deeper-only heading is a different defect.
+		const nestedOnly =
+			OkfVersion.legacyFallbacks(context.bundle) &&
+			Option.isSome(heading) &&
+			Option.isNone(concept.document.sectionByHeading("Computation", { depth: 1 }));
+		const message = nestedOnly
+			? "This Attested Computation has no computation: under OKF 0.2 the Computation section must be a top-level heading, and this one is not, so it is not attestable; make it a top-level heading, or declare okf_version 0.3 and put the computation in one fenced block"
+			: Option.isSome(heading)
+				? "This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file"
+				: "This Attested Computation has no computation: it has no Computation section and no computation key (OKF 0.3 §10.3), so it is not attestable";
 		return [diagnostic(concept.path, "computation-missing", severity, message, range)];
 	}),
 );
