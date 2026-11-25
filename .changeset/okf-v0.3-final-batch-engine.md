@@ -4,7 +4,7 @@
 
 ## Breaking Changes
 
-`VerifyNotCurrentError` no longer has the optional `batch` field. A batch, an id list and the pickers now skip a concept that cannot be verified, so no refusal stops a whole selection. The error gains an optional `kind` (`"future"` or `"near-future"`) and its message is reworded. Drop any read of `batch`; read `kind` to tell how far ahead the `generated.at` is.
+`VerifyNotCurrentError` no longer has the optional `batch` field. A batch, an id list and the pickers now skip a concept that cannot be verified, so a concept that is not current no longer stops a whole selection. The error gains an optional `kind` (`"future"` or `"near-future"`) and its message is reworded. Drop any read of `batch`; read `kind` to tell how far ahead the `generated.at` is.
 
 ## Features
 
