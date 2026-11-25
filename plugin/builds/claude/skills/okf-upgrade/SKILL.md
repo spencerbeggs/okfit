@@ -44,7 +44,7 @@ A diagnostic with a `fix` key can be fixed by `--fix`; one without can only be h
 
 ## 3. Stop on a lost computation
 
-`computation-locator` is reported only while the bundle is undeclared or declares 0.2 or earlier. The version fix in step 4 declares 0.3, and from then on the report no longer shows it, so a computation could change meaning with nobody having looked. `--fix` itself now refuses the version while any `warning` `computation-locator` stands, and the core lint `computation-missing` reports an Attested Computation that has lost its computation afterwards. Read these findings before any `--fix`.
+`computation-locator` is reported only while the bundle is undeclared or declares 0.2 or earlier. The version fix in step 4 declares 0.3, and from then on the report no longer shows it, so a computation could change meaning with nobody having looked. `--fix` itself refuses the version while any `warning` `computation-locator` stands, and the core lint `computation-missing` reports an Attested Computation that has lost its computation afterwards. Read these findings before any `--fix`.
 
 Under 0.3 the computation is the first fenced block in the `Computation` section at any heading level (§10.3); okfit's 0.2 reading took the body of a depth-one section. A section that is exactly one fence under a depth-one heading reads the same under both and is not reported. You never edit a computation (`okf-authoring` rule 12): you only report.
 
