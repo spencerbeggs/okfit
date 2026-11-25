@@ -90,11 +90,11 @@ unparsable `okf_version`, references that resolve only from the bundle root, in 
 the bundle (`root-relative-path`) and a Computation section read by a different rule
 (`computation-locator`). Only `"0.3"`, the version this okfit implements, is
 accepted; any other value is a usage error (exit `64`). The findings print in
-the normal per-file list, stderr ends with `OKF 0.3: <n> finding(s), <k>
-fixable with --fix`, plus `, <r> refused by --fix (run with --fix --dry-run to see why)` when an
-un-narrowed `--fix` would refuse a finding that carries a fix (`<k>` leaves those out), and they never change the
-exit code, not even after a refused `--fix`; the human counts
-line leaves them out and `summary.migration_findings` carries the count.
+the normal per-file list. They never change the exit code, not even after a refused `--fix`.
+The human counts line leaves them out, and `summary.migration_findings` carries their count.
+Stderr ends with `OKF 0.3: <n> finding(s), <k> fixable with --fix`.
+When an un-narrowed `--fix` would refuse a finding that has a fix, that finding is not counted in `<k>`.
+The line then ends with `, <r> refused by --fix (run with --fix --dry-run to see why)`.
 
 `--fix` (requires `--target`; refused with `--document`) writes the two safe
 fixes: it declares `okf_version` and roots a reference that resolves only from
@@ -103,9 +103,11 @@ the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
 file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
 refused while any root-only reference remains unfixed, while any
 Attested Computation would have no computation under 0.3 (a `warning`
-`computation-locator`; an empty `Computation` section is not one, so it does not hold the version back), and while a Markdown file has unclosed or unparseable
+`computation-locator`), and while a Markdown file has unclosed or unparseable
 frontmatter, so its links could not be checked (one `refused:` line per cause), and a concept still
-using okfit's old key names is refused until `okfit sync` renames them. Output opens with
+using okfit's old key names is refused until `okfit sync` renames them.
+An empty `Computation` section is not a finding, so it never holds the version fix back.
+To keep a prose-only `Computation` section, set `okf_version: "0.3"` in `index.md` by hand. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted
 (re-verify with okfit verify): <ids>` when a fix changed content whose human

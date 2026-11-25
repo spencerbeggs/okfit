@@ -225,12 +225,20 @@ export const validateCommand = Command.make(
 							yield* Console.log(`Integrity drifted (re-verify with okfit verify): ${fixes.drifts.join(", ")}`);
 						}
 					}
-					// The summary counts what an un-narrowed --fix would refuse, planned over the final bundle (#498).
+					// The summary counts what an un-narrowed --fix would refuse, planned over the final bundle and the same
+					// overlay the findings came from (#498). A report never fails because this plan did: it falls back to no refusals.
 					const refused =
 						target === undefined
 							? []
-							: (yield* planMigrationFixes({ bundle: result.bundle, config: merged, target, now })).refused.map(
-									({ file, code }) => ({ file, code }),
+							: Option.match(
+									yield* planMigrationFixes({ bundle: result.bundle, config: merged, target, now }).pipe(
+										provideDocuments(bundleRoot, documents),
+										Effect.option,
+									),
+									{
+										onNone: () => [],
+										onSome: (plan) => plan.refused.map(({ file, code }) => ({ file, code })),
+									},
 								);
 					yield* printDiagnostics({
 						diagnostics,

@@ -317,6 +317,17 @@ describe("migrationFindings", () => {
 			}),
 		);
 
+		it.effect("an empty top-level section with a fenced block elsewhere is still an info", () =>
+			Effect.gen(function* () {
+				// "# Computation" is empty; the fence sits under a later "## Notes" heading, so only 0.3 reads it.
+				const text = base.replace("## Computation\n\n", "# Computation\n\n## Notes\n\n");
+				assert.deepStrictEqual(
+					(yield* locatorOf(text)).map((f) => f.severity),
+					["info"],
+				);
+			}),
+		);
+
 		it.effect("a prose-only section is still a warning beside the empty one", () =>
 			Effect.gen(function* () {
 				const prose = base.replace(FENCE, "Run the query.\n").replace("## Computation", "# Computation");
