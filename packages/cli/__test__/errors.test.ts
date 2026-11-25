@@ -12,6 +12,7 @@ import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
 	VerifyNotCurrentError,
+	VerifyNothingToRevokeError,
 	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
@@ -169,6 +170,11 @@ describe("renderFailure for the verify errors", () => {
 		]);
 		const selection = renderTyped(new VerifySelectionError({ reason: "unknown-type", detail: "T\nx" }));
 		assert.deepStrictEqual(selection, ['error: type "T x" is not declared in the config']);
+	});
+
+	it("renders VerifyNothingToRevokeError as one error: line with no class name, line breaks as spaces (#511)", () => {
+		const lines = renderTyped(new VerifyNothingToRevokeError({ id: "decisions/c\nerror: forged", actor: "human:ada" }));
+		assert.deepStrictEqual(lines, ['error: "decisions/c error: forged" has no verified entry by human:ada to revoke']);
 	});
 
 	it("renders DocumentPathError as one error line", () => {

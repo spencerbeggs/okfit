@@ -962,7 +962,8 @@ describe("okfit verify (e2e)", () => {
 
 				const again = await withServices(runOkfit(["verify", "project", "--revoke"], { cwd, env }));
 				assert.strictEqual(again.exitCode, 3);
-				assert.match(again.stderr, /has no verified entry by human:ada to revoke/);
+				// one line, no class name (#511)
+				assert.strictEqual(again.stderr, 'error: "project" has no verified entry by human:ada to revoke\n');
 			} finally {
 				await removeSandbox(sandbox);
 			}

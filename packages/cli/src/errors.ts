@@ -16,6 +16,7 @@ import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
 	VerifyNotCurrentError,
+	VerifyNothingToRevokeError,
 	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
@@ -66,10 +67,12 @@ const relativeToCwd = (path: string, cwd: string): string => {
  * 4a. `InitBundleDirError` (`okfit init --bundle`, exit 64) renders as one
  *    `error: <message>` line.
  * 5. `VerifyConceptNotFoundError`, `VerifyUnsupportedFrontmatterError`,
- *    `VerifyContentUnhashableError`, `VerifyStatusUnknownError` and
- *    `VerifyNotCurrentError` each render as their own `error: <message>` line;
- *    each message already names the concept id and what to do about it, and
- *    none carries a filesystem path needing K-51 relativisation. The message
+ *    `VerifyContentUnhashableError`, `VerifyStatusUnknownError`,
+ *    `VerifyNotCurrentError` and `VerifyNothingToRevokeError` each render as
+ *    their own `error: <message>` line; each message already names the
+ *    concept id (all but `VerifyNothingToRevokeError` also say what to do
+ *    about it), and none carries a filesystem path needing K-51
+ *    relativisation. The message
  *    can quote a value from the file (a status, a frontmatter key), so it goes
  *    through `oneLine` (#511): the kit's sanitiser removes escape sequences and
  *    other control characters, a tab prints as a space, and line breaks print
@@ -118,6 +121,7 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	if (error instanceof VerifyContentUnhashableError) return [`error: ${oneLine(error.message)}`];
 	if (error instanceof VerifyStatusUnknownError) return [`error: ${oneLine(error.message)}`];
 	if (error instanceof VerifyNotCurrentError) return [`error: ${oneLine(error.message)}`];
+	if (error instanceof VerifyNothingToRevokeError) return [`error: ${oneLine(error.message)}`];
 	if (error instanceof SyncPlanStaleError) return [`error: ${error.message}`];
 	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
 	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a
