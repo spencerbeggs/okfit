@@ -142,7 +142,7 @@ const soleFenceInner = (body: string): string | undefined =>
 
 const computationFinding = (concept: LoadedConcept, target: string): MigrationFinding | undefined => {
 	const attested = concept.frontmatter.attested;
-	if (attested?.runtime === undefined || attested.computation !== undefined) return undefined;
+	if (attested === undefined || attested.computation !== undefined) return undefined;
 	const legacy = Bundle.inlineComputation(concept.document, "legacy");
 	const current = Bundle.inlineComputation(concept.document, "current");
 	if (Option.isNone(legacy) && Option.isNone(current)) return undefined;

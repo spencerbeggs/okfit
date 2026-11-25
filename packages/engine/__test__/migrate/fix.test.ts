@@ -113,6 +113,89 @@ describe("migration fixes", () => {
 		}).pipe(Effect.provide(on(V02_PROJECT))),
 	);
 
+	describe("a lost computation holds the version fix back (#479)", () => {
+		const FENCE = /```sql\n[^`]*```\n/;
+		const PROSE = "okf/computations/prose.md";
+		// Depth one: the 0.2 reading takes the section body as the computation, 0.3 finds no fence in it.
+		const proseConcept = (text: string): string =>
+			text.replace(FENCE, "Run the query.\n").replace("## Computation", "# Computation");
+		/** Undeclared, every reference rooted, so the only possible refusal is the computation. */
+		const lostSeed: ProjectSeed = {
+			...UNDECLARED_PROJECT,
+			"okf/computations/revenue-ytd.md": V03_PROJECT[COMPUTATION] as string,
+			[PROSE]: proseConcept(V03_PROJECT[COMPUTATION] as string),
+		};
+		const REASON = "1 Attested Computation(s) would have no computation under OKF 0.3 (§10.3): computations/prose.md";
+
+		it.effect(
+			"refuses the version fix while a prose-only computation would be lost, and leaves index.md as it was",
+			() =>
+				Effect.gen(function* () {
+					const plan = yield* apply(yield* load);
+					assert.strictEqual(plan.refused.length, 1);
+					const refusal = plan.refused[0];
+					assert.isTrue(refusal?.reason.startsWith("1 Attested Computation(s) would have no computation"));
+					assert.include(refusal?.reason, "prose.md");
+					assert.strictEqual(refusal?.file, "index.md");
+					assert.strictEqual(refusal?.code, "okf-version-undeclared");
+					assert.isFalse(plan.edits.some((e) => e.path === "index.md"));
+					assert.strictEqual(yield* read(INDEX), UNDECLARED_PROJECT[INDEX]);
+				}).pipe(Effect.provide(on(lostSeed))),
+		);
+
+		it.effect("an info computation-locator does not hold the version fix back", () =>
+			Effect.gen(function* () {
+				const seed: ProjectSeed = {
+					...lostSeed,
+					[PROSE]: (V03_PROJECT[COMPUTATION] as string).replace("## Computation\n", "## Computation\n\nRun it.\n"),
+				};
+				const plan = yield* planIn(seed);
+				assert.deepStrictEqual(plan.refused, []);
+				assert.isTrue(plan.edits.some((e) => e.path === "index.md"));
+			}),
+		);
+
+		it.effect("a narrowed run (--only okf-version, or files) is refused the same", () =>
+			Effect.gen(function* () {
+				const bundle = yield* load;
+				for (const extra of [{ only: ["okf-version" as const] }, { files: ["index.md"] }]) {
+					const plan = yield* apply(bundle, extra);
+					assert.deepStrictEqual(plan.edits, []);
+					assert.strictEqual(plan.refused.length, 1);
+					assert.isTrue(plan.refused[0]?.reason.startsWith(REASON));
+					assert.strictEqual(yield* read(INDEX), UNDECLARED_PROJECT[INDEX]);
+				}
+			}).pipe(Effect.provide(on(lostSeed))),
+		);
+
+		it.effect("a root-only reference and a lost computation give two refusals", () =>
+			Effect.gen(function* () {
+				const seed: ProjectSeed = { ...UNDECLARED_PROJECT, [PROSE]: lostSeed[PROSE] as string };
+				// Narrowed to the version, so the root-only references are not fixed by this plan and are a cause too.
+				const plan = yield* Effect.gen(function* () {
+					return yield* planMigrationFixes(optionsFor(yield* load, { only: ["okf-version"] }));
+				}).pipe(Effect.provide(on(seed)));
+				assert.deepStrictEqual(
+					plan.refused.map((r) => [r.file, r.code]),
+					[
+						["index.md", "okf-version-undeclared"],
+						["index.md", "okf-version-undeclared"],
+					],
+				);
+				assert.isTrue(
+					plan.refused.some((r) => r.reason.includes("reference(s) still resolve only from the bundle root")),
+				);
+				assert.isTrue(plan.refused.some((r) => r.reason.startsWith(REASON)));
+				assert.isFalse(plan.edits.some((e) => e.path === "index.md"));
+				// and applying leaves the root index byte-identical
+				yield* Effect.gen(function* () {
+					yield* apply(yield* load, { only: ["okf-version"] });
+					assert.strictEqual(yield* read(INDEX), UNDECLARED_PROJECT[INDEX]);
+				}).pipe(Effect.provide(on(seed)));
+			}),
+		);
+	});
+
 	it.effect("only: root-relative-path writes only the computation and leaves okf_version at 0.2 (control)", () =>
 		Effect.gen(function* () {
 			const plan = yield* apply(yield* load, { only: ["root-relative-path"] });

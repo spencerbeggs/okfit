@@ -339,6 +339,21 @@ describe("migrationFindings", () => {
 		);
 	});
 
+	it.effect("a prose-only computation with no runtime is a warning", () =>
+		Effect.gen(function* () {
+			const text = (V02_PROJECT[COMPUTATION] as string)
+				.replace("runtime: sql\n", "")
+				.replace(/```sql\n[^`]*```\n/, "Run the query.\n")
+				.replace("## Computation", "# Computation");
+			const { found } = yield* findingsOf({ ...V02_PROJECT, [COMPUTATION]: text });
+			const locator = found.filter((f) => f.code === "computation-locator");
+			assert.deepStrictEqual(
+				locator.map((f) => f.severity),
+				["warning"],
+			);
+		}),
+	);
+
 	it.effect("a concept naming its computation file has no inline computation to compare", () =>
 		Effect.gen(function* () {
 			const { found } = yield* findingsOf({

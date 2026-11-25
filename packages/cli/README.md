@@ -99,7 +99,9 @@ fixes: it declares `okf_version` and roots a reference that resolves only from
 the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
 (repeatable; requires `--fix`) narrows by kind, positional targets narrow by
 file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
-refused while any root-only reference remains unfixed, and a concept still
+refused while any root-only reference remains unfixed and while any
+Attested Computation would have no computation under 0.3 (a `warning`
+`computation-locator`; one `refused:` line per cause), and a concept still
 using okfit's old key names is refused until `okfit sync` renames them. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted

@@ -48,11 +48,11 @@ A diagnostic with a `fix` key can be fixed by `--fix`; one without can only be h
 
 ## 3. Stop on a lost computation
 
-`computation-locator` is reported only while the bundle is undeclared or declares 0.2 or earlier. The version fix in step 4 declares 0.3, and from then on the report no longer shows it, so a computation could change meaning with nobody having looked. Read these findings before any `--fix`.
+`computation-locator` is reported only while the bundle is undeclared or declares 0.2 or earlier. The version fix in step 4 declares 0.3, and from then on the report no longer shows it, so a computation could change meaning with nobody having looked. `--fix` itself now refuses the version while any `warning` `computation-locator` stands, and the core lint `computation-missing` reports an Attested Computation that has lost its computation afterwards. Read these findings before any `--fix`.
 
 Under 0.3 the computation is the first fenced block in the `Computation` section at any heading level (§10.3); okfit's 0.2 reading took the body of a depth-one section. A section that is exactly one fence under a depth-one heading reads the same under both and is not reported. You never edit a computation (`okf-authoring` rule 12): you only report.
 
-- A `warning` finding means the computation would be lost under 0.3 (the section has no fenced block). While any is listed, stop before `--fix`, report those concepts to the human, and continue only when the human has changed them or says to proceed.
+- A `warning` finding means the computation would be lost under 0.3 (the section has no fenced block). While any is listed, `--fix` refuses to declare the version (a `refused:` line names the concepts); report those concepts to the human, and continue only when the human has changed them.
 - An `info` finding does not block. Keep a list of them for the final report so the human can check that the 0.3 reading is what they meant.
 
 ## 4. Apply the safe fixes
@@ -70,7 +70,7 @@ okfit validate --target 0.3 --fix --dry-run   # says what would change, writes n
 okfit validate --target 0.3 --fix
 ```
 
-Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. It refuses a concept that still uses okfit's old key names (`refused: <file>: ...`); run `okfit sync` first, then fix again. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
+Fix the whole bundle. `--fix` roots each bare reference with `/` and declares `okf_version: "0.3"`. It refuses a concept that still uses okfit's old key names (`refused: <file>: ...`); run `okfit sync` first, then fix again. The version fix is refused while any root-relative path anywhere in the bundle remains unfixed, so narrowing with `--only` or a file target can leave a refusal (`refused: <file>: <reason>`). It is also refused while any `warning` `computation-locator` stands, wherever it is (step 3), and each cause prints its own `refused:` line. With no root `index.md` there is nothing to fix for the version. Run `okfit sync`, which writes the root index (with an `okf_version` only when the config sets one), then re-run step 2: if `okf-version-undeclared` is still listed, it now carries a fix, and `--fix` declares the version.
 
 Read the output: `Fixed <n> finding(s) in <m> file(s)`, any `refused:` lines, and `Integrity drifted (re-verify with okfit verify): <ids>`. JSON carries `fixes: { applied, refused, drifts, dry_run }`. The fix never writes `verified`, `x-okfit-integrity.verified` or `generated.at`. When a concept's recorded `x-okfit-integrity.generated.body` matched its body before the edit, the fix re-records that digest. Otherwise the concept's body digest no longer matches, and the next `okfit sync` stamps a new `generated.at`, so an earlier human verification stops counting. Review the git diff.
 
@@ -93,4 +93,4 @@ Stop and report, never work around it, when a step needs: a `verified`, `x-okfit
 
 ## 8. Done
 
-`okfit validate --target 0.3` reports no `migrate` finding (the `computation-locator` ones went away only because the bundle now declares 0.3; step 3's `warning` ones were reported to the human before the version moved), and plain `okfit validate` is no worse than before you started. Report what the fixes changed, what you did by hand, the `info` computation findings from step 3 for the human to check, and what waits for the human.
+`okfit validate --target 0.3` reports no `migrate` finding (the `computation-locator` ones went away only because the bundle now declares 0.3; step 3's `warning` ones held the version back until the human changed them, and the lint `computation-missing` reports any computation lost afterwards), and plain `okfit validate` is no worse than before you started. Report what the fixes changed, what you did by hand, the `info` computation findings from step 3 for the human to check, and what waits for the human.

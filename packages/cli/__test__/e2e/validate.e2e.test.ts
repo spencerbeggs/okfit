@@ -1099,6 +1099,25 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	it.effect("--fix prints a refused: line for a lost computation and keeps okf_version", () =>
+		Effect.gen(function* () {
+			const seeded = {
+				...UNDECLARED_PROJECT,
+				"okf/computations/revenue-ytd.md": V03_PROJECT[COMPUTATION] as string,
+				"okf/computations/prose.md": (V03_PROJECT[COMPUTATION] as string)
+					.replace(/```sql\n[^`]*```\n/, "Run the query.\n")
+					.replace("## Computation", "# Computation"),
+			};
+			const sandbox = yield* seed("okfit-validate-lost-computation-", seeded);
+			const index = yield* read(sandbox, "okf/index.md");
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.include(run.stdout, "refused: index.md: 1 Attested Computation(s) would have no computation");
+			const after = yield* read(sandbox, "okf/index.md");
+			assert.strictEqual(after, index);
+			assert.notInclude(after, "okf_version");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("a refused fix appears in the JSON fixes.refused array", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* seed("okfit-validate-refused-json-");

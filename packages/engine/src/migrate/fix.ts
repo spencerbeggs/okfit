@@ -99,7 +99,9 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * Plan the two safe fixes (OKF 0.3 §6.2, §8.1): root a reference that resolves only through the v0.2 root fallback
  * (inserting `/` before its path part and changing nothing else), and declare `okf_version`. Writes nothing. The
  * version fix is refused, with its reason, while any root-only reference elsewhere in the bundle is not fixed by this
- * same plan (R41), so a narrowed run never flips a bundle to a version under which its links break. For an edited
+ * same plan (R41), so a narrowed run never flips a bundle to a version under which its links break. It is also refused
+ * while any `computation-locator` warning stands (an Attested Computation the target would read as having no
+ * computation, §10.3), wherever it is and whatever `files`/`only` select. Each cause gets its own refusal. For an edited
  * concept whose recorded `x-okfit-integrity.generated.body` equalled its body digest before the edit, the plan re-records
  * that one digest (a link repair, OKF 0.3 §5.2; R44); it never writes `generated.at`, `verified` or
  * `x-okfit-integrity.verified`.
@@ -203,20 +205,34 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 
 	const version = selected.find((finding) => finding.fix === "okf-version");
 	if (version !== undefined) {
+		const refuseVersion = (reason: string) => refused.push({ file: version.file, code: version.code, reason });
 		if (remaining > 0) {
-			refused.push({
-				file: version.file,
-				code: version.code,
-				reason: `${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`,
-			});
-		} else {
+			refuseVersion(
+				`${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`,
+			);
+		}
+		// A computation the target would not read stays lost once the version is declared, and the locator finding
+		// stops being reported then, so the version waits for the author: wherever the concept is, whatever is selected.
+		const lost = [
+			...new Set(
+				all
+					.filter((finding) => finding.code === "computation-locator" && finding.severity === "warning")
+					.map((finding) => finding.file),
+			),
+		].sort();
+		if (lost.length > 0) {
+			refuseVersion(
+				`${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again`,
+			);
+		}
+		if (remaining === 0 && lost.length === 0) {
 			// A frontmatter the loader already could not read (malformed YAML, a duplicate key) is never edited: a splice
 			// would leave a file that still does not parse.
 			const loadError = bundle.diagnostics.find((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unparseable");
 			const unparseable = (detail: string) =>
 				`the root index frontmatter does not parse (${shortDetail(detail)}); fix it by hand`;
 			if (loadError !== undefined) {
-				refused.push({ file: version.file, code: version.code, reason: unparseable(loadError.message) });
+				refuseVersion(unparseable(loadError.message));
 			} else {
 				// Decode the bytes myself: `readFileString` may drop a leading BOM, and the write must give it back.
 				const bytes = yield* fs.readFile(path.join(bundle.root, ROOT_INDEX));
@@ -224,7 +240,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 				const declared = yield* declareVersion(source, target).pipe(
 					Effect.catchTag("YamlParseError", (error) => Effect.succeed({ reason: unparseable(error.message) })),
 				);
-				if ("reason" in declared) refused.push({ file: version.file, code: version.code, reason: declared.reason });
+				if ("reason" in declared) refuseVersion(declared.reason);
 				else edits.push({ path: ROOT_INDEX, text: declared.text, fixes: ["okf-version"] });
 			}
 		}
