@@ -13,8 +13,8 @@ export interface MoveLines {
 const fact = (text: string) => Doc.line(text, { wrap: false });
 
 /**
- * `okfit mv`'s human output: a headline, one line per rewritten file, the concepts that now need a
- * human to re-verify them, and the next step.
+ * `okfit mv`'s human output: a headline, one line per rewritten file, the concepts the move
+ * leaves drifted (re-verify what a human had verified; `sync` re-stamps a digest that could not be kept), and the next step.
  *
  * @public
  */
@@ -25,7 +25,11 @@ export const humanMoveDoc = (input: MoveLines): Document => {
 			(edit) =>
 				`  ${input.dryRun ? "would rewrite" : "rewrote"} ${edit.path} (${edit.count} ${edit.count === 1 ? "reference" : "references"})`,
 		),
-		...(input.drifts.length > 0 ? [`will drift (a human re-verifies): ${input.drifts.join(", ")}`] : []),
+		...(input.drifts.length > 0
+			? [
+					`will drift (re-verify any a human had verified; sync re-stamps one whose digest could not be kept): ${input.drifts.join(", ")}`,
+				]
+			: []),
 		"next: okfit sync",
 	];
 	return lines.map(fact);

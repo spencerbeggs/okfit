@@ -683,6 +683,19 @@ describe("mv re-records the body digest of a concept it only re-links (#488)", (
 		`x-okfit-integrity:\n  generated:\n    body: ${body}\n  verified:\n    by: human:ada\n    at: 2026-03-01T00:00:00Z\n    content: ${DIGEST}\n`;
 	const REF = "notes/ref.md";
 	const bodyLine = /body: ([0-9a-f]{16})/;
+	/** Run `syncGenerated` for real over the bundle, scoped to `ids`, with a commit instant well after the stamp. */
+	const syncCommitted = (okf: string, id: string, expectUnchanged: ReadonlyArray<string>) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: okf });
+			const synced = yield* syncGenerated(bundle, {
+				provenance: new Map([[id as never, { _tag: "committed", at: DateTime.makeUnsafe("2026-11-25T00:00:00Z") }]]),
+				renames: keyRenamesFor(config),
+				dryRun: false,
+				scope: new Set([id as never]),
+			});
+			assert.deepStrictEqual(synced.unchanged, expectUnchanged);
+			assert.deepStrictEqual(synced.written, []);
+		});
 
 	it.effect("a link-only rewrite re-records the body digest and keeps generated.at through the next sync (#488)", () =>
 		withBundle(
@@ -709,21 +722,10 @@ describe("mv re-records the body digest of a concept it only re-links (#488)", (
 					assert.include(now, "verified:\n  - by: human:ada\n    at: 2026-03-01T00:00:00Z\n");
 					assert.include(now, "  verified:\n    by: human:ada\n    at: 2026-03-01T00:00:00Z\n    content: ");
 					assert.include(plan.drifts, "notes/ref");
-					// The next sync (committed provenance) reads the digest as current and leaves generated.at alone.
-					const bundle = yield* Bundle.load({ root: okf });
-					const id = "notes/ref" as never;
-					const synced = yield* syncGenerated(bundle, {
-						provenance: new Map([[id, { _tag: "committed", at: DateTime.makeUnsafe("2026-11-25T00:00:00Z") }]]),
-						renames: keyRenamesFor(config),
-						dryRun: true,
-						scope: new Set([id]),
-					});
-					assert.deepStrictEqual(synced.unchanged, ["notes/ref"]);
-					assert.deepStrictEqual(synced.written, []);
-					assert.deepStrictEqual(
-						bundle.concepts.get(id)?.frontmatter.generated?.at,
-						DateTime.makeUnsafe("2026-02-01T00:00:00Z"),
-					);
+					// A real sync (committed provenance) reads the digest as current and leaves generated.at alone.
+					yield* syncCommitted(okf, "notes/ref", ["notes/ref"]);
+					const synced = yield* Effect.promise(() => readFile(join(okf, REF), "utf8"));
+					assert.strictEqual(synced, now);
 				}),
 			{ [REF]: concept(block(BODY)) },
 		),
@@ -760,21 +762,31 @@ describe("mv re-records the body digest of a concept it only re-links (#488)", (
 		),
 	);
 
-	it.effect("a concept on old key names is not re-recorded", () =>
+	it.effect("the moved file itself is re-recorded and keeps generated.at through the next sync", () =>
 		withBundle(
 			(_project, okf) =>
 				Effect.gen(function* () {
-					yield* bindBodies(okf, [REF]);
-					const before = yield* Effect.promise(() => snapshot(okf));
-					const { plan } = yield* runMove({ ...base(okf, okf, "decisions/b", "decisions/beta"), dryRun: false });
-					const after = yield* Effect.promise(() => snapshot(okf));
-					assert.strictEqual(after[REF], before[REF]?.replace("(../decisions/b.md)", "(../decisions/beta.md)"));
-					// Skipped before any splice is tried, so the legacy layout is not listed as unrecordable either.
-					assert.notInclude(plan.drifts, "notes/ref");
+					yield* bindFixtures(okf, ["notes/mv.md"]);
+					yield* bindBodies(okf, ["notes/mv.md"]);
+					const was = yield* Effect.promise(() => readFile(join(okf, "notes/mv.md"), "utf8"));
+					const { plan } = yield* runMove({ ...base(okf, okf, "notes/mv", "topics/deep/mv"), dryRun: false });
+					const now = yield* Effect.promise(() => readFile(join(okf, "topics/deep/mv.md"), "utf8"));
+					const oldBody = bodyLine.exec(was)?.[1] as string;
+					const newBody = bodyLine.exec(now)?.[1] as string;
+					assert.notStrictEqual(newBody, oldBody);
+					// The link changed because the file moved; only that and the body: line differ.
+					assert.strictEqual(
+						now,
+						was.replace(oldBody, newBody).replace("(../decisions/b.md)", "(../../decisions/b.md)"),
+					);
+					assert.include(plan.drifts, "notes/mv");
+					yield* syncCommitted(okf, "topics/deep/mv", ["topics/deep/mv"]);
+					assert.strictEqual(yield* Effect.promise(() => readFile(join(okf, "topics/deep/mv.md"), "utf8")), now);
 				}),
-			{ [REF]: concept(`integrity:\n  generated:\n    body: ${BODY}\n`) },
+			{ "notes/mv.md": concept(block(BODY)) },
 		),
 	);
+
 	it.effect("a concept carrying both key spellings is not re-recorded (the rename comes first)", () =>
 		withBundle(
 			(_project, okf) =>

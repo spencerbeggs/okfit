@@ -6,7 +6,8 @@ import { DistributionField } from "./distribution.js";
 /**
  * `okfit mv`'s success envelope, schema 1, snake_case. `from`/`to` are bundle-relative paths, `path`
  * the display form of the destination; `edits` lists every file that changes (post-move path) with
- * its edit count, and `drifts` the ids whose current human verification the move invalidates.
+ * its edit count, and `drifts` the ids whose current human verification the move invalidates, plus an edited concept
+ * whose recorded body digest could not be re-recorded (listed even when no human verified it).
  *
  * @public
  */

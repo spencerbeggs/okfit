@@ -22,7 +22,7 @@ describe("humanMoveDoc", () => {
 				"moved decisions/b -> decisions/beta",
 				"  rewrote decisions/a.md (1 reference)",
 				"  rewrote decisions/beta.md (0 references)",
-				"will drift (a human re-verifies): decisions/a",
+				"will drift (re-verify any a human had verified; sync re-stamps one whose digest could not be kept): decisions/a",
 				"next: okfit sync",
 			].join("\n"),
 		);
@@ -35,7 +35,7 @@ describe("humanMoveDoc", () => {
 				"would move decisions/b -> decisions/beta; nothing written",
 				"  would rewrite decisions/a.md (1 reference)",
 				"  would rewrite decisions/beta.md (0 references)",
-				"will drift (a human re-verifies): decisions/a",
+				"will drift (re-verify any a human had verified; sync re-stamps one whose digest could not be kept): decisions/a",
 				"next: okfit sync",
 			].join("\n"),
 		);

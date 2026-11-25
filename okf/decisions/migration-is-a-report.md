@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:37:06Z
+  at: 2026-11-25T14:42:38Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 1605569e3280ed7c
+    body: c467a8ea4a28a71b
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -108,9 +108,11 @@ before the edit (a body-link edit counts as well as a path-field edit), plus
 any edited concept whose `x-okfit-integrity` block has a layout the fix will not
 edit, so its body digest could not be re-recorded. The human re-verifies
 those; the CLI prints `Integrity drifted (re-verify with okfit verify):
-<ids>`. `okfit mv` follows the same rule: when it only re-links a concept
-it re-records the body digest if it matched the text before, and it lists the
-concept in `drifts` when the integrity block has a layout it will not edit.
+<ids>`. `okfit mv` follows the same rule with exceptions: when it rewrites a
+concept's links it re-records the body digest only if it matched the body before, and it lists the
+concept in `drifts` when the integrity block has a layout it will not edit. A move still re-stamps a
+concept whose digest was already stale, one that records only `generated.body_sha256`, and one still on
+okfit's old key names (`mv` re-links it and `sync` re-stamps it).
 
 **The report is not a gate.** A `migrate` entry never changes the exit code;
 the JSON summary carries `migration_findings` and the envelope carries

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T14:26:45Z
+  at: 2026-11-25T14:42:38Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 17c5ab41dc496c5c
+    body: a0516f1401414754
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -480,9 +480,13 @@ path holds a space.
 Every file whose text changes drifts by the ordinary rule: `mv` never writes
 `verified`, `x-okfit-integrity.verified` or `generated.at`, and the plan lists the concepts whose current human
 verification it voids. `mv` keeps a file's leading UTF-8 byte-order mark, and for a
-concept it only re-links it re-records `x-okfit-integrity.generated.body` when that
-digest matched the text before, so the next `sync` keeps `generated.at`; a concept whose
-integrity block it cannot edit is listed in the plan's drifts instead. `--dry-run` prints the plan and writes nothing. `mv` never
+concept whose links it rewrites it re-records `x-okfit-integrity.generated.body` only when that
+digest matched the body before the move, so the next `sync` keeps `generated.at`. A concept whose
+digest was already stale, has no recorded `x-okfit-integrity.generated.body` (one that records only
+`generated.body_sha256` included) or is still on okfit's old key names (a legacy `integrity:` block)
+is re-linked but not re-recorded, and the next `sync` re-stamps it. A concept whose integrity block
+has a layout `mv` will not edit is not re-recorded either and is listed in the plan's `drifts`, even if
+no human had verified it. `--dry-run` prints the plan and writes nothing. `mv` never
 edits `index.md` or `log.md`; run `okfit sync` next to regenerate them and the
 generated stamps; the order for this repository is bundle edit, commit,
 `pnpm exec okfit sync`, commit the stamps. A destination that exists, lies outside
@@ -499,8 +503,8 @@ frontmatter with no `type`, such as a `README.md`) does not block a move: its bo
 links, and any path fields of a typeless frontmatter block, are rewritten like a
 concept's, and it is listed in `edits` only when it changes. `mv` rewrites
 `resource`, `sources[].resource`, `computation`, `executor.resource`,
-`attester.resource` and `superseded_by`. A rewritten file loses a leading UTF-8
-byte-order mark; that is a known gap. Why files are named for topics:
+`attester.resource` and `superseded_by`. A rewritten file keeps the leading UTF-8
+byte-order mark it had and never gains one. Why files are named for topics:
 [concept files are named for their topic](../decisions/topical-concept-names.md).
 
 ## Config discovery

@@ -22,8 +22,10 @@ import { readMarkdownSources } from "./sources.js";
  * every file that changes, the moved file always among them (`count` may be 0). `drifts` lists the
  * ids (the moved file by its old id) whose human verification is `current` now and whose text changes, plus an
  * edited concept whose recorded body digest could not be re-recorded (its integrity block has a layout that is never
- * edited). Each `text` is the exact bytes written, a leading byte-order mark the file had included; an edited concept's
- * `x-okfit-integrity.generated.body` is re-recorded when it matched the text before, so the next sync keeps `generated.at`.
+ * edited), even when no human verified it. Each `text` is the exact bytes written, a leading byte-order mark the file had
+ * included; an edited concept's `x-okfit-integrity.generated.body` is re-recorded only when it matched the body before the
+ * move, so the next sync keeps `generated.at`. A digest already stale, an absent one (a concept that records only
+ * `generated.body_sha256` included) and a concept still on old key names are not re-recorded: the next sync re-stamps them.
  *
  * @public
  */

@@ -438,9 +438,11 @@ rewrites every reference to it (body links, path fields, `x-okfit-supersedes`,
 Publication `x-okfit-renders`), keeping each reference's spelling. `<to>` is an id or a
 path; `.md` is added when missing. `--dry-run` prints the plan and writes
 nothing. Every file whose text changes drifts and needs a human to re-verify
-it; run `okfit sync` afterwards. `mv` keeps a file's UTF-8 byte-order mark and
-re-records the body digest of a concept it only re-links, so `sync` keeps its
-`generated.at`. Refusals (destination exists, outside the
+it; run `okfit sync` afterwards. `mv` keeps a file's UTF-8 byte-order mark and,
+when a concept's recorded `x-okfit-integrity.generated.body` matched its body before the move,
+re-records it, so `sync` keeps that concept's `generated.at`; a concept whose digest was
+already stale, was never recorded, or is still on okfit's old key names is re-linked
+but not re-recorded, and `sync` re-stamps it. Refusals (destination exists, outside the
 bundle, a reserved file, an unlocatable link) are exit `64` with nothing
 written.
 

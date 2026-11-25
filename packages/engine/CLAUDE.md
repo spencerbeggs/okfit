@@ -84,8 +84,9 @@ src/
     run.ts                   -- MovePlan, planMove, runMove: `okfit mv`'s plan/apply, all or nothing; also scans
                                 and rewrites links in `.md` files that are not concepts (no frontmatter or no
                                 `type`), refusing only a file it cannot read (unclosed or unparseable frontmatter); keeps a
-                                file's BOM and re-records the body digest of a concept it only re-links
-                                (so `sync` keeps `generated.at`)
+                                file's BOM and, when a concept's recorded body digest matched before the move,
+                                re-records it (so `sync` keeps `generated.at`); a stale, absent or old-key-name
+                                digest is not re-recorded
     sources.ts               -- MarkdownSources, readMarkdownSources: the `.md` files that are not loaded concepts,
                                 parsed for scanning (`reserved: true` adds each index.md and log.md with `raw: {}`),
                                 plus the ones that cannot be read; shared by `okfit mv` and the migration report/fix
