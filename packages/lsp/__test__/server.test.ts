@@ -304,6 +304,78 @@ describe("serve", () => {
 		}).pipe(Effect.scoped),
 	);
 
+	const PROJECT_AS_MODULE =
+		"---\ntype: Module\ntitle: Was Project\nresource: project.md\nx-okfit-kind: package\n---\n\n# Was Project\n";
+	const STRAY_PARAGRAPH = (text: string) => text.replace("# LSP Fixture\n", "# LSP Fixture\n\nA stray paragraph.\n");
+	const codesOfPublish = (p: { readonly diagnostics: ReadonlyArray<{ readonly code?: unknown }> }) =>
+		p.diagnostics.map((d) => String(d.code));
+
+	it.live("a root index diagnostic and a bundle-level one are both shown, whichever changed last (#500)", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			yield* h.initialize;
+			const index = yield* readFixture(h.root, "okf/index.md");
+			const project = yield* readFixture(h.root, "okf/project.md");
+			const rootUri = h.uriOf("okf/index.md");
+			yield* h.open("okf/project.md", PROJECT_AS_MODULE);
+			const first = yield* h.drainUntil((p) => p.uri === rootUri);
+			assert.include(codesOfPublish(first), "project-missing");
+
+			yield* h.open("okf/index.md", STRAY_PARAGRAPH(index));
+			const both = yield* h.drainUntil((p) => p.uri === rootUri);
+			assert.include(codesOfPublish(both), "project-missing");
+			assert.include(codesOfPublish(both), "index-malformed");
+
+			yield* h.change("okf/index.md", index, 2);
+			const bundleOnly = yield* h.drainUntil((p) => p.uri === rootUri);
+			assert.deepStrictEqual(codesOfPublish(bundleOnly), ["project-missing"]);
+
+			yield* h.change("okf/project.md", project, 2);
+			const cleared = yield* h.drainUntil((p) => p.uri === rootUri);
+			assert.deepStrictEqual(cleared.diagnostics, []);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("one revalidate that changes both keys publishes the root index once", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness({ delay: "200 millis" });
+			yield* h.initialize;
+			const index = yield* readFixture(h.root, "okf/index.md");
+			const rootUri = h.uriOf("okf/index.md");
+			yield* h.open("okf/project.md", PROJECT_AS_MODULE);
+			yield* h.open("okf/index.md", STRAY_PARAGRAPH(index));
+			const published = yield* h.drainUntil((p) => p.uri === rootUri);
+			assert.include(codesOfPublish(published), "project-missing");
+			assert.include(codesOfPublish(published), "index-malformed");
+			yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+			const rest = yield* h.drainPublished;
+			assert.strictEqual(rest.filter((p) => p.uri === rootUri).length, 0);
+		}).pipe(Effect.scoped),
+	);
+
+	it.live("dropping the session clears the root index URI once", () =>
+		Effect.gen(function* () {
+			const h = yield* makeServeHarness();
+			yield* h.initialize;
+			const index = yield* readFixture(h.root, "okf/index.md");
+			const rootUri = h.uriOf("okf/index.md");
+			yield* h.open("okf/project.md", PROJECT_AS_MODULE);
+			yield* h.open("okf/index.md", STRAY_PARAGRAPH(index));
+			const both = yield* h.drainUntil((p) => p.uri === rootUri && p.diagnostics.length >= 2);
+			assert.isAbove(both.diagnostics.length, 1);
+			yield* h.nextNotification((n) => n.method === "okfit/bundleChanged");
+			yield* h.drainPublished;
+			yield* notify(h.client, "workspace/didChangeWorkspaceFolders", {
+				event: { added: [], removed: [{ uri: h.uriOf(""), name: "project" }] },
+			});
+			yield* h.nextNotification(
+				(n) => n.method === "okfit/bundleChanged" && (n.params as { reason?: string }).reason === "dropped",
+			);
+			const after = (yield* h.drainPublished).filter((p) => p.uri === rootUri);
+			assert.deepStrictEqual(after, [{ uri: rootUri, diagnostics: [] }]);
+		}).pipe(Effect.scoped),
+	);
+
 	it.live("okfit/concepts warms up the bundle when no document has been opened yet", () =>
 		Effect.gen(function* () {
 			const h = yield* makeServeHarness();

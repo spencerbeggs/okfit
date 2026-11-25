@@ -58,6 +58,12 @@ export interface RevalidateResult {
 	 * empty maps to `[]`. Includes files that are not open.
 	 */
 	readonly changed: ReadonlyMap<string, ReadonlyArray<RenderedDiagnostic>>;
+	/**
+	 * Every file's current diagnostic list, changed or not, keyed like `changed` (`""` for
+	 * bundle-level). A file with no diagnostics is absent. A publisher that must send a
+	 * URI's whole set (two keys sharing one document) reads the unchanged key from here.
+	 */
+	readonly current: DiagnosticsByFile;
 	readonly bundle: LoadedBundle;
 }
 
@@ -166,7 +172,7 @@ export class BundleSession extends Context.Service<BundleSession, BundleSessionS
 					loaded,
 					Option.some({ bundle: result.bundle, graph: Graph.fromBundle(result.bundle), signals: result.signals }),
 				);
-				return { changed, bundle: result.bundle };
+				return { changed, current: next, bundle: result.bundle };
 			});
 
 			return BundleSession.of({

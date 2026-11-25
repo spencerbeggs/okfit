@@ -53,6 +53,22 @@ describe("BundleSession", () => {
 		}).pipe(Effect.provide(sessionPlatform(SEED))),
 	);
 
+	it.effect("revalidate returns current alongside changed", () =>
+		Effect.gen(function* () {
+			const session = yield* make();
+			yield* session.revalidate(edit);
+			yield* session.open(`${ROOT}/a.md`, moduleConcept("A", "See [C](c.md)."));
+			yield* session.revalidate(edit);
+			yield* session.open(`${ROOT}/b.md`, moduleConcept("B", "See [Z](z.md)."));
+			const second = yield* session.revalidate(edit);
+			// Only b.md changed this time, but current holds every file's list, a.md's unchanged one included.
+			assert.deepStrictEqual([...second.changed.keys()], ["b.md"]);
+			assert.deepStrictEqual(codesOf(second.current, "a.md"), ["broken-links"]);
+			assert.deepStrictEqual(codesOf(second.current, "b.md"), ["broken-links"]);
+			assert.isFalse(second.current.has("c.md"));
+		}).pipe(Effect.provide(sessionPlatform(SEED))),
+	);
+
 	it.effect("a harmless change to B reports nothing, while a breaking change to B reports B (positive control)", () =>
 		Effect.gen(function* () {
 			const session = yield* make();
