@@ -111,8 +111,8 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  * `x-okfit-integrity.verified`.
  *
  * A root index whose frontmatter opens with `---` but never closes is refused with its own reason, before the file is
- * read (a version splice has no closing fence to anchor on), as is one that does not parse (`frontmatter-unparseable`);
- * both are fixed by hand. The version finding carries its `okf-version` fix for an unclosed root index so this refusal
+ * read (a version splice has no closing fence to anchor on). One that does not parse (`frontmatter-unparseable`, or a
+ * YAML error found when the version is spliced in) is refused with a reason of its own; both are fixed by hand. The version finding carries its `okf-version` fix for an unclosed root index so this refusal
  * is reachable (#482); with no root `index.md` at all it carries none (R42).
  *
  * A refusal for lost computations also names the way out that is the author's: setting `okf_version` in `index.md` by

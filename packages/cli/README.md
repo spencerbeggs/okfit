@@ -112,7 +112,7 @@ using okfit's old key names is refused until `okfit sync` renames them.
 An empty `Computation` section is not a finding, so it never holds the version fix back.
 To keep a prose-only `Computation` section, set `okf_version: "0.3"` in `index.md` by hand. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), one
-`<file>: <fix kinds>` line per changed file (a kind that repeats reads `root-relative-path (2)`), a
+indented `<file>: <fix kinds>` line per changed file (a kind that repeats reads `root-relative-path (2)`), a
 `refused: <file>: <reason>` line per refused fix, and `Integrity drifted
 (re-verify with okfit verify): <ids>` when a fix changed content whose human
 verification was current; then the diagnostics that remain, from a reload.
