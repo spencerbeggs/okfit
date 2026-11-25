@@ -106,13 +106,19 @@ describe("okfit validate: the declared OKF version", () => {
 describe("okfit validate: the old key names hint (#493)", () => {
 	const HINT = "hint: 2 concept(s) still use okfit's old frontmatter key names; run okfit sync to rename them";
 	/** Gives a concept okfit's old `integrity:` block, written after its other keys. */
-	const unmigrated = (text: string | undefined): string =>
-		(text ?? "").replace("\n---\n\n", "\nintegrity:\n  generated:\n    body: 47fef58df84c6eb2\n---\n\n");
-	const OLD: typeof V03_PROJECT = {
-		...V03_PROJECT,
-		"okf/metrics/revenue.md": unmigrated(V03_PROJECT["okf/metrics/revenue.md"]),
-		"okf/metrics/margin.md": unmigrated(V03_PROJECT["okf/metrics/margin.md"]),
+	const unmigrated = (text: string | undefined): string => {
+		const old = (text ?? "").replace("\n---\n\n", "\nintegrity:\n  generated:\n    body: 47fef58df84c6eb2\n---\n\n");
+		// a no-op replace would make every hint test below vacuous
+		assert.notStrictEqual(old, text);
+		return old;
 	};
+	const oldOf = (base: typeof V03_PROJECT): typeof V03_PROJECT => ({
+		...base,
+		"okf/metrics/revenue.md": unmigrated(base["okf/metrics/revenue.md"]),
+		"okf/metrics/margin.md": unmigrated(base["okf/metrics/margin.md"]),
+	});
+	const OLD = oldOf(V03_PROJECT);
+	const count = (text: string): number => text.split("hint:").length - 1;
 	const runIn = (seed: typeof V03_PROJECT, args: ReadonlyArray<string>) =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
@@ -124,9 +130,39 @@ describe("okfit validate: the old key names hint (#493)", () => {
 		Effect.gen(function* () {
 			const human = yield* runIn(OLD, []);
 			assert.strictEqual(human.stderr.split(HINT).length - 1, 1, human.stderr);
+			assert.notInclude(human.stdout, "hint:");
+			// the old integrity block is no conformance error of its own, so the exit codes are comparable
+			assert.strictEqual(human.exitCode, (yield* runIn(V03_PROJECT, [])).exitCode);
 			const json = yield* runIn(OLD, ["--format", "json"]);
 			const envelope = JSON.parse(json.stdout) as { readonly exit_code: number };
 			assert.strictEqual(human.exitCode, envelope.exit_code);
+		}),
+	);
+
+	it.effect("the hint counts the whole bundle when a positional target narrows the run", () =>
+		Effect.gen(function* () {
+			const result = yield* runIn(OLD, ["okf/modules/widget.md"]);
+			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			assert.include(result.stderr, HINT);
+		}),
+	);
+
+	it.effect("the hint prints with --target 0.3, after the summary line", () =>
+		Effect.gen(function* () {
+			const result = yield* runIn(OLD, ["--target", "0.3"]);
+			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			const summary = result.stderr.indexOf("OKF 0.3:");
+			assert.isAbove(summary, -1, result.stderr);
+			assert.isAbove(result.stderr.indexOf(HINT), summary);
+		}),
+	);
+
+	it.effect("the hint prints exactly once through a --fix re-run", () =>
+		Effect.gen(function* () {
+			const result = yield* runIn(oldOf(V02_PROJECT), ["--target", "0.3", "--fix"]);
+			assert.include(result.stderr, "OKF 0.3:");
+			assert.strictEqual(count(result.stderr), 1, result.stderr);
+			assert.include(result.stdout, "Fixed");
 		}),
 	);
 

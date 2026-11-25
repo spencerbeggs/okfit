@@ -76,7 +76,7 @@ every edit-time `validate` call so a git spawn per concept never runs on
 keystroke-level edits; CI and the MCP `validate_bundle` tool omit it and
 keep both tiers.
 
-When a bundle still uses okfit's old frontmatter key names, `validate` prints one `hint:` line on stderr (human format only) pointing at `okfit sync`; it is not a finding and never changes the exit code.
+When a bundle still uses okfit's old frontmatter key names, `validate` prints one `hint:` line on stderr (human format only). The line points at `okfit sync`, which renames them. It counts the whole bundle, even when positional targets narrow the report. It is not a finding and never changes the exit code.
 
 `--document <bundle-path>` validates one unsaved document: its text is
 read from stdin and stands in for that file (bundle-relative, posix, a

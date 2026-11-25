@@ -93,7 +93,11 @@ export interface RunResult {
 	readonly signals: ReadonlyMap<string, ConceptSignal>;
 	/** What reads differently under `RunOptions.target`; `[]` without a target. Never counted in an exit code (R50). */
 	readonly migration: ReadonlyArray<MigrationFinding>;
-	/** Sorted ids of the concepts that still use okfit's old frontmatter key names (`okfit sync` renames them). */
+	/**
+	 * Sorted ids of the concepts that still use okfit's old frontmatter key names (`okfit sync` renames them).
+	 * Always the whole bundle, even when a caller narrows the report to some targets, because sync renames across
+	 * the whole bundle. Advisory: not a finding and not part of any JSON contract.
+	 */
 	readonly legacyKeys: ReadonlyArray<string>;
 }
 
