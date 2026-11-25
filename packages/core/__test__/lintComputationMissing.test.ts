@@ -8,7 +8,11 @@ import { Validate } from "../src/Validate.js";
 const SECTION_MESSAGE =
 	"This Attested Computation has no computation: its Computation section holds no fenced code block (OKF 0.3 §10.3), so it is not attestable; put the computation in one fenced block, or set computation to a file";
 const NO_SECTION_MESSAGE =
-	"This Attested Computation has no computation: it has no Computation section and no computation key (OKF 0.3 §10.3), so it is not attestable";
+	"This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a Computation section with the computation in one fenced block, or set computation to a file";
+const LEGACY_EMPTY_MESSAGE =
+	"This Attested Computation has no computation: its top-level Computation section is empty, so it is not attestable; write the computation under it, or set computation to a file";
+const LEGACY_NO_SECTION_MESSAGE =
+	"This Attested Computation has no computation: it has no Computation section and no computation key, so it is not attestable; add a top-level Computation section that holds the computation, or set computation to a file";
 
 const V03 = '---\nokf_version: "0.3"\n---\n\n# Index\n';
 const V02 = "# Index\n";
@@ -76,6 +80,7 @@ describe("computation-missing", () => {
 			const found = missing(bundle);
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0]?.message, NO_SECTION_MESSAGE);
+			assert.notInclude(found[0]?.message ?? "", "§10.3");
 			assert.isTrue(textAt(source, found[0]?.range)?.startsWith("---"));
 		}),
 	);
@@ -105,13 +110,26 @@ describe("computation-missing", () => {
 		}),
 	);
 
-	it.effect("a 0.2 bundle: no section at all fires", () =>
+	it.effect("a 0.2 bundle: no section at all", () =>
 		Effect.gen(function* () {
 			const bundle = yield* load({ "index.md": V02, "a.md": concept("# Revenue\n") });
 			const found = missing(bundle);
 			assert.strictEqual(found.length, 1);
-			assert.strictEqual(found[0]?.message, NO_SECTION_MESSAGE);
+			assert.strictEqual(found[0]?.message, LEGACY_NO_SECTION_MESSAGE);
+			assert.notInclude(found[0]?.message ?? "", "0.3");
 		}),
+	);
+
+	it.effect(
+		"a 0.2 bundle: an empty top-level Computation section is computation-missing, with no 0.3 citation (#508)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* load({ "index.md": V02, "a.md": concept("# Computation\n\n# Notes\n\nx\n") });
+				const found = missing(bundle);
+				assert.strictEqual(found.length, 1);
+				assert.strictEqual(found[0]?.message, LEGACY_EMPTY_MESSAGE);
+				assert.notInclude(found[0]?.message ?? "", "0.3");
+			}),
 	);
 
 	it.effect("fires without runtime, beside computation-runtime-missing", () =>

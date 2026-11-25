@@ -445,7 +445,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "computation-missing",
 			description:
-				'An Attested Computation has no computation: no computation key, and no fenced code block in its Computation section (OKF 0.3 §10.3), so it is not attestable. Default "warn".',
+				'An Attested Computation has no computation: no computation key, and nothing in its Computation section that the bundle\'s OKF version reads as one (under 0.3 the first fenced block, §10.3; under 0.2 the text of a top-level section), so it is not attestable. Default "warn".',
 			default: "warn",
 		}),
 	),
