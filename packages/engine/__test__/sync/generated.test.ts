@@ -1680,3 +1680,112 @@ describe("syncGenerated: the x-okfit-integrity migration (#478)", () => {
 		);
 	});
 });
+
+describe("syncGenerated: never leaves or writes a generated.at later than now (#471)", () => {
+	const NOW = DateTime.makeUnsafe("2026-11-24T10:00:00.500Z");
+	const NOW_STAMP = "2026-11-24T10:00:00Z";
+	const FUTURE = "2030-01-01T00:00:00Z";
+	const BODY = "\nBody.\n";
+	const VERIFIED_BLOCK =
+		"verified:\n  - by: human:ada\n    at: 2026-01-02T00:00:00Z\nx-okfit-integrity:\n  verified:\n    by: human:ada\n    at: 2026-01-02T00:00:00Z\n    content: cccccccccccccccc\n";
+	const VERIFIED_LINES = [
+		"verified:\n  - by: human:ada\n    at: 2026-01-02T00:00:00Z\n",
+		"  verified:\n    by: human:ada\n    at: 2026-01-02T00:00:00Z\n    content: cccccccccccccccc\n",
+	];
+
+	const textOf = (name: string, at: string, digest: string) =>
+		`---\ntype: Module\ntitle: ${name}\ngenerated:\n  by: human:ada\n  at: ${at}\nverified:\n  - by: human:ada\n    at: 2026-01-02T00:00:00Z\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified:\n    by: human:ada\n    at: 2026-01-02T00:00:00Z\n    content: cccccccccccccccc\n---\n${BODY}`;
+
+	/** A concept whose recorded body digest matches its body, stamped at `at`. */
+	const matching = (name: string, at: string) =>
+		Effect.gen(function* () {
+			const digest = yield* Derivation.bodyDigest(textOf(name, at, "0".repeat(16)));
+			return textOf(name, at, digest);
+		}).pipe(Effect.provide(NodeCrypto.layerDigest));
+
+	const drifted = (name: string, at: string) => textOf(name, at, "0".repeat(16));
+
+	const run = (
+		files: Record<string, string>,
+		options: { readonly now?: DateTime.Utc; readonly provenance?: DateTime.Utc } = {},
+	) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			const provenance = new Map(
+				[...bundle.concepts.keys()].map(
+					(id) =>
+						[
+							id,
+							{ _tag: "committed", at: options.provenance ?? DateTime.makeUnsafe("2026-06-01T00:00:00Z") } as const,
+						] as const,
+				),
+			);
+			const pending: Array<{ readonly target: string; readonly contents: string }> = [];
+			const result = yield* syncGenerated(bundle, {
+				provenance,
+				renames: RENAMES,
+				dryRun: true,
+				pending,
+				...(options.now === undefined ? {} : { now: options.now }),
+			});
+			return { result, pending };
+		}).pipe(
+			Effect.provide(
+				Layer.mergeAll(
+					seedPlatform(Object.fromEntries(Object.entries(files).map(([name, text]) => [`${ROOT}/${name}.md`, text]))),
+					NodeCrypto.layerDigest,
+				),
+			),
+		);
+
+	it.effect("a matching digest with generated.at later than now is re-stamped to now, whole seconds (#471)", () =>
+		Effect.gen(function* () {
+			const input = yield* matching("a", FUTURE);
+			const { result, pending } = yield* run({ a: input }, { now: NOW });
+			assert.deepStrictEqual(result.written, ["a"]);
+			assert.strictEqual(pending.length, 1);
+			const out = pending[0]?.contents ?? "";
+			assert.include(out, `generated:\n  by: human:ada\n  at: ${NOW_STAMP}\n`);
+			assert.notInclude(out, FUTURE);
+			for (const line of VERIFIED_LINES) {
+				assert.include(input, line);
+				assert.include(out, line);
+			}
+			assert.include(VERIFIED_BLOCK, VERIFIED_LINES[0] ?? "");
+			assert.strictEqual(out.replace(NOW_STAMP, FUTURE), input);
+		}),
+	);
+
+	it.effect("an authoritative stamp at or before now is never rewritten", () =>
+		Effect.gen(function* () {
+			const files = {
+				equal: yield* matching("equal", NOW_STAMP),
+				earlier: yield* matching("earlier", "2026-11-23T10:00:00Z"),
+			};
+			const { result, pending } = yield* run(files, { now: NOW });
+			assert.deepStrictEqual([...result.unchanged].sort(), ["earlier", "equal"]);
+			assert.deepStrictEqual(result.written, []);
+			assert.strictEqual(pending.length, 0);
+		}),
+	);
+
+	it.effect("without now a future stamp is left as it was", () =>
+		Effect.gen(function* () {
+			const { result, pending } = yield* run({ a: yield* matching("a", FUTURE) });
+			assert.deepStrictEqual(result.unchanged, ["a"]);
+			assert.strictEqual(pending.length, 0);
+		}),
+	);
+
+	it.effect("a drifted concept whose author date is later than now is stamped now", () =>
+		Effect.gen(function* () {
+			const { result, pending } = yield* run(
+				{ a: drifted("a", "2026-01-01T00:00:00Z") },
+				{ now: NOW, provenance: DateTime.makeUnsafe("2030-01-01T00:00:00Z") },
+			);
+			assert.deepStrictEqual(result.written, ["a"]);
+			assert.include(pending[0]?.contents ?? "", `  at: ${NOW_STAMP}\n`);
+			assert.notInclude(pending[0]?.contents ?? "", "2030-01-01");
+		}),
+	);
+});

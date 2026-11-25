@@ -49,7 +49,8 @@ const validate = (
 describe("validate_bundle", () => {
 	it.effect("returns exit_code 0 and the fixture's known diagnostics for the clean bundle", () =>
 		Effect.gen(function* () {
-			const result = yield* validate({});
+			// A fixed now: the harness clock is the TestClock (1970), which would make every stamp read as later than now.
+			const result = yield* validate({ now: "2026-10-01T00:00:00Z" });
 			assert.notOk(result.isError);
 			const data = result.structuredContent as Envelope;
 			assert.strictEqual(data.exit_code, 0);

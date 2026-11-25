@@ -643,21 +643,21 @@ describe("okfit validate: OKFIT_NOW", () => {
 			yield* Effect.promise(() =>
 				writeFile(
 					concept,
-					original.replace("tags: [architecture]\n---", "tags: [architecture]\nstale_after: 2025-01-01T00:00:00Z\n---"),
+					original.replace("tags: [architecture]\n---", "tags: [architecture]\nstale_after: 2026-10-01T00:00:00Z\n---"),
 					"utf8",
 				),
 			);
 
 			const before = yield* runOkfit(["validate"], {
 				...sandbox,
-				env: { ...sandbox.env, OKFIT_NOW: "2024-01-01T00:00:00Z" },
+				env: { ...sandbox.env, OKFIT_NOW: "2026-09-10T00:00:00Z" },
 			});
 			assert.strictEqual(before.exitCode, 0);
 			assert.strictEqual(before.stdout, "");
 
 			const after = yield* runOkfit(["validate"], {
 				...sandbox,
-				env: { ...sandbox.env, OKFIT_NOW: "2026-01-01T00:00:00Z" },
+				env: { ...sandbox.env, OKFIT_NOW: "2026-11-01T00:00:00Z" },
 			});
 			assert.strictEqual(after.exitCode, 0);
 			// Captured this session: severity "info" (DEFAULT_LINT's stale: "info"),
@@ -667,7 +667,7 @@ describe("okfit validate: OKFIT_NOW", () => {
 			// inserted `stale_after:` line), column 14 (the value, past the key).
 			assert.strictEqual(
 				after.stdout,
-				"modules/core.md:9:14 info stale Concept is stale since 2025-01-01T00:00:00.000Z\n",
+				"modules/core.md:9:14 info stale Concept is stale since 2026-10-01T00:00:00.000Z\n",
 			);
 			assert.strictEqual(after.stderr, "0 errors, 0 warnings, 1 info in 20 concepts (okf)\n");
 		}).pipe(Effect.provide(TestPlatform)),

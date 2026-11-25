@@ -56,6 +56,8 @@ export interface SyncOptions {
 	readonly logSince?: string;
 	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history. Issue #295: log mode dates their entries with the same instant. */
 	readonly staged?: { readonly at: DateTime.Utc };
+	/** Issue #471: the run's clock. A `generated.at` later than it is re-stamped to it (whole seconds), and no stamp sync writes is later than it. */
+	readonly now?: DateTime.Utc;
 }
 
 /** @public */
@@ -226,6 +228,7 @@ export const planSync: (
 					dryRun: true,
 					renames,
 					pending,
+					...(options.now === undefined ? {} : { now: options.now }),
 					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
 					...(scope === undefined ? {} : { scope }),
 				})),

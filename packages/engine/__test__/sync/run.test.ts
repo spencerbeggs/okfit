@@ -597,6 +597,46 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 
+	it.effect("sync --staged re-stamps a staged future-stamped concept and leaves an unstaged one (#471)", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(repo);
+			try {
+				const FUTURE = "2030-01-01T00:00:00Z";
+				for (const [name, title] of [
+					["a.md", "A"],
+					["b.md", "B"],
+				] as const) {
+					const body = `\n# ${title}\n\nBody.\n`;
+					const digest = yield* Derivation.bodyDigest(`---\ntype: Module\ntitle: ${title}\n---${body}`);
+					yield* Effect.promise(() =>
+						writeFile(
+							join(root, "okf", name),
+							`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${body}`,
+						),
+					);
+				}
+				git(root, ["add", "okf/a.md"]);
+				const result = yield* runSync({
+					bundleRoot: join(root, "okf"),
+					config: OkfitConfig.DEFAULTS,
+					modes: new Set(["generated"]),
+					dryRun: false,
+					staged: { at: STAMP },
+					now: DateTime.makeUnsafe("2026-09-16T10:00:00.400Z"),
+				}).pipe(Effect.provide(live));
+				assert.deepStrictEqual(result.generated.written, ["a"]);
+				const a = yield* Effect.promise(() => readFile(join(root, "okf", "a.md"), "utf8"));
+				const b = yield* Effect.promise(() => readFile(join(root, "okf", "b.md"), "utf8"));
+				assert.include(a, "  at: 2026-09-16T10:00:00Z\n");
+				assert.notInclude(a, FUTURE);
+				assert.include(b, `  at: ${FUTURE}\n`);
+				assert.strictEqual(git(root, ["show", ":okf/a.md"]), a);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("stages a nested sub-index at its repo path from a linked worktree's hook environment (#315)", () =>
 		Effect.gen(function* () {
 			const root = yield* Effect.promise(repo);

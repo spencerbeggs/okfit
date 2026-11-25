@@ -104,7 +104,9 @@ src/
     generated.ts              -- locateGenerated, GeneratedLocated, spliceGenerated; syncGenerated stamps
                                   min(commit instant, binding.at) when x-okfit-integrity.verified binds the latest human
                                   entry and covers the current content, unless binding.at is earlier than
-                                  the concept's existing generated.at (OKF 0.3 5.2, R30)
+                                  the concept's existing generated.at (OKF 0.3 5.2, R30); with `now` set (#471) a
+                                  generated.at later than now is re-stamped to now even behind a matching digest,
+                                  and no stamp it writes is later than now
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog

@@ -6,4 +6,5 @@
 # config is the "new" config: the diagnostic set differs by exactly this
 # one rule, so a config-change rebuild has something to actually clear.
 generated_at_drift = "off"
+generated_at_future = "off"
 status_missing = "warn"

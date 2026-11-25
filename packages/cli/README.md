@@ -401,6 +401,17 @@ After the move, concepts that carry a profile field and were verified show
 `verified-drift`, and a human re-runs `okfit verify` on them. Renaming
 `integrity` alone does not affect any verification.
 
+A `generated.at` later than now (a skewed author clock, a hand edit) makes a
+verification unable to count (OKF 0.3 §5.3), and `okfit validate` reports it as
+the lint `generated-at-future` (default `warn`). `okfit sync` repairs it: it
+re-stamps such a concept to now (whole seconds) even when the recorded body
+digest matches, and never writes a `generated.at` later than now. A stamp at or
+before now is never rewritten. The repair leaves `verified`,
+`x-okfit-integrity.verified` and `status` alone, so a human verification made
+before it stays not current until the human runs `okfit verify` again. Under
+`--staged` only staged concepts are re-stamped; run a plain `okfit sync` for the
+rest.
+
 ### `okfit mv`
 
 `okfit mv <from> <to>` moves a concept to a new path inside the bundle and

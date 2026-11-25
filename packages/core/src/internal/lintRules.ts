@@ -97,6 +97,19 @@ export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", 
 	return [diagnostic("", "config-okf-version-stale", severity, message, undefined)];
 });
 
+/** #471: a `generated.at` later than now counts for no verification (OKF 0.3 §5.3) and `okfit verify` refuses it; `okfit sync` re-stamps it. */
+export const generatedAtFuture: LintRule = perConcept("generated-at-future", (concept, context) => {
+	const at = concept.frontmatter.generated?.at;
+	const { now } = context;
+	if (at === undefined || now === undefined || !DateTime.isGreaterThan(at, now)) return [];
+	return [
+		{
+			message: `generated.at ${instant(at)} is later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it`,
+			path: ["generated", "at"],
+		},
+	];
+});
+
 export const unknownType: LintRule = perConcept("unknown-type", (concept, context) =>
 	Object.hasOwn(context.config.types ?? {}, concept.frontmatter.type)
 		? []
@@ -593,6 +606,7 @@ export const LINT_RULES: ReadonlyArray<LintRule> = [
 	nonConceptUnlisted,
 	generatedMissing,
 	computationMissing,
+	generatedAtFuture,
 	actorPrefixUnknown,
 	actorEmail,
 	verifiedActorUnknown,

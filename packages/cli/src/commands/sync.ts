@@ -179,7 +179,8 @@ export const syncCommand = Command.make(
 				const modes: ReadonlySet<SyncMode> =
 					input.only.length > 0 ? new Set(input.only) : new Set<SyncMode>(["generated", "index", "log"]);
 
-				const staged = input.staged ? { at: DateTime.startOf(yield* Now, "second") } : undefined;
+				const now = yield* Now;
+				const staged = input.staged ? { at: DateTime.startOf(now, "second") } : undefined;
 
 				const result = yield* syncWithConfirm(
 					{
@@ -187,6 +188,7 @@ export const syncCommand = Command.make(
 						config: resolved.config,
 						modes,
 						dryRun: input.dryRun,
+						now,
 						// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 						...(Option.isSome(input.since) ? { logSince: input.since.value } : {}),
 						...(staged === undefined ? {} : { staged }),

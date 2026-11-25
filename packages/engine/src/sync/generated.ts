@@ -118,6 +118,12 @@ export interface SyncGeneratedOptions {
 	readonly agent?: Actor;
 	/** #140: when set, only these concepts are considered; every other id is absent from all three lists. */
 	readonly scope?: ReadonlySet<ConceptId>;
+	/**
+	 * #471: the run's clock. With it set, a stamp sync writes is never later than `startOf(now, "second")`, and a
+	 * concept whose recorded digest matches but whose `generated.at` is later than `now` is re-stamped to that instant.
+	 * Absent: neither applies.
+	 */
+	readonly now?: DateTime.Utc;
 }
 
 /**
@@ -206,6 +212,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const { provenance, dryRun, agent, scope, pending, renames } = options;
+	const nowStamp = options.now === undefined ? undefined : DateTime.startOf(options.now, "second");
 
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
@@ -230,7 +237,13 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const legacyBlock = legacyIntegrity(concept, renames);
 		const rawKeys = concept.frontmatter.raw;
 		const keyCandidate = hasLegacyKeyNames(concept, renames);
-		if (matches && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
+		// #471: a stamp later than now behind a matching digest is not authoritative; one at or before now never is touched.
+		const future =
+			matches &&
+			options.now !== undefined &&
+			generated?.at !== undefined &&
+			DateTime.isGreaterThan(generated.at, options.now);
+		if (matches && !future && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
 			unchanged.push(id);
 			continue;
 		}
@@ -296,7 +309,9 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
 		let encodedAt: string | undefined;
-		if (!matches) {
+		if (future && nowStamp !== undefined) {
+			encodedAt = encodeAt(nowStamp);
+		} else if (!matches) {
 			const derived = provenance.get(id);
 			if (derived === undefined) {
 				return yield* Effect.die(new Error(`syncGenerated: no provenance computed for concept ${id}`));
@@ -306,15 +321,15 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				yield* skipKeepingRename(derived.reason);
 				continue;
 			}
-			encodedAt = encodeAt(
-				yield* stampInstant(
-					concept,
-					derived.at,
-					legacyBlock === undefined || renames.integrity === undefined
-						? undefined
-						: { block: legacyBlock, key: renames.integrity.from },
-				),
+			const stamped = yield* stampInstant(
+				concept,
+				derived.at,
+				legacyBlock === undefined || renames.integrity === undefined
+					? undefined
+					: { block: legacyBlock, key: renames.integrity.from },
 			);
+			// #471: never write a stamp later than now (a skewed author clock).
+			encodedAt = encodeAt(nowStamp !== undefined && DateTime.isGreaterThan(stamped, nowStamp) ? nowStamp : stamped);
 		}
 
 		// Step 5 (#73): no block at all. With no agent configured there is
@@ -412,7 +427,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		} else {
 			pending?.push({ target: absolutePath, contents: finalText });
 		}
-		if (!matches) written.push(id);
+		if (!matches || future) written.push(id);
 	}
 
 	return { written, unchanged, migrated, skipped } satisfies GeneratedSyncResult;
