@@ -50,7 +50,7 @@ validation on the file without any further setup.
   lets such files exist; this is okfit's opinion). Core has no default; the
   software-project profile sets `**/README.md`, `**/AGENTS.md`,
   `**/CONTRIBUTING.md` and `**/SKILL.md`. A value in the config replaces
-  that list; `[]` allows none; an invalid glob, or one with a `[` or `{` that never closes (escape it as `\[`), fails config load. With no
+  that list; `[]` allows none; an invalid glob, or one with a `[` or `{` that never closes (to match the character write '\[' in single quotes or "\\[" in double quotes), fails config load. With no
   key at all the lint `non_concept_unlisted` is silent.
 - `[concepts]` -- `required` (array of frontmatter keys every concept must
   carry) and `tags.required` (array of tags every concept must carry).

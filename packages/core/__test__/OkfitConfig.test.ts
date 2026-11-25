@@ -219,7 +219,7 @@ describe("[bundle] non_concepts glob strictness (#485)", () => {
 		assert.deepStrictEqual(issue?.path, ["bundle", "non_concepts", 0]);
 		assert.strictEqual(
 			issue?.message,
-			'Expected a valid glob pattern, got "[a-": "[" opens a character class that never closes; write "\\[" to match a literal bracket',
+			'Expected a valid glob pattern, got "[a-": "[" opens a character class that never closes; to match a literal bracket write \'\\[\' in single quotes or "\\\\[" in double quotes',
 		);
 	});
 	it("{x is rejected", () => {
@@ -227,7 +227,7 @@ describe("[bundle] non_concepts glob strictness (#485)", () => {
 		assert.deepStrictEqual(issue?.path, ["bundle", "non_concepts", 0]);
 		assert.strictEqual(
 			issue?.message,
-			'Expected a valid glob pattern, got "{x": "{" opens a brace group that never closes; write "\\{" to match a literal brace',
+			'Expected a valid glob pattern, got "{x": "{" opens a brace group that never closes; to match a literal brace write \'\\{\' in single quotes or "\\\\{" in double quotes',
 		);
 	});
 	it("a nested group missing its outer close is rejected", () => {
@@ -251,7 +251,24 @@ describe("[bundle] non_concepts glob strictness (#485)", () => {
 	it("a { inside a closed class, [{], decodes", () => {
 		assert.deepStrictEqual(globsOf("[{]"), ["[{]"]);
 	});
-	it("a ] first in a class is a member: []a] decodes", () => {
+	it("a ] first in a class is a member: []a] decodes, [] and []a do not", () => {
 		assert.deepStrictEqual(globsOf("[]a]"), ["[]a]"]);
+		assert.lengthOf(decodeIssues("[]"), 1);
+		assert.lengthOf(decodeIssues("[]a"), 1);
+	});
+	it("a leading ! or ^ is not a class member: [!]a] and [^]] decode, [!] and [^] do not", () => {
+		assert.deepStrictEqual(globsOf("[!]a]", "[^]]"), ["[!]a]", "[^]]"]);
+		assert.lengthOf(decodeIssues("[!]"), 1);
+		assert.lengthOf(decodeIssues("[^]"), 1);
+	});
+	it("a POSIX [:name:] inside a class is one unit: [[:alpha:]] decodes, [[:alpha:] does not", () => {
+		assert.deepStrictEqual(globsOf("[[:alpha:]]"), ["[[:alpha:]]"]);
+		assert.lengthOf(decodeIssues("[[:alpha:]"), 1);
+	});
+	it("an escaped backslash does not escape the bracket after it: \\\\[ is rejected", () => {
+		assert.lengthOf(decodeIssues("\\\\["), 1);
+	});
+	it("a trailing backslash compiles, so it decodes", () => {
+		assert.deepStrictEqual(globsOf("a\\"), ["a\\"]);
 	});
 });
