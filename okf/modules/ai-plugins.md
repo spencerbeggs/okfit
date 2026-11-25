@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-25T01:27:40Z
 x-okfit-integrity:
   generated:
-    body: 7bc15f671aa78845
+    body: a9b6f0765f43f8b1
 ---
 
 # AI Plugins
@@ -81,7 +81,7 @@ server delivers lint and profile
 findings](../decisions/posttooluse-hook-scope.md)).
 As of LSP phase 4 the hook keeps two jobs, plus a third added for non-concept
 Markdown: it blocks on a `core.conformance`
-diagnostic for the edited file, and it reads the written file to block a
+diagnostic for the edited file, and it reads the written file (CRLF and BOM frontmatter included, a path compared in physical form) to block a
 `Write` (warn an `Edit`) of a concept with no `generated.by` when the
 config sets `actors.agent`. The third reads the `non-concept-unlisted` lint: a `Write` or Bash authoring
 write of a `.md` that has no `type` and that `[bundle] non_concepts` does not

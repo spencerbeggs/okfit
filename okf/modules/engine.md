@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-25T01:27:40Z
 x-okfit-integrity:
   generated:
-    body: 16dd2c4909246ba4
+    body: c2a38d7f7a93c2b6
 ---
 
 # Engine
@@ -44,7 +44,7 @@ layer, rather than by two independently maintained copies agreeing
 `config/layer.ts#buildConfigLayer` builds the two-branch `AppConfig.layer`
 call (`--config <file>` given vs. the upward-walk-plus-XDG chain) that
 `okfit-config-schema.md` and `okf/decisions/cli-config-discovery-*.md`
-describe from the consumer's side. `validate/run.ts`, `verify/{locate,
+describe from the consumer's side; a config that fails decode surfaces as `malformed config <path>: <key>: <reason>`, naming the first failing key without echoing its value. `validate/run.ts`, `verify/{locate,
 splice,run}.ts`, `sync/{generated,index,log,write,run}.ts`, and
 `init/scaffold.ts` are the five programs; `render/*.ts` holds the
 envelope half of each JSON contract (`ContextEnvelope`, `VerifyEnvelope`,
@@ -169,12 +169,14 @@ forward](../decisions/stale-verify.md).
 `migrate/findings.ts` holds `migrationFindings(bundle, config, target)`: five codes
 (`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
 `root-relative-path`, `computation-locator`), found by resolving each
-reference under both fallback rules; `computation-locator` appears only while
+reference under both fallback rules, in every Markdown file of the bundle that is not a concept; `computation-locator` appears only while
 the bundle reads with the legacy locator and the two readings differ, and a bundle with no root index
 gets an `okf-version-undeclared` finding for `index.md` with no fix.
 `migrate/fix.ts` holds `planMigrationFixes` and `applyMigrationFixes`, which
 write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
-version fix while a root-only reference remains, when `okf_version` cannot be
+version fix while a root-only reference remains, while an Attested
+Computation would lose its computation, while a Markdown file could not be
+read, when `okf_version` cannot be
 edited in place, when the root index's opening fence is malformed or its
 frontmatter does not parse (the run continues),
 re-record `x-okfit-integrity.generated.body` for a concept whose digest matched

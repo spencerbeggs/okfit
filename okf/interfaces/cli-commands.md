@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T21:18:30Z
+  at: 2026-11-25T01:27:40Z
 tags:
   - architecture
 verified:
@@ -43,7 +43,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 630b20196c5c56fc
+    body: c4625e747b7908be
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -121,11 +121,15 @@ a human run prints one extra stderr line, `OKF 0.3: <n> finding(s), <k>
 fixable with --fix`. `--fix` (requires `--target`) writes the two safe
 fixes: it prefixes `/` to a body link, image, definition or path field that
 resolves only from the bundle root, and it declares `okf_version: "0.3"` in
-the root index. The version fix is refused, with its reason, while a root-only
-reference remains, when `okf_version` cannot be edited in place, when the
-root index's opening fence is malformed, or when the root index frontmatter
-does not parse (malformed YAML, a duplicate key); the rest of the plan still
-applies. `--only okf-version` and
+the root index. The report and the fixes cover every Markdown file in the bundle
+that is not a concept (index files, `log.md`, typeless and frontmatter-less
+files), and `index.md` is left byte-identical. The version fix is refused, with
+its reason, while a root-only reference remains, when an Attested Computation
+would lose its computation (a `warning` `computation-locator` finding), when a
+Markdown file could not be read to check its links, when `okf_version` cannot be
+edited in place, when the root index's opening fence is malformed, or when the
+root index frontmatter does not parse (malformed YAML, a duplicate key); the
+rest of the plan still applies. `--only okf-version` and
 `--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
 the positional targets narrow the files, and `--dry-run` (requires `--fix`)
 writes nothing. A fix re-records `x-okfit-integrity.generated.body` for a concept
@@ -517,7 +521,10 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 | `0` | Otherwise |
 
 A usage error (`64`) prints its help and parse errors on stderr and leaves
-stdout empty, so a hook that parses stdout as JSON never sees help text; an
+stdout empty, so a hook that parses stdout as JSON never sees help text;
+under `--format json` a flag the parser rejects also prints one error
+envelope on stdout (`exit_code` `64`, `error.tag` the first parse error's tag,
+the messages joined with `;`), with help still on stderr; an
 explicit `--help` and a bare command group print help on stdout and exit `0`.
 
 Higher wins when several apply; warnings and info never change the exit

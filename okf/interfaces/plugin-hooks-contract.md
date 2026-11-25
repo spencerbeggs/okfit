@@ -7,7 +7,7 @@ resource: ../../plugin/pluginfinity.config.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T11:15:03Z
+  at: 2026-11-25T01:27:40Z
 tags:
   - architecture
 verified:
@@ -25,7 +25,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 7b298745d87960df
+    body: 9b870524a448d41a
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -84,7 +84,7 @@ for a `Write` or `Edit` it runs the same scoped validate, and a
 error](../decisions/non-concept-markdown-is-skipped.md)). One check reads the
 written file itself: when the config sets `actors.agent`, a concept file
 (frontmatter with a top-level `type:`; never `index.md` or `log.md`, and never a typeless file such as a listed
-`README.md`) whose frontmatter has no `generated.by`
+`README.md`; CRLF line endings and a leading BOM read like LF) whose frontmatter has no `generated.by`
 blocks on `Write` and warns on `Edit`, with the exact `by:` value to add
 in the message ([#74](https://github.com/spencerbeggs/okfit/issues/74):
 the okf-authoring rule alone reached 109 of 268 concepts under one
@@ -102,7 +102,9 @@ lists every offender. It is a
 heuristic: exotic writes slip through, which is acceptable because
 `okfit sync` backfills `generated` from `actors.agent`. Copilot's shell
 tool name `bash` is accepted beside `Bash`. A path outside the bundle root never reaches `okfit validate` at
-all (`plugin/README.md:88-112`, `plugin/CLAUDE.md:64-76`). On Copilot, which
+all: the test compares physical paths (an absolute path's directory is
+resolved, the file itself is not, and a relative path is compared as given),
+and `okfit validate` receives the physical path (`plugin/README.md:88-112`, `plugin/CLAUDE.md:64-76`). On Copilot, which
 honours no `PostToolUse` block, the same reason is sent as
 `additionalContext` (`plugin/CLAUDE.md:72-74`). The drift lint costs a git walk
 per concept; measured on this bundle it took validate from about 0.5 s to

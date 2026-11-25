@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-25T01:27:40Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 975ab66042827eb8
+    body: cbf070087fe6943c
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -66,7 +66,9 @@ index body is `okfit sync`'s to write.
 `/` to a root-only reference (the same edit `okfit mv` makes when a bare
 reference stops landing), and it declares `okf_version: "0.3"` in the root
 index, inserting the key or replacing the old scalar and keeping a BOM and
-the file's line endings. Three `migrate` findings are listed with no fix and left to a human or to
+the file's line endings. The report and the fixes cover every Markdown file in
+the bundle that is not a concept (index files, `log.md`, typeless and
+frontmatter-less files), and `index.md` is left byte-identical. Three `migrate` findings are listed with no fix and left to a human or to
 the `okf-upgrade` skill: an unparsable version, the computation locator, and
 an undeclared version when there is no root index. The existing core lints
 that bear on a migration (`verified-before-change`, `legacy-timestamp`,
@@ -78,13 +80,16 @@ narrow or preview a run.
 **The version fix never makes a bundle worse.** It is refused while any
 root-only reference remains after this run, so `--only okf-version` or a
 file target cannot flip a bundle to 0.3 with broken links. It is also
-refused when `okf_version` cannot be edited in place, and when the root
+refused while an Attested Computation would lose its computation, while a
+Markdown file could not be read to check its links, when `okf_version` cannot be edited in place, and when the root
 index's opening fence is not exactly `---`, and when the root index frontmatter
 does not parse (malformed YAML, a duplicate key), each with its reason; the rest
 of the plan still applies. Refusals are listed, not errors. One cost is known:
 a `warning` `computation-locator` finding (a computation that 0.3 would not
-find) stops being reported once the bundle declares 0.3, so `okf-upgrade` stops
-before `--fix` and reports it to the human.
+find) stops being reported once the bundle declares 0.3, so the version fix
+is refused while one exists, and `okf-upgrade` reports it to the human. After
+the bundle declares 0.3, the `computation-missing` lint reports an Attested
+Computation with no computation.
 
 **A link repair keeps the stamp.** OKF v0.3 §5.2 says a link repair does
 not change `generated.at`. When a fixed concept's recorded
