@@ -145,7 +145,8 @@ const soleFenceInner = (body: string): string | undefined =>
 const computationFinding = (concept: LoadedConcept, target: string): MigrationFinding | undefined => {
 	const attested = concept.frontmatter.attested;
 	if (attested === undefined || attested.computation !== undefined) return undefined;
-	const legacy = Bundle.inlineComputation(concept.document, "legacy");
+	// An empty section holds no computation under either reading, as core's computation-missing lint also decides.
+	const legacy = Option.filter(Bundle.inlineComputation(concept.document, "legacy"), (text) => text.trim() !== "");
 	const current = Bundle.inlineComputation(concept.document, "current");
 	if (Option.isNone(legacy) && Option.isNone(current)) return undefined;
 	// Line endings are not content: compare the legacy body with CRLF and lone CR read as LF.

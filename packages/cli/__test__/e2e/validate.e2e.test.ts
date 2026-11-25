@@ -997,6 +997,53 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
+	const PROSE = "okf/computations/prose.md";
+	const proseOnly = (V03_PROJECT[COMPUTATION] as string)
+		.replace(/```sql\n[^`]*```\n/, "Run the query.\n")
+		.replace("## Computation", "# Computation");
+	/** Undeclared with one prose-only computation: the only refusal is the lost computation. */
+	const { [COMPUTATION]: _revenue, ...undeclaredWithout } = UNDECLARED_PROJECT;
+	const refusedSeed = { ...undeclaredWithout, [PROSE]: proseOnly };
+
+	it.effect("the summary counts a refused version fix apart (#498)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-refused-", refusedSeed);
+			const run = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(
+				run.stderr,
+				"OKF 0.3: 2 finding(s), 0 fixable with --fix, 1 refused by --fix (run with --fix --dry-run to see why)",
+			);
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("the summary has no refused part when every fix applies", () =>
+		Effect.gen(function* () {
+			const files = {
+				...UNDECLARED_PROJECT,
+				[COMPUTATION]: (V03_PROJECT[COMPUTATION] as string)
+					.replace("type: Attested Computation", "type: Metric")
+					.replace("runtime: sql\n", "")
+					.replace("attester:\n  resource: /references/attesters/check.py\n", "")
+					.replace("(/metrics/revenue.md)", "(metrics/revenue.md)"),
+			};
+			const sandbox = yield* seed("okfit-validate-notrefused-", files);
+			const run = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.include(run.stderr, "OKF 0.3: 2 finding(s), 2 fixable with --fix");
+			assert.notInclude(run.stderr, "refused");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
+	it.effect("after a refused --fix the re-run summary still says refused, and exit stays 0", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* seed("okfit-validate-refused-fix-", refusedSeed);
+			const run = yield* runOkfit(["validate", "--target", "0.3", "--fix"], sandbox);
+			assert.strictEqual(run.exitCode, 0);
+			assert.include(run.stdout, "refused: index.md:");
+			assert.include(run.stderr, "1 refused by --fix (run with --fix --dry-run to see why)");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+
 	it.effect("rejects every other --target and every flag combination the brief refuses, with exit 64", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* seed("okfit-validate-usage-");

@@ -12,6 +12,7 @@ import {
 	forDiagnostics,
 	json,
 	jsonError,
+	planMigrationFixes,
 	provideConfig,
 	provideDocuments,
 	resolveProjectConfig,
@@ -224,12 +225,20 @@ export const validateCommand = Command.make(
 							yield* Console.log(`Integrity drifted (re-verify with okfit verify): ${fixes.drifts.join(", ")}`);
 						}
 					}
+					// The summary counts what an un-narrowed --fix would refuse, planned over the final bundle (#498).
+					const refused =
+						target === undefined
+							? []
+							: (yield* planMigrationFixes({ bundle: result.bundle, config: merged, target, now })).refused.map(
+									({ file, code }) => ({ file, code }),
+								);
 					yield* printDiagnostics({
 						diagnostics,
 						cwd,
 						bundleRoot,
 						path,
 						concepts: result.bundle.concepts.size,
+						refused,
 						...(target === undefined ? {} : { target }),
 					});
 				}

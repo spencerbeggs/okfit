@@ -300,6 +300,34 @@ describe("migrationFindings", () => {
 		}),
 	);
 
+	describe("an empty Computation section (#497)", () => {
+		const FENCE = /```sql\n[^`]*```\n/;
+		const locatorOf = (text: string) =>
+			findingsOf({ ...UNDECLARED_PROJECT, [COMPUTATION]: text }).pipe(
+				Effect.map(({ found }) => found.filter((f) => f.code === "computation-locator")),
+			);
+		const base = V02_PROJECT[COMPUTATION] as string;
+
+		it.effect("an empty top-level Computation section is not a computation-locator finding (#497)", () =>
+			Effect.gen(function* () {
+				const direct = base.replace(FENCE, "").replace("## Computation\n\n", "# Computation\n# Notes\n\nBody.\n");
+				assert.deepStrictEqual(yield* locatorOf(direct), []);
+				const blank = base.replace(FENCE, "   \n").replace("## Computation", "# Computation");
+				assert.deepStrictEqual(yield* locatorOf(blank), []);
+			}),
+		);
+
+		it.effect("a prose-only section is still a warning beside the empty one", () =>
+			Effect.gen(function* () {
+				const prose = base.replace(FENCE, "Run the query.\n").replace("## Computation", "# Computation");
+				assert.deepStrictEqual(
+					(yield* locatorOf(prose)).map((f) => f.severity),
+					["warning"],
+				);
+			}),
+		);
+	});
+
 	describe("computation-locator line endings (#483)", () => {
 		/** The same concept as a real CRLF file: every line ending, frontmatter included, is CRLF. */
 		const crlf = (text: string): string => text.replace(/\n/g, "\r\n");

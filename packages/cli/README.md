@@ -91,7 +91,9 @@ the bundle (`root-relative-path`) and a Computation section read by a different 
 (`computation-locator`). Only `"0.3"`, the version this okfit implements, is
 accepted; any other value is a usage error (exit `64`). The findings print in
 the normal per-file list, stderr ends with `OKF 0.3: <n> finding(s), <k>
-fixable with --fix`, and they never change the exit code; the human counts
+fixable with --fix`, plus `, <r> refused by --fix (run with --fix --dry-run to see why)` when an
+un-narrowed `--fix` would refuse a finding that carries a fix (`<k>` leaves those out), and they never change the
+exit code, not even after a refused `--fix`; the human counts
 line leaves them out and `summary.migration_findings` carries the count.
 
 `--fix` (requires `--target`; refused with `--document`) writes the two safe
@@ -101,7 +103,7 @@ the bundle root (`/path`). `--only okf-version` or `--only root-relative-path`
 file, and `--dry-run` (requires `--fix`) writes nothing. The version fix is
 refused while any root-only reference remains unfixed, while any
 Attested Computation would have no computation under 0.3 (a `warning`
-`computation-locator`), and while a Markdown file has unclosed or unparseable
+`computation-locator`; an empty `Computation` section is not one, so it does not hold the version back), and while a Markdown file has unclosed or unparseable
 frontmatter, so its links could not be checked (one `refused:` line per cause), and a concept still
 using okfit's old key names is refused until `okfit sync` renames them. Output opens with
 `Fixed <n> finding(s) in <m> file(s)` (`Would fix` under `--dry-run`), a

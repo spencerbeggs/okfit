@@ -150,6 +150,34 @@ describe("migration fixes", () => {
 				}).pipe(Effect.provide(on(lostSeed))),
 		);
 
+		it.effect("declares the version over an empty Computation section (#497)", () =>
+			Effect.gen(function* () {
+				const seed: ProjectSeed = {
+					...lostSeed,
+					[PROSE]: (V03_PROJECT[COMPUTATION] as string)
+						.replace(FENCE, "")
+						.replace("## Computation\n\n", "# Computation\n# Notes\n\nBody.\n"),
+				};
+				const plan = yield* planIn(seed);
+				assert.deepStrictEqual(plan.refused, []);
+				const index = plan.edits.find((e) => e.path === "index.md");
+				assert.deepStrictEqual(index?.fixes, ["okf-version"]);
+			}),
+		);
+
+		it.effect("the lost-computation refusal names the hand edit (#502)", () =>
+			Effect.gen(function* () {
+				const plan = yield* planIn(lostSeed);
+				const reason = plan.refused[0]?.reason ?? "";
+				assert.isTrue(
+					reason.endsWith(
+						'To keep a prose-only Computation section anyway, set okf_version: "0.3" in index.md by hand; the lint computation-missing then reports each one',
+					),
+					reason,
+				);
+			}),
+		);
+
 		it.effect("an info computation-locator does not hold the version fix back", () =>
 			Effect.gen(function* () {
 				const seed: ProjectSeed = {
