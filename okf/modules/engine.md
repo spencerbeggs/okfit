@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:33:06Z
+  at: 2026-11-25T01:55:51Z
 x-okfit-integrity:
   generated:
-    body: 36c7bf24d8a52bad
+    body: df06b51283f0d507
 ---
 
 # Engine
@@ -166,7 +166,7 @@ forward](../decisions/stale-verify.md).
 
 ## Migration report and fixes
 
-`migrate/findings.ts` holds `migrationFindings(bundle, config, target, others)`, where `others` are the bundle's non-concept Markdown sources: five codes
+`migrate/findings.ts` holds `migrationFindings(bundle, config, target, others?)`, where the optional `others` (default `[]`) are the bundle's non-concept Markdown sources: five codes
 (`okf-version-undeclared`, `okf-version-older`, `okf-version-unparsable`,
 `root-relative-path`, `computation-locator`), found by resolving each
 reference under both fallback rules, in every Markdown file of the bundle that is not a concept; `computation-locator` appears only while

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T01:33:06Z
+  at: 2026-11-25T01:55:51Z
 tags:
   - architecture
 verified:
@@ -43,7 +43,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: bcf8a52bac34f503
+    body: 242ae93f96296d3f
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -524,10 +524,10 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 
 A usage error (`64`) prints its help and parse errors on stderr and leaves
 stdout empty, so a hook that parses stdout as JSON never sees help text;
-under `--format json` a usage error the argument parser raises (an unknown
+when the arguments hold `--format json` or `--format=json` before any `--`, a usage error the argument parser raises (an unknown
 flag or subcommand, a bad or missing flag value) also prints one error
 envelope on stdout (`exit_code` `64`, `error.tag` the first parse error's tag,
-the messages joined with `;`), with help still on stderr; an
+the messages joined with a semicolon and a space), with help still on stderr; an
 explicit `--help` and a bare command group print help on stdout and exit `0`.
 
 Higher wins when several apply; warnings and info never change the exit
