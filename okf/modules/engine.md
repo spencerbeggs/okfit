@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:25:12Z
+  at: 2026-11-25T04:35:04Z
 x-okfit-integrity:
   generated:
-    body: 5c77c3a290771e04
+    body: 3ceb30b769b51cbc
 ---
 
 # Engine
@@ -97,7 +97,7 @@ bound entry is a current event by OKF v0.3 §5.3, so batch and the picker re-off
 its last change included. `stale --verify`'s candidates come from staleness
 alone (`selectStaleCandidates` never consults integrity). `runVerify` refuses a write that would not be current: `--at` before
 `generated.at`, or a `generated.at` in the future, fails with
-`VerifyNotCurrentError` (exit `3`); its `kind` is `future` when `generated.at` is more than five minutes later than the run's `now`, `near-future` when it is later by less than that, and absent when `now` is not given or `--at` was backdated, and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentAt` skips it with the reason `not-current` (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return its id in `leftOut`, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
+`VerifyNotCurrentError` (exit `3`); its `kind` is `future` when `generated.at` is more than five minutes later than the run's `now`, `near-future` when it is later by less than that, and absent when `now` is not given or `generated.at` is not later than `now` (only `--at` is early), and the message differs for each. `runVerifyBatch`, `runVerifyIds` and both pickers do not fail on such a concept: `select.ts#notCurrentAt` skips it with the reason `not-current` (`skipped` of `runVerifyIds` is in the order the ids were given), `loadPickerCandidates` and `loadStaleCandidates` drop the row and return its id in `leftOut`, and an id list where every concept is not current writes nothing and succeeds (#470). `verify/revoke.ts` implements
 `--revoke`: it removes the current actor's own `verified` entries, clears
 `x-okfit-integrity.verified` when it was bound to one of them (and `x-okfit-integrity`
 when empty), removes the `verified` key when its list empties, and reports
@@ -240,10 +240,11 @@ binds its latest human entry and covers exactly the current content
 the verification current under OKF v0.3 §5.3; the `[actors].humans`
 allow-list does not gate it, and a concept whose body digest is unchanged is
 never rewritten, except for a `generated.at` more than five minutes later than the
-run's `now`, which `SyncOptions.now` makes sync re-stamp to now (#471). No stamp sync
-writes is later than `now`, and it declines a re-stamp or a clamp that would make a
+run's `now`, which `SyncOptions.now` makes sync re-stamp to now (#471). A drifted
+concept's stamp is clamped to `now`. Sync declines a re-stamp that would make a
 verification count, reporting the concept in `skipped` as `verified-after-now` with
-the stamp and that verification's date. Sync keeps a leading byte-order mark when it
+the stamp and that verification's date; a clamp that would make one count is not
+applied, the derived stamp stands and the lint `generated-at-future` reports it. Sync keeps a leading byte-order mark when it
 rewrites `index.md` or `log.md`. Staged mode never
 walks history: its log mode reads the staged concepts' provenance from
 the index (the stamp instant; `Added` when `git show HEAD:<path>` finds

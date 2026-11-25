@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-25T04:25:12Z
+  at: 2026-11-25T04:35:04Z
 status: stable
 verified:
   - by: human:spencer
@@ -17,7 +17,7 @@ verified:
     at: 2026-11-24T06:53:02Z
 x-okfit-integrity:
   generated:
-    body: 78bf98ea3723946e
+    body: 5c12229db244cf90
   verified:
     by: human:spencer
     at: 2026-11-24T06:53:02Z
@@ -50,15 +50,17 @@ that it stamps the earlier `binding.at` when a human verification of exactly
 the current content is bound (see [Every okfit digest lives in one integrity
 family](integrity-family.md)).
 
-`okfit sync` also never writes a `generated.at` later than now, and it re-stamps one
-that is more than five minutes later than now to now (whole seconds), even behind a
-matching digest (#471). That is the one exception to an authoritative stamp never
+`okfit sync` also re-stamps a `generated.at` that is more than five minutes later than
+now to now (whole seconds), even behind a matching digest, and clamps a drifted
+concept's new stamp to now when the commit's author date is later than now (#471). That is the one exception to an authoritative stamp never
 being rewritten: a stamp that far ahead comes from a skewed clock or a hand edit, no
 verification can count against it (OKF v0.3 §5.3), and five minutes is the allowance
-for ordinary clock skew. Sync never makes a verification count: when the re-stamp, or
-the clamp of a drifted concept's stamp to now, would make a verification dated between
-now and the stamp current, sync leaves the stamp, reports the concept as skipped
-(`verified-after-now`) and a human corrects `generated.at` or that verification. The
+for ordinary clock skew. Sync never makes a verification count. When the re-stamp would make a verification
+dated between now and the stamp current, sync leaves the stamp, reports the concept
+as skipped (`verified-after-now`) and a human corrects `generated.at` or that
+verification. When the clamp would, sync writes the derived stamp unclamped and
+reports nothing on that run; the lint `generated-at-future` reports it once it is
+more than five minutes ahead, and a later sync then skips it as `verified-after-now`. The
 owner accepted the cost: a concept whose repair is blocked has no okfit repair and
 needs a human.
 
