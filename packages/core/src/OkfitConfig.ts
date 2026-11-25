@@ -526,15 +526,16 @@ export const LintTable = Schema.Struct({
  * braces are counted by depth. A stray `]` or `}` is literal text.
  */
 const unclosedGlobMessage = (glob: string): string | undefined => {
-	let depth = 0;
-	let classStart = -1;
-	let firstMember = -1;
+	let depth = 0; // open `{` groups outside any class
+	let classStart = -1; // index of the open `[`, or -1 when not inside a class
+	let firstMember = -1; // index of the class's first member: a `]` before it is a member, not the close
 	for (let i = 0; i < glob.length; i++) {
 		const ch = glob[i];
 		if (ch === "\\") {
 			i++;
 		} else if (classStart >= 0) {
 			if (ch === "[" && glob[i + 1] === ":") {
+				// `[:name:]` is one unit: skip past its closing `:]` when it is well formed.
 				let j = i + 2;
 				while (j < glob.length && /[a-z]/.test(glob[j] ?? "")) j++;
 				if (j > i + 2 && glob[j] === ":" && glob[j + 1] === "]") i = j + 1;

@@ -470,7 +470,7 @@ help and the error on stderr and leaves stdout empty. When the arguments ask for
 `--format json` (a `--format json` pair or a `--format=json` token), stdout
 carries one error envelope instead: `exit_code` `64`, `error.tag` the first
 parse error's tag (`InvalidValue`, `UnrecognizedOption`, ...), and `error.message`
-the errors' messages joined with `;`. An explicit `--help` prints help on
+the errors' messages joined with a semicolon and a space. An explicit `--help` prints help on
 stdout and no envelope.
 
 `okfit context` never produces `1` or `2`: it prints orientation data and

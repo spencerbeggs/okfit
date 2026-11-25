@@ -216,11 +216,6 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	const version = selected.find((finding) => finding.fix === "okf-version");
 	if (version !== undefined) {
 		const refuseVersion = (reason: string) => refused.push({ file: version.file, code: version.code, reason });
-		if (remaining > 0) {
-			refuseVersion(
-				`${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`,
-			);
-		}
 		// A computation the target would not read stays lost once the version is declared, and the locator finding
 		// stops being reported then, so the version waits for the author: wherever the concept is, whatever is selected.
 		const lost = [
@@ -230,18 +225,21 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 					.map((finding) => finding.file),
 			),
 		].sort();
-		if (lost.length > 0) {
-			refuseVersion(
-				`${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again`,
-			);
-		}
-		// A Markdown file whose links could not be scanned may hold a root-only link the report never saw.
-		if (unreadable.length > 0) {
-			refuseVersion(
-				`${unreadable.length} Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): ${unreadable.join(", ")}; fix them first`,
-			);
-		}
-		if (remaining === 0 && lost.length === 0 && unreadable.length === 0) {
+		// Each cause refuses on its own, so one run names every reason the version cannot be declared yet.
+		const causes = [
+			remaining > 0
+				? `${remaining} reference(s) still resolve only from the bundle root; fix them first or run without --only/targets`
+				: undefined,
+			lost.length > 0
+				? `${lost.length} Attested Computation(s) would have no computation under OKF ${target} (§10.3): ${lost.join(", ")}; put each computation in a fenced block or set computation, then fix again`
+				: undefined,
+			// A Markdown file whose links could not be scanned may hold a root-only link the report never saw.
+			unreadable.length > 0
+				? `${unreadable.length} Markdown file(s) could not be read to check their links (unclosed or unparseable frontmatter): ${unreadable.join(", ")}; fix them first`
+				: undefined,
+		].filter((cause) => cause !== undefined);
+		for (const cause of causes) refuseVersion(cause);
+		if (causes.length === 0) {
 			// A frontmatter the loader already could not read (malformed YAML, a duplicate key) is never edited: a splice
 			// would leave a file that still does not parse.
 			const loadError = bundle.diagnostics.find((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unparseable");
