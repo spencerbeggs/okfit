@@ -298,6 +298,76 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 
 	it(
+		"bare verify --at more than 5 minutes ahead is refused (64) before the picker mounts, nothing written (#503)",
+		async () => {
+			const { sandbox, env, files } = await verifyFixture();
+			try {
+				const before = await Promise.all(files.map((file) => readFile(file, "utf8")));
+				// control: without --at the same run mounts the picker (and Esc cancels)
+				const control = await runPty(["verify", "--human", "--dry-run"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: "Attest which concepts?", send: KEYS.esc }],
+				});
+				assert.strictEqual(control.exitCode, 130, control.output);
+
+				// OKFIT_NOW is 2026-10-09T12:00:00Z: five minutes and one second ahead
+				const refused = await runPty(["verify", "--human", "--at", "2026-10-09T12:05:01Z"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [],
+				});
+				assert.strictEqual(refused.exitCode, 64, refused.output);
+				assert.include(refused.output, "--at 2026-10-09T12:05:01Z is more than 5 minutes later than now;");
+				assert.notInclude(refused.output, "Attest which concepts?");
+				assert.deepStrictEqual(await Promise.all(files.map((file) => readFile(file, "utf8"))), before);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"verify <id> on a drifted concept with --at more than 5 minutes ahead is refused (64) with no diff and no prompt (#503)",
+		async () => {
+			const { sandbox, env, files } = await verifyFixture();
+			try {
+				const file = files[0] as string;
+				await initRepo(sandbox.cwd, env);
+				await commit(sandbox.cwd, { message: "scaffold", authoredAt: "2026-10-01T00:00:00+00:00" }, env);
+				const first = await runPty(["verify", "decisions/a", "--human"], { cwd: sandbox.cwd, env, steps: [] });
+				assert.strictEqual(first.exitCode, 0, first.output);
+				await writeFile(file, `${await readFile(file, "utf8")}\nAn edit after the verification.\n`, "utf8");
+				const drifted = await readFile(file, "utf8");
+
+				// control: a time within the tolerance reaches the diff and the prompt
+				const control = await runPty(["verify", "decisions/a", "--human", "--at", "2026-10-09T12:05:00Z"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: /Re-verify decisions\/a\?/, send: `n${KEYS.enter}` }],
+				});
+				assert.strictEqual(control.exitCode, 0, control.output);
+				assert.match(control.output, /\+An edit after the verification\./);
+
+				const refused = await runPty(["verify", "decisions/a", "--human", "--at", "2026-10-09T12:05:01Z"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [],
+				});
+				assert.strictEqual(refused.exitCode, 64, refused.output);
+				assert.include(refused.output, "--at 2026-10-09T12:05:01Z is more than 5 minutes later than now;");
+				assert.notMatch(refused.output, /Re-verify/);
+				assert.notMatch(refused.output, /\+An edit after the verification\./);
+				assert.strictEqual(await readFile(file, "utf8"), drifted);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
 		"verify picker with a drifted concept previews its diff (a @@ hunk) before Enter; the pick still attests",
 		async () => {
 			const { sandbox, env, files } = await verifyFixture();

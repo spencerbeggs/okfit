@@ -779,7 +779,12 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 					runVerify({ ...base(root, at), ...(withNow ? { now } : {}), id: "decisions/a" }).pipe(
 						Effect.provide(platform),
 					);
-				// the boundary: exactly now + 5 minutes writes, one second more is refused
+				// the boundary: exactly now + 5 minutes passes the guard (a dry run, so nothing is written)
+				yield* runVerify({ ...base(root, "2026-09-16T12:05:00Z"), dryRun: true, now, id: "decisions/a" }).pipe(
+					Effect.provide(platform),
+				);
+				assert.strictEqual(yield* read(root, "decisions/a.md"), before);
+				// one second more is refused
 				const refused = yield* Effect.flip(call("2026-09-16T12:05:01Z", true));
 				assert.strictEqual(refused._tag, "VerifySelectionError");
 				assert.strictEqual((refused as VerifySelectionError).reason, "at-future");

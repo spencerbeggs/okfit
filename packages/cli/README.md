@@ -288,7 +288,7 @@ identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 `--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
 different instant. An `--at` more than 5 minutes later than now is a usage error (exit `64`, also with `--dry-run`
-and `--format json`), refused before anything is loaded or any picker opens; exactly 5 minutes ahead is accepted, and a
+and `--format json`), refused before anything is loaded for a write and before any picker opens; exactly 5 minutes ahead is accepted, and a
 malformed `--at` stays exit `3`. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
@@ -297,7 +297,8 @@ equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of s
 `left out <id>: ...` line per concept with the same step: `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
 the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
-file. Exit `0` on success (a dry run included), `3` on any failure.
+file. Exit `0` on success (a dry run included), `3` on a verification failure, `64` on a usage error (an unknown target,
+a contradictory selection, an `--at` more than 5 minutes ahead).
 
 The write goes through a temp file and an atomic rename, and the target's
 mode is preserved on the replacement. A concept without write permission is
