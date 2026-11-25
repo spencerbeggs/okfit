@@ -296,12 +296,10 @@ export const computationMissing: LintRule = rule("computation-missing", (context
 					node.position.end.offset - node.position.start.offset,
 				),
 		});
+		const legacy = OkfVersion.legacyFallbacks(context.bundle);
 		// Under the 0.2 reading only a depth-1 Computation section counts, so a deeper-only heading is a different defect.
 		const nestedOnly =
-			OkfVersion.legacyFallbacks(context.bundle) &&
-			Option.isSome(heading) &&
-			Option.isNone(concept.document.sectionByHeading("Computation", { depth: 1 }));
-		const legacy = OkfVersion.legacyFallbacks(context.bundle);
+			legacy && Option.isSome(heading) && Option.isNone(concept.document.sectionByHeading("Computation", { depth: 1 }));
 		const message = nestedOnly
 			? "This Attested Computation has no computation: under OKF 0.2 the Computation section must be a top-level heading, and this one is not, so it is not attestable; make it a top-level heading, or declare okf_version 0.3 and put the computation in one fenced block"
 			: Option.isSome(heading)

@@ -53,7 +53,7 @@ import { DateTime, Effect, Option, Result } from "effect";
 import type { Digest } from "effect/crypto";
 import { URI_OPTIONS } from "../convert/platform.js";
 import type { LspTransportShape } from "../protocol/LspTransport.js";
-import type { CodeAction, CodeActionParams, Position, Range } from "../protocol/types.js";
+import type { CodeAction, CodeActionParams, Position, Range, TextEdit } from "../protocol/types.js";
 import { CODE_ACTION_KIND_QUICKFIX } from "../protocol/types.js";
 import type { OpenDocuments } from "../session/documents.js";
 import type { SessionHandle, SessionRegistryShape } from "../session/registry.js";
@@ -163,15 +163,27 @@ export const registerCodeActions = (
 				})),
 			);
 
-		/** A verify action that cannot be offered, with `failure`'s own text as the reason; no `edit`, no `command`. */
-		const disabledVerify = (title: string, failure: EditFailure): CodeAction => ({
-			title,
-			kind: "okfit.verify",
-			disabled: { reason: describeFailure(failure) },
-		});
-		/** Whether a failure is one the editor can explain: an unknown status or a `generated.at` the entry would not count against. */
-		const explainable = (failure: EditFailure): boolean =>
-			failure._tag === "UnknownStatusCannotBeVerified" || failure._tag === "NotCurrent";
+		/**
+		 * The verify action `edits` yields. A failure the editor can explain (an unknown status, or a `generated.at` the
+		 * entry would not count against) becomes, with `disabledSupport`, a disabled action: no `edit`, no `command`, and
+		 * the failure's own text as the reason. Any other failure yields no action.
+		 */
+		const verifyAction = (
+			uri: string,
+			target: EditTarget,
+			title: string,
+			edits: Effect.Effect<ReadonlyArray<TextEdit>, EditFailure, Digest.Digest>,
+			disabledSupport: boolean,
+		): Effect.Effect<Option.Option<CodeAction>, never, Digest.Digest> =>
+			Effect.map(Effect.result(edits), (result): Option.Option<CodeAction> => {
+				if (Result.isSuccess(result)) {
+					return Option.some({ title, kind: "okfit.verify", edit: versionedEdit(uri, target, result.success) });
+				}
+				const { failure } = result;
+				return disabledSupport && (failure._tag === "UnknownStatusCannotBeVerified" || failure._tag === "NotCurrent")
+					? Option.some({ title, kind: "okfit.verify", disabled: { reason: describeFailure(failure) } })
+					: Option.none();
+			});
 
 		yield* transport.onRequest<CodeActionParams, ReadonlyArray<CodeAction>>("textDocument/codeAction", (params) =>
 			Effect.gen(function* () {
@@ -239,13 +251,14 @@ export const registerCodeActions = (
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;
-						const title = `Mark verified by ${actor.value} and set status: stable`;
-						const edits = yield* Effect.result(verifiedStableTextEdits(target, actor.value, now));
-						if (Result.isSuccess(edits)) {
-							actions.push({ title, kind: "okfit.verify", edit: versionedEdit(uri, target, edits.success) });
-						} else if (disabledSupport && explainable(edits.failure)) {
-							actions.push(disabledVerify(title, edits.failure));
-						}
+						const action = yield* verifyAction(
+							uri,
+							target,
+							`Mark verified by ${actor.value} and set status: stable`,
+							verifiedStableTextEdits(target, actor.value, now),
+							disabledSupport,
+						);
+						if (Option.isSome(action)) actions.push(action.value);
 					}
 				}
 
@@ -259,13 +272,14 @@ export const registerCodeActions = (
 					const actor = yield* actorFor(target.handle);
 					if (Option.isSome(actor)) {
 						const now = yield* DateTime.now;
-						const title = `Mark verified by ${actor.value}`;
-						const edits = yield* Effect.result(verifiedTextEdits(target, actor.value, now));
-						if (Result.isSuccess(edits)) {
-							actions.push({ title, kind: "okfit.verify", edit: versionedEdit(uri, target, edits.success) });
-						} else if (disabledSupport && explainable(edits.failure)) {
-							actions.push(disabledVerify(title, edits.failure));
-						}
+						const action = yield* verifyAction(
+							uri,
+							target,
+							`Mark verified by ${actor.value}`,
+							verifiedTextEdits(target, actor.value, now),
+							disabledSupport,
+						);
+						if (Option.isSome(action)) actions.push(action.value);
 					}
 				}
 

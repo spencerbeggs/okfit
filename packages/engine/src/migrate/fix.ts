@@ -13,7 +13,7 @@ import { bomOf, writeAtomic } from "../sync/write.js";
 import { detectNewline, documentNewline, locateTopLevelScalar, stripBom } from "../verify/locate.js";
 import { quoteLike } from "../verify/splice.js";
 import type { MigrationCode, MigrationFinding, MigrationFixKind } from "./findings.js";
-import { ROOT_INDEX, migrationFindings } from "./findings.js";
+import { ROOT_INDEX, migrationFindings, rootIndexUnclosed } from "./findings.js";
 
 /**
  * What to fix and how far. `files` are bundle-relative paths already resolved by the caller (absent: the whole
@@ -230,7 +230,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 		].sort();
 		// Each cause refuses on its own, so one run names every reason the version cannot be declared yet.
 		// An unclosed root index has no closing fence to splice before, so it gets its own reason instead of the generic one.
-		const unclosedRoot = bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed");
+		const unclosedRoot = rootIndexUnclosed(bundle);
 		const unreadableHere = unclosedRoot ? unreadable.filter((file) => file !== ROOT_INDEX) : unreadable;
 		const causes = [
 			remaining > 0

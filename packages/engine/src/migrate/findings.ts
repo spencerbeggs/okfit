@@ -60,10 +60,18 @@ const versionRange = (frontmatter: string | undefined): DiagnosticRange | undefi
 	return DiagnosticRange.make({ offset, length: value.trim().length, line: at + 1, character });
 };
 
+/**
+ * Whether the root index opens a frontmatter block that never closes; the loader then does not load it, though it exists.
+ *
+ * @internal
+ */
+export const rootIndexUnclosed = (bundle: LoadedBundle): boolean =>
+	bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed");
+
 const versionFindings = (bundle: LoadedBundle, target: string): ReadonlyArray<MigrationFinding> => {
 	const root = bundle.indexes.get("");
 	const declared = OkfVersion.declared(bundle);
-	const unclosedRoot = bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed");
+	const unclosedRoot = rootIndexUnclosed(bundle);
 	if (Option.isNone(declared)) {
 		return [
 			{

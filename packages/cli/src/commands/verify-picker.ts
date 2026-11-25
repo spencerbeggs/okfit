@@ -114,11 +114,8 @@ export const pickConcepts = (
 	Effect.gen(function* () {
 		const { by, candidates, leftOut } = yield* source.load;
 		for (const entry of leftOut) {
-			yield* Console.log(
-				entry.notCurrent === undefined
-					? `left out ${entry.id}: ${entry.reason}`
-					: `left out ${entry.id}: ${notCurrentReason(entry.notCurrent)}`,
-			);
+			const why = entry.notCurrent === undefined ? entry.reason : notCurrentReason(entry.notCurrent);
+			yield* Console.log(`left out ${entry.id}: ${why}`);
 		}
 		if (candidates.length === 0) {
 			// Rows that exist but were all left out: the source's "nothing to do" wording would be false.

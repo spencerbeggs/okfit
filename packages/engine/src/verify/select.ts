@@ -47,6 +47,17 @@ export interface VerifySkip {
 }
 
 /**
+ * The `unknown-status` skip for a concept, carrying its raw `status`.
+ *
+ * @internal
+ */
+export const unknownStatusSkip = (id: string, concept: LoadedConcept): VerifySkip => ({
+	id,
+	reason: "unknown-status",
+	status: Derive.rawStatus(concept.frontmatter) ?? "",
+});
+
+/**
  * The outcome of {@link selectAttestable}.
  *
  * @public
@@ -142,7 +153,7 @@ export const selectAttestable = (
 		if (!types.has(concept.frontmatter.type) && !drifted) continue;
 		const status = Derive.status(concept.frontmatter);
 		if (status === "unknown") {
-			skipped.push({ id, reason: "unknown-status", status: Derive.rawStatus(concept.frontmatter) ?? "" });
+			skipped.push(unknownStatusSkip(id, concept));
 			continue;
 		}
 		if (status === "draft" || status === "deprecated") {

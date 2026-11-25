@@ -27,6 +27,7 @@ import {
 	selectAttestable,
 	selectPickerCandidates,
 	selectStaleCandidates,
+	unknownStatusSkip,
 } from "./select.js";
 import { orderVerifyEdits, quoteLike, splice, spliceTopLevelScalar } from "./splice.js";
 
@@ -691,7 +692,7 @@ export const runVerifyIds = Effect.fn("okfit/verify/runVerifyIds")(function* (op
 		// An unknown status is never verified here: skip it (#507), before the not-current check, so it is never
 		// written. `okfit verify <one id>` still refuses it, through `runVerify`.
 		if (Derive.status(concept.frontmatter) === "unknown") {
-			skipped.push({ id, reason: "unknown-status", status: Derive.rawStatus(concept.frontmatter) ?? "" });
+			skipped.push(unknownStatusSkip(id, concept));
 			continue;
 		}
 		// A concept whose `generated.at` is later than `at` cannot be verified now: skip it, verify the rest.
