@@ -1,5 +1,6 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
 import { Derive } from "@okfit/core";
+import { escapesBundle } from "@okfit/engine";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
 import { loadToolContext } from "../internal/toolContext.js";
@@ -23,6 +24,11 @@ import { loadToolContext } from "../internal/toolContext.js";
  * until the server restarts, though editing an already-listed concept's
  * file is picked up live, since `content` re-reads the file from disk on
  * every read (same complete text `get_concept`'s `raw` field returns).
+ * Each read also re-checks containment (OKF 0.3 section 3.2) through the
+ * engine's `escapesBundle`: a file, or a directory above it, that now
+ * links out of the bundle (or dangles) is refused with
+ * `<path> links out of the bundle` and never read; a link that stays
+ * inside is served.
  *
  * If the bundle fails to load at boot (bad config, missing bundle root),
  * one line is logged and this layer contributes no resources — the
@@ -46,6 +52,7 @@ export const ConceptResources = (
 			const ctx = yield* loadToolContext(projectRoot);
 			const path = yield* Path.Path;
 			const fs = yield* FileSystem.FileSystem;
+			const services = yield* Effect.context<FileSystem.FileSystem | Path.Path>();
 			const resourceLayers = [...ctx.bundle.concepts.entries()].map(([id, concept]) => {
 				const uri = `okf://concept/${id}`;
 				const absolutePath = path.join(ctx.bundleRoot, concept.path);
@@ -54,12 +61,20 @@ export const ConceptResources = (
 					name: id,
 					description: Derive.title(concept),
 					mimeType: "text/markdown",
-					content: fs.readFileString(absolutePath).pipe(
-						Effect.map((text) => ({ contents: [{ uri, mimeType: "text/markdown", text }] })),
-						Effect.mapError(
-							() => new McpSchema.InternalError({ message: `no readable concept file at ${absolutePath}` }),
-						),
-					),
+					content: Effect.gen(function* () {
+						const escapes = yield* escapesBundle(ctx.bundle, concept.path).pipe(Effect.orElseSucceed(() => true));
+						if (escapes) {
+							return yield* new McpSchema.InternalError({ message: `${concept.path} links out of the bundle` });
+						}
+						const text = yield* fs
+							.readFileString(absolutePath)
+							.pipe(
+								Effect.mapError(
+									() => new McpSchema.InternalError({ message: `no readable concept file at ${absolutePath}` }),
+								),
+							);
+						return { contents: [{ uri, mimeType: "text/markdown", text }] };
+					}).pipe(Effect.provide(services)),
 				});
 			});
 			return resourceLayers.reduce(

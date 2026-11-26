@@ -49,7 +49,7 @@ src/
     staleReport.ts
     validateBundle.ts
   resources/
-    conceptResource.ts         -- okf://concept/<id>, one static resource per concept at boot
+    conceptResource.ts         -- okf://concept/<id>, one static resource per concept at boot; re-checks containment per read
     indexResource.ts           -- okf://index, re-read from disk on every call
   internal/
     projectRoot.ts             -- resolveMcpProjectRoot(env, cwd): @effected/kit's
@@ -88,8 +88,12 @@ parametric segment cannot span the `/` every nested concept id contains, so
 each concept gets its own fixed URI instead. Editing an already-listed
 concept's file is picked up live, since `content` re-reads it from disk on
 every call; a concept added or removed after boot is not reflected in
-`resources/list` until the server restarts. There is no completion, since a
-fixed list needs none.
+`resources/list` until the server restarts. Each read also calls the engine's
+`escapesBundle` on the concept's path (the platform services captured at layer
+build, as `IndexResource` does): a file, or a directory above it, that now
+links out of the bundle or dangles is refused with `<path> links out of the
+bundle` and never read, whenever the link appeared. There is no completion,
+since a fixed list needs none.
 
 ## Errors reach the wire as `isError`
 

@@ -142,6 +142,90 @@ describe("resources", () => {
 		);
 	});
 
+	describe("a concept file that links out of the bundle after boot (OKF 0.3 section 3.2)", () => {
+		/** Runs `swap(bundleRoot, outside)` on the real disk after the server booted, then reads `uri`. */
+		const readAfter = (
+			uri: string,
+			swap: (fs: FileSystem.FileSystem, bundle: string, outside: string) => Effect.Effect<void, unknown>,
+		) =>
+			Effect.gen(function* () {
+				const { root, harness } = yield* open();
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const outside = yield* fs.makeTempDirectoryScoped();
+					yield* swap(fs, join(root, "bundle"), outside);
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const refused = yield* harness.sendRequest("resources/read", { uri });
+				return { harness, refused, root };
+			});
+
+		const secretFile = (fs: FileSystem.FileSystem, outside: string, text: string) =>
+			fs.writeFileString(`${outside}/revenue.md`, text);
+
+		it.effect("refuses a concept replaced by a link out of the bundle, and serves an unchanged one (#460)", () =>
+			Effect.gen(function* () {
+				const { harness, refused, root } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* secretFile(fs, outside, "SECRET OUTSIDE CONCEPT");
+						yield* fs.remove(`${bundle}/metrics/revenue.md`);
+						yield* fs.symlink(`${outside}/revenue.md`, `${bundle}/metrics/revenue.md`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.notInclude(JSON.stringify(refused), "SECRET OUTSIDE CONCEPT");
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+				const churn = yield* harness.readResource("okf://concept/metrics/churn");
+				assert.strictEqual(churn.contents[0]?.text, readFileSync(join(root, "bundle", "metrics", "churn.md"), "utf8"));
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept whose directory was replaced by a link out of the bundle (#460)", () =>
+			Effect.gen(function* () {
+				const { harness, refused, root } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* secretFile(fs, outside, "SECRET OUTSIDE DIR");
+						yield* fs.rename(`${bundle}/metrics`, `${bundle}/metrics.moved`);
+						yield* fs.symlink(outside, `${bundle}/metrics`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.notInclude(JSON.stringify(refused), "SECRET OUTSIDE DIR");
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+				const orders = yield* harness.readResource("okf://concept/tables/orders");
+				assert.strictEqual(orders.contents[0]?.text, readFileSync(join(root, "bundle", "tables", "orders.md"), "utf8"));
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept replaced by a dangling link (#460)", () =>
+			Effect.gen(function* () {
+				const { refused } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* fs.remove(`${bundle}/metrics/revenue.md`);
+						yield* fs.symlink(`${outside}/missing.md`, `${bundle}/metrics/revenue.md`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("still serves a concept replaced by a link to another file inside the bundle (control)", () =>
+			Effect.gen(function* () {
+				const { root, harness } = yield* open();
+				const expected = readFileSync(join(root, "bundle", "metrics", "revenue.md"), "utf8");
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const bundle = join(root, "bundle");
+					yield* fs.copyFile(`${bundle}/metrics/revenue.md`, `${bundle}/real-revenue.md`);
+					yield* fs.remove(`${bundle}/metrics/revenue.md`);
+					yield* fs.symlink(`${bundle}/real-revenue.md`, `${bundle}/metrics/revenue.md`);
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const result = yield* harness.readResource("okf://concept/metrics/revenue");
+				assert.strictEqual(result.contents[0]?.text, expected);
+			}).pipe(Effect.scoped),
+		);
+	});
+
 	it.effect("boots with only okf://index listed when the bundle fails to load", () =>
 		Effect.gen(function* () {
 			const { harness } = yield* open("missing-bundle");

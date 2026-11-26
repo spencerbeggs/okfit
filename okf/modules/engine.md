@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T04:59:05Z
+  at: 2026-11-26T05:42:05Z
 x-okfit-integrity:
   generated:
-    body: c415f550d05a2155
+    body: 03aedb934f3f12e9
 ---
 
 # Engine
@@ -290,10 +290,13 @@ returns it in `skipped` with the reason `index-unparseable`, in every run,
 with the exit code unchanged (`syncLog` already does the same for `log.md`
 with `log-unparseable`). `confinement.ts#escapesBundle` (exported, with its
 bundle-free core `escapesRoot`) asks core's load diagnostics first and falls
-back to `lstat` plus `confineReal`, which also answers for a link that
-appeared after the load. `okfit context` and the MCP
-`okf://index` resource use the same check, so an escaping root `index.md` is
-reported absent and never read. `sync --staged` never stamps a concept file
+back to `escapesRoot`, which answers for a link that appeared after the load:
+a missing file is not an escape, and otherwise `confineReal` judges the whole
+path, so a link at the file or at any directory above it that leads out, or
+dangles, counts. `okfit context` and the MCP `okf://index` resource use the
+same check, so an escaping root `index.md` is reported absent and never read;
+the MCP `okf://concept/<id>` resources run it on every read, so a concept
+file (or a directory above it) swapped for a link out after boot is refused. `sync --staged` never stamps a concept file
 that is a symlink out of the bundle, because core does not load one, and it
 skips an escaping `log.md` instead of failing;
 `ConceptOutsideRepositoryError` still covers a concept that resolves outside

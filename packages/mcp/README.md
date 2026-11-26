@@ -49,7 +49,10 @@ or `.config/okfit.toml`.
   call.
 - `okf://concept/<id>` — one **static** resource per concept loaded when
   the server starts, one per concept in the bundle at that moment. Editing
-  an already-listed concept's file is picked up live on every read; a
+  an already-listed concept's file is picked up live on every read, and
+  every read re-checks containment: a file, or a directory above it, that
+  now links out of the bundle (or dangles) is refused with
+  `<path> links out of the bundle` and never read; a
   concept added or removed after boot is not reflected in `resources/list`
   until the server restarts. There is no URI template and no completion —
   every concept resource is registered by its own literal URI. The listing

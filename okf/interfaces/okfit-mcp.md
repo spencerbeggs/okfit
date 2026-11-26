@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-26T05:42:05Z
 tags:
   - architecture
 verified:
@@ -31,7 +31,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 995c1f1334807d7b
+    body: 72cafdfca45f4db9
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -64,7 +64,11 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
   the server starts. Content is read from disk per request, so an edit to
   an already-listed concept's file is live; a concept added or removed
   mid-session appears only after the server restarts, since the list
-  itself is fixed at boot.
+  itself is fixed at boot. Every read re-checks containment: a concept
+  file, or a directory above it, that now links out of the bundle (or
+  dangles) is refused with `<path> links out of the bundle` (the path
+  bundle-relative, for example `metrics/revenue.md`) and never read,
+  whenever the link appeared; a link that stays inside the bundle is served.
 
 Both resource kinds declare mime type `text/markdown`. Their descriptions
 carry no trust state: they are fixed at boot, and a snapshot of drift taken

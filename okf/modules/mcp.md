@@ -7,10 +7,10 @@ resource: ../../packages/mcp
 x-okfit-kind: package
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T20:33:07Z
+  at: 2026-11-26T05:42:05Z
 x-okfit-integrity:
   generated:
-    body: 292f6463c27c636c
+    body: 9cb77032b1a0d372
 ---
 
 # MCP
@@ -61,7 +61,8 @@ equivalents](../decisions/effected-kit-adoption.md).
 
 The server implements MCP over stdio, on `@effected/mcp-kit`'s
 `McpStdio`/`McpToolkit` (themselves built on `effect/ai/McpServer`):
-six read-only tools and static concept resources; see
+six read-only tools and static concept resources, each of which re-checks
+bundle containment on every read (the engine's `escapesBundle`); see
 `okf/interfaces/okfit-mcp.md`. `list_concepts`, `get_concept` and
 `concept_neighbors` delegate to [Engine](engine.md)'s `ConceptQuery`; the
 wire contract is unchanged.

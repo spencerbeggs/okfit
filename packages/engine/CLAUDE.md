@@ -28,8 +28,9 @@ src/
                               so ConfigMalformedError.message names the failing key; effect/SchemaIssue only
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
-  confinement.ts           -- escapesRoot, escapesBundle: a reserved index.md/log.md symlinked out of the
-                               bundle (lstat + confineReal; a dangling link counts); shared by sync, context, MCP
+  confinement.ts           -- escapesRoot, escapesBundle: a file (reserved index.md/log.md, or an MCP concept) that leaves the
+                               bundle by a link at the file or any directory above it (a missing file is not an
+                               escape; else confineReal on the whole path; a dangling link counts); shared by sync, context, MCP
   context/
     run.ts                 -- runContext: index.md lstat/stat only, never Bundle.load; an escaping index is absent
   trust/

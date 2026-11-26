@@ -12,6 +12,8 @@
 * Updated Core
 * Updated Markdown that is not a concept is skipped, not an error
 * Updated okfit config file schema
+* Updated MCP
+* Updated okfit-mcp — MCP tool and resource contract
 
 ## 2026-11-25
 
