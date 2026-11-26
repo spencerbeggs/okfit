@@ -478,10 +478,11 @@ describe("syncLog: a log.md swapped after the check (OKF 0.3 section 3.2, #460)"
 	const provenance = new Map([
 		[REVENUE, { _tag: "committed", at: DateTime.makeUnsafe("2026-09-16T10:00:00Z"), creating: true } as const],
 	]);
+	const OUTSIDE = "# Log\n\n## 2026-01-01\n\n* LEAKED-FROM-OUTSIDE\n";
 	const seed = {
 		...mountProject(V03_PROJECT),
 		[target]: "# Log\n",
-		"/outside/log.md": "# Log\n\n## 2026-01-01\n\n* LEAKED-FROM-OUTSIDE\n",
+		"/outside/log.md": OUTSIDE,
 	};
 	const toLinkOut = (fs: FileSystem.FileSystem) =>
 		Effect.gen(function* () {
@@ -507,8 +508,8 @@ describe("syncLog: a log.md swapped after the check (OKF 0.3 section 3.2, #460)"
 					assert.deepStrictEqual(result.skipped, [{ id: "log.md", reason }]);
 					assert.deepStrictEqual(result.written, []);
 					assert.deepStrictEqual(pending, []);
-					assert.include(yield* fs.readFileString("/outside/log.md"), "LEAKED-FROM-OUTSIDE");
-					assert.strictEqual((yield* fs.readFileString("/outside/log.md")).split("LEAKED-FROM-OUTSIDE").length, 2);
+					// the file it was swapped for is byte-for-byte what was seeded: never written
+					assert.strictEqual(yield* fs.readFileString("/outside/log.md"), OUTSIDE);
 				}).pipe(Effect.provide(layer));
 			});
 		}

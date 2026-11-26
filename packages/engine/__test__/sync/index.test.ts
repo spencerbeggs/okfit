@@ -249,10 +249,11 @@ describe("syncIndex: an index.md swapped after the check (OKF 0.3 section 3.2, #
 			yield* fs.remove(target);
 			yield* fs.symlink("/outside/index.md", target);
 		});
+	const OUTSIDE = "# Outside\n\n* [Leak](LEAKED-FROM-OUTSIDE.md)\n";
 	const seed = {
 		...mountProject(V03_PROJECT),
 		[target]: "# Stale\n",
-		"/outside/index.md": "# Outside\n\n* [Leak](LEAKED-FROM-OUTSIDE.md)\n",
+		"/outside/index.md": OUTSIDE,
 	};
 	const outcomes = [
 		["open", "symlink-escape", "a link out is in place when the file is opened"],
@@ -278,7 +279,8 @@ describe("syncIndex: an index.md swapped after the check (OKF 0.3 section 3.2, #
 						assert.isFalse(result.written.includes("metrics/index.md"));
 						assert.isFalse(result.unchanged.includes("metrics/index.md"));
 						assert.isFalse(pending.some((write) => write.target === target));
-						assert.include(yield* fs.readFileString("/outside/index.md"), "LEAKED-FROM-OUTSIDE");
+						// the file it was swapped for is byte-for-byte what was seeded: never written
+						assert.strictEqual(yield* fs.readFileString("/outside/index.md"), OUTSIDE);
 					}).pipe(Effect.provide(layer));
 				},
 			);
