@@ -131,4 +131,113 @@ describe("planSync: the baseline is what the load read", () => {
 			}).pipe(Effect.provide(layer));
 		}),
 	);
+
+	const HAND = "# Hand-made\n\nWritten by a person after the load.\n";
+	const without = (seed: MemoryFileSystemSeed, file: string): MemoryFileSystemSeed =>
+		Object.fromEntries(Object.entries(seed).filter(([key]) => key !== `${ROOT}/${file}`));
+
+	/** memfs where `method` of `path` creates the file with `HAND` first, once, if it is absent: a person making it. */
+	const createdOn = (seed: MemoryFileSystemSeed, method: "open" | "readFileString", path: string) => {
+		let done = false;
+		return Layer.effect(FileSystem.FileSystem)(
+			Effect.map(FileSystem.FileSystem, (fs): FileSystem.FileSystem => {
+				const create = Effect.suspend(() => {
+					if (done) return Effect.void;
+					done = true;
+					return fs.writeFileString(path, HAND);
+				}).pipe(Effect.orDie);
+				return method === "open"
+					? {
+							...fs,
+							open: (target, opts) =>
+								target === path ? create.pipe(Effect.andThen(fs.open(target, opts))) : fs.open(target, opts),
+						}
+					: {
+							...fs,
+							readFileString: (target, encoding) =>
+								target === path
+									? create.pipe(Effect.andThen(fs.readFileString(target, encoding)))
+									: fs.readFileString(target, encoding),
+						};
+			}),
+		).pipe(Layer.provide(MemoryFileSystem.layerWith(seed)));
+	};
+
+	it.effect(
+		"index: an index.md absent at the load and created before the plan is refused at apply, never overwritten",
+		() =>
+			Effect.gen(function* () {
+				const seed = without(baseSeed(yield* digestOf), "index.md");
+				const layer = platform(createdOn(seed, "open", `${ROOT}/index.md`));
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const plan = yield* planSync(options(["index"]));
+					const write = plan.pending.find((entry) => entry.target === `${ROOT}/index.md`);
+					assert.isDefined(write);
+					assert.strictEqual(write?.before, null);
+					const error = yield* Effect.flip(applySyncPlan(plan));
+					if (error._tag !== "SyncPlanStaleError") return assert.fail(`unexpected ${error._tag}`);
+					assert.deepStrictEqual(error.paths, [`${ROOT}/index.md`]);
+					assert.strictEqual(yield* fs.readFileString(`${ROOT}/index.md`), HAND);
+				}).pipe(Effect.provide(layer));
+			}),
+	);
+
+	it.effect("index: an index.md absent through the plan read but created before the plan's snapshot is refused", () =>
+		Effect.gen(function* () {
+			const seed = without(baseSeed(yield* digestOf), "index.md");
+			const layer = platform(createdOn(seed, "readFileString", `${ROOT}/index.md`));
+			yield* Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const plan = yield* planSync(options(["index"]));
+				const error = yield* Effect.flip(applySyncPlan(plan));
+				if (error._tag !== "SyncPlanStaleError") return assert.fail(`unexpected ${error._tag}`);
+				assert.deepStrictEqual(error.paths, [`${ROOT}/index.md`]);
+				assert.strictEqual(yield* fs.readFileString(`${ROOT}/index.md`), HAND);
+			}).pipe(Effect.provide(layer));
+		}),
+	);
+
+	it.effect("log: a log.md created after the load is not read as unparseable and not rewritten: sync again", () =>
+		Effect.gen(function* () {
+			const seed = without(baseSeed(yield* digestOf), "log.md");
+			const layer = platform(createdOn(seed, "open", `${ROOT}/log.md`));
+			yield* Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const plan = yield* planSync(options(["log"]));
+				assert.deepStrictEqual(plan.result.log.skipped, [{ id: "log.md", reason: "changed-during-read" }]);
+				assert.isFalse(plan.pending.some((entry) => entry.target === `${ROOT}/log.md`));
+				assert.strictEqual(yield* fs.readFileString(`${ROOT}/log.md`), HAND);
+			}).pipe(Effect.provide(layer));
+		}),
+	);
+
+	it.effect("log: a log.md absent through the plan read but created before the plan's snapshot is refused", () =>
+		Effect.gen(function* () {
+			const seed = without(baseSeed(yield* digestOf), "log.md");
+			const layer = platform(createdOn(seed, "readFileString", `${ROOT}/log.md`));
+			yield* Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const plan = yield* planSync(options(["log"]));
+				const write = plan.pending.find((entry) => entry.target === `${ROOT}/log.md`);
+				assert.strictEqual(write?.before, null);
+				const error = yield* Effect.flip(applySyncPlan(plan));
+				if (error._tag !== "SyncPlanStaleError") return assert.fail(`unexpected ${error._tag}`);
+				assert.deepStrictEqual(error.paths, [`${ROOT}/log.md`]);
+				assert.strictEqual(yield* fs.readFileString(`${ROOT}/log.md`), HAND);
+			}).pipe(Effect.provide(layer));
+		}),
+	);
+
+	it.effect("control: with no file created, an absent index.md is written", () =>
+		Effect.gen(function* () {
+			const seed = without(baseSeed(yield* digestOf), "index.md");
+			yield* Effect.gen(function* () {
+				const fs = yield* FileSystem.FileSystem;
+				const plan = yield* planSync(options(["index"]));
+				yield* applySyncPlan(plan);
+				assert.include(yield* fs.readFileString(`${ROOT}/index.md`), "# ");
+			}).pipe(Effect.provide(platform(MemoryFileSystem.layerWith(seed))));
+		}),
+	);
 });

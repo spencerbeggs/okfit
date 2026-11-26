@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T12:58:08Z
+  at: 2026-11-26T16:32:49Z
 tags:
   - architecture
 verified:
@@ -51,7 +51,7 @@ verified:
     at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: c3dc9f7472fbe7ce
+    body: b455b3c7b14ffd00
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:51Z
@@ -366,7 +366,7 @@ json` and non-interactive runs, which behave as before. `--yes` skips the
 prompt and writes. The engine splits `runSync` into `planSync` (compute and
 collect the pending writes) and `applySyncPlan` (write them); `runSync` is
 the two composed. `applySyncPlan` fails `SyncPlanStaleError` (exit `3`,
-nothing written, re-run sync) when a target changed since the plan was made.
+nothing written, re-run sync) when a target changed since the bundle was loaded, or an `index.md` that the load did not find has been created since.
 
 `--staged` is the pre-commit shape: only concepts in the git index are
 considered, stamped with `now` and re-added. The default modes stay all

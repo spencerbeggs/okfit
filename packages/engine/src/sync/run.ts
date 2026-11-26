@@ -152,6 +152,8 @@ export const planSync: (
 	// silently incomplete: a concept dropped from its directory's index, or an index whose frontmatter was never read.
 	// Nothing derived from the affected directories is written (their indexes, and no log); sync again.
 	const changedAny = changedFiles(bundle).length > 0;
+	// The files this load saw: a file the plan writes that is not among them appeared after it.
+	const loadedFiles: ReadonlySet<string> = new Set(bundle.files);
 	const heldDirs = changedDirectories(bundle);
 	const changedSkips: ReadonlyArray<SyncSkip> = changedConceptIds(bundle).map((id) => ({
 		id,
@@ -274,7 +276,10 @@ export const planSync: (
 			? { ...generatedResult, skipped: [...generatedResult.skipped, ...changedSkips] }
 			: generatedResult;
 	const index: SyncModeResult = options.modes.has("index")
-		? { ...(yield* syncIndex(indexView, true, pending, options.config.okf_version, heldDirs)), migrated: [] }
+		? {
+				...(yield* syncIndex(indexView, true, pending, options.config.okf_version, heldDirs, loadedFiles)),
+				migrated: [],
+			}
 		: UNSELECTED;
 	const log: SyncModeResult = !options.modes.has("log")
 		? UNSELECTED
@@ -296,7 +301,10 @@ export const planSync: (
 						} satisfies SyncLogResult),
 						migrated: [],
 					}
-				: { ...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending)), migrated: [] };
+				: {
+						...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending, loadedFiles)),
+						migrated: [],
+					};
 
 	let restage: SyncPlan["restage"];
 	if (options.staged !== undefined && repoRoot !== undefined) {

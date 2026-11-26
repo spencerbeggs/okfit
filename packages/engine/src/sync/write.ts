@@ -111,10 +111,25 @@ export const withNewline = (text: string, newline: Newline): string =>
 export const toLf = (text: string): string => text.replace(/\r\n/g, "\n");
 
 /**
+ * The baseline a mode records for a file it will write: the text the bundle load read (`loaded`), or `null` ("must
+ * still be absent") when the load saw no such file (`loadedFiles`, the bundle-relative files of a real `Bundle.load`,
+ * does not hold `relative`), so a file created after the load is refused at apply, never overwritten. `undefined`
+ * (no baseline: `planSync` reads the target itself) when `loadedFiles` is not given, as for a hand-built bundle, or
+ * when the load saw the file but kept no text for it.
+ *
+ * @internal
+ */
+export const loadedBaseline = (
+	loaded: string | undefined,
+	relative: string,
+	loadedFiles: ReadonlySet<string> | undefined,
+): string | null | undefined => loaded ?? (loadedFiles !== undefined && !loadedFiles.has(relative) ? null : undefined);
+
+/**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is
  * the absolute path handed to `writeAtomic`; `contents` the full text. `before`
  * is the baseline `applySyncPlan` checks: the text the bundle load read from `target` (a mode sets it from the loaded
- * document), or, when a mode set none, what `planSync` reads from `target` last (`null` = the file was absent).
+ * document), `null` when the load saw no such file (it must still be absent), or, when a mode set none, what `planSync` reads from `target` last (`null` = the file was absent).
  * `applySyncPlan` refuses to run when a target no longer matches it.
  * A write without `before` is applied unchecked.
  *

@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { Effect, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
+import { loadedBaseline, readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
@@ -54,7 +54,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	written: Array<string>,
 	unchanged: Array<string>,
 	skipped: Array<SyncIndexResult["skipped"][number]>,
-	loaded: string | undefined,
+	baseline: string | null | undefined,
 	pending?: Array<PendingWrite>,
 ) {
 	// A leading BOM and the file's line ending are kept (#492, #505): render in LF, compare on the stripped text
@@ -75,12 +75,13 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 		return;
 	}
 	if (dryRun) {
-		// `before` is the text the load read, never this plan-time read: an edit landing between the two would
-		// otherwise become the baseline and `applySyncPlan` would overwrite it.
+		// `before` is the text the load read (`null` when the load saw no such file), never this plan-time read: an
+		// edit or a new file landing between the two would otherwise become the baseline and `applySyncPlan` would
+		// overwrite it.
 		pending?.push({
 			target: targetPath,
 			contents: bom + expected,
-			...(loaded === undefined ? {} : { before: loaded }),
+			...(baseline === undefined ? {} : { before: baseline }),
 		});
 		written.push(relativeId);
 		return;
@@ -107,6 +108,10 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
  * rewrite keeps the file's leading BOM and its line ending (the rule covers LF and CRLF: its first newline's, and a file with no LF is written LF, #505); a file that
  * differs from the render only in its line endings is `unchanged` and keeps its bytes.
  *
+ * `loadedFiles` (the files a real `Bundle.load` saw; `planSync` passes it) makes the plan refuse an `index.md` that
+ * appeared after the load: its write is recorded with `before: null`, so `applySyncPlan` fails `SyncPlanStaleError`
+ * instead of overwriting it. Absent (a hand-built bundle), the plan reads the target itself.
+ *
  * @internal
  */
 export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
@@ -115,6 +120,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	pending?: Array<PendingWrite>,
 	okfVersion?: string,
 	holdBack?: ReadonlySet<string>,
+	loadedFiles?: ReadonlySet<string>,
 ) {
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
@@ -142,7 +148,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 			written,
 			unchanged,
 			skipped,
-			bundle.indexes.get("")?.source,
+			loadedBaseline(bundle.indexes.get("")?.source, "index.md", loadedFiles),
 			pending,
 		);
 	}
@@ -172,7 +178,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 			written,
 			unchanged,
 			skipped,
-			bundle.indexes.get(dir)?.source,
+			loadedBaseline(bundle.indexes.get(dir)?.source, `${dir}/index.md`, loadedFiles),
 			pending,
 		);
 	}

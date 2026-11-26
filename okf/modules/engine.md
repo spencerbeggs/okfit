@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T09:24:00Z
+  at: 2026-11-26T16:32:49Z
 x-okfit-integrity:
   generated:
-    body: 1e067af1afdc5fcb
+    body: 927da4f8f658a0c9
 ---
 
 # Engine
@@ -215,10 +215,11 @@ picker](../decisions/engine-concept-query-layer.md).
 computes every mode's result and collects the `PendingWrite`s (target path and
 rendered contents) instead of writing, and `applySyncPlan` writes exactly that
 plan, so the CLI's interactive confirm can show a plan and then apply the same
-one. Each `PendingWrite` also carries `before`, the target's bytes when
-`planSync` read it (`null` = absent); `applySyncPlan` re-reads every target
+one. Each `PendingWrite` also carries `before`, the text the bundle load read
+from the target (`null` = the load saw no such file, so it must still be absent;
+a write with no baseline is read by `planSync` itself); `applySyncPlan` re-reads every target
 first and fails `SyncPlanStaleError` (exit `3`, nothing written) if one
-changed, so a file edited between plan and confirm is never overwritten.
+changed, so a file edited, or an `index.md` or `log.md` created, between the load and the apply is never overwritten (a `log.md` that appeared after the load is skipped `changed-during-read`, not `log-unparseable`).
 `runSync` composes the two and behaves as before.
 
 `sync/run.ts#planSync` walks git lazily now: a concept whose recorded

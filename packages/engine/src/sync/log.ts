@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { DateTime, Effect, Path } from "effect";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
+import { loadedBaseline, readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -200,6 +200,7 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	dryRun: boolean,
 	since?: string,
 	pending?: Array<PendingWrite>,
+	loadedFiles?: ReadonlySet<string>,
 ) {
 	const path = yield* Path.Path;
 	const logPath = path.join(bundle.root, "log.md");
@@ -233,6 +234,17 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 
 	// Step 2.
 	const existingDoc = bundle.logs.get("");
+
+	// A log.md the load never saw but that exists now appeared after the load: its text is not what the plan would
+	// merge into, so it is not rewritten (transient: sync again). Never `log-unparseable`; the file may be fine.
+	if (source !== undefined && existingDoc === undefined && loadedFiles !== undefined && !loadedFiles.has("log.md")) {
+		return {
+			selected: true,
+			written: [],
+			unchanged: [],
+			skipped: [{ id: "log.md", reason: "changed-during-read" as const }],
+		} satisfies SyncLogResult;
+	}
 
 	// Step 3: a fatal parse failure -- validate already reports this as
 	// log-frontmatter/conformance; this mode returns early with one skip.
@@ -274,11 +286,13 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		return { selected: true, written: [], unchanged: ["log.md"], skipped: [] } satisfies SyncLogResult;
 	}
 	if (dryRun) {
-		// `before` is the text the load read, never this plan-time read (see syncIndex): a later edit trips the stale check.
+		// `before` is the text the load read, `null` when the load saw no log.md, never this plan-time read (see
+		// syncIndex): a later edit, or a log.md created since the load, trips the stale check.
+		const before = loadedBaseline(existingDoc?.source, "log.md", loadedFiles);
 		pending?.push({
 			target: logPath,
 			contents: bom + withNewline(merged, newline),
-			...(existingDoc?.source === undefined ? {} : { before: existingDoc.source }),
+			...(before === undefined ? {} : { before }),
 		});
 		return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 	}
