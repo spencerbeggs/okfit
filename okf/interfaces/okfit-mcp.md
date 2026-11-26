@@ -29,13 +29,15 @@ verified:
     at: 2026-11-24T06:53:02Z
   - by: human:spencer
     at: 2026-11-24T22:21:07Z
+  - by: human:spencer
+    at: 2026-11-26T06:31:53Z
 x-okfit-integrity:
   generated:
     body: cd7a72a4dabb0e5d
   verified:
     by: human:spencer
-    at: 2026-11-24T22:21:07Z
-    content: 7706705b56ce22b9
+    at: 2026-11-26T06:31:53Z
+    content: d86c5f7cd1a0c516
 ---
 
 # okfit-mcp — MCP tool and resource contract
