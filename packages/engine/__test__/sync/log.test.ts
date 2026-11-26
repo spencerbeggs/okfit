@@ -140,6 +140,45 @@ describe("mergeLog", () => {
 	);
 });
 
+describe("mergeLog line endings (#505)", () => {
+	it.effect("an item appended into a non-last CRLF group lands before the blank separator line", () =>
+		Effect.sync(() => {
+			const source = "# Log\r\n\r\n## 2026-09-05\r\n* Added Newer\r\n\r\n## 2026-09-01\r\n* Added Old\r\n";
+			const doc = LogDocument.make({
+				path: "log.md",
+				dir: "",
+				title: "Log",
+				groups: [group(source, "2026-09-05", ["Added Newer"]), group(source, "2026-09-01", ["Added Old"])],
+			});
+			const result = mergeLog({ doc, source }, [{ date: "2026-09-05", title: "Another", added: true }]);
+			assert.strictEqual(
+				result,
+				"# Log\n\n## 2026-09-05\n* Added Newer\n* Added Another\n\n## 2026-09-01\n* Added Old\n",
+			);
+		}),
+	);
+
+	it.effect("a mixed-ending source merges to LF throughout", () =>
+		Effect.sync(() => {
+			const source = "# Log\n\n## 2026-09-05\r\n* Added Newer\r\n\r\n## 2026-09-01\n* Added Old\n";
+			const doc = LogDocument.make({
+				path: "log.md",
+				dir: "",
+				title: "Log",
+				groups: [group(source, "2026-09-05", ["Added Newer"]), group(source, "2026-09-01", ["Added Old"])],
+			});
+			const result = mergeLog({ doc, source }, [
+				{ date: "2026-09-05", title: "Another", added: true },
+				{ date: "2026-09-01", title: "Other", added: false },
+			]);
+			assert.strictEqual(
+				result,
+				"# Log\n\n## 2026-09-05\n* Added Newer\n* Added Another\n\n## 2026-09-01\n* Added Old\n* Updated Other\n",
+			);
+		}),
+	);
+});
+
 describe("logWindow / wantsLogEntry (issue #18)", () => {
 	const source = "# Log\n\n## 2026-09-08\n\n* Initialized the bundle\n* Added Thing\n\n## 2026-09-01\n\n* Added Old\n";
 	const doc = LogDocument.make({
@@ -523,6 +562,87 @@ describe("syncLog byte-order mark (#492)", () => {
 				const result = yield* syncLog(bundle, new Map(), false);
 				assert.deepStrictEqual(result.unchanged, ["log.md"]);
 				assert.isTrue(before.equals(yield* Effect.promise(() => readFile(join(root, "log.md")))));
+			}),
+		),
+	);
+});
+
+describe("syncLog line endings (#505)", () => {
+	const MOD = (title: string) => `---\ntype: Module\ntitle: ${title}\n---\n\n# ${title}\n`;
+	const CRLF_LOG = "# Log\r\n\r\n## 2026-09-05\r\n\r\n* Added Newer\r\n\r\n## 2026-09-01\r\n\r\n* Added Old\r\n";
+	const bareLf = /(?<!\r)\n/;
+	const readText = (root: string) => Effect.promise(() => readFile(join(root, "log.md"), "utf8"));
+	const files = (log: string) => ({
+		"newer.md": MOD("Newer"),
+		"fresh.md": MOD("Fresh"),
+		"fresh2.md": MOD("Fresh2"),
+		"log.md": log,
+	});
+	const provenanceFor = (entries: ReadonlyArray<readonly [string, string]>) =>
+		new Map(
+			entries.map(([file, iso]) => [Option.getOrThrow(ConceptId.normalize(file)), committed(iso, true)] as const),
+		);
+
+	it.effect("keeps CRLF when it appends to the last and a non-last group (#505)", () =>
+		withRealBundle(files(CRLF_LOG), (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const provenance = provenanceFor([
+					["fresh.md", "2026-09-05T00:00:00Z"],
+					["fresh2.md", "2026-09-01T00:00:00Z"],
+				]);
+				const result = yield* syncLog(bundle, provenance, false, "2026-09-01");
+				assert.deepStrictEqual(result.written, ["log.md"]);
+				const text = yield* readText(root);
+				assert.isFalse(bareLf.test(text), "no bare LF");
+				assert.strictEqual(
+					text,
+					"# Log\r\n\r\n## 2026-09-05\r\n\r\n* Added Newer\r\n* Added Fresh\r\n\r\n## 2026-09-01\r\n\r\n* Added Old\r\n* Added Fresh2\r\n",
+				);
+			}),
+		),
+	);
+
+	it.effect("a CRLF log.md with nothing to add is unchanged (#505)", () =>
+		withRealBundle(files(CRLF_LOG), (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const result = yield* syncLog(bundle, new Map(), false);
+				assert.deepStrictEqual(result.unchanged, ["log.md"]);
+				assert.strictEqual(yield* readText(root), CRLF_LOG);
+			}),
+		),
+	);
+
+	it.effect("a mixed-ending log.md with nothing to add keeps its bytes", () =>
+		withRealBundle(files("# Log\n\n## 2026-09-05\r\n\r\n* Added Newer\r\n"), (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const result = yield* syncLog(bundle, new Map(), false);
+				assert.deepStrictEqual(result.unchanged, ["log.md"]);
+				assert.strictEqual(yield* readText(root), "# Log\n\n## 2026-09-05\r\n\r\n* Added Newer\r\n");
+			}),
+		),
+	);
+
+	it.effect("a mixed-ending log.md that must be rewritten follows its first newline (#505)", () =>
+		withRealBundle(files("# Log\n\n## 2026-09-05\r\n\r\n* Added Newer\r\n"), (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const provenance = provenanceFor([["fresh.md", "2026-09-05T00:00:00Z"]]);
+				yield* syncLog(bundle, provenance, false);
+				assert.strictEqual(yield* readText(root), "# Log\n\n## 2026-09-05\n\n* Added Newer\n* Added Fresh\n");
+			}),
+		),
+	);
+
+	it.effect("control: an LF log.md is still written LF", () =>
+		withRealBundle(files("# Log\n\n## 2026-09-05\n\n* Added Newer\n"), (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const provenance = provenanceFor([["fresh.md", "2026-09-05T00:00:00Z"]]);
+				yield* syncLog(bundle, provenance, false);
+				assert.isFalse((yield* readText(root)).includes("\r"));
 			}),
 		),
 	);

@@ -1,7 +1,7 @@
 import { AtomicFile } from "@effected/files";
 import type { FileSystem } from "effect";
 import { Effect } from "effect";
-import { stripBom } from "../verify/locate.js";
+import { detectNewline, stripBom } from "../verify/locate.js";
 
 /**
  * S-33: the one atomic write every sync mode shares, over the kit's
@@ -45,16 +45,32 @@ export const bomOf = (fs: FileSystem.FileSystem, absolutePath: string) =>
 
 /**
  * {@link readSourceKeepingBom} for a file that may not exist yet: `text` is the content without its leading BOM
- * (`undefined` when the file is absent) and `bom` the BOM that was stripped (`""` when none), so a writer can compare on
- * `text` and write `bom + contents`.
+ * (`undefined` when the file is absent), `bom` the BOM that was stripped (`""` when none) and `newline` the file's
+ * line ending (`detectNewline` of the text: its first newline's, LF for an absent or newline-free file), so a writer
+ * can work in LF, compare with {@link withNewline}, and write `bom + withNewline(contents, newline)`.
  *
  * @internal
  */
 export const readOptionalSplittingBom = (fs: FileSystem.FileSystem, target: string) =>
 	readSourceKeepingBom(fs, target).pipe(
-		Effect.map((raw): { readonly text: string | undefined; readonly bom: string } => stripBom(raw)),
-		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed({ text: undefined, bom: "" })),
+		Effect.map((raw): { readonly text: string | undefined; readonly bom: string; readonly newline: "\n" | "\r\n" } => {
+			const { text, bom } = stripBom(raw);
+			return { text, bom, newline: detectNewline(text) };
+		}),
+		Effect.catchReason("PlatformError", "NotFound", () =>
+			Effect.succeed({ text: undefined, bom: "", newline: "\n" as "\n" | "\r\n" }),
+		),
 	);
+
+/**
+ * `text` (LF throughout, as the renderers produce it) in the given line ending. For CRLF every newline becomes CRLF;
+ * text that already carries CRLF is not doubled. A sync rewrite uses the file's first newline throughout (#505), the
+ * same rule verify uses.
+ *
+ * @internal
+ */
+export const withNewline = (text: string, newline: "\n" | "\r\n"): string =>
+	newline === "\n" ? text : text.replace(/\r?\n/g, "\r\n");
 
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is

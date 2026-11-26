@@ -417,6 +417,7 @@ describe("syncIndex byte-order mark (#492)", () => {
 				const bytes = yield* readBytes(root, "modules/index.md");
 				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
 				assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+				assert.isFalse(/(?<!\r)\n/.test(bytes.subarray(3).toString("utf8")), "CRLF kept after the BOM");
 			}),
 		),
 	);
@@ -432,6 +433,98 @@ describe("syncIndex byte-order mark (#492)", () => {
 					const bytes = yield* readBytes(root, name);
 					assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], name);
 				}
+			}),
+		),
+	);
+});
+
+describe("syncIndex line endings (#505)", () => {
+	const MOD = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
+	const readText = (root: string, name: string) => Effect.promise(() => readFile(join(root, name), "utf8"));
+	const bareLf = /(?<!\r)\n/;
+	const toCrlf = (text: string) => text.replace(/\n/g, "\r\n");
+	const lfRender = withRealBundle({ "modules/a.md": MOD }, (root) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root });
+			yield* syncIndex(bundle, false);
+			return yield* readText(root, "modules/index.md");
+		}),
+	);
+
+	it.effect("keeps CRLF when it rewrites a stale CRLF index.md (#505)", () =>
+		Effect.gen(function* () {
+			const twin = yield* lfRender;
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\r\n\r\nold\r\n" }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.written.includes("modules/index.md"));
+					const text = yield* readText(root, "modules/index.md");
+					assert.isFalse(bareLf.test(text), "no bare LF");
+					assert.strictEqual(text.replace(/\r\n/g, "\n"), twin);
+				}),
+			);
+		}),
+	);
+
+	it.effect("a CRLF index.md that matches the render is unchanged (#505)", () =>
+		Effect.gen(function* () {
+			const twin = yield* lfRender;
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": toCrlf(twin) }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.unchanged.includes("modules/index.md"));
+					assert.isFalse(result.written.includes("modules/index.md"));
+					assert.strictEqual(yield* readText(root, "modules/index.md"), toCrlf(twin));
+				}),
+			);
+		}),
+	);
+
+	it.effect("a file that differs only in endings keeps its bytes, mixed or not (#505)", () =>
+		Effect.gen(function* () {
+			const twin = yield* lfRender;
+			const mixed = twin.replace("\n", "\r\n");
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": mixed }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.unchanged.includes("modules/index.md"));
+					assert.strictEqual(yield* readText(root, "modules/index.md"), mixed);
+				}),
+			);
+		}),
+	);
+
+	it.effect("control: a stale LF index.md is still written LF", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\n" }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				yield* syncIndex(bundle, false);
+				assert.isFalse((yield* readText(root, "modules/index.md")).includes("\r"));
+			}),
+		),
+	);
+
+	it.effect("a stale file whose first newline is LF but holds CRLF later is rewritten LF throughout", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\nold\r\nmore\r\n" }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				yield* syncIndex(bundle, false);
+				assert.isFalse((yield* readText(root, "modules/index.md")).includes("\r"));
+			}),
+		),
+	);
+
+	it.effect("a dry run plans the CRLF contents", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\r\n" }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const pending: Array<PendingWrite> = [];
+				yield* syncIndex(bundle, true, pending);
+				const planned = pending.find((write) => write.target === join(root, "modules/index.md"));
+				assert.isFalse(bareLf.test(planned?.contents ?? "x\n"));
 			}),
 		),
 	);

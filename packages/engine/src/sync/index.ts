@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, writeAtomic } from "./write.js";
+import { readOptionalSplittingBom, withNewline, writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
@@ -52,18 +52,21 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	pending?: Array<PendingWrite>,
 ) {
 	const fs = yield* FileSystem.FileSystem;
-	// A leading BOM is kept (#492, D8): compare on the stripped text, write `bom + rendered`.
-	const { text: onDisk, bom } = yield* readOptionalSplittingBom(fs, targetPath);
-	if (onDisk === rendered) {
+	// A leading BOM and the file's line ending are kept (#492, #505): render in LF, compare on the stripped text
+	// with its endings ignored (a file that differs only in endings is unchanged), and write `bom + expected`,
+	// the render in the file's first newline.
+	const { text: onDisk, bom, newline } = yield* readOptionalSplittingBom(fs, targetPath);
+	const expected = withNewline(rendered, newline);
+	if (onDisk !== undefined && onDisk.replace(/\r\n/g, "\n") === rendered) {
 		unchanged.push(relativeId);
 		return;
 	}
 	if (dryRun) {
-		pending?.push({ target: targetPath, contents: bom + rendered });
+		pending?.push({ target: targetPath, contents: bom + expected });
 		written.push(relativeId);
 		return;
 	}
-	yield* writeAtomic(targetPath, bom + rendered);
+	yield* writeAtomic(targetPath, bom + expected);
 	written.push(relativeId);
 });
 
@@ -79,6 +82,11 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
  * derive") because such a directory is never a member of
  * `bundle.directories` in the first place (`Bundle.load` only records a
  * directory there when it holds a concept -- `Bundle.ts:301-323`).
+ *
+ * An `index.md` that exists but could not be read (unclosed or unparseable frontmatter) is skipped as
+ * `index-unparseable` and never rewritten, since rendering over it would erase what the author wrote (#512). A
+ * rewrite keeps the file's leading BOM and its line ending (its first newline's, LF or CRLF, #505); a file that
+ * differs from the render only in its line endings is `unchanged` and keeps its bytes.
  *
  * @internal
  */
