@@ -289,7 +289,7 @@ identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 run appends, including a repeat by the same person. `--at <iso>` records a
 different instant. An `--at` that is not a timestamp (the message names the expected form) and one more than
 5 minutes later than now are both usage errors (exit `64`, also with `--dry-run` and `--format json`), refused
-before the config is read and before any picker opens; exactly 5 minutes ahead is accepted. okfit refuses (exit `3`, with `--dry-run` too) a verification
+before the config is read (only an explicit `--config` that does not exist is checked first, exit `3`) and before any picker opens; exactly 5 minutes ahead is accepted. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (commit any change to the concept's body, then run `okfit sync`, which re-stamps a stamp more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
