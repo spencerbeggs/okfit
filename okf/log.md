@@ -14,6 +14,7 @@
 * Updated okfit config file schema
 * Updated MCP
 * Updated okfit-mcp — MCP tool and resource contract
+* Updated A concept outside the repository is a typed failure
 
 ## 2026-11-25
 

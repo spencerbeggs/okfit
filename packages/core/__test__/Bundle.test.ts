@@ -9,6 +9,7 @@ import { OkfitConfig } from "../src/OkfitConfig.js";
 import { OkfVersion } from "../src/OkfVersion.js";
 import { Validate } from "../src/Validate.js";
 import { MOUNT, badBundleAtRootPlatform, faultyPlatform, platform } from "./utils/fixtures.js";
+import { swapPlatform } from "./utils/swapPlatform.js";
 
 const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
 	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundleAtRootPlatform(name)));
@@ -166,6 +167,33 @@ describe("Bundle.load", () => {
 			),
 		),
 	);
+	it.effect("a file that becomes a link out after the link check is refused at the read, not read (#460)", () => {
+		const [layer, trap] = swapPlatform(
+			{
+				[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+				[`${MOUNT}/b.md`]: "---\ntype: Note\n---\n",
+				"/outside/secret.md": "---\ntype: Secret\n---\n",
+			},
+			"lstat",
+			"after",
+			`${MOUNT}/a.md`,
+			(fs) =>
+				Effect.gen(function* () {
+					yield* fs.remove(`${MOUNT}/a.md`);
+					yield* fs.symlink("/outside/secret.md", `${MOUNT}/a.md`);
+				}),
+			// the walk lstats the file twice; the loader's own link check is the third
+			3,
+		);
+		return Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isTrue(trap.fired(), "the swap must have run");
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
+			assert.deepStrictEqual(bundle.files, ["b.md"]);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "symlink-escape", undefined]]);
+			assert.deepStrictEqual(Validate.conformance(bundle), []);
+		}).pipe(Effect.provide(layer));
+	});
 	const dirLinkSeed = {
 		[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
 		[`${MOUNT}/sub/b.md`]: "---\ntype: Note\n---\n",

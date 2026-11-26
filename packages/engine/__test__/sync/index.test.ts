@@ -22,6 +22,7 @@ import type { PendingWrite } from "../../src/sync/write.js";
 import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, projectPlatform, seedPlatform } from "../utils/bundle.js";
 import { withRealBundle } from "../utils/realBundle.js";
+import { swapOnLstat } from "../utils/swapPlatform.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -239,6 +240,35 @@ describe("syncIndex", () => {
 			assert.notInclude(second.written, "index.md");
 		}).pipe(Effect.provide(projectPlatform(V02_PROJECT))),
 	);
+});
+
+describe("syncIndex: an index.md swapped for a link out after the check (OKF 0.3 section 3.2, #460)", () => {
+	it.effect("skips it at the confined read, and never reads or writes the file it was swapped for", () => {
+		const target = `${ROOT}/metrics/index.md`;
+		const [layer, trap] = swapOnLstat(
+			{ ...mountProject(V03_PROJECT), [target]: "# Stale\n", "/outside/index.md": "# Outside\n" },
+			target,
+			(fs) =>
+				Effect.gen(function* () {
+					yield* fs.remove(target);
+					yield* fs.symlink("/outside/index.md", target);
+				}),
+		);
+		return Effect.gen(function* () {
+			const fs = yield* FileSystem.FileSystem;
+			const bundle = yield* Bundle.load({ root: ROOT });
+			trap.arm();
+			const result = yield* syncIndex(bundle, false);
+			assert.isTrue(trap.fired(), "the swap must have run");
+			assert.deepStrictEqual(
+				result.skipped.filter((entry) => entry.id === "metrics/index.md"),
+				[{ id: "metrics/index.md", reason: "symlink-escape" }],
+			);
+			assert.isFalse(result.written.includes("metrics/index.md"));
+			assert.isFalse(result.unchanged.includes("metrics/index.md"));
+			assert.strictEqual(yield* fs.readFileString("/outside/index.md"), "# Outside\n");
+		}).pipe(Effect.provide(layer));
+	});
 });
 
 describe("syncIndex: a reserved index.md linked out of the bundle (OKF 0.3 section 3.2 rule 5)", () => {

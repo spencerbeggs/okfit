@@ -1,7 +1,7 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
-import { escapesBundle } from "@okfit/engine";
-import type { Context } from "effect";
-import { Effect, FileSystem, Layer, Path } from "effect";
+import { readConfinedString } from "@okfit/core";
+import type { Context, FileSystem } from "effect";
+import { Effect, Layer, Path } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
 import { loadToolContext } from "../internal/toolContext.js";
 
@@ -16,8 +16,10 @@ import { loadToolContext } from "../internal/toolContext.js";
  * behaviour for an agent trying to fix it.
  *
  * A root `index.md` that is a symbolic link out of the bundle (or dangling)
- * is refused and never read (OKF 0.3 section 3.2), through the engine's
- * `escapesBundle`, the check `sync` applies to the same file.
+ * is refused and never read (OKF 0.3 section 3.2). The read is confined at
+ * the moment of reading, through core's `readConfinedString` (open, resolve
+ * the path, compare the open file's identity with it), so a link that
+ * appears between a check and the read is refused too.
  *
  * A missing `index.md` fails the read rather than returning placeholder
  * text (J-8): a resource that silently returns prose instead of the file
@@ -59,14 +61,18 @@ const indexResource = (
 		mimeType: "text/markdown",
 		content: Effect.gen(function* () {
 			const ctx = yield* loadToolContext(projectRoot);
-			const fs = yield* FileSystem.FileSystem;
 			const path = yield* Path.Path;
 			const indexPath = path.join(ctx.bundleRoot, "index.md");
-			const escapes = yield* escapesBundle(ctx.bundle, "index.md").pipe(Effect.orElseSucceed(() => true));
-			if (escapes) return yield* new McpSchema.InternalError({ message: "index.md links out of the bundle" });
-			const text = yield* fs
-				.readFileString(indexPath)
-				.pipe(Effect.mapError(() => new McpSchema.InternalError({ message: "no readable index.md" })));
+			// Opened, resolved and identity-compared in one step (OKF 0.3 section 3.2): an index.md that is, or becomes,
+			// a link out of the bundle (or dangles) is refused, never read.
+			const text = yield* readConfinedString(ctx.bundleRoot, indexPath).pipe(
+				Effect.catchTag("ConfinementError", () =>
+					Effect.fail(new McpSchema.InternalError({ message: "index.md links out of the bundle" })),
+				),
+				Effect.catchTag("PlatformError", () =>
+					Effect.fail(new McpSchema.InternalError({ message: "no readable index.md" })),
+				),
+			);
 			return { contents: [{ uri: "okf://index", mimeType: "text/markdown", text }] };
 		}).pipe(Effect.provide(services)),
 	});

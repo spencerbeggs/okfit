@@ -6,11 +6,11 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-23T21:45:40Z
+  at: 2026-11-26T06:24:20Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: ab5fee96929909dd
+    body: 609a7fccf119c0fb
 ---
 
 # A concept outside the repository is a typed failure
@@ -66,5 +66,7 @@ code. By reading, it is not reachable through a symlink alone: `Bundle.load`
 drops an escaping file link, the walker never descends a symlinked
 directory, and when the bundle root is itself a symlink `git.repoRoot`
 resolves it physically. Only a race reaches the guard: a file replaced by a
-link between the load and the real-path check. This rests on reading the
-code, not on a test.
+link between the load and the real-path check. The load's own reads are
+confined at the moment of reading (open, resolve, compare identity), so a
+file swapped before that read is refused there; the guard stays for the window
+between the load and the write. This rests on reading the code, not on a test.

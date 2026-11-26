@@ -1,6 +1,6 @@
 import type { LoadedBundle } from "@okfit/core";
 import { Derive } from "@okfit/core";
-import { Effect, FileSystem, Path } from "effect";
+import { Effect, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
 import { readOptionalSplittingBom, toLf, withNewline, writeAtomic } from "./write.js";
@@ -43,19 +43,29 @@ const indexUnreadable = (bundle: LoadedBundle, file: string): boolean =>
 	);
 
 const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
+	root: string,
 	targetPath: string,
 	relativeId: string,
 	rendered: string,
 	dryRun: boolean,
 	written: Array<string>,
 	unchanged: Array<string>,
+	skipped: Array<SyncIndexResult["skipped"][number]>,
 	pending?: Array<PendingWrite>,
 ) {
-	const fs = yield* FileSystem.FileSystem;
 	// A leading BOM and the file's line ending are kept (#492, #505): render in LF, compare on the stripped text
 	// with its endings ignored (a file that differs only in endings is unchanged), and write `bom + expected`,
 	// the render in the file's first newline.
-	const { text: onDisk, bom, newline } = yield* readOptionalSplittingBom(fs, targetPath);
+	// The read is confined (opened, resolved, identity-compared), so a file swapped for a link out after the
+	// caller's `escapesBundle` check is skipped, not read.
+	const read = yield* readOptionalSplittingBom(root, targetPath).pipe(
+		Effect.catchTag("ConfinementError", () => Effect.succeed(undefined)),
+	);
+	if (read === undefined) {
+		skipped.push({ id: relativeId, reason: "symlink-escape" });
+		return;
+	}
+	const { text: onDisk, bom, newline } = read;
 	const expected = withNewline(rendered, newline);
 	if (onDisk !== undefined && toLf(onDisk) === rendered) {
 		unchanged.push(relativeId);
@@ -113,12 +123,14 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 			subdirectories: childDirectoriesOf(bundle, ""),
 		});
 		yield* writeOrCompare(
+			bundle.root,
 			path.join(bundle.root, "index.md"),
 			"index.md",
 			rootRendered,
 			dryRun,
 			written,
 			unchanged,
+			skipped,
 			pending,
 		);
 	}
@@ -136,12 +148,14 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 		}
 		const rendered = Derive.synthesizeIndex(bundle, dir);
 		yield* writeOrCompare(
+			bundle.root,
 			path.join(bundle.root, dir, "index.md"),
 			`${dir}/index.md`,
 			rendered,
 			dryRun,
 			written,
 			unchanged,
+			skipped,
 			pending,
 		);
 	}

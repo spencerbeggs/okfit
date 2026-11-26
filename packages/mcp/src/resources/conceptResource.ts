@@ -1,7 +1,7 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
-import { Derive } from "@okfit/core";
-import { escapesBundle } from "@okfit/engine";
-import { Effect, FileSystem, Layer, Path } from "effect";
+import { Derive, readConfinedString } from "@okfit/core";
+import type { FileSystem } from "effect";
+import { Effect, Layer, Path } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
 import { loadToolContext } from "../internal/toolContext.js";
 
@@ -24,11 +24,14 @@ import { loadToolContext } from "../internal/toolContext.js";
  * until the server restarts, though editing an already-listed concept's
  * file is picked up live, since `content` re-reads the file from disk on
  * every read (same complete text `get_concept`'s `raw` field returns).
- * Each read also re-checks containment (OKF 0.3 section 3.2) through the
- * engine's `escapesBundle`: a file, or a directory above it, that now
- * links out of the bundle (or dangles) is refused with
- * `<path> links out of the bundle` and never read; a link that stays
- * inside is served.
+ * Each read is confined at the moment of reading (OKF 0.3 section 3.2),
+ * through core's `readConfinedString`: the file is opened, its path
+ * resolved and the open file's `dev` and `ino` compared with the resolved
+ * path's, so a file, or a directory above it, that links out of the bundle
+ * (or dangles) is refused with `<path> links out of the bundle` and never
+ * read, even when the link appears between a check and the read. A link
+ * that stays inside the bundle, and a hard link to a file under the root,
+ * are served.
  *
  * If the bundle fails to load at boot (bad config, missing bundle root),
  * one line is logged and this layer contributes no resources — the
@@ -51,7 +54,6 @@ export const ConceptResources = (
 		Effect.gen(function* () {
 			const ctx = yield* loadToolContext(projectRoot);
 			const path = yield* Path.Path;
-			const fs = yield* FileSystem.FileSystem;
 			const services = yield* Effect.context<FileSystem.FileSystem | Path.Path>();
 			const resourceLayers = [...ctx.bundle.concepts.entries()].map(([id, concept]) => {
 				const uri = `okf://concept/${id}`;
@@ -62,17 +64,16 @@ export const ConceptResources = (
 					description: Derive.title(concept),
 					mimeType: "text/markdown",
 					content: Effect.gen(function* () {
-						const escapes = yield* escapesBundle(ctx.bundle, concept.path).pipe(Effect.orElseSucceed(() => true));
-						if (escapes) {
-							return yield* new McpSchema.InternalError({ message: `${concept.path} links out of the bundle` });
-						}
-						const text = yield* fs
-							.readFileString(absolutePath)
-							.pipe(
-								Effect.mapError(
-									() => new McpSchema.InternalError({ message: `no readable concept file at ${concept.path}` }),
-								),
-							);
+						// Opened, resolved and identity-compared in one step (OKF 0.3 section 3.2), so a file, or a directory
+						// above it, swapped for a link out of the bundle at any moment is refused, never read.
+						const text = yield* readConfinedString(ctx.bundleRoot, absolutePath).pipe(
+							Effect.catchTag("ConfinementError", () =>
+								Effect.fail(new McpSchema.InternalError({ message: `${concept.path} links out of the bundle` })),
+							),
+							Effect.catchTag("PlatformError", () =>
+								Effect.fail(new McpSchema.InternalError({ message: `no readable concept file at ${concept.path}` })),
+							),
+						);
 						return { contents: [{ uri, mimeType: "text/markdown", text }] };
 					}).pipe(Effect.provide(services)),
 				});

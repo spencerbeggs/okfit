@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T05:42:05Z
+  at: 2026-11-26T06:24:20Z
 x-okfit-integrity:
   generated:
-    body: 03aedb934f3f12e9
+    body: f850b200669c3d6f
 ---
 
 # Engine
@@ -290,13 +290,19 @@ returns it in `skipped` with the reason `index-unparseable`, in every run,
 with the exit code unchanged (`syncLog` already does the same for `log.md`
 with `log-unparseable`). `confinement.ts#escapesBundle` (exported, with its
 bundle-free core `escapesRoot`) asks core's load diagnostics first and falls
-back to `escapesRoot`, which answers for a link that appeared after the load:
-a missing file is not an escape, and otherwise `confineReal` judges the whole
-path, so a link at the file or at any directory above it that leads out, or
-dangles, counts. `okfit context` and the MCP `okf://index` resource use the
-same check, so an escaping root `index.md` is reported absent and never read;
-the MCP `okf://concept/<id>` resources run it on every read, so a concept
-file (or a directory above it) swapped for a link out after boot is refused. `sync --staged` never stamps a concept file
+back to `escapesRoot`, where `confineReal` judges the whole path, so a link at
+the file or at any directory above it that leads out, or dangles, counts (a
+missing file resolves from its real ancestor, so it is an escape only under
+a link that leaves). That check decides a skip and gates a write: a write is
+checked before it happens, then made atomically. The reads are confined at the moment of reading instead: sync reads
+`index.md` and `log.md` through core's `readConfinedBytes`, which opens the
+file, resolves its path and compares the open file's `dev` and `ino` with
+`lstat` of the real path, so a file swapped for a link out after the check is
+skipped as `symlink-escape`, never read, even when the swap lands between the
+check and the read. A hard link to a file under the root is a file under the
+root (OKF 0.3 section 3.2) and is read. `okfit context` uses `escapesRoot`,
+and the MCP `okf://index` and `okf://concept/<id>` resources read confined,
+so an escaping root `index.md` is reported absent and never read. `sync --staged` never stamps a concept file
 that is a symlink out of the bundle, because core does not load one, and it
 skips an escaping `log.md` instead of failing;
 `ConceptOutsideRepositoryError` still covers a concept that resolves outside
@@ -370,7 +376,11 @@ buffers (`OverlayDocuments`, absolute path to text and version), falling
 through to disk for everything else and listing overlay-only files in
 their parent directory (through both `readDirectory` and Effect 4.1's
 `readDirectoryEntries`, which reports them as `"File"`) so an unsaved new
-concept is walked. It answers
+concept is walked. It also serves an open document's text through a
+read-only `open` and a `realPath` (its real parent directory plus its name),
+and answers a not-found `stat`/`lstat` of that real path, so a confined read
+sees the buffer; an overlay-only document, which has no inode, reports an
+`ino` derived from its path so the identity compare holds. It answers
 `lstat` as well as `stat` for them: `@effected/walker` `lstat`s every
 entry it descends into, and drops one whose `lstat` is not found.
 `overlay/documents.ts#provideDocuments` is the one entry point the CLI's

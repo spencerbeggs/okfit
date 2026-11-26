@@ -1,4 +1,5 @@
 import { AtomicFile } from "@effected/files";
+import { readConfinedBytes } from "@okfit/core";
 import type { FileSystem } from "effect";
 import { Effect } from "effect";
 import { detectNewline, stripBom } from "../verify/locate.js";
@@ -52,16 +53,20 @@ export const bomOf = (fs: FileSystem.FileSystem, absolutePath: string) =>
 export type Newline = "\n" | "\r\n";
 
 /**
- * {@link readSourceKeepingBom} for a file that may not exist yet: `text` is the content without its leading BOM
+ * {@link readSourceKeepingBom} for a file that may not exist yet, read confined to `root` (OKF 0.3 section 3.2): the
+ * file is opened and its path resolved and compared with `readConfinedBytes`, so a file swapped for a link out of the
+ * bundle after the caller's `escapesBundle` check is refused, never read. `text` is the content without its leading BOM
  * (`undefined` when the file is absent), `bom` the BOM that was stripped (`""` when none) and `newline` the file's
  * line ending (`detectNewline` of the text: CRLF when its first LF is preceded by CR, otherwise LF, so a file with no
  * LF, or an absent one, is LF), so a writer can work in LF, compare with {@link toLf}, and write
- * `bom + withNewline(contents, newline)`.
+ * `bom + withNewline(contents, newline)`. Fails with `ConfinementError` when the file leaves `root`; the write that
+ * follows stays a check then `writeAtomic`.
  *
  * @internal
  */
-export const readOptionalSplittingBom = (fs: FileSystem.FileSystem, target: string) =>
-	readSourceKeepingBom(fs, target).pipe(
+export const readOptionalSplittingBom = (root: string, target: string) =>
+	readConfinedBytes(root, target).pipe(
+		Effect.map((bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes)),
 		Effect.map((raw): { readonly text: string | undefined; readonly bom: string; readonly newline: Newline } => {
 			const { text, bom } = stripBom(raw);
 			return { text, bom, newline: detectNewline(text) };

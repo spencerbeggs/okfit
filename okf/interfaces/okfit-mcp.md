@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T05:56:41Z
+  at: 2026-11-26T06:24:20Z
 tags:
   - architecture
 verified:
@@ -31,7 +31,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: ace187115c741b87
+    body: cd7a72a4dabb0e5d
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -64,11 +64,15 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
   the server starts. Content is read from disk per request, so an edit to
   an already-listed concept's file is live; a concept added or removed
   mid-session appears only after the server restarts, since the list
-  itself is fixed at boot. Every read re-checks containment: a concept
-  file, or a directory above it, that now links out of the bundle (or
-  dangles) is refused with `<path> links out of the bundle` (the path
-  bundle-relative, for example `metrics/revenue.md`) and never read,
-  whenever the link appeared; a link that stays inside the bundle is served.
+  itself is fixed at boot. Every read is confined at the moment of reading:
+  the file is opened, its path resolved (a link at the file or at any
+  directory above it that leads out of the bundle, or dangles, is refused),
+  and the open file's identity compared with the resolved path's, so a path
+  swapped for a link between the check and the read is refused too. The
+  refusal is `<path> links out of the bundle` (the path bundle-relative, for
+  example `metrics/revenue.md`) and the outside file is never read; a link
+  that stays inside the bundle is served, and so is a hard link to a file
+  under the root (OKF 0.3 section 3.2). `okf://index` is read the same way.
 The bundle root is resolved wherever `okf/` points at each read, so a root
 replaced by a link after boot is followed, and the tools and resources
 agree on it. A resource read that fails (a refused link, or a concept file

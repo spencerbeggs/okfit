@@ -1,6 +1,6 @@
 import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
-import { DateTime, Effect, FileSystem, Path } from "effect";
+import { DateTime, Effect, Path } from "effect";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
 import { readOptionalSplittingBom, toLf, withNewline, writeAtomic } from "./write.js";
@@ -201,7 +201,6 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	since?: string,
 	pending?: Array<PendingWrite>,
 ) {
-	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const logPath = path.join(bundle.root, "log.md");
 
@@ -218,7 +217,20 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	// Step 1: missing file -> undefined source (empty document, design §5 step 1).
 	// The BOM is kept (#492, D8): merge and compare on the stripped text, write `bom + merged`.
 	// The file's line ending is kept too (#505): merge in LF, write in the file's first newline.
-	const { text: source, bom, newline } = yield* readOptionalSplittingBom(fs, logPath);
+	// The read is confined (opened, resolved, identity-compared): a log.md swapped for a link out after the check
+	// above is skipped, not read.
+	const read = yield* readOptionalSplittingBom(bundle.root, logPath).pipe(
+		Effect.catchTag("ConfinementError", () => Effect.succeed(undefined)),
+	);
+	if (read === undefined) {
+		return {
+			selected: true,
+			written: [],
+			unchanged: [],
+			skipped: [{ id: "log.md", reason: "symlink-escape" as const }],
+		} satisfies SyncLogResult;
+	}
+	const { text: source, bom, newline } = read;
 
 	// Step 2.
 	const existingDoc = bundle.logs.get("");

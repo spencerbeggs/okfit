@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T05:28:06Z
+  at: 2026-11-26T06:24:20Z
 x-okfit-integrity:
   generated:
-    body: fcaed9ee559fc54d
+    body: d43a67fb462a6ed6
 ---
 
 # Core
@@ -153,6 +153,16 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   `x-okfit-integrity`; `Concept.entries` (`EntryPaths`) and `Concept.entryPath` give
   a kept entry's YAML path ([Loading never fails a concept for a bad
   family](../decisions/content-tolerant-loading.md)).
+- **Confined reads.** `readConfinedBytes` and `readConfinedString`
+  (`ConfinedRead.ts`) open a file, resolve its path with `confineReal` and
+  compare the open file's `dev` and `ino` with `lstat` of the real path, so a
+  path swapped for a link out of the root, at the file or at a directory above
+  it, is refused when it is read (`ConfinementError`), not only when it is
+  checked. `Bundle.load` reads every Markdown file this way; a file that
+  becomes a link between the link check and the read is recorded
+  `symlink-escape` and left out. A hard link to a file under the root is a
+  file under the root (OKF 0.3 section 3.2). Writes stay a check then an
+  atomic write.
 - **Non-concept markdown.** `frontmatter-missing` and `type-missing` are
   lints that skip the file; `symlink-escape` refuses a file or
   directory link out of the bundle, and a link that cannot be resolved

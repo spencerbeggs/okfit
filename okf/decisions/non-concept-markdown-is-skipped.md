@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T05:36:41Z
+  at: 2026-11-26T06:24:20Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 7eead9a6ec217907
+    body: c25dd569db432c91
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:00Z
@@ -142,5 +142,8 @@ through such a link either: a root or subdirectory `index.md`, or the root
 `log.md`, that is a symlink out of the bundle (a dangling link included) is
 skipped with the reason `symlink-escape`, never read and never written, in
 plain, dry-run and `--staged` runs, and the exit code is unchanged. The check
-asks core's load diagnostics first and falls back to `lstat` plus
-`confineReal`, which also answers for a link that appeared after the load.
+asks core's load diagnostics first and falls back to `confineReal` on the
+whole path, which also answers for a link that appeared after the load; the
+reads themselves are confined at the moment of reading (open, resolve, compare
+the open file's identity with the resolved path's), and the write that follows
+stays a check then an atomic write.

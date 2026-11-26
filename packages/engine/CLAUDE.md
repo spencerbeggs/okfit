@@ -28,9 +28,9 @@ src/
                               so ConfigMalformedError.message names the failing key; effect/SchemaIssue only
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
-  confinement.ts           -- escapesRoot, escapesBundle: a file (reserved index.md/log.md, or an MCP concept) that leaves the
-                               bundle by a link at the file or any directory above it (a missing file is not an
-                               escape; else confineReal on the whole path; a dangling link counts); shared by sync, context, MCP
+  confinement.ts           -- escapesRoot, escapesBundle (a check, for a write or a skip decision; reads use core readConfinedBytes): a file (reserved index.md/log.md, or an MCP concept) that leaves the
+                               bundle by a link at the file or any directory above it (confineReal on the whole path; a missing file
+                               resolves from its real ancestor; a dangling link counts); shared by sync, context
   context/
     run.ts                 -- runContext: index.md lstat/stat only, never Bundle.load; an escaping index is absent
   trust/
@@ -132,7 +132,7 @@ src/
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
     write.ts                     -- writeAtomic, bomOf (the BOM a file carries, for writers that edit loader-read text),
-                                  readOptionalSplittingBom (BOM and the file's first newline), Newline, withNewline, toLf
+                                  readOptionalSplittingBom (confined read; BOM and the file's first newline), Newline, withNewline, toLf
     run.ts                        -- SkipReason, SyncMode/Options/Result, runSync
   init/
     scaffold.ts                   -- CONFIG_RELATIVE_PATH, ScaffoldOptions, ScaffoldFile,

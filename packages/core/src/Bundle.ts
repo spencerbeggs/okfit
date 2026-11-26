@@ -6,6 +6,7 @@ import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { Concept } from "./Concept.js";
 import { ConceptId } from "./ConceptId.js";
+import { readConfinedString } from "./ConfinedRead.js";
 import type { DiagnosticCode, DiagnosticSeverity } from "./Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "./Diagnostic.js";
 import { IndexDocument } from "./IndexDocument.js";
@@ -406,12 +407,35 @@ export class Bundle {
 			const indexes = new Map<string, IndexDocument>();
 			const logs = new Map<string, LogDocument>();
 			const directories = new Set<string>();
+			const refusedAtRead = new Set<string>();
 			for (const file of files) {
 				if (!file.endsWith(".md")) continue;
-				const text = yield* fs
-					.readFileString(path.join(root, file))
-					.pipe(Effect.mapError((cause) => new BundleReadError({ root, path: file, cause })));
-				const outcome = yield* loadMarkdown(file, text);
+				// Read confined: the file is opened, its path resolved and the two compared, so a file that became a
+				// link out between the checks above and this read is refused, not read.
+				const read = yield* readConfinedString(root, path.join(root, file)).pipe(
+					Effect.map((text) => ({ text })),
+					Effect.catchTag("ConfinementError", (error) => Effect.succeed({ refused: error.reason })),
+					Effect.mapError((cause) => new BundleReadError({ root, path: file, cause })),
+				);
+				if ("refused" in read) {
+					refusedAtRead.add(file);
+					const why =
+						read.refused === "outside"
+							? "resolves outside the bundle root"
+							: read.refused === "unresolvable"
+								? "could not be resolved, so it cannot be shown to stay inside the bundle root"
+								: "changed while it was read, so it cannot be shown to stay inside the bundle root";
+					diagnostics.push(
+						diagnostic(
+							file,
+							"symlink-escape",
+							"warning",
+							`symbolic link ${why}; it is not read and not part of the bundle`,
+						),
+					);
+					continue;
+				}
+				const outcome = yield* loadMarkdown(file, read.text);
 				diagnostics.push(...outcome.diagnostics);
 				if (outcome.concept !== undefined) {
 					concepts.set(outcome.concept.id, outcome.concept);
@@ -422,7 +446,7 @@ export class Bundle {
 			}
 			const bundle = LoadedBundle.make({
 				root,
-				files,
+				files: refusedAtRead.size === 0 ? files : files.filter((file) => !refusedAtRead.has(file)),
 				directories: [...directories].sort(),
 				concepts,
 				indexes,
