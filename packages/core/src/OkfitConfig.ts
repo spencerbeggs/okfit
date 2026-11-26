@@ -343,7 +343,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "read-changed",
 			description:
-				'A file in the bundle was replaced or removed while it was being read, so it was left out of this load; reading again may succeed. Nothing derived from the bundle (an index, a log, a stamp) should be written from such a load. Default "warn".',
+				'A file in the bundle was replaced while it was being read, so it was left out of this load; reading again may succeed. Output derived from the changed file is held back: its own stamp, and the indexes and log that would list it. Default "warn".',
 			default: "warn",
 		}),
 	),

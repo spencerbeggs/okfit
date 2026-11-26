@@ -23,7 +23,11 @@ export interface LinkScanOptions {
 	readonly prune: ReadonlySet<string>;
 }
 
-const COULD_NOT_RESOLVE = "could not be resolved, so it cannot be shown to stay inside the bundle root";
+/** The words a `symlink-escape` message uses for a link that leaves the bundle root; one spelling for every site. */
+export const RESOLVES_OUTSIDE = "resolves outside the bundle root";
+
+/** The words a `symlink-escape` message uses for a link that cannot be resolved (dangling, a loop, unreadable). */
+export const COULD_NOT_RESOLVE = "could not be resolved, so it cannot be shown to stay inside the bundle root";
 
 const byPath = (a: LinkFinding, b: LinkFinding): number => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0);
 
@@ -72,7 +76,7 @@ export const scanLinks = (
 			if (reason === undefined || reason === "empty") continue;
 			directories.push({
 				file: link.path,
-				message: `symbolic link to a directory ${reason === "outside" ? "resolves outside the bundle root" : COULD_NOT_RESOLVE}; nothing under it is read or part of the bundle`,
+				message: `symbolic link to a directory ${reason === "outside" ? RESOLVES_OUTSIDE : COULD_NOT_RESOLVE}; nothing under it is read or part of the bundle`,
 			});
 		}
 		return [...directories.sort(byPath), ...unresolvable.sort(byPath)];

@@ -56,8 +56,9 @@ or `.config/okfit.toml`.
   with `<path> links out of the bundle`, and a link at the file itself is
   refused even when it is swapped in during the read; a race through a
   directory above the file can still win (spencerbeggs/okfit#524). A file
-  that changed under the read is answered `<path> changed while it was read;
-  try again` (the bundle root is
+  that was replaced under the read (an editor save landing mid-read) is
+  answered `<path> changed while it was read; try again`, and a retry succeeds;
+  a removed file answers `no readable concept file at <path>` (the bundle root is
   resolved wherever `okf/` points at each read, so a root replaced by a link
   after boot is followed, tools and resources alike); a
   concept added or removed after boot is not reflected in `resources/list`

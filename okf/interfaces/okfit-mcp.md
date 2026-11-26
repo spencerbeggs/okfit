@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:05:51Z
+  at: 2026-11-26T12:58:08Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-26T06:31:53Z
 x-okfit-integrity:
   generated:
-    body: 64dd2391e8cb2edf
+    body: 8259ff3a7810af2c
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:53Z
@@ -74,9 +74,11 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
   race through a directory above the file can still win (spencerbeggs/okfit#524).
   The refusal is `<path> links out of the bundle` (the path bundle-relative,
   for example `metrics/revenue.md`) and the outside file is not read. A file
-  that changed under the read (replaced or removed) is answered
+  that was replaced under the read is answered
   `<path> changed while it was read; try again`, a transient failure, never
-  labelled a link. A link that stays inside the bundle is served, and so is a
+  labelled a link; a file that was removed answers
+  `no readable concept file at <path>`. An editor save landing mid-read is
+  refused this way, and asking again succeeds. A link that stays inside the bundle is served, and so is a
   hard link to a file under the root (OKF 0.3 section 3.2). `okf://index` is
   read the same way.
 The bundle root is resolved wherever `okf/` points at each read, so a root
@@ -97,8 +99,12 @@ Two channels, split the way `@effected/mcp-kit` splits them.
 (`isError` unset) with `@effected/mcp-kit`'s `ToolOutcome` envelope:
 `structuredContent` is `{ ok: false, error: { _tag:
 "QueryConceptNotFoundError", id, reason, message, remediation } }`, where
-`reason` is `"empty-id"` or `"not-a-concept"` and `remediation` names
-`list_concepts`. A found result carries `ok: true` beside its fields, so a
+`reason` is `"empty-id"`, `"not-a-concept"` or `"changed-during-read"` and
+`remediation` names `list_concepts` (for the first two). A concept whose file
+changed while the bundle was read (an editor save landing mid-read) is answered
+with reason `changed-during-read` and the message
+`<path> changed while it was read; try again`, never `no concept`: call the
+tool again and it succeeds. A found result carries `ok: true` beside its fields, so a
 caller discriminates on `ok`. The served `outputSchema` is the union of
 the two, with the failure member under `$defs/ConceptNotFound`.
 

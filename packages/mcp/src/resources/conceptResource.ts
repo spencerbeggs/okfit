@@ -32,8 +32,9 @@ import { loadToolContext } from "../internal/toolContext.js";
  * (or dangles) is refused with `<path> links out of the bundle`. A link at
  * the file itself is refused even when it is swapped in during the read; a
  * race through a directory above the file can still win
- * (spencerbeggs/okfit#524). A file that changed under the read is answered
- * `<path> changed while it was read; try again`, never labelled a link. A
+ * (spencerbeggs/okfit#524). A file replaced under the read is answered
+ * `<path> changed while it was read; try again`, never labelled a link; a
+ * removed one answers `no readable concept file at <path>`. A
  * link that stays inside the bundle, and a hard link to a file under the
  * root, are served.
  *

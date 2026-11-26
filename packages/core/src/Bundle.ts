@@ -12,7 +12,7 @@ import { Diagnostic, DiagnosticRange } from "./Diagnostic.js";
 import { IndexDocument } from "./IndexDocument.js";
 import { detectFence } from "./internal/fence.js";
 import { decodeConcept } from "./internal/frontmatter.js";
-import { scanLinks } from "./internal/linkScan.js";
+import { COULD_NOT_RESOLVE, RESOLVES_OUTSIDE, scanLinks } from "./internal/linkScan.js";
 import { toFileOffset } from "./internal/position.js";
 import { OPTIONS, parseIndex, parseLog } from "./internal/reserved.js";
 import { DEFAULT_MAX_DEPTH, DEFAULT_PRUNE, walk } from "./internal/walk.js";
@@ -382,10 +382,7 @@ export class Bundle {
 						Effect.match({ onFailure: (error) => error, onSuccess: () => undefined }),
 					);
 					if (refused !== undefined) {
-						const why =
-							refused.reason === "outside"
-								? "resolves outside the bundle root"
-								: "could not be resolved, so it cannot be shown to stay inside the bundle root";
+						const why = refused.reason === "outside" ? RESOLVES_OUTSIDE : COULD_NOT_RESOLVE;
 						diagnostics.push(
 							diagnostic(
 								file,
@@ -436,9 +433,7 @@ export class Bundle {
 									"symlink-escape",
 									"warning",
 									`symbolic link ${
-										read.refused === "outside"
-											? "resolves outside the bundle root"
-											: "could not be resolved, so it cannot be shown to stay inside the bundle root"
+										read.refused === "outside" ? RESOLVES_OUTSIDE : COULD_NOT_RESOLVE
 									}; it is not read and not part of the bundle`,
 								),
 					);

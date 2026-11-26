@@ -135,7 +135,9 @@ src/
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
     write.ts                     -- writeAtomic, bomOf (the BOM a file carries, for writers that edit loader-read text),
-                                  readOptionalSplittingBom (confined read; BOM and the file's first newline), Newline, withNewline, toLf
+                                  readOptionalSplittingBom (confined read; BOM and the file's first newline),
+                                  readOptionalOrSkip (the same read where a refused one is a `skip` answer: symlink-escape or
+                                  changed-during-read), Newline, withNewline, toLf
     run.ts                        -- SkipReason, SyncMode/Options/Result, runSync
   init/
     scaffold.ts                   -- CONFIG_RELATIVE_PATH, ScaffoldOptions, ScaffoldFile,

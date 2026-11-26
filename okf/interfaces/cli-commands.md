@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T09:24:00Z
+  at: 2026-11-26T12:58:08Z
 tags:
   - architecture
 verified:
@@ -51,7 +51,7 @@ verified:
     at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: a6a3d5694ba8bdbb
+    body: c3dc9f7472fbe7ce
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:51Z
@@ -304,6 +304,13 @@ other concept); every JSON summary also carries `staleness`.
 The status list is `query list --status`;
 there is no `okfit status` command. `stale` and `graph` stay top-level.
 
+A concept whose file changed while the bundle was being read (an editor save landing mid-read, the
+`read-changed` diagnostic) is not "not found": `query get`, `query neighbors` and `okfit verify <id>`
+(and an absolute or relative path to it) answer `"<target>" changed while it was read; try again`
+instead of `no concept`, with the exit code of the neighbouring not-found error (`64` from target
+resolution, `3` from the engine's `QueryConceptNotFoundError` and `VerifyConceptNotFoundError`, which
+carry the reason `changed-during-read`). Running the command again, once the save has finished, succeeds.
+
 ## okfit sync
 
 `okfit sync [--root <dir>] [--config <file>] [--only <mode>]... [--dry-run]
@@ -382,8 +389,8 @@ bundle (a dangling link included) is never read or written: it is listed in
 A root or subdirectory `index.md` that exists but could not be read (its
 frontmatter never closes or does not parse) is never rewritten either: it is
 listed in `skipped` with the reason `index-unparseable`, and the exit code
-is unchanged. A file that changed while sync was reading it (replaced or
-removed under the read) is not rewritten and is listed with the reason
+is unchanged. A file that changed while sync was reading it (replaced
+under the read) is not rewritten and is listed with the reason
 `changed-during-read`, a transient skip: running `okfit sync` again reads
 it afresh; the exit code is unchanged. The same holds for a concept that changed while the bundle
 was being read (an editor's atomic save): the load leaves it out and says `read-changed`, and because
