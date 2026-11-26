@@ -6,5 +6,5 @@
 
 * Concept resources re-check containment on every read and read the file confined, so a link swapped in after the bundle loaded cannot serve outside content (#460)
 * Resource errors name the bundle-relative path instead of the absolute path
-* A file that changed during a read is reported as transient: "changed while it was read; try again"
+* A file that changed during a read is reported as transient: `"<path>" changed while it was read; try again`, quoting the path as the CLI does
 * `get_concept` and `concept_neighbors` answer a concept that changed during the read with reason `changed-during-read` and "changed while it was read; try again", not "no concept"

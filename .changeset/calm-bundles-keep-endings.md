@@ -15,5 +15,7 @@
 * `okfit mv` and `migrate --fix` refuse when a file changed during the load
 * Containment checks now judge the whole path, not only its last segment (#460)
 * The sync stale check compares each target with the text the bundle load read, so an edit that lands between the load and the plan is refused with `SyncPlanStaleError` instead of overwritten
+* `okfit sync` refuses an `index.md` or `log.md` that was absent at the load and created before the plan: the index write fails `SyncPlanStaleError` at apply instead of overwriting it, and a log that appeared is skipped as `changed-during-read`, never as `log-unparseable`
+* `PublicationNotFoundError` gains an optional `reason` of `changed-during-read`: `stampPublication` answers a Publication or render source that changed during the load with `"<path>" changed while it was read; try again` instead of "no concept"
 * `makeOverlayFileSystem` answers the read-only `open` and `realPath` a confined read needs, so unsaved overlay documents read the same way as files on disk
 * `ConceptQuery.get`, `ConceptQuery.neighbors`, `Targets.resolve` and `okfit verify <id>` answer a concept that changed during the load with `"<path>" changed while it was read; try again` (reason `changed-during-read`) instead of "no concept"
