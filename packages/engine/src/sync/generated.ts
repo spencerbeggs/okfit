@@ -216,10 +216,11 @@ const stampInstant = (
  * Ordering (later tasks rely on it): (1) scope filter -> (2) digest match
  * against the recorded body digest (`x-okfit-integrity.generated.body`, else the
  * legacy `generated.body_sha256` prefix) => `unchanged` (or a migrate-only
- * write when a legacy line still exists), BEFORE any provenance lookup -> (3)
- * provenance absent => `Effect.die` (caller contract) -> (4) `uncommitted` =>
- * skipped with its reason -> (5) no `generated` block: `agent` unset =>
- * skipped `generated-missing`, else create -> (6) existing block: splice `at`.
+ * write when a legacy line still exists), BEFORE any provenance lookup -> (2b)
+ * no `generated` block and `agent` unset => skipped `generated-missing` (before any
+ * provenance lookup, so an uncommitted concept is told its real blocker first, #515) -> (3) provenance absent =>
+ * `Effect.die` (caller contract) -> (4) `uncommitted` => skipped with its reason -> (5) no `generated` block, `agent`
+ * set: create -> (6) existing block: splice `at`.
  * Every write also sets `x-okfit-integrity.generated.body` (keeping `x-okfit-integrity.verified`)
  * and removes a legacy `body_sha256` line.
  *
@@ -356,6 +357,14 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
 		let encodedAt: string | undefined;
+		// Step 3b (#73, #515): a concept with no `generated` block and no agent to attribute a stamp to can never be
+		// stamped, so name that blocker first: skipping it as uncommitted would send the author to commit it, and the
+		// next sync would then skip it again as `generated-missing`. The file is never even opened for the stamp.
+		const creating = generated === undefined ? agent : undefined;
+		if (!matches && generated === undefined && creating === undefined) {
+			yield* skipKeepingRename("generated-missing");
+			continue;
+		}
 		// `future` implies `now` was given; the `nowStamp` test only narrows its type.
 		if (future && nowStamp !== undefined) {
 			encodedAt = encodeAt(nowStamp);
@@ -394,14 +403,6 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 					? previous
 					: candidate,
 			);
-		}
-
-		// Step 5 (#73): no block at all. With no agent configured there is
-		// nothing to attribute a stamp to, so the file is never even opened.
-		const creating = generated === undefined ? agent : undefined;
-		if (!matches && generated === undefined && creating === undefined) {
-			yield* skipKeepingRename("generated-missing");
-			continue;
 		}
 
 		const fileSource = source ?? (yield* readSourceKeepingBom(fs, absolutePath));
