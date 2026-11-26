@@ -18,8 +18,11 @@ import { loadToolContext } from "../internal/toolContext.js";
  * A root `index.md` that is a symbolic link out of the bundle (or dangling)
  * is refused and never read (OKF 0.3 section 3.2). The read is confined at
  * the moment of reading, through core's `readConfinedString` (open, resolve
- * the path, compare the open file's identity with it), so a link that
- * appears between a check and the read is refused too.
+ * the path, compare the open file's identity with it): a link at the file
+ * itself is refused even when swapped in during the read (a race through a
+ * directory above it can still win, spencerbeggs/okfit#524), and an index
+ * that changed under the read is answered `index.md changed while it was
+ * read; try again`.
  *
  * A missing `index.md` fails the read rather than returning placeholder
  * text (J-8): a resource that silently returns prose instead of the file
@@ -66,8 +69,15 @@ const indexResource = (
 			// Opened, resolved and identity-compared in one step (OKF 0.3 section 3.2): an index.md that is, or becomes,
 			// a link out of the bundle (or dangles) is refused, never read.
 			const text = yield* readConfinedString(ctx.bundleRoot, indexPath).pipe(
-				Effect.catchTag("ConfinementError", () =>
-					Effect.fail(new McpSchema.InternalError({ message: "index.md links out of the bundle" })),
+				Effect.catchTag("ConfinementError", (error) =>
+					Effect.fail(
+						new McpSchema.InternalError({
+							message:
+								error.reason === "changed"
+									? "index.md changed while it was read; try again"
+									: "index.md links out of the bundle",
+						}),
+					),
 				),
 				Effect.catchTag("PlatformError", () =>
 					Effect.fail(new McpSchema.InternalError({ message: "no readable index.md" })),

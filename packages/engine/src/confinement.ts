@@ -9,7 +9,8 @@ import { Effect, Path } from "effect";
  * is an escape (the rule `Bundle.load` applies). A missing file is resolved from its real existing ancestor, so
  * it is not an escape inside `root` and is one under a directory that links out. A regular file under real
  * directories, and a link that stays inside `root`, are not escapes. The one implementation behind
- * {@link escapesBundle}, `okfit context` and the MCP concept resources.
+ * {@link escapesBundle} and `okfit context`. It is a check, not a read: a read that must not follow a link out uses
+ * core's `readConfinedBytes`.
  *
  * @public
  */

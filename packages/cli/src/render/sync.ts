@@ -20,6 +20,7 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"legacy-key-unsupported":
 		"has an old okfit key that sync cannot rename in place (flow style, an alias or a `<<` merge in the old block, a duplicate or an explicit `?` key); rename it by hand to the new spelling",
 	"symlink-escape": "is a symbolic link that leaves the bundle, so it is not read or written",
+	"changed-during-read": "changed while it was read, so it was not rewritten; run okfit sync again",
 	"verified-after-now":
 		"has a verification that a re-stamp would make current; a human must correct generated.at or that verification",
 };

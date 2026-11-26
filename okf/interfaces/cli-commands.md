@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T04:29:55Z
+  at: 2026-11-26T07:05:51Z
 tags:
   - architecture
 verified:
@@ -51,7 +51,7 @@ verified:
     at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: 6192df02d788b1ad
+    body: 81ee582be85e4d87
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:51Z
@@ -380,7 +380,10 @@ bundle (a dangling link included) is never read or written: it is listed in
 A root or subdirectory `index.md` that exists but could not be read (its
 frontmatter never closes or does not parse) is never rewritten either: it is
 listed in `skipped` with the reason `index-unparseable`, and the exit code
-is unchanged. A root `index.md` that declares no `okf_version` is given the
+is unchanged. A file that changed while sync was reading it (replaced or
+removed under the read) is not rewritten and is listed with the reason
+`changed-during-read`, a transient skip: running `okfit sync` again reads
+it afresh; the exit code is unchanged. A root `index.md` that declares no `okf_version` is given the
 config's `okf_version` when the config sets one and is otherwise left
 undeclared.
 

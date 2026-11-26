@@ -578,7 +578,7 @@
 						"error"
 					],
 					"title": "walk-unreadable",
-					"description": "A directory in the bundle could not be read while walking. Default \"warn\".",
+					"description": "A directory in the bundle could not be read while walking, or a file changed while it was read (try again). Default \"warn\".",
 					"default": "warn",
 					"x-taplo": {
 						"docs": {

@@ -194,6 +194,31 @@ describe("Bundle.load", () => {
 			assert.deepStrictEqual(Validate.conformance(bundle), []);
 		}).pipe(Effect.provide(layer));
 	});
+	it.effect("a file replaced under the read is a transient read failure (try again), not an escape (#460)", () => {
+		const [layer, trap] = swapPlatform(
+			{ [`${MOUNT}/a.md`]: "---\ntype: Note\n---\n", [`${MOUNT}/b.md`]: "---\ntype: Note\n---\n" },
+			"lstat",
+			"before",
+			`${MOUNT}/a.md`,
+			(fs) =>
+				Effect.gen(function* () {
+					yield* fs.remove(`${MOUNT}/a.md`);
+					yield* fs.writeFileString(`${MOUNT}/a.md`, "---\ntype: Note\n---\n\nSWAPPED\n");
+				}),
+			// the walk lstats the file twice and the loader's link check once; the confined read's own lstat is the fourth
+			4,
+		);
+		return Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isTrue(trap.fired(), "the swap must have run");
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
+			assert.deepStrictEqual(bundle.files, ["b.md"]);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "walk-unreadable", undefined]]);
+			assert.strictEqual(bundle.diagnostics[0]?.severity, "warning");
+			assert.include(bundle.diagnostics[0]?.message ?? "", "changed while it was read; try again");
+			assert.deepStrictEqual(Validate.conformance(bundle), []);
+		}).pipe(Effect.provide(layer));
+	});
 	const dirLinkSeed = {
 		[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
 		[`${MOUNT}/sub/b.md`]: "---\ntype: Note\n---\n",

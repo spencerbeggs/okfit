@@ -23,7 +23,9 @@ export type SyncMode = "generated" | "index" | "log";
 /**
  * S-14: a closed union, not free text. The human renderer maps each member
  * to one fixed sentence (`render/sync.ts#humanSync`); the JSON envelope's
- * `skipped[].reason` is this exact union.
+ * `skipped[].reason` is this exact union. `changed-during-read` is the transient one: the file was replaced or
+ * removed while sync read it, so it was not rewritten; running sync again reads it afresh. It never means the file
+ * leaves the bundle (that is `symlink-escape`).
  *
  * @public
  */
@@ -38,6 +40,7 @@ export const SkipReason = Schema.Literals([
 	"log-unparseable",
 	"index-unparseable",
 	"symlink-escape",
+	"changed-during-read",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",
 	"verified-after-now",

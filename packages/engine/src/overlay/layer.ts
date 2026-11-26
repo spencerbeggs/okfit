@@ -183,9 +183,12 @@ const documentAtRealPath = (
 	});
 
 /**
- * An open document's bytes. A decoder that drops a leading BOM (the loader's, as Node's `readFileString` does for a
- * file on disk) would also drop one the editor's buffer carries, which the overlay has always kept: a buffer that
- * starts with a BOM is encoded with a second one, so exactly the buffer's own text survives the decode.
+ * An open document's bytes. A decoder that drops a leading BOM (the loader's, as Effect's
+ * `FileSystem.readFileString` does, a `TextDecoder`; Node's `fs.readFileSync` keeps it) would also drop one the
+ * editor's buffer carries, which the overlay has always kept: a buffer that starts with a BOM is encoded with a
+ * second one, so exactly the buffer's own text survives the decode. So the bytes `open` serves carry one more BOM
+ * than `readFile`'s for such a buffer: a byte consumer of `open` sees a phantom BOM. Only `validate` and the LSP
+ * use the overlay, and both decode.
  */
 const overlayBytes = (text: string): Uint8Array => encoder.encode(text.startsWith("\uFEFF") ? `\uFEFF${text}` : text);
 

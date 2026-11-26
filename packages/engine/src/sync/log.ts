@@ -179,7 +179,7 @@ export interface SyncLogResult {
 	readonly unchanged: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{
 		readonly id: string;
-		readonly reason: "log-unparseable" | "dirty" | "symlink-escape";
+		readonly reason: "log-unparseable" | "dirty" | "symlink-escape" | "changed-during-read";
 	}>;
 }
 
@@ -218,16 +218,19 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	// The BOM is kept (#492, D8): merge and compare on the stripped text, write `bom + merged`.
 	// The file's line ending is kept too (#505): merge in LF, write in the file's first newline.
 	// The read is confined (opened, resolved, identity-compared): a log.md swapped for a link out after the check
-	// above is skipped, not read.
+	// above is skipped as `symlink-escape`, one that changed under the read as `changed-during-read` (transient:
+	// sync again); neither is read.
 	const read = yield* readOptionalSplittingBom(bundle.root, logPath).pipe(
-		Effect.catchTag("ConfinementError", () => Effect.succeed(undefined)),
+		Effect.catchTag("ConfinementError", (error) => Effect.succeed(error.reason)),
 	);
-	if (read === undefined) {
+	if (typeof read === "string") {
 		return {
 			selected: true,
 			written: [],
 			unchanged: [],
-			skipped: [{ id: "log.md", reason: "symlink-escape" as const }],
+			skipped: [
+				{ id: "log.md", reason: read === "changed" ? ("changed-during-read" as const) : ("symlink-escape" as const) },
+			],
 		} satisfies SyncLogResult;
 	}
 	const { text: source, bom, newline } = read;

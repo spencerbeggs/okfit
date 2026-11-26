@@ -335,7 +335,8 @@ export const LintTable = Schema.Struct({
 	walk_unreadable: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "walk-unreadable",
-			description: 'A directory in the bundle could not be read while walking. Default "warn".',
+			description:
+				'A directory in the bundle could not be read while walking, or a file changed while it was read (try again). Default "warn".',
 			default: "warn",
 		}),
 	),

@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T06:24:20Z
+  at: 2026-11-26T07:05:51Z
 tags:
   - architecture
 verified:
@@ -33,7 +33,7 @@ verified:
     at: 2026-11-26T06:31:53Z
 x-okfit-integrity:
   generated:
-    body: cd7a72a4dabb0e5d
+    body: 64dd2391e8cb2edf
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:53Z
@@ -69,12 +69,16 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
   itself is fixed at boot. Every read is confined at the moment of reading:
   the file is opened, its path resolved (a link at the file or at any
   directory above it that leads out of the bundle, or dangles, is refused),
-  and the open file's identity compared with the resolved path's, so a path
-  swapped for a link between the check and the read is refused too. The
-  refusal is `<path> links out of the bundle` (the path bundle-relative, for
-  example `metrics/revenue.md`) and the outside file is never read; a link
-  that stays inside the bundle is served, and so is a hard link to a file
-  under the root (OKF 0.3 section 3.2). `okf://index` is read the same way.
+  and the open file's identity compared with the resolved path's. A link at
+  the file itself is refused even when it is swapped in during the read; a
+  race through a directory above the file can still win (spencerbeggs/okfit#524).
+  The refusal is `<path> links out of the bundle` (the path bundle-relative,
+  for example `metrics/revenue.md`) and the outside file is not read. A file
+  that changed under the read (replaced or removed) is answered
+  `<path> changed while it was read; try again`, a transient failure, never
+  labelled a link. A link that stays inside the bundle is served, and so is a
+  hard link to a file under the root (OKF 0.3 section 3.2). `okf://index` is
+  read the same way.
 The bundle root is resolved wherever `okf/` points at each read, so a root
 replaced by a link after boot is followed, and the tools and resources
 agree on it. A resource read that fails (a refused link, or a concept file

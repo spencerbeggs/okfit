@@ -45,3 +45,15 @@ export const swapPlatform = (
 	).pipe(Layer.provide(MemoryFileSystem.layerWith(seed)));
 	return [Layer.mergeAll(wrapped, Path.layer), { fired: () => fired }];
 };
+
+/** memfs over `seed` with `override(fs)` spread over it: one member answers differently, everything else delegates. */
+export const overridePlatform = (
+	seed: MemoryFileSystemSeed,
+	override: (fs: FileSystem.FileSystem) => Partial<FileSystem.FileSystem>,
+): Layer.Layer<FileSystem.FileSystem | Path.Path> =>
+	Layer.mergeAll(
+		Layer.effect(FileSystem.FileSystem)(
+			Effect.map(FileSystem.FileSystem, (fs): FileSystem.FileSystem => ({ ...fs, ...override(fs) })),
+		).pipe(Layer.provide(MemoryFileSystem.layerWith(seed))),
+		Path.layer,
+	);

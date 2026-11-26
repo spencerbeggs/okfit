@@ -53,8 +53,11 @@ or `.config/okfit.toml`.
   every read is confined at the moment of reading (the file is opened, its
   path resolved and the open file's identity compared with it): a file, or
   a directory above it, that links out of the bundle (or dangles) is refused
-  with `<path> links out of the bundle` and never read, whenever the link
-  appeared (the bundle root is
+  with `<path> links out of the bundle`, and a link at the file itself is
+  refused even when it is swapped in during the read; a race through a
+  directory above the file can still win (spencerbeggs/okfit#524). A file
+  that changed under the read is answered `<path> changed while it was read;
+  try again` (the bundle root is
   resolved wherever `okf/` points at each read, so a root replaced by a link
   after boot is followed, tools and resources alike); a
   concept added or removed after boot is not reflected in `resources/list`

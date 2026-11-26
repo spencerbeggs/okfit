@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T06:24:20Z
+  at: 2026-11-26T07:05:51Z
 x-okfit-integrity:
   generated:
-    body: d43a67fb462a6ed6
+    body: 10a16dd95aa41c02
 ---
 
 # Core
@@ -158,11 +158,15 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   compare the open file's `dev` and `ino` with `lstat` of the real path, so a
   path swapped for a link out of the root, at the file or at a directory above
   it, is refused when it is read (`ConfinementError`), not only when it is
-  checked. `Bundle.load` reads every Markdown file this way; a file that
-  becomes a link between the link check and the read is recorded
-  `symlink-escape` and left out. A hard link to a file under the root is a
-  file under the root (OKF 0.3 section 3.2). Writes stay a check then an
-  atomic write.
+  checked. `Bundle.load` reads every Markdown file this way. A link at the
+  file itself is refused even when it is swapped in during the read: a file
+  that becomes a link out between the link check and the read is recorded
+  `symlink-escape` and left out, and one that changed under the read (the
+  identity compare failed) is recorded `walk-unreadable`, "changed while it
+  was read; try again", a transient failure that is never labelled an escape.
+  A race through a directory above the file can still win (spencerbeggs/okfit#524).
+  A hard link to a file under the root is a file under the root (OKF 0.3
+  section 3.2). Writes stay a check then an atomic write.
 - **Non-concept markdown.** `frontmatter-missing` and `type-missing` are
   lints that skip the file; `symlink-escape` refuses a file or
   directory link out of the bundle, and a link that cannot be resolved

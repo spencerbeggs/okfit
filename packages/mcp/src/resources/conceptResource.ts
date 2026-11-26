@@ -28,10 +28,13 @@ import { loadToolContext } from "../internal/toolContext.js";
  * through core's `readConfinedString`: the file is opened, its path
  * resolved and the open file's `dev` and `ino` compared with the resolved
  * path's, so a file, or a directory above it, that links out of the bundle
- * (or dangles) is refused with `<path> links out of the bundle` and never
- * read, even when the link appears between a check and the read. A link
- * that stays inside the bundle, and a hard link to a file under the root,
- * are served.
+ * (or dangles) is refused with `<path> links out of the bundle`. A link at
+ * the file itself is refused even when it is swapped in during the read; a
+ * race through a directory above the file can still win
+ * (spencerbeggs/okfit#524). A file that changed under the read is answered
+ * `<path> changed while it was read; try again`, never labelled a link. A
+ * link that stays inside the bundle, and a hard link to a file under the
+ * root, are served.
  *
  * If the bundle fails to load at boot (bad config, missing bundle root),
  * one line is logged and this layer contributes no resources — the
@@ -67,8 +70,15 @@ export const ConceptResources = (
 						// Opened, resolved and identity-compared in one step (OKF 0.3 section 3.2), so a file, or a directory
 						// above it, swapped for a link out of the bundle at any moment is refused, never read.
 						const text = yield* readConfinedString(ctx.bundleRoot, absolutePath).pipe(
-							Effect.catchTag("ConfinementError", () =>
-								Effect.fail(new McpSchema.InternalError({ message: `${concept.path} links out of the bundle` })),
+							Effect.catchTag("ConfinementError", (error) =>
+								Effect.fail(
+									new McpSchema.InternalError({
+										message:
+											error.reason === "changed"
+												? `${concept.path} changed while it was read; try again`
+												: `${concept.path} links out of the bundle`,
+									}),
+								),
 							),
 							Effect.catchTag("PlatformError", () =>
 								Effect.fail(new McpSchema.InternalError({ message: `no readable concept file at ${concept.path}` })),

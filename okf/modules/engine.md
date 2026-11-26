@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T06:24:20Z
+  at: 2026-11-26T07:05:51Z
 x-okfit-integrity:
   generated:
-    body: f850b200669c3d6f
+    body: ae54200d408b481b
 ---
 
 # Engine
@@ -283,7 +283,9 @@ and the fixed `BUNDLE_DESCRIPTION`.
 `log.md`, that is a symbolic link out of the bundle, a dangling link
 included: `syncIndex` and `syncLog` return it in `skipped` with the reason
 `symlink-escape` (`SkipReason`), in plain, dry-run and `--staged` runs, and
-the exit code is unchanged. `syncIndex` likewise never renders over a root
+the exit code is unchanged. A file that changed under sync's read
+(`ConfinementError` reason `changed`) is skipped as `changed-during-read`
+instead, a transient skip, never labelled an escape. `syncIndex` likewise never renders over a root
 or subdirectory `index.md` whose frontmatter never closes or does not parse
 (`frontmatter-unclosed` or `frontmatter-unparseable` on that file): it
 returns it in `skipped` with the reason `index-unparseable`, in every run,
@@ -297,12 +299,17 @@ a link that leaves). That check decides a skip and gates a write: a write is
 checked before it happens, then made atomically. The reads are confined at the moment of reading instead: sync reads
 `index.md` and `log.md` through core's `readConfinedBytes`, which opens the
 file, resolves its path and compares the open file's `dev` and `ino` with
-`lstat` of the real path, so a file swapped for a link out after the check is
-skipped as `symlink-escape`, never read, even when the swap lands between the
-check and the read. A hard link to a file under the root is a file under the
+`lstat` of the real path. A link at the file itself is refused even when it is
+swapped in during the read (skipped as `symlink-escape`, or as
+`changed-during-read` when it landed between the resolution and the compare),
+and never read. A race through a directory above the file can still win,
+because the open and the resolution are separate steps on the path (see
+spencerbeggs/okfit#524, which also lists the reads that are still
+unconfined). A hard link to a file under the root is a file under the
 root (OKF 0.3 section 3.2) and is read. `okfit context` uses `escapesRoot`,
 and the MCP `okf://index` and `okf://concept/<id>` resources read confined,
-so an escaping root `index.md` is reported absent and never read. `sync --staged` never stamps a concept file
+so an escaping root `index.md` is reported absent and never read. `okfit
+context` is not a confined read: it only checks. `sync --staged` never stamps a concept file
 that is a symlink out of the bundle, because core does not load one, and it
 skips an escaping `log.md` instead of failing;
 `ConceptOutsideRepositoryError` still covers a concept that resolves outside

@@ -328,7 +328,10 @@ export class Bundle {
 	 * it, a directory link that leaves it (nothing under it is read), and a link of either kind whose resolution
 	 * fails (dangling, a loop, an unreadable target) each record a `symlink-escape` warning at their own path
 	 * (pruned directory names are not checked, hidden ones only under `includeHidden`); a directory link that stays inside is never walked and
-	 * records nothing.
+	 * records nothing. Each Markdown file is read confined (`readConfinedString`): a file that becomes a link out of
+	 * the bundle between the link check and the read is refused as `symlink-escape`, and one that changed under the
+	 * read (`changed`) is recorded `walk-unreadable` ("try again") and left out. A race through a directory above
+	 * the file can still win (spencerbeggs/okfit#524).
 	 */
 	static readonly load: (
 		options: BundleLoadOptions,
@@ -419,19 +422,25 @@ export class Bundle {
 				);
 				if ("refused" in read) {
 					refusedAtRead.add(file);
-					const why =
-						read.refused === "outside"
-							? "resolves outside the bundle root"
-							: read.refused === "unresolvable"
-								? "could not be resolved, so it cannot be shown to stay inside the bundle root"
-								: "changed while it was read, so it cannot be shown to stay inside the bundle root";
+					// `changed` is a transient read failure, never an escape verdict: reading again may succeed.
 					diagnostics.push(
-						diagnostic(
-							file,
-							"symlink-escape",
-							"warning",
-							`symbolic link ${why}; it is not read and not part of the bundle`,
-						),
+						read.refused === "changed"
+							? diagnostic(
+									file,
+									"walk-unreadable",
+									"warning",
+									`file "${file}" changed while it was read; try again. It is not part of the bundle`,
+								)
+							: diagnostic(
+									file,
+									"symlink-escape",
+									"warning",
+									`symbolic link ${
+										read.refused === "outside"
+											? "resolves outside the bundle root"
+											: "could not be resolved, so it cannot be shown to stay inside the bundle root"
+									}; it is not read and not part of the bundle`,
+								),
 					);
 					continue;
 				}

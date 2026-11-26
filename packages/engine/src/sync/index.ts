@@ -10,7 +10,10 @@ export interface SyncIndexResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" | "index-unparseable" }>;
+	readonly skipped: ReadonlyArray<{
+		readonly id: string;
+		readonly reason: "symlink-escape" | "index-unparseable" | "changed-during-read";
+	}>;
 }
 
 export { escapesBundle } from "../confinement.js";
@@ -56,13 +59,14 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	// A leading BOM and the file's line ending are kept (#492, #505): render in LF, compare on the stripped text
 	// with its endings ignored (a file that differs only in endings is unchanged), and write `bom + expected`,
 	// the render in the file's first newline.
-	// The read is confined (opened, resolved, identity-compared), so a file swapped for a link out after the
-	// caller's `escapesBundle` check is skipped, not read.
+	// The read is confined (opened, resolved, identity-compared): a file swapped for a link out after the caller's
+	// `escapesBundle` check is skipped as `symlink-escape`, one that changed under the read as `changed-during-read`
+	// (transient: sync again); neither is read.
 	const read = yield* readOptionalSplittingBom(root, targetPath).pipe(
-		Effect.catchTag("ConfinementError", () => Effect.succeed(undefined)),
+		Effect.catchTag("ConfinementError", (error) => Effect.succeed(error.reason)),
 	);
-	if (read === undefined) {
-		skipped.push({ id: relativeId, reason: "symlink-escape" });
+	if (typeof read === "string") {
+		skipped.push({ id: relativeId, reason: read === "changed" ? "changed-during-read" : "symlink-escape" });
 		return;
 	}
 	const { text: onDisk, bom, newline } = read;
@@ -109,7 +113,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: "symlink-escape" | "index-unparseable" }> = [];
+	const skipped: Array<SyncIndexResult["skipped"][number]> = [];
 
 	// Step 1: the root.
 	if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });

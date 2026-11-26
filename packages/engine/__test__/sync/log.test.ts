@@ -25,6 +25,7 @@ import type { PendingWrite } from "../../src/sync/write.js";
 import { V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, seedPlatform } from "../utils/bundle.js";
 import { withRealBundle } from "../utils/realBundle.js";
+import { swapOn } from "../utils/swapPlatform.js";
 
 /**
  * One `## <date>` group as it would come out of `Bundle.load`'s
@@ -469,6 +470,43 @@ describe("syncLog", () => {
 			}
 		}).pipe(Effect.provide(platform)),
 	);
+});
+
+describe("syncLog: a log.md swapped after the check (OKF 0.3 section 3.2, #460)", () => {
+	const target = `${ROOT}/log.md`;
+	const REVENUE = Option.getOrThrow(ConceptId.normalize("metrics/revenue.md"));
+	const provenance = new Map([
+		[REVENUE, { _tag: "committed", at: DateTime.makeUnsafe("2026-09-16T10:00:00Z"), creating: true } as const],
+	]);
+	const seed = { ...mountProject(V03_PROJECT), [target]: "# Log\n", "/outside/log.md": "# Outside log\n" };
+	const toLinkOut = (fs: FileSystem.FileSystem) =>
+		Effect.gen(function* () {
+			yield* fs.remove(target);
+			yield* fs.symlink("/outside/log.md", target);
+		});
+	const outcomes = [
+		["open", "symlink-escape"],
+		["lstat", "changed-during-read"],
+	] as const;
+	for (const [method, reason] of outcomes) {
+		for (const dryRun of [false, true]) {
+			it.effect(`skips it as ${reason} when swapped at ${method}, writing nothing (dryRun ${dryRun})`, () => {
+				const [layer, trap] = swapOn(seed, method, target, toLinkOut);
+				return Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const bundle = yield* Bundle.load({ root: ROOT });
+					trap.arm();
+					const pending: Array<{ target: string; contents: string }> = [];
+					const result = yield* syncLog(bundle, provenance, dryRun, undefined, pending);
+					assert.isTrue(trap.fired(), "the swap must have run");
+					assert.deepStrictEqual(result.skipped, [{ id: "log.md", reason }]);
+					assert.deepStrictEqual(result.written, []);
+					assert.deepStrictEqual(pending, []);
+					assert.strictEqual(yield* fs.readFileString("/outside/log.md"), "# Outside log\n");
+				}).pipe(Effect.provide(layer));
+			});
+		}
+	}
 });
 
 describe("syncLog: a log.md linked out of the bundle (OKF 0.3 section 3.2 rule 5)", () => {
