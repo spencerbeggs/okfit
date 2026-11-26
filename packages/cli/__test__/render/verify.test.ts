@@ -164,7 +164,7 @@ describe("humanVerifyBatch", () => {
 			skipped: [{ id: "decisions/c", reason: "deprecated" }],
 		});
 		assert.deepStrictEqual(lines, [
-			"skipped decisions/c: status deprecated, so a batch leaves it out, and there is nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/c --stable",
+			"skipped decisions/c: status deprecated, so a batch leaves it out, and a batch has nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/c --stable",
 			"verified 0, skipped 1",
 		]);
 	});
@@ -205,6 +205,8 @@ describe("humanVerifyBatch", () => {
 					reason: "not-current",
 					notCurrent: { generatedAt: "2026-09-16T11:59:30Z", at: "2026-09-16T11:59:00Z" },
 				},
+				{ id: "decisions/u", reason: "unknown-status" },
+				{ id: "decisions/x", reason: "not-current" },
 			],
 		});
 		const steps = [
@@ -217,8 +219,10 @@ describe("humanVerifyBatch", () => {
 			"nothing to do",
 		];
 		const skips = lines.filter((line) => line.startsWith("skipped "));
-		assert.strictEqual(skips.length, 8);
-		for (const line of skips) {
+		assert.strictEqual(skips.length, 10);
+		const fallbacks = ["skipped decisions/u: unknown-status", "skipped decisions/x: not-current"];
+		assert.deepStrictEqual(skips.slice(-2), fallbacks);
+		for (const line of skips.slice(0, -2)) {
 			assert.isTrue(
 				steps.some((step) => line.includes(step)),
 				`no next step in: ${line}`,

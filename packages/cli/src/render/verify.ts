@@ -108,7 +108,7 @@ const skippedReason = (entry: VerifySkip, input: VerifyBatchLines): string =>
 	entry.reason === "draft"
 		? `status draft, so a batch leaves it out; verify it on its own with okfit verify ${entry.id} --stable to settle it, or --draft to keep it a draft`
 		: entry.reason === "deprecated"
-			? `status deprecated, so a batch leaves it out, and there is nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify ${entry.id} --stable`
+			? `status deprecated, so a batch leaves it out, and a batch has nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify ${entry.id} --stable`
 			: entry.reason === "already-verified"
 				? `already verified by ${input.by}, and that verification still covers its content; nothing to do`
 				: entry.reason === "unknown-status" && entry.status !== undefined

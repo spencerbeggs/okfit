@@ -911,7 +911,7 @@ describe("okfit verify (e2e)", () => {
 			);
 			assert.include(
 				dry.stdout,
-				"skipped decisions/e: status deprecated, so a batch leaves it out, and there is nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/e --stable\n",
+				"skipped decisions/e: status deprecated, so a batch leaves it out, and a batch has nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/e --stable\n",
 			);
 			// the suggested commands are accepted
 			for (const args of [
