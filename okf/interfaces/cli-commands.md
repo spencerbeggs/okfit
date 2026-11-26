@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:43:47Z
+  at: 2026-11-26T09:24:00Z
 tags:
   - architecture
 verified:
@@ -51,7 +51,7 @@ verified:
     at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: 703d00cfb7e24eb9
+    body: a6a3d5694ba8bdbb
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:51Z
@@ -388,9 +388,11 @@ removed under the read) is not rewritten and is listed with the reason
 it afresh; the exit code is unchanged. The same holds for a concept that changed while the bundle
 was being read (an editor's atomic save): the load leaves it out and says `read-changed`, and because
 anything rendered from that bundle would silently drop it, sync writes nothing derived from the
-affected directories. It lists the concept id in `generated.skipped`, the `index.md` of its directory
-and of every directory above it in `index.skipped`, and `log.md` in `log.skipped`, each with the
-reason `changed-during-read` (other directories' indexes are still written); run `okfit sync` again. A root `index.md` that declares no `okf_version` is given the
+affected directories. It lists the concept id in `generated.skipped`, the root `index.md` and the
+`index.md` of every directory at or above the changed file that still has an index to derive in
+`index.skipped`, and `log.md` in `log.skipped`, each with the reason `changed-during-read` (other
+directories' indexes are still written). A directory whose only concept was the changed one drops out
+of the index set, so its `index.md` is neither listed nor written; run `okfit sync` again. A root `index.md` that declares no `okf_version` is given the
 config's `okf_version` when the config sets one and is otherwise left
 undeclared.
 

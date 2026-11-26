@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:43:47Z
+  at: 2026-11-26T09:24:00Z
 x-okfit-integrity:
   generated:
-    body: 8315d10fa758a620
+    body: 1e067af1afdc5fcb
 ---
 
 # Engine
@@ -287,9 +287,12 @@ the exit code is unchanged. A file that changed under sync's read
 (`ConfinementError` reason `changed`) is skipped as `changed-during-read`
 instead, a transient skip, never labelled an escape. A file that changed under
 `Bundle.load` (`read-changed`) is missing from the bundle, so `planSync` writes nothing derived from the
-affected directories: the changed concept id is listed in `generated.skipped`, the `index.md` of its
-directory and of each directory above it in `index.skipped`, and `log.md` in `log.skipped`
-(`changed-during-read`); `changedDuringLoad.ts` computes those sets, and `mv` (`MoveError`
+affected directories: the changed concept id is listed in `generated.skipped`, and `log.md` in
+`log.skipped` (`changed-during-read`). `changedDirectories` holds back the file's directory and every
+one above it, and `syncIndex` lists each held directory it would have rendered in `index.skipped`: the
+root always, and any other only while `Derive.indexDirectories` still yields it, so a directory whose
+only concept was the changed one drops out and its `index.md` is neither listed nor written.
+`changedDuringLoad.ts` computes those sets, and `mv` (`MoveError`
 `changed-during-read`), the migration fix (every selected finding refused) and the verify batch (a
 `changed-during-read` skip) use it too, rather than write something silently incomplete. `syncIndex` likewise never renders over a root
 or subdirectory `index.md` whose frontmatter never closes or does not parse

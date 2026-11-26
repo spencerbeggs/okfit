@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:43:47Z
+  at: 2026-11-26T09:24:00Z
 x-okfit-integrity:
   generated:
-    body: 21a32a7b5744fc86
+    body: ed0580e4f3394686
 ---
 
 # Core
@@ -59,16 +59,19 @@ fence; and `footnote-undefined` reads the parser's
 
 `internal/walk.ts` is now a thin adapter over `@effected/walker`'s
 `descend(pattern, { onUnreadable: "record" })` rather than a hand-rolled
-recursion (`packages/core/src/internal/walk.ts:52-78`): unreadable
-subdirectories still become sorted `walk-unreadable` diagnostics (a file that changed under the read is `read-changed`, never `walk-unreadable`), and an
-unreadable root is re-read once to surface the real `PlatformError` as
-`BundleReadError`. A walk that descends past `maxDepth` (default 256,
+recursion (`packages/core/src/internal/walk.ts:62-92`): unreadable
+subdirectories still become sorted `walk-unreadable` diagnostics (a file that changed under the read is `read-changed`, never `walk-unreadable`), an
+unreadable root fails with the `PlatformError` the walker recorded, which
+`Bundle.load` maps to `BundleReadError`, and the walker's `links` report
+(directory links it did not enter, dangling links) is passed through for
+`internal/linkScan.ts` to turn into `symlink-escape`. A walk that descends past `maxDepth` (default 256,
 `DEFAULT_MAX_DEPTH`) now fails typed with a new public
 `BundleDepthExceededError { root, path, limit }`, added to the
-`BundleLoadError` union (`packages/core/src/Bundle.ts:77`), instead of
+`BundleLoadError` union (`packages/core/src/Bundle.ts:79`), instead of
 being silently truncated -- the same D-9 argument that unreadable subtrees
-are reported, never hidden. `maxDepth` must be a positive integer,
-enforced by the adapter (`packages/core/src/internal/walk.ts:56-58`).
+are reported, never hidden. `maxDepth` must be a positive integer; `descend` treats
+any other value as a defect, not a typed failure
+(`packages/core/__test__/walk.test.ts:53`).
 
 ## Config rules
 
@@ -85,7 +88,7 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-forty-three keys, including `generated_at_drift`, `generated_missing`,
+forty-four keys, including `generated_at_drift`, `generated_missing`,
 `verified_before_change` (default `warn`) and the
 ten added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
 `value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,

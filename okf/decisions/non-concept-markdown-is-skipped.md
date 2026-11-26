@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T09:01:01Z
+  at: 2026-11-26T09:24:00Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 4306bce522c6a8dc
+    body: 6c2ae3c2c012b0ee
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:54Z
@@ -133,7 +133,7 @@ a typeless file that is not one of the four listed names; a bundle that sets
 config has no key, which is `profile = "none"` with no `non_concepts` of its
 own; the software-project profile, the default, always supplies the four
 globs.
-`non_concept_unlisted` is a public config key, one of the forty-three lint keys.
+`non_concept_unlisted` is a public config key, one of the forty-four lint keys.
 
 `sync` never stamps or rewrites a concept file that is a link out of the
 bundle, because `Bundle.load` drops it, and an engine test pins that. The
