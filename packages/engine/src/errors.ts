@@ -241,7 +241,7 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
  * Issue #138: `okfit verify`'s selection was contradictory or empty. Exit 64: a usage error.
  *
  * `at-future` is an `--at` more than 5 minutes later than now (#503) and `at-malformed` an `--at` that is not a
- * timestamp (#513); for both, `detail` is the value. `at-malformed` quotes it exactly as given, so a front end that
+ * timestamp (#513); for both, `detail` is the value. `at-malformed` quotes it in double quotes exactly as given (so an empty value reads `""`), and a front end that
  * prints it to a terminal puts it on one line itself.
  *
  * @public
@@ -274,7 +274,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 			return `--at ${this.detail ?? ""} is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now`;
 		}
 		if (this.reason === "at-malformed") {
-			return `--at ${this.detail ?? ""} is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)`;
+			return `--at "${this.detail ?? ""}" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)`;
 		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";

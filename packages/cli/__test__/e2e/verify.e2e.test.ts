@@ -332,7 +332,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(run.exitCode, 64, run.stderr);
 			assert.strictEqual(
 				run.stderr,
-				"error: --at 2026-09-07T00:00:00 is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)\n",
+				'error: --at "2026-09-07T00:00:00" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)\n',
 			);
 			assert.strictEqual(await readProject(cwd), before);
 		} finally {
@@ -354,8 +354,17 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(run.exitCode, 64, run.stderr);
 			assert.strictEqual(
 				run.stderr,
-				"error: --at nope is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)\n",
+				'error: --at "nope" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)\n',
 			);
+
+			// the one check that does come first: an explicit --config that does not exist is statted before the
+			// handler runs (K-1), so it wins over a malformed --at
+			const missing = join(cwd, "missing.toml");
+			const statted = await withServices(
+				runOkfit(["verify", "project", "--at", "nope", "--config", missing], { cwd, env: now }),
+			);
+			assert.strictEqual(statted.exitCode, 3, statted.stderr);
+			assert.strictEqual(statted.stderr, `error: config path not found: ${missing}\n`);
 
 			// the future --at refusal moves with it
 			const future = await withServices(
@@ -382,7 +391,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(envelope.error.tag, "VerifySelectionError");
 			assert.strictEqual(
 				envelope.error.message,
-				"--at nope is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)",
+				'--at "nope" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)',
 			);
 			assert.strictEqual(await readProject(cwd), before);
 		} finally {
@@ -425,7 +434,7 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(malformed.exitCode, 64, malformed.stderr);
 			assert.include(
 				malformed.stderr,
-				"--at tomorrow is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)",
+				'--at "tomorrow" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)',
 			);
 		} finally {
 			await removeSandbox(sandbox);

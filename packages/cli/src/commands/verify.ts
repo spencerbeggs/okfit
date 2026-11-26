@@ -154,7 +154,8 @@ export const verifyCommand = Command.make(
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
-				// --revoke is its own mode: validate its usage before touching config, git or the clock.
+				// --revoke is its own mode: validate its usage first, before the clock, --at, config discovery or git
+				// (an explicit --config is statted before this handler runs, by provideConfig).
 				if (input.revoke) {
 					const conflicts = [
 						...(input.all ? ["--all"] : []),

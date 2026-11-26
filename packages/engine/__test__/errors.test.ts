@@ -139,8 +139,13 @@ describe("VerifySelectionError at-malformed (#513)", () => {
 		assert.strictEqual(error[Runtime.errorExitCode], 64);
 		assert.strictEqual(
 			error.message,
-			"--at tomorrow is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)",
+			'--at "tomorrow" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)',
 		);
+	});
+
+	it("quotes an empty value so it still reads as a value (#513)", () => {
+		const error = new VerifySelectionError({ reason: "at-malformed", detail: "" });
+		assert.isTrue(error.message.startsWith('--at "" is not a timestamp; '), error.message);
 	});
 });
 
