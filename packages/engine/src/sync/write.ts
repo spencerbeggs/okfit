@@ -77,6 +77,22 @@ export const readOptionalSplittingBom = (root: string, target: string) =>
 	);
 
 /**
+ * {@link readOptionalSplittingBom} where a refused read is an answer, not a failure: `{ skip }` carries the
+ * `SkipReason` a sync mode records, `symlink-escape` for a file that leaves `root` (or dangles) and
+ * `changed-during-read` for one that changed under the read (transient: sync again). Neither file is read.
+ *
+ * @internal
+ */
+export const readOptionalOrSkip = (root: string, target: string) =>
+	readOptionalSplittingBom(root, target).pipe(
+		Effect.catchTag("ConfinementError", (error) =>
+			Effect.succeed({
+				skip: error.reason === "changed" ? ("changed-during-read" as const) : ("symlink-escape" as const),
+			}),
+		),
+	);
+
+/**
  * `text` (LF throughout, as the renderers produce it) in the given line ending. For CRLF every LF becomes CRLF; text
  * that already carries CRLF is not doubled. The rule covers LF and CRLF only: a sync rewrite uses the file's first
  * newline throughout (#505), the same rule verify uses, and a file with no LF is written LF.

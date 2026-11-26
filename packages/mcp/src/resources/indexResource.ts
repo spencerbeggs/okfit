@@ -1,8 +1,8 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
-import { readConfinedString } from "@okfit/core";
 import type { Context, FileSystem } from "effect";
 import { Effect, Layer, Path } from "effect";
-import { McpSchema, McpServer } from "effect/ai";
+import { McpServer } from "effect/ai";
+import { readResourceText } from "../internal/confinedText.js";
 import { loadToolContext } from "../internal/toolContext.js";
 
 /**
@@ -68,21 +68,7 @@ const indexResource = (
 			const indexPath = path.join(ctx.bundleRoot, "index.md");
 			// Opened, resolved and identity-compared in one step (OKF 0.3 section 3.2): an index.md that is, or becomes,
 			// a link out of the bundle (or dangles) is refused, never read.
-			const text = yield* readConfinedString(ctx.bundleRoot, indexPath).pipe(
-				Effect.catchTag("ConfinementError", (error) =>
-					Effect.fail(
-						new McpSchema.InternalError({
-							message:
-								error.reason === "changed"
-									? "index.md changed while it was read; try again"
-									: "index.md links out of the bundle",
-						}),
-					),
-				),
-				Effect.catchTag("PlatformError", () =>
-					Effect.fail(new McpSchema.InternalError({ message: "no readable index.md" })),
-				),
-			);
+			const text = yield* readResourceText(ctx.bundleRoot, indexPath, "index.md", "no readable index.md");
 			return { contents: [{ uri: "okf://index", mimeType: "text/markdown", text }] };
 		}).pipe(Effect.provide(services)),
 	});

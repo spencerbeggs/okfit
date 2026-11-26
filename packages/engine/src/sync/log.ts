@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { DateTime, Effect, Path } from "effect";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, toLf, withNewline, writeAtomic } from "./write.js";
+import { readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -220,17 +220,13 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	// The read is confined (opened, resolved, identity-compared): a log.md swapped for a link out after the check
 	// above is skipped as `symlink-escape`, one that changed under the read as `changed-during-read` (transient:
 	// sync again); neither is read.
-	const read = yield* readOptionalSplittingBom(bundle.root, logPath).pipe(
-		Effect.catchTag("ConfinementError", (error) => Effect.succeed(error.reason)),
-	);
-	if (typeof read === "string") {
+	const read = yield* readOptionalOrSkip(bundle.root, logPath);
+	if ("skip" in read) {
 		return {
 			selected: true,
 			written: [],
 			unchanged: [],
-			skipped: [
-				{ id: "log.md", reason: read === "changed" ? ("changed-during-read" as const) : ("symlink-escape" as const) },
-			],
+			skipped: [{ id: "log.md", reason: read.skip }],
 		} satisfies SyncLogResult;
 	}
 	const { text: source, bom, newline } = read;

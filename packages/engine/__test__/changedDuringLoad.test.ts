@@ -31,9 +31,9 @@ const resave = (fs: FileSystem.FileSystem) =>
 		yield* fs.remove(dropped);
 		yield* fs.writeFileString(dropped, text);
 	});
-/** The 3rd `lstat` of the file is the confined read's own (the walk lstats it once, the loader's link check once). */
+/** Swap the file after the confined read has it open: the path then names another file than the one held. */
 const swapping = (seed: ReturnType<typeof mountProject>) => {
-	const [layer, trap] = swapOn(seed, "lstat", dropped, resave, 3);
+	const [layer, trap] = swapOn(seed, "open", dropped, resave, "after");
 	return [
 		Layer.mergeAll(
 			layer,

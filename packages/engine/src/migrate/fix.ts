@@ -146,13 +146,14 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	);
 	// A file that changed under the load is missing from the bundle: its root-only references are unseen, so the plan
 	// may be incomplete, and declaring a version over them is what the R41 refusal exists to prevent. Plan nothing.
-	if (changedFiles(bundle).length > 0) {
+	const changed = changedFiles(bundle);
+	if (changed.length > 0) {
 		return {
 			edits: [],
 			refused: selected.map((finding) => ({
 				file: finding.file,
 				code: finding.code,
-				reason: `a file changed while the bundle was being read (${changedFiles(bundle).join(", ")}), so this plan may be incomplete; run it again`,
+				reason: `a file changed while the bundle was being read (${changed.join(", ")}), so this plan may be incomplete; run it again`,
 			})),
 			drifts: [],
 		};

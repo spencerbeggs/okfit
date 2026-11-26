@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { Effect, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, toLf, withNewline, writeAtomic } from "./write.js";
+import { readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
@@ -62,11 +62,9 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	// The read is confined (opened, resolved, identity-compared): a file swapped for a link out after the caller's
 	// `escapesBundle` check is skipped as `symlink-escape`, one that changed under the read as `changed-during-read`
 	// (transient: sync again); neither is read.
-	const read = yield* readOptionalSplittingBom(root, targetPath).pipe(
-		Effect.catchTag("ConfinementError", (error) => Effect.succeed(error.reason)),
-	);
-	if (typeof read === "string") {
-		skipped.push({ id: relativeId, reason: read === "changed" ? "changed-during-read" : "symlink-escape" });
+	const read = yield* readOptionalOrSkip(root, targetPath);
+	if ("skip" in read) {
+		skipped.push({ id: relativeId, reason: read.skip });
 		return;
 	}
 	const { text: onDisk, bom, newline } = read;

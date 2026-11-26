@@ -1,8 +1,9 @@
 import type { AppDirs, Xdg } from "@effected/xdg";
-import { Derive, readConfinedString } from "@okfit/core";
+import { Derive } from "@okfit/core";
 import type { FileSystem } from "effect";
 import { Effect, Layer, Path } from "effect";
-import { McpSchema, McpServer } from "effect/ai";
+import { McpServer } from "effect/ai";
+import { readResourceText } from "../internal/confinedText.js";
 import { loadToolContext } from "../internal/toolContext.js";
 
 /**
@@ -69,20 +70,11 @@ export const ConceptResources = (
 					content: Effect.gen(function* () {
 						// Opened, resolved and identity-compared in one step (OKF 0.3 section 3.2), so a file, or a directory
 						// above it, swapped for a link out of the bundle at any moment is refused, never read.
-						const text = yield* readConfinedString(ctx.bundleRoot, absolutePath).pipe(
-							Effect.catchTag("ConfinementError", (error) =>
-								Effect.fail(
-									new McpSchema.InternalError({
-										message:
-											error.reason === "changed"
-												? `${concept.path} changed while it was read; try again`
-												: `${concept.path} links out of the bundle`,
-									}),
-								),
-							),
-							Effect.catchTag("PlatformError", () =>
-								Effect.fail(new McpSchema.InternalError({ message: `no readable concept file at ${concept.path}` })),
-							),
+						const text = yield* readResourceText(
+							ctx.bundleRoot,
+							absolutePath,
+							concept.path,
+							`no readable concept file at ${concept.path}`,
 						);
 						return { contents: [{ uri, mimeType: "text/markdown", text }] };
 					}).pipe(Effect.provide(services)),
