@@ -305,6 +305,9 @@ const resolveConcept = (bundle: LoadedBundle, rawId: string) =>
 		// Steps 7c and 7d.
 		const concept = bundle.concepts.get(id);
 		if (concept === undefined) {
+			if (changedConceptIds(bundle).includes(id)) {
+				return yield* new VerifyConceptNotFoundError({ id, root: bundle.root, reason: "changed-during-read" });
+			}
 			const diagnostic = bundle.diagnostics.find(
 				(entry) => entry.file === conceptFile && UNDECODABLE_CODES.has(entry.code),
 			);

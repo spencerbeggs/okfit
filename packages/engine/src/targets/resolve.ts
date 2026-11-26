@@ -4,6 +4,7 @@ import type { LoadedBundle } from "@okfit/core";
 import { ConceptId } from "@okfit/core";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path } from "effect";
+import { changedFiles } from "../changedDuringLoad.js";
 import type { TargetFailure as TargetFailureType } from "../errors.js";
 import { TargetResolutionError } from "../errors.js";
 import { relativeInside } from "./inside.js";
@@ -53,12 +54,15 @@ const resolve = Effect.fn("okfit/targets/resolve")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const files = new Set(bundle.files);
+	// A file the load dropped as `read-changed` is not absent from the bundle: it changed under the read (transient).
+	const changed = new Set(changedFiles(bundle));
 	const acceptFiles = options?.files === true;
 	const realOr = (absolute: string) => fs.realPath(absolute).pipe(Effect.orElseSucceed(() => absolute));
 	const root = yield* realOr(bundle.root);
 
 	/** A bundle-relative file path that names a target, or why it does not. */
 	const classify = (relative: string): Hit => {
+		if (changed.has(relative)) return { failure: "changed-during-read" };
 		if (!files.has(relative)) return undefined;
 		if (acceptFiles) return { path: relative };
 		if (ConceptId.isReservedFile(relative)) return { failure: "reserved" };

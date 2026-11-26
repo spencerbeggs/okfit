@@ -6,10 +6,17 @@ import { Bundle, OkfitConfig } from "@okfit/core";
 import { GitHistory } from "@okfit/profiles";
 import type { FileSystem } from "effect";
 import { DateTime, Effect, Layer } from "effect";
-import { MoveError } from "../src/errors.js";
+import {
+	MoveError,
+	QueryConceptNotFoundError,
+	TargetResolutionError,
+	VerifyConceptNotFoundError,
+} from "../src/errors.js";
 import { planMigrationFixes } from "../src/migrate/fix.js";
 import { planMove } from "../src/move/run.js";
-import { runVerifyBatch } from "../src/verify/run.js";
+import { ConceptQuery } from "../src/query/ConceptQuery.js";
+import { Targets } from "../src/targets/resolve.js";
+import { runVerify, runVerifyBatch } from "../src/verify/run.js";
 import { UNDECLARED_PROJECT, V03_PROJECT } from "./fixtures/bundles.js";
 import { ROOT, mountProject } from "./utils/bundle.js";
 import { identityConfigGet } from "./utils/gitIdentity.js";
@@ -132,6 +139,53 @@ describe("a file that changed during the load", () => {
 				[{ id: "metrics/revenue", reason: "changed-during-read" }],
 			);
 			assert.isFalse(batch.verified.some((entry) => entry.id === "metrics/revenue"));
+		}).pipe(Effect.provide(layer));
+	});
+
+	it.effect("a single-concept lookup of the dropped concept answers changed, never not found (Q12)", () => {
+		const [layer, trap] = swapping(mountProject(V03_PROJECT));
+		trap.arm();
+		return Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			assert.isTrue(trap.fired(), "the swap must have run during the load");
+			const get = yield* Effect.flip(ConceptQuery.get(bundle, "metrics/revenue"));
+			assert.instanceOf(get, QueryConceptNotFoundError);
+			assert.strictEqual(get.reason, "changed-during-read");
+			assert.strictEqual(get.message, '"metrics/revenue.md" changed while it was read; try again');
+			const neighbors = yield* Effect.flip(ConceptQuery.neighbors(bundle, "/metrics/revenue.md"));
+			assert.strictEqual(neighbors.reason, "changed-during-read");
+			// a concept that never existed is still not found
+			const absent = yield* Effect.flip(ConceptQuery.get(bundle, "metrics/never"));
+			assert.strictEqual(absent.reason, "not-a-concept");
+			const targets = yield* Effect.flip(Targets.resolve(["metrics/revenue"], bundle, ROOT));
+			assert.instanceOf(targets, TargetResolutionError);
+			assert.deepStrictEqual((targets as TargetResolutionError).failures, [
+				{ arg: "metrics/revenue", reason: "changed-during-read" },
+			]);
+			assert.include((targets as TargetResolutionError).message, "changed while it was read; try again");
+		}).pipe(Effect.provide(layer));
+	});
+
+	it.effect("verify <id> of the dropped concept answers changed, never not found", () => {
+		const [layer, trap] = swapping(mountProject(V03_PROJECT));
+		trap.arm();
+		return Effect.gen(function* () {
+			const verify = yield* Effect.flip(
+				runVerify({ id: "metrics/revenue", bundleRoot: ROOT, projectRoot: "/repo", config, dryRun: true, at: AT }),
+			);
+			assert.instanceOf(verify, VerifyConceptNotFoundError);
+			assert.strictEqual((verify as VerifyConceptNotFoundError).reason, "changed-during-read");
+			assert.isTrue(trap.fired(), "the swap must have run during the load");
+		}).pipe(Effect.provide(layer));
+	});
+
+	it.effect("control: with nothing swapped the same lookups succeed", () => {
+		const [layer, trap] = swapping(mountProject(V03_PROJECT));
+		return Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: ROOT });
+			assert.isFalse(trap.fired());
+			assert.strictEqual((yield* ConceptQuery.get(bundle, "metrics/revenue")).concept.id, "metrics/revenue");
+			assert.strictEqual((yield* Targets.resolve(["metrics/revenue"], bundle, ROOT))[0]?.id, "metrics/revenue");
 		}).pipe(Effect.provide(layer));
 	});
 });

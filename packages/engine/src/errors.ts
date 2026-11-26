@@ -43,7 +43,8 @@ export class InitOverwriteError extends Schema.TaggedError<InitOverwriteError>()
  * `"not-a-concept"` (no such file, or an id that normalises to nothing),
  * `"reserved"` (the id names `index.md` or `log.md`), or `"undecodable"`
  * (a file exists but `bundle.diagnostics` names it — `diagnosticCode`
- * carries which). `root` is the absolute bundle root, kept OFF `message`
+ * carries which), or `"changed-during-read"` (the file changed while the bundle was read, so the
+ * load left it out: transient, run again). `root` is the absolute bundle root, kept OFF `message`
  * so K-51's relativisation rule has nothing to apply to and the human
  * line and the JSON envelope's `message` are identical.
  *
@@ -54,12 +55,13 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
 	{
 		id: Schema.String,
 		root: Schema.String,
-		reason: Schema.Literals(["not-a-concept", "reserved", "undecodable"]),
+		reason: Schema.Literals(["not-a-concept", "reserved", "undecodable", "changed-during-read"]),
 		diagnosticCode: Schema.optionalKey(Schema.String),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
+		if (this.reason === "changed-during-read") return `"${this.id}.md" changed while it was read; try again`;
 		const detail = this.diagnosticCode === undefined ? this.reason : `${this.reason}: ${this.diagnosticCode}`;
 		return `no concept "${this.id}" in this bundle (${detail})`;
 	}
@@ -351,12 +353,13 @@ export class QueryConceptNotFoundError extends Schema.TaggedError<QueryConceptNo
 	"QueryConceptNotFoundError",
 	{
 		id: Schema.String,
-		reason: Schema.Literals(["empty-id", "not-a-concept"]),
+		reason: Schema.Literals(["empty-id", "not-a-concept", "changed-during-read"]),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
 		if (this.reason === "empty-id") return "a concept id must not be empty";
+		if (this.reason === "changed-during-read") return `"${this.id}.md" changed while it was read; try again`;
 		return `no concept "${this.id}" in this bundle`;
 	}
 }
@@ -386,7 +389,14 @@ export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>
  */
 export const TargetFailure = Schema.Struct({
 	arg: Schema.String,
-	reason: Schema.Literals(["not-found", "ambiguous", "outside-bundle", "reserved", "not-a-concept"]),
+	reason: Schema.Literals([
+		"not-found",
+		"ambiguous",
+		"outside-bundle",
+		"reserved",
+		"not-a-concept",
+		"changed-during-read",
+	]),
 	suggestion: Schema.optionalKey(Schema.String),
 	candidates: Schema.optionalKey(Schema.Tuple([Schema.String, Schema.String])),
 });
@@ -403,6 +413,8 @@ const targetLine = (failure: TargetFailure): string => {
 			return `"${failure.arg}" is a reserved file, not a concept`;
 		case "not-a-concept":
 			return `"${failure.arg}" did not load as a concept (run okfit validate)`;
+		case "changed-during-read":
+			return `"${failure.arg}" changed while it was read; try again`;
 		default:
 			return `no concept "${failure.arg}"${failure.suggestion === undefined ? "" : ` (did you mean ${failure.suggestion}?)`}`;
 	}
