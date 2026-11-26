@@ -11,6 +11,7 @@ const seed = {
 	[`${ROOT}/leaf-dangling.md`]: MemoryFileSystem.symlink("/outside/nowhere.md"),
 	[`${ROOT}/leaf-in.md`]: MemoryFileSystem.symlink(`${ROOT}/plain.md`),
 	[`${ROOT}/dir-out`]: MemoryFileSystem.symlink("/outside/dir"),
+	[`${ROOT}/dir-dangling`]: MemoryFileSystem.symlink("/outside/nowhere"),
 	[`${ROOT}/dir-in`]: MemoryFileSystem.symlink(`${ROOT}/real`),
 	"/outside/secret.md": "SECRET\n",
 	"/outside/dir/a.md": "SECRET\n",
@@ -26,6 +27,8 @@ describe("escapesRoot (OKF 0.3 section 3.2)", () => {
 		["a dangling leaf link", "leaf-dangling.md", true],
 		["a leaf link that stays inside", "leaf-in.md", false],
 		["a regular file under a directory that links out", "dir-out/a.md", true],
+		["a missing file under a directory that links out", "dir-out/missing.md", true],
+		["a file under a dangling directory link", "dir-dangling/a.md", true],
 		["a file under a directory link that stays inside", "dir-in/a.md", false],
 	];
 	for (const [name, relative, expected] of cases) {

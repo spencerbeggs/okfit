@@ -87,6 +87,8 @@ describe("resources", () => {
 			}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
 			const message = yield* harness.sendRequest("resources/read", { uri: "okf://index" });
 			assert.ok(message.error !== undefined);
+			assert.include(JSON.stringify(message), "no readable index.md");
+			assert.notInclude(JSON.stringify(message), root);
 		}).pipe(Effect.scoped),
 	);
 
@@ -206,6 +208,57 @@ describe("resources", () => {
 				);
 				assert.ok(refused.error !== undefined);
 				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept whose directory was replaced by a dangling link (#460)", () =>
+			Effect.gen(function* () {
+				const { refused } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* fs.rename(`${bundle}/metrics`, `${bundle}/metrics.moved`);
+						yield* fs.symlink(`${outside}/nowhere`, `${bundle}/metrics`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept whose grandparent directory was replaced by a link out (#460)", () =>
+			Effect.gen(function* () {
+				const root = yield* copyFixtureProject("project");
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					yield* fs.makeDirectory(`${root}/bundle/deep/mid`, { recursive: true });
+					yield* fs.writeFileString(`${root}/bundle/deep/mid/c.md`, "---\ntype: Metric\ntitle: c\n---\n\n# c\n");
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const harness = yield* makeHarness(root);
+				yield* harness.initialize;
+				const listed = (yield* harness.listResources).map((resource) => resource.uri);
+				assert.include(listed, "okf://concept/deep/mid/c");
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const outside = yield* fs.makeTempDirectoryScoped();
+					yield* fs.makeDirectory(`${outside}/mid`);
+					yield* fs.writeFileString(`${outside}/mid/c.md`, "SECRET GRANDPARENT");
+					yield* fs.rename(`${root}/bundle/deep`, `${root}/bundle/deep.moved`);
+					yield* fs.symlink(outside, `${root}/bundle/deep`);
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const refused = yield* harness.sendRequest("resources/read", { uri: "okf://concept/deep/mid/c" });
+				assert.ok(refused.error !== undefined);
+				assert.notInclude(JSON.stringify(refused), "SECRET GRANDPARENT");
+				assert.include(JSON.stringify(refused), "deep/mid/c.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("answers a concept deleted after boot with a bundle-relative message (#460)", () =>
+			Effect.gen(function* () {
+				const { refused, root } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle) =>
+					fs.remove(`${bundle}/metrics/revenue.md`),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.include(JSON.stringify(refused), "no readable concept file at metrics/revenue.md");
+				assert.notInclude(JSON.stringify(refused), root);
 			}).pipe(Effect.scoped),
 		);
 

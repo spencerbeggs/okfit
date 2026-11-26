@@ -70,7 +70,7 @@ export const ConceptResources = (
 							.readFileString(absolutePath)
 							.pipe(
 								Effect.mapError(
-									() => new McpSchema.InternalError({ message: `no readable concept file at ${absolutePath}` }),
+									() => new McpSchema.InternalError({ message: `no readable concept file at ${concept.path}` }),
 								),
 							);
 						return { contents: [{ uri, mimeType: "text/markdown", text }] };

@@ -1,27 +1,23 @@
 import { confineReal } from "@effected/walker";
 import type { LoadedBundle } from "@okfit/core";
-import { Effect, FileSystem, Path } from "effect";
+import { Effect, Path } from "effect";
 
 /**
  * OKF 0.3 section 3.2: a consumer does not follow a symbolic link out of the bundle. Whether the file `relative`
- * under `root` leaves `root` through a symbolic link, with no bundle loaded: a missing file is not an escape;
- * otherwise `confineReal` answers on the whole path, so a link at the file itself or at any directory above it
- * that resolves outside `root`, or that dangles, is an escape (the rule `Bundle.load` applies). A regular file
- * under real directories, and a link that stays inside `root`, are not. The one implementation behind
+ * under `root` leaves `root` through a symbolic link, with no bundle loaded: `confineReal` answers on the whole
+ * path, so a link at the file itself or at any directory above it that resolves outside `root`, or that dangles,
+ * is an escape (the rule `Bundle.load` applies). A missing file is resolved from its real existing ancestor, so
+ * it is not an escape inside `root` and is one under a directory that links out. A regular file under real
+ * directories, and a link that stays inside `root`, are not escapes. The one implementation behind
  * {@link escapesBundle}, `okfit context` and the MCP concept resources.
  *
  * @public
  */
 export const escapesRoot = Effect.fn("okfit/confinement/escapesRoot")(function* (root: string, relative: string) {
-	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
-	const target = path.join(root, relative);
-	const present = yield* fs.lstat(target).pipe(
-		Effect.as(true),
-		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(false)),
+	return yield* confineReal(root, path.join(root, relative)).pipe(
+		Effect.match({ onFailure: () => true, onSuccess: () => false }),
 	);
-	if (!present) return false;
-	return yield* confineReal(root, target).pipe(Effect.match({ onFailure: () => true, onSuccess: () => false }));
 });
 
 /**

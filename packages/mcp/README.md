@@ -52,7 +52,9 @@ or `.config/okfit.toml`.
   an already-listed concept's file is picked up live on every read, and
   every read re-checks containment: a file, or a directory above it, that
   now links out of the bundle (or dangles) is refused with
-  `<path> links out of the bundle` and never read; a
+  `<path> links out of the bundle` and never read (the bundle root is
+  resolved wherever `okf/` points at each read, so a root replaced by a link
+  after boot is followed, tools and resources alike); a
   concept added or removed after boot is not reflected in `resources/list`
   until the server restarts. There is no URI template and no completion —
   every concept resource is registered by its own literal URI. The listing

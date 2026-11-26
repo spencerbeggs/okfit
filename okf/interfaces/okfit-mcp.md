@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T05:42:05Z
+  at: 2026-11-26T05:56:41Z
 tags:
   - architecture
 verified:
@@ -31,7 +31,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 72cafdfca45f4db9
+    body: ace187115c741b87
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -69,6 +69,10 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
   dangles) is refused with `<path> links out of the bundle` (the path
   bundle-relative, for example `metrics/revenue.md`) and never read,
   whenever the link appeared; a link that stays inside the bundle is served.
+The bundle root is resolved wherever `okf/` points at each read, so a root
+replaced by a link after boot is followed, and the tools and resources
+agree on it. A resource read that fails (a refused link, or a concept file
+that is gone) names the bundle-relative path, never an absolute one.
 
 Both resource kinds declare mime type `text/markdown`. Their descriptions
 carry no trust state: they are fixed at boot, and a snapshot of drift taken
@@ -98,6 +102,10 @@ outside the bundle). It reaches the client as `isError: true`, with the
 remediation hint folded directly into `content[0].text` and no
 `structuredContent`; there is no per-failure tag, so a caller reads the
 message.
+
+**A resource failure is a JSON-RPC error, not `isError`.** `resources/read`
+has no tool-result shape: a refused or unreadable concept or index resource
+answers with a JSON-RPC `error` response, and the message carries the reason.
 
 ## Crash policy
 

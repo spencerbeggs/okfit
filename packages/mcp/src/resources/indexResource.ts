@@ -66,7 +66,7 @@ const indexResource = (
 			if (escapes) return yield* new McpSchema.InternalError({ message: "index.md links out of the bundle" });
 			const text = yield* fs
 				.readFileString(indexPath)
-				.pipe(Effect.mapError(() => new McpSchema.InternalError({ message: `no readable index.md at ${indexPath}` })));
+				.pipe(Effect.mapError(() => new McpSchema.InternalError({ message: "no readable index.md" })));
 			return { contents: [{ uri: "okf://index", mimeType: "text/markdown", text }] };
 		}).pipe(Effect.provide(services)),
 	});

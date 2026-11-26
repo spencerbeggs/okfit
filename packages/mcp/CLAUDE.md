@@ -92,7 +92,11 @@ every call; a concept added or removed after boot is not reflected in
 `escapesBundle` on the concept's path (the platform services captured at layer
 build, as `IndexResource` does): a file, or a directory above it, that now
 links out of the bundle or dangles is refused with `<path> links out of the
-bundle` and never read, whenever the link appeared. There is no completion,
+bundle` and never read, whenever the link appeared. The bundle root is
+resolved wherever `okf/` points at each read, so a root replaced by a link
+after boot is followed, and the tools and resources agree. A resource failure
+is a JSON-RPC error, not `isError`, and its message names the bundle-relative
+path. There is no completion,
 since a fixed list needs none.
 
 ## Errors reach the wire as `isError`
