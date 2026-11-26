@@ -90,7 +90,7 @@ export interface BundleLoadOptions {
 	readonly includeHidden?: boolean;
 	/** Directory levels below the root to descend; positive integer, default 256; exceeding it fails with `BundleDepthExceededError`. */
 	readonly maxDepth?: number;
-	/** Directory names never descended (default `["node_modules", ".git"]`). */
+	/** Directory names never descended (default `["node_modules", ".git"]`); a symbolic link with one of these names is skipped unread, while a regular file with one is still loaded. */
 	readonly prune?: ReadonlyArray<string>;
 }
 

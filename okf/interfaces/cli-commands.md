@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T16:32:49Z
+  at: 2026-11-26T16:40:43Z
 tags:
   - architecture
 verified:
@@ -51,7 +51,7 @@ verified:
     at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: b455b3c7b14ffd00
+    body: 73291a98d91e83dd
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:51Z
@@ -408,8 +408,11 @@ current bodies of its source concepts, after its page has been
 re-rendered, and runs nothing else (`--dry-run` and `--format` still
 apply). Combining it with `--only`, `--staged` or `--since` is a usage
 error, exit `64`; so is an unknown id, a concept that is not a Publication,
-or an `x-okfit-renders` entry that points at no concept, each with nothing written
-and a hint to run `okfit query list --type Publication`. An `x-okfit-renders` value that
+or an `x-okfit-renders` entry that points at no concept, each with nothing written;
+an unknown id or a non-Publication also gets a hint to run `okfit query list --type Publication`.
+A Publication or render source that changed while the load read it is the same
+exit `64` with the transient message "changed while it was read; try again" and no hint;
+run the command again. An `x-okfit-renders` value that
 is not a block-style list of entries fails exit `3`, like any other
 unsupported frontmatter shape. Success exits `0`. Plain `okfit sync` never
 restamps Publications. In the JSON envelope the three modes are all
