@@ -399,12 +399,12 @@ export class Bundle {
 				}
 				files.push(file);
 			}
-			// The walker enters no directory link and drops a dangling or unresolvable one without a trace, so neither
-			// reaches the file loop; `scanLinks` reports them (containment decided on the real path).
-			const links = yield* scanLinks(root, walked, {
+			// The walker enters no directory link and drops an unresolvable one, so neither reaches the file loop; its
+			// `links` report names them, and `scanLinks` decides each on the real path.
+			const links = yield* scanLinks(root, walked.links, {
 				includeHidden: options.includeHidden ?? false,
 				prune: new Set(options.prune ?? DEFAULT_PRUNE),
-			}).pipe(Effect.mapError((failure) => new BundleReadError({ root, path: failure.path, cause: failure.cause })));
+			});
 			for (const link of links) diagnostics.push(diagnostic(link.file, "symlink-escape", "warning", link.message));
 			const concepts = new Map<ConceptId, LoadedConcept>();
 			const indexes = new Map<string, IndexDocument>();

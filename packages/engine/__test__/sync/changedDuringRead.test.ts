@@ -57,7 +57,7 @@ describe("planSync: a file that changed during the load", () => {
 	};
 
 	it.effect("control: with nothing swapped, a stale index and log are planned", () => {
-		const [layer, trap] = swapOn(seed, "lstat", concept, resave, 4);
+		const [layer, trap] = swapOn(seed, "lstat", concept, resave, 3);
 		return Effect.gen(function* () {
 			const plan = yield* planSync(options);
 			assert.isFalse(trap.fired());
@@ -68,7 +68,7 @@ describe("planSync: a file that changed during the load", () => {
 	});
 
 	it.effect("writes no index above the changed file and no log, and says why", () => {
-		const [layer, trap] = swapOn(seed, "lstat", concept, resave, 4);
+		const [layer, trap] = swapOn(seed, "lstat", concept, resave, 3);
 		trap.arm();
 		return Effect.gen(function* () {
 			const plan = yield* planSync(options);
@@ -93,7 +93,7 @@ describe("planSync: a file that changed during the load", () => {
 	});
 
 	it.effect("names the dropped concept in generated mode, and stamps nothing for it", () => {
-		const [layer, trap] = swapOn(seed, "lstat", concept, resave, 4);
+		const [layer, trap] = swapOn(seed, "lstat", concept, resave, 3);
 		trap.arm();
 		return Effect.gen(function* () {
 			const plan = yield* planSync({ ...options, modes: new Set(["generated"] as const) });

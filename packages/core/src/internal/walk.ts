@@ -1,5 +1,5 @@
 import { GlobPattern, GlobPatternOptions } from "@effected/glob";
-import type { DescendError } from "@effected/walker";
+import type { DescendError, SkippedLink } from "@effected/walker";
 import { descend } from "@effected/walker";
 import type { FileSystem, Path, PlatformError } from "effect";
 import { Effect } from "effect";
@@ -42,20 +42,20 @@ export interface UnreadableDirectory {
 }
 
 /**
- * Every file below the root, every directory entry the walk passes and every subdirectory whose listing
- * failed with a non-`NotFound` reason; all posix-relative and sorted by path.
+ * Every file below the root, every symbolic link the walk passed over, and every subdirectory whose listing
+ * failed with a non-`NotFound` reason; paths are posix-relative and sorted.
  *
  * @remarks
- * `directories` answers a directory by its RESOLVED kind: a symbolic link to a directory is listed although the
- * walk never enters it, wherever it points; a pruned directory is listed too, since `prune` withholds what lies
- * below a directory, not the directory. A dangling or unresolvable link is in neither list; the walker drops it without a
- * trace. `Bundle.load` checks each listed directory with `confineReal`.
+ * `links` is the walker's own report under `onUnreadable: "record"`: a link to a directory the walk did not enter
+ * (`kind: "directory"`, wherever it points) and a link that does not resolve (`kind: "dangling"`). It is raw: the
+ * walker reports only links in directories it reads, so a pruned directory, a hidden one and anything under them are
+ * absent, but a dangling link is reported whatever its own name. `Bundle.load` decides each by `confineReal`.
  *
  * @public
  */
 export interface WalkResult {
 	readonly files: ReadonlyArray<string>;
-	readonly directories: ReadonlyArray<string>;
+	readonly links: ReadonlyArray<SkippedLink>;
 	readonly unreadable: ReadonlyArray<UnreadableDirectory>;
 }
 
@@ -74,16 +74,12 @@ export const walk = (
 		const pattern = yield* GlobPattern.compile("**/*", GlobPatternOptions.make({ dot: options.includeHidden })).pipe(
 			Effect.orDie,
 		);
-		const shared = {
+		const result = yield* descend(pattern, {
 			cwd: options.root,
 			maxDepth: options.maxDepth,
 			prune: [...options.prune],
 			onUnreadable: "record",
-		} as const;
-		const result = yield* descend(pattern, shared);
-		// A second pass lists the directories (a directory link included, by its resolved kind). Its own
-		// `unreadable` repeats the first pass's, so only its matches are kept.
-		const listed = yield* descend(pattern, { ...shared, match: "directory" });
+		});
 		const root = result.unreadable.find((entry) => entry.path === "");
 		if (root !== undefined) {
 			// W-2: "record" never fails an unreadable root; surface its recorded `PlatformError`.
@@ -92,5 +88,5 @@ export const walk = (
 		const unreadable = result.unreadable
 			.map((entry) => ({ path: entry.path, reason: entry.cause.reason._tag }))
 			.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-		return { files: result.matches, directories: listed.matches, unreadable };
+		return { files: result.matches, links: result.links, unreadable };
 	});

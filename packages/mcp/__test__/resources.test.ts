@@ -283,7 +283,7 @@ describe("resources", () => {
 		/**
 		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (same text, new
 		 * inode). The concept read lstats once; the index read first loads the bundle, whose walk and loader lstat the file
-		 * four times before the resource's own read (the fifth).
+		 * three times before the resource's own read (the fourth).
 		 */
 		const readWhileResaved = (uri: string, suffix: string, nth = 1) =>
 			Effect.gen(function* () {
@@ -327,7 +327,7 @@ describe("resources", () => {
 
 		it.effect("okf://index answers 'changed while it was read; try again', never a link verdict", () =>
 			Effect.gen(function* () {
-				const { message, fired } = yield* readWhileResaved("okf://index", "/bundle/index.md", 5);
+				const { message, fired } = yield* readWhileResaved("okf://index", "/bundle/index.md", 4);
 				assert.isTrue(fired, "the re-save must have run");
 				assert.ok(message.error !== undefined);
 				assert.include(JSON.stringify(message), "index.md changed while it was read; try again");

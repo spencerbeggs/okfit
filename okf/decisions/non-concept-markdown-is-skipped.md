@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T06:24:20Z
+  at: 2026-11-26T09:01:01Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: c25dd569db432c91
+    body: 4306bce522c6a8dc
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:54Z
@@ -68,17 +68,17 @@ checks each walked file with `lstat`, and for a link asks `confineReal`
 list. A link that stays inside the bundle loads as before.
 
 The same rule covers directories. The walker never enters a symbolic link to
-a directory, wherever it points, so nothing under one is read. `Bundle.load`
-lists the directory entries the walk passes (a link to a directory is listed
-by its resolved kind), checks each link with `confineReal` on the real path,
-and records `symlink-escape` at the directory's own path when it resolves
+a directory, wherever it points, so nothing under one is read. In record mode
+the walker reports each link it passed over (`links`: a directory link it did
+not enter, and a dangling one). `Bundle.load` checks each directory link with
+`confineReal` on the real path, and records `symlink-escape` at the directory's own path when it resolves
 outside the bundle root, including through an in-bundle link to a link that
 leaves it. A link to a directory that stays inside the bundle is never walked
 and draws no diagnostic. A dangling link of any kind, file or directory, is
-also recorded as `symlink-escape` ("could not be resolved"), because the
-walker drops it without a trace and it cannot be told from a file link or a
-directory link. So is any link whose resolution fails for another reason (a
-link loop, a target in a directory that cannot be read). A pruned
+also recorded as `symlink-escape` ("could not be resolved"), because it
+cannot be told from a file link or a directory link. So is any link whose
+resolution fails for another reason (a link loop, a target in a directory that
+cannot be read), which the walker also reports as dangling. A pruned
 directory name (`node_modules` by default) is silent: neither the entry nor
 anything under it is checked, while a file link with that name is checked like
 any other file link. A hidden name is checked only when the bundle loads with

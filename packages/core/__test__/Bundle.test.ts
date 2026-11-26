@@ -182,8 +182,8 @@ describe("Bundle.load", () => {
 					yield* fs.remove(`${MOUNT}/a.md`);
 					yield* fs.symlink("/outside/secret.md", `${MOUNT}/a.md`);
 				}),
-			// the walk lstats the file twice; the loader's own link check is the third
-			3,
+			// the walk lstats the file once; the loader's own link check is the second
+			2,
 		);
 		return Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT });
@@ -205,8 +205,8 @@ describe("Bundle.load", () => {
 					yield* fs.remove(`${MOUNT}/a.md`);
 					yield* fs.writeFileString(`${MOUNT}/a.md`, "---\ntype: Note\n---\n\nSWAPPED\n");
 				}),
-			// the walk lstats the file twice and the loader's link check once; the confined read's own lstat is the fourth
-			4,
+			// the walk lstats the file once and the loader's link check once; the confined read's own lstat is the third
+			3,
 		);
 		return Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT });
