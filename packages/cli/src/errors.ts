@@ -125,9 +125,10 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	if (error instanceof SyncPlanStaleError) return [`error: ${error.message}`];
 	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
 	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a
-	// renders entry that points nowhere is a fix-the-entry error and needs none.
+	// renders entry that points nowhere is a fix-the-entry error and needs none, and a changed-during-read one is
+	// transient (run again), so neither gets it.
 	if (error instanceof PublicationNotFoundError) {
-		return error.publication === undefined
+		return error.publication === undefined && error.reason === undefined
 			? [`error: ${error.message}`, "hint: run okfit query list --type Publication to list publication ids"]
 			: [`error: ${error.message}`];
 	}
