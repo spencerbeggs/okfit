@@ -8,6 +8,7 @@ import { frontmatterPathRange } from "../src/internal/frontmatter.js";
 import { OkfitConfig } from "../src/OkfitConfig.js";
 import { Validate } from "../src/Validate.js";
 import { platformFor } from "./utils/lintFixtures.js";
+import { swapPlatform } from "./utils/swapPlatform.js";
 
 /** Builds a `LoadedBundle` from an in-memory `{ relativePath: markdown }` map (D-37). */
 const loadFromSources = (sources: Record<string, string>) => {
@@ -256,6 +257,48 @@ describe("Validate", () => {
 			);
 		}),
 	);
+
+	for (const [name, index, dir] of [
+		["the root", "index.md", "."],
+		["a subdirectory", "modules/index.md", "modules"],
+	] as const) {
+		it.effect(`an index.md refused as read-changed is not missing-index: ${name} (#460)`, () => {
+			const mount = "/repo/changed-index";
+			const concept = "---\ntype: Note\ntitle: A\n---\n\n# A\n";
+			const resave = (fs: import("effect").FileSystem.FileSystem) =>
+				Effect.gen(function* () {
+					const text = yield* fs.readFileString(`${mount}/${index}`);
+					yield* fs.remove(`${mount}/${index}`);
+					yield* fs.writeFileString(`${mount}/${index}`, text);
+				});
+			const [layer, trap] = swapPlatform(
+				{
+					[`${mount}/root.md`]: concept,
+					[`${mount}/index.md`]: "# Root\n",
+					[`${mount}/modules/a.md`]: concept,
+					[`${mount}/modules/index.md`]: "# Modules\n",
+				},
+				"open",
+				"after",
+				`${mount}/${index}`,
+				resave,
+			);
+			return Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: mount });
+				assert.isTrue(trap.fired(), "the swap must have run");
+				const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
+				assert.deepStrictEqual(
+					lint.filter((d) => d.code === "missing-index"),
+					[],
+					`"Directory ${dir} has no index.md" would be false`,
+				);
+				assert.deepStrictEqual(
+					bundle.diagnostics.filter((d) => d.code === "read-changed").map((d) => d.file),
+					[index],
+				);
+			}).pipe(Effect.provide(layer));
+		});
+	}
 
 	it.effect("require-verified-unmet skips a draft concept and still fires on a stable one (issue #31)", () =>
 		Effect.gen(function* () {
