@@ -26,15 +26,8 @@ describe("lintCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["root", "config", "format", "skip-provenance"],
+			["root", "config", "skip-provenance"],
 		);
-	});
-
-	it('--format defaults to "human"', () => {
-		const config = configOf(lintCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
-		if (formatFlag === undefined) throw new Error("expected a --format flag");
-		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--skip-provenance defaults to false", () => {

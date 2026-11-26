@@ -9,8 +9,23 @@ import type { JsonErrorEnvelope } from "@okfit/engine";
 import { ENGINE_VERSION } from "@okfit/engine";
 
 /**
+ * True for the command path of `okfit graph`, the one command whose `--format`
+ * is not the `Format` global setting.
+ *
+ * @internal
+ */
+export const isGraphPath = (commandPath: ReadonlyArray<string>): boolean =>
+	commandPath.length === 2 && commandPath[0] === "okfit" && commandPath[1] === "graph";
+
+/**
  * True when the raw arguments ask for JSON output: a `--format json` pair or a
  * `--format=json` token before any `--`.
+ *
+ * Graph-only: every other command reads `--format` through the `Format` setting
+ * (`internal/format.ts`). It exists because effect 4.1.6's flag registry rejects
+ * two global settings sharing a flag name, and goes once upstream allows
+ * per-scope settings with one name.
+ * TODO(spencerbeggs/effected#1435).
  *
  * @internal
  */

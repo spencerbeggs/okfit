@@ -26,6 +26,7 @@ import type { ConceptSignal } from "@okfit/profiles";
 import { Trust } from "@okfit/profiles";
 import { Console, Effect, Option, Path, Schema } from "effect";
 import { Argument, CliError, Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanQueryGet, humanQueryList, humanQueryNeighbors, queryListSummary } from "../render/query.js";
@@ -47,12 +48,6 @@ const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
-
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
 
 const typeFlag = Flag.String("type").pipe(
 	Flag.atLeast(0),
@@ -174,9 +169,8 @@ export const queryListCommand = Command.make(
 		drifted: driftedFlag,
 		stale: staleFlag,
 		current: currentFlag,
-		format: formatFlag,
 	},
-	(input) => {
+	withFormat((input) => {
 		const filter: ConceptFilter = {
 			...(input.type.length > 0 ? { types: input.type } : {}),
 			...(input.tag.length > 0 ? { tags: input.tag } : {}),
@@ -210,8 +204,9 @@ export const queryListCommand = Command.make(
 				? Effect.fail(new QuerySelectionError({ reason: "verified-conflict" }))
 				: undefined,
 		);
-	},
+	}),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription("List concepts, sorted by id, optionally filtered by type, tag, status, or trust signal."),
 );
 
@@ -222,8 +217,8 @@ export const queryListCommand = Command.make(
  */
 export const queryGetCommand = Command.make(
 	"get",
-	{ targets: targetsArg, root: rootFlag, config: configFlag, format: formatFlag },
-	(input) =>
+	{ targets: targetsArg, root: rootFlag, config: configFlag },
+	withFormat((input) =>
 		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
 				const resolved = yield* Targets.resolve(input.targets, bundle, process.cwd());
@@ -266,7 +261,11 @@ export const queryGetCommand = Command.make(
 				}
 			}),
 		),
-).pipe(Command.withDescription("Show one or more concepts: their fields, verified entries, and outgoing links."));
+	),
+).pipe(
+	Command.withGlobalFlags([Format]),
+	Command.withDescription("Show one or more concepts: their fields, verified entries, and outgoing links."),
+);
 
 /**
  * `okfit query neighbors <target> [--root <dir>] [--config <file>] [--format human|json]`.
@@ -275,8 +274,8 @@ export const queryGetCommand = Command.make(
  */
 export const queryNeighborsCommand = Command.make(
 	"neighbors",
-	{ id: idArg, root: rootFlag, config: configFlag, format: formatFlag },
-	(input) =>
+	{ id: idArg, root: rootFlag, config: configFlag },
+	withFormat((input) =>
 		run(input, ({ bundle, distribution, signals }) =>
 			Effect.gen(function* () {
 				const [target] = yield* Targets.resolve([input.id], bundle, process.cwd());
@@ -302,7 +301,11 @@ export const queryNeighborsCommand = Command.make(
 				}
 			}),
 		),
-).pipe(Command.withDescription("Show the concepts a concept links to and the ones that link to it."));
+	),
+).pipe(
+	Command.withGlobalFlags([Format]),
+	Command.withDescription("Show the concepts a concept links to and the ones that link to it."),
+);
 
 const browseNeedsTerminal = () => new QuerySelectionError({ reason: "browse-needs-terminal" });
 

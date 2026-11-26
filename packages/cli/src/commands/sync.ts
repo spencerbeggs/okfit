@@ -16,6 +16,7 @@ import {
 import { GitHistory, ProfileKeys } from "@okfit/profiles";
 import { Console, DateTime, Effect, Layer, Option, Path, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanPublication, humanSync } from "../render/sync.js";
@@ -38,8 +39,7 @@ const configFlag = Flag.File("config").pipe(
  * (contract §11, S-13, judge note 9).
  *
  * Note: `Flag.Literals`'s installed signature (`effect/cli/Flag.ts:178-181`)
- * takes `(name: string, literals: ReadonlyArray<string>)`, matching
- * `formatFlag` below — not the `[value, label]` tuple-pair form
+ * takes `(name: string, literals: ReadonlyArray<string>)` — not the `[value, label]` tuple-pair form
  * `Flag.ChoiceWithValue` takes. The contract's own `onlyFlag` sketch
  * writes tuple pairs; since every pair's two elements are identical
  * (`["generated", "generated"]`, etc.), the plain string-array form
@@ -62,12 +62,6 @@ const yesFlag = Flag.Boolean("yes").pipe(
 	Flag.withDefault(false),
 	Flag.withDescription("skip the interactive confirm and write the plan"),
 );
-
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
 
 /**
  * #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). The shape
@@ -137,13 +131,13 @@ export const syncCommand = Command.make(
 		config: configFlag,
 		only: onlyFlag,
 		dryRun: dryRunFlag,
-		format: formatFlag,
+
 		since: sinceFlag,
 		staged: stagedFlag,
 		publication: publicationFlag,
 		yes: yesFlag,
 	},
-	(input) =>
+	withFormat((input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
@@ -242,7 +236,9 @@ export const syncCommand = Command.make(
 			}
 			return yield* body;
 		}),
+	),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription(
 		"Regenerate the derived-content families that no other command produces: generated.at, index.md, and " +
 			"log.md, all from git history and the bundle's own concepts. Mechanical and agent-runnable; never an " +

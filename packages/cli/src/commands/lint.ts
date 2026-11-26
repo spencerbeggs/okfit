@@ -16,6 +16,7 @@ import {
 import { GitHistory } from "@okfit/profiles";
 import { Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { printDiagnostics } from "../internal/print-diagnostics.js";
 import { rootFlag } from "../internal/root.js";
 import { scopeTo } from "../internal/scope.js";
@@ -26,12 +27,6 @@ const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
-
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
 
 /** Scope: report only these files' diagnostics; the bundle still loads whole so link lints stay right. */
 const targetsArg = Argument.String("targets").pipe(
@@ -66,8 +61,8 @@ const skipProvenanceFlag = Flag.Boolean("skip-provenance").pipe(
  */
 export const lintCommand = Command.make(
 	"lint",
-	{ targets: targetsArg, root: rootFlag, config: configFlag, format: formatFlag, skipProvenance: skipProvenanceFlag },
-	(input) =>
+	{ targets: targetsArg, root: rootFlag, config: configFlag, skipProvenance: skipProvenanceFlag },
+	withFormat((input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
@@ -129,7 +124,9 @@ export const lintCommand = Command.make(
 			}
 			return yield* body;
 		}),
+	),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription(
 		"Load config and bundle, run lint checks (and the profile check), and render the diagnostics; never conformance.",
 	),

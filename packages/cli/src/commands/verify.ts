@@ -24,6 +24,7 @@ import {
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanRevokeDoc, humanVerifyBatchDoc, humanVerifyDoc } from "../render/verify.js";
@@ -103,12 +104,6 @@ const noDiffFlag = Flag.Boolean("no-diff").pipe(
 	),
 );
 
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
-
 /**
  * `okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
  * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--format human|json]`.
@@ -144,9 +139,8 @@ export const verifyCommand = Command.make(
 		at: atFlag,
 		dryRun: dryRunFlag,
 		noDiff: noDiffFlag,
-		format: formatFlag,
 	},
-	(input) =>
+	withFormat((input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 
@@ -447,7 +441,9 @@ export const verifyCommand = Command.make(
 			}
 			return yield* body;
 		}),
+	),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription(
 		"Record a human's attestation that a concept has been reviewed: append one verified entry, " +
 			"{ by: human:<id>, at: <now> }, to its frontmatter. The actor is always your own git identity; " +

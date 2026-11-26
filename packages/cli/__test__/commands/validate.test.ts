@@ -27,15 +27,8 @@ describe("validateCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["root", "config", "format", "skip-provenance", "document", "target", "fix", "only", "dry-run"],
+			["root", "config", "skip-provenance", "document", "target", "fix", "only", "dry-run"],
 		);
-	});
-
-	it('--format defaults to "human" (contract §6.1)', () => {
-		const config = configOf(validateCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
-		if (formatFlag === undefined) throw new Error("expected a --format flag");
-		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--skip-provenance defaults to false (S-31)", () => {

@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T03:17:46Z
+  at: 2026-11-26T07:59:01Z
 tags:
   - architecture
 verified:
@@ -49,7 +49,7 @@ verified:
     at: 2026-11-26T03:32:37Z
 x-okfit-integrity:
   generated:
-    body: a02b3ab23de6ddd5
+    body: 1d766262fc1329aa
   verified:
     by: human:spencer
     at: 2026-11-26T03:32:37Z
@@ -540,10 +540,20 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 
 A usage error (`64`) prints its help and parse errors on stderr and leaves
 stdout empty, so a hook that parses stdout as JSON never sees help text;
-when the arguments hold `--format json` or `--format=json` before any `--`, a usage error the argument parser raises (an unknown
-flag or subcommand, a bad or missing flag value) also prints one error
-envelope on stdout (`exit_code` `64`, `error.tag` the first parse error's tag,
-the messages joined with a semicolon and a space), with help still on stderr; an
+when the command takes `--format` and the arguments hold `--format json` or
+`--format=json`, a usage error the argument parser raises (an unknown flag or
+subcommand, a bad or missing flag value) also prints one error envelope on
+stdout (`exit_code` `64`, `error.tag` the first parse error's tag, the messages
+joined with a semicolon and a space), with help still on stderr. A command
+without `--format` (`init`, the bare `query` group) prints no envelope: there
+`--format json` is itself the usage error. `--format human|json` is declared
+once as a global setting and attached to the eight commands that take it
+(`validate`, `context`, `lint`, `stale`, `mv`, `sync`, `verify` and `query
+list|get|neighbors`), so `--help` lists it under the global flags; the usage
+envelope is printed through `CliRuntime.main`'s `renderUsageError`. `graph`
+keeps a local `--format mermaid|dot|json` (default `mermaid`), because effect
+rejects two global settings that share a flag name; `main.ts` checks `graph`'s
+arguments directly for that one command (effected#1435 tracks removing this). An
 explicit `--help` and a bare command group print help on stdout and exit `0`.
 
 Higher wins when several apply; warnings and info never change the exit

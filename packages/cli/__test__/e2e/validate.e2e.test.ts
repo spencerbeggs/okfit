@@ -15,6 +15,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Bundle, ConceptId } from "@okfit/core";
+import { ENGINE_VERSION } from "@okfit/engine";
 import { Derivation } from "@okfit/profiles";
 import { Effect, Option } from "effect";
 import {
@@ -1547,6 +1548,29 @@ describe("okfit validate: a parse-time usage error under --format json (#485)", 
 			assert.strictEqual(result.exitCode, 64);
 			assert.strictEqual(result.stdout, "");
 			assert.include(result.stderr, "Invalid value for flag --only");
+		}),
+	);
+
+	it.effect("the envelope is the single compact line, keys in contract order, byte for byte", () =>
+		Effect.gen(function* () {
+			const result = yield* usage(["validate", "--bogus", "--format", "json"]);
+			assert.strictEqual(result.exitCode, 64);
+			const envelope = JSON.parse(result.stdout) as {
+				readonly okfit_version: string;
+				readonly error: { readonly message: string };
+			};
+			assert.match(envelope.okfit_version, /^\d+\.\d+\.\d+/);
+			assert.strictEqual(
+				result.stdout,
+				`${JSON.stringify({
+					schema: 1,
+					okfit_version: envelope.okfit_version,
+					engine_version: ENGINE_VERSION,
+					distribution: null,
+					exit_code: 64,
+					error: { tag: "UnrecognizedOption", message: envelope.error.message },
+				})}\n`,
+			);
 		}),
 	);
 

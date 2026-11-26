@@ -14,6 +14,7 @@ import {
 } from "@okfit/engine";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanMalformed, humanStaleDoc, staleSummary } from "../render/stale.js";
@@ -25,12 +26,6 @@ const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
-
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
 
 const verifyFlag = Flag.Boolean("verify").pipe(
 	Flag.withDefault(false),
@@ -57,8 +52,8 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
  */
 export const staleCommand = Command.make(
 	"stale",
-	{ root: rootFlag, config: configFlag, format: formatFlag, verify: verifyFlag, dryRun: dryRunFlag },
-	(input) =>
+	{ root: rootFlag, config: configFlag, verify: verifyFlag, dryRun: dryRunFlag },
+	withFormat((input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
@@ -144,7 +139,9 @@ export const staleCommand = Command.make(
 			}
 			return yield* body;
 		}),
+	),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription(
 		"List every concept whose stale_after instant has passed as of now, with how many whole days past it.",
 	),
