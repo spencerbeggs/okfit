@@ -332,6 +332,45 @@ describe("Bundle.load", () => {
 			),
 		),
 	);
+	it.effect("a pruned name is fully silent for a FILE link too: never reported, never read (Q8)", () =>
+		Effect.gen(function* () {
+			// node_modules is pruned by default: silent, and left out of the files; skipped.md is not pruned: reported
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(
+				codes(bundle.diagnostics).map(([file]) => file),
+				["skipped.md"],
+			);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+			// a custom pruned name that is Markdown: the link's target is not loaded as a concept either
+			const custom = yield* Bundle.load({ root: MOUNT, prune: ["skipped.md"] });
+			assert.deepStrictEqual(
+				codes(custom.diagnostics).map(([file]) => file),
+				["node_modules"],
+			);
+			assert.deepStrictEqual(custom.files, ["a.md"]);
+			assert.deepStrictEqual([...custom.concepts.keys()].map(String), ["a"]);
+			const both = yield* Bundle.load({ root: MOUNT, prune: ["node_modules", "skipped.md"] });
+			assert.deepStrictEqual(both.diagnostics, []);
+			assert.deepStrictEqual(both.files, ["a.md"]);
+			// control: with the names no longer pruned, both file links are reported, so the silence above is the prune
+			const open = yield* Bundle.load({ root: MOUNT, prune: [".git"] });
+			assert.deepStrictEqual(
+				codes(open.diagnostics)
+					.map(([file]) => file)
+					.sort(),
+				["node_modules", "skipped.md"],
+			);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside/x.md"),
+					[`${MOUNT}/skipped.md`]: MemoryFileSystem.symlink("/outside/x.md"),
+					"/outside/x.md": "---\ntype: Note\n---\nLEAKED\n",
+				}),
+			),
+		),
+	);
 	it.effect("a custom prune list silences its own names, and only those (#458, Q8)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT, prune: ["vendor"] });
@@ -361,22 +400,6 @@ describe("Bundle.load", () => {
 				}),
 			),
 		),
-	);
-	it.effect(
-		"prune names directories: a file link named node_modules that leaves the bundle is still reported (#458)",
-		() =>
-			Effect.gen(function* () {
-				const bundle = yield* Bundle.load({ root: MOUNT });
-				assert.deepStrictEqual(codes(bundle.diagnostics), [["node_modules", "symlink-escape", undefined]]);
-			}).pipe(
-				Effect.provide(
-					platform({
-						[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
-						[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside/file.txt"),
-						"/outside/file.txt": "",
-					}),
-				),
-			),
 	);
 	it.effect("a dangling hidden link is silent by default and reported with includeHidden (#458)", () =>
 		Effect.gen(function* () {

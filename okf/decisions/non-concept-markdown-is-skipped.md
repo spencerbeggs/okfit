@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T09:24:00Z
+  at: 2026-11-26T16:32:30Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 6c2ae3c2c012b0ee
+    body: 53630cedcb870aff
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:54Z
@@ -80,8 +80,8 @@ cannot be told from a file link or a directory link. So is any link whose
 resolution fails for another reason (a link loop, a target in a directory that
 cannot be read), which the walker also reports as dangling. A pruned
 directory name (`node_modules` by default) is silent: neither the entry nor
-anything under it is checked, while a file link with that name is checked like
-any other file link. A hidden name is checked only when the bundle loads with
+anything under it is checked, and a file link with that name is silent too: it is
+never read, never reported and not in the bundle's file list. A hidden name is checked only when the bundle loads with
 `includeHidden`.
 
 The consequence for exit codes is accepted: a bundle that holds a README or

@@ -327,7 +327,7 @@ export class Bundle {
 	 * A symbolic link is never followed out of the bundle (OKF 0.3 section 3.2 rule 5). A file link that leaves
 	 * it, a directory link that leaves it (nothing under it is read), and a link of either kind whose resolution
 	 * fails (dangling, a loop, an unreadable target) each record a `symlink-escape` warning at their own path
-	 * (pruned directory names are not checked, hidden ones only under `includeHidden`); a directory link that stays inside is never walked and
+	 * (a pruned name, `node_modules` by default, is silent for a file link and a directory link alike and the link is never read; hidden names are checked only under `includeHidden`); a directory link that stays inside is never walked and
 	 * records nothing. Each Markdown file is read confined (`readConfinedString`): a file that becomes a link out of
 	 * the bundle between the link check and the read is refused as `symlink-escape`, and one that changed under the
 	 * read (`changed`) is recorded `read-changed` ("try again") and left out of that load. A race through a directory above
@@ -358,11 +358,12 @@ export class Bundle {
 				}
 				return new BundleReadError({ root, path: error.path, cause: error });
 			};
+			const prune = new Set(options.prune ?? DEFAULT_PRUNE);
 			const walked = yield* walk({
 				root,
 				includeHidden: options.includeHidden ?? false,
 				maxDepth,
-				prune: new Set(options.prune ?? DEFAULT_PRUNE),
+				prune,
 			}).pipe(Effect.mapError(toLoadError));
 			const diagnostics: Array<Diagnostic> = walked.unreadable.map(({ path: dir, reason }) =>
 				diagnostic(
@@ -378,6 +379,8 @@ export class Bundle {
 					.lstat(path.join(root, file))
 					.pipe(Effect.mapError((cause) => new BundleReadError({ root, path: file, cause })));
 				if (link.type === "SymbolicLink") {
+					// A pruned name is fully silent (Q8), for a file link too: it is neither read nor reported.
+					if (prune.has(file.slice(file.lastIndexOf("/") + 1))) continue;
 					const refused = yield* confineReal(root, path.join(root, file)).pipe(
 						Effect.match({ onFailure: (error) => error, onSuccess: () => undefined }),
 					);
@@ -400,7 +403,7 @@ export class Bundle {
 			// `links` report names them, and `scanLinks` decides each on the real path.
 			const links = yield* scanLinks(root, walked.links, {
 				includeHidden: options.includeHidden ?? false,
-				prune: new Set(options.prune ?? DEFAULT_PRUNE),
+				prune,
 			});
 			for (const link of links) diagnostics.push(diagnostic(link.file, "symlink-escape", "warning", link.message));
 			const concepts = new Map<ConceptId, LoadedConcept>();

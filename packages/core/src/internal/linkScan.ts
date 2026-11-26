@@ -42,7 +42,8 @@ const byPath = (a: LinkFinding, b: LinkFinding): number => (a.file < b.file ? -1
  * The walker reports links only from directories it reads, so a pruned directory, a hidden one and anything under them
  * are never seen. It reports a dangling link whatever its own name, so a pruned or (without `includeHidden`) hidden name
  * is dropped here to keep Q8: a pruned directory name is fully silent, and a hidden name is reported only with
- * `includeHidden`. A file link with a pruned name is a file match, not a skipped link, and is checked by `Bundle.load`.
+ * `includeHidden`. A file link with a pruned name is a file match, not a skipped link; `Bundle.load` drops it
+ * silently too (never read, never reported), so the prune list silences a name for files and directories alike.
  *
  * @internal
  */
