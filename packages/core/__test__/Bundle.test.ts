@@ -15,6 +15,13 @@ const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
 	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundleAtRootPlatform(name)));
 const codes = (diagnostics: ReadonlyArray<Diagnostic>) => diagnostics.map((d) => [d.file, d.code, d.range?.line]);
 const id = (value: string) => value as ConceptId;
+/** Everything textual a loaded bundle holds from the files it read, for asserting a refused file's text never got in. */
+const sourcesOf = (bundle: LoadedBundle): string =>
+	[
+		...[...bundle.concepts.values()].map((concept) => concept.document.source),
+		...[...bundle.indexes.values()].map((doc) => doc.source ?? ""),
+		...bundle.diagnostics.map((d) => d.message),
+	].join("\n");
 
 const computations = (frontmatter?: string) => ({
 	...(frontmatter === undefined
@@ -172,7 +179,7 @@ describe("Bundle.load", () => {
 			{
 				[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
 				[`${MOUNT}/b.md`]: "---\ntype: Note\n---\n",
-				"/outside/secret.md": "---\ntype: Secret\n---\n",
+				"/outside/secret.md": "---\ntype: Secret\ntitle: LEAKED-SECRET-TITLE\n---\n",
 			},
 			"open",
 			"before",
@@ -186,6 +193,8 @@ describe("Bundle.load", () => {
 		return Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT });
 			assert.isTrue(trap.fired(), "the swap must have run");
+			// what the bundle holds never carries the outside file's text
+			assert.notInclude(sourcesOf(bundle), "LEAKED-SECRET-TITLE");
 			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
 			assert.deepStrictEqual(bundle.files, ["b.md"]);
 			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "symlink-escape", undefined]]);
@@ -207,6 +216,8 @@ describe("Bundle.load", () => {
 		return Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT });
 			assert.isTrue(trap.fired(), "the swap must have run");
+			// the file the swap put in place is not read into the bundle
+			assert.notInclude(sourcesOf(bundle), "SWAPPED");
 			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
 			assert.deepStrictEqual(bundle.files, ["b.md"]);
 			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "read-changed", undefined]]);

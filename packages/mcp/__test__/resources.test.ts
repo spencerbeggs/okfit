@@ -281,10 +281,10 @@ describe("resources", () => {
 
 	describe("a file replaced between its resolution and the identity compare (#460)", () => {
 		/**
-		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (same text, new
-		 * inode). The concept read lstats once; the index read first loads the bundle, whose walk and loader lstat the file
+		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (new inode, and text carrying a sentinel an unconfined read would serve). The concept read lstats once; the index read first loads the bundle, whose walk and loader lstat the file
 		 * three times before the resource's own read (the fourth).
 		 */
+		const RESAVED = "RESAVED-SENTINEL-TEXT";
 		const readWhileResaved = (uri: string, suffix: string, nth = 1) =>
 			Effect.gen(function* () {
 				const root = yield* copyFixtureProject("project");
@@ -299,7 +299,9 @@ describe("resources", () => {
 								? Effect.suspend(() => {
 										fired = true;
 										return fs.readFileString(target).pipe(
-											Effect.flatMap((text) => Effect.andThen(fs.remove(target), fs.writeFileString(target, text))),
+											Effect.flatMap((text) =>
+												Effect.andThen(fs.remove(target), fs.writeFileString(target, `${text}\n${RESAVED}\n`)),
+											),
 											Effect.orDie,
 										);
 									}).pipe(Effect.andThen(fs.lstat(target)))
@@ -322,6 +324,7 @@ describe("resources", () => {
 				assert.ok(message.error !== undefined);
 				assert.include(JSON.stringify(message), "metrics/revenue.md changed while it was read; try again");
 				assert.notInclude(JSON.stringify(message), "links out of the bundle");
+				assert.notInclude(JSON.stringify(message), RESAVED);
 			}),
 		);
 
@@ -332,6 +335,7 @@ describe("resources", () => {
 				assert.ok(message.error !== undefined);
 				assert.include(JSON.stringify(message), "index.md changed while it was read; try again");
 				assert.notInclude(JSON.stringify(message), "links out of the bundle");
+				assert.notInclude(JSON.stringify(message), RESAVED);
 			}),
 		);
 	});

@@ -249,29 +249,40 @@ describe("syncIndex: an index.md swapped after the check (OKF 0.3 section 3.2, #
 			yield* fs.remove(target);
 			yield* fs.symlink("/outside/index.md", target);
 		});
-	const seed = { ...mountProject(V03_PROJECT), [target]: "# Stale\n", "/outside/index.md": "# Outside\n" };
+	const seed = {
+		...mountProject(V03_PROJECT),
+		[target]: "# Stale\n",
+		"/outside/index.md": "# Outside\n\n* [Leak](LEAKED-FROM-OUTSIDE.md)\n",
+	};
 	const outcomes = [
 		["open", "symlink-escape", "a link out is in place when the file is opened"],
 		["lstat", "changed-during-read", "the path is swapped between its resolution and the identity compare"],
 	] as const;
 	for (const [method, reason, when] of outcomes) {
-		it.effect(`skips it as ${reason} (${when}), and never reads or writes the file it was swapped for`, () => {
-			const [layer, trap] = swapOn(seed, method, target, toLinkOut);
-			return Effect.gen(function* () {
-				const fs = yield* FileSystem.FileSystem;
-				const bundle = yield* Bundle.load({ root: ROOT });
-				trap.arm();
-				const result = yield* syncIndex(bundle, false);
-				assert.isTrue(trap.fired(), "the swap must have run");
-				assert.deepStrictEqual(
-					result.skipped.filter((entry) => entry.id === "metrics/index.md"),
-					[{ id: "metrics/index.md", reason }],
-				);
-				assert.isFalse(result.written.includes("metrics/index.md"));
-				assert.isFalse(result.unchanged.includes("metrics/index.md"));
-				assert.strictEqual(yield* fs.readFileString("/outside/index.md"), "# Outside\n");
-			}).pipe(Effect.provide(layer));
-		});
+		for (const dryRun of [false, true]) {
+			it.effect(
+				`skips it as ${reason} (${when}), and never reads or writes the file it was swapped for (dryRun ${dryRun})`,
+				() => {
+					const [layer, trap] = swapOn(seed, method, target, toLinkOut);
+					return Effect.gen(function* () {
+						const fs = yield* FileSystem.FileSystem;
+						const bundle = yield* Bundle.load({ root: ROOT });
+						trap.arm();
+						const pending: Array<{ target: string; contents: string }> = [];
+						const result = yield* syncIndex(bundle, dryRun, pending);
+						assert.isTrue(trap.fired(), "the swap must have run");
+						assert.deepStrictEqual(
+							result.skipped.filter((entry) => entry.id === "metrics/index.md"),
+							[{ id: "metrics/index.md", reason }],
+						);
+						assert.isFalse(result.written.includes("metrics/index.md"));
+						assert.isFalse(result.unchanged.includes("metrics/index.md"));
+						assert.isFalse(pending.some((write) => write.target === target));
+						assert.include(yield* fs.readFileString("/outside/index.md"), "LEAKED-FROM-OUTSIDE");
+					}).pipe(Effect.provide(layer));
+				},
+			);
+		}
 	}
 });
 

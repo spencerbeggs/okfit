@@ -478,7 +478,11 @@ describe("syncLog: a log.md swapped after the check (OKF 0.3 section 3.2, #460)"
 	const provenance = new Map([
 		[REVENUE, { _tag: "committed", at: DateTime.makeUnsafe("2026-09-16T10:00:00Z"), creating: true } as const],
 	]);
-	const seed = { ...mountProject(V03_PROJECT), [target]: "# Log\n", "/outside/log.md": "# Outside log\n" };
+	const seed = {
+		...mountProject(V03_PROJECT),
+		[target]: "# Log\n",
+		"/outside/log.md": "# Log\n\n## 2026-01-01\n\n* LEAKED-FROM-OUTSIDE\n",
+	};
 	const toLinkOut = (fs: FileSystem.FileSystem) =>
 		Effect.gen(function* () {
 			yield* fs.remove(target);
@@ -499,10 +503,12 @@ describe("syncLog: a log.md swapped after the check (OKF 0.3 section 3.2, #460)"
 					const pending: Array<{ target: string; contents: string }> = [];
 					const result = yield* syncLog(bundle, provenance, dryRun, undefined, pending);
 					assert.isTrue(trap.fired(), "the swap must have run");
+					assert.notInclude(JSON.stringify([result, pending]), "LEAKED-FROM-OUTSIDE");
 					assert.deepStrictEqual(result.skipped, [{ id: "log.md", reason }]);
 					assert.deepStrictEqual(result.written, []);
 					assert.deepStrictEqual(pending, []);
-					assert.strictEqual(yield* fs.readFileString("/outside/log.md"), "# Outside log\n");
+					assert.include(yield* fs.readFileString("/outside/log.md"), "LEAKED-FROM-OUTSIDE");
+					assert.strictEqual((yield* fs.readFileString("/outside/log.md")).split("LEAKED-FROM-OUTSIDE").length, 2);
 				}).pipe(Effect.provide(layer));
 			});
 		}
