@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T01:04:49Z
+  at: 2026-11-26T01:05:21Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 35632c7f61bfaf45
+    body: 5011db672aa22ac7
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -329,7 +329,8 @@ as `migrated`, and a concept that cannot be spliced safely is skipped as
 spellings of a key is skipped as `legacy-key-conflict`, and one whose old key
 cannot be renamed in place (flow style, an alias or a `<<` merge in the old
 integrity block, a duplicated key, an explicit `?` key) as
-`legacy-key-unsupported`; an id in `migrated` may also appear in `skipped`, because
+`legacy-key-unsupported`; the `untracked` and `dirty` skip lines end in their step
+(`not tracked by git; add the file to git and commit it, then run okfit sync again`, `has uncommitted changes; commit the change, then run okfit sync again`); an id in `migrated` may also appear in `skipped`, because
 a concept sync cannot stamp still has its keys renamed. The key names are explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). `generated.at` is the derived instant (the last
 body-changing commit's author date; under `--staged`, the hook's clock). When
 the concept's `x-okfit-integrity.verified` binds its latest human entry and covers

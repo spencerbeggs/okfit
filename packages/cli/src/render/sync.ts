@@ -4,8 +4,8 @@ import { ProfileKeys } from "@okfit/profiles";
 
 /** Contract §9.2's fixed reason-sentence table, closed over `SkipReason`. */
 const REASON_SENTENCE: Record<SkipReason, string> = {
-	untracked: "not tracked by git",
-	dirty: "has uncommitted changes",
+	untracked: "not tracked by git; add the file to git and commit it, then run okfit sync again",
+	dirty: "has uncommitted changes; commit the change, then run okfit sync again",
 	unborn: "the repository has no commits yet",
 	"generated-missing":
 		"has no generated block and actors.agent is not configured; set generated.by by hand or configure actors.agent",

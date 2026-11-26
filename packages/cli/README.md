@@ -396,7 +396,9 @@ place and reports the ids as `migrated`.
 `okfit sync --staged` (the pre-commit hook) only migrates the concepts being
 committed, so run a plain `okfit sync` once to move the whole bundle. A concept
 sync cannot stamp (uncommitted edits, untracked, no `generated` block) still has
-its keys renamed and is reported as both migrated and skipped. On a `--staged`
+its keys renamed and is reported as both migrated and skipped. The `untracked` and
+`dirty` skip lines name their step: add the file to git and commit it, or commit the
+change, then run `okfit sync` again (git's index alone is not enough for a plain sync). On a `--staged`
 run, a rename that is the only write to a concept restages the whole file, so
 the first commit that touches an unmigrated concept also commits any unstaged
 edits to it. Run a plain `okfit sync` once and commit the key move on its own
