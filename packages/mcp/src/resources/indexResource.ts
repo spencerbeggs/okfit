@@ -21,8 +21,8 @@ import { loadToolContext } from "../internal/toolContext.js";
  * the path, compare the open file's identity with it): a link at the file
  * itself is refused even when swapped in during the read (a race through a
  * directory above it can still win, spencerbeggs/okfit#524), and an index
- * that changed under the read is answered `index.md changed while it was
- * read; try again`.
+ * that changed under the read is answered with a transient "changed while
+ * it was read; try again" failure.
  *
  * A missing `index.md` fails the read rather than returning placeholder
  * text (J-8): a resource that silently returns prose instead of the file
