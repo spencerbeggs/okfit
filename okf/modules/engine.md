@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T04:29:55Z
+  at: 2026-11-26T04:47:28Z
 x-okfit-integrity:
   generated:
-    body: 54317ec4dbc5f37d
+    body: e5adc0efcb71afed
 ---
 
 # Engine
@@ -255,9 +255,9 @@ the stamp and that verification's date; a clamp that would make one count is not
 applied, the derived stamp stands and the lint `generated-at-future` reports
 it. Sync keeps a leading byte-order mark and the file's line endings when it
 rewrites `index.md` or `log.md`: a rewrite uses the file's first newline
-throughout (LF or CRLF), and a file that differs from what sync would write
-only in its line endings is `unchanged` and keeps its bytes. Staged mode
-never walks history: its log mode reads the staged concepts' provenance from
+throughout (the rule covers LF and CRLF; a file with no LF is written LF),
+and a file that differs from what sync would write only in its line endings
+is `unchanged` and keeps its bytes. Staged mode never walks history: its log mode reads the staged concepts' provenance from
 the index (the stamp instant; `Added` when `git show HEAD:<path>` finds
 nothing) and skips a `log.md` with unstaged edits as `dirty`. It takes the
 worktree root from `Git.repoRoot(..., { ignoreRepositoryEnv: true })`, which

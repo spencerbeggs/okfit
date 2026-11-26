@@ -44,33 +44,50 @@ export const bomOf = (fs: FileSystem.FileSystem, absolutePath: string) =>
 		);
 
 /**
+ * A line ending sync can keep: LF or CRLF. A lone CR is not one; a file whose only line breaks are lone CRs counts as
+ * LF.
+ *
+ * @internal
+ */
+export type Newline = "\n" | "\r\n";
+
+/**
  * {@link readSourceKeepingBom} for a file that may not exist yet: `text` is the content without its leading BOM
  * (`undefined` when the file is absent), `bom` the BOM that was stripped (`""` when none) and `newline` the file's
- * line ending (`detectNewline` of the text: its first newline's, LF for an absent or newline-free file), so a writer
- * can work in LF, compare with {@link withNewline}, and write `bom + withNewline(contents, newline)`.
+ * line ending (`detectNewline` of the text: CRLF when its first LF is preceded by CR, otherwise LF, so a file with no
+ * LF, or an absent one, is LF), so a writer can work in LF, compare with {@link toLf}, and write
+ * `bom + withNewline(contents, newline)`.
  *
  * @internal
  */
 export const readOptionalSplittingBom = (fs: FileSystem.FileSystem, target: string) =>
 	readSourceKeepingBom(fs, target).pipe(
-		Effect.map((raw): { readonly text: string | undefined; readonly bom: string; readonly newline: "\n" | "\r\n" } => {
+		Effect.map((raw): { readonly text: string | undefined; readonly bom: string; readonly newline: Newline } => {
 			const { text, bom } = stripBom(raw);
 			return { text, bom, newline: detectNewline(text) };
 		}),
 		Effect.catchReason("PlatformError", "NotFound", () =>
-			Effect.succeed({ text: undefined, bom: "", newline: "\n" as "\n" | "\r\n" }),
+			Effect.succeed({ text: undefined, bom: "", newline: "\n" as const }),
 		),
 	);
 
 /**
- * `text` (LF throughout, as the renderers produce it) in the given line ending. For CRLF every newline becomes CRLF;
- * text that already carries CRLF is not doubled. A sync rewrite uses the file's first newline throughout (#505), the
- * same rule verify uses.
+ * `text` (LF throughout, as the renderers produce it) in the given line ending. For CRLF every LF becomes CRLF; text
+ * that already carries CRLF is not doubled. The rule covers LF and CRLF only: a sync rewrite uses the file's first
+ * newline throughout (#505), the same rule verify uses, and a file with no LF is written LF.
  *
  * @internal
  */
-export const withNewline = (text: string, newline: "\n" | "\r\n"): string =>
+export const withNewline = (text: string, newline: Newline): string =>
 	newline === "\n" ? text : text.replace(/\r?\n/g, "\r\n");
+
+/**
+ * `text` with every CRLF turned into LF (a lone CR is left alone): the form sync merges and compares in, so a file
+ * that differs from a render only in its line endings is not a change (#505).
+ *
+ * @internal
+ */
+export const toLf = (text: string): string => text.replace(/\r\n/g, "\n");
 
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is

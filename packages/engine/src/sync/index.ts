@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { Effect, FileSystem, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, withNewline, writeAtomic } from "./write.js";
+import { readOptionalSplittingBom, toLf, withNewline, writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
@@ -57,7 +57,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	// the render in the file's first newline.
 	const { text: onDisk, bom, newline } = yield* readOptionalSplittingBom(fs, targetPath);
 	const expected = withNewline(rendered, newline);
-	if (onDisk !== undefined && onDisk.replace(/\r\n/g, "\n") === rendered) {
+	if (onDisk !== undefined && toLf(onDisk) === rendered) {
 		unchanged.push(relativeId);
 		return;
 	}
@@ -85,7 +85,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
  *
  * An `index.md` that exists but could not be read (unclosed or unparseable frontmatter) is skipped as
  * `index-unparseable` and never rewritten, since rendering over it would erase what the author wrote (#512). A
- * rewrite keeps the file's leading BOM and its line ending (its first newline's, LF or CRLF, #505); a file that
+ * rewrite keeps the file's leading BOM and its line ending (the rule covers LF and CRLF: its first newline's, and a file with no LF is written LF, #505); a file that
  * differs from the render only in its line endings is `unchanged` and keeps its bytes.
  *
  * @internal

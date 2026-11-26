@@ -3,7 +3,7 @@ import { Derive } from "@okfit/core";
 import { DateTime, Effect, FileSystem, Path } from "effect";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, withNewline, writeAtomic } from "./write.js";
+import { readOptionalSplittingBom, toLf, withNewline, writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -64,9 +64,7 @@ export const mergeLog = (
 			// at assembly time below (S-10: existing groups are copied, in LF, #505).
 			// Its line endings are normalised to LF (#505): `mergeLog` works in LF throughout and `syncLog`
 			// converts the result to the file's own newline, so the `/\n+$/` trailer below sees LF.
-			const verbatim = existing.source
-				.slice(group.range.offset, group.range.offset + group.range.length)
-				.replace(/\r\n/g, "\n");
+			const verbatim = toLf(existing.source.slice(group.range.offset, group.range.offset + group.range.length));
 			byDate.set(group.date, { verbatim, pending: [] });
 		}
 	}
@@ -261,7 +259,7 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 
 	// Step 7: compare; a missing file compares against "". Only line endings differing is not a change (#505), so
 	// an untouched file keeps its bytes, mixed endings included.
-	if (merged === (source ?? "").replace(/\r\n/g, "\n")) {
+	if (merged === toLf(source ?? "")) {
 		return { selected: true, written: [], unchanged: ["log.md"], skipped: [] } satisfies SyncLogResult;
 	}
 	if (dryRun) {

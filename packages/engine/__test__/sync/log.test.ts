@@ -21,6 +21,7 @@ import type { BodyProvenance } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Layer, Option, Result } from "effect";
 import type { LogAddition } from "../../src/sync/log.js";
 import { logWindow, mergeLog, syncLog, wantsLogEntry } from "../../src/sync/log.js";
+import type { PendingWrite } from "../../src/sync/write.js";
 import { V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, seedPlatform } from "../utils/bundle.js";
 import { withRealBundle } from "../utils/realBundle.js";
@@ -599,6 +600,23 @@ describe("syncLog line endings (#505)", () => {
 					text,
 					"# Log\r\n\r\n## 2026-09-05\r\n\r\n* Added Newer\r\n* Added Fresh\r\n\r\n## 2026-09-01\r\n\r\n* Added Old\r\n* Added Fresh2\r\n",
 				);
+			}),
+		),
+	);
+
+	it.effect("a dry run plans CRLF contents for a CRLF log.md (#505)", () =>
+		withRealBundle(files(CRLF_LOG), (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const provenance = provenanceFor([["fresh.md", "2026-09-05T00:00:00Z"]]);
+				const pending: Array<PendingWrite> = [];
+				const result = yield* syncLog(bundle, provenance, true, "2026-09-01", pending);
+				assert.deepStrictEqual(result.written, ["log.md"]);
+				assert.strictEqual(pending.length, 1);
+				const planned = pending[0]?.contents ?? "";
+				assert.include(planned, "* Added Fresh\r\n");
+				assert.isFalse(bareLf.test(planned), "no bare LF in the plan");
+				assert.strictEqual(yield* readText(root), CRLF_LOG, "a dry run writes nothing");
 			}),
 		),
 	);
