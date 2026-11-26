@@ -359,7 +359,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "symlink-escape",
 			description:
-				'A file in the bundle is a symbolic link whose target lies outside the bundle root; it is not read and not part of the bundle (OKF 0.3 §3.2). Default "warn".',
+				'A file or directory in the bundle is a symbolic link whose target lies outside the bundle root or cannot be resolved; it is not read, nothing under it is walked, and it is not part of the bundle (OKF 0.3 §3.2). Default "warn".',
 			default: "warn",
 		}),
 	),

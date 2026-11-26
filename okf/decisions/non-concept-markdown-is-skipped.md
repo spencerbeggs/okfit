@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-26T04:59:05Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: def482847051a22e
+    body: e9f4a6704c348cb8
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:00Z
@@ -64,6 +64,18 @@ checks each walked file with `lstat`, and for a link asks `confineReal`
 (`@effected/walker`) whether it stays inside. A refusal produces the lint
 `symlink-escape` (`warn`) and the file is dropped from the bundle's file
 list. A link that stays inside the bundle loads as before.
+
+The same rule covers directories. The walker never enters a symbolic link to
+a directory, wherever it points, so nothing under one is read. `Bundle.load`
+lists the directory entries the walk passes (a link to a directory is listed
+by its resolved kind), checks each link with `confineReal` on the real path,
+and records `symlink-escape` at the directory's own path when it resolves
+outside the bundle root, including through an in-bundle link to a link that
+leaves it. A link to a directory that stays inside the bundle is never walked
+and draws no diagnostic. A dangling link of any kind, file or directory, is
+also recorded as `symlink-escape` ("could not be resolved"), because the
+walker drops it without a trace and it cannot be told from a file link or a
+directory link.
 
 The consequence for exit codes is accepted: a bundle that holds a README or
 any other typeless markdown file now validates with exit code 0 and a
@@ -126,5 +138,4 @@ through such a link either: a root or subdirectory `index.md`, or the root
 skipped with the reason `symlink-escape`, never read and never written, in
 plain, dry-run and `--staged` runs, and the exit code is unchanged. The check
 asks core's load diagnostics first and falls back to `lstat` plus
-`confineReal`, because the walker does not list a dangling link and so leaves
-no diagnostic.
+`confineReal`, which also answers for a link that appeared after the load.

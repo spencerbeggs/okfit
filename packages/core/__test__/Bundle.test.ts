@@ -166,6 +166,94 @@ describe("Bundle.load", () => {
 			),
 		),
 	);
+	const dirLinkSeed = {
+		[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+		[`${MOUNT}/sub/b.md`]: "---\ntype: Note\n---\n",
+		[`${MOUNT}/external`]: MemoryFileSystem.symlink("/outside"),
+		[`${MOUNT}/gone`]: MemoryFileSystem.symlink("/nowhere"),
+		[`${MOUNT}/gone.md`]: MemoryFileSystem.symlink("/nowhere.md"),
+		[`${MOUNT}/sub/deep-gone.md`]: MemoryFileSystem.symlink("/nowhere.md"),
+		[`${MOUNT}/alias`]: MemoryFileSystem.symlink(`${MOUNT}/sub`),
+		// a link inside the bundle to a directory link that leaves it: the real path is outside
+		[`${MOUNT}/hop`]: MemoryFileSystem.symlink(`${MOUNT}/external`),
+		[`${MOUNT}/.hidden`]: MemoryFileSystem.symlink("/outside"),
+		"/outside/secret.md": "---\ntype: Secret\n---\n",
+		"/outside/nested/deeper.md": "---\ntype: Secret\n---\n",
+	};
+	const DIR_ESCAPE =
+		"symbolic link to a directory resolves outside the bundle root; nothing under it is read or part of the bundle";
+	const DANGLING_FILE =
+		"symbolic link could not be resolved, so it cannot be shown to stay inside the bundle root; it is not read and not part of the bundle";
+	it.effect(
+		"a directory link out of the bundle and a dangling link are symlink-escape; an in-bundle directory link is not (#458)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT });
+				assert.deepStrictEqual(codes(bundle.diagnostics), [
+					["external", "symlink-escape", undefined],
+					["hop", "symlink-escape", undefined],
+					["gone", "symlink-escape", undefined],
+					["gone.md", "symlink-escape", undefined],
+					["sub/deep-gone.md", "symlink-escape", undefined],
+				]);
+				assert.isTrue(bundle.diagnostics.every((d) => d.severity === "warning"));
+				const message = (file: string) => bundle.diagnostics.find((d) => d.file === file)?.message;
+				assert.strictEqual(message("external"), DIR_ESCAPE);
+				assert.strictEqual(message("hop"), DIR_ESCAPE);
+				// a dangling link cannot be told from a file or a directory link: one wording for all (owner ruling Q2)
+				assert.strictEqual(message("gone"), DANGLING_FILE);
+				assert.strictEqual(message("gone.md"), DANGLING_FILE);
+				assert.strictEqual(message("sub/deep-gone.md"), DANGLING_FILE);
+				assert.isFalse(bundle.diagnostics.some((d) => d.file === "alias"));
+				// nothing under an escaping directory, or the in-bundle link (Q1: unwalked and silent), is listed
+				assert.deepStrictEqual(bundle.files, ["a.md", "sub/b.md"]);
+				assert.deepStrictEqual([...bundle.concepts.keys()], ["a", "sub/b"]);
+				assert.deepStrictEqual(Validate.conformance(bundle), []);
+			}).pipe(Effect.provide(platform(dirLinkSeed))),
+	);
+	it.effect("a nested directory link out of the bundle is reported at its own path and never read (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["sub/ext", "symlink-escape", undefined]]);
+			assert.deepStrictEqual(bundle.files, ["sub/b.md"]);
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["sub/b"]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/sub/b.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/sub/ext`]: MemoryFileSystem.symlink("/outside"),
+					"/outside/secret.md": "---\ntype: Secret\n---\n",
+				}),
+			),
+		),
+	);
+	it.effect("includeHidden also checks a hidden directory link (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT, includeHidden: true });
+			assert.include(
+				bundle.diagnostics.map((d) => d.file),
+				".hidden",
+			);
+			assert.isFalse(bundle.files.some((f) => f.startsWith(".hidden/")));
+		}).pipe(Effect.provide(platform(dirLinkSeed))),
+	);
+	it.effect("a hidden directory link is not examined by default (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isFalse(bundle.diagnostics.some((d) => d.file === ".hidden"));
+		}).pipe(Effect.provide(platform(dirLinkSeed))),
+	);
+	it.effect("a link to the bundle root itself is in-bundle: silent, never walked (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.diagnostics, []);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+		}).pipe(
+			Effect.provide(
+				platform({ [`${MOUNT}/a.md`]: "---\ntype: Note\n---\n", [`${MOUNT}/self`]: MemoryFileSystem.symlink(MOUNT) }),
+			),
+		),
+	);
 	it.effect(
 		"root okf_version accepted, non-root index frontmatter rejected; concept and computation body load (D-20, D-21)",
 		() =>

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-26T04:59:05Z
 x-okfit-integrity:
   generated:
-    body: 3269fbfa89660b6d
+    body: ec20d981faf10f9a
 ---
 
 # Core
@@ -154,8 +154,8 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   a kept entry's YAML path ([Loading never fails a concept for a bad
   family](../decisions/content-tolerant-loading.md)).
 - **Non-concept markdown.** `frontmatter-missing` and `type-missing` are
-  lints that skip the file; `symlink-escape` refuses a link out of the
-  bundle ([Markdown that is not a concept is
+  lints that skip the file; `symlink-escape` refuses a file or
+  directory link out of the bundle, and a dangling link ([Markdown that is not a concept is
   skipped](../decisions/non-concept-markdown-is-skipped.md)).
 - **Trust tier.** `Derive.trustTier` counts only current verification
   events (OKF v0.3 §5.3): an event whose `at` is equal to or later than

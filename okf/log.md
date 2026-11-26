@@ -9,6 +9,9 @@
 * Updated stale --verify rolls stale_after forward, and plain verify never does
 * Updated Engine
 * Updated Migration to a newer OKF version is a report on validate, with two safe fixes
+* Updated Core
+* Updated Markdown that is not a concept is skipped, not an error
+* Updated okfit config file schema
 
 ## 2026-11-25
 

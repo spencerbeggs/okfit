@@ -65,6 +65,18 @@ describe("internal/walk", () => {
 			assert.isFalse(result.files.some((file) => file.startsWith("link/")));
 		}).pipe(Effect.provide(platform(seed))),
 	);
+	it.effect("lists directories, a symlinked one included but never entered (#458)", () =>
+		Effect.gen(function* () {
+			const result = yield* walk(defaults);
+			assert.deepStrictEqual(result.directories, ["a", "deep", "deep/1", "deep/1/2", "link", "node_modules"]);
+			assert.isFalse(result.files.some((file) => file.startsWith("link/")));
+			// a pruned directory is listed as an entry of its parent (its contents are not); a hidden one is not
+			assert.isFalse(result.directories.some((dir) => dir.startsWith(".drafts")));
+			assert.isFalse(result.directories.some((dir) => dir.startsWith("node_modules/")));
+			const hidden = yield* walk({ ...defaults, includeHidden: true });
+			assert.include(hidden.directories, ".drafts");
+		}).pipe(Effect.provide(platform(seed))),
+	);
 	it.effect("an unreadable subdirectory is reported, not fatal", () =>
 		Effect.gen(function* () {
 			const result = yield* walk(defaults);

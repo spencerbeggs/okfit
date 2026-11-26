@@ -24,9 +24,9 @@ export const escapesRoot = Effect.fn("okfit/confinement/escapesRoot")(function* 
 
 /**
  * Whether a reserved `index.md` or `log.md` of a loaded bundle escapes it (OKF 0.3 section 3.2). `Bundle.load`
- * records `symlink-escape` on a link that resolves outside the root and drops it, so a load diagnostic answers
- * first. The walker never lists a DANGLING link, so it has no diagnostic and no `files` entry; {@link escapesRoot}
- * decides every other case. A reserved file that escapes is never read and never written, in any mode.
+ * records `symlink-escape` on a link that resolves outside the root and on a dangling one, and drops it, so a load
+ * diagnostic answers first. {@link escapesRoot} decides every other case, a link that appeared after the load
+ * included. A reserved file that escapes is never read and never written, in any mode.
  *
  * @public
  */

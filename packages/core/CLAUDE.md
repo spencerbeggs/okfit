@@ -25,7 +25,8 @@ src/
   OkfitConfig.ts    -- spec 4.2 struct, DEFAULTS, merge, severityFor, read, OkfitConfigFile tag
   internal/         -- engine: position, fence, yamlPathSpan (YAML path to file span, shared by frontmatter.ts and Diagnostic.ts), frontmatter, reserved, links, lintRules, templates;
                        walk.ts is a thin adapter over @effected/walker's descend (record mode for
-                       unreadable directories), not a hand-rolled recursive walker
+                       unreadable directories; a second pass also lists directories, a directory link included), not a hand-rolled recursive walker.
+                       Bundle.load adds one flat, link-free readDirectory pass for dangling links (spencerbeggs/effected#1432 will replace it)
 ```
 
 Tests live in `__test__/`, never in `src/`; `@effect/vitest` (`it.effect`, `assert`), never `expect`; `@effected/memfs` plus `Path.layer` for the filesystem. Fixtures under `__test__/fixtures/`, helpers under `__test__/utils/`.

@@ -321,6 +321,11 @@ export class Bundle {
 	 * fails: every bad file becomes a diagnostic and loading continues (spec 8). A walk
 	 * that descends past `options.maxDepth` fails typed with `BundleDepthExceededError`
 	 * (W-1) rather than being silently truncated.
+	 *
+	 * A symbolic link is never followed out of the bundle (OKF 0.3 section 3.2 rule 5). A file link that leaves
+	 * it, a directory link that leaves it (nothing under it is read), and a dangling link of either kind each
+	 * record a `symlink-escape` warning at their own path; a directory link that stays inside is never walked and
+	 * records nothing.
 	 */
 	static readonly load: (
 		options: BundleLoadOptions,
@@ -387,6 +392,72 @@ export class Bundle {
 					}
 				}
 				files.push(file);
+			}
+			// A directory link is never walked (the walker enters none, wherever it points), so the file loop never sees
+			// one. `walked.directories` lists it by its resolved kind; containment is decided on the REAL path, so a link
+			// inside the bundle that points at a link leaving it is refused too. A link that stays inside is silent.
+			for (const dir of walked.directories) {
+				const link = yield* fs
+					.lstat(path.join(root, dir))
+					.pipe(Effect.mapError((cause) => new BundleReadError({ root, path: dir, cause })));
+				if (link.type !== "SymbolicLink") continue;
+				const refused = yield* confineReal(root, path.join(root, dir)).pipe(
+					Effect.match({ onFailure: (error) => error, onSuccess: () => undefined }),
+				);
+				// `empty`: the link resolves to the bundle root itself, which is inside the bundle (and never walked).
+				if (refused === undefined || refused.reason === "empty") continue;
+				const why =
+					refused.reason === "outside"
+						? "resolves outside the bundle root"
+						: "could not be resolved, so it cannot be shown to stay inside the bundle root";
+				diagnostics.push(
+					diagnostic(
+						dir,
+						"symlink-escape",
+						"warning",
+						`symbolic link to a directory ${why}; nothing under it is read or part of the bundle`,
+					),
+				);
+			}
+			// The walker drops a dangling link, file or directory, without a trace. TODO(spencerbeggs/effected#1432):
+			// replace this flat pass once `descend` reports the links it does not enter and the dangling ones. It is not a
+			// recursive walker and follows no link: it lists each directory the walk already listed, once, and lstats only
+			// the names the walk would have visited but did not return.
+			const known = new Set<string>([...walked.files, ...walked.directories]);
+			const pruned = new Set(options.prune ?? DEFAULT_PRUNE);
+			const visited = (name: string): boolean =>
+				!pruned.has(name) && ((options.includeHidden ?? false) || !name.startsWith("."));
+			const parents: Array<string> = ["", ...walked.directories];
+			const dangling: Array<string> = [];
+			for (const parent of parents) {
+				const parentPath = parent === "" ? root : path.join(root, parent);
+				// A directory that is itself a link is never read here: the walk did not enter it.
+				if (parent !== "") {
+					const parentInfo = yield* fs.lstat(parentPath).pipe(Effect.option);
+					if (Option.isNone(parentInfo) || parentInfo.value.type !== "Directory") continue;
+				}
+				// A listing failure was already recorded by the walk as `walk-unreadable`.
+				const names = yield* fs.readDirectory(parentPath).pipe(Effect.orElseSucceed((): Array<string> => []));
+				for (const name of names) {
+					const child = parent === "" ? name : `${parent}/${name}`;
+					if (!visited(name) || known.has(child)) continue;
+					const info = yield* fs.lstat(path.join(root, child)).pipe(Effect.option);
+					if (Option.isNone(info) || info.value.type !== "SymbolicLink") continue;
+					const missing = yield* fs
+						.stat(path.join(root, child))
+						.pipe(Effect.match({ onFailure: (cause) => cause.reason._tag === "NotFound", onSuccess: () => false }));
+					if (missing) dangling.push(child);
+				}
+			}
+			for (const child of dangling.sort()) {
+				diagnostics.push(
+					diagnostic(
+						child,
+						"symlink-escape",
+						"warning",
+						"symbolic link could not be resolved, so it cannot be shown to stay inside the bundle root; it is not read and not part of the bundle",
+					),
+				);
 			}
 			const concepts = new Map<ConceptId, LoadedConcept>();
 			const indexes = new Map<string, IndexDocument>();

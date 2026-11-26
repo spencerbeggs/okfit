@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T04:47:28Z
+  at: 2026-11-26T04:59:05Z
 x-okfit-integrity:
   generated:
-    body: e5adc0efcb71afed
+    body: c415f550d05a2155
 ---
 
 # Engine
@@ -290,8 +290,8 @@ returns it in `skipped` with the reason `index-unparseable`, in every run,
 with the exit code unchanged (`syncLog` already does the same for `log.md`
 with `log-unparseable`). `confinement.ts#escapesBundle` (exported, with its
 bundle-free core `escapesRoot`) asks core's load diagnostics first and falls
-back to `lstat` plus `confineReal`, because the walker does not list a
-dangling link and so leaves no diagnostic. `okfit context` and the MCP
+back to `lstat` plus `confineReal`, which also answers for a link that
+appeared after the load. `okfit context` and the MCP
 `okf://index` resource use the same check, so an escaping root `index.md` is
 reported absent and never read. `sync --staged` never stamps a concept file
 that is a symlink out of the bundle, because core does not load one, and it
