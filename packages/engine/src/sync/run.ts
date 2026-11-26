@@ -329,10 +329,17 @@ export const planSync: (
 		if (files.length > 0) restage = { repoRoot, files };
 	}
 
-	// Record each target's plan-time bytes so applySyncPlan can tell it was edited since.
+	// Record each target's baseline so applySyncPlan can tell it was edited since. A writer that rendered from the
+	// loaded bundle already recorded the text the load read; reading the file again here would take an edit that landed
+	// since the load as the baseline and let the apply overwrite it. Only a write with no loaded text (a hand-built
+	// bundle, a file the load never saw) is read now.
 	const fsForSnapshot = yield* FileSystem.FileSystem;
 	const snapshotted: Array<PendingWrite> = [];
 	for (const write of pending) {
+		if (write.before !== undefined) {
+			snapshotted.push(write);
+			continue;
+		}
 		const before = yield* fsForSnapshot
 			.readFileString(write.target)
 			.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)));

@@ -347,7 +347,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 							);
 						migrated.push(id);
 						if (!dryRun) yield* writeAtomic(absolutePath, finalText);
-						else pending?.push({ target: absolutePath, contents: finalText });
+						else pending?.push({ target: absolutePath, contents: finalText, before: concept.document.source });
 					}
 				}
 				skipped.push({ id, reason });
@@ -490,7 +490,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		if (!dryRun) {
 			yield* writeAtomic(absolutePath, finalText);
 		} else {
-			pending?.push({ target: absolutePath, contents: finalText });
+			pending?.push({ target: absolutePath, contents: finalText, before: concept.document.source });
 		}
 		if (!matches || future) written.push(id);
 	}

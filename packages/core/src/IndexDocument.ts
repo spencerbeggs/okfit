@@ -32,4 +32,6 @@ export class IndexDocument extends Schema.Class<IndexDocument>("IndexDocument")(
 	metadata: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
 	frontmatter: Schema.optionalKey(Schema.String),
 	sections: Schema.Array(IndexSection),
+	/** The file's text as the load read it (a leading byte-order mark dropped); absent on a hand-built document. */
+	source: Schema.optionalKey(Schema.String),
 }) {}

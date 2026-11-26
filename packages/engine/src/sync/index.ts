@@ -54,6 +54,7 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	written: Array<string>,
 	unchanged: Array<string>,
 	skipped: Array<SyncIndexResult["skipped"][number]>,
+	loaded: string | undefined,
 	pending?: Array<PendingWrite>,
 ) {
 	// A leading BOM and the file's line ending are kept (#492, #505): render in LF, compare on the stripped text
@@ -74,7 +75,13 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 		return;
 	}
 	if (dryRun) {
-		pending?.push({ target: targetPath, contents: bom + expected });
+		// `before` is the text the load read, never this plan-time read: an edit landing between the two would
+		// otherwise become the baseline and `applySyncPlan` would overwrite it.
+		pending?.push({
+			target: targetPath,
+			contents: bom + expected,
+			...(loaded === undefined ? {} : { before: loaded }),
+		});
 		written.push(relativeId);
 		return;
 	}
@@ -135,6 +142,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 			written,
 			unchanged,
 			skipped,
+			bundle.indexes.get("")?.source,
 			pending,
 		);
 	}
@@ -164,6 +172,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 			written,
 			unchanged,
 			skipped,
+			bundle.indexes.get(dir)?.source,
 			pending,
 		);
 	}

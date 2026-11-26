@@ -113,8 +113,9 @@ export const toLf = (text: string): string => text.replace(/\r\n/g, "\n");
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is
  * the absolute path handed to `writeAtomic`; `contents` the full text. `before`
- * is what `planSync` read from `target` while planning (`null` = the file was
- * absent); `applySyncPlan` refuses to run when a target no longer matches it.
+ * is the baseline `applySyncPlan` checks: the text the bundle load read from `target` (a mode sets it from the loaded
+ * document), or, when a mode set none, what `planSync` reads from `target` last (`null` = the file was absent).
+ * `applySyncPlan` refuses to run when a target no longer matches it.
  * A write without `before` is applied unchecked.
  *
  * @public

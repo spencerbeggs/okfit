@@ -274,7 +274,12 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		return { selected: true, written: [], unchanged: ["log.md"], skipped: [] } satisfies SyncLogResult;
 	}
 	if (dryRun) {
-		pending?.push({ target: logPath, contents: bom + withNewline(merged, newline) });
+		// `before` is the text the load read, never this plan-time read (see syncIndex): a later edit trips the stale check.
+		pending?.push({
+			target: logPath,
+			contents: bom + withNewline(merged, newline),
+			...(existingDoc?.source === undefined ? {} : { before: existingDoc.source }),
+		});
 		return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 	}
 
