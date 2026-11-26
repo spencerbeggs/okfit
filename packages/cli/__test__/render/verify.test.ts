@@ -149,7 +149,7 @@ describe("humanVerifyBatch", () => {
 			skipped: [{ id: "decisions/b", reason: "already-verified" }],
 		});
 		assert.deepStrictEqual(lines, [
-			"skipped decisions/b: already verified by human:ada, and that verification still covers its content; nothing to do",
+			"skipped decisions/b: already verified by human:ada, and that verification still covers its content; nothing to do; if it is past stale_after, okfit stale --verify rolls that date forward",
 			"verified decisions/a by human:ada at 2026-09-16T12:00:00Z",
 			"verified 1, skipped 1",
 		]);

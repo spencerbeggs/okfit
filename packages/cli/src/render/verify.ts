@@ -110,7 +110,7 @@ const skippedReason = (entry: VerifySkip, input: VerifyBatchLines): string =>
 		: entry.reason === "deprecated"
 			? `status deprecated, so a batch leaves it out, and a batch has nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify ${entry.id} --stable`
 			: entry.reason === "already-verified"
-				? `already verified by ${input.by}, and that verification still covers its content; nothing to do`
+				? `already verified by ${input.by}, and that verification still covers its content; nothing to do; if it is past stale_after, okfit stale --verify rolls that date forward`
 				: entry.reason === "unknown-status" && entry.status !== undefined
 					? `status "${entry.status}" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify ${entry.id} --stable or --draft`
 					: entry.reason === "not-current" && entry.notCurrent !== undefined
