@@ -17,7 +17,8 @@ src/
   errors.ts              -- ConfigPathNotFoundError, InitOverwriteError, ConfigMalformedError,
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
                              VerifyNotCurrentError (exit 3: a verification dated before generated.at, OKF 0.3 5.3, R33),
-                             VerifySelectionError (exit 64; reason `at-future`: an `--at` more than 5 minutes later than now),
+                             VerifySelectionError (exit 64; reasons `at-future`: an `--at` more than 5 minutes later than now,
+                             and `at-malformed`: an `--at` that is not a timestamp),
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/
@@ -102,7 +103,7 @@ src/
                                   resolves the actor, splices, and writes atomically; also
                                   runVerifyBatch, runVerifyIds (explicit ids, optional promote),
                                   futureAtRefusal (pure; `runVerify`, `runVerifyBatch` and `runVerifyIds` call it first when
-                                  `now` is set, the CLI right after decoding `--at`),
+                                  `now` is set, the CLI right after decoding `--at`, before it reads the config),
                                   loadPickerCandidates, loadStaleCandidates (both also return `leftOut`, a `VerifySkip` per concept)
                                   and loadPreviews (the picker's per-drifted-row changeSince)
                                   The write path (`prepareVerify`: single, batch, ids, `stale --verify`) and the prompt path

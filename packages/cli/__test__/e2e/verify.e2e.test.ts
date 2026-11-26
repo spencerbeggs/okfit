@@ -322,20 +322,82 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
-	it("rejects an --at without an explicit offset, exit 3, nothing written", async () => {
+	it("rejects an --at without an explicit offset, exit 64, nothing written (#513)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const before = await readProject(cwd);
 
 			const run = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T00:00:00"], { cwd, env }));
 
-			assert.strictEqual(run.exitCode, 3);
-			assert.isTrue(
-				run.stderr.includes(
-					"error: SchemaError(Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm) or a calendar date (YYYY-MM-DD))",
-				),
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			assert.strictEqual(
+				run.stderr,
+				"error: --at 2026-09-07T00:00:00 is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)\n",
 			);
 			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("a malformed --at is refused before the config is read (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeFile(join(cwd, ".config", "okfit.toml"), "this is = = not toml [\n", "utf8");
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+
+			// control: without --at the broken config is what refuses, exit 3
+			const control = await withServices(runOkfit(["verify", "project", "--dry-run"], { cwd, env: now }));
+			assert.strictEqual(control.exitCode, 3, control.stderr);
+
+			const run = await withServices(runOkfit(["verify", "project", "--at", "nope"], { cwd, env: now }));
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			assert.strictEqual(
+				run.stderr,
+				"error: --at nope is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)\n",
+			);
+
+			// the future --at refusal moves with it
+			const future = await withServices(
+				runOkfit(["verify", "project", "--at", "2099-01-01T00:00:00Z"], { cwd, env: now }),
+			);
+			assert.strictEqual(future.exitCode, 64, future.stderr);
+			assert.include(future.stderr, "--at 2099-01-01T00:00:00Z is more than 5 minutes later than now");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("a malformed --at is a usage error in JSON too (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const before = await readProject(cwd);
+			const run = await withServices(runOkfit(["verify", "--all", "--at", "nope", "--format", "json"], { cwd, env }));
+
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			const lines = run.stdout.split("\n").filter((line) => line !== "");
+			assert.strictEqual(lines.length, 1);
+			const envelope = JSON.parse(lines[0] ?? "") as { exit_code: number; error: { tag: string; message: string } };
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "VerifySelectionError");
+			assert.strictEqual(
+				envelope.error.message,
+				"--at nope is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)",
+			);
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("still accepts a date and an explicit non-UTC offset for --at (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+			for (const at of ["2026-09-07", "2026-09-07T11:00:00+01:00"]) {
+				const run = await withServices(runOkfit(["verify", "project", "--at", at, "--dry-run"], { cwd, env: now }));
+				assert.strictEqual(run.exitCode, 0, `${at}: ${run.stderr}`);
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -358,9 +420,13 @@ describe("okfit verify (e2e)", () => {
 			);
 			assert.strictEqual(await readProject(cwd), before);
 
-			// control: a malformed --at keeps its own exit 3
+			// a malformed --at is a usage error too, with its own message (#513)
 			const malformed = await withServices(runOkfit(["verify", "project", "--at", "tomorrow"], { cwd, env: now }));
-			assert.strictEqual(malformed.exitCode, 3, malformed.stderr);
+			assert.strictEqual(malformed.exitCode, 64, malformed.stderr);
+			assert.include(
+				malformed.stderr,
+				"--at tomorrow is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)",
+			);
 		} finally {
 			await removeSandbox(sandbox);
 		}

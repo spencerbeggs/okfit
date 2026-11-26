@@ -1,5 +1,10 @@
 # Log
 
+## 2026-11-26
+
+* Updated A verification is bound to the content it covered
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+
 ## 2026-11-25
 
 * Updated AI Plugins

@@ -133,6 +133,17 @@ describe("VerifySelectionError status reasons (#185)", () => {
 	});
 });
 
+describe("VerifySelectionError at-malformed (#513)", () => {
+	it("exits 64 and names the expected form, quoting the value as given", () => {
+		const error = new VerifySelectionError({ reason: "at-malformed", detail: "tomorrow" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(
+			error.message,
+			"--at tomorrow is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)",
+		);
+	});
+});
+
 describe("query errors", () => {
 	it("QueryUnknownVocabularyError exits 64 and lists declared names", () => {
 		const error = new QueryUnknownVocabularyError({ kind: "tag", requested: "zz", valid: ["a", "b"] });
