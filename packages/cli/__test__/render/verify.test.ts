@@ -362,7 +362,7 @@ describe("notCurrentReason (#504)", () => {
 	it("names the step for each kind", () => {
 		assert.strictEqual(
 			notCurrentReason({ at, generatedAt: g, kind: "future" }),
-			`generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`,
+			`generated.at ${g} is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again`,
 		);
 		assert.strictEqual(
 			notCurrentReason({ at, generatedAt: g, kind: "near-future" }),
@@ -387,7 +387,7 @@ describe("notCurrentReason (#504)", () => {
 			skipped: [{ id: "decisions/x", reason: "not-current", notCurrent: { at, generatedAt: g, kind: "future" } }],
 		});
 		assert.deepStrictEqual(lines, [
-			`skipped decisions/x: generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`,
+			`skipped decisions/x: generated.at ${g} is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again`,
 			"verified 0, skipped 1",
 		]);
 	});

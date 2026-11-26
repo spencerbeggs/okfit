@@ -291,10 +291,10 @@ different instant. An `--at` that is not a timestamp (the message names the expe
 5 minutes later than now are both usage errors (exit `64`, also with `--dry-run` and `--format json`), refused
 before the config is read and before any picker opens; exactly 5 minutes ahead is accepted. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
-`generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
+`generated.at` in the future also refuses (commit any change to the concept's body, then run `okfit sync`, which re-stamps a stamp more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
 (`skipped <id>: generated.at <stamp> is later than ...`, ending in the step to take) and verify the rest; both pickers leave it out and print one
-`left out <id>: ...` line per concept with the same step: `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
+`left out <id>: ...` line per concept with the same step: commit any change to its body and run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
 the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on a verification failure, `64` on a usage error (an unknown target,

@@ -139,7 +139,7 @@ export class VerifyStatusUnknownError extends Schema.TaggedError<VerifyStatusUnk
  * in the future (ruling R33). `at` and `generatedAt` are the encoded instants. `kind` says how the stamp relates
  * to now when now is known: `"blocked"` (more than the tolerance later, and a verification dated between now and the
  * stamp, `blockedBy`, would start to count if sync re-stamped it, so sync skips it and a human must correct the stamp
- * or that verification), `"future"` (more than the tolerance later, which `okfit sync` re-stamps) or
+ * or that verification), `"future"` (more than the tolerance later, which `okfit sync` re-stamps once any change to the body is committed) or
  * `"near-future"` (later, but within the tolerance, so only the clock or waiting helps); absent when `generatedAt`
  * is not later than now, so only the verification time is to blame (verify at or after it, or omit `--at`).
  * Exit 3, like the other verify refusals. A batch, an id list and the pickers skip such a concept instead of failing.
@@ -159,7 +159,7 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 			case "blocked":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated ${this.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
 			case "future":
-				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again`;
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again`;
 			case "near-future":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after ${this.generatedAt}`;
 			default:

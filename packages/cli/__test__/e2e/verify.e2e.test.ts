@@ -11,6 +11,7 @@ import { makeSandbox, removeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 import type { TestServices } from "./utils/platform.js";
 import { TestPlatform } from "./utils/platform.js";
+import { commit, initRepo } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, TestServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(TestPlatform)));
@@ -59,6 +60,32 @@ const seededWithoutIdentity = async (): Promise<{
 	const init = await withServices(runOkfit(["init"], { cwd: sandbox.cwd, env }));
 	assert.strictEqual(init.exitCode, 0);
 	return { sandbox, cwd: sandbox.cwd, env };
+};
+
+/**
+ * A git sandbox whose concept `decisions/a` was stamped by a real `okfit sync` (so its recorded body digest matches) and
+ * then had its committed `generated.at` moved to 2099 (#515). The body is untouched, so the digest still matches.
+ */
+const seededFutureStamp = async (): Promise<{
+	readonly sandbox: Sandbox;
+	readonly cwd: string;
+	readonly env: Record<string, string>;
+	readonly file: string;
+}> => {
+	const { sandbox, cwd, env } = await seeded();
+	await writeTwoDecisions(cwd);
+	const configPath = join(cwd, ".config", "okfit.toml");
+	await writeFile(configPath, `${await readFile(configPath, "utf8")}\n[actors]\nagent = "agent:claude"\n`, "utf8");
+	await initRepo(cwd, env);
+	await commit(cwd, { message: "seed", authoredAt: "2026-09-01T00:00:00+00:00" }, env);
+	const stamped = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+	assert.strictEqual(stamped.exitCode, 0, stamped.stderr);
+	const file = join(cwd, "okf", "decisions", "a.md");
+	const text = await readFile(file, "utf8");
+	assert.include(text, "at: 2026-09-01T00:00:00Z");
+	await writeFile(file, text.replace("at: 2026-09-01T00:00:00Z", "at: 2099-01-01T00:00:00Z"), "utf8");
+	await commit(cwd, { message: "future stamp", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+	return { sandbox, cwd, env, file };
 };
 
 const projectPath = (cwd: string): string => join(cwd, "okf", "project.md");
@@ -634,7 +661,7 @@ describe("okfit verify (e2e)", () => {
 			assert.include(
 				run.stdout,
 				[
-					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again",
+					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again",
 					"skipped decisions/near: generated.at 2026-11-25T12:02:00Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-11-25T12:02:00Z",
 					"skipped decisions/blocked: generated.at 2027-11-25T12:00:00Z is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
 					"skipped decisions/absent: generated.at 2026-11-25T11:59:30Z is later than the verification time 2026-11-25T11:59:00Z, so a verification then would not count; verify it at or after 2026-11-25T11:59:30Z, or omit --at to verify now",
@@ -1333,6 +1360,53 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 			const text = await readFile(margin(cwd), "utf8");
 			assert.include(text, "status: stable\n");
 			assert.notInclude(text, "bogus");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+	it("the future-stamp advice leads to a verification when the body has an uncommitted change (#515)", async () => {
+		const { sandbox, cwd, env, file } = await seededFutureStamp();
+		try {
+			await appendFile(file, "\nAn edit that is not committed yet.\n", "utf8");
+
+			const refused = await withServices(runOkfit(["verify", "decisions/a"], { cwd, env }));
+			assert.strictEqual(refused.exitCode, 3);
+			assert.include(
+				refused.stderr,
+				"Commit any change to its body, then run okfit sync, which re-stamps it, then verify again",
+			);
+
+			// the premise: sync skips a body change that is not committed, and the stamp stays in the future
+			const skipped = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+			assert.strictEqual(skipped.exitCode, 0, skipped.stderr);
+			assert.include(skipped.stdout, "skipped decisions/a: has uncommitted changes");
+			assert.include(await readFile(file, "utf8"), "at: 2099-01-01T00:00:00Z");
+
+			// the advice's own order: commit, then sync, then verify
+			await commit(cwd, { message: "edit body", authoredAt: "2026-10-01T00:00:00+00:00" }, env);
+			const synced = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+			assert.strictEqual(synced.exitCode, 0, synced.stderr);
+			assert.include(synced.stdout, "wrote decisions/a");
+			const verified = await withServices(runOkfit(["verify", "decisions/a", "--dry-run", "--no-diff"], { cwd, env }));
+			assert.strictEqual(verified.exitCode, 0, verified.stderr);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("the future-stamp advice with no body change: okfit sync alone re-stamps it (#515)", async () => {
+		const { sandbox, cwd, env, file } = await seededFutureStamp();
+		try {
+			const refused = await withServices(runOkfit(["verify", "decisions/a"], { cwd, env }));
+			assert.strictEqual(refused.exitCode, 3);
+			assert.include(refused.stderr, "Commit any change to its body, then run okfit sync, which re-stamps it");
+
+			const synced = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+			assert.strictEqual(synced.exitCode, 0, synced.stderr);
+			assert.include(synced.stdout, "wrote decisions/a");
+			assert.notInclude(await readFile(file, "utf8"), "2099");
+			const verified = await withServices(runOkfit(["verify", "decisions/a", "--dry-run", "--no-diff"], { cwd, env }));
+			assert.strictEqual(verified.exitCode, 0, verified.stderr);
 		} finally {
 			await removeSandbox(sandbox);
 		}
