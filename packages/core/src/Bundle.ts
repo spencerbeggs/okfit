@@ -326,7 +326,7 @@ export class Bundle {
 	 * A symbolic link is never followed out of the bundle (OKF 0.3 section 3.2 rule 5). A file link that leaves
 	 * it, a directory link that leaves it (nothing under it is read), and a link of either kind whose resolution
 	 * fails (dangling, a loop, an unreadable target) each record a `symlink-escape` warning at their own path
-	 * (pruned names are not checked, hidden ones only under `includeHidden`); a directory link that stays inside is never walked and
+	 * (pruned directory names are not checked, hidden ones only under `includeHidden`); a directory link that stays inside is never walked and
 	 * records nothing.
 	 */
 	static readonly load: (

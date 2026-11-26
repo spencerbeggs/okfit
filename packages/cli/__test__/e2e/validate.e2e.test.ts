@@ -1688,10 +1688,9 @@ describe("okfit validate: a directory link out of the bundle and a dangling link
 				assert.notInclude(dry.stdout, "hop/");
 			}).pipe(Effect.provide(TestPlatform)),
 	);
-	it.effect("reports a link into a mode-000 directory and a link loop; skipped where permissions do not bind", () =>
+	// root ignores mode bits, so the locked directory would stay readable and the case would prove nothing
+	it.effect.skipIf(process.getuid?.() === 0)("reports a link into a mode-000 directory and a link loop", () =>
 		Effect.gen(function* () {
-			// root ignores mode bits, so the locked directory would stay readable and the case proves nothing
-			if (process.getuid?.() === 0) return;
 			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-unresolvable-"));
 			const init = yield* runOkfit(["init"], sandbox);
 			assert.strictEqual(init.exitCode, 0);

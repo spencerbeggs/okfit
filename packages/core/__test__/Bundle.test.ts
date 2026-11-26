@@ -302,6 +302,22 @@ describe("Bundle.load", () => {
 			),
 		),
 	);
+	it.effect(
+		"prune names directories: a file link named node_modules that leaves the bundle is still reported (#458)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT });
+				assert.deepStrictEqual(codes(bundle.diagnostics), [["node_modules", "symlink-escape", undefined]]);
+			}).pipe(
+				Effect.provide(
+					platform({
+						[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+						[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside/file.txt"),
+						"/outside/file.txt": "",
+					}),
+				),
+			),
+	);
 	it.effect("a dangling hidden link is silent by default and reported with includeHidden (#458)", () =>
 		Effect.gen(function* () {
 			assert.deepStrictEqual((yield* Bundle.load({ root: MOUNT })).diagnostics, []);

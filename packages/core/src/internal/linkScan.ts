@@ -43,7 +43,8 @@ const COULD_NOT_RESOLVE = "could not be resolved, so it cannot be shown to stay 
  * too; a link that stays inside is silent and never walked.
  *
  * @remarks
- * A pruned name is fully silent: neither the entry nor anything under it is examined, in either pass. A hidden name is
+ * A pruned directory name is fully silent: neither the entry nor anything under it is examined, in either pass. A file
+ * link with that name is still checked, because the walk lists it as a file. A hidden name is
  * examined only under `includeHidden`, as the walk itself would. The flat second pass is not a recursive walker and
  * follows no link: it lists each real directory the walk already listed, once, and examines only the names the walk
  * would have visited but did not return.
@@ -102,6 +103,7 @@ export const scanLinks = (
 				const info = yield* fs.lstat(path.join(root, child)).pipe(Effect.option);
 				if (Option.isNone(info) || info.value.type !== "SymbolicLink") continue;
 				const reason = yield* refusal(child);
+				// `empty` is unreachable here (a link whose stat failed cannot resolve to the root); kept as a defensive guard.
 				if (reason !== undefined && reason !== "empty") dangling.push(child);
 			}
 		}
