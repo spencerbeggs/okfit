@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T00:04:05Z
+  at: 2026-11-26T00:21:10Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 36a6c0cefb90f4aa
+    body: e3e3cdafaa82a7cb
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -203,7 +203,7 @@ content }` (see [integrity frontmatter](integrity-frontmatter.md)). A concept st
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
-instant, but never one more than five minutes later than now (exactly five minutes is accepted), and never a value that is not a timestamp: both are a `VerifySelectionError`, exit `64`, raised before the config is read and before any picker opens, with `--dry-run` and in `--format json` too; the message for a value that is not a timestamp names the expected form (an ISO 8601 timestamp with an explicit offset, or a `YYYY-MM-DD` date). Nor one before the concept's `generated.at`: OKF v0.3 §5.3
+instant, but never one more than five minutes later than now (exactly five minutes is accepted), and never a value that is not a timestamp: both are a `VerifySelectionError`, exit `64`, raised before the config is read and before any picker opens, with `--dry-run` and in `--format json` too (the one check that comes first is an explicit `--config` file that does not exist, which is `ConfigPathNotFoundError`, exit `3`); the message for a value that is not a timestamp names the expected form (an ISO 8601 timestamp with an explicit offset, or a `YYYY-MM-DD` date). Nor one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
 skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
@@ -312,7 +312,8 @@ subset. `--dry-run` computes every result and writes nothing. Log mode
 considers every committed concept dated on or after the newest logged
 date, appending into that day's group unless it already names the concept
 (see [the log decision](../decisions/sync-log-days.md));
-`--since` replaces that floor. A malformed `--since` is a usage error,
+`--since` replaces that floor. A `--since` that is not a calendar date in the
+`YYYY-MM-DD` form, an impossible day such as `2026-02-30` included, is a usage error,
 exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
 concept's recorded `x-okfit-integrity.generated.body` still matches its current body, the

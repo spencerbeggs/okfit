@@ -1,6 +1,7 @@
 import { CliFormat, CliInteractive } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { CurrentDistribution } from "@effected/kit";
+import { Timestamp } from "@okfit/core";
 import type { SyncMode } from "@okfit/engine";
 import {
 	Now,
@@ -68,16 +69,26 @@ const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], 
 	description: "output format: human (default) or json",
 });
 
-/** #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). */
+/**
+ * #18: log mode's inclusive floor; a malformed value fails at parse time (`ShowHelp` -> exit `64`). The shape
+ * alone is not enough: log mode compares the floor with each day as a string, so an impossible day (2026-13-45,
+ * 2026-02-30) would silently stand for a later one. Core's `Timestamp` decides what a calendar day is (#513).
+ */
 const ISO_DATE = Schema.String.pipe(
-	Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u, { message: "Expected a YYYY-MM-DD date" })),
+	Schema.check(
+		Schema.makeFilter(
+			(value: string) =>
+				(/^\d{4}-\d{2}-\d{2}$/u.test(value) && Option.isSome(Schema.decodeUnknownOption(Timestamp)(value))) ||
+				"Expected a calendar date (YYYY-MM-DD)",
+		),
+	),
 );
 
 const sinceFlag = Flag.String("since").pipe(
 	Flag.withSchema(ISO_DATE),
 	Flag.optional,
 	Flag.withDescription(
-		"log mode's inclusive floor (YYYY-MM-DD): consider every committed concept dated on or after it; default: the newest date already in log.md",
+		"log mode's inclusive floor, a calendar date (YYYY-MM-DD; an impossible day is a usage error): consider every committed concept dated on or after it; default: the newest date already in log.md",
 	),
 );
 

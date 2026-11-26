@@ -123,9 +123,10 @@ const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], 
  * through `resolveProjectConfig` — then resolve the targets, provide `Git`
  * for `Derivation.generatedBy`, run the splice and the atomic write, and
  * render. There is no content tier: a success is exit `0`, and a typed
- * failure takes its own exit code through `reportFailures` (`64` for a usage
- * error such as `VerifySelectionError` or `TargetResolutionError`, `3` for
- * the rest).
+ * failure takes its own exit code through `reportFailures`: `64` for a usage
+ * error such as `VerifySelectionError` or `TargetResolutionError`, `130` for
+ * the kit's `Cancelled` (the picker quit on Esc, `q`, Ctrl-C or a "no"
+ * answer, or the re-verify prompt quit on Esc or Ctrl-C), `3` for the rest.
  *
  * @public
  */

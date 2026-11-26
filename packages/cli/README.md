@@ -16,7 +16,7 @@ okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|-
 okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
 okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]
 okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
-okfit sync [--root <dir>] [--config <file>] [--only generated|index|log]... [--since <ref>] [--staged] [--publication <id>] [--dry-run] [--yes] [--format human|json] [--help]
+okfit sync [--root <dir>] [--config <file>] [--only generated|index|log]... [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--dry-run] [--yes] [--format human|json] [--help]
 okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```
 
