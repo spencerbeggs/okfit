@@ -35,8 +35,10 @@ describe("humanSync", () => {
 			log: { ...EMPTY_MODE, skipped: [{ id: "log.md", reason: "log-unparseable" }] },
 		};
 		const lines = humanSync(result).join("\n");
-		assert.isTrue(lines.includes("not tracked by git"));
-		assert.isTrue(lines.includes("has uncommitted changes"));
+		assert.isTrue(
+			lines.includes("skipped a: not tracked by git; add the file to git and commit it, then run okfit sync again"),
+		);
+		assert.isTrue(lines.includes("skipped b: has uncommitted changes; commit the change, then run okfit sync again"));
 		assert.isTrue(lines.includes("the repository has no commits yet"));
 		assert.isTrue(lines.includes("has no generated block"));
 		assert.isTrue(lines.includes("generated.at is a shape sync cannot edit; edit it by hand"));
@@ -82,8 +84,11 @@ describe("humanSync", () => {
 				],
 			},
 		});
-		assert.include(lines, "  skipped a: has uncommitted changes (its old okfit keys are still renamed)");
-		assert.include(lines, "  skipped b: has uncommitted changes");
+		assert.include(
+			lines,
+			"  skipped a: has uncommitted changes; commit the change, then run okfit sync again (its old okfit keys are still renamed)",
+		);
+		assert.include(lines, "  skipped b: has uncommitted changes; commit the change, then run okfit sync again");
 		assert.isTrue(lines.some((l) => l.includes("migrated 1,") && l.includes("skipped 2")));
 	});
 
@@ -93,7 +98,10 @@ describe("humanSync", () => {
 			dryRun: true,
 			generated: { ...EMPTY_MODE, migrated: ["a"], skipped: [{ id: "a", reason: "dirty" }] },
 		});
-		assert.include(lines, "  skipped a: has uncommitted changes (its old okfit keys would still be renamed)");
+		assert.include(
+			lines,
+			"  skipped a: has uncommitted changes; commit the change, then run okfit sync again (its old okfit keys would still be renamed)",
+		);
 	});
 
 	it("names what legacy-key-unsupported refuses, and not a top-level merge key", () => {

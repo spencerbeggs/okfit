@@ -79,7 +79,7 @@
 
 # >>> pluginfinity env declarations (the build replaces this block)
 _pf_env_names='OKFIT_MIN_CLI_VERSION'
-_pf_env_default_OKFIT_MIN_CLI_VERSION='0.16.7'
+_pf_env_default_OKFIT_MIN_CLI_VERSION='0.18.0'
 _pf_env_setup=''
 _pf_env_setup_timeout=10
 # <<< pluginfinity env declarations

@@ -16,6 +16,7 @@ import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
 	VerifyNotCurrentError,
+	VerifyNothingToRevokeError,
 	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
@@ -23,6 +24,7 @@ import {
 import { InitBundleDirError } from "./internal/initWizard.js";
 import { DocumentStdinIsTerminalError } from "./internal/stdin.js";
 import { ValidateUsageError } from "./internal/validate-usage.js";
+import { oneLine } from "./render/text.js";
 
 const hasTag = (error: unknown, tag: string): boolean =>
 	typeof error === "object" && error !== null && "_tag" in error && (error as { readonly _tag: unknown })._tag === tag;
@@ -64,13 +66,21 @@ const relativeToCwd = (path: string, cwd: string): string => {
  *    `ConfigIssueRenderer.render(error)` line per entry.
  * 4a. `InitBundleDirError` (`okfit init --bundle`, exit 64) renders as one
  *    `error: <message>` line.
- * 5. `VerifyConceptNotFoundError`, `VerifyUnsupportedFrontmatterError` and
- *    `VerifyContentUnhashableError`, `VerifyStatusUnknownError` and `VerifyNotCurrentError` each render as their own `error: <message>` line; each message
- *    already name the concept id and what to do about it, and neither
- *    carries a filesystem path needing K-51 relativisation.
+ * 5. `VerifyConceptNotFoundError`, `VerifyUnsupportedFrontmatterError`,
+ *    `VerifyContentUnhashableError`, `VerifyStatusUnknownError`,
+ *    `VerifyNotCurrentError` and `VerifyNothingToRevokeError` each render as
+ *    their own `error: <message>` line; each message already names the
+ *    concept id (all but `VerifyNothingToRevokeError` also say what to do
+ *    about it), and none carries a filesystem path needing K-51
+ *    relativisation. The message
+ *    can quote a value from the file (a status, a frontmatter key), so it goes
+ *    through `oneLine` (#511): the kit's sanitiser removes escape sequences and
+ *    other control characters, a tab prints as a space, and line breaks print
+ *    as spaces, so the line is always one line.
  * 5b. `VerifySelectionError` (issue #138) renders the same way, one
- *    `error: <message>` line naming why `okfit verify`'s selection was
- *    contradictory, empty, or named an undeclared type.
+ *    `error: <message>` line through `oneLine`, naming why `okfit verify`'s
+ *    selection was contradictory, empty, or named an undeclared type (its
+ *    `detail` is argv, which can hold a line break too).
  * 5c. `DocumentPathError` and `DocumentStdinIsTerminalError` (`--document`)
  *    each render as one `error: <message>` line.
  * 5d. `QueryUnknownVocabularyError`, `QueryConceptNotFoundError` and
@@ -106,11 +116,12 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	}
 	if (error instanceof InitBundleDirError) return [`error: ${error.message}`];
 	if (error instanceof ValidateUsageError) return [`error: ${error.message}`];
-	if (error instanceof VerifyConceptNotFoundError) return [`error: ${error.message}`];
-	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${error.message}`];
-	if (error instanceof VerifyContentUnhashableError) return [`error: ${error.message}`];
-	if (error instanceof VerifyStatusUnknownError) return [`error: ${error.message}`];
-	if (error instanceof VerifyNotCurrentError) return [`error: ${error.message}`];
+	if (error instanceof VerifyConceptNotFoundError) return [`error: ${oneLine(error.message)}`];
+	if (error instanceof VerifyUnsupportedFrontmatterError) return [`error: ${oneLine(error.message)}`];
+	if (error instanceof VerifyContentUnhashableError) return [`error: ${oneLine(error.message)}`];
+	if (error instanceof VerifyStatusUnknownError) return [`error: ${oneLine(error.message)}`];
+	if (error instanceof VerifyNotCurrentError) return [`error: ${oneLine(error.message)}`];
+	if (error instanceof VerifyNothingToRevokeError) return [`error: ${oneLine(error.message)}`];
 	if (error instanceof SyncPlanStaleError) return [`error: ${error.message}`];
 	if (error instanceof SyncPublicationConflictError) return [`error: ${error.message}`];
 	// `sync --publication`: an unknown id or a non-Publication gets the list hint; a
@@ -123,7 +134,7 @@ export const renderFailure = (error: unknown, details: FailureDetails): Readonly
 	if (error instanceof NotAPublicationError) {
 		return [`error: ${error.message}`, "hint: run okfit query list --type Publication to list publication ids"];
 	}
-	if (error instanceof VerifySelectionError) return [`error: ${error.message}`];
+	if (error instanceof VerifySelectionError) return [`error: ${oneLine(error.message)}`];
 	if (error instanceof QueryUnknownVocabularyError) return [`error: ${error.message}`];
 	if (error instanceof QueryConceptNotFoundError) return [`error: ${error.message}`];
 	if (error instanceof QuerySelectionError) return [`error: ${error.message}`];

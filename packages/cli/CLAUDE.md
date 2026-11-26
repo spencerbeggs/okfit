@@ -99,6 +99,8 @@ src/
                                       notCurrentReason (the next step a skip or left-out line names, per kind)
     move.ts                        -- MoveLines, humanMoveDoc (human half of @okfit/engine's MoveEnvelope)
     stale.ts                       -- humanStale / humanStaleDoc (ids link to their concept file), humanMalformed, staleSummary
+    text.ts                        -- oneLine: text on one terminal line (Fmt.sanitize, then line breaks as spaces);
+                                      the verify-family refusals in errors.ts, the query browser and the verify preview
   internal/
     usageEnvelope.ts              -- wantsJson (argv asks for --format json, before any --) and usageEnvelope (the
                                       exit-64 JsonErrorEnvelope main.ts prints for a parse-time ShowHelp with errors)

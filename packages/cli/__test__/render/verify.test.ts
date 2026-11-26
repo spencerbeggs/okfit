@@ -116,7 +116,7 @@ describe("humanVerifyBatch", () => {
 			skipped: [{ id: "decisions/d", reason: "draft" }],
 		});
 		assert.deepStrictEqual(lines, [
-			"skipped decisions/d: draft",
+			"skipped decisions/d: status draft, so a batch leaves it out; verify it on its own with okfit verify decisions/d --stable to settle it, or --draft to keep it a draft",
 			"would verify decisions/a by human:ada at 2026-09-16T12:00:00Z",
 			"would write:",
 			"  verified:",
@@ -149,7 +149,7 @@ describe("humanVerifyBatch", () => {
 			skipped: [{ id: "decisions/b", reason: "already-verified" }],
 		});
 		assert.deepStrictEqual(lines, [
-			"skipped decisions/b: already verified by human:ada",
+			"skipped decisions/b: already verified by human:ada, and that verification still covers its content; nothing to do; if it is past stale_after, okfit stale --verify rolls that date forward",
 			"verified decisions/a by human:ada at 2026-09-16T12:00:00Z",
 			"verified 1, skipped 1",
 		]);
@@ -163,7 +163,71 @@ describe("humanVerifyBatch", () => {
 			verified: [],
 			skipped: [{ id: "decisions/c", reason: "deprecated" }],
 		});
-		assert.deepStrictEqual(lines, ["skipped decisions/c: deprecated", "verified 0, skipped 1"]);
+		assert.deepStrictEqual(lines, [
+			"skipped decisions/c: status deprecated, so a batch leaves it out, and a batch has nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/c --stable",
+			"verified 0, skipped 1",
+		]);
+	});
+
+	it("each skip reason names a next step (#517)", () => {
+		const lines = humanVerifyBatch({
+			by: "human:ada",
+			at: "2026-09-16T12:00:00Z",
+			dryRun: false,
+			verified: [],
+			skipped: [
+				{ id: "decisions/d", reason: "draft" },
+				{ id: "decisions/c", reason: "deprecated" },
+				{ id: "decisions/b", reason: "already-verified" },
+				{ id: "decisions/wip", reason: "unknown-status", status: "wip" },
+				{
+					id: "decisions/f",
+					reason: "not-current",
+					notCurrent: { kind: "future", generatedAt: "2027-01-01T00:00:00Z", at: "2026-09-16T12:00:00Z" },
+				},
+				{
+					id: "decisions/n",
+					reason: "not-current",
+					notCurrent: { kind: "near-future", generatedAt: "2026-09-16T12:02:00Z", at: "2026-09-16T12:00:00Z" },
+				},
+				{
+					id: "decisions/k",
+					reason: "not-current",
+					notCurrent: {
+						kind: "blocked",
+						generatedAt: "2027-01-01T00:00:00Z",
+						at: "2026-09-16T12:00:00Z",
+						blockedBy: "2026-12-25T00:00:00Z",
+					},
+				},
+				{
+					id: "decisions/a",
+					reason: "not-current",
+					notCurrent: { generatedAt: "2026-09-16T11:59:30Z", at: "2026-09-16T11:59:00Z" },
+				},
+				{ id: "decisions/u", reason: "unknown-status" },
+				{ id: "decisions/x", reason: "not-current" },
+			],
+		});
+		const steps = [
+			"okfit verify",
+			"okfit sync",
+			"check the clock",
+			"a human must",
+			"omit --at",
+			"set its status",
+			"nothing to do",
+		];
+		const skips = lines.filter((line) => line.startsWith("skipped "));
+		assert.strictEqual(skips.length, 10);
+		const fallbacks = ["skipped decisions/u: unknown-status", "skipped decisions/x: not-current"];
+		assert.deepStrictEqual(skips.slice(-2), fallbacks);
+		for (const line of skips.slice(0, -2)) {
+			assert.isTrue(
+				steps.some((step) => line.includes(step)),
+				`no next step in: ${line}`,
+			);
+		}
 	});
 });
 
@@ -298,7 +362,7 @@ describe("notCurrentReason (#504)", () => {
 	it("names the step for each kind", () => {
 		assert.strictEqual(
 			notCurrentReason({ at, generatedAt: g, kind: "future" }),
-			`generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`,
+			`generated.at ${g} is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again`,
 		);
 		assert.strictEqual(
 			notCurrentReason({ at, generatedAt: g, kind: "near-future" }),
@@ -323,7 +387,7 @@ describe("notCurrentReason (#504)", () => {
 			skipped: [{ id: "decisions/x", reason: "not-current", notCurrent: { at, generatedAt: g, kind: "future" } }],
 		});
 		assert.deepStrictEqual(lines, [
-			`skipped decisions/x: generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again`,
+			`skipped decisions/x: generated.at ${g} is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again`,
 			"verified 0, skipped 1",
 		]);
 	});

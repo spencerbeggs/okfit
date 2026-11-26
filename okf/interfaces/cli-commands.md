@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T16:52:41Z
+  at: 2026-11-26T03:17:46Z
 tags:
   - architecture
 verified:
@@ -45,13 +45,15 @@ verified:
     at: 2026-11-25T02:05:49Z
   - by: human:spencer
     at: 2026-11-25T13:30:01Z
+  - by: human:spencer
+    at: 2026-11-26T03:32:37Z
 x-okfit-integrity:
   generated:
-    body: e2541177696d5844
+    body: a02b3ab23de6ddd5
   verified:
     by: human:spencer
-    at: 2026-11-25T13:30:01Z
-    content: a647e8c689440e6a
+    at: 2026-11-26T03:32:37Z
+    content: 01250fcceddd7578
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -203,22 +205,22 @@ content }` (see [integrity frontmatter](integrity-frontmatter.md)). A concept st
 `--by`. When `[actors].humans` is non-empty it is an allow-list, and an unlisted identity fails with `HumanActorNotAllowedError` (exit 3), including for `--revoke`. Existing entries by others are never touched or replaced; a repeat by the
 same person appends, except that the refresh path overwrites that actor's
 own `at` and rewrites the binding to match. `--at <iso>` records a different
-instant, but never one more than five minutes later than now (exactly five minutes is accepted): that is a `VerifySelectionError`, exit `64`, raised before anything is loaded for a write and before any picker opens, with `--dry-run` and in `--format json` too, while a malformed `--at` stays exit `3`. Nor one before the concept's `generated.at`: OKF v0.3 §5.3
+instant, but never one more than five minutes later than now (exactly five minutes is accepted), and never a value that is not a timestamp: both are a `VerifySelectionError`, exit `64`, raised before the config is read and before any picker opens, with `--dry-run` and in `--format json` too (the one check that comes first is an explicit `--config` file that does not exist, which is `ConfigPathNotFoundError`, exit `3`); the message for a value that is not a timestamp names the expected form (an ISO 8601 timestamp with an explicit offset, or a `YYYY-MM-DD` date). Nor one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
-skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message names `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message says to commit any change to its body, then run `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: commit any change to its body, then run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
-already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
+already verified are reported as skipped, each line naming its next step (a draft: `okfit verify <id> --stable` to settle it or `--draft` to keep it; a deprecated one: set its status, or `okfit verify <id> --stable`; an already-verified one: nothing to do, and if it is past `stale_after`, `okfit stale --verify` rolls that date forward; an id list attests drafts and deprecated concepts, only a batch skips them; the suggested command works unless the concept is also not current, and then its refusal says what to do) (`VerifyBatchEnvelope.skipped[].reason`
 is `draft`, `deprecated`, `unknown-status`, `already-verified` or `not-current`; `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
 so settling a reviewed draft is `okfit verify <id> --stable`; a concept
 already at the target gets no status edit. Passing both flags, or either with
-`--all`/`--type` or with more than one target, is exit `64`. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, while an explicit id list of two or more or an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest, printing `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`; a skipped concept is never written, and a list of only such concepts writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
+`--all`/`--type`, with no target, or with targets that name more than one concept (one concept named twice, by id and by path, counts once), is exit `64`; the batch and no-target refusals come before config is read, the several-concepts one after the targets resolve. A concept whose `status` is outside `draft`, `stable` and `deprecated` is not current knowledge and cannot be attested: `okfit verify <id>` fails with exit `3` (`VerifyStatusUnknownError`, which names the raw value), before the drift diff and the confirm prompt, while an explicit id list of two or more or an `--all`/`--type` batch skips it with the reason `unknown-status` and still attests the rest, printing `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`; a skipped concept is never written, and a list of only such concepts writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do. The one exception is `--stable` or `--draft`, because the same write replaces the status; the human names the flag, and the envelope's `status.from` is the raw string. The batch, the picker and `stale --verify` never offer an unknown-status concept ([An unknown status is not current knowledge](../decisions/unknown-status-is-not-current.md)). The human line carries `; status A -> B`,
 `; status already X` or `; status (absent) -> X` (before the dry-run note), and a dry run adds `would
 set status:` with the fragment. A concept with no `status` reads as `stable`, so `--stable` on one still writes an explicit `status: stable` line (reported `(absent) -> stable`, `from: null`). Giving both targets and `--all`/`--type`, or an undeclared type, is exit `64`.
 Giving neither opens a picker when the run is interactive (a human audience
@@ -312,7 +314,8 @@ subset. `--dry-run` computes every result and writes nothing. Log mode
 considers every committed concept dated on or after the newest logged
 date, appending into that day's group unless it already names the concept
 (see [the log decision](../decisions/sync-log-days.md));
-`--since` replaces that floor. A malformed `--since` is a usage error,
+`--since` replaces that floor. A `--since` that is not a calendar date in the
+`YYYY-MM-DD` form, an impossible day such as `2026-02-30` included, is a usage error,
 exit `64`. `sync --only
 generated` no longer rewrites an authoritative `generated.at`: when a
 concept's recorded `x-okfit-integrity.generated.body` still matches its current body, the
@@ -328,7 +331,8 @@ as `migrated`, and a concept that cannot be spliced safely is skipped as
 spellings of a key is skipped as `legacy-key-conflict`, and one whose old key
 cannot be renamed in place (flow style, an alias or a `<<` merge in the old
 integrity block, a duplicated key, an explicit `?` key) as
-`legacy-key-unsupported`; an id in `migrated` may also appear in `skipped`, because
+`legacy-key-unsupported`; the `untracked` and `dirty` skip lines end in their step
+(`not tracked by git; add the file to git and commit it, then run okfit sync again`, `has uncommitted changes; commit the change, then run okfit sync again`); an id in `migrated` may also appear in `skipped`, because
 a concept sync cannot stamp still has its keys renamed. The key names are explained in [okfit's keys carry the x-okfit- prefix](../decisions/okfit-keys-carry-x-okfit-prefix.md). `generated.at` is the derived instant (the last
 body-changing commit's author date; under `--staged`, the hook's clock). When
 the concept's `x-okfit-integrity.verified` binds its latest human entry and covers

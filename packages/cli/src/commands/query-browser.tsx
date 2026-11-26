@@ -4,6 +4,7 @@ import { KeyHelp, KeyTable, Styled, Tabs, Viewport, useGlyphs, useKeys, useTermi
 import { Box, Text } from "ink";
 import type { ReactElement } from "react";
 import { useMemo, useRef, useState } from "react";
+import { oneLine } from "../render/text.js";
 import type { BrowserAction, BrowserData, BrowserNeighbor, BrowserState, BrowserTab } from "./query-browser-state.js";
 import {
 	browserInit,
@@ -11,7 +12,6 @@ import {
 	detailHeader,
 	groupByType,
 	neighbourEntries,
-	oneLine,
 	visibleRows,
 	wrapBody,
 } from "./query-browser-state.js";

@@ -139,7 +139,7 @@ export class VerifyStatusUnknownError extends Schema.TaggedError<VerifyStatusUnk
  * in the future (ruling R33). `at` and `generatedAt` are the encoded instants. `kind` says how the stamp relates
  * to now when now is known: `"blocked"` (more than the tolerance later, and a verification dated between now and the
  * stamp, `blockedBy`, would start to count if sync re-stamped it, so sync skips it and a human must correct the stamp
- * or that verification), `"future"` (more than the tolerance later, which `okfit sync` re-stamps) or
+ * or that verification), `"future"` (more than the tolerance later, which `okfit sync` re-stamps once any change to the body is committed) or
  * `"near-future"` (later, but within the tolerance, so only the clock or waiting helps); absent when `generatedAt`
  * is not later than now, so only the verification time is to blame (verify at or after it, or omit `--at`).
  * Exit 3, like the other verify refusals. A batch, an id list and the pickers skip such a concept instead of failing.
@@ -159,7 +159,7 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 			case "blocked":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated ${this.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
 			case "future":
-				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again`;
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again`;
 			case "near-future":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after ${this.generatedAt}`;
 			default:
@@ -240,6 +240,14 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
 /**
  * Issue #138: `okfit verify`'s selection was contradictory or empty. Exit 64: a usage error.
  *
+ * `at-future` is an `--at` more than 5 minutes later than now (#503) and `at-malformed` an `--at` that is not a
+ * timestamp (#513); for both, `detail` is the value. `at-malformed` quotes it in double quotes exactly as given (so an empty value reads `""`), and a front end that
+ * prints it to a terminal puts it on one line itself.
+ *
+ * `status-and-batch` is `--stable` or `--draft` given with `--all`/`--type` or with no target (refused before config is
+ * read); `status-needs-one-concept` is the same flags with targets that resolved to more than one concept, where
+ * `detail` is the resolved count as a decimal string.
+ *
  * @public
  */
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
@@ -249,10 +257,12 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		"unknown-type",
 		"status-conflict",
 		"status-and-batch",
+		"status-needs-one-concept",
 		"dry-run-needs-verify",
 		"revoke-needs-id",
 		"revoke-conflict",
 		"at-future",
+		"at-malformed",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -268,10 +278,16 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		if (this.reason === "at-future") {
 			return `--at ${this.detail ?? ""} is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now`;
 		}
+		if (this.reason === "at-malformed") {
+			return `--at "${this.detail ?? ""}" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)`;
+		}
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {
-			return "--stable and --draft need exactly one concept target; batch mode never changes status";
+			return "--stable and --draft need targets that name exactly one concept; batch mode never changes status";
+		}
+		if (this.reason === "status-needs-one-concept") {
+			return `--stable and --draft need targets that name exactly one concept; these name ${this.detail ?? "several"}`;
 		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}

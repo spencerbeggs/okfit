@@ -58,13 +58,13 @@ const typeFlag = Flag.String("type").pipe(
 /** Issue #185: settle the concept in the same write as the attestation. */
 const stableFlag = Flag.Boolean("stable").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("also set status: stable in the same write; needs one concept target"),
+	Flag.withDescription("also set status: stable in the same write; needs targets that name one concept"),
 );
 
 /** Issue #185: record a review without settling. */
 const draftFlag = Flag.Boolean("draft").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("also set (or keep) status: draft in the same write; needs a concept id"),
+	Flag.withDescription("also set (or keep) status: draft in the same write; needs targets that name one concept"),
 );
 
 /** Take back your own verification of one concept. */
@@ -85,7 +85,7 @@ const configFlag = Flag.File("config").pipe(
 const atFlag = Flag.String("at").pipe(
 	Flag.optional,
 	Flag.withDescription(
-		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; must not be more than 5 minutes later than now, nor earlier than the concept's generated.at (OKF 0.3 5.3); either is refused",
+		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; a value that is not a timestamp, or one more than 5 minutes later than now, is a usage error, and one earlier than the concept's generated.at (OKF 0.3 5.3) is refused",
 	),
 );
 
@@ -113,15 +113,20 @@ const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], 
  * `okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|--draft]
  * [--revoke] [--config <file>] [--at <iso>] [--dry-run] [--no-diff] [--format human|json]`.
  *
- * Handler order fixed by contract §2.3. Steps 1–3 are `context`'s handler
- * in substance — stat `--config` (K-1) via `provideConfig`, discover,
- * resolve the profile and roots through `resolveProjectConfig` — then it
- * diverges: resolve `at` (the `Now` service, or `--at` through
- * `Schema.decodeUnknownEffect(Timestamp)`, never the throwing sync
- * decoder), provide `Git` for `Derivation.generatedBy`, run the splice and
- * the atomic write, render, and always exit `0`. There is no content tier:
- * every typed failure is exit `3` through `bin.ts`'s existing
- * `reportFailures`.
+ * Handler order: `provideConfig` stats an explicit `--config` (K-1) before
+ * the handler runs. The handler then makes the usage checks, which read
+ * nothing on disk: the selection flags, then `at` (the `Now` service, or
+ * `--at` through `Schema.decodeUnknownEffect(Timestamp)`, never the throwing
+ * sync decoder; a value that is not a timestamp, or one more than 5 minutes
+ * later than now, is a `VerifySelectionError`). Then `context`'s handler in
+ * substance — discover and read the config, resolve the profile and roots
+ * through `resolveProjectConfig` — then resolve the targets, provide `Git`
+ * for `Derivation.generatedBy`, run the splice and the atomic write, and
+ * render. There is no content tier: a success is exit `0`, and a typed
+ * failure takes its own exit code through `reportFailures`: `64` for a usage
+ * error such as `VerifySelectionError` or `TargetResolutionError`, `130` for
+ * the kit's `Cancelled` (the picker quit on Esc, `q`, Ctrl-C or a "no"
+ * answer, or the re-verify prompt quit on Esc or Ctrl-C), `3` for the rest.
  *
  * @public
  */
@@ -150,7 +155,8 @@ export const verifyCommand = Command.make(
 			const distribution = yield* CurrentDistribution;
 
 			const body = Effect.gen(function* () {
-				// --revoke is its own mode: validate its usage before touching config, git or the clock.
+				// --revoke is its own mode: validate its usage first, before the clock, --at, config discovery or git
+				// (an explicit --config is statted before this handler runs, by provideConfig).
 				if (input.revoke) {
 					const conflicts = [
 						...(input.all ? ["--all"] : []),
@@ -169,9 +175,35 @@ export const verifyCommand = Command.make(
 					return yield* new VerifySelectionError({ reason: "targets-and-batch" });
 				}
 				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });
-				if ((input.stable || input.draft) && input.targets.length !== 1) {
+				// A batch, or no target at all, can never name one concept: refuse before config. Targets that
+				// name one concept in several spellings are counted after they resolve (below).
+				if ((input.stable || input.draft) && (batch || input.targets.length === 0)) {
 					return yield* new VerifySelectionError({ reason: "status-and-batch" });
 				}
+
+				// Contract §12 note 7: decodeUnknownSync THROWS, and a throw inside
+				// Effect.gen is a defect, not a typed failure. The Effect-returning
+				// decoder is mandatory here. The clock's own value carries
+				// milliseconds; truncate it to whole seconds so a recorded
+				// attestation matches every documented example (README,
+				// cli-commands.md). `--at` is never truncated — it is recorded
+				// exactly as the caller gave it. Both `--at` refusals are usage
+				// errors (exit 64) decided here, before config, the bundle or any
+				// picker is touched: a value that is not a timestamp (#513), and one
+				// more than five minutes later than now (#503). The default (now) is
+				// never ahead of itself.
+				const now = yield* Now;
+				const rawAt = input.at;
+				const at = Option.isNone(rawAt)
+					? DateTime.startOf(now, "second")
+					: yield* Schema.decodeUnknownEffect(Timestamp)(rawAt.value).pipe(
+							Effect.mapError(() => new VerifySelectionError({ reason: "at-malformed", detail: rawAt.value })),
+						);
+				if (Option.isSome(rawAt)) {
+					const future = futureAtRefusal(at, now);
+					if (future !== undefined) return yield* future;
+				}
+
 				const path = yield* Path.Path;
 				const resolved = yield* resolveProjectConfig({
 					pathArg: input.root,
@@ -185,6 +217,11 @@ export const verifyCommand = Command.make(
 					const bundle = yield* Bundle.load({ root: resolved.bundleRoot });
 					const targets = yield* Targets.resolve(input.targets, bundle, cwd);
 					ids = targets.map((target) => target.id as string);
+					// Targets.resolve collapses one concept named twice to a single id; two distinct concepts
+					// would go to the id-list run, which takes no status, so this is the only guard (#514).
+					if ((input.stable || input.draft) && ids.length !== 1) {
+						return yield* new VerifySelectionError({ reason: "status-needs-one-concept", detail: String(ids.length) });
+					}
 				}
 
 				if (input.revoke) {
@@ -230,24 +267,6 @@ export const verifyCommand = Command.make(
 						}
 					}
 					return;
-				}
-
-				// Contract §12 note 7: decodeUnknownSync THROWS, and a throw inside
-				// Effect.gen is a defect, not an exit-3 failure. The
-				// Effect-returning decoder is mandatory here. The clock's own
-				// value carries milliseconds; truncate it to whole seconds so a
-				// recorded attestation matches every documented example
-				// (README, cli-commands.md). `--at` is never truncated — it is
-				// recorded exactly as the caller gave it.
-				const now = yield* Now;
-				const at = Option.isNone(input.at)
-					? DateTime.startOf(now, "second")
-					: yield* Schema.decodeUnknownEffect(Timestamp)(input.at.value);
-				// An --at more than five minutes later than now is a usage error (#503): refused before anything is
-				// loaded for a write and before any picker mounts. The default (now) is never ahead of itself.
-				if (Option.isSome(input.at)) {
-					const future = futureAtRefusal(at, now);
-					if (future !== undefined) return yield* future;
 				}
 
 				const status = input.stable ? "stable" : input.draft ? "draft" : undefined;

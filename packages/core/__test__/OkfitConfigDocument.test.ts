@@ -147,6 +147,10 @@ describe("okfitConfigDocumentFields", () => {
 			],
 		);
 		assert.strictEqual(
+			lint.generated_at_future?.description,
+			'A concept\'s generated.at is more than 5 minutes later than now, so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses it; commit any change to its body, then run okfit sync, which re-stamps it. Default "warn".',
+		);
+		assert.strictEqual(
 			lint.broken_links?.description,
 			'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
 		);

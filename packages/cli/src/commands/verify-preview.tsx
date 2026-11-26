@@ -14,6 +14,7 @@ import type { ChangeSince, PickerCandidate } from "@okfit/engine";
 import { Box, Text } from "ink";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { oneLine } from "../render/text.js";
 
 /**
  * What the preview screen draws: the picker's sections (item values are
@@ -33,9 +34,6 @@ const LIST_SHARE = 0.45;
 /** The message line above and the key help below. */
 const CHROME = 2;
 const GAP = 2;
-
-/** Data drawn on one line: escapes and controls removed, line breaks folded to spaces. */
-const oneLine = (text: string): string => Fmt.sanitize(text).replace(/[\r\n]+/g, " ");
 
 /**
  * The patch from its first hunk on: the `diff --git`, `index`, `---` and `+++`

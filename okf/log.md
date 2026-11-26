@@ -1,5 +1,13 @@
 # Log
 
+## 2026-11-26
+
+* Updated A verification is bound to the content it covered
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated An unknown status is not current knowledge
+* Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
+* Updated stale --verify rolls stale_after forward, and plain verify never does
+
 ## 2026-11-25
 
 * Updated AI Plugins

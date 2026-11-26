@@ -128,8 +128,32 @@ describe("VerifySelectionError status reasons (#185)", () => {
 		assert.strictEqual(error[Runtime.errorExitCode], 64);
 		assert.strictEqual(
 			error.message,
-			"--stable and --draft need exactly one concept target; batch mode never changes status",
+			"--stable and --draft need targets that name exactly one concept; batch mode never changes status",
 		);
+	});
+});
+
+describe("VerifySelectionError status-needs-one-concept (#514)", () => {
+	it("exits 64 and names the resolved count, without the batch tail", () => {
+		const error = new VerifySelectionError({ reason: "status-needs-one-concept", detail: "2" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, "--stable and --draft need targets that name exactly one concept; these name 2");
+	});
+});
+
+describe("VerifySelectionError at-malformed (#513)", () => {
+	it("exits 64 and names the expected form, quoting the value as given", () => {
+		const error = new VerifySelectionError({ reason: "at-malformed", detail: "tomorrow" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(
+			error.message,
+			'--at "tomorrow" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)',
+		);
+	});
+
+	it("quotes an empty value so it still reads as a value (#513)", () => {
+		const error = new VerifySelectionError({ reason: "at-malformed", detail: "" });
+		assert.isTrue(error.message.startsWith('--at "" is not a timestamp; '), error.message);
 	});
 });
 
@@ -211,7 +235,7 @@ describe("VerifyNotCurrentError", () => {
 		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2030-01-01T00:00:00Z" };
 		assert.strictEqual(
 			new VerifyNotCurrentError({ ...fields, kind: "future" }).message,
-			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again',
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again',
 		);
 		assert.strictEqual(
 			new VerifyNotCurrentError({ ...fields, kind: "near-future" }).message,

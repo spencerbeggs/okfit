@@ -10,7 +10,10 @@ import {
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
 	VerifyConceptNotFoundError,
+	VerifyContentUnhashableError,
 	VerifyNotCurrentError,
+	VerifyNothingToRevokeError,
+	VerifySelectionError,
 	VerifyStatusUnknownError,
 	VerifyUnsupportedFrontmatterError,
 } from "@okfit/engine";
@@ -149,6 +152,29 @@ describe("renderFailure for the verify errors", () => {
 		assert.deepStrictEqual(lines, [`error: ${error.message}`]);
 		assert.isTrue(lines[0]?.includes("after the verification time 2026-09-16T11:59:59Z"));
 		assert.isFalse(lines[0]?.includes("VerifyNotCurrentError"));
+	});
+
+	it("a verify refusal quoting a status with line breaks is one line (#511)", () => {
+		const lines = renderTyped(new VerifyStatusUnknownError({ id: "decisions/c", status: "x\nerror: forged\rY\tT" }));
+		assert.strictEqual(lines.length, 1);
+		assert.include(lines[0], 'status "x error: forged Y T"');
+		assert.notMatch(lines[0] ?? "", /[\r\n\t]/);
+	});
+
+	it("a verify refusal quoting a frontmatter key or a detail with line breaks is one line (#511)", () => {
+		const unhashable = renderTyped(
+			new VerifyContentUnhashableError({ id: "decisions/c", path: ["a\nb"], detail: "c\rd" }),
+		);
+		assert.deepStrictEqual(unhashable, [
+			'error: "decisions/c" cannot be verified: a b cannot be hashed (c d); fix the value, then re-run okfit verify',
+		]);
+		const selection = renderTyped(new VerifySelectionError({ reason: "unknown-type", detail: "T\nx" }));
+		assert.deepStrictEqual(selection, ['error: type "T x" is not declared in the config']);
+	});
+
+	it("renders VerifyNothingToRevokeError as one error: line with no class name, line breaks as spaces (#511)", () => {
+		const lines = renderTyped(new VerifyNothingToRevokeError({ id: "decisions/c\nerror: forged", actor: "human:ada" }));
+		assert.deepStrictEqual(lines, ['error: "decisions/c error: forged" has no verified entry by human:ada to revoke']);
 	});
 
 	it("renders DocumentPathError as one error line", () => {

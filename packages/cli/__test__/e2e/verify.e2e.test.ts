@@ -11,6 +11,7 @@ import { makeSandbox, removeSandbox, writeSeedInto } from "./utils/fixtures.js";
 import { runOkfit } from "./utils/okfit.js";
 import type { TestServices } from "./utils/platform.js";
 import { TestPlatform } from "./utils/platform.js";
+import { commit, initRepo } from "./utils/repo.js";
 
 const withServices = <A, E>(effect: Effect.Effect<A, E, TestServices>): Promise<A> =>
 	Effect.runPromise(effect.pipe(Effect.provide(TestPlatform)));
@@ -60,6 +61,36 @@ const seededWithoutIdentity = async (): Promise<{
 	assert.strictEqual(init.exitCode, 0);
 	return { sandbox, cwd: sandbox.cwd, env };
 };
+
+/**
+ * A git sandbox whose concept `decisions/a` was stamped by a real `okfit sync` (so its recorded body digest matches) and
+ * then had its committed `generated.at` moved to 2099 (#515). The body is untouched, so the digest still matches.
+ */
+const seededFutureStamp = async (): Promise<{
+	readonly sandbox: Sandbox;
+	readonly cwd: string;
+	readonly env: Record<string, string>;
+	readonly file: string;
+}> => {
+	const { sandbox, cwd, env } = await seeded();
+	await writeTwoDecisions(cwd);
+	const configPath = join(cwd, ".config", "okfit.toml");
+	await writeFile(configPath, `${await readFile(configPath, "utf8")}\n[actors]\nagent = "agent:claude"\n`, "utf8");
+	await initRepo(cwd, env);
+	await commit(cwd, { message: "seed", authoredAt: "2026-09-01T00:00:00+00:00" }, env);
+	const stamped = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+	assert.strictEqual(stamped.exitCode, 0, stamped.stderr);
+	const file = join(cwd, "okf", "decisions", "a.md");
+	const text = await readFile(file, "utf8");
+	assert.include(text, "at: 2026-09-01T00:00:00Z");
+	await writeFile(file, text.replace("at: 2026-09-01T00:00:00Z", "at: 2099-01-01T00:00:00Z"), "utf8");
+	await commit(cwd, { message: "future stamp", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+	return { sandbox, cwd, env, file };
+};
+
+/** The usage message for a malformed `--at` (#513); the one wording the owner ruled on, shared by every assertion. */
+const badAtMessage = (at: string): string =>
+	`--at "${at}" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)`;
 
 const projectPath = (cwd: string): string => join(cwd, "okf", "project.md");
 const readProject = (cwd: string): Promise<string> => readFile(projectPath(cwd), "utf8");
@@ -194,8 +225,48 @@ describe("okfit verify (e2e)", () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			await writeTwoDecisions(cwd);
+			const before = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
 			const run = await withServices(runOkfit(["verify", "decisions/a", "decisions/b", "--stable"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 64);
+			assert.include(run.stderr, "--stable and --draft need targets that name exactly one concept; these name 2");
+			assert.notInclude(run.stderr, "batch mode");
+			assert.strictEqual(await readFile(join(cwd, "okf/decisions/a.md"), "utf8"), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--stable and --draft accept one concept named more than once (#514)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const spellings = [
+				["decisions/a", "okf/decisions/a.md"],
+				["decisions/a", join(cwd, "okf/decisions/a.md")],
+			];
+			for (const flag of ["--stable", "--draft"]) {
+				for (const targets of spellings) {
+					const run = await withServices(
+						runOkfit(["verify", ...targets, flag, "--dry-run", "--no-diff"], { cwd, env }),
+					);
+					assert.strictEqual(run.exitCode, 0, run.stderr);
+					const lines = run.stdout.split("\n").filter((line) => line.startsWith("would verify decisions/a"));
+					assert.lengthOf(lines, 1);
+					assert.include(lines[0], "; status ");
+				}
+			}
+			// A real run: one verified entry and one status change, not two.
+			const before = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
+			const real = await withServices(
+				runOkfit(["verify", "decisions/a", "okf/decisions/a.md", "--stable", "--no-diff"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" },
+				}),
+			);
+			assert.strictEqual(real.exitCode, 0, real.stderr);
+			const after = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
+			assert.lengthOf(after.match(/^\s*- by: /gm) ?? [], (before.match(/^\s*- by: /gm) ?? []).length + 1);
+			assert.lengthOf(after.match(/^status: stable$/gm) ?? [], 1);
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -322,20 +393,82 @@ describe("okfit verify (e2e)", () => {
 		}
 	});
 
-	it("rejects an --at without an explicit offset, exit 3, nothing written", async () => {
+	it("rejects an --at without an explicit offset, exit 64, nothing written (#513)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			const before = await readProject(cwd);
 
 			const run = await withServices(runOkfit(["verify", "project", "--at", "2026-09-07T00:00:00"], { cwd, env }));
 
-			assert.strictEqual(run.exitCode, 3);
-			assert.isTrue(
-				run.stderr.includes(
-					"error: SchemaError(Expected an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm) or a calendar date (YYYY-MM-DD))",
-				),
-			);
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			assert.strictEqual(run.stderr, `error: ${badAtMessage("2026-09-07T00:00:00")}\n`);
 			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("a malformed --at is refused before the config is read (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeFile(join(cwd, ".config", "okfit.toml"), "this is = = not toml [\n", "utf8");
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+
+			// control: without --at the broken config is what refuses, exit 3
+			const control = await withServices(runOkfit(["verify", "project", "--dry-run"], { cwd, env: now }));
+			assert.strictEqual(control.exitCode, 3, control.stderr);
+
+			const run = await withServices(runOkfit(["verify", "project", "--at", "nope"], { cwd, env: now }));
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			assert.strictEqual(run.stderr, `error: ${badAtMessage("nope")}\n`);
+
+			// the one check that does come first: an explicit --config that does not exist is statted before the
+			// handler runs (K-1), so it wins over a malformed --at
+			const missing = join(cwd, "missing.toml");
+			const statted = await withServices(
+				runOkfit(["verify", "project", "--at", "nope", "--config", missing], { cwd, env: now }),
+			);
+			assert.strictEqual(statted.exitCode, 3, statted.stderr);
+			assert.strictEqual(statted.stderr, `error: config path not found: ${missing}\n`);
+
+			// the future --at refusal moves with it
+			const future = await withServices(
+				runOkfit(["verify", "project", "--at", "2099-01-01T00:00:00Z"], { cwd, env: now }),
+			);
+			assert.strictEqual(future.exitCode, 64, future.stderr);
+			assert.include(future.stderr, "--at 2099-01-01T00:00:00Z is more than 5 minutes later than now");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("a malformed --at is a usage error in JSON too (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const before = await readProject(cwd);
+			const run = await withServices(runOkfit(["verify", "--all", "--at", "nope", "--format", "json"], { cwd, env }));
+
+			assert.strictEqual(run.exitCode, 64, run.stderr);
+			const lines = run.stdout.split("\n").filter((line) => line !== "");
+			assert.strictEqual(lines.length, 1);
+			const envelope = JSON.parse(lines[0] ?? "") as { exit_code: number; error: { tag: string; message: string } };
+			assert.strictEqual(envelope.exit_code, 64);
+			assert.strictEqual(envelope.error.tag, "VerifySelectionError");
+			assert.strictEqual(envelope.error.message, badAtMessage("nope"));
+			assert.strictEqual(await readProject(cwd), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("still accepts a date and an explicit non-UTC offset for --at (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const now = { ...env, OKFIT_NOW: "2026-09-07T12:00:00.000Z" };
+			for (const at of ["2026-09-07", "2026-09-07T11:00:00+01:00"]) {
+				const run = await withServices(runOkfit(["verify", "project", "--at", at, "--dry-run"], { cwd, env: now }));
+				assert.strictEqual(run.exitCode, 0, `${at}: ${run.stderr}`);
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -358,9 +491,10 @@ describe("okfit verify (e2e)", () => {
 			);
 			assert.strictEqual(await readProject(cwd), before);
 
-			// control: a malformed --at keeps its own exit 3
+			// a malformed --at is a usage error too, with its own message (#513)
 			const malformed = await withServices(runOkfit(["verify", "project", "--at", "tomorrow"], { cwd, env: now }));
-			assert.strictEqual(malformed.exitCode, 3, malformed.stderr);
+			assert.strictEqual(malformed.exitCode, 64, malformed.stderr);
+			assert.include(malformed.stderr, badAtMessage("tomorrow"));
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -519,7 +653,7 @@ describe("okfit verify (e2e)", () => {
 			assert.include(
 				run.stdout,
 				[
-					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; run okfit sync, which re-stamps it, then verify it again",
+					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again",
 					"skipped decisions/near: generated.at 2026-11-25T12:02:00Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-11-25T12:02:00Z",
 					"skipped decisions/blocked: generated.at 2027-11-25T12:00:00Z is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
 					"skipped decisions/absent: generated.at 2026-11-25T11:59:30Z is later than the verification time 2026-11-25T11:59:00Z, so a verification then would not count; verify it at or after 2026-11-25T11:59:30Z, or omit --at to verify now",
@@ -740,7 +874,10 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(dry.exitCode, 0);
 			assert.match(dry.stdout, /would verify decisions\/a by human:ada at 2026-09-16T12:00:00Z/);
 			assert.match(dry.stdout, /would verify decisions\/b by human:ada/);
-			assert.match(dry.stdout, /skipped decisions\/d: draft/);
+			assert.match(
+				dry.stdout,
+				/skipped decisions\/d: status draft, so a batch leaves it out; verify it on its own with okfit verify decisions\/d --stable/,
+			);
 			assert.match(dry.stdout, /would verify 2, skipped 1 \(dry run, nothing written\)/);
 			assert.ok(!(await readFile(join(decisions, "a.md"), "utf8")).includes("verified:"));
 
@@ -766,6 +903,44 @@ describe("okfit verify (e2e)", () => {
 			const second = JSON.parse(again.stdout) as { concepts: Array<unknown>; skipped: Array<{ reason: string }> };
 			assert.deepStrictEqual(second.concepts, []);
 			assert.ok(second.skipped.every((s) => s.reason === "already-verified" || s.reason === "draft"));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--all names the step for a draft and a deprecated concept, and the step works (#517)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const decisions = join(cwd, "okf", "decisions");
+			const write = (name: string, extra: string) =>
+				writeFile(
+					join(decisions, `${name}.md`),
+					`---\ntype: Decision\ntitle: ${name}\ndescription: ${name}.\n${extra}---\n\n# ${name}\n`,
+					"utf8",
+				);
+			await write("d", "status: draft\n");
+			await write("e", "status: deprecated\n");
+			const dry = await withServices(
+				runOkfit(["verify", "--all", "--dry-run"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }),
+			);
+			assert.strictEqual(dry.exitCode, 0, dry.stderr);
+			assert.include(
+				dry.stdout,
+				"skipped decisions/d: status draft, so a batch leaves it out; verify it on its own with okfit verify decisions/d --stable to settle it, or --draft to keep it a draft\n",
+			);
+			assert.include(
+				dry.stdout,
+				"skipped decisions/e: status deprecated, so a batch leaves it out, and a batch has nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/e --stable\n",
+			);
+			// the suggested commands are accepted
+			for (const args of [
+				["verify", "decisions/d", "--stable", "--dry-run", "--no-diff"],
+				["verify", "decisions/d", "--draft", "--dry-run", "--no-diff"],
+				["verify", "decisions/e", "--stable", "--dry-run", "--no-diff"],
+			]) {
+				const run = await withServices(runOkfit(args, { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }));
+				assert.strictEqual(run.exitCode, 0, `${args.join(" ")}: ${run.stderr}`);
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -898,7 +1073,7 @@ describe("okfit verify (e2e)", () => {
 				const before = await readProject(cwd);
 				const bare = await withServices(runOkfit(["verify", "--stable"], { cwd, env: { ...env, ...NOW } }));
 				assert.strictEqual(bare.exitCode, 64);
-				assert.include(bare.stderr, "--stable and --draft need exactly one concept target");
+				assert.include(bare.stderr, "--stable and --draft need targets that name exactly one concept");
 				assert.strictEqual(await readProject(cwd), before);
 			} finally {
 				await removeSandbox(sandbox);
@@ -962,7 +1137,8 @@ describe("okfit verify (e2e)", () => {
 
 				const again = await withServices(runOkfit(["verify", "project", "--revoke"], { cwd, env }));
 				assert.strictEqual(again.exitCode, 3);
-				assert.match(again.stderr, /has no verified entry by human:ada to revoke/);
+				// one line, no class name (#511)
+				assert.strictEqual(again.stderr, 'error: "project" has no verified entry by human:ada to revoke\n');
 			} finally {
 				await removeSandbox(sandbox);
 			}
@@ -1115,6 +1291,37 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 		}
 	});
 
+	it("the single-id unknown-status refusal prints the status as the skip line does (#511)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const c = join(cwd, "okf", "decisions", "c.md");
+			// YAML double-quoted escapes: an SGR sequence, a BEL, a CR and an LF that would forge a second line
+			await writeFile(
+				c,
+				'---\ntype: Decision\ntitle: C\ndescription: A decision.\nstatus: "w\\e[31mip\\a\\rX\\nerror: forged"\n---\n\n# C\n',
+				"utf8",
+			);
+			const run = await withServices(runOkfit(["verify", "decisions/c"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 3, run.stderr);
+			const lines = run.stderr.split("\n").filter((line) => line !== "");
+			assert.strictEqual(lines.length, 1, run.stderr);
+			assert.isTrue(lines[0]?.startsWith('error: "decisions/c" has status "wip X error: forged"'), run.stderr);
+			for (const control of ["\u001b", "\u0007", "\r"]) assert.notInclude(run.stderr, control);
+			// the batch skip line, through Doc, gives the same text
+			const list = await withServices(
+				runOkfit(["verify", "decisions/c", "decisions/a", "--dry-run", "--no-diff"], { cwd, env }),
+			);
+			assert.strictEqual(list.exitCode, 0, list.stderr);
+			assert.include(
+				list.stdout,
+				'skipped decisions/c: status "wip X error: forged" is not draft, stable or deprecated',
+			);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("an id list of only unknown statuses writes nothing and exits 0 (#507)", async () => {
 		const { sandbox, cwd, env } = await seededUnknown();
 		try {
@@ -1145,6 +1352,53 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 			const text = await readFile(margin(cwd), "utf8");
 			assert.include(text, "status: stable\n");
 			assert.notInclude(text, "bogus");
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+	it("the future-stamp advice leads to a verification when the body has an uncommitted change (#515)", async () => {
+		const { sandbox, cwd, env, file } = await seededFutureStamp();
+		try {
+			await appendFile(file, "\nAn edit that is not committed yet.\n", "utf8");
+
+			const refused = await withServices(runOkfit(["verify", "decisions/a"], { cwd, env }));
+			assert.strictEqual(refused.exitCode, 3);
+			assert.include(
+				refused.stderr,
+				"Commit any change to its body, then run okfit sync, which re-stamps it, then verify again",
+			);
+
+			// the premise: sync skips a body change that is not committed, and the stamp stays in the future
+			const skipped = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+			assert.strictEqual(skipped.exitCode, 0, skipped.stderr);
+			assert.include(skipped.stdout, "skipped decisions/a: has uncommitted changes");
+			assert.include(await readFile(file, "utf8"), "at: 2099-01-01T00:00:00Z");
+
+			// the advice's own order: commit, then sync, then verify
+			await commit(cwd, { message: "edit body", authoredAt: "2026-10-01T00:00:00+00:00" }, env);
+			const synced = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+			assert.strictEqual(synced.exitCode, 0, synced.stderr);
+			assert.include(synced.stdout, "wrote decisions/a");
+			const verified = await withServices(runOkfit(["verify", "decisions/a", "--dry-run", "--no-diff"], { cwd, env }));
+			assert.strictEqual(verified.exitCode, 0, verified.stderr);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("the future-stamp advice with no body change: okfit sync alone re-stamps it (#515)", async () => {
+		const { sandbox, cwd, env, file } = await seededFutureStamp();
+		try {
+			const refused = await withServices(runOkfit(["verify", "decisions/a"], { cwd, env }));
+			assert.strictEqual(refused.exitCode, 3);
+			assert.include(refused.stderr, "Commit any change to its body, then run okfit sync, which re-stamps it");
+
+			const synced = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
+			assert.strictEqual(synced.exitCode, 0, synced.stderr);
+			assert.include(synced.stdout, "wrote decisions/a");
+			assert.notInclude(await readFile(file, "utf8"), "2099");
+			const verified = await withServices(runOkfit(["verify", "decisions/a", "--dry-run", "--no-diff"], { cwd, env }));
+			assert.strictEqual(verified.exitCode, 0, verified.stderr);
 		} finally {
 			await removeSandbox(sandbox);
 		}

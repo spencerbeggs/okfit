@@ -447,6 +447,21 @@ _cli_version_stub() {
 	[[ "$(context_text)" != *"expects CLI >="* ]]
 }
 
+@test "a 0.17 CLI is told to upgrade under the built default floor (#487)" {
+	_cli_version_stub 0.17.9
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" == *"expects CLI >= 0.18.0; this project resolves 0.17.9. Update @okfit/cli"* ]]
+	done
+	_cli_version_stub 0.18.0
+	for target in $TARGETS; do
+		_run "$target"
+		assert_hook_exit 0
+		[[ "$(context_text)" != *"expects CLI >="* ]]
+	done
+}
+
 @test "the built hook carries the plugin's own floor as the session default" {
 	_cli_version_stub 0.0.1
 	for target in $TARGETS; do

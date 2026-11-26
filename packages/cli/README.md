@@ -16,7 +16,7 @@ okfit verify [<target>...] [--root <dir>] [--all] [--type <Type>]... [--stable|-
 okfit query list [--root <dir>] [--type <Type>]... [--tag <tag>]... [--status draft|stable|deprecated]... [--verified|--unverified] [--drifted] [--stale] [--config <file>] [--format human|json]
 okfit query get <targets...> [--root <dir>] [--config <file>] [--format human|json]
 okfit query neighbors <id> [--root <dir>] [--config <file>] [--format human|json]
-okfit sync [--root <dir>] [--config <file>] [--only generated|index|log]... [--since <ref>] [--staged] [--publication <id>] [--dry-run] [--yes] [--format human|json] [--help]
+okfit sync [--root <dir>] [--config <file>] [--only generated|index|log]... [--since <YYYY-MM-DD>] [--staged] [--publication <id>] [--dry-run] [--yes] [--format human|json] [--help]
 okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]
 ```
 
@@ -287,22 +287,24 @@ an allow-list (exact ids or `*`/`?` globs, case-insensitive): an unlisted
 identity fails with `HumanActorNotAllowedError` (exit `3`), and so does
 `--revoke`. Existing entries are never touched or replaced — every
 run appends, including a repeat by the same person. `--at <iso>` records a
-different instant. An `--at` more than 5 minutes later than now is a usage error (exit `64`, also with `--dry-run`
-and `--format json`), refused before anything is loaded for a write and before any picker opens; exactly 5 minutes ahead is accepted, and a
-malformed `--at` stays exit `3`. okfit refuses (exit `3`, with `--dry-run` too) a verification
+different instant. An `--at` that is not a timestamp (the message names the expected form) and one more than
+5 minutes later than now are both usage errors (exit `64`, also with `--dry-run` and `--format json`), refused
+before the config is read (only an explicit `--config` that does not exist is checked first, exit `3`) and before any picker opens; exactly 5 minutes ahead is accepted. okfit refuses (exit `3`, with `--dry-run` too) a verification
 whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
-`generated.at` in the future also refuses (run `okfit sync`, which re-stamps one more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
+`generated.at` in the future also refuses (commit any change to the concept's body, then run `okfit sync`, which re-stamps a stamp more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
 (`skipped <id>: generated.at <stamp> is later than ...`, ending in the step to take) and verify the rest; both pickers leave it out and print one
-`left out <id>: ...` line per concept with the same step: `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
+`left out <id>: ...` line per concept with the same step: commit any change to its body and run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
 the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on a verification failure, `64` on a usage error (an unknown target,
-a contradictory selection, an `--at` more than 5 minutes ahead).
+a contradictory selection, an `--at` that is not a timestamp or is more than 5 minutes ahead).
 
 The write goes through a temp file and an atomic rename, and the target's
 mode is preserved on the replacement. A concept without write permission is
 refused and left untouched, exiting `3`.
+
+A batch (`--all`, `--type`) skips a `draft` concept (`skipped <id>: status draft, so a batch leaves it out; verify it on its own with okfit verify <id> --stable to settle it, or --draft to keep it a draft`), a `deprecated` one (`status deprecated, so a batch leaves it out, ...; if it is current again, set its status, or verify it with okfit verify <id> --stable`) and one whose current verification by you already covers its content (`already verified by <actor>, and that verification still covers its content; nothing to do; if it is past stale_after, okfit stale --verify rolls that date forward`); a list of ids attests drafts and deprecated concepts instead of skipping them. The suggested `--stable` or `--draft` command works unless the concept is also not current, in which case that command's refusal says what to do.
 
 A concept whose `status` is outside `draft`, `stable` and `deprecated` cannot be attested as it stands. `okfit verify <id>` with one id refuses it (exit `3`) unless `--stable` or `--draft` is given, which sets the status and verifies in the same write. A list of several ids, and an `--all`/`--type` batch, skip it, before the not-current check, with `skipped <id>: status "<raw>" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify <id> --stable or --draft`, and verify the rest; a skipped concept is never written, and a list where every id is skipped writes nothing and exits `0`. The suggested `--stable` command works unless the concept is also not current, in which case that command says what to do.
 
@@ -313,8 +315,9 @@ editor's verify action does the same.
 `--stable` or `--draft` sets the concept's `status` in the same write as the
 attestation, so settling a reviewed draft is one command:
 `okfit verify <id> --stable`. Passing both is a usage error (exit `64`), as
-is passing either with `--all` or `--type`: promotion is a per-concept
-decision. A concept already at the requested status gets no status edit. The
+is passing either with `--all`, `--type`, no target, or targets that name
+more than one concept: promotion is a per-concept decision. One concept named
+twice (by id and by path) counts once. A concept already at the requested status gets no status edit. The
 human line ends `; status <from> -> <to>`, `; status already <to>` or
 `; status (absent) -> <to>`, and a dry run adds a `would set status:` line
 with the exact fragment.
@@ -393,7 +396,9 @@ place and reports the ids as `migrated`.
 `okfit sync --staged` (the pre-commit hook) only migrates the concepts being
 committed, so run a plain `okfit sync` once to move the whole bundle. A concept
 sync cannot stamp (uncommitted edits, untracked, no `generated` block) still has
-its keys renamed and is reported as both migrated and skipped. On a `--staged`
+its keys renamed and is reported as both migrated and skipped. The `untracked` and
+`dirty` skip lines name their step: add the file to git and commit it, or commit the
+change, then run `okfit sync` again (git's index alone is not enough for a plain sync). On a `--staged`
 run, a rename that is the only write to a concept restages the whole file, so
 the first commit that touches an unmigrated concept also commits any unstaged
 edits to it. Run a plain `okfit sync` once and commit the key move on its own

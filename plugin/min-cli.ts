@@ -11,4 +11,4 @@
  * the workspace `@okfit/cli` version. See
  * `okf/decisions/plugin-declares-minimum-cli.md`.
  */
-export const MIN_CLI_VERSION = "0.16.7";
+export const MIN_CLI_VERSION = "0.18.0";

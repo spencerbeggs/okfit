@@ -1106,7 +1106,7 @@ describe("runVerify and runVerifyBatch refuse a verification that would not be c
 				at: "2026-11-25T12:00:00Z",
 				detail: { at: "2026-11-25T12:00:00Z", generatedAt: "2027-11-25T12:00:00Z", kind: "future" },
 				message:
-					'"decisions/future" has generated.at 2027-11-25T12:00:00Z, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps a generated.at more than 5 minutes later than now, then verify again',
+					'"decisions/future" has generated.at 2027-11-25T12:00:00Z, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again',
 			},
 			{
 				id: "decisions/near",

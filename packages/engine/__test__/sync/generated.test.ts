@@ -752,6 +752,46 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 		}),
 	);
 
+	describe("an untracked concept with no generated block (#515)", () => {
+		const untracked = { _tag: "uncommitted", reason: "untracked" } as const;
+		const bare = () =>
+			LoadedConcept.make({
+				id: Option.getOrThrow(ConceptId.normalize("module.md")),
+				path: "module.md",
+				frontmatter: Concept.make({ type: "Module", extensions: {}, raw: {} }),
+				document: Result.getOrThrow(MarkdownDocument.parseResult(SOURCE)),
+				computationBody: Option.none(),
+			});
+
+		it.effect("names generated-missing first when no agent is configured, since committing would not help", () =>
+			Effect.gen(function* () {
+				const concept = bare();
+				const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
+					provenance: new Map([[concept.id, untracked]]),
+					renames: RENAMES,
+					dryRun: false,
+				}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
+				assert.deepStrictEqual(result.skipped, [{ id: concept.id, reason: "generated-missing" }]);
+				assert.deepStrictEqual(result.written, []);
+				assert.deepStrictEqual(result.migrated, []);
+			}),
+		);
+
+		it.effect("control: with an agent configured it is still skipped untracked", () =>
+			Effect.gen(function* () {
+				const concept = bare();
+				const result = yield* syncGenerated(bundleWith(concept, "/repo"), {
+					provenance: new Map([[concept.id, untracked]]),
+					renames: RENAMES,
+					dryRun: false,
+					agent: "okfit/claude-code" as Actor,
+				}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
+				assert.deepStrictEqual(result.skipped, [{ id: concept.id, reason: "untracked" }]);
+				assert.deepStrictEqual(result.written, []);
+			}),
+		);
+	});
+
 	it.effect("decides unchanged from the digest alone, with no provenance entry for the concept", () =>
 		Effect.gen(function* () {
 			const digest = yield* digestOf(SOURCE);

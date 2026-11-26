@@ -813,6 +813,27 @@ describe("okfit sync (e2e)", () => {
 		}
 	});
 
+	it("refuses an impossible --since calendar date, exit 64, and keeps a real one (#513)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			// A shape-only check let these through, and log mode then compares them as strings: 2026-13-45 sorts
+			// after every 2026 day and 2026-02-30 reads as 2026-03-01, with no error.
+			for (const since of ["2026-13-45", "2026-02-30", "2026-00-10", "2026-04-31"]) {
+				const run = await withServices(runOkfit(["sync", "--since", since, "--dry-run"], { cwd, env }));
+				assert.strictEqual(run.exitCode, 64, `${since}: ${run.stderr}`);
+				assert.include(run.stderr, `Invalid value for flag --since: "${since}"`);
+				assert.include(run.stderr, "Expected a calendar date (YYYY-MM-DD)");
+			}
+			// control: a real calendar date, a leap day included, still runs
+			for (const since of ["2026-08-01", "2024-02-29"]) {
+				const run = await withServices(runOkfit(["sync", "--since", since, "--dry-run"], { cwd, env }));
+				assert.strictEqual(run.exitCode, 0, `${since}: ${run.stderr}`);
+			}
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("exits 3 outside a git repository", async () => {
 		const sandbox = await makeSandbox("okfit-sync-nogit-");
 		try {
