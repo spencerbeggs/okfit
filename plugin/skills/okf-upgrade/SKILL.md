@@ -29,8 +29,7 @@ Also new, and not findings: `superseded_by`, root `title`/`description`/`license
 
 ## 1. Preflight
 
-1. `okfit validate --help` lists `--target`. If it does not, the installed CLI is too old for this skill: stop and tell the human to upgrade `@okfit/cli`.
-2. `git status` is clean for the bundle directory, so every fix is one reviewable diff.
+1. `git status` is clean for the bundle directory, so every fix is one reviewable diff.
 
 ## 2. Read the report
 
