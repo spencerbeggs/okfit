@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T16:59:01Z
+  at: 2026-11-26T04:05:13Z
 x-okfit-integrity:
   generated:
-    body: f7068fae92eec31d
+    body: 24adde2da6a47e1f
 ---
 
 # Engine
@@ -171,7 +171,7 @@ forward](../decisions/stale-verify.md).
 `root-relative-path`, `computation-locator`), found by resolving each
 reference under both fallback rules, in every Markdown file of the bundle that is not a concept; `computation-locator` appears only while
 the bundle reads with the legacy locator and the two readings differ, and a bundle with no root index
-gets an `okf-version-undeclared` finding for `index.md` with no fix.
+gets an `okf-version-undeclared` finding for `index.md` with no fix. A root index whose frontmatter never closes or does not parse gets the same code with a message that names that cause (`okf_version cannot be read, because ...`) and keeps the fix, which `fix.ts` then refuses with its reason.
 `migrate/fix.ts` holds `planMigrationFixes` and `applyMigrationFixes`, which
 write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
 version fix while a root-only reference remains, while an Attested
@@ -273,7 +273,11 @@ and the fixed `BUNDLE_DESCRIPTION`.
 `log.md`, that is a symbolic link out of the bundle, a dangling link
 included: `syncIndex` and `syncLog` return it in `skipped` with the reason
 `symlink-escape` (`SkipReason`), in plain, dry-run and `--staged` runs, and
-the exit code is unchanged. `confinement.ts#escapesBundle` (exported, with its bundle-free core
+the exit code is unchanged. `syncIndex` likewise never renders over a root or
+subdirectory `index.md` whose frontmatter never closes or does not parse
+(`frontmatter-unclosed` or `frontmatter-unparseable` on that file): it returns it in
+`skipped` with the reason `index-unparseable`, in every run, with the exit code unchanged
+(`syncLog` already does the same for `log.md` with `log-unparseable`). `confinement.ts#escapesBundle` (exported, with its bundle-free core
 `escapesRoot`) asks core's load diagnostics first and falls back to `lstat`
 plus `confineReal`, because the walker does not list a dangling link and so
 leaves no diagnostic. `okfit context` and the MCP `okf://index` resource use

@@ -205,6 +205,58 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect("an index.md that exists but did not load is not missing-index (#512)", () =>
+		Effect.gen(function* () {
+			const mount = "/repo/unread";
+			const concept = "---\ntype: Note\ntitle: A\n---\n\n# A\n";
+			const seed = {
+				[`${mount}/root.md`]: concept,
+				[`${mount}/index.md`]: "---\ntitle: x\n\n# X\n",
+				[`${mount}/modules/a.md`]: concept,
+				[`${mount}/modules/index.md`]: "---\nnot: [closed\n",
+			};
+			const load = (extra: Record<string, unknown>) =>
+				Effect.provide(
+					Bundle.load({ root: mount }),
+					Layer.mergeAll(MemoryFileSystem.layerWith({ ...seed, ...extra }), Path.layer),
+				);
+			const bundle = yield* load({});
+			assert.deepStrictEqual(
+				Validate.lint(bundle, OkfitConfig.DEFAULTS).filter((d) => d.code === "missing-index"),
+				[],
+			);
+			assert.deepStrictEqual(
+				Validate.conformance(bundle).map((d) => [d.file, d.code]),
+				[
+					["index.md", "frontmatter-unclosed"],
+					["modules/index.md", "frontmatter-unclosed"],
+				],
+			);
+			// control: a directory with no index.md file is still missing one
+			const control = yield* load({ [`${mount}/other/b.md`]: concept });
+			assert.deepStrictEqual(
+				Validate.lint(control, OkfitConfig.DEFAULTS)
+					.filter((d) => d.code === "missing-index")
+					.map((d) => d.file),
+				["other/index.md"],
+			);
+			// an index that links out of the bundle is not in the bundle: it is missing beside its symlink-escape
+			const escaping = yield* load({
+				[`${mount}/modules/index.md`]: MemoryFileSystem.symlink("/outside/index.md"),
+				"/outside/index.md": "# Outside\n",
+			});
+			assert.deepStrictEqual(
+				Validate.lint(escaping, OkfitConfig.DEFAULTS)
+					.filter((d) => d.code === "missing-index" || d.code === "symlink-escape")
+					.map((d) => [d.code, d.file]),
+				[
+					["symlink-escape", "modules/index.md"],
+					["missing-index", "modules/index.md"],
+				],
+			);
+		}),
+	);
+
 	it.effect("require-verified-unmet skips a draft concept and still fires on a stable one (issue #31)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadDraftBundle;

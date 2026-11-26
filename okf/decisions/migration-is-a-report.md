@@ -16,11 +16,11 @@ sources:
     title: The exit-code tally that skips migrate entries.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T16:59:01Z
+  at: 2026-11-26T04:05:13Z
 status: draft
 x-okfit-integrity:
   generated:
-    body: 40feef7ed97412f9
+    body: 38008950bcfb2b4b
 ---
 
 # Migration to a newer OKF version is a report on validate, with two safe fixes
@@ -60,7 +60,7 @@ changes the reading, and only when the two readings differ (a depth-one
 section that is exactly one fence reads the same and is not reported, and an empty section holds no computation under either reading, so it is not reported either); it is `warning` when the concept would lose its
 computation and `info` otherwise. A bundle with no root `index.md` gets
 `okf-version-undeclared` with file `index.md` and no fix, since the root
-index body is `okfit sync`'s to write.
+index body is `okfit sync`'s to write. A root index that exists but whose frontmatter never closes or does not parse gets the same code and the fix, but its message names the unreadable frontmatter instead of saying the version is not declared; the fix is then refused with its reason.
 
 **What is fixed and what is listed.** `--fix` writes two things: it prefixes
 `/` to a root-only reference (the same edit `okfit mv` makes when a bare

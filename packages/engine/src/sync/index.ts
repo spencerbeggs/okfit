@@ -10,7 +10,7 @@ export interface SyncIndexResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" }>;
+	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" | "index-unparseable" }>;
 }
 
 export { escapesBundle } from "../confinement.js";
@@ -35,6 +35,12 @@ const childDirectoriesOf = (bundle: LoadedBundle, dir: string): ReadonlyArray<st
 	}
 	return [...children];
 };
+
+/** An `index.md` the loader found but could not read; rendering over it would erase what the author wrote (#512). */
+const indexUnreadable = (bundle: LoadedBundle, file: string): boolean =>
+	bundle.diagnostics.some(
+		(d) => d.file === file && (d.code === "frontmatter-unclosed" || d.code === "frontmatter-unparseable"),
+	);
 
 const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
 	targetPath: string,
@@ -85,10 +91,11 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: "symlink-escape" }> = [];
+	const skipped: Array<{ readonly id: string; readonly reason: "symlink-escape" | "index-unparseable" }> = [];
 
 	// Step 1: the root.
 	if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
+	else if (indexUnreadable(bundle, "index.md")) skipped.push({ id: "index.md", reason: "index-unparseable" });
 	else {
 		const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
 		const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
@@ -113,6 +120,10 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 		if (dir === "") continue;
 		if (yield* escapesBundle(bundle, `${dir}/index.md`)) {
 			skipped.push({ id: `${dir}/index.md`, reason: "symlink-escape" });
+			continue;
+		}
+		if (indexUnreadable(bundle, `${dir}/index.md`)) {
+			skipped.push({ id: `${dir}/index.md`, reason: "index-unparseable" });
 			continue;
 		}
 		const rendered = Derive.synthesizeIndex(bundle, dir);

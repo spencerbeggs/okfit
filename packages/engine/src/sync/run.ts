@@ -36,6 +36,7 @@ export const SkipReason = Schema.Literals([
 	"integrity-unsupported",
 	"renders-unsupported",
 	"log-unparseable",
+	"index-unparseable",
 	"symlink-escape",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",

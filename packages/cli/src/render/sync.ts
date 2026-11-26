@@ -13,6 +13,8 @@ const REASON_SENTENCE: Record<SkipReason, string> = {
 	"integrity-unsupported": `${INTEGRITY_KEY} is a shape sync cannot edit; edit it by hand`,
 	"renders-unsupported": `${ProfileKeys.renders} is a shape sync cannot edit (flow style); edit it by hand`,
 	"log-unparseable": "log.md could not be parsed; see okfit validate",
+	"index-unparseable":
+		"could not be read (its frontmatter does not close or does not parse); fix it by hand (see okfit validate), then run okfit sync again",
 	"legacy-key-conflict":
 		"carries both the old and the new spelling of an okfit key; keep the new one, move any value you need into it, delete the old one, then run okfit sync again",
 	"legacy-key-unsupported":

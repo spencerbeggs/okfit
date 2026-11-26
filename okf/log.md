@@ -7,6 +7,8 @@
 * Updated An unknown status is not current knowledge
 * Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 * Updated stale --verify rolls stale_after forward, and plain verify never does
+* Updated Engine
+* Updated Migration to a newer OKF version is a report on validate, with two safe fixes
 
 ## 2026-11-25
 

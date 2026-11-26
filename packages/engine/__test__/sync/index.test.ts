@@ -18,6 +18,7 @@ import {
 } from "@okfit/core";
 import { Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
+import type { PendingWrite } from "../../src/sync/write.js";
 import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, projectPlatform, seedPlatform } from "../utils/bundle.js";
 import { withRealBundle } from "../utils/realBundle.js";
@@ -305,6 +306,55 @@ describe("syncIndex: a reserved index.md linked out of the bundle (OKF 0.3 secti
 			// Control: the same call writes the indexes that do not link out.
 			assert.isTrue(result.written.includes("modules/index.md") || result.unchanged.includes("modules/index.md"));
 		}).pipe(Effect.provide(seedPlatform(seedFor("escaping")))),
+	);
+});
+
+describe("syncIndex an unreadable index.md (#512)", () => {
+	const MOD = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
+	const DEC = "---\ntype: Decision\ntitle: D\n---\n\n# D\n";
+	const ROOT_UNCLOSED = '---\nokf_version: "0.3"\ntitle: x\n\n# Project\n';
+	const MODULES_BAD = "---\nnot: [closed\n---\n\n# Modules\n";
+	const files = {
+		"index.md": ROOT_UNCLOSED,
+		"modules/a.md": MOD,
+		"modules/index.md": MODULES_BAD,
+		"decisions/d.md": DEC,
+		"decisions/index.md": "# Stale\n",
+	};
+	const readText = (root: string, name: string) => Effect.promise(() => readFile(join(root, name), "utf8"));
+
+	it.effect("is skipped, not rewritten, and a valid stale index is still written", () =>
+		withRealBundle(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const result = yield* syncIndex(bundle, false);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "index.md", reason: "index-unparseable" },
+					{ id: "modules/index.md", reason: "index-unparseable" },
+				]);
+				assert.strictEqual(yield* readText(root, "index.md"), ROOT_UNCLOSED);
+				assert.strictEqual(yield* readText(root, "modules/index.md"), MODULES_BAD);
+				assert.deepStrictEqual(result.written, ["decisions/index.md"]);
+			}),
+		),
+	);
+
+	it.effect("a dry run plans no write for it either", () =>
+		withRealBundle(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const pending: Array<PendingWrite> = [];
+				const result = yield* syncIndex(bundle, true, pending);
+				assert.deepStrictEqual(
+					result.skipped.map((entry) => entry.id),
+					["index.md", "modules/index.md"],
+				);
+				assert.deepStrictEqual(
+					pending.map((write) => write.target),
+					[join(root, "decisions/index.md")],
+				);
+			}),
+		),
 	);
 });
 

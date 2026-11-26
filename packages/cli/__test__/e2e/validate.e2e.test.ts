@@ -1403,6 +1403,14 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			);
 			const summary = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
 			assert.include(summary.stderr, "1 refused by --fix");
+			// #512: one message, naming the fix, not three
+			assert.include(summary.stdout, "frontmatter-unclosed");
+			assert.include(
+				summary.stdout,
+				"okf_version cannot be read, because the root index.md frontmatter opens with --- but never closes; add the closing --- by hand, then validate again",
+			);
+			assert.notInclude(summary.stdout, "missing-index");
+			assert.notInclude(summary.stdout, "okf_version is not declared");
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 

@@ -609,6 +609,9 @@ export const supersededByUnresolved: LintRule = perConcept("superseded-by-unreso
 export const missingIndex: LintRule = rule("missing-index", (context, severity) =>
 	Derive.indexDirectories(context.bundle)
 		.filter((dir) => !context.bundle.indexes.has(dir))
+		// An index.md that is in the bundle but did not load (unclosed or unparseable frontmatter) is not missing:
+		// its own error reports it, and a second "has no index.md" would be false (#512).
+		.filter((dir) => !context.bundle.files.includes(dir === "" ? "index.md" : `${dir}/index.md`))
 		.map((dir) => {
 			const message = `Directory "${dir === "" ? "." : dir}" has no index.md`;
 			return diagnostic(dir === "" ? "index.md" : `${dir}/index.md`, "missing-index", severity, message, undefined);

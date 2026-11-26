@@ -65,13 +65,25 @@ const versionRange = (frontmatter: string | undefined): DiagnosticRange | undefi
  *
  * @internal
  */
-export const rootIndexUnclosed = (bundle: LoadedBundle): boolean =>
-	bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed");
+export const rootIndexUnclosed = (bundle: LoadedBundle): boolean => rootIndexUnreadable(bundle) === "unclosed";
+
+/**
+ * Why the root index is in the bundle but did not load: its frontmatter never closes, or closes but does not parse.
+ * `undefined` when it loaded or is absent.
+ *
+ * @internal
+ */
+export const rootIndexUnreadable = (bundle: LoadedBundle): "unclosed" | "unparseable" | undefined =>
+	bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unclosed")
+		? "unclosed"
+		: bundle.diagnostics.some((d) => d.file === ROOT_INDEX && d.code === "frontmatter-unparseable")
+			? "unparseable"
+			: undefined;
 
 const versionFindings = (bundle: LoadedBundle, target: string): ReadonlyArray<MigrationFinding> => {
 	const root = bundle.indexes.get("");
 	const declared = OkfVersion.declared(bundle);
-	const unclosedRoot = rootIndexUnclosed(bundle);
+	const unreadable = rootIndexUnreadable(bundle);
 	if (Option.isNone(declared)) {
 		return [
 			{
@@ -79,10 +91,14 @@ const versionFindings = (bundle: LoadedBundle, target: string): ReadonlyArray<Mi
 				code: "okf-version-undeclared",
 				severity: "warning",
 				message:
-					"okf_version is not declared; OKF 0.3 §8.1 asks a bundle to declare it, and okfit reads an undeclared bundle with the v0.2 fallbacks",
+					unreadable === "unclosed"
+						? "okf_version cannot be read, because the root index.md frontmatter opens with --- but never closes; add the closing --- by hand, then validate again"
+						: unreadable === "unparseable"
+							? "okf_version cannot be read, because the root index.md frontmatter does not parse (see its frontmatter-unparseable error); fix it by hand, then validate again"
+							: "okf_version is not declared; OKF 0.3 §8.1 asks a bundle to declare it, and okfit reads an undeclared bundle with the v0.2 fallbacks",
 				// R42: with no root index there is nowhere to write the declaration. An unclosed root index is not loaded
 				// either, but it exists: the fix is offered and `planMigrationFixes` refuses it with the reason (#482).
-				...(root === undefined && !unclosedRoot ? {} : { fix: "okf-version" as const }),
+				...(root === undefined && unreadable === undefined ? {} : { fix: "okf-version" as const }),
 			},
 		];
 	}

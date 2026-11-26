@@ -1043,6 +1043,23 @@ const driftCount = async (cwd: string, env: Record<string, string>): Promise<num
 const stampIntegrity = (text: string, digest: string): string =>
 	text.replace("\n---\n", `\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n`);
 
+describe("okfit sync an unreadable index.md (#512)", () => {
+	it("leaves an unclosed root index.md untouched and says why", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const unclosed = '---\nokf_version: "0.3"\ntitle: x\n\n# Project\n';
+			await writeFile(join(cwd, "okf", "index.md"), unclosed, "utf8");
+			await commit(cwd, { message: "unclosed index", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+			const run = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, "skipped index.md: could not be read");
+			assert.strictEqual(await readIndex(cwd, "index.md"), unclosed);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+});
+
 describe("okfit sync --publication", () => {
 	it("restamps one Publication, after which validate reports no drift", async () => {
 		const { sandbox, cwd, env, pubPath } = await seededPublication();

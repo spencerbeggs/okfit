@@ -203,7 +203,8 @@ export const LintTable = Schema.Struct({
 	missing_index: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "missing-index",
-			description: 'A concept-holding directory has no index.md. Default "warn".',
+			description:
+				'A concept-holding directory has no index.md file in the bundle (an index.md that exists but fails to load is reported by its own error instead). Default "warn".',
 			default: "warn",
 		}),
 	),
