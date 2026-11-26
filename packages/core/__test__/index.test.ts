@@ -27,6 +27,7 @@ const VALUES = [
 	"ATTESTED_COMPUTATION_TYPE",
 	"Concept",
 	"ConceptId",
+	"changedWhileRead",
 	"ConfinementError",
 	"readConfinedBytes",
 	"readConfinedString",

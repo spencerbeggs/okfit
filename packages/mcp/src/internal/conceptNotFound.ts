@@ -1,4 +1,5 @@
 import { ToolFailure } from "@effected/mcp-kit";
+import { changedWhileRead } from "@okfit/core";
 import type { QueryConceptNotFoundError } from "@okfit/engine";
 
 /**
@@ -17,7 +18,7 @@ export const conceptNotFound = (requested: string, error: QueryConceptNotFoundEr
 		return {
 			id: error.id,
 			reason: error.reason,
-			message: `${ToolFailure.truncate(error.id)}.md changed while it was read; try again`,
+			message: changedWhileRead(`${ToolFailure.truncate(error.id)}.md`),
 			remediation: { hint: "The file changed under the read, usually an editor save. Call the tool again." },
 		};
 	}

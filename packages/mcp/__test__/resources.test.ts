@@ -281,8 +281,9 @@ describe("resources", () => {
 
 	describe("a file replaced between its resolution and the identity compare (#460)", () => {
 		/**
-		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (new inode, and text carrying a sentinel an unconfined read would serve). The concept read lstats once; the index read first loads the bundle, whose walk and loader lstat the file
-		 * three times before the resource's own read (the fourth).
+		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (new inode, and
+		 * text carrying a sentinel an unconfined read would serve). The concept read lstats once; the index read first
+		 * loads the bundle, whose walk and loader lstat the file three times before the resource's own read (the fourth).
 		 */
 		const RESAVED = "RESAVED-SENTINEL-TEXT";
 		const readWhileResaved = (uri: string, suffix: string, nth = 1) =>
@@ -322,7 +323,7 @@ describe("resources", () => {
 				);
 				assert.isTrue(fired, "the re-save must have run");
 				assert.ok(message.error !== undefined);
-				assert.include(JSON.stringify(message), "metrics/revenue.md changed while it was read; try again");
+				assert.include(JSON.stringify(message), '\\"metrics/revenue.md\\" changed while it was read; try again');
 				assert.notInclude(JSON.stringify(message), "links out of the bundle");
 				assert.notInclude(JSON.stringify(message), RESAVED);
 			}),
@@ -333,7 +334,7 @@ describe("resources", () => {
 				const { message, fired } = yield* readWhileResaved("okf://index", "/bundle/index.md", 4);
 				assert.isTrue(fired, "the re-save must have run");
 				assert.ok(message.error !== undefined);
-				assert.include(JSON.stringify(message), "index.md changed while it was read; try again");
+				assert.include(JSON.stringify(message), '\\"index.md\\" changed while it was read; try again');
 				assert.notInclude(JSON.stringify(message), "links out of the bundle");
 				assert.notInclude(JSON.stringify(message), RESAVED);
 			}),

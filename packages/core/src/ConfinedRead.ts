@@ -2,6 +2,15 @@ import { confineReal } from "@effected/walker";
 import { Effect, FileSystem, Option, Schema } from "effect";
 
 /**
+ * The transient wording every surface uses for a file that changed under a read: the quoted `subject` (a path or
+ * a concept file name) followed by `changed while it was read; try again`. One spelling, so the CLI, the MCP server
+ * and `ConfinementError` never drift. It is never an escape verdict.
+ *
+ * @public
+ */
+export const changedWhileRead = (subject: string): string => `"${subject}" changed while it was read; try again`;
+
+/**
  * A file read was refused (OKF 0.3 section 3.2).
  *
  * `reason` says why: `outside` (a link on the path resolves outside the root), `unresolvable` (a link on the path
@@ -22,7 +31,7 @@ export class ConfinementError extends Schema.TaggedError<ConfinementError>()("Co
 			? `"${this.path}" resolves outside the bundle root "${this.root}"`
 			: this.reason === "unresolvable"
 				? `"${this.path}" could not be resolved, so it cannot be shown to stay inside the bundle root "${this.root}"`
-				: `"${this.path}" changed while it was read; try again`;
+				: changedWhileRead(this.path);
 	}
 }
 

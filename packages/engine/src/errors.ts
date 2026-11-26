@@ -1,4 +1,4 @@
-import { INTEGRITY_KEY } from "@okfit/core";
+import { INTEGRITY_KEY, changedWhileRead } from "@okfit/core";
 import { Runtime, Schema } from "effect";
 import { describeConfigCause } from "./config/issues.js";
 import { LEGACY_INTEGRITY_KEY } from "./sync/legacyKeys.js";
@@ -61,7 +61,7 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
-		if (this.reason === "changed-during-read") return `"${this.id}.md" changed while it was read; try again`;
+		if (this.reason === "changed-during-read") return changedWhileRead(`${this.id}.md`);
 		const detail = this.diagnosticCode === undefined ? this.reason : `${this.reason}: ${this.diagnosticCode}`;
 		return `no concept "${this.id}" in this bundle (${detail})`;
 	}
@@ -359,7 +359,7 @@ export class QueryConceptNotFoundError extends Schema.TaggedError<QueryConceptNo
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
 		if (this.reason === "empty-id") return "a concept id must not be empty";
-		if (this.reason === "changed-during-read") return `"${this.id}.md" changed while it was read; try again`;
+		if (this.reason === "changed-during-read") return changedWhileRead(`${this.id}.md`);
 		return `no concept "${this.id}" in this bundle`;
 	}
 }
@@ -414,7 +414,7 @@ const targetLine = (failure: TargetFailure): string => {
 		case "not-a-concept":
 			return `"${failure.arg}" did not load as a concept (run okfit validate)`;
 		case "changed-during-read":
-			return `"${failure.arg}" changed while it was read; try again`;
+			return changedWhileRead(failure.arg);
 		default:
 			return `no concept "${failure.arg}"${failure.suggestion === undefined ? "" : ` (did you mean ${failure.suggestion}?)`}`;
 	}

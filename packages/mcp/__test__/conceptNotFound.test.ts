@@ -9,7 +9,7 @@ describe("conceptNotFound", () => {
 			new QueryConceptNotFoundError({ id: "metrics/revenue", reason: "changed-during-read" }),
 		);
 		assert.strictEqual(answer.reason, "changed-during-read");
-		assert.strictEqual(answer.message, "metrics/revenue.md changed while it was read; try again");
+		assert.strictEqual(answer.message, '"metrics/revenue.md" changed while it was read; try again');
 		assert.notInclude(answer.message, "no concept");
 		assert.include(answer.remediation.hint, "Call the tool again");
 	});

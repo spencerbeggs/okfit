@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { MemoryFileSystem } from "@effected/memfs";
 import type { FileSystem } from "effect";
 import { Effect, Option, PlatformError } from "effect";
-import { ConfinementError, readConfinedBytes, readConfinedString } from "../src/ConfinedRead.js";
+import { ConfinementError, changedWhileRead, readConfinedBytes, readConfinedString } from "../src/ConfinedRead.js";
 import { MOUNT, platform } from "./utils/fixtures.js";
 import { overridePlatform, swapPlatform } from "./utils/swapPlatform.js";
 
@@ -180,6 +180,16 @@ describe("readConfinedString (OKF 0.3 section 3.2)", () => {
 			Effect.gen(function* () {
 				assert.strictEqual(yield* read("real/a.md"), "inside\n");
 			}).pipe(Effect.provide(overridePlatform(seed, () => ({})))),
+		);
+	});
+});
+
+describe("changedWhileRead", () => {
+	it("quotes the subject, and is the wording ConfinementError uses for a changed file", () => {
+		assert.strictEqual(changedWhileRead("a/b.md"), '"a/b.md" changed while it was read; try again');
+		assert.strictEqual(
+			new ConfinementError({ root: MOUNT, path: "/m/a.md", reason: "changed" }).message,
+			changedWhileRead("/m/a.md"),
 		);
 	});
 });

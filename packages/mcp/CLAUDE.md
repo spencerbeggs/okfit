@@ -96,7 +96,7 @@ directory above it, that links out of the bundle or dangles is refused with
 `<path> links out of the bundle`. A link at the file itself is refused even
 when it is swapped in during the read; a race through a directory above the file
 can still win (spencerbeggs/okfit#524). A file that changed under the read is
-answered `<path> changed while it was read; try again`, never labelled a link.
+answered `"<path>" changed while it was read; try again`, never labelled a link.
 A hard link to a file under the root is read. The bundle root is
 resolved wherever `okf/` points at each read, so a root replaced by a link
 after boot is followed, and the tools and resources agree. A resource failure
