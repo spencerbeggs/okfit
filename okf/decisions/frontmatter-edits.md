@@ -7,19 +7,21 @@ tags:
 generated:
   by: okfit/claude-code
   at: 2026-11-24T20:41:11Z
-status: draft
+status: stable
 verified:
   - by: human:spencer
     at: 2026-09-24T00:30:18Z
   - by: human:spencer
     at: 2026-10-11T22:01:13Z
+  - by: human:spencer
+    at: 2026-11-26T03:32:39Z
 x-okfit-integrity:
   generated:
     body: 9a06eb0c3c6f43f4
   verified:
     by: human:spencer
-    at: 2026-10-11T22:01:13Z
-    content: 705fe56e43ed188b
+    at: 2026-11-26T03:32:39Z
+    content: 1b4862f9058df49b
 ---
 
 # Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
