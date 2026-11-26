@@ -445,6 +445,7 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		"unrewritable",
 		"project-file",
 		"unloaded-files",
+		"changed-during-read",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -460,6 +461,8 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 			return `${detail} is the bundle's project file and must stay at the bundle root; edit it in place`;
 		if (this.reason === "unloaded-files")
 			return `these Markdown files are in the bundle but did not load as concepts, so their links to the moved file cannot be rewritten; run \`okfit validate\` and fix them first:\n${detail}`;
+		if (this.reason === "changed-during-read")
+			return `these files changed while the bundle was being read, so their links to the moved file cannot be rewritten; nothing was moved; run okfit mv again:\n${detail}`;
 		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
 	}
 }

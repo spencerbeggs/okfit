@@ -5,6 +5,7 @@ import { Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import { changedFiles } from "../changedDuringLoad.js";
 import { rerecordBodyDigest } from "../edits/bodyDigest.js";
 import type { ReferenceSource } from "../move/references.js";
 import { readMarkdownSources } from "../move/sources.js";
@@ -143,6 +144,19 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 			(files === undefined || files.includes(finding.file)) &&
 			(only === undefined || only.includes(finding.fix)),
 	);
+	// A file that changed under the load is missing from the bundle: its root-only references are unseen, so the plan
+	// may be incomplete, and declaring a version over them is what the R41 refusal exists to prevent. Plan nothing.
+	if (changedFiles(bundle).length > 0) {
+		return {
+			edits: [],
+			refused: selected.map((finding) => ({
+				file: finding.file,
+				code: finding.code,
+				reason: `a file changed while the bundle was being read (${changedFiles(bundle).join(", ")}), so this plan may be incomplete; run it again`,
+			})),
+			drifts: [],
+		};
+	}
 	const pathFixes = selected.filter((finding) => finding.fix === "root-relative-path");
 	const allPathFindings = all.filter((finding) => finding.code === "root-relative-path").length;
 

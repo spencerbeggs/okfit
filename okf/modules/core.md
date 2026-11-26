@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:05:51Z
+  at: 2026-11-26T07:43:47Z
 x-okfit-integrity:
   generated:
-    body: 10a16dd95aa41c02
+    body: 21a32a7b5744fc86
 ---
 
 # Core
@@ -60,7 +60,7 @@ fence; and `footnote-undefined` reads the parser's
 `internal/walk.ts` is now a thin adapter over `@effected/walker`'s
 `descend(pattern, { onUnreadable: "record" })` rather than a hand-rolled
 recursion (`packages/core/src/internal/walk.ts:52-78`): unreadable
-subdirectories still become sorted `walk-unreadable` diagnostics, and an
+subdirectories still become sorted `walk-unreadable` diagnostics (a file that changed under the read is `read-changed`, never `walk-unreadable`), and an
 unreadable root is re-read once to surface the real `PlatformError` as
 `BundleReadError`. A walk that descends past `maxDepth` (default 256,
 `DEFAULT_MAX_DEPTH`) now fails typed with a new public
@@ -162,7 +162,8 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   file itself is refused even when it is swapped in during the read: a file
   that becomes a link out between the link check and the read is recorded
   `symlink-escape` and left out, and one that changed under the read (the
-  identity compare failed) is recorded `walk-unreadable`, "changed while it
+  identity compare failed) is recorded `read-changed` (a warning, lint key
+  `read_changed`), "changed while it
   was read; try again", a transient failure that is never labelled an escape.
   A race through a directory above the file can still win (spencerbeggs/okfit#524).
   A hard link to a file under the root is a file under the root (OKF 0.3

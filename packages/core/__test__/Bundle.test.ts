@@ -213,7 +213,7 @@ describe("Bundle.load", () => {
 			assert.isTrue(trap.fired(), "the swap must have run");
 			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
 			assert.deepStrictEqual(bundle.files, ["b.md"]);
-			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "walk-unreadable", undefined]]);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "read-changed", undefined]]);
 			assert.strictEqual(bundle.diagnostics[0]?.severity, "warning");
 			assert.include(bundle.diagnostics[0]?.message ?? "", "changed while it was read; try again");
 			assert.deepStrictEqual(Validate.conformance(bundle), []);

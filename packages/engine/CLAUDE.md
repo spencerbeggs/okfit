@@ -28,6 +28,9 @@ src/
                               so ConfigMalformedError.message names the failing key; effect/SchemaIssue only
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
+  changedDuringLoad.ts     -- changedFiles, changedConceptIds, changedDirectories (internal): the files `Bundle.load` left out
+                               as `read-changed`, so sync, mv, the migration fix and the verify batch refuse or skip
+                               instead of writing something silently incomplete
   confinement.ts           -- escapesRoot, escapesBundle (a check, for a write or a skip decision; reads use core readConfinedBytes): a reserved index.md/log.md that leaves the
                                bundle by a link at the file or any directory above it (confineReal on the whole path; a missing file
                                resolves from its real ancestor; a dangling link counts); shared by sync and context

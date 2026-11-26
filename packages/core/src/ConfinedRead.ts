@@ -71,8 +71,11 @@ export const readConfinedBytes = Effect.fn("okfit/ConfinedRead/readConfinedBytes
 				Effect.mapError((error) => refuse(error.reason === "outside" ? "outside" : "unresolvable")),
 			);
 			// The open succeeded, so the path exists: `confineReal` resolves a missing tail lexically, which means the
-			// file is gone (or was never at this path) now, and what was opened is not what the path names.
-			yield* fs.realPath(target).pipe(Effect.mapError(() => refuse("changed")));
+			// file is gone (or was never at this path) now, and what was opened is not what the path names. A second
+			// resolution must also land where `confineReal` did: a link above the file swapped between the two samples
+			// resolves elsewhere, and that is a path that changed under the read.
+			const again = yield* fs.realPath(target).pipe(Effect.mapError(() => refuse("changed")));
+			if (again !== real) return yield* refuse("changed");
 			const held = yield* file.stat;
 			const named = yield* fs.lstat(real).pipe(Effect.mapError(() => refuse("changed")));
 			if (named.type !== "File") return yield* refuse("changed");

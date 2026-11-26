@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:05:51Z
+  at: 2026-11-26T07:43:47Z
 tags:
   - architecture
 verified:
@@ -51,7 +51,7 @@ verified:
     at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: 81ee582be85e4d87
+    body: 703d00cfb7e24eb9
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:51Z
@@ -139,7 +139,9 @@ would lose its computation (a `warning` `computation-locator` finding; the refus
 Markdown file could not be read to check its links, when `okf_version` cannot be
 edited in place, when the root index's opening fence is malformed, or when the
 root index frontmatter does not parse (malformed YAML, a duplicate key); the
-rest of the plan still applies. `--only okf-version` and
+rest of the plan still applies. When a file changed while the bundle was being read (`read-changed`) the plan is
+incomplete, since that file's root-only references were not seen: every selected finding is refused with that reason
+and nothing is written; run it again. `--only okf-version` and
 `--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
 the positional targets narrow the files, and `--dry-run` (requires `--fix`)
 writes nothing. A fix re-records `x-okfit-integrity.generated.body` for a concept
@@ -216,7 +218,7 @@ drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped, each line naming its next step (a draft: `okfit verify <id> --stable` to settle it or `--draft` to keep it; a deprecated one: set its status, or `okfit verify <id> --stable`; an already-verified one: nothing to do, and if it is past `stale_after`, `okfit stale --verify` rolls that date forward; an id list attests drafts and deprecated concepts, only a batch skips them; the suggested command works unless the concept is also not current, and then its refusal says what to do) (`VerifyBatchEnvelope.skipped[].reason`
-is `draft`, `deprecated`, `unknown-status`, `already-verified` or `not-current`; `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
+is `draft`, `deprecated`, `unknown-status`, `already-verified`, `not-current` or `changed-during-read` (a concept that changed while the bundle was being read: it was not considered, run the batch again); `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
@@ -383,7 +385,12 @@ listed in `skipped` with the reason `index-unparseable`, and the exit code
 is unchanged. A file that changed while sync was reading it (replaced or
 removed under the read) is not rewritten and is listed with the reason
 `changed-during-read`, a transient skip: running `okfit sync` again reads
-it afresh; the exit code is unchanged. A root `index.md` that declares no `okf_version` is given the
+it afresh; the exit code is unchanged. The same holds for a concept that changed while the bundle
+was being read (an editor's atomic save): the load leaves it out and says `read-changed`, and because
+anything rendered from that bundle would silently drop it, sync writes nothing derived from the
+affected directories. It lists the concept id in `generated.skipped`, the `index.md` of its directory
+and of every directory above it in `index.skipped`, and `log.md` in `log.skipped`, each with the
+reason `changed-during-read` (other directories' indexes are still written); run `okfit sync` again. A root `index.md` that declares no `okf_version` is given the
 config's `okf_version` when the config sets one and is otherwise left
 undeclared.
 
@@ -489,6 +496,10 @@ kinds: body links and reference definitions, path-kind frontmatter fields,
 bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's own
 outbound relative links are recomputed, including angle-bracketed body links whose
 path holds a space.
+
+A file that changed while the bundle was being read (`read-changed`) is missing from the load, so its
+links to the moved file would be left behind: `mv` refuses (`MoveError` `changed-during-read`, exit
+`64`, naming the files) and writes nothing; run it again.
 
 A rewritten concept that a human had verified drifts by the ordinary rule: `mv` never writes
 `verified`, `x-okfit-integrity.verified` or `generated.at`, and the plan lists the concepts whose current human

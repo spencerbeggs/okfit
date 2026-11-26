@@ -279,6 +279,63 @@ describe("resources", () => {
 		);
 	});
 
+	describe("a file replaced between its resolution and the identity compare (#460)", () => {
+		/**
+		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (same text, new
+		 * inode). The concept read lstats once; the index read first loads the bundle, whose walk and loader lstat the file
+		 * four times before the resource's own read (the fifth).
+		 */
+		const readWhileResaved = (uri: string, suffix: string, nth = 1) =>
+			Effect.gen(function* () {
+				const root = yield* copyFixtureProject("project");
+				let armed = false;
+				let fired = false;
+				let calls = 0;
+				const harness = yield* makeHarness(root, {
+					wrapFileSystem: (fs) => ({
+						...fs,
+						lstat: (target) =>
+							armed && !fired && target.endsWith(suffix) && ++calls >= nth
+								? Effect.suspend(() => {
+										fired = true;
+										return fs.readFileString(target).pipe(
+											Effect.flatMap((text) => Effect.andThen(fs.remove(target), fs.writeFileString(target, text))),
+											Effect.orDie,
+										);
+									}).pipe(Effect.andThen(fs.lstat(target)))
+								: fs.lstat(target),
+					}),
+				});
+				yield* harness.initialize;
+				armed = true;
+				const message = yield* harness.sendRequest("resources/read", { uri });
+				return { message, fired };
+			}).pipe(Effect.scoped);
+
+		it.effect("a concept answers 'changed while it was read; try again', never a link verdict", () =>
+			Effect.gen(function* () {
+				const { message, fired } = yield* readWhileResaved(
+					"okf://concept/metrics/revenue",
+					"/bundle/metrics/revenue.md",
+				);
+				assert.isTrue(fired, "the re-save must have run");
+				assert.ok(message.error !== undefined);
+				assert.include(JSON.stringify(message), "metrics/revenue.md changed while it was read; try again");
+				assert.notInclude(JSON.stringify(message), "links out of the bundle");
+			}),
+		);
+
+		it.effect("okf://index answers 'changed while it was read; try again', never a link verdict", () =>
+			Effect.gen(function* () {
+				const { message, fired } = yield* readWhileResaved("okf://index", "/bundle/index.md", 5);
+				assert.isTrue(fired, "the re-save must have run");
+				assert.ok(message.error !== undefined);
+				assert.include(JSON.stringify(message), "index.md changed while it was read; try again");
+				assert.notInclude(JSON.stringify(message), "links out of the bundle");
+			}),
+		);
+	});
+
 	it.effect("boots with only okf://index listed when the bundle fails to load", () =>
 		Effect.gen(function* () {
 			const { harness } = yield* open("missing-bundle");

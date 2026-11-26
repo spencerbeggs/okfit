@@ -157,6 +157,15 @@ describe("readConfinedString (OKF 0.3 section 3.2)", () => {
 					};
 				},
 			],
+			[
+				"the second resolution lands somewhere else (a link above the file was swapped between the two)",
+				(fs) => {
+					let calls = 0;
+					return {
+						realPath: (p) => (p === target && ++calls > 1 ? Effect.succeed(`${MOUNT}/elsewhere/a.md`) : fs.realPath(p)),
+					};
+				},
+			],
 		];
 		for (const [name, override] of cases) {
 			it.effect(name, () =>

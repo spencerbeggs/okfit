@@ -330,7 +330,7 @@ export class Bundle {
 	 * (pruned directory names are not checked, hidden ones only under `includeHidden`); a directory link that stays inside is never walked and
 	 * records nothing. Each Markdown file is read confined (`readConfinedString`): a file that becomes a link out of
 	 * the bundle between the link check and the read is refused as `symlink-escape`, and one that changed under the
-	 * read (`changed`) is recorded `walk-unreadable` ("try again") and left out. A race through a directory above
+	 * read (`changed`) is recorded `read-changed` ("try again") and left out of that load. A race through a directory above
 	 * the file can still win (spencerbeggs/okfit#524).
 	 */
 	static readonly load: (
@@ -427,9 +427,9 @@ export class Bundle {
 						read.refused === "changed"
 							? diagnostic(
 									file,
-									"walk-unreadable",
+									"read-changed",
 									"warning",
-									`file "${file}" changed while it was read; try again. It is not part of the bundle`,
+									`file "${file}" changed while it was read; try again. It is not part of this load`,
 								)
 							: diagnostic(
 									file,

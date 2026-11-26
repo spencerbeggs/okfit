@@ -6,6 +6,7 @@ import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profil
 import { ConceptOutsideRepositoryError, Derivation } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { Digest } from "effect/crypto";
+import { changedConceptIds, changedDirectories, changedFiles } from "../changedDuringLoad.js";
 import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
@@ -147,6 +148,16 @@ export const planSync: (
 > = Effect.fn("okfit/sync/planSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 
+	// A file that changed under the load (`read-changed`) is missing from `bundle`, so anything rendered from it is
+	// silently incomplete: a concept dropped from its directory's index, or an index whose frontmatter was never read.
+	// Nothing derived from the affected directories is written (their indexes, and no log); sync again.
+	const changedAny = changedFiles(bundle).length > 0;
+	const heldDirs = changedDirectories(bundle);
+	const changedSkips: ReadonlyArray<SyncSkip> = changedConceptIds(bundle).map((id) => ({
+		id,
+		reason: "changed-during-read" as const,
+	}));
+
 	// Step 2 (#21): one Derivation.generatedAt per concept that still needs
 	// one, shared by the generated and log modes. A concept whose recorded
 	// digest matches its body is `unchanged` to generated mode without any
@@ -244,7 +255,7 @@ export const planSync: (
 	}
 
 	const pending: Array<PendingWrite> = [];
-	const generated: SyncModeResult = options.modes.has("generated")
+	const generatedResult: SyncModeResult = options.modes.has("generated")
 		? {
 				selected: true,
 				...(yield* syncGenerated(bundle, {
@@ -258,22 +269,34 @@ export const planSync: (
 				})),
 			}
 		: UNSELECTED;
+	const generated: SyncModeResult =
+		generatedResult.selected && changedSkips.length > 0
+			? { ...generatedResult, skipped: [...generatedResult.skipped, ...changedSkips] }
+			: generatedResult;
 	const index: SyncModeResult = options.modes.has("index")
-		? { ...(yield* syncIndex(indexView, true, pending, options.config.okf_version)), migrated: [] }
+		? { ...(yield* syncIndex(indexView, true, pending, options.config.okf_version, heldDirs)), migrated: [] }
 		: UNSELECTED;
 	const log: SyncModeResult = !options.modes.has("log")
 		? UNSELECTED
-		: logDirty
+		: changedAny
 			? {
-					...({
-						selected: true,
-						written: [],
-						unchanged: [],
-						skipped: [{ id: "log.md", reason: "dirty" }],
-					} satisfies SyncLogResult),
+					selected: true,
+					written: [],
+					unchanged: [],
 					migrated: [],
+					skipped: [{ id: "log.md", reason: "changed-during-read" }],
 				}
-			: { ...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending)), migrated: [] };
+			: logDirty
+				? {
+						...({
+							selected: true,
+							written: [],
+							unchanged: [],
+							skipped: [{ id: "log.md", reason: "dirty" }],
+						} satisfies SyncLogResult),
+						migrated: [],
+					}
+				: { ...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending)), migrated: [] };
 
 	let restage: SyncPlan["restage"];
 	if (options.staged !== undefined && repoRoot !== undefined) {

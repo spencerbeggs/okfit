@@ -335,8 +335,15 @@ export const LintTable = Schema.Struct({
 	walk_unreadable: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "walk-unreadable",
+			description: 'A directory in the bundle could not be read while walking. Default "warn".',
+			default: "warn",
+		}),
+	),
+	read_changed: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "read-changed",
 			description:
-				'A directory in the bundle could not be read while walking, or a file changed while it was read (try again). Default "warn".',
+				'A file in the bundle was replaced or removed while it was being read, so it was left out of this load; reading again may succeed. Nothing derived from the bundle (an index, a log, a stamp) should be written from such a load. Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -843,6 +850,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"config-okf-version-stale": "config_okf_version_stale",
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
+	"read-changed": "read_changed",
 	"generated-at-drift": "generated_at_drift",
 	"verified-drift": "verified_drift",
 	"status-missing": "status_missing",
@@ -890,6 +898,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	config_okf_version_stale: "warn",
 	stale: "info",
 	walk_unreadable: "warn",
+	read_changed: "warn",
 	generated_at_drift: "warn",
 	verified_drift: "warn",
 	status_missing: "off",

@@ -109,6 +109,7 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	dryRun: boolean,
 	pending?: Array<PendingWrite>,
 	okfVersion?: string,
+	holdBack?: ReadonlySet<string>,
 ) {
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
@@ -116,7 +117,8 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	const skipped: Array<SyncIndexResult["skipped"][number]> = [];
 
 	// Step 1: the root.
-	if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
+	if (holdBack?.has("")) skipped.push({ id: "index.md", reason: "changed-during-read" });
+	else if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
 	else if (indexUnreadable(bundle, "index.md")) skipped.push({ id: "index.md", reason: "index-unparseable" });
 	else {
 		const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
@@ -142,6 +144,10 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	// Step 2: every other directory.
 	for (const dir of Derive.indexDirectories(bundle)) {
 		if (dir === "") continue;
+		if (holdBack?.has(dir)) {
+			skipped.push({ id: `${dir}/index.md`, reason: "changed-during-read" });
+			continue;
+		}
 		if (yield* escapesBundle(bundle, `${dir}/index.md`)) {
 			skipped.push({ id: `${dir}/index.md`, reason: "symlink-escape" });
 			continue;

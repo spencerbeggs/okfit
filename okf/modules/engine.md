@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T07:05:51Z
+  at: 2026-11-26T07:43:47Z
 x-okfit-integrity:
   generated:
-    body: ae54200d408b481b
+    body: 8315d10fa758a620
 ---
 
 # Engine
@@ -285,7 +285,13 @@ included: `syncIndex` and `syncLog` return it in `skipped` with the reason
 `symlink-escape` (`SkipReason`), in plain, dry-run and `--staged` runs, and
 the exit code is unchanged. A file that changed under sync's read
 (`ConfinementError` reason `changed`) is skipped as `changed-during-read`
-instead, a transient skip, never labelled an escape. `syncIndex` likewise never renders over a root
+instead, a transient skip, never labelled an escape. A file that changed under
+`Bundle.load` (`read-changed`) is missing from the bundle, so `planSync` writes nothing derived from the
+affected directories: the changed concept id is listed in `generated.skipped`, the `index.md` of its
+directory and of each directory above it in `index.skipped`, and `log.md` in `log.skipped`
+(`changed-during-read`); `changedDuringLoad.ts` computes those sets, and `mv` (`MoveError`
+`changed-during-read`), the migration fix (every selected finding refused) and the verify batch (a
+`changed-during-read` skip) use it too, rather than write something silently incomplete. `syncIndex` likewise never renders over a root
 or subdirectory `index.md` whose frontmatter never closes or does not parse
 (`frontmatter-unclosed` or `frontmatter-unparseable` on that file): it
 returns it in `skipped` with the reason `index-unparseable`, in every run,

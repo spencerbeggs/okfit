@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T05:28:06Z
+  at: 2026-11-26T07:43:47Z
 tags:
   - architecture
 verified:
@@ -39,7 +39,7 @@ verified:
     at: 2026-11-26T06:31:52Z
 x-okfit-integrity:
   generated:
-    body: 3c3e653d992f4593
+    body: ee100e36d909eb18
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:52Z
@@ -114,9 +114,9 @@ A config that fails decode is reported as `malformed config <path>: <key>:
 
 ## Lint severities
 
-The forty-three default lint codes (the twenty-nine below, the ten that OKF v0.3 support added, listed after them, `non_concept_unlisted`, and the three described after it): `broken_links`, `missing_index`,
+The forty-four default lint codes (the thirty below, the ten that OKF v0.3 support added, listed after them, `non_concept_unlisted`, and the three described after it): `broken_links`, `missing_index`,
 `footnote_source_unknown`, `footnote_undefined`, `log_frontmatter`, `config_unknown_key`,
-`walk_unreadable`, `generated_at_drift`, `source_resource_missing`, `generated_missing`,
+`walk_unreadable` (a directory could not be read while walking), `read_changed` (a file was replaced or removed while it was being read, so it is left out of that load: try again, and nothing derived from the bundle is written from it), `generated_at_drift`, `source_resource_missing`, `generated_missing`,
 `publication_drift`, `surface_unmatched`, `verified_before_change` and `verified_drift` default `warn`;
 `resource_untracked` defaults `warn` and `resource_ignored` defaults `error` (issue #279;
 see below); `unknown_type`, `required_key_missing` (a key written as null, `""` or `[]` is reported as "is empty", an unwritten one as "is missing"), `field_value_unknown` (an empty value is absent, not unknown), `require_verified_unmet` (no `verified` entry at all),

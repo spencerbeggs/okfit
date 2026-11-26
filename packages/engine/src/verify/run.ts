@@ -5,6 +5,7 @@ import { Bundle, ConceptId, Derive, INTEGRITY_KEY, Timestamp, generatedAtIsFutur
 import type { DriftReason } from "@okfit/profiles";
 import { Derivation, Trust } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
+import { changedConceptIds } from "../changedDuringLoad.js";
 import {
 	VerifyConceptNotFoundError,
 	VerifyContentUnhashableError,
@@ -616,7 +617,11 @@ export const runVerifyBatch = Effect.fn("okfit/verify/runVerifyBatch")(function*
 		at,
 		dryRun: options.dryRun,
 		verified: prepared.map(({ id, conceptPath, fragment }) => ({ id, conceptPath, fragment })),
-		skipped: selection.skipped,
+		// A concept that changed under the load was never considered: say so, rather than leave a batch that looks complete.
+		skipped: [
+			...selection.skipped,
+			...changedConceptIds(bundle).map((id) => ({ id, reason: "changed-during-read" as const })),
+		],
 	} satisfies VerifyBatchResult;
 });
 
