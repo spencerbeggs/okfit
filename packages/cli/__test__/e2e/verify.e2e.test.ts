@@ -855,7 +855,10 @@ describe("okfit verify (e2e)", () => {
 			assert.strictEqual(dry.exitCode, 0);
 			assert.match(dry.stdout, /would verify decisions\/a by human:ada at 2026-09-16T12:00:00Z/);
 			assert.match(dry.stdout, /would verify decisions\/b by human:ada/);
-			assert.match(dry.stdout, /skipped decisions\/d: draft/);
+			assert.match(
+				dry.stdout,
+				/skipped decisions\/d: status draft, so a batch leaves it out; verify it on its own with okfit verify decisions\/d --stable/,
+			);
 			assert.match(dry.stdout, /would verify 2, skipped 1 \(dry run, nothing written\)/);
 			assert.ok(!(await readFile(join(decisions, "a.md"), "utf8")).includes("verified:"));
 
@@ -881,6 +884,44 @@ describe("okfit verify (e2e)", () => {
 			const second = JSON.parse(again.stdout) as { concepts: Array<unknown>; skipped: Array<{ reason: string }> };
 			assert.deepStrictEqual(second.concepts, []);
 			assert.ok(second.skipped.every((s) => s.reason === "already-verified" || s.reason === "draft"));
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--all names the step for a draft and a deprecated concept, and the step works (#517)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const decisions = join(cwd, "okf", "decisions");
+			const write = (name: string, extra: string) =>
+				writeFile(
+					join(decisions, `${name}.md`),
+					`---\ntype: Decision\ntitle: ${name}\ndescription: ${name}.\n${extra}---\n\n# ${name}\n`,
+					"utf8",
+				);
+			await write("d", "status: draft\n");
+			await write("e", "status: deprecated\n");
+			const dry = await withServices(
+				runOkfit(["verify", "--all", "--dry-run"], { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }),
+			);
+			assert.strictEqual(dry.exitCode, 0, dry.stderr);
+			assert.include(
+				dry.stdout,
+				"skipped decisions/d: status draft, so a batch leaves it out; verify it on its own with okfit verify decisions/d --stable to settle it, or --draft to keep it a draft\n",
+			);
+			assert.include(
+				dry.stdout,
+				"skipped decisions/e: status deprecated, so a batch leaves it out, and there is nothing to verify while it is retired; if it is current again, set its status, or verify it with okfit verify decisions/e --stable\n",
+			);
+			// the suggested commands are accepted
+			for (const args of [
+				["verify", "decisions/d", "--stable", "--dry-run", "--no-diff"],
+				["verify", "decisions/d", "--draft", "--dry-run", "--no-diff"],
+				["verify", "decisions/e", "--stable", "--dry-run", "--no-diff"],
+			]) {
+				const run = await withServices(runOkfit(args, { cwd, env: { ...env, OKFIT_NOW: "2026-09-16T12:00:00Z" } }));
+				assert.strictEqual(run.exitCode, 0, `${args.join(" ")}: ${run.stderr}`);
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}

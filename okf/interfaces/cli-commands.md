@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T00:27:21Z
+  at: 2026-11-26T00:48:21Z
 tags:
   - architecture
 verified:
@@ -47,7 +47,7 @@ verified:
     at: 2026-11-25T13:30:01Z
 x-okfit-integrity:
   generated:
-    body: 75815f606dda3f0d
+    body: 29145ab1d9a926d1
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:01Z
@@ -211,7 +211,7 @@ skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
-already verified are reported as skipped (`VerifyBatchEnvelope.skipped[].reason`
+already verified are reported as skipped, each line naming its next step (a draft: `okfit verify <id> --stable` to settle it or `--draft` to keep it; a deprecated one: set its status, or `okfit verify <id> --stable`; an already-verified one: nothing to do; an id list attests drafts and deprecated concepts, only a batch skips them) (`VerifyBatchEnvelope.skipped[].reason`
 is `draft`, `deprecated`, `unknown-status`, `already-verified` or `not-current`; `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
