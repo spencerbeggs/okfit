@@ -54,7 +54,7 @@
 		"@okfit/plugin": "workspace:*",
 		"@savvy-web/silk": "^5.1.10",
 		"@vitest-agent/plugin": "^6.2.1",
-		"pluginfinity": "^0.3.25",
+		"pluginfinity": "^0.4.0",
 		"tsx": "^4.23.15"
 	},
 	"engines": {
