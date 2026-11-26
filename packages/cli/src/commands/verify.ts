@@ -58,13 +58,13 @@ const typeFlag = Flag.String("type").pipe(
 /** Issue #185: settle the concept in the same write as the attestation. */
 const stableFlag = Flag.Boolean("stable").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("also set status: stable in the same write; needs one concept target"),
+	Flag.withDescription("also set status: stable in the same write; needs targets that name one concept"),
 );
 
 /** Issue #185: record a review without settling. */
 const draftFlag = Flag.Boolean("draft").pipe(
 	Flag.withDefault(false),
-	Flag.withDescription("also set (or keep) status: draft in the same write; needs a concept id"),
+	Flag.withDescription("also set (or keep) status: draft in the same write; needs targets that name one concept"),
 );
 
 /** Take back your own verification of one concept. */
@@ -175,7 +175,9 @@ export const verifyCommand = Command.make(
 					return yield* new VerifySelectionError({ reason: "targets-and-batch" });
 				}
 				if (input.stable && input.draft) return yield* new VerifySelectionError({ reason: "status-conflict" });
-				if ((input.stable || input.draft) && input.targets.length !== 1) {
+				// A batch, or no target at all, can never name one concept: refuse before config. Targets that
+				// name one concept in several spellings are counted after they resolve (below).
+				if ((input.stable || input.draft) && (batch || input.targets.length === 0)) {
 					return yield* new VerifySelectionError({ reason: "status-and-batch" });
 				}
 
@@ -215,6 +217,11 @@ export const verifyCommand = Command.make(
 					const bundle = yield* Bundle.load({ root: resolved.bundleRoot });
 					const targets = yield* Targets.resolve(input.targets, bundle, cwd);
 					ids = targets.map((target) => target.id as string);
+					// Targets.resolve collapses one concept named twice to a single id; two distinct concepts
+					// would go to the id-list run, which takes no status, so this is the only guard (#514).
+					if ((input.stable || input.draft) && ids.length !== 1) {
+						return yield* new VerifySelectionError({ reason: "status-and-batch" });
+					}
 				}
 
 				if (input.revoke) {

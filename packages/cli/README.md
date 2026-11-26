@@ -313,8 +313,9 @@ editor's verify action does the same.
 `--stable` or `--draft` sets the concept's `status` in the same write as the
 attestation, so settling a reviewed draft is one command:
 `okfit verify <id> --stable`. Passing both is a usage error (exit `64`), as
-is passing either with `--all` or `--type`: promotion is a per-concept
-decision. A concept already at the requested status gets no status edit. The
+is passing either with `--all`, `--type`, no target, or targets that name
+more than one concept: promotion is a per-concept decision. One concept named
+twice (by id and by path) counts once. A concept already at the requested status gets no status edit. The
 human line ends `; status <from> -> <to>`, `; status already <to>` or
 `; status (absent) -> <to>`, and a dry run adds a `would set status:` line
 with the exact fragment.

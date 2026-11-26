@@ -128,7 +128,7 @@ describe("VerifySelectionError status reasons (#185)", () => {
 		assert.strictEqual(error[Runtime.errorExitCode], 64);
 		assert.strictEqual(
 			error.message,
-			"--stable and --draft need exactly one concept target; batch mode never changes status",
+			"--stable and --draft need targets that name exactly one concept; batch mode never changes status",
 		);
 	});
 });

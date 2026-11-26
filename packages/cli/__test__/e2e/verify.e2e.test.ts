@@ -194,8 +194,35 @@ describe("okfit verify (e2e)", () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
 			await writeTwoDecisions(cwd);
+			const before = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
 			const run = await withServices(runOkfit(["verify", "decisions/a", "decisions/b", "--stable"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 64);
+			assert.include(run.stderr, "--stable and --draft need targets that name exactly one concept");
+			assert.strictEqual(await readFile(join(cwd, "okf/decisions/a.md"), "utf8"), before);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
+	it("--stable and --draft accept one concept named more than once (#514)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeTwoDecisions(cwd);
+			const spellings = [
+				["decisions/a", "okf/decisions/a.md"],
+				["decisions/a", join(cwd, "okf/decisions/a.md")],
+			];
+			for (const flag of ["--stable", "--draft"]) {
+				for (const targets of spellings) {
+					const run = await withServices(
+						runOkfit(["verify", ...targets, flag, "--dry-run", "--no-diff"], { cwd, env }),
+					);
+					assert.strictEqual(run.exitCode, 0, run.stderr);
+					const lines = run.stdout.split("\n").filter((line) => line.startsWith("would verify decisions/a"));
+					assert.lengthOf(lines, 1);
+					assert.include(lines[0], "; status ");
+				}
+			}
 		} finally {
 			await removeSandbox(sandbox);
 		}
@@ -973,7 +1000,7 @@ describe("okfit verify (e2e)", () => {
 				const before = await readProject(cwd);
 				const bare = await withServices(runOkfit(["verify", "--stable"], { cwd, env: { ...env, ...NOW } }));
 				assert.strictEqual(bare.exitCode, 64);
-				assert.include(bare.stderr, "--stable and --draft need exactly one concept target");
+				assert.include(bare.stderr, "--stable and --draft need targets that name exactly one concept");
 				assert.strictEqual(await readProject(cwd), before);
 			} finally {
 				await removeSandbox(sandbox);

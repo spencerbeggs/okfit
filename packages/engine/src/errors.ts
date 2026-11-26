@@ -279,7 +279,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		if (this.reason === "status-conflict") return "verify takes --stable or --draft, not both";
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {
-			return "--stable and --draft need exactly one concept target; batch mode never changes status";
+			return "--stable and --draft need targets that name exactly one concept; batch mode never changes status";
 		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}
