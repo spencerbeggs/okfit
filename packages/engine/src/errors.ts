@@ -159,7 +159,7 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 			case "blocked":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated ${this.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
 			case "future":
-				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again`;
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again`;
 			case "near-future":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after ${this.generatedAt}`;
 			default:
