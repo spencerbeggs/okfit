@@ -48,7 +48,7 @@ export interface UnreadableDirectory {
  * @remarks
  * `directories` answers a directory by its RESOLVED kind: a symbolic link to a directory is listed although the
  * walk never enters it, wherever it points; a pruned directory is listed too, since `prune` withholds what lies
- * below a directory, not the directory. A dangling link is in neither list; the walker drops it without a
+ * below a directory, not the directory. A dangling or unresolvable link is in neither list; the walker drops it without a
  * trace. `Bundle.load` checks each listed directory with `confineReal`.
  *
  * @public

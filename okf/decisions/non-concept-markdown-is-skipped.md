@@ -13,11 +13,11 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T04:59:05Z
+  at: 2026-11-26T05:28:06Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: e9f4a6704c348cb8
+    body: 814c26e9a18d9ca6
   verified:
     by: human:spencer
     at: 2026-11-25T13:30:00Z
@@ -75,7 +75,11 @@ leaves it. A link to a directory that stays inside the bundle is never walked
 and draws no diagnostic. A dangling link of any kind, file or directory, is
 also recorded as `symlink-escape` ("could not be resolved"), because the
 walker drops it without a trace and it cannot be told from a file link or a
-directory link.
+directory link. So is any link whose resolution fails for another reason (a
+link loop, a target in a directory that cannot be read). A pruned name
+(`node_modules` by default) is silent: neither the entry nor anything under
+it is checked. A hidden name is checked only when the bundle loads with
+`includeHidden`.
 
 The consequence for exit codes is accepted: a bundle that holds a README or
 any other typeless markdown file now validates with exit code 0 and a

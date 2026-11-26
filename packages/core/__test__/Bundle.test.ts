@@ -227,6 +227,95 @@ describe("Bundle.load", () => {
 			),
 		),
 	);
+	it.effect("a link whose resolution fails for any reason is reported: a self loop and a mutual loop (#458, Q7)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(codes(bundle.diagnostics), [
+				["loop", "symlink-escape", undefined],
+				["loopa", "symlink-escape", undefined],
+				["loopb", "symlink-escape", undefined],
+			]);
+			assert.isTrue(bundle.diagnostics.every((d) => d.message === DANGLING_FILE));
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/loop`]: MemoryFileSystem.symlink(`${MOUNT}/loop`),
+					[`${MOUNT}/loopa`]: MemoryFileSystem.symlink(`${MOUNT}/loopb`),
+					[`${MOUNT}/loopb`]: MemoryFileSystem.symlink(`${MOUNT}/loopa`),
+				}),
+			),
+		),
+	);
+	it.effect("a pruned name is fully silent: links inside a real node_modules are not checked (#458, Q8)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.diagnostics, []);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+			// control: with node_modules no longer pruned the same links are reported, so the silence above is the prune
+			const open = yield* Bundle.load({ root: MOUNT, prune: [".git"] });
+			assert.deepStrictEqual(
+				codes(open.diagnostics)
+					.map(([file]) => file)
+					.sort(),
+				["node_modules/gone", "node_modules/out"],
+			);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/node_modules/gone`]: MemoryFileSystem.symlink("/nowhere"),
+					[`${MOUNT}/node_modules/out`]: MemoryFileSystem.symlink("/outside"),
+					"/outside/x.md": "",
+				}),
+			),
+		),
+	);
+	it.effect("a custom prune list silences its own names, and only those (#458, Q8)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT, prune: ["vendor"] });
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["node_modules", "symlink-escape", undefined]]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/vendor`]: MemoryFileSystem.symlink("/outside"),
+					[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside"),
+					"/outside/x.md": "",
+				}),
+			),
+		),
+	);
+	it.effect("a dangling or escaping link named node_modules is silent by default (#458, Q8)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.diagnostics, []);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside"),
+					[`${MOUNT}/pkgs/node_modules`]: MemoryFileSystem.symlink("/nowhere"),
+					"/outside/x.md": "",
+				}),
+			),
+		),
+	);
+	it.effect("a dangling hidden link is silent by default and reported with includeHidden (#458)", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual((yield* Bundle.load({ root: MOUNT })).diagnostics, []);
+			const shown = yield* Bundle.load({ root: MOUNT, includeHidden: true });
+			assert.deepStrictEqual(codes(shown.diagnostics), [[".gone", "symlink-escape", undefined]]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/.gone`]: MemoryFileSystem.symlink("/nowhere"),
+				}),
+			),
+		),
+	);
 	it.effect("includeHidden also checks a hidden directory link (#458)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT, includeHidden: true });

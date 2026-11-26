@@ -11,7 +11,7 @@
 // fixture — no CLI-owned duplicate category.
 
 import { readdirSync } from "node:fs";
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Bundle, ConceptId } from "@okfit/core";
@@ -1687,5 +1687,31 @@ describe("okfit validate: a directory link out of the bundle and a dangling link
 				assert.notInclude(dry.stdout, "external/");
 				assert.notInclude(dry.stdout, "hop/");
 			}).pipe(Effect.provide(TestPlatform)),
+	);
+	it.effect("reports a link into a mode-000 directory and a link loop; skipped where permissions do not bind", () =>
+		Effect.gen(function* () {
+			// root ignores mode bits, so the locked directory would stay readable and the case proves nothing
+			if (process.getuid?.() === 0) return;
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-unresolvable-"));
+			const init = yield* runOkfit(["init"], sandbox);
+			assert.strictEqual(init.exitCode, 0);
+			const bundle = join(sandbox.cwd, "okf");
+			const locked = join(sandbox.cwd, "locked");
+			yield* Effect.promise(async () => {
+				await writeFileDeep(join(locked, "target.md"), concept("Target"));
+				await symlink(join(locked, "target.md"), join(bundle, "peek.md"));
+				await symlink(join(bundle, "loop"), join(bundle, "loop"));
+				await chmod(locked, 0o000);
+			});
+			yield* Effect.gen(function* () {
+				const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+				const body = JSON.parse(json.stdout) as { diagnostics: Array<{ code: string; file: string }> };
+				const files = body.diagnostics
+					.filter((d) => d.code === "symlink-escape")
+					.map((d) => d.file.split("/").pop())
+					.sort();
+				assert.deepStrictEqual(files, ["loop", "peek.md"]);
+			}).pipe(Effect.ensuring(Effect.promise(() => chmod(locked, 0o755))));
+		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
