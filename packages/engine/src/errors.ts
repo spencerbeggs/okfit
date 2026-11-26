@@ -244,6 +244,10 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
  * timestamp (#513); for both, `detail` is the value. `at-malformed` quotes it in double quotes exactly as given (so an empty value reads `""`), and a front end that
  * prints it to a terminal puts it on one line itself.
  *
+ * `status-and-batch` is `--stable` or `--draft` given with `--all`/`--type` or with no target (refused before config is
+ * read); `status-needs-one-concept` is the same flags with targets that resolved to more than one concept, where
+ * `detail` is the resolved count as a decimal string.
+ *
  * @public
  */
 export class VerifySelectionError extends Schema.TaggedError<VerifySelectionError>()("VerifySelectionError", {
@@ -253,6 +257,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		"unknown-type",
 		"status-conflict",
 		"status-and-batch",
+		"status-needs-one-concept",
 		"dry-run-needs-verify",
 		"revoke-needs-id",
 		"revoke-conflict",
@@ -280,6 +285,9 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 		if (this.reason === "dry-run-needs-verify") return "--dry-run needs --verify; bare okfit stale writes nothing";
 		if (this.reason === "status-and-batch") {
 			return "--stable and --draft need targets that name exactly one concept; batch mode never changes status";
+		}
+		if (this.reason === "status-needs-one-concept") {
+			return `--stable and --draft need targets that name exactly one concept; these name ${this.detail ?? "several"}`;
 		}
 		return `type "${this.detail ?? ""}" is not declared in the config`;
 	}

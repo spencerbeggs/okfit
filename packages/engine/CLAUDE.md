@@ -18,7 +18,8 @@ src/
                              VerifyConceptNotFoundError, VerifyUnsupportedFrontmatterError, VerifyStatusUnknownError,
                              VerifyNotCurrentError (exit 3: a verification dated before generated.at, OKF 0.3 5.3, R33),
                              VerifySelectionError (exit 64; reasons `at-future`: an `--at` more than 5 minutes later than now,
-                             and `at-malformed`: an `--at` that is not a timestamp),
+                             `at-malformed`: an `--at` that is not a timestamp, and `status-needs-one-concept`:
+                             `--stable`/`--draft` with targets that resolve to more than one concept),
                              DocumentPathError, QueryUnknownVocabularyError, QueryConceptNotFoundError,
                              QuerySelectionError, TargetResolutionError, MoveError
   config/

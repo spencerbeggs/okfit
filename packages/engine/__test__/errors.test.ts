@@ -133,6 +133,14 @@ describe("VerifySelectionError status reasons (#185)", () => {
 	});
 });
 
+describe("VerifySelectionError status-needs-one-concept (#514)", () => {
+	it("exits 64 and names the resolved count, without the batch tail", () => {
+		const error = new VerifySelectionError({ reason: "status-needs-one-concept", detail: "2" });
+		assert.strictEqual(error[Runtime.errorExitCode], 64);
+		assert.strictEqual(error.message, "--stable and --draft need targets that name exactly one concept; these name 2");
+	});
+});
+
 describe("VerifySelectionError at-malformed (#513)", () => {
 	it("exits 64 and names the expected form, quoting the value as given", () => {
 		const error = new VerifySelectionError({ reason: "at-malformed", detail: "tomorrow" });

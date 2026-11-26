@@ -220,7 +220,7 @@ export const verifyCommand = Command.make(
 					// Targets.resolve collapses one concept named twice to a single id; two distinct concepts
 					// would go to the id-list run, which takes no status, so this is the only guard (#514).
 					if ((input.stable || input.draft) && ids.length !== 1) {
-						return yield* new VerifySelectionError({ reason: "status-and-batch" });
+						return yield* new VerifySelectionError({ reason: "status-needs-one-concept", detail: String(ids.length) });
 					}
 				}
 

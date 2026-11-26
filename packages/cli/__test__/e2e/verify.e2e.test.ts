@@ -197,7 +197,8 @@ describe("okfit verify (e2e)", () => {
 			const before = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
 			const run = await withServices(runOkfit(["verify", "decisions/a", "decisions/b", "--stable"], { cwd, env }));
 			assert.strictEqual(run.exitCode, 64);
-			assert.include(run.stderr, "--stable and --draft need targets that name exactly one concept");
+			assert.include(run.stderr, "--stable and --draft need targets that name exactly one concept; these name 2");
+			assert.notInclude(run.stderr, "batch mode");
 			assert.strictEqual(await readFile(join(cwd, "okf/decisions/a.md"), "utf8"), before);
 		} finally {
 			await removeSandbox(sandbox);
@@ -223,6 +224,18 @@ describe("okfit verify (e2e)", () => {
 					assert.include(lines[0], "; status ");
 				}
 			}
+			// A real run: one verified entry and one status change, not two.
+			const before = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
+			const real = await withServices(
+				runOkfit(["verify", "decisions/a", "okf/decisions/a.md", "--stable", "--no-diff"], {
+					cwd,
+					env: { ...env, OKFIT_NOW: "2026-09-07T00:00:00.000Z" },
+				}),
+			);
+			assert.strictEqual(real.exitCode, 0, real.stderr);
+			const after = await readFile(join(cwd, "okf/decisions/a.md"), "utf8");
+			assert.lengthOf(after.match(/^\s*- by: /gm) ?? [], (before.match(/^\s*- by: /gm) ?? []).length + 1);
+			assert.lengthOf(after.match(/^status: stable$/gm) ?? [], 1);
 		} finally {
 			await removeSandbox(sandbox);
 		}
