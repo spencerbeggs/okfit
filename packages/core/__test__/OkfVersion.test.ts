@@ -54,4 +54,28 @@ describe("OkfVersion", () => {
 			),
 		),
 	);
+	it.effect("a quoted '0.10' declares 0.10 and is current (#467)", () =>
+		Effect.gen(function* () {
+			const load = (version: string) =>
+				Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform({
+							[`${MOUNT}/index.md`]: `---\nokf_version: '${version}'\n---\n\n# Note\n\n* [A](a.md)\n`,
+							[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+						}),
+					),
+				);
+			const current = yield* load("0.10");
+			assert.deepStrictEqual(OkfVersion.declared(current), Option.some("0.10"));
+			assert.isFalse(OkfVersion.legacyFallbacks(current));
+			assert.deepStrictEqual(
+				current.diagnostics.filter((d) => d.file === "index.md"),
+				[],
+			);
+			// control: a quoted '0.2' keeps the fallbacks
+			const legacy = yield* load("0.2");
+			assert.deepStrictEqual(OkfVersion.declared(legacy), Option.some("0.2"));
+			assert.isTrue(OkfVersion.legacyFallbacks(legacy));
+		}),
+	);
 });

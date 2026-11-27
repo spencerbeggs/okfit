@@ -440,6 +440,33 @@ describe("Validate", () => {
 			}),
 		);
 
+		it.effect("required-key-missing: a required, value-listed key written empty gives one diagnostic (#467)", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: {
+						Module: {
+							required: ["kind"],
+							fields: { kind: { description: "Kind.", values: { package: "npm package" } } },
+						},
+					},
+					extensions: {},
+				});
+				const both = (kind: string) =>
+					loadFromSources({ "m.md": `---\ntype: Module\nkind: ${kind}\n---\n` }).pipe(
+						Effect.map((bundle) =>
+							Validate.lint(bundle, config)
+								.filter((d) => d.code === "required-key-missing" || d.code === "field-value-unknown")
+								.map((d) => [d.code, d.message]),
+						),
+					);
+				assert.deepStrictEqual(yield* both('""'), [["required-key-missing", 'Required key "kind" is empty']]);
+				// control: a real but unlisted value is exactly one field-value-unknown
+				const bogus = yield* both("bogus");
+				assert.strictEqual(bogus.length, 1);
+				assert.strictEqual(bogus[0]?.[0], "field-value-unknown");
+			}),
+		);
+
 		it.effect("required-key-missing: whitespace, 0, false and {} are present", () =>
 			Effect.gen(function* () {
 				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["k"] }, extensions: {} });

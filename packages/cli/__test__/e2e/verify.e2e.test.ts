@@ -1253,6 +1253,47 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 	const LINE =
 		'skipped decisions/wip: status "wip" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify decisions/wip --stable or --draft\n';
 
+	it("--all skips an unknown status with its line and verifies the rest (#467)", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const decisions = join(cwd, "okf", "decisions");
+			const write = (name: string, extra: string) =>
+				writeFile(
+					join(decisions, `${name}.md`),
+					`---\ntype: Decision\ntitle: ${name}\ndescription: ${name}.\n${extra}---\n\n# ${name}\n`,
+					"utf8",
+				);
+			await write("a", "status: stable\n");
+			await write("wip", "status: wip\n");
+			const wip = join(decisions, "wip.md");
+			const wipBefore = await readFile(wip, "utf8");
+
+			const run = await withServices(runOkfit(["verify", "--all"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, LINE);
+			assert.include(run.stdout, "verified decisions/a by human:ada");
+			assert.include(run.stdout, "verified 1, skipped 1");
+			assert.strictEqual(await readFile(wip, "utf8"), wipBefore);
+
+			const json = await withServices(runOkfit(["verify", "--all", "--format", "json"], { cwd, env }));
+			assert.strictEqual(json.exitCode, 0, json.stderr);
+			const skipped = (JSON.parse(json.stdout) as { skipped: Array<{ id: string; reason: string }> }).skipped;
+			assert.deepStrictEqual(
+				skipped.filter((s) => s.id === "decisions/wip"),
+				[{ id: "decisions/wip", reason: "unknown-status" }],
+			);
+
+			// control: the same concept with a vocabulary status is verified by the same --all
+			await write("wip", "status: stable\n");
+			const control = await withServices(runOkfit(["verify", "--all"], { cwd, env }));
+			assert.strictEqual(control.exitCode, 0, control.stderr);
+			assert.include(control.stdout, "verified decisions/wip by human:ada");
+			assert.notInclude(control.stdout, 'status "wip"');
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+
 	it("an id list skips an unknown status with a line whose command works, and verifies the rest (#507)", async () => {
 		const { sandbox, cwd, env } = await seeded();
 		try {
