@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T21:28:22Z
+  at: 2026-11-27T22:02:01Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 93dfd0d76b0d540e
+    body: f3f03e95619e021d
   verified:
     by: human:spencer
     at: 2026-11-24T17:12:02Z
@@ -59,8 +59,10 @@ current, and `okf_version: 0.2` declares 0.2 and keeps the fallbacks. The
 An unquoted number gates the fallbacks by what it says, because §12.1 keys
 them on what a bundle declares and §11.2 rule 4 keeps a value outside its
 vocabulary, so treating it as no declaration would hand the fallbacks to an
-author who wrote 0.3 or 0.10. A value with no readable `<major>.<minor>` text
-(`true`, a list, a mapping) does not parse and reads as current, as below.
+author who wrote 0.3 or 0.10. Unquoted text that is not a `<major>.<minor>`
+pair (`.2`, `0.2e0`, `1e1`) declares that text, which does not parse and reads
+as current, and so does a value with no readable version text (`true`, a list,
+a mapping), as below.
 
 One gate, `OkfVersion.legacyFallbacks(bundle)`, answers whether the v0.2
 fallbacks apply. It is true when the bundle declares no version, or declares

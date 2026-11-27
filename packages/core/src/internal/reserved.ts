@@ -162,16 +162,16 @@ export const parseIndex = (
 						warn("okf_version", `okf_version "${version}" is not a <major>.<minor> version`);
 				}
 			} else if (typeof version === "number") {
-				// An unquoted number is read by its source text, because YAML has already turned `0.10` into 0.1 and a
-				// version is a `<major>.<minor>` pair, not a number (§8.1: "A quoted string"). The declaration still
-				// counts by what the author wrote (§11.2 rule 4 keeps a value outside its vocabulary, §12.1 keys the
-				// fallbacks on what a bundle "declares"); the warning reports the breach and says to quote it.
+				// An unquoted number declares the text its author wrote, because YAML has already turned `0.10` into 0.1 and a
+				// version is a `<major>.<minor>` pair, not a number (§8.1: "A quoted string"). The declaration still counts
+				// by what the author wrote (§11.2 rule 4 keeps a value outside its vocabulary, §12.1 keys the fallbacks on
+				// what a bundle "declares"): text that is not a pair (`.2`, `0.2e0`, `1e1`) declares no readable version, so
+				// it does not parse and reads as current (§12). YAML's reading is only the fallback when no text is found.
 				const span = findFrontmatterPathSpan(text, node, ["okf_version"]);
 				const reads = String(version);
 				const source = span === undefined ? reads : text.slice(span.offset, span.offset + span.length);
 				const isPair = Option.isSome(OkfVersion.parse(source));
-				// A text that is not a `<major>.<minor>` pair (`1e1`, `.3`, `3`) keeps YAML's reading as the declared version.
-				metadata.okfVersion = isPair ? source : reads;
+				metadata.okfVersion = source;
 				warn("okf_version", unquotedMessage(source, reads, isPair));
 			} else if (version !== null && version !== undefined) {
 				metadata.okfVersion = JSON.stringify(version);

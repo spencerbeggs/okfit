@@ -9,7 +9,7 @@
 * `generated-missing` now fires for a `generated` written without a readable `generated.by` (`generated: {}`, no `by`, a non-mapping) and for a concept with only a legacy `timestamp`, each with a message that says to set `generated.by` by hand, because `okfit sync` cannot fill either in (#466)
 * `generated-missing` no longer promises that `okfit sync` will create the block for a `generated` written as `""`, `[]`, `!!null` or `&a ~`, or in a flow-style frontmatter block, or as an explicit `? generated` key: those get the hand-edit message (#466)
 * A diagnostic for a bare `key:` or a tagged empty value (`generated: !!null`) now points at the key's own line instead of the first line of the frontmatter; `DiagnosticRange.forFrontmatterPath` still returns only a value's own text
-* An unquoted root `okf_version` such as `0.10` is read as written (0.10, current) instead of as YAML's number 0.1, which kept the v0.2 fallbacks; the warning shows the written value and says to quote it (#467)
+* An unquoted root `okf_version` such as `0.10` is read as written (0.10, current) instead of as YAML's number 0.1, which kept the v0.2 fallbacks; unquoted text that is not a `<major>.<minor>` pair (`.2`, `1e1`) declares that text and reads as current; the warning shows the written value and says to quote it (#467)
 * The `broken-links` and `generated-missing` descriptions in the config JSON Schema now say what they report
 
 ## Features

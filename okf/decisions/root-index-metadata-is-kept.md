@@ -13,11 +13,11 @@ sources:
     title: syncIndex passes the kept block to the renderer.
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T21:20:24Z
+  at: 2026-11-27T22:02:01Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 3ba9232225ac52ce
+    body: 57bb747476215945
   verified:
     by: human:spencer
     at: 2026-11-24T02:55:14Z
@@ -51,7 +51,8 @@ Reading is tolerant. A non-string `title`, `description` or `license`, or an
 `okf_version` that is not a quoted `<major>.<minor>` string, is reported as
 `index-metadata-invalid` (lint, `warn`) and read best effort: an unquoted
 number such as `0.3` still becomes the version `"0.3"`, read by its source
-text, so `0.10` becomes `"0.10"`, not `"0.1"`. An empty block is
+text, so `0.10` becomes `"0.10"`, not `"0.1"`, and text that is not a
+`<major>.<minor>` pair, such as `1e1`, is kept as written. An empty block is
 no metadata. The conformance error `index-frontmatter` remains for a root
 block that is not a mapping, and for any `index.md` below the root that
 carries frontmatter.

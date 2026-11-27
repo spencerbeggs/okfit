@@ -151,4 +151,25 @@ describe("OkfVersion", () => {
 			assert.isFalse(OkfVersion.legacyFallbacks(bundle));
 		}),
 	);
+	it.effect("an unquoted number that is not a <major>.<minor> pair declares its text and reads as current (#467)", () =>
+		Effect.gen(function* () {
+			for (const text of [".2", "0.2e0", "+0.3", "1e1"]) {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform({
+							[`${MOUNT}/index.md`]: `---\nokf_version: ${text}\n---\n\n# Note\n\n* [A](a.md)\n`,
+							[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+						}),
+					),
+				);
+				assert.deepStrictEqual(OkfVersion.declared(bundle), Option.some(text), text);
+				assert.isFalse(OkfVersion.legacyFallbacks(bundle), text);
+				assert.deepStrictEqual(
+					bundle.diagnostics.map((d) => d.code),
+					["index-metadata-invalid"],
+					text,
+				);
+			}
+		}),
+	);
 });

@@ -138,11 +138,16 @@ describe("internal/reserved", () => {
 			const bare = yield* run("okf_version: 3", { okf_version: 3 });
 			assert.strictEqual(bare.document.okfVersion, "3");
 			assert.deepStrictEqual(message(bare), ['okf_version 3 is an unquoted number; quote it as "<major>.<minor>"']);
-			// the warning always shows the written text; a text that is not major.minor keeps YAML's reading as the version
+			// the warning always shows the written text, and a text that is not major.minor is what the bundle declares
 			const exponent = yield* run("okf_version: 1e1", { okf_version: 10 });
-			assert.strictEqual(exponent.document.okfVersion, "10");
+			assert.strictEqual(exponent.document.okfVersion, "1e1");
 			assert.deepStrictEqual(message(exponent), [
 				'okf_version 1e1 is an unquoted number, which YAML reads as 10; quote it as "<major>.<minor>"',
+			]);
+			const dotTwo = yield* run("okf_version: .2", { okf_version: 0.2 });
+			assert.strictEqual(dotTwo.document.okfVersion, ".2");
+			assert.deepStrictEqual(message(dotTwo), [
+				'okf_version .2 is an unquoted number, which YAML reads as 0.2; quote it as "<major>.<minor>"',
 			]);
 			const boolVersion = yield* run("okf_version: true", { okf_version: true });
 			assert.deepStrictEqual(summary(boolVersion), [["index-metadata-invalid", "warning", 1]]);
