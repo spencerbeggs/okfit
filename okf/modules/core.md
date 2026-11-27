@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:43:45Z
+  at: 2026-11-27T20:49:23Z
 x-okfit-integrity:
   generated:
-    body: b98243f6b4733103
+    body: b4c642253fb7213b
 ---
 
 # Core
@@ -197,7 +197,8 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   the start of that day in UTC.
 - **`superseded_by`.** A typed string field on `Concept`, a sixth path
   field (`PathField` `superseded_by`) and a graph edge, so `broken-links`
-  reports a dangling one and the language server's document links and
+  reports a dangling one, or an anchor its target concept does not have, and
+  the language server's document links and
   definition follow it. `superseded-by-orphan` fires on `superseded_by`
   without `status: deprecated`; `superseded-by-unresolved` fires when a
   deprecated concept's value resolves to an asset, an external value or the

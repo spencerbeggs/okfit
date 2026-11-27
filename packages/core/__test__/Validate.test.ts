@@ -624,6 +624,47 @@ describe("Validate", () => {
 		}),
 	);
 
+	it.effect("broken-links checks the anchor of a path field (#463)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"new.md": "---\ntype: Note\n---\n\n# New\n\n## Real heading\n",
+				"sup-bad.md": "---\ntype: Note\nstatus: deprecated\nsuperseded_by: ./new.md#missing-heading\n---\n",
+				"sup-ok.md": "---\ntype: Note\nstatus: deprecated\nsuperseded_by: ./new.md#real-heading\n---\n",
+				"res.md":
+					"---\ntype: Note\nresource: ./new.md#nope\nsources:\n  - resource: ./new.md#nada\n  - resource: ./new.md#new\n---\n",
+				"comp.md":
+					"---\ntype: Attested Computation\nruntime: sql\ncomputation: ./q.sql#x\nattester:\n  resource: ./new.md#zzz\n---\n",
+				"q.sql": "",
+			});
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
+			const found = lint
+				.filter((d) => d.code === "broken-links")
+				.map((d) => [d.file, d.message, d.range?.line] as const);
+			assert.deepStrictEqual(found, [
+				[
+					"comp.md",
+					'attester.resource "./new.md#zzz" exists but has no heading "#zzz"; its headings: #new, #real-heading',
+					5,
+				],
+				["res.md", 'resource "./new.md#nope" exists but has no heading "#nope"; its headings: #new, #real-heading', 2],
+				[
+					"res.md",
+					'sources[].resource "./new.md#nada" exists but has no heading "#nada"; its headings: #new, #real-heading',
+					4,
+				],
+				[
+					"sup-bad.md",
+					'superseded_by "./new.md#missing-heading" exists but has no heading "#missing-heading"; its headings: #new, #real-heading',
+					3,
+				],
+			]);
+			// controls: a good anchor, a path to a non-concept, and a replacement with a bad anchor is not also unresolved
+			assert.isFalse(found.some(([file]) => file === "sup-ok.md"));
+			assert.isFalse(found.some(([, message]) => message.includes("computation")));
+			assert.isFalse(lint.some((d) => d.file === "sup-bad.md" && d.code === "superseded-by-unresolved"));
+		}),
+	);
+
 	it.effect("broken-links suggests the nearest heading slug, else lists the target's headings (issue #148)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* loadFromSources({

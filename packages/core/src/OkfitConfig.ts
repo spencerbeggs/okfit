@@ -196,7 +196,8 @@ export const LintTable = Schema.Struct({
 	broken_links: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "broken-links",
-			description: 'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
+			description:
+				'A link in a concept\'s body or a path field in its frontmatter does not resolve, or names a #heading its target concept does not have. Default "warn".',
 			default: "warn",
 		}),
 	),

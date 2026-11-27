@@ -1746,3 +1746,34 @@ describe("okfit validate: generated-missing reads the decoder (#466)", () => {
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
+
+describe("okfit validate: path-field anchors (#463)", () => {
+	const MARGIN_LEGACY_PATH = "okf/metrics/margin-legacy.md";
+	const lineFor = (anchor: string | undefined) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-anchor-"));
+			const legacy = V03_PROJECT[MARGIN_LEGACY_PATH];
+			assert.isDefined(legacy);
+			const patched =
+				anchor === undefined
+					? legacy
+					: legacy.replace("superseded_by: /metrics/margin.md", `superseded_by: /metrics/margin.md#${anchor}`);
+			if (anchor !== undefined) assert.notStrictEqual(patched, legacy);
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V03_PROJECT, [MARGIN_LEGACY_PATH]: patched }));
+			const run = yield* runOkfit(["validate"], sandbox);
+			return run.stdout.split("\n").filter((line) => line.includes("broken-links"));
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("validate reports a superseded_by anchor the target lacks", () =>
+		Effect.gen(function* () {
+			const lines = yield* lineFor("no-such");
+			assert.strictEqual(lines.length, 1, lines.join("\n"));
+			assert.match(
+				lines[0] ?? "",
+				/metrics\/margin-legacy\.md:\d+:\d+ warning broken-links superseded_by "\/metrics\/margin\.md#no-such" exists but has no heading "#no-such"; /,
+			);
+			// control: unpatched, no broken-links
+			assert.deepStrictEqual(yield* lineFor(undefined), []);
+		}),
+	);
+});

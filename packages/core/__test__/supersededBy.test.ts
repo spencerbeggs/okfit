@@ -63,6 +63,18 @@ describe("superseded_by lints (OKF 0.3 5.4)", () => {
 		}),
 	);
 
+	it.effect("a self-anchor is reported once, as superseded-by-unresolved (#463)", () =>
+		Effect.gen(function* () {
+			const found = yield* lintSuperseded({
+				"anchor.md": note("status: deprecated\nsuperseded_by: anchor.md#x\n"),
+			});
+			assert.deepStrictEqual(
+				found.filter(([file]) => file === "anchor.md").map(([, code]) => code),
+				["superseded-by-unresolved"],
+			);
+		}),
+	);
+
 	it.effect("a missing target is broken-links alone, never also superseded-by-unresolved", () =>
 		Effect.gen(function* () {
 			const found = yield* lintSuperseded({ "gone.md": note("status: deprecated\nsuperseded_by: /nowhere.md\n") });

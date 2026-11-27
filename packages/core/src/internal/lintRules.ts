@@ -567,19 +567,26 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 		targetId: string,
 		target: LoadedConcept,
 		position: DiagnosticRange | undefined,
+		label = "Link target",
 	): void => {
 		const fragment = fragmentOf(raw);
 		if (fragment === undefined || fragment === "") return;
 		const slugs = slugsOf(targetId, target);
 		if (slugs.includes(fragment)) return;
-		const message = `Link target "${raw}" exists but has no heading "#${fragment}"; ${candidateHint(fragment, slugs)}`;
+		const message = `${label} "${raw}" exists but has no heading "#${fragment}"; ${candidateHint(fragment, slugs)}`;
 		anchors.push(diagnostic(file, "broken-links", severity, message, position));
 	};
 	for (const link of context.graph.edges) {
-		if (link.data.source !== "body") continue;
+		const { field } = link.data;
+		// OKF 0.3 6: links and path fields refer to files with the same rules, so a path field's `#fragment` is
+		// checked like a body link's, and only when its target is a concept (6.1).
+		if (link.data.source !== "body" && field === undefined) continue;
+		// A replacement that is the concept itself is `superseded-by-unresolved`'s report; it is not also an anchor miss.
+		if (field === "superseded_by" && link.to === link.from) continue;
 		const target = byId.get(link.to);
 		if (target === undefined) continue;
-		check(fileOf(link.from), link.data.raw, link.to, target, link.data.position);
+		const label = field === undefined ? undefined : field === "sources.resource" ? "sources[].resource" : field;
+		check(fileOf(link.from), link.data.raw, link.to, target, link.data.position, label);
 	}
 	// A self-anchor (`[x](#heading)`) resolves to `self` and never becomes an edge (D-25), so read it off the document.
 	for (const concept of context.bundle.concepts.values()) {

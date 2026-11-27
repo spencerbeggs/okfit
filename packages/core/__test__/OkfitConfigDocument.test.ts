@@ -153,7 +153,7 @@ describe("okfitConfigDocumentFields", () => {
 		);
 		assert.strictEqual(
 			lint.broken_links?.description,
-			'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
+			'A link in a concept\'s body or a path field in its frontmatter does not resolve, or names a #heading its target concept does not have. Default "warn".',
 		);
 	});
 

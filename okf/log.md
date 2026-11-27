@@ -6,6 +6,8 @@
 * Updated Loading never fails a concept for a bad family
 * Updated LSP
 * Updated okfit config file schema
+* Updated Heading anchors match github-slugger, through the kit's slugger
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 
 ## 2026-11-26
 
