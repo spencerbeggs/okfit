@@ -1,6 +1,6 @@
 import type { Frontmatter } from "@effected/markdown";
 import type { YamlParseError, YamlPath } from "@effected/yaml";
-import { YamlDocument } from "@effected/yaml";
+import { YamlDocument, YamlMap, YamlScalar } from "@effected/yaml";
 import { Option, Result } from "effect";
 import { toFileOffset } from "./position.js";
 
@@ -73,4 +73,31 @@ export const findFrontmatterPathSpan = (
 	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
 	const hit = parsed.success.contents.find(path as YamlPath);
 	return Option.isNone(hit) ? undefined : { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+};
+
+/**
+ * Whether the top-level `key` is a value `okfit sync` can replace whole: unwritten, a bare `key:`, or an untagged,
+ * unanchored plain null (`null`, `~`) in a block-style mapping. This mirrors the engine's `locateGeneratedBlock`
+ * (`engine/src/verify/locate.ts`), which core cannot import: a tagged or anchored null (`!!null`, `&a ~`) carries
+ * syntax a whole-line replace would drop or duplicate, so sync skips it as `generated-unsupported`. A re-parse that
+ * fails or a non-mapping document answers `false`, as the engine reports those unsupported too.
+ *
+ * @internal
+ */
+export const isReplaceableNull = (node: Frontmatter, key: string): boolean => {
+	const parsed = parsedYamlOf(node);
+	if (Result.isFailure(parsed)) return false;
+	const contents = parsed.success.contents;
+	if (!(contents instanceof YamlMap) || contents.style === "flow") return false;
+	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
+	if (pair === undefined) return true;
+	const value = pair.value;
+	return (
+		value === null ||
+		(value instanceof YamlScalar &&
+			value.style === "plain" &&
+			value.value === null &&
+			value.tag === undefined &&
+			value.anchor === undefined)
+	);
 };

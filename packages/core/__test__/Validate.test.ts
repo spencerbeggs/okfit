@@ -482,20 +482,37 @@ describe("Validate", () => {
 					);
 				const missing =
 					/^Concept has no generated block; okfit sync will create it from actors\.agent \(okfit\/claude-code\)/;
-				for (const value of ['""', "[]", "null"]) {
+				// Only an unwritten key or an untagged, unanchored plain null is something sync replaces (#466).
+				for (const value of ["null", "~", ""]) {
 					const found = yield* hits(`generated: ${value}`);
 					assert.strictEqual(found.length, 1, value);
 					assert.match(found[0]?.message ?? "", missing);
 				}
-				// A written block the decoder ignores reads as absent, and sync cannot fill it in.
-				for (const value of ["{}", "{ at: 2026-01-01T00:00:00Z }", "{ by: [1] }", "5"]) {
+				assert.match((yield* hits("tags: [a]"))[0]?.message ?? "", missing);
+				// A written block the decoder ignores reads as absent, and sync cannot fill it in: `""`, `[]` and a tagged
+				// or anchored null are skipped as generated-unsupported, like `{}`.
+				for (const value of [
+					"{}",
+					"{ at: 2026-01-01T00:00:00Z }",
+					"{ by: [1] }",
+					"5",
+					'""',
+					"[]",
+					"!!null",
+					"!!null null",
+					"&a ~",
+				]) {
 					const found = yield* hits(`generated: ${value}`);
 					assert.strictEqual(found.length, 1, value);
 					assert.strictEqual(
 						found[0]?.message,
 						"Concept's generated block has no readable generated.by, so it reads as absent (OKF 0.3 §5.2), and okfit sync cannot fill in a block that is written; set generated.by by hand",
+						value,
 					);
-					assert.strictEqual(found[0]?.range?.line, 2, value);
+					// A tagged or anchored null has no value text, and the YAML kit places its span at the block start, so only
+					// a value with text is pinned to the `generated:` line.
+					if (!value.startsWith("!") && !value.startsWith("&")) assert.strictEqual(found[0]?.range?.line, 2, value);
+					else assert.isDefined(found[0]?.range, value);
 				}
 				// The load diagnostic is still reported beside it.
 				const bundle = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
@@ -508,6 +525,11 @@ describe("Validate", () => {
 					"Concept has no generated block, only a legacy timestamp, which okfit sync cannot convert; replace it with a generated block (generated.by, and generated.at from the timestamp) by hand",
 				);
 				assert.strictEqual(legacy[0]?.range?.line, 2);
+				// `generated: null` beside a timestamp: the timestamp folds in, and sync skips it as generated-unsupported.
+				const nullLegacy = yield* hits("generated: null\ntimestamp: 2026-01-01T00:00:00Z");
+				assert.strictEqual(nullLegacy.length, 1);
+				assert.match(nullLegacy[0]?.message ?? "", /^Concept has no generated block, only a legacy timestamp/);
+				assert.strictEqual(nullLegacy[0]?.range?.line, 3);
 				// Controls: a readable block is present, with or without a timestamp beside it.
 				assert.strictEqual((yield* hits("generated: { by: okfit/claude-code }")).length, 0);
 				assert.strictEqual((yield* hits("generated: { by: human:a }\ntimestamp: 2026-01-01T00:00:00Z")).length, 0);

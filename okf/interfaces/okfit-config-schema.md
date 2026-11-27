@@ -7,7 +7,7 @@ resource: ../../packages/core/src/OkfitConfig.ts
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:43:45Z
+  at: 2026-11-27T20:54:29Z
 tags:
   - architecture
 verified:
@@ -39,7 +39,7 @@ verified:
     at: 2026-11-26T06:31:52Z
 x-okfit-integrity:
   generated:
-    body: 831ccd7e925c826d
+    body: 8d492f39a593d514
   verified:
     by: human:spencer
     at: 2026-11-26T06:31:52Z
@@ -164,9 +164,10 @@ signal to weigh, never a gate](../decisions/drift-is-a-signal.md).
 `generated_missing` (issue #73) fires only when `actors.agent` is set: a
 concept with no `generated` block would otherwise only surface as a skip in
 `okfit sync`'s post-commit report, after the commit already landed. A
-`generated` written as null, `""` or `[]` counts as no block, and `okfit sync` creates it. A
-`generated` the decoder ignores (`{}`, or no readable `by`) and a legacy `timestamp` alone count
-too, but sync cannot fill those in, so the message says to set `generated.by` by hand.
+`generated` written as null, `""` or `[]` counts as no block. `okfit sync` creates one only
+for an unwritten key or an untagged plain null. A `generated` it skips (`""`, `[]`, a
+tagged or anchored null, `{}`, or no readable `by`) and a legacy `timestamp` alone
+draw a message that says to set `generated.by` by hand.
 The three docs-surface lints are named in core but run in `@okfit/profiles` (`publication_*`) and `@okfit/engine` (`surface_unmatched`). The `publication_*` severities only take effect under the `software-project` profile; under any other profile those lints do not run.
 
 ## Unknown keys go to extensions

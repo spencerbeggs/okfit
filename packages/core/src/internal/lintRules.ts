@@ -17,6 +17,7 @@ import { OkfVersion } from "../OkfVersion.js";
 import { Timestamp } from "../Timestamp.js";
 import { frontmatterPathRange } from "./frontmatter.js";
 import { tierOf } from "./tier.js";
+import { isReplaceableNull } from "./yamlPathSpan.js";
 
 /** Everything one lint rule may read; built once per `Validate.lint` call. */
 export interface LintContext {
@@ -281,7 +282,13 @@ export const generatedMissing: LintRule = perConcept("generated-missing", (conce
 					},
 				];
 	}
-	if (present(frontmatter.raw, "generated")) {
+	// Sync replaces only an unwritten key or an untagged plain null; `""`, `[]`, a tagged or anchored null and any
+	// value the decoder ignored are written, so they need a hand edit.
+	const document = Option.getOrUndefined(concept.document.frontmatter);
+	const written =
+		Object.hasOwn(frontmatter.raw, "generated") &&
+		(document === undefined ? present(frontmatter.raw, "generated") : !isReplaceableNull(document, "generated"));
+	if (written) {
 		return [
 			{
 				path: ["generated"],

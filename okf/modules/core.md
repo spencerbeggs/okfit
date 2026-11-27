@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:49:23Z
+  at: 2026-11-27T20:54:29Z
 x-okfit-integrity:
   generated:
-    body: b4c642253fb7213b
+    body: 059ddd37d5c50898
 ---
 
 # Core
@@ -235,7 +235,9 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   the decoder ignores (`{}`, or a block with no readable `by`) also counts as
   none, with its own "set generated.by by hand" message, and so does a legacy
   `timestamp` alone, which sync cannot convert; sync creates only a block
-  that is not written. `Concept.isAbsent` is the one absent test.
+  that is unwritten or a plain null, and skips `""`, `[]` and a tagged or
+  anchored null (`!!null`, `&a ~`) as unsupported, so those get the hand-edit
+  message too. `Concept.isAbsent` is the one absent test.
 - **One document parse.** `Bundle.parseDocument(text)` returns
   `Result<MarkdownDocument, MarkdownParseError>`; `Bundle.load` and `okfit mv`
   both parse through it, so the two cannot disagree about what a file is.

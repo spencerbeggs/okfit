@@ -134,8 +134,9 @@ export interface EditTarget {
 /**
  * The status `Derive.status` derives from a raw frontmatter `status` value: a vocabulary string is itself, an
  * absent value (`undefined`, `null`, `""`, `[]`) is `stable` (OKF 0.3 section 11.2 rule 1), anything else is
- * `unknown`. The editor holds only raw YAML data, not a typed concept, so the absent test is core's `Concept.isAbsent` and only the vocabulary mapping is local;
- * `__test__/features/edits.test.ts` runs both over one table.
+ * `unknown`. The editor holds only raw YAML data, not a typed concept, so the absent test is core's
+ * `Concept.isAbsent` and only the vocabulary mapping is local; `__test__/features/edits.test.ts` runs both over
+ * one table.
  *
  * @public
  */

@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-27T20:43:45Z
+  at: 2026-11-27T20:54:29Z
 status: stable
 verified:
   - by: human:spencer
@@ -21,7 +21,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 7f8d606322fc067d
+    body: f0588a5ddbdb0d61
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -102,9 +102,10 @@ key says "is missing", ranged at the key's own line. The same test decides
 `field-value-unknown` (an empty value is absent, not an unknown value) and
 `generated-missing` (a `generated` written as null, `""` or `[]` counts as no
 block, and so does one the decoder ignores for want of a readable `by`, such as
-`{}`; the lint says to set `generated.by` by hand, as sync creates only a block
-that is not written, and a legacy `timestamp` alone draws the same kind of
-message).
+`{}`; the lint says sync will create it only for an unwritten key or an
+untagged plain null, which sync replaces, and says to set `generated.by` by
+hand for `""`, `[]`, a tagged or anchored null and the ignored mappings, which
+sync skips; a legacy `timestamp` alone draws a hand-edit message too).
 
 `family-invalid` is narrowed to okfit's own `x-okfit-integrity` family, which still
 decodes whole. See [okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md) for the name. `frontmatter-missing` and `type-missing` left the conformance
