@@ -71,7 +71,7 @@ validation on the file without any further setup.
   (`HumanActorNotAllowedError`, exit 3). A person sets their own id with
   `git config okfit.actor human:<id>`, which is read before anything else.
 - `[lint]` -- one `LintLevel` (`off | info | warn | error`) per lint code,
-  snake_case keys, forty-three in all. The defaults, in `DEFAULT_LINT` order:
+  snake_case keys, forty-four in all. The defaults, in `DEFAULT_LINT` order:
 
   | Key | Default |
   | --- | --- |
@@ -95,6 +95,7 @@ validation on the file without any further setup.
   | `config_okf_version_stale` | `warn` |
   | `stale` | `info` |
   | `walk_unreadable` | `warn` |
+  | `read_changed` | `warn` |
   | `generated_at_drift` | `warn` |
   | `verified_drift` | `warn` |
   | `status_missing` | `off` |
@@ -118,6 +119,13 @@ validation on the file without any further setup.
   | `type_missing` | `warn` |
   | `symlink_escape` | `warn` |
   | `non_concept_unlisted` | `warn` |
+
+  `walk_unreadable` is a bundle directory the walk could not read (its
+  files are left out); a file is never `walk_unreadable`. `read_changed` is
+  a file replaced or removed while it was being read, left out of that load
+  and transient: read again. A load that reports it should not be used to
+  write anything derived from the bundle, so `okfit sync` holds those
+  writes back as `changed-during-read`.
 
   Two extra facts worth stating: `unknown_type` is forced `off` when the
   merged config declares no types at all, and `status_missing` (a concept

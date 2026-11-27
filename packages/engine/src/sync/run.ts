@@ -6,6 +6,7 @@ import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profil
 import { ConceptOutsideRepositoryError, Derivation } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { Digest } from "effect/crypto";
+import { changedConceptIds, changedDirectories, changedFiles } from "../changedDuringLoad.js";
 import { SyncPlanStaleError } from "../errors.js";
 import type { GeneratedProvenance } from "./generated.js";
 import { syncGenerated } from "./generated.js";
@@ -23,7 +24,9 @@ export type SyncMode = "generated" | "index" | "log";
 /**
  * S-14: a closed union, not free text. The human renderer maps each member
  * to one fixed sentence (`render/sync.ts#humanSync`); the JSON envelope's
- * `skipped[].reason` is this exact union.
+ * `skipped[].reason` is this exact union. `changed-during-read` is the transient one: the file was replaced or
+ * removed while sync read it, so it was not rewritten; running sync again reads it afresh. It never means the file
+ * leaves the bundle (that is `symlink-escape`).
  *
  * @public
  */
@@ -36,7 +39,9 @@ export const SkipReason = Schema.Literals([
 	"integrity-unsupported",
 	"renders-unsupported",
 	"log-unparseable",
+	"index-unparseable",
 	"symlink-escape",
+	"changed-during-read",
 	"legacy-key-conflict",
 	"legacy-key-unsupported",
 	"verified-after-now",
@@ -143,6 +148,18 @@ export const planSync: (
 > = Effect.fn("okfit/sync/planSync")(function* (options: SyncOptions) {
 	const bundle: LoadedBundle = yield* Bundle.load({ root: options.bundleRoot });
 
+	// A file that changed under the load (`read-changed`) is missing from `bundle`, so anything rendered from it is
+	// silently incomplete: a concept dropped from its directory's index, or an index whose frontmatter was never read.
+	// Nothing derived from the affected directories is written (their indexes, and no log); sync again.
+	const changedAny = changedFiles(bundle).length > 0;
+	// The files this load saw: a file the plan writes that is not among them appeared after it.
+	const loadedFiles: ReadonlySet<string> = new Set(bundle.files);
+	const heldDirs = changedDirectories(bundle);
+	const changedSkips: ReadonlyArray<SyncSkip> = changedConceptIds(bundle).map((id) => ({
+		id,
+		reason: "changed-during-read" as const,
+	}));
+
 	// Step 2 (#21): one Derivation.generatedAt per concept that still needs
 	// one, shared by the generated and log modes. A concept whose recorded
 	// digest matches its body is `unchanged` to generated mode without any
@@ -240,7 +257,7 @@ export const planSync: (
 	}
 
 	const pending: Array<PendingWrite> = [];
-	const generated: SyncModeResult = options.modes.has("generated")
+	const generatedResult: SyncModeResult = options.modes.has("generated")
 		? {
 				selected: true,
 				...(yield* syncGenerated(bundle, {
@@ -254,22 +271,40 @@ export const planSync: (
 				})),
 			}
 		: UNSELECTED;
+	const generated: SyncModeResult =
+		generatedResult.selected && changedSkips.length > 0
+			? { ...generatedResult, skipped: [...generatedResult.skipped, ...changedSkips] }
+			: generatedResult;
 	const index: SyncModeResult = options.modes.has("index")
-		? { ...(yield* syncIndex(indexView, true, pending, options.config.okf_version)), migrated: [] }
+		? {
+				...(yield* syncIndex(indexView, true, pending, options.config.okf_version, heldDirs, loadedFiles)),
+				migrated: [],
+			}
 		: UNSELECTED;
 	const log: SyncModeResult = !options.modes.has("log")
 		? UNSELECTED
-		: logDirty
+		: changedAny
 			? {
-					...({
-						selected: true,
-						written: [],
-						unchanged: [],
-						skipped: [{ id: "log.md", reason: "dirty" }],
-					} satisfies SyncLogResult),
+					selected: true,
+					written: [],
+					unchanged: [],
 					migrated: [],
+					skipped: [{ id: "log.md", reason: "changed-during-read" }],
 				}
-			: { ...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending)), migrated: [] };
+			: logDirty
+				? {
+						...({
+							selected: true,
+							written: [],
+							unchanged: [],
+							skipped: [{ id: "log.md", reason: "dirty" }],
+						} satisfies SyncLogResult),
+						migrated: [],
+					}
+				: {
+						...(yield* syncLog(bundle, stagedLog ?? walked, true, options.logSince, pending, loadedFiles)),
+						migrated: [],
+					};
 
 	let restage: SyncPlan["restage"];
 	if (options.staged !== undefined && repoRoot !== undefined) {
@@ -302,10 +337,17 @@ export const planSync: (
 		if (files.length > 0) restage = { repoRoot, files };
 	}
 
-	// Record each target's plan-time bytes so applySyncPlan can tell it was edited since.
+	// Record each target's baseline so applySyncPlan can tell it was edited since. A writer that rendered from the
+	// loaded bundle already recorded the text the load read; reading the file again here would take an edit that landed
+	// since the load as the baseline and let the apply overwrite it. Only a write with no loaded text (a hand-built
+	// bundle, a file the load never saw) is read now.
 	const fsForSnapshot = yield* FileSystem.FileSystem;
 	const snapshotted: Array<PendingWrite> = [];
 	for (const write of pending) {
+		if (write.before !== undefined) {
+			snapshotted.push(write);
+			continue;
+		}
 		const before = yield* fsForSnapshot
 			.readFileString(write.target)
 			.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)));

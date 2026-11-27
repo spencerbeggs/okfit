@@ -115,7 +115,9 @@ const skippedReason = (entry: VerifySkip, input: VerifyBatchLines): string =>
 					? `status "${entry.status}" is not draft, stable or deprecated, so it cannot be verified; set its status in the frontmatter, or verify it on its own with okfit verify ${entry.id} --stable or --draft`
 					: entry.reason === "not-current" && entry.notCurrent !== undefined
 						? notCurrentReason(entry.notCurrent)
-						: entry.reason;
+						: entry.reason === "changed-during-read"
+							? "changed while the bundle was read, so the batch did not consider it; run okfit verify again"
+							: entry.reason;
 
 const skippedLine = (entry: VerifySkip, input: VerifyBatchLines): string =>
 	`skipped ${entry.id}: ${skippedReason(entry, input)}`;

@@ -49,7 +49,18 @@ or `.config/okfit.toml`.
   call.
 - `okf://concept/<id>` — one **static** resource per concept loaded when
   the server starts, one per concept in the bundle at that moment. Editing
-  an already-listed concept's file is picked up live on every read; a
+  an already-listed concept's file is picked up live on every read, and
+  every read is confined at the moment of reading (the file is opened, its
+  path resolved and the open file's identity compared with it): a file, or
+  a directory above it, that links out of the bundle (or dangles) is refused
+  with `<path> links out of the bundle`, and a link at the file itself is
+  refused even when it is swapped in during the read; a race through a
+  directory above the file can still win (spencerbeggs/okfit#524). A file
+  that was replaced under the read (an editor save landing mid-read) is
+  answered `<path> changed while it was read; try again`, and a retry succeeds;
+  a removed file answers `no readable concept file at <path>` (the bundle root is
+  resolved wherever `okf/` points at each read, so a root replaced by a link
+  after boot is followed, tools and resources alike); a
   concept added or removed after boot is not reflected in `resources/list`
   until the server restarts. There is no URI template and no completion —
   every concept resource is registered by its own literal URI. The listing

@@ -111,7 +111,7 @@ describe("OkfitConfig", () => {
 		assert.deepStrictEqual([d.actors, d.types, d.tags, d.extensions], [{ humans: [] }, {}, {}, {}]);
 		assert.deepStrictEqual(
 			[d.lint!.broken_links, d.lint!.unknown_type, d.lint!.legacy_timestamp, Object.keys(d.lint!).length],
-			["warn", "error", "info", 43],
+			["warn", "error", "info", 44],
 		);
 		assert.strictEqual(d.lint!.computation_missing, "warn");
 		assert.strictEqual(d.lint!.generated_at_future, "warn");

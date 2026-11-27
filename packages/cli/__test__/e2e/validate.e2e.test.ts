@@ -11,7 +11,7 @@
 // fixture — no CLI-owned duplicate category.
 
 import { readdirSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { assert, describe, it } from "@effect/vitest";
 import { Bundle, ConceptId } from "@okfit/core";
@@ -1403,6 +1403,14 @@ describe("okfit validate: --target, --fix, --only, --dry-run", () => {
 			);
 			const summary = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
 			assert.include(summary.stderr, "1 refused by --fix");
+			// #512: one message, naming the fix, not three
+			assert.include(summary.stdout, "frontmatter-unclosed");
+			assert.include(
+				summary.stdout,
+				"okf_version cannot be read, because the root index.md frontmatter opens with --- but never closes; add the closing --- by hand, then validate again",
+			);
+			assert.notInclude(summary.stdout, "missing-index");
+			assert.notInclude(summary.stdout, "okf_version is not declared");
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 
@@ -1631,6 +1639,78 @@ describe("okfit validate: the human error line carries every bad key (#501)", ()
 			for (const key of ["lint.missing_index", "bundle.path", "lifecycle.default_stale_after"]) {
 				assert.include(lines[0], key);
 			}
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: a directory link out of the bundle and a dangling link (#458)", () => {
+	const concept = (title: string): string => `---\ntype: Note\ntitle: ${title}\n---\n\n# ${title}\n`;
+	it.effect(
+		"warns on external and gone, is silent on an in-bundle directory link, and reads nothing under external",
+		() =>
+			Effect.gen(function* () {
+				const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-dirlink-"));
+				const init = yield* runOkfit(["init"], sandbox);
+				assert.strictEqual(init.exitCode, 0);
+				const bundle = join(sandbox.cwd, "okf");
+				const outside = join(sandbox.cwd, "outside");
+				yield* Effect.promise(async () => {
+					await writeFileDeep(join(outside, "secret.md"), concept("Secret"));
+					await writeFileDeep(join(bundle, "decisions", "in.md"), concept("In"));
+					await symlink(outside, join(bundle, "external"));
+					await symlink(join(sandbox.cwd, "nowhere"), join(bundle, "gone"));
+					await symlink(join(bundle, "decisions"), join(bundle, "alias"));
+					// an in-bundle link to a directory link that leaves the bundle
+					await symlink(join(bundle, "external"), join(bundle, "hop"));
+				});
+				const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+				const body = JSON.parse(json.stdout) as {
+					summary: { concepts: number };
+					diagnostics: Array<{ code: string; file: string; message: string }>;
+				};
+				const escapes = body.diagnostics.filter((d) => d.code === "symlink-escape");
+				assert.deepStrictEqual(escapes.map((d) => d.file.split("/").pop()).sort(), ["external", "gone", "hop"]);
+				const human = yield* runOkfit(["validate"], sandbox);
+				assert.include(
+					human.stdout,
+					"external warning symlink-escape symbolic link to a directory resolves outside the bundle root; nothing under it is read or part of the bundle",
+				);
+				assert.include(
+					human.stdout,
+					"gone warning symlink-escape symbolic link could not be resolved, so it cannot be shown to stay inside the bundle root; it is not read and not part of the bundle",
+				);
+				assert.notInclude(human.stdout, "alias");
+				assert.notInclude(human.stdout, "secret");
+				// project (from init) and decisions/in: the concept under external/ is not counted
+				assert.strictEqual(body.summary.concepts, 2);
+				const dry = yield* runOkfit(["sync", "--dry-run"], sandbox);
+				assert.notInclude(dry.stdout, "external/");
+				assert.notInclude(dry.stdout, "hop/");
+			}).pipe(Effect.provide(TestPlatform)),
+	);
+	// root ignores mode bits, so the locked directory would stay readable and the case would prove nothing
+	it.effect.skipIf(process.getuid?.() === 0)("reports a link into a mode-000 directory and a link loop", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-unresolvable-"));
+			const init = yield* runOkfit(["init"], sandbox);
+			assert.strictEqual(init.exitCode, 0);
+			const bundle = join(sandbox.cwd, "okf");
+			const locked = join(sandbox.cwd, "locked");
+			yield* Effect.promise(async () => {
+				await writeFileDeep(join(locked, "target.md"), concept("Target"));
+				await symlink(join(locked, "target.md"), join(bundle, "peek.md"));
+				await symlink(join(bundle, "loop"), join(bundle, "loop"));
+				await chmod(locked, 0o000);
+			});
+			yield* Effect.gen(function* () {
+				const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+				const body = JSON.parse(json.stdout) as { diagnostics: Array<{ code: string; file: string }> };
+				const files = body.diagnostics
+					.filter((d) => d.code === "symlink-escape")
+					.map((d) => d.file.split("/").pop())
+					.sort();
+				assert.deepStrictEqual(files, ["loop", "peek.md"]);
+			}).pipe(Effect.ensuring(Effect.promise(() => chmod(locked, 0o755))));
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });

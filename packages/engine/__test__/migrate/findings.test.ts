@@ -101,10 +101,35 @@ describe("migrationFindings", () => {
 			const { found } = yield* findingsOf({ ...V02_PROJECT, "okf/index.md": "---\ntitle: x\n\n# X\n" });
 			const version = found.filter((f) => f.code === "okf-version-undeclared");
 			assert.deepStrictEqual(summarize(version), [["index.md", "okf-version-undeclared", "okf-version", null]]);
+			assert.strictEqual(
+				version[0]?.message,
+				"okf_version cannot be read, because the root index.md frontmatter opens with --- but never closes; add the closing --- by hand, then validate again",
+			);
 			// control: no root index at all offers no fix (R42)
 			const { "okf/index.md": _index, ...noIndex } = V02_PROJECT;
 			const control = (yield* findingsOf(noIndex)).found.find((f) => f.code === "okf-version-undeclared");
 			assert.strictEqual(control?.fix, undefined);
+		}),
+	);
+
+	it.effect("an unparseable root index frontmatter names the parse error (#512)", () =>
+		Effect.gen(function* () {
+			const { found } = yield* findingsOf({
+				...V02_PROJECT,
+				"okf/index.md": '---\nokf_version: "0.3"\ntitle: [x\n---\n',
+			});
+			const version = found.filter((f) => f.code === "okf-version-undeclared");
+			assert.deepStrictEqual(summarize(version), [["index.md", "okf-version-undeclared", "okf-version", null]]);
+			assert.strictEqual(
+				version[0]?.message,
+				"okf_version cannot be read, because the root index.md frontmatter does not parse (see its frontmatter-unparseable error); fix it by hand, then validate again",
+			);
+			// control: a readable root index with no okf_version keeps the generic message
+			const generic = (yield* findingsOf(UNDECLARED_PROJECT)).found.find((f) => f.code === "okf-version-undeclared");
+			assert.strictEqual(
+				generic?.message,
+				"okf_version is not declared; OKF 0.3 §8.1 asks a bundle to declare it, and okfit reads an undeclared bundle with the v0.2 fallbacks",
+			);
 		}),
 	);
 

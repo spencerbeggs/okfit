@@ -7,6 +7,14 @@
 * Updated An unknown status is not current knowledge
 * Updated Frontmatter splices are a shared engine surface for the CLI's verify and the language server's actions
 * Updated stale --verify rolls stale_after forward, and plain verify never does
+* Updated Engine
+* Updated Migration to a newer OKF version is a report on validate, with two safe fixes
+* Updated Core
+* Updated Markdown that is not a concept is skipped, not an error
+* Updated okfit config file schema
+* Updated MCP
+* Updated okfit-mcp — MCP tool and resource contract
+* Updated A concept outside the repository is a typed failure
 
 ## 2026-11-25
 

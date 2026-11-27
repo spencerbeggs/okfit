@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T16:59:01Z
+  at: 2026-11-26T16:32:49Z
 x-okfit-integrity:
   generated:
-    body: f7068fae92eec31d
+    body: 927da4f8f658a0c9
 ---
 
 # Engine
@@ -171,27 +171,34 @@ forward](../decisions/stale-verify.md).
 `root-relative-path`, `computation-locator`), found by resolving each
 reference under both fallback rules, in every Markdown file of the bundle that is not a concept; `computation-locator` appears only while
 the bundle reads with the legacy locator and the two readings differ, and a bundle with no root index
-gets an `okf-version-undeclared` finding for `index.md` with no fix.
+gets an `okf-version-undeclared` finding for `index.md` with no fix. A root
+index whose frontmatter never closes or does not parse gets the same code
+with a message that names that cause (`okf_version cannot be read, because
+...`) and keeps the fix, which `fix.ts` then refuses with its reason.
 `migrate/fix.ts` holds `planMigrationFixes` and `applyMigrationFixes`, which
 write the two safe fixes (`okf-version`, `root-relative-path`), refuse the
 version fix while a root-only reference remains, while an Attested
 Computation would lose its computation, while a Markdown file could not be
-read, when `okf_version` cannot be
-edited in place, when the root index's opening fence is malformed or its
-frontmatter does not parse (the run continues),
-re-record `x-okfit-integrity.generated.body` for a concept whose digest matched
-before the edit, list `drifts` (each edited concept whose integrity was
-current before the edit, and each whose `x-okfit-integrity` block the fix will not
-edit), and keep a BOM and the file's line endings.
-Both read and write the root index, the concepts and the non-concept Markdown themselves, so they need
-`FileSystem`, `Path` and `Digest`. `validate/run.ts#run` takes a `target` and
-returns the findings as `migration`; they render as a fourth diagnostic
-source, `"migrate"`, which `render/exit.ts` never counts toward the exit
-code. The JSON envelope gains `target`, `fixes` (the named `JsonFixes`) and
-`summary.migration_findings`. `RunResult.legacyKeys` lists the ids of the concepts that still use okfit's old key names, over the whole bundle even when a caller narrows the report, so a front end can point at `okfit sync`; it is advisory and not a finding. `RunOptions.configPath` names the config file in `config-okf-version-stale`. An empty `Computation` section is not a `computation-locator` finding. `init` omits the root `title` and `description`
-for a bundle that declares 0.2 or earlier (#468). See [Migration to a newer
-OKF version is a report on validate, with two safe
-fixes](../decisions/migration-is-a-report.md).
+read, when `okf_version` cannot be edited in place, when the root index's
+opening fence is malformed or its frontmatter does not parse (the run
+continues), re-record `x-okfit-integrity.generated.body` for a concept whose
+digest matched before the edit, list `drifts` (each edited concept whose
+integrity was current before the edit, and each whose `x-okfit-integrity`
+block the fix will not edit), and keep a BOM and the file's line endings.
+Both read and write the root index, the concepts and the non-concept
+Markdown themselves, so they need `FileSystem`, `Path` and `Digest`.
+`validate/run.ts#run` takes a `target` and returns the findings as
+`migration`; they render as a fourth diagnostic source, `"migrate"`, which
+`render/exit.ts` never counts toward the exit code. The JSON envelope gains
+`target`, `fixes` (the named `JsonFixes`) and `summary.migration_findings`.
+`RunResult.legacyKeys` lists the ids of the concepts that still use okfit's
+old key names, over the whole bundle even when a caller narrows the report,
+so a front end can point at `okfit sync`; it is advisory and not a finding.
+`RunOptions.configPath` names the config file in `config-okf-version-stale`.
+An empty `Computation` section is not a `computation-locator` finding.
+`init` omits the root `title` and `description` for a bundle that declares
+0.2 or earlier (#468). See [Migration to a newer OKF version is a report on
+validate, with two safe fixes](../decisions/migration-is-a-report.md).
 
 ## Concept queries
 
@@ -208,10 +215,11 @@ picker](../decisions/engine-concept-query-layer.md).
 computes every mode's result and collects the `PendingWrite`s (target path and
 rendered contents) instead of writing, and `applySyncPlan` writes exactly that
 plan, so the CLI's interactive confirm can show a plan and then apply the same
-one. Each `PendingWrite` also carries `before`, the target's bytes when
-`planSync` read it (`null` = absent); `applySyncPlan` re-reads every target
+one. Each `PendingWrite` also carries `before`, the text the bundle load read
+from the target (`null` = the load saw no such file, so it must still be absent;
+a write with no baseline is read by `planSync` itself); `applySyncPlan` re-reads every target
 first and fails `SyncPlanStaleError` (exit `3`, nothing written) if one
-changed, so a file edited between plan and confirm is never overwritten.
+changed, so a file edited, or an `index.md` or `log.md` created, between the load and the apply is never overwritten (a `log.md` that appeared after the load is skipped `changed-during-read`, not `log-unparseable`).
 `runSync` composes the two and behaves as before.
 
 `sync/run.ts#planSync` walks git lazily now: a concept whose recorded
@@ -245,15 +253,18 @@ run's `now`, which `SyncOptions.now` makes sync re-stamp to now (#471). A drifte
 concept's stamp is clamped to `now` and is never moved back below the stamp it replaces when a verification falls between the two (the existing stamp stays, the digest is re-recorded). Sync declines a re-stamp that would make a
 verification count, reporting the concept in `skipped` as `verified-after-now` with
 the stamp and that verification's date; a clamp that would make one count is not
-applied, the derived stamp stands and the lint `generated-at-future` reports it. Sync keeps a leading byte-order mark when it
-rewrites `index.md` or `log.md`. Staged mode never
-walks history: its log mode reads the staged concepts' provenance from
+applied, the derived stamp stands and the lint `generated-at-future` reports
+it. Sync keeps a leading byte-order mark and the file's line endings when it
+rewrites `index.md` or `log.md`: a rewrite uses the file's first newline
+throughout (the rule covers LF and CRLF; a file with no LF is written LF),
+and a file that differs from what sync would write only in its line endings
+is `unchanged` and keeps its bytes. Staged mode never walks history: its log mode reads the staged concepts' provenance from
 the index (the stamp instant; `Added` when `git show HEAD:<path>` finds
 nothing) and skips a `log.md` with unstaged edits as `dirty`. It takes the
 worktree root from `Git.repoRoot(..., { ignoreRepositoryEnv: true })`, which
-drops the `GIT_DIR` a linked worktree's hook exports and would otherwise make
-git name the bundle root (#315). A malformed `--since` is
-a parse-time usage error from the CLI's own argument parser.
+drops the `GIT_DIR` a linked worktree's hook exports and would otherwise
+make git name the bundle root (#315). A malformed `--since` is a parse-time
+usage error from the CLI's own argument parser.
 
 `sync/index.ts#syncIndex` keeps the root index's existing frontmatter: it
 passes the loaded root `IndexDocument.frontmatter` to `Derive.renderIndex`,
@@ -273,16 +284,47 @@ and the fixed `BUNDLE_DESCRIPTION`.
 `log.md`, that is a symbolic link out of the bundle, a dangling link
 included: `syncIndex` and `syncLog` return it in `skipped` with the reason
 `symlink-escape` (`SkipReason`), in plain, dry-run and `--staged` runs, and
-the exit code is unchanged. `confinement.ts#escapesBundle` (exported, with its bundle-free core
-`escapesRoot`) asks core's load diagnostics first and falls back to `lstat`
-plus `confineReal`, because the walker does not list a dangling link and so
-leaves no diagnostic. `okfit context` and the MCP `okf://index` resource use
-the same check, so an escaping root `index.md` is reported absent and never read. `sync
---staged` never stamps a concept file that is a symlink out of the bundle,
-because core does not load one, and it skips an escaping `log.md` instead
-of failing; `ConceptOutsideRepositoryError` still covers a concept that
-resolves outside the repository (see [A concept outside the repository is a
-typed failure](../decisions/concept-outside-repository-is-a-typed-failure.md)).
+the exit code is unchanged. A file that changed under sync's read
+(`ConfinementError` reason `changed`) is skipped as `changed-during-read`
+instead, a transient skip, never labelled an escape. A file that changed under
+`Bundle.load` (`read-changed`) is missing from the bundle, so `planSync` writes nothing derived from the
+affected directories: the changed concept id is listed in `generated.skipped`, and `log.md` in
+`log.skipped` (`changed-during-read`). `changedDirectories` holds back the file's directory and every
+one above it, and `syncIndex` lists each held directory it would have rendered in `index.skipped`: the
+root always, and any other only while `Derive.indexDirectories` still yields it, so a directory whose
+only concept was the changed one drops out and its `index.md` is neither listed nor written.
+`changedDuringLoad.ts` computes those sets, and `mv` (`MoveError`
+`changed-during-read`), the migration fix (every selected finding refused) and the verify batch (a
+`changed-during-read` skip) use it too, rather than write something silently incomplete. `syncIndex` likewise never renders over a root
+or subdirectory `index.md` whose frontmatter never closes or does not parse
+(`frontmatter-unclosed` or `frontmatter-unparseable` on that file): it
+returns it in `skipped` with the reason `index-unparseable`, in every run,
+with the exit code unchanged (`syncLog` already does the same for `log.md`
+with `log-unparseable`). `confinement.ts#escapesBundle` (exported, with its
+bundle-free core `escapesRoot`) asks core's load diagnostics first and falls
+back to `escapesRoot`, where `confineReal` judges the whole path, so a link at
+the file or at any directory above it that leads out, or dangles, counts (a
+missing file resolves from its real ancestor, so it is an escape only under
+a link that leaves). That check decides a skip and gates a write: a write is
+checked before it happens, then made atomically. The reads are confined at the moment of reading instead: sync reads
+`index.md` and `log.md` through core's `readConfinedBytes`, which opens the
+file, resolves its path and compares the open file's `dev` and `ino` with
+`lstat` of the real path. A link at the file itself is refused even when it is
+swapped in during the read (skipped as `symlink-escape`, or as
+`changed-during-read` when it landed between the resolution and the compare),
+and never read. A race through a directory above the file can still win,
+because the open and the resolution are separate steps on the path (see
+spencerbeggs/okfit#524, which also lists the reads that are still
+unconfined). A hard link to a file under the root is a file under the
+root (OKF 0.3 section 3.2) and is read. `okfit context` uses `escapesRoot`,
+and the MCP `okf://index` and `okf://concept/<id>` resources read confined,
+so an escaping root `index.md` is reported absent and never read. `okfit
+context` is not a confined read: it only checks. `sync --staged` never stamps a concept file
+that is a symlink out of the bundle, because core does not load one, and it
+skips an escaping `log.md` instead of failing;
+`ConceptOutsideRepositoryError` still covers a concept that resolves outside
+the repository (see [A concept outside the repository is a typed
+failure](../decisions/concept-outside-repository-is-a-typed-failure.md)).
 
 ## Repository resources
 
@@ -351,7 +393,11 @@ buffers (`OverlayDocuments`, absolute path to text and version), falling
 through to disk for everything else and listing overlay-only files in
 their parent directory (through both `readDirectory` and Effect 4.1's
 `readDirectoryEntries`, which reports them as `"File"`) so an unsaved new
-concept is walked. It answers
+concept is walked. It also serves an open document's text through a
+read-only `open` and a `realPath` (its real parent directory plus its name),
+and answers a not-found `stat`/`lstat` of that real path, so a confined read
+sees the buffer; an overlay-only document, which has no inode, reports an
+`ino` derived from its path so the identity compare holds. It answers
 `lstat` as well as `stat` for them: `@effected/walker` `lstat`s every
 entry it descends into, and drops one whose `lstat` is not found.
 `overlay/documents.ts#provideDocuments` is the one entry point the CLI's

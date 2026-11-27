@@ -121,6 +121,7 @@ describe("okfitConfigDocumentFields", () => {
 				["config_okf_version_stale", "config-okf-version-stale"],
 				["stale", "stale"],
 				["walk_unreadable", "walk-unreadable"],
+				["read_changed", "read-changed"],
 				["frontmatter_missing", "frontmatter-missing"],
 				["type_missing", "type-missing"],
 				["symlink_escape", "symlink-escape"],

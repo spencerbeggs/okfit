@@ -1,27 +1,35 @@
 import { MarkdownEdit } from "@effected/markdown";
 import type { YamlParseError } from "@effected/yaml";
 import type { BundleLoadError } from "@okfit/core";
-import { Bundle, ConceptId } from "@okfit/core";
+import { Bundle, ConceptId, changedWhileRead } from "@okfit/core";
 import { Derivation, PUBLICATION_TYPE, ProfileKeys, Publications } from "@okfit/profiles";
 import type { PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path, Runtime, Schema } from "effect";
 import type { Digest } from "effect/crypto";
+import { changedConceptIds } from "../changedDuringLoad.js";
 import { FrontmatterEdits, UnsupportedFrontmatterError } from "../edits/FrontmatterEdits.js";
 import type { PublicationEnvelope } from "../render/sync.js";
 import { bomOf, writeAtomic } from "./write.js";
 
 /**
  * No concept answers to `id` -- or one of a Publication's `renders` paths
- * resolves to no concept, in which case `id` names that missing source.
+ * resolves to no concept, in which case `id` names that missing source. `reason`
+ * is `"changed-during-read"` when the concept exists but changed while the bundle was read, so the load left it out
+ * (transient: run again); it is absent for a concept that is not there.
  *
  * @public
  */
 export class PublicationNotFoundError extends Schema.TaggedError<PublicationNotFoundError>()(
 	"PublicationNotFoundError",
-	{ id: Schema.String, publication: Schema.optionalKey(Schema.String) },
+	{
+		id: Schema.String,
+		publication: Schema.optionalKey(Schema.String),
+		reason: Schema.optionalKey(Schema.Literals(["changed-during-read"])),
+	},
 ) {
 	override readonly [Runtime.errorExitCode] = 64;
 	override get message(): string {
+		if (this.reason === "changed-during-read") return changedWhileRead(`${this.id}.md`);
 		return this.publication === undefined
 			? `no concept "${this.id}" in the bundle`
 			: `a ${ProfileKeys.renders} entry of "${this.publication}" points at "${this.id}", which is not a concept in the bundle; fix that ${ProfileKeys.renders} entry`;
@@ -68,10 +76,19 @@ export const stampPublication = (options: {
 > =>
 	Effect.gen(function* () {
 		const bundle = yield* Bundle.load({ root: options.bundleRoot });
+		// A concept the load dropped because it changed under the read is not missing; say so (transient).
+		const changed = new Set(changedConceptIds(bundle));
 		const normalized = ConceptId.normalize(options.id);
 		const id = Option.getOrElse(normalized, () => options.id);
 		const concept = Option.isSome(normalized) ? bundle.concepts.get(normalized.value) : undefined;
-		if (concept === undefined) return yield* new PublicationNotFoundError({ id });
+		if (concept === undefined) {
+			return yield* new PublicationNotFoundError({
+				id,
+				...(Option.isSome(normalized) && changed.has(normalized.value)
+					? { reason: "changed-during-read" as const }
+					: {}),
+			});
+		}
 		if (concept.frontmatter.type !== PUBLICATION_TYPE) {
 			return yield* new NotAPublicationError({ id, type: concept.frontmatter.type });
 		}
@@ -82,12 +99,16 @@ export const stampPublication = (options: {
 		const digests: Array<PublicationEnvelope["digests"][number]> = [];
 		for (const entry of renders) {
 			const sourceId = Publications.resolveRef(concept.path, entry.path);
-			const source = Option.match(ConceptId.normalize(sourceId), {
-				onNone: () => undefined,
-				onSome: (key) => bundle.concepts.get(key),
-			});
+			const sourceKey = ConceptId.normalize(sourceId);
+			const source = Option.isSome(sourceKey) ? bundle.concepts.get(sourceKey.value) : undefined;
 			if (source === undefined) {
-				return yield* new PublicationNotFoundError({ id: sourceId === "" ? entry.path : sourceId, publication: id });
+				return yield* new PublicationNotFoundError({
+					id: sourceId === "" ? entry.path : sourceId,
+					publication: id,
+					...(Option.isSome(sourceKey) && changed.has(sourceKey.value)
+						? { reason: "changed-during-read" as const }
+						: {}),
+				});
 			}
 			digests.push({ path: entry.path, body: yield* Derivation.bodyDigest(source.document.source) });
 		}

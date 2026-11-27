@@ -13,15 +13,15 @@ sources:
     title: The test that pins the quieter hook.
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-26T16:40:43Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: def482847051a22e
+    body: 235e775d47c49ee5
   verified:
     by: human:spencer
-    at: 2026-11-25T13:30:00Z
-    content: a73bc8f98c46d7a7
+    at: 2026-11-26T06:31:54Z
+    content: 33d7dbb223521cb5
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:48Z
@@ -33,6 +33,8 @@ verified:
     at: 2026-11-25T02:05:49Z
   - by: human:spencer
     at: 2026-11-25T13:30:00Z
+  - by: human:spencer
+    at: 2026-11-26T06:31:54Z
 ---
 
 # Markdown that is not a concept is skipped, not an error
@@ -64,6 +66,23 @@ checks each walked file with `lstat`, and for a link asks `confineReal`
 (`@effected/walker`) whether it stays inside. A refusal produces the lint
 `symlink-escape` (`warn`) and the file is dropped from the bundle's file
 list. A link that stays inside the bundle loads as before.
+
+The same rule covers directories. The walker never enters a symbolic link to
+a directory, wherever it points, so nothing under one is read. In record mode
+the walker reports each link it passed over (`links`: a directory link it did
+not enter, and a dangling one). `Bundle.load` checks each directory link with
+`confineReal` on the real path, and records `symlink-escape` at the directory's own path when it resolves
+outside the bundle root, including through an in-bundle link to a link that
+leaves it. A link to a directory that stays inside the bundle is never walked
+and draws no diagnostic. A dangling link of any kind, file or directory, is
+also recorded as `symlink-escape` ("could not be resolved"), because it
+cannot be told from a file link or a directory link. So is any link whose
+resolution fails for another reason (a link loop, a target in a directory that
+cannot be read), which the walker also reports as dangling. A pruned
+directory name (`node_modules` by default) is silent: neither the entry nor
+anything under it is checked, and a file link with that name is silent too: it is
+never read, never reported and not in the bundle's file list. A regular file with a pruned name is not a link and still loads as usual. A hidden name is checked only when the bundle loads with
+`includeHidden`.
 
 The consequence for exit codes is accepted: a bundle that holds a README or
 any other typeless markdown file now validates with exit code 0 and a
@@ -114,7 +133,7 @@ a typeless file that is not one of the four listed names; a bundle that sets
 config has no key, which is `profile = "none"` with no `non_concepts` of its
 own; the software-project profile, the default, always supplies the four
 globs.
-`non_concept_unlisted` is a public config key, one of the forty-three lint keys.
+`non_concept_unlisted` is a public config key, one of the forty-four lint keys.
 
 `sync` never stamps or rewrites a concept file that is a link out of the
 bundle, because `Bundle.load` drops it, and an engine test pins that. The
@@ -125,6 +144,8 @@ through such a link either: a root or subdirectory `index.md`, or the root
 `log.md`, that is a symlink out of the bundle (a dangling link included) is
 skipped with the reason `symlink-escape`, never read and never written, in
 plain, dry-run and `--staged` runs, and the exit code is unchanged. The check
-asks core's load diagnostics first and falls back to `lstat` plus
-`confineReal`, because the walker does not list a dangling link and so leaves
-no diagnostic.
+asks core's load diagnostics first and falls back to `confineReal` on the
+whole path, which also answers for a link that appeared after the load; the
+reads themselves are confined at the moment of reading (open, resolve, compare
+the open file's identity with the resolved path's), and the write that follows
+stays a check then an atomic write.

@@ -40,6 +40,7 @@ export const LintCode = Schema.Literals([
 	"config-okf-version-stale",
 	"stale",
 	"walk-unreadable",
+	"read-changed",
 	"generated-at-drift",
 	"status-missing",
 	"source-resource-missing",

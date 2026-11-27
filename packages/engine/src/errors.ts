@@ -1,4 +1,4 @@
-import { INTEGRITY_KEY } from "@okfit/core";
+import { INTEGRITY_KEY, changedWhileRead } from "@okfit/core";
 import { Runtime, Schema } from "effect";
 import { describeConfigCause } from "./config/issues.js";
 import { LEGACY_INTEGRITY_KEY } from "./sync/legacyKeys.js";
@@ -43,7 +43,8 @@ export class InitOverwriteError extends Schema.TaggedError<InitOverwriteError>()
  * `"not-a-concept"` (no such file, or an id that normalises to nothing),
  * `"reserved"` (the id names `index.md` or `log.md`), or `"undecodable"`
  * (a file exists but `bundle.diagnostics` names it — `diagnosticCode`
- * carries which). `root` is the absolute bundle root, kept OFF `message`
+ * carries which), or `"changed-during-read"` (the file changed while the bundle was read, so the
+ * load left it out: transient, run again). `root` is the absolute bundle root, kept OFF `message`
  * so K-51's relativisation rule has nothing to apply to and the human
  * line and the JSON envelope's `message` are identical.
  *
@@ -54,12 +55,13 @@ export class VerifyConceptNotFoundError extends Schema.TaggedError<VerifyConcept
 	{
 		id: Schema.String,
 		root: Schema.String,
-		reason: Schema.Literals(["not-a-concept", "reserved", "undecodable"]),
+		reason: Schema.Literals(["not-a-concept", "reserved", "undecodable", "changed-during-read"]),
 		diagnosticCode: Schema.optionalKey(Schema.String),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
+		if (this.reason === "changed-during-read") return changedWhileRead(`${this.id}.md`);
 		const detail = this.diagnosticCode === undefined ? this.reason : `${this.reason}: ${this.diagnosticCode}`;
 		return `no concept "${this.id}" in this bundle (${detail})`;
 	}
@@ -351,12 +353,13 @@ export class QueryConceptNotFoundError extends Schema.TaggedError<QueryConceptNo
 	"QueryConceptNotFoundError",
 	{
 		id: Schema.String,
-		reason: Schema.Literals(["empty-id", "not-a-concept"]),
+		reason: Schema.Literals(["empty-id", "not-a-concept", "changed-during-read"]),
 	},
 ) {
 	override readonly [Runtime.errorExitCode] = 3;
 	override get message(): string {
 		if (this.reason === "empty-id") return "a concept id must not be empty";
+		if (this.reason === "changed-during-read") return changedWhileRead(`${this.id}.md`);
 		return `no concept "${this.id}" in this bundle`;
 	}
 }
@@ -386,7 +389,14 @@ export class QuerySelectionError extends Schema.TaggedError<QuerySelectionError>
  */
 export const TargetFailure = Schema.Struct({
 	arg: Schema.String,
-	reason: Schema.Literals(["not-found", "ambiguous", "outside-bundle", "reserved", "not-a-concept"]),
+	reason: Schema.Literals([
+		"not-found",
+		"ambiguous",
+		"outside-bundle",
+		"reserved",
+		"not-a-concept",
+		"changed-during-read",
+	]),
 	suggestion: Schema.optionalKey(Schema.String),
 	candidates: Schema.optionalKey(Schema.Tuple([Schema.String, Schema.String])),
 });
@@ -403,6 +413,8 @@ const targetLine = (failure: TargetFailure): string => {
 			return `"${failure.arg}" is a reserved file, not a concept`;
 		case "not-a-concept":
 			return `"${failure.arg}" did not load as a concept (run okfit validate)`;
+		case "changed-during-read":
+			return changedWhileRead(failure.arg);
 		default:
 			return `no concept "${failure.arg}"${failure.suggestion === undefined ? "" : ` (did you mean ${failure.suggestion}?)`}`;
 	}
@@ -445,6 +457,7 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 		"unrewritable",
 		"project-file",
 		"unloaded-files",
+		"changed-during-read",
 	]),
 	detail: Schema.optionalKey(Schema.String),
 }) {
@@ -460,6 +473,8 @@ export class MoveError extends Schema.TaggedError<MoveError>()("MoveError", {
 			return `${detail} is the bundle's project file and must stay at the bundle root; edit it in place`;
 		if (this.reason === "unloaded-files")
 			return `these Markdown files are in the bundle but did not load as concepts, so their links to the moved file cannot be rewritten; run \`okfit validate\` and fix them first:\n${detail}`;
+		if (this.reason === "changed-during-read")
+			return `these files changed while the bundle was being read, so their links to the moved file cannot be rewritten; nothing was moved; run okfit mv again:\n${detail}`;
 		return `these links could not be located for rewriting; nothing was moved:\n${detail}`;
 	}
 }

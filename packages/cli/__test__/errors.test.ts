@@ -6,6 +6,7 @@ import {
 	ConfigPathNotFoundError,
 	DocumentPathError,
 	InitOverwriteError,
+	PublicationNotFoundError,
 	QueryConceptNotFoundError,
 	QuerySelectionError,
 	QueryUnknownVocabularyError,
@@ -28,6 +29,22 @@ describe("renderFailure", () => {
 		assert.deepStrictEqual(renderTyped(new NotInteractive({})), [
 			"not interactive: run in a terminal or pass the flag",
 		]);
+	});
+
+	it("gives the publication-list hint only to an unknown sync --publication id", () => {
+		const hint = "hint: run okfit query list --type Publication to list publication ids";
+		assert.deepStrictEqual(renderTyped(new PublicationNotFoundError({ id: "publications/x" })), [
+			'error: no concept "publications/x" in the bundle',
+			hint,
+		]);
+		assert.notInclude(
+			renderTyped(new PublicationNotFoundError({ id: "decisions/y", publication: "publications/x" })),
+			hint,
+		);
+		assert.deepStrictEqual(
+			renderTyped(new PublicationNotFoundError({ id: "publications/x", reason: "changed-during-read" })),
+			['error: "publications/x.md" changed while it was read; try again'],
+		);
 	});
 
 	it("renders ConfigPathNotFoundError as one error line", () => {

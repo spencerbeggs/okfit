@@ -1,5 +1,5 @@
 import { GlobPattern, GlobPatternOptions } from "@effected/glob";
-import type { DescendError } from "@effected/walker";
+import type { DescendError, SkippedLink } from "@effected/walker";
 import { descend } from "@effected/walker";
 import type { FileSystem, Path, PlatformError } from "effect";
 import { Effect } from "effect";
@@ -42,13 +42,20 @@ export interface UnreadableDirectory {
 }
 
 /**
- * Every file below the root and every subdirectory whose listing failed with a
- * non-`NotFound` reason; both posix-relative and sorted by path.
+ * Every file below the root, every symbolic link the walk passed over, and every subdirectory whose listing
+ * failed with a non-`NotFound` reason; paths are posix-relative and sorted.
+ *
+ * @remarks
+ * `links` is the walker's own report under `onUnreadable: "record"`: a link to a directory the walk did not enter
+ * (`kind: "directory"`, wherever it points) and a link that does not resolve (`kind: "dangling"`). It is raw: the
+ * walker reports only links in directories it reads, so a pruned directory, a hidden one and anything under them are
+ * absent, but a dangling link is reported whatever its own name. `Bundle.load` decides each by `confineReal`.
  *
  * @public
  */
 export interface WalkResult {
 	readonly files: ReadonlyArray<string>;
+	readonly links: ReadonlyArray<SkippedLink>;
 	readonly unreadable: ReadonlyArray<UnreadableDirectory>;
 }
 
@@ -81,5 +88,5 @@ export const walk = (
 		const unreadable = result.unreadable
 			.map((entry) => ({ path: entry.path, reason: entry.cause.reason._tag }))
 			.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-		return { files: result.matches, unreadable };
+		return { files: result.matches, links: result.links, unreadable };
 	});

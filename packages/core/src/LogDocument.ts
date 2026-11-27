@@ -23,4 +23,6 @@ export class LogDocument extends Schema.Class<LogDocument>("LogDocument")({
 	dir: Schema.String,
 	title: Schema.optionalKey(Schema.String),
 	groups: Schema.Array(LogGroup),
+	/** The file's text as the load read it (a leading byte-order mark dropped); absent on a hand-built document. */
+	source: Schema.optionalKey(Schema.String),
 }) {}

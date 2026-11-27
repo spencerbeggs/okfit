@@ -49,8 +49,8 @@ src/
     staleReport.ts
     validateBundle.ts
   resources/
-    conceptResource.ts         -- okf://concept/<id>, one static resource per concept at boot
-    indexResource.ts           -- okf://index, re-read from disk on every call
+    conceptResource.ts         -- okf://concept/<id>, one static resource per concept at boot; each read is confined (core readConfinedString)
+    indexResource.ts           -- okf://index, re-read from disk on every call, confined
   internal/
     projectRoot.ts             -- resolveMcpProjectRoot(env, cwd): @effected/kit's
                                    LaunchContext.projectDir over the env precedence, called
@@ -88,8 +88,21 @@ parametric segment cannot span the `/` every nested concept id contains, so
 each concept gets its own fixed URI instead. Editing an already-listed
 concept's file is picked up live, since `content` re-reads it from disk on
 every call; a concept added or removed after boot is not reflected in
-`resources/list` until the server restarts. There is no completion, since a
-fixed list needs none.
+`resources/list` until the server restarts. Each read is confined at the moment
+of reading (`@okfit/core`'s `readConfinedString`, with the platform services
+captured at layer build, as `IndexResource` does): the file is opened, its
+path resolved and the open file's identity compared with it, so a file, or a
+directory above it, that links out of the bundle or dangles is refused with
+`<path> links out of the bundle`. A link at the file itself is refused even
+when it is swapped in during the read; a race through a directory above the file
+can still win (spencerbeggs/okfit#524). A file that changed under the read is
+answered `"<path>" changed while it was read; try again`, never labelled a link.
+A hard link to a file under the root is read. The bundle root is
+resolved wherever `okf/` points at each read, so a root replaced by a link
+after boot is followed, and the tools and resources agree. A resource failure
+is a JSON-RPC error, not `isError`, and its message names the bundle-relative
+path. There is no completion,
+since a fixed list needs none.
 
 ## Errors reach the wire as `isError`
 

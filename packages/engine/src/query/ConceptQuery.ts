@@ -2,6 +2,7 @@ import type { DerivedStatus, GraphNodeKind, LoadedBundle, LoadedConcept, OkfitCo
 import { ConceptId, Derive, Graph } from "@okfit/core";
 import type { ConceptSignal } from "@okfit/profiles";
 import { Effect, Option } from "effect";
+import { changedConceptIds } from "../changedDuringLoad.js";
 import { QueryConceptNotFoundError, QueryUnknownVocabularyError } from "../errors.js";
 
 /**
@@ -63,7 +64,12 @@ const resolve = (
 		const id = normalized.value;
 		const concept = bundle.concepts.get(id);
 		if (concept === undefined) {
-			return yield* Effect.fail(new QueryConceptNotFoundError({ id: rawId, reason: "not-a-concept" }));
+			// A concept the load dropped as `read-changed` is not absent: it changed under the read (transient).
+			return yield* Effect.fail(
+				changedConceptIds(bundle).includes(id)
+					? new QueryConceptNotFoundError({ id, reason: "changed-during-read" })
+					: new QueryConceptNotFoundError({ id: rawId, reason: "not-a-concept" }),
+			);
 		}
 		return { id, concept };
 	});

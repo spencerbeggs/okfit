@@ -27,14 +27,14 @@ import type { PendingWrite } from "./write.js";
 import { readSourceKeepingBom, writeAtomic } from "./write.js";
 
 /**
- * The five `SkipReason` members contract §6.2's algorithm can actually
- * produce — a strict subset of contract §5's six-member `SkipReason`
- * (`sync/run.ts`, Task B3; the sixth, `"log-unparseable"`, is log mode's
- * alone). Declared locally because `sync/run.ts` does not exist when this
- * task lands (fixed order A1 -> A2 -> B1 -> B2 -> B3); every member here is
- * spelled identically to its `SkipReason` counterpart, so Task B3 assigns
- * a `GeneratedSkipReason` value into a `SkipReason`-typed field with no
- * cast.
+ * The `SkipReason` members contract §6.2's algorithm can actually produce — a
+ * subset of `SkipReason` (`sync/run.ts`); the members it leaves out (the
+ * log-mode and index-mode reasons, for example `"log-unparseable"` and
+ * `"index-unparseable"`) belong to the other sync modes. Declared locally
+ * because `sync/run.ts` does not exist when this task lands (fixed order
+ * A1 -> A2 -> B1 -> B2 -> B3); every member here is spelled identically to
+ * its `SkipReason` counterpart, so Task B3 assigns a `GeneratedSkipReason`
+ * value into a `SkipReason`-typed field with no cast.
  *
  * @internal
  */
@@ -347,7 +347,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 							);
 						migrated.push(id);
 						if (!dryRun) yield* writeAtomic(absolutePath, finalText);
-						else pending?.push({ target: absolutePath, contents: finalText });
+						else pending?.push({ target: absolutePath, contents: finalText, before: concept.document.source });
 					}
 				}
 				skipped.push({ id, reason });
@@ -490,7 +490,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		if (!dryRun) {
 			yield* writeAtomic(absolutePath, finalText);
 		} else {
-			pending?.push({ target: absolutePath, contents: finalText });
+			pending?.push({ target: absolutePath, contents: finalText, before: concept.document.source });
 		}
 		if (!matches || future) written.push(id);
 	}
