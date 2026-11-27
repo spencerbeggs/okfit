@@ -166,8 +166,8 @@ export const parseIndex = (
 				const span = findFrontmatterPathSpan(text, node, ["okf_version"]);
 				const source = span === undefined ? undefined : text.slice(span.offset, span.offset + span.length);
 				const written = source !== undefined && Option.isSome(OkfVersion.parse(source)) ? source : undefined;
-				metadata.okfVersion = written ?? String(version);
 				const reads = String(version);
+				metadata.okfVersion = written ?? reads;
 				warn("okf_version", unquotedMessage(written, reads));
 			} else if (version !== null && version !== undefined) {
 				metadata.okfVersion = JSON.stringify(version);

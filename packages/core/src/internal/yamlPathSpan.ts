@@ -82,12 +82,16 @@ export const findFrontmatterPathSpan = (
 	return { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
 };
 
+/** The pair of `map` whose key is the plain scalar `key`. */
+const pairOf = (map: YamlMap, key: string) =>
+	map.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
+
 const keySpan = (text: string, contents: YamlNode, path: ReadonlyArray<string | number>): OffsetSpan | undefined => {
 	const key = path.at(-1);
 	if (typeof key !== "string") return undefined;
 	const parent = path.length === 1 ? Option.some(contents) : contents.find(path.slice(0, -1) as YamlPath);
 	if (Option.isNone(parent) || !(parent.value instanceof YamlMap)) return undefined;
-	const pair = parent.value.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
+	const pair = pairOf(parent.value, key);
 	return pair === undefined ? undefined : { offset: toFileOffset(text, pair.key.offset), length: pair.key.length };
 };
 
@@ -105,7 +109,7 @@ export const isReplaceableNull = (node: Frontmatter, key: string): boolean => {
 	if (Result.isFailure(parsed)) return false;
 	const contents = parsed.success.contents;
 	if (!(contents instanceof YamlMap) || contents.style === "flow") return false;
-	const pair = contents.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
+	const pair = pairOf(contents, key);
 	if (pair === undefined) return true;
 	const value = pair.value;
 	return (
