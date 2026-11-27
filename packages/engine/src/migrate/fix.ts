@@ -1,5 +1,4 @@
 import { FrontmatterSource, MarkdownEdit } from "@effected/markdown";
-import type { YamlParseError } from "@effected/yaml";
 import type { LoadedBundle, LoadedConcept, OkfitConfig } from "@okfit/core";
 import { Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
@@ -128,11 +127,7 @@ const declareVersion = Effect.fn("okfit/migrate/declareVersion")(function* (sour
  */
 export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
 	options: MigrationFixOptions,
-): Effect.fn.Return<
-	MigrationFixPlan,
-	YamlParseError | PlatformError.PlatformError,
-	FileSystem.FileSystem | Path.Path | Digest.Digest
-> {
+): Effect.fn.Return<MigrationFixPlan, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path | Digest.Digest> {
 	const { bundle, config, target, files, only, now } = options;
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
@@ -296,11 +291,7 @@ export const planMigrationFixes = Effect.fn("okfit/migrate/plan")(function* (
  */
 export const applyMigrationFixes = Effect.fn("okfit/migrate/apply")(function* (
 	options: MigrationFixOptions & { readonly dryRun: boolean },
-): Effect.fn.Return<
-	MigrationFixPlan,
-	YamlParseError | PlatformError.PlatformError,
-	FileSystem.FileSystem | Path.Path | Digest.Digest
-> {
+): Effect.fn.Return<MigrationFixPlan, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path | Digest.Digest> {
 	const path = yield* Path.Path;
 	const plan = yield* planMigrationFixes(options);
 	if (!options.dryRun) {

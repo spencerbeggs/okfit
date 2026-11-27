@@ -5,6 +5,7 @@ import { assert, describe, it } from "@effect/vitest";
 import type { LoadedBundle } from "@okfit/core";
 import { Bundle, ConceptId, OkfitConfig } from "@okfit/core";
 import { Derivation, Trust } from "@okfit/profiles";
+import type { PlatformError } from "effect";
 import { DateTime, Effect, FileSystem, Option } from "effect";
 import type { MigrationFixKind } from "../../src/migrate/findings.js";
 import { migrationFindings } from "../../src/migrate/findings.js";
@@ -26,6 +27,11 @@ import {
 } from "../fixtures/bundles.js";
 import { ROOT, mountProject, sessionPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
+
+type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+// #516: the plan and the apply can fail only on the file system.
+const planErrors: Exactly<Effect.Error<ReturnType<typeof planMigrationFixes>>, PlatformError.PlatformError> = true;
+const applyErrors: Exactly<Effect.Error<ReturnType<typeof applyMigrationFixes>>, PlatformError.PlatformError> = true;
 
 const CONFIG = OkfitConfig.DEFAULTS;
 const RENAMES = keyRenamesFor(CONFIG);
@@ -74,6 +80,10 @@ const counts = Effect.gen(function* () {
 });
 
 describe("migration fixes", () => {
+	it("the migration fixes declare only PlatformError (#516)", () => {
+		assert.isTrue(planErrors && applyErrors);
+	});
+
 	it.effect("V02 -> 0.3 all at once: the computation becomes V03's text and validate is no worse", () =>
 		Effect.gen(function* () {
 			const before = yield* counts;
