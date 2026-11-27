@@ -103,6 +103,22 @@ const earliestVerificationBetween = (
 		),
 	);
 
+/** What {@link settle} decides about a stamp that may be ahead of the clock. */
+type Settled =
+	| { readonly _tag: "keep" }
+	| { readonly _tag: "restamp" }
+	| { readonly _tag: "held"; readonly verifiedAt: DateTime.Utc };
+
+/**
+ * #471/#509: a stamp more than the tolerance ahead of `now` moves to `now`, unless a verification dated in
+ * `[now, stamp)` would then count: that is a real hold, reported `verified-after-now`. A stamp within the tolerance is kept.
+ */
+const settle = (concept: LoadedConcept, at: DateTime.Utc, now: DateTime.Utc, nowStamp: DateTime.Utc): Settled => {
+	if (!generatedAtIsFuture(at, now)) return { _tag: "keep" };
+	const verifiedAt = earliestVerificationBetween(concept, nowStamp, at);
+	return verifiedAt === undefined ? { _tag: "restamp" } : { _tag: "held", verifiedAt };
+};
+
 const NO_KEY_PLAN: KeyRenamePlan = { _tag: "none" };
 
 /**
@@ -152,7 +168,9 @@ export interface SyncGeneratedOptions {
 	/**
 	 * #471: the run's clock. With it set, a stamp sync writes is never later than `startOf(now, "second")`, and a
 	 * concept whose recorded digest matches but whose `generated.at` is later than `now` is re-stamped to that instant.
-	 * Absent: neither applies.
+	 * A stamp that stays more than the tolerance ahead because lowering it would make a verification count is reported
+	 * `verified-after-now` on that run (#509); a kept stamp that guards no such verification moves to `now`.
+	 * Absent: none of this applies.
 	 */
 	readonly now?: DateTime.Utc;
 }
@@ -221,6 +239,9 @@ const stampInstant = (
  * provenance lookup, so an uncommitted concept is told its real blocker first, #515) -> (3) provenance absent =>
  * `Effect.die` (caller contract) -> (4) `uncommitted` => skipped with its reason -> (5) no `generated` block, `agent`
  * set: create -> (6) existing block: splice `at`.
+ * With `options.now` set, the stamp a path leaves is settled once more ({@link settle}): a stamp more than the tolerance
+ * ahead moves to now, or, when a verification dated in `[now, stamp)` would then count, stays and is reported
+ * `verified-after-now` (a changed concept is still written, so it may be in both `written` and `skipped`).
  * Every write also sets `x-okfit-integrity.generated.body` (keeping `x-okfit-integrity.verified`)
  * and removes a legacy `body_sha256` line.
  *
@@ -270,29 +291,23 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		const rawKeys = concept.frontmatter.raw;
 		const keyCandidate = hasLegacyKeyNames(concept, renames);
 		// #471: a stamp later than now behind a matching digest is not authoritative; one at or before now never is touched.
-		const overdueAt =
-			matches &&
-			options.now !== undefined &&
-			generated?.at !== undefined &&
-			generatedAtIsFuture(generated.at, options.now)
-				? generated.at
-				: undefined;
 		// R2: re-stamping lowers `generated.at`; it must not make a verification count that did not before.
-		const reviving =
-			overdueAt !== undefined && nowStamp !== undefined
-				? earliestVerificationBetween(concept, nowStamp, overdueAt)
-				: undefined;
-		const future = overdueAt !== undefined && reviving === undefined;
-		if (overdueAt !== undefined && reviving !== undefined) {
+		const matchingSettled: Settled =
+			matches && options.now !== undefined && nowStamp !== undefined && generated?.at !== undefined
+				? settle(concept, generated.at, options.now, nowStamp)
+				: { _tag: "keep" };
+		const future = matchingSettled._tag === "restamp";
+		const matchingHeld = matchingSettled._tag === "held";
+		if (matchingSettled._tag === "held" && generated?.at !== undefined) {
 			skipped.push({
 				id,
 				reason: "verified-after-now",
-				generatedAt: encodeAt(overdueAt),
-				verifiedAt: encodeAt(reviving),
+				generatedAt: encodeAt(generated.at),
+				verifiedAt: encodeAt(matchingSettled.verifiedAt),
 			});
 		}
 		if (matches && !future && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
-			if (reviving === undefined) unchanged.push(id);
+			if (!matchingHeld) unchanged.push(id);
 			continue;
 		}
 
@@ -357,6 +372,11 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
 		let encodedAt: string | undefined;
+		let heldChanged: { readonly generatedAt: string; readonly verifiedAt: string } | undefined;
+		// A held concept that another skip ends gets that skip alone: the hold is reported where the write lands.
+		const reportHeld = () => {
+			if (heldChanged !== undefined) skipped.push({ id, reason: "verified-after-now", ...heldChanged });
+		};
 		// Step 3b (#73, #515): a concept with no `generated` block and no agent to attribute a stamp to can never be
 		// stamped, so name that blocker first: skipping it as uncommitted would send the author to commit it, and the
 		// next sync would then skip it again as `generated-missing`. The file is never even opened for the stamp.
@@ -396,13 +416,22 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			// R2 against the stamp being replaced: a stamp is never moved back below a verification. The binding clamp
 			// in `stampInstant` never goes below the existing stamp, so it is unaffected; the final candidate is judged last.
 			const previous = generated?.at;
-			encodedAt = encodeAt(
+			const final =
 				previous !== undefined &&
-					DateTime.isLessThan(candidate, previous) &&
-					earliestVerificationBetween(concept, candidate, previous) !== undefined
+				DateTime.isLessThan(candidate, previous) &&
+				earliestVerificationBetween(concept, candidate, previous) !== undefined
 					? previous
-					: candidate,
-			);
+					: candidate;
+			// #509: judge the final stamp once more. A kept future stamp that guards only verifications before now
+			// moves to now on this run; one that guards a verification dated after now is reported as held.
+			const settled: Settled =
+				options.now !== undefined && nowStamp !== undefined
+					? settle(concept, final, options.now, nowStamp)
+					: { _tag: "keep" };
+			if (settled._tag === "held") {
+				heldChanged = { generatedAt: encodeAt(final), verifiedAt: encodeAt(settled.verifiedAt) };
+			}
+			encodedAt = encodeAt(settled._tag === "restamp" && nowStamp !== undefined ? nowStamp : final);
 		}
 
 		const fileSource = source ?? (yield* readSourceKeepingBom(fs, absolutePath));
@@ -481,7 +510,9 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
 		// not as a write that would recur on every run.
 		if (finalText === fileSource) {
-			if (reviving === undefined) unchanged.push(id);
+			if (matchingHeld) continue;
+			if (heldChanged !== undefined) reportHeld();
+			else unchanged.push(id);
 			continue;
 		}
 		if (legacy._tag === "line" || legacyRenders !== undefined || keyPlan._tag === "edits" || legacyKey !== undefined) {
@@ -493,6 +524,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 			pending?.push({ target: absolutePath, contents: finalText, before: concept.document.source });
 		}
 		if (!matches || future) written.push(id);
+		reportHeld();
 	}
 
 	return { written, unchanged, migrated, skipped } satisfies GeneratedSyncResult;

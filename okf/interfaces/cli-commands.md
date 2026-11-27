@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:49:23Z
+  at: 2026-11-27T23:59:28Z
 tags:
   - architecture
 verified:
@@ -53,7 +53,7 @@ verified:
     at: 2026-11-27T22:16:13Z
 x-okfit-integrity:
   generated:
-    body: 6e6fd46752a7d728
+    body: 1787b3f25247da89
   verified:
     by: human:spencer
     at: 2026-11-27T22:16:13Z
@@ -353,7 +353,7 @@ the concept's `x-okfit-integrity.verified` binds its latest human entry and cove
 exactly the current content, sync stamps `min(derived instant, binding.at)`
 instead, so the
 edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
-§5.3); the `[actors].humans` allow-list does not gate this. Sync re-stamps a `generated.at` more than five minutes later than now to now (whole seconds), even when the recorded digest matches (the one case where an authoritative stamp is rewritten), and clamps a drifted concept's new stamp to now (#471). It skips the re-stamp when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. When the clamp would make one count, sync writes the derived stamp unclamped, reports no skip on that run, and the lint `generated-at-future` reports it once it is more than five minutes ahead; a later sync then skips it. A drifted concept's new stamp is never moved back below the stamp it replaces when a verification falls between the two: the existing stamp stays, the digest is re-recorded, no skip is reported. It never
+§5.3); the `[actors].humans` allow-list does not gate this. Sync re-stamps a `generated.at` more than five minutes later than now to now (whole seconds), even when the recorded digest matches (the one case where an authoritative stamp is rewritten), and clamps a drifted concept's new stamp to now (#471). It skips the re-stamp when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. When the clamp would make one count, sync writes the derived stamp unclamped and reports the concept `skipped` as `verified-after-now` on that run; the lint `generated-at-future` also reports it once it is more than five minutes ahead. A drifted concept's new stamp is never moved back below the stamp it replaces when a verification falls between the two: the existing stamp stays and the digest is re-recorded, and a kept stamp more than five minutes ahead is reported `verified-after-now` on that run. Such a changed concept is still written, so it may be in both `written` and `skipped`. A kept stamp more than five minutes ahead that guards no verification dated after now is re-stamped to now on the same run. A hold within the five-minute tolerance is not reported (#509). It never
 touches `verified` and never writes `x-okfit-integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a

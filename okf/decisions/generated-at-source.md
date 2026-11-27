@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-25T05:03:51Z
+  at: 2026-11-27T23:59:28Z
 status: stable
 verified:
   - by: human:spencer
@@ -19,7 +19,7 @@ verified:
     at: 2026-11-25T13:29:38Z
 x-okfit-integrity:
   generated:
-    body: e69318e06a54bbc3
+    body: 22914a0a13999cbc
   verified:
     by: human:spencer
     at: 2026-11-25T13:29:38Z
@@ -61,11 +61,15 @@ for ordinary clock skew. Sync never makes a verification count. When the re-stam
 dated between now and the stamp current, sync leaves the stamp, reports the concept
 as skipped (`verified-after-now`) and a human corrects `generated.at` or that
 verification. When the clamp would, sync writes the derived stamp unclamped and
-reports nothing on that run; the lint `generated-at-future` reports it once it is
-more than five minutes ahead, and a later sync then skips it as `verified-after-now`. A drifted
+reports it `verified-after-now` on that run (#509); the lint `generated-at-future` also reports it once it is
+more than five minutes ahead. A drifted
 concept's new stamp is also never moved back below the stamp it replaces when a verification falls
-between the two: the existing stamp is kept, the body digest is still re-recorded, and nothing is
-reported as skipped. The
+between the two: the existing stamp is kept and the body digest is still re-recorded, and a kept stamp more than five
+minutes ahead is reported `verified-after-now` on that run. A changed concept is still written, so it may be in both `written` and
+`skipped`. A kept stamp more than five minutes ahead that guards no verification dated after now is
+re-stamped to now on the same run, so "commit, then run okfit sync" converges in one run, even when the commit's
+author date is older than a verification (amend, rebase, cherry-pick). A hold within the five-minute tolerance is not reported.
+This is the owner's ruling of 2026-11-25 on #509. The
 owner accepted the cost: a concept whose repair is blocked has no okfit repair and
 needs a human.
 

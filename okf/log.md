@@ -13,6 +13,7 @@
 * Updated Markdown that is not a concept is skipped, not an error
 * Updated okfit-mcp — MCP tool and resource contract
 * Updated Engine
+* Updated Generated.at is the author date of the last commit that changed the body
 
 ## 2026-11-26
 

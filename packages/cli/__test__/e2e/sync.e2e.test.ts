@@ -1266,4 +1266,109 @@ describe("okfit sync --publication", () => {
 			await removeSandbox(sandbox);
 		}
 	});
+	it("sync reports a held future stamp as skipped on the run that holds it, and re-stamps a stamp that holds nothing (#509)", async () => {
+		const heldText = (body: string, digest: string, verifiedAt: string): string =>
+			[
+				"---",
+				"type: Decision",
+				"title: Held",
+				"description: A future stamp.",
+				"generated:",
+				"  by: human:ada",
+				"  at: 2030-01-01T00:00:00Z",
+				"verified:",
+				"  - by: human:ada",
+				`    at: ${verifiedAt}`,
+				"status: draft",
+				"x-okfit-integrity:",
+				"  generated:",
+				`    body: ${digest}`,
+				"---",
+				"",
+				body,
+				"",
+			].join("\n");
+		const arrange = async (verifiedAt: string) => {
+			const seed = await seeded();
+			const initial = heldText("# Held", "0000000000000000", verifiedAt);
+			const digest = await digestOf(initial);
+			await writeAndCommitDecision(
+				seed.cwd,
+				seed.env,
+				"held",
+				heldText("# Held", digest, verifiedAt),
+				"2026-09-02T00:00:00+00:00",
+				"add held",
+			);
+			await writeAndCommitDecision(
+				seed.cwd,
+				seed.env,
+				"held",
+				heldText("# Held, changed", digest, verifiedAt),
+				"2026-09-05T00:00:00+00:00",
+				"change held",
+			);
+			return seed;
+		};
+		const env = (base: Record<string, string>) => ({ ...base, OKFIT_NOW: "2026-09-10T00:00:00Z" });
+
+		const held = await arrange("2029-06-01T00:00:00Z");
+		try {
+			const run = await withServices(
+				runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd: held.cwd, env: env(held.env) }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			const generated = parseEnvelope(run.stdout).generated as unknown as {
+				readonly written: ReadonlyArray<string>;
+				readonly skipped: ReadonlyArray<Record<string, unknown>>;
+			};
+			assert.include(generated.written, "decisions/held");
+			assert.deepStrictEqual(
+				generated.skipped.filter((entry) => entry.id === "decisions/held"),
+				[
+					{
+						id: "decisions/held",
+						reason: "verified-after-now",
+						generated_at: "2030-01-01T00:00:00Z",
+						verified_at: "2029-06-01T00:00:00Z",
+					},
+				],
+			);
+		} finally {
+			await removeSandbox(held.sandbox);
+		}
+
+		const humanHeld = await arrange("2029-06-01T00:00:00Z");
+		try {
+			const run = await withServices(
+				runOkfit(["sync", "--only", "generated"], { cwd: humanHeld.cwd, env: env(humanHeld.env) }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, "  wrote decisions/held");
+			assert.include(
+				run.stdout,
+				"  skipped decisions/held: generated.at 2030-01-01T00:00:00Z is later than now, but re-stamping it",
+			);
+		} finally {
+			await removeSandbox(humanHeld.sandbox);
+		}
+
+		// Control: the verification is before now, so nothing is held and the stamp moves to now.
+		const control = await arrange("2026-09-07T00:00:00Z");
+		try {
+			const run = await withServices(
+				runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd: control.cwd, env: env(control.env) }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			const generated = parseEnvelope(run.stdout).generated;
+			assert.include(generated.written, "decisions/held");
+			assert.deepStrictEqual(
+				generated.skipped.filter((entry) => entry.id === "decisions/held"),
+				[],
+			);
+			assert.include(await readDecision(control.cwd, "held"), "  at: 2026-09-10T00:00:00Z\n");
+		} finally {
+			await removeSandbox(control.sandbox);
+		}
+	});
 });

@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T23:24:00Z
+  at: 2026-11-27T23:59:28Z
 x-okfit-integrity:
   generated:
-    body: 8146bc8592d94e82
+    body: f27ff8bb8e14548d
 ---
 
 # Engine
@@ -251,11 +251,12 @@ the verification current under OKF v0.3 §5.3; the `[actors].humans`
 allow-list does not gate it, and a concept whose body digest is unchanged is
 never rewritten, except for a `generated.at` more than five minutes later than the
 run's `now`, which `SyncOptions.now` makes sync re-stamp to now (#471). A drifted
-concept's stamp is clamped to `now` and is never moved back below the stamp it replaces when a verification falls between the two (the existing stamp stays, the digest is re-recorded). Sync declines a re-stamp that would make a
+concept's stamp is clamped to `now` and is never moved back below the stamp it replaces when a verification falls between the two (the existing stamp stays, the digest is re-recorded, and the hold is reported `verified-after-now`). Sync declines a re-stamp that would make a
 verification count, reporting the concept in `skipped` as `verified-after-now` with
 the stamp and that verification's date; a clamp that would make one count is not
-applied, the derived stamp stands and the lint `generated-at-future` reports
-it. Sync keeps a leading byte-order mark and the file's line endings when it
+applied, the derived stamp stands and is reported `verified-after-now` on that run (a changed concept is still written, so it may be in
+both `written` and `skipped`), and the lint `generated-at-future` also reports it. A kept stamp more than five minutes ahead that guards
+no verification dated after now is re-stamped to now on the same run (#509); a hold within the tolerance is not reported. Sync keeps a leading byte-order mark and the file's line endings when it
 rewrites `index.md` or `log.md`: a rewrite uses the file's first newline
 throughout (the rule covers LF and CRLF; a file with no LF is written LF),
 and a file that differs from what sync would write only in its line endings

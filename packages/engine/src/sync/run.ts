@@ -65,9 +65,12 @@ export interface SyncOptions {
 	/**
 	 * Issue #471: the run's clock. A `generated.at` more than the tolerance (`GENERATED_AT_TOLERANCE`) later than it is re-stamped to it (whole
 	 * seconds), unless that would make a verification dated in between count: then the concept is skipped
-	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception. A changed
-	 * concept's stamp is never moved back below a verification: when the new stamp is earlier than the existing
-	 * `generated.at` and a verification falls in between, the existing stamp is kept. Absent: none of this applies.
+	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception, and a stamp
+	 * that stays more than the tolerance ahead for that reason is reported `verified-after-now` on the run that holds
+	 * it (the concept is still written, so it may be in both `written` and `skipped`). A changed concept's stamp is
+	 * never moved back below a verification: when the new stamp is earlier than the existing `generated.at` and a
+	 * verification falls in between, the existing stamp is kept, unless it is more than the tolerance ahead and no
+	 * verification is dated between now and it, in which case it moves to now. Absent: none of this applies.
 	 */
 	readonly now?: DateTime.Utc;
 }
