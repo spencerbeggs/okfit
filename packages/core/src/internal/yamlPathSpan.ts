@@ -1,5 +1,5 @@
 import type { Frontmatter } from "@effected/markdown";
-import type { YamlParseError, YamlPath } from "@effected/yaml";
+import type { YamlNode, YamlParseError, YamlPath } from "@effected/yaml";
 import { YamlDocument, YamlMap, YamlScalar } from "@effected/yaml";
 import { Option, Result } from "effect";
 import { toFileOffset } from "./position.js";
@@ -71,8 +71,22 @@ export const findFrontmatterPathSpan = (
 ): OffsetSpan | undefined => {
 	const parsed = parsedYamlOf(node);
 	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
-	const hit = parsed.success.contents.find(path as YamlPath);
-	return Option.isNone(hit) ? undefined : { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+	const contents = parsed.success.contents;
+	const hit = contents.find(path as YamlPath);
+	if (Option.isNone(hit)) return undefined;
+	// A tagged empty value (`generated: !!null`) has no text, and the kit reports its span as offset 0, length 0:
+	// the first line of the block, not the key's. Anchor such a value at its key, the nearest real text.
+	if (hit.value.length === 0) return keySpan(text, contents, path);
+	return { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+};
+
+const keySpan = (text: string, contents: YamlNode, path: ReadonlyArray<string | number>): OffsetSpan | undefined => {
+	const key = path.at(-1);
+	if (typeof key !== "string") return undefined;
+	const parent = path.length === 1 ? Option.some(contents) : contents.find(path.slice(0, -1) as YamlPath);
+	if (Option.isNone(parent) || !(parent.value instanceof YamlMap)) return undefined;
+	const pair = parent.value.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
+	return pair === undefined ? undefined : { offset: toFileOffset(text, pair.key.offset), length: pair.key.length };
 };
 
 /**

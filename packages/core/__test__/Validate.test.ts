@@ -509,10 +509,7 @@ describe("Validate", () => {
 						"Concept's generated block has no readable generated.by, so it reads as absent (OKF 0.3 §5.2), and okfit sync cannot fill in a block that is written; set generated.by by hand",
 						value,
 					);
-					// A tagged or anchored null has no value text, and the YAML kit places its span at the block start, so only
-					// a value with text is pinned to the `generated:` line.
-					if (!value.startsWith("!") && !value.startsWith("&")) assert.strictEqual(found[0]?.range?.line, 2, value);
-					else assert.isDefined(found[0]?.range, value);
+					assert.strictEqual(found[0]?.range?.line, 2, value);
 				}
 				// The load diagnostic is still reported beside it.
 				const bundle = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
@@ -655,8 +652,11 @@ describe("Validate", () => {
 				"res.md":
 					"---\ntype: Note\nresource: ./new.md#nope\nsources:\n  - resource: ./new.md#nada\n  - resource: ./new.md#new\n---\n",
 				"comp.md":
-					"---\ntype: Attested Computation\nruntime: sql\ncomputation: ./q.sql#x\nattester:\n  resource: ./new.md#zzz\n---\n",
+					"---\ntype: Attested Computation\nruntime: sql\ncomputation: ./q.sql#x\nexecutor:\n  resource: ./new.md#bad\nattester:\n  resource: ./new.md#zzz\n---\n",
 				"q.sql": "",
+				"log.md": "# Log\n",
+				"typeless.md": "---\ntitle: t\n---\n",
+				"nc.md": "---\ntype: Note\nresource: ./log.md#x\nsources:\n  - resource: ./typeless.md#x\n---\n",
 			});
 			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
 			const found = lint
@@ -665,8 +665,13 @@ describe("Validate", () => {
 			assert.deepStrictEqual(found, [
 				[
 					"comp.md",
-					'attester.resource "./new.md#zzz" exists but has no heading "#zzz"; its headings: #new, #real-heading',
+					'executor.resource "./new.md#bad" exists but has no heading "#bad"; its headings: #new, #real-heading',
 					5,
+				],
+				[
+					"comp.md",
+					'attester.resource "./new.md#zzz" exists but has no heading "#zzz"; its headings: #new, #real-heading',
+					7,
 				],
 				["res.md", 'resource "./new.md#nope" exists but has no heading "#nope"; its headings: #new, #real-heading', 2],
 				[
@@ -683,6 +688,8 @@ describe("Validate", () => {
 			// controls: a good anchor, a path to a non-concept, and a replacement with a bad anchor is not also unresolved
 			assert.isFalse(found.some(([file]) => file === "sup-ok.md"));
 			assert.isFalse(found.some(([, message]) => message.includes("computation")));
+			// a reserved file and a typeless file are not concepts, so their anchors are never checked
+			assert.isFalse(found.some(([file]) => file === "nc.md"));
 			assert.isFalse(lint.some((d) => d.file === "sup-bad.md" && d.code === "superseded-by-unresolved"));
 		}),
 	);
