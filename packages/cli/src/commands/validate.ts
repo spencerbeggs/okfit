@@ -157,7 +157,7 @@ export const validateCommand = Command.make(
 					config: merged,
 					profile,
 					now,
-					...(Option.isSome(resolved.discovered) ? { configPath: resolved.discovered.value.path } : {}),
+					configPath: resolved.configPath,
 					skipProvenance: input.skipProvenance,
 					// exactOptionalPropertyTypes: omit the key rather than set it to undefined.
 					...(target === undefined ? {} : { target }),

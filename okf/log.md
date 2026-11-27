@@ -12,6 +12,7 @@
 * Updated The root index's metadata is read and kept
 * Updated Markdown that is not a concept is skipped, not an error
 * Updated okfit-mcp — MCP tool and resource contract
+* Updated Engine
 
 ## 2026-11-26
 

@@ -42,7 +42,7 @@ export const handleDescribeVocabulary = (projectRoot: string) =>
 		const envelope = contextEnvelope({
 			projectRoot: resolved.projectRoot,
 			bundleRoot: resolved.bundleRoot,
-			configPath: Option.match(resolved.discovered, { onNone: () => null, onSome: (d) => d.path }),
+			configPath: resolved.configPath ?? null,
 			profile: Option.match(resolved.profile, { onNone: () => null, onSome: (p) => p.name }),
 			profileRequested: resolved.profileName,
 			indexPath: "",

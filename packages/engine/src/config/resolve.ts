@@ -35,6 +35,11 @@ export interface ResolvedProjectConfig {
 	readonly profile: Option.Option<Profile>;
 	readonly profileName: string;
 	readonly discovered: Option.Option<DiscoveredConfig>;
+	/**
+	 * `discovered`'s path, or `undefined` when no config file was found; what `RunOptions.configPath` and
+	 * `BundleSessionOptions.configPath` take.
+	 */
+	readonly configPath: string | undefined;
 }
 
 /**
@@ -100,5 +105,13 @@ export const resolveProjectConfig = (
 		});
 		const bundleRoot = resolveBundleRoot(projectRoot, merged, path);
 
-		return { projectRoot, bundleRoot, config: merged, profile, profileName, discovered };
+		return {
+			projectRoot,
+			bundleRoot,
+			config: merged,
+			profile,
+			profileName,
+			discovered,
+			configPath: discoveredSource?.path,
+		};
 	});

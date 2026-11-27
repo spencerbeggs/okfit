@@ -84,7 +84,7 @@ export const lintCommand = Command.make(
 					config: merged,
 					profile,
 					now,
-					...(Option.isSome(resolved.discovered) ? { configPath: resolved.discovered.value.path } : {}),
+					configPath: resolved.configPath,
 					skipProvenance: input.skipProvenance,
 				}).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 				const all = collect([], result.report.lint, result.profileDiagnostics);

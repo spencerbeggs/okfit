@@ -37,6 +37,25 @@ const testEnv: Layer.Layer<AppDirsType | XdgType | FileSystem.FileSystem | Path.
 const makeTempDir = async (): Promise<string> => mkdtemp(join(tmpdir(), "okfit-cli-resolve-"));
 
 describe("resolveProjectConfig", () => {
+	it.effect("configPath is the discovered config file's path, undefined when none was found (#506)", () =>
+		Effect.gen(function* () {
+			const dir = yield* Effect.promise(makeTempDir);
+			const resolve = () =>
+				resolveProjectConfig({ pathArg: Option.none(), explicitConfigPath: Option.none(), cwd: dir }).pipe(
+					Effect.provide(buildConfigLayer({ explicitConfigPath: Option.none(), discoveryCwd: dir })),
+					Effect.provide(testEnv),
+				);
+			const none = yield* resolve();
+			assert.isTrue(Option.isNone(none.discovered));
+			assert.strictEqual(none.configPath, undefined);
+			yield* Effect.promise(() => writeFile(join(dir, "okfit.toml"), 'bundle.profile = "none"\n', "utf8"));
+			const found = yield* resolve();
+			assert.strictEqual(found.configPath, Option.getOrThrow(found.discovered).path);
+			assert.isString(found.configPath);
+			yield* Effect.promise(() => rm(dir, { recursive: true, force: true }));
+		}),
+	);
+
 	it.effect("no discovered config yields DEFAULTS merged with the software-project profile", () =>
 		Effect.gen(function* () {
 			const dir = yield* Effect.promise(makeTempDir);

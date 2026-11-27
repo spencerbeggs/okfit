@@ -10,7 +10,7 @@ import { DateTime, Effect, Layer, Option, Schema } from "effect";
 import { Now, run } from "../../src/validate/run.js";
 import { V03_PROJECT } from "../fixtures/bundles.js";
 import { DIGEST, bindFixtures } from "../utils/binding.js";
-import { ROOT, mountProject, recordCalls, sessionPlatform } from "../utils/bundle.js";
+import { ROOT, SEED, mountProject, recordCalls, sessionConfig, sessionPlatform } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
 
 // K-44: no CLI-owned fixtures. Profiles' clean bundle is read IN PLACE, by
@@ -546,6 +546,42 @@ describe("run — legacy key names (#493)", () => {
 			// control: the migrated seed lists none
 			const clean = yield* run(options).pipe(Effect.provide(sessionPlatform(mountProject(V03_PROJECT))));
 			assert.deepStrictEqual(clean.legacyKeys, []);
+		}),
+	);
+});
+
+describe("run configPath (#506)", () => {
+	const staleSeed = {
+		...SEED,
+		[`${ROOT}/index.md`]: '---\nokf_version: "0.3"\n---\n\n# Index\n\n- [A](a.md)\n- [B](b.md)\n',
+	};
+	const staleMessage = (extra: { readonly configPath?: string | undefined }) =>
+		Effect.gen(function* () {
+			const result = yield* run({
+				root: ROOT,
+				projectRoot: "/repo",
+				config: { ...sessionConfig(), okf_version: "0.2" },
+				profile: Option.none(),
+				now,
+				skipProvenance: true,
+				...extra,
+			});
+			return result.report.lint.find((d) => d.code === "config-okf-version-stale")?.message;
+		}).pipe(Effect.provide(sessionPlatform(staleSeed)));
+
+	it.effect("an undefined configPath is the same as an absent one (#506)", () =>
+		Effect.gen(function* () {
+			const absent = yield* staleMessage({});
+			const explicit = yield* staleMessage({ configPath: undefined });
+			assert.include(absent, 'okf_version in the config is "0.2"');
+			assert.strictEqual(explicit, absent);
+		}),
+	);
+
+	it.effect("a configPath names the file (control)", () =>
+		Effect.gen(function* () {
+			const named = yield* staleMessage({ configPath: "/p/okfit.toml" });
+			assert.include(named, 'okf_version in /p/okfit.toml is "0.2"');
 		}),
 	);
 });
