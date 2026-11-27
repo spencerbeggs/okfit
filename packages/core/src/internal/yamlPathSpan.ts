@@ -73,7 +73,9 @@ export const findFrontmatterPathSpan = (
 	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
 	const contents = parsed.success.contents;
 	const hit = contents.find(path as YamlPath);
-	if (Option.isNone(hit)) return undefined;
+	// A bare `key:` has no value node, so `find` reports none: anchor it at its key, as for a zero-length value below.
+	// A key that is not written has no pair either, so `keySpan` answers `undefined` for it.
+	if (Option.isNone(hit)) return keySpan(text, contents, path);
 	// A tagged empty value (`generated: !!null`) has no text, and the kit reports its span as offset 0, length 0:
 	// the first line of the block, not the key's. Anchor such a value at its key, the nearest real text.
 	if (hit.value.length === 0) return keySpan(text, contents, path);

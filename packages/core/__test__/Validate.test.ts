@@ -467,6 +467,31 @@ describe("Validate", () => {
 			}),
 		);
 
+		it.effect("required-key-missing: a bare title: points at its own line (#467)", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["title"] }, extensions: {} });
+				const bundle = yield* loadFromSources({
+					"bare.md": "---\ntype: Note\ntags: [a]\ntitle:\n---\n",
+					"gone.md": "---\ntype: Note\ntags: [a]\n---\n",
+				});
+				const found = requiredFound(bundle, config);
+				const bare = found.find((d) => d.file === "bare.md");
+				const gone = found.find((d) => d.file === "gone.md");
+				const docOf = (path: string) => [...bundle.concepts.values()].find((c) => c.path === path)?.document;
+				const bareDoc = docOf("bare.md");
+				const goneDoc = docOf("gone.md");
+				assert.isDefined(bare);
+				assert.isDefined(bareDoc);
+				assert.isDefined(goneDoc);
+				if (bareDoc === undefined || goneDoc === undefined) return;
+				assert.deepStrictEqual(bare?.range, frontmatterPathRange(bareDoc, ["title"]));
+				assert.strictEqual(bare?.range?.line, 3);
+				// control: the unwritten key's range is the block's
+				assert.deepStrictEqual(gone?.range, frontmatterPathRange(goneDoc, []));
+				assert.strictEqual(gone?.range?.line, 0);
+			}),
+		);
+
 		it.effect("required-key-missing: whitespace, 0, false and {} are present", () =>
 			Effect.gen(function* () {
 				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["k"] }, extensions: {} });
@@ -516,6 +541,9 @@ describe("Validate", () => {
 					assert.match(found[0]?.message ?? "", missing);
 				}
 				assert.match((yield* hits("tags: [a]"))[0]?.message ?? "", missing);
+				// A bare `generated:` is a block sync creates, so its diagnostic names no key and sits at the block (line 0);
+				// only a written block the decoder ignores is anchored at its own `generated` key (line 2, below).
+				assert.strictEqual((yield* hits("generated:"))[0]?.range?.line, 0);
 				// A written block the decoder ignores reads as absent, and sync cannot fill it in: `""`, `[]` and a tagged
 				// or anchored null are skipped as generated-unsupported, like `{}`.
 				for (const value of [
