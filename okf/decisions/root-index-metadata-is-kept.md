@@ -20,13 +20,15 @@ x-okfit-integrity:
     body: 57bb747476215945
   verified:
     by: human:spencer
-    at: 2026-11-24T02:55:14Z
-    content: f00587574e4dbfbc
+    at: 2026-11-27T22:16:13Z
+    content: 911098d486b4ffc9
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:50Z
   - by: human:spencer
     at: 2026-11-24T02:55:14Z
+  - by: human:spencer
+    at: 2026-11-27T22:16:13Z
 ---
 
 # The root index's metadata is read and kept

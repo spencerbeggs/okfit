@@ -20,8 +20,8 @@ x-okfit-integrity:
     body: f3f03e95619e021d
   verified:
     by: human:spencer
-    at: 2026-11-24T17:12:02Z
-    content: 68a8cf7715ac334c
+    at: 2026-11-27T22:16:13Z
+    content: d81a16355d024b6a
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:45Z
@@ -31,6 +31,8 @@ verified:
     at: 2026-11-24T14:56:24Z
   - by: human:spencer
     at: 2026-11-24T17:12:02Z
+  - by: human:spencer
+    at: 2026-11-27T22:16:13Z
 ---
 
 # The declared OKF version gates the v0.2 fallbacks

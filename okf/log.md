@@ -10,6 +10,8 @@
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 * Updated The declared OKF version gates the v0.2 fallbacks
 * Updated The root index's metadata is read and kept
+* Updated Markdown that is not a concept is skipped, not an error
+* Updated okfit-mcp — MCP tool and resource contract
 
 ## 2026-11-26
 
