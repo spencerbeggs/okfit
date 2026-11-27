@@ -22,6 +22,7 @@ import { GitHistory } from "@okfit/profiles";
 import { Console, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Format, withFormat } from "../internal/format.js";
+import { summaryRefusals } from "../internal/migrationSummary.js";
 import { printDiagnostics } from "../internal/print-diagnostics.js";
 import { rootFlag } from "../internal/root.js";
 import { scopeTo } from "../internal/scope.js";
@@ -232,15 +233,10 @@ export const validateCommand = Command.make(
 					const refused =
 						target === undefined
 							? []
-							: Option.match(
-									yield* planMigrationFixes({ bundle: result.bundle, config: merged, target, now }).pipe(
+							: yield* summaryRefusals(
+									planMigrationFixes({ bundle: result.bundle, config: merged, target, now }).pipe(
 										provideDocuments(bundleRoot, documents),
-										Effect.option,
 									),
-									{
-										onNone: () => [],
-										onSome: (plan) => plan.refused.map(({ file, code }) => ({ file, code })),
-									},
 								);
 					yield* printDiagnostics({
 						diagnostics,

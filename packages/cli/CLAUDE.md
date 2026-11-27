@@ -110,6 +110,7 @@ src/
                                       for a parse-time usage error under --format json), plus the graph-only
                                       isGraphPath/wantsJson argv check (TODO spencerbeggs/effected#1435: effect
                                       4.1.6's flag registry rejects two settings sharing a flag name)
+    migrationSummary.ts           -- summaryRefusals: the summary's refusals, none when the plan fails (#498)
     validate-usage.ts             -- ValidateUsageError (exit 64): a refused --target or --fix/--only/--dry-run combination
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)
