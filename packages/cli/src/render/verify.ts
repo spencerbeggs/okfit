@@ -1,6 +1,6 @@
 import type { Document } from "@effected/cli-kit";
 import { Doc } from "@effected/cli-kit";
-import { INTEGRITY_KEY } from "@okfit/core";
+import { GENERATED_AT_TOLERANCE_TEXT, INTEGRITY_KEY } from "@okfit/core";
 import type { NotCurrentDetail, VerifySkip } from "@okfit/engine";
 /** @public */
 export interface VerifyLines {
@@ -96,7 +96,7 @@ export const notCurrentReason = (detail: NotCurrentDetail): string => {
 		case "future":
 			return `generated.at ${g} is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again`;
 		case "near-future":
-			return `generated.at ${g} is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after ${g}`;
+			return `generated.at ${g} is later than now by less than ${GENERATED_AT_TOLERANCE_TEXT}, so no verification made now would count yet; check the clock, or verify it again at or after ${g}`;
 		case "blocked":
 			return `generated.at ${g} is later than now, and okfit sync will not re-stamp it, because the verification dated ${detail.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
 		default:

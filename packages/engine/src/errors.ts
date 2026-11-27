@@ -1,4 +1,4 @@
-import { INTEGRITY_KEY, changedWhileRead } from "@okfit/core";
+import { GENERATED_AT_TOLERANCE_TEXT, INTEGRITY_KEY, changedWhileRead } from "@okfit/core";
 import { Runtime, Schema } from "effect";
 import { describeConfigCause } from "./config/issues.js";
 import { LEGACY_INTEGRITY_KEY } from "./sync/legacyKeys.js";
@@ -161,9 +161,9 @@ export class VerifyNotCurrentError extends Schema.TaggedError<VerifyNotCurrentEr
 			case "blocked":
 				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now, so no verification made now would count (OKF 0.3 §5.3). okfit sync will not re-stamp it, because the verification dated ${this.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
 			case "future":
-				return `"${this.id}" has generated.at ${this.generatedAt}, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again`;
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is more than ${GENERATED_AT_TOLERANCE_TEXT} later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again`;
 			case "near-future":
-				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than 5 minutes, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after ${this.generatedAt}`;
+				return `"${this.id}" has generated.at ${this.generatedAt}, which is later than now by less than ${GENERATED_AT_TOLERANCE_TEXT}, so no verification made now would count yet (OKF 0.3 §5.3). Check the clock, or verify again at or after ${this.generatedAt}`;
 			default:
 				return `"${this.id}" was last changed at ${this.generatedAt}, after the verification time ${this.at}; a verification before the last change does not count (OKF 0.3 §5.3). Verify at or after ${this.generatedAt}, or omit --at to verify now`;
 		}
@@ -242,7 +242,7 @@ export class SyncPublicationConflictError extends Schema.TaggedError<SyncPublica
 /**
  * Issue #138: `okfit verify`'s selection was contradictory or empty. Exit 64: a usage error.
  *
- * `at-future` is an `--at` more than 5 minutes later than now (#503) and `at-malformed` an `--at` that is not a
+ * `at-future` is an `--at` more than `GENERATED_AT_TOLERANCE` later than now (#503) and `at-malformed` an `--at` that is not a
  * timestamp (#513); for both, `detail` is the value. `at-malformed` quotes it in double quotes exactly as given (so an empty value reads `""`), and a front end that
  * prints it to a terminal puts it on one line itself.
  *
@@ -278,7 +278,7 @@ export class VerifySelectionError extends Schema.TaggedError<VerifySelectionErro
 			return `--revoke removes your own verification of the named concepts; it cannot combine with ${this.detail ?? "other selectors"}`;
 		}
 		if (this.reason === "at-future") {
-			return `--at ${this.detail ?? ""} is more than 5 minutes later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now`;
+			return `--at ${this.detail ?? ""} is more than ${GENERATED_AT_TOLERANCE_TEXT} later than now; a verification records when the review happened, so give a time no later than now, or omit --at to record now`;
 		}
 		if (this.reason === "at-malformed") {
 			return `--at "${this.detail ?? ""}" is not a timestamp; give an ISO 8601 timestamp with an explicit offset (Z, +hh:mm or -hh:mm), such as 2026-11-25T12:00:00Z, or a date (YYYY-MM-DD, read as midnight UTC)`;

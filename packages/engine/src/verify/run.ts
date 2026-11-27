@@ -139,7 +139,7 @@ interface PreparedVerify {
 }
 
 /**
- * Refuses a verification time (`--at`) more than the five-minute clock-skew tolerance later than `now`: a verification
+ * Refuses a verification time (`--at`) more than the clock-skew tolerance (`GENERATED_AT_TOLERANCE`) later than `now`: a verification
  * records when the review happened, and one dated in the future would put the concept in the states the stamp guard
  * exists to prevent. Exactly `now` plus the tolerance is accepted. Pure; the CLI calls it right after decoding `--at`,
  * and `runVerify`, `runVerifyBatch` and `runVerifyIds` call it first when given `now`.

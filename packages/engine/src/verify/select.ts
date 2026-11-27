@@ -25,7 +25,7 @@ export type VerifyBatchSkipReason =
 
 /**
  * Why a verification at `at` would not count for a concept (OKF 0.3 5.3), as encoded timestamps. `kind` compares
- * `generatedAt` to now when now is known: `"blocked"` (more than the 5-minute tolerance later, and a verification dated
+ * `generatedAt` to now when now is known: `"blocked"` (more than the tolerance (`GENERATED_AT_TOLERANCE`) later, and a verification dated
  * between now and the stamp, `blockedBy`, would start to count if sync re-stamped it), `"future"` (more than the
  * tolerance later) or `"near-future"` (later, within it); absent when now is unknown or `generatedAt` is not later than
  * now, so only the verification time is to blame.

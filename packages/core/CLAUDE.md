@@ -23,6 +23,7 @@ src/
   Concept.ts (Concept, EntryPaths, Concept.entryPath: a kept entry's YAML path, Concept.isAbsent: the OKF 0.3 §11.2 rule 1 absent test) ConceptId.ts Diagnostic.ts IndexDocument.ts LogDocument.ts Bundle.ts (Bundle.load, Bundle.parseDocument: the one parse every bundle file goes through; Bundle.inlineComputation: the computation under a stated reading, legacy or current) Graph.ts (Graph.fromBundle, Graph.resolve with an optional FallbackRule, Graph.replacement, LinkResolution) Derive.ts Validate.ts
   ConfinedRead.ts (ConfinementError, readConfinedBytes, readConfinedString: open, confineReal, compare the open file's dev/ino with lstat of the real path; a read is confined at the moment of reading (a file that changed under the read is `read-changed`), a write stays a check then writeAtomic; Bundle.load, sync, MCP use it)
   OkfVersion.ts (OkfVersion.parse/compare/declared/legacyFallbacks: the one declared-version gate)
+  GeneratedAtFuture.ts (GENERATED_AT_TOLERANCE and its text GENERATED_AT_TOLERANCE_TEXT, generatedAtIsFuture, verificationBlockingRestamp)
   OkfitConfig.ts    -- spec 4.2 struct, DEFAULTS, merge, severityFor, read, OkfitConfigFile tag
   internal/         -- engine: position, fence, yamlPathSpan (YAML path to file span, shared by frontmatter.ts and Diagnostic.ts), frontmatter, reserved, links, lintRules, templates;
                        walk.ts is a thin adapter over @effected/walker's descend (record mode for

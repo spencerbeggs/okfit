@@ -8,7 +8,7 @@ import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import { Generated } from "../Generated.js";
-import { generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
+import { GENERATED_AT_TOLERANCE_TEXT, generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import { INTEGRITY_KEY } from "../Integrity.js";
@@ -109,7 +109,7 @@ export const generatedAtFuture: LintRule = perConcept("generated-at-future", (co
 	const at = concept.frontmatter.generated?.at;
 	const { now } = context;
 	if (at === undefined || now === undefined || !generatedAtIsFuture(at, now)) return [];
-	const head = `generated.at ${instant(at)} is more than 5 minutes later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept`;
+	const head = `generated.at ${instant(at)} is more than ${GENERATED_AT_TOLERANCE_TEXT} later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept`;
 	const blocking = verificationBlockingRestamp(
 		(concept.frontmatter.verified ?? []).map((entry) => entry.at),
 		at,

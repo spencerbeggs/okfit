@@ -63,7 +63,7 @@ export interface SyncOptions {
 	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history. Issue #295: log mode dates their entries with the same instant. */
 	readonly staged?: { readonly at: DateTime.Utc };
 	/**
-	 * Issue #471: the run's clock. A `generated.at` more than five minutes later than it is re-stamped to it (whole
+	 * Issue #471: the run's clock. A `generated.at` more than the tolerance (`GENERATED_AT_TOLERANCE`) later than it is re-stamped to it (whole
 	 * seconds), unless that would make a verification dated in between count: then the concept is skipped
 	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception. A changed
 	 * concept's stamp is never moved back below a verification: when the new stamp is earlier than the existing

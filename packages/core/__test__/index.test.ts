@@ -6,6 +6,7 @@ const VALUES = [
 	"ActorPattern",
 	"Timestamp",
 	"GENERATED_AT_TOLERANCE",
+	"GENERATED_AT_TOLERANCE_TEXT",
 	"generatedAtIsFuture",
 	"verificationBlockingRestamp",
 	"Source",

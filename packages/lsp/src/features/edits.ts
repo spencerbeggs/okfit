@@ -29,6 +29,7 @@ import {
 	Concept,
 	Derive,
 	DiagnosticRange,
+	GENERATED_AT_TOLERANCE_TEXT,
 	Generated,
 	INTEGRITY_KEY,
 	Status,
@@ -429,7 +430,7 @@ const describeNotCurrent = (failure: Extract<EditFailure, { readonly _tag: "NotC
 		case "future":
 			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); commit any change to its body, then run okfit sync, which re-stamps it, then mark verified again`;
 		case "near-future":
-			return `the concept's generated.at (${failure.generatedAt}) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after ${failure.generatedAt}`;
+			return `the concept's generated.at (${failure.generatedAt}) is later than now by less than ${GENERATED_AT_TOLERANCE_TEXT}, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after ${failure.generatedAt}`;
 	}
 };
 

@@ -10,6 +10,17 @@ import { DateTime, Duration, Option } from "effect";
 export const GENERATED_AT_TOLERANCE: Duration.Duration = Duration.minutes(5);
 
 /**
+ * {@link GENERATED_AT_TOLERANCE} in words ("5 minutes"), for messages. Derived from the constant, so changing the
+ * tolerance changes every message that names it. The tolerance is a whole number of minutes.
+ *
+ * @public
+ */
+export const GENERATED_AT_TOLERANCE_TEXT: string = (() => {
+	const minutes = Duration.toMinutes(GENERATED_AT_TOLERANCE);
+	return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+})();
+
+/**
  * Whether `generatedAt` is more than {@link GENERATED_AT_TOLERANCE} later than `now`. Exactly the tolerance is not
  * future; one millisecond more is.
  *
