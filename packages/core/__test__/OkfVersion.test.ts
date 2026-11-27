@@ -78,4 +78,38 @@ describe("OkfVersion", () => {
 			assert.isTrue(OkfVersion.legacyFallbacks(legacy));
 		}),
 	);
+	it.effect("an unquoted 0.10 declares 0.10 and is current; an unquoted 0.2 keeps the fallbacks (#467)", () =>
+		Effect.gen(function* () {
+			const load = (version: string) =>
+				Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform({
+							[`${MOUNT}/index.md`]: `---\nokf_version: ${version}\n---\n\n# Note\n\n* [A](a.md)\n`,
+							[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+						}),
+					),
+				);
+			const tenth = yield* load("0.10");
+			assert.deepStrictEqual(OkfVersion.declared(tenth), Option.some("0.10"));
+			assert.isFalse(OkfVersion.legacyFallbacks(tenth));
+			const second = yield* load("0.2");
+			assert.deepStrictEqual(OkfVersion.declared(second), Option.some("0.2"));
+			assert.isTrue(OkfVersion.legacyFallbacks(second));
+			const twentieth = yield* load("0.20");
+			assert.deepStrictEqual(OkfVersion.declared(twentieth), Option.some("0.20"));
+			assert.isFalse(OkfVersion.legacyFallbacks(twentieth));
+			// control: the quoted '0.10' declares the same version, without the warning
+			const quoted = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(
+					platform({
+						[`${MOUNT}/index.md`]: "---\nokf_version: '0.10'\n---\n\n# Note\n\n* [A](a.md)\n",
+						[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					}),
+				),
+			);
+			assert.deepStrictEqual(OkfVersion.declared(quoted), OkfVersion.declared(tenth));
+			assert.strictEqual(quoted.diagnostics.length, 0);
+			assert.strictEqual(tenth.diagnostics.length, 1);
+		}),
+	);
 });

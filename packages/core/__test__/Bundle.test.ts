@@ -671,6 +671,10 @@ describe("Bundle.load", () => {
 			assert.isTrue(OkfVersion.legacyFallbacks(old));
 			const current = yield* load("0.3");
 			assert.deepStrictEqual(codes(current.diagnostics), [["index.md", "index-metadata-invalid", 1]]);
+			assert.deepStrictEqual(
+				current.diagnostics.map((d) => d.message),
+				['okf_version 0.3 is an unquoted number; quote it as "0.3"'],
+			);
 			assert.isFalse(OkfVersion.legacyFallbacks(current));
 		}),
 	);

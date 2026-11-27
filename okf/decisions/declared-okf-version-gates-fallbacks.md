@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T21:00:06Z
+  at: 2026-11-27T21:20:24Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: c99dfbd4dfc56d36
+    body: 50cc6e01d5601a90
   verified:
     by: human:spencer
     at: 2026-11-24T17:12:02Z
@@ -52,6 +52,16 @@ The declared version is the `okf_version` of the bundle-root `index.md`
 (`OkfVersion.declared`). It is read as exactly `<major>.<minor>`
 (`OkfVersion.parse`; no `v`, no patch, no whitespace) and compared
 numerically, major first, so `0.10` sorts after `0.9` (`OkfVersion.compare`).
+An unquoted number is read by its source text, because YAML would otherwise
+turn `0.10` into the number 0.1: `okf_version: 0.10` declares 0.10 and reads as
+current, and `okf_version: 0.2` declares 0.2 and keeps the fallbacks. The
+`index-metadata-invalid` warning shows the written value and says to quote it.
+A non-string declaration still gates the fallbacks by what it says, because
+§12.1 keys them on what a bundle declares and §11.2 rule 4 keeps a value
+outside its vocabulary, so treating it as no declaration would hand the
+fallbacks to an author who wrote 0.3 or 0.10. A value with no readable
+`<major>.<minor>` text (`true`, a list, a mapping) does not parse and reads as
+current, as below.
 
 One gate, `OkfVersion.legacyFallbacks(bundle)`, answers whether the v0.2
 fallbacks apply. It is true when the bundle declares no version, or declares

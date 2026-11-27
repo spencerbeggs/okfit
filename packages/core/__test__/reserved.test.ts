@@ -118,15 +118,30 @@ describe("internal/reserved", () => {
 				});
 			const summary = (r: ReturnType<typeof parseIndex>) =>
 				r.diagnostics.map((d) => [d.code, d.severity, d.range?.line]);
+			const message = (r: ReturnType<typeof parseIndex>) => r.diagnostics.map((d) => d.message);
+			// an unquoted number is read by its source text (OKF 0.3 §8.1, §11.2 rule 4, §12.1, #467)
 			const unquoted = yield* run("okf_version: 0.2", { okf_version: 0.2 });
 			assert.deepStrictEqual(summary(unquoted), [["index-metadata-invalid", "warning", 1]]);
 			assert.strictEqual(unquoted.document.okfVersion, "0.2");
+			assert.deepStrictEqual(message(unquoted), ['okf_version 0.2 is an unquoted number; quote it as "0.2"']);
 			const zeroTen = yield* run("okf_version: 0.10", { okf_version: 0.1 });
 			assert.deepStrictEqual(summary(zeroTen), [["index-metadata-invalid", "warning", 1]]);
-			assert.strictEqual(zeroTen.document.okfVersion, "0.1");
+			assert.strictEqual(zeroTen.document.okfVersion, "0.10");
+			assert.deepStrictEqual(message(zeroTen), [
+				'okf_version 0.10 is an unquoted number, which YAML reads as 0.1; quote it as "0.10"',
+			]);
+			const oneZero = yield* run("okf_version: 1.0", { okf_version: 1 });
+			assert.strictEqual(oneZero.document.okfVersion, "1.0");
+			assert.deepStrictEqual(message(oneZero), [
+				'okf_version 1.0 is an unquoted number, which YAML reads as 1; quote it as "1.0"',
+			]);
+			const bare = yield* run("okf_version: 3", { okf_version: 3 });
+			assert.strictEqual(bare.document.okfVersion, "3");
+			assert.deepStrictEqual(message(bare), ['okf_version 3 is an unquoted number; quote it as "<major>.<minor>"']);
 			const boolVersion = yield* run("okf_version: true", { okf_version: true });
 			assert.deepStrictEqual(summary(boolVersion), [["index-metadata-invalid", "warning", 1]]);
 			assert.strictEqual(boolVersion.document.okfVersion, "true");
+			assert.deepStrictEqual(message(boolVersion), ["okf_version must be a quoted <major>.<minor> string"]);
 			const wrongDescription = yield* run("description: 5\nlicense: [a]", { description: 5, license: ["a"] });
 			assert.deepStrictEqual(summary(wrongDescription), [
 				["index-metadata-invalid", "warning", 1],

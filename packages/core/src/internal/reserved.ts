@@ -6,6 +6,10 @@ import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import { IndexDocument, IndexEntry, IndexSection } from "../IndexDocument.js";
 import { LogDocument, LogGroup, LogItem } from "../LogDocument.js";
 import { OkfVersion } from "../OkfVersion.js";
+import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
+
+/** A source text that is already a `<major>.<minor>` pair, as `OkfVersion` reads one. */
+const MAJOR_MINOR = /^\d+\.\d+$/;
 
 /**
  * The one parse configuration every OKF file uses: GFM with frontmatter capture
@@ -149,14 +153,27 @@ export const parseIndex = (
 					if (Option.isNone(OkfVersion.parse(version)))
 						warn("okf_version", `okf_version "${version}" is not a <major>.<minor> version`);
 				}
-			} else if (version !== null && version !== undefined) {
-				metadata.okfVersion = typeof version === "number" ? String(version) : JSON.stringify(version);
+			} else if (typeof version === "number") {
+				// An unquoted number is read by its source text, because YAML has already turned `0.10` into 0.1 and a
+				// version is a `<major>.<minor>` pair, not a number (§8.1: "A quoted string"). The declaration still
+				// counts by what the author wrote (§11.2 rule 4 keeps a value outside its vocabulary, §12.1 keys the
+				// fallbacks on what a bundle "declares"); the warning reports the breach and says to quote it.
+				const span = findFrontmatterPathSpan(text, node, ["okf_version"]);
+				const source = span === undefined ? undefined : text.slice(span.offset, span.offset + span.length);
+				const written = source !== undefined && MAJOR_MINOR.test(source) ? source : undefined;
+				metadata.okfVersion = written ?? String(version);
+				const reads = String(version);
 				warn(
 					"okf_version",
-					typeof version === "number"
-						? `okf_version ${String(version)} is an unquoted number; quote it as "<major>.<minor>"`
-						: "okf_version must be a quoted <major>.<minor> string",
+					written === undefined
+						? `okf_version ${reads} is an unquoted number; quote it as "<major>.<minor>"`
+						: written === reads
+							? `okf_version ${written} is an unquoted number; quote it as "${written}"`
+							: `okf_version ${written} is an unquoted number, which YAML reads as ${reads}; quote it as "${written}"`,
 				);
+			} else if (version !== null && version !== undefined) {
+				metadata.okfVersion = JSON.stringify(version);
+				warn("okf_version", "okf_version must be a quoted <major>.<minor> string");
 			}
 			for (const key of ["title", "description", "license"] as const) {
 				const value = record[key];

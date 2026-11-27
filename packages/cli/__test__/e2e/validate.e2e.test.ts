@@ -102,6 +102,27 @@ describe("okfit validate: the declared OKF version", () => {
 			assert.isNull(yield* reported(UNDECLARED_PROJECT));
 		}),
 	);
+
+	it.effect("an unquoted okf_version: 0.10 is read as 0.10 and the warning shows it (#467)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			const index = V03_PROJECT["okf/index.md"] ?? "";
+			const patched = index.replace('okf_version: "0.3"', "okf_version: 0.10");
+			// a no-op replace would make every assertion below vacuous
+			assert.notStrictEqual(patched, index);
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V03_PROJECT, "okf/index.md": patched }));
+			const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			assert.strictEqual((JSON.parse(json.stdout) as { readonly okf_version: unknown }).okf_version, "0.10");
+			const human = yield* runOkfit(["validate"], sandbox);
+			assert.include(
+				human.stdout,
+				'index.md:2:14 warning index-metadata-invalid okf_version 0.10 is an unquoted number, which YAML reads as 0.1; quote it as "0.10"\n',
+			);
+			// the bundle declares 0.10, so it is current and has no version migration to report
+			const target = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.notInclude(target.stdout, "okf-version");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
 });
 
 describe("okfit validate: the old key names hint (#493)", () => {

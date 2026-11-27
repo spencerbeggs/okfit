@@ -9,6 +9,7 @@
 * Updated Heading anchors match github-slugger, through the kit's slugger
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
 * Updated The declared OKF version gates the v0.2 fallbacks
+* Updated The root index's metadata is read and kept
 
 ## 2026-11-26
 
