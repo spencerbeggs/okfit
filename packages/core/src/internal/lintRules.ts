@@ -7,6 +7,7 @@ import { Concept } from "../Concept.js";
 import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
+import { Generated } from "../Generated.js";
 import { generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
@@ -14,7 +15,6 @@ import { INTEGRITY_KEY } from "../Integrity.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
 import { OkfVersion } from "../OkfVersion.js";
 import { Timestamp } from "../Timestamp.js";
-import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
 import { tierOf } from "./tier.js";
 
@@ -33,7 +33,8 @@ export interface LintContext {
 export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 
 /** OKF 0.3 §11.2 rule 1: a key holding null, the empty string or the empty list is absent. */
-const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && !isAbsent(raw[key]);
+const present = (raw: Record<string, unknown>, key: string): boolean =>
+	Object.hasOwn(raw, key) && !Concept.isAbsent(raw[key]);
 
 const diagnostic = (
 	file: string,
@@ -261,17 +262,38 @@ export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (contex
 		);
 });
 
-// Issue #73: `okfit sync` can only complete a `generated:` block that exists
-// (or, from this change on, create one from `actors.agent`). Surface the
-// missing block at validate time, before the commit, instead of leaving it
-// to sync's post-commit `skipped` list.
-export const generatedMissing: LintRule = perConcept("generated-missing", (concept, context) =>
-	context.config.actors?.agent !== undefined && !present(concept.frontmatter.raw, "generated")
-		? [
-				`Concept has no generated block; okfit sync will create it from actors.agent (${context.config.actors.agent}) once the body is committed, or set generated.by by hand`,
-			]
-		: [],
-);
+// Issue #73, #466: `okfit sync` can create a `generated:` block that is missing, or complete one that exists, but it
+// replaces only an unwritten (or plain null) block. This reads the decoded `generated`, as sync does: a written block
+// the decoder ignores (no readable `by`, OKF 0.3 §5.2) reads as absent, and so does a legacy `timestamp` that only
+// folds into one. Those two need a hand edit, so each says so at the key, before the commit.
+export const generatedMissing: LintRule = perConcept("generated-missing", (concept, context) => {
+	const agent = context.config.actors?.agent;
+	if (agent === undefined) return [];
+	const frontmatter = concept.frontmatter;
+	if (frontmatter.generated !== undefined) {
+		return !Concept.isAbsent(frontmatter.raw.generated) || frontmatter.generated.by !== Generated.LEGACY_BY
+			? []
+			: [
+					{
+						path: ["timestamp"],
+						message:
+							"Concept has no generated block, only a legacy timestamp, which okfit sync cannot convert; replace it with a generated block (generated.by, and generated.at from the timestamp) by hand",
+					},
+				];
+	}
+	if (present(frontmatter.raw, "generated")) {
+		return [
+			{
+				path: ["generated"],
+				message:
+					"Concept's generated block has no readable generated.by, so it reads as absent (OKF 0.3 §5.2), and okfit sync cannot fill in a block that is written; set generated.by by hand",
+			},
+		];
+	}
+	return [
+		`Concept has no generated block; okfit sync will create it from actors.agent (${agent}) once the body is committed, or set generated.by by hand`,
+	];
+});
 
 /**
  * OKF 0.3 §10.3: an Attested Computation with neither a `computation` key nor an inline computation is not

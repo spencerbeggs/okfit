@@ -10,10 +10,10 @@ tags:
   - dx
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T15:27:48Z
+  at: 2026-11-27T20:43:45Z
 x-okfit-integrity:
   generated:
-    body: aa5cf87e9ffcf924
+    body: 51a3aa9872fd4557
 ---
 
 # LSP
@@ -287,7 +287,7 @@ write) rather than exempting a file from every rule at once -- see
 [okfit's front ends build on @effected/{engine,cli,mcp} rather than
 hand-rolled equivalents](../decisions/effected-kit-adoption.md).
 
-The concepts wire (`features/concepts.ts`) sends the derived status, so a concept whose `status` is outside `draft`, `stable` and `deprecated` arrives as `unknown` with its `rawStatus`, and an unknown status is nowhere read as `stable`. `features/edits.ts` holds raw YAML rather than a `Concept`, so `derivedStatusOf` mirrors `Derive.status` for it; a test runs both over one table of values so they cannot drift. A `superseded_by` value is a path field in core, so document links and definition on it come from the shared graph with no server change. The session registry passes the resolved `projectRoot` to the engine, so a `resource` that points outside the project is reported as `resource-outside-project` and never read.
+The concepts wire (`features/concepts.ts`) sends the derived status, so a concept whose `status` is outside `draft`, `stable` and `deprecated` arrives as `unknown` with its `rawStatus`, and an unknown status is nowhere read as `stable`. `features/edits.ts` holds raw YAML rather than a `Concept`, so `derivedStatusOf` maps a raw `status` to a derived status for it, using core's `Concept.isAbsent` for the absent test; a test runs it against `Derive.status` over one table of values so they cannot drift. A `superseded_by` value is a path field in core, so document links and definition on it come from the shared graph with no server change. The session registry passes the resolved `projectRoot` to the engine, so a `resource` that points outside the project is reported as `resource-outside-project` and never read.
 
 ## Links
 

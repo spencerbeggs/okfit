@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:36:10Z
+  at: 2026-11-27T20:43:45Z
 x-okfit-integrity:
   generated:
-    body: 61c9f965bb5f4e75
+    body: b98243f6b4733103
 ---
 
 # Core
@@ -114,7 +114,8 @@ value (`verified[i].by`, `generated.by`, `sources[i].author`), `stale` at
 `stale_after`, and `require-verified-unmet` at `status`. A rule with
 nothing to point at — `required-key-missing`, `status-missing`,
 `generated-missing` — anchors at the frontmatter block instead of a key
-that is not there. Bundle-level rules (`config-unknown-key`,
+that is not there (`generated-missing` anchors at the `generated` or legacy
+`timestamp` key instead, when one is written). Bundle-level rules (`config-unknown-key`,
 `missing-index`) stay range-less. A quoted YAML scalar's range includes
 the surrounding quotes.
 
@@ -228,8 +229,12 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   kept.
 - **Empty values.** `required-key-missing` treats a key written as null,
   `""` or `[]` as absent, with the message "is empty" (an unwritten key is "is
-  missing"); `field-value-unknown` and `generated-missing` use the same test,
-  so an empty value is absent for all three.
+  missing"); `field-value-unknown` uses the same test, so an empty value is absent for
+  both. `generated-missing` reads the decoded `generated`, so a `generated`
+  the decoder ignores (`{}`, or a block with no readable `by`) also counts as
+  none, with its own "set generated.by by hand" message, and so does a legacy
+  `timestamp` alone, which sync cannot convert; sync creates only a block
+  that is not written. `Concept.isAbsent` is the one absent test.
 - **One document parse.** `Bundle.parseDocument(text)` returns
   `Result<MarkdownDocument, MarkdownParseError>`; `Bundle.load` and `okfit mv`
   both parse through it, so the two cannot disagree about what a file is.

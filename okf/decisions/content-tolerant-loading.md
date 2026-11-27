@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-27T20:36:10Z
+  at: 2026-11-27T20:43:45Z
 status: stable
 verified:
   - by: human:spencer
@@ -21,7 +21,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 30faf3c189853769
+    body: 7f8d606322fc067d
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -101,7 +101,10 @@ written as null, `""` or `[]` as absent and says "is empty" where an unwritten
 key says "is missing", ranged at the key's own line. The same test decides
 `field-value-unknown` (an empty value is absent, not an unknown value) and
 `generated-missing` (a `generated` written as null, `""` or `[]` counts as no
-block).
+block, and so does one the decoder ignores for want of a readable `by`, such as
+`{}`; the lint says to set `generated.by` by hand, as sync creates only a block
+that is not written, and a legacy `timestamp` alone draws the same kind of
+message).
 
 `family-invalid` is narrowed to okfit's own `x-okfit-integrity` family, which still
 decodes whole. See [okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md) for the name. `frontmatter-missing` and `type-missing` left the conformance

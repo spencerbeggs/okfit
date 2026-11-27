@@ -1714,3 +1714,35 @@ describe("okfit validate: a directory link out of the bundle and a dangling link
 		}).pipe(Effect.provide(TestPlatform)),
 	);
 });
+
+describe("okfit validate: generated-missing reads the decoder (#466)", () => {
+	it.effect("generated: {} is generated-missing beside entry-ignored", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-genmissing-"));
+			const init = yield* runOkfit(["init"], sandbox);
+			assert.strictEqual(init.exitCode, 0);
+			yield* Effect.promise(async () => {
+				const configPath = join(sandbox.cwd, ".config", "okfit.toml");
+				await writeFile(
+					configPath,
+					`${await readFile(configPath, "utf8")}\n[actors]\nagent = "okfit/claude-code"\n`,
+					"utf8",
+				);
+				await writeFileDeep(
+					join(sandbox.cwd, "okf", "decisions", "empty.md"),
+					"---\ntype: Note\ngenerated: {}\n---\n\n# Empty\n",
+				);
+			});
+			const run = yield* runOkfit(["validate"], sandbox);
+			const lines = run.stdout.split("\n").filter((line) => line.includes("decisions/empty.md"));
+			assert.isTrue(
+				lines.some((line) => line.includes("entry-ignored")),
+				run.stdout,
+			);
+			const missing = lines.filter((line) => line.includes("generated-missing"));
+			assert.strictEqual(missing.length, 1, run.stdout);
+			assert.include(missing[0], "set generated.by by hand");
+			assert.include(missing[0], "okfit sync cannot fill in a block that is written");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});

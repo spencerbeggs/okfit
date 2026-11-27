@@ -470,21 +470,47 @@ describe("Validate", () => {
 			}),
 		);
 
-		it.effect("generated-missing: generated written null, empty string or empty list counts as no block", () =>
+		it.effect("generated-missing: an absent or unreadable generated counts as no block (#466)", () =>
 			Effect.gen(function* () {
 				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 					actors: { agent: "okfit/claude-code" as Actor, humans: [] },
 					extensions: {},
 				});
-				const hits = (generated: string) =>
-					loadFromSources({ "m.md": `---\ntype: Note\ngenerated: ${generated}\n---\n` }).pipe(
+				const hits = (frontmatter: string) =>
+					loadFromSources({ "m.md": `---\ntype: Note\n${frontmatter}\n---\n` }).pipe(
 						Effect.map((bundle) => Validate.lint(bundle, config).filter((d) => d.code === "generated-missing")),
 					);
-				assert.strictEqual((yield* hits('""')).length, 1);
-				assert.strictEqual((yield* hits("[]")).length, 1);
-				assert.strictEqual((yield* hits("null")).length, 1);
-				// The control: a real block is present.
-				assert.strictEqual((yield* hits("{ by: okfit/claude-code }")).length, 0);
+				const missing =
+					/^Concept has no generated block; okfit sync will create it from actors\.agent \(okfit\/claude-code\)/;
+				for (const value of ['""', "[]", "null"]) {
+					const found = yield* hits(`generated: ${value}`);
+					assert.strictEqual(found.length, 1, value);
+					assert.match(found[0]?.message ?? "", missing);
+				}
+				// A written block the decoder ignores reads as absent, and sync cannot fill it in.
+				for (const value of ["{}", "{ at: 2026-01-01T00:00:00Z }", "{ by: [1] }", "5"]) {
+					const found = yield* hits(`generated: ${value}`);
+					assert.strictEqual(found.length, 1, value);
+					assert.strictEqual(
+						found[0]?.message,
+						"Concept's generated block has no readable generated.by, so it reads as absent (OKF 0.3 §5.2), and okfit sync cannot fill in a block that is written; set generated.by by hand",
+					);
+					assert.strictEqual(found[0]?.range?.line, 2, value);
+				}
+				// The load diagnostic is still reported beside it.
+				const bundle = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
+				assert.isTrue(Validate.lint(bundle, config).some((d) => d.code === "entry-ignored"));
+				// A legacy timestamp alone: sync cannot convert it.
+				const legacy = yield* hits("timestamp: 2026-01-01T00:00:00Z");
+				assert.strictEqual(legacy.length, 1);
+				assert.strictEqual(
+					legacy[0]?.message,
+					"Concept has no generated block, only a legacy timestamp, which okfit sync cannot convert; replace it with a generated block (generated.by, and generated.at from the timestamp) by hand",
+				);
+				assert.strictEqual(legacy[0]?.range?.line, 2);
+				// Controls: a readable block is present, with or without a timestamp beside it.
+				assert.strictEqual((yield* hits("generated: { by: okfit/claude-code }")).length, 0);
+				assert.strictEqual((yield* hits("generated: { by: human:a }\ntimestamp: 2026-01-01T00:00:00Z")).length, 0);
 			}),
 		);
 	});
@@ -517,6 +543,11 @@ describe("Validate", () => {
 				const diagnostics = Validate.lint(bundle, OkfitConfig.DEFAULTS);
 				assert.deepStrictEqual(
 					diagnostics.filter((d) => d.code === "generated-missing"),
+					[],
+				);
+				const written = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
+				assert.deepStrictEqual(
+					Validate.lint(written, OkfitConfig.DEFAULTS).filter((d) => d.code === "generated-missing"),
 					[],
 				);
 			}),

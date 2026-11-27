@@ -446,7 +446,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "generated-missing",
 			description:
-				'A concept has no generated block while actors.agent is configured, so okfit sync cannot stamp generated.at until the block exists (issue #73). Default "warn"; silent when actors.agent is unset.',
+				'A concept has no readable generated block (none, one written without a readable generated.by, or only a legacy timestamp) while actors.agent is configured; okfit sync creates a missing one, and the others need a hand edit (issue #73). Default "warn"; silent when actors.agent is unset.',
 			default: "warn",
 		}),
 	),

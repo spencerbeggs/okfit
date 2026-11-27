@@ -268,6 +268,15 @@ describe("derivedStatusOf agrees with Derive.status (OKF 0.3 5.4, 11.2 rule 1)",
 	}
 });
 
+describe("derivedStatusOf reads absence through Concept.isAbsent", () => {
+	it("is stable exactly when the value is not a vocabulary string and Concept.isAbsent holds", () => {
+		for (const raw of [undefined, null, "", [], "archived", 5, true, ["draft"], {}, { status: "draft" }, "draft"]) {
+			const expected = Schema.is(Status)(raw) ? raw : Concept.isAbsent(raw) ? "stable" : "unknown";
+			assert.strictEqual(derivedStatusOf(raw), expected);
+		}
+	});
+});
+
 describe("verification on a status outside the vocabulary", () => {
 	const withStatus = (disk: string, line: string): string => disk.replace(/^---\n/, `---\n${line}\n`);
 

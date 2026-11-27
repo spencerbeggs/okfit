@@ -68,14 +68,6 @@ const formatIssue = SchemaIssue.makeFormatterStandardSchemaV1();
 const isMapping = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
-/**
- * OKF 0.3 11.2 rule 1: `null`, an empty string and an empty list read as absent.
- *
- * @internal
- */
-export const isAbsent = (value: unknown): boolean =>
-	value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
-
 const leafMessages = (failure: {
 	readonly issue: SchemaIssue.Issue;
 }): ReadonlyArray<{
@@ -141,7 +133,7 @@ export const decodeMapping = (
 	};
 	for (const key of Object.keys(fields)) {
 		const isRequired = required.includes(key);
-		const present = Object.hasOwn(value, key) && !isAbsent(value[key]);
+		const present = Object.hasOwn(value, key) && !Concept.isAbsent(value[key]);
 		if (isRequired && !present) return ignore(`\`${key}\` is required`);
 		const inner = Object.hasOwn(nested, key) ? nested[key] : undefined;
 		if (inner !== undefined) {
@@ -264,7 +256,8 @@ const decodeSingle = <A>(
 	cls: MappingClass<A>,
 	required: ReadonlyArray<string>,
 	issues: Array<FamilyIssue>,
-): A | undefined => (isAbsent(raw[key]) ? undefined : decodeNested(cls, required, raw[key], [key], family, issues));
+): A | undefined =>
+	Concept.isAbsent(raw[key]) ? undefined : decodeNested(cls, required, raw[key], [key], family, issues);
 
 /** Decode the computation keys independently (a bad `executor` no longer drops `runtime`). */
 const decodeAttested = (
@@ -274,11 +267,11 @@ const decodeAttested = (
 ): AttestedComputation => {
 	const input: Record<string, unknown> = { parameters: [] };
 	for (const key of ["runtime", "computation"] as const) {
-		if (isAbsent(raw[key])) continue;
+		if (Concept.isAbsent(raw[key])) continue;
 		const decoded = decodeFamily(Schema.String, "attested", [key], raw[key], issues);
 		if (decoded !== undefined) input[key] = decoded;
 	}
-	if (!isAbsent(raw.parameters)) {
+	if (!Concept.isAbsent(raw.parameters)) {
 		const list = decodeMappingList(
 			"parameters",
 			"attested",
@@ -332,7 +325,7 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 	const fields: FamilyFields = { type, extensions, raw };
 	const out = fields as Record<string, unknown>;
 	const entries: Partial<Record<EntryFamily, ReadonlyArray<YamlPath>>> = {};
-	const present = (key: string): boolean => key in raw && !isAbsent(raw[key]);
+	const present = (key: string): boolean => key in raw && !Concept.isAbsent(raw[key]);
 	const scalar = (key: keyof typeof SCALAR_SCHEMAS): void => {
 		if (!present(key)) return;
 		const decoded = decodeFamily(SCALAR_SCHEMAS[key], key, [key], raw[key], issues);

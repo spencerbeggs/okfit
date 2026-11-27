@@ -4,6 +4,8 @@
 
 * Updated Core
 * Updated Loading never fails a concept for a bad family
+* Updated LSP
+* Updated okfit config file schema
 
 ## 2026-11-26
 
