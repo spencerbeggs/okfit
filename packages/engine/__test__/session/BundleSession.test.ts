@@ -119,20 +119,16 @@ describe("BundleSession", () => {
 	);
 
 	it.effect("a slower revalidate that started on older text cannot land after a newer one", () => {
-		// The first underlying read of b.md (not open, so it reaches memfs) signals
-		// `stalled` and then sleeps on the TestClock. a.md is open, so the overlay
-		// serves it without touching memfs: the older run has already read a.md's
-		// older text when it stalls on b.md.
+		// The first underlying `realPath` of b.md (the confined read of a file that is not open resolves it, so it
+		// reaches memfs) signals `stalled` and then sleeps on the TestClock. a.md is open, so the overlay serves it
+		// without touching memfs: the older run has already read a.md's older text when it stalls on b.md.
 		const stalled = Deferred.makeUnsafe<void>();
 		let bReads = 0;
 		const faults: MemoryFileSystemFaults = {
-			readFileString: (file) =>
+			realPath: (file) =>
 				file !== `${ROOT}/b.md` || bReads++ > 0
 					? undefined
-					: Deferred.succeed(stalled, undefined).pipe(
-							Effect.andThen(Effect.sleep("1 second")),
-							Effect.as(moduleConcept("B")),
-						),
+					: Deferred.succeed(stalled, undefined).pipe(Effect.andThen(Effect.sleep("1 second")), Effect.as(file)),
 		};
 		return Effect.gen(function* () {
 			const session = yield* make();

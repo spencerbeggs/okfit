@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { staleCommand } from "../../src/commands/stale.js";
-import { defaultOf, nameOf, primitiveTypeOf } from "../utils/params.js";
+import { nameOf, primitiveTypeOf } from "../utils/params.js";
 
 /** `Command`'s public interface declares no `config` member; every real command carries one at runtime. */
 const configOf = (
@@ -26,15 +26,8 @@ describe("staleCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["root", "config", "format", "verify", "dry-run"],
+			["root", "config", "verify", "dry-run"],
 		);
-	});
-
-	it('--format defaults to "human"', () => {
-		const config = configOf(staleCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
-		if (formatFlag === undefined) throw new Error("expected a --format flag");
-		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--config carries no mustExist on its underlying Path primitive", () => {

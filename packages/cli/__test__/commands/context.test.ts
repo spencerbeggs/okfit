@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { contextCommand } from "../../src/commands/context.js";
 import { rootCommand } from "../../src/commands/root.js";
-import { defaultOf, nameOf, primitiveTypeOf } from "../utils/params.js";
+import { nameOf, primitiveTypeOf } from "../utils/params.js";
 
 /** `Command`'s public interface declares no `config` member; every real command carries one at runtime. */
 const configOf = (
@@ -31,15 +31,8 @@ describe("contextCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["root", "config", "format", "trust"],
+			["root", "config", "trust"],
 		);
-	});
-
-	it('--format defaults to "human" (contract §8.3)', () => {
-		const config = configOf(contextCommand);
-		const formatFlag = config.flags.find((flag) => nameOf(flag) === "format");
-		if (formatFlag === undefined) throw new Error("expected a --format flag");
-		assert.strictEqual(defaultOf(formatFlag), "auto");
 	});
 
 	it("--config carries no mustExist on its underlying Path primitive (contract §8.3)", () => {

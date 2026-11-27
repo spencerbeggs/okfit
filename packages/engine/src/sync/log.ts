@@ -1,9 +1,9 @@
 import type { ConceptId, LoadedBundle, LogDocument } from "@okfit/core";
 import { Derive } from "@okfit/core";
-import { DateTime, Effect, FileSystem, Path } from "effect";
+import { DateTime, Effect, Path } from "effect";
 import { escapesBundle } from "./index.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, writeAtomic } from "./write.js";
+import { loadedBaseline, readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
 
 /**
  * One log item sync would add: `date` is the addition's UTC calendar date
@@ -43,7 +43,8 @@ const renderItem = (item: { readonly title: string; readonly added: boolean }): 
  * group's text (heading and items) is re-emitted verbatim by slicing
  * `existing.source` on the group's own `LogGroup.range` -- never
  * re-serialised, so a hand-written item, comment, or unusual formatting
- * inside an existing group survives byte-for-byte.
+ * inside an existing group survives byte-for-byte (its line endings aside:
+ * `mergeLog` works in LF and `syncLog` writes the file's own newline, #505).
  *
  * @internal
  */
@@ -56,13 +57,14 @@ export const mergeLog = (
 
 	if (existing !== undefined) {
 		for (const group of existing.doc.groups) {
-			// The raw slice, byte-for-byte, exactly as `LogGroup.range` spans it --
-			// no normalisation. A non-last group's range spans through the blank
+			// The raw slice exactly as `LogGroup.range` spans it. A non-last group's range spans through the blank
 			// line (or lines, however many an author wrote) separating it from the
 			// next `## ` heading (internal/reserved.ts's own `flush`); that trailer
 			// is preserved untouched here and dealt with only where it matters,
-			// at assembly time below (S-10: existing groups are byte-copied).
-			const verbatim = existing.source.slice(group.range.offset, group.range.offset + group.range.length);
+			// at assembly time below (S-10: existing groups are copied, in LF, #505).
+			// Its line endings are normalised to LF (#505): `mergeLog` works in LF throughout and `syncLog`
+			// converts the result to the file's own newline, so the `/\n+$/` trailer below sees LF.
+			const verbatim = toLf(existing.source.slice(group.range.offset, group.range.offset + group.range.length));
 			byDate.set(group.date, { verbatim, pending: [] });
 		}
 	}
@@ -87,7 +89,7 @@ export const mergeLog = (
 			const items = [...bucket.pending].sort(byTitle).map(renderItem);
 			piece = Derive.renderLogEntry({ date, items });
 		} else if (bucket.pending.length === 0) {
-			// Untouched: the raw slice, byte-for-byte, whatever its trailing
+			// Untouched: the raw slice (LF, #505), whatever its trailing
 			// whitespace (one blank line, several, or none) happens to be.
 			piece = bucket.verbatim;
 		} else {
@@ -97,7 +99,7 @@ export const mergeLog = (
 			// only -- hand-written prose is never compared here or there. BEFORE
 			// any trailing blank-line whitespace the original slice
 			// carries (its separator from the next heading, or end-of-document),
-			// which is preserved byte-for-byte rather than collapsed.
+			// which is preserved rather than collapsed.
 			const trailingNewlines = /\n+$/.exec(bucket.verbatim)?.[0] ?? "";
 			const base = bucket.verbatim.slice(0, bucket.verbatim.length - trailingNewlines.length);
 			// One of the trailing newlines belongs to the last existing item's own
@@ -177,7 +179,7 @@ export interface SyncLogResult {
 	readonly unchanged: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<{
 		readonly id: string;
-		readonly reason: "log-unparseable" | "dirty" | "symlink-escape";
+		readonly reason: "log-unparseable" | "dirty" | "symlink-escape" | "changed-during-read";
 	}>;
 }
 
@@ -198,8 +200,8 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 	dryRun: boolean,
 	since?: string,
 	pending?: Array<PendingWrite>,
+	loadedFiles?: ReadonlySet<string>,
 ) {
-	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const logPath = path.join(bundle.root, "log.md");
 
@@ -215,10 +217,34 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 
 	// Step 1: missing file -> undefined source (empty document, design §5 step 1).
 	// The BOM is kept (#492, D8): merge and compare on the stripped text, write `bom + merged`.
-	const { text: source, bom } = yield* readOptionalSplittingBom(fs, logPath);
+	// The file's line ending is kept too (#505): merge in LF, write in the file's first newline.
+	// The read is confined (opened, resolved, identity-compared): a log.md swapped for a link out after the check
+	// above is skipped as `symlink-escape`, one that changed under the read as `changed-during-read` (transient:
+	// sync again); neither is read.
+	const read = yield* readOptionalOrSkip(bundle.root, logPath);
+	if ("skip" in read) {
+		return {
+			selected: true,
+			written: [],
+			unchanged: [],
+			skipped: [{ id: "log.md", reason: read.skip }],
+		} satisfies SyncLogResult;
+	}
+	const { text: source, bom, newline } = read;
 
 	// Step 2.
 	const existingDoc = bundle.logs.get("");
+
+	// A log.md the load never saw but that exists now appeared after the load: its text is not what the plan would
+	// merge into, so it is not rewritten (transient: sync again). Never `log-unparseable`; the file may be fine.
+	if (source !== undefined && existingDoc === undefined && loadedFiles !== undefined && !loadedFiles.has("log.md")) {
+		return {
+			selected: true,
+			written: [],
+			unchanged: [],
+			skipped: [{ id: "log.md", reason: "changed-during-read" as const }],
+		} satisfies SyncLogResult;
+	}
 
 	// Step 3: a fatal parse failure -- validate already reports this as
 	// log-frontmatter/conformance; this mode returns early with one skip.
@@ -254,17 +280,25 @@ export const syncLog = Effect.fn("okfit/sync/syncLog")(function* (
 		additions,
 	);
 
-	// Step 7: byte-compare; a missing file compares against "".
-	if (merged === (source ?? "")) {
+	// Step 7: compare; a missing file compares against "". Only line endings differing is not a change (#505), so
+	// an untouched file keeps its bytes, mixed endings included.
+	if (merged === toLf(source ?? "")) {
 		return { selected: true, written: [], unchanged: ["log.md"], skipped: [] } satisfies SyncLogResult;
 	}
 	if (dryRun) {
-		pending?.push({ target: logPath, contents: bom + merged });
+		// `before` is the text the load read, `null` when the load saw no log.md, never this plan-time read (see
+		// syncIndex): a later edit, or a log.md created since the load, trips the stale check.
+		const before = loadedBaseline(existingDoc?.source, "log.md", loadedFiles);
+		pending?.push({
+			target: logPath,
+			contents: bom + withNewline(merged, newline),
+			...(before === undefined ? {} : { before }),
+		});
 		return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 	}
 
 	// Step 8: one shared atomic writer across all three sync modes (S-33).
-	yield* writeAtomic(logPath, bom + merged);
+	yield* writeAtomic(logPath, bom + withNewline(merged, newline));
 
 	return { selected: true, written: ["log.md"], unchanged: [], skipped: [] } satisfies SyncLogResult;
 });

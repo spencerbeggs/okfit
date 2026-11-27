@@ -27,7 +27,7 @@ export interface ContextResult {
  * A root `index.md` that is a symbolic link out of the bundle (or dangling)
  * is reported absent (OKF 0.3 section 3.2): the answer is trusted by the
  * session-start hook, which prints the file into an agent's context. The
- * check is `escapesRoot`, an `lstat` plus a real-path confinement: still no
+ * check is `escapesRoot`, a real-path confinement of the whole path: still no
  * bundle load, and an escaping link's target is never read (its real path may be resolved to decide containment).
  *
  * `exists` is `(path) => Effect.Effect<boolean, PlatformError>`, so an

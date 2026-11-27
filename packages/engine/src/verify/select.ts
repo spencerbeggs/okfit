@@ -10,11 +10,18 @@ import { VerifySelectionError } from "../errors.js";
  * `"already-verified"` means the actor's
  * `verified` entry is bound, current by OKF 0.3 §5.3 (its `at` is not before `generated.at`), and covering the
  * concept's current content, and `"not-current"` means the concept's `generated.at` is later than the verification
- * time, so a verification made then would not count (OKF 0.3 §5.3).
+ * time, so a verification made then would not count (OKF 0.3 §5.3). `"changed-during-read"` is a concept that
+ * changed under the load and so was not considered at all (a transient skip: run the batch again).
  *
  * @public
  */
-export type VerifyBatchSkipReason = "draft" | "deprecated" | "unknown-status" | "already-verified" | "not-current";
+export type VerifyBatchSkipReason =
+	| "draft"
+	| "deprecated"
+	| "unknown-status"
+	| "already-verified"
+	| "not-current"
+	| "changed-during-read";
 
 /**
  * Why a verification at `at` would not count for a concept (OKF 0.3 5.3), as encoded timestamps. `kind` compares

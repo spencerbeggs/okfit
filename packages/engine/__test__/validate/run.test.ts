@@ -511,10 +511,12 @@ describe("run — verified-drift lint (integrity)", () => {
 					...(target === undefined ? {} : { target }),
 				}).pipe(
 					Effect.provide(sessionPlatform(mountProject(V03_PROJECT), recordCalls(calls))),
-					Effect.map(() => calls.filter((call) => call === `readFileString ${READMES}`).length),
+					Effect.map(
+						() => calls.filter((call) => call === `readFileString ${READMES}` || call === `open ${READMES}`).length,
+					),
 				);
 			};
-			// The loader reads the README once; --target reads it a second time for its links (positive control).
+			// The loader reads the README once (an `open`, since its reads are confined); --target reads it a second time for its links (positive control).
 			assert.strictEqual(yield* reads(undefined), 1);
 			assert.strictEqual(yield* reads("0.3"), 2);
 		}),

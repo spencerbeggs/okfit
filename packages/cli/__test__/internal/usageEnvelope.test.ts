@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { ENGINE_VERSION, JsonErrorEnvelope } from "@okfit/engine";
 import { Schema } from "effect";
-import { usageEnvelope, wantsJson } from "../../src/internal/usageEnvelope.js";
+import { isGraphPath, usageEnvelope, wantsJson } from "../../src/internal/usageEnvelope.js";
 
 describe("wantsJson", () => {
 	it("is true for a --format json pair", () => {
@@ -18,6 +18,15 @@ describe("wantsJson", () => {
 	});
 	it("is false for a trailing --format with no value", () => {
 		assert.isFalse(wantsJson(["validate", "--format"]));
+	});
+});
+
+describe("isGraphPath", () => {
+	it("is true only for the exact okfit graph path", () => {
+		assert.isTrue(isGraphPath(["okfit", "graph"]));
+		assert.isFalse(isGraphPath(["okfit", "validate"]));
+		assert.isFalse(isGraphPath(["okfit"]));
+		assert.isFalse(isGraphPath(["okfit", "graph", "extra"]));
 	});
 });
 

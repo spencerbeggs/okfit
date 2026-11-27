@@ -24,6 +24,7 @@ export {
 export type { EntryFamily } from "./Concept.js";
 export { ATTESTED_COMPUTATION_TYPE, Concept, EntryPaths } from "./Concept.js";
 export { ConceptId } from "./ConceptId.js";
+export { ConfinementError, changedWhileRead, readConfinedBytes, readConfinedString } from "./ConfinedRead.js";
 export type { LogEntry, MalformedStaleAfter, RenderIndexOptions, StaleConcept } from "./Derive.js";
 export { Derive, Staleness, TrustTier } from "./Derive.js";
 export {

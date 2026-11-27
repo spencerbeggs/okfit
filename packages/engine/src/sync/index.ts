@@ -1,16 +1,19 @@
 import type { LoadedBundle } from "@okfit/core";
 import { Derive } from "@okfit/core";
-import { Effect, FileSystem, Path } from "effect";
+import { Effect, Path } from "effect";
 import { escapesBundle } from "../confinement.js";
 import type { PendingWrite } from "./write.js";
-import { readOptionalSplittingBom, writeAtomic } from "./write.js";
+import { loadedBaseline, readOptionalOrSkip, toLf, withNewline, writeAtomic } from "./write.js";
 
 /** @internal */
 export interface SyncIndexResult {
 	readonly selected: true;
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
-	readonly skipped: ReadonlyArray<{ readonly id: string; readonly reason: "symlink-escape" }>;
+	readonly skipped: ReadonlyArray<{
+		readonly id: string;
+		readonly reason: "symlink-escape" | "index-unparseable" | "changed-during-read";
+	}>;
 }
 
 export { escapesBundle } from "../confinement.js";
@@ -36,28 +39,54 @@ const childDirectoriesOf = (bundle: LoadedBundle, dir: string): ReadonlyArray<st
 	return [...children];
 };
 
+/** An `index.md` the loader found but could not read; rendering over it would erase what the author wrote (#512). */
+const indexUnreadable = (bundle: LoadedBundle, file: string): boolean =>
+	bundle.diagnostics.some(
+		(d) => d.file === file && (d.code === "frontmatter-unclosed" || d.code === "frontmatter-unparseable"),
+	);
+
 const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
+	root: string,
 	targetPath: string,
 	relativeId: string,
 	rendered: string,
 	dryRun: boolean,
 	written: Array<string>,
 	unchanged: Array<string>,
+	skipped: Array<SyncIndexResult["skipped"][number]>,
+	baseline: string | null | undefined,
 	pending?: Array<PendingWrite>,
 ) {
-	const fs = yield* FileSystem.FileSystem;
-	// A leading BOM is kept (#492, D8): compare on the stripped text, write `bom + rendered`.
-	const { text: onDisk, bom } = yield* readOptionalSplittingBom(fs, targetPath);
-	if (onDisk === rendered) {
+	// A leading BOM and the file's line ending are kept (#492, #505): render in LF, compare on the stripped text
+	// with its endings ignored (a file that differs only in endings is unchanged), and write `bom + expected`,
+	// the render in the file's first newline.
+	// The read is confined (opened, resolved, identity-compared): a file swapped for a link out after the caller's
+	// `escapesBundle` check is skipped as `symlink-escape`, one that changed under the read as `changed-during-read`
+	// (transient: sync again); neither is read.
+	const read = yield* readOptionalOrSkip(root, targetPath);
+	if ("skip" in read) {
+		skipped.push({ id: relativeId, reason: read.skip });
+		return;
+	}
+	const { text: onDisk, bom, newline } = read;
+	const expected = withNewline(rendered, newline);
+	if (onDisk !== undefined && toLf(onDisk) === rendered) {
 		unchanged.push(relativeId);
 		return;
 	}
 	if (dryRun) {
-		pending?.push({ target: targetPath, contents: bom + rendered });
+		// `before` is the text the load read (`null` when the load saw no such file), never this plan-time read: an
+		// edit or a new file landing between the two would otherwise become the baseline and `applySyncPlan` would
+		// overwrite it.
+		pending?.push({
+			target: targetPath,
+			contents: bom + expected,
+			...(baseline === undefined ? {} : { before: baseline }),
+		});
 		written.push(relativeId);
 		return;
 	}
-	yield* writeAtomic(targetPath, bom + rendered);
+	yield* writeAtomic(targetPath, bom + expected);
 	written.push(relativeId);
 });
 
@@ -74,6 +103,15 @@ const writeOrCompare = Effect.fn("okfit/sync/index/writeOrCompare")(function* (
  * `bundle.directories` in the first place (`Bundle.load` only records a
  * directory there when it holds a concept -- `Bundle.ts:301-323`).
  *
+ * An `index.md` that exists but could not be read (unclosed or unparseable frontmatter) is skipped as
+ * `index-unparseable` and never rewritten, since rendering over it would erase what the author wrote (#512). A
+ * rewrite keeps the file's leading BOM and its line ending (the rule covers LF and CRLF: its first newline's, and a file with no LF is written LF, #505); a file that
+ * differs from the render only in its line endings is `unchanged` and keeps its bytes.
+ *
+ * `loadedFiles` (the files a real `Bundle.load` saw; `planSync` passes it) makes the plan refuse an `index.md` that
+ * appeared after the load: its write is recorded with `before: null`, so `applySyncPlan` fails `SyncPlanStaleError`
+ * instead of overwriting it. Absent (a hand-built bundle), the plan reads the target itself.
+ *
  * @internal
  */
 export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
@@ -81,14 +119,18 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	dryRun: boolean,
 	pending?: Array<PendingWrite>,
 	okfVersion?: string,
+	holdBack?: ReadonlySet<string>,
+	loadedFiles?: ReadonlySet<string>,
 ) {
 	const path = yield* Path.Path;
 	const written: Array<string> = [];
 	const unchanged: Array<string> = [];
-	const skipped: Array<{ readonly id: string; readonly reason: "symlink-escape" }> = [];
+	const skipped: Array<SyncIndexResult["skipped"][number]> = [];
 
 	// Step 1: the root.
-	if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
+	if (holdBack?.has("")) skipped.push({ id: "index.md", reason: "changed-during-read" });
+	else if (yield* escapesBundle(bundle, "index.md")) skipped.push({ id: "index.md", reason: "symlink-escape" });
+	else if (indexUnreadable(bundle, "index.md")) skipped.push({ id: "index.md", reason: "index-unparseable" });
 	else {
 		const rootConcepts = [...bundle.concepts.values()].filter((concept) => !concept.path.includes("/"));
 		const rootFrontmatter = bundle.indexes.get("")?.frontmatter;
@@ -98,12 +140,15 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 			subdirectories: childDirectoriesOf(bundle, ""),
 		});
 		yield* writeOrCompare(
+			bundle.root,
 			path.join(bundle.root, "index.md"),
 			"index.md",
 			rootRendered,
 			dryRun,
 			written,
 			unchanged,
+			skipped,
+			loadedBaseline(bundle.indexes.get("")?.source, "index.md", loadedFiles),
 			pending,
 		);
 	}
@@ -111,18 +156,29 @@ export const syncIndex = Effect.fn("okfit/sync/syncIndex")(function* (
 	// Step 2: every other directory.
 	for (const dir of Derive.indexDirectories(bundle)) {
 		if (dir === "") continue;
+		if (holdBack?.has(dir)) {
+			skipped.push({ id: `${dir}/index.md`, reason: "changed-during-read" });
+			continue;
+		}
 		if (yield* escapesBundle(bundle, `${dir}/index.md`)) {
 			skipped.push({ id: `${dir}/index.md`, reason: "symlink-escape" });
 			continue;
 		}
+		if (indexUnreadable(bundle, `${dir}/index.md`)) {
+			skipped.push({ id: `${dir}/index.md`, reason: "index-unparseable" });
+			continue;
+		}
 		const rendered = Derive.synthesizeIndex(bundle, dir);
 		yield* writeOrCompare(
+			bundle.root,
 			path.join(bundle.root, dir, "index.md"),
 			`${dir}/index.md`,
 			rendered,
 			dryRun,
 			written,
 			unchanged,
+			skipped,
+			loadedBaseline(bundle.indexes.get(dir)?.source, `${dir}/index.md`, loadedFiles),
 			pending,
 		);
 	}

@@ -5,14 +5,14 @@
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import { CliAudience, CliFormat, CliRuntime } from "@effected/cli-kit";
+import { CliAudience, CliRuntime } from "@effected/cli-kit";
 import type { Distribution } from "@effected/kit";
 import { Now, OkfitPlatform } from "@okfit/engine";
 import { DateTime, Effect, Option } from "effect";
-import { CliError } from "effect/cli";
 import { rootCommand } from "./commands/root.js";
 import { renderFailure } from "./errors.js";
-import { usageEnvelope, wantsJson } from "./internal/usageEnvelope.js";
+import { Format } from "./internal/format.js";
+import { isGraphPath, usageEnvelope, wantsJson } from "./internal/usageEnvelope.js";
 import { versionFormatter } from "./internal/versionFormatter.js";
 import { CLI_VERSION } from "./version.js";
 
@@ -62,24 +62,8 @@ export const main = (options: MainOptions = {}): void => {
 		return yield* CliAudience.run(rootCommand, { version: CLI_VERSION }).pipe(Effect.provideService(Now, now));
 	});
 
-	// #485: a parse-time usage error (a `ShowHelp` carrying `errors`) is raised by
-	// the argument parser before any handler runs, so no command prints its JSON
-	// error envelope. When the raw arguments ask for JSON, print one here, then
-	// re-fail unchanged: the kit still prints help on stderr and exits 64. A bare
-	// `--help` (`errors` empty) prints nothing extra.
-	const argv = process.argv.slice(2);
-	const withUsageEnvelope = wantsJson(argv)
-		? program.pipe(
-				Effect.tapError((error) =>
-					CliError.isCliError(error) && error._tag === "ShowHelp" && error.errors.length > 0
-						? CliFormat.printJson(usageEnvelope(error.errors, CLI_VERSION, options.distribution), { indent: 0 })
-						: Effect.void,
-				),
-			)
-		: program;
-
 	NodeRuntime.runMain(
-		CliRuntime.main(withUsageEnvelope, {
+		CliRuntime.main(program, {
 			// Provided INSIDE failure reporting, so a failure while building
 			// `OkfitPlatform` (an `XdgEnvError` from an unset `HOME`, K-13) is
 			// itself rendered and mapped to `exitCode: 3`, rather than escaping to
@@ -101,6 +85,26 @@ export const main = (options: MainOptions = {}): void => {
 			// stdout stays clean for the plugin hooks that parse it as JSON. An
 			// explicit `--help` and a bare group invocation stay on stdout.
 			helpOnUsageError: "stderr",
+			// #485: a parse-time usage error (a `ShowHelp` carrying `errors`) is raised
+			// before any handler runs, so no command prints its JSON error envelope.
+			// `--format` is a scoped global setting (`internal/format.ts`) declared on
+			// exactly the commands that take `human|json`, so `setting(Format)` is
+			// `json` only for an invocation whose command really has the flag. The
+			// envelope is then the whole of stdout; help and errors go to stderr and
+			// the exit stays 64.
+			//
+			// TODO(spencerbeggs/effected#1435): the `graph` branch below exists only
+			// because effect 4.1.6's global-flag registry rejects two settings that
+			// share a flag name, and `graph`'s `--format` (mermaid|dot|json, default
+			// mermaid) cannot share `Format`'s. Delete it, and make `graph`'s flag a
+			// setting, once upstream allows per-scope settings with one name.
+			renderUsageError: {
+				command: rootCommand,
+				render: ({ errors, commandPath, setting }) =>
+					Option.contains(setting(Format), "json") || (isGraphPath(commandPath) && wantsJson(process.argv.slice(2)))
+						? JSON.stringify(usageEnvelope(errors, CLI_VERSION, options.distribution))
+						: undefined,
+			},
 			// #217: builds `@effected/env`'s runtime and terminal services, the
 			// audience (flag > `OKFIT_AUDIENCE` > detection), `CliTheme` and
 			// `CliInteractive`, and gates the terminal and `--wizard` when the run

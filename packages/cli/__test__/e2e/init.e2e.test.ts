@@ -24,6 +24,16 @@ const DIRECTORIES = [
 ] as const;
 
 describe("okfit init", () => {
+	// #485: init declares no --format setting, so `--format json` is a usage
+	// error (exit 64) with nothing on stdout: no envelope.
+	it("--format json is a usage error with no envelope on stdout (#485)", async () => {
+		const { cwd, env } = await makeSandbox();
+		const result = await withServices(runOkfit(["init", "--format", "json"], { cwd, env: baseEnv(env) }));
+		assert.strictEqual(result.exitCode, 64);
+		assert.strictEqual(result.stdout, "");
+		assert.include(result.stderr, "--format");
+	});
+
 	// (checked) OKFIT_NOW added and log.md/index.md content assertions added below
 	// so this test actually proves "the §3.4 file list and contents" (contract
 	// §6.2's init-fresh.e2e.test.ts row) for all nine scaffolded files, not just

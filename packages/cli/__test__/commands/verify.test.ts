@@ -30,7 +30,7 @@ describe("verifyCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((flag) => nameOf(flag)),
-			["root", "config", "all", "type", "stable", "draft", "revoke", "at", "dry-run", "no-diff", "format"],
+			["root", "config", "all", "type", "stable", "draft", "revoke", "at", "dry-run", "no-diff"],
 		);
 	});
 

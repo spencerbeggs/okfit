@@ -102,8 +102,14 @@ src/
     text.ts                        -- oneLine: text on one terminal line (Fmt.sanitize, then line breaks as spaces);
                                       the verify-family refusals in errors.ts, the query browser and the verify preview
   internal/
-    usageEnvelope.ts              -- wantsJson (argv asks for --format json, before any --) and usageEnvelope (the
-                                      exit-64 JsonErrorEnvelope main.ts prints for a parse-time ShowHelp with errors)
+    format.ts                     -- Format: the --format human|json GlobalFlag.Setting, attached with
+                                      Command.withGlobalFlags to the eight commands that have it (validate, context,
+                                      lint, stale, mv, sync, verify, query list/get/neighbors), and withFormat, which
+                                      hands a handler its value as input.format; graph keeps a local --format
+    usageEnvelope.ts              -- usageEnvelope (the exit-64 JsonErrorEnvelope main.ts's renderUsageError prints
+                                      for a parse-time usage error under --format json), plus the graph-only
+                                      isGraphPath/wantsJson argv check (TODO spencerbeggs/effected#1435: effect
+                                      4.1.6's flag registry rejects two settings sharing a flag name)
     validate-usage.ts             -- ValidateUsageError (exit 64): a refused --target or --fix/--only/--dry-run combination
     initWizard.ts                 -- initWizard (profile/bundle/config-location prompts via CliUi.prompt, run from
                                       the init handler before any write), checkBundleDir, InitBundleDirError (64)
@@ -161,7 +167,7 @@ Tests live in `__test__/`, never in `src/`; see `__test__/CLAUDE.md`.
   it. `@okfit/cli` carries no `peerDependencies` block itself — it is where
   core's and profiles' Convention A dependency chain terminates, since a CLI
   bin is installed, never depended on.
-- `--format` is `CliFormat.flag(["json"], { aliases: { human: "auto" }, default: "human" })` on every command (`graph`: `custom: ["mermaid", "dot"]`, default `mermaid`); JSON prints through `CliFormat.printJson(value, { indent: 0 })`, the same single-line bytes as before. Pass the explicit type arguments: `default` also feeds inference of the built-in set, which otherwise widens to include `human`.
+- `--format` is `CliFormat.flag(["json"], { aliases: { human: "auto" }, default: "human" })` declared once as the `Format` `GlobalFlag.Setting` (`internal/format.ts`) and attached with `Command.withGlobalFlags([Format])` to the eight commands that take it; handlers get the value through `withFormat` as `input.format`, and `main.ts`'s `renderUsageError` asks `setting(Format)` for the #485 envelope. `init` and the bare `query` group declare nothing, so `--format` there is an ordinary usage error. `graph` keeps a local flag (`custom: ["mermaid", "dot"]`, default `mermaid`) because effect 4.1.6 rejects two global settings with one flag name (spencerbeggs/effected#1435); `main.ts` checks its argv narrowly. JSON prints through `CliFormat.printJson(value, { indent: 0 })`, the same single-line bytes as before. Pass the explicit type arguments: `default` also feeds inference of the built-in set, which otherwise widens to include `human`.
 - Tests live in `__test__/`, never in `src/`.
 - Relative imports use `.js` extensions; built-ins use `node:`. Type imports
   are separate `import type` statements. TSDoc `@public` on every `src/`

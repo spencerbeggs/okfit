@@ -203,7 +203,8 @@ export const LintTable = Schema.Struct({
 	missing_index: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "missing-index",
-			description: 'A concept-holding directory has no index.md. Default "warn".',
+			description:
+				'A concept-holding directory has no index.md file in the bundle (an index.md that exists but fails to load is reported by its own error instead). Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -338,6 +339,14 @@ export const LintTable = Schema.Struct({
 			default: "warn",
 		}),
 	),
+	read_changed: Schema.optionalKey(
+		LintLevel.annotate({
+			title: "read-changed",
+			description:
+				'A file in the bundle was replaced while it was being read, so it was left out of this load; reading again may succeed. Output derived from the changed file is held back: its own stamp, and the indexes and log that would list it. Default "warn".',
+			default: "warn",
+		}),
+	),
 	frontmatter_missing: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "frontmatter-missing",
@@ -358,7 +367,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "symlink-escape",
 			description:
-				'A file in the bundle is a symbolic link whose target lies outside the bundle root; it is not read and not part of the bundle (OKF 0.3 §3.2). Default "warn".',
+				'A file or directory in the bundle is a symbolic link whose target lies outside the bundle root or cannot be resolved (a missing target, a link loop, an unreadable target); it is not read, nothing under it is walked, and it is not part of the bundle. Pruned directory names such as node_modules are not checked, and hidden ones only when hidden files are included (OKF 0.3 §3.2). Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -841,6 +850,7 @@ const LINT_KEY: Record<LintCode, LintTableKey> = {
 	"config-okf-version-stale": "config_okf_version_stale",
 	stale: "stale",
 	"walk-unreadable": "walk_unreadable",
+	"read-changed": "read_changed",
 	"generated-at-drift": "generated_at_drift",
 	"verified-drift": "verified_drift",
 	"status-missing": "status_missing",
@@ -888,6 +898,7 @@ const DEFAULT_LINT: Required<typeof LintTable.Type> = {
 	config_okf_version_stale: "warn",
 	stale: "info",
 	walk_unreadable: "warn",
+	read_changed: "warn",
 	generated_at_drift: "warn",
 	verified_drift: "warn",
 	status_missing: "off",

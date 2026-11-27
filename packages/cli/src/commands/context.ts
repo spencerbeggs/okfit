@@ -12,6 +12,7 @@ import {
 } from "@okfit/engine";
 import { Console, Effect, Option, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { rootFlag } from "../internal/root.js";
 import { humanContext } from "../render/context.js";
 import { CLI_VERSION } from "../version.js";
@@ -21,13 +22,6 @@ const configFlag = Flag.File("config").pipe(
 	Flag.optional,
 	Flag.withDescription("explicit config file; skips discovery"),
 );
-
-/** No `--profile` flag: M-15's exact ruling; that flag belongs to `init` alone. */
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
 
 const trustFlag = Flag.Boolean("trust").pipe(
 	Flag.withDefault(false),
@@ -52,8 +46,8 @@ const trustFlag = Flag.Boolean("trust").pipe(
  */
 export const contextCommand = Command.make(
 	"context",
-	{ root: rootFlag, config: configFlag, format: formatFlag, trust: trustFlag },
-	(input) =>
+	{ root: rootFlag, config: configFlag, trust: trustFlag },
+	withFormat((input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
@@ -130,7 +124,9 @@ export const contextCommand = Command.make(
 			}
 			return yield* body;
 		}),
+	),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription(
 		"Print the resolved project root, bundle root, config path, profile, and type/tag vocabulary without loading the bundle (unless --trust is passed).",
 	),

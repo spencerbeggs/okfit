@@ -92,6 +92,7 @@ export const faultyPlatform = (
 	const faults: MemoryFileSystemFaults = {
 		readDirectory: (path) => (unreadableDirs.has(path) ? denied("readDirectory", path) : undefined),
 		readFileString: (path) => (unreadableFiles.has(path) ? denied("readFileString", path) : undefined),
+		open: (path) => (unreadableFiles.has(path) ? denied("open", path) : undefined),
 	};
 	return Layer.mergeAll(MemoryFileSystem.layerWith(full, { faults }), Path.layer);
 };

@@ -1,7 +1,8 @@
 import { AtomicFile } from "@effected/files";
+import { readConfinedBytes } from "@okfit/core";
 import type { FileSystem } from "effect";
 import { Effect } from "effect";
-import { stripBom } from "../verify/locate.js";
+import { detectNewline, stripBom } from "../verify/locate.js";
 
 /**
  * S-33: the one atomic write every sync mode shares, over the kit's
@@ -44,23 +45,92 @@ export const bomOf = (fs: FileSystem.FileSystem, absolutePath: string) =>
 		);
 
 /**
- * {@link readSourceKeepingBom} for a file that may not exist yet: `text` is the content without its leading BOM
- * (`undefined` when the file is absent) and `bom` the BOM that was stripped (`""` when none), so a writer can compare on
- * `text` and write `bom + contents`.
+ * A line ending sync can keep: LF or CRLF. A lone CR is not one; a file whose only line breaks are lone CRs counts as
+ * LF.
  *
  * @internal
  */
-export const readOptionalSplittingBom = (fs: FileSystem.FileSystem, target: string) =>
-	readSourceKeepingBom(fs, target).pipe(
-		Effect.map((raw): { readonly text: string | undefined; readonly bom: string } => stripBom(raw)),
-		Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed({ text: undefined, bom: "" })),
+export type Newline = "\n" | "\r\n";
+
+/**
+ * {@link readSourceKeepingBom} for a file that may not exist yet, read confined to `root` (OKF 0.3 section 3.2): the
+ * file is opened and its path resolved and compared with `readConfinedBytes`, so a file swapped for a link out of the
+ * bundle after the caller's `escapesBundle` check is refused, never read. `text` is the content without its leading BOM
+ * (`undefined` when the file is absent), `bom` the BOM that was stripped (`""` when none) and `newline` the file's
+ * line ending (`detectNewline` of the text: CRLF when its first LF is preceded by CR, otherwise LF, so a file with no
+ * LF, or an absent one, is LF), so a writer can work in LF, compare with {@link toLf}, and write
+ * `bom + withNewline(contents, newline)`. Fails with `ConfinementError` when the file leaves `root`; the write that
+ * follows stays a check then `writeAtomic`.
+ *
+ * @internal
+ */
+export const readOptionalSplittingBom = (root: string, target: string) =>
+	readConfinedBytes(root, target).pipe(
+		Effect.map((bytes) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes)),
+		Effect.map((raw): { readonly text: string | undefined; readonly bom: string; readonly newline: Newline } => {
+			const { text, bom } = stripBom(raw);
+			return { text, bom, newline: detectNewline(text) };
+		}),
+		Effect.catchReason("PlatformError", "NotFound", () =>
+			Effect.succeed({ text: undefined, bom: "", newline: "\n" as const }),
+		),
 	);
+
+/**
+ * {@link readOptionalSplittingBom} where a refused read is an answer, not a failure: `{ skip }` carries the
+ * `SkipReason` a sync mode records, `symlink-escape` for a file that leaves `root` (or dangles) and
+ * `changed-during-read` for one that changed under the read (transient: sync again). Neither file is read.
+ *
+ * @internal
+ */
+export const readOptionalOrSkip = (root: string, target: string) =>
+	readOptionalSplittingBom(root, target).pipe(
+		Effect.catchTag("ConfinementError", (error) =>
+			Effect.succeed({
+				skip: error.reason === "changed" ? ("changed-during-read" as const) : ("symlink-escape" as const),
+			}),
+		),
+	);
+
+/**
+ * `text` (LF throughout, as the renderers produce it) in the given line ending. For CRLF every LF becomes CRLF; text
+ * that already carries CRLF is not doubled. The rule covers LF and CRLF only: a sync rewrite uses the file's first
+ * newline throughout (#505), the same rule verify uses, and a file with no LF is written LF.
+ *
+ * @internal
+ */
+export const withNewline = (text: string, newline: Newline): string =>
+	newline === "\n" ? text : text.replace(/\r?\n/g, "\r\n");
+
+/**
+ * `text` with every CRLF turned into LF (a lone CR is left alone): the form sync merges and compares in, so a file
+ * that differs from a render only in its line endings is not a change (#505).
+ *
+ * @internal
+ */
+export const toLf = (text: string): string => text.replace(/\r\n/g, "\n");
+
+/**
+ * The baseline a mode records for a file it will write: the text the bundle load read (`loaded`), or `null` ("must
+ * still be absent") when the load saw no such file (`loadedFiles`, the bundle-relative files of a real `Bundle.load`,
+ * does not hold `relative`), so a file created after the load is refused at apply, never overwritten. `undefined`
+ * (no baseline: `planSync` reads the target itself) when `loadedFiles` is not given, as for a hand-built bundle, or
+ * when the load saw the file but kept no text for it.
+ *
+ * @internal
+ */
+export const loadedBaseline = (
+	loaded: string | undefined,
+	relative: string,
+	loadedFiles: ReadonlySet<string> | undefined,
+): string | null | undefined => loaded ?? (loadedFiles !== undefined && !loadedFiles.has(relative) ? null : undefined);
 
 /**
  * A write a sync mode would perform: the plan half of plan/apply. `target` is
  * the absolute path handed to `writeAtomic`; `contents` the full text. `before`
- * is what `planSync` read from `target` while planning (`null` = the file was
- * absent); `applySyncPlan` refuses to run when a target no longer matches it.
+ * is the baseline `applySyncPlan` checks: the text the bundle load read from `target` (a mode sets it from the loaded
+ * document), `null` when the load saw no such file (it must still be absent), or, when a mode set none, what `planSync` reads from `target` last (`null` = the file was absent).
+ * `applySyncPlan` refuses to run when a target no longer matches it.
  * A write without `before` is applied unchecked.
  *
  * @public

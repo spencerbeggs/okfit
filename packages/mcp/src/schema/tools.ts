@@ -94,7 +94,7 @@ export type ListConceptsSuccess = typeof ListConceptsSuccess.Type;
  */
 export const ConceptNotFound = ToolOutcome.error("QueryConceptNotFoundError", {
 	id: Schema.String,
-	reason: Schema.Literals(["empty-id", "not-a-concept"]),
+	reason: Schema.Literals(["empty-id", "not-a-concept", "changed-during-read"]),
 });
 /** @public */
 export type ConceptNotFound = typeof ConceptNotFound.Type;

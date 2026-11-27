@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T03:17:46Z
+  at: 2026-11-26T16:40:43Z
 tags:
   - architecture
 verified:
@@ -47,13 +47,15 @@ verified:
     at: 2026-11-25T13:30:01Z
   - by: human:spencer
     at: 2026-11-26T03:32:37Z
+  - by: human:spencer
+    at: 2026-11-26T06:31:51Z
 x-okfit-integrity:
   generated:
-    body: a02b3ab23de6ddd5
+    body: 73291a98d91e83dd
   verified:
     by: human:spencer
-    at: 2026-11-26T03:32:37Z
-    content: 01250fcceddd7578
+    at: 2026-11-26T06:31:51Z
+    content: ee84220b6508be1d
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -137,7 +139,9 @@ would lose its computation (a `warning` `computation-locator` finding; the refus
 Markdown file could not be read to check its links, when `okf_version` cannot be
 edited in place, when the root index's opening fence is malformed, or when the
 root index frontmatter does not parse (malformed YAML, a duplicate key); the
-rest of the plan still applies. `--only okf-version` and
+rest of the plan still applies. When a file changed while the bundle was being read (`read-changed`) the plan is
+incomplete, since that file's root-only references were not seen: every selected finding is refused with that reason
+and nothing is written; run it again. `--only okf-version` and
 `--only root-relative-path` (repeatable, requires `--fix`) narrow the kinds,
 the positional targets narrow the files, and `--dry-run` (requires `--fix`)
 writes nothing. A fix re-records `x-okfit-integrity.generated.body` for a concept
@@ -214,7 +218,7 @@ drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
 replaces that selection, and then only the named types are taken, drifted or not; `status: draft` and `deprecated` concepts and ones you
 already verified are reported as skipped, each line naming its next step (a draft: `okfit verify <id> --stable` to settle it or `--draft` to keep it; a deprecated one: set its status, or `okfit verify <id> --stable`; an already-verified one: nothing to do, and if it is past `stale_after`, `okfit stale --verify` rolls that date forward; an id list attests drafts and deprecated concepts, only a batch skips them; the suggested command works unless the concept is also not current, and then its refusal says what to do) (`VerifyBatchEnvelope.skipped[].reason`
-is `draft`, `deprecated`, `unknown-status`, `already-verified` or `not-current`; `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
+is `draft`, `deprecated`, `unknown-status`, `already-verified`, `not-current` or `changed-during-read` (a concept that changed while the bundle was being read: it was not considered, run the batch again); `already-verified` now means you hold the current binding, whose entry is current by §5.3, so a verification made before the concept's last change is not skipped). The dry run prints one fragment per concept in write
 order so the set can be confirmed before anything is spliced; a single
 unsupported `verified` shape fails the whole batch with nothing written.
 `--stable` or `--draft` sets `status` in the same write as the attestation,
@@ -300,6 +304,13 @@ other concept); every JSON summary also carries `staleness`.
 The status list is `query list --status`;
 there is no `okfit status` command. `stale` and `graph` stay top-level.
 
+A concept whose file changed while the bundle was being read (an editor save landing mid-read, the
+`read-changed` diagnostic) is not "not found": `query get`, `query neighbors` and `okfit verify <id>`
+(and an absolute or relative path to it) answer `"<target>" changed while it was read; try again`
+instead of `no concept`, with the exit code of the neighbouring not-found error (`64` from target
+resolution, `3` from the engine's `QueryConceptNotFoundError` and `VerifyConceptNotFoundError`, which
+carry the reason `changed-during-read`). Running the command again, once the save has finished, succeeds.
+
 ## okfit sync
 
 `okfit sync [--root <dir>] [--config <file>] [--only <mode>]... [--dry-run]
@@ -355,7 +366,7 @@ json` and non-interactive runs, which behave as before. `--yes` skips the
 prompt and writes. The engine splits `runSync` into `planSync` (compute and
 collect the pending writes) and `applySyncPlan` (write them); `runSync` is
 the two composed. `applySyncPlan` fails `SyncPlanStaleError` (exit `3`,
-nothing written, re-run sync) when a target changed since the plan was made.
+nothing written, re-run sync) when a target changed since the bundle was loaded, or an `index.md` that the load did not find has been created since.
 
 `--staged` is the pre-commit shape: only concepts in the git index are
 considered, stamped with `now` and re-added. The default modes stay all
@@ -374,17 +385,34 @@ listed until it is staged.
 object with `selected`, `written`, `unchanged`, `skipped`. A root or
 subdirectory `index.md`, or the root `log.md`, that is a symbolic link out of the
 bundle (a dangling link included) is never read or written: it is listed in
-`skipped` with the reason `symlink-escape`, and the exit code is unchanged. A
-root `index.md` that declares no `okf_version` is given the config's
-`okf_version` when the config sets one and is otherwise left undeclared.
+`skipped` with the reason `symlink-escape`, and the exit code is unchanged.
+A root or subdirectory `index.md` that exists but could not be read (its
+frontmatter never closes or does not parse) is never rewritten either: it is
+listed in `skipped` with the reason `index-unparseable`, and the exit code
+is unchanged. A file that changed while sync was reading it (replaced
+under the read) is not rewritten and is listed with the reason
+`changed-during-read`, a transient skip: running `okfit sync` again reads
+it afresh; the exit code is unchanged. The same holds for a concept that changed while the bundle
+was being read (an editor's atomic save): the load leaves it out and says `read-changed`, and because
+anything rendered from that bundle would silently drop it, sync writes nothing derived from the
+affected directories. It lists the concept id in `generated.skipped`, the root `index.md` and the
+`index.md` of every directory at or above the changed file that still has an index to derive in
+`index.skipped`, and `log.md` in `log.skipped`, each with the reason `changed-during-read` (other
+directories' indexes are still written). A directory whose only concept was the changed one drops out
+of the index set, so its `index.md` is neither listed nor written; run `okfit sync` again. A root `index.md` that declares no `okf_version` is given the
+config's `okf_version` when the config sets one and is otherwise left
+undeclared.
 
 `--publication <id>` restamps one Publication's `x-okfit-renders` digests from the
 current bodies of its source concepts, after its page has been
 re-rendered, and runs nothing else (`--dry-run` and `--format` still
 apply). Combining it with `--only`, `--staged` or `--since` is a usage
 error, exit `64`; so is an unknown id, a concept that is not a Publication,
-or an `x-okfit-renders` entry that points at no concept, each with nothing written
-and a hint to run `okfit query list --type Publication`. An `x-okfit-renders` value that
+or an `x-okfit-renders` entry that points at no concept, each with nothing written;
+an unknown id or a non-Publication also gets a hint to run `okfit query list --type Publication`.
+A Publication or render source that changed while the load read it is the same
+exit `64` with the transient message "changed while it was read; try again" and no hint;
+run the command again. An `x-okfit-renders` value that
 is not a block-style list of entries fails exit `3`, like any other
 unsupported frontmatter shape. Success exits `0`. Plain `okfit sync` never
 restamps Publications. In the JSON envelope the three modes are all
@@ -481,6 +509,10 @@ bare, file-relative, `./`, dropped `.md`, fragments, quoting). The moved file's 
 outbound relative links are recomputed, including angle-bracketed body links whose
 path holds a space.
 
+A file that changed while the bundle was being read (`read-changed`) is missing from the load, so its
+links to the moved file would be left behind: `mv` refuses (`MoveError` `changed-during-read`, exit
+`64`, naming the files) and writes nothing; run it again.
+
 A rewritten concept that a human had verified drifts by the ordinary rule: `mv` never writes
 `verified`, `x-okfit-integrity.verified` or `generated.at`, and the plan lists the concepts whose current human
 verification it voids. `mv` keeps a file's leading UTF-8 byte-order mark, and for a
@@ -540,10 +572,20 @@ not exist is a hard failure, exit `3` (the Config discovery section of
 
 A usage error (`64`) prints its help and parse errors on stderr and leaves
 stdout empty, so a hook that parses stdout as JSON never sees help text;
-when the arguments hold `--format json` or `--format=json` before any `--`, a usage error the argument parser raises (an unknown
-flag or subcommand, a bad or missing flag value) also prints one error
-envelope on stdout (`exit_code` `64`, `error.tag` the first parse error's tag,
-the messages joined with a semicolon and a space), with help still on stderr; an
+when the command takes `--format` and the arguments hold `--format json` or
+`--format=json`, a usage error the argument parser raises (an unknown flag or
+subcommand, a bad or missing flag value) also prints one error envelope on
+stdout (`exit_code` `64`, `error.tag` the first parse error's tag, the messages
+joined with a semicolon and a space), with help still on stderr. A command
+without `--format` (`init`, the bare `query` group) prints no envelope: there
+`--format json` is itself the usage error. `--format human|json` is declared
+once as a global setting and attached to the eight commands that take it
+(`validate`, `context`, `lint`, `stale`, `mv`, `sync`, `verify` and `query
+list|get|neighbors`), so `--help` lists it under the global flags; the usage
+envelope is printed through `CliRuntime.main`'s `renderUsageError`. `graph`
+keeps a local `--format mermaid|dot|json` (default `mermaid`), because effect
+rejects two global settings that share a flag name; `main.ts` checks `graph`'s
+arguments directly for that one command (effected#1435 tracks removing this). An
 explicit `--help` and a bare command group print help on stdout and exit `0`.
 
 Higher wins when several apply; warnings and info never change the exit

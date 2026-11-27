@@ -516,12 +516,14 @@ Higher wins when several apply. Warnings and info never change the exit
 code.
 
 A usage error the argument parser rejects (`okfit validate --only bogus`) prints
-help and the error on stderr and leaves stdout empty. When the arguments ask for
-`--format json` (a `--format json` pair or a `--format=json` token), stdout
-carries one error envelope instead: `exit_code` `64`, `error.tag` the first
-parse error's tag (`InvalidValue`, `UnrecognizedOption`, ...), and `error.message`
-the errors' messages joined with a semicolon and a space. An explicit `--help` prints help on
-stdout and no envelope.
+help and the error on stderr and leaves stdout empty. When the command takes
+`--format` and the arguments ask for `--format json` (a `--format json` pair or a
+`--format=json` token), stdout carries one error envelope instead: `exit_code`
+`64`, `error.tag` the first parse error's tag (`InvalidValue`,
+`UnrecognizedOption`, ...), and `error.message` the errors' messages joined with
+a semicolon and a space. A command without `--format` (`okfit init`, the bare
+`okfit query` group) prints no envelope: `--format json` there is an ordinary
+usage error. An explicit `--help` prints help on stdout and no envelope.
 
 `okfit context` never produces `1` or `2`: it prints orientation data and
 never runs conformance or lint checks.

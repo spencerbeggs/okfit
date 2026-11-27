@@ -447,3 +447,14 @@ describe("okfit query on a status outside the vocabulary (e2e, OKF 0.3 5.4)", ()
 		}
 	});
 });
+
+describe("okfit query --format on the group itself (#485)", () => {
+	it.effect("--format json before a subcommand is out of scope: exit 64 and no envelope", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			const result = yield* runOkfit(["query", "--format", "json"], sandbox);
+			assert.strictEqual(result.exitCode, 64);
+			assert.strictEqual(result.stdout, "");
+		}).pipe(Effect.provide(NodeServices.layer)),
+	);
+});

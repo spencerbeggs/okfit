@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-26T09:24:00Z
 x-okfit-integrity:
   generated:
-    body: 3269fbfa89660b6d
+    body: ed0580e4f3394686
 ---
 
 # Core
@@ -59,16 +59,19 @@ fence; and `footnote-undefined` reads the parser's
 
 `internal/walk.ts` is now a thin adapter over `@effected/walker`'s
 `descend(pattern, { onUnreadable: "record" })` rather than a hand-rolled
-recursion (`packages/core/src/internal/walk.ts:52-78`): unreadable
-subdirectories still become sorted `walk-unreadable` diagnostics, and an
-unreadable root is re-read once to surface the real `PlatformError` as
-`BundleReadError`. A walk that descends past `maxDepth` (default 256,
+recursion (`packages/core/src/internal/walk.ts:62-92`): unreadable
+subdirectories still become sorted `walk-unreadable` diagnostics (a file that changed under the read is `read-changed`, never `walk-unreadable`), an
+unreadable root fails with the `PlatformError` the walker recorded, which
+`Bundle.load` maps to `BundleReadError`, and the walker's `links` report
+(directory links it did not enter, dangling links) is passed through for
+`internal/linkScan.ts` to turn into `symlink-escape`. A walk that descends past `maxDepth` (default 256,
 `DEFAULT_MAX_DEPTH`) now fails typed with a new public
 `BundleDepthExceededError { root, path, limit }`, added to the
-`BundleLoadError` union (`packages/core/src/Bundle.ts:77`), instead of
+`BundleLoadError` union (`packages/core/src/Bundle.ts:79`), instead of
 being silently truncated -- the same D-9 argument that unreadable subtrees
-are reported, never hidden. `maxDepth` must be a positive integer,
-enforced by the adapter (`packages/core/src/internal/walk.ts:56-58`).
+are reported, never hidden. `maxDepth` must be a positive integer; `descend` treats
+any other value as a defect, not a typed failure
+(`packages/core/__test__/walk.test.ts:53`).
 
 ## Config rules
 
@@ -85,7 +88,7 @@ root as an external reference: no graph node and no `broken-links`
 diagnostic, exactly like a URL (`packages/core/README.md:26`).
 `OkfitConfig.merge` deep-merges tables, applied `DEFAULTS < profile < file`
 by the caller (`packages/core/README.md:15-24`). The `[lint]` table's
-forty-three keys, including `generated_at_drift`, `generated_missing`,
+forty-four keys, including `generated_at_drift`, `generated_missing`,
 `verified_before_change` (default `warn`) and the
 ten added for OKF v0.3 (`index_metadata_invalid`, `entry_ignored`,
 `value_malformed`, `value_unknown`, `frontmatter_missing`, `type_missing`,
@@ -153,10 +156,25 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   `x-okfit-integrity`; `Concept.entries` (`EntryPaths`) and `Concept.entryPath` give
   a kept entry's YAML path ([Loading never fails a concept for a bad
   family](../decisions/content-tolerant-loading.md)).
+- **Confined reads.** `readConfinedBytes` and `readConfinedString`
+  (`ConfinedRead.ts`) open a file, resolve its path with `confineReal` and
+  compare the open file's `dev` and `ino` with `lstat` of the real path, so a
+  path swapped for a link out of the root, at the file or at a directory above
+  it, is refused when it is read (`ConfinementError`), not only when it is
+  checked. `Bundle.load` reads every Markdown file this way. A link at the
+  file itself is refused even when it is swapped in during the read: a file
+  that becomes a link out between the link check and the read is recorded
+  `symlink-escape` and left out, and one that changed under the read (the
+  identity compare failed) is recorded `read-changed` (a warning, lint key
+  `read_changed`), "changed while it
+  was read; try again", a transient failure that is never labelled an escape.
+  A race through a directory above the file can still win (spencerbeggs/okfit#524).
+  A hard link to a file under the root is a file under the root (OKF 0.3
+  section 3.2). Writes stay a check then an atomic write.
 - **Non-concept markdown.** `frontmatter-missing` and `type-missing` are
-  lints that skip the file; `symlink-escape` refuses a link out of the
-  bundle ([Markdown that is not a concept is
-  skipped](../decisions/non-concept-markdown-is-skipped.md)).
+  lints that skip the file; `symlink-escape` refuses a file or
+  directory link out of the bundle, and a link that cannot be resolved
+  ([Markdown that is not a concept is skipped](../decisions/non-concept-markdown-is-skipped.md)).
 - **Trust tier.** `Derive.trustTier` counts only current verification
   events (OKF v0.3 §5.3): an event whose `at` is equal to or later than
   `generated.at` by instant, or any event when `generated` is absent (§5.3);

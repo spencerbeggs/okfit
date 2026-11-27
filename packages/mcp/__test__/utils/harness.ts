@@ -6,7 +6,7 @@ import type { JsonRpcMessage, McpTestFailure, ServedResource, ServedTool } from 
 import { McpHarness } from "@effected/mcp-kit/testing";
 import { AppDirs, Xdg } from "@effected/xdg";
 import type { Scope } from "effect";
-import { Effect, Layer } from "effect";
+import { Effect, FileSystem, Layer } from "effect";
 import { McpProtocol } from "effect/ai";
 import type { ServerOptions } from "../../src/server.js";
 import { ServerLayer } from "../../src/server.js";
@@ -45,6 +45,8 @@ export interface DiscoverResult {
 
 export interface HarnessOptions extends ServerOptions {
 	readonly protocolVersion?: ProtocolVersion;
+	/** Wrap the real `FileSystem` the server reads through (a test that swaps a file mid-read). */
+	readonly wrapFileSystem?: (fs: FileSystem.FileSystem) => FileSystem.FileSystem;
 }
 
 export interface OkfitMcpHarness {
@@ -129,7 +131,17 @@ export const makeHarness = (
 		const protocolVersion = options.protocolVersion ?? "2025-11-25";
 		const serverOptions: ServerOptions =
 			options.distribution === undefined ? {} : { distribution: options.distribution };
-		const harness = yield* McpHarness.make(ServerLayer(projectRoot, serverOptions).pipe(Layer.provide(PlatformLayer)), {
+		const wrap = options.wrapFileSystem;
+		const platform =
+			wrap === undefined
+				? PlatformLayer
+				: Layer.mergeAll(
+						PlatformLayer,
+						Layer.effect(FileSystem.FileSystem)(Effect.map(FileSystem.FileSystem, wrap)).pipe(
+							Layer.provide(PlatformLayer),
+						),
+					);
+		const harness = yield* McpHarness.make(ServerLayer(projectRoot, serverOptions).pipe(Layer.provide(platform)), {
 			protocol: PROTOCOL_ADAPTERS[protocolVersion],
 		}).pipe(Effect.orDie);
 		return {

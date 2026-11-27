@@ -12,6 +12,7 @@ import {
 import { ProfileKeys } from "@okfit/profiles";
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { Format, withFormat } from "../internal/format.js";
 import { rootFlag } from "../internal/root.js";
 import { displayRoot } from "../render/human.js";
 import { humanMoveDoc } from "../render/move.js";
@@ -34,12 +35,6 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
 	Flag.withDescription("print the plan; write nothing"),
 );
 
-const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], {
-	aliases: { human: "auto" },
-	default: "human",
-	description: "output format: human (default) or json",
-});
-
 /**
  * `okfit mv <from> <to> [--root <dir>] [--config <file>] [--dry-run] [--format human|json]`.
  *
@@ -47,8 +42,8 @@ const formatFlag = CliFormat.flag<"json", { readonly human: "auto" }>(["json"], 
  */
 export const mvCommand = Command.make(
 	"mv",
-	{ from: fromArg, to: toArg, root: rootFlag, config: configFlag, dryRun: dryRunFlag, format: formatFlag },
-	(input) =>
+	{ from: fromArg, to: toArg, root: rootFlag, config: configFlag, dryRun: dryRunFlag },
+	withFormat((input) =>
 		Effect.gen(function* () {
 			const cwd = process.cwd();
 			const discoveryCwd = Option.getOrElse(input.root, () => cwd);
@@ -102,7 +97,9 @@ export const mvCommand = Command.make(
 			}
 			return yield* body;
 		}),
+	),
 ).pipe(
+	Command.withGlobalFlags([Format]),
 	Command.withDescription(
 		"Move a concept to a new path and rewrite every reference to it across the bundle (body links, " +
 			`path fields including superseded_by, ${ProfileKeys.supersedes}, Publication ${ProfileKeys.renders}, and links in Markdown files that are not concepts). ` +

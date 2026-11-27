@@ -46,6 +46,29 @@ describe("humanSync", () => {
 		assert.isTrue(lines.includes("log.md could not be parsed; see okfit validate"));
 	});
 
+	it("renders the index-unparseable sentence (#512)", () => {
+		const lines = humanSync({
+			...baseResult,
+			index: { ...EMPTY_MODE, skipped: [{ id: "index.md", reason: "index-unparseable" }] },
+		});
+		assert.include(
+			lines,
+			"  skipped index.md: could not be read (its frontmatter does not close or does not parse); fix it by hand (see okfit validate), then run okfit sync again",
+		);
+	});
+
+	it("renders the changed-during-read sentence as transient, never as an escape (#460)", () => {
+		const lines = humanSync({
+			...baseResult,
+			index: { ...EMPTY_MODE, skipped: [{ id: "index.md", reason: "changed-during-read" }] },
+		});
+		assert.include(
+			lines,
+			"  skipped index.md: changed while it was read, so it was not rewritten; run okfit sync again",
+		);
+		assert.isFalse(lines.some((line) => line.includes("symbolic link")));
+	});
+
 	it("names the two instants of a skipped repair that would revive a verification (#471)", () => {
 		const lines = humanSync({
 			...baseResult,

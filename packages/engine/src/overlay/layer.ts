@@ -1,5 +1,4 @@
-import type { PlatformError } from "effect";
-import { ByteSize, Context, Effect, FileSystem, Layer, Option } from "effect";
+import { ByteSize, Context, Effect, FileSystem, Layer, Option, PlatformError } from "effect";
 
 /**
  * One open, possibly unsaved, document: its full text and the editor's version.
@@ -73,14 +72,27 @@ const parentAndName = (path: string): readonly [string, string] => {
 
 const trimTrailingSeparators = (path: string): string => (path.length > 1 ? path.replace(/[\\/]+$/, "") : path);
 
+/**
+ * A stable identity for a path that exists only in the overlay: a confined read (`readConfinedBytes`) compares the
+ * open file's `dev` and `ino` with those of `stat`, and refuses a file with no `ino`. An overlay-only document has
+ * no inode, so it gets one derived from its path (FNV-1a, 64 bits); `stat` and the open file report the same one.
+ */
+const overlayIno = (path: string): bigint => {
+	let hash = 0xcbf29ce484222325n;
+	for (const unit of path) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(unit.codePointAt(0) ?? 0)) * 0x100000001b3n);
+	}
+	return hash;
+};
+
 /** A `File.Info` for a document that exists only in the overlay. */
-const overlayInfo = (text: string): FileSystem.File.Info => ({
+const overlayInfo = (path: string, text: string): FileSystem.File.Info => ({
 	type: "File",
 	mtime: Option.none(),
 	atime: Option.none(),
 	birthtime: Option.none(),
 	dev: 0n,
-	ino: Option.none(),
+	ino: Option.some(overlayIno(path)),
 	mode: 0o644,
 	nlink: Option.none(),
 	uid: Option.none(),
@@ -113,14 +125,121 @@ const shadowInfo = (
 						}),
 					),
 					Effect.catchTag("PlatformError", (error) =>
-						error.reason._tag === "NotFound" ? Effect.succeed(overlayInfo(document.text)) : Effect.fail(error),
+						error.reason._tag === "NotFound" ? Effect.succeed(overlayInfo(path, document.text)) : Effect.fail(error),
 					),
 				),
 		}),
 	);
 
+/** {@link shadowInfo}, and for a not-found path the info of the open document whose real path it is. */
+const shadowOrAliased = (
+	documents: OverlayDocumentsShape,
+	underlying: FileSystem.FileSystem,
+	path: string,
+	read: FileSystem.FileSystem["stat"],
+): Effect.Effect<FileSystem.File.Info, PlatformError.PlatformError> =>
+	shadowInfo(documents, path, read).pipe(
+		Effect.catchTag("PlatformError", (error) =>
+			error.reason._tag !== "NotFound"
+				? Effect.fail(error)
+				: Effect.flatMap(documentAtRealPath(documents, underlying, path), (found) =>
+						Option.isSome(found)
+							? Effect.succeed(overlayInfo(found.value[0], found.value[1].text))
+							: Effect.fail(error),
+					),
+		),
+	);
+
+/** The real path of an overlay-only document: its real parent directory plus its name (its key when the parent is gone). */
+const overlayRealPath = (
+	underlying: FileSystem.FileSystem,
+	path: string,
+): Effect.Effect<string, PlatformError.PlatformError> =>
+	underlying.realPath(path).pipe(
+		Effect.catchReason("PlatformError", "NotFound", () => {
+			const [parent, name] = parentAndName(path);
+			const separator = path.includes("\\") && !path.includes("/") ? "\\" : "/";
+			return underlying.realPath(parent).pipe(
+				Effect.map((real) => `${trimTrailingSeparators(real)}${separator}${name}`),
+				Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(path)),
+			);
+		}),
+	);
+
+/** The open document, if any, whose real path is `path` (a document whose key spells the path through a link). */
+const documentAtRealPath = (
+	documents: OverlayDocumentsShape,
+	underlying: FileSystem.FileSystem,
+	path: string,
+): Effect.Effect<Option.Option<readonly [string, OverlayDocument]>> =>
+	Effect.gen(function* () {
+		const [, name] = parentAndName(path);
+		for (const [key, document] of yield* documents.entries()) {
+			if (parentAndName(key)[1] !== name) continue;
+			const real = yield* overlayRealPath(underlying, key).pipe(Effect.orElseSucceed(() => key));
+			if (real === path) return Option.some([key, document] as const);
+		}
+		return Option.none<readonly [string, OverlayDocument]>();
+	});
+
 /**
- * Wrap `underlying` so `readFile`, `readFileString`, `exists`, `stat` and `lstat` answer
+ * An open document's bytes. A decoder that drops a leading BOM (the loader's, as Effect's
+ * `FileSystem.readFileString` does, a `TextDecoder`; Node's `fs.readFileSync` keeps it) would also drop one the
+ * editor's buffer carries, which the overlay has always kept: a buffer that starts with a BOM is encoded with a
+ * second one, so exactly the buffer's own text survives the decode. So the bytes `open` serves carry one more BOM
+ * than `readFile`'s for such a buffer: a byte consumer of `open` sees a phantom BOM. Only `validate` and the LSP
+ * use the overlay, and both decode.
+ */
+const overlayBytes = (text: string): Uint8Array => encoder.encode(text.startsWith("\uFEFF") ? `\uFEFF${text}` : text);
+
+/** A read-only `File` over `bytes`, whose `stat` is `info`. Every write fails `BadArgument`. */
+const overlayFile = (
+	path: string,
+	bytes: Uint8Array,
+	info: Effect.Effect<FileSystem.File.Info, PlatformError.PlatformError>,
+): FileSystem.File => {
+	let cursor = 0;
+	const readOnly = (method: string) =>
+		Effect.fail(
+			PlatformError.badArgument({
+				module: "FileSystem",
+				method,
+				description: `${path} is an open document, read-only here`,
+			}),
+		);
+	return {
+		[FileSystem.FileTypeId]: FileSystem.FileTypeId,
+		stat: info,
+		seek: (offset) =>
+			Effect.sync(() => {
+				cursor = Number(offset);
+				return BigInt(cursor);
+			}),
+		sync: Effect.void,
+		read: (buffer, options) =>
+			Effect.sync(() => {
+				const from = options?.position === undefined ? cursor : Number(options.position);
+				const chunk = bytes.subarray(from, from + buffer.length);
+				buffer.set(chunk);
+				if (options?.position === undefined) cursor += chunk.length;
+				return chunk.length;
+			}),
+		readAlloc: (size, options) =>
+			Effect.sync(() => {
+				const from = options?.position === undefined ? cursor : Number(options.position);
+				if (from >= bytes.length) return Option.none();
+				const chunk = bytes.slice(from, from + size);
+				if (options?.position === undefined) cursor += chunk.length;
+				return Option.some(chunk);
+			}),
+		truncate: () => readOnly("truncate"),
+		write: () => readOnly("write"),
+		writeAll: () => readOnly("writeAll"),
+	};
+};
+
+/**
+ * Wrap `underlying` so `readFile`, `readFileString`, `exists`, `stat`, `lstat`, `realPath` and a read-only `open` answer
  * from `documents` for open paths, and a non-recursive `readDirectory` (and
  * `readDirectoryEntries`, Effect 4.1's typed listing, as a `"File"`) also lists
  * open documents whose parent is the directory read (so a brand-new unsaved file
@@ -150,15 +269,43 @@ export const makeOverlayFileSystem = (
 					onSome: (document) => Effect.succeed(document.text),
 				}),
 			),
+		// A read-only open of an open document serves its text, so a confined read (`readConfinedBytes`, which reads
+		// from the open file) sees the editor's buffer; every other open is the underlying one.
+		open: (path, options) =>
+			options?.flag !== undefined && options.flag !== "r"
+				? underlying.open(path, options)
+				: Effect.flatMap(
+						documents.get(path),
+						Option.match({
+							onNone: () => underlying.open(path, options),
+							onSome: (document) =>
+								Effect.succeed(
+									overlayFile(path, overlayBytes(document.text), shadowInfo(documents, path, underlying.stat)),
+								),
+						}),
+					),
+		// An overlay-only document has no real path on disk: its real parent directory plus its name, so a confined
+		// read resolves it the way it would a file just saved there.
+		realPath: (path) =>
+			Effect.flatMap(
+				documents.get(path),
+				Option.match({
+					onNone: () => underlying.realPath(path),
+					onSome: () => overlayRealPath(underlying, path),
+				}),
+			),
 		exists: (path) =>
 			Effect.flatMap(
 				documents.get(path),
 				Option.match({ onNone: () => underlying.exists(path), onSome: () => Effect.succeed(true) }),
 			),
-		stat: (path) => shadowInfo(documents, path, underlying.stat),
+		// A confined read `lstat`s the real path of what it opened. For an overlay-only document that path differs from
+		// the document's key whenever a directory above it is a link (or `/var` is `/private/var`), so a not-found
+		// stat or lstat also answers for the document whose real path this is.
+		stat: (path) => shadowOrAliased(documents, underlying, path, underlying.stat),
 		// The walker `lstat`s every entry (it never enters a symlink unasked), so
 		// an overlay-only file must answer here too or the walk drops it.
-		lstat: (path) => shadowInfo(documents, path, underlying.lstat),
+		lstat: (path) => shadowOrAliased(documents, underlying, path, underlying.lstat),
 		readDirectory: (path, options) =>
 			options?.recursive === true
 				? underlying.readDirectory(path, options)

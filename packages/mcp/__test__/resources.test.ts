@@ -87,6 +87,8 @@ describe("resources", () => {
 			}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
 			const message = yield* harness.sendRequest("resources/read", { uri: "okf://index" });
 			assert.ok(message.error !== undefined);
+			assert.include(JSON.stringify(message), "no readable index.md");
+			assert.notInclude(JSON.stringify(message), root);
 		}).pipe(Effect.scoped),
 	);
 
@@ -139,6 +141,203 @@ describe("resources", () => {
 				const result = yield* harness.readResource("okf://index");
 				assert.strictEqual(result.contents[0]?.text, expected);
 			}).pipe(Effect.scoped),
+		);
+	});
+
+	describe("a concept file that links out of the bundle after boot (OKF 0.3 section 3.2)", () => {
+		/** Runs `swap(bundleRoot, outside)` on the real disk after the server booted, then reads `uri`. */
+		const readAfter = (
+			uri: string,
+			swap: (fs: FileSystem.FileSystem, bundle: string, outside: string) => Effect.Effect<void, unknown>,
+		) =>
+			Effect.gen(function* () {
+				const { root, harness } = yield* open();
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const outside = yield* fs.makeTempDirectoryScoped();
+					yield* swap(fs, join(root, "bundle"), outside);
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const refused = yield* harness.sendRequest("resources/read", { uri });
+				return { harness, refused, root };
+			});
+
+		const secretFile = (fs: FileSystem.FileSystem, outside: string, text: string) =>
+			fs.writeFileString(`${outside}/revenue.md`, text);
+
+		it.effect("refuses a concept replaced by a link out of the bundle, and serves an unchanged one (#460)", () =>
+			Effect.gen(function* () {
+				const { harness, refused, root } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* secretFile(fs, outside, "SECRET OUTSIDE CONCEPT");
+						yield* fs.remove(`${bundle}/metrics/revenue.md`);
+						yield* fs.symlink(`${outside}/revenue.md`, `${bundle}/metrics/revenue.md`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.notInclude(JSON.stringify(refused), "SECRET OUTSIDE CONCEPT");
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+				const churn = yield* harness.readResource("okf://concept/metrics/churn");
+				assert.strictEqual(churn.contents[0]?.text, readFileSync(join(root, "bundle", "metrics", "churn.md"), "utf8"));
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept whose directory was replaced by a link out of the bundle (#460)", () =>
+			Effect.gen(function* () {
+				const { harness, refused, root } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* secretFile(fs, outside, "SECRET OUTSIDE DIR");
+						yield* fs.rename(`${bundle}/metrics`, `${bundle}/metrics.moved`);
+						yield* fs.symlink(outside, `${bundle}/metrics`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.notInclude(JSON.stringify(refused), "SECRET OUTSIDE DIR");
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+				const orders = yield* harness.readResource("okf://concept/tables/orders");
+				assert.strictEqual(orders.contents[0]?.text, readFileSync(join(root, "bundle", "tables", "orders.md"), "utf8"));
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept replaced by a dangling link (#460)", () =>
+			Effect.gen(function* () {
+				const { refused } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* fs.remove(`${bundle}/metrics/revenue.md`);
+						yield* fs.symlink(`${outside}/missing.md`, `${bundle}/metrics/revenue.md`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept whose directory was replaced by a dangling link (#460)", () =>
+			Effect.gen(function* () {
+				const { refused } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle, outside) =>
+					Effect.gen(function* () {
+						yield* fs.rename(`${bundle}/metrics`, `${bundle}/metrics.moved`);
+						yield* fs.symlink(`${outside}/nowhere`, `${bundle}/metrics`);
+					}),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.include(JSON.stringify(refused), "metrics/revenue.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("refuses a concept whose grandparent directory was replaced by a link out (#460)", () =>
+			Effect.gen(function* () {
+				const root = yield* copyFixtureProject("project");
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					yield* fs.makeDirectory(`${root}/bundle/deep/mid`, { recursive: true });
+					yield* fs.writeFileString(`${root}/bundle/deep/mid/c.md`, "---\ntype: Metric\ntitle: c\n---\n\n# c\n");
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const harness = yield* makeHarness(root);
+				yield* harness.initialize;
+				const listed = (yield* harness.listResources).map((resource) => resource.uri);
+				assert.include(listed, "okf://concept/deep/mid/c");
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const outside = yield* fs.makeTempDirectoryScoped();
+					yield* fs.makeDirectory(`${outside}/mid`);
+					yield* fs.writeFileString(`${outside}/mid/c.md`, "SECRET GRANDPARENT");
+					yield* fs.rename(`${root}/bundle/deep`, `${root}/bundle/deep.moved`);
+					yield* fs.symlink(outside, `${root}/bundle/deep`);
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const refused = yield* harness.sendRequest("resources/read", { uri: "okf://concept/deep/mid/c" });
+				assert.ok(refused.error !== undefined);
+				assert.notInclude(JSON.stringify(refused), "SECRET GRANDPARENT");
+				assert.include(JSON.stringify(refused), "deep/mid/c.md links out of the bundle");
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("answers a concept deleted after boot with a bundle-relative message (#460)", () =>
+			Effect.gen(function* () {
+				const { refused, root } = yield* readAfter("okf://concept/metrics/revenue", (fs, bundle) =>
+					fs.remove(`${bundle}/metrics/revenue.md`),
+				);
+				assert.ok(refused.error !== undefined);
+				assert.include(JSON.stringify(refused), "no readable concept file at metrics/revenue.md");
+				assert.notInclude(JSON.stringify(refused), root);
+			}).pipe(Effect.scoped),
+		);
+
+		it.effect("still serves a concept replaced by a link to another file inside the bundle (control)", () =>
+			Effect.gen(function* () {
+				const { root, harness } = yield* open();
+				const expected = readFileSync(join(root, "bundle", "metrics", "revenue.md"), "utf8");
+				yield* Effect.gen(function* () {
+					const fs = yield* FileSystem.FileSystem;
+					const bundle = join(root, "bundle");
+					yield* fs.copyFile(`${bundle}/metrics/revenue.md`, `${bundle}/real-revenue.md`);
+					yield* fs.remove(`${bundle}/metrics/revenue.md`);
+					yield* fs.symlink(`${bundle}/real-revenue.md`, `${bundle}/metrics/revenue.md`);
+				}).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+				const result = yield* harness.readResource("okf://concept/metrics/revenue");
+				assert.strictEqual(result.contents[0]?.text, expected);
+			}).pipe(Effect.scoped),
+		);
+	});
+
+	describe("a file replaced between its resolution and the identity compare (#460)", () => {
+		/**
+		 * Boots the server, then lets the `nth` `lstat` of the file ending in `suffix` re-save it first (new inode, and
+		 * text carrying a sentinel an unconfined read would serve). The concept read lstats once; the index read first
+		 * loads the bundle, whose walk and loader lstat the file three times before the resource's own read (the fourth).
+		 */
+		const RESAVED = "RESAVED-SENTINEL-TEXT";
+		const readWhileResaved = (uri: string, suffix: string, nth = 1) =>
+			Effect.gen(function* () {
+				const root = yield* copyFixtureProject("project");
+				let armed = false;
+				let fired = false;
+				let calls = 0;
+				const harness = yield* makeHarness(root, {
+					wrapFileSystem: (fs) => ({
+						...fs,
+						lstat: (target) =>
+							armed && !fired && target.endsWith(suffix) && ++calls >= nth
+								? Effect.suspend(() => {
+										fired = true;
+										return fs.readFileString(target).pipe(
+											Effect.flatMap((text) =>
+												Effect.andThen(fs.remove(target), fs.writeFileString(target, `${text}\n${RESAVED}\n`)),
+											),
+											Effect.orDie,
+										);
+									}).pipe(Effect.andThen(fs.lstat(target)))
+								: fs.lstat(target),
+					}),
+				});
+				yield* harness.initialize;
+				armed = true;
+				const message = yield* harness.sendRequest("resources/read", { uri });
+				return { message, fired };
+			}).pipe(Effect.scoped);
+
+		it.effect("a concept answers 'changed while it was read; try again', never a link verdict", () =>
+			Effect.gen(function* () {
+				const { message, fired } = yield* readWhileResaved(
+					"okf://concept/metrics/revenue",
+					"/bundle/metrics/revenue.md",
+				);
+				assert.isTrue(fired, "the re-save must have run");
+				assert.ok(message.error !== undefined);
+				assert.include(JSON.stringify(message), '\\"metrics/revenue.md\\" changed while it was read; try again');
+				assert.notInclude(JSON.stringify(message), "links out of the bundle");
+				assert.notInclude(JSON.stringify(message), RESAVED);
+			}),
+		);
+
+		it.effect("okf://index answers 'changed while it was read; try again', never a link verdict", () =>
+			Effect.gen(function* () {
+				const { message, fired } = yield* readWhileResaved("okf://index", "/bundle/index.md", 4);
+				assert.isTrue(fired, "the re-save must have run");
+				assert.ok(message.error !== undefined);
+				assert.include(JSON.stringify(message), '\\"index.md\\" changed while it was read; try again');
+				assert.notInclude(JSON.stringify(message), "links out of the bundle");
+				assert.notInclude(JSON.stringify(message), RESAVED);
+			}),
 		);
 	});
 

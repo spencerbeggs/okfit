@@ -51,7 +51,7 @@ describe("queryCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((f) => nameOf(f)),
-			["root", "config", "type", "tag", "status", "verified", "unverified", "drifted", "stale", "current", "format"],
+			["root", "config", "type", "tag", "status", "verified", "unverified", "drifted", "stale", "current"],
 		);
 	});
 
@@ -66,7 +66,7 @@ describe("queryCommand", () => {
 		);
 		assert.deepStrictEqual(
 			config.flags.map((f) => nameOf(f)),
-			["root", "config", "format"],
+			["root", "config"],
 		);
 	});
 });

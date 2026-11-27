@@ -7,7 +7,7 @@ resource: ../../packages/mcp/src
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T05:58:20Z
+  at: 2026-11-26T16:32:37Z
 tags:
   - architecture
 verified:
@@ -29,13 +29,15 @@ verified:
     at: 2026-11-24T06:53:02Z
   - by: human:spencer
     at: 2026-11-24T22:21:07Z
+  - by: human:spencer
+    at: 2026-11-26T06:31:53Z
 x-okfit-integrity:
   generated:
-    body: 995c1f1334807d7b
+    body: e62232b828ef42f3
   verified:
     by: human:spencer
-    at: 2026-11-24T22:21:07Z
-    content: 7706705b56ce22b9
+    at: 2026-11-26T06:31:53Z
+    content: d86c5f7cd1a0c516
 ---
 
 # okfit-mcp — MCP tool and resource contract
@@ -64,7 +66,25 @@ Every concept summary carries `tier`, `integrity`, `stale` and `staleness` (`fre
   the server starts. Content is read from disk per request, so an edit to
   an already-listed concept's file is live; a concept added or removed
   mid-session appears only after the server restarts, since the list
-  itself is fixed at boot.
+  itself is fixed at boot. Every read is confined at the moment of reading:
+  the file is opened, its path resolved (a link at the file or at any
+  directory above it that leads out of the bundle, or dangles, is refused),
+  and the open file's identity compared with the resolved path's. A link at
+  the file itself is refused even when it is swapped in during the read; a
+  race through a directory above the file can still win (spencerbeggs/okfit#524).
+  The refusal is `<path> links out of the bundle` (the path bundle-relative,
+  for example `metrics/revenue.md`) and the outside file is not read. A file
+  that was replaced under the read is answered
+  `"<path>" changed while it was read; try again`, a transient failure, never
+  labelled a link; a file that was removed answers
+  `no readable concept file at <path>`. An editor save landing mid-read is
+  refused this way, and asking again succeeds. A link that stays inside the bundle is served, and so is a
+  hard link to a file under the root (OKF 0.3 section 3.2). `okf://index` is
+  read the same way.
+The bundle root is resolved wherever `okf/` points at each read, so a root
+replaced by a link after boot is followed, and the tools and resources
+agree on it. A resource read that fails (a refused link, or a concept file
+that is gone) names the bundle-relative path, never an absolute one.
 
 Both resource kinds declare mime type `text/markdown`. Their descriptions
 carry no trust state: they are fixed at boot, and a snapshot of drift taken
@@ -79,8 +99,12 @@ Two channels, split the way `@effected/mcp-kit` splits them.
 (`isError` unset) with `@effected/mcp-kit`'s `ToolOutcome` envelope:
 `structuredContent` is `{ ok: false, error: { _tag:
 "QueryConceptNotFoundError", id, reason, message, remediation } }`, where
-`reason` is `"empty-id"` or `"not-a-concept"` and `remediation` names
-`list_concepts`. A found result carries `ok: true` beside its fields, so a
+`reason` is `"empty-id"`, `"not-a-concept"` or `"changed-during-read"` and
+`remediation` names `list_concepts` (for the first two). A concept whose file
+changed while the bundle was read (an editor save landing mid-read) is answered
+with reason `changed-during-read` and the message
+`"<path>" changed while it was read; try again`, never `no concept`: call the
+tool again and it succeeds. A found result carries `ok: true` beside its fields, so a
 caller discriminates on `ok`. The served `outputSchema` is the union of
 the two, with the failure member under `$defs/ConceptNotFound`.
 
@@ -94,6 +118,10 @@ outside the bundle). It reaches the client as `isError: true`, with the
 remediation hint folded directly into `content[0].text` and no
 `structuredContent`; there is no per-failure tag, so a caller reads the
 message.
+
+**A resource failure is a JSON-RPC error, not `isError`.** `resources/read`
+has no tool-result shape: a refused or unreadable concept or index resource
+answers with a JSON-RPC `error` response, and the message carries the reason.
 
 ## Crash policy
 

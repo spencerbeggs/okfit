@@ -1,4 +1,5 @@
 {
+	"description": "Teaches AI coding agents the Open Knowledge Format (OKF) v0.3 and keeps a repository's okf/ knowledge bundle current through skills, two docs agents, and the okfit CLI, MCP server and language server.",
 	"hooks": {
 		"SessionStart": [
 			{

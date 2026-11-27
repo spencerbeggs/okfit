@@ -221,7 +221,7 @@ export const parseIndex = (
 		}
 	}
 	flush(text.length);
-	const fields = { path: file, dir, sections };
+	const fields = { path: file, dir, sections, source: text };
 	return { document: IndexDocument.make({ ...fields, ...metadata }), diagnostics };
 };
 
@@ -328,6 +328,6 @@ export const parseLog = (input: ReservedFileInput): ReservedParse<LogDocument> =
 		}
 	}
 	flush(text.length);
-	const fields = { path: file, dir, groups };
+	const fields = { path: file, dir, groups, source: text };
 	return { document: LogDocument.make(title === undefined ? fields : { ...fields, title }), diagnostics };
 };

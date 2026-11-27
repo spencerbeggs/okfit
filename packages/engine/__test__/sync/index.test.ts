@@ -18,9 +18,11 @@ import {
 } from "@okfit/core";
 import { Effect, FileSystem, Layer, Option, Path, Result } from "effect";
 import { syncIndex } from "../../src/sync/index.js";
+import type { PendingWrite } from "../../src/sync/write.js";
 import { UNDECLARED_PROJECT, V02_PROJECT, V03_PROJECT } from "../fixtures/bundles.js";
 import { ROOT, denyAccess, mountProject, projectPlatform, seedPlatform } from "../utils/bundle.js";
 import { withRealBundle } from "../utils/realBundle.js";
+import { swapOn } from "../utils/swapPlatform.js";
 
 const platform = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 const emptyDocument = Result.getOrThrow(MarkdownDocument.parseResult(""));
@@ -240,6 +242,52 @@ describe("syncIndex", () => {
 	);
 });
 
+describe("syncIndex: an index.md swapped after the check (OKF 0.3 section 3.2, #460)", () => {
+	const target = `${ROOT}/metrics/index.md`;
+	const toLinkOut = (fs: FileSystem.FileSystem) =>
+		Effect.gen(function* () {
+			yield* fs.remove(target);
+			yield* fs.symlink("/outside/index.md", target);
+		});
+	const OUTSIDE = "# Outside\n\n* [Leak](LEAKED-FROM-OUTSIDE.md)\n";
+	const seed = {
+		...mountProject(V03_PROJECT),
+		[target]: "# Stale\n",
+		"/outside/index.md": OUTSIDE,
+	};
+	const outcomes = [
+		["open", "symlink-escape", "a link out is in place when the file is opened"],
+		["lstat", "changed-during-read", "the path is swapped between its resolution and the identity compare"],
+	] as const;
+	for (const [method, reason, when] of outcomes) {
+		for (const dryRun of [false, true]) {
+			it.effect(
+				`skips it as ${reason} (${when}), and never reads or writes the file it was swapped for (dryRun ${dryRun})`,
+				() => {
+					const [layer, trap] = swapOn(seed, method, target, toLinkOut);
+					return Effect.gen(function* () {
+						const fs = yield* FileSystem.FileSystem;
+						const bundle = yield* Bundle.load({ root: ROOT });
+						trap.arm();
+						const pending: Array<{ target: string; contents: string }> = [];
+						const result = yield* syncIndex(bundle, dryRun, pending);
+						assert.isTrue(trap.fired(), "the swap must have run");
+						assert.deepStrictEqual(
+							result.skipped.filter((entry) => entry.id === "metrics/index.md"),
+							[{ id: "metrics/index.md", reason }],
+						);
+						assert.isFalse(result.written.includes("metrics/index.md"));
+						assert.isFalse(result.unchanged.includes("metrics/index.md"));
+						assert.isFalse(pending.some((write) => write.target === target));
+						// the file it was swapped for is byte-for-byte what was seeded: never written
+						assert.strictEqual(yield* fs.readFileString("/outside/index.md"), OUTSIDE);
+					}).pipe(Effect.provide(layer));
+				},
+			);
+		}
+	}
+});
+
 describe("syncIndex: a reserved index.md linked out of the bundle (OKF 0.3 section 3.2 rule 5)", () => {
 	const LINKED = [`${ROOT}/index.md`, `${ROOT}/metrics/index.md`];
 	const kinds = {
@@ -308,6 +356,55 @@ describe("syncIndex: a reserved index.md linked out of the bundle (OKF 0.3 secti
 	);
 });
 
+describe("syncIndex an unreadable index.md (#512)", () => {
+	const MOD = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
+	const DEC = "---\ntype: Decision\ntitle: D\n---\n\n# D\n";
+	const ROOT_UNCLOSED = '---\nokf_version: "0.3"\ntitle: x\n\n# Project\n';
+	const MODULES_BAD = "---\nnot: [closed\n---\n\n# Modules\n";
+	const files = {
+		"index.md": ROOT_UNCLOSED,
+		"modules/a.md": MOD,
+		"modules/index.md": MODULES_BAD,
+		"decisions/d.md": DEC,
+		"decisions/index.md": "# Stale\n",
+	};
+	const readText = (root: string, name: string) => Effect.promise(() => readFile(join(root, name), "utf8"));
+
+	it.effect("is skipped, not rewritten, and a valid stale index is still written", () =>
+		withRealBundle(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const result = yield* syncIndex(bundle, false);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "index.md", reason: "index-unparseable" },
+					{ id: "modules/index.md", reason: "index-unparseable" },
+				]);
+				assert.strictEqual(yield* readText(root, "index.md"), ROOT_UNCLOSED);
+				assert.strictEqual(yield* readText(root, "modules/index.md"), MODULES_BAD);
+				assert.deepStrictEqual(result.written, ["decisions/index.md"]);
+			}),
+		),
+	);
+
+	it.effect("a dry run plans no write for it either", () =>
+		withRealBundle(files, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const pending: Array<PendingWrite> = [];
+				const result = yield* syncIndex(bundle, true, pending);
+				assert.deepStrictEqual(
+					result.skipped.map((entry) => entry.id),
+					["index.md", "modules/index.md"],
+				);
+				assert.deepStrictEqual(
+					pending.map((write) => write.target),
+					[join(root, "decisions/index.md")],
+				);
+			}),
+		),
+	);
+});
+
 describe("syncIndex byte-order mark (#492)", () => {
 	const BOM = "\uFEFF";
 	const MOD = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
@@ -367,6 +464,7 @@ describe("syncIndex byte-order mark (#492)", () => {
 				const bytes = yield* readBytes(root, "modules/index.md");
 				assert.deepStrictEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
 				assert.notDeepEqual([...bytes.subarray(3, 6)], [0xef, 0xbb, 0xbf]);
+				assert.isFalse(/(?<!\r)\n/.test(bytes.subarray(3).toString("utf8")), "CRLF kept after the BOM");
 			}),
 		),
 	);
@@ -382,6 +480,98 @@ describe("syncIndex byte-order mark (#492)", () => {
 					const bytes = yield* readBytes(root, name);
 					assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], name);
 				}
+			}),
+		),
+	);
+});
+
+describe("syncIndex line endings (#505)", () => {
+	const MOD = "---\ntype: Module\ntitle: A\n---\n\n# A\n";
+	const readText = (root: string, name: string) => Effect.promise(() => readFile(join(root, name), "utf8"));
+	const bareLf = /(?<!\r)\n/;
+	const toCrlf = (text: string) => text.replace(/\n/g, "\r\n");
+	const lfRender = withRealBundle({ "modules/a.md": MOD }, (root) =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root });
+			yield* syncIndex(bundle, false);
+			return yield* readText(root, "modules/index.md");
+		}),
+	);
+
+	it.effect("keeps CRLF when it rewrites a stale CRLF index.md (#505)", () =>
+		Effect.gen(function* () {
+			const twin = yield* lfRender;
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\r\n\r\nold\r\n" }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.written.includes("modules/index.md"));
+					const text = yield* readText(root, "modules/index.md");
+					assert.isFalse(bareLf.test(text), "no bare LF");
+					assert.strictEqual(text.replace(/\r\n/g, "\n"), twin);
+				}),
+			);
+		}),
+	);
+
+	it.effect("a CRLF index.md that matches the render is unchanged (#505)", () =>
+		Effect.gen(function* () {
+			const twin = yield* lfRender;
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": toCrlf(twin) }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.unchanged.includes("modules/index.md"));
+					assert.isFalse(result.written.includes("modules/index.md"));
+					assert.strictEqual(yield* readText(root, "modules/index.md"), toCrlf(twin));
+				}),
+			);
+		}),
+	);
+
+	it.effect("a file that differs only in endings keeps its bytes, mixed or not (#505)", () =>
+		Effect.gen(function* () {
+			const twin = yield* lfRender;
+			const mixed = twin.replace("\n", "\r\n");
+			yield* withRealBundle({ "modules/a.md": MOD, "modules/index.md": mixed }, (root) =>
+				Effect.gen(function* () {
+					const bundle = yield* Bundle.load({ root });
+					const result = yield* syncIndex(bundle, false);
+					assert.isTrue(result.unchanged.includes("modules/index.md"));
+					assert.strictEqual(yield* readText(root, "modules/index.md"), mixed);
+				}),
+			);
+		}),
+	);
+
+	it.effect("control: a stale LF index.md is still written LF", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\n" }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				yield* syncIndex(bundle, false);
+				assert.isFalse((yield* readText(root, "modules/index.md")).includes("\r"));
+			}),
+		),
+	);
+
+	it.effect("a stale file whose first newline is LF but holds CRLF later is rewritten LF throughout", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\nold\r\nmore\r\n" }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				yield* syncIndex(bundle, false);
+				assert.isFalse((yield* readText(root, "modules/index.md")).includes("\r"));
+			}),
+		),
+	);
+
+	it.effect("a dry run plans the CRLF contents", () =>
+		withRealBundle({ "modules/a.md": MOD, "modules/index.md": "# Stale\r\n" }, (root) =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root });
+				const pending: Array<PendingWrite> = [];
+				yield* syncIndex(bundle, true, pending);
+				const planned = pending.find((write) => write.target === join(root, "modules/index.md"));
+				assert.isFalse(bareLf.test(planned?.contents ?? "x\n"));
 			}),
 		),
 	);

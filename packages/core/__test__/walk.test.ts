@@ -65,6 +65,30 @@ describe("internal/walk", () => {
 			assert.isFalse(result.files.some((file) => file.startsWith("link/")));
 		}).pipe(Effect.provide(platform(seed))),
 	);
+	it.effect(
+		"reports the links it passes over: a directory link and a dangling one, none under hidden or pruned (#458)",
+		() =>
+			Effect.gen(function* () {
+				const result = yield* walk(defaults);
+				assert.deepStrictEqual(
+					result.links.map((link) => [link.path, link.kind]),
+					[
+						["link", "directory"],
+						["gone", "dangling"],
+					].sort(),
+				);
+				assert.isFalse(result.files.some((file) => file.startsWith("link/")));
+			}).pipe(
+				Effect.provide(
+					platform({
+						...seed,
+						"/b/gone": MemoryFileSystem.symlink("/nowhere"),
+						"/b/.drafts/dead": MemoryFileSystem.symlink("/nowhere"),
+						"/b/node_modules/dead": MemoryFileSystem.symlink("/nowhere"),
+					}),
+				),
+			),
+	);
 	it.effect("an unreadable subdirectory is reported, not fatal", () =>
 		Effect.gen(function* () {
 			const result = yield* walk(defaults);

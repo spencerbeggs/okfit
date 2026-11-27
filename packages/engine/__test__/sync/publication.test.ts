@@ -1,14 +1,17 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { NodeCrypto } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { Derivation } from "@okfit/profiles";
 import type { FileSystem, Path } from "effect";
-import { Effect, Runtime } from "effect";
+import { Effect, Layer, Runtime } from "effect";
 import type { Digest } from "effect/crypto";
 import { UnsupportedFrontmatterError } from "../../src/edits/FrontmatterEdits.js";
 import { NotAPublicationError, PublicationNotFoundError, stampPublication } from "../../src/sync/publication.js";
+import { ROOT } from "../utils/bundle.js";
 import { TestPlatform } from "../utils/platform.js";
+import { swapOn } from "../utils/swapPlatform.js";
 
 const withBundle = <A, E>(
 	files: Record<string, string>,
@@ -147,4 +150,59 @@ describe("stampPublication", () => {
 			);
 		},
 	);
+});
+
+/** A concept the load dropped because it changed under the read is answered as changed, never as missing. */
+describe("stampPublication: a file that changed during the load", () => {
+	const seed = {
+		[`${ROOT}/modules/a.md`]: MOD_A,
+		[`${ROOT}/modules/b.md`]: MOD_B,
+		[`${ROOT}/publications/p.md`]: PUB,
+	};
+	const resaveOf = (file: string) => (fs: FileSystem.FileSystem) =>
+		Effect.gen(function* () {
+			const text = yield* fs.readFileString(file);
+			yield* fs.remove(file);
+			yield* fs.writeFileString(file, text);
+		});
+	const swapped = (file: string) => {
+		const [layer, trap] = swapOn(seed, "open", file, resaveOf(file), "after");
+		trap.arm();
+		return [Layer.mergeAll(layer, NodeCrypto.layerDigest), trap] as const;
+	};
+
+	it.effect("the publication itself dropped as changed answers the transient wording", () => {
+		const [layer, trap] = swapped(`${ROOT}/publications/p.md`);
+		return Effect.gen(function* () {
+			const error = yield* Effect.flip(stampPublication({ bundleRoot: ROOT, id: "publications/p", dryRun: true }));
+			assert.isTrue(trap.fired(), "the swap must have run during the load");
+			assert.instanceOf(error, PublicationNotFoundError);
+			assert.strictEqual(error.reason, "changed-during-read");
+			assert.strictEqual(error.message, '"publications/p.md" changed while it was read; try again');
+		}).pipe(Effect.provide(layer));
+	});
+
+	it.effect("a render source dropped as changed answers the transient wording, naming the source", () => {
+		const [layer, trap] = swapped(`${ROOT}/modules/b.md`);
+		return Effect.gen(function* () {
+			const error = yield* Effect.flip(stampPublication({ bundleRoot: ROOT, id: "publications/p", dryRun: true }));
+			assert.isTrue(trap.fired(), "the swap must have run during the load");
+			assert.instanceOf(error, PublicationNotFoundError);
+			assert.strictEqual(error.reason, "changed-during-read");
+			assert.strictEqual(error.id, "modules/b");
+			assert.strictEqual(error.message, '"modules/b.md" changed while it was read; try again');
+		}).pipe(Effect.provide(layer));
+	});
+
+	it.effect("control: a source that does not exist is still not found", () => {
+		const [layer] = swapOn(seed, "open", `${ROOT}/never`, () => Effect.void);
+		return Effect.gen(function* () {
+			const error = yield* Effect.flip(
+				stampPublication({ bundleRoot: ROOT, id: "publications/missing", dryRun: true }),
+			);
+			assert.instanceOf(error, PublicationNotFoundError);
+			assert.isUndefined(error.reason);
+			assert.strictEqual(error.message, 'no concept "publications/missing" in the bundle');
+		}).pipe(Effect.provide(Layer.mergeAll(layer, NodeCrypto.layerDigest)));
+	});
 });

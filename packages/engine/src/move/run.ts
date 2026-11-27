@@ -7,6 +7,7 @@ import { Trust } from "@okfit/profiles";
 import type { DateTime, PlatformError } from "effect";
 import { Effect, FileSystem, Option, Path } from "effect";
 import type { Digest } from "effect/crypto";
+import { changedFiles } from "../changedDuringLoad.js";
 import { rerecordBodyDigest } from "../edits/bodyDigest.js";
 import type { TargetResolutionError } from "../errors.js";
 import { MoveError } from "../errors.js";
@@ -157,6 +158,10 @@ export const planMove = Effect.fn("okfit/move/plan")(function* (
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const bundle = yield* Bundle.load({ root: options.bundleRoot });
+	// A file that changed under the load is missing from the bundle, so its links to the moved file would be left
+	// pointing at the old path with nothing said: refuse, write nothing.
+	const changed = changedFiles(bundle);
+	if (changed.length > 0) return yield* new MoveError({ reason: "changed-during-read", detail: changed.join("\n") });
 	const [source] = yield* Targets.resolve([options.from], bundle, options.cwd);
 	if (source === undefined) return yield* new MoveError({ reason: "same-path" });
 	// The root Project concept (the profile layout's project file) must stay at the bundle root.

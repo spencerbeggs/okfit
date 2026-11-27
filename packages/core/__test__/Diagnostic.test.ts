@@ -43,6 +43,7 @@ describe("Diagnostic", () => {
 				"config-unknown-key",
 				"stale",
 				"walk-unreadable",
+				"read-changed",
 				"generated-at-drift",
 				"status-missing",
 				"source-resource-missing",

@@ -1043,6 +1043,78 @@ const driftCount = async (cwd: string, env: Record<string, string>): Promise<num
 const stampIntegrity = (text: string, digest: string): string =>
 	text.replace("\n---\n", `\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n`);
 
+describe("okfit sync an unreadable index.md (#512)", () => {
+	it("leaves an unclosed root index.md untouched and says why", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			const unclosed = '---\nokf_version: "0.3"\ntitle: x\n\n# Project\n';
+			await writeFile(join(cwd, "okf", "index.md"), unclosed, "utf8");
+			await commit(cwd, { message: "unclosed index", authoredAt: "2026-09-02T00:00:00+00:00" }, env);
+			const run = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.include(run.stdout, "skipped index.md: could not be read");
+			assert.strictEqual(await readIndex(cwd, "index.md"), unclosed);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+});
+
+describe("okfit sync line endings (#505)", () => {
+	const toCrlf = async (path: string): Promise<void> => {
+		const text = await readFile(path, "utf8");
+		await writeFile(path, text.replace(/\r?\n/g, "\r\n"), "utf8");
+	};
+	const bareLf = /(?<!\r)\n/;
+
+	it("a CRLF index.md and log.md stay CRLF through okfit sync", async () => {
+		const { sandbox, cwd, env } = await seeded();
+		try {
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"example",
+				decisionWithGeneratedBy("Example decision", "The first decision."),
+				"2026-09-02T00:00:00+00:00",
+				"add example decision",
+			);
+			const first = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(first.exitCode, 0, first.stderr);
+			await commit(cwd, { message: "sync", authoredAt: "2026-09-02T01:00:00+00:00" }, env);
+
+			const crlfFiles = ["index.md", "decisions/index.md", "log.md"];
+			for (const name of crlfFiles) await toCrlf(join(cwd, "okf", name));
+			await commit(cwd, { message: "crlf", authoredAt: "2026-09-02T02:00:00+00:00" }, env);
+
+			// Endings alone are not a change.
+			const untouched = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(untouched.exitCode, 0, untouched.stderr);
+			for (const name of crlfFiles) assert.isFalse(bareLf.test(await readIndex(cwd, name)), name);
+
+			await writeAndCommitDecision(
+				cwd,
+				env,
+				"second",
+				decisionWithGeneratedBy("Second decision", "The second decision."),
+				"2026-09-03T00:00:00+00:00",
+				"add second decision",
+			);
+			const run = await withServices(runOkfit(["sync"], { cwd, env }));
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			for (const name of crlfFiles) assert.isFalse(bareLf.test(await readIndex(cwd, name)), `${name} has a bare LF`);
+			assert.include(await readLog(cwd), "* Added Second decision\r\n");
+			assert.include(await readIndex(cwd, "decisions/index.md"), "[Second decision](second.md)");
+
+			const again = await withServices(runOkfit(["sync", "--format", "json"], { cwd, env }));
+			const envelope = parseEnvelope(again.stdout);
+			assert.deepStrictEqual(envelope.index.written, []);
+			assert.deepStrictEqual(envelope.log.written, []);
+		} finally {
+			await removeSandbox(sandbox);
+		}
+	});
+});
+
 describe("okfit sync --publication", () => {
 	it("restamps one Publication, after which validate reports no drift", async () => {
 		const { sandbox, cwd, env, pubPath } = await seededPublication();

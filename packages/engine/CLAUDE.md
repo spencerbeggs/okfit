@@ -28,10 +28,14 @@ src/
                               so ConfigMalformedError.message names the failing key; effect/SchemaIssue only
     layer.ts              -- buildConfigLayer, provideConfig (the K-1 stat-before-layer)
     resolve.ts             -- resolveProjectConfig, DEFAULT_PROFILE_NAME
-  confinement.ts           -- escapesRoot, escapesBundle: a reserved index.md/log.md symlinked out of the
-                               bundle (lstat + confineReal; a dangling link counts); shared by sync, context, MCP
+  changedDuringLoad.ts     -- changedFiles, changedConceptIds, changedDirectories (internal): the files `Bundle.load` left out
+                               as `read-changed`, so sync, mv, the migration fix and the verify batch refuse or skip
+                               instead of writing something silently incomplete
+  confinement.ts           -- escapesRoot, escapesBundle (a check, for a write or a skip decision; reads use core readConfinedBytes): a reserved index.md/log.md that leaves the
+                               bundle by a link at the file or any directory above it (confineReal on the whole path; a missing file
+                               resolves from its real ancestor; a dangling link counts); shared by sync and context
   context/
-    run.ts                 -- runContext: index.md lstat/stat only, never Bundle.load; an escaping index is absent
+    run.ts                 -- runContext: index.md escapesRoot/stat only, never Bundle.load; an escaping index is absent
   trust/
     run.ts                 -- runContextTrust: the opt-in `context --trust` summary (loads the bundle; kept
                                out of context/ so run.ts stays bundle-free)
@@ -130,7 +134,10 @@ src/
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
-    write.ts                     -- writeAtomic, bomOf (the BOM a file carries, for writers that edit loader-read text)
+    write.ts                     -- writeAtomic, bomOf (the BOM a file carries, for writers that edit loader-read text),
+                                  readOptionalSplittingBom (confined read; BOM and the file's first newline),
+                                  readOptionalOrSkip (the same read where a refused one is a `skip` answer: symlink-escape or
+                                  changed-during-read), Newline, withNewline, toLf
     run.ts                        -- SkipReason, SyncMode/Options/Result, runSync
   init/
     scaffold.ts                   -- CONFIG_RELATIVE_PATH, ScaffoldOptions, ScaffoldFile,

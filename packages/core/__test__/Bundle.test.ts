@@ -9,11 +9,19 @@ import { OkfitConfig } from "../src/OkfitConfig.js";
 import { OkfVersion } from "../src/OkfVersion.js";
 import { Validate } from "../src/Validate.js";
 import { MOUNT, badBundleAtRootPlatform, faultyPlatform, platform } from "./utils/fixtures.js";
+import { swapPlatform } from "./utils/swapPlatform.js";
 
 const load = (name: string, options: Omit<BundleLoadOptions, "root"> = {}) =>
 	Bundle.load({ root: MOUNT, ...options }).pipe(Effect.provide(badBundleAtRootPlatform(name)));
 const codes = (diagnostics: ReadonlyArray<Diagnostic>) => diagnostics.map((d) => [d.file, d.code, d.range?.line]);
 const id = (value: string) => value as ConceptId;
+/** Everything textual a loaded bundle holds from the files it read, for asserting a refused file's text never got in. */
+const sourcesOf = (bundle: LoadedBundle): string =>
+	[
+		...[...bundle.concepts.values()].map((concept) => concept.document.source),
+		...[...bundle.indexes.values()].map((doc) => doc.source ?? ""),
+		...bundle.diagnostics.map((d) => d.message),
+	].join("\n");
 
 const computations = (frontmatter?: string) => ({
 	...(frontmatter === undefined
@@ -163,6 +171,274 @@ describe("Bundle.load", () => {
 					"/outside/secret.md": "---\ntype: Secret\n---\n",
 					"/outside/logo.png": "",
 				}),
+			),
+		),
+	);
+	it.effect("a file that becomes a link out after the link check is refused at the read, not read (#460)", () => {
+		const [layer, trap] = swapPlatform(
+			{
+				[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+				[`${MOUNT}/b.md`]: "---\ntype: Note\n---\n",
+				"/outside/secret.md": "---\ntype: Secret\ntitle: LEAKED-SECRET-TITLE\n---\n",
+			},
+			"open",
+			"before",
+			`${MOUNT}/a.md`,
+			(fs) =>
+				Effect.gen(function* () {
+					yield* fs.remove(`${MOUNT}/a.md`);
+					yield* fs.symlink("/outside/secret.md", `${MOUNT}/a.md`);
+				}),
+		);
+		return Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isTrue(trap.fired(), "the swap must have run");
+			// what the bundle holds never carries the outside file's text
+			assert.notInclude(sourcesOf(bundle), "LEAKED-SECRET-TITLE");
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
+			assert.deepStrictEqual(bundle.files, ["b.md"]);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "symlink-escape", undefined]]);
+			assert.deepStrictEqual(Validate.conformance(bundle), []);
+		}).pipe(Effect.provide(layer));
+	});
+	it.effect("a file replaced under the read is a transient read failure (try again), not an escape (#460)", () => {
+		const [layer, trap] = swapPlatform(
+			{ [`${MOUNT}/a.md`]: "---\ntype: Note\n---\n", [`${MOUNT}/b.md`]: "---\ntype: Note\n---\n" },
+			"open",
+			"after",
+			`${MOUNT}/a.md`,
+			(fs) =>
+				Effect.gen(function* () {
+					yield* fs.remove(`${MOUNT}/a.md`);
+					yield* fs.writeFileString(`${MOUNT}/a.md`, "---\ntype: Note\n---\n\nSWAPPED\n");
+				}),
+		);
+		return Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isTrue(trap.fired(), "the swap must have run");
+			// the file the swap put in place is not read into the bundle
+			assert.notInclude(sourcesOf(bundle), "SWAPPED");
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["b"]);
+			assert.deepStrictEqual(bundle.files, ["b.md"]);
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["a.md", "read-changed", undefined]]);
+			assert.strictEqual(bundle.diagnostics[0]?.severity, "warning");
+			assert.include(bundle.diagnostics[0]?.message ?? "", "changed while it was read; try again");
+			assert.deepStrictEqual(Validate.conformance(bundle), []);
+		}).pipe(Effect.provide(layer));
+	});
+	const dirLinkSeed = {
+		[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+		[`${MOUNT}/sub/b.md`]: "---\ntype: Note\n---\n",
+		[`${MOUNT}/external`]: MemoryFileSystem.symlink("/outside"),
+		[`${MOUNT}/gone`]: MemoryFileSystem.symlink("/nowhere"),
+		[`${MOUNT}/gone.md`]: MemoryFileSystem.symlink("/nowhere.md"),
+		[`${MOUNT}/sub/deep-gone.md`]: MemoryFileSystem.symlink("/nowhere.md"),
+		[`${MOUNT}/alias`]: MemoryFileSystem.symlink(`${MOUNT}/sub`),
+		// a link inside the bundle to a directory link that leaves it: the real path is outside
+		[`${MOUNT}/hop`]: MemoryFileSystem.symlink(`${MOUNT}/external`),
+		[`${MOUNT}/.hidden`]: MemoryFileSystem.symlink("/outside"),
+		"/outside/secret.md": "---\ntype: Secret\n---\n",
+		"/outside/nested/deeper.md": "---\ntype: Secret\n---\n",
+	};
+	const DIR_ESCAPE =
+		"symbolic link to a directory resolves outside the bundle root; nothing under it is read or part of the bundle";
+	const DANGLING_FILE =
+		"symbolic link could not be resolved, so it cannot be shown to stay inside the bundle root; it is not read and not part of the bundle";
+	it.effect(
+		"a directory link out of the bundle and a dangling link are symlink-escape; an in-bundle directory link is not (#458)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT });
+				assert.deepStrictEqual(codes(bundle.diagnostics), [
+					["external", "symlink-escape", undefined],
+					["hop", "symlink-escape", undefined],
+					["gone", "symlink-escape", undefined],
+					["gone.md", "symlink-escape", undefined],
+					["sub/deep-gone.md", "symlink-escape", undefined],
+				]);
+				assert.isTrue(bundle.diagnostics.every((d) => d.severity === "warning"));
+				const message = (file: string) => bundle.diagnostics.find((d) => d.file === file)?.message;
+				assert.strictEqual(message("external"), DIR_ESCAPE);
+				assert.strictEqual(message("hop"), DIR_ESCAPE);
+				// a dangling link cannot be told from a file or a directory link: one wording for all (owner ruling Q2)
+				assert.strictEqual(message("gone"), DANGLING_FILE);
+				assert.strictEqual(message("gone.md"), DANGLING_FILE);
+				assert.strictEqual(message("sub/deep-gone.md"), DANGLING_FILE);
+				assert.isFalse(bundle.diagnostics.some((d) => d.file === "alias"));
+				// nothing under an escaping directory, or the in-bundle link (Q1: unwalked and silent), is listed
+				assert.deepStrictEqual(bundle.files, ["a.md", "sub/b.md"]);
+				assert.deepStrictEqual([...bundle.concepts.keys()], ["a", "sub/b"]);
+				assert.deepStrictEqual(Validate.conformance(bundle), []);
+			}).pipe(Effect.provide(platform(dirLinkSeed))),
+	);
+	it.effect("a nested directory link out of the bundle is reported at its own path and never read (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["sub/ext", "symlink-escape", undefined]]);
+			assert.deepStrictEqual(bundle.files, ["sub/b.md"]);
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["sub/b"]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/sub/b.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/sub/ext`]: MemoryFileSystem.symlink("/outside"),
+					"/outside/secret.md": "---\ntype: Secret\n---\n",
+				}),
+			),
+		),
+	);
+	it.effect("a link whose resolution fails for any reason is reported: a self loop and a mutual loop (#458, Q7)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(codes(bundle.diagnostics), [
+				["loop", "symlink-escape", undefined],
+				["loopa", "symlink-escape", undefined],
+				["loopb", "symlink-escape", undefined],
+			]);
+			assert.isTrue(bundle.diagnostics.every((d) => d.message === DANGLING_FILE));
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/loop`]: MemoryFileSystem.symlink(`${MOUNT}/loop`),
+					[`${MOUNT}/loopa`]: MemoryFileSystem.symlink(`${MOUNT}/loopb`),
+					[`${MOUNT}/loopb`]: MemoryFileSystem.symlink(`${MOUNT}/loopa`),
+				}),
+			),
+		),
+	);
+	it.effect("a pruned name is fully silent: links inside a real node_modules are not checked (#458, Q8)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.diagnostics, []);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+			// control: with node_modules no longer pruned the same links are reported, so the silence above is the prune
+			const open = yield* Bundle.load({ root: MOUNT, prune: [".git"] });
+			assert.deepStrictEqual(
+				codes(open.diagnostics)
+					.map(([file]) => file)
+					.sort(),
+				["node_modules/gone", "node_modules/out"],
+			);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/node_modules/gone`]: MemoryFileSystem.symlink("/nowhere"),
+					[`${MOUNT}/node_modules/out`]: MemoryFileSystem.symlink("/outside"),
+					"/outside/x.md": "",
+				}),
+			),
+		),
+	);
+	it.effect("a pruned name is fully silent for a FILE link too: never reported, never read (Q8)", () =>
+		Effect.gen(function* () {
+			// node_modules is pruned by default: silent, and left out of the files; skipped.md is not pruned: reported
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(
+				codes(bundle.diagnostics).map(([file]) => file),
+				["skipped.md"],
+			);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+			// a custom pruned name that is Markdown: the link's target is not loaded as a concept either
+			const custom = yield* Bundle.load({ root: MOUNT, prune: ["skipped.md"] });
+			assert.deepStrictEqual(
+				codes(custom.diagnostics).map(([file]) => file),
+				["node_modules"],
+			);
+			assert.deepStrictEqual(custom.files, ["a.md"]);
+			assert.deepStrictEqual([...custom.concepts.keys()].map(String), ["a"]);
+			const both = yield* Bundle.load({ root: MOUNT, prune: ["node_modules", "skipped.md"] });
+			assert.deepStrictEqual(both.diagnostics, []);
+			assert.deepStrictEqual(both.files, ["a.md"]);
+			// control: with the names no longer pruned, both file links are reported, so the silence above is the prune
+			const open = yield* Bundle.load({ root: MOUNT, prune: [".git"] });
+			assert.deepStrictEqual(
+				codes(open.diagnostics)
+					.map(([file]) => file)
+					.sort(),
+				["node_modules", "skipped.md"],
+			);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside/x.md"),
+					[`${MOUNT}/skipped.md`]: MemoryFileSystem.symlink("/outside/x.md"),
+					"/outside/x.md": "---\ntype: Note\n---\nLEAKED\n",
+				}),
+			),
+		),
+	);
+	it.effect("a custom prune list silences its own names, and only those (#458, Q8)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT, prune: ["vendor"] });
+			assert.deepStrictEqual(codes(bundle.diagnostics), [["node_modules", "symlink-escape", undefined]]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/vendor`]: MemoryFileSystem.symlink("/outside"),
+					[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside"),
+					"/outside/x.md": "",
+				}),
+			),
+		),
+	);
+	it.effect("a dangling or escaping link named node_modules is silent by default (#458, Q8)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.diagnostics, []);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/node_modules`]: MemoryFileSystem.symlink("/outside"),
+					[`${MOUNT}/pkgs/node_modules`]: MemoryFileSystem.symlink("/nowhere"),
+					"/outside/x.md": "",
+				}),
+			),
+		),
+	);
+	it.effect("a dangling hidden link is silent by default and reported with includeHidden (#458)", () =>
+		Effect.gen(function* () {
+			assert.deepStrictEqual((yield* Bundle.load({ root: MOUNT })).diagnostics, []);
+			const shown = yield* Bundle.load({ root: MOUNT, includeHidden: true });
+			assert.deepStrictEqual(codes(shown.diagnostics), [[".gone", "symlink-escape", undefined]]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/.gone`]: MemoryFileSystem.symlink("/nowhere"),
+				}),
+			),
+		),
+	);
+	it.effect("includeHidden also checks a hidden directory link (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT, includeHidden: true });
+			assert.include(
+				bundle.diagnostics.map((d) => d.file),
+				".hidden",
+			);
+			assert.isFalse(bundle.files.some((f) => f.startsWith(".hidden/")));
+		}).pipe(Effect.provide(platform(dirLinkSeed))),
+	);
+	it.effect("a hidden directory link is not examined by default (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.isFalse(bundle.diagnostics.some((d) => d.file === ".hidden"));
+		}).pipe(Effect.provide(platform(dirLinkSeed))),
+	);
+	it.effect("a link to the bundle root itself is in-bundle: silent, never walked (#458)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(bundle.diagnostics, []);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+		}).pipe(
+			Effect.provide(
+				platform({ [`${MOUNT}/a.md`]: "---\ntype: Note\n---\n", [`${MOUNT}/self`]: MemoryFileSystem.symlink(MOUNT) }),
 			),
 		),
 	);
