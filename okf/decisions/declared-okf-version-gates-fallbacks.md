@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T21:20:24Z
+  at: 2026-11-27T21:28:22Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 50cc6e01d5601a90
+    body: 93dfd0d76b0d540e
   verified:
     by: human:spencer
     at: 2026-11-24T17:12:02Z
@@ -56,12 +56,11 @@ An unquoted number is read by its source text, because YAML would otherwise
 turn `0.10` into the number 0.1: `okf_version: 0.10` declares 0.10 and reads as
 current, and `okf_version: 0.2` declares 0.2 and keeps the fallbacks. The
 `index-metadata-invalid` warning shows the written value and says to quote it.
-A non-string declaration still gates the fallbacks by what it says, because
-§12.1 keys them on what a bundle declares and §11.2 rule 4 keeps a value
-outside its vocabulary, so treating it as no declaration would hand the
-fallbacks to an author who wrote 0.3 or 0.10. A value with no readable
-`<major>.<minor>` text (`true`, a list, a mapping) does not parse and reads as
-current, as below.
+An unquoted number gates the fallbacks by what it says, because §12.1 keys
+them on what a bundle declares and §11.2 rule 4 keeps a value outside its
+vocabulary, so treating it as no declaration would hand the fallbacks to an
+author who wrote 0.3 or 0.10. A value with no readable `<major>.<minor>` text
+(`true`, a list, a mapping) does not parse and reads as current, as below.
 
 One gate, `OkfVersion.legacyFallbacks(bundle)`, answers whether the v0.2
 fallbacks apply. It is true when the bundle declares no version, or declares
@@ -79,9 +78,11 @@ current, best effort as §12 asks, and the root index load reports it as
 - **Computation locator.** For a bundle that declares 0.3 or later,
   `computationBody` is the code of the first fenced code block in the first
   `Computation` section, at any heading level, in source order. A fence
-  nested in a list item or a block quote counts, as §10.3's "the first
-  fenced code block in the section" reads, and a nested fence before a
-  root-level one wins. A deeper subheading does not end the section. No
+  nested in a list item or a block quote counts, as okfit reads §10.3's
+  "the first fenced code block in the section" (the spec does not mention
+  nesting), and a nested fence before a root-level one wins. A deeper subheading does not end the section. The
+  `Computation` heading match is exact and case-sensitive, and only a
+  root-level heading opens a section. No
   fence means no computation; an empty fence yields an empty string. A fence
   counts only when it opens with three backticks or tildes after at most
   three spaces of indentation, so an indented code block is not a fence.

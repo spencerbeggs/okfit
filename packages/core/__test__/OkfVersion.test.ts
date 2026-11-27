@@ -109,7 +109,46 @@ describe("OkfVersion", () => {
 			);
 			assert.deepStrictEqual(OkfVersion.declared(quoted), OkfVersion.declared(tenth));
 			assert.strictEqual(quoted.diagnostics.length, 0);
-			assert.strictEqual(tenth.diagnostics.length, 1);
+			assert.deepStrictEqual(
+				tenth.diagnostics.map((d) => [d.code, d.message]),
+				[
+					[
+						"index-metadata-invalid",
+						'okf_version 0.10 is an unquoted number, which YAML reads as 0.1; quote it as "0.10"',
+					],
+				],
+			);
+		}),
+	);
+	it.effect("a declaration with no readable version text reads as current (#467, OKF 0.3 §12)", () =>
+		Effect.gen(function* () {
+			for (const value of ["true", "[0.2]", "{ a: 1 }"]) {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform({
+							[`${MOUNT}/index.md`]: `---\nokf_version: ${value}\n---\n\n# Note\n\n* [A](a.md)\n`,
+							[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+						}),
+					),
+				);
+				assert.isTrue(Option.isSome(OkfVersion.declared(bundle)), value);
+				assert.isFalse(OkfVersion.legacyFallbacks(bundle), value);
+			}
+		}),
+	);
+	it.effect("an unquoted version in CRLF frontmatter with a trailing comment is read by its own text (#467)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(
+					platform({
+						[`${MOUNT}/index.md`]:
+							"---\r\ntitle: T\r\nokf_version: 0.10 # note\r\n---\r\n\r\n# Note\r\n\r\n* [A](a.md)\r\n",
+						[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					}),
+				),
+			);
+			assert.deepStrictEqual(OkfVersion.declared(bundle), Option.some("0.10"));
+			assert.isFalse(OkfVersion.legacyFallbacks(bundle));
 		}),
 	);
 });

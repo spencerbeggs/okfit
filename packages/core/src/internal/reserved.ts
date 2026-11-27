@@ -8,8 +8,13 @@ import { LogDocument, LogGroup, LogItem } from "../LogDocument.js";
 import { OkfVersion } from "../OkfVersion.js";
 import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
 
-/** A source text that is already a `<major>.<minor>` pair, as `OkfVersion` reads one. */
-const MAJOR_MINOR = /^\d+\.\d+$/;
+/** What an unquoted `okf_version` number says, given the text the author wrote and what YAML read it as. */
+const unquotedMessage = (written: string | undefined, reads: string): string =>
+	written === undefined
+		? `okf_version ${reads} is an unquoted number; quote it as "<major>.<minor>"`
+		: written === reads
+			? `okf_version ${written} is an unquoted number; quote it as "${written}"`
+			: `okf_version ${written} is an unquoted number, which YAML reads as ${reads}; quote it as "${written}"`;
 
 /**
  * The one parse configuration every OKF file uses: GFM with frontmatter capture
@@ -160,17 +165,10 @@ export const parseIndex = (
 				// fallbacks on what a bundle "declares"); the warning reports the breach and says to quote it.
 				const span = findFrontmatterPathSpan(text, node, ["okf_version"]);
 				const source = span === undefined ? undefined : text.slice(span.offset, span.offset + span.length);
-				const written = source !== undefined && MAJOR_MINOR.test(source) ? source : undefined;
+				const written = source !== undefined && Option.isSome(OkfVersion.parse(source)) ? source : undefined;
 				metadata.okfVersion = written ?? String(version);
 				const reads = String(version);
-				warn(
-					"okf_version",
-					written === undefined
-						? `okf_version ${reads} is an unquoted number; quote it as "<major>.<minor>"`
-						: written === reads
-							? `okf_version ${written} is an unquoted number; quote it as "${written}"`
-							: `okf_version ${written} is an unquoted number, which YAML reads as ${reads}; quote it as "${written}"`,
-				);
+				warn("okf_version", unquotedMessage(written, reads));
 			} else if (version !== null && version !== undefined) {
 				metadata.okfVersion = JSON.stringify(version);
 				warn("okf_version", "okf_version must be a quoted <major>.<minor> string");
