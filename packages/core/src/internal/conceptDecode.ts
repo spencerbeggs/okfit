@@ -108,7 +108,10 @@ const decodeFamily = <S extends Schema.ConstraintDecoder<unknown>>(
  * Decode a mapping key by key against a class's declared fields (OKF 0.3 11.2 rule 3). Each
  * declared key is decoded alone: a REQUIRED key that is missing or unreadable ignores the whole
  * mapping (`entry-ignored`, returns `undefined`); any other key that is unreadable is dropped
- * alone (`value-malformed` at `[...path, key]`). Keys the class does not declare are never read.
+ * alone (`value-malformed` at `[...path, key]`). Keys the class does not declare are never read, so
+ * an unknown key never keeps a mapping present (see {@link decodeNested}). A key listed in `nested`
+ * is itself a declared mapping and is decoded key by key at `[...path, key]`, so one bad key inside
+ * it drops that key alone.
  *
  * @internal
  */
@@ -119,6 +122,7 @@ export const decodeMapping = (
 	path: YamlPath,
 	family: string,
 	issues: Array<FamilyIssue>,
+	nested: NestedMappings = {},
 ): Record<string, unknown> | undefined => {
 	if (!isMapping(value)) {
 		issues.push({
@@ -139,6 +143,13 @@ export const decodeMapping = (
 		const isRequired = required.includes(key);
 		const present = Object.hasOwn(value, key) && !isAbsent(value[key]);
 		if (isRequired && !present) return ignore(`\`${key}\` is required`);
+		const inner = Object.hasOwn(nested, key) ? nested[key] : undefined;
+		if (inner !== undefined) {
+			if (!present) continue;
+			const kept = decodeNested(inner.cls, inner.required, value[key], [...path, key], family, dropped);
+			if (kept !== undefined) out[key] = kept;
+			continue;
+		}
 		const schema = Schema.Struct({
 			[key]: fields[key] as Schema.Struct.Fields[string],
 		}) as unknown as Schema.Decoder<unknown>;
@@ -168,6 +179,11 @@ interface MappingClass<A> {
 	readonly fields: Schema.Struct.Fields;
 	readonly make: (input: never) => A;
 }
+
+/** Declared keys of a mapping that are themselves mappings decoded key by key: the class and its REQUIRED keys. */
+type NestedMappings = Readonly<
+	Record<string, { readonly cls: MappingClass<unknown>; readonly required: ReadonlyArray<string> }>
+>;
 
 /** Build a kept mapping; a throw (a value the per-key decode accepted but the class rejects) ignores the mapping. */
 const build = <A>(
@@ -202,11 +218,12 @@ const decodeMappingList = <A>(
 	cls: MappingClass<A>,
 	required: ReadonlyArray<string>,
 	issues: Array<FamilyIssue>,
+	nested: NestedMappings = {},
 ): { readonly values: ReadonlyArray<A>; readonly paths: ReadonlyArray<YamlPath> } | undefined => {
 	const values: Array<A> = [];
 	const paths: Array<YamlPath> = [];
 	for (const { item, path } of itemsOf(key, value)) {
-		const decoded = decodeMapping(cls.fields, required, item, path, family, issues);
+		const decoded = decodeMapping(cls.fields, required, item, path, family, issues, nested);
 		if (decoded === undefined) continue;
 		const built = build(cls, decoded, path, family, issues);
 		if (built === undefined) continue;
@@ -214,6 +231,29 @@ const decodeMappingList = <A>(
 		paths.push(path);
 	}
 	return values.length === 0 ? undefined : { values, paths };
+};
+
+/**
+ * Decode one mapping value key by key (a top-level family, or a declared mapping nested in another).
+ *
+ * "Emptied by dropped keys" counts only the class's declared keys: a mapping with at least one
+ * dropped key and no kept declared key reads as absent, whatever unknown keys it also has. A mapping
+ * with no dropped key is kept, even when it holds nothing but unknown keys (`{ x: 1 }`, like `{}`).
+ * Unknown keys stay in `raw` and are never read (OKF 0.3 11.2: never rejected).
+ */
+const decodeNested = <A>(
+	cls: MappingClass<A>,
+	required: ReadonlyArray<string>,
+	value: unknown,
+	path: YamlPath,
+	family: string,
+	issues: Array<FamilyIssue>,
+): A | undefined => {
+	const before = issues.length;
+	const decoded = decodeMapping(cls.fields, required, value, path, family, issues);
+	if (decoded === undefined) return undefined;
+	if (Object.keys(decoded).length === 0 && issues.length > before) return undefined;
+	return build(cls, decoded, path, family, issues);
 };
 
 /** Decode one single-mapping key; absent (rule 1) or unreadable reads as `undefined`. */
@@ -224,15 +264,7 @@ const decodeSingle = <A>(
 	cls: MappingClass<A>,
 	required: ReadonlyArray<string>,
 	issues: Array<FamilyIssue>,
-): A | undefined => {
-	if (isAbsent(raw[key])) return undefined;
-	const before = issues.length;
-	const decoded = decodeMapping(cls.fields, required, raw[key], [key], family, issues);
-	if (decoded === undefined) return undefined;
-	// A mapping emptied by dropped keys reads as absent (R19); one written as `{}` has no dropped key and is kept.
-	if (Object.keys(decoded).length === 0 && issues.length > before) return undefined;
-	return build(cls, decoded, [key], family, issues);
-};
+): A | undefined => (isAbsent(raw[key]) ? undefined : decodeNested(cls, required, raw[key], [key], family, issues));
 
 /** Decode the computation keys independently (a bad `executor` no longer drops `runtime`). */
 const decodeAttested = (
@@ -328,7 +360,9 @@ export const decodeConcept = (value: unknown): ConceptDecodeResult => {
 	}
 
 	if (present("sources")) {
-		const list = decodeMappingList("sources", "sources", raw.sources, Source, ["resource"], issues);
+		const list = decodeMappingList("sources", "sources", raw.sources, Source, ["resource"], issues, {
+			usage_window: { cls: UsageWindow, required: [] },
+		});
 		if (list !== undefined) {
 			out.sources = list.values;
 			entries.sources = list.paths;

@@ -1,5 +1,10 @@
 # Log
 
+## 2026-11-27
+
+* Updated Core
+* Updated Loading never fails a concept for a bad family
+
 ## 2026-11-26
 
 * Updated A verification is bound to the content it covered

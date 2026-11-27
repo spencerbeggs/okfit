@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-27T20:36:10Z
 status: stable
 verified:
   - by: human:spencer
@@ -21,7 +21,7 @@ verified:
     at: 2026-11-24T22:21:07Z
 x-okfit-integrity:
   generated:
-    body: 04ff96882fc335a2
+    body: 30faf3c189853769
   verified:
     by: human:spencer
     at: 2026-11-24T22:21:07Z
@@ -66,10 +66,11 @@ has to. The reading follows §11.2 rule by rule:
    knowledge and never read as `stable`.
 
 A single mapping family (`usage_window`, `executor`, `attester`) whose every
-key was dropped reads as absent, with the per-key warnings kept; a mapping
-written as `{}` has nothing dropped and is kept. A source's own `usage_window`
-is the exception to key-by-key reading: it decodes as one value, so one bad
-key drops all of it and its good keys with it.
+written known key was dropped reads as absent, with the per-key warnings kept,
+even when it also has unknown keys: an unknown key is never read, so it never
+keeps a mapping present. A mapping with nothing dropped, written as `{}` or
+holding only unknown keys, is kept. A source's own `usage_window` decodes key
+by key like the top-level one, so a good key beside a bad one is kept.
 
 All three codes are lint codes with default severity `warn`; none fails
 conformance. The concept keeps its place in the graph and every index.

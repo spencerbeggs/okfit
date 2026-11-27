@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T09:24:00Z
+  at: 2026-11-27T20:36:10Z
 x-okfit-integrity:
   generated:
-    body: ed0580e4f3394686
+    body: 61c9f965bb5f4e75
 ---
 
 # Core
@@ -220,10 +220,12 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
 - **Computation.** `computationBody` follows the §10.3 locator for a bundle
   declaring 0.3 or later, and finds a fence nested in a list item or block
   quote; `executor.resource`, `executor.receipt` and `attester.resource` are
-  optional; `parameters` decode per entry. A single mapping whose every key
-  was dropped (`usage_window`, `executor`, `attester`) reads as absent; one
-  written as `{}` is kept. A source's own `usage_window` is decoded as one
-  value, so one bad key drops all of it.
+  optional; `parameters` decode per entry. A single mapping whose every
+  written known key was dropped (`usage_window`, `executor`, `attester`) reads
+  as absent, even when it also has unknown keys; one with nothing dropped
+  (`{}`, or only unknown keys) is kept. A source's own `usage_window` is
+  decoded key by key like the top-level one, so a good key beside a bad one is
+  kept.
 - **Empty values.** `required-key-missing` treats a key written as null,
   `""` or `[]` as absent, with the message "is empty" (an unwritten key is "is
   missing"); `field-value-unknown` and `generated-missing` use the same test,
