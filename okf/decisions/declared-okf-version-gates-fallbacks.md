@@ -13,11 +13,11 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T16:20:52Z
+  at: 2026-11-27T21:00:06Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 6b23e6200b970892
+    body: c99dfbd4dfc56d36
   verified:
     by: human:spencer
     at: 2026-11-24T17:12:02Z
@@ -67,15 +67,18 @@ current, best effort as §12 asks, and the root index load reports it as
   fields alike. §6.2 names only path fields for the fallback; keeping it for
   links in old bundles is okfit being lenient to bundles it already accepted.
 - **Computation locator.** For a bundle that declares 0.3 or later,
-  `computationBody` is the code of the first fenced block among the direct
-  children of the first `Computation` section, at any heading level. No
+  `computationBody` is the code of the first fenced code block in the first
+  `Computation` section, at any heading level, in source order. A fence
+  nested in a list item or a block quote counts, as §10.3's "the first
+  fenced code block in the section" reads, and a nested fence before a
+  root-level one wins. A deeper subheading does not end the section. No
   fence means no computation; an empty fence yields an empty string. A fence
   counts only when it opens with three backticks or tildes after at most
-  three spaces of indentation, so an indented code block is not a fence. The locator looks only at the
-  root-level blocks of the `Computation` section and of its subsections, so a
-  fence nested inside a list item or a block quote is not found. For
-  a bundle declaring 0.2 or earlier, or nothing, `computationBody` stays the
-  body of the depth-1 `Computation` section.
+  three spaces of indentation, so an indented code block is not a fence.
+  `packages/core/__test__/Bundle.test.ts` pins this: "0.3: a fence nested in
+  a list item or block quote of the Computation section is found (R17)".
+  For a bundle declaring 0.2 or earlier, or nothing, `computationBody` stays
+  the body of the depth-1 `Computation` section.
 
 `computationBody` is the inline form only. When `attested.computation` names
 a file, §10.3 says that file is the computation; core does not read it,
