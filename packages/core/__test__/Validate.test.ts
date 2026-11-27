@@ -566,6 +566,45 @@ describe("Validate", () => {
 					);
 					assert.strictEqual(found[0]?.range?.line, 2, value);
 				}
+				// A hand-written legacy-timestamp actor is a readable block: nothing is missing (the fold is told apart by
+				// `raw.generated` being absent, not by the actor string).
+				assert.strictEqual(
+					(yield* hits("generated: { by: process:legacy-timestamp, at: 2026-01-01T00:00:00Z }")).length,
+					0,
+				);
+				// A flow-style frontmatter block is never one sync edits, so a written null there is a hand edit; one that
+				// never wrote `generated` is still a block sync creates.
+				const flow = (body: string) =>
+					loadFromSources({ "m.md": `---\n${body}\n---\n` }).pipe(
+						Effect.map((bundle) => Validate.lint(bundle, config).filter((d) => d.code === "generated-missing")),
+					);
+				assert.match((yield* flow("{ type: Note, generated: null }"))[0]?.message ?? "", /set generated\.by by hand$/);
+				assert.match(
+					(yield* flow("{ type: Note, generated: null }"))[0]?.message ?? "",
+					/cannot fill in a block that is written/,
+				);
+				assert.match((yield* flow("{ type: Note }"))[0]?.message ?? "", /okfit sync will create it/);
+				// The spellings the engine's `locateGeneratedBlock` replaces get the create message and the rest the hand-edit
+				// one; the same table runs against the locator in packages/engine/__test__/sync/generated.test.ts.
+				const spellings: ReadonlyArray<readonly [string, boolean]> = [
+					["generated:", true],
+					["generated: ~", true],
+					["generated: null", true],
+					["generated: NULL", true],
+					["generated: ~ # todo", true],
+					["generated:\n  ~", true],
+					['"generated": ~', true],
+					["generated: !!null", false],
+					["generated: &a ~", false],
+					["? generated\n: null", false],
+					["generated: {}", false],
+					['generated: ""', false],
+				];
+				for (const [spelling, replaceable] of spellings) {
+					const found = yield* hits(spelling);
+					assert.strictEqual(found.length, 1, spelling);
+					assert.strictEqual(/okfit sync will create it/.test(found[0]?.message ?? ""), replaceable, spelling);
+				}
 				// The load diagnostic is still reported beside it.
 				const bundle = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
 				assert.isTrue(Validate.lint(bundle, config).some((d) => d.code === "entry-ignored"));

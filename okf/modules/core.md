@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:54:29Z
+  at: 2026-11-27T21:52:58Z
 x-okfit-integrity:
   generated:
-    body: 059ddd37d5c50898
+    body: 28658e65a2bdaa13
 ---
 
 # Core
@@ -114,8 +114,13 @@ value (`verified[i].by`, `generated.by`, `sources[i].author`), `stale` at
 `stale_after`, and `require-verified-unmet` at `status`. A rule with
 nothing to point at — `required-key-missing`, `status-missing`,
 `generated-missing` — anchors at the frontmatter block instead of a key
-that is not there (`generated-missing` anchors at the `generated` or legacy
-`timestamp` key instead, when one is written). Bundle-level rules (`config-unknown-key`,
+that is not there. `generated-missing` anchors at the block only when sync
+would create the block (`generated` unwritten, a bare `generated:` or a plain
+null); for a written `generated` the decoder ignores it anchors at the
+`generated` key, and for a legacy `timestamp` at that key. A value with no
+text (a bare `key:`, `key: !!null`) anchors a diagnostic at its key, and edits
+still splice only into a value's own text (`DiagnosticRange.forFrontmatterPath`
+never returns the key; `forFrontmatterKey` does). Bundle-level rules (`config-unknown-key`,
 `missing-index`) stay range-less. A quoted YAML scalar's range includes
 the surrounding quotes.
 

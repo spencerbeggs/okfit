@@ -180,10 +180,27 @@ export class FrontmatterEdits {
 				}
 				const digestSpan = DiagnosticRange.forFrontmatterPath(document, [key, index, "body"]);
 				if (digestSpan !== undefined && digestSpan.offset !== block.offset) {
-					const content = digestSpan.length === 0 ? ` ${formatted}` : formatted;
 					edits.push(
-						shift(MarkdownEdit.make({ offset: digestSpan.offset, length: digestSpan.length, content }), bom.length),
+						shift(
+							MarkdownEdit.make({ offset: digestSpan.offset, length: digestSpan.length, content: formatted }),
+							bom.length,
+						),
 					);
+					continue;
+				}
+				// A bare `body:` or `body: !!null` has no value text, so `forFrontmatterPath` reports the whole block. The key is
+				// there, though: the digest becomes its value, and a second `body:` line below `path` must not be written.
+				const bodyKey = DiagnosticRange.forFrontmatterKey(document, [key, index, "body"]);
+				if (bodyKey !== undefined) {
+					const afterKey = bodyKey.offset + bodyKey.length;
+					const lineEndAt = text.indexOf("\n", afterKey);
+					const rest = text.slice(afterKey, lineEndAt === -1 ? text.length : lineEndAt).replace(/\r$/u, "");
+					const empty = /^[ ]*:([ ]*)(!\S*)?([ ]*)(#.*)?$/u.exec(rest);
+					if (empty === null) return yield* unsupported("flow-mapping");
+					const colon = afterKey + rest.indexOf(":") + 1;
+					const replaced = (empty[1] ?? "").length + (empty[2] ?? "").length + (empty[3] ?? "").length;
+					const content = empty[4] === undefined ? ` ${formatted}` : ` ${formatted} `;
+					edits.push(shift(MarkdownEdit.make({ offset: colon, length: replaced, content }), bom.length));
 					continue;
 				}
 				const pathSpan = DiagnosticRange.forFrontmatterPath(document, [key, index, "path"]);

@@ -5,7 +5,7 @@ import type { DiagnosticSeverity } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import type { FamilyIssue } from "./conceptDecode.js";
 import { decodeConcept as decodeEnvelope } from "./conceptDecode.js";
-import { frontmatterPathSpan } from "./yamlPathSpan.js";
+import { frontmatterAnchorSpan } from "./yamlPathSpan.js";
 
 /** D-34 default severities for a `FamilyIssue`'s lint code. */
 const FAMILY_ISSUE_SEVERITY: Record<FamilyIssue["code"], DiagnosticSeverity> = {
@@ -24,7 +24,7 @@ interface Context {
 }
 
 const spanToRange = (text: string, path: ReadonlyArray<string | number>, node: Frontmatter): DiagnosticRange => {
-	const span = frontmatterPathSpan(text, node, path);
+	const span = frontmatterAnchorSpan(text, node, path);
 	return DiagnosticRange.fromOffset(text, span.offset, span.length);
 };
 

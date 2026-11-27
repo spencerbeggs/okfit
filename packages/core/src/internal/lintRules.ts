@@ -284,10 +284,11 @@ export const generatedMissing: LintRule = perConcept("generated-missing", (conce
 	}
 	// Sync replaces only an unwritten key or an untagged plain null; `""`, `[]`, a tagged or anchored null and any
 	// value the decoder ignored are written, so they need a hand edit.
+	// A concept exists only when its frontmatter block parsed, so the block is always there. The `hasOwn` guard is
+	// needed: `isReplaceableNull` answers `false` for any flow-style block, including one that never wrote `generated`.
 	const document = Option.getOrUndefined(concept.document.frontmatter);
 	const written =
-		Object.hasOwn(frontmatter.raw, "generated") &&
-		(document === undefined ? present(frontmatter.raw, "generated") : !isReplaceableNull(document, "generated"));
+		document !== undefined && Object.hasOwn(frontmatter.raw, "generated") && !isReplaceableNull(document, "generated");
 	if (written) {
 		return [
 			{
