@@ -1,6 +1,6 @@
 import type { Frontmatter } from "@effected/markdown";
-import type { YamlParseError, YamlPath } from "@effected/yaml";
-import { YamlDocument } from "@effected/yaml";
+import type { YamlNode, YamlParseError, YamlPath } from "@effected/yaml";
+import { YamlDocument, YamlMap, YamlScalar } from "@effected/yaml";
 import { Option, Result } from "effect";
 import { toFileOffset } from "./position.js";
 
@@ -60,7 +60,10 @@ export const frontmatterPathSpan = (
  * The file span of the YAML node at `path`, or `undefined` when there is none (or the re-parse is
  * fatal): {@link frontmatterPathSpan} without its whole-block fallback, for a caller that would
  * rather carry no range than a wrong one. Same quoting rule: a double-quoted scalar's span covers
- * its quotes.
+ * its quotes. A bare `key:` has no value node and a tagged empty value (`key: !!null`) has no text
+ * (the kit reports its span as offset 0, length 0), so neither has a value span: both answer `undefined`.
+ * An edit that splices into the returned span relies on it being the value's own text, so it is never the key's;
+ * {@link findFrontmatterAnchorSpan} is the diagnostic reading.
  *
  * @internal
  */
@@ -72,5 +75,90 @@ export const findFrontmatterPathSpan = (
 	const parsed = parsedYamlOf(node);
 	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
 	const hit = parsed.success.contents.find(path as YamlPath);
-	return Option.isNone(hit) ? undefined : { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+	if (Option.isNone(hit) || hit.value.length === 0) return undefined;
+	return { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+};
+
+/**
+ * The file span of the key at `path` (its last segment must be a mapping key), or `undefined` when the key is not
+ * written or the re-parse is fatal.
+ *
+ * @internal
+ */
+export const findFrontmatterKeySpan = (
+	text: string,
+	node: Frontmatter,
+	path: ReadonlyArray<string | number>,
+): OffsetSpan | undefined => {
+	const parsed = parsedYamlOf(node);
+	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
+	return keySpan(text, parsed.success.contents, path);
+};
+
+/**
+ * Where a diagnostic about `path` points: the value's own span, or the key's when the value has no text (a bare
+ * `key:` or a tagged empty value), or `undefined` when neither exists. For diagnostics only: an edit must not splice
+ * into the key, so it uses {@link findFrontmatterPathSpan}.
+ *
+ * @internal
+ */
+export const findFrontmatterAnchorSpan = (
+	text: string,
+	node: Frontmatter,
+	path: ReadonlyArray<string | number>,
+): OffsetSpan | undefined => findFrontmatterPathSpan(text, node, path) ?? findFrontmatterKeySpan(text, node, path);
+
+/**
+ * {@link findFrontmatterAnchorSpan} with {@link frontmatterPathSpan}'s whole-block fallback.
+ *
+ * @internal
+ */
+export const frontmatterAnchorSpan = (
+	text: string,
+	node: Frontmatter,
+	path: ReadonlyArray<string | number>,
+): OffsetSpan =>
+	path.length === 0 ? blockSpan(node) : (findFrontmatterAnchorSpan(text, node, path) ?? blockSpan(node));
+
+/** The pair of `map` whose key is the plain scalar `key`. */
+const pairOf = (map: YamlMap, key: string) =>
+	map.items.find((item) => item.key instanceof YamlScalar && item.key.value === key);
+
+const keySpan = (text: string, contents: YamlNode, path: ReadonlyArray<string | number>): OffsetSpan | undefined => {
+	const key = path.at(-1);
+	if (typeof key !== "string") return undefined;
+	const parent = path.length === 1 ? Option.some(contents) : contents.find(path.slice(0, -1) as YamlPath);
+	if (Option.isNone(parent) || !(parent.value instanceof YamlMap)) return undefined;
+	const pair = pairOf(parent.value, key);
+	return pair === undefined ? undefined : { offset: toFileOffset(text, pair.key.offset), length: pair.key.length };
+};
+
+/**
+ * Whether the top-level `key` is a value `okfit sync` can replace whole: unwritten, a bare `key:`, or an untagged,
+ * unanchored plain null (`null`, `~`) in a block-style mapping. This mirrors the engine's `locateGeneratedBlock`
+ * (`engine/src/verify/locate.ts`), which core cannot import: a tagged or anchored null (`!!null`, `&a ~`) carries
+ * syntax a whole-line replace would drop or duplicate, so sync skips it as `generated-unsupported`. A re-parse that
+ * fails or a non-mapping document answers `false`, as the engine reports those unsupported too.
+ *
+ * @internal
+ */
+export const isReplaceableNull = (node: Frontmatter, key: string): boolean => {
+	const parsed = parsedYamlOf(node);
+	if (Result.isFailure(parsed)) return false;
+	const contents = parsed.success.contents;
+	if (!(contents instanceof YamlMap) || contents.style === "flow") return false;
+	const pair = pairOf(contents, key);
+	if (pair === undefined) return true;
+	const value = pair.value;
+	const isNull =
+		value === null ||
+		(value instanceof YamlScalar &&
+			value.style === "plain" &&
+			value.value === null &&
+			value.tag === undefined &&
+			value.anchor === undefined);
+	// The engine also requires the key to begin its line (only indentation before it), so an explicit `? key` entry,
+	// whose key follows other text, is not replaceable either.
+	const lineStart = node.value.lastIndexOf("\n", pair.key.offset - 1) + 1;
+	return isNull && node.value.slice(lineStart, pair.key.offset).trim() === "";
 };

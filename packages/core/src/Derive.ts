@@ -1,9 +1,8 @@
 import { PosixPath } from "@effected/walker";
 import { DateTime, Schema } from "effect";
 import type { LoadedBundle, LoadedConcept } from "./Bundle.js";
-import type { Concept } from "./Concept.js";
+import { Concept } from "./Concept.js";
 import type { ConceptId } from "./ConceptId.js";
-import { isAbsent } from "./internal/conceptDecode.js";
 import type { IndexEntryInput, IndexSectionInput } from "./internal/templates.js";
 import { indexDocument, logEntry } from "./internal/templates.js";
 import { tierOf } from "./internal/tier.js";
@@ -73,7 +72,7 @@ export interface RenderIndexOptions {
 
 /** `stale_after` is present in `raw` (not `null`, `""` or `[]`) yet did not decode to an instant. */
 const isMalformedStaleAfter = (concept: Concept): boolean =>
-	concept.stale_after === undefined && !isAbsent(concept.raw.stale_after);
+	concept.stale_after === undefined && !Concept.isAbsent(concept.raw.stale_after);
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
 /** The bundle-relative directory of `path`; `""` for a file at the bundle root. */
@@ -134,7 +133,7 @@ export class Derive {
 	/** The `status` value as written, as text for display; `undefined` when absent, `null`, `""` or `[]`. */
 	static readonly rawStatus = (concept: Concept): string | undefined => {
 		const value: unknown = concept.raw.status;
-		if (isAbsent(value)) return undefined;
+		if (Concept.isAbsent(value)) return undefined;
 		return typeof value === "string" ? value : JSON.stringify(value);
 	};
 

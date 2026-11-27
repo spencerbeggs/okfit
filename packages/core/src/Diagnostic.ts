@@ -1,7 +1,7 @@
 import type { MarkdownDocument } from "@effected/markdown";
 import { LineIndex } from "@effected/source";
 import { Option, Schema } from "effect";
-import { frontmatterPathSpan } from "./internal/yamlPathSpan.js";
+import { findFrontmatterKeySpan, frontmatterPathSpan } from "./internal/yamlPathSpan.js";
 
 /** @public */
 export const DiagnosticSeverity = Schema.Literals(["error", "warning", "info"]);
@@ -112,6 +112,23 @@ export class DiagnosticRange extends Schema.Class<DiagnosticRange>("DiagnosticRa
 		if (node === undefined) return undefined;
 		const span = frontmatterPathSpan(document.source, node, path);
 		return DiagnosticRange.fromOffset(document.source, span.offset, span.length);
+	};
+
+	/**
+	 * Maps a frontmatter YAML path to the range of its last segment's own key inside `document.source`, or `undefined`
+	 * when the document has no frontmatter block, the path does not end in a written mapping key, or the key is not
+	 * there. For a caller that edits a key whose value has no text of its own (a bare `body:` or `body: !!null`, which
+	 * {@link DiagnosticRange.forFrontmatterPath} reports as the whole block), so it can still find where the value goes.
+	 *
+	 * @public
+	 */
+	static readonly forFrontmatterKey = (
+		document: MarkdownDocument,
+		path: ReadonlyArray<string | number>,
+	): DiagnosticRange | undefined => {
+		const node = Option.getOrUndefined(document.frontmatter);
+		const span = node === undefined ? undefined : findFrontmatterKeySpan(document.source, node, path);
+		return span === undefined ? undefined : DiagnosticRange.fromOffset(document.source, span.offset, span.length);
 	};
 }
 

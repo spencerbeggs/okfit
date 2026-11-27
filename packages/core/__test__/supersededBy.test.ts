@@ -63,6 +63,18 @@ describe("superseded_by lints (OKF 0.3 5.4)", () => {
 		}),
 	);
 
+	it.effect("a self-anchor is reported once, as superseded-by-unresolved (#463)", () =>
+		Effect.gen(function* () {
+			const found = yield* lintSuperseded({
+				"anchor.md": note("status: deprecated\nsuperseded_by: anchor.md#x\n"),
+			});
+			assert.deepStrictEqual(
+				found.filter(([file]) => file === "anchor.md").map(([, code]) => code),
+				["superseded-by-unresolved"],
+			);
+		}),
+	);
+
 	it.effect("a missing target is broken-links alone, never also superseded-by-unresolved", () =>
 		Effect.gen(function* () {
 			const found = yield* lintSuperseded({ "gone.md": note("status: deprecated\nsuperseded_by: /nowhere.md\n") });
@@ -158,5 +170,60 @@ describe("superseded_by lints (OKF 0.3 5.4)", () => {
 				[["self.md", "superseded-by-unresolved"]],
 			);
 		}),
+	);
+
+	it.effect(
+		"superseded-by-unresolved on reserved files, a typeless file, an anchor and a path out of the bundle (#467)",
+		() =>
+			Effect.gen(function* () {
+				const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+					Effect.provide(
+						platform(
+							Object.fromEntries(
+								Object.entries({
+									"new.md": note("") + "\n# New\n\n## Real heading\n",
+									"notes/index.md": "# Notes\n\n* [N](n.md) - n\n",
+									"notes/n.md": note(""),
+									"log.md": "# Log\n",
+									"typeless.md": "---\ntitle: t\n---\n",
+									"s-index.md": note("status: deprecated\nsuperseded_by: ./notes/index.md\n"),
+									"s-log.md": note("status: deprecated\nsuperseded_by: /log.md\n"),
+									"s-typeless.md": note("status: deprecated\nsuperseded_by: ./typeless.md\n"),
+									"s-out.md": note("status: deprecated\nsuperseded_by: ../../x.md\n"),
+									"s-ok-anchor.md": note("status: deprecated\nsuperseded_by: ./new.md#real-heading\n"),
+									"s-bad-anchor.md": note("status: deprecated\nsuperseded_by: ./new.md#missing-heading\n"),
+									"s-control.md": note("status: deprecated\nsuperseded_by: ./new.md\n"),
+								}).map(([k, v]) => [`${MOUNT}/${k}`, v]),
+							),
+						),
+					),
+				);
+				const found = Validate.lint(bundle, OkfitConfig.DEFAULTS)
+					.filter((d) => d.code === "superseded-by-unresolved" || d.code === "broken-links")
+					.map((d) => ({ file: d.file, code: d.code, message: d.message }));
+				const of = (file: string) => found.filter((d) => d.file === file);
+				for (const file of ["s-index.md", "s-log.md", "s-typeless.md"]) {
+					assert.deepStrictEqual(
+						of(file).map((d) => d.code),
+						["superseded-by-unresolved"],
+						file,
+					);
+					assert.include(of(file)[0]?.message ?? "", "resolves to a file that is not a concept", file);
+				}
+				assert.deepStrictEqual(
+					of("s-out.md").map((d) => d.code),
+					["superseded-by-unresolved"],
+				);
+				assert.include(of("s-out.md")[0]?.message ?? "", "resolves to an external value");
+				// an anchor the target has gives nothing; one it lacks is broken-links alone (#463)
+				assert.deepStrictEqual(of("s-ok-anchor.md"), []);
+				assert.deepStrictEqual(
+					of("s-bad-anchor.md").map((d) => d.code),
+					["broken-links"],
+				);
+				assert.include(of("s-bad-anchor.md")[0]?.message ?? "", 'has no heading "#missing-heading"');
+				// control: a plain concept target gives nothing
+				assert.deepStrictEqual(of("s-control.md"), []);
+			}),
 	);
 });

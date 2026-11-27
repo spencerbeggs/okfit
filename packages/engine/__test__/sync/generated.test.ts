@@ -176,7 +176,35 @@ describe("locateGenerated", () => {
 	);
 });
 
+// The same table drives core's `generated-missing` test (packages/core/__test__/Validate.test.ts): core's
+// `isReplaceableNull` mirrors this locator, so a row that is replaceable here is a block sync creates there.
+const REPLACEABLE_SPELLINGS: ReadonlyArray<readonly [string, boolean]> = [
+	["generated:", true],
+	["generated: ~", true],
+	["generated: null", true],
+	["generated: NULL", true],
+	["generated: ~ # todo", true],
+	["generated:\n  ~", true],
+	['"generated": ~', true],
+	["generated: !!null", false],
+	["generated: &a ~", false],
+	["? generated\n: null", false],
+	["generated: {}", false],
+	['generated: ""', false],
+];
+
 describe("locateGeneratedBlock", () => {
+	for (const [spelling, replaceable] of REPLACEABLE_SPELLINGS) {
+		it.effect(
+			`${JSON.stringify(spelling)} is ${replaceable ? "replaceable" : "unsupported"} (shared with core's generated-missing)`,
+			() =>
+				Effect.gen(function* () {
+					const located = yield* locateGeneratedBlock(`---\ntype: Module\n${spelling}\ntitle: T\n---\n`);
+					assert.strictEqual(located._tag, replaceable ? "replace" : "unsupported");
+				}),
+		);
+	}
+
 	it.effect("classifies no-generated.md as absent, pointing at the end of the frontmatter value", () =>
 		Effect.gen(function* () {
 			const source = read("no-generated.md");

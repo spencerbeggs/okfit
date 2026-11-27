@@ -26,6 +26,7 @@ import type { YamlParseError } from "@effected/yaml";
 import { YamlDocument } from "@effected/yaml";
 import type { Actor, DerivedStatus, LoadedConcept, OkfitConfig } from "@okfit/core";
 import {
+	Concept,
 	Derive,
 	DiagnosticRange,
 	Generated,
@@ -130,22 +131,18 @@ export interface EditTarget {
 	readonly frontmatter: Range;
 }
 
-/** OKF 0.3 11.2 rule 1, as core's decode applies it: `null`, an empty string and an empty list read as absent. */
-const isAbsentValue = (value: unknown): boolean =>
-	value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
-
 /**
  * The status `Derive.status` derives from a raw frontmatter `status` value: a vocabulary string is itself, an
  * absent value (`undefined`, `null`, `""`, `[]`) is `stable` (OKF 0.3 section 11.2 rule 1), anything else is
- * `unknown`. The editor holds only raw YAML data, not a typed concept, so this mirrors core's rule locally;
- * `__test__/features/edits.test.ts` runs both over one table.
+ * `unknown`. The editor holds only raw YAML data, not a typed concept, so the absent test is core's
+ * `Concept.isAbsent` and only the vocabulary mapping is local; `__test__/features/edits.test.ts` runs both over
+ * one table.
  *
  * @public
  */
 export const derivedStatusOf = (raw: unknown): DerivedStatus => {
 	if (Schema.is(Status)(raw)) return raw;
-	const absent = raw === undefined || raw === null || raw === "" || (Array.isArray(raw) && raw.length === 0);
-	return absent ? "stable" : "unknown";
+	return Concept.isAbsent(raw) ? "stable" : "unknown";
 };
 
 /** A raw `status` as text, the way `Derive.rawStatus` writes it (a string as is, anything else as JSON). @internal */
@@ -202,7 +199,7 @@ export const editTarget = (
 		const generatedAt = Option.isSome(generatedBlock) ? generatedBlock.value.at : undefined;
 		// Core folds a legacy top-level `timestamp` into `generated.at` only when `generated` is absent (D-15); its
 		// decode is internal to `@okfit/core`, so this mirrors that one rule with the public `Generated.LEGACY_BY`.
-		const legacyAt = isAbsentValue(generatedRaw) ? decodeAt(field(data, "timestamp")) : Option.none();
+		const legacyAt = Concept.isAbsent(generatedRaw) ? decodeAt(field(data, "timestamp")) : Option.none();
 		return Option.some({
 			handle: owner.value,
 			generated:

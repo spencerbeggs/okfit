@@ -1,5 +1,18 @@
 # Log
 
+## 2026-11-27
+
+* Updated Core
+* Updated Loading never fails a concept for a bad family
+* Updated LSP
+* Updated okfit config file schema
+* Updated Heading anchors match github-slugger, through the kit's slugger
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated The declared OKF version gates the v0.2 fallbacks
+* Updated The root index's metadata is read and kept
+* Updated Markdown that is not a concept is skipped, not an error
+* Updated okfit-mcp — MCP tool and resource contract
+
 ## 2026-11-26
 
 * Updated A verification is bound to the content it covered

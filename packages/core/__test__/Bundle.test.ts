@@ -579,6 +579,61 @@ describe("Bundle.load", () => {
 			assert.isTrue(Option.isNone(body(bundle, "afterSection")));
 		}),
 	);
+	// Heading matching, pinned as it behaves today (owner ruling 6, #467): exact, case-sensitive, root-level headings
+	// only, and the first matching section in document order wins.
+	const HEADINGS: Record<string, string> = {
+		control: "# Computation\n\n```sql\nSELECT 3\n```\n",
+		dupFirstProse: "# Computation\n\nprose\n\n# Computation\n\n```sql\nSELECT 2\n```\n",
+		dupFirstFence: "# Computation\n\n```sql\nSELECT 1\n```\n\n# Computation\n\n```sql\nSELECT 2\n```\n",
+		quotedHeading: "> # Computation\n>\n> ```sql\n> SELECT 3\n> ```\n",
+		listedHeading: "- # Computation\n\n  ```sql\n  SELECT 3\n  ```\n",
+		lower: "# computation\n\n```sql\nSELECT 3\n```\n",
+		upper: "# COMPUTATION\n\n```sql\nSELECT 3\n```\n",
+		colon: "# Computation:\n\n```sql\nSELECT 3\n```\n",
+		closingHashes: "## Computation ##\n\n```sql\nSELECT 3\n```\n",
+		padded: "#   Computation   \n\n```sql\nSELECT 3\n```\n",
+	};
+	it.effect("0.3: the Computation heading matches exactly, at root level, and the first section wins (#467)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT }).pipe(
+				Effect.provide(
+					platform({
+						[`${MOUNT}/index.md`]: '---\nokf_version: "0.3"\n---\n\n# Index\n',
+						...Object.fromEntries(
+							Object.entries(HEADINGS).map(([name, text]) => [
+								`${MOUNT}/${name}.md`,
+								`---\ntype: Attested Computation\nruntime: bigquery\n---\n\n${text}`,
+							]),
+						),
+					}),
+				),
+			);
+			assert.deepStrictEqual(body(bundle, "control"), Option.some("SELECT 3"));
+			// the first section wins: a prose-only first section hides a later fence, and the reverse finds the first
+			assert.isTrue(Option.isNone(body(bundle, "dupFirstProse")));
+			assert.deepStrictEqual(body(bundle, "dupFirstFence"), Option.some("SELECT 1"));
+			// a heading inside a block quote or list item opens no section
+			assert.isTrue(Option.isNone(body(bundle, "quotedHeading")));
+			assert.isTrue(Option.isNone(body(bundle, "listedHeading")));
+			// case-sensitive and exact: no folding, no trailing punctuation
+			assert.isTrue(Option.isNone(body(bundle, "lower")));
+			assert.isTrue(Option.isNone(body(bundle, "upper")));
+			assert.isTrue(Option.isNone(body(bundle, "colon")));
+			// a closing ## sequence and surrounding spaces are not part of the heading text
+			assert.deepStrictEqual(body(bundle, "closingHashes"), Option.some("SELECT 3"));
+			assert.deepStrictEqual(body(bundle, "padded"), Option.some("SELECT 3"));
+			// a mis-cased heading fires computation-missing at the frontmatter block
+			const lowerConcept = bundle.concepts.get(id("lower"));
+			const found = Validate.lint(bundle, OkfitConfig.DEFAULTS).filter(
+				(d) => d.code === "computation-missing" && d.file === "lower.md",
+			);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(
+				lowerConcept?.document.source.slice(found[0]?.range?.offset ?? 0, (found[0]?.range?.offset ?? 0) + 3),
+				"---",
+			);
+		}),
+	);
 	it.effect("0.2 and undeclared: the same nested cases read exactly as before (the depth-1 section body)", () =>
 		Effect.gen(function* () {
 			for (const files of [nestedFiles("0.2"), (({ [`${MOUNT}/index.md`]: _, ...rest }) => rest)(nestedFiles("0.2"))]) {
@@ -616,6 +671,10 @@ describe("Bundle.load", () => {
 			assert.isTrue(OkfVersion.legacyFallbacks(old));
 			const current = yield* load("0.3");
 			assert.deepStrictEqual(codes(current.diagnostics), [["index.md", "index-metadata-invalid", 1]]);
+			assert.deepStrictEqual(
+				current.diagnostics.map((d) => d.message),
+				['okf_version 0.3 is an unquoted number; quote it as "0.3"'],
+			);
 			assert.isFalse(OkfVersion.legacyFallbacks(current));
 		}),
 	);

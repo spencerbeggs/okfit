@@ -188,22 +188,28 @@ describe("okfit stale: malformed stale_after (OKF 0.3 section 5.5)", () => {
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 
-	it.effect("control: a bundle with no unreadable stale_after has an empty malformed array and no text block", () =>
+	it.effect("control: a stale concept and no unreadable stale_after: empty malformed array, no text block (#467)", () =>
 		Effect.gen(function* () {
 			const sandbox = yield* Effect.promise(() => makeSandbox());
 			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, V03_PROJECT));
+			// patched here, not in the seed: fixtures.test.ts pins what each seed means
+			const revenue = join(sandbox.cwd, "okf", "metrics", "revenue.md");
+			const original = yield* Effect.promise(() => readFile(revenue, "utf8"));
+			const patched = original.replace("---\n\n# Revenue", "stale_after: 2025-06-01T00:00:00Z\n---\n\n# Revenue");
+			assert.notStrictEqual(patched, original);
+			yield* Effect.promise(() => writeFile(revenue, patched, "utf8"));
 
 			const json = yield* runOkfit(["stale", "--format", "json"], { ...sandbox, env: env(sandbox) });
 			assert.strictEqual(json.exitCode, 0);
 			const envelope = JSON.parse(json.stdout) as {
-				readonly summary: { readonly malformed: number };
+				readonly summary: { readonly concepts: number; readonly stale: number; readonly malformed: number };
 				readonly malformed: ReadonlyArray<unknown>;
 			};
 			assert.deepStrictEqual(envelope.malformed, []);
-			assert.strictEqual(envelope.summary.malformed, 0);
+			assert.deepStrictEqual(envelope.summary, { concepts: 6, stale: 1, malformed: 0 });
 			const text = yield* runOkfit(["stale"], { ...sandbox, env: env(sandbox) });
-			assert.notInclude(text.stdout, "malformed stale_after");
-			assert.match(text.stderr, /^0 stale concepts of \d+ in \S+\n$/);
+			assert.strictEqual(text.stdout, "metrics/revenue  2025-06-01T00:00:00.000Z  (214 days past)\n");
+			assert.strictEqual(text.stderr, "1 stale concepts of 6 in okf\n");
 		}).pipe(Effect.provide(NodeServices.layer)),
 	);
 });

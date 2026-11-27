@@ -440,6 +440,58 @@ describe("Validate", () => {
 			}),
 		);
 
+		it.effect("required-key-missing: a required, value-listed key written empty gives one diagnostic (#467)", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
+					types: {
+						Module: {
+							required: ["kind"],
+							fields: { kind: { description: "Kind.", values: { package: "npm package" } } },
+						},
+					},
+					extensions: {},
+				});
+				const both = (kind: string) =>
+					loadFromSources({ "m.md": `---\ntype: Module\nkind: ${kind}\n---\n` }).pipe(
+						Effect.map((bundle) =>
+							Validate.lint(bundle, config)
+								.filter((d) => d.code === "required-key-missing" || d.code === "field-value-unknown")
+								.map((d) => [d.code, d.message]),
+						),
+					);
+				assert.deepStrictEqual(yield* both('""'), [["required-key-missing", 'Required key "kind" is empty']]);
+				// control: a real but unlisted value is exactly one field-value-unknown
+				const bogus = yield* both("bogus");
+				assert.strictEqual(bogus.length, 1);
+				assert.strictEqual(bogus[0]?.[0], "field-value-unknown");
+			}),
+		);
+
+		it.effect("required-key-missing: a bare title: points at its own line (#467)", () =>
+			Effect.gen(function* () {
+				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["title"] }, extensions: {} });
+				const bundle = yield* loadFromSources({
+					"bare.md": "---\ntype: Note\ntags: [a]\ntitle:\n---\n",
+					"gone.md": "---\ntype: Note\ntags: [a]\n---\n",
+				});
+				const found = requiredFound(bundle, config);
+				const bare = found.find((d) => d.file === "bare.md");
+				const gone = found.find((d) => d.file === "gone.md");
+				const docOf = (path: string) => [...bundle.concepts.values()].find((c) => c.path === path)?.document;
+				const bareDoc = docOf("bare.md");
+				const goneDoc = docOf("gone.md");
+				assert.isDefined(bare);
+				assert.isDefined(bareDoc);
+				assert.isDefined(goneDoc);
+				if (bareDoc === undefined || goneDoc === undefined) return;
+				assert.deepStrictEqual(bare?.range, frontmatterPathRange(bareDoc, ["title"]));
+				assert.strictEqual(bare?.range?.line, 3);
+				// control: the unwritten key's range is the block's
+				assert.deepStrictEqual(gone?.range, frontmatterPathRange(goneDoc, []));
+				assert.strictEqual(gone?.range?.line, 0);
+			}),
+		);
+
 		it.effect("required-key-missing: whitespace, 0, false and {} are present", () =>
 			Effect.gen(function* () {
 				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, { concepts: { required: ["k"] }, extensions: {} });
@@ -470,21 +522,108 @@ describe("Validate", () => {
 			}),
 		);
 
-		it.effect("generated-missing: generated written null, empty string or empty list counts as no block", () =>
+		it.effect("generated-missing: an absent or unreadable generated counts as no block (#466)", () =>
 			Effect.gen(function* () {
 				const config = OkfitConfig.merge(OkfitConfig.DEFAULTS, {
 					actors: { agent: "okfit/claude-code" as Actor, humans: [] },
 					extensions: {},
 				});
-				const hits = (generated: string) =>
-					loadFromSources({ "m.md": `---\ntype: Note\ngenerated: ${generated}\n---\n` }).pipe(
+				const hits = (frontmatter: string) =>
+					loadFromSources({ "m.md": `---\ntype: Note\n${frontmatter}\n---\n` }).pipe(
 						Effect.map((bundle) => Validate.lint(bundle, config).filter((d) => d.code === "generated-missing")),
 					);
-				assert.strictEqual((yield* hits('""')).length, 1);
-				assert.strictEqual((yield* hits("[]")).length, 1);
-				assert.strictEqual((yield* hits("null")).length, 1);
-				// The control: a real block is present.
-				assert.strictEqual((yield* hits("{ by: okfit/claude-code }")).length, 0);
+				const missing =
+					/^Concept has no generated block; okfit sync will create it from actors\.agent \(okfit\/claude-code\)/;
+				// Only an unwritten key or an untagged, unanchored plain null is something sync replaces (#466).
+				for (const value of ["null", "~", ""]) {
+					const found = yield* hits(`generated: ${value}`);
+					assert.strictEqual(found.length, 1, value);
+					assert.match(found[0]?.message ?? "", missing);
+				}
+				assert.match((yield* hits("tags: [a]"))[0]?.message ?? "", missing);
+				// A bare `generated:` is a block sync creates, so its diagnostic names no key and sits at the block (line 0);
+				// only a written block the decoder ignores is anchored at its own `generated` key (line 2, below).
+				assert.strictEqual((yield* hits("generated:"))[0]?.range?.line, 0);
+				// A written block the decoder ignores reads as absent, and sync cannot fill it in: `""`, `[]` and a tagged
+				// or anchored null are skipped as generated-unsupported, like `{}`.
+				for (const value of [
+					"{}",
+					"{ at: 2026-01-01T00:00:00Z }",
+					"{ by: [1] }",
+					"5",
+					'""',
+					"[]",
+					"!!null",
+					"!!null null",
+					"&a ~",
+				]) {
+					const found = yield* hits(`generated: ${value}`);
+					assert.strictEqual(found.length, 1, value);
+					assert.strictEqual(
+						found[0]?.message,
+						"Concept's generated block has no readable generated.by, so it reads as absent (OKF 0.3 §5.2), and okfit sync cannot fill in a block that is written; set generated.by by hand",
+						value,
+					);
+					assert.strictEqual(found[0]?.range?.line, 2, value);
+				}
+				// A hand-written legacy-timestamp actor is a readable block: nothing is missing (the fold is told apart by
+				// `raw.generated` being absent, not by the actor string).
+				assert.strictEqual(
+					(yield* hits("generated: { by: process:legacy-timestamp, at: 2026-01-01T00:00:00Z }")).length,
+					0,
+				);
+				// A flow-style frontmatter block is never one sync edits, so a written null there is a hand edit; one that
+				// never wrote `generated` is still a block sync creates.
+				const flow = (body: string) =>
+					loadFromSources({ "m.md": `---\n${body}\n---\n` }).pipe(
+						Effect.map((bundle) => Validate.lint(bundle, config).filter((d) => d.code === "generated-missing")),
+					);
+				assert.match((yield* flow("{ type: Note, generated: null }"))[0]?.message ?? "", /set generated\.by by hand$/);
+				assert.match(
+					(yield* flow("{ type: Note, generated: null }"))[0]?.message ?? "",
+					/cannot fill in a block that is written/,
+				);
+				assert.match((yield* flow("{ type: Note }"))[0]?.message ?? "", /okfit sync will create it/);
+				// The spellings the engine's `locateGeneratedBlock` replaces get the create message and the rest the hand-edit
+				// one; the same table runs against the locator in packages/engine/__test__/sync/generated.test.ts.
+				const spellings: ReadonlyArray<readonly [string, boolean]> = [
+					["generated:", true],
+					["generated: ~", true],
+					["generated: null", true],
+					["generated: NULL", true],
+					["generated: ~ # todo", true],
+					["generated:\n  ~", true],
+					['"generated": ~', true],
+					["generated: !!null", false],
+					["generated: &a ~", false],
+					["? generated\n: null", false],
+					["generated: {}", false],
+					['generated: ""', false],
+				];
+				for (const [spelling, replaceable] of spellings) {
+					const found = yield* hits(spelling);
+					assert.strictEqual(found.length, 1, spelling);
+					assert.strictEqual(/okfit sync will create it/.test(found[0]?.message ?? ""), replaceable, spelling);
+				}
+				// The load diagnostic is still reported beside it.
+				const bundle = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
+				assert.isTrue(Validate.lint(bundle, config).some((d) => d.code === "entry-ignored"));
+				// A legacy timestamp alone: sync cannot convert it.
+				const legacy = yield* hits("timestamp: 2026-01-01T00:00:00Z");
+				assert.strictEqual(legacy.length, 1);
+				assert.strictEqual(
+					legacy[0]?.message,
+					"Concept has no generated block, only a legacy timestamp, which okfit sync cannot convert; replace it with a generated block (generated.by, and generated.at from the timestamp) by hand",
+				);
+				assert.strictEqual(legacy[0]?.range?.line, 2);
+				// `generated: null` beside a timestamp: the timestamp folds in, and sync skips it as generated-unsupported.
+				const nullLegacy = yield* hits("generated: null\ntimestamp: 2026-01-01T00:00:00Z");
+				assert.strictEqual(nullLegacy.length, 1);
+				assert.match(nullLegacy[0]?.message ?? "", /^Concept has no generated block, only a legacy timestamp/);
+				assert.strictEqual(nullLegacy[0]?.range?.line, 3);
+				// Controls: a readable block is present, with or without a timestamp beside it.
+				assert.strictEqual((yield* hits("generated: { by: okfit/claude-code }")).length, 0);
+				assert.strictEqual((yield* hits("generated: { by: human:a }\ntimestamp: 2026-01-01T00:00:00Z")).length, 0);
 			}),
 		);
 	});
@@ -517,6 +656,11 @@ describe("Validate", () => {
 				const diagnostics = Validate.lint(bundle, OkfitConfig.DEFAULTS);
 				assert.deepStrictEqual(
 					diagnostics.filter((d) => d.code === "generated-missing"),
+					[],
+				);
+				const written = yield* loadFromSources({ "m.md": "---\ntype: Note\ngenerated: {}\n---\n" });
+				assert.deepStrictEqual(
+					Validate.lint(written, OkfitConfig.DEFAULTS).filter((d) => d.code === "generated-missing"),
 					[],
 				);
 			}),
@@ -590,6 +734,57 @@ describe("Validate", () => {
 			assert.match(messages[2] ?? "", /"#no-such-self" exists but has no heading "#no-such-self"/);
 			assert.isDefined(lint[1]?.range);
 			assert.isDefined(lint[2]?.range);
+		}),
+	);
+
+	it.effect("broken-links checks the anchor of a path field (#463)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* loadFromSources({
+				"new.md": "---\ntype: Note\n---\n\n# New\n\n## Real heading\n",
+				"sup-bad.md": "---\ntype: Note\nstatus: deprecated\nsuperseded_by: ./new.md#missing-heading\n---\n",
+				"sup-ok.md": "---\ntype: Note\nstatus: deprecated\nsuperseded_by: ./new.md#real-heading\n---\n",
+				"res.md":
+					"---\ntype: Note\nresource: ./new.md#nope\nsources:\n  - resource: ./new.md#nada\n  - resource: ./new.md#new\n---\n",
+				"comp.md":
+					"---\ntype: Attested Computation\nruntime: sql\ncomputation: ./q.sql#x\nexecutor:\n  resource: ./new.md#bad\nattester:\n  resource: ./new.md#zzz\n---\n",
+				"q.sql": "",
+				"log.md": "# Log\n",
+				"typeless.md": "---\ntitle: t\n---\n",
+				"nc.md": "---\ntype: Note\nresource: ./log.md#x\nsources:\n  - resource: ./typeless.md#x\n---\n",
+			});
+			const lint = Validate.lint(bundle, OkfitConfig.DEFAULTS);
+			const found = lint
+				.filter((d) => d.code === "broken-links")
+				.map((d) => [d.file, d.message, d.range?.line] as const);
+			assert.deepStrictEqual(found, [
+				[
+					"comp.md",
+					'executor.resource "./new.md#bad" exists but has no heading "#bad"; its headings: #new, #real-heading',
+					5,
+				],
+				[
+					"comp.md",
+					'attester.resource "./new.md#zzz" exists but has no heading "#zzz"; its headings: #new, #real-heading',
+					7,
+				],
+				["res.md", 'resource "./new.md#nope" exists but has no heading "#nope"; its headings: #new, #real-heading', 2],
+				[
+					"res.md",
+					'sources[].resource "./new.md#nada" exists but has no heading "#nada"; its headings: #new, #real-heading',
+					4,
+				],
+				[
+					"sup-bad.md",
+					'superseded_by "./new.md#missing-heading" exists but has no heading "#missing-heading"; its headings: #new, #real-heading',
+					3,
+				],
+			]);
+			// controls: a good anchor, a path to a non-concept, and a replacement with a bad anchor is not also unresolved
+			assert.isFalse(found.some(([file]) => file === "sup-ok.md"));
+			assert.isFalse(found.some(([, message]) => message.includes("computation")));
+			// a reserved file and a typeless file are not concepts, so their anchors are never checked
+			assert.isFalse(found.some(([file]) => file === "nc.md"));
+			assert.isFalse(lint.some((d) => d.file === "sup-bad.md" && d.code === "superseded-by-unresolved"));
 		}),
 	);
 

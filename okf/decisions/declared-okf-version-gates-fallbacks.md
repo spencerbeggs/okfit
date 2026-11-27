@@ -13,15 +13,15 @@ sources:
     title: The root fallback that reads the gate.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T16:20:52Z
+  at: 2026-11-27T22:02:01Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 6b23e6200b970892
+    body: f3f03e95619e021d
   verified:
     by: human:spencer
-    at: 2026-11-24T17:12:02Z
-    content: 68a8cf7715ac334c
+    at: 2026-11-27T22:16:13Z
+    content: d81a16355d024b6a
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:45Z
@@ -31,6 +31,8 @@ verified:
     at: 2026-11-24T14:56:24Z
   - by: human:spencer
     at: 2026-11-24T17:12:02Z
+  - by: human:spencer
+    at: 2026-11-27T22:16:13Z
 ---
 
 # The declared OKF version gates the v0.2 fallbacks
@@ -52,6 +54,17 @@ The declared version is the `okf_version` of the bundle-root `index.md`
 (`OkfVersion.declared`). It is read as exactly `<major>.<minor>`
 (`OkfVersion.parse`; no `v`, no patch, no whitespace) and compared
 numerically, major first, so `0.10` sorts after `0.9` (`OkfVersion.compare`).
+An unquoted number is read by its source text, because YAML would otherwise
+turn `0.10` into the number 0.1: `okf_version: 0.10` declares 0.10 and reads as
+current, and `okf_version: 0.2` declares 0.2 and keeps the fallbacks. The
+`index-metadata-invalid` warning shows the written value and says to quote it.
+An unquoted number gates the fallbacks by what it says, because §12.1 keys
+them on what a bundle declares and §11.2 rule 4 keeps a value outside its
+vocabulary, so treating it as no declaration would hand the fallbacks to an
+author who wrote 0.3 or 0.10. Unquoted text that is not a `<major>.<minor>`
+pair (`.2`, `0.2e0`, `1e1`) declares that text, which does not parse and reads
+as current, and so does a value with no readable version text (`true`, a list,
+a mapping), as below.
 
 One gate, `OkfVersion.legacyFallbacks(bundle)`, answers whether the v0.2
 fallbacks apply. It is true when the bundle declares no version, or declares
@@ -67,15 +80,20 @@ current, best effort as §12 asks, and the root index load reports it as
   fields alike. §6.2 names only path fields for the fallback; keeping it for
   links in old bundles is okfit being lenient to bundles it already accepted.
 - **Computation locator.** For a bundle that declares 0.3 or later,
-  `computationBody` is the code of the first fenced block among the direct
-  children of the first `Computation` section, at any heading level. No
+  `computationBody` is the code of the first fenced code block in the first
+  `Computation` section, at any heading level, in source order. A fence
+  nested in a list item or a block quote counts, as okfit reads §10.3's
+  "the first fenced code block in the section" (the spec does not mention
+  nesting), and a nested fence before a root-level one wins. A deeper subheading does not end the section. The
+  `Computation` heading match is exact and case-sensitive, and only a
+  root-level heading opens a section. No
   fence means no computation; an empty fence yields an empty string. A fence
   counts only when it opens with three backticks or tildes after at most
-  three spaces of indentation, so an indented code block is not a fence. The locator looks only at the
-  root-level blocks of the `Computation` section and of its subsections, so a
-  fence nested inside a list item or a block quote is not found. For
-  a bundle declaring 0.2 or earlier, or nothing, `computationBody` stays the
-  body of the depth-1 `Computation` section.
+  three spaces of indentation, so an indented code block is not a fence.
+  `packages/core/__test__/Bundle.test.ts` pins this: "0.3: a fence nested in
+  a list item or block quote of the Computation section is found (R17)".
+  For a bundle declaring 0.2 or earlier, or nothing, `computationBody` stays
+  the body of the depth-1 `Computation` section.
 
 `computationBody` is the inline form only. When `attested.computation` names
 a file, §10.3 says that file is the computation; core does not read it,

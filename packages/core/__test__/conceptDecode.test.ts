@@ -292,14 +292,16 @@ describe("decodeConcept", () => {
 		assert.deepStrictEqual(concept.entries?.parameters, [["parameters", 0]]);
 		assert.deepStrictEqual(shape(issues), [["entry-ignored", "attested", ["parameters", 1]]]);
 	});
-	it("drops a malformed Source.usage_window alone and keeps the source", () => {
+	it("drops a malformed Source.usage_window key alone and keeps the source and its good key (#461)", () => {
 		const { concept, issues } = decoded({
 			type: "Note",
 			sources: [{ resource: "a.md", usage_window: { from: "2026-06-01T00:00:00Z", to: "soon" } }],
 		});
 		assert.strictEqual(concept.sources?.[0]?.resource, "a.md");
-		assert.isFalse("usage_window" in concept.sources![0]!);
-		assert.deepStrictEqual(shape(issues), [["value-malformed", "sources", ["sources", 0, "usage_window"]]]);
+		const window = concept.sources![0]!.usage_window;
+		assert.isDefined(window?.from);
+		assert.isUndefined(window?.to);
+		assert.deepStrictEqual(shape(issues), [["value-malformed", "sources", ["sources", 0, "usage_window", "to"]]]);
 	});
 	it("ignores a source with an empty resource and a non-mapping item", () => {
 		const empty = decoded({ type: "Note", sources: [{ resource: "" }, { resource: "ok.md" }] });
@@ -426,13 +428,33 @@ describe("decodeConcept", () => {
 			assert.deepStrictEqual(shape(issues), [["entry-ignored", "generated", ["generated"]]]);
 			assert.isTrue("generated" in decoded({ type: "Note", generated: { by: "human:a", at: [1] } }).concept);
 		});
-		it("a source's own usage_window is dropped whole when any key is bad, and {} is kept", () => {
+		it("a source's own usage_window emptied by dropped keys reads as absent, and {} is kept", () => {
 			const bad = decoded({ type: "Note", sources: [{ resource: "a.md", usage_window: { to: [1] } }] });
 			assert.isFalse("usage_window" in bad.concept.sources![0]!);
-			assert.deepStrictEqual(shape(bad.issues), [["value-malformed", "sources", ["sources", 0, "usage_window"]]]);
+			assert.deepStrictEqual(shape(bad.issues), [["value-malformed", "sources", ["sources", 0, "usage_window", "to"]]]);
 			const empty = decoded({ type: "Note", sources: [{ resource: "a.md", usage_window: {} }] });
 			assert.isTrue("usage_window" in empty.concept.sources![0]!);
 			assert.deepStrictEqual(empty.issues, []);
 		});
+	});
+	it("decodes a source's usage_window key by key, in key order (#461)", () => {
+		const { concept, issues } = decoded({
+			type: "Note",
+			sources: [{ resource: "a.md", author: 5, usage_window: { from: [1], to: "2026-01-01T00:00:00Z" } }],
+		});
+		assert.deepStrictEqual(shape(issues), [
+			["value-malformed", "sources", ["sources", 0, "author"]],
+			["value-malformed", "sources", ["sources", 0, "usage_window", "from"]],
+		]);
+		const window = concept.sources![0]!.usage_window;
+		assert.isDefined(window?.to);
+		assert.isUndefined(window?.from);
+	});
+	it("a non-mapping usage_window inside a source drops only itself (#461)", () => {
+		const { concept, issues } = decoded({ type: "Note", sources: [{ resource: "a.md", usage_window: 5 }] });
+		assert.deepStrictEqual(shape(issues), [["value-malformed", "sources", ["sources", 0, "usage_window"]]]);
+		assert.include(issues[0]!.message, "expected a mapping");
+		assert.strictEqual(concept.sources![0]!.resource, "a.md");
+		assert.isUndefined(concept.sources![0]!.usage_window);
 	});
 });

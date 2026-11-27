@@ -30,7 +30,10 @@ export class OkfVersion {
 	static readonly compare = (a: OkfVersionNumber, b: OkfVersionNumber): -1 | 0 | 1 =>
 		a.major !== b.major ? (a.major < b.major ? -1 : 1) : a.minor === b.minor ? 0 : a.minor < b.minor ? -1 : 1;
 
-	/** The version the bundle-root `index.md` declares, as written; `None` when there is no root index or no `okf_version`. */
+	/**
+	 * The version the bundle-root `index.md` declares, as written; `None` when there is no root index or no `okf_version`.
+	 * An unquoted number is its source text (`0.10`, not `0.1`).
+	 */
 	static readonly declared = (bundle: LoadedBundle): Option.Option<string> =>
 		Option.fromNullishOr(bundle.indexes.get("")?.okfVersion);
 

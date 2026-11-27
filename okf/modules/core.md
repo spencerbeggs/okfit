@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T09:24:00Z
+  at: 2026-11-27T21:52:58Z
 x-okfit-integrity:
   generated:
-    body: ed0580e4f3394686
+    body: 28658e65a2bdaa13
 ---
 
 # Core
@@ -114,7 +114,13 @@ value (`verified[i].by`, `generated.by`, `sources[i].author`), `stale` at
 `stale_after`, and `require-verified-unmet` at `status`. A rule with
 nothing to point at — `required-key-missing`, `status-missing`,
 `generated-missing` — anchors at the frontmatter block instead of a key
-that is not there. Bundle-level rules (`config-unknown-key`,
+that is not there. `generated-missing` anchors at the block only when sync
+would create the block (`generated` unwritten, a bare `generated:` or a plain
+null); for a written `generated` the decoder ignores it anchors at the
+`generated` key, and for a legacy `timestamp` at that key. A value with no
+text (a bare `key:`, `key: !!null`) anchors a diagnostic at its key, and edits
+still splice only into a value's own text (`DiagnosticRange.forFrontmatterPath`
+never returns the key; `forFrontmatterKey` does). Bundle-level rules (`config-unknown-key`,
 `missing-index`) stay range-less. A quoted YAML scalar's range includes
 the surrounding quotes.
 
@@ -196,7 +202,8 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
   the start of that day in UTC.
 - **`superseded_by`.** A typed string field on `Concept`, a sixth path
   field (`PathField` `superseded_by`) and a graph edge, so `broken-links`
-  reports a dangling one and the language server's document links and
+  reports a dangling one, or an anchor its target concept does not have, and
+  the language server's document links and
   definition follow it. `superseded-by-orphan` fires on `superseded_by`
   without `status: deprecated`; `superseded-by-unresolved` fires when a
   deprecated concept's value resolves to an asset, an external value or the
@@ -220,14 +227,22 @@ Core reads OKF v0.3 bundles and still reads v0.2 ones. The pieces:
 - **Computation.** `computationBody` follows the §10.3 locator for a bundle
   declaring 0.3 or later, and finds a fence nested in a list item or block
   quote; `executor.resource`, `executor.receipt` and `attester.resource` are
-  optional; `parameters` decode per entry. A single mapping whose every key
-  was dropped (`usage_window`, `executor`, `attester`) reads as absent; one
-  written as `{}` is kept. A source's own `usage_window` is decoded as one
-  value, so one bad key drops all of it.
+  optional; `parameters` decode per entry. A single mapping whose every
+  written known key was dropped (`usage_window`, `executor`, `attester`) reads
+  as absent, even when it also has unknown keys; one with nothing dropped
+  (`{}`, or only unknown keys) is kept. A source's own `usage_window` is
+  decoded key by key like the top-level one, so a good key beside a bad one is
+  kept.
 - **Empty values.** `required-key-missing` treats a key written as null,
   `""` or `[]` as absent, with the message "is empty" (an unwritten key is "is
-  missing"); `field-value-unknown` and `generated-missing` use the same test,
-  so an empty value is absent for all three.
+  missing"); `field-value-unknown` uses the same test, so an empty value is absent for
+  both. `generated-missing` reads the decoded `generated`, so a `generated`
+  the decoder ignores (`{}`, or a block with no readable `by`) also counts as
+  none, with its own "set generated.by by hand" message, and so does a legacy
+  `timestamp` alone, which sync cannot convert; sync creates only a block
+  that is unwritten or a plain null, and skips `""`, `[]` and a tagged or
+  anchored null (`!!null`, `&a ~`) as unsupported, so those get the hand-edit
+  message too. `Concept.isAbsent` is the one absent test.
 - **One document parse.** `Bundle.parseDocument(text)` returns
   `Result<MarkdownDocument, MarkdownParseError>`; `Bundle.load` and `okfit mv`
   both parse through it, so the two cannot disagree about what a file is.

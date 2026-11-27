@@ -7,6 +7,7 @@ import { Concept } from "../Concept.js";
 import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
+import { Generated } from "../Generated.js";
 import { generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
@@ -14,9 +15,9 @@ import { INTEGRITY_KEY } from "../Integrity.js";
 import type { OkfitConfig } from "../OkfitConfig.js";
 import { OkfVersion } from "../OkfVersion.js";
 import { Timestamp } from "../Timestamp.js";
-import { isAbsent } from "./conceptDecode.js";
 import { frontmatterPathRange } from "./frontmatter.js";
 import { tierOf } from "./tier.js";
+import { isReplaceableNull } from "./yamlPathSpan.js";
 
 /** Everything one lint rule may read; built once per `Validate.lint` call. */
 export interface LintContext {
@@ -33,7 +34,8 @@ export interface LintContext {
 export type LintRule = (context: LintContext) => ReadonlyArray<Diagnostic>;
 
 /** OKF 0.3 §11.2 rule 1: a key holding null, the empty string or the empty list is absent. */
-const present = (raw: Record<string, unknown>, key: string): boolean => Object.hasOwn(raw, key) && !isAbsent(raw[key]);
+const present = (raw: Record<string, unknown>, key: string): boolean =>
+	Object.hasOwn(raw, key) && !Concept.isAbsent(raw[key]);
 
 const diagnostic = (
 	file: string,
@@ -261,17 +263,45 @@ export const nonConceptUnlisted: LintRule = rule("non-concept-unlisted", (contex
 		);
 });
 
-// Issue #73: `okfit sync` can only complete a `generated:` block that exists
-// (or, from this change on, create one from `actors.agent`). Surface the
-// missing block at validate time, before the commit, instead of leaving it
-// to sync's post-commit `skipped` list.
-export const generatedMissing: LintRule = perConcept("generated-missing", (concept, context) =>
-	context.config.actors?.agent !== undefined && !present(concept.frontmatter.raw, "generated")
-		? [
-				`Concept has no generated block; okfit sync will create it from actors.agent (${context.config.actors.agent}) once the body is committed, or set generated.by by hand`,
-			]
-		: [],
-);
+// Issue #73, #466: `okfit sync` can create a `generated:` block that is missing, or complete one that exists, but it
+// replaces only an unwritten (or plain null) block. This reads the decoded `generated`, as sync does: a written block
+// the decoder ignores (no readable `by`, OKF 0.3 §5.2) reads as absent, and so does a legacy `timestamp` that only
+// folds into one. Those two need a hand edit, so each says so at the key, before the commit.
+export const generatedMissing: LintRule = perConcept("generated-missing", (concept, context) => {
+	const agent = context.config.actors?.agent;
+	if (agent === undefined) return [];
+	const frontmatter = concept.frontmatter;
+	if (frontmatter.generated !== undefined) {
+		return !Concept.isAbsent(frontmatter.raw.generated) || frontmatter.generated.by !== Generated.LEGACY_BY
+			? []
+			: [
+					{
+						path: ["timestamp"],
+						message:
+							"Concept has no generated block, only a legacy timestamp, which okfit sync cannot convert; replace it with a generated block (generated.by, and generated.at from the timestamp) by hand",
+					},
+				];
+	}
+	// Sync replaces only an unwritten key or an untagged plain null; `""`, `[]`, a tagged or anchored null and any
+	// value the decoder ignored are written, so they need a hand edit.
+	// A concept exists only when its frontmatter block parsed, so the block is always there. The `hasOwn` guard is
+	// needed: `isReplaceableNull` answers `false` for any flow-style block, including one that never wrote `generated`.
+	const document = Option.getOrUndefined(concept.document.frontmatter);
+	const written =
+		document !== undefined && Object.hasOwn(frontmatter.raw, "generated") && !isReplaceableNull(document, "generated");
+	if (written) {
+		return [
+			{
+				path: ["generated"],
+				message:
+					"Concept's generated block has no readable generated.by, so it reads as absent (OKF 0.3 §5.2), and okfit sync cannot fill in a block that is written; set generated.by by hand",
+			},
+		];
+	}
+	return [
+		`Concept has no generated block; okfit sync will create it from actors.agent (${agent}) once the body is committed, or set generated.by by hand`,
+	];
+});
 
 /**
  * OKF 0.3 §10.3: an Attested Computation with neither a `computation` key nor an inline computation is not
@@ -545,19 +575,26 @@ export const brokenLinks: LintRule = rule("broken-links", (context, severity) =>
 		targetId: string,
 		target: LoadedConcept,
 		position: DiagnosticRange | undefined,
+		label = "Link target",
 	): void => {
 		const fragment = fragmentOf(raw);
 		if (fragment === undefined || fragment === "") return;
 		const slugs = slugsOf(targetId, target);
 		if (slugs.includes(fragment)) return;
-		const message = `Link target "${raw}" exists but has no heading "#${fragment}"; ${candidateHint(fragment, slugs)}`;
+		const message = `${label} "${raw}" exists but has no heading "#${fragment}"; ${candidateHint(fragment, slugs)}`;
 		anchors.push(diagnostic(file, "broken-links", severity, message, position));
 	};
 	for (const link of context.graph.edges) {
-		if (link.data.source !== "body") continue;
+		const { field } = link.data;
+		// OKF 0.3 6: links and path fields refer to files with the same rules, so a path field's `#fragment` is
+		// checked like a body link's, and only when its target is a concept (6.1).
+		if (link.data.source !== "body" && field === undefined) continue;
+		// A replacement that is the concept itself is `superseded-by-unresolved`'s report; it is not also an anchor miss.
+		if (field === "superseded_by" && link.to === link.from) continue;
 		const target = byId.get(link.to);
 		if (target === undefined) continue;
-		check(fileOf(link.from), link.data.raw, link.to, target, link.data.position);
+		const label = field === undefined ? undefined : field === "sources.resource" ? "sources[].resource" : field;
+		check(fileOf(link.from), link.data.raw, link.to, target, link.data.position, label);
 	}
 	// A self-anchor (`[x](#heading)`) resolves to `self` and never becomes an edge (D-25), so read it off the document.
 	for (const concept of context.bundle.concepts.values()) {

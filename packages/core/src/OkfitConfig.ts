@@ -196,7 +196,8 @@ export const LintTable = Schema.Struct({
 	broken_links: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "broken-links",
-			description: 'A link in a concept\'s body or frontmatter does not resolve. Default "warn".',
+			description:
+				'A link in a concept\'s body or a path field in its frontmatter does not resolve, or names a #heading its target concept does not have. Default "warn".',
 			default: "warn",
 		}),
 	),
@@ -446,7 +447,7 @@ export const LintTable = Schema.Struct({
 		LintLevel.annotate({
 			title: "generated-missing",
 			description:
-				'A concept has no generated block while actors.agent is configured, so okfit sync cannot stamp generated.at until the block exists (issue #73). Default "warn"; silent when actors.agent is unset.',
+				'A concept has no readable generated block (none, one written without a readable generated.by, or only a legacy timestamp) while actors.agent is configured; okfit sync creates one that is unwritten or a plain null, and the others need a hand edit (issue #73). Default "warn"; silent when actors.agent is unset.',
 			default: "warn",
 		}),
 	),

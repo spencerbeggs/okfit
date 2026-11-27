@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T16:40:43Z
+  at: 2026-11-27T20:49:23Z
 tags:
   - architecture
 verified:
@@ -49,13 +49,15 @@ verified:
     at: 2026-11-26T03:32:37Z
   - by: human:spencer
     at: 2026-11-26T06:31:51Z
+  - by: human:spencer
+    at: 2026-11-27T22:16:13Z
 x-okfit-integrity:
   generated:
-    body: 73291a98d91e83dd
+    body: 6e6fd46752a7d728
   verified:
     by: human:spencer
-    at: 2026-11-26T06:31:51Z
-    content: ee84220b6508be1d
+    at: 2026-11-27T22:16:13Z
+    content: 4a33969995fc8803
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -93,8 +95,9 @@ Actions (the CI audience), `validate` and `lint` also print one `::error`,
 interleaved: each follows its own diagnostic line. The
 annotation's `file` is relative to `GITHUB_WORKSPACE` (the working directory
 when unset) and is omitted when the bundle lies outside it; `--format json`
-is unchanged. A `broken-links` anchor diagnostic ends with a hint naming the
-fix: `; did you mean "#<slug>"?` when one heading is close, otherwise `; its
+is unchanged. A `broken-links` anchor diagnostic (for a body link or a path field, whose
+message names the field: `superseded_by "..." exists but has no heading ...`)
+ends with a hint naming the fix: `; did you mean "#<slug>"?` when one heading is close, otherwise `; its
 headings: #a, #b, … (+N more)` (up to five), or `; it has no headings` when
 the target has none.
 `--skip-provenance` skips only the fallback, git-derived tier of

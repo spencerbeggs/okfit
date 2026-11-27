@@ -205,6 +205,28 @@ describe("FrontmatterEdits.rendersDigests", () => {
 		),
 	);
 
+	it.effect("a bare body: takes the digest as its value, with no second body key and no lost key (#467)", () =>
+		Effect.map(stampRenders(pub("  - path: a.md\n    body:"), [D1]), (out) => {
+			assert.strictEqual(out, pub(`  - path: a.md\n    body: ${D1}`));
+			assert.strictEqual(out.split("body:").length - 1, 1);
+		}),
+	);
+
+	it.effect("a null-valued body (!!null, with a trailing comment) takes the digest as its value", () =>
+		Effect.gen(function* () {
+			assert.strictEqual(
+				yield* stampRenders(pub("  - path: a.md\n    body: !!null"), [D1]),
+				pub(`  - path: a.md\n    body: ${D1}`),
+			);
+			assert.strictEqual(
+				yield* stampRenders(pub("  - path: a.md\n    body: !!null # none yet"), [D1]),
+				pub(`  - path: a.md\n    body: ${D1} # none yet`),
+			);
+			// control: a plain unstamped entry still gets its body line inserted
+			assert.strictEqual(yield* stampRenders(pub("  - path: a.md"), [D1]), pub(`  - path: a.md\n    body: ${D1}`));
+		}),
+	);
+
 	it.effect("handles one stamped and one unstamped entry", () => {
 		const source = pub(`  - path: a.md\n    body: ${"0".repeat(16)}\n  - path: b.md`);
 		return Effect.map(stampRenders(source, [D1, D2]), (out) =>

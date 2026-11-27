@@ -41,6 +41,11 @@ describe("AttestedComputation", () => {
 });
 
 describe("Concept", () => {
+	it("Concept.isAbsent is OKF 0.3 section 11.2 rule 1", () => {
+		for (const absent of [undefined, null, "", []]) assert.isTrue(Concept.isAbsent(absent));
+		for (const present of ["  ", 0, false, {}, [null], "x"]) assert.isFalse(Concept.isAbsent(present));
+	});
+
 	it.effect("decodes a full concept through the strict codec", () =>
 		Effect.gen(function* () {
 			assert.strictEqual(ATTESTED_COMPUTATION_TYPE, "Attested Computation");

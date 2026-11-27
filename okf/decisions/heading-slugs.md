@@ -17,22 +17,22 @@ sources:
     resource: ../../packages/core/src/internal/lintRules.ts
 generated:
   by: okfit/claude-code
-  at: 2026-11-05T22:55:24Z
+  at: 2026-11-27T20:58:38Z
 x-okfit-integrity:
   generated:
-    body: 17d50c93ca38cebd
+    body: bf23ccf71445035d
 ---
 
 # Heading anchors match github-slugger, through the kit's slugger
 
 ## Context
 
-`broken-links` checks a `#fragment` against the target concept's heading
-slugs. okfit computed those with its own rule, described as GitHub-style, that
-collapsed runs of spaces, trimmed, and dropped underscores and combining marks.
-So `## A — B` slugged to `#a-b` where GitHub-style tools give `#a--b`, a link
-could pass the lint and fail on GitHub or the reverse, and two headings in one
-concept could share a slug[^okfit-361].
+`broken-links` checks a `#fragment` of a body link or a path field against the
+target concept's heading slugs. okfit computed those with its own rule,
+described as GitHub-style, that collapsed runs of spaces, trimmed, and dropped
+underscores and combining marks. So `## A — B` slugged to `#a-b` where
+GitHub-style tools give `#a--b`, a link could pass the lint and fail on GitHub
+or the reverse, and two headings in one concept could share a slug[^okfit-361].
 
 ## Decision
 

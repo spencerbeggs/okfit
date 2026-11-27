@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-24T20:41:11Z
+  at: 2026-11-27T20:54:29Z
 status: stable
 verified:
   - by: human:spencer
@@ -19,13 +19,15 @@ verified:
     at: 2026-11-24T02:55:14Z
   - by: human:spencer
     at: 2026-11-24T22:21:07Z
+  - by: human:spencer
+    at: 2026-11-27T22:16:13Z
 x-okfit-integrity:
   generated:
-    body: 04ff96882fc335a2
+    body: f0588a5ddbdb0d61
   verified:
     by: human:spencer
-    at: 2026-11-24T22:21:07Z
-    content: 26501615068f6a1d
+    at: 2026-11-27T22:16:13Z
+    content: bb7ed61bd8ae7ad7
 ---
 
 # Loading never fails a concept for a bad family
@@ -66,10 +68,11 @@ has to. The reading follows §11.2 rule by rule:
    knowledge and never read as `stable`.
 
 A single mapping family (`usage_window`, `executor`, `attester`) whose every
-key was dropped reads as absent, with the per-key warnings kept; a mapping
-written as `{}` has nothing dropped and is kept. A source's own `usage_window`
-is the exception to key-by-key reading: it decodes as one value, so one bad
-key drops all of it and its good keys with it.
+written known key was dropped reads as absent, with the per-key warnings kept,
+even when it also has unknown keys: an unknown key is never read, so it never
+keeps a mapping present. A mapping with nothing dropped, written as `{}` or
+holding only unknown keys, is kept. A source's own `usage_window` decodes key
+by key like the top-level one, so a good key beside a bad one is kept.
 
 All three codes are lint codes with default severity `warn`; none fails
 conformance. The concept keeps its place in the graph and every index.
@@ -100,7 +103,11 @@ written as null, `""` or `[]` as absent and says "is empty" where an unwritten
 key says "is missing", ranged at the key's own line. The same test decides
 `field-value-unknown` (an empty value is absent, not an unknown value) and
 `generated-missing` (a `generated` written as null, `""` or `[]` counts as no
-block).
+block, and so does one the decoder ignores for want of a readable `by`, such as
+`{}`; the lint says sync will create it only for an unwritten key or an
+untagged plain null, which sync replaces, and says to set `generated.by` by
+hand for `""`, `[]`, a tagged or anchored null and the ignored mappings, which
+sync skips; a legacy `timestamp` alone draws a hand-edit message too).
 
 `family-invalid` is narrowed to okfit's own `x-okfit-integrity` family, which still
 decodes whole. See [okfit's keys carry the x-okfit- prefix](okfit-keys-carry-x-okfit-prefix.md) for the name. `frontmatter-missing` and `type-missing` left the conformance

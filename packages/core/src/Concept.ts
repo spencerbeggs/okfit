@@ -76,4 +76,15 @@ export class Concept extends Schema.Class<Concept>("Concept")({
 		if (recorded !== undefined) return recorded;
 		return Array.isArray(concept.raw[family]) ? [family, position] : [family];
 	}
+
+	/**
+	 * OKF 0.3 §11.2 rule 1: `undefined`, `null`, an empty string and an empty list read as absent.
+	 *
+	 * @remarks
+	 * A mapping, `{}` included, is not absent. A family the decoder ignores (a `generated` without a readable
+	 * `by`) reads as absent through the decoded `Concept`, not through this predicate.
+	 */
+	static isAbsent(value: unknown): boolean {
+		return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+	}
 }

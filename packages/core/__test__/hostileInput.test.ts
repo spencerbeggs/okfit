@@ -168,4 +168,140 @@ describe("Bundle.load on hostile optional keys", () => {
 				assert.strictEqual(concept(executor)?.attested?.executor?.resource, "run.md");
 			}),
 	);
+	it.effect("a good key beside a bad one survives in every mapping family, at every depth (#461)", () =>
+		Effect.gen(function* () {
+			type F = NonNullable<ReturnType<typeof concept>>;
+			const rows: ReadonlyArray<{
+				readonly cls: string;
+				readonly text: (to: string) => string;
+				readonly good: (f: F) => unknown;
+				readonly bad: (f: F) => unknown;
+				readonly badLine: number;
+			}> = [
+				{
+					cls: "UsageWindow",
+					text: (to) => `type: T\nusage_window:\n  from: 2026-06-01T00:00:00Z\n  to: ${to}`,
+					good: (f) => f.usage_window?.from,
+					bad: (f) => f.usage_window?.to,
+					badLine: 4,
+				},
+				{
+					cls: "Source.usage_window",
+					text: (to) =>
+						`type: T\nsources:\n  - resource: a.md\n    usage_window:\n      from: 2026-06-01T00:00:00Z\n      to: ${to}`,
+					good: (f) => f.sources?.[0]?.usage_window?.from,
+					bad: (f) => f.sources?.[0]?.usage_window?.to,
+					badLine: 6,
+				},
+				{
+					cls: "ComputationExecutor",
+					text: (r) => `type: Attested Computation\nruntime: sql\nexecutor:\n  resource: run.md\n  receipt: ${r}`,
+					good: (f) => f.attested?.executor?.resource,
+					bad: (f) => f.attested?.executor?.receipt,
+					badLine: 5,
+				},
+				{
+					cls: "Generated",
+					text: (at) => `type: T\ngenerated:\n  by: process:x\n  at: ${at}`,
+					good: (f) => f.generated?.by,
+					bad: (f) => f.generated?.at,
+					badLine: 4,
+				},
+			];
+			const goodValue: Record<string, string> = {
+				UsageWindow: "2026-07-01T00:00:00Z",
+				"Source.usage_window": "2026-07-01T00:00:00Z",
+				ComputationExecutor: "[ok]",
+				Generated: "2026-07-01T00:00:00Z",
+			};
+			const badValue: Record<string, string> = {
+				UsageWindow: "[1]",
+				"Source.usage_window": "[1]",
+				ComputationExecutor: "[1]",
+				Generated: "[1]",
+			};
+			for (const row of rows) {
+				const loaded = yield* load(row.text(badValue[row.cls]!));
+				const found = concept(loaded);
+				assert.isDefined(found, row.cls);
+				assert.isDefined(row.good(found!), `${row.cls}: the good key is kept`);
+				assert.isUndefined(row.bad(found!), `${row.cls}: the bad key is dropped`);
+				const malformed = loaded.diagnostics.filter((d) => d.code === "value-malformed");
+				assert.strictEqual(malformed.length, 1, row.cls);
+				assert.strictEqual(malformed[0]!.range?.line, row.badLine, `${row.cls}: at the bad key's line`);
+				// control: both keys good keeps both with no diagnostic
+				const clean = yield* load(row.text(goodValue[row.cls]!));
+				assert.isDefined(row.good(concept(clean)!), `${row.cls}: control good`);
+				assert.isDefined(row.bad(concept(clean)!), `${row.cls}: control both kept`);
+				assert.strictEqual(clean.diagnostics.length, 0, `${row.cls}: control has no diagnostic`);
+			}
+		}),
+	);
+
+	it.effect("an unknown key does not keep a mapping whose known keys were all dropped (#461 ruling)", () =>
+		Effect.gen(function* () {
+			const rows: ReadonlyArray<{
+				readonly cls: string;
+				readonly head: string;
+				readonly indent: string;
+				readonly bad: string;
+				readonly good: string;
+				readonly read: (f: NonNullable<ReturnType<typeof concept>>) => unknown;
+				readonly rawOf: (raw: Record<string, unknown>) => unknown;
+			}> = [
+				{
+					cls: "UsageWindow",
+					head: "type: T\nusage_window",
+					indent: "  ",
+					bad: "to: [1]",
+					good: "from: 2026-06-01T00:00:00Z",
+					read: (f) => f.usage_window,
+					rawOf: (raw) => raw.usage_window,
+				},
+				{
+					cls: "ComputationExecutor",
+					head: "type: Attested Computation\nruntime: sql\nexecutor",
+					indent: "  ",
+					bad: "receipt: 5",
+					good: "resource: run.md",
+					read: (f) => f.attested?.executor,
+					rawOf: (raw) => raw.executor,
+				},
+				{
+					cls: "ComputationAttester",
+					head: "type: Attested Computation\nruntime: sql\nattester",
+					indent: "  ",
+					bad: "resource: 5",
+					good: "resource: r.md",
+					read: (f) => f.attested?.attester,
+					rawOf: (raw) => raw.attester,
+				},
+				{
+					cls: "Source.usage_window",
+					head: "type: T\nsources:\n  - resource: a.md\n    usage_window",
+					indent: "      ",
+					bad: "to: [1]",
+					good: "from: 2026-06-01T00:00:00Z",
+					read: (f) => f.sources?.[0]?.usage_window,
+					rawOf: (raw) => (raw.sources as ReadonlyArray<Record<string, unknown>>)[0]?.usage_window,
+				},
+			];
+			for (const row of rows) {
+				const block = (...lines: ReadonlyArray<string>) =>
+					`${row.head}:\n${lines.map((l) => `${row.indent}${l}`).join("\n")}`;
+				const mixed = yield* load(block(row.bad, "x: 1"));
+				assert.isUndefined(row.read(concept(mixed)!), `${row.cls}: all known keys dropped reads as absent`);
+				assert.strictEqual(mixed.diagnostics.filter((d) => d.code === "value-malformed").length, 1, row.cls);
+				const raw = mixed.concepts.get("c" as ConceptId)!.frontmatter.raw as Record<string, unknown>;
+				assert.deepStrictEqual((row.rawOf(raw) as Record<string, unknown>).x, 1, `${row.cls}: raw keeps x`);
+				// control: an unknown key alone drops nothing, so the mapping is kept
+				const only = yield* load(block("x: 1"));
+				assert.isDefined(row.read(concept(only)!), `${row.cls}: { x: 1 } is kept`);
+				assert.strictEqual(only.diagnostics.length, 0, row.cls);
+				// control: a good known key beside an unknown key is kept
+				const goodUnknown = yield* load(block(row.good, "x: 1"));
+				assert.isDefined(row.read(concept(goodUnknown)!), `${row.cls}: good + unknown is kept`);
+			}
+		}),
+	);
 });

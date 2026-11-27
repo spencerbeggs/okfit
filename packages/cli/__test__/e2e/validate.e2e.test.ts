@@ -102,6 +102,27 @@ describe("okfit validate: the declared OKF version", () => {
 			assert.isNull(yield* reported(UNDECLARED_PROJECT));
 		}),
 	);
+
+	it.effect("an unquoted okf_version: 0.10 is read as 0.10 and the warning shows it (#467)", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox());
+			const index = V03_PROJECT["okf/index.md"] ?? "";
+			const patched = index.replace('okf_version: "0.3"', "okf_version: 0.10");
+			// a no-op replace would make every assertion below vacuous
+			assert.notStrictEqual(patched, index);
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V03_PROJECT, "okf/index.md": patched }));
+			const json = yield* runOkfit(["validate", "--format", "json"], sandbox);
+			assert.strictEqual((JSON.parse(json.stdout) as { readonly okf_version: unknown }).okf_version, "0.10");
+			const human = yield* runOkfit(["validate"], sandbox);
+			assert.include(
+				human.stdout,
+				'index.md:2:14 warning index-metadata-invalid okf_version 0.10 is an unquoted number, which YAML reads as 0.1; quote it as "0.10"\n',
+			);
+			// the bundle declares 0.10, so it is current and has no version migration to report
+			const target = yield* runOkfit(["validate", "--target", "0.3"], sandbox);
+			assert.notInclude(target.stdout, "okf-version");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
 });
 
 describe("okfit validate: the old key names hint (#493)", () => {
@@ -1712,5 +1733,68 @@ describe("okfit validate: a directory link out of the bundle and a dangling link
 				assert.deepStrictEqual(files, ["loop", "peek.md"]);
 			}).pipe(Effect.ensuring(Effect.promise(() => chmod(locked, 0o755))));
 		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: generated-missing reads the decoder (#466)", () => {
+	it.effect("generated: {} is generated-missing beside entry-ignored", () =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-genmissing-"));
+			const init = yield* runOkfit(["init"], sandbox);
+			assert.strictEqual(init.exitCode, 0);
+			yield* Effect.promise(async () => {
+				const configPath = join(sandbox.cwd, ".config", "okfit.toml");
+				await writeFile(
+					configPath,
+					`${await readFile(configPath, "utf8")}\n[actors]\nagent = "okfit/claude-code"\n`,
+					"utf8",
+				);
+				await writeFileDeep(
+					join(sandbox.cwd, "okf", "decisions", "empty.md"),
+					"---\ntype: Note\ngenerated: {}\n---\n\n# Empty\n",
+				);
+			});
+			const run = yield* runOkfit(["validate"], sandbox);
+			const lines = run.stdout.split("\n").filter((line) => line.includes("decisions/empty.md"));
+			assert.isTrue(
+				lines.some((line) => line.includes("entry-ignored")),
+				run.stdout,
+			);
+			const missing = lines.filter((line) => line.includes("generated-missing"));
+			assert.strictEqual(missing.length, 1, run.stdout);
+			assert.include(missing[0], "set generated.by by hand");
+			assert.include(missing[0], "okfit sync cannot fill in a block that is written");
+		}).pipe(Effect.provide(TestPlatform)),
+	);
+});
+
+describe("okfit validate: path-field anchors (#463)", () => {
+	const MARGIN_LEGACY_PATH = "okf/metrics/margin-legacy.md";
+	const lineFor = (anchor: string | undefined) =>
+		Effect.gen(function* () {
+			const sandbox = yield* Effect.promise(() => makeSandbox("okfit-validate-anchor-"));
+			const legacy = V03_PROJECT[MARGIN_LEGACY_PATH];
+			assert.isDefined(legacy);
+			const patched =
+				anchor === undefined
+					? legacy
+					: legacy.replace("superseded_by: /metrics/margin.md", `superseded_by: /metrics/margin.md#${anchor}`);
+			if (anchor !== undefined) assert.notStrictEqual(patched, legacy);
+			yield* Effect.promise(() => writeSeedInto(sandbox.cwd, { ...V03_PROJECT, [MARGIN_LEGACY_PATH]: patched }));
+			const run = yield* runOkfit(["validate"], sandbox);
+			return run.stdout.split("\n").filter((line) => line.includes("broken-links"));
+		}).pipe(Effect.provide(TestPlatform));
+
+	it.effect("validate reports a superseded_by anchor the target lacks", () =>
+		Effect.gen(function* () {
+			const lines = yield* lineFor("no-such");
+			assert.strictEqual(lines.length, 1, lines.join("\n"));
+			assert.match(
+				lines[0] ?? "",
+				/metrics\/margin-legacy\.md:\d+:\d+ warning broken-links superseded_by "\/metrics\/margin\.md#no-such" exists but has no heading "#no-such"; /,
+			);
+			// control: unpatched, no broken-links
+			assert.deepStrictEqual(yield* lineFor(undefined), []);
+		}),
 	);
 });

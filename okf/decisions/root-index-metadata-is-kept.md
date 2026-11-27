@@ -13,20 +13,22 @@ sources:
     title: syncIndex passes the kept block to the renderer.
 generated:
   by: okfit/claude-code
-  at: 2026-11-24T02:05:35Z
+  at: 2026-11-27T22:02:01Z
 status: stable
 x-okfit-integrity:
   generated:
-    body: 96cd6703b1415029
+    body: 57bb747476215945
   verified:
     by: human:spencer
-    at: 2026-11-24T02:55:14Z
-    content: f00587574e4dbfbc
+    at: 2026-11-27T22:16:13Z
+    content: 911098d486b4ffc9
 verified:
   - by: human:spencer
     at: 2026-11-23T22:18:50Z
   - by: human:spencer
     at: 2026-11-24T02:55:14Z
+  - by: human:spencer
+    at: 2026-11-27T22:16:13Z
 ---
 
 # The root index's metadata is read and kept
@@ -45,12 +47,14 @@ would have deleted an author's metadata on the next run.
 `IndexDocument` gains `title`, `description` and `license` (typed reads),
 `metadata` (the whole decoded mapping, extension keys included) and
 `frontmatter` (the raw YAML text between the fences). They are set only on
-the bundle-root index. `okfVersion` is read as before.
+the bundle-root index. `okfVersion` is the declared version as written.
 
 Reading is tolerant. A non-string `title`, `description` or `license`, or an
 `okf_version` that is not a quoted `<major>.<minor>` string, is reported as
 `index-metadata-invalid` (lint, `warn`) and read best effort: an unquoted
-number such as `0.3` still becomes the version `"0.3"`. An empty block is
+number such as `0.3` still becomes the version `"0.3"`, read by its source
+text, so `0.10` becomes `"0.10"`, not `"0.1"`, and text that is not a
+`<major>.<minor>` pair, such as `1e1`, is kept as written. An empty block is
 no metadata. The conformance error `index-frontmatter` remains for a root
 block that is not a mapping, and for any `index.md` below the root that
 carries frontmatter.

@@ -6,6 +6,18 @@ import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import { IndexDocument, IndexEntry, IndexSection } from "../IndexDocument.js";
 import { LogDocument, LogGroup, LogItem } from "../LogDocument.js";
 import { OkfVersion } from "../OkfVersion.js";
+import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
+
+/**
+ * What an unquoted `okf_version` number says: the text the author wrote (`source`, or what YAML read when the text is
+ * unavailable), what YAML read it as (`reads`), and whether the text is a `<major>.<minor>` pair that can be quoted as is.
+ */
+const unquotedMessage = (source: string, reads: string, isPair: boolean): string => {
+	const quoteAs = isPair ? source : "<major>.<minor>";
+	return source === reads
+		? `okf_version ${source} is an unquoted number; quote it as "${quoteAs}"`
+		: `okf_version ${source} is an unquoted number, which YAML reads as ${reads}; quote it as "${quoteAs}"`;
+};
 
 /**
  * The one parse configuration every OKF file uses: GFM with frontmatter capture
@@ -149,14 +161,21 @@ export const parseIndex = (
 					if (Option.isNone(OkfVersion.parse(version)))
 						warn("okf_version", `okf_version "${version}" is not a <major>.<minor> version`);
 				}
+			} else if (typeof version === "number") {
+				// An unquoted number declares the text its author wrote, because YAML has already turned `0.10` into 0.1 and a
+				// version is a `<major>.<minor>` pair, not a number (§8.1: "A quoted string"). The declaration still counts
+				// by what the author wrote (§11.2 rule 4 keeps a value outside its vocabulary, §12.1 keys the fallbacks on
+				// what a bundle "declares"): text that is not a pair (`.2`, `0.2e0`, `1e1`) declares no readable version, so
+				// it does not parse and reads as current (§12). YAML's reading is only the fallback when no text is found.
+				const span = findFrontmatterPathSpan(text, node, ["okf_version"]);
+				const reads = String(version);
+				const source = span === undefined ? reads : text.slice(span.offset, span.offset + span.length);
+				const isPair = Option.isSome(OkfVersion.parse(source));
+				metadata.okfVersion = source;
+				warn("okf_version", unquotedMessage(source, reads, isPair));
 			} else if (version !== null && version !== undefined) {
-				metadata.okfVersion = typeof version === "number" ? String(version) : JSON.stringify(version);
-				warn(
-					"okf_version",
-					typeof version === "number"
-						? `okf_version ${String(version)} is an unquoted number; quote it as "<major>.<minor>"`
-						: "okf_version must be a quoted <major>.<minor> string",
-				);
+				metadata.okfVersion = JSON.stringify(version);
+				warn("okf_version", "okf_version must be a quoted <major>.<minor> string");
 			}
 			for (const key of ["title", "description", "license"] as const) {
 				const value = record[key];
