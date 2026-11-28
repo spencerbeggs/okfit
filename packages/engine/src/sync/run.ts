@@ -76,7 +76,8 @@ export interface SyncOptions {
 }
 
 /**
- * One concept a mode declined to write. `generatedAt` and `verifiedAt` (encoded timestamps) accompany only
+ * One concept a mode declined to write, or, for `verified-after-now`, wrote while leaving a held stamp in place.
+ * `generatedAt` and `verifiedAt` (encoded timestamps) accompany only
  * `verified-after-now`: the stamp left in place and the earliest verification a re-stamp would have made current.
  *
  * @public
@@ -91,7 +92,10 @@ export interface SyncSkip {
 /** @public */
 export interface SyncModeResult {
 	readonly selected: boolean;
-	/** Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). */
+	/**
+	 * Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). `generated` mode only: an
+	 * id whose held stamp is reported `verified-after-now` may also be in `skipped`.
+	 */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
 	/**

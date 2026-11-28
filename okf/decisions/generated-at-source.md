@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-28T00:16:02Z
+  at: 2026-11-28T00:20:47Z
 status: stable
 verified:
   - by: human:spencer
@@ -19,7 +19,7 @@ verified:
     at: 2026-11-25T13:29:38Z
 x-okfit-integrity:
   generated:
-    body: 8465a96b9992695f
+    body: 2b86dfe50460fd2f
   verified:
     by: human:spencer
     at: 2026-11-25T13:29:38Z
@@ -73,8 +73,8 @@ A clock that is far behind is not refused: sync keeps acting. Each run that sele
 `generated.at` or a commit's author date more than five minutes later than now prints one warning on stderr, naming
 how many concepts and the latest time, and says the clock may be behind. Under `--format json` the envelope's optional
 `clock_behind` key carries it and stderr stays empty. The exit code never changes.
-This is the owner's ruling of 2026-11-25 on #509. The
-owner accepted the cost: a concept whose repair is blocked has no okfit repair and
+The owner ruled on #509 on 2026-11-25. Separately, the owner accepted a cost of the
+blocked-repair rule: a concept whose repair is blocked has no okfit repair and
 needs a human.
 
 ## Alternatives rejected

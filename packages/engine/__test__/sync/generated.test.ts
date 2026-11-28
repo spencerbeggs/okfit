@@ -1803,7 +1803,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 
 	const run = (
 		files: Record<string, string>,
-		options: { readonly now?: DateTime.Utc; readonly provenance?: DateTime.Utc } = {},
+		options: { readonly now?: DateTime.Utc; readonly provenance?: DateTime.Utc; readonly dryRun?: boolean } = {},
 	) =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: ROOT });
@@ -1820,7 +1820,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			const result = yield* syncGenerated(bundle, {
 				provenance,
 				renames: RENAMES,
-				dryRun: true,
+				dryRun: options.dryRun ?? true,
 				pending,
 				...(options.now === undefined ? {} : { now: options.now }),
 			});
@@ -1947,7 +1947,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 	it.effect("a blocked repair is skipped, not unchanged", () =>
 		Effect.gen(function* () {
 			const plain = yield* matching("a", "2030-06-01T00:00:00Z", "2029-01-01T00:00:00Z");
-			// A second, different reason for the same concept: both skips are reported, neither is `unchanged`.
+			// A second, different reason for the same concept: that skip alone is reported (#509), and neither is `unchanged`.
 			const conflicting = plain.replace("\nx-okfit-integrity:", "\nintegrity: ~\nx-okfit-integrity:");
 			assert.notStrictEqual(conflicting, plain, "control: the legacy key is in the fixture");
 			const { result } = yield* run({ a: plain, b: conflicting }, { now: NOW });
@@ -1955,7 +1955,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			assert.deepStrictEqual(result.written, []);
 			assert.deepStrictEqual(
 				result.skipped.map((skip) => `${skip.id}:${skip.reason}`),
-				["a:verified-after-now", "b:verified-after-now", "b:legacy-key-conflict"],
+				["a:verified-after-now", "b:legacy-key-conflict"],
 			);
 		}),
 	);
@@ -2075,6 +2075,46 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 				const unsupported = `---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity: { generated: { body: "0000000000000000" } }\n---\n${BODY}`;
 				const { result } = yield* run({ a: unsupported }, { now: NOW, provenance: AUTHORED });
 				assert.deepStrictEqual(result.skipped, [{ id: "a", reason: "integrity-unsupported" }]);
+			}),
+		);
+
+		it.effect("a matching held concept that another skip ends gets that skip alone", () =>
+			Effect.gen(function* () {
+				const digest = yield* Derivation.bodyDigest(
+					`---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\n  body_sha256: x\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity: { generated: { body: "0000000000000000" } }\n---\n${BODY}`,
+				).pipe(Effect.provide(NodeCrypto.layerDigest));
+				const text = `---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\n  body_sha256: ${digest}\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity: { generated: { body: "0000000000000000" } }\n---\n${BODY}`;
+				const { result } = yield* run({ a: text }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.skipped, [{ id: "a", reason: "integrity-unsupported" }]);
+			}),
+		);
+
+		it.effect("a held stamp is reported when the run writes (dryRun false)", () =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run(
+					{ a: drifted("a", FUTURE, V2029) },
+					{ now: NOW, provenance: AUTHORED, dryRun: false },
+				);
+				assert.deepStrictEqual(result.written, ["a"]);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "a", reason: "verified-after-now", generatedAt: FUTURE, verifiedAt: V2029 },
+				]);
+				assert.strictEqual(pending.length, 0);
+			}),
+		);
+
+		it.effect("a held concept whose rewritten text is unchanged is reported, not counted unchanged", () =>
+			Effect.gen(function* () {
+				const shell = (digest: string) =>
+					`---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified: 5\n---\n${BODY}`;
+				const digest = yield* Derivation.bodyDigest(shell("0".repeat(16))).pipe(Effect.provide(NodeCrypto.layerDigest));
+				const { result, pending } = yield* run({ a: shell(digest) }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.written, []);
+				assert.deepStrictEqual(result.unchanged, []);
+				assert.strictEqual(pending.length, 0);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "a", reason: "verified-after-now", generatedAt: FUTURE, verifiedAt: V2029 },
+				]);
 			}),
 		);
 

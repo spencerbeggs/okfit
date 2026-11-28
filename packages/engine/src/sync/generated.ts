@@ -78,7 +78,8 @@ export interface GeneratedSyncResult {
 }
 
 /**
- * One concept sync declined to stamp. `verified-after-now` also names the two instants the human renderer quotes:
+ * One concept sync declined to stamp, or, for `verified-after-now`, left a held stamp on (a changed concept is still
+ * written, so it may also be in `written`). `verified-after-now` also names the two instants the human renderer quotes:
  * the `generated.at` left in place and the earliest verification the repair would have made current.
  *
  * @internal
@@ -317,17 +318,17 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 				? settle(concept, generated.at, options.now, nowStamp)
 				: { _tag: "keep" };
 		const future = matchingSettled._tag === "restamp";
-		const matchingHeld = matchingSettled._tag === "held";
-		if (matchingSettled._tag === "held" && generated?.at !== undefined) {
-			skipped.push({
-				id,
-				reason: "verified-after-now",
-				generatedAt: encodeAt(generated.at),
-				verifiedAt: encodeAt(matchingSettled.verifiedAt),
-			});
-		}
+		// A held concept that another skip ends gets that skip alone: the hold is reported where the write lands.
+		let heldChanged: { readonly generatedAt: string; readonly verifiedAt: string } | undefined =
+			matchingSettled._tag === "held" && generated?.at !== undefined
+				? { generatedAt: encodeAt(generated.at), verifiedAt: encodeAt(matchingSettled.verifiedAt) }
+				: undefined;
+		const reportHeld = () => {
+			if (heldChanged !== undefined) skipped.push({ id, reason: "verified-after-now", ...heldChanged });
+		};
 		if (matches && !future && !hasLegacy && legacyRenders === undefined && !keyCandidate) {
-			if (!matchingHeld) unchanged.push(id);
+			if (heldChanged !== undefined) reportHeld();
+			else unchanged.push(id);
 			continue;
 		}
 
@@ -392,11 +393,6 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// an absent one is a defect in that caller contract. A migrate-only write
 		// (digest matches) needs none.
 		let encodedAt: string | undefined;
-		let heldChanged: { readonly generatedAt: string; readonly verifiedAt: string } | undefined;
-		// A held concept that another skip ends gets that skip alone: the hold is reported where the write lands.
-		const reportHeld = () => {
-			if (heldChanged !== undefined) skipped.push({ id, reason: "verified-after-now", ...heldChanged });
-		};
 		// Step 3b (#73, #515): a concept with no `generated` block and no agent to attribute a stamp to can never be
 		// stamped, so name that blocker first: skipping it as uncommitted would send the author to commit it, and the
 		// next sync would then skip it again as `generated-missing`. The file is never even opened for the stamp.
@@ -426,7 +422,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 					: { block: legacyBlock, key: renames.integrity.from },
 			);
 			// #471: never write a stamp later than now (a skewed author clock), unless lowering it would make a
-			// verification dated in between count (R2): then the unclamped stamp stands and the lint reports it.
+			// verification dated in between count (R2): then the unclamped stamp stands and is reported `verified-after-now` on this run (the lint reports it too).
 			const candidate =
 				nowStamp !== undefined &&
 				DateTime.isGreaterThan(stamped, nowStamp) &&
@@ -530,7 +526,6 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// matches, so its re-stamp can reproduce the file byte for byte: report that as unchanged,
 		// not as a write that would recur on every run.
 		if (finalText === fileSource) {
-			if (matchingHeld) continue;
 			if (heldChanged !== undefined) reportHeld();
 			else unchanged.push(id);
 			continue;
