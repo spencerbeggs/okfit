@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-28T00:22:44Z
+  at: 2026-11-28T01:48:16Z
 x-okfit-integrity:
   generated:
-    body: 0387b60931633bd0
+    body: 929b203c2354bcde
 ---
 
 # CLI
@@ -92,7 +92,7 @@ resolves on Esc or `q` (exit 0), unlike the pickers; `okfit stale --verify` reus
 (`commands/stale-verify.ts`) over the stale concepts and writes through
 `runVerifyIds` with `refreshStaleAfter`; `okfit sync` shows its plan on the screen that
 confirms `Write N file(s)?` (`commands/sync-confirm.ts`, `sync-confirm-screen.tsx`), then applies that
-exact plan. A human sync run also prints one stderr warning (`humanClockWarning`) when `SyncResult.clockBehind` is set. `okfit init` runs a wizard (`internal/initWizard.ts`) for
+exact plan. A human sync run also prints one stderr warning (`humanClockWarning`) when `SyncResult.clockBehind` is set; the confirm screen shows it below the plan instead, so a cancel still shows it and it is not printed again after the writes. `okfit init` runs a wizard (`internal/initWizard.ts`) for
 whichever of profile, `--bundle <dir>` and `--config-location` was not given
 as a flag. Cancelling (Esc, `q`, Ctrl-C,
 answering no) is the kit's `Cancelled`, exit `130`, nothing written;

@@ -187,6 +187,8 @@ export const syncCommand = Command.make(
 				const now = yield* Now;
 				const staged = input.staged ? { at: DateTime.startOf(now, "second") } : undefined;
 
+				// #509: set when the confirm screen already showed the clock warning, so it prints once.
+				const shown = { clockWarning: false };
 				const result = yield* syncWithConfirm(
 					{
 						bundleRoot: resolved.bundleRoot,
@@ -199,6 +201,8 @@ export const syncCommand = Command.make(
 						...(staged === undefined ? {} : { staged }),
 					},
 					input.yes,
+					undefined,
+					shown,
 				).pipe(Effect.provide(Layer.mergeAll(Git.layer, GitHistory.layer)));
 
 				const displayPath = displayRoot(cwd, result.bundleRoot, path);
@@ -219,7 +223,7 @@ export const syncCommand = Command.make(
 					}
 					// #509: once per run, on stderr, human output only (the envelope's clock_behind carries it for JSON).
 					const warning = humanClockWarning(result);
-					if (warning !== undefined) yield* Console.error(warning);
+					if (warning !== undefined && !shown.clockWarning) yield* Console.error(warning);
 				}
 			}).pipe(
 				provideConfig({ explicitConfigPath: input.config, discoveryCwd }),

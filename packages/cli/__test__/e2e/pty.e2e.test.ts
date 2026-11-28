@@ -579,6 +579,74 @@ describe.skipIf(!ptyAvailable)("interactive screens under a pty (#231)", () => {
 	);
 });
 
+describe.skipIf(!ptyAvailable)("sync confirm shows the clock warning once (#509)", () => {
+	const arrange = async () => {
+		const sandbox = await makeSandbox("okfit-pty-clock-");
+		await writeIdentity(sandbox);
+		const env = ptyEnv(sandbox);
+		await initRepo(sandbox.cwd, env);
+		await runPty(["init", "--human"], {
+			cwd: sandbox.cwd,
+			env,
+			steps: [
+				{ waitFor: "Bundle directory", send: KEYS.enter },
+				{ waitFor: "Config file location", send: KEYS.enter },
+			],
+		});
+		await commit(sandbox.cwd, { message: "okfit init", authoredAt: "2026-09-01T00:00:00+00:00" }, env);
+		const decisionFile = join(sandbox.cwd, "okf", "decisions", "example.md");
+		await writeFile(
+			decisionFile,
+			`---\ntype: Decision\ntitle: Example\ndescription: Example.\ngenerated:\n  by: human:ada\nstatus: draft\n---\n\n# Example\n`,
+			"utf8",
+		);
+		// A commit authored in the future: this run's clock (OKFIT_NOW) may be behind.
+		await commit(sandbox.cwd, { message: "add decision", authoredAt: "2030-01-01T00:00:00+00:00" }, env);
+		return { sandbox, env, decisionFile };
+	};
+	const occurrences = (text: string) => text.split("may be behind").length - 1;
+
+	it(
+		"the warning is on the confirm screen, and a cancel still shows it",
+		async () => {
+			const { sandbox, env, decisionFile } = await arrange();
+			try {
+				const before = await readFile(decisionFile, "utf8");
+				const run = await runPty(["sync", "--human"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: /Write \d+ file\(s\)\?/, send: KEYS.esc }],
+				});
+				assert.strictEqual(run.exitCode, 130, run.output);
+				assert.strictEqual(occurrences(run.output), 1, run.output);
+				assert.strictEqual(await readFile(decisionFile, "utf8"), before);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+
+	it(
+		"a confirmed run prints it once, not again after the writes",
+		async () => {
+			const { sandbox, env } = await arrange();
+			try {
+				const run = await runPty(["sync", "--human"], {
+					cwd: sandbox.cwd,
+					env,
+					steps: [{ waitFor: /Write \d+ file\(s\)\?/, send: KEYS.enter }],
+				});
+				assert.strictEqual(run.exitCode, 0, run.output);
+				assert.strictEqual(occurrences(run.output), 1, run.output);
+			} finally {
+				await removeSandbox(sandbox);
+			}
+		},
+		TIMEOUT,
+	);
+});
+
 describe.skipIf(!ptyAvailable)("human report lines stay unwrapped on a narrow terminal", () => {
 	it(
 		"lint --human prints a long diagnostic on one physical line at 70 columns",

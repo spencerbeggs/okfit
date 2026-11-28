@@ -447,7 +447,7 @@ code. Under `--staged` only staged concepts are re-stamped; run a plain
 When a run that selects the generated mode sees a `generated.at`, or the author
 date of a concept whose body changed, more than five minutes later than now, the
 local clock may be behind. A human run prints one `warning:` line on stderr, once
-per run, naming how many concepts and the latest time; sync keeps acting and the
+per run (an interactive run shows it on the confirm screen, below the plan, instead), naming how many concepts and the latest time; sync keeps acting and the
 exit code is unchanged. Under `--format json` stderr stays empty and the envelope
 carries an optional `clock_behind` object (`now`, `latest`, `concepts`).
 

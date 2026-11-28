@@ -85,6 +85,7 @@ src/
                                     through CliUi.lazy so React/Ink load only when it mounts; the only .tsx
                                     module (tsconfig sets jsx react-jsx)
     sync.ts                     -- syncCommand: flags/argument, the full handler
+    sync-confirm.ts             -- syncWithConfirm: the interactive plan-and-confirm; carries the clock warning on the screen
     mv.ts                        -- mvCommand: moves a concept and rewrites every reference (engine's runMove)
     query.ts                     -- queryCommand (list/get/neighbors subcommands over @okfit/engine's ConceptQuery)
   render/
