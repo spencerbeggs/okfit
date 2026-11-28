@@ -79,8 +79,9 @@ export interface GeneratedSyncResult {
 
 /**
  * One concept sync declined to stamp, or, for `verified-after-now`, left a held stamp on (a changed concept is still
- * written, so it may also be in `written`). `verified-after-now` also names the two instants the human renderer quotes:
- * the `generated.at` left in place and the earliest verification the repair would have made current.
+ * written, so it may also be in `written`, or in `migrated` when it only migrates). `verified-after-now` also names
+ * the two instants the human renderer quotes: the `generated.at` left in place and the earliest verification the
+ * repair would have made current.
  *
  * @internal
  */
@@ -248,7 +249,8 @@ const stampInstant = (
  * set: create -> (6) existing block: splice `at`.
  * With `options.now` set, the stamp a path leaves is settled once more ({@link settle}): a stamp more than the tolerance
  * ahead moves to now, or, when a verification dated in `[now, stamp)` would then count, stays and is reported
- * `verified-after-now` (a changed concept is still written, so it may be in both `written` and `skipped`).
+ * `verified-after-now` (a changed concept is still written, so it may be in both `written` and `skipped`, or in
+ * `migrated` and `skipped` when it only migrates).
  * Every write also sets `x-okfit-integrity.generated.body` (keeping `x-okfit-integrity.verified`)
  * and removes a legacy `body_sha256` line.
  *
@@ -422,7 +424,8 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 					: { block: legacyBlock, key: renames.integrity.from },
 			);
 			// #471: never write a stamp later than now (a skewed author clock), unless lowering it would make a
-			// verification dated in between count (R2): then the unclamped stamp stands and is reported `verified-after-now` on this run (the lint reports it too).
+			// verification dated in between count (R2): then the unclamped stamp stands and is reported
+			// `verified-after-now` on this run (the lint reports it too).
 			const candidate =
 				nowStamp !== undefined &&
 				DateTime.isGreaterThan(stamped, nowStamp) &&

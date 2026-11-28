@@ -2089,12 +2089,13 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 
 		it.effect("a matching held concept that another skip ends gets that skip alone", () =>
 			Effect.gen(function* () {
-				const digest = yield* Derivation.bodyDigest(
-					`---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\n  body_sha256: x\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity: { generated: { body: "0000000000000000" } }\n---\n${BODY}`,
-				).pipe(Effect.provide(NodeCrypto.layerDigest));
-				const text = `---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\n  body_sha256: ${digest}\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity: { generated: { body: "0000000000000000" } }\n---\n${BODY}`;
-				const { result } = yield* run({ a: text }, { now: NOW, provenance: AUTHORED });
-				assert.deepStrictEqual(result.skipped, [{ id: "a", reason: "integrity-unsupported" }]);
+				// The digest matches (so the matching path settles the hold), and a legacy key beside the new one ends it.
+				const plain = yield* matching("a", FUTURE, V2029);
+				const conflicting = plain.replace("\nx-okfit-integrity:", "\nintegrity: ~\nx-okfit-integrity:");
+				assert.notStrictEqual(conflicting, plain, "control: the legacy key is in the fixture");
+				const { result } = yield* run({ a: conflicting }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.skipped, [{ id: "a", reason: "legacy-key-conflict" }]);
+				assert.deepStrictEqual(result.unchanged, []);
 			}),
 		);
 

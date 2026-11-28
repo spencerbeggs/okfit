@@ -67,8 +67,8 @@ export interface SyncOptions {
 	 * seconds), unless that would make a verification dated in between count: then the concept is skipped
 	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception, and a stamp
 	 * that stays more than the tolerance ahead for that reason is reported `verified-after-now` on the run that holds
-	 * it (the concept is still written, so it may be in both `written` and `skipped`). A changed concept's stamp is
-	 * never moved back below a verification: when the new stamp is earlier than the existing `generated.at` and a
+	 * it (the concept is still written, so it may be in both `written` and `skipped`, or in `migrated` and `skipped`
+	 * when it only migrates). A changed concept's stamp is never moved back below a verification: when the new stamp is earlier than the existing `generated.at` and a
 	 * verification falls in between, the existing stamp is kept, unless it is more than the tolerance ahead and no
 	 * verification is dated between now and it, in which case it moves to now. Absent: none of this applies.
 	 */
@@ -94,7 +94,7 @@ export interface SyncModeResult {
 	readonly selected: boolean;
 	/**
 	 * Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). `generated` mode only: an
-	 * id whose held stamp is reported `verified-after-now` may also be in `skipped`.
+	 * id whose held stamp is reported `verified-after-now` may also be in `skipped`, and so may a held id that only migrates.
 	 */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
