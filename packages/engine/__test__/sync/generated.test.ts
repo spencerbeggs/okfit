@@ -1953,10 +1953,10 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		}),
 	);
 
-	it.effect("a blocked repair is skipped, not unchanged", () =>
+	it.effect("a blocked repair is skipped, and a held concept another skip ends reports that skip alone", () =>
 		Effect.gen(function* () {
 			const plain = yield* matching("a", "2030-06-01T00:00:00Z", "2029-01-01T00:00:00Z");
-			// A second, different reason for the same concept: that skip alone is reported (#509), and neither is `unchanged`.
+			// `b` is held too, but its legacy-key conflict ends it first: that skip alone is reported (#509), and neither is `unchanged`.
 			const conflicting = plain.replace("\nx-okfit-integrity:", "\nintegrity: ~\nx-okfit-integrity:");
 			assert.notStrictEqual(conflicting, plain, "control: the legacy key is in the fixture");
 			const { result } = yield* run({ a: plain, b: conflicting }, { now: NOW });
