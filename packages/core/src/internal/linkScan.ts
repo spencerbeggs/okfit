@@ -62,6 +62,9 @@ export const scanLinks = (
 		const unresolvable: Array<LinkFinding> = [];
 		for (const link of links) {
 			if (silent(link.path)) continue;
+			// A link to a device, FIFO or socket is never matched or read, and before @effected/walker 0.32 the walker did
+			// not report it at all; it stays silent here rather than falling through to the directory-link branch below.
+			if (link.kind === "special") continue;
 			if (link.kind === "dangling") {
 				unresolvable.push({
 					file: link.path,

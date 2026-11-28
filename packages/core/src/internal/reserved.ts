@@ -6,7 +6,7 @@ import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import { IndexDocument, IndexEntry, IndexSection } from "../IndexDocument.js";
 import { LogDocument, LogGroup, LogItem } from "../LogDocument.js";
 import { OkfVersion } from "../OkfVersion.js";
-import { findFrontmatterPathSpan } from "./yamlPathSpan.js";
+import { findFrontmatterScalarSource } from "./yamlPathSpan.js";
 
 /**
  * What an unquoted `okf_version` number says: the text the author wrote (`source`, or what YAML read when the text is
@@ -167,9 +167,8 @@ export const parseIndex = (
 				// by what the author wrote (§11.2 rule 4 keeps a value outside its vocabulary, §12.1 keys the fallbacks on
 				// what a bundle "declares"): text that is not a pair (`.2`, `0.2e0`, `1e1`) declares no readable version, so
 				// it does not parse and reads as current (§12). YAML's reading is only the fallback when no text is found.
-				const span = findFrontmatterPathSpan(text, node, ["okf_version"]);
 				const reads = String(version);
-				const source = span === undefined ? reads : text.slice(span.offset, span.offset + span.length);
+				const source = findFrontmatterScalarSource(node, ["okf_version"]) ?? reads;
 				const isPair = Option.isSome(OkfVersion.parse(source));
 				metadata.okfVersion = source;
 				warn("okf_version", unquotedMessage(source, reads, isPair));

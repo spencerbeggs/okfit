@@ -271,6 +271,24 @@ describe("Bundle.load", () => {
 				assert.deepStrictEqual(Validate.conformance(bundle), []);
 			}).pipe(Effect.provide(platform(dirLinkSeed))),
 	);
+	it.effect("a link to a special file is silent and never read, in or out of the bundle (walker 0.32 special)", () =>
+		Effect.gen(function* () {
+			const bundle = yield* Bundle.load({ root: MOUNT });
+			assert.deepStrictEqual(codes(bundle.diagnostics), []);
+			assert.deepStrictEqual(bundle.files, ["a.md"]);
+			assert.deepStrictEqual([...bundle.concepts.keys()], ["a"]);
+		}).pipe(
+			Effect.provide(
+				platform({
+					[`${MOUNT}/a.md`]: "---\ntype: Note\n---\n",
+					[`${MOUNT}/notes.md`]: MemoryFileSystem.symlink("/dev/null"),
+					[`${MOUNT}/pipe.md`]: MemoryFileSystem.symlink(`${MOUNT}/fifo`),
+					[`${MOUNT}/fifo`]: MemoryFileSystem.special("FIFO"),
+					"/dev/null": MemoryFileSystem.special("CharacterDevice"),
+				}),
+			),
+		),
+	);
 	it.effect("a nested directory link out of the bundle is reported at its own path and never read (#458)", () =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: MOUNT });
