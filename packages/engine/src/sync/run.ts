@@ -298,16 +298,12 @@ export const planSync: (
 		ahead = found;
 		generatedResult = { selected: true, ...modeResult };
 	}
-	const latestAhead = ahead.reduce<DateTime.Utc | undefined>(
-		(best, entry) => (best === undefined || DateTime.isGreaterThan(entry.at, best) ? entry.at : best),
-		undefined,
-	);
 	const clockBehind: SyncClockBehind | undefined =
-		latestAhead === undefined || options.now === undefined
+		ahead.length === 0 || options.now === undefined
 			? undefined
 			: {
 					now: Schema.encodeSync(Timestamp)(DateTime.startOf(options.now, "second")),
-					latest: Schema.encodeSync(Timestamp)(latestAhead),
+					latest: Schema.encodeSync(Timestamp)(ahead.map((entry) => entry.at).reduce((a, b) => DateTime.max(a, b))),
 					concepts: ahead.map((entry) => entry.id).toSorted(),
 				};
 	const generated: SyncModeResult =

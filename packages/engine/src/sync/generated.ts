@@ -298,13 +298,11 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// only where it would be stamped (a drifted concept), so the answer does not depend on which concepts were walked.
 		if (options.now !== undefined) {
 			const derivedAt = !matches ? provenance.get(id) : undefined;
-			const candidates = [generated?.at, derivedAt?._tag === "committed" ? derivedAt.at : undefined].filter(
-				(at): at is DateTime.Utc => at !== undefined,
-			);
-			const latest = candidates.reduce<DateTime.Utc | undefined>(
-				(best, at) => (best === undefined || DateTime.isGreaterThan(at, best) ? at : best),
-				undefined,
-			);
+			const derived = derivedAt?._tag === "committed" ? derivedAt.at : undefined;
+			const latest =
+				generated?.at !== undefined && derived !== undefined
+					? DateTime.max(generated.at, derived)
+					: (generated?.at ?? derived);
 			if (latest !== undefined && generatedAtIsFuture(latest, options.now)) ahead.push({ id, at: latest });
 		}
 		const hasLegacy = generated?.body_sha256 !== undefined;
