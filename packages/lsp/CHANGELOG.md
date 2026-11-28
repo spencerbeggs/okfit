@@ -1,5 +1,33 @@
 # @okfit/lsp
 
+## 0.7.1
+
+### Bug Fixes
+
+- The reason text for a `future` not-current stamp now says to run `okfit sync`, which re-stamps it to now (commit any edits to it first)
+
+### Refactoring
+
+- The config path and the `generated.at` tolerance text now come from the engine and core. No behaviour change (#506)
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.1.5 | 4.1.6 |
+| @effected/config-file | dependency | updated | 0.29.0 | 0.30.0 |
+| @effected/lsp | dependency | updated | 0.9.0 | 0.9.1 |
+| @effected/walker | dependency | updated | 0.30.0 | 0.31.0 |
+| @effected/xdg | dependency | updated | 0.22.0 | 0.23.0 |
+| @okfit/core | dependency | updated | 0.15.0 | 0.16.0 |
+| @okfit/engine | dependency | updated | 0.22.0 | 0.23.0 |
+| @okfit/profiles | dependency | updated | 0.16.0 | 0.16.1 |
+| effect | dependency | updated | 4.1.5 | 4.1.6 |
+
+### Maintenance
+
+- The editor's absent-value test for the legacy `timestamp` and the derived status now uses `Concept.isAbsent` from `@okfit/core`, with no change in behaviour (#466)
+
 ## 0.7.0
 
 ### Breaking Changes

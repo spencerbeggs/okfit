@@ -1,5 +1,56 @@
 # @okfit/engine
 
+## 0.23.0
+
+### Breaking Changes
+
+- `planMigrationFixes` and `applyMigrationFixes` no longer declare `YamlParseError` in their error channel; neither could fail with it. A caller that wrote `Effect.catchTag("YamlParseError", ...)` on either now fails to compile. Remove that handler: the only error left is `PlatformError`.
+
+### Features
+
+- `SkipReason` gains `index-unparseable` and `changed-during-read`; `VerifyBatchSkipReason` gains `changed-during-read`; `MoveError`, `QueryConceptNotFoundError`, `VerifyConceptNotFoundError` and `TargetFailure` gain the reason `changed-during-read`
+- `okf-version-undeclared` now names a root index that is unclosed or unparseable, instead of reporting the version as merely missing (#512)
+
+* `VerifySelectionError` gains the public reasons `at-malformed` (an `--at` that is not a timestamp) and `status-needs-one-concept` (`--stable` or `--draft` with targets that resolve to more than one concept). A consumer that matches `reason` exhaustively must add both.
+
+- `SyncResult.clockBehind` (`now`, `latest`, `concepts`) and the optional `clock_behind` key on `SyncEnvelope` report a run that saw a `generated.at`, or a changed concept's commit date, more than the tolerance ahead of the clock (#509)
+- `ResolvedProjectConfig.configPath` carries the discovered config file's path; `RunOptions.configPath` and `BundleSessionOptions.configPath` now accept `undefined` (#506)
+
+### Bug Fixes
+
+- `okfit sync` keeps a file's CRLF or LF line endings when it rewrites `index.md` and `log.md` (#505)
+- `okfit sync` never overwrites an `index.md` it could not read (#512)
+- When a file changed during the load, sync holds back the indexes and log that would list it and the changed concept's own stamp; other concepts' stamps are still written, so a bundle that lost a file to a concurrent save is never written from
+- `okfit mv` and `migrate --fix` refuse when a file changed during the load
+- Containment checks now judge the whole path, not only its last segment (#460)
+- The sync stale check compares each target with the text the bundle load read, so an edit that lands between the load and the plan is refused with `SyncPlanStaleError` instead of overwritten
+- `okfit sync` refuses an `index.md` or `log.md` that was absent at the load and created before the plan: the index write fails `SyncPlanStaleError` at apply instead of overwriting it, and a log that appeared is skipped as `changed-during-read`, never as `log-unparseable`
+- `PublicationNotFoundError` gains an optional `reason` of `changed-during-read`: `stampPublication` answers a Publication or render source that changed during the load with `"<path>" changed while it was read; try again` instead of "no concept"
+- `makeOverlayFileSystem` answers the read-only `open` and `realPath` a confined read needs, so unsaved overlay documents read the same way as files on disk
+- `ConceptQuery.get`, `ConceptQuery.neighbors`, `Targets.resolve` and `okfit verify <id>` answer a concept that changed during the load with `"<path>" changed while it was read; try again` (reason `changed-during-read`) instead of "no concept"
+
+* The message of the `future` `VerifyNotCurrentError` now says the stamp is more than 5 minutes later than now and to run `okfit sync`, which re-stamps it to now (commit any edits to it first)
+* `syncGenerated` now reports `generated-missing` before the uncommitted or untracked skip for a changed concept that has no generated block and no `actors.agent`, so the author is told the real blocker first (#515)
+
+- `okfit sync` reports a held future stamp as `verified-after-now` on the run that holds it. A changed concept is still written, so it may now appear in both `written` and `skipped` (#509)
+- A changed concept whose future stamp guards no verification dated after now is re-stamped to now on its first sync, so "commit, then run okfit sync" converges in one run (#509)
+
+* `FrontmatterEdits.rendersDigests` writes the digest as the value of a bare `body:` or a `body: !!null` in a `renders` entry, instead of adding a second `body:` line (or, for a tagged null, a digest in front of `type:`) (#467)
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.1.5 | 4.1.6 |
+| @effected/app | dependency | updated | 0.34.0 | 0.35.0 |
+| @effected/config-file | dependency | updated | 0.29.0 | 0.30.0 |
+| @effected/store | dependency | updated | 0.25.0 | 0.25.1 |
+| @effected/walker | dependency | updated | 0.30.0 | 0.31.0 |
+| @effected/xdg | dependency | updated | 0.22.0 | 0.23.0 |
+| @okfit/core | dependency | updated | 0.15.0 | 0.16.0 |
+| @okfit/profiles | dependency | updated | 0.16.0 | 0.16.1 |
+| effect | dependency | updated | 4.1.5 | 4.1.6 |
+
 ## 0.22.0
 
 ### Breaking Changes

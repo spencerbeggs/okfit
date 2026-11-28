@@ -1,5 +1,31 @@
 # @okfit/mcp
 
+## 0.13.1
+
+### Bug Fixes
+
+- Concept resources re-check containment on every read and read the file confined, so a link swapped in after the bundle loaded cannot serve outside content (#460)
+- Resource errors name the bundle-relative path instead of the absolute path
+- A file that changed during a read is reported as transient: `"<path>" changed while it was read; try again`, quoting the path as the CLI does
+- `get_concept` and `concept_neighbors` answer a concept that changed during the read with reason `changed-during-read` and "changed while it was read; try again", not "no concept"
+
+### Refactoring
+
+- `validate_bundle` and `describe_vocabulary` take the config path from the engine's resolved config. No behaviour change (#506)
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.1.5 | 4.1.6 |
+| @effected/config-file | dependency | updated | 0.29.0 | 0.30.0 |
+| @effected/walker | dependency | updated | 0.30.0 | 0.31.0 |
+| @effected/xdg | dependency | updated | 0.22.0 | 0.23.0 |
+| @okfit/core | dependency | updated | 0.15.0 | 0.16.0 |
+| @okfit/engine | dependency | updated | 0.22.0 | 0.23.0 |
+| @okfit/profiles | dependency | updated | 0.16.0 | 0.16.1 |
+| effect | dependency | updated | 4.1.5 | 4.1.6 |
+
 ## 0.13.0
 
 ### Breaking Changes
