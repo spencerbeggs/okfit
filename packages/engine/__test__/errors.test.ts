@@ -235,7 +235,7 @@ describe("VerifyNotCurrentError", () => {
 		const fields = { id: "metrics/margin", at: "2026-09-16T11:59:59Z", generatedAt: "2030-01-01T00:00:00Z" };
 		assert.strictEqual(
 			new VerifyNotCurrentError({ ...fields, kind: "future" }).message,
-			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Commit any change to its body, then run okfit sync, which re-stamps it, then verify again',
+			'"metrics/margin" has generated.at 2030-01-01T00:00:00Z, which is more than 5 minutes later than now, so no verification made now would count (OKF 0.3 §5.3). Run okfit sync, which re-stamps it to now (commit any edits to it first), then verify again',
 		);
 		assert.strictEqual(
 			new VerifyNotCurrentError({ ...fields, kind: "near-future" }).message,

@@ -63,6 +63,13 @@ export const SyncEnvelope = Schema.Struct({
 	log: SyncModeEnvelope,
 	/** Present only for `okfit sync --publication`; then the three modes are all `selected: false`. */
 	publication: Schema.optionalKey(PublicationEnvelope),
+	/**
+	 * Present only when the run saw a `generated.at` or commit date more than the tolerance later than its clock (#509):
+	 * the clock may be behind. `now` and `latest` are timestamps, `concepts` the affected ids.
+	 */
+	clock_behind: Schema.optionalKey(
+		Schema.Struct({ now: Schema.String, latest: Schema.String, concepts: Schema.Array(Schema.String) }),
+	),
 });
 /** @public */
 export type SyncEnvelope = typeof SyncEnvelope.Type;
@@ -108,4 +115,13 @@ export const syncEnvelope = (input: {
 	index: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.index),
 	log: input.result === undefined ? NOT_SELECTED : toModeEnvelope(input.result.log),
 	...(input.publication === undefined ? {} : { publication: input.publication }),
+	...(input.result?.clockBehind === undefined
+		? {}
+		: {
+				clock_behind: {
+					now: input.result.clockBehind.now,
+					latest: input.result.clockBehind.latest,
+					concepts: [...input.result.clockBehind.concepts],
+				},
+			}),
 });

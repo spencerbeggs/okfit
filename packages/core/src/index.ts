@@ -36,7 +36,12 @@ export {
 	LintCode,
 } from "./Diagnostic.js";
 export { Generated } from "./Generated.js";
-export { GENERATED_AT_TOLERANCE, generatedAtIsFuture, verificationBlockingRestamp } from "./GeneratedAtFuture.js";
+export {
+	GENERATED_AT_TOLERANCE,
+	GENERATED_AT_TOLERANCE_TEXT,
+	generatedAtIsFuture,
+	verificationBlockingRestamp,
+} from "./GeneratedAtFuture.js";
 export type { FallbackRule, GraphEdge, GraphLink, GraphNode, LinkResolution, PathField } from "./Graph.js";
 export { Graph, GraphNodeKind, LinkGraph } from "./Graph.js";
 export { IndexDocument, IndexEntry, IndexSection } from "./IndexDocument.js";

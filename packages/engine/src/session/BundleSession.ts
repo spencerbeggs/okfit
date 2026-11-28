@@ -32,8 +32,8 @@ export interface BundleSessionOptions {
 	readonly projectRoot: string;
 	readonly config: OkfitConfig;
 	readonly profile: Option.Option<Profile>;
-	/** The config file the project resolved, named in messages about it; omit when none was found. */
-	readonly configPath?: string;
+	/** The config file the project resolved, named in messages about it; omit when none was found (`undefined` is the same as absent). */
+	readonly configPath?: string | undefined;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { CliFormat, CliInteractive, Doc } from "@effected/cli-kit";
 import { Git } from "@effected/git";
 import { CurrentDistribution } from "@effected/kit";
-import { Bundle, Timestamp } from "@okfit/core";
+import { Bundle, GENERATED_AT_TOLERANCE_TEXT, Timestamp } from "@okfit/core";
 import {
 	Now,
 	RevokeEnvelope,
@@ -86,7 +86,7 @@ const configFlag = Flag.File("config").pipe(
 const atFlag = Flag.String("at").pipe(
 	Flag.optional,
 	Flag.withDescription(
-		"ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; a value that is not a timestamp, or one more than 5 minutes later than now, is a usage error, and one earlier than the concept's generated.at (OKF 0.3 5.3) is refused",
+		`ISO 8601 timestamp with an explicit offset, or a date (YYYY-MM-DD, read as midnight UTC), to record instead of now; a value that is not a timestamp, or one more than ${GENERATED_AT_TOLERANCE_TEXT} later than now, is a usage error, and one earlier than the concept's generated.at (OKF 0.3 5.3) is refused`,
 	),
 );
 
@@ -112,8 +112,8 @@ const noDiffFlag = Flag.Boolean("no-diff").pipe(
  * the handler runs. The handler then makes the usage checks, which read
  * nothing on disk: the selection flags, then `at` (the `Now` service, or
  * `--at` through `Schema.decodeUnknownEffect(Timestamp)`, never the throwing
- * sync decoder; a value that is not a timestamp, or one more than 5 minutes
- * later than now, is a `VerifySelectionError`). Then `context`'s handler in
+ * sync decoder; a value that is not a timestamp, or one more than the
+ * tolerance (`GENERATED_AT_TOLERANCE`) later than now, is a `VerifySelectionError`). Then `context`'s handler in
  * substance — discover and read the config, resolve the profile and roots
  * through `resolveProjectConfig` — then resolve the targets, provide `Git`
  * for `Derivation.generatedBy`, run the splice and the atomic write, and
@@ -184,7 +184,7 @@ export const verifyCommand = Command.make(
 				// exactly as the caller gave it. Both `--at` refusals are usage
 				// errors (exit 64) decided here, before config, the bundle or any
 				// picker is touched: a value that is not a timestamp (#513), and one
-				// more than five minutes later than now (#503). The default (now) is
+				// more than the tolerance (`GENERATED_AT_TOLERANCE`) later than now (#503). The default (now) is
 				// never ahead of itself.
 				const now = yield* Now;
 				const rawAt = input.at;

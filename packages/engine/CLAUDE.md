@@ -128,9 +128,11 @@ src/
                                   generated.at more than 5 minutes later than now is re-stamped to now even behind a
                                   matching digest, and a drifted concept's stamp is clamped to now; sync skips the re-stamp
                                   (`verified-after-now`) when it would make a verification count, and leaves the
-                                  clamp off (the derived stamp stands, the lint reports it) when the clamp would make a verification count; a changed
+                                  clamp off (the derived stamp stands) when the clamp would make a verification count; a changed
                                   concept's stamp is also never moved back below the stamp it replaces when a verification falls
-                                  between the two (the existing stamp is kept, the digest is re-recorded, nothing is skipped)
+                                  between the two (the existing stamp is kept, the digest is re-recorded). A stamp left more than
+                                  5 minutes ahead by a hold is reported `verified-after-now` on that run (a changed concept is in both
+                                  `written` and `skipped`); a kept future stamp that guards nothing after now is re-stamped to now (`settle`, #509)
     index.ts                   -- syncIndex
     staged.ts                   -- committedView (--staged index mode lists the git index, #142)
     log.ts                      -- mergeLog, syncLog
@@ -150,7 +152,7 @@ src/
     json.ts                           -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary (`fix`, `target`, `migration_findings`), json, jsonError (pure)
     exit.ts                           -- Tally, tally, forDiagnostics (pure)
     move.ts                            -- MoveEnvelope, moveEnvelope (envelope half)
-    sync.ts                            -- SyncEnvelope, SyncModeEnvelope, syncEnvelope (envelope half)
+    sync.ts                            -- SyncEnvelope (optional `clock_behind`, #509), SyncModeEnvelope, syncEnvelope (envelope half)
   index.ts                            -- public barrel; this is what @okfit/cli and @okfit/mcp import
 ```
 

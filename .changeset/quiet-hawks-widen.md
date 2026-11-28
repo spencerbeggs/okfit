@@ -8,5 +8,5 @@
 
 ## Bug Fixes
 
-* The message of the `future` `VerifyNotCurrentError` now says the stamp is more than 5 minutes later than now and to commit any change to the body before running `okfit sync`
+* The message of the `future` `VerifyNotCurrentError` now says the stamp is more than 5 minutes later than now and to run `okfit sync`, which re-stamps it to now (commit any edits to it first)
 * `syncGenerated` now reports `generated-missing` before the uncommitted or untracked skip for a changed concept that has no generated block and no `actors.agent`, so the author is told the real blocker first (#515)

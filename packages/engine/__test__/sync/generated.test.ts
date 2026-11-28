@@ -846,7 +846,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				dryRun: true,
 				scope: new Set(),
 			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
-			assert.deepStrictEqual(result, { written: [], unchanged: [], migrated: [], skipped: [] });
+			assert.deepStrictEqual(result, { written: [], unchanged: [], migrated: [], skipped: [], ahead: [] });
 		}),
 	);
 });
@@ -1803,7 +1803,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 
 	const run = (
 		files: Record<string, string>,
-		options: { readonly now?: DateTime.Utc; readonly provenance?: DateTime.Utc } = {},
+		options: { readonly now?: DateTime.Utc; readonly provenance?: DateTime.Utc; readonly dryRun?: boolean } = {},
 	) =>
 		Effect.gen(function* () {
 			const bundle = yield* Bundle.load({ root: ROOT });
@@ -1820,7 +1820,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			const result = yield* syncGenerated(bundle, {
 				provenance,
 				renames: RENAMES,
-				dryRun: true,
+				dryRun: options.dryRun ?? true,
 				pending,
 				...(options.now === undefined ? {} : { now: options.now }),
 			});
@@ -1893,6 +1893,39 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		}),
 	);
 
+	it.effect("ahead lists each concept more than the tolerance ahead of now, once (#509)", () =>
+		Effect.gen(function* () {
+			const files = {
+				a: yield* matching("a", FUTURE),
+				b: drifted("b", "2026-01-01T00:00:00Z"),
+				c: yield* matching("c", "2026-11-24T10:02:00Z"),
+				d: yield* matching("d", "2026-06-01T00:00:00Z"),
+			};
+			const { result } = yield* run(files, { now: NOW, provenance: DateTime.makeUnsafe("2030-06-01T00:00:00Z") });
+			assert.deepStrictEqual(
+				result.ahead.map((entry) => [entry.id, DateTime.formatIso(entry.at)]),
+				[
+					["a", "2030-01-01T00:00:00.000Z"],
+					["b", "2030-06-01T00:00:00.000Z"],
+				],
+			);
+			// b's derived stamp was clamped to now, yet it is listed once.
+			assert.include(result.written, "b");
+			// Control: without a clock nothing is ahead.
+			const without = yield* run(files, { provenance: DateTime.makeUnsafe("2030-06-01T00:00:00Z") });
+			assert.deepStrictEqual(without.result.ahead, []);
+		}),
+	);
+
+	it.effect("a matching concept's commit date is not counted, only its generated.at (#509)", () =>
+		Effect.gen(function* () {
+			const files = { a: yield* matching("a", "2026-06-01T00:00:00Z") };
+			const { result } = yield* run(files, { now: NOW, provenance: DateTime.makeUnsafe("2030-06-01T00:00:00Z") });
+			assert.deepStrictEqual(result.unchanged, ["a"]);
+			assert.deepStrictEqual(result.ahead, []);
+		}),
+	);
+
 	it.effect("a clock that is behind does not re-stamp a recent stamp", () =>
 		Effect.gen(function* () {
 			const behind = DateTime.makeUnsafe("2026-11-24T09:58:00Z");
@@ -1920,10 +1953,10 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		}),
 	);
 
-	it.effect("a blocked repair is skipped, not unchanged", () =>
+	it.effect("a blocked repair is skipped, and a held concept another skip ends reports that skip alone", () =>
 		Effect.gen(function* () {
 			const plain = yield* matching("a", "2030-06-01T00:00:00Z", "2029-01-01T00:00:00Z");
-			// A second, different reason for the same concept: both skips are reported, neither is `unchanged`.
+			// `b` is held too, but its legacy-key conflict ends it first: that skip alone is reported (#509), and neither is `unchanged`.
 			const conflicting = plain.replace("\nx-okfit-integrity:", "\nintegrity: ~\nx-okfit-integrity:");
 			assert.notStrictEqual(conflicting, plain, "control: the legacy key is in the fixture");
 			const { result } = yield* run({ a: plain, b: conflicting }, { now: NOW });
@@ -1931,7 +1964,7 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			assert.deepStrictEqual(result.written, []);
 			assert.deepStrictEqual(
 				result.skipped.map((skip) => `${skip.id}:${skip.reason}`),
-				["a:verified-after-now", "b:verified-after-now", "b:legacy-key-conflict"],
+				["a:verified-after-now", "b:legacy-key-conflict"],
 			);
 		}),
 	);
@@ -1952,15 +1985,21 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		}),
 	);
 
-	it.effect("the clamp is not applied when it would make a verification count", () =>
-		Effect.gen(function* () {
-			const { result, pending } = yield* run(
-				{ a: drifted("a", "2026-01-01T00:00:00Z", "2029-01-01T00:00:00Z") },
-				{ now: NOW, provenance: DateTime.makeUnsafe("2030-01-01T00:00:00Z") },
-			);
-			assert.deepStrictEqual(result.written, ["a"]);
-			assert.include(pending[0]?.contents ?? "", "  at: 2030-01-01T00:00:00Z\n");
-		}),
+	it.effect(
+		"the clamp is not applied when it would make a verification count, and the held stamp is reported on that run (#509)",
+		() =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run(
+					{ a: drifted("a", "2026-01-01T00:00:00Z", "2029-01-01T00:00:00Z") },
+					{ now: NOW, provenance: DateTime.makeUnsafe("2030-01-01T00:00:00Z") },
+				);
+				assert.deepStrictEqual(result.written, ["a"]);
+				assert.deepStrictEqual(result.unchanged, []);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "a", reason: "verified-after-now", generatedAt: FUTURE, verifiedAt: "2029-01-01T00:00:00Z" },
+				]);
+				assert.include(pending[0]?.contents ?? "", "  at: 2030-01-01T00:00:00Z\n");
+			}),
 	);
 
 	describe("a changed concept never has its stamp moved back below a verification", () => {
@@ -1974,7 +2013,9 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			Effect.gen(function* () {
 				const { result, pending } = yield* run({ a: drifted("a", FUTURE, V2029) }, { now: NOW, provenance: AUTHORED });
 				assert.deepStrictEqual(result.written, ["a"]);
-				assert.deepStrictEqual(result.skipped, []);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "a", reason: "verified-after-now", generatedAt: FUTURE, verifiedAt: V2029 },
+				]);
 				const out = pending[0]?.contents ?? "";
 				assert.include(out, `generated:\n  by: human:ada\n  at: ${FUTURE}\n`);
 				assert.notInclude(out, "body: 0000000000000000");
@@ -1992,6 +2033,98 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 				assert.notInclude(out, "body: 0000000000000000");
 				assert.include(out, VERIFIED_2029);
 				assert.include(out, BINDING_2029);
+			}),
+		);
+
+		it.effect(
+			"a changed concept whose future stamp guards only a verification before now is re-stamped to now in one run (#509)",
+			() =>
+				Effect.gen(function* () {
+					const { result, pending } = yield* run(
+						{ a: drifted("a", FUTURE, "2026-11-20T00:00:00Z") },
+						{ now: NOW, provenance: AUTHORED },
+					);
+					assert.deepStrictEqual(result.written, ["a"]);
+					assert.deepStrictEqual(result.skipped, []);
+					const out = pending[0]?.contents ?? "";
+					assert.include(out, `generated:\n  by: human:ada\n  at: ${NOW_STAMP}\n`);
+					assert.notInclude(out, "body: 0000000000000000");
+					assert.include(out, "verified:\n  - by: human:ada\n    at: 2026-11-20T00:00:00Z\n");
+					const second = yield* run({ a: out }, { now: DateTime.makeUnsafe("2026-11-24T10:01:00Z") });
+					assert.deepStrictEqual(second.result.unchanged, ["a"]);
+					assert.deepStrictEqual(second.result.skipped, []);
+					assert.strictEqual(second.pending.length, 0);
+				}),
+		);
+
+		it.effect("a kept stamp within the tolerance is neither moved nor reported", () =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run(
+					{ a: drifted("a", "2026-11-24T10:02:00Z", "2026-11-24T10:01:00Z") },
+					{ now: NOW, provenance: AUTHORED },
+				);
+				assert.deepStrictEqual(result.skipped, []);
+				assert.include(pending[0]?.contents ?? "", "  at: 2026-11-24T10:02:00Z\n");
+			}),
+		);
+
+		it.effect("a clamp held within the tolerance is not reported", () =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run(
+					{ a: drifted("a", "2026-01-01T00:00:00Z", "2026-11-24T10:01:00Z") },
+					{ now: NOW, provenance: DateTime.makeUnsafe("2026-11-24T10:02:00Z") },
+				);
+				assert.deepStrictEqual(result.skipped, []);
+				assert.include(pending[0]?.contents ?? "", "  at: 2026-11-24T10:02:00Z\n");
+			}),
+		);
+
+		it.effect("a held concept that another skip ends gets that skip alone", () =>
+			Effect.gen(function* () {
+				const unsupported = `---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity: { generated: { body: "0000000000000000" } }\n---\n${BODY}`;
+				const { result } = yield* run({ a: unsupported }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.skipped, [{ id: "a", reason: "integrity-unsupported" }]);
+			}),
+		);
+
+		it.effect("a matching held concept that another skip ends gets that skip alone", () =>
+			Effect.gen(function* () {
+				// The digest matches (so the matching path settles the hold), and a legacy key beside the new one ends it.
+				const plain = yield* matching("a", FUTURE, V2029);
+				const conflicting = plain.replace("\nx-okfit-integrity:", "\nintegrity: ~\nx-okfit-integrity:");
+				assert.notStrictEqual(conflicting, plain, "control: the legacy key is in the fixture");
+				const { result } = yield* run({ a: conflicting }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.skipped, [{ id: "a", reason: "legacy-key-conflict" }]);
+				assert.deepStrictEqual(result.unchanged, []);
+			}),
+		);
+
+		it.effect("a held stamp is reported when the run writes (dryRun false)", () =>
+			Effect.gen(function* () {
+				const { result, pending } = yield* run(
+					{ a: drifted("a", FUTURE, V2029) },
+					{ now: NOW, provenance: AUTHORED, dryRun: false },
+				);
+				assert.deepStrictEqual(result.written, ["a"]);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "a", reason: "verified-after-now", generatedAt: FUTURE, verifiedAt: V2029 },
+				]);
+				assert.strictEqual(pending.length, 0);
+			}),
+		);
+
+		it.effect("a held concept whose rewritten text is unchanged is reported, not counted unchanged", () =>
+			Effect.gen(function* () {
+				const shell = (digest: string) =>
+					`---\ntype: Module\ntitle: a\ngenerated:\n  by: human:ada\n  at: ${FUTURE}\nverified:\n  - by: human:ada\n    at: ${V2029}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n  verified: 5\n---\n${BODY}`;
+				const digest = yield* Derivation.bodyDigest(shell("0".repeat(16))).pipe(Effect.provide(NodeCrypto.layerDigest));
+				const { result, pending } = yield* run({ a: shell(digest) }, { now: NOW, provenance: AUTHORED });
+				assert.deepStrictEqual(result.written, []);
+				assert.deepStrictEqual(result.unchanged, []);
+				assert.strictEqual(pending.length, 0);
+				assert.deepStrictEqual(result.skipped, [
+					{ id: "a", reason: "verified-after-now", generatedAt: FUTURE, verifiedAt: V2029 },
+				]);
 			}),
 		);
 

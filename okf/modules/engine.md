@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-26T16:32:49Z
+  at: 2026-11-28T00:31:36Z
 x-okfit-integrity:
   generated:
-    body: 927da4f8f658a0c9
+    body: 14c2c99d7dbadfb7
 ---
 
 # Engine
@@ -194,7 +194,8 @@ Markdown themselves, so they need `FileSystem`, `Path` and `Digest`.
 `RunResult.legacyKeys` lists the ids of the concepts that still use okfit's
 old key names, over the whole bundle even when a caller narrows the report,
 so a front end can point at `okfit sync`; it is advisory and not a finding.
-`RunOptions.configPath` names the config file in `config-okf-version-stale`.
+`RunOptions.configPath` names the config file in `config-okf-version-stale`;
+`ResolvedProjectConfig.configPath` is the value the validate, lint, MCP and LSP front ends pass (init and context do not).
 An empty `Computation` section is not a `computation-locator` finding.
 `init` omits the root `title` and `description` for a bundle that declares
 0.2 or earlier (#468). See [Migration to a newer OKF version is a report on
@@ -250,11 +251,12 @@ the verification current under OKF v0.3 §5.3; the `[actors].humans`
 allow-list does not gate it, and a concept whose body digest is unchanged is
 never rewritten, except for a `generated.at` more than five minutes later than the
 run's `now`, which `SyncOptions.now` makes sync re-stamp to now (#471). A drifted
-concept's stamp is clamped to `now` and is never moved back below the stamp it replaces when a verification falls between the two (the existing stamp stays, the digest is re-recorded). Sync declines a re-stamp that would make a
+concept's stamp is clamped to `now` and is never moved back below the stamp it replaces when a verification falls between the two (the existing stamp stays, the digest is re-recorded, and the hold is reported `verified-after-now`). Sync declines a re-stamp that would make a
 verification count, reporting the concept in `skipped` as `verified-after-now` with
 the stamp and that verification's date; a clamp that would make one count is not
-applied, the derived stamp stands and the lint `generated-at-future` reports
-it. Sync keeps a leading byte-order mark and the file's line endings when it
+applied, the derived stamp stands and is reported `verified-after-now` on that run (a changed concept is still written, so it may be in
+both `written` and `skipped`), and the lint `generated-at-future` also reports it. A kept stamp more than five minutes ahead that guards
+no verification dated after now is re-stamped to now on the same run (#509); a hold within the tolerance is not reported. `syncGenerated` also returns `ahead` (each in-scope concept whose `generated.at`, or whose committed author date when it is drifted, is more than the tolerance past `now`); `planSync` takes it out of the generated mode result and sets the optional `SyncResult.clockBehind` (`now`, `latest`, `concepts`), which `SyncEnvelope` carries as `clock_behind`. Sync keeps a leading byte-order mark and the file's line endings when it
 rewrites `index.md` or `log.md`: a rewrite uses the file's first newline
 throughout (the rule covers LF and CRLF; a file with no LF is written LF),
 and a file that differs from what sync would write only in its line endings

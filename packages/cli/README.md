@@ -294,7 +294,7 @@ whose instant, `--at` or now, is earlier than the concept's `generated.at`, so a
 `generated.at` in the future also refuses (commit any change to the concept's body, then run `okfit sync`, which re-stamps a stamp more than 5 minutes ahead, unless a verification dated between now and the stamp would then count: that refusal says sync will not re-stamp it and names the verification, and a human must correct `generated.at` or that verification); an instant
 equal to `generated.at` is accepted. A batch (`--all`, `--type`) and a list of several targets skip such a concept
 (`skipped <id>: generated.at <stamp> is later than ...`, ending in the step to take) and verify the rest; both pickers leave it out and print one
-`left out <id>: ...` line per concept with the same step: commit any change to its body and run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
+`left out <id>: ...` line per concept with the same step: run `okfit sync` (after committing any edits to it), check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. A `generated.at` later than now by less than 5 minutes is refused with a message to check
 the clock, or verify at or after the stamp (`okfit sync` re-stamps only one more than 5 minutes ahead). `--dry-run` runs the same splice and prints the exact
 fragment it would write, under a `would write:` line, without touching the
 file. Exit `0` on success (a dry run included), `3` on a verification failure, `64` on a usage error (an unknown target,
@@ -434,12 +434,22 @@ and the stamp would then count. A changed concept's new stamp (the author date,
 or the staged instant under `--staged`) is capped at now unless a verification
 dated between now and it would then count, and is never moved back below the
 stamp it replaces when a verification falls between the two: the existing
-`generated.at` stays, the body digest is still re-recorded, and nothing is
-reported as skipped. A stamp lowered to the verification of the content being
+`generated.at` stays and the body digest is still re-recorded. A kept stamp more
+than five minutes ahead is reported `verified-after-now` on that run, so a changed
+concept can be in both `written` (or `migrated`) and `skipped`. A kept future
+stamp that guards no verification dated after now is re-stamped to now on the
+first run. A stamp lowered to the verification of the content being
 stamped (the edit, verify, commit sequence) is unaffected. A human has to
 correct `generated.at` or that verification; a skip does not change the exit
 code. Under `--staged` only staged concepts are re-stamped; run a plain
 `okfit sync` for the rest.
+
+When a run that selects the generated mode sees a `generated.at`, or the author
+date of a concept whose body changed, more than five minutes later than now, the
+local clock may be behind. A human run prints one `warning:` line on stderr, once
+per run (an interactive run shows it on the confirm screen, below the plan, instead), naming how many concepts and the latest time; sync keeps acting and the
+exit code is unchanged. Under `--format json` stderr stays empty and the envelope
+carries an optional `clock_behind` object (`now`, `latest`, `concepts`).
 
 ### `okfit mv`
 

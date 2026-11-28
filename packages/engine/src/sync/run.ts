@@ -1,14 +1,14 @@
 import { Git } from "@effected/git";
 import { relativeWithin } from "@effected/walker";
 import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okfit/core";
-import { Bundle, Derive } from "@okfit/core";
+import { Bundle, Derive, Timestamp } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { ConceptOutsideRepositoryError, Derivation } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { changedConceptIds, changedDirectories, changedFiles } from "../changedDuringLoad.js";
 import { SyncPlanStaleError } from "../errors.js";
-import type { GeneratedProvenance } from "./generated.js";
+import type { GeneratedProvenance, GeneratedSyncResult } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { escapesBundle, syncIndex } from "./index.js";
 import { keyRenamesFor, recordedBodyForSync } from "./legacyKeys.js";
@@ -63,17 +63,21 @@ export interface SyncOptions {
 	/** Issue #140: stamp the concepts in the git index with this instant instead of walking history. Issue #295: log mode dates their entries with the same instant. */
 	readonly staged?: { readonly at: DateTime.Utc };
 	/**
-	 * Issue #471: the run's clock. A `generated.at` more than five minutes later than it is re-stamped to it (whole
+	 * Issue #471: the run's clock. A `generated.at` more than the tolerance (`GENERATED_AT_TOLERANCE`) later than it is re-stamped to it (whole
 	 * seconds), unless that would make a verification dated in between count: then the concept is skipped
-	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception. A changed
-	 * concept's stamp is never moved back below a verification: when the new stamp is earlier than the existing
-	 * `generated.at` and a verification falls in between, the existing stamp is kept. Absent: none of this applies.
+	 * (`verified-after-now`). A changed concept's new stamp is capped at it under the same exception, and a stamp
+	 * that stays more than the tolerance ahead for that reason is reported `verified-after-now` on the run that holds
+	 * it (the concept is still written, so it may be in both `written` and `skipped`, or in `migrated` and `skipped`
+	 * when it only migrates). A changed concept's stamp is never moved back below a verification: when the new stamp is earlier than the existing `generated.at` and a
+	 * verification falls in between, the existing stamp is kept, unless it is more than the tolerance ahead and no
+	 * verification is dated between now and it, in which case it moves to now. Absent: none of this applies.
 	 */
 	readonly now?: DateTime.Utc;
 }
 
 /**
- * One concept a mode declined to write. `generatedAt` and `verifiedAt` (encoded timestamps) accompany only
+ * One concept a mode declined to write, or, for `verified-after-now`, wrote while leaving a held stamp in place.
+ * `generatedAt` and `verifiedAt` (encoded timestamps) accompany only
  * `verified-after-now`: the stamp left in place and the earliest verification a re-stamp would have made current.
  *
  * @public
@@ -88,7 +92,10 @@ export interface SyncSkip {
 /** @public */
 export interface SyncModeResult {
 	readonly selected: boolean;
-	/** Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). */
+	/**
+	 * Bundle-relative. `generated`'s ids have no `.md`; `index`/`log`'s paths do (design §2). `generated` mode only: an
+	 * id whose held stamp is reported `verified-after-now` may also be in `skipped`, and so may a held id that only migrates.
+	 */
 	readonly written: ReadonlyArray<string>;
 	readonly unchanged: ReadonlyArray<string>;
 	/**
@@ -99,6 +106,19 @@ export interface SyncModeResult {
 	readonly skipped: ReadonlyArray<SyncSkip>;
 }
 
+/**
+ * #509: this run saw `generated.at` stamps or commit dates more than the tolerance (`GENERATED_AT_TOLERANCE`) later than
+ * its clock, so the clock may be behind. Timestamps are encoded; `now` is the run's clock in whole seconds, `latest`
+ * the latest instant seen, `concepts` the affected ids, sorted.
+ *
+ * @public
+ */
+export interface SyncClockBehind {
+	readonly now: string;
+	readonly latest: string;
+	readonly concepts: ReadonlyArray<string>;
+}
+
 /** @public */
 export interface SyncResult {
 	readonly bundleRoot: string;
@@ -106,6 +126,8 @@ export interface SyncResult {
 	readonly generated: SyncModeResult;
 	readonly index: SyncModeResult;
 	readonly log: SyncModeResult;
+	/** Set once per run, only when the generated mode ran and saw a stamp or commit date ahead of `now` (#509). */
+	readonly clockBehind?: SyncClockBehind;
 }
 
 /** A selected-`false` placeholder for a mode `--only` excluded from (contract §5). */
@@ -257,20 +279,33 @@ export const planSync: (
 	}
 
 	const pending: Array<PendingWrite> = [];
-	const generatedResult: SyncModeResult = options.modes.has("generated")
-		? {
-				selected: true,
-				...(yield* syncGenerated(bundle, {
-					provenance: staged ?? walked,
-					dryRun: true,
-					renames,
-					pending,
-					...(options.now === undefined ? {} : { now: options.now }),
-					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
-					...(scope === undefined ? {} : { scope }),
-				})),
-			}
-		: UNSELECTED;
+	const synced: GeneratedSyncResult | undefined = options.modes.has("generated")
+		? yield* syncGenerated(bundle, {
+				provenance: staged ?? walked,
+				dryRun: true,
+				renames,
+				pending,
+				...(options.now === undefined ? {} : { now: options.now }),
+				...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
+				...(scope === undefined ? {} : { scope }),
+			})
+		: undefined;
+	// `ahead` is a run-level signal: it stays out of the mode result.
+	let ahead: GeneratedSyncResult["ahead"] = [];
+	let generatedResult: SyncModeResult = UNSELECTED;
+	if (synced !== undefined) {
+		const { ahead: found, ...modeResult } = synced;
+		ahead = found;
+		generatedResult = { selected: true, ...modeResult };
+	}
+	const clockBehind: SyncClockBehind | undefined =
+		ahead.length === 0 || options.now === undefined
+			? undefined
+			: {
+					now: Schema.encodeSync(Timestamp)(DateTime.startOf(options.now, "second")),
+					latest: Schema.encodeSync(Timestamp)(ahead.map((entry) => entry.at).reduce((a, b) => DateTime.max(a, b))),
+					concepts: ahead.map((entry) => entry.id).toSorted(),
+				};
 	const generated: SyncModeResult =
 		generatedResult.selected && changedSkips.length > 0
 			? { ...generatedResult, skipped: [...generatedResult.skipped, ...changedSkips] }
@@ -355,7 +390,14 @@ export const planSync: (
 	}
 
 	return {
-		result: { bundleRoot: options.bundleRoot, dryRun: true, generated, index, log },
+		result: {
+			bundleRoot: options.bundleRoot,
+			dryRun: true,
+			generated,
+			index,
+			log,
+			...(clockBehind === undefined ? {} : { clockBehind }),
+		},
 		pending: snapshotted,
 		...(restage === undefined ? {} : { restage }),
 	} satisfies SyncPlan;

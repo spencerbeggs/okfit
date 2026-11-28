@@ -3,7 +3,7 @@ import { CliUi } from "@effected/cli-kit/ui";
 import type { SyncOptions, SyncResult } from "@okfit/engine";
 import { applySyncPlan, planSync, runSync } from "@okfit/engine";
 import { Effect } from "effect";
-import { humanSync } from "../render/sync.js";
+import { humanClockWarning, humanSync } from "../render/sync.js";
 
 /**
  * Issue #229: an interactive `okfit sync` shows what it would write and asks
@@ -19,6 +19,10 @@ import { humanSync } from "../render/sync.js";
  * pre-commit hook. A plan with nothing to write applies silently. A "no" or
  * Esc fails `Cancelled` (exit 130) with nothing written; a prompt that cannot
  * mount (`NotInteractive`) falls back to writing, so a pipe never blocks.
+ *
+ * #509: a plan whose run saw stamps ahead of the clock carries the clock warning on the confirm screen, below the plan,
+ * so a human sees it before answering (and a cancel still shows it). `shown.clockWarning` is set once the screen has
+ * resolved, so the caller does not print it a second time.
  */
 /** Files a plan rewrites: generated concepts written or migrated (once each), plus index and log. */
 export const writeCount = (result: SyncResult): number =>
@@ -40,6 +44,7 @@ export const syncWithConfirm = (
 	options: SyncOptions,
 	yes: boolean,
 	confirm: (lines: ReadonlyArray<string>, message: string) => ReturnType<typeof planPrompt> = planPrompt,
+	shown?: { clockWarning: boolean },
 ) =>
 	Effect.gen(function* () {
 		if (yes || options.dryRun || options.staged !== undefined || !(yield* CliInteractive)) {
@@ -48,9 +53,12 @@ export const syncWithConfirm = (
 		const plan = yield* planSync(options);
 		const count = writeCount(plan.result);
 		if (count === 0) return yield* applySyncPlan(plan);
-		const answer = yield* confirm(humanSync(plan.result), `Write ${count} file(s)?`).pipe(
+		const warning = humanClockWarning(plan.result);
+		const lines = warning === undefined ? humanSync(plan.result) : [...humanSync(plan.result), warning];
+		const answer = yield* confirm(lines, `Write ${count} file(s)?`).pipe(
 			Effect.catchTag("NotInteractive", () => Effect.succeed(undefined)),
 		);
+		if (answer !== undefined && warning !== undefined && shown !== undefined) shown.clockWarning = true;
 		if (answer !== undefined && !answer.confirmed) return yield* new Cancelled({ reason: "escape" });
 		return yield* applySyncPlan(plan);
 	});

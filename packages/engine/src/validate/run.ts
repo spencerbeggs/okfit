@@ -53,8 +53,8 @@ export interface RunOptions {
 	readonly profile: Option.Option<Profile>;
 	/** `OKFIT_NOW` or `DateTime.now`, from `bin.ts` (K-47); enables the `stale` rule (D-34). */
 	readonly now: DateTime.Utc;
-	/** The config file the run read, named in messages about it (`config-okf-version-stale`); omit when none was found. */
-	readonly configPath?: string;
+	/** The config file the run read, named in messages about it (`config-okf-version-stale`); omit when none was found (`undefined` is the same as absent). */
+	readonly configPath?: string | undefined;
 	/**
 	 * S-31: skip `Provenance.lint`'s git TIER (tier 2, the git-derived date
 	 * comparison for concepts with no recorded body digest: neither

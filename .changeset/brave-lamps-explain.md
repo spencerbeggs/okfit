@@ -9,5 +9,5 @@
 * `okfit sync --since` refuses an impossible calendar date such as `2026-02-30` with exit code 64. It used to accept one and silently act as a later floor.
 * `--stable` and `--draft` accept one concept named more than once (#514)
 * Every `okfit verify` skip line names a next step (#517)
-* The future-stamp advice says to commit any change to the body, then run `okfit sync` (#515)
+* The future-stamp advice says to run `okfit sync`, which re-stamps it to now (commit any edits to it first) (#515)
 * The `not tracked by git` and `has uncommitted changes` skip lines of `okfit sync` name a next step

@@ -8,7 +8,7 @@ import { Derive } from "../Derive.js";
 import type { DiagnosticSeverity, LintCode } from "../Diagnostic.js";
 import { Diagnostic, DiagnosticRange } from "../Diagnostic.js";
 import { Generated } from "../Generated.js";
-import { generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
+import { GENERATED_AT_TOLERANCE_TEXT, generatedAtIsFuture, verificationBlockingRestamp } from "../GeneratedAtFuture.js";
 import type { LinkGraph } from "../Graph.js";
 import { Graph } from "../Graph.js";
 import { INTEGRITY_KEY } from "../Integrity.js";
@@ -102,14 +102,14 @@ export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", 
 
 /**
  * #471: a `generated.at` later than now counts for no verification (OKF 0.3 §5.3) and `okfit verify` refuses it;
- * `okfit sync` re-stamps it once any change to its body is committed, except when a verification would then count
+ * `okfit sync` re-stamps it to now (a file with uncommitted edits is skipped until they are committed), except when a verification would then count
  * (`verificationBlockingRestamp`).
  */
 export const generatedAtFuture: LintRule = perConcept("generated-at-future", (concept, context) => {
 	const at = concept.frontmatter.generated?.at;
 	const { now } = context;
 	if (at === undefined || now === undefined || !generatedAtIsFuture(at, now)) return [];
-	const head = `generated.at ${instant(at)} is more than 5 minutes later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept`;
+	const head = `generated.at ${instant(at)} is more than ${GENERATED_AT_TOLERANCE_TEXT} later than now (${instant(now)}), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept`;
 	const blocking = verificationBlockingRestamp(
 		(concept.frontmatter.verified ?? []).map((entry) => entry.at),
 		at,
@@ -119,7 +119,7 @@ export const generatedAtFuture: LintRule = perConcept("generated-at-future", (co
 		{
 			message: Option.isSome(blocking)
 				? `${head}; okfit sync will not re-stamp it, because the verification dated ${instant(blocking.value)} would then count without a re-verification; a human must correct generated.at or that verification`
-				: `${head}; commit any change to its body, then run okfit sync, which re-stamps it`,
+				: `${head}; run okfit sync, which re-stamps it to now (commit any edits to it first)`,
 			path: ["generated", "at"],
 		},
 	];

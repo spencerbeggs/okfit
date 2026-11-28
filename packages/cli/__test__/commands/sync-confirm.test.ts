@@ -6,7 +6,7 @@ import { CliUiTest } from "@effected/cli-kit/ui/testing";
 import { Git } from "@effected/git";
 import { OkfitConfig } from "@okfit/core";
 import type { SyncOptions } from "@okfit/engine";
-import { GitHistory } from "@okfit/profiles";
+import { Derivation, GitHistory } from "@okfit/profiles";
 import { Console, DateTime, Effect, Exit, Fiber, Layer, Option } from "effect";
 import { syncWithConfirm, writeCount } from "../../src/commands/sync-confirm.js";
 import { FILES, withBundle } from "../utils/picker.js";
@@ -182,5 +182,88 @@ describe("syncWithConfirm", () => {
 				}),
 			),
 		),
+	);
+});
+
+describe("syncWithConfirm: the clock warning (#509)", () => {
+	const NOW = DateTime.makeUnsafe("2026-11-24T10:00:00Z");
+	const aheadFiles = Effect.gen(function* () {
+		const text = (digest: string) =>
+			`---\ntype: Module\ntitle: Ahead\ngenerated:\n  by: human:ada\n  at: 2030-01-01T00:00:00Z\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---\n\n# Ahead\n`;
+		const digest = yield* Derivation.bodyDigest(text("0000000000000000")).pipe(Effect.provide(TestPlatform));
+		return [["ahead.md", text(digest)]] as ReadonlyArray<readonly [string, string]>;
+	});
+	const aheadOptions = (root: string) => options(root, { modes: new Set(["generated", "index"] as const), now: NOW });
+	const startAhead = (root: string, shown: { clockWarning: boolean }) =>
+		Effect.gen(function* () {
+			const session = yield* CliUiTest.session({ interactive: true });
+			const fiber = yield* Effect.forkScoped(
+				syncWithConfirm(aheadOptions(root), false, undefined, shown).pipe(
+					Effect.provide(session.layer),
+					Effect.provide(fakes(root)),
+				),
+			);
+			return { session, fiber };
+		});
+
+	it.effect("the confirm screen shows the warning, and records that it did", () =>
+		Effect.gen(function* () {
+			const files = yield* aheadFiles;
+			return yield* withBundle(files, (root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const shown = { clockWarning: false };
+						const { session, fiber } = yield* startAhead(root, shown);
+						const confirm = yield* session.next({ contains: "file(s)?" });
+						assert.include(yield* session.transcript, "may be behind");
+						yield* confirm.press("enter");
+						const result = yield* Fiber.join(fiber);
+						assert.isDefined(result.clockBehind);
+						assert.isTrue(shown.clockWarning);
+					}),
+				),
+			);
+		}),
+	);
+
+	it.effect("a cancel has still shown the warning", () =>
+		Effect.gen(function* () {
+			const files = yield* aheadFiles;
+			return yield* withBundle(files, (root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const shown = { clockWarning: false };
+						const { session, fiber } = yield* startAhead(root, shown);
+						const confirm = yield* session.next({ contains: "file(s)?" });
+						assert.include(yield* session.transcript, "may be behind");
+						yield* confirm.press("escape");
+						const exit = yield* Fiber.join(fiber).pipe(Effect.exit);
+						assert.isTrue(Exit.isFailure(exit));
+					}),
+				),
+			);
+		}),
+	);
+
+	it.effect("a confirm that cannot mount leaves the warning for the caller to print", () =>
+		Effect.gen(function* () {
+			const files = yield* aheadFiles;
+			return yield* withBundle(files, (root) =>
+				Effect.scoped(
+					Effect.gen(function* () {
+						const session = yield* CliUiTest.session({ interactive: true });
+						const shown = { clockWarning: false };
+						const result = yield* syncWithConfirm(
+							aheadOptions(root),
+							false,
+							() => Effect.fail(new NotInteractive()),
+							shown,
+						).pipe(Effect.provide(session.layer), Effect.provide(fakes(root)));
+						assert.isDefined(result.clockBehind);
+						assert.isFalse(shown.clockWarning);
+					}),
+				),
+			);
+		}),
 	);
 });

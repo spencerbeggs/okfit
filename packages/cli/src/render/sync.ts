@@ -1,4 +1,4 @@
-import { INTEGRITY_KEY } from "@okfit/core";
+import { GENERATED_AT_TOLERANCE_TEXT, INTEGRITY_KEY } from "@okfit/core";
 import type { PublicationEnvelope, SkipReason, SyncResult } from "@okfit/engine";
 import { ProfileKeys } from "@okfit/profiles";
 
@@ -70,6 +70,18 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 			: `wrote ${totalWritten}, migrated ${totalMigrated}, unchanged ${totalUnchanged}, skipped ${totalSkipped}`,
 	);
 	return lines;
+};
+
+/**
+ * #509: the one stderr line for a run that saw `generated.at` stamps or commit dates ahead of its clock; `undefined`
+ * when it saw none. It says the clock may be behind and what sync does with such a stamp, never that it re-stamped one.
+ *
+ * @public
+ */
+export const humanClockWarning = (result: SyncResult): string | undefined => {
+	const behind = result.clockBehind;
+	if (behind === undefined) return undefined;
+	return `warning: ${behind.concepts.length} concept(s) carry a generated.at or commit date more than ${GENERATED_AT_TOLERANCE_TEXT} later than now (${behind.now}; the latest is ${behind.latest}), so this machine's clock may be behind; when sync writes such a concept it re-stamps it to now, or lists it as skipped when re-stamping would make a verification count`;
 };
 
 /**

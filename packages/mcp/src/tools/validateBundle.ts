@@ -70,7 +70,7 @@ export const handleValidateBundle = (projectRoot: string, params: ValidateBundle
 			config: resolved.config,
 			profile: resolved.profile,
 			now,
-			...(Option.isSome(resolved.discovered) ? { configPath: resolved.discovered.value.path } : {}),
+			configPath: resolved.configPath,
 		}).pipe(
 			provideDocuments(resolved.bundleRoot, params.documents ?? []),
 			Effect.mapError((cause) => {

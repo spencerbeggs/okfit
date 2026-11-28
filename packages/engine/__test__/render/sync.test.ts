@@ -38,6 +38,23 @@ describe("syncEnvelope", () => {
 		}),
 	);
 
+	it.effect("syncEnvelope carries clock_behind only when the result does (#509)", () =>
+		Effect.sync(() => {
+			const clockBehind = { now: "2026-11-24T10:00:00Z", latest: "2031-01-01T00:00:00Z", concepts: ["a", "b"] };
+			const with_ = syncEnvelope({
+				okfitVersion: "0.1.0",
+				root: "okf",
+				dryRun: false,
+				result: { ...baseResult, clockBehind },
+			});
+			assert.deepStrictEqual(with_.clock_behind, clockBehind);
+			const encoded = Schema.encodeSync(SyncEnvelope)(with_);
+			assert.deepStrictEqual(encoded.clock_behind, clockBehind);
+			const without = syncEnvelope({ okfitVersion: "0.1.0", root: "okf", dryRun: false, result: baseResult });
+			assert.isFalse("clock_behind" in without);
+		}),
+	);
+
 	it("marks an unselected mode selected: false with three empty lists", () => {
 		const unselected: SyncResult = {
 			bundleRoot: "/repo/okf",

@@ -29,6 +29,7 @@ import {
 	Concept,
 	Derive,
 	DiagnosticRange,
+	GENERATED_AT_TOLERANCE_TEXT,
 	Generated,
 	INTEGRITY_KEY,
 	Status,
@@ -300,7 +301,7 @@ const alreadyBound = (target: EditTarget, actor: string, content: string): boole
 
 /**
  * OKF 0.3 5.3 (R33): `NotCurrent` when `now` is before `generated.at`, since the entry the edit would write would not
- * count; `kind` is `"future"` when the stamp is more than core's tolerance ahead of `now` (`okfit sync` re-stamps it once any change to its body is committed)
+ * count; `kind` is `"future"` when the stamp is more than core's tolerance ahead of `now` (`okfit sync` re-stamps it to now)
  * and `"near-future"` within it. The editor's side of the engine's `VerifyNotCurrentError`; both ask core's `Derive.isCurrent`.
  */
 const notCurrent = (target: EditTarget, now: DateTime.Utc): EditFailure | undefined => {
@@ -427,9 +428,9 @@ const describeNotCurrent = (failure: Extract<EditFailure, { readonly _tag: "NotC
 		case "blocked":
 			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); okfit sync will not re-stamp it, because the verification dated ${failure.blockedBy} would then count without a re-verification; a human must correct generated.at or that verification`;
 		case "future":
-			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); commit any change to its body, then run okfit sync, which re-stamps it, then mark verified again`;
+			return `the concept's generated.at (${failure.generatedAt}) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it to now (commit any edits to it first), then mark verified again`;
 		case "near-future":
-			return `the concept's generated.at (${failure.generatedAt}) is later than now by less than 5 minutes, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after ${failure.generatedAt}`;
+			return `the concept's generated.at (${failure.generatedAt}) is later than now by less than ${GENERATED_AT_TOLERANCE_TEXT}, so a verification now would not count yet (OKF 0.3 5.3); check the clock, or mark verified again at or after ${failure.generatedAt}`;
 	}
 };
 

@@ -1,5 +1,14 @@
 # Log
 
+## 2026-11-28
+
+* Updated CLI
+* Updated Engine
+* Updated Generated.at is the author date of the last commit that changed the body
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
+* Updated A verification is bound to the content it covered
+
 ## 2026-11-27
 
 * Updated Core
@@ -12,6 +21,8 @@
 * Updated The root index's metadata is read and kept
 * Updated Markdown that is not a concept is skipped, not an error
 * Updated okfit-mcp — MCP tool and resource contract
+* Updated Engine
+* Updated Generated.at is the author date of the last commit that changed the body
 
 ## 2026-11-26
 

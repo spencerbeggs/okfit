@@ -7,7 +7,7 @@ resource: ../../packages/cli/README.md
 status: stable
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T20:49:23Z
+  at: 2026-11-28T01:51:50Z
 tags:
   - architecture
 verified:
@@ -51,13 +51,15 @@ verified:
     at: 2026-11-26T06:31:51Z
   - by: human:spencer
     at: 2026-11-27T22:16:13Z
+  - by: human:spencer
+    at: 2026-11-28T01:57:32Z
 x-okfit-integrity:
   generated:
-    body: 6e6fd46752a7d728
+    body: 838a33c4a95b79c1
   verified:
     by: human:spencer
-    at: 2026-11-27T22:16:13Z
-    content: 4a33969995fc8803
+    at: 2026-11-28T01:57:32Z
+    content: 9413ab68b807e015
 ---
 
 # okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale, mv
@@ -215,7 +217,7 @@ own `at` and rewrites the binding to match. `--at <iso>` records a different
 instant, but never one more than five minutes later than now (exactly five minutes is accepted), and never a value that is not a timestamp: both are a `VerifySelectionError`, exit `64`, raised before the config is read and before any picker opens, with `--dry-run` and in `--format json` too (the one check that comes first is an explicit `--config` file that does not exist, which is `ConfigPathNotFoundError`, exit `3`); the message for a value that is not a timestamp names the expected form (an ISO 8601 timestamp with an explicit offset, or a `YYYY-MM-DD` date). Nor one before the concept's `generated.at`: OKF v0.3 §5.3
 counts only a verification at or after the last change, so a write that would
 not be current (`--at` earlier, or a `generated.at` in the future from clock
-skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message says to commit any change to its body, then run `okfit sync` (which re-stamps it unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: commit any change to its body, then run `okfit sync`, check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
+skew) fails with `VerifyNotCurrentError`, exit `3`, naming the fix, when it is a single id: beyond five minutes ahead the message says to run `okfit sync` (which re-stamps it to now, after any edits to it are committed, unless that would make a verification count; when it would, the message says sync will not re-stamp it and names the verification), within five minutes it says to check the clock, and when `generated.at` is not later than now (only `--at` is early) it says to verify at or after `generated.at`. A batch (`--all`, `--type`), a list of several targets, a picker and `okfit stale --verify` instead skip such a concept with the reason `not-current` (`VerifyBatchEnvelope.skipped[].reason`) and verify the rest; a list where every concept is not current writes nothing and exits `0`. The skip line (`skipped <id>: ...`) names the same next step the single-id refusal names for that concept: run `okfit sync` (after committing any edits to it), check the clock, a human must correct `generated.at` or a verification, or verify at or after `generated.at` or omit `--at`. Both pickers leave such a concept out and print one `left out <id>: ...` line per concept with that same step, and when every row is left out they print `nothing to verify now: every candidate was left out, for the reason on its line above`. `VerifyBatchEnvelope.skipped[]` stays `{ id, reason }`; the step is human output only. `--dry-run` prints what would be written and writes nothing.
 `--all` attests every concept whose type sets `require_verified`, plus every
 drifted concept of any other type, that does not hold the current binding by
 you (a drifted concept is re-offered); `--type <Type>` (repeatable) narrows or
@@ -353,7 +355,7 @@ the concept's `x-okfit-integrity.verified` binds its latest human entry and cove
 exactly the current content, sync stamps `min(derived instant, binding.at)`
 instead, so the
 edit, verify, commit sequence leaves the verification current (OKF v0.3 §5.2,
-§5.3); the `[actors].humans` allow-list does not gate this. Sync re-stamps a `generated.at` more than five minutes later than now to now (whole seconds), even when the recorded digest matches (the one case where an authoritative stamp is rewritten), and clamps a drifted concept's new stamp to now (#471). It skips the re-stamp when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. When the clamp would make one count, sync writes the derived stamp unclamped, reports no skip on that run, and the lint `generated-at-future` reports it once it is more than five minutes ahead; a later sync then skips it. A drifted concept's new stamp is never moved back below the stamp it replaces when a verification falls between the two: the existing stamp stays, the digest is re-recorded, no skip is reported. It never
+§5.3). The `[actors].humans` allow-list does not gate this. Sync re-stamps a `generated.at` more than five minutes later than now to now (whole seconds), even when the recorded digest matches (the one case where an authoritative stamp is rewritten), and clamps a drifted concept's new stamp to now (#471). It skips the re-stamp when it would make a verification dated between now and the stamp count: the concept is reported `skipped` with the reason `verified-after-now`, the exit code is unchanged, and a human corrects `generated.at` or that verification. When the clamp would make one count, sync writes the derived stamp unclamped and reports the concept `skipped` as `verified-after-now` on that run; the lint `generated-at-future` also reports it once it is more than five minutes ahead. A drifted concept's new stamp is never moved back below the stamp it replaces when a verification falls between the two: the existing stamp stays and the digest is re-recorded, and a kept stamp more than five minutes ahead is reported `verified-after-now` on that run. Such a changed concept is still written, so it may be in both `written` and `skipped`. A kept stamp more than five minutes ahead that guards no verification dated after now is re-stamped to now on the same run. A hold within the five-minute tolerance is not reported (#509). A run that selects the generated mode and sees a `generated.at`, or a commit's author date for a concept whose body changed, more than five minutes later than now prints one warning line on stderr (human output only) naming the number of concepts, now and the latest time, and saying the clock may be behind; sync keeps acting and the exit code is unchanged. It never
 touches `verified` and never writes `x-okfit-integrity.verified` and takes no clock — the same `now`-as-argument
 discipline as the rest of core. Exit `0` whether or not anything was
 written, `3` on any typed failure, `64` on an unknown `--only` mode or a
@@ -385,7 +387,7 @@ listed until it is staged.
 `okfit sync --format json` prints a `SyncEnvelope` (schema 1): `schema`,
 `okfit_version`, `engine_version`, `distribution`, `root`, `dry_run`,
 `exit_code`, `generated`, `index`, `log` — each of the latter three an
-object with `selected`, `written`, `unchanged`, `skipped`. A root or
+object with `selected`, `written`, `unchanged`, `skipped`; plus the optional `clock_behind` (`now`, `latest`, `concepts`), present only when the run saw a `generated.at` or (for a concept whose body changed) commit date more than five minutes ahead of its clock, in which case stderr stays empty. A root or
 subdirectory `index.md`, or the root `log.md`, that is a symbolic link out of the
 bundle (a dangling link included) is never read or written: it is listed in
 `skipped` with the reason `symlink-escape`, and the exit code is unchanged.

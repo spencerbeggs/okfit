@@ -7,7 +7,7 @@ tags:
   - docs
 generated:
   by: okfit/claude-code
-  at: 2026-11-25T04:35:04Z
+  at: 2026-11-28T00:30:24Z
 status: stable
 x-okfit-supersedes: profiles-body-sha256-detects-real-drift.md
 sources:
@@ -15,11 +15,11 @@ sources:
     resource: ../../packages/core/src/Integrity.ts
 x-okfit-integrity:
   generated:
-    body: 863b859fb30a94da
+    body: 7486057ca3a2043c
   verified:
     by: human:spencer
-    at: 2026-11-25T13:29:38Z
-    content: db336f2aa103b1ca
+    at: 2026-11-28T01:57:32Z
+    content: d0d6605d24fbbb78
 verified:
   - by: human:spencer
     at: 2026-10-25T18:29:21Z
@@ -31,6 +31,8 @@ verified:
     at: 2026-11-24T22:21:07Z
   - by: human:spencer
     at: 2026-11-25T13:29:38Z
+  - by: human:spencer
+    at: 2026-11-28T01:57:32Z
 ---
 
 # Every okfit digest lives in one integrity family, outside the spec's families
@@ -77,6 +79,12 @@ does not gate the clamp, and a concept whose body digest is unchanged is
 never rewritten, except that a `generated.at` more than five minutes later than
 now is re-stamped to now, unless that would make a verification count (see [Generated.at is the author date of the last commit
 that changed the body](generated-at-source.md)).
+A concept with no `generated.at` has no floor to compare the binding against, so
+a hand-written binding that names an old instant and matches the current digest
+makes `sync` stamp that old instant. This is accepted: the digest detects
+tampering and is not access control, and a hand-written `verified` entry can
+already claim any time. The test `clamps a concept with no generated block when
+a binding covers the current content` pins it.
 
 ## Alternatives rejected
 
