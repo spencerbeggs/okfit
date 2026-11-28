@@ -92,7 +92,8 @@ src/
                                     @okfit/engine's ContextEnvelope/contextEnvelope)
     human.ts                     -- Counts, line, human, humanDoc (the Doc form, with
                                     GitHub annotations), annotationDir, summary
-    sync.ts                       -- humanSync (human half of @okfit/engine's SyncEnvelope)
+    sync.ts                       -- humanSync (human half of @okfit/engine's SyncEnvelope), humanClockWarning (the one stderr line for
+                                    SyncResult.clockBehind, #509)
     query.ts                       -- humanQueryList, queryListSummary, humanQueryGet, humanQueryNeighbors
     verify.ts                      -- VerifyLines, humanVerify / humanVerifyDoc / humanVerifyBatchDoc (human half
                                       of @okfit/engine's VerifyEnvelope; the Doc forms print via Doc.print),

@@ -1,14 +1,14 @@
 import { Git } from "@effected/git";
 import { relativeWithin } from "@effected/walker";
 import type { BundleLoadError, ConceptId, LoadedBundle, OkfitConfig } from "@okfit/core";
-import { Bundle, Derive } from "@okfit/core";
+import { Bundle, Derive, Timestamp } from "@okfit/core";
 import type { BodyProvenance, GeneratedAtError, GitHistory } from "@okfit/profiles";
 import { ConceptOutsideRepositoryError, Derivation } from "@okfit/profiles";
 import { DateTime, Effect, FileSystem, Option, Path, Schema } from "effect";
 import type { Digest } from "effect/crypto";
 import { changedConceptIds, changedDirectories, changedFiles } from "../changedDuringLoad.js";
 import { SyncPlanStaleError } from "../errors.js";
-import type { GeneratedProvenance } from "./generated.js";
+import type { GeneratedProvenance, GeneratedSyncResult } from "./generated.js";
 import { syncGenerated } from "./generated.js";
 import { escapesBundle, syncIndex } from "./index.js";
 import { keyRenamesFor, recordedBodyForSync } from "./legacyKeys.js";
@@ -102,6 +102,19 @@ export interface SyncModeResult {
 	readonly skipped: ReadonlyArray<SyncSkip>;
 }
 
+/**
+ * #509: this run saw `generated.at` stamps or commit dates more than the tolerance (`GENERATED_AT_TOLERANCE`) later than
+ * its clock, so the clock may be behind. Timestamps are encoded; `now` is the run's clock in whole seconds, `latest`
+ * the latest instant seen, `concepts` the affected ids, sorted.
+ *
+ * @public
+ */
+export interface SyncClockBehind {
+	readonly now: string;
+	readonly latest: string;
+	readonly concepts: ReadonlyArray<string>;
+}
+
 /** @public */
 export interface SyncResult {
 	readonly bundleRoot: string;
@@ -109,6 +122,8 @@ export interface SyncResult {
 	readonly generated: SyncModeResult;
 	readonly index: SyncModeResult;
 	readonly log: SyncModeResult;
+	/** Set once per run, only when the generated mode ran and saw a stamp or commit date ahead of `now` (#509). */
+	readonly clockBehind?: SyncClockBehind;
 }
 
 /** A selected-`false` placeholder for a mode `--only` excluded from (contract §5). */
@@ -260,20 +275,37 @@ export const planSync: (
 	}
 
 	const pending: Array<PendingWrite> = [];
-	const generatedResult: SyncModeResult = options.modes.has("generated")
-		? {
-				selected: true,
-				...(yield* syncGenerated(bundle, {
-					provenance: staged ?? walked,
-					dryRun: true,
-					renames,
-					pending,
-					...(options.now === undefined ? {} : { now: options.now }),
-					...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
-					...(scope === undefined ? {} : { scope }),
-				})),
-			}
-		: UNSELECTED;
+	const synced: GeneratedSyncResult | undefined = options.modes.has("generated")
+		? yield* syncGenerated(bundle, {
+				provenance: staged ?? walked,
+				dryRun: true,
+				renames,
+				pending,
+				...(options.now === undefined ? {} : { now: options.now }),
+				...(options.config.actors?.agent === undefined ? {} : { agent: options.config.actors.agent }),
+				...(scope === undefined ? {} : { scope }),
+			})
+		: undefined;
+	// `ahead` is a run-level signal: it stays out of the mode result.
+	let ahead: GeneratedSyncResult["ahead"] = [];
+	let generatedResult: SyncModeResult = UNSELECTED;
+	if (synced !== undefined) {
+		const { ahead: found, ...modeResult } = synced;
+		ahead = found;
+		generatedResult = { selected: true, ...modeResult };
+	}
+	const latestAhead = ahead.reduce<DateTime.Utc | undefined>(
+		(best, entry) => (best === undefined || DateTime.isGreaterThan(entry.at, best) ? entry.at : best),
+		undefined,
+	);
+	const clockBehind: SyncClockBehind | undefined =
+		latestAhead === undefined || options.now === undefined
+			? undefined
+			: {
+					now: Schema.encodeSync(Timestamp)(DateTime.startOf(options.now, "second")),
+					latest: Schema.encodeSync(Timestamp)(latestAhead),
+					concepts: ahead.map((entry) => entry.id).toSorted(),
+				};
 	const generated: SyncModeResult =
 		generatedResult.selected && changedSkips.length > 0
 			? { ...generatedResult, skipped: [...generatedResult.skipped, ...changedSkips] }
@@ -358,7 +390,14 @@ export const planSync: (
 	}
 
 	return {
-		result: { bundleRoot: options.bundleRoot, dryRun: true, generated, index, log },
+		result: {
+			bundleRoot: options.bundleRoot,
+			dryRun: true,
+			generated,
+			index,
+			log,
+			...(clockBehind === undefined ? {} : { clockBehind }),
+		},
 		pending: snapshotted,
 		...(restage === undefined ? {} : { restage }),
 	} satisfies SyncPlan;

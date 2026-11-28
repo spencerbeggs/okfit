@@ -846,7 +846,7 @@ describe("syncGenerated: body-digest design (issue #19)", () => {
 				dryRun: true,
 				scope: new Set(),
 			}).pipe(Effect.provide([TestPlatform, FileSystem.layerNoop({}), Path.layer]));
-			assert.deepStrictEqual(result, { written: [], unchanged: [], migrated: [], skipped: [] });
+			assert.deepStrictEqual(result, { written: [], unchanged: [], migrated: [], skipped: [], ahead: [] });
 		}),
 	);
 });
@@ -1890,6 +1890,30 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 			const { result, pending } = yield* run({ a: yield* matching("a", "2026-11-24T10:02:00Z") }, { now: NOW });
 			assert.deepStrictEqual(result.unchanged, ["a"]);
 			assert.strictEqual(pending.length, 0);
+		}),
+	);
+
+	it.effect("ahead lists each concept more than the tolerance ahead of now, once (#509)", () =>
+		Effect.gen(function* () {
+			const files = {
+				a: yield* matching("a", FUTURE),
+				b: drifted("b", "2026-01-01T00:00:00Z"),
+				c: yield* matching("c", "2026-11-24T10:02:00Z"),
+				d: yield* matching("d", "2026-06-01T00:00:00Z"),
+			};
+			const { result } = yield* run(files, { now: NOW, provenance: DateTime.makeUnsafe("2030-06-01T00:00:00Z") });
+			assert.deepStrictEqual(
+				result.ahead.map((entry) => [entry.id, DateTime.formatIso(entry.at)]),
+				[
+					["a", "2030-01-01T00:00:00.000Z"],
+					["b", "2030-06-01T00:00:00.000Z"],
+				],
+			);
+			// b's derived stamp was clamped to now, yet it is listed once.
+			assert.include(result.written, "b");
+			// Control: without a clock nothing is ahead.
+			const without = yield* run(files, { provenance: DateTime.makeUnsafe("2030-06-01T00:00:00Z") });
+			assert.deepStrictEqual(without.result.ahead, []);
 		}),
 	);
 

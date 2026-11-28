@@ -69,6 +69,12 @@ export interface GeneratedSyncResult {
 	 */
 	readonly migrated: ReadonlyArray<string>;
 	readonly skipped: ReadonlyArray<GeneratedSkip>;
+	/**
+	 * #509: each in-scope concept, once, whose existing `generated.at` or committed author date (before any clamp) is
+	 * more than the tolerance later than `options.now`; `at` is the later of the two. Empty when `now` is unset. A
+	 * run-level signal that the clock may be behind, not a per-mode result: `planSync` takes it out of the mode result.
+	 */
+	readonly ahead: ReadonlyArray<{ readonly id: string; readonly at: DateTime.Utc }>;
 }
 
 /**
@@ -271,6 +277,7 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 	const unchanged: Array<string> = [];
 	const migrated: Array<string> = [];
 	const skipped: Array<GeneratedSkip> = [];
+	const ahead: Array<{ readonly id: string; readonly at: DateTime.Utc }> = [];
 
 	for (const [id, concept] of bundle.concepts) {
 		// Step 1 (#140): a scoped run considers only the caller's set.
@@ -284,6 +291,19 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		// An unmigrated concept's digest is still its record: reading only the new key would see drift and
 		// re-stamp `generated.at`, which voids every verification.
 		const matches = recordedBodyForSync(concept, renames) === currentDigest;
+		// #509: a stamp or an author date this far ahead of the clock means the clock may be behind. The author date counts
+		// only where it would be stamped (a drifted concept), so the answer does not depend on which concepts were walked.
+		if (options.now !== undefined) {
+			const derivedAt = !matches ? provenance.get(id) : undefined;
+			const candidates = [generated?.at, derivedAt?._tag === "committed" ? derivedAt.at : undefined].filter(
+				(at): at is DateTime.Utc => at !== undefined,
+			);
+			const latest = candidates.reduce<DateTime.Utc | undefined>(
+				(best, at) => (best === undefined || DateTime.isGreaterThan(at, best) ? at : best),
+				undefined,
+			);
+			if (latest !== undefined && generatedAtIsFuture(latest, options.now)) ahead.push({ id, at: latest });
+		}
 		const hasLegacy = generated?.body_sha256 !== undefined;
 		const rendersKey = rendersKeyFor(concept, renames);
 		const legacyRenders = legacyRendersDigests(concept, rendersKey);
@@ -527,5 +547,5 @@ export const syncGenerated = Effect.fn("okfit/sync/syncGenerated")(function* (
 		reportHeld();
 	}
 
-	return { written, unchanged, migrated, skipped } satisfies GeneratedSyncResult;
+	return { written, unchanged, migrated, skipped, ahead } satisfies GeneratedSyncResult;
 });

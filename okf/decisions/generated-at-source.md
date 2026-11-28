@@ -6,7 +6,7 @@ tags:
   - architecture
 generated:
   by: human:spencer
-  at: 2026-11-27T23:59:28Z
+  at: 2026-11-28T00:16:02Z
 status: stable
 verified:
   - by: human:spencer
@@ -19,7 +19,7 @@ verified:
     at: 2026-11-25T13:29:38Z
 x-okfit-integrity:
   generated:
-    body: 22914a0a13999cbc
+    body: 8465a96b9992695f
   verified:
     by: human:spencer
     at: 2026-11-25T13:29:38Z
@@ -69,6 +69,10 @@ minutes ahead is reported `verified-after-now` on that run. A changed concept is
 `skipped`. A kept stamp more than five minutes ahead that guards no verification dated after now is
 re-stamped to now on the same run, so "commit, then run okfit sync" converges in one run, even when the commit's
 author date is older than a verification (amend, rebase, cherry-pick). A hold within the five-minute tolerance is not reported.
+A clock that is far behind is not refused: sync keeps acting. Each run that selects the generated mode and sees a
+`generated.at` or a commit's author date more than five minutes later than now prints one warning on stderr, naming
+how many concepts and the latest time, and says the clock may be behind. Under `--format json` the envelope's optional
+`clock_behind` key carries it and stderr stays empty. The exit code never changes.
 This is the owner's ruling of 2026-11-25 on #509. The
 owner accepted the cost: a concept whose repair is blocked has no okfit repair and
 needs a human.

@@ -152,7 +152,7 @@ src/
     json.ts                           -- JsonDiagnostic/Envelope/ErrorEnvelope/Summary (`fix`, `target`, `migration_findings`), json, jsonError (pure)
     exit.ts                           -- Tally, tally, forDiagnostics (pure)
     move.ts                            -- MoveEnvelope, moveEnvelope (envelope half)
-    sync.ts                            -- SyncEnvelope, SyncModeEnvelope, syncEnvelope (envelope half)
+    sync.ts                            -- SyncEnvelope (optional `clock_behind`, #509), SyncModeEnvelope, syncEnvelope (envelope half)
   index.ts                            -- public barrel; this is what @okfit/cli and @okfit/mcp import
 ```
 

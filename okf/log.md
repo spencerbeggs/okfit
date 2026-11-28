@@ -1,5 +1,12 @@
 # Log
 
+## 2026-11-28
+
+* Updated CLI
+* Updated Engine
+* Updated Generated.at is the author date of the last commit that changed the body
+* Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+
 ## 2026-11-27
 
 * Updated Core

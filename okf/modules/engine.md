@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-27T23:59:28Z
+  at: 2026-11-28T00:16:02Z
 x-okfit-integrity:
   generated:
-    body: f27ff8bb8e14548d
+    body: 5e3575a324702345
 ---
 
 # Engine
@@ -256,7 +256,7 @@ verification count, reporting the concept in `skipped` as `verified-after-now` w
 the stamp and that verification's date; a clamp that would make one count is not
 applied, the derived stamp stands and is reported `verified-after-now` on that run (a changed concept is still written, so it may be in
 both `written` and `skipped`), and the lint `generated-at-future` also reports it. A kept stamp more than five minutes ahead that guards
-no verification dated after now is re-stamped to now on the same run (#509); a hold within the tolerance is not reported. Sync keeps a leading byte-order mark and the file's line endings when it
+no verification dated after now is re-stamped to now on the same run (#509); a hold within the tolerance is not reported. `syncGenerated` also returns `ahead` (each in-scope concept whose `generated.at`, or whose committed author date when it is drifted, is more than the tolerance past `now`); `planSync` takes it out of the generated mode result and sets the optional `SyncResult.clockBehind` (`now`, `latest`, `concepts`), which `SyncEnvelope` carries as `clock_behind`. Sync keeps a leading byte-order mark and the file's line endings when it
 rewrites `index.md` or `log.md`: a rewrite uses the file's first newline
 throughout (the rule covers LF and CRLF; a file with no LF is written LF),
 and a file that differs from what sync would write only in its line endings

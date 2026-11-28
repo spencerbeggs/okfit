@@ -919,3 +919,61 @@ describe("runSync --staged (issue #140)", () => {
 		}),
 	);
 });
+
+describe("runSync: the clock warning (#509)", () => {
+	const NOW = DateTime.makeUnsafe("2026-11-24T10:00:00Z");
+	const atFuture = async (root: string, name: string, title: string, at: string): Promise<void> => {
+		const body = `\n# ${title}\n\nBody.\n`;
+		const digest = await Effect.runPromise(
+			Derivation.bodyDigest(`---\ntype: Module\ntitle: ${title}\n---${body}`).pipe(Effect.provide(TestPlatform)),
+		);
+		await writeFile(
+			join(root, name),
+			`---\ntype: Module\ntitle: ${title}\ngenerated:\n  by: human:ada\n  at: ${at}\nx-okfit-integrity:\n  generated:\n    body: ${digest}\n---${body}`,
+		);
+	};
+	const sync = (root: string, modes: ReadonlyArray<"generated" | "index" | "log">) =>
+		runSync({
+			bundleRoot: root,
+			config: OkfitConfig.DEFAULTS,
+			modes: new Set(modes),
+			dryRun: true,
+			now: NOW,
+		}).pipe(Effect.provide(fakes(root, { repoRoot: 0, show: 0, pathLog: 0 })));
+
+	it.effect("sets clockBehind once for the run, and keeps ahead out of the mode result", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-run-")));
+			try {
+				yield* Effect.promise(() => atFuture(root, "b.md", "B", "2031-01-01T00:00:00Z"));
+				yield* Effect.promise(() => atFuture(root, "a.md", "A", "2030-01-01T00:00:00Z"));
+				yield* Effect.promise(() => atFuture(root, "c.md", "C", "2026-06-01T00:00:00Z"));
+				const result = yield* sync(root, ["generated"]);
+				assert.deepStrictEqual(result.clockBehind, {
+					now: "2026-11-24T10:00:00Z",
+					latest: "2031-01-01T00:00:00Z",
+					concepts: ["a", "b"],
+				});
+				assert.isFalse("ahead" in result.generated);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+
+	it.effect("sets no clockBehind without a stamp ahead, or without the generated mode", () =>
+		Effect.gen(function* () {
+			const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "okfit-sync-run-")));
+			try {
+				yield* Effect.promise(() => atFuture(root, "a.md", "A", "2026-06-01T00:00:00Z"));
+				assert.isUndefined((yield* sync(root, ["generated"])).clockBehind);
+				yield* Effect.promise(() => atFuture(root, "b.md", "B", "2030-01-01T00:00:00Z"));
+				yield* Effect.promise(() => writeFile(join(root, "index.md"), "# Index\n"));
+				assert.isUndefined((yield* sync(root, ["index"])).clockBehind);
+				assert.isDefined((yield* sync(root, ["generated"])).clockBehind);
+			} finally {
+				yield* Effect.promise(() => rm(root, { recursive: true, force: true }));
+			}
+		}),
+	);
+});

@@ -1371,4 +1371,89 @@ describe("okfit sync --publication", () => {
 			await removeSandbox(control.sandbox);
 		}
 	});
+	it("sync warns once on stderr when stamps are ahead of the clock, and keeps acting (#509)", async () => {
+		const futureText = (title: string, body: string, digest: string): string =>
+			[
+				"---",
+				"type: Decision",
+				`title: ${title}`,
+				`description: ${title}.`,
+				"generated:",
+				"  by: human:ada",
+				"  at: 2030-01-01T00:00:00Z",
+				"status: draft",
+				"x-okfit-integrity:",
+				"  generated:",
+				`    body: ${digest}`,
+				"---",
+				"",
+				body,
+				"",
+			].join("\n");
+		const arrange = async () => {
+			const seed = await seeded();
+			for (const name of ["one", "two"]) {
+				const digest = await digestOf(futureText(name, `# ${name}`, "0000000000000000"));
+				await writeAndCommitDecision(
+					seed.cwd,
+					seed.env,
+					name,
+					futureText(name, `# ${name}`, digest),
+					"2026-09-02T00:00:00+00:00",
+					`add ${name}`,
+				);
+			}
+			return seed;
+		};
+		const env = (base: Record<string, string>) => ({ ...base, OKFIT_NOW: "2026-09-10T00:00:00Z" });
+		const expected =
+			"warning: 2 concept(s) carry a generated.at or commit date more than 5 minutes later than now (2026-09-10T00:00:00Z; the latest is 2030-01-01T00:00:00Z), so this machine's clock may be behind; sync treats each as ahead of the clock: it re-stamps it to now, or lists it as skipped when that would make a verification count";
+
+		const human = await arrange();
+		try {
+			const run = await withServices(
+				runOkfit(["sync", "--only", "generated"], { cwd: human.cwd, env: env(human.env) }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.deepStrictEqual(
+				run.stderr.split("\n").filter((line) => line.startsWith("warning:")),
+				[expected],
+			);
+			assert.include(run.stdout, "  wrote decisions/one");
+			assert.include(run.stdout, "  wrote decisions/two");
+			assert.include(await readDecision(human.cwd, "one"), "  at: 2026-09-10T00:00:00Z\n");
+			assert.include(await readDecision(human.cwd, "two"), "  at: 2026-09-10T00:00:00Z\n");
+			// Control: the stamps are repaired, so a second run is quiet.
+			const again = await withServices(
+				runOkfit(["sync", "--only", "generated"], { cwd: human.cwd, env: env(human.env) }),
+			);
+			assert.strictEqual(again.exitCode, 0, again.stderr);
+			assert.notInclude(again.stderr, "warning:");
+		} finally {
+			await removeSandbox(human.sandbox);
+		}
+
+		const json = await arrange();
+		try {
+			const run = await withServices(
+				runOkfit(["sync", "--only", "generated", "--format", "json"], { cwd: json.cwd, env: env(json.env) }),
+			);
+			assert.strictEqual(run.exitCode, 0, run.stderr);
+			assert.strictEqual(run.stderr, "");
+			const envelope = parseEnvelope(run.stdout) as unknown as {
+				readonly clock_behind: {
+					readonly now: string;
+					readonly latest: string;
+					readonly concepts: ReadonlyArray<string>;
+				};
+			};
+			assert.deepStrictEqual(envelope.clock_behind, {
+				now: "2026-09-10T00:00:00Z",
+				latest: "2030-01-01T00:00:00Z",
+				concepts: ["decisions/one", "decisions/two"],
+			});
+		} finally {
+			await removeSandbox(json.sandbox);
+		}
+	});
 });
