@@ -1,5 +1,25 @@
 # @okfit/ai-plugins
 
+## 0.14.0
+
+### Features
+
+- SessionStart tells a project whose CLI is older than 0.18.0 to update `@okfit/cli` (#487)
+
+### Bug Fixes
+
+- The `okf-upgrade` skill drops its own `--target` check
+- The `okf-authoring` skill's future-stamp wording now says `okfit sync` re-stamps it to now (commit any edits to the concept first)
+
+### Documentation
+
+- The `okf-config` skill lists the `read_changed` lint and the 44-key `[lint]` count
+- The `okf-upgrade` skill covers an unparseable root index and the `read-changed` warning
+
+### Maintenance
+
+- The Claude Code and GitHub Copilot plugins are rebuilt with pluginfinity 0.4, which updates the generated hook runtime (handling for more Claude Code hook events) and adds a description to the Claude plugin's `hooks.json`.
+
 ## 0.13.0
 
 ### Breaking Changes

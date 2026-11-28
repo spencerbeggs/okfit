@@ -1,5 +1,49 @@
 # @okfit/cli
 
+## 0.18.1
+
+### Features
+
+- `okfit sync` prints one warning on stderr when a `generated.at`, or a changed concept's commit date, is more than the tolerance ahead of the clock. Sync keeps acting and the exit code is unchanged; under `--format json` the envelope's `clock_behind` key carries it and stderr stays empty (#509)
+- The interactive confirm screen of `okfit sync` shows that warning below the plan, so a cancel still shows it and it is not printed again after the writes (#509)
+
+### Bug Fixes
+
+- An `okfit verify` refusal that quotes a frontmatter value or an argument now prints it on one line, and the nothing-to-revoke refusal no longer prints its class name (#511)
+- A malformed `okfit verify --at` is now a usage error with exit code 64 (it was 3) and names the expected form; it is checked before the config is read (only an explicit `--config` that does not exist is checked first, exit 3) (#513). Scripts that treated exit 3 as the signal for a bad `--at` should check for 64 instead.
+- `okfit sync --since` refuses an impossible calendar date such as `2026-02-30` with exit code 64. It used to accept one and silently act as a later floor.
+- `--stable` and `--draft` accept one concept named more than once (#514)
+- Every `okfit verify` skip line names a next step (#517)
+- The future-stamp advice says to run `okfit sync`, which re-stamps it to now (commit any edits to it first) (#515)
+- The `not tracked by git` and `has uncommitted changes` skip lines of `okfit sync` name a next step
+
+* `okfit sync` explains a skipped `index.md` that cannot be parsed (`index-unparseable`) and one that changed while it was read (`changed-during-read`), each with the next step
+* `okfit verify` batch output explains a file skipped because it changed while the bundle was read
+* `okfit sync --publication` says a Publication or render source changed while it was read, with no list hint, instead of reporting it missing
+* `okfit mv` explains that it refused because files changed during the load, and that nothing was moved
+* `okfit query get`, `query neighbors` and `okfit verify <id>` say a concept "changed while it was read; try again" instead of reporting it missing
+
+- `--format` on `validate`, `context`, `lint`, `stale`, `mv`, `sync`, `verify` and `query list`, `get` and `neighbors` is now a scoped global setting. Its values and defaults are unchanged, and it now appears under GLOBAL FLAGS in those commands' help.
+- A usage error caught while parsing arguments under `--format json` prints the same JSON envelope with exit code 64, rendered through `@effected/cli-kit`.
+- `--format json` on a command that has no `--format` flag, such as `okfit init` or the bare `okfit query` group, no longer prints a JSON envelope. `okfit graph` keeps its own `--format`.
+
+### Tests
+
+- The migration summary's fallback, which counts no refusals when its plan fails, is now covered (#506)
+
+### Dependencies
+
+| Dependency | Type | Action | From | To |
+| --- | --- | --- | --- | --- |
+| @effect/platform-node | dependency | updated | 4.1.5 | 4.1.6 |
+| @effected/cli-kit | dependency | updated | 0.30.1 | 0.31.0 |
+| @effected/config-file | dependency | updated | 0.29.0 | 0.30.0 |
+| @effected/walker | dependency | updated | 0.30.0 | 0.31.0 |
+| @okfit/core | dependency | updated | 0.15.0 | 0.16.0 |
+| @okfit/engine | dependency | updated | 0.22.0 | 0.23.0 |
+| @okfit/profiles | dependency | updated | 0.16.0 | 0.16.1 |
+| effect | dependency | updated | 4.1.5 | 4.1.6 |
+
 ## 0.18.0
 
 ### Breaking Changes
