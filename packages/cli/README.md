@@ -434,12 +434,22 @@ and the stamp would then count. A changed concept's new stamp (the author date,
 or the staged instant under `--staged`) is capped at now unless a verification
 dated between now and it would then count, and is never moved back below the
 stamp it replaces when a verification falls between the two: the existing
-`generated.at` stays, the body digest is still re-recorded, and nothing is
-reported as skipped. A stamp lowered to the verification of the content being
+`generated.at` stays and the body digest is still re-recorded. A kept stamp more
+than five minutes ahead is reported `verified-after-now` on that run, so a changed
+concept can be in both `written` (or `migrated`) and `skipped`. A kept future
+stamp that guards no verification dated after now is re-stamped to now on the
+first run. A stamp lowered to the verification of the content being
 stamped (the edit, verify, commit sequence) is unaffected. A human has to
 correct `generated.at` or that verification; a skip does not change the exit
 code. Under `--staged` only staged concepts are re-stamped; run a plain
 `okfit sync` for the rest.
+
+When a run that selects the generated mode sees a `generated.at`, or the author
+date of a concept whose body changed, more than five minutes later than now, the
+local clock may be behind. A human run prints one `warning:` line on stderr, once
+per run, naming how many concepts and the latest time; sync keeps acting and the
+exit code is unchanged. Under `--format json` stderr stays empty and the envelope
+carries an optional `clock_behind` object (`now`, `latest`, `concepts`).
 
 ### `okfit mv`
 

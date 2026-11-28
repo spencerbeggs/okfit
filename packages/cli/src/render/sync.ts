@@ -81,7 +81,7 @@ export const humanSync = (result: SyncResult): ReadonlyArray<string> => {
 export const humanClockWarning = (result: SyncResult): string | undefined => {
 	const behind = result.clockBehind;
 	if (behind === undefined) return undefined;
-	return `warning: ${behind.concepts.length} concept(s) carry a generated.at or commit date more than ${GENERATED_AT_TOLERANCE_TEXT} later than now (${behind.now}; the latest is ${behind.latest}), so this machine's clock may be behind; sync treats each as ahead of the clock: it re-stamps it to now, or lists it as skipped when that would make a verification count`;
+	return `warning: ${behind.concepts.length} concept(s) carry a generated.at or commit date more than ${GENERATED_AT_TOLERANCE_TEXT} later than now (${behind.now}; the latest is ${behind.latest}), so this machine's clock may be behind; when sync writes such a concept it re-stamps it to now, or lists it as skipped when re-stamping would make a verification count`;
 };
 
 /**

@@ -1407,7 +1407,7 @@ describe("okfit sync --publication", () => {
 		};
 		const env = (base: Record<string, string>) => ({ ...base, OKFIT_NOW: "2026-09-10T00:00:00Z" });
 		const expected =
-			"warning: 2 concept(s) carry a generated.at or commit date more than 5 minutes later than now (2026-09-10T00:00:00Z; the latest is 2030-01-01T00:00:00Z), so this machine's clock may be behind; sync treats each as ahead of the clock: it re-stamps it to now, or lists it as skipped when that would make a verification count";
+			"warning: 2 concept(s) carry a generated.at or commit date more than 5 minutes later than now (2026-09-10T00:00:00Z; the latest is 2030-01-01T00:00:00Z), so this machine's clock may be behind; when sync writes such a concept it re-stamps it to now, or lists it as skipped when re-stamping would make a verification count";
 
 		const human = await arrange();
 		try {
