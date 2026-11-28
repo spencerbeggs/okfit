@@ -9,10 +9,10 @@ tags:
   - architecture
 generated:
   by: okfit/claude-code
-  at: 2026-11-28T00:16:02Z
+  at: 2026-11-28T00:31:36Z
 x-okfit-integrity:
   generated:
-    body: 5e3575a324702345
+    body: 14c2c99d7dbadfb7
 ---
 
 # Engine
@@ -195,7 +195,7 @@ Markdown themselves, so they need `FileSystem`, `Path` and `Digest`.
 old key names, over the whole bundle even when a caller narrows the report,
 so a front end can point at `okfit sync`; it is advisory and not a finding.
 `RunOptions.configPath` names the config file in `config-okf-version-stale`;
-`ResolvedProjectConfig.configPath` is the value every front end passes.
+`ResolvedProjectConfig.configPath` is the value the validate, lint, MCP and LSP front ends pass (init and context do not).
 An empty `Computation` section is not a `computation-locator` finding.
 `init` omits the root `title` and `description` for a bundle that declares
 0.2 or earlier (#468). See [Migration to a newer OKF version is a report on
