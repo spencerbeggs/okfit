@@ -653,7 +653,7 @@ describe("okfit verify (e2e)", () => {
 			assert.include(
 				run.stdout,
 				[
-					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again",
+					"skipped decisions/future: generated.at 2027-11-25T12:00:00Z is later than now, so no verification made now would count; run okfit sync, which re-stamps it to now (commit any edits to it first), then verify it again",
 					"skipped decisions/near: generated.at 2026-11-25T12:02:00Z is later than now by less than 5 minutes, so no verification made now would count yet; check the clock, or verify it again at or after 2026-11-25T12:02:00Z",
 					"skipped decisions/blocked: generated.at 2027-11-25T12:00:00Z is later than now, and okfit sync will not re-stamp it, because the verification dated 2026-12-25T00:00:00Z would then count without a re-verification; a human must correct generated.at or that verification",
 					"skipped decisions/absent: generated.at 2026-11-25T11:59:30Z is later than the verification time 2026-11-25T11:59:00Z, so a verification then would not count; verify it at or after 2026-11-25T11:59:30Z, or omit --at to verify now",
@@ -1406,7 +1406,7 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 			assert.strictEqual(refused.exitCode, 3);
 			assert.include(
 				refused.stderr,
-				"Commit any change to its body, then run okfit sync, which re-stamps it, then verify again",
+				"Run okfit sync, which re-stamps it to now (commit any edits to it first), then verify again",
 			);
 
 			// the premise: sync skips a body change that is not committed, and the stamp stays in the future
@@ -1432,7 +1432,7 @@ describe("okfit verify on a status outside the vocabulary (e2e, OKF 0.3 5.4, R7/
 		try {
 			const refused = await withServices(runOkfit(["verify", "decisions/a"], { cwd, env }));
 			assert.strictEqual(refused.exitCode, 3);
-			assert.include(refused.stderr, "Commit any change to its body, then run okfit sync, which re-stamps it");
+			assert.include(refused.stderr, "Run okfit sync, which re-stamps it to now (commit any edits to it first)");
 
 			const synced = await withServices(runOkfit(["sync", "--only", "generated"], { cwd, env }));
 			assert.strictEqual(synced.exitCode, 0, synced.stderr);

@@ -463,7 +463,7 @@ export const LintTable = Schema.Struct({
 	generated_at_future: Schema.optionalKey(
 		LintLevel.annotate({
 			title: "generated-at-future",
-			description: `A concept's generated.at is more than ${GENERATED_AT_TOLERANCE_TEXT} later than now, so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses it; commit any change to its body, then run okfit sync, which re-stamps it. Default "warn".`,
+			description: `A concept's generated.at is more than ${GENERATED_AT_TOLERANCE_TEXT} later than now, so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses it; run okfit sync, which re-stamps it to now (commit any edits to it first). Default "warn".`,
 			default: "warn",
 		}),
 	),

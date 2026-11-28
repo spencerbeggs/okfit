@@ -102,7 +102,7 @@ export const configOkfVersionStale: LintRule = rule("config-okf-version-stale", 
 
 /**
  * #471: a `generated.at` later than now counts for no verification (OKF 0.3 §5.3) and `okfit verify` refuses it;
- * `okfit sync` re-stamps it once any change to its body is committed, except when a verification would then count
+ * `okfit sync` re-stamps it to now (a file with uncommitted edits is skipped until they are committed), except when a verification would then count
  * (`verificationBlockingRestamp`).
  */
 export const generatedAtFuture: LintRule = perConcept("generated-at-future", (concept, context) => {
@@ -119,7 +119,7 @@ export const generatedAtFuture: LintRule = perConcept("generated-at-future", (co
 		{
 			message: Option.isSome(blocking)
 				? `${head}; okfit sync will not re-stamp it, because the verification dated ${instant(blocking.value)} would then count without a re-verification; a human must correct generated.at or that verification`
-				: `${head}; commit any change to its body, then run okfit sync, which re-stamps it`,
+				: `${head}; run okfit sync, which re-stamps it to now (commit any edits to it first)`,
 			path: ["generated", "at"],
 		},
 	];

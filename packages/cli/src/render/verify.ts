@@ -94,7 +94,7 @@ export const notCurrentReason = (detail: NotCurrentDetail): string => {
 	const g = detail.generatedAt;
 	switch (detail.kind) {
 		case "future":
-			return `generated.at ${g} is later than now, so no verification made now would count; commit any change to its body, then run okfit sync, which re-stamps it, then verify it again`;
+			return `generated.at ${g} is later than now, so no verification made now would count; run okfit sync, which re-stamps it to now (commit any edits to it first), then verify it again`;
 		case "near-future":
 			return `generated.at ${g} is later than now by less than ${GENERATED_AT_TOLERANCE_TEXT}, so no verification made now would count yet; check the clock, or verify it again at or after ${g}`;
 		case "blocked":

@@ -521,7 +521,7 @@ describe("describeFailure for NotCurrent (#470)", () => {
 	it("beyond the tolerance names okfit sync; within it says to check the clock", () => {
 		assert.strictEqual(
 			describeFailure({ _tag: "NotCurrent", generatedAt: "2030-01-01T00:00:00Z", kind: "future" }),
-			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now, so a verification now would not count (OKF 0.3 5.3); commit any change to its body, then run okfit sync, which re-stamps it, then mark verified again",
+			"the concept's generated.at (2030-01-01T00:00:00Z) is later than now, so a verification now would not count (OKF 0.3 5.3); run okfit sync, which re-stamps it to now (commit any edits to it first), then mark verified again",
 		);
 		assert.strictEqual(
 			describeFailure({ _tag: "NotCurrent", generatedAt: "2030-01-01T00:00:00Z", kind: "near-future" }),

@@ -8,7 +8,7 @@ import { Validate } from "../src/Validate.js";
 
 const NOW = DateTime.makeUnsafe("2026-11-24T10:00:00Z");
 const MESSAGE =
-	"generated.at 2030-01-01T00:00:00Z is more than 5 minutes later than now (2026-11-24T10:00:00Z), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; commit any change to its body, then run okfit sync, which re-stamps it";
+	"generated.at 2030-01-01T00:00:00Z is more than 5 minutes later than now (2026-11-24T10:00:00Z), so no verification can count yet (OKF 0.3 §5.3) and okfit verify refuses this concept; run okfit sync, which re-stamps it to now (commit any edits to it first)";
 
 const concept = (at: string, status = "", verifiedAt?: string) =>
 	`---\ntype: Module\n${status}generated:\n  by: human:ada\n  at: ${at}\n${
