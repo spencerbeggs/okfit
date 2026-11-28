@@ -6,6 +6,7 @@
 * Updated Engine
 * Updated Generated.at is the author date of the last commit that changed the body
 * Updated okfit CLI — validate, init, context, verify, query, sync, lint, graph, stale
+* Updated Every okfit digest lives in one integrity family, outside the spec's families
 
 ## 2026-11-27
 
