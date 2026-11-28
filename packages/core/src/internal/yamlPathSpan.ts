@@ -61,7 +61,7 @@ export const frontmatterPathSpan = (
  * fatal): {@link frontmatterPathSpan} without its whole-block fallback, for a caller that would
  * rather carry no range than a wrong one. Same quoting rule: a double-quoted scalar's span covers
  * its quotes. A bare `key:` has no value node and a tagged empty value (`key: !!null`) has no text
- * (the kit reports its span as offset 0, length 0), so neither has a value span: both answer `undefined`.
+ * (the kit reports a zero-length span just after the tag), so neither has a value span: both answer `undefined`.
  * An edit that splices into the returned span relies on it being the value's own text, so it is never the key's;
  * {@link findFrontmatterAnchorSpan} is the diagnostic reading.
  *
@@ -77,6 +77,25 @@ export const findFrontmatterPathSpan = (
 	const hit = parsed.success.contents.find(path as YamlPath);
 	if (Option.isNone(hit) || hit.value.length === 0) return undefined;
 	return { offset: toFileOffset(text, hit.value.offset), length: hit.value.length };
+};
+
+/**
+ * The source text of the scalar at `path`, as its author wrote it (an unquoted `0.10` reads `"0.10"`, where YAML's
+ * value is `0.1`), or `undefined` when the node is not a scalar with text or the re-parse is fatal. Quotes are
+ * included for a quoted scalar; a tag or anchor never is.
+ *
+ * @internal
+ */
+export const findFrontmatterScalarSource = (
+	node: Frontmatter,
+	path: ReadonlyArray<string | number>,
+): string | undefined => {
+	const parsed = parsedYamlOf(node);
+	if (Result.isFailure(parsed) || parsed.success.contents === null) return undefined;
+	const hit = parsed.success.contents.find(path as YamlPath);
+	if (Option.isNone(hit) || !(hit.value instanceof YamlScalar)) return undefined;
+	const source = hit.value.sourceText(node.value);
+	return source === "" ? undefined : source;
 };
 
 /**

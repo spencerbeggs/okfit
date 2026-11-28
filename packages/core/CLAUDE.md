@@ -28,7 +28,7 @@ src/
   internal/         -- engine: position, fence, yamlPathSpan (YAML path to file span, shared by frontmatter.ts and Diagnostic.ts), frontmatter, reserved, links, lintRules, templates;
                        walk.ts is a thin adapter over @effected/walker's descend (record mode for
                        unreadable directories and the `links` it passes over), not a hand-rolled recursive walker.
-                       linkScan.ts turns the walker's `links` (directory links not entered, dangling links) into symlink-escape findings: a directory link is decided by confineReal on its real path; pruned names are silent for file links and directory links alike (a pruned file link is dropped by Bundle.load, never read), hidden ones only with includeHidden
+                       linkScan.ts turns the walker's `links` (directory links not entered, dangling links) into symlink-escape findings; a link to a special file (walker kind `special`) stays silent, as it was before walker 0.32 reported it: a directory link is decided by confineReal on its real path; pruned names are silent for file links and directory links alike (a pruned file link is dropped by Bundle.load, never read), hidden ones only with includeHidden
 ```
 
 Tests live in `__test__/`, never in `src/`; `@effect/vitest` (`it.effect`, `assert`), never `expect`; `@effected/memfs` plus `Path.layer` for the filesystem. Fixtures under `__test__/fixtures/`, helpers under `__test__/utils/`.
