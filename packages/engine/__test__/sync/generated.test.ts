@@ -1917,6 +1917,15 @@ describe("syncGenerated: never leaves or writes a generated.at later than now (#
 		}),
 	);
 
+	it.effect("a matching concept's commit date is not counted, only its generated.at (#509)", () =>
+		Effect.gen(function* () {
+			const files = { a: yield* matching("a", "2026-06-01T00:00:00Z") };
+			const { result } = yield* run(files, { now: NOW, provenance: DateTime.makeUnsafe("2030-06-01T00:00:00Z") });
+			assert.deepStrictEqual(result.unchanged, ["a"]);
+			assert.deepStrictEqual(result.ahead, []);
+		}),
+	);
+
 	it.effect("a clock that is behind does not re-stamp a recent stamp", () =>
 		Effect.gen(function* () {
 			const behind = DateTime.makeUnsafe("2026-11-24T09:58:00Z");
